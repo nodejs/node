@@ -671,7 +671,8 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     //   #maybe_store_and_unset_done;
     //   #increment_index;
     // }
-    WhileStatement* loop = factory()->NewWhileStatement(nullptr, nopos);
+    WhileStatement* loop =
+        factory()->NewWhileStatement(nullptr, nullptr, nopos);
     {
       Expression* condition = factory()->NewUnaryOperation(
           Token::NOT, factory()->NewVariableProxy(done), nopos);

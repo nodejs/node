@@ -53,7 +53,7 @@ utils.Import(function(from) {
 function ValidateTypedArray(array, methodName) {
   if (!IS_TYPEDARRAY(array)) throw %make_type_error(kNotTypedArray);
 
-  if (%_ArrayBufferViewWasNeutered(array))
+  if (%ArrayBufferViewWasNeutered(array))
     throw %make_type_error(kDetachedOperation, methodName);
 }
 
@@ -67,7 +67,7 @@ DEFINE_METHOD(
 
     var locales = arguments[0];
     var options = arguments[1];
-    var length = %_TypedArrayGetLength(this);
+    var length = %TypedArrayGetLength(this);
     return InnerArrayToLocaleString(this, length, locales, options);
   }
 );
@@ -79,7 +79,7 @@ DEFINE_METHOD(
   join(separator) {
     ValidateTypedArray(this, "%TypedArray%.prototype.join");
 
-    var length = %_TypedArrayGetLength(this);
+    var length = %TypedArrayGetLength(this);
 
     return InnerArrayJoin(separator, this, length);
   }

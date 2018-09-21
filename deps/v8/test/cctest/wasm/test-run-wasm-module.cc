@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/version.h"
@@ -886,9 +886,11 @@ TEST(AtomicOpDisassembly) {
     testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
+    auto enabled_features = WasmFeaturesFromIsolate(isolate);
     MaybeHandle<WasmModuleObject> module_object =
         isolate->wasm_engine()->SyncCompile(
-            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+            isolate, enabled_features, &thrower,
+            ModuleWireBytes(buffer.begin(), buffer.end()));
 
     module_object.ToHandleChecked()->DisassembleFunction(0);
   }

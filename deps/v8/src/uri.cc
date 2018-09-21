@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "src/char-predicates-inl.h"
-#include "src/handles.h"
 #include "src/isolate-inl.h"
 #include "src/string-search.h"
 #include "src/unicode-inl.h"

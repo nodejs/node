@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/heap/code-stats.h"
+
 #include "src/objects-inl.h"
+#include "src/reloc-info.h"
 
 namespace v8 {
 namespace internal {

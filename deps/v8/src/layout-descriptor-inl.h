@@ -205,6 +205,17 @@ LayoutDescriptor* LayoutDescriptor::Initialize(
   return layout_descriptor;
 }
 
+int LayoutDescriptor::number_of_layout_words() {
+  return length() / kUInt32Size;
+}
+
+uint32_t LayoutDescriptor::get_layout_word(int index) const {
+  return get_uint32(index);
+}
+
+void LayoutDescriptor::set_layout_word(int index, uint32_t value) {
+  set_uint32(index, value);
+}
 
 // LayoutDescriptorHelper is a helper class for querying whether inobject
 // property at offset is Double or not.
@@ -235,6 +246,7 @@ bool LayoutDescriptorHelper::IsTagged(int offset_in_bytes) {
 
   return layout_descriptor_->IsTagged(field_index);
 }
+
 }  // namespace internal
 }  // namespace v8
 

@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-string-gen.h"
@@ -13,9 +13,12 @@
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/promise-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
@@ -2377,7 +2380,8 @@ TEST(CreatePromiseResolvingFunctions) {
   std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
       promise, m.BooleanConstant(false), native_context);
   Node* const kSize = m.IntPtrConstant(2);
-  Node* const arr = m.AllocateFixedArray(PACKED_ELEMENTS, kSize);
+  TNode<FixedArray> const arr =
+      m.Cast(m.AllocateFixedArray(PACKED_ELEMENTS, kSize));
   m.StoreFixedArrayElement(arr, 0, resolve);
   m.StoreFixedArrayElement(arr, 1, reject);
   m.Return(arr);
@@ -3449,6 +3453,54 @@ TEST(IsDoubleElementsKind) {
                     .ToHandleChecked()))
                ->value(),
            0);
+}
+
+TEST(TestCallBuiltinInlineTrampoline) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  const int kContextOffset = 2;
+  Node* str = m.Parameter(0);
+  Node* context = m.Parameter(kNumParams + kContextOffset);
+
+  Node* index = m.SmiConstant(2);
+
+  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
+                      context, str, index));
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  options.inline_offheap_trampolines = true;
+  options.use_pc_relative_calls_and_jumps = false;
+  options.isolate_independent_code = false;
+  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
+  MaybeHandle<Object> result = ft.Call(MakeString("abcdef"));
+  CHECK(String::Equals(isolate, MakeString("abcdefabcdef"),
+                       Handle<String>::cast(result.ToHandleChecked())));
+}
+
+TEST(TestCallBuiltinIndirectLoad) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  const int kContextOffset = 2;
+  Node* str = m.Parameter(0);
+  Node* context = m.Parameter(kNumParams + kContextOffset);
+
+  Node* index = m.SmiConstant(2);
+
+  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
+                      context, str, index));
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  options.inline_offheap_trampolines = false;
+  options.use_pc_relative_calls_and_jumps = false;
+  options.isolate_independent_code = true;
+  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
+  MaybeHandle<Object> result = ft.Call(MakeString("abcdef"));
+  CHECK(String::Equals(isolate, MakeString("abcdefabcdef"),
+                       Handle<String>::cast(result.ToHandleChecked())));
 }
 
 }  // namespace compiler

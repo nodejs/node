@@ -202,5 +202,11 @@ void RootScavengeVisitor::ScavengePointer(Object** p) {
                              reinterpret_cast<HeapObject*>(object));
 }
 
+RootScavengeVisitor::RootScavengeVisitor(Scavenger* scavenger)
+    : scavenger_(scavenger) {}
+
+ScavengeVisitor::ScavengeVisitor(Scavenger* scavenger)
+    : scavenger_(scavenger) {}
+
 }  // namespace internal
 }  // namespace v8

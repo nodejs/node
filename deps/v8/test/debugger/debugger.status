@@ -18,8 +18,9 @@
   'debug/es6/debug-promises/reject-with-invalid-reject': [FAIL],
 
   # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
-  # parameter value
-  'debug/es6/debug-scope-default-param-with-eval': [FAIL],
+  # parameter value (the test causes indexing a FixedArray out of bounds ->
+  # CRASH is also a reasonable outcome).
+  'debug/es6/debug-scope-default-param-with-eval': [FAIL, CRASH],
 
   # Slow tests
   'debug/debug-scopes': [PASS, SLOW],

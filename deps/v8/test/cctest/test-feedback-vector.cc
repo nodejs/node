@@ -5,7 +5,7 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/global-handles.h"

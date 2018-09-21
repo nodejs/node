@@ -10,7 +10,7 @@
 #include "src/external-reference-table.h"
 #include "src/globals.h"
 #include "src/snapshot/references.h"
-#include "src/utils.h"
+#include "src/v8memory.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -300,8 +300,10 @@ class SerializedData {
   SerializedData(byte* data, int size)
       : data_(data), size_(size), owns_data_(false) {}
   SerializedData() : data_(nullptr), size_(0), owns_data_(false) {}
-  SerializedData(SerializedData&& other)
-      : data_(other.data_), size_(other.size_), owns_data_(other.owns_data_) {
+  SerializedData(SerializedData&& other) V8_NOEXCEPT
+      : data_(other.data_),
+        size_(other.size_),
+        owns_data_(other.owns_data_) {
     // Ensure |other| will not attempt to destroy our data in destructor.
     other.owns_data_ = false;
   }

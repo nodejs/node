@@ -5,7 +5,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/conversions-inl.h"
@@ -14,6 +14,7 @@
 #include "src/globals.h"
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -114,7 +115,7 @@ BUILTIN(AtomicsWake) {
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (i << 2) + NumberToSize(sta->byte_offset());
 
-  return FutexEmulation::Wake(isolate, array_buffer, addr, c);
+  return FutexEmulation::Wake(array_buffer, addr, c);
 }
 
 // ES #sec-atomics.wait

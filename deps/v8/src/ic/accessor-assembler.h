@@ -39,6 +39,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreICTrampoline();
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
+  void GenerateCloneObjectIC();
 
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
@@ -137,9 +138,9 @@ class AccessorAssembler : public CodeStubAssembler {
                          TVariable<MaybeObject>* var_handler, Label* if_handler,
                          Label* miss, ExitPoint* exit_point);
 
-  TNode<Object> LoadDescriptorValue(Node* map, Node* descriptor);
-  TNode<MaybeObject> LoadDescriptorValueOrFieldType(Node* map,
-                                                    Node* descriptor);
+  TNode<Object> LoadDescriptorValue(TNode<Map> map, Node* descriptor);
+  TNode<MaybeObject> LoadDescriptorValueOrFieldType(
+      TNode<Map> map, SloppyTNode<IntPtrT> descriptor);
 
   void LoadIC_Uninitialized(const LoadICParameters* p);
 
@@ -173,7 +174,8 @@ class AccessorAssembler : public CodeStubAssembler {
       ElementSupport support_elements = kOnlyProperties);
 
   void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
-                                  Node* smi_handler, Node* handler, Label* miss,
+                                  SloppyTNode<Smi> smi_handler,
+                                  SloppyTNode<Object> handler, Label* miss,
                                   ExitPoint* exit_point,
                                   OnNonExistent on_nonexistent,
                                   ElementSupport support_elements);
@@ -182,6 +184,16 @@ class AccessorAssembler : public CodeStubAssembler {
                                 Variable* var_holder, Variable* var_smi_handler,
                                 Label* if_smi_handler, Label* miss,
                                 ExitPoint* exit_point, ICMode ic_mode);
+
+  void HandleLoadCallbackProperty(const LoadICParameters* p,
+                                  TNode<JSObject> holder,
+                                  TNode<WordT> handler_word,
+                                  ExitPoint* exit_point);
+
+  void HandleLoadAccessor(const LoadICParameters* p,
+                          TNode<CallHandlerInfo> call_handler_info,
+                          TNode<WordT> handler_word, TNode<DataHandler> handler,
+                          TNode<IntPtrT> handler_kind, ExitPoint* exit_point);
 
   void HandleLoadField(Node* holder, Node* handler_word,
                        Variable* var_double_value, Label* rebox_double,

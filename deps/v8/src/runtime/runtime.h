@@ -79,7 +79,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_CLASSES(F)       \
   F(DefineClass, -1 /* >= 3 */, 1)          \
-  F(GetSuperConstructor, 1, 1)              \
   F(HomeObjectSymbol, 0, 1)                 \
   F(LoadFromSuper, 3, 1)                    \
   F(LoadKeyedFromSuper, 3, 1)               \
@@ -97,8 +96,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
   F(GetWeakMapEntries, 2, 1)              \
   F(GetWeakSetValues, 2, 1)               \
-  F(IsJSWeakMap, 1, 1)                    \
-  F(IsJSWeakSet, 1, 1)                    \
   F(MapGrow, 1, 1)                        \
   F(MapIteratorClone, 1, 1)               \
   F(MapShrink, 1, 1)                      \
@@ -203,33 +200,39 @@ namespace internal {
 #ifdef V8_INTL_SUPPORT
 #define FOR_EACH_INTRINSIC_INTL(F)           \
   F(AvailableLocalesOf, 1, 1)                \
-  F(BreakIteratorAdoptText, 2, 1)            \
   F(BreakIteratorBreakType, 1, 1)            \
   F(BreakIteratorCurrent, 1, 1)              \
   F(BreakIteratorFirst, 1, 1)                \
   F(BreakIteratorNext, 1, 1)                 \
   F(CanonicalizeLanguageTag, 1, 1)           \
+  F(CollatorResolvedOptions, 1, 1)           \
   F(CreateBreakIterator, 3, 1)               \
-  F(CreateCollator, 3, 1)                    \
   F(CreateDateTimeFormat, 3, 1)              \
   F(CreateNumberFormat, 3, 1)                \
-  F(CreatePluralRules, 3, 1)                 \
   F(CurrencyDigits, 1, 1)                    \
   F(DateCacheVersion, 0, 1)                  \
+  F(DefaultNumberOption, 5, 1)               \
+  F(DefineWEProperty, 3, 1)                  \
+  F(FormatList, 2, 1)                        \
+  F(FormatListToParts, 2, 1)                 \
   F(GetDefaultICULocale, 0, 1)               \
-  F(InternalCompare, 3, 1)                   \
-  F(InternalDateFormat, 2, 1)                \
-  F(InternalNumberFormat, 2, 1)              \
+  F(GetNumberOption, 5, 1)                   \
   F(IntlUnwrapReceiver, 5, 1)                \
   F(IsInitializedIntlObjectOfType, 2, 1)     \
+  F(IsWellFormedCurrencyCode, 1, 1)          \
   F(MarkAsInitializedIntlObjectOfType, 2, 1) \
+  F(ParseExtension, 1, 1)                    \
+  F(PluralRulesResolvedOptions, 1, 1)        \
   F(PluralRulesSelect, 2, 1)                 \
-  F(StringLocaleConvertCase, 3, 1)           \
+  F(ToDateTimeOptions, 3, 1)                 \
+  F(ToLocaleDateTime, 6, 1)                  \
   F(StringToLowerCaseIntl, 1, 1)             \
-  F(StringToUpperCaseIntl, 1, 1)
+  F(StringToUpperCaseIntl, 1, 1)             \
+  F(SupportedLocalesOf, 3, 1)                \
+// End of macro.
 #else
 #define FOR_EACH_INTRINSIC_INTL(F)
-#endif
+#endif  // V8_INTL_SUPPORT
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F)                               \
   F(AllocateInNewSpace, 1, 1)                                        \
@@ -277,9 +280,11 @@ namespace internal {
   F(Typeof, 1, 1)                                                    \
   F(UnwindAndFindExceptionHandler, 0, 1)
 
-#define FOR_EACH_INTRINSIC_LITERALS(F) \
-  F(CreateArrayLiteral, 4, 1)          \
-  F(CreateObjectLiteral, 4, 1)         \
+#define FOR_EACH_INTRINSIC_LITERALS(F)              \
+  F(CreateArrayLiteral, 4, 1)                       \
+  F(CreateArrayLiteralWithoutAllocationSite, 2, 1)  \
+  F(CreateObjectLiteral, 4, 1)                      \
+  F(CreateObjectLiteralWithoutAllocationSite, 2, 1) \
   F(CreateRegExpLiteral, 4, 1)
 
 #define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 0, 1)
@@ -295,7 +300,7 @@ namespace internal {
   F(IsSmi, 1, 1)                      \
   F(IsValidSmi, 1, 1)                 \
   F(MaxSmi, 0, 1)                     \
-  F(NumberToStringSkipCache, 1, 1)    \
+  F(NumberToString, 1, 1)             \
   F(SmiLexicographicCompare, 2, 1)    \
   F(StringParseFloat, 1, 1)           \
   F(StringParseInt, 2, 1)             \
@@ -330,7 +335,6 @@ namespace internal {
   F(HasProperty, 2, 1)                                          \
   F(InternalSetPrototype, 2, 1)                                 \
   F(IsJSReceiver, 1, 1)                                         \
-  F(IterableToListCanBeElided, 1, 1)                            \
   F(KeyedGetProperty, 2, 1)                                     \
   F(NewObject, 2, 1)                                            \
   F(ObjectCreate, 2, 1)                                         \
@@ -515,6 +519,7 @@ namespace internal {
   F(InNewSpace, 1, 1)                         \
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsConcurrentRecompilationSupported, 0, 1) \
+  F(WasmTierUpFunction, 2, 1)                 \
   F(IsLiftoffFunction, 1, 1)                  \
   F(IsWasmCode, 1, 1)                         \
   F(IsWasmTrapHandlerEnabled, 0, 1)           \
@@ -527,7 +532,6 @@ namespace internal {
   F(RunningInSimulator, 0, 1)                 \
   F(SerializeWasmModule, 1, 1)                \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
-  F(SetFlags, 1, 1)                           \
   F(SetForceSlowPath, 1, 1)                   \
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \
@@ -541,7 +545,8 @@ namespace internal {
   F(WasmGetNumberOfInstances, 1, 1)           \
   F(WasmNumInterpretedCalls, 1, 1)            \
   F(WasmTraceMemory, 1, 1)                    \
-  F(WasmMemoryHasFullGuardRegion, 1, 1)
+  F(WasmMemoryHasFullGuardRegion, 1, 1)       \
+  F(SetWasmThreadsEnabled, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F) \
   F(ArrayBufferNeuter, 1, 1)             \
@@ -578,6 +583,8 @@ namespace internal {
   F(KeyedLoadIC_Miss, 4, 1)                  \
   F(KeyedStoreIC_Miss, 5, 1)                 \
   F(KeyedStoreIC_Slow, 5, 1)                 \
+  F(LoadAccessorProperty, 4, 1)              \
+  F(LoadCallbackProperty, 4, 1)              \
   F(LoadElementWithInterceptor, 2, 1)        \
   F(LoadGlobalIC_Miss, 3, 1)                 \
   F(LoadGlobalIC_Slow, 3, 1)                 \
@@ -588,7 +595,9 @@ namespace internal {
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
-  F(StorePropertyWithInterceptor, 5, 1)
+  F(StorePropertyWithInterceptor, 5, 1)      \
+  F(CloneObjectIC_Miss, 4, 1)                \
+  F(CloneObjectIC_Slow, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
   FOR_EACH_INTRINSIC_ARRAY(F)               \

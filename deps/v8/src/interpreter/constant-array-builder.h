@@ -25,6 +25,7 @@ namespace interpreter {
   V(AsyncIteratorSymbol, async_iterator_symbol)                              \
   V(ClassFieldsSymbol, class_fields_symbol)                                  \
   V(EmptyObjectBoilerplateDescription, empty_object_boilerplate_description) \
+  V(EmptyArrayBoilerplateDescription, empty_array_boilerplate_description)   \
   V(EmptyFixedArray, empty_fixed_array)                                      \
   V(HomeObjectSymbol, home_object_symbol)                                    \
   V(IteratorSymbol, iterator_symbol)                                         \

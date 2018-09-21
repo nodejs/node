@@ -278,8 +278,7 @@ HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
 
-Smi* CheckObjectType(Isolate* isolate, Object* value, Smi* type,
-                     String* location);
+Smi* CheckObjectType(Object* value, Smi* type, String* location);
 
 namespace compiler {
 
@@ -440,18 +439,22 @@ class SloppyTNode : public TNode<T> {
   V(Float64LessThanOrEqual, BoolT, Float64T, Float64T)    \
   V(Float64GreaterThan, BoolT, Float64T, Float64T)        \
   V(Float64GreaterThanOrEqual, BoolT, Float64T, Float64T) \
+  /* Use Word32Equal if you need Int32Equal */            \
   V(Int32GreaterThan, BoolT, Word32T, Word32T)            \
   V(Int32GreaterThanOrEqual, BoolT, Word32T, Word32T)     \
   V(Int32LessThan, BoolT, Word32T, Word32T)               \
   V(Int32LessThanOrEqual, BoolT, Word32T, Word32T)        \
+  /* Use WordEqual if you need IntPtrEqual */             \
   V(IntPtrLessThan, BoolT, WordT, WordT)                  \
   V(IntPtrLessThanOrEqual, BoolT, WordT, WordT)           \
   V(IntPtrGreaterThan, BoolT, WordT, WordT)               \
   V(IntPtrGreaterThanOrEqual, BoolT, WordT, WordT)        \
+  /* Use Word32Equal if you need Uint32Equal */           \
   V(Uint32LessThan, BoolT, Word32T, Word32T)              \
   V(Uint32LessThanOrEqual, BoolT, Word32T, Word32T)       \
   V(Uint32GreaterThan, BoolT, Word32T, Word32T)           \
   V(Uint32GreaterThanOrEqual, BoolT, Word32T, Word32T)    \
+  /* Use WordEqual if you need UintPtrEqual */            \
   V(UintPtrLessThan, BoolT, WordT, WordT)                 \
   V(UintPtrLessThanOrEqual, BoolT, WordT, WordT)          \
   V(UintPtrGreaterThan, BoolT, WordT, WordT)              \
@@ -535,12 +538,12 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(Float64RoundTiesEven, Float64T, Float64T)                  \
   V(Float64RoundTruncate, Float64T, Float64T)                  \
   V(Word32Clz, Int32T, Word32T)                                \
-  V(Word32Not, Word32T, Word32T)                               \
+  V(Word32BitwiseNot, Word32T, Word32T)                        \
   V(WordNot, WordT, WordT)                                     \
   V(Int32AbsWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T)    \
   V(Int64AbsWithOverflow, PAIR_TYPE(Int64T, BoolT), Int64T)    \
   V(IntPtrAbsWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT) \
-  V(Word32BinaryNot, Word32T, Word32T)
+  V(Word32BinaryNot, BoolT, Word32T)
 
 // A "public" interface used by components outside of compiler directory to
 // create code objects with TurboFan's backend. This class is mostly a thin
@@ -623,12 +626,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         }
         Node* function = code_assembler_->ExternalConstant(
             ExternalReference::check_object_type());
-        Node* const isolate_ptr = code_assembler_->ExternalConstant(
-            ExternalReference::isolate_address(code_assembler_->isolate()));
-        code_assembler_->CallCFunction4(
-            MachineType::AnyTagged(), MachineType::Pointer(),
-            MachineType::AnyTagged(), MachineType::TaggedSigned(),
-            MachineType::AnyTagged(), function, isolate_ptr, node_,
+        code_assembler_->CallCFunction3(
+            MachineType::AnyTagged(), MachineType::AnyTagged(),
+            MachineType::TaggedSigned(), MachineType::AnyTagged(), function,
+            node_,
             code_assembler_->SmiConstant(
                 static_cast<int>(ObjectTypeOf<A>::value)),
             code_assembler_->StringConstant(location_));
@@ -670,12 +671,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return TNode<T>::UncheckedCast(value);
   }
 
-  CheckedNode<Object, false> Cast(Node* value, const char* location) {
+  CheckedNode<Object, false> Cast(Node* value, const char* location = "") {
     return {value, this, location};
   }
 
   template <class T>
-  CheckedNode<T, true> Cast(TNode<T> value, const char* location) {
+  CheckedNode<T, true> Cast(TNode<T> value, const char* location = "") {
     return {value, this, location};
   }
 
@@ -685,7 +686,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #define CAST(x) \
   Cast(x, "CAST(" #x ") at " __FILE__ ":" TO_STRING_LITERAL(__LINE__))
 #else
-#define CAST(x) Cast(x, "")
+#define CAST(x) Cast(x)
 #endif
 
 #ifdef DEBUG
@@ -770,6 +771,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void GotoIf(SloppyTNode<IntegralT> condition, Label* true_label);
   void GotoIfNot(SloppyTNode<IntegralT> condition, Label* false_label);
   void Branch(SloppyTNode<IntegralT> condition, Label* true_label,
+              Label* false_label);
+
+  void Branch(TNode<BoolT> condition, std::function<void()> true_body,
+              std::function<void()> false_body);
+  void Branch(TNode<BoolT> condition, Label* true_label,
+              std::function<void()> false_body);
+  void Branch(TNode<BoolT> condition, std::function<void()> true_body,
               Label* false_label);
 
   void Switch(Node* index, Label* default_label, const int32_t* case_values,

@@ -219,7 +219,8 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
  private:
   String16 GetFakeScriptUrl(v8::Isolate* isolate, int func_index) {
     v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
-    String16 script_name = toProtocolString(script->Name().ToLocalChecked());
+    String16 script_name =
+        toProtocolString(isolate, script->Name().ToLocalChecked());
     int numFunctions = script->NumFunctions();
     int numImported = script->NumImportedFunctions();
     String16Builder builder;

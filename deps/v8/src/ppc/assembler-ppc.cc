@@ -2094,8 +2094,8 @@ void Assembler::EmitRelocations() {
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
       // Jump table entry
-      intptr_t pos = static_cast<intptr_t>(Memory::Address_at(pc));
-      Memory::Address_at(pc) = reinterpret_cast<Address>(buffer_) + pos;
+      intptr_t pos = static_cast<intptr_t>(Memory<Address>(pc));
+      Memory<Address>(pc) = reinterpret_cast<Address>(buffer_) + pos;
     } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
       // mov sequence
       intptr_t pos = static_cast<intptr_t>(target_address_at(pc, kNullAddress));

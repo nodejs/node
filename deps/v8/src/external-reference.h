@@ -66,15 +66,19 @@ class StatsCounter;
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
   V(debug_restart_fp_address, "Debug::restart_fp_address()")                   \
+  V(wasm_thread_in_wasm_flag_address_address,                                  \
+    "&Isolate::thread_in_wasm_flag_address")                                   \
   EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)
 
 #define EXTERNAL_REFERENCE_LIST(V)                                            \
+  V(abort_with_reason, "abort_with_reason")                                   \
   V(address_of_double_abs_constant, "double_absolute_constant")               \
   V(address_of_double_neg_constant, "double_negate_constant")                 \
   V(address_of_float_abs_constant, "float_absolute_constant")                 \
   V(address_of_float_neg_constant, "float_negate_constant")                   \
   V(address_of_min_int, "LDoubleConstant::min_int")                           \
   V(address_of_one_half, "LDoubleConstant::one_half")                         \
+  V(address_of_runtime_stats_flag, "FLAG_runtime_stats")                      \
   V(address_of_the_hole_nan, "the_hole_nan")                                  \
   V(address_of_uint32_bias, "uint32_bias")                                    \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")    \
@@ -137,7 +141,6 @@ class StatsCounter;
   V(try_internalize_string_function, "try_internalize_string_function")       \
   V(wasm_call_trap_callback_for_testing,                                      \
     "wasm::call_trap_callback_for_testing")                                   \
-  V(wasm_clear_thread_in_wasm_flag, "wasm::clear_thread_in_wasm_flag")        \
   V(wasm_f32_ceil, "wasm::f32_ceil_wrapper")                                  \
   V(wasm_f32_floor, "wasm::f32_floor_wrapper")                                \
   V(wasm_f32_nearest_int, "wasm::f32_nearest_int_wrapper")                    \
@@ -155,7 +158,6 @@ class StatsCounter;
   V(wasm_int64_mod, "wasm::int64_mod")                                        \
   V(wasm_int64_to_float32, "wasm::int64_to_float32_wrapper")                  \
   V(wasm_int64_to_float64, "wasm::int64_to_float64_wrapper")                  \
-  V(wasm_set_thread_in_wasm_flag, "wasm::set_thread_in_wasm_flag")            \
   V(wasm_uint64_div, "wasm::uint64_div")                                      \
   V(wasm_uint64_mod, "wasm::uint64_mod")                                      \
   V(wasm_uint64_to_float32, "wasm::uint64_to_float32_wrapper")                \
@@ -300,6 +302,8 @@ bool operator!=(ExternalReference, ExternalReference);
 size_t hash_value(ExternalReference);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
+
+void abort_with_reason(int reason);
 
 }  // namespace internal
 }  // namespace v8

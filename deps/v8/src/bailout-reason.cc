@@ -26,6 +26,11 @@ const char* GetAbortReason(AbortReason reason) {
   return error_messages_[static_cast<int>(reason)];
 }
 
+bool IsValidAbortReason(int reason_id) {
+  return reason_id >= static_cast<int>(AbortReason::kNoReason) &&
+         reason_id < static_cast<int>(AbortReason::kLastErrorMessage);
+}
+
 #undef ERROR_MESSAGES_TEXTS
 }  // namespace internal
 }  // namespace v8

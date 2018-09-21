@@ -238,6 +238,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                             int literal_index, int flags,
                                             Register output);
   BytecodeArrayBuilder& CreateEmptyObjectLiteral();
+  BytecodeArrayBuilder& CloneObject(Register source, int flags,
+                                    int feedback_slot);
 
   // Gets or creates the template for a TemplateObjectDescription which will
   // be inserted at constant pool index |template_object_description_entry|.

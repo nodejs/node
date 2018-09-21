@@ -22,7 +22,7 @@ class TyperTest : public TypedGraphTest {
  public:
   TyperTest()
       : TypedGraphTest(3),
-        js_heap_broker_(isolate()),
+        js_heap_broker_(isolate(), zone()),
         operation_typer_(isolate(), &js_heap_broker_, zone()),
         types_(zone(), isolate(), random_number_generator()),
         javascript_(zone()),

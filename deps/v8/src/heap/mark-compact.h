@@ -257,7 +257,7 @@ class MarkCompactCollectorBase {
   virtual void CollectGarbage() = 0;
 
   inline Heap* heap() const { return heap_; }
-  inline Isolate* isolate() { return heap()->isolate(); }
+  inline Isolate* isolate();
 
  protected:
   static const int kMainThread = 0;
@@ -420,7 +420,6 @@ typedef Worklist<Ephemeron, 64> EphemeronWorklist;
 
 // Weak objects encountered during marking.
 struct WeakObjects {
-  Worklist<WeakCell*, 64> weak_cells;
   Worklist<TransitionArray*, 64> transition_arrays;
 
   // Keep track of all EphemeronHashTables in the heap to process
@@ -647,10 +646,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   WeakObjects* weak_objects() { return &weak_objects_; }
 
-  void AddWeakCell(WeakCell* weak_cell) {
-    weak_objects_.weak_cells.Push(kMainThread, weak_cell);
-  }
-
   void AddTransitionArray(TransitionArray* array) {
     weak_objects_.transition_arrays.Push(kMainThread, array);
   }
@@ -810,11 +805,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // The linked list of all encountered weak maps is destroyed.
   void ClearWeakCollections();
 
-  // Goes through the list of encountered weak cells and clears those with
+  // Goes through the list of encountered weak references and clears those with
   // dead values. If the value is a dead map and the parent map transitions to
   // the dead map via weak cell, then this function also clears the map
   // transition.
-  void ClearWeakCells();
   void ClearWeakReferences();
   void AbortWeakObjects();
 
@@ -926,7 +920,6 @@ class MarkingVisitor final
   V8_INLINE int VisitMap(Map* map, Map* object);
   V8_INLINE int VisitNativeContext(Map* map, Context* object);
   V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);
-  V8_INLINE int VisitWeakCell(Map* map, WeakCell* object);
 
   // ObjectVisitor implementation.
   V8_INLINE void VisitPointer(HeapObject* host, Object** p) final;

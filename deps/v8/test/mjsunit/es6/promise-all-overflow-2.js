@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
+load('test/mjsunit/test-async.js');
+
 // Test that pre-allocation of the result array works even if it needs to be
 // allocated in large object space.
 const a = new Array(64 * 1024);

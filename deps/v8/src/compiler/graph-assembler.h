@@ -31,8 +31,12 @@ namespace compiler {
   V(Float64ExtractLowWord32)             \
   V(Float64ExtractHighWord32)            \
   V(BitcastInt32ToFloat32)               \
+  V(BitcastInt64ToFloat64)               \
   V(BitcastFloat32ToInt32)               \
-  V(Float64Abs)
+  V(BitcastFloat64ToInt64)               \
+  V(Float64Abs)                          \
+  V(Word32ReverseBytes)                  \
+  V(Word64ReverseBytes)
 
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(WordShl)                              \
@@ -214,6 +218,10 @@ class GraphAssembler {
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
   Node* Load(MachineType rep, Node* object, Node* offset);
+
+  Node* StoreUnaligned(MachineRepresentation rep, Node* object, Node* offset,
+                       Node* value);
+  Node* LoadUnaligned(MachineType rep, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);

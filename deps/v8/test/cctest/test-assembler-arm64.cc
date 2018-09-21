@@ -45,6 +45,7 @@
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
+#include "test/common/assembler-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -129,13 +130,11 @@ static void InitializeVM() {
       new Decoder<DispatchingDecoderVisitor>();                \
   Simulator simulator(decoder);                                \
   PrintDisassembler* pdis = nullptr;                           \
-  RegisterDump core;
-
-/*  if (Cctest::trace_sim()) {                                                 \
-    pdis = new PrintDisassembler(stdout);                                      \
-    decoder.PrependVisitor(pdis);                                              \
-  }                                                                            \
-  */
+  RegisterDump core;                                           \
+  if (i::FLAG_trace_sim) {                                     \
+    pdis = new PrintDisassembler(stdout);                      \
+    decoder->PrependVisitor(pdis);                             \
+  }
 
 // Reset the assembler and simulator, so that instructions can be generated,
 // but don't actually emit any code. This can be used by tests that need to
@@ -198,7 +197,6 @@ static void InitializeVM() {
 
 #define RUN()                                              \
   MakeAssemblerBufferExecutable(buf, allocated);           \
-  Assembler::FlushICache(buf, masm.SizeOfGeneratedCode()); \
   {                                                        \
     void (*test_function)(void);                           \
     memcpy(&test_function, &buf, sizeof(buf));             \
@@ -1714,7 +1712,7 @@ TEST(adr_far) {
   INIT_V8();
 
   int max_range = 1 << (Instruction::ImmPCRelRangeBitwidth - 1);
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   Label done, fail;
   Label test_near, near_forward, near_backward;
@@ -1744,7 +1742,7 @@ TEST(adr_far) {
   __ Orr(x0, x0, 1 << 3);
   __ B(&done);
 
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -1906,7 +1904,7 @@ TEST(branch_to_reg) {
 
   RUN();
 
-  CHECK_EQUAL_64(core.xreg(3) + kInstructionSize, x0);
+  CHECK_EQUAL_64(core.xreg(3) + kInstrSize, x0);
   CHECK_EQUAL_64(42, x1);
   CHECK_EQUAL_64(84, x2);
 
@@ -2048,7 +2046,7 @@ TEST(far_branch_backward) {
              std::max(Instruction::ImmBranchRange(CompareBranchType),
                       Instruction::ImmBranchRange(CondBranchType)));
 
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   START();
 
@@ -2074,7 +2072,7 @@ TEST(far_branch_backward) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -2095,7 +2093,7 @@ TEST(far_branch_backward) {
 
   // For each out-of-range branch instructions, at least two instructions should
   // have been generated.
-  CHECK_GE(7 * kInstructionSize, __ SizeOfCodeGeneratedSince(&test_tbz));
+  CHECK_GE(7 * kInstrSize, __ SizeOfCodeGeneratedSince(&test_tbz));
 
   __ Bind(&fail);
   __ Mov(x1, 0);
@@ -2122,7 +2120,7 @@ TEST(far_branch_simple_veneer) {
              std::max(Instruction::ImmBranchRange(CompareBranchType),
                       Instruction::ImmBranchRange(CondBranchType)));
 
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   START();
 
@@ -2144,7 +2142,7 @@ TEST(far_branch_simple_veneer) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -2198,7 +2196,7 @@ TEST(far_branch_veneer_link_chain) {
              std::max(Instruction::ImmBranchRange(CompareBranchType),
                       Instruction::ImmBranchRange(CondBranchType)));
 
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   START();
 
@@ -2239,7 +2237,7 @@ TEST(far_branch_veneer_link_chain) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -2288,7 +2286,7 @@ TEST(far_branch_veneer_broken_link_chain) {
   int max_range = Instruction::ImmBranchRange(TestBranchType);
   int inter_range = max_range / 2 + max_range / 10;
 
-  SETUP_SIZE(3 * inter_range + 1000 * kInstructionSize);
+  SETUP_SIZE(3 * inter_range + 1000 * kInstrSize);
 
   START();
 
@@ -2305,7 +2303,7 @@ TEST(far_branch_veneer_broken_link_chain) {
   __ Mov(x0, 1);
   __ B(&far_target);
 
-  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
+  for (int i = 0; i < inter_range / kInstrSize; ++i) {
     if (i % 100 == 0) {
       // Do not allow generating veneers. They should not be needed.
       __ b(&fail);
@@ -2319,7 +2317,7 @@ TEST(far_branch_veneer_broken_link_chain) {
   __ Mov(x0, 2);
   __ Tbz(x10, 7, &far_target);
 
-  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
+  for (int i = 0; i < inter_range / kInstrSize; ++i) {
     if (i % 100 == 0) {
       // Do not allow generating veneers. They should not be needed.
       __ b(&fail);
@@ -2334,7 +2332,7 @@ TEST(far_branch_veneer_broken_link_chain) {
   __ Mov(x0, 3);
   __ Tbz(x10, 7, &far_target);
 
-  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
+  for (int i = 0; i < inter_range / kInstrSize; ++i) {
     if (i % 100 == 0) {
       // Allow generating veneers.
       __ B(&fail);
@@ -6742,65 +6740,72 @@ TEST(ldr_literal) {
 
 #ifdef DEBUG
 // These tests rely on functions available in debug mode.
-enum LiteralPoolEmitOption { NoJumpRequired, JumpRequired };
+enum LiteralPoolEmitOutcome { EmitExpected, NoEmitExpected };
 
-static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
-                                  bool expect_dump) {
-  CHECK_GT(range_, 0);
-  SETUP_SIZE(range_ + 1024);
+static void LdrLiteralRangeHelper(size_t range, LiteralPoolEmitOutcome outcome,
+                                  size_t prepadding = 0) {
+  SETUP_SIZE(static_cast<int>(range + 1024));
 
-  Label label_1, label_2;
-
-  size_t range = static_cast<size_t>(range_);
   size_t code_size = 0;
-  size_t pool_guard_size;
-
-  if (option == NoJumpRequired) {
-    // Space for an explicit branch.
-    pool_guard_size = kInstructionSize;
-  } else {
-    pool_guard_size = 0;
-  }
+  const size_t pool_entries = 2;
+  const size_t kEntrySize = 8;
 
   START();
   // Force a pool dump so the pool starts off empty.
   __ CheckConstPool(true, true);
   CHECK_CONSTANT_POOL_SIZE(0);
 
+  // Emit prepadding to influence alignment of the pool; we don't count this
+  // into code size.
+  for (size_t i = 0; i < prepadding; ++i) __ Nop();
+
   LoadLiteral(&masm, x0, 0x1234567890ABCDEFUL);
   LoadLiteral(&masm, x1, 0xABCDEF1234567890UL);
-  CHECK_CONSTANT_POOL_SIZE(16);
-
-  code_size += 2 * kInstructionSize;
+  code_size += 2 * kInstrSize;
+  CHECK_CONSTANT_POOL_SIZE(pool_entries * kEntrySize);
 
   // Check that the requested range (allowing space for a branch over the pool)
   // can be handled by this test.
-  CHECK_LE(code_size + pool_guard_size, range);
+  CHECK_LE(code_size, range);
 
-  // Emit NOPs up to 'range', leaving space for the pool guard.
-  while ((code_size + pool_guard_size + kInstructionSize) < range) {
+  auto PoolSizeAt = [pool_entries](int pc_offset) {
+    // To determine padding, consider the size of the prologue of the pool,
+    // and the jump around the pool, which we always need.
+    size_t prologue_size = 2 * kInstrSize + kInstrSize;
+    size_t pc = pc_offset + prologue_size;
+    const size_t padding = IsAligned(pc, 8) ? 0 : 4;
+    return prologue_size + pool_entries * kEntrySize + padding;
+  };
+
+  int pc_offset_before_emission = -1;
+  // Emit NOPs up to 'range'.
+  while (code_size < range) {
+    pc_offset_before_emission = __ pc_offset() + kInstrSize;
     __ Nop();
-    code_size += kInstructionSize;
+    code_size += kInstrSize;
   }
+  CHECK_EQ(code_size, range);
 
-  // Emit the guard sequence before the literal pool.
-  if (option == NoJumpRequired) {
-    __ B(&label_1);
-    code_size += kInstructionSize;
-  }
-
-  // The next instruction will trigger pool emission when expect_dump is true.
-  CHECK_EQ(code_size, range - kInstructionSize);
-  CHECK_CONSTANT_POOL_SIZE(16);
-
-  // Possibly generate a literal pool.
-  __ Nop();
-
-  __ Bind(&label_1);
-  if (expect_dump) {
+  if (outcome == EmitExpected) {
     CHECK_CONSTANT_POOL_SIZE(0);
+    // Check that the size of the emitted constant pool is as expected.
+    size_t pool_size = PoolSizeAt(pc_offset_before_emission);
+    CHECK_EQ(pc_offset_before_emission + pool_size, __ pc_offset());
+    byte* pool_start = buf + pc_offset_before_emission;
+    Instruction* branch = reinterpret_cast<Instruction*>(pool_start);
+    CHECK(branch->IsImmBranch());
+    CHECK_EQ(pool_size, branch->ImmPCOffset());
+    Instruction* marker =
+        reinterpret_cast<Instruction*>(pool_start + kInstrSize);
+    CHECK(marker->IsLdrLiteralX());
+    const size_t padding =
+        IsAligned(pc_offset_before_emission + kInstrSize, kEntrySize) ? 0 : 1;
+    CHECK_EQ(pool_entries * 2 + 1 + padding, marker->ImmLLiteral());
+
   } else {
-    CHECK_CONSTANT_POOL_SIZE(16);
+    CHECK_EQ(outcome, NoEmitExpected);
+    CHECK_CONSTANT_POOL_SIZE(pool_entries * kEntrySize);
+    CHECK_EQ(pc_offset_before_emission, __ pc_offset());
   }
 
   // Force a pool flush to check that a second pool functions correctly.
@@ -6810,7 +6815,7 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   // These loads should be after the pool (and will require a new one).
   LoadLiteral(&masm, x4, 0x34567890ABCDEF12UL);
   LoadLiteral(&masm, x5, 0xABCDEF0123456789UL);
-  CHECK_CONSTANT_POOL_SIZE(16);
+  CHECK_CONSTANT_POOL_SIZE(pool_entries * kEntrySize);
   END();
 
   RUN();
@@ -6824,35 +6829,32 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   TEARDOWN();
 }
 
-TEST(ldr_literal_range_1) {
+TEST(ldr_literal_range_max_dist_emission_1) {
   INIT_V8();
   LdrLiteralRangeHelper(MacroAssembler::GetApproxMaxDistToConstPoolForTesting(),
-                        NoJumpRequired, true);
+                        EmitExpected);
 }
 
+TEST(ldr_literal_range_max_dist_emission_2) {
+  INIT_V8();
+  LdrLiteralRangeHelper(MacroAssembler::GetApproxMaxDistToConstPoolForTesting(),
+                        EmitExpected, 1);
+}
 
-TEST(ldr_literal_range_2) {
+TEST(ldr_literal_range_max_dist_no_emission_1) {
   INIT_V8();
   LdrLiteralRangeHelper(
-      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() -
-          kInstructionSize,
-      NoJumpRequired, false);
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() - kInstrSize,
+      NoEmitExpected);
 }
 
-
-TEST(ldr_literal_range_3) {
-  INIT_V8();
-  LdrLiteralRangeHelper(MacroAssembler::GetCheckConstPoolIntervalForTesting(),
-                        JumpRequired, false);
-}
-
-
-TEST(ldr_literal_range_4) {
+TEST(ldr_literal_range_max_dist_no_emission_2) {
   INIT_V8();
   LdrLiteralRangeHelper(
-      MacroAssembler::GetCheckConstPoolIntervalForTesting() - kInstructionSize,
-      JumpRequired, false);
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() - kInstrSize,
+      NoEmitExpected, 1);
 }
+
 #endif
 
 TEST(add_sub_imm) {
@@ -15251,7 +15253,7 @@ TEST(pool_size) {
   }
 
   __ RecordVeneerPool(masm.pc_offset(), veneer_pool_size);
-  for (unsigned i = 0; i < veneer_pool_size / kInstructionSize; ++i) {
+  for (unsigned i = 0; i < veneer_pool_size / kInstrSize; ++i) {
     __ nop();
   }
 
@@ -15289,7 +15291,7 @@ TEST(jump_tables_forward) {
   const int kNumCases = 512;
 
   INIT_V8();
-  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  SETUP_SIZE(kNumCases * 5 * kInstrSize + 8192);
   START();
 
   int32_t values[kNumCases];
@@ -15353,7 +15355,7 @@ TEST(jump_tables_backward) {
   const int kNumCases = 512;
 
   INIT_V8();
-  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  SETUP_SIZE(kNumCases * 5 * kInstrSize + 8192);
   START();
 
   int32_t values[kNumCases];

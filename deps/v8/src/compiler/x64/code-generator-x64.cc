@@ -12,6 +12,8 @@
 #include "src/compiler/osr.h"
 #include "src/heap/heap-inl.h"
 #include "src/optimized-compilation-info.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
 
@@ -1210,6 +1212,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ Popcntl(i.OutputRegister(), i.InputOperand(0));
       }
+      break;
+    case kX64Bswap:
+      __ bswapq(i.OutputRegister());
+      break;
+    case kX64Bswap32:
+      __ bswapl(i.OutputRegister());
       break;
     case kSSEFloat32Cmp:
       ASSEMBLE_SSE_BINOP(Ucomiss);
@@ -3226,7 +3234,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
 }
 
-void CodeGenerator::FinishCode() {}
+void CodeGenerator::FinishCode() { tasm()->PatchConstPool(); }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {

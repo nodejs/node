@@ -41,6 +41,7 @@ v8_source_set("unittests_sources") {
   testonly = true
 
   sources = [
+    "../../test/common/assembler-tester.h",
     "../../test/common/wasm/wasm-macro-gen.h",
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
@@ -191,6 +192,7 @@ v8_source_set("unittests_sources") {
     "test-helpers.h",
     "test-utils.cc",
     "test-utils.h",
+    "torque/earley-parser-unittest.cc",
     "unicode-unittest.cc",
     "utils-unittest.cc",
     "value-serializer-unittest.cc",
@@ -222,21 +224,45 @@ v8_source_set("unittests_sources") {
   }
 
   if (v8_current_cpu == "arm") {
-    sources += [ "compiler/arm/instruction-selector-arm-unittest.cc" ]
+    sources += [
+      "assembler/turbo-assembler-arm-unittest.cc",
+      "compiler/arm/instruction-selector-arm-unittest.cc",
+    ]
   } else if (v8_current_cpu == "arm64") {
-    sources += [ "compiler/arm64/instruction-selector-arm64-unittest.cc" ]
+    sources += [
+      "assembler/turbo-assembler-arm64-unittest.cc",
+      "compiler/arm64/instruction-selector-arm64-unittest.cc",
+    ]
   } else if (v8_current_cpu == "x86") {
-    sources += [ "compiler/ia32/instruction-selector-ia32-unittest.cc" ]
+    sources += [
+      "assembler/turbo-assembler-ia32-unittest.cc",
+      "compiler/ia32/instruction-selector-ia32-unittest.cc",
+    ]
   } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
-    sources += [ "compiler/mips/instruction-selector-mips-unittest.cc" ]
+    sources += [
+      "assembler/turbo-assembler-mips-unittest.cc",
+      "compiler/mips/instruction-selector-mips-unittest.cc",
+    ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
-    sources += [ "compiler/mips64/instruction-selector-mips64-unittest.cc" ]
+    sources += [
+      "assembler/turbo-assembler-mips64-unittest.cc",
+      "compiler/mips64/instruction-selector-mips64-unittest.cc",
+    ]
   } else if (v8_current_cpu == "x64") {
-    sources += [ "compiler/x64/instruction-selector-x64-unittest.cc" ]
+    sources += [
+      "assembler/turbo-assembler-x64-unittest.cc",
+      "compiler/x64/instruction-selector-x64-unittest.cc",
+    ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
-    sources += [ "compiler/ppc/instruction-selector-ppc-unittest.cc" ]
+    sources += [
+      "assembler/turbo-assembler-ppc-unittest.cc",
+      "compiler/ppc/instruction-selector-ppc-unittest.cc",
+    ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [ "compiler/s390/instruction-selector-s390-unittest.cc" ]
+    sources += [
+      "assembler/turbo-assembler-s390-unittest.cc",
+      "compiler/s390/instruction-selector-s390-unittest.cc",
+    ]
   }
 
   configs = [

@@ -20,7 +20,7 @@ class V8_EXPORT_PRIVATE TypeNarrowingReducer final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph,
-                       const JSHeapBroker* js_heap_broker);
+                       JSHeapBroker* js_heap_broker);
   ~TypeNarrowingReducer() final;
 
   const char* reducer_name() const override { return "TypeNarrowingReducer"; }

@@ -227,9 +227,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
   // immediate value (in 31 bits, interpreted as signed value).
   // If the offset is bigger, we always trap and this code is not reached.
-  DCHECK(is_uint31(offset_imm));
+  // Note: We shouldn't have memories larger than 2GiB on 32-bit, but if we
+  // did, we encode {offset_im} as signed, and it will simply wrap around.
   Operand src_op = offset_reg == no_reg
-                       ? Operand(src_addr, offset_imm)
+                       ? Operand(src_addr, bit_cast<int32_t>(offset_imm))
                        : Operand(src_addr, offset_reg, times_1, offset_imm);
   if (protected_load_pc) *protected_load_pc = pc_offset();
 
@@ -278,10 +279,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kI64Load: {
       // Compute the operand for the load of the upper half.
-      DCHECK(is_uint31(offset_imm + 4));
       Operand upper_src_op =
           offset_reg == no_reg
-              ? Operand(src_addr, offset_imm + 4)
+              ? Operand(src_addr, bit_cast<int32_t>(offset_imm + 4))
               : Operand(src_addr, offset_reg, times_1, offset_imm + 4);
       // The high word has to be mov'ed first, such that this is the protected
       // instruction. The mov of the low word cannot segfault.
@@ -308,9 +308,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
   // immediate value (in 31 bits, interpreted as signed value).
   // If the offset is bigger, we always trap and this code is not reached.
-  DCHECK(is_uint31(offset_imm));
   Operand dst_op = offset_reg == no_reg
-                       ? Operand(dst_addr, offset_imm)
+                       ? Operand(dst_addr, bit_cast<int32_t>(offset_imm))
                        : Operand(dst_addr, offset_reg, times_1, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
 
@@ -342,10 +341,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI64Store: {
       // Compute the operand for the store of the upper half.
-      DCHECK(is_uint31(offset_imm + 4));
       Operand upper_dst_op =
           offset_reg == no_reg
-              ? Operand(dst_addr, offset_imm + 4)
+              ? Operand(dst_addr, bit_cast<int32_t>(offset_imm + 4))
               : Operand(dst_addr, offset_reg, times_1, offset_imm + 4);
       // The high word has to be mov'ed first, such that this is the protected
       // instruction. The mov of the low word cannot segfault.
@@ -362,17 +360,6 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
-}
-
-void LiftoffAssembler::ChangeEndiannessLoad(LiftoffRegister dst, LoadType type,
-                                            LiftoffRegList pinned) {
-  // Nop.
-}
-
-void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
-                                             StoreType type,
-                                             LiftoffRegList pinned) {
-  // Nop.
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
@@ -893,7 +880,7 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
-  UNREACHABLE();
+  // This is a nop on ia32.
 }
 
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,

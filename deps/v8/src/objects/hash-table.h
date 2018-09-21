@@ -263,7 +263,7 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
   static inline bool IsMatch(Handle<Object> key, Object* other);
   static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
-  static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
+  static inline Handle<Object> AsHandle(Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntryValueIndex = 1;
   static const int kEntrySize = 2;

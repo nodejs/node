@@ -54,13 +54,19 @@ function OptUnreliableFilter() {
 
 DefineHigherOrderTests([
   // name, test function, setup function, user callback
-  "NaiveFilterReplacement", NaiveFilter, NaiveFilterSetup, v => true,
-  "DoubleFilter", mc("filter"), DoubleSetup, v => Math.floor(v) % 2 === 0,
-  "SmiFilter", mc("filter"), SmiSetup, v => v % 2 === 0,
-  "FastFilter", mc("filter"), FastSetup, (_, i) => i % 2 === 0,
-  "GenericFilter", mc("filter", true), ObjectSetup, (_, i) => i % 2 === 0,
-  "OptFastFilter", OptFastFilter, FastSetup, undefined,
-  "OptUnreliableFilter", OptUnreliableFilter, FastSetup, v => true
+  ['NaiveFilterReplacement', NaiveFilter, NaiveFilterSetup, v => true],
+  [
+    'DoubleFilter', newClosure('filter'), DoubleSetup,
+    v => Math.floor(v) % 2 === 0
+  ],
+  ['SmiFilter', newClosure('filter'), SmiSetup, v => v % 2 === 0],
+  ['FastFilter', newClosure('filter'), FastSetup, (_, i) => i % 2 === 0],
+  [
+    'GenericFilter', newClosure('filter', true), ObjectSetup,
+    (_, i) => i % 2 === 0
+  ],
+  ['OptFastFilter', OptFastFilter, FastSetup, undefined],
+  ['OptUnreliableFilter', OptUnreliableFilter, FastSetup, v => true]
 ]);
 
 })();

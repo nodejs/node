@@ -407,6 +407,7 @@ constexpr Register NoReg = Register::no_reg();
 constexpr VRegister NoVReg = VRegister::no_reg();
 constexpr CPURegister NoCPUReg = CPURegister::no_reg();
 constexpr Register no_reg = NoReg;
+constexpr VRegister no_dreg = NoVReg;
 
 #define DEFINE_REGISTER(register_class, name, ...) \
   constexpr register_class name = register_class::Create<__VA_ARGS__>()
@@ -848,7 +849,6 @@ class ConstPool {
   void Clear();
 
  private:
-  bool CanBeShared(RelocInfo::Mode mode);
   void EmitMarker();
   void EmitGuard();
   void EmitEntries();
@@ -882,7 +882,7 @@ class ConstPool {
 // -----------------------------------------------------------------------------
 // Assembler.
 
-class Assembler : public AssemblerBase {
+class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -1008,8 +1008,6 @@ class Assembler : public AssemblerBase {
   static constexpr int kSpecialTargetSize = 0;
 
   // The sizes of the call sequences emitted by MacroAssembler::Call.
-  // Wherever possible, use MacroAssembler::CallSize instead of these constants,
-  // as it will choose the correct value for a given relocation mode.
   //
   // A "near" call is encoded in a BL immediate instruction:
   //  bl target
@@ -1017,8 +1015,8 @@ class Assembler : public AssemblerBase {
   // whereas a "far" call will be encoded like this:
   //  ldr temp, =target
   //  blr temp
-  static constexpr int kNearCallSize = 1 * kInstructionSize;
-  static constexpr int kFarCallSize = 2 * kInstructionSize;
+  static constexpr int kNearCallSize = 1 * kInstrSize;
+  static constexpr int kFarCallSize = 2 * kInstrSize;
 
   // Size of the generated code in bytes
   uint64_t SizeOfGeneratedCode() const {
@@ -1034,20 +1032,10 @@ class Assembler : public AssemblerBase {
     return pc_offset() - label->pos();
   }
 
-  // Check the size of the code generated since the given label. This function
-  // is used primarily to work around comparisons between signed and unsigned
-  // quantities, since V8 uses both.
-  // TODO(jbramley): Work out what sign to use for these things and if possible,
-  // change things to be consistent.
-  void AssertSizeOfCodeGeneratedSince(const Label* label, ptrdiff_t size) {
-    DCHECK_GE(size, 0);
-    DCHECK_EQ(static_cast<uint64_t>(size), SizeOfCodeGeneratedSince(label));
-  }
-
   // Return the number of instructions generated from label to the
   // current position.
   uint64_t InstructionsGeneratedSince(const Label* label) {
-    return SizeOfCodeGeneratedSince(label) / kInstructionSize;
+    return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
   // Prevent contant pool emission until EndBlockConstPool is called.
@@ -3198,7 +3186,7 @@ class Assembler : public AssemblerBase {
   // The maximum code size generated for a veneer. Currently one branch
   // instruction. This is for code size checking purposes, and can be extended
   // in the future for example if we decide to add nops between the veneers.
-  static constexpr int kMaxVeneerCodeSize = 1 * kInstructionSize;
+  static constexpr int kMaxVeneerCodeSize = 1 * kInstrSize;
 
   void RecordVeneerPool(int location_offset, int size);
   // Emits veneers for branches that are approaching their maximum range.
@@ -3423,13 +3411,13 @@ class Assembler : public AssemblerBase {
 
   // Set how far from current pc the next constant pool check will be.
   void SetNextConstPoolCheckIn(int instructions) {
-    next_constant_pool_check_ = pc_offset() + instructions * kInstructionSize;
+    next_constant_pool_check_ = pc_offset() + instructions * kInstrSize;
   }
 
   // Emit the instruction at pc_.
   void Emit(Instr instruction) {
     STATIC_ASSERT(sizeof(*pc_) == 1);
-    STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
+    STATIC_ASSERT(sizeof(instruction) == kInstrSize);
     DCHECK((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
 
     memcpy(pc_, &instruction, sizeof(instruction));
@@ -3614,7 +3602,7 @@ class PatchingAssembler : public Assembler {
   // Note that the instruction cache will not be flushed.
   PatchingAssembler(const AssemblerOptions& options, byte* start,
                     unsigned count)
-      : Assembler(options, start, count * kInstructionSize + kGap) {
+      : Assembler(options, start, count * kInstrSize + kGap) {
     // Block constant pool emission.
     StartBlockPools();
   }

@@ -41,7 +41,6 @@ namespace internal {
   V(Map, code_map, CodeMap)                                                    \
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, cell_map, CellMap)                                                    \
-  V(Map, weak_cell_map, WeakCellMap)                                           \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, foreign_map, ForeignMap)                                              \
   V(Map, heap_number_map, HeapNumberMap)                                       \
@@ -167,6 +166,8 @@ namespace internal {
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(ObjectBoilerplateDescription, empty_object_boilerplate_description,        \
     EmptyObjectBoilerplateDescription)                                         \
+  V(ArrayBoilerplateDescription, empty_array_boilerplate_description,          \
+    EmptyArrayBoilerplateDescription)                                          \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
   V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
   V(FixedTypedArrayBase, empty_fixed_uint16_array, EmptyFixedUint16Array)      \
@@ -187,7 +188,6 @@ namespace internal {
   V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
   V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
-  V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
@@ -232,20 +232,20 @@ namespace internal {
   V(NameDictionary, public_symbol_table, PublicSymbolTable)                  \
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                        \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)         \
-  V(Object, script_list, ScriptList)                                         \
+  V(WeakArrayList, script_list, ScriptList)                                  \
   V(SimpleNumberDictionary, code_stubs, CodeStubs)                           \
   V(FixedArray, materialized_objects, MaterializedObjects)                   \
   V(FixedArray, microtask_queue, MicrotaskQueue)                             \
-  V(FixedArray, detached_contexts, DetachedContexts)                         \
-  V(HeapObject, retaining_path_targets, RetainingPathTargets)                \
+  V(WeakArrayList, detached_contexts, DetachedContexts)                      \
+  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)             \
   V(WeakArrayList, retained_maps, RetainedMaps)                              \
   /* Indirection lists for isolate-independent builtins */                   \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)            \
   /* Feedback vectors that we need for code coverage or type profile */      \
   V(Object, feedback_vectors_for_profiling_tools,                            \
     FeedbackVectorsForProfilingTools)                                        \
-  V(Object, weak_stack_trace_list, WeakStackTraceList)                       \
-  V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)     \
+  V(WeakArrayList, noscript_shared_function_infos,                           \
+    NoScriptSharedFunctionInfos)                                             \
   V(FixedArray, serialized_objects, SerializedObjects)                       \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)   \
   V(TemplateList, message_listeners, MessageListeners)                       \

@@ -33,7 +33,7 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(Isolate* isolate, const JSHeapBroker* js_heap_broker, Flags flags,
+Typer::Typer(Isolate* isolate, JSHeapBroker* js_heap_broker, Flags flags,
              Graph* graph)
     : flags_(flags),
       graph_(graph),
@@ -64,7 +64,6 @@ class Typer::Visitor : public Reducer {
   const char* reducer_name() const override { return "Typer"; }
 
   Reduction Reduce(Node* node) override {
-    DisallowHeapAccess no_heap_access;
     if (node->op()->ValueOutputCount() == 0) return NoChange();
     switch (node->opcode()) {
 #define DECLARE_CASE(x) \
@@ -266,6 +265,7 @@ class Typer::Visitor : public Reducer {
   static Type ToLength(Type, Typer*);
   static Type ToName(Type, Typer*);
   static Type ToNumber(Type, Typer*);
+  static Type ToNumberConvertBigInt(Type, Typer*);
   static Type ToNumeric(Type, Typer*);
   static Type ToObject(Type, Typer*);
   static Type ToString(Type, Typer*);
@@ -527,6 +527,11 @@ Type Typer::Visitor::ToName(Type type, Typer* t) {
 // static
 Type Typer::Visitor::ToNumber(Type type, Typer* t) {
   return t->operation_typer_.ToNumber(type);
+}
+
+// static
+Type Typer::Visitor::ToNumberConvertBigInt(Type type, Typer* t) {
+  return t->operation_typer_.ToNumberConvertBigInt(type);
 }
 
 // static
@@ -1125,6 +1130,10 @@ Type Typer::Visitor::TypeJSToNumber(Node* node) {
   return TypeUnaryOp(node, ToNumber);
 }
 
+Type Typer::Visitor::TypeJSToNumberConvertBigInt(Node* node) {
+  return TypeUnaryOp(node, ToNumberConvertBigInt);
+}
+
 Type Typer::Visitor::TypeJSToNumeric(Node* node) {
   return TypeUnaryOp(node, ToNumeric);
 }
@@ -1211,6 +1220,10 @@ Type Typer::Visitor::TypeJSCreateLiteralObject(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSCreateEmptyLiteralObject(Node* node) {
+  return Type::OtherObject();
+}
+
+Type Typer::Visitor::TypeJSCloneObject(Node* node) {
   return Type::OtherObject();
 }
 
@@ -1406,270 +1419,270 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     return Type::NonInternal();
   }
   JSFunctionRef function = fun.AsHeapConstant()->Ref().AsJSFunction();
-  if (!function.HasBuiltinFunctionId()) {
+  if (!function.shared().HasBuiltinFunctionId()) {
     return Type::NonInternal();
   }
-  switch (function.GetBuiltinFunctionId()) {
-    case kMathRandom:
+  switch (function.shared().builtin_function_id()) {
+    case BuiltinFunctionId::kMathRandom:
       return Type::PlainNumber();
-    case kMathFloor:
-    case kMathCeil:
-    case kMathRound:
-    case kMathTrunc:
+    case BuiltinFunctionId::kMathFloor:
+    case BuiltinFunctionId::kMathCeil:
+    case BuiltinFunctionId::kMathRound:
+    case BuiltinFunctionId::kMathTrunc:
       return t->cache_.kIntegerOrMinusZeroOrNaN;
     // Unary math functions.
-    case kMathAbs:
-    case kMathExp:
-    case kMathExpm1:
+    case BuiltinFunctionId::kMathAbs:
+    case BuiltinFunctionId::kMathExp:
+    case BuiltinFunctionId::kMathExpm1:
       return Type::Union(Type::PlainNumber(), Type::NaN(), t->zone());
-    case kMathAcos:
-    case kMathAcosh:
-    case kMathAsin:
-    case kMathAsinh:
-    case kMathAtan:
-    case kMathAtanh:
-    case kMathCbrt:
-    case kMathCos:
-    case kMathFround:
-    case kMathLog:
-    case kMathLog1p:
-    case kMathLog10:
-    case kMathLog2:
-    case kMathSin:
-    case kMathSqrt:
-    case kMathTan:
+    case BuiltinFunctionId::kMathAcos:
+    case BuiltinFunctionId::kMathAcosh:
+    case BuiltinFunctionId::kMathAsin:
+    case BuiltinFunctionId::kMathAsinh:
+    case BuiltinFunctionId::kMathAtan:
+    case BuiltinFunctionId::kMathAtanh:
+    case BuiltinFunctionId::kMathCbrt:
+    case BuiltinFunctionId::kMathCos:
+    case BuiltinFunctionId::kMathFround:
+    case BuiltinFunctionId::kMathLog:
+    case BuiltinFunctionId::kMathLog1p:
+    case BuiltinFunctionId::kMathLog10:
+    case BuiltinFunctionId::kMathLog2:
+    case BuiltinFunctionId::kMathSin:
+    case BuiltinFunctionId::kMathSqrt:
+    case BuiltinFunctionId::kMathTan:
       return Type::Number();
-    case kMathSign:
+    case BuiltinFunctionId::kMathSign:
       return t->cache_.kMinusOneToOneOrMinusZeroOrNaN;
     // Binary math functions.
-    case kMathAtan2:
-    case kMathPow:
-    case kMathMax:
-    case kMathMin:
+    case BuiltinFunctionId::kMathAtan2:
+    case BuiltinFunctionId::kMathPow:
+    case BuiltinFunctionId::kMathMax:
+    case BuiltinFunctionId::kMathMin:
       return Type::Number();
-    case kMathImul:
+    case BuiltinFunctionId::kMathImul:
       return Type::Signed32();
-    case kMathClz32:
+    case BuiltinFunctionId::kMathClz32:
       return t->cache_.kZeroToThirtyTwo;
     // Date functions.
-    case kDateNow:
+    case BuiltinFunctionId::kDateNow:
       return t->cache_.kTimeValueType;
-    case kDateGetDate:
+    case BuiltinFunctionId::kDateGetDate:
       return t->cache_.kJSDateDayType;
-    case kDateGetDay:
+    case BuiltinFunctionId::kDateGetDay:
       return t->cache_.kJSDateWeekdayType;
-    case kDateGetFullYear:
+    case BuiltinFunctionId::kDateGetFullYear:
       return t->cache_.kJSDateYearType;
-    case kDateGetHours:
+    case BuiltinFunctionId::kDateGetHours:
       return t->cache_.kJSDateHourType;
-    case kDateGetMilliseconds:
+    case BuiltinFunctionId::kDateGetMilliseconds:
       return Type::Union(Type::Range(0.0, 999.0, t->zone()), Type::NaN(),
                          t->zone());
-    case kDateGetMinutes:
+    case BuiltinFunctionId::kDateGetMinutes:
       return t->cache_.kJSDateMinuteType;
-    case kDateGetMonth:
+    case BuiltinFunctionId::kDateGetMonth:
       return t->cache_.kJSDateMonthType;
-    case kDateGetSeconds:
+    case BuiltinFunctionId::kDateGetSeconds:
       return t->cache_.kJSDateSecondType;
-    case kDateGetTime:
+    case BuiltinFunctionId::kDateGetTime:
       return t->cache_.kJSDateValueType;
 
     // Symbol functions.
-    case kSymbolConstructor:
+    case BuiltinFunctionId::kSymbolConstructor:
       return Type::Symbol();
 
     // BigInt functions.
-    case kBigIntConstructor:
+    case BuiltinFunctionId::kBigIntConstructor:
       return Type::BigInt();
 
     // Number functions.
-    case kNumberConstructor:
+    case BuiltinFunctionId::kNumberConstructor:
       return Type::Number();
-    case kNumberIsFinite:
-    case kNumberIsInteger:
-    case kNumberIsNaN:
-    case kNumberIsSafeInteger:
+    case BuiltinFunctionId::kNumberIsFinite:
+    case BuiltinFunctionId::kNumberIsInteger:
+    case BuiltinFunctionId::kNumberIsNaN:
+    case BuiltinFunctionId::kNumberIsSafeInteger:
       return Type::Boolean();
-    case kNumberParseFloat:
+    case BuiltinFunctionId::kNumberParseFloat:
       return Type::Number();
-    case kNumberParseInt:
+    case BuiltinFunctionId::kNumberParseInt:
       return t->cache_.kIntegerOrMinusZeroOrNaN;
-    case kNumberToString:
+    case BuiltinFunctionId::kNumberToString:
       return Type::String();
 
     // String functions.
-    case kStringConstructor:
+    case BuiltinFunctionId::kStringConstructor:
       return Type::String();
-    case kStringCharCodeAt:
+    case BuiltinFunctionId::kStringCharCodeAt:
       return Type::Union(Type::Range(0, kMaxUInt16, t->zone()), Type::NaN(),
                          t->zone());
-    case kStringCharAt:
+    case BuiltinFunctionId::kStringCharAt:
       return Type::String();
-    case kStringCodePointAt:
+    case BuiltinFunctionId::kStringCodePointAt:
       return Type::Union(Type::Range(0.0, String::kMaxCodePoint, t->zone()),
                          Type::Undefined(), t->zone());
-    case kStringConcat:
-    case kStringFromCharCode:
-    case kStringFromCodePoint:
+    case BuiltinFunctionId::kStringConcat:
+    case BuiltinFunctionId::kStringFromCharCode:
+    case BuiltinFunctionId::kStringFromCodePoint:
       return Type::String();
-    case kStringIndexOf:
-    case kStringLastIndexOf:
+    case BuiltinFunctionId::kStringIndexOf:
+    case BuiltinFunctionId::kStringLastIndexOf:
       return Type::Range(-1.0, String::kMaxLength, t->zone());
-    case kStringEndsWith:
-    case kStringIncludes:
+    case BuiltinFunctionId::kStringEndsWith:
+    case BuiltinFunctionId::kStringIncludes:
       return Type::Boolean();
-    case kStringRaw:
-    case kStringRepeat:
-    case kStringSlice:
+    case BuiltinFunctionId::kStringRaw:
+    case BuiltinFunctionId::kStringRepeat:
+    case BuiltinFunctionId::kStringSlice:
       return Type::String();
-    case kStringStartsWith:
+    case BuiltinFunctionId::kStringStartsWith:
       return Type::Boolean();
-    case kStringSubstr:
-    case kStringSubstring:
-    case kStringToLowerCase:
-    case kStringToString:
-    case kStringToUpperCase:
-    case kStringTrim:
-    case kStringTrimEnd:
-    case kStringTrimStart:
-    case kStringValueOf:
+    case BuiltinFunctionId::kStringSubstr:
+    case BuiltinFunctionId::kStringSubstring:
+    case BuiltinFunctionId::kStringToLowerCase:
+    case BuiltinFunctionId::kStringToString:
+    case BuiltinFunctionId::kStringToUpperCase:
+    case BuiltinFunctionId::kStringTrim:
+    case BuiltinFunctionId::kStringTrimEnd:
+    case BuiltinFunctionId::kStringTrimStart:
+    case BuiltinFunctionId::kStringValueOf:
       return Type::String();
 
-    case kStringIterator:
-    case kStringIteratorNext:
+    case BuiltinFunctionId::kStringIterator:
+    case BuiltinFunctionId::kStringIteratorNext:
       return Type::OtherObject();
 
-    case kArrayEntries:
-    case kArrayKeys:
-    case kArrayValues:
-    case kTypedArrayEntries:
-    case kTypedArrayKeys:
-    case kTypedArrayValues:
-    case kArrayIteratorNext:
-    case kMapIteratorNext:
-    case kSetIteratorNext:
+    case BuiltinFunctionId::kArrayEntries:
+    case BuiltinFunctionId::kArrayKeys:
+    case BuiltinFunctionId::kArrayValues:
+    case BuiltinFunctionId::kTypedArrayEntries:
+    case BuiltinFunctionId::kTypedArrayKeys:
+    case BuiltinFunctionId::kTypedArrayValues:
+    case BuiltinFunctionId::kArrayIteratorNext:
+    case BuiltinFunctionId::kMapIteratorNext:
+    case BuiltinFunctionId::kSetIteratorNext:
       return Type::OtherObject();
-    case kTypedArrayToStringTag:
+    case BuiltinFunctionId::kTypedArrayToStringTag:
       return Type::Union(Type::InternalizedString(), Type::Undefined(),
                          t->zone());
 
     // Array functions.
-    case kArrayIsArray:
+    case BuiltinFunctionId::kArrayIsArray:
       return Type::Boolean();
-    case kArrayConcat:
+    case BuiltinFunctionId::kArrayConcat:
       return Type::Receiver();
-    case kArrayEvery:
+    case BuiltinFunctionId::kArrayEvery:
       return Type::Boolean();
-    case kArrayFill:
-    case kArrayFilter:
+    case BuiltinFunctionId::kArrayFill:
+    case BuiltinFunctionId::kArrayFilter:
       return Type::Receiver();
-    case kArrayFindIndex:
+    case BuiltinFunctionId::kArrayFindIndex:
       return Type::Range(-1, kMaxSafeInteger, t->zone());
-    case kArrayForEach:
+    case BuiltinFunctionId::kArrayForEach:
       return Type::Undefined();
-    case kArrayIncludes:
+    case BuiltinFunctionId::kArrayIncludes:
       return Type::Boolean();
-    case kArrayIndexOf:
+    case BuiltinFunctionId::kArrayIndexOf:
       return Type::Range(-1, kMaxSafeInteger, t->zone());
-    case kArrayJoin:
+    case BuiltinFunctionId::kArrayJoin:
       return Type::String();
-    case kArrayLastIndexOf:
+    case BuiltinFunctionId::kArrayLastIndexOf:
       return Type::Range(-1, kMaxSafeInteger, t->zone());
-    case kArrayMap:
+    case BuiltinFunctionId::kArrayMap:
       return Type::Receiver();
-    case kArrayPush:
+    case BuiltinFunctionId::kArrayPush:
       return t->cache_.kPositiveSafeInteger;
-    case kArrayReverse:
-    case kArraySlice:
+    case BuiltinFunctionId::kArrayReverse:
+    case BuiltinFunctionId::kArraySlice:
       return Type::Receiver();
-    case kArraySome:
+    case BuiltinFunctionId::kArraySome:
       return Type::Boolean();
-    case kArraySplice:
+    case BuiltinFunctionId::kArraySplice:
       return Type::Receiver();
-    case kArrayUnshift:
+    case BuiltinFunctionId::kArrayUnshift:
       return t->cache_.kPositiveSafeInteger;
 
     // ArrayBuffer functions.
-    case kArrayBufferIsView:
+    case BuiltinFunctionId::kArrayBufferIsView:
       return Type::Boolean();
 
     // Object functions.
-    case kObjectAssign:
+    case BuiltinFunctionId::kObjectAssign:
       return Type::Receiver();
-    case kObjectCreate:
+    case BuiltinFunctionId::kObjectCreate:
       return Type::OtherObject();
-    case kObjectIs:
-    case kObjectHasOwnProperty:
-    case kObjectIsPrototypeOf:
+    case BuiltinFunctionId::kObjectIs:
+    case BuiltinFunctionId::kObjectHasOwnProperty:
+    case BuiltinFunctionId::kObjectIsPrototypeOf:
       return Type::Boolean();
-    case kObjectToString:
+    case BuiltinFunctionId::kObjectToString:
       return Type::String();
 
     // RegExp functions.
-    case kRegExpCompile:
+    case BuiltinFunctionId::kRegExpCompile:
       return Type::OtherObject();
-    case kRegExpExec:
+    case BuiltinFunctionId::kRegExpExec:
       return Type::Union(Type::Array(), Type::Null(), t->zone());
-    case kRegExpTest:
+    case BuiltinFunctionId::kRegExpTest:
       return Type::Boolean();
-    case kRegExpToString:
+    case BuiltinFunctionId::kRegExpToString:
       return Type::String();
 
     // Function functions.
-    case kFunctionBind:
+    case BuiltinFunctionId::kFunctionBind:
       return Type::BoundFunction();
-    case kFunctionHasInstance:
+    case BuiltinFunctionId::kFunctionHasInstance:
       return Type::Boolean();
 
     // Global functions.
-    case kGlobalDecodeURI:
-    case kGlobalDecodeURIComponent:
-    case kGlobalEncodeURI:
-    case kGlobalEncodeURIComponent:
-    case kGlobalEscape:
-    case kGlobalUnescape:
+    case BuiltinFunctionId::kGlobalDecodeURI:
+    case BuiltinFunctionId::kGlobalDecodeURIComponent:
+    case BuiltinFunctionId::kGlobalEncodeURI:
+    case BuiltinFunctionId::kGlobalEncodeURIComponent:
+    case BuiltinFunctionId::kGlobalEscape:
+    case BuiltinFunctionId::kGlobalUnescape:
       return Type::String();
-    case kGlobalIsFinite:
-    case kGlobalIsNaN:
+    case BuiltinFunctionId::kGlobalIsFinite:
+    case BuiltinFunctionId::kGlobalIsNaN:
       return Type::Boolean();
 
     // Map functions.
-    case kMapClear:
-    case kMapForEach:
+    case BuiltinFunctionId::kMapClear:
+    case BuiltinFunctionId::kMapForEach:
       return Type::Undefined();
-    case kMapDelete:
-    case kMapHas:
+    case BuiltinFunctionId::kMapDelete:
+    case BuiltinFunctionId::kMapHas:
       return Type::Boolean();
-    case kMapEntries:
-    case kMapKeys:
-    case kMapSet:
-    case kMapValues:
+    case BuiltinFunctionId::kMapEntries:
+    case BuiltinFunctionId::kMapKeys:
+    case BuiltinFunctionId::kMapSet:
+    case BuiltinFunctionId::kMapValues:
       return Type::OtherObject();
 
     // Set functions.
-    case kSetAdd:
-    case kSetEntries:
-    case kSetValues:
+    case BuiltinFunctionId::kSetAdd:
+    case BuiltinFunctionId::kSetEntries:
+    case BuiltinFunctionId::kSetValues:
       return Type::OtherObject();
-    case kSetClear:
-    case kSetForEach:
+    case BuiltinFunctionId::kSetClear:
+    case BuiltinFunctionId::kSetForEach:
       return Type::Undefined();
-    case kSetDelete:
-    case kSetHas:
+    case BuiltinFunctionId::kSetDelete:
+    case BuiltinFunctionId::kSetHas:
       return Type::Boolean();
 
     // WeakMap functions.
-    case kWeakMapDelete:
-    case kWeakMapHas:
+    case BuiltinFunctionId::kWeakMapDelete:
+    case BuiltinFunctionId::kWeakMapHas:
       return Type::Boolean();
-    case kWeakMapSet:
+    case BuiltinFunctionId::kWeakMapSet:
       return Type::OtherObject();
 
     // WeakSet functions.
-    case kWeakSetAdd:
+    case BuiltinFunctionId::kWeakSetAdd:
       return Type::OtherObject();
-    case kWeakSetDelete:
-    case kWeakSetHas:
+    case BuiltinFunctionId::kWeakSetDelete:
+    case BuiltinFunctionId::kWeakSetHas:
       return Type::Boolean();
     default:
       return Type::NonInternal();
@@ -2034,8 +2047,8 @@ Type Typer::Visitor::TypeLoadElement(Node* node) {
 
 Type Typer::Visitor::TypeLoadTypedElement(Node* node) {
   switch (ExternalArrayTypeOf(node->op())) {
-#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
-  case kExternal##ElemType##Array:                          \
+#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype) \
+  case kExternal##ElemType##Array:                    \
     return typer_->cache_.k##ElemType;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -2045,8 +2058,8 @@ Type Typer::Visitor::TypeLoadTypedElement(Node* node) {
 
 Type Typer::Visitor::TypeLoadDataViewElement(Node* node) {
   switch (ExternalArrayTypeOf(node->op())) {
-#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
-  case kExternal##ElemType##Array:                          \
+#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype) \
+  case kExternal##ElemType##Array:                    \
     return typer_->cache_.k##ElemType;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE

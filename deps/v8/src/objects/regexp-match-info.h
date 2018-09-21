@@ -7,6 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

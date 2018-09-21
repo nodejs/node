@@ -40,27 +40,23 @@ static NodeVector::iterator FindInsertionPoint(BasicBlock* block) {
 
 // TODO(dcarney): need to mark code as non-serializable.
 static const Operator* PointerConstant(CommonOperatorBuilder* common,
-                                       void* ptr) {
-  return kPointerSize == 8
-             ? common->Int64Constant(reinterpret_cast<intptr_t>(ptr))
-             : common->Int32Constant(
-                   static_cast<int32_t>(reinterpret_cast<intptr_t>(ptr)));
+                                       intptr_t ptr) {
+  return kPointerSize == 8 ? common->Int64Constant(ptr)
+                           : common->Int32Constant(static_cast<int32_t>(ptr));
 }
 
 BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
     OptimizedCompilationInfo* info, Graph* graph, Schedule* schedule,
     Isolate* isolate) {
+  // Basic block profiling disables concurrent compilation, so handle deref is
+  // fine.
+  AllowHandleDereference allow_handle_dereference;
   // Skip the exit block in profiles, since the register allocator can't handle
   // it and entry into it means falling off the end of the function anyway.
   size_t n_blocks = static_cast<size_t>(schedule->RpoBlockCount()) - 1;
-  BasicBlockProfiler::Data* data =
-      isolate->GetOrCreateBasicBlockProfiler()->NewData(n_blocks);
+  BasicBlockProfiler::Data* data = BasicBlockProfiler::Get()->NewData(n_blocks);
   // Set the function name.
-  if (info->has_shared_info()) {
-    std::ostringstream os;
-    info->shared_info()->Name()->PrintUC16(os);
-    data->SetFunctionName(&os);
-  }
+  data->SetFunctionName(info->GetDebugName());
   // Capture the schedule string before instrumentation.
   {
     std::ostringstream os;
@@ -77,7 +73,7 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
        ++it, ++block_number) {
     BasicBlock* block = (*it);
-    data->SetBlockId(block_number, block->id().ToSize());
+    data->SetBlockRpoNumber(block_number, block->rpo_number());
     // TODO(dcarney): wire effect and control deps for load and store.
     // Construct increment operation.
     Node* base = graph->NewNode(

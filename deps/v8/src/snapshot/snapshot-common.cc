@@ -6,7 +6,6 @@
 
 #include "src/snapshot/snapshot.h"
 
-#include "src/api.h"
 #include "src/assembler-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/callable.h"
@@ -308,6 +307,10 @@ bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code* code) {
     case Builtins::TFJ:
     case Builtins::TFS:
       break;
+
+    // Bytecode handlers will only ever be used by the interpreter and so there
+    // will never be a need to use trampolines with them.
+    case Builtins::BCH:
     case Builtins::API:
     case Builtins::ASM:
       // TODO(jgruber): Extend checks to remaining kinds.
@@ -347,6 +350,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
     // On X64, ARM, ARM64 we emit relative builtin-to-builtin jumps for isolate
     // independent builtins in the snapshot. This fixes up the relative jumps
     // to the right offsets in the snapshot.
+    // See also: Code::IsIsolateIndependent.
     while (!on_heap_it.done()) {
       DCHECK(!off_heap_it.done());
 
@@ -355,8 +359,10 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
       Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
       CHECK(Builtins::IsIsolateIndependentBuiltin(target));
 
+      // Do not emit write-barrier for off-heap writes.
       off_heap_it.rinfo()->set_target_address(
-          blob->InstructionStartOfBuiltin(target->builtin_index()));
+          blob->InstructionStartOfBuiltin(target->builtin_index()),
+          SKIP_WRITE_BARRIER);
 
       on_heap_it.next();
       off_heap_it.next();
@@ -378,8 +384,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
 
   // Store instruction stream lengths and offsets.
-  std::vector<uint32_t> lengths(kTableSize);
-  std::vector<uint32_t> offsets(kTableSize);
+  std::vector<struct Metadata> metadata(kTableSize);
 
   bool saw_unsafe_builtin = false;
   uint32_t raw_data_size = 0;
@@ -395,6 +400,16 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
         saw_unsafe_builtin = true;
         fprintf(stderr, "%s is not isolate-independent.\n", Builtins::name(i));
       }
+      if (Builtins::IsWasmRuntimeStub(i) &&
+          RelocInfo::RequiresRelocation(code)) {
+        // Wasm additionally requires that its runtime stubs must be
+        // individually PIC (i.e. we must be able to copy each stub outside the
+        // embedded area without relocations). In particular, that means
+        // pc-relative calls to other builtins are disallowed.
+        saw_unsafe_builtin = true;
+        fprintf(stderr, "%s is a wasm runtime stub but needs relocation.\n",
+                Builtins::name(i));
+      }
       if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
         saw_unsafe_builtin = true;
         fprintf(stderr, "%s aliases the off-heap trampoline register.\n",
@@ -404,14 +419,13 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       uint32_t length = static_cast<uint32_t>(code->raw_instruction_size());
 
       DCHECK_EQ(0, raw_data_size % kCodeAlignment);
-      offsets[i] = raw_data_size;
-      lengths[i] = length;
+      metadata[i].instructions_offset = raw_data_size;
+      metadata[i].instructions_length = length;
 
       // Align the start of each instruction stream.
-      raw_data_size += RoundUp<kCodeAlignment>(length);
+      raw_data_size += PadAndAlign(length);
     } else {
-      offsets[i] = raw_data_size;
-      lengths[i] = 0;
+      metadata[i].instructions_offset = raw_data_size;
     }
   }
   CHECK_WITH_MSG(
@@ -421,22 +435,23 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       "If in doubt, ask jgruber@");
 
   const uint32_t blob_size = RawDataOffset() + raw_data_size;
-  uint8_t* blob = new uint8_t[blob_size];
-  std::memset(blob, 0, blob_size);
+  uint8_t* const blob = new uint8_t[blob_size];
+  uint8_t* const raw_data_start = blob + RawDataOffset();
 
-  // Write the offsets and length tables.
-  DCHECK_EQ(OffsetsSize(), sizeof(offsets[0]) * offsets.size());
-  std::memcpy(blob + OffsetsOffset(), offsets.data(), OffsetsSize());
+  // Initially zap the entire blob, effectively padding the alignment area
+  // between two builtins with int3's (on x64/ia32).
+  ZapCode(reinterpret_cast<Address>(blob), blob_size);
 
-  DCHECK_EQ(LengthsSize(), sizeof(lengths[0]) * lengths.size());
-  std::memcpy(blob + LengthsOffset(), lengths.data(), LengthsSize());
+  // Write the metadata tables.
+  DCHECK_EQ(MetadataSize(), sizeof(metadata[0]) * metadata.size());
+  std::memcpy(blob + MetadataOffset(), metadata.data(), MetadataSize());
 
   // Write the raw data section.
   for (int i = 0; i < Builtins::builtin_count; i++) {
     if (!Builtins::IsIsolateIndependent(i)) continue;
     Code* code = builtins->builtin(i);
-    uint32_t offset = offsets[i];
-    uint8_t* dst = blob + RawDataOffset() + offset;
+    uint32_t offset = metadata[i].instructions_offset;
+    uint8_t* dst = raw_data_start + offset;
     DCHECK_LE(RawDataOffset() + offset + code->raw_instruction_size(),
               blob_size);
     std::memcpy(dst, reinterpret_cast<uint8_t*>(code->raw_instruction_start()),
@@ -471,8 +486,8 @@ EmbeddedData EmbeddedData::FromBlob() {
 
 Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
-  const uint32_t* offsets = Offsets();
-  const uint8_t* result = RawData() + offsets[i];
+  const struct Metadata* metadata = Metadata();
+  const uint8_t* result = RawData() + metadata[i].instructions_offset;
   DCHECK_LE(result, data_ + size_);
   DCHECK_IMPLIES(result == data_ + size_, InstructionSizeOfBuiltin(i) == 0);
   return reinterpret_cast<Address>(result);
@@ -480,8 +495,8 @@ Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
 
 uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
-  const uint32_t* lengths = Lengths();
-  return lengths[i];
+  const struct Metadata* metadata = Metadata();
+  return metadata[i].instructions_length;
 }
 
 size_t EmbeddedData::CreateHash() const {
@@ -520,8 +535,7 @@ void EmbeddedData::PrintStatistics() const {
   const int k90th = embedded_count * 0.90;
   const int k99th = embedded_count * 0.99;
 
-  const int metadata_size =
-      static_cast<int>(HashSize() + OffsetsSize() + LengthsSize());
+  const int metadata_size = static_cast<int>(HashSize() + MetadataSize());
 
   PrintF("EmbeddedData:\n");
   PrintF("  Total size:                         %d\n",

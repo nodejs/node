@@ -14,9 +14,9 @@
 #include "src/globals.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/utils.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 
@@ -262,10 +262,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ParseImportDeclaration(bool* ok);
   Statement* ParseExportDeclaration(bool* ok);
   Statement* ParseExportDefault(bool* ok);
-  void ParseExportClause(ZonePtrList<const AstRawString>* export_names,
-                         ZoneList<Scanner::Location>* export_locations,
-                         ZonePtrList<const AstRawString>* local_names,
-                         Scanner::Location* reserved_loc, bool* ok);
+  struct ExportClauseData {
+    const AstRawString* export_name;
+    const AstRawString* local_name;
+    Scanner::Location location;
+  };
+  ZoneChunkList<ExportClauseData>* ParseExportClause(
+      Scanner::Location* reserved_loc, bool* ok);
   struct NamedImport : public ZoneObject {
     const AstRawString* import_name;
     const AstRawString* local_name;
@@ -280,8 +283,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                                   ZonePtrList<const AstRawString>* names,
                                   bool* ok);
-  ZonePtrList<const AstRawString>* DeclareLabel(
-      ZonePtrList<const AstRawString>* labels, VariableProxy* expr, bool* ok);
+  void DeclareLabel(ZonePtrList<const AstRawString>** labels,
+                    ZonePtrList<const AstRawString>** own_labels,
+                    VariableProxy* expr, bool* ok);
   bool ContainsLabel(ZonePtrList<const AstRawString>* labels,
                      const AstRawString* label);
   Expression* RewriteReturn(Expression* return_value, int pos);
@@ -954,7 +958,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void SetFunctionNameFromIdentifierRef(Expression* value,
                                         Expression* identifier);
 
-  V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
+  V8_INLINE ZoneVector<typename ExpressionClassifier::Error>*
   GetReportedErrorList() const {
     return function_state_->GetReportedErrorList();
   }

@@ -161,30 +161,6 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitWeakCell(Map* map, WeakCell* weak_cell) {
-  // Enqueue weak cell in linked list of encountered weak collections.
-  // We can ignore weak cells with cleared values because they will always
-  // contain smi zero.
-  if (!weak_cell->cleared()) {
-    HeapObject* value = HeapObject::cast(weak_cell->value());
-    if (marking_state()->IsBlackOrGrey(value)) {
-      // Weak cells with live values are directly processed here to reduce
-      // the processing time of weak cells during the main GC pause.
-      Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
-      collector_->RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
-    } else {
-      // If we do not know about liveness of values of weak cells, we have to
-      // process them when we know the liveness of the whole transitive
-      // closure.
-      collector_->AddWeakCell(weak_cell);
-    }
-  }
-  return WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
-}
-
-template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::VisitPointer(HeapObject* host, Object** p) {
   if (!(*p)->IsHeapObject()) return;
@@ -577,6 +553,8 @@ template <LiveObjectIterationMode mode>
 typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
   return iterator(chunk_, bitmap_, end_);
 }
+
+Isolate* MarkCompactCollectorBase::isolate() { return heap()->isolate(); }
 
 }  // namespace internal
 }  // namespace v8

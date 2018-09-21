@@ -341,6 +341,9 @@ class ObjectStatsCollectorImpl {
                                 ObjectStats::VirtualInstanceType type,
                                 size_t size, size_t over_allocated,
                                 CowMode check_cow_array = kCheckCow);
+  void RecordExternalResourceStats(Address resource,
+                                   ObjectStats::VirtualInstanceType type,
+                                   size_t size);
   // Gets size from |ob| and assumes no over allocating.
   bool RecordSimpleVirtualObjectStats(HeapObject* parent, HeapObject* obj,
                                       ObjectStats::VirtualInstanceType type);
@@ -379,6 +382,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualJSObjectDetails(JSObject* object);
   void RecordVirtualMapDetails(Map* map);
   void RecordVirtualScriptDetails(Script* script);
+  void RecordVirtualExternalStringDetails(ExternalString* script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo* info);
   void RecordVirtualJSFunctionDetails(JSFunction* function);
 
@@ -388,6 +392,7 @@ class ObjectStatsCollectorImpl {
   ObjectStats* stats_;
   MarkCompactCollector::NonAtomicMarkingState* marking_state_;
   std::unordered_set<HeapObject*> virtual_objects_;
+  std::unordered_set<Address> external_resources_;
   FieldStatsCollector field_stats_collector_;
 };
 
@@ -431,8 +436,9 @@ bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
 bool ObjectStatsCollectorImpl::RecordVirtualObjectStats(
     HeapObject* parent, HeapObject* obj, ObjectStats::VirtualInstanceType type,
     size_t size, size_t over_allocated, CowMode check_cow_array) {
-  if (!SameLiveness(parent, obj) || !ShouldRecordObject(obj, check_cow_array))
+  if (!SameLiveness(parent, obj) || !ShouldRecordObject(obj, check_cow_array)) {
     return false;
+  }
 
   if (virtual_objects_.find(obj) == virtual_objects_.end()) {
     virtual_objects_.insert(obj);
@@ -440,6 +446,14 @@ bool ObjectStatsCollectorImpl::RecordVirtualObjectStats(
     return true;
   }
   return false;
+}
+
+void ObjectStatsCollectorImpl::RecordExternalResourceStats(
+    Address resource, ObjectStats::VirtualInstanceType type, size_t size) {
+  if (external_resources_.find(resource) == external_resources_.end()) {
+    external_resources_.insert(resource);
+    stats_->RecordVirtualObjectStats(type, size, 0);
+  }
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
@@ -663,6 +677,8 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualContext(Context::cast(obj));
       } else if (obj->IsScript()) {
         RecordVirtualScriptDetails(Script::cast(obj));
+      } else if (obj->IsExternalString()) {
+        RecordVirtualExternalStringDetails(ExternalString::cast(obj));
       } else if (obj->IsArrayBoilerplateDescription()) {
         RecordVirtualArrayBoilerplateDescription(
             ArrayBoilerplateDescription::cast(obj));
@@ -704,14 +720,13 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   RecordSimpleVirtualObjectStats(nullptr, heap_->retained_maps(),
                                  ObjectStats::RETAINED_MAPS_TYPE);
 
-  // FixedArrayOfWeakCells.
+  // WeakArrayList.
   RecordSimpleVirtualObjectStats(
-      nullptr,
-      FixedArrayOfWeakCells::cast(heap_->noscript_shared_function_infos()),
+      nullptr, WeakArrayList::cast(heap_->noscript_shared_function_infos()),
       ObjectStats::NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE);
-  RecordSimpleVirtualObjectStats(
-      nullptr, FixedArrayOfWeakCells::cast(heap_->script_list()),
-      ObjectStats::SCRIPT_LIST_TYPE);
+  RecordSimpleVirtualObjectStats(nullptr,
+                                 WeakArrayList::cast(heap_->script_list()),
+                                 ObjectStats::SCRIPT_LIST_TYPE);
 
   // HashTable.
   RecordHashTableVirtualObjectStats(nullptr, heap_->code_stubs(),
@@ -776,22 +791,42 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
       ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
 
   // Log the size of external source code.
-  Object* source = script->source();
-  if (source->IsExternalString()) {
+  Object* raw_source = script->source();
+  if (raw_source->IsExternalString()) {
     // The contents of external strings aren't on the heap, so we have to record
-    // them manually.
-    ExternalString* external_source_string = ExternalString::cast(source);
-    size_t off_heap_size = external_source_string->ExternalPayloadSize();
-    size_t on_heap_size = external_source_string->Size();
-    RecordVirtualObjectStats(script, external_source_string,
-                             ObjectStats::SCRIPT_SOURCE_EXTERNAL_TYPE,
-                             on_heap_size + off_heap_size,
-                             ObjectStats::kNoOverAllocation);
-  } else if (source->IsHeapObject()) {
+    // them manually. The on-heap String object is recorded indepentendely in
+    // the normal pass.
+    ExternalString* string = ExternalString::cast(raw_source);
+    Address resource = string->resource_as_address();
+    size_t off_heap_size = string->ExternalPayloadSize();
+    RecordExternalResourceStats(
+        resource,
+        string->IsOneByteRepresentation()
+            ? ObjectStats::SCRIPT_SOURCE_EXTERNAL_ONE_BYTE_TYPE
+            : ObjectStats::SCRIPT_SOURCE_EXTERNAL_TWO_BYTE_TYPE,
+        off_heap_size);
+  } else if (raw_source->IsString()) {
+    String* source = String::cast(raw_source);
     RecordSimpleVirtualObjectStats(
-        script, HeapObject::cast(source),
-        ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_TYPE);
+        script, HeapObject::cast(raw_source),
+        source->IsOneByteRepresentation()
+            ? ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_ONE_BYTE_TYPE
+            : ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_TWO_BYTE_TYPE);
   }
+}
+
+void ObjectStatsCollectorImpl::RecordVirtualExternalStringDetails(
+    ExternalString* string) {
+  // Track the external string resource size in a separate category.
+
+  Address resource = string->resource_as_address();
+  size_t off_heap_size = string->ExternalPayloadSize();
+  RecordExternalResourceStats(
+      resource,
+      string->IsOneByteRepresentation()
+          ? ObjectStats::STRING_EXTERNAL_RESOURCE_ONE_BYTE_TYPE
+          : ObjectStats::STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE,
+      off_heap_size);
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(

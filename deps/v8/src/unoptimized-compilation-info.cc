@@ -4,7 +4,6 @@
 
 #include "src/unoptimized-compilation-info.h"
 
-#include "src/api.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/debug/debug.h"
@@ -48,10 +47,6 @@ int UnoptimizedCompilationInfo::num_parameters() const {
 
 int UnoptimizedCompilationInfo::num_parameters_including_this() const {
   return scope()->num_parameters() + 1;
-}
-
-bool UnoptimizedCompilationInfo::has_simple_parameters() {
-  return scope()->has_simple_parameters();
 }
 
 SourcePositionTableBuilder::RecordingMode

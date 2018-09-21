@@ -310,7 +310,7 @@ function checkStack(stack, expected_lines) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
       'TypeError: ' + kTrapMsgs[kTrapTypeError],                // -
-      '    at indirect (wasm-function[2]:1)',                   // -
+      '    at indirect (wasm-function[2]:3)',                   // -
       '    at main (wasm-function[3]:3)',                       // -
       /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
       /^    at interpreter.js:\d+:3$/

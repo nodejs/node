@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "src/base/platform/mutex.h"
-#include "src/objects/js-array.h"
+#include "src/objects/js-array-buffer.h"
 
 namespace v8 {
 namespace internal {

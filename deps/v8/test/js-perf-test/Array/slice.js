@@ -43,13 +43,6 @@
 })();
 
 (() => {
-
-  function assert(condition, message) {
-    if (!condition) {
-      throw Error(message);
-    }
-  }
-
   const A = new Array(1000);
 
   for (let i = 0; i < A.length; i++) {

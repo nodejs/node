@@ -27,14 +27,14 @@ class TypeCache;
 
 class V8_EXPORT_PRIVATE OperationTyper {
  public:
-  OperationTyper(Isolate* isolate, const JSHeapBroker* js_heap_broker,
-                 Zone* zone);
+  OperationTyper(Isolate* isolate, JSHeapBroker* js_heap_broker, Zone* zone);
 
   // Typing Phi.
   Type Merge(Type left, Type right);
 
   Type ToPrimitive(Type type);
   Type ToNumber(Type type);
+  Type ToNumberConvertBigInt(Type type);
   Type ToNumeric(Type type);
   Type ToBoolean(Type type);
 
@@ -78,6 +78,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
   typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
 
   Type ToNumberOrNumeric(Object::Conversion mode, Type type);
+  base::Optional<Type> ToNumberCommon(Type type);
 
   ComparisonOutcome Invert(ComparisonOutcome);
   Type Invert(Type);

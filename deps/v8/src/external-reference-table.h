@@ -50,10 +50,21 @@ class ExternalReferenceTable {
 
   static const char* ResolveSymbol(void* address);
 
+  static constexpr uint32_t EntrySize() {
+    return sizeof(ExternalReferenceEntry);
+  }
+
   static constexpr uint32_t OffsetOfEntry(uint32_t i) {
     // Used in CodeAssembler::LookupExternalReference.
     STATIC_ASSERT(offsetof(ExternalReferenceEntry, address) == 0);
-    return i * sizeof(ExternalReferenceEntry);
+    return i * EntrySize();
+  }
+
+  const char* NameFromOffset(uint32_t offset) {
+    DCHECK_EQ(offset % EntrySize(), 0);
+    DCHECK_LT(offset, SizeInBytes());
+    int index = offset / EntrySize();
+    return name(index);
   }
 
   static constexpr uint32_t SizeInBytes() {
@@ -78,10 +89,10 @@ class ExternalReferenceTable {
   void Add(Address address, const char* name, int* index);
 
   void AddReferences(Isolate* isolate, int* index);
-  void AddBuiltins(Isolate* isolate, int* index);
-  void AddRuntimeFunctions(Isolate* isolate, int* index);
+  void AddBuiltins(int* index);
+  void AddRuntimeFunctions(int* index);
   void AddIsolateAddresses(Isolate* isolate, int* index);
-  void AddAccessors(Isolate* isolate, int* index);
+  void AddAccessors(int* index);
   void AddStubCache(Isolate* isolate, int* index);
 
   ExternalReferenceEntry refs_[kSize];

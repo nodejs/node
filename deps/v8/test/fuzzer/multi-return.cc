@@ -19,6 +19,7 @@
 #include "src/optimized-compilation-info.h"
 #include "src/simulator.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -160,7 +161,8 @@ std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   return isolate->wasm_engine()->code_manager()->NewNativeModule(
-      isolate, code_size, false, std::move(module), env);
+      isolate, i::wasm::kAllWasmFeatures, code_size, false, std::move(module),
+      env);
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -306,6 +308,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
           &wrapper_info, i_isolate, wrapper_desc, caller.graph(),
           AssemblerOptions::Default(i_isolate), caller.Export())
           .ToHandleChecked();
+
   auto fn = GeneratedCode<int32_t>::FromCode(*wrapper_code);
   int result = fn.Call();
 

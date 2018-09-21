@@ -57,8 +57,7 @@ class AccessorInfo : public Struct {
   inline void set_initial_property_attributes(PropertyAttributes attributes);
 
   // Checks whether the given receiver is compatible with this accessor.
-  static bool IsCompatibleReceiverMap(Isolate* isolate,
-                                      Handle<AccessorInfo> info,
+  static bool IsCompatibleReceiverMap(Handle<AccessorInfo> info,
                                       Handle<Map> map);
   inline bool IsCompatibleReceiver(Object* receiver);
 

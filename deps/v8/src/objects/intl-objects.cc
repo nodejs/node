@@ -9,14 +9,18 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/intl-objects-inl.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
+#include <vector>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/intl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-collator-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/string.h"
 #include "src/property-descriptor.h"
@@ -197,11 +201,10 @@ void SetResolvedDateSettings(Isolate* isolate, const icu::Locale& icu_locale,
   if (U_SUCCESS(status)) {
     // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
     // a separate timezone ID from Etc/GMT even though they're still the same
-    // timezone. We'd not have "Etc/GMT" here because we canonicalize it and
-    // other GMT-variants to "UTC" in intl.js and "UTC" is turned to "Etc/UTC"
-    // by ICU before getting here.
-    // TODO(jshin): Figure out the cause of crbug.com/719609 and re-enable
-    //  DCHECK(canonical_time_zone != UNICODE_STRING_SIMPLE("Etc/GMT")) .
+    // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
+    // 'Etc/Zulu' and others are turned to 'Etc/UTC' by ICU. Etc/GMT comes
+    // from Etc/GMT0, Etc/GMT+0, Etc/GMT-0, Etc/Greenwich.
+    // ecma402##sec-canonicalizetimezonename step 3
     if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/UTC") ||
         canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/GMT")) {
       JSObject::SetProperty(
@@ -493,276 +496,6 @@ void SetResolvedNumberSettings(Isolate* isolate, const icu::Locale& icu_locale,
   SetResolvedNumericSettings(isolate, icu_locale, number_format, resolved);
 }
 
-icu::Collator* CreateICUCollator(Isolate* isolate,
-                                 const icu::Locale& icu_locale,
-                                 Handle<JSObject> options) {
-  // Make collator from options.
-  icu::Collator* collator = nullptr;
-  UErrorCode status = U_ZERO_ERROR;
-  collator = icu::Collator::createInstance(icu_locale, status);
-
-  if (U_FAILURE(status)) {
-    delete collator;
-    return nullptr;
-  }
-
-  // Set flags first, and then override them with sensitivity if necessary.
-  bool numeric;
-  if (ExtractBooleanSetting(isolate, options, "numeric", &numeric)) {
-    collator->setAttribute(UCOL_NUMERIC_COLLATION, numeric ? UCOL_ON : UCOL_OFF,
-                           status);
-  }
-
-  // Normalization is always on, by the spec. We are free to optimize
-  // if the strings are already normalized (but we don't have a way to tell
-  // that right now).
-  collator->setAttribute(UCOL_NORMALIZATION_MODE, UCOL_ON, status);
-
-  icu::UnicodeString case_first;
-  if (ExtractStringSetting(isolate, options, "caseFirst", &case_first)) {
-    if (case_first == UNICODE_STRING_SIMPLE("upper")) {
-      collator->setAttribute(UCOL_CASE_FIRST, UCOL_UPPER_FIRST, status);
-    } else if (case_first == UNICODE_STRING_SIMPLE("lower")) {
-      collator->setAttribute(UCOL_CASE_FIRST, UCOL_LOWER_FIRST, status);
-    } else {
-      // Default (false/off).
-      collator->setAttribute(UCOL_CASE_FIRST, UCOL_OFF, status);
-    }
-  }
-
-  icu::UnicodeString sensitivity;
-  if (ExtractStringSetting(isolate, options, "sensitivity", &sensitivity)) {
-    if (sensitivity == UNICODE_STRING_SIMPLE("base")) {
-      collator->setStrength(icu::Collator::PRIMARY);
-    } else if (sensitivity == UNICODE_STRING_SIMPLE("accent")) {
-      collator->setStrength(icu::Collator::SECONDARY);
-    } else if (sensitivity == UNICODE_STRING_SIMPLE("case")) {
-      collator->setStrength(icu::Collator::PRIMARY);
-      collator->setAttribute(UCOL_CASE_LEVEL, UCOL_ON, status);
-    } else {
-      // variant (default)
-      collator->setStrength(icu::Collator::TERTIARY);
-    }
-  }
-
-  bool ignore;
-  if (ExtractBooleanSetting(isolate, options, "ignorePunctuation", &ignore)) {
-    if (ignore) {
-      collator->setAttribute(UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, status);
-    }
-  }
-
-  return collator;
-}
-
-void SetResolvedCollatorSettings(Isolate* isolate,
-                                 const icu::Locale& icu_locale,
-                                 icu::Collator* collator,
-                                 Handle<JSObject> resolved) {
-  Factory* factory = isolate->factory();
-  UErrorCode status = U_ZERO_ERROR;
-
-  JSObject::SetProperty(
-      isolate, resolved, factory->NewStringFromStaticChars("numeric"),
-      factory->ToBoolean(
-          collator->getAttribute(UCOL_NUMERIC_COLLATION, status) == UCOL_ON),
-      LanguageMode::kSloppy)
-      .Assert();
-
-  switch (collator->getAttribute(UCOL_CASE_FIRST, status)) {
-    case UCOL_LOWER_FIRST:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("caseFirst"),
-          factory->NewStringFromStaticChars("lower"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    case UCOL_UPPER_FIRST:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("caseFirst"),
-          factory->NewStringFromStaticChars("upper"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    default:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("caseFirst"),
-          factory->NewStringFromStaticChars("false"), LanguageMode::kSloppy)
-          .Assert();
-  }
-
-  switch (collator->getAttribute(UCOL_STRENGTH, status)) {
-    case UCOL_PRIMARY: {
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("strength"),
-          factory->NewStringFromStaticChars("primary"), LanguageMode::kSloppy)
-          .Assert();
-
-      // case level: true + s1 -> case, s1 -> base.
-      if (UCOL_ON == collator->getAttribute(UCOL_CASE_LEVEL, status)) {
-        JSObject::SetProperty(
-            isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-            factory->NewStringFromStaticChars("case"), LanguageMode::kSloppy)
-            .Assert();
-      } else {
-        JSObject::SetProperty(
-            isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-            factory->NewStringFromStaticChars("base"), LanguageMode::kSloppy)
-            .Assert();
-      }
-      break;
-    }
-    case UCOL_SECONDARY:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("strength"),
-          factory->NewStringFromStaticChars("secondary"), LanguageMode::kSloppy)
-          .Assert();
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-          factory->NewStringFromStaticChars("accent"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    case UCOL_TERTIARY:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("strength"),
-          factory->NewStringFromStaticChars("tertiary"), LanguageMode::kSloppy)
-          .Assert();
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-          factory->NewStringFromStaticChars("variant"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    case UCOL_QUATERNARY:
-      // We shouldn't get quaternary and identical from ICU, but if we do
-      // put them into variant.
-      JSObject::SetProperty(isolate, resolved,
-                            factory->NewStringFromStaticChars("strength"),
-                            factory->NewStringFromStaticChars("quaternary"),
-                            LanguageMode::kSloppy)
-          .Assert();
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-          factory->NewStringFromStaticChars("variant"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    default:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("strength"),
-          factory->NewStringFromStaticChars("identical"), LanguageMode::kSloppy)
-          .Assert();
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-          factory->NewStringFromStaticChars("variant"), LanguageMode::kSloppy)
-          .Assert();
-  }
-
-  JSObject::SetProperty(
-      isolate, resolved, factory->NewStringFromStaticChars("ignorePunctuation"),
-      factory->ToBoolean(collator->getAttribute(UCOL_ALTERNATE_HANDLING,
-                                                status) == UCOL_SHIFTED),
-      LanguageMode::kSloppy)
-      .Assert();
-
-  // Set the locale
-  char result[ULOC_FULLNAME_CAPACITY];
-  status = U_ZERO_ERROR;
-  uloc_toLanguageTag(icu_locale.getName(), result, ULOC_FULLNAME_CAPACITY,
-                     FALSE, &status);
-  if (U_SUCCESS(status)) {
-    JSObject::SetProperty(
-        isolate, resolved, factory->NewStringFromStaticChars("locale"),
-        factory->NewStringFromAsciiChecked(result), LanguageMode::kSloppy)
-        .Assert();
-  } else {
-    // This would never happen, since we got the locale from ICU.
-    JSObject::SetProperty(
-        isolate, resolved, factory->NewStringFromStaticChars("locale"),
-        factory->NewStringFromStaticChars("und"), LanguageMode::kSloppy)
-        .Assert();
-  }
-}
-
-bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
-                          Handle<JSObject> options, icu::PluralRules** pl,
-                          icu::DecimalFormat** nf) {
-  // Make formatter from options. Numbering system is added
-  // to the locale as Unicode extension (if it was specified at all).
-  UErrorCode status = U_ZERO_ERROR;
-
-  UPluralType type = UPLURAL_TYPE_CARDINAL;
-
-  icu::UnicodeString type_string;
-  if (ExtractStringSetting(isolate, options, "type", &type_string)) {
-    if (type_string == UNICODE_STRING_SIMPLE("ordinal")) {
-      type = UPLURAL_TYPE_ORDINAL;
-    } else {
-      CHECK(type_string == UNICODE_STRING_SIMPLE("cardinal"));
-    }
-  }
-
-  icu::PluralRules* plural_rules =
-      icu::PluralRules::forLocale(icu_locale, type, status);
-
-  if (U_FAILURE(status)) {
-    delete plural_rules;
-    return false;
-  }
-
-  icu::DecimalFormat* number_format = static_cast<icu::DecimalFormat*>(
-      icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status));
-
-  if (U_FAILURE(status)) {
-    delete plural_rules;
-    delete number_format;
-    return false;
-  }
-
-  *pl = plural_rules;
-  *nf = number_format;
-
-  SetNumericSettings(isolate, number_format, options);
-
-  // Set rounding mode.
-
-  return true;
-}
-
-bool SetResolvedPluralRulesSettings(Isolate* isolate,
-                                    const icu::Locale& icu_locale,
-                                    icu::PluralRules* plural_rules,
-                                    icu::DecimalFormat* number_format,
-                                    Handle<JSObject> resolved) {
-  SetResolvedNumericSettings(isolate, icu_locale, number_format, resolved);
-
-  Factory* factory = isolate->factory();
-
-  Handle<JSObject> pluralCategories = Handle<JSObject>::cast(
-      JSObject::GetProperty(
-          isolate, resolved,
-          factory->NewStringFromStaticChars("pluralCategories"))
-          .ToHandleChecked());
-
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::StringEnumeration> categories(
-      plural_rules->getKeywords(status));
-  if (U_FAILURE(status)) return false;
-
-  if (U_FAILURE(status)) return false;
-
-  for (int32_t i = 0;; i++) {
-    const icu::UnicodeString* category = categories->snext(status);
-    if (U_FAILURE(status)) return false;
-    if (category == nullptr) return true;
-
-    std::string keyword;
-    Handle<String> value = factory->NewStringFromAsciiChecked(
-        category->toUTF8String(keyword).data());
-
-    LookupIterator it(isolate, pluralCategories, i, LookupIterator::OWN);
-    JSObject::DefineOwnPropertyIgnoreAttributes(&it, value,
-                                                PropertyAttributes::NONE)
-        .ToHandleChecked();
-  }
-}
-
 icu::BreakIterator* CreateICUBreakIterator(Isolate* isolate,
                                            const icu::Locale& icu_locale,
                                            Handle<JSObject> options) {
@@ -819,27 +552,60 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
         .Assert();
   }
 }
+
+MaybeHandle<JSObject> CachedOrNewService(Isolate* isolate,
+                                         Handle<String> service,
+                                         Handle<Object> locales,
+                                         Handle<Object> options,
+                                         Handle<Object> internal_options) {
+  Handle<Object> result;
+  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
+                                 isolate);
+  Handle<Object> args[] = {service, locales, options, internal_options};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, isolate->cached_or_new_service(),
+                      undefined_value, arraysize(args), args),
+      JSArray);
+  return Handle<JSObject>::cast(result);
+}
 }  // namespace
+
+icu::Locale Intl::CreateICULocale(Isolate* isolate,
+                                  Handle<String> bcp47_locale_str) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::String::Utf8Value bcp47_locale(v8_isolate,
+                                     v8::Utils::ToLocal(bcp47_locale_str));
+  CHECK_NOT_NULL(*bcp47_locale);
+
+  DisallowHeapAllocation no_gc;
+
+  // Convert BCP47 into ICU locale format.
+  UErrorCode status = U_ZERO_ERROR;
+  char icu_result[ULOC_FULLNAME_CAPACITY];
+  int icu_length = 0;
+
+  // bcp47_locale_str should be a canonicalized language tag, which
+  // means this shouldn't fail.
+  uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
+                      &icu_length, &status);
+  CHECK(U_SUCCESS(status));
+  CHECK_LT(0, icu_length);
+
+  icu::Locale icu_locale(icu_result);
+  if (icu_locale.isBogus()) {
+    FATAL("Failed to create ICU locale, are ICU data files missing?");
+  }
+
+  return icu_locale;
+}
 
 // static
 icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  // Convert BCP47 into ICU locale format.
-  UErrorCode status = U_ZERO_ERROR;
-  icu::Locale icu_locale;
-  char icu_result[ULOC_FULLNAME_CAPACITY];
-  int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
-  if (bcp47_locale.length() != 0) {
-    uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
-                        &icu_length, &status);
-    if (U_FAILURE(status) || icu_length == 0) {
-      return nullptr;
-    }
-    icu_locale = icu::Locale(icu_result);
-  }
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
+  DCHECK(!icu_locale.isBogus());
 
   icu::SimpleDateFormat* date_format =
       CreateICUDateFormat(isolate, icu_locale, options);
@@ -859,12 +625,13 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     SetResolvedDateSettings(isolate, icu_locale, date_format, resolved);
   }
 
+  CHECK_NOT_NULL(date_format);
   return date_format;
 }
 
-icu::SimpleDateFormat* DateFormat::UnpackDateFormat(Isolate* isolate,
-                                                    Handle<JSObject> obj) {
-  return reinterpret_cast<icu::SimpleDateFormat*>(obj->GetEmbedderField(0));
+icu::SimpleDateFormat* DateFormat::UnpackDateFormat(Handle<JSObject> obj) {
+  return reinterpret_cast<icu::SimpleDateFormat*>(
+      obj->GetEmbedderField(DateFormat::kSimpleDateFormatIndex));
 }
 
 void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
@@ -872,25 +639,115 @@ void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
 }
 
+MaybeHandle<JSObject> DateFormat::Unwrap(Isolate* isolate,
+                                         Handle<JSReceiver> receiver,
+                                         const char* method_name) {
+  Handle<Context> native_context =
+      Handle<Context>(isolate->context()->native_context(), isolate);
+  Handle<JSFunction> constructor = Handle<JSFunction>(
+      JSFunction::cast(native_context->intl_date_time_format_function()),
+      isolate);
+  Handle<String> method_name_str =
+      isolate->factory()->NewStringFromAsciiChecked(method_name);
+
+  return Intl::UnwrapReceiver(isolate, receiver, constructor,
+                              Intl::Type::kDateTimeFormat, method_name_str,
+                              true);
+}
+
+// ecma402/#sec-formatdatetime
+// FormatDateTime( dateTimeFormat, x )
+MaybeHandle<String> DateFormat::FormatDateTime(
+    Isolate* isolate, Handle<JSObject> date_time_format_holder, double x) {
+  double date_value = DateCache::TimeClip(x);
+  if (std::isnan(date_value)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
+                    String);
+  }
+
+  CHECK(Intl::IsObjectOfType(isolate, date_time_format_holder,
+                             Intl::Type::kDateTimeFormat));
+  icu::SimpleDateFormat* date_format =
+      DateFormat::UnpackDateFormat(date_time_format_holder);
+  CHECK_NOT_NULL(date_format);
+
+  icu::UnicodeString result;
+  date_format->format(date_value, result);
+
+  return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+      reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length()));
+}
+
+// ecma402/#sec-datetime-format-functions
+// DateTime Format Functions
+MaybeHandle<String> DateFormat::DateTimeFormat(
+    Isolate* isolate, Handle<JSObject> date_time_format_holder,
+    Handle<Object> date) {
+  // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]]
+  // internal slot.
+  DCHECK(Intl::IsObjectOfType(isolate, date_time_format_holder,
+                              Intl::Type::kDateTimeFormat));
+
+  // 3. If date is not provided or is undefined, then
+  double x;
+  if (date->IsUndefined()) {
+    // 3.a Let x be Call(%Date_now%, undefined).
+    x = JSDate::CurrentTimeValue(isolate);
+  } else {
+    // 4. Else,
+    //    a. Let x be ? ToNumber(date).
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, date, Object::ToNumber(isolate, date),
+                               String);
+    CHECK(date->IsNumber());
+    x = date->Number();
+  }
+  // 5. Return FormatDateTime(dtf, x).
+  return DateFormat::FormatDateTime(isolate, date_time_format_holder, x);
+}
+
+MaybeHandle<String> DateFormat::ToLocaleDateTime(
+    Isolate* isolate, Handle<Object> date, Handle<Object> locales,
+    Handle<Object> options, const char* required, const char* defaults,
+    const char* service) {
+  Factory* factory = isolate->factory();
+  // 1. Let x be ? thisTimeValue(this value);
+  if (!date->IsJSDate()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 factory->NewStringFromStaticChars("Date")),
+                    String);
+  }
+
+  double const x = Handle<JSDate>::cast(date)->value()->Number();
+  // 2. If x is NaN, return "Invalid Date"
+  if (std::isnan(x)) {
+    return factory->NewStringFromStaticChars("Invalid Date");
+  }
+
+  // 3. Let options be ? ToDateTimeOptions(options, required, defaults).
+  Handle<JSObject> internal_options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, internal_options,
+      DateFormat::ToDateTimeOptions(isolate, options, required, defaults),
+      String);
+
+  // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
+  Handle<JSObject> date_format;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_format,
+      CachedOrNewService(isolate, factory->NewStringFromAsciiChecked(service),
+                         locales, options, internal_options),
+      String);
+
+  // 5. Return FormatDateTime(dateFormat, x).
+  return DateFormat::FormatDateTime(isolate, date_format, x);
+}
+
 icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-
-  // Convert BCP47 into ICU locale format.
-  UErrorCode status = U_ZERO_ERROR;
-  icu::Locale icu_locale;
-  char icu_result[ULOC_FULLNAME_CAPACITY];
-  int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
-  if (bcp47_locale.length() != 0) {
-    uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
-                        &icu_length, &status);
-    if (U_FAILURE(status) || icu_length == 0) {
-      return nullptr;
-    }
-    icu_locale = icu::Locale(icu_result);
-  }
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
+  DCHECK(!icu_locale.isBogus());
 
   icu::DecimalFormat* number_format =
       CreateICUNumberFormat(isolate, icu_locale, options);
@@ -911,11 +768,11 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     SetResolvedNumberSettings(isolate, icu_locale, number_format, resolved);
   }
 
+  CHECK_NOT_NULL(number_format);
   return number_format;
 }
 
-icu::DecimalFormat* NumberFormat::UnpackNumberFormat(Isolate* isolate,
-                                                     Handle<JSObject> obj) {
+icu::DecimalFormat* NumberFormat::UnpackNumberFormat(Handle<JSObject> obj) {
   return reinterpret_cast<icu::DecimalFormat*>(
       obj->GetEmbedderField(NumberFormat::kDecimalFormatIndex));
 }
@@ -925,134 +782,11 @@ void NumberFormat::DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
 }
 
-bool Collator::InitializeCollator(Isolate* isolate,
-                                  Handle<JSObject> collator_holder,
-                                  Handle<String> locale,
-                                  Handle<JSObject> options,
-                                  Handle<JSObject> resolved) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  // Convert BCP47 into ICU locale format.
-  UErrorCode status = U_ZERO_ERROR;
-  icu::Locale icu_locale;
-  char icu_result[ULOC_FULLNAME_CAPACITY];
-  int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
-  if (bcp47_locale.length() != 0) {
-    uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
-                        &icu_length, &status);
-    if (U_FAILURE(status) || icu_length == 0) {
-      return false;
-    }
-    icu_locale = icu::Locale(icu_result);
-  }
-
-  icu::Collator* collator = CreateICUCollator(isolate, icu_locale, options);
-  if (!collator) {
-    // Remove extensions and try again.
-    icu::Locale no_extension_locale(icu_locale.getBaseName());
-    collator = CreateICUCollator(isolate, no_extension_locale, options);
-
-    if (!collator) {
-      FATAL("Failed to create ICU collator, are ICU data files missing?");
-    }
-
-    // Set resolved settings (pattern, numbering system).
-    SetResolvedCollatorSettings(isolate, no_extension_locale, collator,
-                                resolved);
-  } else {
-    SetResolvedCollatorSettings(isolate, icu_locale, collator, resolved);
-  }
-
-  Handle<Managed<icu::Collator>> managed =
-      Managed<icu::Collator>::FromRawPtr(isolate, 0, collator);
-  collator_holder->SetEmbedderField(0, *managed);
-
-  return true;
-}
-
-icu::Collator* Collator::UnpackCollator(Isolate* isolate,
-                                        Handle<JSObject> obj) {
-  return Managed<icu::Collator>::cast(obj->GetEmbedderField(0))->raw();
-}
-
-bool PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
-                                        Handle<JSObject> options,
-                                        Handle<JSObject> resolved,
-                                        icu::PluralRules** plural_rules,
-                                        icu::DecimalFormat** number_format) {
-  // Convert BCP47 into ICU locale format.
-  UErrorCode status = U_ZERO_ERROR;
-  icu::Locale icu_locale;
-  char locale_name[ULOC_FULLNAME_CAPACITY];
-  int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(reinterpret_cast<v8::Isolate*>(isolate),
-                                     v8::Utils::ToLocal(locale));
-  if (bcp47_locale.length() != 0) {
-    uloc_forLanguageTag(*bcp47_locale, locale_name, ULOC_FULLNAME_CAPACITY,
-                        &icu_length, &status);
-    if (U_FAILURE(status) || icu_length == 0) {
-      return false;
-    }
-    icu_locale = icu::Locale(locale_name);
-  }
-
-  bool success = CreateICUPluralRules(isolate, icu_locale, options,
-                                      plural_rules, number_format);
-  if (!success) {
-    // Remove extensions and try again.
-    icu::Locale no_extension_locale(icu_locale.getBaseName());
-    success = CreateICUPluralRules(isolate, no_extension_locale, options,
-                                   plural_rules, number_format);
-
-    if (!success) {
-      FATAL("Failed to create ICU PluralRules, are ICU data files missing?");
-    }
-
-    // Set resolved settings (pattern, numbering system).
-    success = SetResolvedPluralRulesSettings(
-        isolate, no_extension_locale, *plural_rules, *number_format, resolved);
-  } else {
-    success = SetResolvedPluralRulesSettings(isolate, icu_locale, *plural_rules,
-                                             *number_format, resolved);
-  }
-
-  return success;
-}
-
-icu::PluralRules* PluralRules::UnpackPluralRules(Isolate* isolate,
-                                                 Handle<JSObject> obj) {
-  return reinterpret_cast<icu::PluralRules*>(obj->GetEmbedderField(0));
-}
-
-icu::DecimalFormat* PluralRules::UnpackNumberFormat(Isolate* isolate,
-                                                    Handle<JSObject> obj) {
-  return reinterpret_cast<icu::DecimalFormat*>(obj->GetEmbedderField(1));
-}
-
-void PluralRules::DeletePluralRules(const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::PluralRules*>(data.GetInternalField(0));
-  delete reinterpret_cast<icu::DecimalFormat*>(data.GetInternalField(1));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
-}
-
 icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  // Convert BCP47 into ICU locale format.
-  UErrorCode status = U_ZERO_ERROR;
-  icu::Locale icu_locale;
-  char icu_result[ULOC_FULLNAME_CAPACITY];
-  int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
-  if (bcp47_locale.length() != 0) {
-    uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
-                        &icu_length, &status);
-    if (U_FAILURE(status) || icu_length == 0) {
-      return nullptr;
-    }
-    icu_locale = icu::Locale(icu_result);
-  }
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
+  DCHECK(!icu_locale.isBogus());
 
   icu::BreakIterator* break_iterator =
       CreateICUBreakIterator(isolate, icu_locale, options);
@@ -1074,12 +808,13 @@ icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
                                      resolved);
   }
 
+  CHECK_NOT_NULL(break_iterator);
   return break_iterator;
 }
 
-icu::BreakIterator* V8BreakIterator::UnpackBreakIterator(Isolate* isolate,
-                                                         Handle<JSObject> obj) {
-  return reinterpret_cast<icu::BreakIterator*>(obj->GetEmbedderField(0));
+icu::BreakIterator* V8BreakIterator::UnpackBreakIterator(Handle<JSObject> obj) {
+  return reinterpret_cast<icu::BreakIterator*>(
+      obj->GetEmbedderField(V8BreakIterator::kBreakIteratorIndex));
 }
 
 void V8BreakIterator::DeleteBreakIterator(
@@ -1089,6 +824,84 @@ void V8BreakIterator::DeleteBreakIterator(
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
 }
 
+void V8BreakIterator::AdoptText(Isolate* isolate,
+                                Handle<JSObject> break_iterator_holder,
+                                Handle<String> text) {
+  icu::BreakIterator* break_iterator =
+      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+  CHECK_NOT_NULL(break_iterator);
+
+  icu::UnicodeString* u_text = reinterpret_cast<icu::UnicodeString*>(
+      break_iterator_holder->GetEmbedderField(
+          V8BreakIterator::kUnicodeStringIndex));
+  delete u_text;
+
+  int length = text->length();
+  text = String::Flatten(isolate, text);
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat = text->GetFlatContent();
+  std::unique_ptr<uc16[]> sap;
+  const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
+  u_text = new icu::UnicodeString(text_value, length);
+  break_iterator_holder->SetEmbedderField(V8BreakIterator::kUnicodeStringIndex,
+                                          reinterpret_cast<Smi*>(u_text));
+
+  break_iterator->setText(*u_text);
+}
+
+MaybeHandle<String> Intl::ToString(Isolate* isolate,
+                                   const icu::UnicodeString& string) {
+  return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+      reinterpret_cast<const uint16_t*>(string.getBuffer()), string.length()));
+}
+
+MaybeHandle<String> Intl::ToString(Isolate* isolate,
+                                   const icu::UnicodeString& string,
+                                   int32_t begin, int32_t end) {
+  return Intl::ToString(isolate, string.tempSubStringBetween(begin, end));
+}
+
+namespace {
+
+Handle<JSObject> InnerAddElement(Isolate* isolate, Handle<JSArray> array,
+                                 int index, Handle<String> field_type_string,
+                                 Handle<String> value) {
+  // let element = $array[$index] = {
+  //   type: $field_type_string,
+  //   value: $value
+  // }
+  // return element;
+  Factory* factory = isolate->factory();
+  Handle<JSObject> element = factory->NewJSObject(isolate->object_function());
+  JSObject::AddProperty(isolate, element, factory->type_string(),
+                        field_type_string, NONE);
+
+  JSObject::AddProperty(isolate, element, factory->value_string(), value, NONE);
+  JSObject::AddDataElement(array, index, element, NONE);
+  return element;
+}
+
+}  // namespace
+
+void Intl::AddElement(Isolate* isolate, Handle<JSArray> array, int index,
+                      Handle<String> field_type_string, Handle<String> value) {
+  // Same as $array[$index] = {type: $field_type_string, value: $value};
+  InnerAddElement(isolate, array, index, field_type_string, value);
+}
+
+void Intl::AddElement(Isolate* isolate, Handle<JSArray> array, int index,
+                      Handle<String> field_type_string, Handle<String> value,
+                      Handle<String> additional_property_name,
+                      Handle<String> additional_property_value) {
+  // Same as $array[$index] = {
+  //   type: $field_type_string, value: $value,
+  //   $additional_property_name: $additional_property_value
+  // }
+  Handle<JSObject> element =
+      InnerAddElement(isolate, array, index, field_type_string, value);
+  JSObject::AddProperty(isolate, element, additional_property_name,
+                        additional_property_value, NONE);
+}
 // Build the shortened locale; eg, convert xx_Yyyy_ZZ  to xx_ZZ.
 bool Intl::RemoveLocaleScriptTag(const std::string& icu_locale,
                                  std::string* locale_less_script) {
@@ -1105,6 +918,110 @@ bool Intl::RemoveLocaleScriptTag(const std::string& icu_locale,
   const char* icu_name = short_locale.getName();
   *locale_less_script = std::string(icu_name);
   return true;
+}
+
+namespace {
+
+Maybe<bool> IsPropertyUndefined(Isolate* isolate, Handle<JSObject> options,
+                                const char* property) {
+  Factory* factory = isolate->factory();
+  // i. Let prop be the property name.
+  // ii. Let value be ? Get(options, prop).
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value,
+      Object::GetPropertyOrElement(
+          isolate, options, factory->NewStringFromAsciiChecked(property)),
+      Nothing<bool>());
+  return Just(value->IsUndefined(isolate));
+}
+
+}  // namespace
+
+// ecma-402/#sec-todatetimeoptions
+MaybeHandle<JSObject> DateFormat::ToDateTimeOptions(
+    Isolate* isolate, Handle<Object> input_options, const char* required,
+    const char* defaults) {
+  Factory* factory = isolate->factory();
+  // 1. If options is undefined, let options be null; otherwise let options be ?
+  //    ToObject(options).
+  Handle<JSObject> options;
+  if (input_options->IsUndefined(isolate)) {
+    options = factory->NewJSObjectWithNullProto();
+  } else {
+    Handle<JSReceiver> options_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
+                               Object::ToObject(isolate, input_options),
+                               JSObject);
+    // 2. Let options be ObjectCreate(options).
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                               JSObject::ObjectCreate(isolate, options_obj),
+                               JSObject);
+  }
+
+  // 3. Let needDefaults be true.
+  bool needs_default = true;
+
+  bool required_is_any = strcmp(required, "any") == 0;
+  // 4. If required is "date" or "any", then
+  if (required_is_any || (strcmp(required, "date") == 0)) {
+    // a. For each of the property names "weekday", "year", "month", "day", do
+    for (auto& prop : {"weekday", "year", "month", "day"}) {
+      //  i. Let prop be the property name.
+      // ii. Let value be ? Get(options, prop)
+      Maybe<bool> maybe_undefined = IsPropertyUndefined(isolate, options, prop);
+      MAYBE_RETURN(maybe_undefined, Handle<JSObject>());
+      // iii. If value is not undefined, let needDefaults be false.
+      if (!maybe_undefined.FromJust()) {
+        needs_default = false;
+      }
+    }
+  }
+
+  // 5. If required is "time" or "any", then
+  if (required_is_any || (strcmp(required, "time") == 0)) {
+    // a. For each of the property names "hour", "minute", "second", do
+    for (auto& prop : {"hour", "minute", "second"}) {
+      //  i. Let prop be the property name.
+      // ii. Let value be ? Get(options, prop)
+      Maybe<bool> maybe_undefined = IsPropertyUndefined(isolate, options, prop);
+      MAYBE_RETURN(maybe_undefined, Handle<JSObject>());
+      // iii. If value is not undefined, let needDefaults be false.
+      if (!maybe_undefined.FromJust()) {
+        needs_default = false;
+      }
+    }
+  }
+
+  // 6. If needDefaults is true and defaults is either "date" or "all", then
+  if (needs_default) {
+    bool default_is_all = strcmp(defaults, "all") == 0;
+    if (default_is_all || (strcmp(defaults, "date") == 0)) {
+      // a. For each of the property names "year", "month", "day", do
+      // i. Perform ? CreateDataPropertyOrThrow(options, prop, "numeric").
+      for (auto& prop : {"year", "month", "day"}) {
+        MAYBE_RETURN(
+            JSReceiver::CreateDataProperty(
+                isolate, options, factory->NewStringFromAsciiChecked(prop),
+                factory->numeric_string(), kThrowOnError),
+            Handle<JSObject>());
+      }
+    }
+    // 7. If needDefaults is true and defaults is either "time" or "all", then
+    if (default_is_all || (strcmp(defaults, "time") == 0)) {
+      // a. For each of the property names "hour", "minute", "second", do
+      // i. Perform ? CreateDataPropertyOrThrow(options, prop, "numeric").
+      for (auto& prop : {"hour", "minute", "second"}) {
+        MAYBE_RETURN(
+            JSReceiver::CreateDataProperty(
+                isolate, options, factory->NewStringFromAsciiChecked(prop),
+                factory->numeric_string(), kThrowOnError),
+            Handle<JSObject>());
+      }
+    }
+  }
+  // 8. Return options.
+  return options;
 }
 
 std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
@@ -1170,6 +1087,14 @@ std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
                        std::inserter(locales, locales.begin()));
       return locales;
     }
+    case IcuService::kListFormatter: {
+      // TODO(ftang): for now just use
+      // icu::Locale::getAvailableLocales(count) until we migrate to
+      // Intl::GetAvailableLocales().
+      // ICU FR at https://unicode-org.atlassian.net/browse/ICU-20015
+      icu_available_locales = icu::Locale::getAvailableLocales(count);
+      break;
+    }
   }
 
   UErrorCode error = U_ZERO_ERROR;
@@ -1196,6 +1121,65 @@ std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
   }
 
   return locales;
+}
+
+IcuService Intl::StringToIcuService(Handle<String> service) {
+  if (service->IsUtf8EqualTo(CStrVector("collator"))) {
+    return IcuService::kCollator;
+  } else if (service->IsUtf8EqualTo(CStrVector("numberformat"))) {
+    return IcuService::kNumberFormat;
+  } else if (service->IsUtf8EqualTo(CStrVector("dateformat"))) {
+    return IcuService::kDateFormat;
+  } else if (service->IsUtf8EqualTo(CStrVector("breakiterator"))) {
+    return IcuService::kBreakIterator;
+  } else if (service->IsUtf8EqualTo(CStrVector("pluralrules"))) {
+    return IcuService::kPluralRules;
+  } else if (service->IsUtf8EqualTo(CStrVector("relativetimeformat"))) {
+    return IcuService::kRelativeDateTimeFormatter;
+  } else if (service->IsUtf8EqualTo(CStrVector("listformat"))) {
+    return IcuService::kListFormatter;
+  }
+  UNREACHABLE();
+}
+
+V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> Intl::AvailableLocalesOf(
+    Isolate* isolate, Handle<String> service) {
+  Factory* factory = isolate->factory();
+  std::set<std::string> results =
+      Intl::GetAvailableLocales(StringToIcuService(service));
+  Handle<JSObject> locales = factory->NewJSObjectWithNullProto();
+
+  int32_t i = 0;
+  for (auto iter = results.begin(); iter != results.end(); ++iter) {
+    RETURN_ON_EXCEPTION(
+        isolate,
+        JSObject::SetOwnPropertyIgnoreAttributes(
+            locales, factory->NewStringFromAsciiChecked(iter->c_str()),
+            factory->NewNumber(i++), NONE),
+        JSObject);
+  }
+  return locales;
+}
+
+std::string Intl::DefaultLocale(Isolate* isolate) {
+  if (isolate->default_locale().empty()) {
+    icu::Locale default_locale;
+    // Translate ICU's fallback locale to a well-known locale.
+    if (strcmp(default_locale.getName(), "en_US_POSIX") == 0) {
+      isolate->set_default_locale("en-US");
+    } else {
+      // Set the locale
+      char result[ULOC_FULLNAME_CAPACITY];
+      UErrorCode status = U_ZERO_ERROR;
+      int32_t length =
+          uloc_toLanguageTag(default_locale.getName(), result,
+                             ULOC_FULLNAME_CAPACITY, FALSE, &status);
+      isolate->set_default_locale(
+          U_SUCCESS(status) ? std::string(result, length) : "und");
+    }
+    DCHECK(!isolate->default_locale().empty());
+  }
+  return isolate->default_locale();
 }
 
 bool Intl::IsObjectOfType(Isolate* isolate, Handle<Object> input,
@@ -1260,6 +1244,9 @@ MaybeHandle<JSObject> Intl::UnwrapReceiver(Isolate* isolate,
                                            Intl::Type type,
                                            Handle<String> method_name,
                                            bool check_legacy_constructor) {
+  DCHECK(type == Intl::Type::kCollator || type == Intl::Type::kNumberFormat ||
+         type == Intl::Type::kDateTimeFormat ||
+         type == Intl::Type::kBreakIterator);
   Handle<Object> new_receiver = receiver;
   if (check_legacy_constructor) {
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -1267,6 +1254,20 @@ MaybeHandle<JSObject> Intl::UnwrapReceiver(Isolate* isolate,
         LegacyUnwrapReceiver(isolate, receiver, constructor, type), JSObject);
   }
 
+  // Collator has been ported to use regular instance types. We
+  // shouldn't be using Intl::IsObjectOfType anymore.
+  if (type == Intl::Type::kCollator) {
+    if (!receiver->IsJSCollator()) {
+      // 3. a. Throw a TypeError exception.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                                   method_name, receiver),
+                      JSObject);
+    }
+    return Handle<JSCollator>::cast(receiver);
+  }
+
+  DCHECK_NE(type, Intl::Type::kCollator);
   // 3. If Type(new_receiver) is not Object or nf does not have an
   //    [[Initialized...]]  internal slot, then
   if (!Intl::IsObjectOfType(isolate, new_receiver, type)) {
@@ -1296,10 +1297,10 @@ MaybeHandle<JSObject> NumberFormat::Unwrap(Isolate* isolate,
                               Intl::Type::kNumberFormat, method_name_str, true);
 }
 
-MaybeHandle<Object> NumberFormat::FormatNumber(
+MaybeHandle<String> NumberFormat::FormatNumber(
     Isolate* isolate, Handle<JSObject> number_format_holder, double value) {
   icu::DecimalFormat* number_format =
-      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
+      NumberFormat::UnpackNumberFormat(number_format_holder);
   CHECK_NOT_NULL(number_format);
 
   icu::UnicodeString result;
@@ -1309,59 +1310,99 @@ MaybeHandle<Object> NumberFormat::FormatNumber(
       reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length()));
 }
 
+void Intl::DefineWEProperty(Isolate* isolate, Handle<JSObject> target,
+                            Handle<Name> key, Handle<Object> value) {
+  PropertyDescriptor desc;
+  desc.set_writable(true);
+  desc.set_enumerable(true);
+  desc.set_value(value);
+  Maybe<bool> success =
+      JSReceiver::DefineOwnProperty(isolate, target, key, &desc, kDontThrow);
+  DCHECK(success.IsJust() && success.FromJust());
+  USE(success);
+}
+
 namespace {
 
-// TODO(bstell): Make all these a constexpr on the Intl class.
+// Define general regexp macros.
+// Note "(?:" means the regexp group a non-capture group.
+#define REGEX_ALPHA "[a-z]"
+#define REGEX_DIGIT "[0-9]"
+#define REGEX_ALPHANUM "(?:" REGEX_ALPHA "|" REGEX_DIGIT ")"
+
 void BuildLanguageTagRegexps(Isolate* isolate) {
-  std::string alpha = "[a-zA-Z]";
-  std::string digit = "[0-9]";
-  std::string alphanum = "(" + alpha + "|" + digit + ")";
-  std::string regular =
-      "(art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|"
-      "zh-min|zh-min-nan|zh-xiang)";
-  std::string irregular =
-      "(en-GB-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|"
-      "i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|"
-      "i-tsu|sgn-BE-FR|sgn-BE-NL|sgn-CH-DE)";
-  std::string grandfathered = "(" + irregular + "|" + regular + ")";
-  std::string private_use = "(x(-" + alphanum + "{1,8})+)";
+// Define the language tag regexp macros.
+// For info on BCP 47 see https://tools.ietf.org/html/bcp47 .
+// Because language tags are case insensitive per BCP 47 2.1.1 and regexp's
+// defined below will always be used after lowercasing the input, uppercase
+// ranges in BCP 47 2.1 are dropped and grandfathered tags are all lowercased.
+// clang-format off
+#define BCP47_REGULAR                                          \
+  "(?:art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|" \
+  "zh-min|zh-min-nan|zh-xiang)"
+#define BCP47_IRREGULAR                                  \
+  "(?:en-gb-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|" \
+  "i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|"  \
+  "i-tsu|sgn-be-fr|sgn-be-nl|sgn-ch-de)"
+#define BCP47_GRANDFATHERED "(?:" BCP47_IRREGULAR "|" BCP47_REGULAR ")"
+#define BCP47_PRIVATE_USE "(?:x(?:-" REGEX_ALPHANUM "{1,8})+)"
 
-  std::string singleton = "(" + digit + "|[A-WY-Za-wy-z])";
-  std::string language_singleton_regexp = "^" + singleton + "$";
+#define BCP47_SINGLETON "(?:" REGEX_DIGIT "|" "[a-wy-z])"
 
-  std::string extension = "(" + singleton + "(-" + alphanum + "{2,8})+)";
+#define BCP47_EXTENSION "(?:" BCP47_SINGLETON "(?:-" REGEX_ALPHANUM "{2,8})+)"
+#define BCP47_VARIANT  \
+  "(?:" REGEX_ALPHANUM "{5,8}" "|" "(?:" REGEX_DIGIT REGEX_ALPHANUM "{3}))"
 
-  std::string variant = "(" + alphanum + "{5,8}|(" + digit + alphanum + "{3}))";
-  std::string language_variant_regexp = "^" + variant + "$";
+#define BCP47_REGION "(?:" REGEX_ALPHA "{2}" "|" REGEX_DIGIT "{3})"
+#define BCP47_SCRIPT "(?:" REGEX_ALPHA "{4})"
+#define BCP47_EXT_LANG "(?:" REGEX_ALPHA "{3}(?:-" REGEX_ALPHA "{3}){0,2})"
+#define BCP47_LANGUAGE "(?:" REGEX_ALPHA "{2,3}(?:-" BCP47_EXT_LANG ")?" \
+  "|" REGEX_ALPHA "{4}" "|" REGEX_ALPHA "{5,8})"
+#define BCP47_LANG_TAG         \
+  BCP47_LANGUAGE               \
+  "(?:-" BCP47_SCRIPT ")?"     \
+  "(?:-" BCP47_REGION ")?"     \
+  "(?:-" BCP47_VARIANT ")*"    \
+  "(?:-" BCP47_EXTENSION ")*"  \
+  "(?:-" BCP47_PRIVATE_USE ")?"
+  // clang-format on
 
-  std::string region = "(" + alpha + "{2}|" + digit + "{3})";
-  std::string script = "(" + alpha + "{4})";
-  std::string ext_lang = "(" + alpha + "{3}(-" + alpha + "{3}){0,2})";
-  std::string language = "(" + alpha + "{2,3}(-" + ext_lang + ")?|" + alpha +
-                         "{4}|" + alpha + "{5,8})";
-  std::string lang_tag = language + "(-" + script + ")?(-" + region + ")?(-" +
-                         variant + ")*(-" + extension + ")*(-" + private_use +
-                         ")?";
-
-  std::string language_tag =
-      "^(" + lang_tag + "|" + private_use + "|" + grandfathered + ")$";
-  std::string language_tag_regexp = std::string(language_tag);
+  constexpr char kLanguageTagSingletonRegexp[] = "^" BCP47_SINGLETON "$";
+  constexpr char kLanguageTagVariantRegexp[] = "^" BCP47_VARIANT "$";
+  constexpr char kLanguageTagRegexp[] =
+      "^(?:" BCP47_LANG_TAG "|" BCP47_PRIVATE_USE "|" BCP47_GRANDFATHERED ")$";
 
   UErrorCode status = U_ZERO_ERROR;
   icu::RegexMatcher* language_singleton_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString::fromUTF8(language_singleton_regexp), 0, status);
-  CHECK(U_SUCCESS(status));
+      icu::UnicodeString(kLanguageTagSingletonRegexp, -1, US_INV), 0, status);
   icu::RegexMatcher* language_tag_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString::fromUTF8(language_tag_regexp), 0, status);
-  CHECK(U_SUCCESS(status));
+      icu::UnicodeString(kLanguageTagRegexp, -1, US_INV), 0, status);
   icu::RegexMatcher* language_variant_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString::fromUTF8(language_variant_regexp), 0, status);
+      icu::UnicodeString(kLanguageTagVariantRegexp, -1, US_INV), 0, status);
   CHECK(U_SUCCESS(status));
 
   isolate->set_language_tag_regexp_matchers(language_singleton_regexp_matcher,
                                             language_tag_regexp_matcher,
                                             language_variant_regexp_matcher);
+// Undefine the language tag regexp macros.
+#undef BCP47_EXTENSION
+#undef BCP47_EXT_LANG
+#undef BCP47_GRANDFATHERED
+#undef BCP47_IRREGULAR
+#undef BCP47_LANG_TAG
+#undef BCP47_LANGUAGE
+#undef BCP47_PRIVATE_USE
+#undef BCP47_REGION
+#undef BCP47_REGULAR
+#undef BCP47_SCRIPT
+#undef BCP47_SINGLETON
+#undef BCP47_VARIANT
 }
+
+// Undefine the general regexp macros.
+#undef REGEX_ALPHA
+#undef REGEX_DIGIT
+#undef REGEX_ALPHANUM
 
 icu::RegexMatcher* GetLanguageSingletonRegexMatcher(Isolate* isolate) {
   icu::RegexMatcher* language_singleton_regexp_matcher =
@@ -1406,13 +1447,29 @@ MaybeHandle<JSObject> Intl::ResolveLocale(Isolate* isolate, const char* service,
   Handle<JSFunction> resolve_locale_function = isolate->resolve_locale();
 
   Handle<Object> result;
-  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
-                                 isolate);
+  Handle<Object> undefined_value = isolate->factory()->undefined_value();
   Handle<Object> args[] = {service_str, requestedLocales, options};
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
       Execution::Call(isolate, resolve_locale_function, undefined_value,
                       arraysize(args), args),
+      JSObject);
+
+  return Handle<JSObject>::cast(result);
+}
+
+MaybeHandle<JSObject> Intl::CanonicalizeLocaleListJS(Isolate* isolate,
+                                                     Handle<Object> locales) {
+  Handle<JSFunction> canonicalize_locale_list_function =
+      isolate->canonicalize_locale_list();
+
+  Handle<Object> result;
+  Handle<Object> undefined_value = isolate->factory()->undefined_value();
+  Handle<Object> args[] = {locales};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, canonicalize_locale_list_function,
+                      undefined_value, arraysize(args), args),
       JSObject);
 
   return Handle<JSObject>::cast(result);
@@ -1494,9 +1551,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> Intl::GetBoolOption(
   return Just(false);
 }
 
-// TODO(bstell): enable this anonymous namespace once
-// IsStructurallyValidLanguageTag called.
-// namespace {
+namespace {
 
 char AsciiToLower(char c) {
   if (c < 'A' || c > 'Z') {
@@ -1532,15 +1587,15 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
       GetLanguageTagRegexMatcher(isolate);
 
   // Check if it's well-formed, including grandfathered tags.
-  language_tag_regexp_matcher->reset(
-      icu::UnicodeString(locale.c_str(), -1, US_INV));
+  icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
+  // Note: icu::RegexMatcher::reset does not make a copy of the input string
+  // so cannot use a temp value; ie: cannot create it as a call parameter.
+  language_tag_regexp_matcher->reset(locale_uni);
   UErrorCode status = U_ZERO_ERROR;
   bool is_valid_lang_tag = language_tag_regexp_matcher->matches(status);
   if (!is_valid_lang_tag || V8_UNLIKELY(U_FAILURE(status))) {
     return false;
   }
-
-  std::transform(locale.begin(), locale.end(), locale.begin(), AsciiToLower);
 
   // Just return if it's a x- form. It's all private.
   if (locale.find("x-") == 0) {
@@ -1574,33 +1629,31 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
 
   std::vector<std::string> variants;
   std::vector<std::string> extensions;
-  for (const auto& value : parts) {
-    language_variant_regexp_matcher->reset(
-        icu::UnicodeString::fromUTF8(value.c_str()));
+  for (auto it = parts.begin() + 1; it != parts.end(); it++) {
+    icu::UnicodeString part(it->data(), -1, US_INV);
+    language_variant_regexp_matcher->reset(part);
     bool is_language_variant = language_variant_regexp_matcher->matches(status);
     if (V8_UNLIKELY(U_FAILURE(status))) {
       return false;
     }
     if (is_language_variant && extensions.size() == 0) {
-      if (std::find(variants.begin(), variants.end(), value) ==
-          variants.end()) {
-        variants.push_back(value);
+      if (std::find(variants.begin(), variants.end(), *it) == variants.end()) {
+        variants.push_back(*it);
       } else {
         return false;
       }
     }
 
-    language_singleton_regexp_matcher->reset(
-        icu::UnicodeString(value.c_str(), -1, US_INV));
+    language_singleton_regexp_matcher->reset(part);
     bool is_language_singleton =
         language_singleton_regexp_matcher->matches(status);
     if (V8_UNLIKELY(U_FAILURE(status))) {
       return false;
     }
     if (is_language_singleton) {
-      if (std::find(extensions.begin(), extensions.end(), value) ==
+      if (std::find(extensions.begin(), extensions.end(), *it) ==
           extensions.end()) {
-        extensions.push_back(value);
+        extensions.push_back(*it);
       } else {
         return false;
       }
@@ -1609,7 +1662,807 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
 
   return true;
 }
-// }  // anonymous namespace
+
+bool IsLowerAscii(char c) { return c >= 'a' && c < 'z'; }
+
+bool IsTwoLetterLanguage(const std::string& locale) {
+  // Two letters, both in range 'a'-'z'...
+  return locale.length() == 2 && IsLowerAscii(locale[0]) &&
+         IsLowerAscii(locale[1]);
+}
+
+bool IsDeprecatedLanguage(const std::string& locale) {
+  //  Check if locale is one of the deprecated language tags:
+  return locale == "in" || locale == "iw" || locale == "ji" || locale == "jw";
+}
+
+// Reference:
+// https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
+bool IsGrandfatheredTagWithoutPreferredVaule(const std::string& locale) {
+  if (V8_UNLIKELY(locale == "zh-min" || locale == "cel-gaulish")) return true;
+  if (locale.length() > 6 /* i-mingo is 7 chars long */ &&
+      V8_UNLIKELY(locale[0] == 'i' && locale[1] == '-')) {
+    return locale.substr(2) == "default" || locale.substr(2) == "enochian" ||
+           locale.substr(2) == "mingo";
+  }
+  return false;
+}
+
+}  // anonymous namespace
+
+Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
+                                                 Handle<Object> locale_in) {
+  Handle<String> locale_str;
+  // This does part of the validity checking spec'ed in CanonicalizeLocaleList:
+  // 7c ii. If Type(kValue) is not String or Object, throw a TypeError
+  // exception.
+  // 7c iii. Let tag be ? ToString(kValue).
+  // 7c iv. If IsStructurallyValidLanguageTag(tag) is false, throw a
+  // RangeError exception.
+
+  if (locale_in->IsString()) {
+    locale_str = Handle<String>::cast(locale_in);
+  } else if (locale_in->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, locale_str,
+                                     Object::ToString(isolate, locale_in),
+                                     Nothing<std::string>());
+  } else {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NewTypeError(MessageTemplate::kLanguageID),
+                                 Nothing<std::string>());
+  }
+  std::string locale(locale_str->ToCString().get());
+
+  // Optimize for the most common case: a 2-letter language code in the
+  // canonical form/lowercase that is not one of the deprecated codes
+  // (in, iw, ji, jw). Don't check for ~70 of 3-letter deprecated language
+  // codes. Instead, let them be handled by ICU in the slow path. However,
+  // fast-track 'fil' (3-letter canonical code).
+  if ((IsTwoLetterLanguage(locale) && !IsDeprecatedLanguage(locale)) ||
+      locale == "fil") {
+    return Just(locale);
+  }
+
+  // Because per BCP 47 2.1.1 language tags are case-insensitive, lowercase
+  // the input before any more check.
+  std::transform(locale.begin(), locale.end(), locale.begin(), AsciiToLower);
+  if (!IsStructurallyValidLanguageTag(isolate, locale)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        Nothing<std::string>());
+  }
+
+  // ICU maps a few grandfathered tags to what looks like a regular language
+  // tag even though IANA language tag registry does not have a preferred
+  // entry map for them. Return them as they're with lowercasing.
+  if (IsGrandfatheredTagWithoutPreferredVaule(locale)) {
+    return Just(locale);
+  }
+
+  // // ECMA 402 6.2.3
+  // TODO(jshin): uloc_{for,to}TanguageTag can fail even for a structually valid
+  // language tag if it's too long (much longer than 100 chars). Even if we
+  // allocate a longer buffer, ICU will still fail if it's too long. Either
+  // propose to Ecma 402 to put a limit on the locale length or change ICU to
+  // handle long locale names better. See
+  // https://unicode-org.atlassian.net/browse/ICU-13417
+  UErrorCode error = U_ZERO_ERROR;
+  char icu_result[ULOC_FULLNAME_CAPACITY];
+  uloc_forLanguageTag(locale.c_str(), icu_result, ULOC_FULLNAME_CAPACITY,
+                      nullptr, &error);
+  if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
+    // TODO(jshin): This should not happen because the structural validity
+    // is already checked. If that's the case, remove this.
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        Nothing<std::string>());
+  }
+
+  // Force strict BCP47 rules.
+  char result[ULOC_FULLNAME_CAPACITY];
+  int32_t result_len = uloc_toLanguageTag(icu_result, result,
+                                          ULOC_FULLNAME_CAPACITY, TRUE, &error);
+
+  if (U_FAILURE(error)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        Nothing<std::string>());
+  }
+
+  return Just(std::string(result, result_len));
+}
+
+Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
+    Isolate* isolate, Handle<Object> locales, bool only_return_one_result) {
+  // 1. If locales is undefined, then
+  if (locales->IsUndefined(isolate)) {
+    // 1a. Return a new empty List.
+    return Just(std::vector<std::string>());
+  }
+  // 2. Let seen be a new empty List.
+  std::vector<std::string> seen;
+  // 3. If Type(locales) is String, then
+  if (locales->IsString()) {
+    // 3a. Let O be CreateArrayFromList(« locales »).
+    // Instead of creating a one-element array and then iterating over it,
+    // we inline the body of the iteration:
+    std::string canonicalized_tag;
+    if (!CanonicalizeLanguageTag(isolate, locales).To(&canonicalized_tag)) {
+      return Nothing<std::vector<std::string>>();
+    }
+    seen.push_back(canonicalized_tag);
+    return Just(seen);
+  }
+  // 4. Else,
+  // 4a. Let O be ? ToObject(locales).
+  Handle<JSReceiver> o;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, o,
+                                   Object::ToObject(isolate, locales),
+                                   Nothing<std::vector<std::string>>());
+  // 5. Let len be ? ToLength(? Get(O, "length")).
+  Handle<Object> length_obj;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, length_obj,
+                                   Object::GetLengthFromArrayLike(isolate, o),
+                                   Nothing<std::vector<std::string>>());
+  // TODO(jkummerow): Spec violation: strictly speaking, we have to iterate
+  // up to 2^53-1 if {length_obj} says so. Since cases above 2^32 probably
+  // don't happen in practice (and would be very slow if they do), we'll keep
+  // the code simple for now by using a saturating to-uint32 conversion.
+  double raw_length = length_obj->Number();
+  uint32_t len =
+      raw_length >= kMaxUInt32 ? kMaxUInt32 : static_cast<uint32_t>(raw_length);
+  // 6. Let k be 0.
+  // 7. Repeat, while k < len
+  for (uint32_t k = 0; k < len; k++) {
+    // 7a. Let Pk be ToString(k).
+    // 7b. Let kPresent be ? HasProperty(O, Pk).
+    LookupIterator it(isolate, o, k);
+    // 7c. If kPresent is true, then
+    if (!it.IsFound()) continue;
+    // 7c i. Let kValue be ? Get(O, Pk).
+    Handle<Object> k_value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, k_value, Object::GetProperty(&it),
+                                     Nothing<std::vector<std::string>>());
+    // 7c ii. If Type(kValue) is not String or Object, throw a TypeError
+    // exception.
+    // 7c iii. Let tag be ? ToString(kValue).
+    // 7c iv. If IsStructurallyValidLanguageTag(tag) is false, throw a
+    // RangeError exception.
+    // 7c v. Let canonicalizedTag be CanonicalizeLanguageTag(tag).
+    std::string canonicalized_tag;
+    if (!CanonicalizeLanguageTag(isolate, k_value).To(&canonicalized_tag)) {
+      return Nothing<std::vector<std::string>>();
+    }
+    // 7c vi. If canonicalizedTag is not an element of seen, append
+    // canonicalizedTag as the last element of seen.
+    if (std::find(seen.begin(), seen.end(), canonicalized_tag) == seen.end()) {
+      seen.push_back(canonicalized_tag);
+    }
+    // 7d. Increase k by 1. (See loop header.)
+    // Optimization: some callers only need one result.
+    if (only_return_one_result) return Just(seen);
+  }
+  // 8. Return seen.
+  return Just(seen);
+}
+
+// ecma-402/#sec-currencydigits
+Handle<Smi> Intl::CurrencyDigits(Isolate* isolate, Handle<String> currency) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::String::Value currency_string(v8_isolate, v8::Utils::ToLocal(currency));
+  CHECK_NOT_NULL(*currency_string);
+
+  DisallowHeapAllocation no_gc;
+  UErrorCode status = U_ZERO_ERROR;
+  uint32_t fraction_digits = ucurr_getDefaultFractionDigits(
+      reinterpret_cast<const UChar*>(*currency_string), &status);
+  // For missing currency codes, default to the most common, 2
+  if (U_FAILURE(status)) fraction_digits = 2;
+  return Handle<Smi>(Smi::FromInt(fraction_digits), isolate);
+}
+
+MaybeHandle<JSObject> Intl::CreateNumberFormat(Isolate* isolate,
+                                               Handle<String> locale,
+                                               Handle<JSObject> options,
+                                               Handle<JSObject> resolved) {
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_number_format_function(), isolate);
+
+  Handle<JSObject> local_object;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, local_object,
+                             JSObject::New(constructor, constructor), JSObject);
+
+  // Set number formatter as embedder field of the resulting JS object.
+  icu::DecimalFormat* number_format =
+      NumberFormat::InitializeNumberFormat(isolate, locale, options, resolved);
+
+  CHECK_NOT_NULL(number_format);
+
+  local_object->SetEmbedderField(NumberFormat::kDecimalFormatIndex,
+                                 reinterpret_cast<Smi*>(number_format));
+
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          NumberFormat::DeleteNumberFormat,
+                          WeakCallbackType::kInternalFields);
+  return local_object;
+}
+
+/**
+ * Parses Unicode extension into key - value map.
+ * Returns empty object if the extension string is invalid.
+ * We are not concerned with the validity of the values at this point.
+ * 'attribute' in RFC 6047 is not supported. Keys without explicit
+ * values are assigned UNDEFINED.
+ * TODO(jshin): Fix the handling of 'attribute' (in RFC 6047, but none
+ * has been defined so that it's not used) and boolean keys without
+ * an explicit value.
+ */
+void Intl::ParseExtension(Isolate* isolate, const std::string& extension,
+                          std::map<std::string, std::string>& out) {
+  if (extension.compare(0, 3, "-u-") != 0) return;
+
+  // Key is {2}alphanum, value is {3,8}alphanum.
+  // Some keys may not have explicit values (booleans).
+  std::string key;
+  std::string value;
+  // Skip the "-u-".
+  size_t start = 3;
+  size_t end;
+  do {
+    end = extension.find("-", start);
+    size_t length =
+        (end == std::string::npos) ? extension.length() - start : end - start;
+    std::string element = extension.substr(start, length);
+    // Key is {2}alphanum
+    if (length == 2) {
+      if (!key.empty()) {
+        out.insert(std::pair<std::string, std::string>(key, value));
+        value.clear();
+      }
+      key = element;
+      // value is {3,8}alphanum.
+    } else if (length >= 3 && length <= 8 && !key.empty()) {
+      value = value.empty() ? element : (value + "-" + element);
+    } else {
+      return;
+    }
+    start = end + 1;
+  } while (end != std::string::npos);
+  if (!key.empty()) out.insert(std::pair<std::string, std::string>(key, value));
+}
+
+namespace {
+
+bool IsAToZ(char ch) {
+  return IsInRange(AsciiAlphaToLower(ch), 'a', 'z');
+}
+
+}  // namespace
+
+// Verifies that the input is a well-formed ISO 4217 currency code.
+// ecma402/#sec-currency-codes
+bool Intl::IsWellFormedCurrencyCode(Isolate* isolate, Handle<String> currency) {
+  // 2. If the number of elements in normalized is not 3, return false.
+  if (currency->length() != 3) return false;
+
+  currency = String::Flatten(isolate, currency);
+  {
+    DisallowHeapAllocation no_gc;
+    String::FlatContent flat = currency->GetFlatContent();
+
+    // 1. Let normalized be the result of mapping currency to upper case as
+    // described in 6.1. 3. If normalized contains any character that is not in
+    // the range "A" to "Z" (U+0041 to U+005A), return false. 4. Return true.
+    // Don't uppercase to test. It could convert invalid code into a valid one.
+    // For example \u00DFP (Eszett+P) becomes SSP.
+    return (IsAToZ(flat.Get(0)) && IsAToZ(flat.Get(1)) && IsAToZ(flat.Get(2)));
+  }
+}
+
+// ecma402 #sup-string.prototype.tolocalelowercase
+// ecma402 #sup-string.prototype.tolocaleuppercase
+MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
+                                                  Handle<String> s,
+                                                  bool to_upper,
+                                                  Handle<Object> locales) {
+  std::vector<std::string> requested_locales;
+  if (!CanonicalizeLocaleList(isolate, locales, true).To(&requested_locales)) {
+    return MaybeHandle<String>();
+  }
+  std::string requested_locale = requested_locales.size() == 0
+                                     ? Intl::DefaultLocale(isolate)
+                                     : requested_locales[0];
+  size_t dash = requested_locale.find("-");
+  if (dash != std::string::npos) {
+    requested_locale = requested_locale.substr(0, dash);
+  }
+
+  // Primary language tag can be up to 8 characters long in theory.
+  // https://tools.ietf.org/html/bcp47#section-2.2.1
+  DCHECK_LE(requested_locale.length(), 8);
+  s = String::Flatten(isolate, s);
+
+  // All the languages requiring special-handling have two-letter codes.
+  // Note that we have to check for '!= 2' here because private-use language
+  // tags (x-foo) or grandfathered irregular tags (e.g. i-enochian) would have
+  // only 'x' or 'i' when they get here.
+  if (V8_UNLIKELY(requested_locale.length() != 2)) {
+    return ConvertCase(s, to_upper, isolate);
+  }
+  // TODO(jshin): Consider adding a fast path for ASCII or Latin-1. The fastpath
+  // in the root locale needs to be adjusted for az, lt and tr because even case
+  // mapping of ASCII range characters are different in those locales.
+  // Greek (el) does not require any adjustment.
+  if (V8_UNLIKELY((requested_locale == "tr") || (requested_locale == "el") ||
+                  (requested_locale == "lt") || (requested_locale == "az"))) {
+    return LocaleConvertCase(s, isolate, to_upper, requested_locale.c_str());
+  } else {
+    return ConvertCase(s, to_upper, isolate);
+  }
+}
+
+MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
+                                              Handle<String> string1,
+                                              Handle<String> string2,
+                                              Handle<Object> locales,
+                                              Handle<Object> options) {
+  Factory* factory = isolate->factory();
+  Handle<JSObject> collator;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, collator,
+      CachedOrNewService(isolate, factory->NewStringFromStaticChars("collator"),
+                         locales, options, factory->undefined_value()),
+      Object);
+  CHECK(collator->IsJSCollator());
+  return Intl::CompareStrings(isolate, Handle<JSCollator>::cast(collator),
+                              string1, string2);
+}
+
+// ecma402/#sec-collator-comparestrings
+Handle<Object> Intl::CompareStrings(Isolate* isolate,
+                                    Handle<JSCollator> collator,
+                                    Handle<String> string1,
+                                    Handle<String> string2) {
+  Factory* factory = isolate->factory();
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  CHECK_NOT_NULL(icu_collator);
+
+  string1 = String::Flatten(isolate, string1);
+  string2 = String::Flatten(isolate, string2);
+
+  UCollationResult result;
+  UErrorCode status = U_ZERO_ERROR;
+  {
+    DisallowHeapAllocation no_gc;
+    int32_t length1 = string1->length();
+    int32_t length2 = string2->length();
+    String::FlatContent flat1 = string1->GetFlatContent();
+    String::FlatContent flat2 = string2->GetFlatContent();
+    std::unique_ptr<uc16[]> sap1;
+    std::unique_ptr<uc16[]> sap2;
+    icu::UnicodeString string_val1(
+        FALSE, GetUCharBufferFromFlat(flat1, &sap1, length1), length1);
+    icu::UnicodeString string_val2(
+        FALSE, GetUCharBufferFromFlat(flat2, &sap2, length2), length2);
+    result = icu_collator->compare(string_val1, string_val2, status);
+  }
+  DCHECK(U_SUCCESS(status));
+
+  return factory->NewNumberFromInt(result);
+}
+
+// ecma402/#sup-properties-of-the-number-prototype-object
+MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
+                                               Handle<Object> num,
+                                               Handle<Object> locales,
+                                               Handle<Object> options) {
+  Factory* factory = isolate->factory();
+  Handle<JSObject> number_format_holder;
+  // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, number_format_holder,
+      CachedOrNewService(isolate,
+                         factory->NewStringFromStaticChars("numberformat"),
+                         locales, options, factory->undefined_value()),
+      String);
+  DCHECK(
+      Intl::IsObjectOfType(isolate, number_format_holder, Intl::kNumberFormat));
+  Handle<Object> number_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_obj,
+                             Object::ToNumber(isolate, num), String);
+
+  // Spec treats -0 and +0 as 0.
+  double number = number_obj->Number() + 0;
+  // Return FormatNumber(numberFormat, x).
+  return NumberFormat::FormatNumber(isolate, number_format_holder, number);
+}
+
+// ecma402/#sec-defaultnumberoption
+Maybe<int> Intl::DefaultNumberOption(Isolate* isolate, Handle<Object> value,
+                                     int min, int max, int fallback,
+                                     Handle<String> property) {
+  // 2. Else, return fallback.
+  if (value->IsUndefined()) return Just(fallback);
+
+  // 1. If value is not undefined, then
+  // a. Let value be ? ToNumber(value).
+  Handle<Object> value_num;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value_num, Object::ToNumber(isolate, value), Nothing<int>());
+  DCHECK(value_num->IsNumber());
+
+  // b. If value is NaN or less than minimum or greater than maximum, throw a
+  // RangeError exception.
+  if (value_num->IsNaN() || value_num->Number() < min ||
+      value_num->Number() > max) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
+        Nothing<int>());
+  }
+
+  // The max and min arguments are integers and the above check makes
+  // sure that we are within the integer range making this double to
+  // int conversion safe.
+  //
+  // c. Return floor(value).
+  return Just(FastD2I(floor(value_num->Number())));
+}
+
+// ecma402/#sec-getnumberoption
+Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
+                                 Handle<String> property, int min, int max,
+                                 int fallback) {
+  // 1. Let value be ? Get(options, property).
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value, JSReceiver::GetProperty(isolate, options, property),
+      Nothing<int>());
+
+  // Return ? DefaultNumberOption(value, minimum, maximum, fallback).
+  return DefaultNumberOption(isolate, value, min, max, fallback, property);
+}
+
+Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
+                                 const char* property, int min, int max,
+                                 int fallback) {
+  Handle<String> property_str =
+      isolate->factory()->NewStringFromAsciiChecked(property);
+  return GetNumberOption(isolate, options, property_str, min, max, fallback);
+}
+
+Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
+                                              icu::DecimalFormat* number_format,
+                                              Handle<JSReceiver> options,
+                                              int mnfd_default,
+                                              int mxfd_default) {
+  CHECK_NOT_NULL(number_format);
+
+  // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
+  // 1).
+  int mnid;
+  if (!GetNumberOption(isolate, options, "minimumIntegerDigits", 1, 21, 1)
+           .To(&mnid)) {
+    return Nothing<bool>();
+  }
+
+  // 6. Let mnfd be ? GetNumberOption(options, "minimumFractionDigits", 0, 20,
+  // mnfdDefault).
+  int mnfd;
+  if (!GetNumberOption(isolate, options, "minimumFractionDigits", 0, 20,
+                       mnfd_default)
+           .To(&mnfd)) {
+    return Nothing<bool>();
+  }
+
+  // 7. Let mxfdActualDefault be max( mnfd, mxfdDefault ).
+  int mxfd_actual_default = std::max(mnfd, mxfd_default);
+
+  // 8. Let mxfd be ? GetNumberOption(options,
+  // "maximumFractionDigits", mnfd, 20, mxfdActualDefault).
+  int mxfd;
+  if (!GetNumberOption(isolate, options, "maximumFractionDigits", mnfd, 20,
+                       mxfd_actual_default)
+           .To(&mxfd)) {
+    return Nothing<bool>();
+  }
+
+  // 9.  Let mnsd be ? Get(options, "minimumSignificantDigits").
+  Handle<Object> mnsd_obj;
+  Handle<String> mnsd_str =
+      isolate->factory()->NewStringFromStaticChars("minimumSignificantDigits");
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, mnsd_obj, JSReceiver::GetProperty(isolate, options, mnsd_str),
+      Nothing<bool>());
+
+  // 10. Let mxsd be ? Get(options, "maximumSignificantDigits").
+  Handle<Object> mxsd_obj;
+  Handle<String> mxsd_str =
+      isolate->factory()->NewStringFromStaticChars("maximumSignificantDigits");
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, mxsd_obj, JSReceiver::GetProperty(isolate, options, mxsd_str),
+      Nothing<bool>());
+
+  // 11. Set intlObj.[[MinimumIntegerDigits]] to mnid.
+  number_format->setMinimumIntegerDigits(mnid);
+
+  // 12. Set intlObj.[[MinimumFractionDigits]] to mnfd.
+  number_format->setMinimumFractionDigits(mnfd);
+
+  // 13. Set intlObj.[[MaximumFractionDigits]] to mxfd.
+  number_format->setMaximumFractionDigits(mxfd);
+
+  bool significant_digits_used = false;
+  // 14. If mnsd is not undefined or mxsd is not undefined, then
+  if (!mnsd_obj->IsUndefined(isolate) || !mxsd_obj->IsUndefined(isolate)) {
+    // 14. a. Let mnsd be ? DefaultNumberOption(mnsd, 1, 21, 1).
+    int mnsd;
+    if (!DefaultNumberOption(isolate, mnsd_obj, 1, 21, 1, mnsd_str).To(&mnsd)) {
+      return Nothing<bool>();
+    }
+
+    // 14. b. Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
+    int mxsd;
+    if (!DefaultNumberOption(isolate, mxsd_obj, mnsd, 21, 21, mxsd_str)
+             .To(&mxsd)) {
+      return Nothing<bool>();
+    }
+
+    significant_digits_used = true;
+
+    // 14. c. Set intlObj.[[MinimumSignificantDigits]] to mnsd.
+    number_format->setMinimumSignificantDigits(mnsd);
+
+    // 14. d. Set intlObj.[[MaximumSignificantDigits]] to mxsd.
+    number_format->setMaximumSignificantDigits(mxsd);
+  }
+
+  number_format->setSignificantDigitsUsed(significant_digits_used);
+  number_format->setRoundingMode(icu::DecimalFormat::kRoundHalfUp);
+  return Just(true);
+}
+
+namespace {
+
+// ECMA 402 9.2.2 BestAvailableLocale(availableLocales, locale)
+// https://tc39.github.io/ecma402/#sec-bestavailablelocale
+std::string BestAvailableLocale(std::set<std::string> available_locales,
+                                std::string locale) {
+  const char separator = '-';
+
+  // 1. Let candidate be locale.
+  // 2. Repeat,
+  do {
+    // 2.a. If availableLocales contains an element equal to candidate, return
+    //      candidate.
+    if (available_locales.find(locale) != available_locales.end()) {
+      return locale;
+    }
+    // 2.b. Let pos be the character index of the last occurrence of "-"
+    //      (U+002D) within candidate. If that character does not occur, return
+    //      undefined.
+    size_t pos = locale.rfind(separator);
+    if (pos == std::string::npos) {
+      return "";
+    }
+    // 2.c. If pos ≥ 2 and the character "-" occurs at index pos-2 of candidate,
+    //      decrease pos by 2.
+    if (pos >= 2 && locale[pos - 2] == separator) {
+      pos -= 2;
+    }
+    // 2.d. Let candidate be the substring of candidate from position 0,
+    //      inclusive, to position pos, exclusive.
+    locale = locale.substr(0, pos);
+  } while (true);
+}
+
+#define ANY_EXTENSION_REGEXP "-[a-z0-9]{1}-.*"
+
+std::unique_ptr<icu::RegexMatcher> GetAnyExtensionRegexpMatcher() {
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::RegexMatcher> matcher(new icu::RegexMatcher(
+      icu::UnicodeString(ANY_EXTENSION_REGEXP, -1, US_INV), 0, status));
+  DCHECK(U_SUCCESS(status));
+  return matcher;
+}
+
+#undef ANY_EXTENSION_REGEXP
+
+// ECMA 402 9.2.7 LookupSupportedLocales(availableLocales, requestedLocales)
+// https://tc39.github.io/ecma402/#sec-lookupsupportedlocales
+std::vector<std::string> LookupSupportedLocales(
+    std::set<std::string> available_locales,
+    std::vector<std::string> requested_locales) {
+  std::unique_ptr<icu::RegexMatcher> matcher = GetAnyExtensionRegexpMatcher();
+
+  // 1. Let subset be a new empty List.
+  std::vector<std::string> subset;
+
+  // 2. For each element locale of requestedLocales in List order, do
+  for (auto locale : requested_locales) {
+    // 2.a. Let noExtensionsLocale be the String value that is locale with all
+    //      Unicode locale extension sequences removed.
+    icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
+    // TODO(bstell): look at using uloc_forLanguageTag to convert the language
+    // tag to locale id
+    // TODO(bstell): look at using uloc_getBaseName to just get the name without
+    // all the keywords
+    matcher->reset(locale_uni);
+    UErrorCode status = U_ZERO_ERROR;
+    // TODO(bstell): need to determine if this is the correct behavior.
+    // This matches the JS implementation but might not match the spec.
+    // According to
+    // https://tc39.github.io/ecma402/#sec-unicode-locale-extension-sequences:
+    //
+    //     This standard uses the term "Unicode locale extension sequence" for
+    //     any substring of a language tag that is not part of a private use
+    //     subtag sequence, starts with a separator  "-" and the singleton "u",
+    //     and includes the maximum sequence of following non-singleton subtags
+    //     and their preceding "-" separators.
+    //
+    // According to the spec a locale "en-t-aaa-u-bbb-v-ccc-x-u-ddd", should
+    // remove only the "-u-bbb" part, and keep everything else, whereas this
+    // regexp matcher would leave only the "en".
+    icu::UnicodeString no_extensions_locale_uni =
+        matcher->replaceAll("", status);
+    DCHECK(U_SUCCESS(status));
+    std::string no_extensions_locale;
+    no_extensions_locale_uni.toUTF8String(no_extensions_locale);
+    // 2.b. Let availableLocale be BestAvailableLocale(availableLocales,
+    //      noExtensionsLocale).
+    std::string available_locale =
+        BestAvailableLocale(available_locales, no_extensions_locale);
+    // 2.c. If availableLocale is not undefined, append locale to the end of
+    //      subset.
+    if (!available_locale.empty()) {
+      subset.push_back(locale);
+    }
+  }
+
+  // 3. Return subset.
+  return subset;
+}
+
+// ECMA 402 9.2.8 BestFitSupportedLocales(availableLocales, requestedLocales)
+// https://tc39.github.io/ecma402/#sec-bestfitsupportedlocales
+std::vector<std::string> BestFitSupportedLocales(
+    std::set<std::string> available_locales,
+    std::vector<std::string> requested_locales) {
+  return LookupSupportedLocales(available_locales, requested_locales);
+}
+
+enum MatcherOption { kBestFit, kLookup };
+
+// TODO(bstell): should this be moved somewhere where it is reusable?
+// Implement steps 5, 6, 7 for ECMA 402 9.2.9 SupportedLocales
+// https://tc39.github.io/ecma402/#sec-supportedlocales
+MaybeHandle<JSObject> CreateReadOnlyArray(Isolate* isolate,
+                                          std::vector<std::string> elements) {
+  Factory* factory = isolate->factory();
+  if (elements.size() >= kMaxUInt32) {
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayLength), JSObject);
+  }
+
+  PropertyAttributes attr =
+      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
+
+  // 5. Let subset be CreateArrayFromList(elements).
+  // 6. Let keys be subset.[[OwnPropertyKeys]]().
+  Handle<JSArray> subset = factory->NewJSArray(0);
+
+  // 7. For each element P of keys in List order, do
+  uint32_t length = static_cast<uint32_t>(elements.size());
+  for (uint32_t i = 0; i < length; i++) {
+    const std::string& part = elements[i];
+    Handle<String> value =
+        factory->NewStringFromUtf8(CStrVector(part.c_str())).ToHandleChecked();
+    JSObject::AddDataElement(subset, i, value, attr);
+  }
+
+  // 7.a. Let desc be PropertyDescriptor { [[Configurable]]: false,
+  //          [[Writable]]: false }.
+  PropertyDescriptor desc;
+  desc.set_writable(false);
+  desc.set_configurable(false);
+
+  // 7.b. Perform ! DefinePropertyOrThrow(subset, P, desc).
+  JSArray::ArraySetLength(isolate, subset, &desc, kThrowOnError).ToChecked();
+  return subset;
+}
+
+// ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
+// https://tc39.github.io/ecma402/#sec-supportedlocales
+MaybeHandle<JSObject> SupportedLocales(
+    Isolate* isolate, std::string service,
+    std::set<std::string> available_locales,
+    std::vector<std::string> requested_locales, Handle<Object> options) {
+  std::vector<std::string> supported_locales;
+
+  // 1. If options is not undefined, then
+  //    a. Let options be ? ToObject(options).
+  //    b. Let matcher be ? GetOption(options, "localeMatcher", "string",
+  //       « "lookup", "best fit" », "best fit").
+  // 2. Else, let matcher be "best fit".
+  MatcherOption matcher = kBestFit;
+  if (!options->IsUndefined(isolate)) {
+    Handle<JSReceiver> options_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
+                               Object::ToObject(isolate, options), JSObject);
+    std::unique_ptr<char[]> matcher_str = nullptr;
+    std::vector<const char*> matcher_values = {"lookup", "best fit"};
+    Maybe<bool> maybe_found_matcher =
+        Intl::GetStringOption(isolate, options_obj, "localeMatcher",
+                              matcher_values, service.c_str(), &matcher_str);
+    MAYBE_RETURN(maybe_found_matcher, MaybeHandle<JSObject>());
+    if (maybe_found_matcher.FromJust()) {
+      DCHECK_NOT_NULL(matcher_str.get());
+      if (strcmp(matcher_str.get(), "lookup") == 0) {
+        matcher = kLookup;
+      }
+    }
+  }
+
+  // 3. If matcher is "best fit", then
+  //    a. Let supportedLocales be BestFitSupportedLocales(availableLocales,
+  //       requestedLocales).
+  if (matcher == kBestFit) {
+    supported_locales =
+        BestFitSupportedLocales(available_locales, requested_locales);
+  } else {
+    // 4. Else,
+    //    a. Let supportedLocales be LookupSupportedLocales(availableLocales,
+    //       requestedLocales).
+    DCHECK_EQ(matcher, kLookup);
+    supported_locales =
+        LookupSupportedLocales(available_locales, requested_locales);
+  }
+
+  // TODO(jkummerow): Possibly revisit why the spec has the individual entries
+  // readonly but the array is not frozen.
+  // https://github.com/tc39/ecma402/issues/258
+
+  // 5. Let subset be CreateArrayFromList(supportedLocales).
+  // 6. Let keys be subset.[[OwnPropertyKeys]]().
+  // 7. For each element P of keys in List order, do
+  //    a. Let desc be PropertyDescriptor { [[Configurable]]: false,
+  //       [[Writable]]: false }.
+  //    b. Perform ! DefinePropertyOrThrow(subset, P, desc).
+  MaybeHandle<JSObject> subset =
+      CreateReadOnlyArray(isolate, supported_locales);
+
+  // 8. Return subset.
+  return subset;
+}
+}  // namespace
+
+// ECMA 402 10.2.2 Intl.Collator.supportedLocalesOf
+// https://tc39.github.io/ecma402/#sec-intl.collator.supportedlocalesof
+// of Intl::SupportedLocalesOf thru JS
+MaybeHandle<JSObject> Intl::SupportedLocalesOf(Isolate* isolate,
+                                               Handle<String> service,
+                                               Handle<Object> locales_in,
+                                               Handle<Object> options_in) {
+  // Let availableLocales be %Collator%.[[AvailableLocales]].
+  IcuService icu_service = Intl::StringToIcuService(service);
+  std::set<std::string> available_locales = GetAvailableLocales(icu_service);
+  std::vector<std::string> requested_locales;
+  // Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  bool got_requested_locales =
+      CanonicalizeLocaleList(isolate, locales_in, false).To(&requested_locales);
+  if (!got_requested_locales) {
+    return MaybeHandle<JSObject>();
+  }
+
+  // Return ? SupportedLocales(availableLocales, requestedLocales, options).
+  std::string service_str(service->ToCString().get());
+  return SupportedLocales(isolate, service_str, available_locales,
+                          requested_locales, options_in);
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -6,6 +6,8 @@
 #define V8_HEAP_SCAVENGER_INL_H_
 
 #include "src/heap/scavenger.h"
+
+#include "src/heap/local-allocator-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/map.h"
 
@@ -146,7 +148,8 @@ void Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
                                    ThinString* object, int object_size) {
   if (!is_incremental_marking_) {
     // Loading actual is fine in a parallel setting is there is no write.
-    HeapObject* actual = object->actual();
+    String* actual = object->actual();
+    object->set_length(0);
     *slot = actual;
     // ThinStrings always refer to internalized strings, which are
     // always in old space.

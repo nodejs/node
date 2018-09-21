@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-generator.h"
 
 namespace v8 {
 namespace internal {
@@ -28,11 +29,8 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
     CodeStubArguments* args, Node* receiver, Node* value, Node* context,
     JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
   // Check if the {receiver} is actually a JSGeneratorObject.
-  Label if_receiverisincompatible(this, Label::kDeferred);
-  GotoIf(TaggedIsSmi(receiver), &if_receiverisincompatible);
-  Node* receiver_instance_type = LoadInstanceType(receiver);
-  GotoIfNot(InstanceTypeEqual(receiver_instance_type, JS_GENERATOR_OBJECT_TYPE),
-            &if_receiverisincompatible);
+  ThrowIfNotInstanceType(context, receiver, JS_GENERATOR_OBJECT_TYPE,
+                         method_name);
 
   // Check if the {receiver} is running or already closed.
   TNode<Smi> receiver_continuation =
@@ -79,13 +77,6 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
     // Return the wrapped result.
     args->PopAndReturn(CallBuiltin(Builtins::kCreateIterResultObject, context,
                                    result, TrueConstant()));
-  }
-
-  BIND(&if_receiverisincompatible);
-  {
-    // The {receiver} is not a valid JSGeneratorObject.
-    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
-                   StringConstant(method_name), receiver);
   }
 
   BIND(&if_receiverisclosed);

@@ -299,7 +299,7 @@ void V8InjectedScriptHost::getInternalPropertiesCallback(
         tryCatch.Reset();
         continue;
       }
-      String16 keyString = toProtocolStringWithTypeCheck(key);
+      String16 keyString = toProtocolStringWithTypeCheck(isolate, key);
       if (keyString.isEmpty() ||
           allowedProperties.find(keyString) == allowedProperties.end())
         continue;
@@ -337,7 +337,8 @@ void V8InjectedScriptHost::bindCallback(
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   v8::Local<v8::String> v8groupName =
       info[1]->ToString(context).ToLocalChecked();
-  String16 groupName = toProtocolStringWithTypeCheck(v8groupName);
+  String16 groupName =
+      toProtocolStringWithTypeCheck(info.GetIsolate(), v8groupName);
   int id = injectedScript->bindObject(info[0], groupName);
   info.GetReturnValue().Set(id);
 }

@@ -137,6 +137,8 @@ class DeclarationVisitor : public FileVisitor {
     Visit(expr->location);
   }
 
+  void Visit(AssumeTypeImpossibleExpression* expr) { Visit(expr->expression); }
+
   void Visit(TryLabelStatement* stmt);
   void GenerateHeader(std::string& file_name);
 

@@ -14,6 +14,7 @@
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
 #include "src/ic/ic.h"
+#include "src/instruction-stream.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/serializer-common.h"
@@ -30,8 +31,10 @@ class V8NameConverter: public disasm::NameConverter {
  public:
   explicit V8NameConverter(Isolate* isolate, CodeReference code = {})
       : isolate_(isolate), code_(code) {}
-  virtual const char* NameOfAddress(byte* pc) const;
-  virtual const char* NameInCode(byte* addr) const;
+  const char* NameOfAddress(byte* pc) const override;
+  const char* NameInCode(byte* addr) const override;
+  const char* RootRelativeName(int offset) const override;
+
   const CodeReference& code() const { return code_; }
 
  private:
@@ -82,6 +85,51 @@ const char* V8NameConverter::NameInCode(byte* addr) const {
   return code_.is_null() ? "" : reinterpret_cast<const char*>(addr);
 }
 
+const char* V8NameConverter::RootRelativeName(int offset) const {
+  if (isolate_ == nullptr) return nullptr;
+
+  const int kRootsStart = 0;
+  const int kRootsEnd = Heap::roots_to_external_reference_table_offset();
+  const int kExtRefsStart = Heap::roots_to_external_reference_table_offset();
+  const int kExtRefsEnd = Heap::roots_to_builtins_offset();
+
+  if (kRootsStart <= offset && offset < kRootsEnd) {
+    uint32_t offset_in_roots_table = offset - kRootsStart;
+
+    // Fail safe in the unlikely case of an arbitrary root-relative offset.
+    if (offset_in_roots_table % kPointerSize != 0) return nullptr;
+
+    Heap::RootListIndex root_index =
+        static_cast<Heap::RootListIndex>(offset_in_roots_table / kPointerSize);
+
+    HeapStringAllocator allocator;
+    StringStream accumulator(&allocator);
+    isolate_->heap()->root(root_index)->ShortPrint(&accumulator);
+    std::unique_ptr<char[]> obj_name = accumulator.ToCString();
+
+    SNPrintF(v8_buffer_, "root (%s)", obj_name.get());
+    return v8_buffer_.start();
+  } else if (kExtRefsStart <= offset && offset < kExtRefsEnd) {
+    uint32_t offset_in_extref_table = offset - kExtRefsStart;
+
+    // Fail safe in the unlikely case of an arbitrary root-relative offset.
+    if (offset_in_extref_table % ExternalReferenceTable::EntrySize() != 0) {
+      return nullptr;
+    }
+
+    // Likewise if the external reference table is uninitialized.
+    if (!isolate_->heap()->external_reference_table()->is_initialized()) {
+      return nullptr;
+    }
+
+    SNPrintF(v8_buffer_, "external reference (%s)",
+             isolate_->heap()->external_reference_table()->NameFromOffset(
+                 offset_in_extref_table));
+    return v8_buffer_.start();
+  } else {
+    return nullptr;
+  }
+}
 
 static void DumpBuffer(std::ostream* os, StringBuilder* out) {
   (*os) << out->Finalize() << std::endl;
@@ -169,16 +217,18 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
 }
 
 static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
-                    std::ostream* os, const V8NameConverter& converter,
-                    byte* begin, byte* end, Address current_pc) {
+                    std::ostream* os, CodeReference code,
+                    const V8NameConverter& converter, byte* begin, byte* end,
+                    Address current_pc) {
   v8::internal::EmbeddedVector<char, 128> decode_buffer;
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
   StringBuilder out(out_buffer.start(), out_buffer.length());
   byte* pc = begin;
-  disasm::Disassembler d(converter);
+  disasm::Disassembler d(converter,
+                         disasm::Disassembler::kContinueOnUnimplementedOpcode);
   RelocIterator* it = nullptr;
-  if (!converter.code().is_null()) {
-    it = new RelocIterator(converter.code());
+  if (!code.is_null()) {
+    it = new RelocIterator(code);
   } else {
     // No relocation information when printing code stubs.
   }
@@ -257,7 +307,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // Print all the reloc info for this instruction which are not comments.
     for (size_t i = 0; i < pcs.size(); i++) {
       // Put together the reloc info
-      const CodeReference& host = converter.code();
+      const CodeReference& host = code;
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
       RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], nullptr, constant_pool);
@@ -270,13 +320,13 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // If this is a constant pool load and we haven't found any RelocInfo
     // already, check if we can find some RelocInfo for the target address in
     // the constant pool.
-    if (pcs.empty() && !converter.code().is_null()) {
+    if (pcs.empty() && !code.is_null()) {
       RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
                             0, nullptr);
       if (dummy_rinfo.IsInConstantPool()) {
         Address constant_pool_entry_address =
             dummy_rinfo.constant_pool_entry_address();
-        RelocIterator reloc_it(converter.code());
+        RelocIterator reloc_it(code);
         while (!reloc_it.done()) {
           if (reloc_it.rinfo()->IsInConstantPool() &&
               (reloc_it.rinfo()->constant_pool_entry_address() ==
@@ -314,16 +364,19 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
                          byte* end, CodeReference code, Address current_pc) {
   V8NameConverter v8NameConverter(isolate, code);
+  bool decode_off_heap = isolate && InstructionStream::PcIsOffHeap(
+                                        isolate, bit_cast<Address>(begin));
+  CodeReference code_ref = decode_off_heap ? CodeReference() : code;
   if (isolate) {
     // We have an isolate, so support external reference names.
     SealHandleScope shs(isolate);
     DisallowHeapAllocation no_alloc;
     ExternalReferenceEncoder ref_encoder(isolate);
-    return DecodeIt(isolate, &ref_encoder, os, v8NameConverter, begin, end,
-                    current_pc);
+    return DecodeIt(isolate, &ref_encoder, os, code_ref, v8NameConverter, begin,
+                    end, current_pc);
   } else {
     // No isolate => isolate-independent code. No external reference names.
-    return DecodeIt(nullptr, nullptr, os, v8NameConverter, begin, end,
+    return DecodeIt(nullptr, nullptr, os, code_ref, v8NameConverter, begin, end,
                     current_pc);
   }
 }

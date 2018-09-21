@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_ORDERED_HASH_TABLE_INL_H_
 #define V8_OBJECTS_ORDERED_HASH_TABLE_INL_H_
 
-#include "src/heap/heap.h"
 #include "src/objects/ordered-hash-table.h"
+
+#include "src/heap/heap.h"
+#include "src/objects/fixed-array-inl.h"
 
 namespace v8 {
 namespace internal {

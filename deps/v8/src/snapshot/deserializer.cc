@@ -5,9 +5,12 @@
 #include "src/snapshot/deserializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/isolate.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/string.h"
 #include "src/snapshot/builtin-deserializer-allocator.h"
@@ -207,15 +210,17 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(obj);
       DCHECK(string->is_short());
-      string->set_resource(
-          NativesExternalStringResource::DecodeForDeserialization(
-              string->resource()));
+      string->SetResource(
+          isolate_, NativesExternalStringResource::DecodeForDeserialization(
+                        string->resource()));
     } else {
       ExternalString* string = ExternalString::cast(obj);
       uint32_t index = string->resource_as_uint32();
       Address address =
           static_cast<Address>(isolate_->api_external_references()[index]);
       string->set_address_as_resource(address);
+      isolate_->heap()->UpdateExternalString(string, 0,
+                                             string->ExternalPayloadSize());
     }
     isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj->IsJSTypedArray()) {
@@ -319,8 +324,7 @@ HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
   return obj;
 }
 
-// This routine writes the new object into the pointer provided and then
-// returns true if the new object was in young space and false otherwise.
+// This routine writes the new object into the pointer provided.
 // The reason for this strange interface is that otherwise the object is
 // written very late, which means the FreeSpace map is not set up by the
 // time we need to use it to mark the space at the end of a page free.
@@ -506,14 +510,13 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       // object.
       case kExternalReference + kPlain + kStartOfObject:
         current = reinterpret_cast<MaybeObject**>(ReadExternalReferenceCase(
-            kPlain, isolate, reinterpret_cast<void**>(current),
-            current_object_address));
+            kPlain, reinterpret_cast<void**>(current), current_object_address));
         break;
       // Find an external reference and write a pointer to it in the current
       // code object.
       case kExternalReference + kFromCode + kStartOfObject:
         current = reinterpret_cast<MaybeObject**>(ReadExternalReferenceCase(
-            kFromCode, isolate, reinterpret_cast<void**>(current),
+            kFromCode, reinterpret_cast<void**>(current),
             current_object_address));
         break;
 
@@ -711,10 +714,9 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         UnalignedCopy(current, &hot_maybe_object);
         if (write_barrier_needed && Heap::InNewSpace(hot_object)) {
           Address current_address = reinterpret_cast<Address>(current);
-          isolate->heap()->RecordWrite(
-              HeapObject::FromAddress(current_object_address),
-              reinterpret_cast<MaybeObject**>(current_address),
-              hot_maybe_object);
+          GenerationalBarrier(HeapObject::FromAddress(current_object_address),
+                              reinterpret_cast<MaybeObject**>(current_address),
+                              hot_maybe_object);
         }
         current++;
         break;
@@ -761,8 +763,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
 
 template <class AllocatorT>
 void** Deserializer<AllocatorT>::ReadExternalReferenceCase(
-    HowToCode how, Isolate* isolate, void** current,
-    Address current_object_address) {
+    HowToCode how, void** current, Address current_object_address) {
   int skip = source_.GetInt();
   current = reinterpret_cast<void**>(reinterpret_cast<Address>(current) + skip);
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
@@ -873,10 +874,9 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
   if (emit_write_barrier && write_barrier_needed) {
     Address current_address = reinterpret_cast<Address>(current);
     SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));
-    isolate->heap()->RecordWrite(
-        HeapObject::FromAddress(current_object_address),
-        reinterpret_cast<MaybeObject**>(current_address),
-        *reinterpret_cast<MaybeObject**>(current_address));
+    GenerationalBarrier(HeapObject::FromAddress(current_object_address),
+                        reinterpret_cast<MaybeObject**>(current_address),
+                        *reinterpret_cast<MaybeObject**>(current_address));
   }
   if (!current_was_incremented) {
     current++;

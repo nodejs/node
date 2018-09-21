@@ -408,106 +408,6 @@ DEFINE_METHOD(
 );
 
 
-// For implementing reverse() on large, sparse arrays.
-function SparseReverse(array, len) {
-  var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
-  var high_counter = keys.length - 1;
-  var low_counter = 0;
-  while (low_counter <= high_counter) {
-    var i = keys[low_counter];
-    var j = keys[high_counter];
-
-    var j_complement = len - j - 1;
-    var low, high;
-
-    if (j_complement <= i) {
-      high = j;
-      while (keys[--high_counter] == j) { }
-      low = j_complement;
-    }
-    if (j_complement >= i) {
-      low = i;
-      while (keys[++low_counter] == i) { }
-      high = len - i - 1;
-    }
-
-    var current_i = array[low];
-    if (!IS_UNDEFINED(current_i) || low in array) {
-      var current_j = array[high];
-      if (!IS_UNDEFINED(current_j) || high in array) {
-        array[low] = current_j;
-        array[high] = current_i;
-      } else {
-        array[high] = current_i;
-        delete array[low];
-      }
-    } else {
-      var current_j = array[high];
-      if (!IS_UNDEFINED(current_j) || high in array) {
-        array[low] = current_j;
-        delete array[high];
-      }
-    }
-  }
-}
-
-function PackedArrayReverse(array, len) {
-  var j = len - 1;
-  for (var i = 0; i < j; i++, j--) {
-    var current_i = array[i];
-    var current_j = array[j];
-    array[i] = current_j;
-    array[j] = current_i;
-  }
-  return array;
-}
-
-
-function GenericArrayReverse(array, len) {
-  var j = len - 1;
-  for (var i = 0; i < j; i++, j--) {
-    if (i in array) {
-      var current_i = array[i];
-      if (j in array) {
-        var current_j = array[j];
-        array[i] = current_j;
-        array[j] = current_i;
-      } else {
-        array[j] = current_i;
-        delete array[i];
-      }
-    } else {
-      if (j in array) {
-        var current_j = array[j];
-        array[i] = current_j;
-        delete array[j];
-      }
-    }
-  }
-  return array;
-}
-
-
-DEFINE_METHOD(
-  GlobalArray.prototype,
-  reverse() {
-    var array = TO_OBJECT(this);
-    var len = TO_LENGTH(array.length);
-    var isArray = IS_ARRAY(array);
-
-    if (UseSparseVariant(array, len, isArray, len)) {
-      %NormalizeElements(array);
-      SparseReverse(array, len);
-      return array;
-    } else if (isArray && %_HasFastPackedElements(array)) {
-      return PackedArrayReverse(array, len);
-    } else {
-      return GenericArrayReverse(array, len);
-    }
-  }
-);
-
-
 function ArrayShiftFallback() {
   var array = TO_OBJECT(this);
   var len = TO_LENGTH(array.length);
@@ -799,19 +699,6 @@ function InnerArraySort(array, length, comparefn) {
   return array;
 }
 
-DEFINE_METHOD(
-  GlobalArray.prototype,
-  sort(comparefn) {
-    if (!IS_UNDEFINED(comparefn) && !IS_CALLABLE(comparefn)) {
-      throw %make_type_error(kBadSortComparisonFunction, comparefn);
-    }
-
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(array.length);
-    return InnerArraySort(array, length, comparefn);
-  }
-);
-
 
 DEFINE_METHOD_LEN(
   GlobalArray.prototype,
@@ -853,16 +740,8 @@ DEFINE_METHOD_LEN(
       }
     }
     // Lookup through the array.
-    if (!IS_UNDEFINED(element)) {
-      for (var i = max; i >= min; i--) {
-        if (array[i] === element) return i;
-      }
-      return -1;
-    }
     for (var i = max; i >= min; i--) {
-      if (IS_UNDEFINED(array[i]) && i in array) {
-        return i;
-      }
+      if (i in array && array[i] === element) return i;
     }
     return -1;
   },
@@ -870,93 +749,6 @@ DEFINE_METHOD_LEN(
 );
 
 
-// ES#sec-array.prototype.copywithin
-// (Array.prototype.copyWithin ( target, start [ , end ] )
-DEFINE_METHOD_LEN(
-  GlobalArray.prototype,
-  copyWithin(target, start, end) {
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(array.length);
-
-    target = TO_INTEGER(target);
-    var to;
-    if (target < 0) {
-      to = MathMax(length + target, 0);
-    } else {
-      to = MathMin(target, length);
-    }
-
-    start = TO_INTEGER(start);
-    var from;
-    if (start < 0) {
-      from = MathMax(length + start, 0);
-    } else {
-      from = MathMin(start, length);
-    }
-
-    end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
-    var final;
-    if (end < 0) {
-      final = MathMax(length + end, 0);
-    } else {
-      final = MathMin(end, length);
-    }
-
-    var count = MathMin(final - from, length - to);
-    var direction = 1;
-    if (from < to && to < (from + count)) {
-      direction = -1;
-      from = from + count - 1;
-      to = to + count - 1;
-    }
-
-    while (count > 0) {
-      if (from in array) {
-        array[to] = array[from];
-      } else {
-        delete array[to];
-      }
-      from = from + direction;
-      to = to + direction;
-      count--;
-    }
-
-    return array;
-  },
-  2  /* Set function length */
-);
-
-
-// ES6, draft 04-05-14, section 22.1.3.6
-DEFINE_METHOD_LEN(
-  GlobalArray.prototype,
-  fill(value, start, end) {
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(array.length);
-
-    var i = IS_UNDEFINED(start) ? 0 : TO_INTEGER(start);
-    var end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
-
-    if (i < 0) {
-      i += length;
-      if (i < 0) i = 0;
-    } else {
-      if (i > length) i = length;
-    }
-
-    if (end < 0) {
-      end += length;
-      if (end < 0) end = 0;
-    } else {
-      if (end > length) end = length;
-    }
-
-    for (; i < end; i++)
-      array[i] = value;
-    return array;
-  },
-  1  /* Set function length */
-);
 
 // Set up unscopable properties on the Array.prototype object.
 var unscopables = {

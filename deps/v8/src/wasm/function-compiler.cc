@@ -15,48 +15,56 @@ namespace internal {
 namespace wasm {
 
 namespace {
-const char* GetCompilationModeAsString(
-    WasmCompilationUnit::CompilationMode mode) {
+
+const char* GetExecutionTierAsString(ExecutionTier mode) {
   switch (mode) {
-    case WasmCompilationUnit::CompilationMode::kLiftoff:
+    case ExecutionTier::kBaseline:
       return "liftoff";
-    case WasmCompilationUnit::CompilationMode::kTurbofan:
+    case ExecutionTier::kOptimized:
       return "turbofan";
+    case ExecutionTier::kInterpreter:
+      return "interpreter";
   }
   UNREACHABLE();
 }
+
+void RecordStats(const WasmCode* code, Counters* counters) {
+  counters->wasm_generated_code_size()->Increment(
+      static_cast<int>(code->instructions().size()));
+  counters->wasm_reloc_size()->Increment(
+      static_cast<int>(code->reloc_info().size()));
+}
+
 }  // namespace
 
 // static
-WasmCompilationUnit::CompilationMode
-WasmCompilationUnit::GetDefaultCompilationMode() {
-  return FLAG_liftoff ? CompilationMode::kLiftoff : CompilationMode::kTurbofan;
+ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
+  return FLAG_liftoff ? ExecutionTier::kBaseline : ExecutionTier::kOptimized;
 }
 
-WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
-                                         wasm::NativeModule* native_module,
-                                         wasm::FunctionBody body,
-                                         wasm::WasmName name, int index,
-                                         CompilationMode mode,
-                                         Counters* counters, bool lower_simd)
+WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
+                                         ModuleEnv* env,
+                                         NativeModule* native_module,
+                                         FunctionBody body, WasmName name,
+                                         int index, Counters* counters,
+                                         ExecutionTier mode)
     : env_(env),
-      wasm_engine_(isolate->wasm_engine()),
+      wasm_engine_(wasm_engine),
       func_body_(body),
       func_name_(name),
-      counters_(counters ? counters : isolate->counters()),
+      counters_(counters),
       func_index_(index),
       native_module_(native_module),
-      lower_simd_(lower_simd),
       mode_(mode) {
   DCHECK_GE(index, env->module->num_imported_functions);
   DCHECK_LT(index, env->module->functions.size());
   // Always disable Liftoff for asm.js, for two reasons:
   //    1) asm-specific opcodes are not implemented, and
   //    2) tier-up does not work with lazy compilation.
-  if (env->module->origin == kAsmJsOrigin) mode = CompilationMode::kTurbofan;
+  if (env->module->origin == kAsmJsOrigin) mode = ExecutionTier::kOptimized;
   if (V8_UNLIKELY(FLAG_wasm_tier_mask_for_testing) && index < 32 &&
       (FLAG_wasm_tier_mask_for_testing & (1 << index))) {
-    mode = CompilationMode::kTurbofan;
+    mode = ExecutionTier::kOptimized;
   }
   SwitchMode(mode);
 }
@@ -65,7 +73,7 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
 // {TurbofanWasmCompilationUnit} can be opaque in the header file.
 WasmCompilationUnit::~WasmCompilationUnit() {}
 
-void WasmCompilationUnit::ExecuteCompilation() {
+void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   auto size_histogram = SELECT_WASM_COUNTER(counters_, env_->module->origin,
                                             wasm, function_size_bytes);
   size_histogram->AddSample(
@@ -76,75 +84,80 @@ void WasmCompilationUnit::ExecuteCompilation() {
 
   if (FLAG_trace_wasm_compiler) {
     PrintF("Compiling wasm function %d with %s\n\n", func_index_,
-           GetCompilationModeAsString(mode_));
+           GetExecutionTierAsString(mode_));
   }
 
   switch (mode_) {
-    case WasmCompilationUnit::CompilationMode::kLiftoff:
-      if (liftoff_unit_->ExecuteCompilation()) break;
+    case ExecutionTier::kBaseline:
+      if (liftoff_unit_->ExecuteCompilation(detected)) break;
       // Otherwise, fall back to turbofan.
-      SwitchMode(CompilationMode::kTurbofan);
+      SwitchMode(ExecutionTier::kOptimized);
       V8_FALLTHROUGH;
-    case WasmCompilationUnit::CompilationMode::kTurbofan:
-      turbofan_unit_->ExecuteCompilation();
+    case ExecutionTier::kOptimized:
+      turbofan_unit_->ExecuteCompilation(detected);
       break;
+    case ExecutionTier::kInterpreter:
+      UNREACHABLE();  // TODO(titzer): compile interpreter entry stub.
   }
 }
 
-wasm::WasmCode* WasmCompilationUnit::FinishCompilation(
-    wasm::ErrorThrower* thrower) {
-  wasm::WasmCode* ret;
+WasmCode* WasmCompilationUnit::FinishCompilation(ErrorThrower* thrower) {
+  WasmCode* ret;
   switch (mode_) {
-    case CompilationMode::kLiftoff:
+    case ExecutionTier::kBaseline:
       ret = liftoff_unit_->FinishCompilation(thrower);
       break;
-    case CompilationMode::kTurbofan:
+    case ExecutionTier::kOptimized:
       ret = turbofan_unit_->FinishCompilation(thrower);
       break;
-    default:
-      UNREACHABLE();
+    case ExecutionTier::kInterpreter:
+      UNREACHABLE();  // TODO(titzer): finish interpreter entry stub.
   }
   if (ret == nullptr) {
     thrower->RuntimeError("Error finalizing code.");
+  } else {
+    RecordStats(ret, counters_);
   }
   return ret;
 }
 
-void WasmCompilationUnit::SwitchMode(CompilationMode new_mode) {
+void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
   // This method is being called in the constructor, where neither
   // {liftoff_unit_} nor {turbofan_unit_} are set, or to switch mode from
   // kLiftoff to kTurbofan, in which case {liftoff_unit_} is already set.
   mode_ = new_mode;
   switch (new_mode) {
-    case CompilationMode::kLiftoff:
+    case ExecutionTier::kBaseline:
       DCHECK(!turbofan_unit_);
       DCHECK(!liftoff_unit_);
       liftoff_unit_.reset(new LiftoffCompilationUnit(this));
       return;
-    case CompilationMode::kTurbofan:
+    case ExecutionTier::kOptimized:
       DCHECK(!turbofan_unit_);
       liftoff_unit_.reset();
       turbofan_unit_.reset(new compiler::TurbofanWasmCompilationUnit(this));
       return;
+    case ExecutionTier::kInterpreter:
+      UNREACHABLE();  // TODO(titzer): allow compiling interpreter entry stub.
   }
   UNREACHABLE();
 }
 
 // static
-wasm::WasmCode* WasmCompilationUnit::CompileWasmFunction(
-    wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
-    Isolate* isolate, ModuleEnv* env, const wasm::WasmFunction* function,
-    CompilationMode mode) {
+WasmCode* WasmCompilationUnit::CompileWasmFunction(
+    Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
+    ErrorThrower* thrower, ModuleEnv* env, const WasmFunction* function,
+    ExecutionTier mode) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  wasm::FunctionBody function_body{
-      function->sig, function->code.offset(),
-      wire_bytes.start() + function->code.offset(),
-      wire_bytes.start() + function->code.end_offset()};
+  FunctionBody function_body{function->sig, function->code.offset(),
+                             wire_bytes.start() + function->code.offset(),
+                             wire_bytes.start() + function->code.end_offset()};
 
-  WasmCompilationUnit unit(isolate, env, native_module, function_body,
+  WasmCompilationUnit unit(isolate->wasm_engine(), env, native_module,
+                           function_body,
                            wire_bytes.GetNameOrNull(function, env->module),
-                           function->func_index, mode);
-  unit.ExecuteCompilation();
+                           function->func_index, isolate->counters(), mode);
+  unit.ExecuteCompilation(detected);
   return unit.FinishCompilation(thrower);
 }
 

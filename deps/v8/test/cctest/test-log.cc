@@ -27,27 +27,16 @@
 //
 // Tests of logging functions from log.h
 
-#ifdef __linux__
-#include <pthread.h>
-#include <signal.h>
-#include <unistd.h>
-#include <cmath>
-#endif  // __linux__
-
 #include <unordered_set>
 #include <vector>
-// The C++ style guide recommends using <re2> instead of <regex>. However, the
-// former isn't available in V8.
-#include <regex>  // NOLINT(build/c++11)
-#include "src/api.h"
+#include "src/api-inl.h"
+#include "src/builtins/builtins.h"
 #include "src/log-utils.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"
-#include "src/utils.h"
 #include "src/v8.h"
-#include "src/v8threads.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
@@ -68,35 +57,14 @@ namespace {
   i::FLAG_logfile = i::Log::kLogToTemporaryFile; \
   i::FLAG_logfile_per_isolate = false
 
-static const char* StrNStr(const char* s1, const char* s2, size_t n) {
-  CHECK_EQ(s1[n], '\0');
-  return strstr(s1, s2);
-}
-
-// Look for a log line which starts with {prefix} and ends with {suffix}.
-static const char* FindLogLine(const char* start, const char* end,
-                               const char* prefix,
-                               const char* suffix = nullptr) {
-  CHECK_LT(start, end);
-  CHECK_EQ(end[0], '\0');
-  size_t prefixLength = strlen(prefix);
-  // Loop through the input until we find /{prefix}[^\n]+{suffix}/.
-  while (start < end) {
-    const char* prefixResult = strstr(start, prefix);
-    if (!prefixResult) return NULL;
-    if (suffix == nullptr) return prefixResult;
-    const char* suffixResult =
-        StrNStr(prefixResult, suffix, (end - prefixResult));
-    if (!suffixResult) return NULL;
-    // Check that there are no newlines in between the {prefix} and the {suffix}
-    // results.
-    const char* newlineResult =
-        StrNStr(prefixResult, "\n", (end - prefixResult));
-    if (!newlineResult) return prefixResult;
-    if (newlineResult > suffixResult) return prefixResult;
-    start = prefixResult + prefixLength;
+static std::vector<std::string> Split(const std::string& s, char delimiter) {
+  std::vector<std::string> result;
+  std::string line;
+  std::istringstream stream(s);
+  while (std::getline(stream, line, delimiter)) {
+    result.push_back(line);
   }
-  return NULL;
+  return result;
 }
 
 class ScopedLoggerInitializer {
@@ -119,7 +87,6 @@ class ScopedLoggerInitializer {
     if (temp_file_ != nullptr) fclose(temp_file_);
     i::FLAG_prof = saved_prof_;
     i::FLAG_log = saved_log_;
-    log_.Dispose();
   }
 
   v8::Local<v8::Context>& env() { return env_; }
@@ -130,114 +97,79 @@ class ScopedLoggerInitializer {
 
   Logger* logger() { return logger_; }
 
-  void PrintLog(int requested_nof_lines = 0, const char* start = nullptr) {
-    if (requested_nof_lines <= 0) {
-      printf("%s", log_.start());
-      return;
-    }
-    // Try to print the last {requested_nof_lines} of the log.
-    if (start == nullptr) start = log_.start();
-    const char* current = log_.end();
-    int nof_lines = requested_nof_lines;
-    while (current > start && nof_lines > 0) {
-      current--;
-      if (*current == '\n') nof_lines--;
-    }
-    printf(
-        "======================================================\n"
-        "Last %i log lines:\n"
-        "======================================================\n"
-        "...\n%s\n"
-        "======================================================\n",
-        requested_nof_lines, current);
-  }
-
   v8::Local<v8::String> GetLogString() {
-    return v8::String::NewFromUtf8(isolate_, log_.start(),
-                                   v8::NewStringType::kNormal, log_.length())
+    int length = static_cast<int>(raw_log_.size());
+    return v8::String::NewFromUtf8(isolate_, raw_log_.c_str(),
+                                   v8::NewStringType::kNormal, length)
         .ToLocalChecked();
   }
 
   void StopLogging() {
     bool exists = false;
-    log_ = i::ReadFile(StopLoggingGetTempFile(), &exists, true);
+    raw_log_ = i::ReadFile(StopLoggingGetTempFile(), &exists, true);
+    log_ = Split(raw_log_, '\n');
     CHECK(exists);
   }
 
-  const char* GetEndPosition() { return log_.start() + log_.length(); }
-
-  const char* FindLine(const char* prefix, const char* suffix = nullptr,
-                       const char* start = nullptr) {
-    // Make sure that StopLogging() has been called before.
-    CHECK(log_.size());
-    if (start == nullptr) start = log_.start();
-    const char* end = GetEndPosition();
-    return FindLogLine(start, end, prefix, suffix);
+  // Searches |log_| for a line which contains all the strings in |search_terms|
+  // as substrings, starting from the index |start|, and returns the index of
+  // the found line. Returns std::string::npos if no line is found.
+  size_t IndexOfLine(const std::vector<std::string>& search_terms,
+                     size_t start = 0) {
+    for (size_t i = start; i < log_.size(); ++i) {
+      const std::string& line = log_.at(i);
+      bool all_terms_found = true;
+      for (const std::string& term : search_terms) {
+        all_terms_found &= line.find(term) != std::string::npos;
+      }
+      if (all_terms_found) return i;
+    }
+    return std::string::npos;
   }
 
-  // Find all log lines specified by the {prefix, suffix} pairs and ensure they
-  // occurr in the specified order.
-  void FindLogLines(const char* pairs[][2], size_t limit,
-                    const char* start = nullptr) {
-    const char* prefix = pairs[0][0];
-    const char* suffix = pairs[0][1];
-    const char* last_position = FindLine(prefix, suffix, start);
-    if (last_position == nullptr) {
-      PrintLog(100, start);
-      V8_Fatal(__FILE__, __LINE__, "Could not find log line: %s ... %s", prefix,
-               suffix);
-    }
-    CHECK(last_position);
-    for (size_t i = 1; i < limit; i++) {
-      prefix = pairs[i][0];
-      suffix = pairs[i][1];
-      const char* position = FindLine(prefix, suffix, start);
-      if (position == nullptr) {
-        PrintLog(100, start);
-        V8_Fatal(__FILE__, __LINE__, "Could not find log line: %s ... %s",
-                 prefix, suffix);
-      }
-      // Check that all string positions are in order.
-      if (position <= last_position) {
-        PrintLog(100, start);
-        V8_Fatal(__FILE__, __LINE__,
-                 "Log statements not in expected order (prev=%p, current=%p): "
-                 "%s ... %s",
-                 reinterpret_cast<const void*>(last_position),
-                 reinterpret_cast<const void*>(position), prefix, suffix);
-      }
-      last_position = position;
-    }
+  bool ContainsLine(const std::vector<std::string>& search_terms,
+                    size_t start = 0) {
+    return IndexOfLine(search_terms, start) != std::string::npos;
   }
 
+  // Calls IndexOfLine for each set of substring terms in
+  // |all_line_search_terms|, in order. Returns true if they're all found.
+  bool ContainsLinesInOrder(
+      const std::vector<std::vector<std::string>>& all_line_search_terms,
+      size_t start = 0) {
+    CHECK_GT(log_.size(), 0);
+    for (auto& search_terms : all_line_search_terms) {
+      start = IndexOfLine(search_terms, start);
+      if (start == std::string::npos) return false;
+      ++start;  // Skip the found line.
+    }
+    return true;
+  }
+
+  std::unordered_set<uintptr_t> ExtractAllAddresses(std::string search_term,
+                                                    size_t address_column) {
+    CHECK_GT(log_.size(), 0);
+    std::unordered_set<uintptr_t> result;
+    size_t start = 0;
+    while (true) {
+      start = IndexOfLine({search_term}, start);
+      if (start == std::string::npos) break;
+      std::vector<std::string> columns = Split(log_.at(start), ',');
+      CHECK_LT(address_column, columns.size());
+      uintptr_t address =
+          strtoll(columns.at(address_column).c_str(), nullptr, 16);
+      CHECK_GT(address, 0);
+      result.insert(address);
+      ++start;  // Skip the found line.
+    }
+    return result;
+  }
+
+  void LogCodeObjects() { logger_->LogCodeObjects(); }
   void LogCompiledFunctions() { logger_->LogCompiledFunctions(); }
 
   void StringEvent(const char* name, const char* value) {
     logger_->StringEvent(name, value);
-  }
-
-  void ExtractAllAddresses(std::unordered_set<uintptr_t>* map,
-                           const char* prefix, int field_index) {
-    // Make sure that StopLogging() has been called before.
-    CHECK(log_.size());
-    const char* current = log_.start();
-    while (current != nullptr) {
-      current = FindLine(prefix, nullptr, current);
-      if (current == nullptr) return;
-      // Find token number {index}.
-      const char* previous;
-      for (int i = 0; i <= field_index; i++) {
-        previous = current;
-        current = strchr(current + 1, ',');
-        if (current == nullptr) break;
-        // Skip the comma.
-        current++;
-      }
-      if (current == nullptr) break;
-      uintptr_t address = strtoll(previous, nullptr, 16);
-      CHECK_LT(0, address);
-      map->insert(address);
-    }
   }
 
  private:
@@ -257,7 +189,9 @@ class ScopedLoggerInitializer {
   v8::HandleScope scope_;
   v8::Local<v8::Context> env_;
   Logger* logger_;
-  i::Vector<const char> log_;
+
+  std::string raw_log_;
+  std::vector<std::string> log_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedLoggerInitializer);
 };
@@ -268,15 +202,20 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
       : v8::CodeEventHandler(isolate), isolate_(isolate) {}
 
   size_t CountLines(std::string prefix, std::string suffix = std::string()) {
-    if (!log_.length()) return 0;
+    if (event_log_.empty()) return 0;
 
-    std::regex expression("(^|\\n)" + prefix + ".*" + suffix + "(?=\\n|$)");
+    size_t match = 0;
+    for (const std::string& line : event_log_) {
+      size_t prefix_pos = line.find(prefix);
+      if (prefix_pos == std::string::npos) continue;
+      size_t suffix_pos = line.rfind(suffix);
+      if (suffix_pos == std::string::npos) continue;
+      if (suffix_pos != line.length() - suffix.length()) continue;
+      if (prefix_pos >= suffix_pos) continue;
+      match++;
+    }
 
-    size_t match_count(std::distance(
-        std::sregex_iterator(log_.begin(), log_.end(), expression),
-        std::sregex_iterator()));
-
-    return match_count;
+    return match;
   }
 
   void Handle(v8::CodeEvent* code_event) override {
@@ -284,8 +223,7 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
     log_line += v8::CodeEvent::GetCodeEventTypeName(code_event->GetCodeType());
     log_line += " ";
     log_line += FormatName(code_event);
-    log_line += "\n";
-    log_ += log_line;
+    event_log_.push_back(log_line);
   }
 
  private:
@@ -294,7 +232,7 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
     if (name.empty()) {
       v8::Local<v8::String> functionName = code_event->GetFunctionName();
       std::string buffer(functionName->Utf8Length(isolate_) + 1, 0);
-      functionName->WriteUtf8(&buffer[0],
+      functionName->WriteUtf8(isolate_, &buffer[0],
                               functionName->Utf8Length(isolate_) + 1);
       // Sanitize name, removing unwanted \0 resulted from WriteUtf8
       name = std::string(buffer.c_str());
@@ -303,194 +241,11 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
     return name;
   }
 
-  std::string log_;
+  std::vector<std::string> event_log_;
   v8::Isolate* isolate_;
 };
 
 }  // namespace
-
-TEST(FindLogLine) {
-  const char* string =
-      "prefix1, stuff,   suffix1\n"
-      "prefix2, stuff\n, suffix2\n"
-      "prefix3suffix3\n"
-      "prefix4 suffix4";
-  const char* end = string + strlen(string);
-  // Make sure the vector contains the terminating \0 character.
-  CHECK(FindLogLine(string, end, "prefix1, stuff,   suffix1"));
-  CHECK(FindLogLine(string, end, "prefix1, stuff"));
-  CHECK(FindLogLine(string, end, "prefix1"));
-  CHECK(FindLogLine(string, end, "prefix1", "suffix1"));
-  CHECK(FindLogLine(string, end, "prefix1", "suffix1"));
-  CHECK(!FindLogLine(string, end, "prefix2", "suffix2"));
-  CHECK(!FindLogLine(string, end, "prefix1", "suffix2"));
-  CHECK(!FindLogLine(string, end, "prefix1", "suffix3"));
-  CHECK(FindLogLine(string, end, "prefix3", "suffix3"));
-  CHECK(FindLogLine(string, end, "prefix4", "suffix4"));
-  CHECK(!FindLogLine(string, end, "prefix4", "suffix4XXXXXXXXXXXX"));
-  CHECK(
-      !FindLogLine(string, end, "prefix4XXXXXXXXXXXXXXXXXXXXXXxxx", "suffix4"));
-  CHECK(!FindLogLine(string, end, "suffix", "suffix5XXXXXXXXXXXXXXXXXXXX"));
-}
-
-// BUG(913). Need to implement support for profiling multiple VM threads.
-#if 0
-
-namespace {
-
-class LoopingThread : public v8::internal::Thread {
- public:
-  explicit LoopingThread(v8::internal::Isolate* isolate)
-      : v8::internal::Thread(isolate),
-        semaphore_(new v8::internal::Semaphore(0)),
-        run_(true) {
-  }
-
-  virtual ~LoopingThread() { delete semaphore_; }
-
-  void Run() {
-    self_ = pthread_self();
-    RunLoop();
-  }
-
-  void SendSigProf() { pthread_kill(self_, SIGPROF); }
-
-  void Stop() { run_ = false; }
-
-  bool WaitForRunning() { return semaphore_->Wait(1000000); }
-
- protected:
-  bool IsRunning() { return run_; }
-
-  virtual void RunLoop() = 0;
-
-  void SetV8ThreadId() {
-    v8_thread_id_ = v8::V8::GetCurrentThreadId();
-  }
-
-  void SignalRunning() { semaphore_->Signal(); }
-
- private:
-  v8::internal::Semaphore* semaphore_;
-  bool run_;
-  pthread_t self_;
-  int v8_thread_id_;
-};
-
-
-class LoopingJsThread : public LoopingThread {
- public:
-  explicit LoopingJsThread(v8::internal::Isolate* isolate)
-      : LoopingThread(isolate) { }
-  void RunLoop() {
-    v8::Locker locker;
-    CHECK_NOT_NULL(CcTest::i_isolate());
-    CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
-    SetV8ThreadId();
-    while (IsRunning()) {
-      v8::HandleScope scope;
-      v8::Persistent<v8::Context> context = v8::Context::New();
-      CHECK(!context.IsEmpty());
-      {
-        v8::Context::Scope context_scope(context);
-        SignalRunning();
-        CompileRun(
-            "var j; for (var i=0; i<10000; ++i) { j = Math.sin(i); }");
-      }
-      context.Dispose();
-      i::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
-    }
-  }
-};
-
-
-class LoopingNonJsThread : public LoopingThread {
- public:
-  explicit LoopingNonJsThread(v8::internal::Isolate* isolate)
-      : LoopingThread(isolate) { }
-  void RunLoop() {
-    v8::Locker locker;
-    v8::Unlocker unlocker;
-    // Now thread has V8's id, but will not run VM code.
-    CHECK_NOT_NULL(CcTest::i_isolate());
-    CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
-    double i = 10;
-    SignalRunning();
-    while (IsRunning()) {
-      i = std::sin(i);
-      i::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
-    }
-  }
-};
-
-
-class TestSampler : public v8::internal::Sampler {
- public:
-  explicit TestSampler(v8::internal::Isolate* isolate)
-      : Sampler(isolate, 0, true, true),
-        semaphore_(new v8::internal::Semaphore(0)),
-        was_sample_stack_called_(false) {
-  }
-
-  ~TestSampler() { delete semaphore_; }
-
-  void SampleStack(v8::internal::TickSample*) {
-    was_sample_stack_called_ = true;
-  }
-
-  void Tick(v8::internal::TickSample*) { semaphore_->Signal(); }
-
-  bool WaitForTick() { return semaphore_->Wait(1000000); }
-
-  void Reset() { was_sample_stack_called_ = false; }
-
-  bool WasSampleStackCalled() { return was_sample_stack_called_; }
-
- private:
-  v8::internal::Semaphore* semaphore_;
-  bool was_sample_stack_called_;
-};
-
-
-}  // namespace
-
-TEST(ProfMultipleThreads) {
-  TestSampler* sampler = nullptr;
-  {
-    v8::Locker locker;
-    sampler = new TestSampler(CcTest::i_isolate());
-    sampler->Start();
-    CHECK(sampler->IsActive());
-  }
-
-  LoopingJsThread jsThread(CcTest::i_isolate());
-  jsThread.Start();
-  LoopingNonJsThread nonJsThread(CcTest::i_isolate());
-  nonJsThread.Start();
-
-  CHECK(!sampler->WasSampleStackCalled());
-  jsThread.WaitForRunning();
-  jsThread.SendSigProf();
-  CHECK(sampler->WaitForTick());
-  CHECK(sampler->WasSampleStackCalled());
-  sampler->Reset();
-  CHECK(!sampler->WasSampleStackCalled());
-  nonJsThread.WaitForRunning();
-  nonJsThread.SendSigProf();
-  CHECK(!sampler->WaitForTick());
-  CHECK(!sampler->WasSampleStackCalled());
-  sampler->Stop();
-
-  jsThread.Stop();
-  nonJsThread.Stop();
-  jsThread.Join();
-  nonJsThread.Join();
-
-  delete sampler;
-}
-
-#endif  // __linux__
-
 
 // Test for issue http://crbug.com/23768 in Chromium.
 // Heap can contain scripts with already disposed external sources.
@@ -535,16 +290,14 @@ TEST(Issue23768) {
       CcTest::i_isolate());
   // This situation can happen if source was an external string disposed
   // by its owner.
-  i_source->set_resource(nullptr);
+  i_source->SetResource(CcTest::i_isolate(), nullptr);
 
   // Must not crash.
   CcTest::i_isolate()->logger()->LogCompiledFunctions();
 }
 
-
 static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
-
 
 TEST(LogCallbacks) {
   SETUP_FLAGS();
@@ -572,20 +325,19 @@ TEST(LogCallbacks) {
     CompileRun("Obj.prototype.method1.toString();");
 
     logger.LogCompiledFunctions();
-
     logger.StopLogging();
 
     Address ObjMethod1_entry = reinterpret_cast<Address>(ObjMethod1);
 #if USES_FUNCTION_DESCRIPTORS
     ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
 #endif
-    i::EmbeddedVector<char, 100> ref_data;
-    i::SNPrintF(ref_data, ",0x%" V8PRIxPTR ",1,method1", ObjMethod1_entry);
-    CHECK(logger.FindLine("code-creation,Callback,-2,", ref_data.start()));
+    i::EmbeddedVector<char, 100> suffix_buffer;
+    i::SNPrintF(suffix_buffer, ",0x%" V8PRIxPTR ",1,method1", ObjMethod1_entry);
+    CHECK(logger.ContainsLine(
+        {"code-creation,Callback,-2,", std::string(suffix_buffer.start())}));
   }
   isolate->Dispose();
 }
-
 
 static void Prop1Getter(v8::Local<v8::String> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -599,7 +351,6 @@ static void Prop1Setter(v8::Local<v8::String> property,
 static void Prop2Getter(v8::Local<v8::String> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
-
 
 TEST(LogAccessorCallbacks) {
   SETUP_FLAGS();
@@ -627,8 +378,8 @@ TEST(LogAccessorCallbacks) {
     EmbeddedVector<char, 100> prop1_getter_record;
     i::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
                 Prop1Getter_entry);
-    CHECK(logger.FindLine("code-creation,Callback,-2,",
-                          prop1_getter_record.start()));
+    CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
+                               std::string(prop1_getter_record.start())}));
 
     Address Prop1Setter_entry = reinterpret_cast<Address>(Prop1Setter);
 #if USES_FUNCTION_DESCRIPTORS
@@ -637,8 +388,8 @@ TEST(LogAccessorCallbacks) {
     EmbeddedVector<char, 100> prop1_setter_record;
     i::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
                 Prop1Setter_entry);
-    CHECK(logger.FindLine("code-creation,Callback,-2,",
-                          prop1_setter_record.start()));
+    CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
+                               std::string(prop1_setter_record.start())}));
 
     Address Prop2Getter_entry = reinterpret_cast<Address>(Prop2Getter);
 #if USES_FUNCTION_DESCRIPTORS
@@ -647,8 +398,8 @@ TEST(LogAccessorCallbacks) {
     EmbeddedVector<char, 100> prop2_getter_record;
     i::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
                 Prop2Getter_entry);
-    CHECK(logger.FindLine("code-creation,Callback,-2,",
-                          prop2_getter_record.start()));
+    CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
+                               std::string(prop2_getter_record.start())}));
   }
   isolate->Dispose();
 }
@@ -716,7 +467,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
       v8::Local<v8::String> s = result->ToString(logger.env()).ToLocalChecked();
       i::ScopedVector<char> data(s->Utf8Length(isolate) + 1);
       CHECK(data.start());
-      s->WriteUtf8(data.start());
+      s->WriteUtf8(isolate, data.start());
       FATAL("%s\n", data.start());
     }
   }
@@ -733,11 +484,12 @@ TEST(LogVersion) {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
     logger.StopLogging();
 
-    i::EmbeddedVector<char, 100> ref_data;
-    i::SNPrintF(ref_data, "%d,%d,%d,%d,%d", i::Version::GetMajor(),
+    i::EmbeddedVector<char, 100> line_buffer;
+    i::SNPrintF(line_buffer, "%d,%d,%d,%d,%d", i::Version::GetMajor(),
                 i::Version::GetMinor(), i::Version::GetBuild(),
                 i::Version::GetPatch(), i::Version::IsCandidate());
-    CHECK(logger.FindLine("v8-version,", ref_data.start()));
+    CHECK(
+        logger.ContainsLine({"v8-version,", std::string(line_buffer.start())}));
   }
   isolate->Dispose();
 }
@@ -810,7 +562,6 @@ TEST(LogAll) {
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
 
-    // Function that will
     const char* source_text =
         "function testAddFn(a,b) { return a + b };"
         "let result;"
@@ -822,16 +573,16 @@ TEST(LogAll) {
     logger.StopLogging();
 
     // We should find at least one code-creation even for testAddFn();
-    CHECK(logger.FindLine("api,v8::Context::New"));
-    CHECK(logger.FindLine("timer-event-start", "V8.CompileCode"));
-    CHECK(logger.FindLine("timer-event-end", "V8.CompileCode"));
-    CHECK(logger.FindLine("code-creation,Script", ":1:1"));
-    CHECK(logger.FindLine("api,v8::Script::Run"));
-    CHECK(logger.FindLine("code-creation,LazyCompile,", "testAddFn"));
+    CHECK(logger.ContainsLine({"api,v8::Context::New"}));
+    CHECK(logger.ContainsLine({"timer-event-start", "V8.CompileCode"}));
+    CHECK(logger.ContainsLine({"timer-event-end", "V8.CompileCode"}));
+    CHECK(logger.ContainsLine({"code-creation,Script", ":1:1"}));
+    CHECK(logger.ContainsLine({"api,v8::Script::Run"}));
+    CHECK(logger.ContainsLine({"code-creation,LazyCompile,", "testAddFn"}));
     if (i::FLAG_opt && !i::FLAG_always_opt) {
-      CHECK(logger.FindLine("code-deopt,", "soft"));
-      CHECK(logger.FindLine("timer-event-start", "V8.DeoptimizeCode"));
-      CHECK(logger.FindLine("timer-event-end", "V8.DeoptimizeCode"));
+      CHECK(logger.ContainsLine({"code-deopt,", "soft"}));
+      CHECK(logger.ContainsLine({"timer-event-start", "V8.DeoptimizeCode"}));
+      CHECK(logger.ContainsLine({"timer-event-end", "V8.DeoptimizeCode"}));
     }
   }
   isolate->Dispose();
@@ -854,8 +605,8 @@ TEST(LogInterpretedFramesNativeStack) {
 
     logger.StopLogging();
 
-    CHECK(logger.FindLine("InterpretedFunction",
-                          "testLogInterpretedFramesNativeStack"));
+    CHECK(logger.ContainsLine(
+        {"InterpretedFunction", "testLogInterpretedFramesNativeStack"}));
   }
   isolate->Dispose();
 }
@@ -978,9 +729,9 @@ TEST(TraceMaps) {
     logger.StopLogging();
 
     // Mostly superficial checks.
-    CHECK(logger.FindLine("map,InitialMap", ",0x"));
-    CHECK(logger.FindLine("map,Transition", ",0x"));
-    CHECK(logger.FindLine("map-details", ",0x"));
+    CHECK(logger.ContainsLine({"map,InitialMap", ",0x"}));
+    CHECK(logger.ContainsLine({"map,Transition", ",0x"}));
+    CHECK(logger.ContainsLine({"map-details", ",0x"}));
   }
   i::FLAG_trace_maps = false;
   isolate->Dispose();
@@ -996,9 +747,8 @@ TEST(LogMaps) {
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
     logger.StopLogging();
-    // Extract all the map-detail entry addresses from the log.
-    std::unordered_set<uintptr_t> map_addresses;
-    logger.ExtractAllAddresses(&map_addresses, "map-details", 2);
+    std::unordered_set<uintptr_t> map_addresses =
+        logger.ExtractAllAddresses("map-details", 2);
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
     i::HeapIterator iterator(heap);
     i::DisallowHeapAllocation no_gc;
@@ -1011,15 +761,12 @@ TEST(LogMaps) {
       if (!obj->IsMap()) continue;
       uintptr_t address = reinterpret_cast<uintptr_t>(obj);
       if (map_addresses.find(address) != map_addresses.end()) continue;
-      logger.PrintLog(200);
       i::Map::cast(obj)->Print();
       V8_Fatal(__FILE__, __LINE__,
                "Map (%p, #%zu) was not logged during startup with --trace-maps!"
-               "\n# Expected Log Line: map_details, ... %p"
-               "\n# Use logger::PrintLog() for more details.",
+               "\n# Expected Log Line: map_details, ... %p",
                reinterpret_cast<void*>(obj), i, reinterpret_cast<void*>(obj));
     }
-    logger.PrintLog(200);
   }
   i::FLAG_log_function_events = false;
   isolate->Dispose();
@@ -1045,14 +792,12 @@ TEST(ConsoleTimeEvents) {
 
     logger.StopLogging();
 
-    const char* pairs[][2] = {{"timer-event-start,default,", nullptr},
-                              {"timer-event-end,default,", nullptr},
-                              {"timer-event,default,", nullptr},
-                              {"timer-event-start,timerEvent1,", nullptr},
-                              {"timer-event-end,timerEvent1,", nullptr},
-                              {"timer-event,timerEvent2,", nullptr},
-                              {"timer-event,timerEvent3,", nullptr}};
-    logger.FindLogLines(pairs, arraysize(pairs));
+    std::vector<std::vector<std::string>> lines = {
+        {"timer-event-start,default,"},   {"timer-event-end,default,"},
+        {"timer-event,default,"},         {"timer-event-start,timerEvent1,"},
+        {"timer-event-end,timerEvent1,"}, {"timer-event,timerEvent2,"},
+        {"timer-event,timerEvent3,"}};
+    CHECK(logger.ContainsLinesInOrder(lines));
   }
 
   isolate->Dispose();
@@ -1096,13 +841,13 @@ TEST(LogFunctionEvents) {
     logger.StopLogging();
 
     // Ignore all the log entries that happened before warmup
-    const char* start =
-        logger.FindLine("function,first-execution", "warmUpEndMarkerFunction");
-    CHECK_NOT_NULL(start);
-    const char* pairs[][2] = {
+    size_t start = logger.IndexOfLine(
+        {"function,first-execution", "warmUpEndMarkerFunction"});
+    CHECK(start != std::string::npos);
+    std::vector<std::vector<std::string>> lines = {
         // Create a new script
-        {"script,create", nullptr},
-        {"script-details", nullptr},
+        {"script,create"},
+        {"script-details"},
         // Step 1: parsing top-level script, preparsing functions
         {"function,preparse-", ",lazyNotExecutedFunction"},
         // Missing name for preparsing lazyInnerFunction
@@ -1113,11 +858,11 @@ TEST(LogFunctionEvents) {
         // Missing name for inner preparsing of Foo.foo
         // {"function,preparse-", nullptr},
         // Missing name for top-level script.
-        {"function,parse-script,", nullptr},
+        {"function,parse-script,"},
 
         // Step 2: compiling top-level script and eager functions
         // - Compiling script without name.
-        {"function,compile,", nullptr},
+        {"function,compile,"},
         {"function,compile,", ",eagerFunction"},
 
         // Step 3: start executing script
@@ -1141,8 +886,38 @@ TEST(LogFunctionEvents) {
         {"function,compile-lazy,", ",Foo.foo"},
         {"function,first-execution,", ",Foo.foo"},
     };
-    logger.FindLogLines(pairs, arraysize(pairs), start);
+    CHECK(logger.ContainsLinesInOrder(lines, start));
   }
   i::FLAG_log_function_events = false;
+  isolate->Dispose();
+}
+
+TEST(BuiltinsNotLoggedAsLazyCompile) {
+  SETUP_FLAGS();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+
+    logger.LogCodeObjects();
+    logger.LogCompiledFunctions();
+    logger.StopLogging();
+
+    i::Handle<i::Code> builtin = logger.i_isolate()->builtins()->builtin_handle(
+        i::Builtins::kBooleanConstructor);
+    i::EmbeddedVector<char, 100> buffer;
+
+    // Should only be logged as "Builtin" with a name, never as "LazyCompile".
+    i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
+                builtin->InstructionStart(), builtin->InstructionSize());
+    CHECK(logger.ContainsLine(
+        {"code-creation,Builtin,3,", std::string(buffer.start())}));
+
+    i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,", builtin->InstructionStart(),
+                builtin->InstructionSize());
+    CHECK(!logger.ContainsLine(
+        {"code-creation,LazyCompile,3,", std::string(buffer.start())}));
+  }
   isolate->Dispose();
 }

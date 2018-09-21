@@ -57,8 +57,8 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
                          strlen(kVirtualMemoryName));
   uintptr_t reservation;
   uint32_t prot = GetProtectionFromMemoryPermission(access);
-  zx_status_t status = zx_vmar_map(zx_vmar_root_self(), 0, vmo, 0, request_size,
-                                   prot, &reservation);
+  zx_status_t status = zx_vmar_map_old(zx_vmar_root_self(), 0, vmo, 0,
+                                       request_size, prot, &reservation);
   // Either the vmo is now referenced by the vmar, or we failed and are bailing,
   // so close the vmo either way.
   zx_handle_close(vmo);
@@ -114,9 +114,9 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
   uint32_t prot = GetProtectionFromMemoryPermission(access);
-  return zx_vmar_protect(zx_vmar_root_self(),
-                         reinterpret_cast<uintptr_t>(address), size,
-                         prot) == ZX_OK;
+  return zx_vmar_protect_old(zx_vmar_root_self(),
+                             reinterpret_cast<uintptr_t>(address), size,
+                             prot) == ZX_OK;
 }
 
 // static

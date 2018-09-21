@@ -18,10 +18,10 @@ class StartupSerializer : public Serializer<> {
   ~StartupSerializer() override;
 
   // Serialize the current state of the heap.  The order is:
-  // 1) Immortal immovable roots
-  // 2) Remaining strong references.
-  // 3) Partial snapshot cache.
-  // 4) Weak references (e.g. the string table).
+  // 1) Strong roots
+  // 2) Builtins and bytecode handlers
+  // 3) Partial snapshot cache
+  // 4) Weak references (e.g. the string table)
   void SerializeStrongReferences();
   void SerializeWeakReferencesAndDeferred();
 

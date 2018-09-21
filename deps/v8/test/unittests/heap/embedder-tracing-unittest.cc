@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/heap/embedder-tracing.h"
+#include "src/heap/heap.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,12 +34,11 @@ class MockEmbedderHeapTracer : public EmbedderHeapTracer {
   MOCK_METHOD0(TracePrologue, void());
   MOCK_METHOD0(TraceEpilogue, void());
   MOCK_METHOD0(AbortTracing, void());
-  MOCK_METHOD0(EnterFinalPause, void());
+  MOCK_METHOD1(EnterFinalPause, void(EmbedderHeapTracer::EmbedderStackState));
   MOCK_METHOD0(IsTracingDone, bool());
   MOCK_METHOD1(RegisterV8References,
                void(const std::vector<std::pair<void*, void*> >&));
-  MOCK_METHOD2(AdvanceTracing,
-               bool(double deadline_in_ms, AdvanceTracingActions actions));
+  MOCK_METHOD1(AdvanceTracing, bool(double deadline_in_ms));
 };
 
 TEST(LocalEmbedderHeapTracer, InUse) {
@@ -55,10 +55,8 @@ TEST(LocalEmbedderHeapTracer, NoRemoteTracer) {
   EXPECT_FALSE(local_tracer.InUse());
   local_tracer.TracePrologue();
   local_tracer.EnterFinalPause();
-  bool more_work = local_tracer.Trace(
-      0, EmbedderHeapTracer::AdvanceTracingActions(
-             EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
-  EXPECT_FALSE(more_work);
+  bool done = local_tracer.Trace(std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(done);
   local_tracer.TraceEpilogue();
 }
 
@@ -100,7 +98,38 @@ TEST(LocalEmbedderHeapTracer, EnterFinalPauseForwards) {
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
   LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
-  EXPECT_CALL(remote_tracer, EnterFinalPause());
+  EXPECT_CALL(remote_tracer, EnterFinalPause(_));
+  local_tracer.EnterFinalPause();
+}
+
+TEST(LocalEmbedderHeapTracer, EnterFinalPauseDefaultStackStateUnkown) {
+  StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
+  local_tracer.SetRemoteTracer(&remote_tracer);
+  // The default stack state is expected to be unkown.
+  EXPECT_CALL(remote_tracer, EnterFinalPause(EmbedderHeapTracer::kUnknown));
+  local_tracer.EnterFinalPause();
+}
+
+TEST(LocalEmbedderHeapTracer, EnterFinalPauseStackStateIsForwarded) {
+  StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
+  local_tracer.SetRemoteTracer(&remote_tracer);
+  local_tracer.SetEmbedderStackStateForNextFinalization(
+      EmbedderHeapTracer::kEmpty);
+  EXPECT_CALL(remote_tracer, EnterFinalPause(EmbedderHeapTracer::kEmpty));
+  local_tracer.EnterFinalPause();
+}
+
+TEST(LocalEmbedderHeapTracer, EnterFinalPauseStackStateResets) {
+  StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
+  local_tracer.SetRemoteTracer(&remote_tracer);
+  local_tracer.SetEmbedderStackStateForNextFinalization(
+      EmbedderHeapTracer::kEmpty);
+  EXPECT_CALL(remote_tracer, EnterFinalPause(EmbedderHeapTracer::kEmpty));
+  local_tracer.EnterFinalPause();
+  EXPECT_CALL(remote_tracer, EnterFinalPause(EmbedderHeapTracer::kUnknown));
   local_tracer.EnterFinalPause();
 }
 
@@ -140,10 +169,8 @@ TEST(LocalEmbedderHeapTracer, TraceFinishes) {
   EXPECT_EQ(1u, local_tracer.NumberOfCachedWrappersToTrace());
   EXPECT_CALL(remote_tracer, RegisterV8References(_));
   local_tracer.RegisterWrappersWithRemoteTracer();
-  EXPECT_CALL(remote_tracer, AdvanceTracing(0, _)).WillOnce(Return(false));
-  EXPECT_FALSE(local_tracer.Trace(
-      0, EmbedderHeapTracer::AdvanceTracingActions(
-             EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION)));
+  EXPECT_CALL(remote_tracer, AdvanceTracing(_)).WillOnce(Return(true));
+  EXPECT_TRUE(local_tracer.Trace(std::numeric_limits<double>::infinity()));
   EXPECT_EQ(0u, local_tracer.NumberOfCachedWrappersToTrace());
 }
 
@@ -155,10 +182,8 @@ TEST(LocalEmbedderHeapTracer, TraceDoesNotFinish) {
   EXPECT_EQ(1u, local_tracer.NumberOfCachedWrappersToTrace());
   EXPECT_CALL(remote_tracer, RegisterV8References(_));
   local_tracer.RegisterWrappersWithRemoteTracer();
-  EXPECT_CALL(remote_tracer, AdvanceTracing(0, _)).WillOnce(Return(true));
-  EXPECT_TRUE(local_tracer.Trace(
-      0, EmbedderHeapTracer::AdvanceTracingActions(
-             EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION)));
+  EXPECT_CALL(remote_tracer, AdvanceTracing(_)).WillOnce(Return(false));
+  EXPECT_FALSE(local_tracer.Trace(1.0));
   EXPECT_EQ(0u, local_tracer.NumberOfCachedWrappersToTrace());
 }
 

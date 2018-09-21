@@ -123,8 +123,8 @@ Node* AsyncBuiltinsAssembler::Await(
       // than a meaningful catch handler
       Node* const key =
           HeapConstant(factory()->promise_forwarding_handler_symbol());
-      CallRuntime(Runtime::kSetProperty, context, on_reject, key,
-                  TrueConstant(), SmiConstant(LanguageMode::kStrict));
+      SetPropertyStrict(CAST(context), CAST(on_reject), CAST(key),
+                        TrueConstant());
 
       GotoIf(IsFalse(is_predicted_as_caught), &common);
       PromiseSetHandledHint(value);
@@ -137,8 +137,8 @@ Node* AsyncBuiltinsAssembler::Await(
     CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
 
     Node* const key = HeapConstant(factory()->promise_handled_by_symbol());
-    CallRuntime(Runtime::kSetProperty, context, throwaway, key, outer_promise,
-                SmiConstant(LanguageMode::kStrict));
+    SetPropertyStrict(CAST(context), CAST(throwaway), CAST(key),
+                      CAST(outer_promise));
   }
 
   Goto(&do_perform_promise_then);
@@ -237,8 +237,8 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
       // than a meaningful catch handler
       Node* const key =
           HeapConstant(factory()->promise_forwarding_handler_symbol());
-      CallRuntime(Runtime::kSetProperty, context, on_reject, key,
-                  TrueConstant(), SmiConstant(LanguageMode::kStrict));
+      SetPropertyStrict(CAST(context), CAST(on_reject), CAST(key),
+                        TrueConstant());
 
       GotoIf(IsFalse(is_predicted_as_caught), &common);
       PromiseSetHandledHint(value);
@@ -251,8 +251,8 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
     CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
 
     Node* const key = HeapConstant(factory()->promise_handled_by_symbol());
-    CallRuntime(Runtime::kSetProperty, context, throwaway, key, outer_promise,
-                SmiConstant(LanguageMode::kStrict));
+    SetPropertyStrict(CAST(context), CAST(throwaway), CAST(key),
+                      CAST(outer_promise));
   }
 
   Goto(&do_perform_promise_then);

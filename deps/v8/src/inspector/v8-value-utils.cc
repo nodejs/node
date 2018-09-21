@@ -39,8 +39,8 @@ protocol::Response toProtocolValue(v8::Local<v8::Context> context,
     return Response::OK();
   }
   if (value->IsString()) {
-    *result =
-        protocol::StringValue::create(toProtocolString(value.As<v8::String>()));
+    *result = protocol::StringValue::create(
+        toProtocolString(context->GetIsolate(), value.As<v8::String>()));
     return Response::OK();
   }
   if (value->IsArray()) {
@@ -90,8 +90,9 @@ protocol::Response toProtocolValue(v8::Local<v8::Context> context,
       Response response =
           toProtocolValue(context, property, maxDepth, &propertyValue);
       if (!response.isSuccess()) return response;
-      jsonObject->setValue(toProtocolString(propertyName),
-                           std::move(propertyValue));
+      jsonObject->setValue(
+          toProtocolString(context->GetIsolate(), propertyName),
+          std::move(propertyValue));
     }
     *result = std::move(jsonObject);
     return Response::OK();

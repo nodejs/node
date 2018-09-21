@@ -1082,14 +1082,14 @@ TEST(13) {
     __ vmov(d21, Double(16.0));
     __ mov(r1, Operand(372106121));
     __ mov(r2, Operand(1079146608));
-    __ vmov(d22, VmovIndexLo, r1);
-    __ vmov(d22, VmovIndexHi, r2);
+    __ vmov(NeonS32, d22, 0, r1);
+    __ vmov(NeonS32, d22, 1, r2);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i))));
     __ vstm(ia_w, r4, d20, d22);
     // Move d22 into low and high.
-    __ vmov(r4, VmovIndexLo, d22);
+    __ vmov(NeonS32, r4, d22, 0);
     __ str(r4, MemOperand(r0, offsetof(T, low)));
-    __ vmov(r4, VmovIndexHi, d22);
+    __ vmov(NeonS32, r4, d22, 1);
     __ str(r4, MemOperand(r0, offsetof(T, high)));
 
     __ ldm(ia_w, sp, r4.bit() | pc.bit());

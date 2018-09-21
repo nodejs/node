@@ -28,7 +28,8 @@ std::vector<std::shared_ptr<StackFrame>> toFramesVector(
   int frameCount = std::min(v8StackTrace->GetFrameCount(), maxStackSize);
   std::vector<std::shared_ptr<StackFrame>> frames(frameCount);
   for (int i = 0; i < frameCount; ++i) {
-    frames[i] = debugger->symbolize(v8StackTrace->GetFrame(i));
+    frames[i] =
+        debugger->symbolize(v8StackTrace->GetFrame(debugger->isolate(), i));
   }
   return frames;
 }
@@ -116,10 +117,11 @@ V8StackTraceId::V8StackTraceId(uintptr_t id,
 
 bool V8StackTraceId::IsInvalid() const { return !id; }
 
-StackFrame::StackFrame(v8::Local<v8::StackFrame> v8Frame)
-    : m_functionName(toProtocolString(v8Frame->GetFunctionName())),
+StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
+    : m_functionName(toProtocolString(isolate, v8Frame->GetFunctionName())),
       m_scriptId(String16::fromInteger(v8Frame->GetScriptId())),
-      m_sourceURL(toProtocolString(v8Frame->GetScriptNameOrSourceURL())),
+      m_sourceURL(
+          toProtocolString(isolate, v8Frame->GetScriptNameOrSourceURL())),
       m_lineNumber(v8Frame->GetLineNumber() - 1),
       m_columnNumber(v8Frame->GetColumn() - 1),
       m_hasSourceURLComment(v8Frame->GetScriptName() !=

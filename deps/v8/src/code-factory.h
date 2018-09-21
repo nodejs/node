@@ -6,7 +6,6 @@
 #define V8_CODE_FACTORY_H_
 
 #include "src/allocation.h"
-#include "src/assembler.h"
 #include "src/callable.h"
 #include "src/code-stubs.h"
 #include "src/globals.h"

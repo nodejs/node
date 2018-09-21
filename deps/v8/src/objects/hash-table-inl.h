@@ -5,8 +5,12 @@
 #ifndef V8_OBJECTS_HASH_TABLE_INL_H_
 #define V8_OBJECTS_HASH_TABLE_INL_H_
 
-#include "src/heap/heap.h"
 #include "src/objects/hash-table.h"
+
+#include "src/heap/heap.h"
+#include "src/objects-inl.h"
+#include "src/objects/fixed-array-inl.h"
+#include "src/roots-inl.h"
 
 namespace v8 {
 namespace internal {

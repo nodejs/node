@@ -189,16 +189,17 @@ void Displacement::init(Label* L, Type type) {
 
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-    RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL);
+    RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+    RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
+    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
   // specially coded on IA32 means that it is a relative address, as used by
   // branch instructions.  These are also the ones that need changing when a
   // code object moves.
-  return (1 << rmode_) & kApplyMask;
+  return RelocInfo::ModeMask(rmode_) & kApplyMask;
 }
 
 
@@ -225,7 +226,7 @@ Address RelocInfo::js_to_wasm_address() const {
 
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
-  return Memory::uint32_at(pc_);
+  return Memory<uint32_t>(pc_);
 }
 
 // -----------------------------------------------------------------------------
@@ -312,7 +313,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         break;
     }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
-    Memory::Object_Handle_at(pc) = object;
+    Memory<Handle<Object>>(pc) = object;
   }
 }
 
@@ -330,9 +331,7 @@ Assembler::Assembler(const AssemblerOptions& options, void* buffer,
 // caller in which case we can't be sure it's okay to overwrite
 // existing code in it.
 #ifdef DEBUG
-  if (own_buffer_) {
-    memset(buffer_, 0xCC, buffer_size_);  // int3
-  }
+  if (own_buffer_) ZapCode(reinterpret_cast<Address>(buffer_), buffer_size_);
 #endif
 
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
@@ -692,6 +691,14 @@ void Assembler::movzx_w(Register dst, Operand src) {
   emit_operand(dst, src);
 }
 
+void Assembler::movq(XMMRegister dst, Operand src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x7E);
+  emit_operand(dst, src);
+}
+
 void Assembler::cmov(Condition cc, Register dst, Operand src) {
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.
@@ -783,6 +790,13 @@ void Assembler::cmpxchg_w(Operand dst, Register src) {
   EMIT(0x0F);
   EMIT(0xB1);
   emit_operand(src, dst);
+}
+
+void Assembler::cmpxchg8b(Operand dst) {
+  EnsureSpace enure_space(this);
+  EMIT(0x0F);
+  EMIT(0xC7);
+  emit_operand(ecx, dst);
 }
 
 void Assembler::lfence() {
@@ -1396,6 +1410,12 @@ void Assembler::xor_(Operand dst, const Immediate& x) {
   emit_arith(6, dst, x);
 }
 
+void Assembler::bswap(Register dst) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xC8 + dst.code());
+}
+
 void Assembler::bt(Operand dst, Register src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
@@ -1606,20 +1626,10 @@ void Assembler::wasm_call(Address entry, RelocInfo::Mode rmode) {
   emit(entry, rmode);
 }
 
-int Assembler::CallSize(Operand adr) {
-  // Call size is 1 (opcode) + adr.len_ (operand).
-  return 1 + adr.len_;
-}
-
 void Assembler::call(Operand adr) {
   EnsureSpace ensure_space(this);
   EMIT(0xFF);
   emit_operand(edx, adr);
-}
-
-
-int Assembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
-  return 1 /* EMIT */ + sizeof(uint32_t) /* emit */;
 }
 
 void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
@@ -3197,7 +3207,7 @@ void Assembler::GrowBuffer() {
   // Clear the buffer in debug mode. Use 'int3' instructions to make
   // sure to get into problems if we ever run uninitialized code.
 #ifdef DEBUG
-  memset(desc.buffer, 0xCC, desc.buffer_size);
+  ZapCode(reinterpret_cast<Address>(desc.buffer), desc.buffer_size);
 #endif
 
   // Copy the data.
@@ -3221,9 +3231,11 @@ void Assembler::GrowBuffer() {
     *p += pc_delta;
   }
 
-  // Relocate js-to-wasm calls (which are encoded pc-relative).
-  for (RelocIterator it(desc, RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
-       !it.done(); it.next()) {
+  // Relocate pc-relative references.
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+                  RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
+  DCHECK_EQ(mode_mask, RelocInfo::kApplyMask & mode_mask);
+  for (RelocIterator it(desc, mode_mask); !it.done(); it.next()) {
     it.rinfo()->apply(pc_delta);
   }
 
@@ -3259,11 +3271,29 @@ void Assembler::emit_arith(int sel, Operand dst, const Immediate& x) {
 }
 
 void Assembler::emit_operand(Register reg, Operand adr) {
+  emit_operand(reg.code(), adr);
+}
+
+void Assembler::emit_operand(XMMRegister reg, Operand adr) {
+  Register ireg = Register::from_code(reg.code());
+  emit_operand(ireg, adr);
+}
+
+void Assembler::emit_operand(int code, Operand adr) {
+  // Isolate-independent code may not embed relocatable addresses.
+  DCHECK(!options().isolate_independent_code ||
+         adr.rmode_ != RelocInfo::CODE_TARGET);
+  DCHECK(!options().isolate_independent_code ||
+         adr.rmode_ != RelocInfo::EMBEDDED_OBJECT);
+  // TODO(jgruber,v8:6666): Enable once kRootRegister exists.
+  //  DCHECK(!options().isolate_independent_code ||
+  //         adr.rmode_ != RelocInfo::EXTERNAL_REFERENCE);
+
   const unsigned length = adr.len_;
   DCHECK_GT(length, 0);
 
   // Emit updated ModRM byte containing the given register.
-  pc_[0] = (adr.buf_[0] & ~0x38) | (reg.code() << 3);
+  pc_[0] = (adr.buf_[0] & ~0x38) | (code << 3);
 
   // Emit the rest of the encoded operand.
   for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];

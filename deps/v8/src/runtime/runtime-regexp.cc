@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include <functional>
 
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/conversions-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/js-array-inl.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"
-#include "src/string-builder.h"
+#include "src/runtime/runtime-utils.h"
+#include "src/string-builder-inl.h"
 #include "src/string-search.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
@@ -65,7 +66,7 @@ int LookupNamedCapture(std::function<bool(String*)> name_matches,
 class CompiledReplacement {
  public:
   explicit CompiledReplacement(Zone* zone)
-      : parts_(1, zone), replacement_substrings_(0, zone), zone_(zone) {}
+      : parts_(zone), replacement_substrings_(zone) {}
 
   // Return whether the replacement is simple.
   bool Compile(Isolate* isolate, Handle<JSRegExp> regexp,
@@ -77,9 +78,7 @@ class CompiledReplacement {
              int32_t* match);
 
   // Number of distinct parts of the replacement pattern.
-  int parts() { return parts_.length(); }
-
-  Zone* zone() const { return zone_; }
+  int parts() { return static_cast<int>(parts_.size()); }
 
  private:
   enum PartType {
@@ -142,10 +141,10 @@ class CompiledReplacement {
   };
 
   template <typename Char>
-  bool ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
+  bool ParseReplacementPattern(ZoneChunkList<ReplacementPart>* parts,
                                Vector<Char> characters,
                                FixedArray* capture_name_map, int capture_count,
-                               int subject_length, Zone* zone) {
+                               int subject_length) {
     // Equivalent to String::GetSubstitution, except that this method converts
     // the replacement string into an internal representation that avoids
     // repeated parsing when used repeatedly.
@@ -163,9 +162,8 @@ class CompiledReplacement {
           case '$':
             if (i > last) {
               // There is a substring before. Include the first "$".
-              parts->Add(
-                  ReplacementPart::ReplacementSubString(last, next_index),
-                  zone);
+              parts->push_back(
+                  ReplacementPart::ReplacementSubString(last, next_index));
               last = next_index + 1;  // Continue after the second "$".
             } else {
               // Let the next substring start with the second "$".
@@ -175,25 +173,25 @@ class CompiledReplacement {
             break;
           case '`':
             if (i > last) {
-              parts->Add(ReplacementPart::ReplacementSubString(last, i), zone);
+              parts->push_back(ReplacementPart::ReplacementSubString(last, i));
             }
-            parts->Add(ReplacementPart::SubjectPrefix(), zone);
+            parts->push_back(ReplacementPart::SubjectPrefix());
             i = next_index;
             last = i + 1;
             break;
           case '\'':
             if (i > last) {
-              parts->Add(ReplacementPart::ReplacementSubString(last, i), zone);
+              parts->push_back(ReplacementPart::ReplacementSubString(last, i));
             }
-            parts->Add(ReplacementPart::SubjectSuffix(subject_length), zone);
+            parts->push_back(ReplacementPart::SubjectSuffix(subject_length));
             i = next_index;
             last = i + 1;
             break;
           case '&':
             if (i > last) {
-              parts->Add(ReplacementPart::ReplacementSubString(last, i), zone);
+              parts->push_back(ReplacementPart::ReplacementSubString(last, i));
             }
-            parts->Add(ReplacementPart::SubjectMatch(), zone);
+            parts->push_back(ReplacementPart::SubjectMatch());
             i = next_index;
             last = i + 1;
             break;
@@ -226,11 +224,11 @@ class CompiledReplacement {
             }
             if (capture_ref > 0) {
               if (i > last) {
-                parts->Add(ReplacementPart::ReplacementSubString(last, i),
-                           zone);
+                parts->push_back(
+                    ReplacementPart::ReplacementSubString(last, i));
               }
               DCHECK(capture_ref <= capture_count);
-              parts->Add(ReplacementPart::SubjectCapture(capture_ref), zone);
+              parts->push_back(ReplacementPart::SubjectCapture(capture_ref));
               last = next_index + 1;
             }
             i = next_index;
@@ -281,12 +279,12 @@ class CompiledReplacement {
                    (1 <= capture_index && capture_index <= capture_count));
 
             if (i > last) {
-              parts->Add(ReplacementPart::ReplacementSubString(last, i), zone);
+              parts->push_back(ReplacementPart::ReplacementSubString(last, i));
             }
-            parts->Add((capture_index == -1)
-                           ? ReplacementPart::EmptyReplacement()
-                           : ReplacementPart::SubjectCapture(capture_index),
-                       zone);
+            parts->push_back(
+                (capture_index == -1)
+                    ? ReplacementPart::EmptyReplacement()
+                    : ReplacementPart::SubjectCapture(capture_index));
             last = closing_bracket_index + 1;
             i = closing_bracket_index;
             break;
@@ -302,15 +300,14 @@ class CompiledReplacement {
         // Replacement is simple.  Do not use Apply to do the replacement.
         return true;
       } else {
-        parts->Add(ReplacementPart::ReplacementSubString(last, length), zone);
+        parts->push_back(ReplacementPart::ReplacementSubString(last, length));
       }
     }
     return false;
   }
 
-  ZoneList<ReplacementPart> parts_;
-  ZoneList<Handle<String> > replacement_substrings_;
-  Zone* zone_;
+  ZoneChunkList<ReplacementPart> parts_;
+  ZoneVector<Handle<String>> replacement_substrings_;
 };
 
 bool CompiledReplacement::Compile(Isolate* isolate, Handle<JSRegExp> regexp,
@@ -334,31 +331,31 @@ bool CompiledReplacement::Compile(Isolate* isolate, Handle<JSRegExp> regexp,
     if (content.IsOneByte()) {
       simple = ParseReplacementPattern(&parts_, content.ToOneByteVector(),
                                        capture_name_map, capture_count,
-                                       subject_length, zone());
+                                       subject_length);
     } else {
       DCHECK(content.IsTwoByte());
       simple = ParseReplacementPattern(&parts_, content.ToUC16Vector(),
                                        capture_name_map, capture_count,
-                                       subject_length, zone());
+                                       subject_length);
     }
     if (simple) return true;
   }
 
   // Find substrings of replacement string and create them as String objects.
   int substring_index = 0;
-  for (int i = 0, n = parts_.length(); i < n; i++) {
-    int tag = parts_[i].tag;
+  for (ReplacementPart& part : parts_) {
+    int tag = part.tag;
     if (tag <= 0) {  // A replacement string slice.
       int from = -tag;
-      int to = parts_[i].data;
-      replacement_substrings_.Add(
-          isolate->factory()->NewSubString(replacement, from, to), zone());
-      parts_[i].tag = REPLACEMENT_SUBSTRING;
-      parts_[i].data = substring_index;
+      int to = part.data;
+      replacement_substrings_.push_back(
+          isolate->factory()->NewSubString(replacement, from, to));
+      part.tag = REPLACEMENT_SUBSTRING;
+      part.data = substring_index;
       substring_index++;
     } else if (tag == REPLACEMENT_STRING) {
-      replacement_substrings_.Add(replacement, zone());
-      parts_[i].data = substring_index;
+      replacement_substrings_.push_back(replacement);
+      part.data = substring_index;
       substring_index++;
     }
   }
@@ -368,9 +365,8 @@ bool CompiledReplacement::Compile(Isolate* isolate, Handle<JSRegExp> regexp,
 
 void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
                                 int match_from, int match_to, int32_t* match) {
-  DCHECK_LT(0, parts_.length());
-  for (int i = 0, n = parts_.length(); i < n; i++) {
-    ReplacementPart part = parts_[i];
+  DCHECK_LT(0, parts_.size());
+  for (ReplacementPart& part : parts_) {
     switch (part.tag) {
       case SUBJECT_PREFIX:
         if (match_from > 0) builder->AddSubjectSlice(0, match_from);
@@ -1327,15 +1323,19 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
                                  Object::ToLength(isolate, last_index_obj),
                                  String);
       last_index = PositiveNumberToUint32(*last_index_obj);
-
-      if (last_index > static_cast<uint32_t>(string->length())) last_index = 0;
     }
 
-    Handle<Object> match_indices_obj;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, match_indices_obj,
-        RegExpImpl::Exec(isolate, regexp, string, last_index, last_match_info),
-        String);
+    Handle<Object> match_indices_obj(ReadOnlyRoots(isolate).null_value(),
+                                     isolate);
+
+    // A lastIndex exceeding the string length always always returns null
+    // (signalling failure) in RegExpBuiltinExec, thus we can skip the call.
+    if (last_index <= static_cast<uint32_t>(string->length())) {
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, match_indices_obj,
+                                 RegExpImpl::Exec(isolate, regexp, string,
+                                                  last_index, last_match_info),
+                                 String);
+    }
 
     if (match_indices_obj->IsNull(isolate)) {
       if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
@@ -1658,8 +1658,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
                                                  factory->undefined_value()));
 
     if (result->IsNull(isolate)) {
-      string_index = static_cast<uint32_t>(RegExpUtils::AdvanceStringIndex(
-          isolate, string, string_index, unicode));
+      string_index = static_cast<uint32_t>(
+          RegExpUtils::AdvanceStringIndex(string, string_index, unicode));
       continue;
     }
 
@@ -1673,8 +1673,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     const uint32_t end =
         std::min(PositiveNumberToUint32(*last_index_obj), length);
     if (end == prev_string_index) {
-      string_index = static_cast<uint32_t>(RegExpUtils::AdvanceStringIndex(
-          isolate, string, string_index, unicode));
+      string_index = static_cast<uint32_t>(
+          RegExpUtils::AdvanceStringIndex(string, string_index, unicode));
       continue;
     }
 

@@ -80,7 +80,16 @@ class TraceFileReader extends HTMLElement {
       // Delay the loading a bit to allow for CSS animations to happen.
       setTimeout(() => reader.readAsArrayBuffer(file), 10);
     } else {
-      reader.onload = (e) => this.processRawText(file, e.target.result);
+      reader.onload = (e) => {
+        try {
+          this.processRawText(file, e.target.result);
+          this.section.className = 'success';
+          this.$('#fileReader').classList.add('done');
+        } catch (err) {
+          console.error(err);
+          this.section.className = 'failure';
+        }
+      };
       setTimeout(() => reader.readAsText(file), 10);
     }
   }
@@ -240,7 +249,7 @@ class TraceFileReader extends HTMLElement {
         line = line.replace(/^I\/v8\s*\(\d+\):\s+/g, '');
         return JSON.parse(line);
       } catch (e) {
-        console.log('Unable to parse line: \'' + line + '\'\' (' + e + ')');
+        console.log('Unable to parse line: \'' + line + '\' (' + e + ')');
       }
       return null;
     });

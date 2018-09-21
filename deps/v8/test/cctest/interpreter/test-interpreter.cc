@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/api-inl.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"

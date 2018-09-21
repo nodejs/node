@@ -17,11 +17,9 @@
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/managed.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
-
-// Has to be the last include (doesn't have include guards):
-#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
@@ -40,28 +38,28 @@ UDateRelativeDateTimeFormatterStyle getIcuStyle(
       UNREACHABLE();
   }
 }
+}  // namespace
 
-JSRelativeTimeFormat::Style getStyle(const char* str) {
+JSRelativeTimeFormat::Style JSRelativeTimeFormat::getStyle(const char* str) {
   if (strcmp(str, "long") == 0) return JSRelativeTimeFormat::Style::LONG;
   if (strcmp(str, "short") == 0) return JSRelativeTimeFormat::Style::SHORT;
   if (strcmp(str, "narrow") == 0) return JSRelativeTimeFormat::Style::NARROW;
   UNREACHABLE();
 }
 
-JSRelativeTimeFormat::Numeric getNumeric(const char* str) {
+JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::getNumeric(
+    const char* str) {
   if (strcmp(str, "auto") == 0) return JSRelativeTimeFormat::Numeric::AUTO;
   if (strcmp(str, "always") == 0) return JSRelativeTimeFormat::Numeric::ALWAYS;
   UNREACHABLE();
 }
-
-}  // namespace
 
 MaybeHandle<JSRelativeTimeFormat>
 JSRelativeTimeFormat::InitializeRelativeTimeFormat(
     Isolate* isolate, Handle<JSRelativeTimeFormat> relative_time_format_holder,
     Handle<Object> input_locales, Handle<Object> input_options) {
   Factory* factory = isolate->factory();
-
+  relative_time_format_holder->set_flags(0);
   // 4. If options is undefined, then
   Handle<JSReceiver> options;
   if (input_options->IsUndefined(isolate)) {
@@ -137,19 +135,11 @@ JSRelativeTimeFormat::InitializeRelativeTimeFormat(
   //     ? Construct(%NumberFormat%, « nfLocale, nfOptions »).
   icu::NumberFormat* number_format =
       icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
-  if (U_FAILURE(status) || number_format == nullptr) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kRelativeDateTimeFormatterBadParameters),
-        JSRelativeTimeFormat);
+  if (U_FAILURE(status)) {
+    delete number_format;
+    FATAL("Failed to create ICU number format, are ICU data files missing?");
   }
-  // 23. Perform ! CreateDataPropertyOrThrow(nfOptions, "useGrouping", false).
-  number_format->setGroupingUsed(false);
-
-  // 24. Perform ! CreateDataPropertyOrThrow(nfOptions,
-  //                                         "minimumIntegerDigits", 2).
-  // Ref: https://github.com/tc39/proposal-intl-relative-time/issues/80
-  number_format->setMinimumIntegerDigits(2);
+  CHECK_NOT_NULL(number_format);
 
   // Change UDISPCTX_CAPITALIZATION_NONE to other values if
   // ECMA402 later include option to change capitalization.
@@ -158,13 +148,14 @@ JSRelativeTimeFormat::InitializeRelativeTimeFormat(
       new icu::RelativeDateTimeFormatter(icu_locale, number_format,
                                          getIcuStyle(style_enum),
                                          UDISPCTX_CAPITALIZATION_NONE, status);
-
-  if (U_FAILURE(status) || (icu_formatter == nullptr)) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kRelativeDateTimeFormatterBadParameters),
-        JSRelativeTimeFormat);
+  if (U_FAILURE(status)) {
+    delete icu_formatter;
+    FATAL(
+        "Failed to create ICU relative date time formatter, are ICU data files "
+        "missing?");
   }
+  CHECK_NOT_NULL(icu_formatter);
+
   Handle<Managed<icu::RelativeDateTimeFormatter>> managed_formatter =
       Managed<icu::RelativeDateTimeFormatter>::FromRawPtr(isolate, 0,
                                                           icu_formatter);
@@ -190,7 +181,7 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
 }
 
 icu::RelativeDateTimeFormatter* JSRelativeTimeFormat::UnpackFormatter(
-    Isolate* isolate, Handle<JSRelativeTimeFormat> holder) {
+    Handle<JSRelativeTimeFormat> holder) {
   return Managed<icu::RelativeDateTimeFormatter>::cast(holder->formatter())
       ->raw();
 }
@@ -221,5 +212,3 @@ Handle<String> JSRelativeTimeFormat::NumericAsString() const {
 
 }  // namespace internal
 }  // namespace v8
-
-#include "src/objects/object-macros-undef.h"

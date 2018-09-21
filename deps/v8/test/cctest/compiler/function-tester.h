@@ -31,6 +31,7 @@ class FunctionTester : public InitializedHandleScope {
   explicit FunctionTester(Handle<Code> code);
 
   Isolate* isolate;
+  CanonicalHandleScope canonical;
   Handle<JSFunction> function;
 
   MaybeHandle<Object> Call() {

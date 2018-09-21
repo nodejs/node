@@ -6,6 +6,8 @@
 #define V8_OBJECTS_MODULE_INL_H_
 
 #include "src/objects/module.h"
+
+#include "src/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
 
 // Has to be the last include (doesn't have include guards):

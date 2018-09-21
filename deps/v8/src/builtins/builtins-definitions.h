@@ -5,6 +5,8 @@
 #ifndef V8_BUILTINS_BUILTINS_DEFINITIONS_H_
 #define V8_BUILTINS_BUILTINS_DEFINITIONS_H_
 
+#include "src/interpreter/bytecodes.h"
+
 // include generated header
 #include "torque-generated/builtin-definitions-from-dsl.h"
 
@@ -23,6 +25,8 @@ namespace internal {
 //      Args: name, interface descriptor, return_size
 // TFH: Handlers in Turbofan, with CodeStub linkage.
 //      Args: name, interface descriptor
+// BCH: Bytecode Handlers, with bytecode dispatch linkage.
+//      Args: name
 // ASM: Builtin in platform-dependent assembly.
 //      Args: name
 
@@ -186,6 +190,7 @@ namespace internal {
   TFC(NonNumberToNumber, TypeConversion, 1)                                    \
   TFC(NonNumberToNumeric, TypeConversion, 1)                                   \
   TFC(ToNumber, TypeConversion, 1)                                             \
+  TFC(ToNumberConvertBigInt, TypeConversion, 1)                                \
   TFC(ToNumeric, TypeConversion, 1)                                            \
   TFC(NumberToString, TypeConversion, 1)                                       \
   TFC(ToString, TypeConversion, 1)                                             \
@@ -219,7 +224,7 @@ namespace internal {
   TFC(RunMicrotasks, RunMicrotasks, 1)                                         \
                                                                                \
   /* Object property helpers */                                                \
-  TFS(HasProperty, kKey, kObject)                                              \
+  TFS(HasProperty, kObject, kKey)                                              \
   TFS(DeleteProperty, kObject, kKey, kLanguageMode)                            \
                                                                                \
   /* Abort */                                                                  \
@@ -282,6 +287,8 @@ namespace internal {
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kReceiver, kArg)                                        \
+  /* ES6 #sec-array.prototype.fill */                                          \
+  CPP(ArrayPrototypeFill)                                                      \
   /* ES6 #sec-array.from */                                                    \
   TFJ(ArrayFrom, SharedFunctionInfo::kDontAdaptArgumentsSentinel)              \
   /* ES6 #sec-array.of */                                                      \
@@ -637,6 +644,7 @@ namespace internal {
   TFH(LoadGlobalICInsideTypeof, LoadGlobalWithVector)                          \
   TFH(LoadGlobalICTrampoline, LoadGlobal)                                      \
   TFH(LoadGlobalICInsideTypeofTrampoline, LoadGlobal)                          \
+  TFH(CloneObjectIC, CloneObjectWithVector)                                    \
                                                                                \
   /* Map */                                                                    \
   TFS(FindOrderedHashMapEntry, kTable, kKey)                                   \
@@ -1129,7 +1137,7 @@ namespace internal {
   /* ES #sec-typedarray-constructors */                                        \
   TFS(CreateTypedArray, kTarget, kNewTarget, kArg1, kArg2, kArg3)              \
   TFJ(TypedArrayBaseConstructor, 0, kReceiver)                                 \
-  TFJ(TypedArrayConstructorLazyDeoptContinuation, 1, kReceiver, kResult)       \
+  TFJ(GenericConstructorLazyDeoptContinuation, 1, kReceiver, kResult)          \
   TFJ(TypedArrayConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \
@@ -1207,6 +1215,7 @@ namespace internal {
   TFC(WasmToNumber, TypeConversion, 1)                                         \
   TFS(ThrowWasmTrapUnreachable)                                                \
   TFS(ThrowWasmTrapMemOutOfBounds)                                             \
+  TFS(ThrowWasmTrapUnalignedAccess)                                            \
   TFS(ThrowWasmTrapDivByZero)                                                  \
   TFS(ThrowWasmTrapDivUnrepresentable)                                         \
   TFS(ThrowWasmTrapRemByZero)                                                  \
@@ -1308,6 +1317,7 @@ namespace internal {
   ASM(CallApiGetter)                                                           \
   ASM(DoubleToI)                                                               \
   TFC(GetProperty, GetProperty, 1)                                             \
+  TFS(SetProperty, kReceiver, kKey, kValue)                                    \
   ASM(MathPowInternal)                                                         \
                                                                                \
   /* Trace */                                                                  \
@@ -1315,10 +1325,9 @@ namespace internal {
   CPP(Trace)
 
 #ifdef V8_INTL_SUPPORT
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)                \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)                 \
-  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)             \
-                                                                       \
+#define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \
+  /* ecma402 #sec-intl.collator */                                     \
+  CPP(CollatorConstructor)                                             \
   TFS(StringToLowerCaseIntl, kString)                                  \
   /* ES #sec-string.prototype.tolowercase */                           \
   TFJ(StringPrototypeToLowerCaseIntl, 0, kReceiver)                    \
@@ -1331,6 +1340,16 @@ namespace internal {
   /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */       \
   CPP(DateTimeFormatPrototypeFormatToParts)                            \
   /* ecma402 #new proposal */                                          \
+  /* ecma402 #sec-intl-listformat-constructor */                       \
+  CPP(ListFormatConstructor)                                           \
+  /* ecma402 #sec-intl.listformat.prototype.resolvedoptions */         \
+  CPP(ListFormatPrototypeResolvedOptions)                              \
+  /* ecma402 #sec-intl-list-format.prototype.format */                 \
+  TFJ(ListFormatPrototypeFormat,                                       \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                 \
+  /* ecma402 #sec-intl-list-format.prototype.formattoparts */          \
+  TFJ(ListFormatPrototypeFormatToParts,                                \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                 \
   /* ecma402 #sec-intl-locale-constructor */                           \
   CPP(LocaleConstructor)                                               \
   CPP(LocalePrototypeLanguage)                                         \
@@ -1344,30 +1363,63 @@ namespace internal {
   CPP(LocalePrototypeNumeric)                                          \
   CPP(LocalePrototypeNumberingSystem)                                  \
   CPP(LocalePrototypeToString)                                         \
+  /* ecma402 #sec-Intl.Locale.prototype.maximize */                    \
+  CPP(LocalePrototypeMaximize)                                         \
+  /* ecma402 #sec-Intl.Locale.prototype.minimize */                    \
+  CPP(LocalePrototypeMinimize)                                         \
   /* ecma402 #sec-number-format-functions */                           \
   CPP(NumberFormatInternalFormatNumber)                                \
   /* ecma402 #sec-intl.numberformat.prototype.format */                \
   CPP(NumberFormatPrototypeFormatNumber)                               \
-  /* ecma402 #sec-intl-relativetimeformat-constructor */               \
+  /* ecma402 #sec-datetime-format-functions */                         \
+  CPP(DateTimeFormatInternalFormat)                                    \
+  /* ecma402 #sec-intl.datetimeformat.prototype.format */              \
+  CPP(DateTimeFormatPrototypeFormat)                                   \
+  /* ecma402 #sec-intl.pluralrules */                                  \
+  CPP(PluralRulesConstructor)                                          \
+  /* ecma402 #sec-intl.RelativeTimeFormat.constructor */               \
   CPP(RelativeTimeFormatConstructor)                                   \
-  /* ecma402 #sec-intl.relativetimeformat.prototype.resolvedoptions */ \
-  CPP(RelativeTimeFormatPrototypeResolvedOptions)
+  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.resolvedOptions */ \
+  CPP(RelativeTimeFormatPrototypeResolvedOptions)                      \
+  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.format */          \
+  CPP(RelativeTimeFormatPrototypeFormat)                               \
+  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.formatToParts */   \
+  CPP(RelativeTimeFormatPrototypeFormatToParts)                        \
+  /* ecma402 #sup-string.prototype.tolocalelowercase */                \
+  CPP(StringPrototypeToLocaleLowerCase)                                \
+  /* ecma402 #sup-string.prototype.tolocaleuppercase */                \
+  CPP(StringPrototypeToLocaleUpperCase)                                \
+  /* ecma402 #sec-intl.collator.prototype.compare */                   \
+  CPP(CollatorPrototypeCompare)                                        \
+  /* ecma 402 #sec-collator-compare-functions*/                        \
+  CPP(CollatorInternalCompare)                                         \
+  CPP(BreakIteratorInternalAdoptText)                                  \
+  CPP(BreakIteratorPrototypeAdoptText)
 #else
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \
-  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM) \
-                                                           \
-  /* no-op fallback version */                             \
-  CPP(StringPrototypeNormalize)                            \
-  /* same as toLowercase; fallback version */              \
-  CPP(StringPrototypeToLocaleLowerCase)                    \
-  /* same as toUppercase; fallback version */              \
-  CPP(StringPrototypeToLocaleUpperCase)                    \
-  /* (obsolete) Unibrow version */                         \
-  CPP(StringPrototypeToLowerCase)                          \
-  /* (obsolete) Unibrow version */                         \
+#define BUILTIN_LIST_INTL(CPP, TFJ, TFS)      \
+  /* no-op fallback version */                \
+  CPP(StringPrototypeNormalize)               \
+  /* same as toLowercase; fallback version */ \
+  CPP(StringPrototypeToLocaleLowerCase)       \
+  /* same as toUppercase; fallback version */ \
+  CPP(StringPrototypeToLocaleUpperCase)       \
+  /* (obsolete) Unibrow version */            \
+  CPP(StringPrototypeToLowerCase)             \
+  /* (obsolete) Unibrow version */            \
   CPP(StringPrototypeToUpperCase)
 #endif  // V8_INTL_SUPPORT
+
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
+#define BUILTIN_LIST_BYTECODE_HANDLERS(BCH) BYTECODE_LIST(BCH)
+#else
+#define BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
+
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, BCH, ASM) \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)       \
+  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)   \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                           \
+  BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // The exception thrown in the following builtins are caught
 // internally and result in a promise rejection.
@@ -1392,33 +1444,43 @@ namespace internal {
   V(PromiseRace)                                     \
   V(ResolvePromise)
 
+// Convenience macro listing all wasm runtime stubs. Note that the first few
+// elements of the list coincide with {compiler::TrapId}, order matters.
+#define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
+  FOREACH_WASM_TRAPREASON(VTRAP)         \
+  V(WasmAllocateHeapNumber)              \
+  V(WasmArgumentsAdaptor)                \
+  V(WasmCallJavaScript)                  \
+  V(WasmGrowMemory)                      \
+  V(WasmStackGuard)                      \
+  V(WasmToNumber)                        \
+  V(DoubleToI)
+
 // The exception thrown in the following builtins are caught internally and will
 // not be propagated further or re-thrown
 #define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseRejectReactionJob)
 
 #define IGNORE_BUILTIN(...)
 
-#define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V)
-
 #define BUILTIN_LIST_C(V)                                            \
   BUILTIN_LIST(V, V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_A(V)                                                      \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V)
 
 #define BUILTIN_LIST_TFS(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               V, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFJ(V)                                       \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFC(V)                                       \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 }  // namespace internal
 }  // namespace v8

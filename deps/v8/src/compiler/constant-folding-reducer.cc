@@ -11,8 +11,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-ConstantFoldingReducer::ConstantFoldingReducer(
-    Editor* editor, JSGraph* jsgraph, const JSHeapBroker* js_heap_broker)
+ConstantFoldingReducer::ConstantFoldingReducer(Editor* editor, JSGraph* jsgraph,
+                                               JSHeapBroker* js_heap_broker)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
       js_heap_broker_(js_heap_broker) {}

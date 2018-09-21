@@ -811,7 +811,7 @@ class V8_EXPORT_PRIVATE Instruction final {
     return &operands_[i];
   }
 
-  bool HasOutput() const { return OutputCount() == 1; }
+  bool HasOutput() const { return OutputCount() > 0; }
   const InstructionOperand* Output() const { return OutputAt(0); }
   InstructionOperand* Output() { return OutputAt(0); }
 

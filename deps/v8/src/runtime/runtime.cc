@@ -4,13 +4,13 @@
 
 #include "src/runtime/runtime.h"
 
-#include "src/assembler.h"
 #include "src/base/hashmap.h"
 #include "src/contexts.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/reloc-info.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {

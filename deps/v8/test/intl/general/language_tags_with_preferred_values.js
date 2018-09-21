@@ -7,6 +7,11 @@
   ["sgn-de", "gsg"],
   ["sgn-de-u-co-phonebk", "gsg-u-co-phonebk"],
 
+  // Matching should be case-insensitive.
+  ["sgn-De", "gsg"],
+  ["sgn-BE-FR", "sfb"],
+  ["Sgn-bE-Fr", "sfb"],
+
   // deprecated region tag
   ["und-Latn-dd", "und-Latn-DE"],
   ["und-dd-u-co-phonebk", "und-DE-u-co-phonebk"],
@@ -22,8 +27,8 @@
   ["jw", "jv"],
   ["aam", "aas"],
   ["aam-u-ca-gregory", "aas-u-ca-gregory"],
-].forEach(function (entry) {
-  const canonicalLocales = Intl.getCanonicalLocales(entry[0]);
+].forEach(([inputLocale, expectedLocale]) => {
+  const canonicalLocales = Intl.getCanonicalLocales(inputLocale);
   assertEquals(canonicalLocales.length, 1);
-  assertEquals(canonicalLocales[0], entry[1]);
+  assertEquals(canonicalLocales[0], expectedLocale);
 })

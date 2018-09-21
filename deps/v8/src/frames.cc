@@ -183,12 +183,12 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
       interpreter_bytecode_dispatch->contains(pc)) {
     return true;
   } else if (FLAG_interpreted_frames_native_stack) {
-    intptr_t marker = Memory::intptr_at(
+    intptr_t marker = Memory<intptr_t>(
         state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
     MSAN_MEMORY_IS_INITIALIZED(
         state->fp + StandardFrameConstants::kFunctionOffset, kPointerSize);
     Object* maybe_function =
-        Memory::Object_at(state->fp + StandardFrameConstants::kFunctionOffset);
+        Memory<Object*>(state->fp + StandardFrameConstants::kFunctionOffset);
     // There's no need to run a full ContainsSlow if we know the frame can't be
     // an InterpretedFrame,  so we do these fast checks first
     if (StackFrame::IsTypeMarker(marker) || maybe_function->IsSmi()) {
@@ -205,7 +205,7 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
 }
 
 DISABLE_ASAN Address ReadMemoryAt(Address address) {
-  return Memory::Address_at(address);
+  return Memory<Address>(address);
 }
 
 }  // namespace
@@ -323,8 +323,8 @@ bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
     // See EntryFrame::GetCallerState. It computes the caller FP address
     // and calls ExitFrame::GetStateForFramePointer on it. We need to be
     // sure that caller FP address is valid.
-    Address caller_fp = Memory::Address_at(
-        frame->fp() + EntryFrameConstants::kCallerFPOffset);
+    Address caller_fp =
+        Memory<Address>(frame->fp() + EntryFrameConstants::kCallerFPOffset);
     if (!IsValidExitFrame(caller_fp)) return false;
   } else if (frame->is_arguments_adaptor()) {
     // See ArgumentsAdaptorFrame::GetCallerStackPointer. It assumes that
@@ -430,7 +430,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
       kPointerSize);
-  intptr_t marker = Memory::intptr_at(
+  intptr_t marker = Memory<intptr_t>(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   if (!iterator->can_access_heap_objects_) {
     // TODO(titzer): "can_access_heap_objects" is kind of bogus. It really
@@ -441,7 +441,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     MSAN_MEMORY_IS_INITIALIZED(
         state->fp + StandardFrameConstants::kFunctionOffset, kPointerSize);
     Object* maybe_function =
-        Memory::Object_at(state->fp + StandardFrameConstants::kFunctionOffset);
+        Memory<Object*>(state->fp + StandardFrameConstants::kFunctionOffset);
     if (!StackFrame::IsTypeMarker(marker)) {
       if (maybe_function->IsSmi()) {
         return NATIVE;
@@ -561,7 +561,7 @@ Address StackFrame::UnpaddedFP() const {
 
 void NativeFrame::ComputeCallerState(State* state) const {
   state->sp = caller_sp();
-  state->fp = Memory::Address_at(fp() + CommonFrameConstants::kCallerFPOffset);
+  state->fp = Memory<Address>(fp() + CommonFrameConstants::kCallerFPOffset);
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + CommonFrameConstants::kCallerPCOffset));
   state->callee_pc_address = nullptr;
@@ -580,7 +580,7 @@ void EntryFrame::ComputeCallerState(State* state) const {
 
 StackFrame::Type EntryFrame::GetCallerState(State* state) const {
   const int offset = EntryFrameConstants::kCallerFPOffset;
-  Address fp = Memory::Address_at(this->fp() + offset);
+  Address fp = Memory<Address>(this->fp() + offset);
   return ExitFrame::GetStateForFramePointer(fp, state);
 }
 
@@ -591,7 +591,7 @@ Code* ConstructEntryFrame::unchecked_code() const {
 
 Object*& ExitFrame::code_slot() const {
   const int offset = ExitFrameConstants::kCodeOffset;
-  return Memory::Object_at(fp() + offset);
+  return Memory<Object*>(fp() + offset);
 }
 
 Code* ExitFrame::unchecked_code() const {
@@ -602,7 +602,7 @@ Code* ExitFrame::unchecked_code() const {
 void ExitFrame::ComputeCallerState(State* state) const {
   // Set up the caller state.
   state->sp = caller_sp();
-  state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
+  state->fp = Memory<Address>(fp() + ExitFrameConstants::kCallerFPOffset);
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
   state->callee_pc_address = nullptr;
@@ -639,7 +639,7 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   // Distinguish between between regular and builtin exit frames.
   // Default to EXIT in all hairy cases (e.g., when called from profiler).
   const int offset = ExitFrameConstants::kFrameTypeOffset;
-  Object* marker = Memory::Object_at(fp + offset);
+  Object* marker = Memory<Object*>(fp + offset);
 
   if (!marker->IsSmi()) {
     return EXIT;
@@ -657,7 +657,7 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
 
 Address ExitFrame::ComputeStackPointer(Address fp) {
   MSAN_MEMORY_IS_INITIALIZED(fp + ExitFrameConstants::kSPOffset, kPointerSize);
-  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
+  return Memory<Address>(fp + ExitFrameConstants::kSPOffset);
 }
 
 void ExitFrame::FillState(Address fp, Address sp, State* state) {
@@ -687,7 +687,7 @@ Object* BuiltinExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
   int offset =
       BuiltinExitFrameConstants::kFirstArgumentOffset + i * kPointerSize;
-  return Memory::Object_at(fp() + offset);
+  return Memory<Object*>(fp() + offset);
 }
 
 int BuiltinExitFrame::ComputeParametersCount() const {
@@ -855,7 +855,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   // Determine the fixed header and spill slot area size.
   int frame_header_size = StandardFrameConstants::kFixedFrameSizeFromFp;
   intptr_t marker =
-      Memory::intptr_at(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
+      Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
   if (StackFrame::IsTypeMarker(marker)) {
     StackFrame::Type candidate = StackFrame::MarkerToType(marker);
     switch (candidate) {
@@ -898,10 +898,10 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   slot_space -=
       (frame_header_size + StandardFrameConstants::kFixedFrameSizeAboveFp);
 
-  Object** frame_header_base = &Memory::Object_at(fp() - frame_header_size);
+  Object** frame_header_base = &Memory<Object*>(fp() - frame_header_size);
   Object** frame_header_limit =
-      &Memory::Object_at(fp() - StandardFrameConstants::kCPSlotSize);
-  Object** parameters_base = &Memory::Object_at(sp());
+      &Memory<Object*>(fp() - StandardFrameConstants::kCPSlotSize);
+  Object** parameters_base = &Memory<Object*>(sp());
   Object** parameters_limit = frame_header_base - slot_space / kPointerSize;
 
   // Visit the parameters that may be on top of the saved registers.
@@ -994,7 +994,7 @@ int StubFrame::LookupExceptionHandlerInTable(int* stack_slots) {
 void OptimizedFrame::Iterate(RootVisitor* v) const { IterateCompiledFrame(v); }
 
 void JavaScriptFrame::SetParameterValue(int index, Object* value) const {
-  Memory::Object_at(GetParameterSlot(index)) = value;
+  Memory<Object*>(GetParameterSlot(index)) = value;
 }
 
 
@@ -1002,7 +1002,7 @@ bool JavaScriptFrame::IsConstructor() const {
   Address fp = caller_fp();
   if (has_adapted_arguments()) {
     // Skip the arguments adaptor frame and look at the real caller.
-    fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
+    fp = Memory<Address>(fp + StandardFrameConstants::kCallerFPOffset);
   }
   return IsConstructFrame(fp);
 }
@@ -1030,7 +1030,7 @@ int OptimizedFrame::GetNumberOfIncomingArguments() const {
   Code* code = LookupCode();
   if (code->kind() == Code::BUILTIN) {
     return static_cast<int>(
-        Memory::intptr_at(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
+        Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
   } else {
     return JavaScriptFrame::GetNumberOfIncomingArguments();
   }
@@ -1085,7 +1085,7 @@ Object* JavaScriptFrame::receiver() const { return GetParameter(-1); }
 
 Object* JavaScriptFrame::context() const {
   const int offset = StandardFrameConstants::kContextOffset;
-  Object* maybe_result = Memory::Object_at(fp() + offset);
+  Object* maybe_result = Memory<Object*>(fp() + offset);
   DCHECK(!maybe_result->IsSmi());
   return maybe_result;
 }
@@ -1215,7 +1215,7 @@ void JavaScriptFrame::CollectTopFrameForICStats(Isolate* isolate) {
 }
 
 Object* JavaScriptFrame::GetParameter(int index) const {
-  return Memory::Object_at(GetParameterSlot(index));
+  return Memory<Object*>(GetParameterSlot(index));
 }
 
 int JavaScriptFrame::ComputeParametersCount() const {
@@ -1228,7 +1228,7 @@ int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
   DCHECK_EQ(RegisterConfiguration::Default()->GetAllocatableGeneralCode(0),
             kJavaScriptCallArgCountRegister.code());
   Object* argc_object =
-      Memory::Object_at(fp() + BuiltinContinuationFrameConstants::kArgCOffset);
+      Memory<Object*>(fp() + BuiltinContinuationFrameConstants::kArgCOffset);
   return Smi::ToInt(argc_object);
 }
 
@@ -1240,7 +1240,7 @@ intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
 }
 
 Object* JavaScriptBuiltinContinuationFrame::context() const {
-  return Memory::Object_at(
+  return Memory<Object*>(
       fp() + BuiltinContinuationFrameConstants::kBuiltinContextOffset);
 }
 
@@ -1252,8 +1252,8 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
-           Memory::Object_at(exception_argument_slot));
-  Memory::Object_at(exception_argument_slot) = exception;
+           Memory<Object*>(exception_argument_slot));
+  Memory<Object*>(exception_argument_slot) = exception;
 }
 
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
@@ -1643,7 +1643,7 @@ int OptimizedFrame::StackSlotOffsetRelativeToFp(int slot_index) {
 
 
 Object* OptimizedFrame::StackSlotAt(int index) const {
-  return Memory::Object_at(fp() + StackSlotOffsetRelativeToFp(index));
+  return Memory<Object*>(fp() + StackSlotOffsetRelativeToFp(index));
 }
 
 int InterpretedFrame::position() const {
@@ -1674,7 +1674,7 @@ int InterpretedFrame::GetBytecodeOffset(Address fp) {
       InterpreterFrameConstants::kBytecodeOffsetFromFp,
       InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
   Address expression_offset = fp + offset - index * kPointerSize;
-  int raw_offset = Smi::ToInt(Memory::Object_at(expression_offset));
+  int raw_offset = Smi::ToInt(Memory<Object*>(expression_offset));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 
@@ -1801,7 +1801,7 @@ wasm::WasmCode* WasmCompiledFrame::wasm_code() const {
 
 WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
   const int offset = WasmCompiledFrameConstants::kWasmInstanceOffset;
-  Object* instance = Memory::Object_at(fp() + offset);
+  Object* instance = Memory<Object*>(fp() + offset);
   return WasmInstanceObject::cast(instance);
 }
 
@@ -1889,7 +1889,7 @@ Code* WasmInterpreterEntryFrame::unchecked_code() const { UNREACHABLE(); }
 
 WasmInstanceObject* WasmInterpreterEntryFrame::wasm_instance() const {
   const int offset = WasmCompiledFrameConstants::kWasmInstanceOffset;
-  Object* instance = Memory::Object_at(fp() + offset);
+  Object* instance = Memory<Object*>(fp() + offset);
   return WasmInstanceObject::cast(instance);
 }
 
@@ -1923,13 +1923,13 @@ WasmInstanceObject* WasmCompileLazyFrame::wasm_instance() const {
 
 Object** WasmCompileLazyFrame::wasm_instance_slot() const {
   const int offset = WasmCompileLazyFrameConstants::kWasmInstanceOffset;
-  return &Memory::Object_at(fp() + offset);
+  return &Memory<Object*>(fp() + offset);
 }
 
 void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
   const int header_size = WasmCompileLazyFrameConstants::kFixedFrameSizeFromFp;
-  Object** base = &Memory::Object_at(sp());
-  Object** limit = &Memory::Object_at(fp() - header_size);
+  Object** base = &Memory<Object*>(sp());
+  Object** limit = &Memory<Object*>(fp() - header_size);
   v->VisitRootPointers(Root::kTop, nullptr, base, limit);
   v->VisitRootPointer(Root::kTop, nullptr, wasm_instance_slot());
 }
@@ -2105,8 +2105,8 @@ void EntryFrame::Iterate(RootVisitor* v) const {
 
 void StandardFrame::IterateExpressions(RootVisitor* v) const {
   const int offset = StandardFrameConstants::kLastObjectOffset;
-  Object** base = &Memory::Object_at(sp());
-  Object** limit = &Memory::Object_at(fp() + offset) + 1;
+  Object** base = &Memory<Object*>(sp());
+  Object** limit = &Memory<Object*>(fp() + offset) + 1;
   v->VisitRootPointers(Root::kTop, nullptr, base, limit);
 }
 

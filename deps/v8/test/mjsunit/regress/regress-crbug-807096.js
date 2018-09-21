@@ -4,6 +4,8 @@
 //
 // Flags: --allow-natives-syntax --no-lazy
 
+load('test/mjsunit/test-async.js');
+
 // For regression testing, it's important that these functions are:
 // 1) toplevel
 // 2) arrow functions with single-expression bodies

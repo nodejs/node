@@ -10,7 +10,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/wasm/flag-utils.h"
@@ -153,9 +153,10 @@ std::ostream& operator<<(std::ostream& os, const PrintName& name) {
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
-  ModuleResult module_res =
-      SyncDecodeWasmModule(isolate, wire_bytes.start(), wire_bytes.end(),
-                           kVerifyFunctions, ModuleOrigin::kWasmOrigin);
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  ModuleResult module_res = DecodeWasmModule(
+      enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
+      ModuleOrigin::kWasmOrigin, isolate->counters(), isolate->allocator());
   CHECK(module_res.ok());
   WasmModule* module = module_res.val.get();
   CHECK_NOT_NULL(module);
@@ -181,7 +182,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       os << ", undefined";
     }
     os << ", " << (module->mem_export ? "true" : "false");
-    if (FLAG_experimental_wasm_threads && module->has_shared_memory) {
+    if (module->has_shared_memory) {
       os << ", shared";
     }
     os << ");\n";
@@ -208,7 +209,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);
-    DecodeLocalDecls(&decls, func_code.start(), func_code.end());
+    DecodeLocalDecls(enabled_features, &decls, func_code.start(),
+                     func_code.end());
     if (!decls.type_list.empty()) {
       os << "    ";
       for (size_t pos = 0, count = 1, locals = decls.type_list.size();
@@ -284,6 +286,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
   // Compile with Turbofan here. Liftoff will be tested later.
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   MaybeHandle<WasmModuleObject> compiled_module;
   {
     // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
@@ -292,7 +295,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
     FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
     FlagScope<int> tier_mask_scope(&FLAG_wasm_tier_mask_for_testing, tier_mask);
     compiled_module = i_isolate->wasm_engine()->SyncCompile(
-        i_isolate, &interpreter_thrower, wire_bytes);
+        i_isolate, enabled_features, &interpreter_thrower, wire_bytes);
   }
   bool compiles = !compiled_module.is_null();
 
@@ -300,8 +303,8 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 
-  bool validates =
-      i_isolate->wasm_engine()->SyncValidate(i_isolate, wire_bytes);
+  bool validates = i_isolate->wasm_engine()->SyncValidate(
+      i_isolate, enabled_features, wire_bytes);
 
   CHECK_EQ(compiles, validates);
   CHECK_IMPLIES(require_valid, validates);
@@ -332,6 +335,16 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
     return 0;
   }
 
+  // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
+  // This sign bit can make the difference between an infinite loop and
+  // terminating code. With possible non-determinism we cannot guarantee that
+  // the generated code will not go into an infinite loop and cause a timeout in
+  // Clusterfuzz. Therefore we do not execute the generated code if the result
+  // may be non-deterministic.
+  if (possible_nondeterminism) {
+    return 0;
+  }
+
   bool expect_exception =
       result_interpreter == static_cast<int32_t>(0xDEADBEEF);
 
@@ -349,19 +362,13 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
         "main", num_args, compiler_args.get());
   }
 
-  // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
-  // This sign bit may cause result_interpreter to be different than
-  // result_compiled. Therefore we do not check the equality of the results
-  // if the execution may have produced a NaN at some point.
-  if (!possible_nondeterminism) {
-    if (expect_exception != i_isolate->has_pending_exception()) {
-      const char* exception_text[] = {"no exception", "exception"};
-      FATAL("interpreter: %s; compiled: %s", exception_text[expect_exception],
-            exception_text[i_isolate->has_pending_exception()]);
-    }
-
-    if (!expect_exception) CHECK_EQ(result_interpreter, result_compiled);
+  if (expect_exception != i_isolate->has_pending_exception()) {
+    const char* exception_text[] = {"no exception", "exception"};
+    FATAL("interpreter: %s; compiled: %s", exception_text[expect_exception],
+          exception_text[i_isolate->has_pending_exception()]);
   }
+
+  if (!expect_exception) CHECK_EQ(result_interpreter, result_compiled);
 
   // Cleanup any pending exception.
   i_isolate->clear_pending_exception();

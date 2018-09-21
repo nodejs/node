@@ -19,6 +19,7 @@ sys.path.insert(
     os.path.dirname(os.path.abspath(__file__))))
 
 
+from testrunner.local import command
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.test_config import TestConfig
@@ -171,11 +172,12 @@ class BuildConfig(object):
     else:
       self.arch = build_config['v8_target_cpu']
 
-    self.is_debug = build_config['is_debug']
     self.asan = build_config['is_asan']
     self.cfi_vptr = build_config['is_cfi']
     self.dcheck_always_on = build_config['dcheck_always_on']
     self.gcov_coverage = build_config['is_gcov_coverage']
+    self.is_android = build_config['is_android']
+    self.is_debug = build_config['is_debug']
     self.msan = build_config['is_msan']
     self.no_i18n = not build_config['v8_enable_i18n_support']
     self.no_snap = not build_config['v8_use_snapshot']
@@ -221,6 +223,7 @@ class BaseTestRunner(object):
     self.build_config = None
     self.mode_name = None
     self.mode_options = None
+    self.target_os = None
 
   def execute(self, sys_args=None):
     if sys_args is None:  # pragma: no cover
@@ -234,6 +237,7 @@ class BaseTestRunner(object):
         print ' '.join(sys.argv)
 
       self._load_build_config(options)
+      command.setup(self.target_os)
 
       try:
         self._process_default_options(options)
@@ -256,6 +260,8 @@ class BaseTestRunner(object):
       return utils.EXIT_CODE_INTERNAL_ERROR
     except KeyboardInterrupt:
       return utils.EXIT_CODE_INTERRUPTED
+    finally:
+      command.tear_down()
 
   def _create_parser(self):
     parser = optparse.OptionParser()
@@ -369,6 +375,13 @@ class BaseTestRunner(object):
       print '>>> Autodetected:'
       print self.build_config
 
+    # Represents the OS where tests are run on. Same as host OS except for
+    # Android, which is determined by build output.
+    if self.build_config.is_android:
+      self.target_os = 'android'
+    else:
+      self.target_os = utils.GuessOS()
+
   # Returns possible build paths in order:
   # gn
   # outdir
@@ -463,7 +476,11 @@ class BaseTestRunner(object):
             'build directory (%s) instead.' % self.outdir)
 
     if options.j == 0:
-      options.j = multiprocessing.cpu_count()
+      if self.build_config.is_android:
+        # Adb isn't happy about multi-processed file pushing.
+        options.j = 1
+      else:
+        options.j = multiprocessing.cpu_count()
 
     options.command_prefix = shlex.split(options.command_prefix)
     options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
@@ -630,7 +647,7 @@ class BaseTestRunner(object):
       "simd_mips": simd_mips,
       "simulator": utils.UseSimulator(self.build_config.arch),
       "simulator_run": False,
-      "system": utils.GuessOS(),
+      "system": self.target_os,
       "tsan": self.build_config.tsan,
       "ubsan_vptr": self.build_config.ubsan_vptr,
     }

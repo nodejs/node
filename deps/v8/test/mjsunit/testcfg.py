@@ -41,6 +41,22 @@ SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
+# Patterns for additional resource files on Android. Files that are not covered
+# by one of the other patterns below will be specified in the resources section.
+RESOURCES_PATTERN = re.compile(r"//\s+Resources:(.*)")
+# Pattern to auto-detect files to push on Android for statements like:
+# load("path/to/file.js")
+LOAD_PATTERN = re.compile(
+    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]*)(?:'|\")\)")
+# Pattern to auto-detect files to push on Android for statements like:
+# import "path/to/file.js"
+MODULE_RESOURCES_PATTERN_1 = re.compile(
+    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]*)(?:'|\")")
+# Pattern to auto-detect files to push on Android for statements like:
+# import foobar from "path/to/file.js"
+MODULE_RESOURCES_PATTERN_2 = re.compile(
+    r"(?:import|export).*from (?:'|\")([^'\"]*)(?:'|\")")
+
 # Flags known to misbehave when combining arbitrary mjsunit tests. Can also
 # be compiled regular expressions.
 COMBINE_TESTS_FLAGS_BLACKLIST = [
@@ -123,6 +139,47 @@ class TestCase(testcase.TestCase):
     self._mjsunit_files = mjsunit_files
     self._files_suffix = files_suffix
     self._env = self._parse_source_env(source)
+
+  def _get_resources_for_file(self, file):
+    """Returns for a given file a list of absolute paths of files needed by the
+    given file.
+    """
+    with open(file) as f:
+      source = f.read()
+    result = []
+    def add_path(path):
+      result.append(os.path.abspath(path.replace('/', os.path.sep)))
+    for match in RESOURCES_PATTERN.finditer(source):
+      # There are several resources per line. Relative to base dir.
+      for path in match.group(1).strip().split():
+        add_path(path)
+    for match in LOAD_PATTERN.finditer(source):
+      # Files in load statements are relative to base dir.
+      add_path(match.group(1))
+    for match in MODULE_RESOURCES_PATTERN_1.finditer(source):
+      # Imported files are side by side with the test case.
+      add_path(os.path.join(
+          self.suite.root, os.path.dirname(self.path), match.group(1)))
+    for match in MODULE_RESOURCES_PATTERN_2.finditer(source):
+      # Imported files are side by side with the test case.
+      add_path(os.path.join(
+          self.suite.root, os.path.dirname(self.path), match.group(1)))
+    return result
+
+  def _get_resources(self):
+    """Returns the list of files needed by a test case."""
+    result = set()
+    to_check = [self._get_source_path()]
+    # Recurse over all files until reaching a fixpoint.
+    while to_check:
+      next_resource = to_check.pop()
+      result.add(next_resource)
+      for resource in self._get_resources_for_file(next_resource):
+        # Only add files that exist on disc. The pattens we check for give some
+        # false positives otherwise.
+        if resource not in result and os.path.exists(resource):
+          to_check.append(resource)
+    return sorted(list(result))
 
   def _parse_source_env(self, source):
     env_match = ENV_PATTERN.search(source)

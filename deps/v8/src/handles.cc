@@ -8,6 +8,7 @@
 #include "src/api.h"
 #include "src/base/logging.h"
 #include "src/identity-map.h"
+#include "src/maybe-handles.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -26,9 +27,9 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   Object* object = *location_;
   if (object->IsSmi()) return true;
   HeapObject* heap_object = HeapObject::cast(object);
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(heap_object);
-  if (chunk->owner()->identity() == RO_SPACE) return true;
-  Heap* heap = chunk->heap();
+  Isolate* isolate;
+  if (!Isolate::FromWritableHeapObject(heap_object, &isolate)) return true;
+  Heap* heap = isolate->heap();
   Object** roots_array_start = heap->roots_array_start();
   if (roots_array_start <= location_ &&
       location_ < roots_array_start + Heap::kStrongRootListLength &&
@@ -43,7 +44,7 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
     if (heap_object->IsCell()) return true;
     if (heap_object->IsMap()) return true;
     if (heap_object->IsInternalizedString()) return true;
-    return !heap->isolate()->IsDeferredHandle(location_);
+    return !isolate->IsDeferredHandle(location_);
   }
   return true;
 }

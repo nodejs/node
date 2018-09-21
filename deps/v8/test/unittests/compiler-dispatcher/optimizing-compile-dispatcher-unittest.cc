@@ -4,6 +4,7 @@
 
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
+#include "src/api-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/semaphore.h"
 #include "src/compiler.h"

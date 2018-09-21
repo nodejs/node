@@ -410,9 +410,10 @@ TEST_F(LoadEliminationTest, LoadFieldWithTypeMismatch) {
 
   Node* load = graph()->NewNode(simplified()->LoadField(access), object, effect,
                                 control);
+  EXPECT_CALL(editor, ReplaceWithValue(load, IsTypeGuard(value, _), _, _));
   Reduction r = load_elimination.Reduce(load);
   ASSERT_TRUE(r.Changed());
-  EXPECT_EQ(load, r.replacement());
+  EXPECT_THAT(r.replacement(), IsTypeGuard(value, _));
 }
 
 TEST_F(LoadEliminationTest, LoadElementWithTypeMismatch) {

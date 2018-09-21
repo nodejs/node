@@ -61,7 +61,6 @@ class HeapTester;
 class AccessCompilerData;
 class AddressToIndexHashMap;
 class AstStringConstants;
-class BasicBlockProfiler;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
 class CancelableTaskManager;
@@ -168,6 +167,24 @@ class WasmEngine;
     }                                                             \
   } while (false)
 
+/**
+ * RETURN_RESULT_OR_FAILURE is used in functions with return type Object* (such
+ * as "RUNTIME_FUNCTION(...) {...}" or "BUILTIN(...) {...}" ) to return either
+ * the contents of a MaybeHandle<X>, or the "exception" sentinel value.
+ * Example usage:
+ *
+ * RUNTIME_FUNCTION(Runtime_Func) {
+ *   ...
+ *   RETURN_RESULT_OR_FAILURE(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleX(...));
+ * }
+ *
+ * If inside a function with return type MaybeHandle<X> use RETURN_ON_EXCEPTION
+ * instead.
+ * If inside a function with return type Handle<X>, or Maybe<X> use
+ * RETURN_ON_EXCEPTION_VALUE instead.
+ */
 #define RETURN_RESULT_OR_FAILURE(isolate, call)      \
   do {                                               \
     Handle<Object> __result__;                       \
@@ -217,6 +234,36 @@ class WasmEngine;
     return value;                                          \
   } while (false)
 
+/**
+ * RETURN_ON_EXCEPTION_VALUE conditionally returns the given value when the
+ * given MaybeHandle is empty. It is typically used in functions with return
+ * type Maybe<X> or Handle<X>. Example usage:
+ *
+ * Handle<X> Func() {
+ *   ...
+ *   RETURN_ON_EXCEPTION_VALUE(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleX(...),
+ *       Handle<X>());
+ *   // code to handle non exception
+ *   ...
+ * }
+ *
+ * Maybe<bool> Func() {
+ *   ..
+ *   RETURN_ON_EXCEPTION_VALUE(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleX(...),
+ *       Nothing<bool>);
+ *   // code to handle non exception
+ *   return Just(true);
+ * }
+ *
+ * If inside a function with return type MaybeHandle<X>, use RETURN_ON_EXCEPTION
+ * instead.
+ * If inside a function with return type Object*, use
+ * RETURN_FAILURE_ON_EXCEPTION instead.
+ */
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value)            \
   do {                                                             \
     if ((call).is_null()) {                                        \
@@ -225,6 +272,26 @@ class WasmEngine;
     }                                                              \
   } while (false)
 
+/**
+ * RETURN_FAILURE_ON_EXCEPTION conditionally returns the "exception" sentinel if
+ * the given MaybeHandle is empty; so it can only be used in functions with
+ * return type Object*, such as RUNTIME_FUNCTION(...) {...} or BUILTIN(...)
+ * {...}. Example usage:
+ *
+ * RUNTIME_FUNCTION(Runtime_Func) {
+ *   ...
+ *   RETURN_FAILURE_ON_EXCEPTION(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleX(...));
+ *   // code to handle non exception
+ *   ...
+ * }
+ *
+ * If inside a function with return type MaybeHandle<X>, use RETURN_ON_EXCEPTION
+ * instead.
+ * If inside a function with return type Maybe<X> or Handle<X>, use
+ * RETURN_ON_EXCEPTION_VALUE instead.
+ */
 #define RETURN_FAILURE_ON_EXCEPTION(isolate, call)                     \
   do {                                                                 \
     Isolate* __isolate__ = (isolate);                                  \
@@ -232,6 +299,26 @@ class WasmEngine;
                               ReadOnlyRoots(__isolate__).exception()); \
   } while (false);
 
+/**
+ * RETURN_ON_EXCEPTION conditionally returns an empty MaybeHandle<T> if the
+ * given MaybeHandle is empty. Use it to return immediately from a function with
+ * return type MaybeHandle when an exception was thrown. Example usage:
+ *
+ * MaybeHandle<X> Func() {
+ *   ...
+ *   RETURN_ON_EXCEPTION(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleY(...),
+ *       X);
+ *   // code to handle non exception
+ *   ...
+ * }
+ *
+ * If inside a function with return type Object*, use
+ * RETURN_FAILURE_ON_EXCEPTION instead.
+ * If inside a function with return type
+ * Maybe<X> or Handle<X>, use RETURN_ON_EXCEPTION_VALUE instead.
+ */
 #define RETURN_ON_EXCEPTION(isolate, call, T)  \
   RETURN_ON_EXCEPTION_VALUE(isolate, call, MaybeHandle<T>())
 
@@ -396,10 +483,12 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_ = nullptr;
 
+  // Address of the thread-local "thread in wasm" flag.
+  Address thread_in_wasm_flag_address_ = kNullAddress;
+
  private:
   v8::TryCatch* try_catch_handler_ = nullptr;
 };
-
 
 #ifdef DEBUG
 
@@ -434,6 +523,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
   V(ApiImplementationCallback, wasm_compile_streaming_callback, nullptr)      \
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
+  V(WasmThreadsEnabledCallback, wasm_threads_enabled_callback, nullptr)       \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
@@ -553,6 +643,11 @@ class Isolate : private HiddenFactory {
     return isolate;
   }
 
+  // Get the isolate that the given HeapObject lives in, returning true on
+  // success. If the object is not writable (i.e. lives in read-only space),
+  // return false.
+  inline static bool FromWritableHeapObject(HeapObject* obj, Isolate** isolate);
+
   // Usually called by Init(), but can be called early e.g. to allow
   // testing components that require logging but not the whole
   // isolate.
@@ -625,6 +720,8 @@ class Isolate : private HiddenFactory {
   inline Object* get_wasm_caught_exception();
   inline void set_wasm_caught_exception(Object* exception);
   inline void clear_wasm_caught_exception();
+
+  bool AreWasmThreadsEnabled(Handle<Context> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Object*, pending_exception)
 
@@ -812,7 +909,7 @@ class Isolate : private HiddenFactory {
   };
   CatchType PredictExceptionCatcher();
 
-  void ScheduleThrow(Object* exception);
+  V8_EXPORT_PRIVATE void ScheduleThrow(Object* exception);
   // Re-set pending message, script and positions reported to the TryCatch
   // back to the TLS for re-use when rethrowing.
   void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);
@@ -858,12 +955,8 @@ class Isolate : private HiddenFactory {
   void IterateThread(ThreadVisitor* v, char* t);
 
   // Returns the current native context.
-  inline Handle<Context> native_context();
-  inline Context* raw_native_context();
-
-  // Returns the native context of the calling JavaScript code.  That
-  // is, the native context of the top-most JavaScript frame.
-  Handle<Context> GetCallingNativeContext();
+  inline Handle<NativeContext> native_context();
+  inline NativeContext* raw_native_context();
 
   Handle<Context> GetIncumbentContext();
 
@@ -1111,6 +1204,13 @@ class Isolate : private HiddenFactory {
     return language_variant_regexp_matcher_;
   }
 
+  const std::string& default_locale() { return default_locale_; }
+
+  void set_default_locale(const std::string& locale) {
+    DCHECK_EQ(default_locale_.length(), 0);
+    default_locale_ = locale;
+  }
+
   void set_language_tag_regexp_matchers(
       icu::RegexMatcher* language_singleton_regexp_matcher,
       icu::RegexMatcher* language_tag_regexp_matcher,
@@ -1278,9 +1378,6 @@ class Isolate : private HiddenFactory {
 
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
-
-  BasicBlockProfiler* GetOrCreateBasicBlockProfiler();
-  BasicBlockProfiler* basic_block_profiler() { return basic_block_profiler_; }
 
   std::string GetTurboCfgFileName();
 
@@ -1623,6 +1720,7 @@ class Isolate : private HiddenFactory {
   icu::RegexMatcher* language_singleton_regexp_matcher_;
   icu::RegexMatcher* language_tag_regexp_matcher_;
   icu::RegexMatcher* language_variant_regexp_matcher_;
+  std::string default_locale_;
 #endif  // V8_INTL_SUPPORT
 
   // Whether the isolate has been created for snapshotting.
@@ -1714,7 +1812,6 @@ class Isolate : private HiddenFactory {
   bool is_running_microtasks_;
 
   v8::Isolate::UseCounterCallback use_counter_callback_;
-  BasicBlockProfiler* basic_block_profiler_;
 
   std::vector<Object*> partial_snapshot_cache_;
 
@@ -1778,9 +1875,6 @@ class Isolate : private HiddenFactory {
   friend class v8::Locker;
   friend class v8::SnapshotCreator;
   friend class v8::Unlocker;
-  friend v8::StartupData v8::V8::CreateSnapshotDataBlob(const char*);
-  friend v8::StartupData v8::V8::WarmUpSnapshotDataBlob(v8::StartupData,
-                                                        const char*);
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
@@ -1947,7 +2041,8 @@ class PostponeInterruptsScope : public InterruptsScope {
 // PostponeInterruptsScopes.
 class SafeForInterruptsScope : public InterruptsScope {
  public:
-  SafeForInterruptsScope(Isolate* isolate, int intercept_mask)
+  SafeForInterruptsScope(Isolate* isolate,
+                         int intercept_mask = StackGuard::ALL_INTERRUPTS)
       : InterruptsScope(isolate, intercept_mask,
                         InterruptsScope::kRunInterrupts) {}
   virtual ~SafeForInterruptsScope() = default;

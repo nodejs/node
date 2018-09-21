@@ -32,8 +32,8 @@ class DataHandler : public Struct {
   // [data1-3]: These are optional general-purpose fields whose content and
   // presence depends on the handler kind.
   DECL_ACCESSORS(data1, MaybeObject)
-  DECL_ACCESSORS(data2, Object)
-  DECL_ACCESSORS(data3, Object)
+  DECL_ACCESSORS(data2, MaybeObject)
+  DECL_ACCESSORS(data3, MaybeObject)
 
 // Layout description.
 #define DATA_HANDLER_FIELDS(V)         \

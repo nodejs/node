@@ -4,7 +4,7 @@
 
 #include "src/debug/debug-stack-trace-iterator.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-scope-iterator.h"
 #include "src/debug/debug.h"
@@ -173,8 +173,7 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
     v8::Local<v8::String> source, bool throw_on_side_effect) {
   DCHECK(!Done());
   Handle<Object> value;
-  i::SafeForInterruptsScope safe_for_interrupt_scope(
-      isolate_, i::StackGuard::TERMINATE_EXECUTION);
+  i::SafeForInterruptsScope safe_for_interrupt_scope(isolate_);
   if (!DebugEvaluate::Local(isolate_, iterator_.frame()->id(),
                             inlined_frame_index_, Utils::OpenHandle(*source),
                             throw_on_side_effect)

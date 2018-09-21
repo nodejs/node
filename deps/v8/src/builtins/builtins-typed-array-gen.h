@@ -55,10 +55,6 @@ class TypedArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
                     TNode<Map> map, TNode<Smi> length,
                     TNode<Number> byte_offset);
 
-  void IterableToListSlowPath(TNode<Context> context, TNode<Object> iterable,
-                              TNode<Object> iterator_fn,
-                              Variable* created_list);
-
   TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
   TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
                                            TNode<Number> byte_offset);

@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_S390
 
-#include "src/api-arguments.h"
+#include "src/api-arguments-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"

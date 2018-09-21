@@ -6,26 +6,38 @@
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
+#include <cmath>
+#include <list>
+#include <memory>
+
 #include "src/builtins/builtins-intl.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/date.h"
+#include "src/elements.h"
 #include "src/intl.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-array-inl.h"
+#include "src/objects/js-collator-inl.h"
+#include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
+#include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
 
 #include "unicode/datefmt.h"
 #include "unicode/decimfmt.h"
 #include "unicode/fieldpos.h"
 #include "unicode/fpositer.h"
+#include "unicode/listformatter.h"
 #include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
+#include "unicode/reldatefmt.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/udat.h"
 #include "unicode/ufieldpositer.h"
 #include "unicode/unistr.h"
+#include "unicode/ureldatefmt.h"
 #include "unicode/ustring.h"
 
 namespace v8 {
@@ -35,7 +47,7 @@ BUILTIN(StringPrototypeToUpperCaseIntl) {
   HandleScope scope(isolate);
   TO_THIS_STRING(string, "String.prototype.toUpperCase");
   string = String::Flatten(isolate, string);
-  return ConvertCase(string, true, isolate);
+  RETURN_RESULT_OR_FAILURE(isolate, ConvertCase(string, true, isolate));
 }
 
 BUILTIN(StringPrototypeNormalizeIntl) {
@@ -106,7 +118,8 @@ BUILTIN(StringPrototypeNormalizeIntl) {
   }
 
   if (U_FAILURE(status)) {
-    return ReadOnlyRoots(isolate).undefined_value();
+    THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                   NewTypeError(MessageTemplate::kIcuError));
   }
 
   RETURN_RESULT_OR_FAILURE(
@@ -212,30 +225,6 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
   }
 }
 
-bool AddElement(Handle<JSArray> array, int index,
-                Handle<String> field_type_string,
-                const icu::UnicodeString& formatted, int32_t begin, int32_t end,
-                Isolate* isolate) {
-  HandleScope scope(isolate);
-  Factory* factory = isolate->factory();
-  Handle<JSObject> element = factory->NewJSObject(isolate->object_function());
-  Handle<String> value;
-  JSObject::AddProperty(isolate, element, factory->type_string(),
-                        field_type_string, NONE);
-
-  icu::UnicodeString field(formatted.tempSubStringBetween(begin, end));
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      factory->NewStringFromTwoByte(Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(field.getBuffer()),
-          field.length())),
-      false);
-
-  JSObject::AddProperty(isolate, element, factory->value_string(), value, NONE);
-  JSObject::AddDataElement(array, index, element, NONE);
-  return true;
-}
-
 bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
                           const NumberFormatSpan& b) {
   // Regions that start earlier should be encountered earlier.
@@ -251,19 +240,21 @@ bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
   return a.field_id < b.field_id;
 }
 
-Object* FormatNumberToParts(Isolate* isolate, icu::NumberFormat* fmt,
-                            double number) {
+MaybeHandle<Object> FormatNumberToParts(Isolate* isolate,
+                                        icu::NumberFormat* fmt, double number) {
   Factory* factory = isolate->factory();
 
   icu::UnicodeString formatted;
   icu::FieldPositionIterator fp_iter;
   UErrorCode status = U_ZERO_ERROR;
   fmt->format(number, formatted, &fp_iter, status);
-  if (U_FAILURE(status)) return ReadOnlyRoots(isolate).undefined_value();
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), Object);
+  }
 
   Handle<JSArray> result = factory->NewJSArray(0);
   int32_t length = formatted.length();
-  if (length == 0) return *result;
+  if (length == 0) return result;
 
   std::vector<NumberFormatSpan> regions;
   // Add a "literal" backdrop for the entire string. This will be used if no
@@ -289,19 +280,21 @@ Object* FormatNumberToParts(Isolate* isolate, icu::NumberFormat* fmt,
         part.field_id == -1
             ? isolate->factory()->literal_string()
             : IcuNumberFieldIdToNumberType(part.field_id, number, isolate);
-    if (!AddElement(result, index, field_type_string, formatted, part.begin_pos,
-                    part.end_pos, isolate)) {
-      return ReadOnlyRoots(isolate).undefined_value();
-    }
+    Handle<String> substring;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, substring,
+        Intl::ToString(isolate, formatted, part.begin_pos, part.end_pos),
+        Object);
+    Intl::AddElement(isolate, result, index, field_type_string, substring);
     ++index;
   }
   JSObject::ValidateElements(*result);
 
-  return *result;
+  return result;
 }
 
-Object* FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
-                          double date_value) {
+MaybeHandle<Object> FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
+                                      double date_value) {
   Factory* factory = isolate->factory();
 
   icu::UnicodeString formatted;
@@ -309,41 +302,48 @@ Object* FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
   icu::FieldPosition fp;
   UErrorCode status = U_ZERO_ERROR;
   format->format(date_value, formatted, &fp_iter, status);
-  if (U_FAILURE(status)) return ReadOnlyRoots(isolate).undefined_value();
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), Object);
+  }
 
   Handle<JSArray> result = factory->NewJSArray(0);
   int32_t length = formatted.length();
-  if (length == 0) return *result;
+  if (length == 0) return result;
 
   int index = 0;
   int32_t previous_end_pos = 0;
+  Handle<String> substring;
   while (fp_iter.next(fp)) {
     int32_t begin_pos = fp.getBeginIndex();
     int32_t end_pos = fp.getEndIndex();
 
     if (previous_end_pos < begin_pos) {
-      if (!AddElement(result, index, IcuDateFieldIdToDateType(-1, isolate),
-                      formatted, previous_end_pos, begin_pos, isolate)) {
-        return ReadOnlyRoots(isolate).undefined_value();
-      }
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, substring,
+          Intl::ToString(isolate, formatted, previous_end_pos, begin_pos),
+          Object);
+      Intl::AddElement(isolate, result, index,
+                       IcuDateFieldIdToDateType(-1, isolate), substring);
       ++index;
     }
-    if (!AddElement(result, index,
-                    IcuDateFieldIdToDateType(fp.getField(), isolate), formatted,
-                    begin_pos, end_pos, isolate)) {
-      return ReadOnlyRoots(isolate).undefined_value();
-    }
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, substring,
+        Intl::ToString(isolate, formatted, begin_pos, end_pos), Object);
+    Intl::AddElement(isolate, result, index,
+                     IcuDateFieldIdToDateType(fp.getField(), isolate),
+                     substring);
     previous_end_pos = end_pos;
     ++index;
   }
   if (previous_end_pos < length) {
-    if (!AddElement(result, index, IcuDateFieldIdToDateType(-1, isolate),
-                    formatted, previous_end_pos, length, isolate)) {
-      return ReadOnlyRoots(isolate).undefined_value();
-    }
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, substring,
+        Intl::ToString(isolate, formatted, previous_end_pos, length), Object);
+    Intl::AddElement(isolate, result, index,
+                     IcuDateFieldIdToDateType(-1, isolate), substring);
   }
   JSObject::ValidateElements(*result);
-  return *result;
+  return result;
 }
 
 }  // namespace
@@ -461,11 +461,11 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
   }
 
   icu::DecimalFormat* number_format =
-      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
+      NumberFormat::UnpackNumberFormat(number_format_holder);
   CHECK_NOT_NULL(number_format);
 
-  Object* result = FormatNumberToParts(isolate, number_format, x->Number());
-  return result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, FormatNumberToParts(isolate, number_format, x->Number()));
 }
 
 BUILTIN(DateTimeFormatPrototypeFormatToParts) {
@@ -497,10 +497,11 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
   }
 
   icu::SimpleDateFormat* date_format =
-      DateFormat::UnpackDateFormat(isolate, date_format_holder);
+      DateFormat::UnpackDateFormat(date_format_holder);
   CHECK_NOT_NULL(date_format);
 
-  return FormatDateToParts(isolate, date_format, date_value);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           FormatDateToParts(isolate, date_format, date_value));
 }
 
 BUILTIN(NumberFormatPrototypeFormatNumber) {
@@ -531,8 +532,8 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
     return *bound_format;
   }
 
-  Handle<Context> native_context =
-      Handle<Context>(isolate->context()->native_context(), isolate);
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
 
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
       native_context, NumberFormat::ContextSlot::kLength);
@@ -593,6 +594,154 @@ BUILTIN(NumberFormatInternalFormatNumber) {
                                         isolate, number_format_holder, number));
 }
 
+BUILTIN(DateTimeFormatPrototypeFormat) {
+  const char* const method = "get Intl.DateTimeFormat.prototype.format";
+  HandleScope scope(isolate);
+
+  // 1. Let dtf be this value.
+  // 2. If Type(dtf) is not Object, throw a TypeError exception.
+  CHECK_RECEIVER(JSReceiver, receiver, method);
+
+  // 3. Let dtf be ? UnwrapDateTimeFormat(dtf).
+  Handle<JSObject> date_format_holder;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, date_format_holder,
+      DateFormat::Unwrap(isolate, receiver, method));
+  DCHECK(Intl::IsObjectOfType(isolate, date_format_holder,
+                              Intl::Type::kDateTimeFormat));
+
+  Handle<Object> bound_format = Handle<Object>(
+      date_format_holder->GetEmbedderField(DateFormat::kBoundFormatIndex),
+      isolate);
+
+  // 4. If dtf.[[BoundFormat]] is undefined, then
+  if (!bound_format->IsUndefined(isolate)) {
+    DCHECK(bound_format->IsJSFunction());
+    // 5. Return dtf.[[BoundFormat]].
+    return *bound_format;
+  }
+
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
+  Handle<Context> context = isolate->factory()->NewBuiltinContext(
+      native_context, DateFormat::ContextSlot::kLength);
+
+  // 4.b. Set F.[[DateTimeFormat]] to dtf.
+  context->set(DateFormat::ContextSlot::kDateFormat, *date_format_holder);
+
+  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
+      native_context->date_format_internal_format_shared_fun(), isolate);
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+
+  // 4.a. Let F be a new built-in function object as defined in DateTime Format
+  // Functions (12.1.5).
+  Handle<JSFunction> new_bound_format_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+
+  // 4.c. Set dtf.[[BoundFormat]] to F.
+  date_format_holder->SetEmbedderField(DateFormat::kBoundFormatIndex,
+                                       *new_bound_format_function);
+
+  // 5. Return dtf.[[BoundFormat]].
+  return *new_bound_format_function;
+}
+
+BUILTIN(DateTimeFormatInternalFormat) {
+  HandleScope scope(isolate);
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+
+  // 1. Let dtf be F.[[DateTimeFormat]].
+  Handle<JSObject> date_format_holder = Handle<JSObject>(
+      JSObject::cast(context->get(DateFormat::ContextSlot::kDateFormat)),
+      isolate);
+
+  // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]]
+  // internal slot.
+  DCHECK(Intl::IsObjectOfType(isolate, date_format_holder,
+                              Intl::Type::kDateTimeFormat));
+
+  Handle<Object> date = args.atOrUndefined(isolate, 1);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, DateFormat::DateTimeFormat(isolate, date_format_holder, date));
+}
+
+BUILTIN(ListFormatConstructor) {
+  HandleScope scope(isolate);
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              isolate->factory()->NewStringFromStaticChars(
+                                  "Intl.ListFormat")));
+  }
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+
+  Handle<JSObject> result;
+  // 2. Let listFormat be OrdinaryCreateFromConstructor(NewTarget,
+  //    "%ListFormatPrototype%").
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
+  Handle<JSListFormat> format = Handle<JSListFormat>::cast(result);
+  format->set_flags(0);
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 3. Return InitializeListFormat(listFormat, locales, options).
+  RETURN_RESULT_OR_FAILURE(isolate, JSListFormat::InitializeListFormat(
+                                        isolate, format, locales, options));
+}
+
+BUILTIN(ListFormatPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSListFormat, format_holder,
+                 "Intl.ListFormat.prototype.resolvedOptions");
+  return *JSListFormat::ResolvedOptions(isolate, format_holder);
+}
+
+namespace {
+
+MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
+                                   Handle<JSFunction> constructor,
+                                   Handle<JSReceiver> new_target,
+                                   Handle<Object> tag, Handle<Object> options) {
+  Handle<JSObject> result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                             JSObject::New(constructor, new_target), JSLocale);
+
+  // First parameter is a locale, as a string/object. Can't be empty.
+  if (!tag->IsString() && !tag->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kLocaleNotEmpty),
+                    JSLocale);
+  }
+
+  Handle<String> locale_string;
+  if (tag->IsJSLocale() && Handle<JSLocale>::cast(tag)->locale()->IsString()) {
+    locale_string =
+        Handle<String>(Handle<JSLocale>::cast(tag)->locale(), isolate);
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, locale_string,
+                               Object::ToString(isolate, tag), JSLocale);
+  }
+
+  Handle<JSReceiver> options_object;
+  if (options->IsNullOrUndefined(isolate)) {
+    // Make empty options bag.
+    options_object = isolate->factory()->NewJSObjectWithNullProto();
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_object,
+                               Object::ToObject(isolate, options), JSLocale);
+  }
+
+  return JSLocale::InitializeLocale(isolate, Handle<JSLocale>::cast(result),
+                                    locale_string, options_object);
+}
+
+}  // namespace
+
 // Intl.Locale implementation
 BUILTIN(LocaleConstructor) {
   HandleScope scope(isolate);
@@ -601,85 +750,246 @@ BUILTIN(LocaleConstructor) {
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "Intl.Locale")));
-  } else {  // [[Construct]]
-    Handle<JSFunction> target = args.target();
-    Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-
-    Handle<JSObject> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                       JSObject::New(target, new_target));
-
-    Handle<Object> tag = args.atOrUndefined(isolate, 1);
-    Handle<Object> options = args.atOrUndefined(isolate, 2);
-
-    // First parameter is a locale, as a string/object. Can't be empty.
-    if (!tag->IsName() && !tag->IsJSReceiver()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kLocaleNotEmpty));
-    }
-
-    Handle<String> locale_string;
-    if (tag->IsJSLocale() &&
-        Handle<JSLocale>::cast(tag)->locale()->IsString()) {
-      locale_string =
-          Handle<String>(Handle<JSLocale>::cast(tag)->locale(), isolate);
-    } else {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, locale_string,
-                                         Object::ToString(isolate, tag));
-    }
-
-    Handle<JSReceiver> options_object;
-    if (options->IsNullOrUndefined(isolate)) {
-      // Make empty options bag.
-      options_object = isolate->factory()->NewJSObjectWithNullProto();
-    } else {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_object,
-                                         Object::ToObject(isolate, options));
-    }
-
-    RETURN_RESULT_OR_FAILURE(
-        isolate,
-        JSLocale::InitializeLocale(isolate, Handle<JSLocale>::cast(result),
-                                   locale_string, options_object));
-  }
-}
-
-BUILTIN(RelativeTimeFormatConstructor) {
-  HandleScope scope(isolate);
-  // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "Intl.RelativeTimeFormat")));
   }
   // [[Construct]]
   Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
 
-  Handle<JSObject> result;
-  // 2. Let relativeTimeFormat be
-  //    ! OrdinaryCreateFromConstructor(NewTarget,
-  //                                    "%RelativeTimeFormatPrototype%").
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
-
-  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> tag = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
-  // 3. Return ? InitializeRelativeTimeFormat(relativeTimeFormat, locales,
-  //                                          options).
   RETURN_RESULT_OR_FAILURE(
-      isolate, JSRelativeTimeFormat::InitializeRelativeTimeFormat(
-                   isolate, Handle<JSRelativeTimeFormat>::cast(result), locales,
-                   options));
+      isolate, CreateLocale(isolate, target, new_target, tag, options));
 }
 
-BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
+BUILTIN(LocalePrototypeMaximize) {
   HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale_holder, "Intl.Locale.prototype.maximize");
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_locale_function(), isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      CreateLocale(isolate, constructor, constructor,
+                   JSLocale::Maximize(isolate, locale_holder->locale()),
+                   isolate->factory()->NewJSObjectWithNullProto()));
+}
+
+BUILTIN(LocalePrototypeMinimize) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale_holder, "Intl.Locale.prototype.minimize");
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_locale_function(), isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      CreateLocale(isolate, constructor, constructor,
+                   JSLocale::Minimize(isolate, locale_holder->locale()),
+                   isolate->factory()->NewJSObjectWithNullProto()));
+}
+
+namespace {
+
+MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
+    Isolate* isolate, icu::UnicodeString formatted,
+    icu::UnicodeString integer_part, Handle<String> unit) {
+  Factory* factory = isolate->factory();
+  Handle<JSArray> array = factory->NewJSArray(0);
+  int32_t found = formatted.indexOf(integer_part);
+
+  Handle<String> substring;
+  if (found < 0) {
+    // Cannot find the integer_part in the formatted.
+    // Return [{'type': 'literal', 'value': formatted}]
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
+                               Intl::ToString(isolate, formatted), JSArray);
+    Intl::AddElement(isolate, array,
+                     0,                          // index
+                     factory->literal_string(),  // field_type_string
+                     substring);
+  } else {
+    // Found the formatted integer in the result.
+    int index = 0;
+
+    // array.push({
+    //     'type': 'literal',
+    //     'value': formatted.substring(0, found)})
+    if (found > 0) {
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
+                                 Intl::ToString(isolate, formatted, 0, found),
+                                 JSArray);
+      Intl::AddElement(isolate, array, index++,
+                       factory->literal_string(),  // field_type_string
+                       substring);
+    }
+
+    // array.push({
+    //     'type': 'integer',
+    //     'value': formatted.substring(found, found + integer_part.length),
+    //     'unit': unit})
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
+                               Intl::ToString(isolate, formatted, found,
+                                              found + integer_part.length()),
+                               JSArray);
+    Intl::AddElement(isolate, array, index++,
+                     factory->integer_string(),  // field_type_string
+                     substring, factory->unit_string(), unit);
+
+    // array.push({
+    //     'type': 'literal',
+    //     'value': formatted.substring(
+    //         found + integer_part.length, formatted.length)})
+    if (found + integer_part.length() < formatted.length()) {
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, substring,
+          Intl::ToString(isolate, formatted, found + integer_part.length(),
+                         formatted.length()),
+          JSArray);
+      Intl::AddElement(isolate, array, index,
+                       factory->literal_string(),  // field_type_string
+                       substring);
+    }
+  }
+  return array;
+}
+
+bool GetURelativeDateTimeUnit(Handle<String> unit,
+                              URelativeDateTimeUnit* unit_enum) {
+  std::unique_ptr<char[]> unit_str = unit->ToCString();
+  if ((strcmp("second", unit_str.get()) == 0) ||
+      (strcmp("seconds", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_SECOND;
+  } else if ((strcmp("minute", unit_str.get()) == 0) ||
+             (strcmp("minutes", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_MINUTE;
+  } else if ((strcmp("hour", unit_str.get()) == 0) ||
+             (strcmp("hours", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_HOUR;
+  } else if ((strcmp("day", unit_str.get()) == 0) ||
+             (strcmp("days", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_DAY;
+  } else if ((strcmp("week", unit_str.get()) == 0) ||
+             (strcmp("weeks", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_WEEK;
+  } else if ((strcmp("month", unit_str.get()) == 0) ||
+             (strcmp("months", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_MONTH;
+  } else if ((strcmp("quarter", unit_str.get()) == 0) ||
+             (strcmp("quarters", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_QUARTER;
+  } else if ((strcmp("year", unit_str.get()) == 0) ||
+             (strcmp("years", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_YEAR;
+  } else {
+    return false;
+  }
+  return true;
+}
+
+MaybeHandle<Object> RelativeTimeFormatPrototypeFormatCommon(
+    BuiltinArguments args, Isolate* isolate,
+    Handle<JSRelativeTimeFormat> format_holder, const char* func_name,
+    bool to_parts) {
+  Factory* factory = isolate->factory();
+  Handle<Object> value_obj = args.atOrUndefined(isolate, 1);
+  Handle<Object> unit_obj = args.atOrUndefined(isolate, 2);
+
+  // 3. Let value be ? ToNumber(value).
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                             Object::ToNumber(isolate, value_obj), Object);
+  double number = value->Number();
+  // 4. Let unit be ? ToString(unit).
+  Handle<String> unit;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, unit, Object::ToString(isolate, unit_obj),
+                             Object);
+
+  // 4. If isFinite(value) is false, then throw a RangeError exception.
+  if (!std::isfinite(number)) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(MessageTemplate::kNotFiniteNumber,
+                      isolate->factory()->NewStringFromAsciiChecked(func_name)),
+        Object);
+  }
+
+  icu::RelativeDateTimeFormatter* formatter =
+      JSRelativeTimeFormat::UnpackFormatter(format_holder);
+  CHECK_NOT_NULL(formatter);
+
+  URelativeDateTimeUnit unit_enum;
+  if (!GetURelativeDateTimeUnit(unit, &unit_enum)) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidUnit,
+                      isolate->factory()->NewStringFromAsciiChecked(func_name),
+                      unit),
+        Object);
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString formatted;
+  if (unit_enum == UDAT_REL_UNIT_QUARTER) {
+    // ICU have not yet implement UDAT_REL_UNIT_QUARTER.
+  } else {
+    if (format_holder->numeric() == JSRelativeTimeFormat::Numeric::ALWAYS) {
+      formatter->formatNumeric(number, unit_enum, formatted, status);
+    } else {
+      DCHECK_EQ(JSRelativeTimeFormat::Numeric::AUTO, format_holder->numeric());
+      formatter->format(number, unit_enum, formatted, status);
+    }
+  }
+
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), Object);
+  }
+
+  if (to_parts) {
+    icu::UnicodeString integer;
+    icu::FieldPosition pos;
+    formatter->getNumberFormat().format(std::abs(number), integer, pos, status);
+    if (U_FAILURE(status)) {
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError),
+                      Object);
+    }
+
+    Handle<JSArray> elements;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, elements,
+        GenerateRelativeTimeFormatParts(isolate, formatted, integer, unit),
+        Object);
+    return elements;
+  }
+
+  return factory->NewStringFromTwoByte(Vector<const uint16_t>(
+      reinterpret_cast<const uint16_t*>(formatted.getBuffer()),
+      formatted.length()));
+}
+
+}  // namespace
+
+BUILTIN(RelativeTimeFormatPrototypeFormat) {
+  HandleScope scope(isolate);
+  // 1. Let relativeTimeFormat be the this value.
+  // 2. If Type(relativeTimeFormat) is not Object or relativeTimeFormat does not
+  //    have an [[InitializedRelativeTimeFormat]] internal slot whose value is
+  //    true, throw a TypeError exception.
   CHECK_RECEIVER(JSRelativeTimeFormat, format_holder,
-                 "Intl.RelativeTimeFormat.prototype.resolvedOptions");
-  return *JSRelativeTimeFormat::ResolvedOptions(isolate, format_holder);
+                 "Intl.RelativeTimeFormat.prototype.format");
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           RelativeTimeFormatPrototypeFormatCommon(
+                               args, isolate, format_holder, "format", false));
+}
+
+BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
+  HandleScope scope(isolate);
+  // 1. Let relativeTimeFormat be the this value.
+  // 2. If Type(relativeTimeFormat) is not Object or relativeTimeFormat does not
+  //    have an [[InitializedRelativeTimeFormat]] internal slot whose value is
+  //    true, throw a TypeError exception.
+  CHECK_RECEIVER(JSRelativeTimeFormat, format_holder,
+                 "Intl.RelativeTimeFormat.prototype.formatToParts");
+  RETURN_RESULT_OR_FAILURE(
+      isolate, RelativeTimeFormatPrototypeFormatCommon(
+                   args, isolate, format_holder, "formatToParts", true));
 }
 
 // Locale getters.
@@ -760,6 +1070,263 @@ BUILTIN(LocalePrototypeToString) {
   CHECK_RECEIVER(JSLocale, locale_holder, "Intl.Locale.prototype.toString");
 
   return locale_holder->locale();
+}
+
+BUILTIN(RelativeTimeFormatConstructor) {
+  HandleScope scope(isolate);
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              isolate->factory()->NewStringFromStaticChars(
+                                  "Intl.RelativeTimeFormat")));
+  }
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+
+  Handle<JSObject> result;
+  // 2. Let relativeTimeFormat be
+  //    ! OrdinaryCreateFromConstructor(NewTarget,
+  //                                    "%RelativeTimeFormatPrototype%").
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
+  Handle<JSRelativeTimeFormat> format =
+      Handle<JSRelativeTimeFormat>::cast(result);
+  format->set_flags(0);
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 3. Return ? InitializeRelativeTimeFormat(relativeTimeFormat, locales,
+  //                                          options).
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSRelativeTimeFormat::InitializeRelativeTimeFormat(
+                               isolate, format, locales, options));
+}
+
+BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSRelativeTimeFormat, format_holder,
+                 "Intl.RelativeTimeFormat.prototype.resolvedOptions");
+  return *JSRelativeTimeFormat::ResolvedOptions(isolate, format_holder);
+}
+
+BUILTIN(StringPrototypeToLocaleLowerCase) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.toLocaleLowerCase");
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Intl::StringLocaleConvertCase(isolate, string, false,
+                                             args.atOrUndefined(isolate, 1)));
+}
+
+BUILTIN(StringPrototypeToLocaleUpperCase) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.toLocaleUpperCase");
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Intl::StringLocaleConvertCase(isolate, string, true,
+                                             args.atOrUndefined(isolate, 1)));
+}
+
+BUILTIN(PluralRulesConstructor) {
+  HandleScope scope(isolate);
+
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              isolate->factory()->NewStringFromStaticChars(
+                                  "Intl.PluralRules")));
+  }
+
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 2. Let pluralRules be ? OrdinaryCreateFromConstructor(newTarget,
+  // "%PluralRulesPrototype%", « [[InitializedPluralRules]],
+  // [[Locale]], [[Type]], [[MinimumIntegerDigits]],
+  // [[MinimumFractionDigits]], [[MaximumFractionDigits]],
+  // [[MinimumSignificantDigits]], [[MaximumSignificantDigits]] »).
+  Handle<JSObject> plural_rules_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, plural_rules_obj,
+                                     JSObject::New(target, new_target));
+  Handle<JSPluralRules> plural_rules =
+      Handle<JSPluralRules>::cast(plural_rules_obj);
+
+  // 3. Return ? InitializePluralRules(pluralRules, locales, options).
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSPluralRules::InitializePluralRules(isolate, plural_rules,
+                                                    locales, options));
+}
+
+BUILTIN(CollatorConstructor) {
+  HandleScope scope(isolate);
+  Handle<JSReceiver> new_target;
+  // 1. If NewTarget is undefined, let newTarget be the active
+  // function object, else let newTarget be NewTarget.
+  if (args.new_target()->IsUndefined(isolate)) {
+    new_target = args.target();
+  } else {
+    new_target = Handle<JSReceiver>::cast(args.new_target());
+  }
+
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 5. Let collator be ? OrdinaryCreateFromConstructor(newTarget,
+  // "%CollatorPrototype%", internalSlotsList).
+  Handle<JSObject> collator_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, collator_obj,
+                                     JSObject::New(target, new_target));
+  Handle<JSCollator> collator = Handle<JSCollator>::cast(collator_obj);
+  collator->set_flags(0);
+
+  // 6. Return ? InitializeCollator(collator, locales, options).
+  RETURN_RESULT_OR_FAILURE(isolate, JSCollator::InitializeCollator(
+                                        isolate, collator, locales, options));
+}
+
+BUILTIN(CollatorPrototypeCompare) {
+  const char* const method = "get Intl.Collator.prototype.compare";
+  HandleScope scope(isolate);
+
+  // 1. Let collator be this value.
+  // 2. If Type(collator) is not Object, throw a TypeError exception.
+  // 3. If collator does not have an [[InitializedCollator]] internal slot,
+  // throw a TypeError exception.
+  CHECK_RECEIVER(JSCollator, collator, method);
+
+  // 4. If collator.[[BoundCompare]] is undefined, then
+  Handle<Object> bound_compare(collator->bound_compare(), isolate);
+  if (!bound_compare->IsUndefined(isolate)) {
+    DCHECK(bound_compare->IsJSFunction());
+    // 5. Return collator.[[BoundCompare]].
+    return *bound_compare;
+  }
+
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
+  Handle<Context> context = isolate->factory()->NewBuiltinContext(
+      native_context, JSCollator::ContextSlot::kLength);
+
+  // 4.b. Set F.[[Collator]] to collator.
+  context->set(JSCollator::ContextSlot::kCollator, *collator);
+
+  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
+      native_context->collator_internal_compare_shared_fun(), isolate);
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+
+  // 4.a. Let F be a new built-in function object as defined in 10.3.3.1.
+  Handle<JSFunction> new_bound_compare_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+
+  // 4.c. Set collator.[[BoundCompare]] to F.
+  collator->set_bound_compare(*new_bound_compare_function);
+
+  // 5. Return collator.[[BoundCompare]].
+  return *new_bound_compare_function;
+}
+
+BUILTIN(CollatorInternalCompare) {
+  HandleScope scope(isolate);
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+
+  // 1. Let collator be F.[[Collator]].
+  // 2. Assert: Type(collator) is Object and collator has an
+  // [[InitializedCollator]] internal slot.
+  Handle<JSCollator> collator_holder = Handle<JSCollator>(
+      JSCollator::cast(context->get(JSCollator::ContextSlot::kCollator)),
+      isolate);
+
+  // 3. If x is not provided, let x be undefined.
+  Handle<Object> x = args.atOrUndefined(isolate, 1);
+  // 4. If y is not provided, let y be undefined.
+  Handle<Object> y = args.atOrUndefined(isolate, 2);
+
+  // 5. Let X be ? ToString(x).
+  Handle<String> string_x;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string_x,
+                                     Object::ToString(isolate, x));
+  // 6. Let Y be ? ToString(y).
+  Handle<String> string_y;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string_y,
+                                     Object::ToString(isolate, y));
+
+  // 7. Return CompareStrings(collator, X, Y).
+  return *Intl::CompareStrings(isolate, collator_holder, string_x, string_y);
+}
+
+BUILTIN(BreakIteratorPrototypeAdoptText) {
+  const char* const method = "get Intl.v8BreakIterator.prototype.adoptText";
+  HandleScope scope(isolate);
+
+  CHECK_RECEIVER(JSObject, break_iterator_holder, method);
+  if (!Intl::IsObjectOfType(isolate, break_iterator_holder,
+                            Intl::Type::kBreakIterator)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                     isolate->factory()->NewStringFromAsciiChecked(method),
+                     break_iterator_holder));
+  }
+
+  Handle<Object> bound_adopt_text =
+      Handle<Object>(break_iterator_holder->GetEmbedderField(
+                         V8BreakIterator::kBoundAdoptTextIndex),
+                     isolate);
+
+  if (!bound_adopt_text->IsUndefined(isolate)) {
+    DCHECK(bound_adopt_text->IsJSFunction());
+    return *bound_adopt_text;
+  }
+
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
+  Handle<Context> context = isolate->factory()->NewBuiltinContext(
+      native_context, static_cast<int>(V8BreakIterator::ContextSlot::kLength));
+
+  context->set(static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator),
+               *break_iterator_holder);
+
+  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
+      native_context->break_iterator_internal_adopt_text_shared_fun(), isolate);
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+
+  Handle<JSFunction> new_bound_adopt_text_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+
+  break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundAdoptTextIndex,
+                                          *new_bound_adopt_text_function);
+
+  return *new_bound_adopt_text_function;
+}
+
+BUILTIN(BreakIteratorInternalAdoptText) {
+  HandleScope scope(isolate);
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+
+  Handle<JSObject> break_iterator_holder = Handle<JSObject>(
+      JSObject::cast(context->get(
+          static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator))),
+      isolate);
+
+  DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
+                              Intl::Type::kBreakIterator));
+
+  Handle<Object> input_text = args.atOrUndefined(isolate, 1);
+  Handle<String> text;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, text,
+                                     Object::ToString(isolate, input_text));
+
+  V8BreakIterator::AdoptText(isolate, break_iterator_holder, text);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

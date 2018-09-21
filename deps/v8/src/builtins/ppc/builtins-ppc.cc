@@ -11,7 +11,9 @@
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+#include "src/objects/js-generator.h"
 #include "src/runtime/runtime.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -2299,7 +2301,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // Convert to Smi for the runtime call.
   __ SmiTag(r15, r15);
   {
-    TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
+    HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
     // Save all parameter registers (see wasm-linkage.cc). They might be
@@ -2415,14 +2417,14 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // we can store the address on the stack to be able to find it again and
   // we never have to restore it, because it will not change.
   Label start_call;
-  constexpr int after_call_offset = 5 * Assembler::kInstrSize;
+  constexpr int after_call_offset = 5 * kInstrSize;
   DCHECK_NE(r7, target);
   __ LoadPC(r7);
   __ bind(&start_call);
   __ addi(r7, r7, Operand(after_call_offset));
   __ StoreP(r7, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
   __ Call(target);
-  DCHECK_EQ(after_call_offset - Assembler::kInstrSize,
+  DCHECK_EQ(after_call_offset - kInstrSize,
             __ SizeOfCodeGeneratedSince(&start_call));
 
   // If return value is on the stack, pop it to registers.
@@ -2530,7 +2532,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   Label out_of_range, only_low, negate, done, fastpath_done;
   Register result_reg = r3;
 
-  TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
+  HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
 
   // Immediate values for this stub fit in instructions, so it's safe to use ip.
   Register scratch = GetRegisterThatIsNotOneOf(result_reg);

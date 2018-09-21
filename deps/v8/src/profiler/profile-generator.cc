@@ -726,7 +726,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       if (pc_entry) {
         int pc_offset =
             static_cast<int>(attributed_pc - pc_entry->instruction_start());
-        DCHECK_GE(pc_offset, 0);
+        // TODO(petermarshall): pc_offset can still be negative in some cases.
         src_line = pc_entry->GetSourceLine(pc_offset);
         if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) {
           src_line = pc_entry->line_number();
@@ -758,7 +758,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
         // Find out if the entry has an inlining stack associated.
         int pc_offset =
             static_cast<int>(stack_pos - entry->instruction_start());
-        DCHECK_GE(pc_offset, 0);
+        // TODO(petermarshall): pc_offset can still be negative in some cases.
         const std::vector<std::unique_ptr<CodeEntry>>* inline_stack =
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {

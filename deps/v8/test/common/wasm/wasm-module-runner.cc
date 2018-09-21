@@ -28,8 +28,9 @@ uint32_t GetInitialMemSize(const WasmModule* module) {
 
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes) {
-  MaybeHandle<WasmModuleObject> module =
-      isolate->wasm_engine()->SyncCompile(isolate, thrower, bytes);
+  auto enabled_features = WasmFeaturesFromIsolate(isolate);
+  MaybeHandle<WasmModuleObject> module = isolate->wasm_engine()->SyncCompile(
+      isolate, enabled_features, thrower, bytes);
   DCHECK_EQ(thrower->error(), module.is_null());
   if (module.is_null()) return {};
 
@@ -42,8 +43,10 @@ std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
     const byte* module_end, ModuleOrigin origin, bool verify_functions) {
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
-  ModuleResult decoding_result = SyncDecodeWasmModule(
-      isolate, module_start, module_end, verify_functions, origin);
+  auto enabled_features = WasmFeaturesFromIsolate(isolate);
+  ModuleResult decoding_result = DecodeWasmModule(
+      enabled_features, module_start, module_end, verify_functions, origin,
+      isolate->counters(), isolate->allocator());
 
   if (decoding_result.failed()) {
     // Module verification failed. throw.

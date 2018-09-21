@@ -32,8 +32,8 @@ class Label {
 // In debug builds, the old Label has to be cleared in order to avoid a DCHECK
 // failure in it's destructor.
 #ifdef DEBUG
-  Label(Label&& other) { *this = std::move(other); }
-  Label& operator=(Label&& other) {
+  Label(Label&& other) V8_NOEXCEPT { *this = std::move(other); }
+  Label& operator=(Label&& other) V8_NOEXCEPT {
     pos_ = other.pos_;
     near_link_pos_ = other.near_link_pos_;
     other.Unuse();
@@ -41,8 +41,8 @@ class Label {
     return *this;
   }
 #else
-  Label(Label&&) = default;
-  Label& operator=(Label&&) = default;
+  Label(Label&&) V8_NOEXCEPT = default;
+  Label& operator=(Label&&) V8_NOEXCEPT = default;
 #endif
 #endif
 

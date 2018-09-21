@@ -32,6 +32,8 @@ class BytecodeExpectationsPrinter final {
         module_(false),
         wrap_(true),
         top_level_(false),
+        print_callee_(false),
+        oneshot_opt_(false),
         test_function_name_(kDefaultTopFunctionName) {}
 
   void PrintExpectation(std::ostream& stream,  // NOLINT
@@ -45,6 +47,12 @@ class BytecodeExpectationsPrinter final {
 
   void set_top_level(bool top_level) { top_level_ = top_level; }
   bool top_level() const { return top_level_; }
+
+  void set_print_callee(bool print_callee) { print_callee_ = print_callee; }
+  bool print_callee() { return print_callee_; }
+
+  void set_oneshot_opt(bool oneshot_opt) { oneshot_opt_ = oneshot_opt; }
+  bool oneshot_opt() { return oneshot_opt_; }
 
   void set_test_function_name(const std::string& test_function_name) {
     test_function_name_ = test_function_name;
@@ -94,6 +102,8 @@ class BytecodeExpectationsPrinter final {
       v8::Local<v8::Module> module) const;
   i::Handle<v8::internal::BytecodeArray> GetBytecodeArrayForScript(
       v8::Local<v8::Script> script) const;
+  i::Handle<i::BytecodeArray> GetBytecodeArrayOfCallee(
+      const char* source_code) const;
 
   i::Isolate* i_isolate() const {
     return reinterpret_cast<i::Isolate*>(isolate_);
@@ -103,6 +113,8 @@ class BytecodeExpectationsPrinter final {
   bool module_;
   bool wrap_;
   bool top_level_;
+  bool print_callee_;
+  bool oneshot_opt_;
   std::string test_function_name_;
 
   static const char* const kDefaultTopFunctionName;

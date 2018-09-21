@@ -14,6 +14,7 @@
 #include "src/macro-assembler.h"
 #include "src/safepoint-table.h"
 #include "src/source-position-table.h"
+#include "src/trap-handler/trap-handler.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +28,6 @@ class DeoptimizationExit;
 class FrameAccessState;
 class Linkage;
 class OutOfLineCode;
-class WasmCompilationData;
 
 struct BranchInfo {
   FlagsCondition condition;
@@ -83,7 +83,6 @@ class CodeGenerator final : public GapResolver::Assembler {
                          base::Optional<OsrHelper> osr_helper,
                          int start_source_position,
                          JumpOptimizationInfo* jump_opt,
-                         WasmCompilationData* wasm_compilation_data,
                          PoisoningMitigationLevel poisoning_level,
                          const AssemblerOptions& options,
                          int32_t builtin_index);
@@ -95,6 +94,8 @@ class CodeGenerator final : public GapResolver::Assembler {
   MaybeHandle<Code> FinalizeCode();
 
   OwnedVector<byte> GetSourcePositionTable();
+  OwnedVector<trap_handler::ProtectedInstructionData>
+  GetProtectedInstructions();
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
@@ -427,7 +428,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   int osr_pc_offset_;
   int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
-  WasmCompilationData* wasm_compilation_data_;
+  ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;
   CodeGenResult result_;
   PoisoningMitigationLevel poisoning_level_;
   ZoneVector<int> block_starts_;

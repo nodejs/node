@@ -13,6 +13,18 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class SlackTrackingPrediction {
+ public:
+  SlackTrackingPrediction(MapRef initial_map, int instance_size);
+
+  int inobject_property_count() const { return inobject_property_count_; }
+  int instance_size() const { return instance_size_; }
+
+ private:
+  int instance_size_;
+  int inobject_property_count_;
+};
+
 // Collects and installs dependencies of the code that is being generated.
 class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
  public:
@@ -21,8 +33,12 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   V8_WARN_UNUSED_RESULT bool Commit(Handle<Code> code);
 
   // Return the initial map of {function} and record the assumption that it
-  // stays the intial map.
+  // stays the initial map.
   MapRef DependOnInitialMap(const JSFunctionRef& function);
+
+  // Return the "prototype" property of the given function and record the
+  // assumption that it doesn't change.
+  ObjectRef DependOnPrototypeProperty(const JSFunctionRef& function);
 
   // Record the assumption that {map} stays stable.
   void DependOnStableMap(const MapRef& map);
@@ -53,11 +69,19 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // {receiver_type} up to (and including) the {holder}.
   // TODO(neis): Fully brokerize!
   void DependOnStablePrototypeChains(
-      const JSHeapBroker* broker, Handle<Context> native_context,
+      JSHeapBroker* broker, Handle<Context> native_context,
       std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder);
 
   // Like DependOnElementsKind but also applies to all nested allocation sites.
   void DependOnElementsKinds(const AllocationSiteRef& site);
+
+  // Predict the final instance size for {function}'s initial map and record
+  // the assumption that this prediction is correct. In addition, register
+  // the initial map dependency. This method returns the {function}'s the
+  // predicted minimum slack instance size count (wrapped together with
+  // the corresponding in-object property count for convenience).
+  SlackTrackingPrediction DependOnInitialMapInstanceSizePrediction(
+      const JSFunctionRef& function);
 
   // Exposed only for testing purposes.
   bool AreValid() const;

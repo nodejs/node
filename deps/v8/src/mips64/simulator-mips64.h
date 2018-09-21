@@ -469,7 +469,7 @@ class Simulator : public SimulatorBase {
   // Compact branch guard.
   void CheckForbiddenSlot(int64_t current_pc) {
     Instruction* instr_after_compact_branch =
-        reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
+        reinterpret_cast<Instruction*>(current_pc + kInstrSize);
     if (instr_after_compact_branch->IsForbiddenAfterBranch()) {
       FATAL(
           "Error: Unexpected instruction 0x%08x immediately after a "

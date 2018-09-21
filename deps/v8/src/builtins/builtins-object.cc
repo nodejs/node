@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
@@ -394,10 +394,8 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
     if (!did_get_descriptor.FromJust()) continue;
     Handle<Object> from_descriptor = descriptor.ToObject(isolate);
 
-    LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate, descriptors, key, descriptors, LookupIterator::OWN);
-    Maybe<bool> success =
-        JSReceiver::CreateDataProperty(&it, from_descriptor, kDontThrow);
+    Maybe<bool> success = JSReceiver::CreateDataProperty(
+        isolate, descriptors, key, from_descriptor, kDontThrow);
     CHECK(success.FromJust());
   }
 

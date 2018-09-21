@@ -7,5 +7,5 @@ var a = largeArray;
 
 assertThrows(() => {
   for (;;) {
-    a = a.concat(a, a, a, a, a, a);
+    a = a.concat(a, a, a, a, a);
   }}, RangeError);

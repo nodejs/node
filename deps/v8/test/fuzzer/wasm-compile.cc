@@ -43,8 +43,10 @@ class DataRange {
   // lead to OOM because the end might not be reached.
   // Define move constructor and move assignment, disallow copy constructor and
   // copy assignment (below).
-  DataRange(DataRange&& other) : DataRange(other.data_) { other.data_ = {}; }
-  DataRange& operator=(DataRange&& other) {
+  DataRange(DataRange&& other) V8_NOEXCEPT : DataRange(other.data_) {
+    other.data_ = {};
+  }
+  DataRange& operator=(DataRange&& other) V8_NOEXCEPT {
     data_ = other.data_;
     other.data_ = {};
     return *this;
@@ -380,9 +382,9 @@ class WasmGenerator {
 
   void set_global(DataRange& data) { global_op<kWasmStmt>(data); }
 
-  template <ValueType T1, ValueType T2>
+  template <ValueType... Types>
   void sequence(DataRange& data) {
-    Generate<T1, T2>(data);
+    Generate<Types...>(data);
   }
 
   void current_memory(DataRange& data) {
@@ -472,6 +474,9 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
 
   constexpr generate_fn alternates[] = {
       &WasmGenerator::sequence<kWasmStmt, kWasmStmt>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt,
+                               kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt>,
       &WasmGenerator::block<kWasmStmt>,
       &WasmGenerator::loop<kWasmStmt>,
       &WasmGenerator::if_<kWasmStmt, kIf>,
@@ -508,7 +513,9 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmI32, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmI32>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmI32, kWasmStmt>,
 
       &WasmGenerator::op<kExprI32Eqz, kWasmI32>,
       &WasmGenerator::op<kExprI32Eq, kWasmI32, kWasmI32>,
@@ -597,7 +604,9 @@ void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmI64, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmI64>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmI64, kWasmStmt>,
 
       &WasmGenerator::op<kExprI64Add, kWasmI64, kWasmI64>,
       &WasmGenerator::op<kExprI64Sub, kWasmI64, kWasmI64>,
@@ -652,7 +661,9 @@ void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmF32, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF32>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmF32, kWasmStmt>,
 
       &WasmGenerator::op<kExprF32Add, kWasmF32, kWasmF32>,
       &WasmGenerator::op<kExprF32Sub, kWasmF32, kWasmF32>,
@@ -683,7 +694,9 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmF64, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF64>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmF64, kWasmStmt>,
 
       &WasmGenerator::op<kExprF64Add, kWasmF64, kWasmF64>,
       &WasmGenerator::op<kExprF64Sub, kWasmF64, kWasmF64>,

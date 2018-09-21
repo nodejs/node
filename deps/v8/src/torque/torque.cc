@@ -2,17 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fstream>
 #include <iostream>
 
-#include "./antlr4-runtime.h"
-#include "src/torque/TorqueBaseVisitor.h"
-#include "src/torque/TorqueLexer.h"
-#include "src/torque/ast-generator.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/implementation-visitor.h"
 #include "src/torque/scope.h"
+#include "src/torque/torque-parser.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
@@ -21,46 +19,13 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-size_t Label::next_id_ = 0;
-
-class FailedParseErrorStrategy : public antlr4::DefaultErrorStrategy {
- public:
-  FailedParseErrorStrategy() : DefaultErrorStrategy(), failed_(false) {}
-  void reportError(antlr4::Parser* recognizer,
-                   const antlr4::RecognitionException& e) override {
-    antlr4::DefaultErrorStrategy::reportError(recognizer, e);
-    failed_ = true;
-  }
-
-  bool FailedParse() const { return failed_; }
-
- public:
-  bool failed_;
-};
-
-class TorqueErrorListener : public antlr4::BaseErrorListener {
- public:
-  TorqueErrorListener() : BaseErrorListener() {}
-
-  void syntaxError(antlr4::Recognizer* recognizer,
-                   antlr4::Token* /*offendingSymbol*/, size_t line,
-                   size_t charPositionInLine, const std::string& msg,
-                   std::exception_ptr /*e*/) {
-    std::cerr << recognizer->getInputStream()->getSourceName() << ": " << line
-              << ":" << charPositionInLine << " " << msg << "\n";
-  }
-};
-
 int WrappedMain(int argc, const char** argv) {
   std::string output_directory;
-  std::vector<SourceFileContext> file_contexts;
-  AstGenerator ast_generator;
-  SourceFileContext context;
-  size_t lexer_errors = 0;
-  auto error_strategy = std::make_shared<FailedParseErrorStrategy>();
-  TorqueErrorListener error_listener;
   bool verbose = false;
-  SourceFileMap::Scope scope;
+  SourceFileMap::Scope source_file_map_scope;
+  CurrentSourceFile::Scope unknown_sourcefile_scope(
+      SourceFileMap::AddSource("<unknown>"));
+  CurrentAst::Scope ast_scope;
   for (int i = 1; i < argc; ++i) {
     // Check for options
     if (!strcmp("-o", argv[i])) {
@@ -75,31 +40,16 @@ int WrappedMain(int argc, const char** argv) {
     // Otherwise it's a .tq
     // file, parse it and
     // remember the syntax tree
-    context.name = argv[i];
-    context.stream = std::unique_ptr<antlr4::ANTLRFileStream>(
-        new antlr4::ANTLRFileStream(context.name.c_str()));
-    context.lexer =
-        std::unique_ptr<TorqueLexer>(new TorqueLexer(context.stream.get()));
-    context.lexer->removeErrorListeners();
-    context.lexer->addErrorListener(&error_listener);
-    context.tokens = std::unique_ptr<antlr4::CommonTokenStream>(
-        new antlr4::CommonTokenStream(context.lexer.get()));
-    context.tokens->fill();
-    lexer_errors += context.lexer->getNumberOfSyntaxErrors();
-    context.parser =
-        std::unique_ptr<TorqueParser>(new TorqueParser(context.tokens.get()));
-    context.parser->setErrorHandler(error_strategy);
-    context.parser->removeErrorListeners();
-    context.parser->addErrorListener(&error_listener);
-    context.file = context.parser->file();
-    ast_generator.visitSourceFile(&context);
+    std::string path = argv[i];
+    SourceId source_id = SourceFileMap::AddSource(path);
+    CurrentSourceFile::Scope source_id_scope(source_id);
+    std::ifstream file_stream(path);
+    std::string file_content = {std::istreambuf_iterator<char>(file_stream),
+                                std::istreambuf_iterator<char>()};
+    ParseTorque(file_content);
   }
 
-  if (lexer_errors != 0 || error_strategy->FailedParse()) {
-    return -1;
-  }
-
-  GlobalContext global_context(std::move(ast_generator).GetAst());
+  GlobalContext global_context(std::move(CurrentAst::Get()));
   if (verbose) global_context.SetVerbose();
   TypeOracle::Scope type_oracle(global_context.declarations());
 

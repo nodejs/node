@@ -131,8 +131,8 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     int index =
         is_special_transition
             ? array->SearchSpecial(Symbol::cast(*name), &insertion_index)
-            : array->Search(isolate_, details.kind(), *name,
-                            details.attributes(), &insertion_index);
+            : array->Search(details.kind(), *name, details.attributes(),
+                            &insertion_index);
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
       array->SetRawTarget(index, HeapObjectReference::Weak(*target));
@@ -178,8 +178,8 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     int index =
         is_special_transition
             ? array->SearchSpecial(Symbol::cast(*name), &insertion_index)
-            : array->Search(isolate_, details.kind(), *name,
-                            details.attributes(), &insertion_index);
+            : array->Search(details.kind(), *name, details.attributes(),
+                            &insertion_index);
     if (index == kNotFound) {
       ++new_nof;
     } else {
@@ -220,7 +220,7 @@ Map* TransitionsAccessor::SearchTransition(Name* name, PropertyKind kind,
       return map;
     }
     case kFullTransitionArray: {
-      int transition = transitions()->Search(isolate_, kind, name, attributes);
+      int transition = transitions()->Search(kind, name, attributes);
       if (transition == kNotFound) return nullptr;
       return transitions()->GetTarget(transition);
     }
@@ -544,8 +544,8 @@ void TransitionsAccessor::CheckNewTransitionsAreConsistent(
         new_target_index = new_transitions->SearchSpecial(Symbol::cast(key));
       } else {
         PropertyDetails details = GetTargetDetails(key, target);
-        new_target_index = new_transitions->Search(isolate_, details.kind(),
-                                                   key, details.attributes());
+        new_target_index =
+            new_transitions->Search(details.kind(), key, details.attributes());
       }
       DCHECK_NE(TransitionArray::kNotFound, new_target_index);
       DCHECK_EQ(target, new_transitions->GetTarget(new_target_index));
@@ -556,8 +556,7 @@ void TransitionsAccessor::CheckNewTransitionsAreConsistent(
 
 // Private non-static helper functions (operating on full transition arrays).
 
-int TransitionArray::SearchDetails(Isolate* isolate, int transition,
-                                   PropertyKind kind,
+int TransitionArray::SearchDetails(int transition, PropertyKind kind,
                                    PropertyAttributes attributes,
                                    int* out_insertion_index) {
   int nof_transitions = number_of_transitions();
@@ -581,13 +580,12 @@ int TransitionArray::SearchDetails(Isolate* isolate, int transition,
   return kNotFound;
 }
 
-int TransitionArray::Search(Isolate* isolate, PropertyKind kind, Name* name,
+int TransitionArray::Search(PropertyKind kind, Name* name,
                             PropertyAttributes attributes,
                             int* out_insertion_index) {
   int transition = SearchName(name, out_insertion_index);
   if (transition == kNotFound) return kNotFound;
-  return SearchDetails(isolate, transition, kind, attributes,
-                       out_insertion_index);
+  return SearchDetails(transition, kind, attributes, out_insertion_index);
 }
 
 void TransitionArray::Sort() {

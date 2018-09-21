@@ -277,7 +277,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
 // Size of an entry of the second level deopt table. Since we do not generate
 // a table for ARM64, the size is zero.
-const int Deoptimizer::table_entry_size_ = 0 * kInstructionSize;
+const int Deoptimizer::table_entry_size_ = 0 * kInstrSize;
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   UseScratchRegisterScope temps(masm());

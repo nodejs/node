@@ -9,6 +9,8 @@ namespace internal {
 
 void CallInterfaceDescriptorData::InitializePlatformSpecific(
     int register_parameter_count, const Register* registers) {
+  DCHECK(!IsInitializedPlatformIndependent());
+
   register_param_count_ = register_parameter_count;
 
   // InterfaceDescriptor owns a copy of the registers array.
@@ -21,19 +23,37 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
 void CallInterfaceDescriptorData::InitializePlatformIndependent(
     Flags flags, int return_count, int parameter_count,
     const MachineType* machine_types, int machine_types_length) {
+  DCHECK(IsInitializedPlatformSpecific());
+
   flags_ = flags;
   return_count_ = return_count;
   param_count_ = parameter_count;
-  int types_length = return_count_ + param_count_;
-  machine_types_ = NewArray<MachineType>(types_length);
-  for (int i = 0; i < types_length; i++) {
-    if (machine_types == nullptr || i >= machine_types_length) {
-      machine_types_[i] = MachineType::AnyTagged();
-    } else {
-      machine_types_[i] = machine_types[i];
-    }
+  const int types_length = return_count_ + param_count_;
+
+  // Machine types are either fully initialized or null.
+  if (machine_types == nullptr) {
+    machine_types_ =
+        NewArray<MachineType>(types_length, MachineType::AnyTagged());
+  } else {
+    DCHECK_EQ(machine_types_length, types_length);
+    machine_types_ = NewArray<MachineType>(types_length);
+    for (int i = 0; i < types_length; i++) machine_types_[i] = machine_types[i];
   }
+
+  DCHECK(AllStackParametersAreTagged());
 }
+
+#ifdef DEBUG
+bool CallInterfaceDescriptorData::AllStackParametersAreTagged() const {
+  DCHECK(IsInitialized());
+  const int types_length = return_count_ + param_count_;
+  const int first_stack_param = return_count_ + register_param_count_;
+  for (int i = first_stack_param; i < types_length; i++) {
+    if (!machine_types_[i].IsTagged()) return false;
+  }
+  return true;
+}
+#endif  // DEBUG
 
 void CallInterfaceDescriptorData::Reset() {
   delete[] machine_types_;
@@ -117,6 +137,28 @@ void CEntry1ArgvOnStackDescriptor::InitializePlatformSpecific(
   Register registers[] = {kRuntimeCallArgCountRegister,
                           kRuntimeCallFunctionRegister};
   data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+namespace {
+
+void InterpreterCEntryDescriptor_InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {kRuntimeCallArgCountRegister,
+                          kRuntimeCallArgvRegister,
+                          kRuntimeCallFunctionRegister};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+}  // namespace
+
+void InterpreterCEntry1Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  InterpreterCEntryDescriptor_InitializePlatformSpecific(data);
+}
+
+void InterpreterCEntry2Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  InterpreterCEntryDescriptor_InitializePlatformSpecific(data);
 }
 
 void FastNewFunctionContextDescriptor::InitializePlatformSpecific(
@@ -287,6 +329,11 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
 }
 
 void WasmGrowMemoryDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void CloneObjectWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

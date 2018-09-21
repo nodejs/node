@@ -5,10 +5,10 @@
 #ifndef V8_HEAP_REMEMBERED_SET_H_
 #define V8_HEAP_REMEMBERED_SET_H_
 
-#include "src/assembler.h"
 #include "src/heap/heap.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
+#include "src/reloc-info.h"
 #include "src/v8memory.h"
 
 namespace v8 {
@@ -284,8 +284,7 @@ class UpdateTypedSlotHelper {
         callback(reinterpret_cast<MaybeObject**>(&code));
     DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
-      Memory::Address_at(entry_address) =
-          reinterpret_cast<Code*>(code)->entry();
+      Memory<Address>(entry_address) = reinterpret_cast<Code*>(code)->entry();
     }
     return result;
   }

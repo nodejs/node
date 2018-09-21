@@ -349,7 +349,7 @@ constexpr AssemblerOptions DefaultLiftoffOptions() {
 LiftoffAssembler::LiftoffAssembler()
     : TurboAssembler(nullptr, DefaultLiftoffOptions(), nullptr, 0,
                      CodeObjectRequired::kNo) {
-  set_trap_on_abort(true);  // Avoid calls to Abort.
+  set_abort_hard(true);  // Avoid calls to Abort.
 }
 
 LiftoffAssembler::~LiftoffAssembler() {
@@ -446,7 +446,7 @@ void LiftoffAssembler::SpillAllRegisters() {
   cache_state_.reset_used_registers();
 }
 
-void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
+void LiftoffAssembler::PrepareCall(FunctionSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
                                    Register* target,
                                    LiftoffRegister* target_instance) {
@@ -555,7 +555,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   }
 }
 
-void LiftoffAssembler::FinishCall(wasm::FunctionSig* sig,
+void LiftoffAssembler::FinishCall(FunctionSig* sig,
                                   compiler::CallDescriptor* call_descriptor) {
   const size_t return_count = sig->return_count();
   if (return_count != 0) {

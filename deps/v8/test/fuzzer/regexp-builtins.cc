@@ -319,12 +319,12 @@ std::string GenerateSourceString(FuzzerArgs* args, const std::string& test) {
   return ss.str();
 }
 
-void PrintExceptionMessage(v8::TryCatch* try_catch) {
+void PrintExceptionMessage(v8::Isolate* isolate, v8::TryCatch* try_catch) {
   CHECK(try_catch->HasCaught());
   static const int kBufferLength = 256;
   char buffer[kBufferLength + 1];
   try_catch->Message()->Get()->WriteOneByte(
-      reinterpret_cast<uint8_t*>(&buffer[0]), 0, kBufferLength);
+      isolate, reinterpret_cast<uint8_t*>(&buffer[0]), 0, kBufferLength);
   fprintf(stderr, "%s\n", buffer);
 }
 
@@ -337,9 +337,10 @@ bool ResultsAreIdentical(FuzzerArgs* args) {
       "assertEquals(fast.re.lastIndex, slow.re.lastIndex);\n";
 
   v8::Local<v8::Value> result;
-  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(args->isolate));
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(args->isolate);
+  v8::TryCatch try_catch(isolate);
   if (!CompileRun(args->context, source.c_str()).ToLocal(&result)) {
-    PrintExceptionMessage(&try_catch);
+    PrintExceptionMessage(isolate, &try_catch);
     args->isolate->clear_pending_exception();
     return false;
   }
@@ -349,14 +350,15 @@ bool ResultsAreIdentical(FuzzerArgs* args) {
 
 void CompileRunAndVerify(FuzzerArgs* args, const std::string& source) {
   v8::Local<v8::Value> result;
-  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(args->isolate));
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(args->isolate);
+  v8::TryCatch try_catch(isolate);
   if (!CompileRun(args->context, source.c_str()).ToLocal(&result)) {
     args->isolate->clear_pending_exception();
     // No need to verify result if an exception was thrown here, since that
     // implies a syntax error somewhere in the pattern or string. We simply
     // ignore those.
     if (kVerbose) {
-      PrintExceptionMessage(&try_catch);
+      PrintExceptionMessage(isolate, &try_catch);
       fprintf(stderr, "Failed to run script:\n```\n%s\n```\n", source.c_str());
     }
     return;

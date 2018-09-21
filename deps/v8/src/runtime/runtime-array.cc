@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/code-stubs.h"
 #include "src/conversions-inl.h"
 #include "src/debug/debug.h"
@@ -15,7 +13,9 @@
 #include "src/messages.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/prototype.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -61,20 +61,14 @@ Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
   // For proxies, we do not collect the keys, instead we use all indices in
   // the full range of [0, limit).
   Handle<FixedArray> keys;
-  if (receiver->IsJSProxy()) {
-    CHECK(Smi::IsValid(limit));
-    keys = isolate->factory()->NewFixedArray(limit);
-    for (uint32_t i = 0; i < limit; ++i) {
-      keys->set(i, Smi::FromInt(i));
-    }
-  } else {
+  if (!receiver->IsJSProxy()) {
     keys = JSReceiver::GetOwnElementIndices(isolate, receiver,
                                             Handle<JSObject>::cast(receiver));
   }
 
   uint32_t num_undefined = 0;
   uint32_t current_pos = 0;
-  int num_indices = keys->length();
+  int num_indices = keys.is_null() ? limit : keys->length();
 
   // Compact keys with undefined values and moves non-undefined
   // values to the front.
@@ -86,7 +80,7 @@ Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
   //       Holes and 'undefined' are considered free spots.
   //       A hole is when HasElement(receiver, key) is false.
   for (int i = 0; i < num_indices; ++i) {
-    uint32_t key = NumberToUint32(keys->get(i));
+    uint32_t key = keys.is_null() ? i : NumberToUint32(keys->get(i));
 
     // We only care about array indices that are smaller than the limit.
     // The keys are sorted, so we can break as soon as we encounter the first.
@@ -143,7 +137,7 @@ Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
 
   // Deleting everything after the undefineds up unto the limit.
   for (int i = num_indices - 1; i >= 0; --i) {
-    uint32_t key = NumberToUint32(keys->get(i));
+    uint32_t key = keys.is_null() ? i : NumberToUint32(keys->get(i));
     if (key < current_pos) break;
     if (key >= limit) continue;
 
@@ -605,9 +599,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   // We should allocate with an initial map that reflects the allocation site
   // advice. Therefore we use AllocateJSObjectFromMap instead of passing
   // the constructor.
-  if (to_kind != initial_map->elements_kind()) {
-    initial_map = Map::AsElementsKind(isolate, initial_map, to_kind);
-  }
+  initial_map = Map::AsElementsKind(isolate, initial_map, to_kind);
 
   // If we don't care to track arrays of to_kind ElementsKind, then
   // don't emit a memento for them.
@@ -628,7 +620,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
     if ((old_kind != array->GetElementsKind() || !can_use_type_feedback ||
          !can_inline_array_constructor)) {
       // The arguments passed in caused a transition. This kind of complexity
-      // can't be dealt with in the inlined hydrogen array constructor case.
+      // can't be dealt with in the inlined optimized array constructor case.
       // We must mark the allocationsite as un-inlinable.
       site->SetDoNotInlineCall();
     }

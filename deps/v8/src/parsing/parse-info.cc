@@ -4,10 +4,10 @@
 
 #include "src/parsing/parse-info.h"
 
-#include "src/api.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/base/template-utils.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
@@ -17,14 +17,14 @@ namespace v8 {
 namespace internal {
 
 ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
-    : zone_(std::make_shared<Zone>(zone_allocator, ZONE_NAME)),
+    : zone_(base::make_unique<Zone>(zone_allocator, ZONE_NAME)),
       flags_(0),
       extension_(nullptr),
       script_scope_(nullptr),
       unicode_cache_(nullptr),
       stack_limit_(0),
       hash_seed_(0),
-      function_flags_(0),
+      function_kind_(FunctionKind::kNormalFunction),
       script_id_(-1),
       start_position_(0),
       end_position_(0),
@@ -65,11 +65,14 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
   set_wrapped_as_function(shared->is_wrapped());
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_is_named_expression(shared->is_named_expression());
-  set_function_flags(shared->flags());
   set_start_position(shared->StartPosition());
   set_end_position(shared->EndPosition());
   function_literal_id_ = shared->FunctionLiteralId(isolate);
   set_language_mode(shared->language_mode());
+  set_function_kind(shared->kind());
+  set_declaration(shared->is_declaration());
+  set_requires_instance_fields_initializer(
+      shared->requires_instance_fields_initializer());
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
 
   Handle<Script> script(Script::cast(shared->script()), isolate);
@@ -100,19 +103,6 @@ ParseInfo::~ParseInfo() {}
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
-bool ParseInfo::is_declaration() const {
-  return SharedFunctionInfo::IsDeclarationBit::decode(function_flags_);
-}
-
-FunctionKind ParseInfo::function_kind() const {
-  return SharedFunctionInfo::FunctionKindBits::decode(function_flags_);
-}
-
-bool ParseInfo::requires_instance_fields_initializer() const {
-  return SharedFunctionInfo::RequiresInstanceFieldsInitializer::decode(
-      function_flags_);
-}
-
 void ParseInfo::EmitBackgroundParseStatisticsOnBackgroundThread() {
   // If runtime call stats was enabled by tracing, emit a trace event at the
   // end of background parsing on the background thread.
@@ -139,11 +129,6 @@ void ParseInfo::UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate) {
     main_call_stats->Add(runtime_call_stats());
   }
   set_runtime_call_stats(main_call_stats);
-}
-
-void ParseInfo::ShareZone(ParseInfo* other) {
-  DCHECK_EQ(0, zone_->allocation_size());
-  zone_ = other->zone_;
 }
 
 Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
@@ -184,11 +169,6 @@ AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
         new AstValueFactory(zone(), ast_string_constants(), hash_seed()));
   }
   return ast_value_factory();
-}
-
-void ParseInfo::ShareAstValueFactory(ParseInfo* other) {
-  DCHECK(!ast_value_factory_.get());
-  ast_value_factory_ = other->ast_value_factory_;
 }
 
 void ParseInfo::AllocateSourceRangeMap() {

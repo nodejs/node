@@ -103,11 +103,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // - Resume copies only the registers from the generator, the arguments
   //   are copied by the ResumeGenerator trampoline.
   compiler::Node* ExportParametersAndRegisterFile(
-      compiler::Node* array, const RegListNodePair& registers,
-      compiler::Node* formal_parameter_count);
-  compiler::Node* ImportRegisterFile(compiler::Node* array,
+      TNode<FixedArray> array, const RegListNodePair& registers,
+      TNode<Int32T> formal_parameter_count);
+  compiler::Node* ImportRegisterFile(TNode<FixedArray> array,
                                      const RegListNodePair& registers,
-                                     compiler::Node* formal_parameter_count);
+                                     TNode<Int32T> formal_parameter_count);
 
   // Loads from and stores to the interpreter register file.
   compiler::Node* LoadRegister(Register reg);

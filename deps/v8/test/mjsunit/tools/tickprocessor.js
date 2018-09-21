@@ -29,6 +29,14 @@
 // Files: tools/splaytree.js tools/codemap.js tools/csvparser.js
 // Files: tools/consarray.js tools/profile.js tools/profile_view.js
 // Files: tools/logreader.js tools/arguments.js tools/tickprocessor.js
+// Resources: test/mjsunit/tools/tickprocessor-test-func-info.log
+// Resources: test/mjsunit/tools/tickprocessor-test.default
+// Resources: test/mjsunit/tools/tickprocessor-test.func-info
+// Resources: test/mjsunit/tools/tickprocessor-test.gc-state
+// Resources: test/mjsunit/tools/tickprocessor-test.ignore-unknown
+// Resources: test/mjsunit/tools/tickprocessor-test.log
+// Resources: test/mjsunit/tools/tickprocessor-test.only-summary
+// Resources: test/mjsunit/tools/tickprocessor-test.separate-ic
 // Env: TEST_FILE_NAME
 
 

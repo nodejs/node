@@ -8,6 +8,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/frames-inl.h"
+#include "src/objects/js-generator.h"
 
 namespace v8 {
 namespace internal {

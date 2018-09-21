@@ -20,6 +20,7 @@ namespace torque {
 
 class Scope;
 class ScopeChain;
+class Generic;
 
 class Declarable {
  public:
@@ -223,35 +224,37 @@ class Callable : public Declarable {
   }
   void IncrementReturns() { ++returns_; }
   bool HasReturns() const { return returns_; }
+  base::Optional<Generic*> generic() const { return generic_; }
 
  protected:
   Callable(Declarable::Kind kind, const std::string& name,
-           const Signature& signature)
-      : Declarable(kind), name_(name), signature_(signature), returns_(0) {}
+           const Signature& signature, base::Optional<Generic*> generic)
+      : Declarable(kind),
+        name_(name),
+        signature_(signature),
+        returns_(0),
+        generic_(generic) {}
 
  private:
   std::string name_;
   Signature signature_;
   size_t returns_;
+  base::Optional<Generic*> generic_;
 };
 
 class Macro : public Callable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Macro, macro);
 
- protected:
-  Macro(Declarable::Kind type, const std::string& name,
-        const Signature& signature)
-      : Callable(type, name, signature) {
+ private:
+  friend class Declarations;
+  Macro(const std::string& name, const Signature& signature,
+        base::Optional<Generic*> generic)
+      : Callable(Declarable::kMacro, name, signature, generic) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for macros.");
     }
   }
-
- private:
-  friend class Declarations;
-  Macro(const std::string& name, const Signature& signature)
-      : Macro(Declarable::kMacro, name, signature) {}
 };
 
 class MacroList : public Declarable {
@@ -283,8 +286,8 @@ class Builtin : public Callable {
  private:
   friend class Declarations;
   Builtin(const std::string& name, Builtin::Kind kind, bool external,
-          const Signature& signature)
-      : Callable(Declarable::kBuiltin, name, signature),
+          const Signature& signature, base::Optional<Generic*> generic)
+      : Callable(Declarable::kBuiltin, name, signature, generic),
         kind_(kind),
         external_(external) {}
 
@@ -298,8 +301,9 @@ class RuntimeFunction : public Callable {
 
  private:
   friend class Declarations;
-  RuntimeFunction(const std::string& name, const Signature& signature)
-      : Callable(Declarable::kRuntimeFunction, name, signature) {}
+  RuntimeFunction(const std::string& name, const Signature& signature,
+                  base::Optional<Generic*> generic)
+      : Callable(Declarable::kRuntimeFunction, name, signature, generic) {}
 };
 
 class Generic : public Declarable {

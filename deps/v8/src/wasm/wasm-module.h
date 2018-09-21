@@ -114,9 +114,9 @@ struct WasmExport {
 
 enum ModuleOrigin : uint8_t { kWasmOrigin, kAsmJsOrigin };
 
-#define SELECT_WASM_COUNTER(counters, origin, prefix, suffix)           \
-  ((origin) == wasm::kWasmOrigin ? (counters)->prefix##_wasm_##suffix() \
-                                 : (counters)->prefix##_asm_##suffix())
+#define SELECT_WASM_COUNTER(counters, origin, prefix, suffix)     \
+  ((origin) == kWasmOrigin ? (counters)->prefix##_wasm_##suffix() \
+                           : (counters)->prefix##_asm_##suffix())
 
 struct ModuleWireBytes;
 

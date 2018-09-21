@@ -41,32 +41,6 @@ inline FieldIndex FieldIndex::ForPropertyIndex(const Map* map,
                     first_inobject_offset);
 }
 
-// Takes an index as computed by GetLoadByFieldIndex and reconstructs a
-// FieldIndex object from it.
-inline FieldIndex FieldIndex::ForLoadByFieldIndex(const Map* map,
-                                                  int orig_index) {
-  int field_index = orig_index;
-  bool is_inobject = true;
-  int first_inobject_offset = 0;
-  Encoding encoding = field_index & 1 ? kDouble : kTagged;
-  field_index >>= 1;
-  int offset;
-  if (field_index < 0) {
-    first_inobject_offset = FixedArray::kHeaderSize;
-    field_index = -(field_index + 1);
-    is_inobject = false;
-    offset = FixedArray::kHeaderSize + field_index * kPointerSize;
-  } else {
-    first_inobject_offset = map->GetInObjectPropertyOffset(0);
-    offset = map->GetInObjectPropertyOffset(field_index);
-  }
-  FieldIndex result(is_inobject, offset, encoding, map->GetInObjectProperties(),
-                    first_inobject_offset);
-  DCHECK_EQ(result.GetLoadByFieldIndex(), orig_index);
-  return result;
-}
-
-
 // Returns the index format accepted by the HLoadFieldByIndex instruction.
 // (In-object: zero-based from (object start + JSObject::kHeaderSize),
 // out-of-object: zero-based from FixedArray::kHeaderSize.)

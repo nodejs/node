@@ -45,8 +45,8 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   // Bit field containing various information collected for debugging.
   DECL_INT_ACCESSORS(debugger_hints)
 
-  // Function identifier field from shared function info.
-  DECL_ACCESSORS(function_identifier, Object)
+  // Script field from shared function info.
+  DECL_ACCESSORS(script, Object)
 
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;
@@ -168,10 +168,8 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   static const int kSharedFunctionInfoOffset = Struct::kHeaderSize;
   static const int kDebuggerHintsOffset =
       kSharedFunctionInfoOffset + kPointerSize;
-  static const int kFunctionIdentifierOffset =
-      kDebuggerHintsOffset + kPointerSize;
-  static const int kOriginalBytecodeArrayOffset =
-      kFunctionIdentifierOffset + kPointerSize;
+  static const int kScriptOffset = kDebuggerHintsOffset + kPointerSize;
+  static const int kOriginalBytecodeArrayOffset = kScriptOffset + kPointerSize;
   static const int kBreakPointsStateOffset =
       kOriginalBytecodeArrayOffset + kPointerSize;
   static const int kFlagsOffset = kBreakPointsStateOffset + kPointerSize;

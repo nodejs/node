@@ -6,7 +6,7 @@
 #include <sstream>
 #include <utility>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/v8.h"
@@ -1148,7 +1148,7 @@ TEST(SubclassTypedArrayBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-#define TYPED_ARRAY_TEST(Type, type, TYPE, elementType, size) \
+#define TYPED_ARRAY_TEST(Type, type, TYPE, elementType) \
   TestSubclassBuiltin("A" #Type, JS_TYPED_ARRAY_TYPE, #Type "Array", "42");
 
   TYPED_ARRAYS(TYPED_ARRAY_TEST)

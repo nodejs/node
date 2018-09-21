@@ -314,11 +314,11 @@ class LiftoffAssembler : public TurboAssembler {
   // Load parameters into the right registers / stack slots for the call.
   // Move {*target} into another register if needed and update {*target} to that
   // register, or {no_reg} if target was spilled to the stack.
-  void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*,
+  void PrepareCall(FunctionSig*, compiler::CallDescriptor*,
                    Register* target = nullptr,
                    LiftoffRegister* target_instance = nullptr);
   // Process return values of the call.
-  void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
+  void FinishCall(FunctionSig*, compiler::CallDescriptor*);
 
   // Move {src} into {dst}. {src} and {dst} must be different.
   void Move(LiftoffRegister dst, LiftoffRegister src, ValueType);
@@ -362,10 +362,6 @@ class LiftoffAssembler : public TurboAssembler {
                     LiftoffRegister src, StoreType type, LiftoffRegList pinned,
                     uint32_t* protected_store_pc = nullptr,
                     bool is_store_mem = false);
-  inline void ChangeEndiannessLoad(LiftoffRegister dst, LoadType type,
-                                   LiftoffRegList pinned);
-  inline void ChangeEndiannessStore(LiftoffRegister src, StoreType type,
-                                    LiftoffRegList pinned);
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
                                   ValueType);
   inline void MoveStackValue(uint32_t dst_index, uint32_t src_index, ValueType);
@@ -446,6 +442,14 @@ class LiftoffAssembler : public TurboAssembler {
                    LiftoffRegister(rhs));
     } else {
       emit_i32_add(dst, lhs, rhs);
+    }
+  }
+  inline void emit_ptrsize_sub(Register dst, Register lhs, Register rhs) {
+    if (kPointerSize == 8) {
+      emit_i64_sub(LiftoffRegister(dst), LiftoffRegister(lhs),
+                   LiftoffRegister(rhs));
+    } else {
+      emit_i32_sub(dst, lhs, rhs);
     }
   }
 
@@ -532,13 +536,13 @@ class LiftoffAssembler : public TurboAssembler {
   // this is the return value of the C function, stored in {rets[0]}. Further
   // outputs (specified in {sig->returns()}) are read from the buffer and stored
   // in the remaining {rets} registers.
-  inline void CallC(wasm::FunctionSig* sig, const LiftoffRegister* args,
+  inline void CallC(FunctionSig* sig, const LiftoffRegister* args,
                     const LiftoffRegister* rets, ValueType out_argument_type,
                     int stack_bytes, ExternalReference ext_ref);
 
   inline void CallNativeWasmCode(Address addr);
   // Indirect call: If {target == no_reg}, then pop the target from the stack.
-  inline void CallIndirect(wasm::FunctionSig* sig,
+  inline void CallIndirect(FunctionSig* sig,
                            compiler::CallDescriptor* call_descriptor,
                            Register target);
   inline void CallRuntimeStub(WasmCode::RuntimeStubId sid);

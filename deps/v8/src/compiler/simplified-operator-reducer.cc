@@ -33,7 +33,7 @@ Decision DecideObjectIsSmi(Node* const input) {
 }  // namespace
 
 SimplifiedOperatorReducer::SimplifiedOperatorReducer(
-    Editor* editor, JSGraph* jsgraph, const JSHeapBroker* js_heap_broker)
+    Editor* editor, JSGraph* jsgraph, JSHeapBroker* js_heap_broker)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
       js_heap_broker_(js_heap_broker) {}

@@ -27,7 +27,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   SimplifiedOperatorReducer(Editor* editor, JSGraph* jsgraph,
-                            const JSHeapBroker* js_heap_broker);
+                            JSHeapBroker* js_heap_broker);
   ~SimplifiedOperatorReducer() final;
 
   const char* reducer_name() const override {
@@ -56,10 +56,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
   SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* jsgraph() const { return jsgraph_; }
-  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
 
   JSGraph* const jsgraph_;
-  const JSHeapBroker* const js_heap_broker_;
+  JSHeapBroker* const js_heap_broker_;
 
   DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorReducer);
 };

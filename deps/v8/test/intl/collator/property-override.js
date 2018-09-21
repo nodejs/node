@@ -61,5 +61,3 @@ properties.forEach(function(prop) {
 });
 
 taintProperties(properties);
-
-var locale = Intl.Collator().resolvedOptions().locale;

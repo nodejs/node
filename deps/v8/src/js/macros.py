@@ -33,9 +33,6 @@ define READ_ONLY   = 1;
 define DONT_ENUM   = 2;
 define DONT_DELETE = 4;
 
-# 2^53 - 1
-define kMaxSafeInteger = 9007199254740991;
-
 # 2^32 - 1
 define kMaxUint32 = 4294967295;
 
@@ -45,15 +42,12 @@ define kMaxUint32 = 4294967295;
 #       It will *not* generate a runtime typeof call for the most important
 #       values of 'bar'.
 macro IS_ARRAY(arg)             = (%_IsArray(arg));
-macro IS_FUNCTION(arg)          = (%IsFunction(arg));
 macro IS_NULL(arg)              = (arg === null);
 macro IS_NULL_OR_UNDEFINED(arg) = (arg == null);
 macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
 macro IS_STRING(arg)            = (typeof(arg) === 'string');
 macro IS_SYMBOL(arg)            = (typeof(arg) === 'symbol');
 macro IS_UNDEFINED(arg)         = (arg === (void 0));
-macro IS_WEAKMAP(arg)           = (%_IsJSWeakMap(arg));
-macro IS_WEAKSET(arg)           = (%_IsJSWeakSet(arg));
 
 # Macro for ES queries of the type: "Type(O) is Object."
 macro IS_RECEIVER(arg) = (%_IsJSReceiver(arg));

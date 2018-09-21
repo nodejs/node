@@ -34,15 +34,17 @@ void LocalEmbedderHeapTracer::AbortTracing() {
 void LocalEmbedderHeapTracer::EnterFinalPause() {
   if (!InUse()) return;
 
-  remote_tracer_->EnterFinalPause();
+  remote_tracer_->EnterFinalPause(embedder_stack_state_);
+  // Resetting to state unknown as there may be follow up garbage collections
+  // triggered from callbacks that have a different stack state.
+  embedder_stack_state_ = EmbedderHeapTracer::kUnknown;
 }
 
-bool LocalEmbedderHeapTracer::Trace(
-    double deadline, EmbedderHeapTracer::AdvanceTracingActions actions) {
-  if (!InUse()) return false;
+bool LocalEmbedderHeapTracer::Trace(double deadline) {
+  if (!InUse()) return true;
 
   DCHECK_EQ(0, NumberOfCachedWrappersToTrace());
-  return remote_tracer_->AdvanceTracing(deadline, actions);
+  return remote_tracer_->AdvanceTracing(deadline);
 }
 
 bool LocalEmbedderHeapTracer::IsRemoteTracingDone() {
@@ -65,6 +67,13 @@ void LocalEmbedderHeapTracer::RegisterWrappersWithRemoteTracer() {
 bool LocalEmbedderHeapTracer::RequiresImmediateWrapperProcessing() {
   const size_t kTooManyWrappers = 16000;
   return cached_wrappers_to_trace_.size() > kTooManyWrappers;
+}
+
+void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
+    EmbedderHeapTracer::EmbedderStackState stack_state) {
+  if (!InUse()) return;
+
+  embedder_stack_state_ = stack_state;
 }
 
 }  // namespace internal

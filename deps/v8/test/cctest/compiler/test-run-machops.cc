@@ -85,11 +85,7 @@ TEST(RunWord32ReverseBits) {
 
 TEST(RunWord32ReverseBytes) {
   BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
-  if (!m.machine()->Word32ReverseBytes().IsSupported()) {
-    // We can only test the operator if it exists on the testing platform.
-    return;
-  }
-  m.Return(m.AddNode(m.machine()->Word32ReverseBytes().op(), m.Parameter(0)));
+  m.Return(m.AddNode(m.machine()->Word32ReverseBytes(), m.Parameter(0)));
 
   CHECK_EQ(uint32_t(0x00000000), m.Call(uint32_t(0x00000000)));
   CHECK_EQ(uint32_t(0x12345678), m.Call(uint32_t(0x78563412)));
@@ -224,11 +220,7 @@ TEST(RunWord64ReverseBits) {
 
 TEST(RunWord64ReverseBytes) {
   BufferedRawMachineAssemblerTester<uint64_t> m(MachineType::Uint64());
-  if (!m.machine()->Word64ReverseBytes().IsSupported()) {
-    return;
-  }
-
-  m.Return(m.AddNode(m.machine()->Word64ReverseBytes().op(), m.Parameter(0)));
+  m.Return(m.AddNode(m.machine()->Word64ReverseBytes(), m.Parameter(0)));
 
   CHECK_EQ(uint64_t(0x0000000000000000), m.Call(uint64_t(0x0000000000000000)));
   CHECK_EQ(uint64_t(0x1234567890ABCDEF), m.Call(uint64_t(0xEFCDAB9078563412)));
@@ -2396,7 +2388,7 @@ TEST(RunWord32AndP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Int32BinopTester bt(&m);
-    bt.AddReturn(m.Word32And(bt.param0, m.Word32Not(bt.param1)));
+    bt.AddReturn(m.Word32And(bt.param0, m.Word32BitwiseNot(bt.param1)));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
         int32_t expected = *i & ~(*j);
@@ -2407,7 +2399,7 @@ TEST(RunWord32AndP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Int32BinopTester bt(&m);
-    bt.AddReturn(m.Word32And(m.Word32Not(bt.param0), bt.param1));
+    bt.AddReturn(m.Word32And(m.Word32BitwiseNot(bt.param0), bt.param1));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
         int32_t expected = ~(*i) & *j;
@@ -2516,7 +2508,8 @@ TEST(RunWord32AndImm) {
   {
     FOR_UINT32_INPUTS(i) {
       RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
-      m.Return(m.Word32And(m.Int32Constant(*i), m.Word32Not(m.Parameter(0))));
+      m.Return(
+          m.Word32And(m.Int32Constant(*i), m.Word32BitwiseNot(m.Parameter(0))));
       FOR_UINT32_INPUTS(j) {
         uint32_t expected = *i & ~(*j);
         CHECK_EQ(expected, m.Call(*j));
@@ -2709,7 +2702,7 @@ TEST(RunWord32OrP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Uint32BinopTester bt(&m);
-    bt.AddReturn(m.Word32Or(bt.param0, m.Word32Not(bt.param1)));
+    bt.AddReturn(m.Word32Or(bt.param0, m.Word32BitwiseNot(bt.param1)));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
         uint32_t expected = *i | ~(*j);
@@ -2720,7 +2713,7 @@ TEST(RunWord32OrP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Uint32BinopTester bt(&m);
-    bt.AddReturn(m.Word32Or(m.Word32Not(bt.param0), bt.param1));
+    bt.AddReturn(m.Word32Or(m.Word32BitwiseNot(bt.param0), bt.param1));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
         uint32_t expected = ~(*i) | *j;
@@ -2745,7 +2738,8 @@ TEST(RunWord32OrImm) {
   {
     FOR_UINT32_INPUTS(i) {
       RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
-      m.Return(m.Word32Or(m.Int32Constant(*i), m.Word32Not(m.Parameter(0))));
+      m.Return(
+          m.Word32Or(m.Int32Constant(*i), m.Word32BitwiseNot(m.Parameter(0))));
       FOR_UINT32_INPUTS(j) {
         uint32_t expected = *i | ~(*j);
         CHECK_EQ(expected, m.Call(*j));
@@ -2947,7 +2941,7 @@ TEST(RunWord32XorP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Int32BinopTester bt(&m);
-    bt.AddReturn(m.Word32Xor(bt.param0, m.Word32Not(bt.param1)));
+    bt.AddReturn(m.Word32Xor(bt.param0, m.Word32BitwiseNot(bt.param1)));
     FOR_INT32_INPUTS(i) {
       FOR_INT32_INPUTS(j) {
         int32_t expected = *i ^ ~(*j);
@@ -2958,7 +2952,7 @@ TEST(RunWord32XorP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Int32BinopTester bt(&m);
-    bt.AddReturn(m.Word32Xor(m.Word32Not(bt.param0), bt.param1));
+    bt.AddReturn(m.Word32Xor(m.Word32BitwiseNot(bt.param0), bt.param1));
     FOR_INT32_INPUTS(i) {
       FOR_INT32_INPUTS(j) {
         int32_t expected = ~(*i) ^ *j;
@@ -2969,7 +2963,8 @@ TEST(RunWord32XorP) {
   {
     FOR_UINT32_INPUTS(i) {
       RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
-      m.Return(m.Word32Xor(m.Int32Constant(*i), m.Word32Not(m.Parameter(0))));
+      m.Return(
+          m.Word32Xor(m.Int32Constant(*i), m.Word32BitwiseNot(m.Parameter(0))));
       FOR_UINT32_INPUTS(j) {
         uint32_t expected = *i ^ ~(*j);
         CHECK_EQ(expected, m.Call(*j));
@@ -3454,10 +3449,9 @@ TEST(RunWord32RorInComparison) {
   }
 }
 
-
-TEST(RunWord32NotP) {
+TEST(RunWord32BitwiseNotP) {
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
-  m.Return(m.Word32Not(m.Parameter(0)));
+  m.Return(m.Word32BitwiseNot(m.Parameter(0)));
   FOR_INT32_INPUTS(i) {
     int expected = ~(*i);
     CHECK_EQ(expected, m.Call(*i));

@@ -61,9 +61,6 @@ bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
                                                                   behavior);
 }
 
-void EnsureEventLoopInitialized(v8::Platform* platform, v8::Isolate* isolate) {
-}
-
 void RunIdleTasks(v8::Platform* platform, v8::Isolate* isolate,
                   double idle_time_in_seconds) {
   static_cast<DefaultPlatform*>(platform)->RunIdleTasks(isolate,

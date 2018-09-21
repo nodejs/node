@@ -2,6 +2,11 @@ table.calltree {
   width : 100%;
 }
 
+td {
+  padding-top: 0.1em;
+  padding-bottom: 0.1em;
+}
+
 .numeric {
   width : 12ex;
 }
@@ -14,27 +19,25 @@ body {
   font-family: 'Roboto', sans-serif;
 }
 
-div.code-type-chip {
-  display : inline-block;
-  padding : 0.0em;
+.tree-row-arrow {
+  margin-right: 0.2em;
+  text-align: right;
 }
 
-span.code-type-chip {
+.code-type-chip {
   border-radius : 1em;
-  display : inline-block;
-  padding : 0.1em;
+  padding : 0.2em;
   background-color : #4040c0;
   color: #ffffff;
   font-size : small;
   box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
 }
 
-span.code-type-chip-space {
-  width : 0.5ex;
-  display : inline-block;
+.tree-row-name {
+  margin-left: 0.2em;
 }
 
-span.codeid-link {
+.codeid-link {
   text-decoration: underline;
   cursor: pointer;
 }
