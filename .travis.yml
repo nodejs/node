@@ -10,8 +10,6 @@ matrix:
       node_js: "latest"
       env: 
         - NODE=$(which node)
-      install:
-        - make lint-md-build
       script:
         - make lint
     - name: "Test Suite"
