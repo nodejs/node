@@ -79,6 +79,23 @@ function nextdir() {
   assert.strictEqual(fixtureCoverage.functions[2].ranges[1].count, 0);
 }
 
+// outputs coverage from worker.
+{
+  const coverageDirectory = path.join(tmpdir.path, nextdir());
+  const output = spawnSync(process.execPath, [
+    '--experimental-worker',
+    require.resolve('../fixtures/v8-coverage/worker')
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  assert.strictEqual(output.status, 0);
+  const fixtureCoverage = getFixtureCoverage('subprocess.js',
+                                             coverageDirectory);
+  assert.ok(fixtureCoverage);
+  // first branch executed.
+  assert.strictEqual(fixtureCoverage.functions[2].ranges[0].count, 1);
+  // second branch did not execute.
+  assert.strictEqual(fixtureCoverage.functions[2].ranges[1].count, 0);
+}
+
 // does not output coverage if NODE_V8_COVERAGE is empty.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
