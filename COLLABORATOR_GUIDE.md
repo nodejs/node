@@ -1,7 +1,10 @@
 # Node.js Collaborator Guide
+<<<<<<< HEAD
 
 ## Contents
 
+=======
+>>>>>>> 3
 * [Issues and Pull Requests](#issues-and-pull-requests)
   - [Managing Issues and Pull Requests](#managing-issues-and-pull-requests)
   - [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
@@ -50,6 +53,7 @@ understand the project governance model as outlined in
 
 ### Managing Issues and Pull Requests
 
+<<<<<<< HEAD
 Collaborators should take full responsibility for managing issues and pull
 requests they feel qualified to handle. Make sure this is done while being
 mindful of these guidelines, the opinions of other Collaborators, and guidance
@@ -73,6 +77,13 @@ pull request lands.
 ### Closing Issues and Pull Requests
 
 Collaborators may close any issue or pull request they believe is
+=======
+Collaborators should feel free to take full responsibility for
+managing issues and pull requests they feel qualified to handle, as
+long as this is done while being mindful of these guidelines, the
+opinions of other Collaborators and guidance of the TC.
+Collaborators may **close** any issue or pull request they believe is
+>>>>>>> 3
 not relevant for the future of the Node.js project. Where this is
 unclear, the issue should be left open for several days to allow for
 additional discussion. Where this does not yield input from Node.js
@@ -80,6 +91,7 @@ Collaborators or additional evidence that the issue has relevance, the
 issue may be closed. Remember that issues can always be re-opened if
 necessary.
 
+<<<<<<< HEAD
 ### Author ready pull requests
 
 A pull request that is still awaiting the minimum review time is considered
@@ -111,6 +123,11 @@ code cannot be tested with a CI or similar). If that is the case, please leave a
 comment that explains why the PR does not require a CI run.
 
 ### Code Reviews
+=======
+All modifications to the Node.js code and documentation should be
+performed via GitHub pull requests, including modifications by
+Collaborators and TC members.
+>>>>>>> 3
 
 All pull requests must be reviewed and accepted by a Collaborator with
 sufficient expertise who is able to take full responsibility for the
@@ -175,6 +192,7 @@ week and 72 hours over weekends to account for international time
 differences and work schedules. However, certain types of pull requests
 can be fast-tracked and may be landed after a shorter delay. For example:
 
+<<<<<<< HEAD
 * Focused changes that affect only documentation and/or the test suite:
   * `code-and-learn` tasks typically fall into this category.
   * `good-first-issue` pull requests may also be suitable.
@@ -186,6 +204,13 @@ When a pull request is deemed suitable to be fast-tracked, label it with
 `fast-track`. The pull request can be landed once 2 or more Collaborators
 approve both the pull request and the fast-tracking request, and the necessary
 CI testing is done.
+=======
+All bugfixes require a test case which demonstrates the defect. The
+test should *fail* before the change, and *pass* after the change.
+All pull requests that modify executable code should be subjected to
+continuous integration tests on the
+[project CI server](https://ci.nodejs.org/).
+>>>>>>> 3
 
 ### Testing and CI
 
@@ -562,14 +587,19 @@ Checkout proper target branch:
 ```text
 $ git checkout master
 ```
+<<<<<<< HEAD
 
 Update the tree (assumes your repo is set up as detailed in
 [CONTRIBUTING.md](./doc/guides/contributing/pull-requests.md#step-1-fork)):
 
+=======
+Update the tree
+>>>>>>> 3
 ```text
 $ git fetch upstream
 $ git merge --ff-only upstream/master
 ```
+<<<<<<< HEAD
 
 Apply external patches:
 
@@ -592,12 +622,23 @@ to rebase.
 
 Check and re-review the changes:
 
+=======
+Apply external patches
+```text
+$ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
+```
+Check and re-review the changes
+>>>>>>> 3
 ```text
 $ git diff upstream/master
 ```
+<<<<<<< HEAD
 
 Check the number of commits and commit messages:
 
+=======
+Check number of commits and commit messages
+>>>>>>> 3
 ```text
 $ git log upstream/master...master
 ```
@@ -607,7 +648,6 @@ Squash commits and add metadata:
 ```text
 $ git rebase -i upstream/master
 ```
-
 This will open a screen like this (in the default shell editor):
 
 ```text
@@ -658,6 +698,7 @@ Save the file and close the editor. You'll be asked to enter a new
 commit message for that commit. This is a good moment to fix incorrect
 commit logs, ensure that they are properly formatted, and add
 `Reviewed-By` lines.
+<<<<<<< HEAD
 
 * The commit message text must conform to the
 [commit message guidelines](./doc/guides/contributing/pull-requests.md#commit-message-guidelines).
@@ -699,8 +740,9 @@ When the pull request is closed, this will cause the pull request to
 show the purple merged status rather than the red closed status that is
 usually used for pull requests that weren't merged.
 
+=======
+>>>>>>> 3
 Time to push it:
-
 ```text
 $ git push upstream master
 ```
@@ -736,12 +778,15 @@ git pull upstream master --rebase
 make -j4 test
 git push upstream master
 ```
-
 ### I Just Made a Mistake
+<<<<<<< HEAD
 
 * Ping a TSC member.
 * `#node-dev` on freenode
 * With `git`, there's a way to override remote trees by force pushing
+=======
+With `git`, there's a way to override remote trees by force pushing
+>>>>>>> 3
 (`git push -f`). This should generally be seen as forbidden (since
 you're rewriting history on a repository other people are working
 against) but is allowed for simpler slip-ups such as typos in commit
@@ -749,12 +794,14 @@ messages. However, you are only allowed to force push to any Node.js
 branch within 10 minutes from your original push. If someone else
 pushes to the branch or the 10 minute period passes, consider the
 commit final.
+<<<<<<< HEAD
   * Use `--force-with-lease` to minimize the chance of overwriting
   someone else's change.
   * Post to `#node-dev` (IRC) if you force push.
 
+=======
+>>>>>>> 3
 ### Long Term Support
-
 #### What is LTS?
 
 Long Term Support (often referred to as *LTS*) guarantees application developers
