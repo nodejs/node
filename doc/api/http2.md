@@ -416,7 +416,7 @@ Transmits a `GOAWAY` frame to the connected peer *without* shutting down the
 added: REPLACEME
 -->
 
-* { double }
+* {number}
 
 A timestamp indicating the moment the most recently received communication of
 any kind was received from the connected peer. A value of `0` indicates that
