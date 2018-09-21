@@ -1468,6 +1468,11 @@ void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
 
 // Called by OnFrameReceived when a complete PING frame has been received.
 inline void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env()->context();
+  Context::Scope context_scope(context);
+  Local<Value> arg;
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
   if (ack) {
     Http2Ping* ping = PopPing();
@@ -1479,16 +1484,15 @@ inline void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
       // receive an unsolicited PING ack on a connection. Either the peer
       // is buggy or malicious, and we're not going to tolerate such
       // nonsense.
-      Isolate* isolate = env()->isolate();
-      HandleScope scope(isolate);
-      Local<Context> context = env()->context();
-      Context::Scope context_scope(context);
-
-      Local<Value> argv[1] = {
-        Integer::New(isolate, NGHTTP2_ERR_PROTO),
-      };
-      MakeCallback(env()->error_string(), arraysize(argv), argv);
+      arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
+      MakeCallback(env()->error_string(), 1, &arg);
     }
+  } else {
+    // Notify the session that a ping occurred
+    arg = Buffer::Copy(env(),
+                       reinterpret_cast<const char*>(frame->ping.opaque_data),
+                       8).ToLocalChecked();
+    MakeCallback(env()->onping_string(), 1, &arg);
   }
 }
 

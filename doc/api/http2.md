@@ -217,6 +217,16 @@ session.on('localSettings', (settings) => {
 });
 ```
 
+#### Event: 'ping'
+<!-- YAML
+added: REPLACEME
+-->
+
+* `payload` {Buffer} The `PING` frame 8-byte payload
+
+The `'ping'` event is emitted whenever a `PING` frame is received from the
+connected peer.
+
 #### Event: 'remoteSettings'
 <!-- YAML
 added: v8.4.0
