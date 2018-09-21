@@ -229,6 +229,7 @@ struct PackageConfig {
   V(onread_string, "onread")                                                  \
   V(onreadstart_string, "onreadstart")                                        \
   V(onreadstop_string, "onreadstop")                                          \
+  V(onping_string, "onping")                                                  \
   V(onsettings_string, "onsettings")                                          \
   V(onshutdown_string, "onshutdown")                                          \
   V(onsignal_string, "onsignal")                                              \
