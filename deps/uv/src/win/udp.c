@@ -366,7 +366,7 @@ int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
   int err;
 
   if (handle->flags & UV_HANDLE_READING) {
-    return WSAEALREADY;
+    return UV_EALREADY;
   }
 
   err = uv_udp_maybe_bind(handle,
@@ -374,7 +374,7 @@ int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
                           sizeof(uv_addr_ip4_any_),
                           0);
   if (err)
-    return err;
+    return uv_translate_sys_error(err);
 
   handle->flags |= UV_HANDLE_READING;
   INCREASE_ACTIVE_COUNT(loop, handle);

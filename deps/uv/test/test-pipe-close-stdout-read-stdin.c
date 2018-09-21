@@ -66,7 +66,8 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
     */
     close(fd[1]);
     /* block until write end of pipe is closed */
-    read(fd[0], &buf, 1);
+    r = read(fd[0], &buf, 1);
+    ASSERT(-1 <= r && r <= 1);
     close(0);
     r = dup(fd[0]);
     ASSERT(r != -1);

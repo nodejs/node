@@ -1733,6 +1733,7 @@ TEST_IMPL(spawn_inherit_streams) {
   uv_buf_t buf;
   unsigned int i;
   int r;
+  int bidir;
   uv_write_t write_req;
   uv_loop_t* loop;
 
@@ -1751,6 +1752,15 @@ TEST_IMPL(spawn_inherit_streams) {
   ASSERT(uv_pipe_open(&pipe_stdout_child, fds_stdout[1]) == 0);
   ASSERT(uv_pipe_open(&pipe_stdin_parent, fds_stdin[1]) == 0);
   ASSERT(uv_pipe_open(&pipe_stdout_parent, fds_stdout[0]) == 0);
+  ASSERT(uv_is_readable((uv_stream_t*) &pipe_stdin_child));
+  ASSERT(uv_is_writable((uv_stream_t*) &pipe_stdout_child));
+  ASSERT(uv_is_writable((uv_stream_t*) &pipe_stdin_parent));
+  ASSERT(uv_is_readable((uv_stream_t*) &pipe_stdout_parent));
+  /* Some systems (SVR4) open a bidirectional pipe, most don't. */
+  bidir = uv_is_writable((uv_stream_t*) &pipe_stdin_child);
+  ASSERT(uv_is_readable((uv_stream_t*) &pipe_stdout_child) == bidir);
+  ASSERT(uv_is_readable((uv_stream_t*) &pipe_stdin_parent) == bidir);
+  ASSERT(uv_is_writable((uv_stream_t*) &pipe_stdout_parent) == bidir);
 
   child_stdio[0].flags = UV_INHERIT_STREAM;
   child_stdio[0].data.stream = (uv_stream_t *)&pipe_stdin_child;
