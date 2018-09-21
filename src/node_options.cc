@@ -221,6 +221,9 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
             kAllowedInEnvironment);
 
   AddOption("--security-reverts", "", &PerProcessOptions::security_reverts);
+  AddOption("--completion-bash",
+            "print source-able bash completion script",
+            &PerProcessOptions::print_bash_completion);
   AddOption("--help",
             "print node command line options",
             &PerProcessOptions::print_help);

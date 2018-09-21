@@ -52,6 +52,17 @@ If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
 `domain` module that uses it).
 
+### `--completion-bash`
+<!-- YAML
+added: REPLACEME
+-->
+
+Print source-able bash completion script for Node.js.
+```console
+$ node --completion-bash > node_bash_completion
+$ source node_bash_completion
+```
+
 ### `--enable-fips`
 <!-- YAML
 added: v6.0.0
