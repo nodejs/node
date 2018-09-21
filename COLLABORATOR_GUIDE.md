@@ -699,9 +699,12 @@ $ git rev-list upstream/master...HEAD | xargs core-validate-commit
 Optional: When landing your own commits, force push the amended commit to the
 branch you used to open the pull request. If your branch is called `bugfix`,
 then the command would be `git push --force-with-lease origin master:bugfix`.
-When the pull request is closed, this will cause the pull request to
-show the purple merged status rather than the red closed status that is
-usually used for pull requests that weren't merged.
+Don't manually close the PR, GitHub will close it automatically later after you
+push it upstream, and will mark it with the purple merged status rather than the
+red closed status. If you close the PR before GitHub adjusts its status, it will
+show up as a 0 commit PR and the changed file history will be empty. Also if you
+push upstream before you push to your branch, GitHub will close the issue with
+red status so the order of operations is important.
 
 Time to push it:
 
