@@ -135,9 +135,9 @@ all directories names contained in a `path`
 
 ```js
 // Windows path - gives [ 'D:', 'DDL', 'ANIME', 'les chevaliers du zodiaques' ]
-path.directoriesNames("D:\\DDL\\ANIME\\les chevaliers du zodiaques\\whateverFile.avi");
+path.directoriesNames('D:\\DDL\\ANIME\\les chevaliers du zodiaques\\aFile.avi');
 // POSIX path - gives [ '/' ]
-path.directoriesNames("/foo");
+path.directoriesNames('/foo');
 ```
 
 A [`TypeError`][] is thrown if `path` is not a string.
