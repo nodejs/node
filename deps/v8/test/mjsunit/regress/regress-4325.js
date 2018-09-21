@@ -23,7 +23,7 @@ i1.p1 = 0.5;
 // Let Inner.map1 die by migrating i2 to Inner.map2:
 print(i2.p1);
 gc();
-// o1.map's descriptor for "inner" is now a cleared WeakCell;
+// o1.map's descriptor for "inner" is now a cleared weak reference;
 // o1.inner's actual map is Inner.map2.
 // Prepare Inner.map3, deprecating Inner.map2.
 i2.p2 = 0.5;

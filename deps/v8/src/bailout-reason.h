@@ -5,6 +5,8 @@
 #ifndef V8_BAILOUT_REASON_H_
 #define V8_BAILOUT_REASON_H_
 
+#include <cstdint>
+
 namespace v8 {
 namespace internal {
 
@@ -114,17 +116,18 @@ namespace internal {
   V(kOptimizationDisabledForTest, "Optimization disabled for test")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
-enum class BailoutReason {
+enum class BailoutReason : uint8_t {
   BAILOUT_MESSAGES_LIST(ERROR_MESSAGES_CONSTANTS) kLastErrorMessage
 };
 
-enum class AbortReason {
+enum class AbortReason : uint8_t {
   ABORT_MESSAGES_LIST(ERROR_MESSAGES_CONSTANTS) kLastErrorMessage
 };
 #undef ERROR_MESSAGES_CONSTANTS
 
 const char* GetBailoutReason(BailoutReason reason);
 const char* GetAbortReason(AbortReason reason);
+bool IsValidAbortReason(int reason_id);
 
 }  // namespace internal
 }  // namespace v8

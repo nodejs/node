@@ -93,6 +93,8 @@ class IC {
 
   // Configure for most states.
   bool ConfigureVectorState(IC::State new_state, Handle<Object> key);
+  // Configure the vector for PREMONOMORPHIC.
+  void ConfigureVectorState(Handle<Map> map);
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             Handle<Object> handler);
@@ -140,13 +142,7 @@ class IC {
   bool ShouldRecomputeHandler(Handle<String> name);
 
   Handle<Map> receiver_map() { return receiver_map_; }
-  void update_receiver_map(Handle<Object> receiver) {
-    if (receiver->IsSmi()) {
-      receiver_map_ = isolate_->factory()->heap_number_map();
-    } else {
-      receiver_map_ = handle(HeapObject::cast(*receiver)->map(), isolate_);
-    }
-  }
+  inline void update_receiver_map(Handle<Object> receiver);
 
   void TargetMaps(MapHandles* list) {
     FindTargetMaps();

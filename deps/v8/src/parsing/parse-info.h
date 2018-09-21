@@ -54,12 +54,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   Zone* zone() const { return zone_.get(); }
 
-  // Sets this parse info to share the same zone as |other|
-  void ShareZone(ParseInfo* other);
-
-  // Sets this parse info to share the same ast value factory as |other|
-  void ShareAstValueFactory(ParseInfo* other);
-
 // Convenience accessor methods for flags.
 #define FLAG_ACCESSOR(flag, getter, setter)     \
   bool getter() const { return GetFlag(flag); } \
@@ -86,6 +80,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kWrappedAsFunction, is_wrapped_as_function,
                 set_wrapped_as_function)
   FLAG_ACCESSOR(kAllowEvalCache, allow_eval_cache, set_allow_eval_cache)
+  FLAG_ACCESSOR(kIsDeclaration, is_declaration, set_declaration)
+  FLAG_ACCESSOR(kRequiresInstanceFieldsInitializer,
+                requires_instance_fields_initializer,
+                set_requires_instance_fields_initializer);
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -143,11 +141,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   uint64_t hash_seed() const { return hash_seed_; }
   void set_hash_seed(uint64_t hash_seed) { hash_seed_ = hash_seed; }
 
-  int function_flags() const { return function_flags_; }
-  void set_function_flags(int function_flags) {
-    function_flags_ = function_flags;
-  }
-
   int start_position() const { return start_position_; }
   void set_start_position(int start_position) {
     start_position_ = start_position;
@@ -164,6 +157,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int function_literal_id() const { return function_literal_id_; }
   void set_function_literal_id(int function_literal_id) {
     function_literal_id_ = function_literal_id;
+  }
+
+  FunctionKind function_kind() const { return function_kind_; }
+  void set_function_kind(FunctionKind function_kind) {
+    function_kind_ = function_kind;
   }
 
   int max_function_literal_id() const { return max_function_literal_id_; }
@@ -195,11 +193,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   PendingCompilationErrorHandler* pending_error_handler() {
     return &pending_error_handler_;
   }
-
-  // Getters for individual function flags.
-  bool is_declaration() const;
-  FunctionKind function_kind() const;
-  bool requires_instance_fields_initializer() const;
 
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
@@ -249,19 +242,19 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kOnBackgroundThread = 1 << 13,
     kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
     kAllowEvalCache = 1 << 15,
+    kIsDeclaration = 1 << 16,
+    kRequiresInstanceFieldsInitializer = 1 << 17,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
-  std::shared_ptr<Zone> zone_;
+  std::unique_ptr<Zone> zone_;
   unsigned flags_;
   v8::Extension* extension_;
   DeclarationScope* script_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint64_t hash_seed_;
-  // TODO(leszeks): Move any remaining flags used here either to the flags_
-  // field or to other fields.
-  int function_flags_;
+  FunctionKind function_kind_;
   int script_id_;
   int start_position_;
   int end_position_;
@@ -276,7 +269,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
-  std::shared_ptr<AstValueFactory> ast_value_factory_;
+  std::unique_ptr<AstValueFactory> ast_value_factory_;
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
@@ -285,7 +278,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
-  std::shared_ptr<DeferredHandles> deferred_handles_;
   PendingCompilationErrorHandler pending_error_handler_;
 
   void SetFlag(Flag f) { flags_ |= f; }

@@ -34,7 +34,7 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/hashmap.h"
 #include "src/collector.h"
@@ -49,7 +49,9 @@ using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
 using i::ArrayVector;
+using i::SourceLocation;
 using i::Vector;
+using v8::base::Optional;
 
 namespace {
 
@@ -149,6 +151,23 @@ static const v8::HeapGraphEdge* GetEdgeByChildName(
 static const v8::HeapGraphNode* GetRootChild(const v8::HeapSnapshot* snapshot,
                                              const char* name) {
   return GetChildByName(snapshot->GetRoot(), name);
+}
+
+static Optional<SourceLocation> GetLocation(const v8::HeapSnapshot* s,
+                                            const v8::HeapGraphNode* node) {
+  const i::HeapSnapshot* snapshot = reinterpret_cast<const i::HeapSnapshot*>(s);
+  const std::vector<SourceLocation>& locations = snapshot->locations();
+  const int index =
+      const_cast<i::HeapEntry*>(reinterpret_cast<const i::HeapEntry*>(node))
+          ->index();
+
+  for (const auto& loc : locations) {
+    if (loc.entry_index == index) {
+      return Optional<SourceLocation>(loc);
+    }
+  }
+
+  return Optional<SourceLocation>();
 }
 
 static const v8::HeapGraphNode* GetProperty(v8::Isolate* isolate,
@@ -258,6 +277,49 @@ TEST(HeapSnapshot) {
   CHECK(det.has_C2);
 }
 
+TEST(HeapSnapshotLocations) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun(
+      "function X(a) { return function() { return a; } }\n"
+      "function* getid() { yield 1; }\n"
+      "class A {}\n"
+      "var x = X(1);\n"
+      "var g = getid();\n"
+      "var o = new A();");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* x =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "x");
+  CHECK(x);
+
+  Optional<SourceLocation> x_loc = GetLocation(snapshot, x);
+  CHECK(x_loc);
+  CHECK_EQ(0, x_loc->line);
+  CHECK_EQ(31, x_loc->col);
+
+  const v8::HeapGraphNode* g =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "g");
+  CHECK(x);
+
+  Optional<SourceLocation> g_loc = GetLocation(snapshot, g);
+  CHECK(g_loc);
+  CHECK_EQ(1, g_loc->line);
+  CHECK_EQ(15, g_loc->col);
+
+  const v8::HeapGraphNode* o =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "o");
+  CHECK(x);
+
+  Optional<SourceLocation> o_loc = GetLocation(snapshot, o);
+  CHECK(o_loc);
+  CHECK_EQ(2, o_loc->line);
+  CHECK_EQ(0, o_loc->col);
+}
 
 TEST(HeapSnapshotObjectSizes) {
   LocalContext env;
@@ -1045,6 +1107,7 @@ TEST(HeapSnapshotJSONSerialization) {
   CHECK(parsed_snapshot->Has(env.local(), v8_str("snapshot")).FromJust());
   CHECK(parsed_snapshot->Has(env.local(), v8_str("nodes")).FromJust());
   CHECK(parsed_snapshot->Has(env.local(), v8_str("edges")).FromJust());
+  CHECK(parsed_snapshot->Has(env.local(), v8_str("locations")).FromJust());
   CHECK(parsed_snapshot->Has(env.local(), v8_str("strings")).FromJust());
 
   // Get node and edge "member" offsets.
@@ -1869,6 +1932,63 @@ static int StringCmp(const char* ref, i::String* act) {
   return result;
 }
 
+TEST(GetConstructor) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  CompileRun(
+      "function Constructor1() {};\n"
+      "var obj1 = new Constructor1();\n"
+      "var Constructor2 = function() {};\n"
+      "var obj2 = new Constructor2();\n"
+      "var obj3 = {};\n"
+      "obj3.__proto__ = { constructor: function Constructor3() {} };\n"
+      "var obj4 = {};\n"
+      "// Slow properties\n"
+      "for (var i=0; i<2000; ++i) obj4[\"p\" + i] = i;\n"
+      "obj4.__proto__ = { constructor: function Constructor4() {} };\n"
+      "var obj5 = {};\n"
+      "var obj6 = {};\n"
+      "obj6.constructor = 6;");
+  v8::Local<v8::Object> js_global =
+      env->Global()->GetPrototype().As<v8::Object>();
+  v8::Local<v8::Object> obj1 = js_global->Get(env.local(), v8_str("obj1"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj1 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj1));
+  v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj2 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj2));
+  v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj3 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj3));
+  v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj4 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj4));
+  v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj5 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
+  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj5));
+  v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj6 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
+  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj6));
+}
 
 TEST(GetConstructorName) {
   LocalContext env;
@@ -2134,6 +2254,35 @@ TEST(AccessorInfo) {
   CHECK(setter);
 }
 
+TEST(JSGeneratorObject) {
+  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  CompileRun(
+      "function* foo() { yield 1; }\n"
+      "g = foo();\n");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* g =
+      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "g");
+  CHECK(g);
+  const v8::HeapGraphNode* function = GetProperty(
+      env->GetIsolate(), g, v8::HeapGraphEdge::kInternal, "function");
+  CHECK(function);
+  const v8::HeapGraphNode* context = GetProperty(
+      env->GetIsolate(), g, v8::HeapGraphEdge::kInternal, "context");
+  CHECK(context);
+  const v8::HeapGraphNode* receiver = GetProperty(
+      env->GetIsolate(), g, v8::HeapGraphEdge::kInternal, "receiver");
+  CHECK(receiver);
+  const v8::HeapGraphNode* parameters_and_registers =
+      GetProperty(env->GetIsolate(), g, v8::HeapGraphEdge::kInternal,
+                  "parameters_and_registers");
+  CHECK(parameters_and_registers);
+}
 
 bool HasWeakEdge(const v8::HeapGraphNode* node) {
   for (int i = 0; i < node->GetChildrenCount(); ++i) {
@@ -3436,11 +3585,17 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
   // what we expect in this test.
   v8::internal::FLAG_always_opt = false;
 
+  // Disable compilation cache to force compilation in both cases
+  v8::internal::FLAG_compilation_cache = false;
+
   // Suppress randomness to avoid flakiness in tests.
   v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
 
   // stress_incremental_marking adds randomness to the test.
   v8::internal::FLAG_stress_incremental_marking = false;
+
+  // warmup compilation
+  CompileRun(simple_sampling_heap_profiler_script);
 
   int count_1024 = 0;
   {

@@ -130,13 +130,11 @@ Context* Context::script_context() {
   return current;
 }
 
-
-JSObject* Context::global_proxy() {
+JSGlobalProxy* Context::global_proxy() {
   return native_context()->global_proxy_object();
 }
 
-
-void Context::set_global_proxy(JSObject* object) {
+void Context::set_global_proxy(JSGlobalProxy* object) {
   native_context()->set_global_proxy_object(object);
 }
 

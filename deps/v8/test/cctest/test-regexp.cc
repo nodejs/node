@@ -32,7 +32,7 @@
 #include "include/v8.h"
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"

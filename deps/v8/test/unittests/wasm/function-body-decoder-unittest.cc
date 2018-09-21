@@ -92,6 +92,9 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 class FunctionBodyDecoderTest : public TestWithZone {
  public:
   typedef std::pair<uint32_t, ValueType> LocalsDecl;
+  // All features are disabled by default and must be activated with
+  // a WASM_FEATURE_SCOPE in individual tests.
+  WasmFeatures enabled_features_;
 
   FunctionBodyDecoderTest() : module(nullptr), local_decls(zone()) {}
 
@@ -133,8 +136,11 @@ class FunctionBodyDecoderTest : public TestWithZone {
     PrepareBytecode(&start, &end, append_end);
 
     // Verify the code.
+    FunctionBody body(sig, 0, start, end);
+    WasmFeatures unused_detected_features;
     DecodeResult result =
-        VerifyWasmCode(zone()->allocator(), module, sig, start, end);
+        VerifyWasmCode(zone()->allocator(), enabled_features_, module,
+                       &unused_detected_features, body);
 
     uint32_t pc = result.error_offset();
     std::ostringstream str;
@@ -197,6 +203,17 @@ class FunctionBodyDecoderTest : public TestWithZone {
 };
 
 namespace {
+
+class EnableBoolScope {
+ public:
+  bool prev_;
+  bool* ptr_;
+  explicit EnableBoolScope(bool* ptr) : prev_(*ptr), ptr_(ptr) { *ptr = true; }
+  ~EnableBoolScope() { *ptr_ = prev_; }
+};
+
+#define WASM_FEATURE_SCOPE(feat) \
+  EnableBoolScope feat##_scope(&this->enabled_features_.feat);
 
 constexpr size_t kMaxByteSizedLeb128 = 127;
 
@@ -263,7 +280,7 @@ TEST_F(FunctionBodyDecoderTest, Int32Const1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefNull) {
-  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, true);
+  WASM_FEATURE_SCOPE(anyref);
   byte code[] = {kExprRefNull};
   EXPECT_VERIFIES_C(r_v, code);
 }
@@ -1236,8 +1253,8 @@ TEST_F(FunctionBodyDecoderTest, MacrosInt64) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AllSimpleExpressions) {
-  EXPERIMENTAL_FLAG_SCOPE(se);
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(se);
+  WASM_FEATURE_SCOPE(anyref);
 // Test all simple expressions which are described by a signature.
 #define DECODE_TEST(name, opcode, sig)                      \
   {                                                         \
@@ -1476,7 +1493,7 @@ TEST_F(FunctionBodyDecoderTest, CallsWithMismatchedSigs3) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiReturn) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   ValueType storage[] = {kWasmI32, kWasmI32};
   FunctionSig sig_ii_v(2, 0, storage);
   FunctionSig sig_v_ii(0, 2, storage);
@@ -1492,7 +1509,7 @@ TEST_F(FunctionBodyDecoderTest, MultiReturn) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   for (size_t a = 0; a < arraysize(kValueTypes); a++) {
     for (size_t b = 0; b < arraysize(kValueTypes); b++) {
       for (size_t c = 0; c < arraysize(kValueTypes); c++) {
@@ -1612,7 +1629,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteStore) {
 }
 
 TEST_F(FunctionBodyDecoderTest, IncompleteS8x16Shuffle) {
-  EXPERIMENTAL_FLAG_SCOPE(simd);
+  WASM_FEATURE_SCOPE(simd);
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
   builder.InitializeMemory();
@@ -2383,7 +2400,7 @@ TEST_F(FunctionBodyDecoderTest, Select_TypeCheck) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Throw) {
-  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
 
@@ -2403,7 +2420,7 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
 
 TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
   // TODO(titzer): unreachable code after throw should validate.
-  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
 
@@ -2420,7 +2437,7 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 #define WASM_CATCH(index) kExprCatch, static_cast<byte>(index)
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
-  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WASM_FEATURE_SCOPE(eh);
 
   TestModuleBuilder builder;
   module = builder.module();
@@ -2445,7 +2462,7 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
 #undef WASM_CATCH
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
@@ -2461,7 +2478,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
@@ -2479,7 +2496,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlockBr) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
@@ -2491,7 +2508,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlockBr) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValLoop1) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
@@ -2507,7 +2524,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValLoop1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValIf) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
@@ -2570,7 +2587,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValIf) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockParam) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   TestModuleBuilder builder;
   module = builder.module();
   byte f1 = builder.AddSignature(sigs.i_i());
@@ -2596,7 +2613,7 @@ TEST_F(FunctionBodyDecoderTest, BlockParam) {
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopParam) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   TestModuleBuilder builder;
   module = builder.module();
   byte f1 = builder.AddSignature(sigs.i_i());
@@ -2622,7 +2639,7 @@ TEST_F(FunctionBodyDecoderTest, LoopParam) {
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopParamBr) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   TestModuleBuilder builder;
   module = builder.module();
   byte f1 = builder.AddSignature(sigs.i_i());
@@ -2644,7 +2661,7 @@ TEST_F(FunctionBodyDecoderTest, LoopParamBr) {
 }
 
 TEST_F(FunctionBodyDecoderTest, IfParam) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
+  WASM_FEATURE_SCOPE(mv);
   TestModuleBuilder builder;
   module = builder.module();
   byte f1 = builder.AddSignature(sigs.i_i());
@@ -2678,8 +2695,11 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
   PrepareBytecode(&start, &end, kAppendEnd);
 
   for (const byte* i = start; i < end; i++) {
+    FunctionBody body(sigs.v_v(), 0, start, i);
+    WasmFeatures unused_detected_features;
     DecodeResult result =
-        VerifyWasmCode(zone()->allocator(), nullptr, sigs.v_v(), start, i);
+        VerifyWasmCode(zone()->allocator(), kAllWasmFeatures, nullptr,
+                       &unused_detected_features, body);
     if (result.ok()) {
       std::ostringstream str;
       str << "Expected verification to fail";
@@ -2999,6 +3019,7 @@ typedef ZoneVector<ValueType> TypesOfLocals;
 class LocalDeclDecoderTest : public TestWithZone {
  public:
   v8::internal::AccountingAllocator allocator;
+  WasmFeatures enabled_features_;
 
   size_t ExpectRun(TypesOfLocals map, size_t pos, ValueType expected,
                    size_t count) {
@@ -3006,6 +3027,11 @@ class LocalDeclDecoderTest : public TestWithZone {
       EXPECT_EQ(expected, map[pos++]);
     }
     return pos;
+  }
+
+  bool DecodeLocalDecls(BodyLocalDecls* decls, const byte* start,
+                        const byte* end) {
+    return i::wasm::DecodeLocalDecls(enabled_features_, decls, start, end);
   }
 };
 
@@ -3024,7 +3050,7 @@ TEST_F(LocalDeclDecoderTest, NoLocals) {
 }
 
 TEST_F(LocalDeclDecoderTest, OneLocal) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
     const byte data[] = {1, 1,
@@ -3040,7 +3066,7 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
 }
 
 TEST_F(LocalDeclDecoderTest, FiveLocals) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
     const byte data[] = {1, 5,
@@ -3180,6 +3206,7 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   EXPECT_FALSE(iter.has_next());
 }
 
+#undef WASM_FEATURE_SCOPE
 #undef B1
 #undef B2
 #undef B3

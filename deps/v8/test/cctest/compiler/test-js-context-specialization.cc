@@ -22,7 +22,8 @@ namespace compiler {
 class ContextSpecializationTester : public HandleAndZoneScope {
  public:
   explicit ContextSpecializationTester(Maybe<OuterContext> context)
-      : graph_(new (main_zone()) Graph(main_zone())),
+      : canonical_(main_isolate()),
+        graph_(new (main_zone()) Graph(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
         machine_(main_zone()),
@@ -30,7 +31,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_),
         reducer_(main_zone(), graph()),
-        js_heap_broker_(main_isolate()),
+        js_heap_broker_(main_isolate(), main_zone()),
         spec_(&reducer_, jsgraph(), &js_heap_broker_, context,
               MaybeHandle<JSFunction>()) {}
 
@@ -50,6 +51,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
                                         size_t expected_new_depth);
 
  private:
+  CanonicalHandleScope canonical_;
   Graph* graph_;
   CommonOperatorBuilder common_;
   JSOperatorBuilder javascript_;
@@ -106,6 +108,11 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
 static const int slot_index = Context::NATIVE_CONTEXT_INDEX;
 
 TEST(ReduceJSLoadContext0) {
+  // TODO(neis): The native context below does not have all the fields
+  // initialized that the heap broker wants to serialize.
+  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
+  FLAG_concurrent_compiler_frontend = false;
+
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -170,6 +177,8 @@ TEST(ReduceJSLoadContext0) {
     CHECK(match.HasValue());
     CHECK_EQ(*expected, *match.Value());
   }
+
+  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
 }
 
 TEST(ReduceJSLoadContext1) {
@@ -247,6 +256,11 @@ TEST(ReduceJSLoadContext2) {
   //   context2 <-- context1 <-- context0 (= HeapConstant(context_object1))
   //   context_object1 <~~ context_object0
 
+  // TODO(neis): The native context below does not have all the fields
+  // initialized that the heap broker wants to serialize.
+  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
+  FLAG_concurrent_compiler_frontend = false;
+
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -317,6 +331,8 @@ TEST(ReduceJSLoadContext2) {
         t.javascript()->LoadContext(3, slot_index, true), context2, start);
     t.CheckChangesToValue(load, slot_value0);
   }
+
+  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
 }
 
 TEST(ReduceJSLoadContext3) {
@@ -325,6 +341,11 @@ TEST(ReduceJSLoadContext3) {
   // context for this parameter as the "specialization context".  We choose
   // context_object2 from ReduceJSLoadContext2 for this, so almost all test
   // expectations are the same as in ReduceJSLoadContext2.
+
+  // TODO(neis): The native context below does not have all the fields
+  // initialized that the heap broker wants to serialize.
+  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
+  FLAG_concurrent_compiler_frontend = false;
 
   HandleAndZoneScope handle_zone_scope;
   auto factory = handle_zone_scope.main_isolate()->factory();
@@ -400,9 +421,16 @@ TEST(ReduceJSLoadContext3) {
         t.javascript()->LoadContext(3, slot_index, true), context2, start);
     t.CheckChangesToValue(load, slot_value0);
   }
+
+  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
 }
 
 TEST(ReduceJSStoreContext0) {
+  // TODO(neis): The native context below does not have all the fields
+  // initialized that the heap broker wants to serialize.
+  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
+  FLAG_concurrent_compiler_frontend = false;
+
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -462,6 +490,8 @@ TEST(ReduceJSStoreContext0) {
     CHECK_EQ(0, static_cast<int>(access.depth()));
     CHECK_EQ(false, access.immutable());
   }
+
+  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
 }
 
 TEST(ReduceJSStoreContext1) {
@@ -509,6 +539,11 @@ TEST(ReduceJSStoreContext1) {
 }
 
 TEST(ReduceJSStoreContext2) {
+  // TODO(neis): The native context below does not have all the fields
+  // initialized that the heap broker wants to serialize.
+  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
+  FLAG_concurrent_compiler_frontend = false;
+
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -559,9 +594,16 @@ TEST(ReduceJSStoreContext2) {
                            context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context_object0, 0);
   }
+
+  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
 }
 
 TEST(ReduceJSStoreContext3) {
+  // TODO(neis): The native context below does not have all the fields
+  // initialized that the heap broker wants to serialize.
+  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
+  FLAG_concurrent_compiler_frontend = false;
+
   HandleAndZoneScope handle_zone_scope;
   auto factory = handle_zone_scope.main_isolate()->factory();
 
@@ -616,6 +658,8 @@ TEST(ReduceJSStoreContext3) {
                            context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context_object0, 0);
   }
+
+  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
 }
 
 TEST(SpecializeJSFunction_ToConstant1) {

@@ -54,8 +54,8 @@ void RelocInfo::apply(intptr_t delta) {
   // Absolute code pointer inside code object moves with the code object.
   if (IsInternalReference(rmode_)) {
     // Jump table entry
-    Address target = Memory::Address_at(pc_);
-    Memory::Address_at(pc_) = target + delta;
+    Address target = Memory<Address>(pc_);
+    Memory<Address>(pc_) = target + delta;
   } else if (IsCodeTarget(rmode_)) {
     SixByteInstr instr =
         Instruction::InstructionBits(reinterpret_cast<const byte*>(pc_));
@@ -78,7 +78,7 @@ void RelocInfo::apply(intptr_t delta) {
 Address RelocInfo::target_internal_reference() {
   if (IsInternalReference(rmode_)) {
     // Jump table entry
-    return Memory::Address_at(pc_);
+    return Memory<Address>(pc_);
   } else {
     // mov sequence
     DCHECK(IsInternalReferenceEncoded(rmode_));
@@ -164,8 +164,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
-    heap->incremental_marking()->RecordWriteIntoCode(host(), this, target);
-    heap->RecordWriteIntoCode(host(), this, target);
+    WriteBarrierForCode(host(), this, target);
   }
 }
 
@@ -202,11 +201,12 @@ void RelocInfo::set_target_runtime_entry(Address target,
 void RelocInfo::WipeOut() {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
-         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
+         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_) ||
+         IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
     // Jump table entry
-    Memory::Address_at(pc_) = kNullAddress;
-  } else if (IsInternalReferenceEncoded(rmode_)) {
+    Memory<Address>(pc_) = kNullAddress;
+  } else if (IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_)) {
     // mov sequence
     // Currently used only by deserializer, no need to flush.
     Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress,
@@ -293,7 +293,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
   if (RelocInfo::IsInternalReferenceEncoded(mode)) {
     set_target_address_at(pc, kNullAddress, target, SKIP_ICACHE_FLUSH);
   } else {
-    Memory::Address_at(pc) = target;
+    Memory<Address>(pc) = target;
   }
 }
 

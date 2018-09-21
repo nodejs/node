@@ -9,6 +9,7 @@
 #include "src/assert-scope.h"
 #include "src/utils.h"
 #include "src/v8memory.h"
+#include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -102,22 +103,22 @@ class SafepointTable BASE_EMBEDDED {
 
   unsigned GetPcOffset(unsigned index) const {
     DCHECK(index < length_);
-    return Memory::uint32_at(GetPcOffsetLocation(index));
+    return Memory<uint32_t>(GetPcOffsetLocation(index));
   }
 
   int GetTrampolinePcOffset(unsigned index) const {
     DCHECK(index < length_);
-    return Memory::int_at(GetTrampolineLocation(index));
+    return Memory<int>(GetTrampolineLocation(index));
   }
 
   unsigned find_return_pc(unsigned pc_offset);
 
   SafepointEntry GetEntry(unsigned index) const {
     DCHECK(index < length_);
-    unsigned info = Memory::uint32_at(GetInfoLocation(index));
-    uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
+    unsigned info = Memory<uint32_t>(GetInfoLocation(index));
+    uint8_t* bits = &Memory<uint8_t>(entries_ + (index * entry_size_));
     int trampoline_pc =
-        has_deopt_ ? Memory::int_at(GetTrampolineLocation(index)) : -1;
+        has_deopt_ ? Memory<int>(GetTrampolineLocation(index)) : -1;
     return SafepointEntry(info, bits, trampoline_pc);
   }
 
@@ -188,14 +189,14 @@ class Safepoint BASE_EMBEDDED {
   static const int kNoDeoptimizationIndex =
       (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
 
-  void DefinePointerSlot(int index, Zone* zone) { indexes_->Add(index, zone); }
-  void DefinePointerRegister(Register reg, Zone* zone);
+  void DefinePointerSlot(int index) { indexes_->push_back(index); }
+  void DefinePointerRegister(Register reg);
 
  private:
-  Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers)
+  Safepoint(ZoneChunkList<int>* indexes, ZoneChunkList<int>* registers)
       : indexes_(indexes), registers_(registers) {}
-  ZoneList<int>* const indexes_;
-  ZoneList<int>* const registers_;
+  ZoneChunkList<int>* const indexes_;
+  ZoneChunkList<int>* const registers_;
 
   friend class SafepointTableBuilder;
 };
@@ -204,10 +205,10 @@ class Safepoint BASE_EMBEDDED {
 class SafepointTableBuilder BASE_EMBEDDED {
  public:
   explicit SafepointTableBuilder(Zone* zone)
-      : deoptimization_info_(32, zone),
+      : deoptimization_info_(zone),
         emitted_(false),
         last_lazy_safepoint_(0),
-        zone_(zone) { }
+        zone_(zone) {}
 
   // Get the offset of the emitted safepoint table in the code.
   unsigned GetCodeOffset() const;
@@ -222,7 +223,7 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // outstanding safepoints.
   void RecordLazyDeoptimizationIndex(int index);
   void BumpLastLazySafepointIndex() {
-    last_lazy_safepoint_ = deoptimization_info_.length();
+    last_lazy_safepoint_ = deoptimization_info_.size();
   }
 
   // Emit the safepoint table after the body. The number of bits per
@@ -241,8 +242,8 @@ class SafepointTableBuilder BASE_EMBEDDED {
     unsigned arguments;
     bool has_doubles;
     int trampoline;
-    ZoneList<int>* indexes;
-    ZoneList<int>* registers;
+    ZoneChunkList<int>* indexes;
+    ZoneChunkList<int>* registers;
     unsigned deopt_index;
     DeoptimizationInfo(Zone* zone, unsigned pc, unsigned arguments,
                        Safepoint::Kind kind)
@@ -250,9 +251,11 @@ class SafepointTableBuilder BASE_EMBEDDED {
           arguments(arguments),
           has_doubles(kind & Safepoint::kWithDoubles),
           trampoline(-1),
-          indexes(new (zone) ZoneList<int>(8, zone)),
+          indexes(new (zone) ZoneChunkList<int>(
+              zone, ZoneChunkList<int>::StartMode::kSmall)),
           registers(kind & Safepoint::kWithRegisters
-                        ? new (zone) ZoneList<int>(4, zone)
+                        ? new (zone) ZoneChunkList<int>(
+                              zone, ZoneChunkList<int>::StartMode::kSmall)
                         : nullptr),
           deopt_index(Safepoint::kNoDeoptimizationIndex) {}
   };
@@ -264,11 +267,11 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // If all entries are identical, replace them by 1 entry with pc = kMaxUInt32.
   void RemoveDuplicates();
 
-  ZoneList<DeoptimizationInfo> deoptimization_info_;
+  ZoneChunkList<DeoptimizationInfo> deoptimization_info_;
 
   unsigned offset_;
   bool emitted_;
-  int last_lazy_safepoint_;
+  size_t last_lazy_safepoint_;
 
   Zone* zone_;
 

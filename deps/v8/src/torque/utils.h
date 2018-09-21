@@ -17,6 +17,9 @@ namespace torque {
 
 typedef std::vector<std::string> NameVector;
 
+std::string StringLiteralUnquote(const std::string& s);
+std::string StringLiteralQuote(const std::string& s);
+
 [[noreturn]] void ReportError(const std::string& error);
 
 std::string CamelifyString(const std::string& underscore_string);

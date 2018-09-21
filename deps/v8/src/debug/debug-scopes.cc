@@ -12,6 +12,7 @@
 #include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/isolate-inl.h"
+#include "src/objects/js-generator-inl.h"
 #include "src/objects/module.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"

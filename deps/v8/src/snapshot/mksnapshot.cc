@@ -153,6 +153,9 @@ class SnapshotWriter {
 
   static void WriteEmbeddedFileData(FILE* fp, const i::EmbeddedData* blob,
                                     const char* embedded_variant) {
+    fprintf(fp, "V8_EMBEDDED_TEXT_HEADER(v8_%s_embedded_blob_)\n",
+            embedded_variant);
+#ifdef V8_OS_MACOSX
     // Note: On some platforms (observed on mac64), inserting labels into the
     // .byte stream causes the compiler to reorder symbols, invalidating stored
     // offsets.
@@ -161,14 +164,45 @@ class SnapshotWriter {
     // there since the chrome build process on mac verifies the order of symbols
     // present in the binary.
     // For now, the straight-forward solution seems to be to just emit a pure
-    // .byte stream.
-    fprintf(fp, "V8_EMBEDDED_TEXT_HEADER(v8_%s_embedded_blob_)\n",
-            embedded_variant);
+    // .byte stream on OSX.
     WriteBinaryContentsAsByteDirective(fp, blob->data(), blob->size());
+#else
+    WriteBinaryContentsAsByteDirective(fp, blob->data(),
+                                       i::EmbeddedData::RawDataOffset());
+    WriteBuiltins(fp, blob, embedded_variant);
+#endif
     fprintf(fp, "extern \"C\" const uint8_t v8_%s_embedded_blob_[];\n",
             embedded_variant);
     fprintf(fp, "static const uint32_t v8_embedded_blob_size_ = %d;\n\n",
             blob->size());
+  }
+
+  static void WriteBuiltins(FILE* fp, const i::EmbeddedData* blob,
+                            const char* embedded_variant) {
+    const bool is_default_variant =
+        std::strcmp(embedded_variant, "Default") == 0;
+    for (int i = 0; i < i::Builtins::builtin_count; i++) {
+      if (!blob->ContainsBuiltin(i)) continue;
+
+      // Labels created here will show up in backtraces. We check in
+      // Isolate::SetEmbeddedBlob that the blob layout remains unchanged, i.e.
+      // that labels do not insert bytes into the middle of the blob byte
+      // stream.
+      if (is_default_variant) {
+        // Create nicer symbol names for the default mode.
+        fprintf(fp, "__asm__(V8_ASM_LABEL(\"Builtins_%s\"));\n",
+                i::Builtins::name(i));
+      } else {
+        fprintf(fp, "__asm__(V8_ASM_LABEL(\"%s_Builtins_%s\"));\n",
+                embedded_variant, i::Builtins::name(i));
+      }
+
+      WriteBinaryContentsAsByteDirective(
+          fp,
+          reinterpret_cast<const uint8_t*>(blob->InstructionStartOfBuiltin(i)),
+          blob->PaddedInstructionSizeOfBuiltin(i));
+    }
+    fprintf(fp, "\n");
   }
 
   static void WriteBinaryContentsAsByteDirective(FILE* fp, const uint8_t* data,

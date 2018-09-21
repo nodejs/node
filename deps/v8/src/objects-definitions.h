@@ -166,7 +166,6 @@ namespace internal {
   V(STORE_HANDLER_TYPE)                                         \
   V(UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)              \
   V(UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                 \
-  V(WEAK_CELL_TYPE)                                             \
   V(WEAK_ARRAY_LIST_TYPE)                                       \
                                                                 \
   V(JS_PROXY_TYPE)                                              \
@@ -217,7 +216,10 @@ namespace internal {
 #ifdef V8_INTL_SUPPORT
 #define INSTANCE_TYPE_LIST(V)          \
   INSTANCE_TYPE_LIST_BEFORE_INTL(V)    \
+  V(JS_INTL_COLLATOR_TYPE)             \
+  V(JS_INTL_LIST_FORMAT_TYPE)          \
   V(JS_INTL_LOCALE_TYPE)               \
+  V(JS_INTL_PLURAL_RULES_TYPE)         \
   V(JS_INTL_RELATIVE_TIME_FORMAT_TYPE) \
   INSTANCE_TYPE_LIST_AFTER_INTL(V)
 #else

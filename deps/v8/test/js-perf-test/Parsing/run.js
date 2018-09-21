@@ -3,14 +3,19 @@
 // found in the LICENSE file.
 
 
-load('../base.js');
+load("../base.js");
 
-load('comments.js');
+const iterations = 100;
+let code;
+
+load("comments.js");
+load("strings.js");
+load("arrowfunctions.js")
 
 var success = true;
 
 function PrintResult(name, result) {
-  print(name + '-Parsing(Score): ' + result);
+  print(name + "-Parsing(Score): " + result);
 }
 
 

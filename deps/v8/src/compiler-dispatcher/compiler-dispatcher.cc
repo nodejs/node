@@ -71,7 +71,7 @@ const double kMaxIdleTimeToExpectInMs = 40;
 
 class MemoryPressureTask : public CancelableTask {
  public:
-  MemoryPressureTask(Isolate* isolate, CancelableTaskManager* task_manager,
+  MemoryPressureTask(CancelableTaskManager* task_manager,
                      CompilerDispatcher* dispatcher);
   ~MemoryPressureTask() override;
 
@@ -84,8 +84,7 @@ class MemoryPressureTask : public CancelableTask {
   DISALLOW_COPY_AND_ASSIGN(MemoryPressureTask);
 };
 
-MemoryPressureTask::MemoryPressureTask(Isolate* isolate,
-                                       CancelableTaskManager* task_manager,
+MemoryPressureTask::MemoryPressureTask(CancelableTaskManager* task_manager,
                                        CompilerDispatcher* dispatcher)
     : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
@@ -99,7 +98,7 @@ void MemoryPressureTask::RunInternal() {
 
 class CompilerDispatcher::AbortTask : public CancelableTask {
  public:
-  AbortTask(Isolate* isolate, CancelableTaskManager* task_manager,
+  AbortTask(CancelableTaskManager* task_manager,
             CompilerDispatcher* dispatcher);
   ~AbortTask() override;
 
@@ -112,8 +111,7 @@ class CompilerDispatcher::AbortTask : public CancelableTask {
   DISALLOW_COPY_AND_ASSIGN(AbortTask);
 };
 
-CompilerDispatcher::AbortTask::AbortTask(Isolate* isolate,
-                                         CancelableTaskManager* task_manager,
+CompilerDispatcher::AbortTask::AbortTask(CancelableTaskManager* task_manager,
                                          CompilerDispatcher* dispatcher)
     : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
@@ -125,7 +123,7 @@ void CompilerDispatcher::AbortTask::RunInternal() {
 
 class CompilerDispatcher::WorkerTask : public CancelableTask {
  public:
-  WorkerTask(Isolate* isolate, CancelableTaskManager* task_manager,
+  WorkerTask(CancelableTaskManager* task_manager,
              CompilerDispatcher* dispatcher);
   ~WorkerTask() override;
 
@@ -138,8 +136,7 @@ class CompilerDispatcher::WorkerTask : public CancelableTask {
   DISALLOW_COPY_AND_ASSIGN(WorkerTask);
 };
 
-CompilerDispatcher::WorkerTask::WorkerTask(Isolate* isolate,
-                                           CancelableTaskManager* task_manager,
+CompilerDispatcher::WorkerTask::WorkerTask(CancelableTaskManager* task_manager,
                                            CompilerDispatcher* dispatcher)
     : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
@@ -151,8 +148,7 @@ void CompilerDispatcher::WorkerTask::RunInternal() {
 
 class CompilerDispatcher::IdleTask : public CancelableIdleTask {
  public:
-  IdleTask(Isolate* isolate, CancelableTaskManager* task_manager,
-           CompilerDispatcher* dispatcher);
+  IdleTask(CancelableTaskManager* task_manager, CompilerDispatcher* dispatcher);
   ~IdleTask() override;
 
   // CancelableIdleTask implementation.
@@ -164,8 +160,7 @@ class CompilerDispatcher::IdleTask : public CancelableIdleTask {
   DISALLOW_COPY_AND_ASSIGN(IdleTask);
 };
 
-CompilerDispatcher::IdleTask::IdleTask(Isolate* isolate,
-                                       CancelableTaskManager* task_manager,
+CompilerDispatcher::IdleTask::IdleTask(CancelableTaskManager* task_manager,
                                        CompilerDispatcher* dispatcher)
     : CancelableIdleTask(task_manager), dispatcher_(dispatcher) {}
 
@@ -465,7 +460,7 @@ void CompilerDispatcher::MemoryPressureNotification(
     }
     platform_->CallOnForegroundThread(
         reinterpret_cast<v8::Isolate*>(isolate_),
-        new MemoryPressureTask(isolate_, task_manager_.get(), this));
+        new MemoryPressureTask(task_manager_.get(), this));
   }
 }
 
@@ -490,7 +485,7 @@ void CompilerDispatcher::ScheduleIdleTaskFromAnyThread() {
     idle_task_scheduled_ = true;
   }
   platform_->CallIdleOnForegroundThread(
-      v8_isolate, new IdleTask(isolate_, task_manager_.get(), this));
+      v8_isolate, new IdleTask(task_manager_.get(), this));
 }
 
 void CompilerDispatcher::ScheduleIdleTaskIfNeeded() {
@@ -500,8 +495,8 @@ void CompilerDispatcher::ScheduleIdleTaskIfNeeded() {
 
 void CompilerDispatcher::ScheduleAbortTask() {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  platform_->CallOnForegroundThread(
-      v8_isolate, new AbortTask(isolate_, task_manager_.get(), this));
+  platform_->CallOnForegroundThread(v8_isolate,
+                                    new AbortTask(task_manager_.get(), this));
 }
 
 void CompilerDispatcher::ConsiderJobForBackgroundProcessing(
@@ -526,7 +521,7 @@ void CompilerDispatcher::ScheduleMoreWorkerTasksIfNeeded() {
     ++num_worker_tasks_;
   }
   platform_->CallOnWorkerThread(
-      base::make_unique<WorkerTask>(isolate_, task_manager_.get(), this));
+      base::make_unique<WorkerTask>(task_manager_.get(), this));
 }
 
 void CompilerDispatcher::DoBackgroundWork() {

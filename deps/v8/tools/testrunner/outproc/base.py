@@ -85,6 +85,11 @@ class PassOutProc(BaseOutProc):
     return OUTCOMES_PASS
 
 
+class NegPassOutProc(Negative, PassOutProc):
+  """Output processor optimized for negative tests expected to PASS"""
+  pass
+
+
 class OutProc(BaseOutProc):
   """Output processor optimized for positive tests with expected outcomes
   different than a single PASS.
@@ -113,6 +118,7 @@ class OutProc(BaseOutProc):
 
 # TODO(majeski): Override __reduce__ to make it deserialize as one instance.
 DEFAULT = PassOutProc()
+DEFAULT_NEGATIVE = NegPassOutProc()
 
 
 class ExpectedOutProc(OutProc):

@@ -63,7 +63,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
  public:
   ConstantFoldingReducerTest()
       : TypedGraphTest(3),
-        js_heap_broker_(isolate()),
+        js_heap_broker_(isolate(), zone()),
         simplified_(zone()),
         deps_(isolate(), zone()) {}
   ~ConstantFoldingReducerTest() override {}
@@ -81,7 +81,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
   }
 
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
-  const JSHeapBroker* js_heap_broker() const { return &js_heap_broker_; }
+  JSHeapBroker* js_heap_broker() { return &js_heap_broker_; }
 
  private:
   JSHeapBroker js_heap_broker_;

@@ -73,8 +73,7 @@ void PPCDebugger::Stop(Instruction* instr) {
   // use of kStopCodeMask not right on PowerPC
   uint32_t code = instr->SvcValue() & kStopCodeMask;
   // Retrieve the encoded address, which comes just after this stop.
-  char* msg =
-      *reinterpret_cast<char**>(sim_->get_pc() + Instruction::kInstrSize);
+  char* msg = *reinterpret_cast<char**>(sim_->get_pc() + kInstrSize);
   // Update this stop description.
   if (sim_->isWatchedStop(code) && !sim_->watched_stops_[code].desc) {
     sim_->watched_stops_[code].desc = msg;
@@ -85,7 +84,7 @@ void PPCDebugger::Stop(Instruction* instr) {
   } else {
     PrintF("Simulator hit %s\n", msg);
   }
-  sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize + kPointerSize);
+  sim_->set_pc(sim_->get_pc() + kInstrSize + kPointerSize);
   Debug();
 }
 
@@ -233,7 +232,7 @@ void PPCDebugger::Debug() {
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
                 ->InstructionBits() == 0x7D821008) {
-          sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
+          sim_->set_pc(sim_->get_pc() + kInstrSize);
         } else {
           sim_->ExecuteInstruction(
               reinterpret_cast<Instruction*>(sim_->get_pc()));
@@ -257,7 +256,7 @@ void PPCDebugger::Debug() {
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
                 ->InstructionBits() == 0x7D821008) {
-          sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
+          sim_->set_pc(sim_->get_pc() + kInstrSize);
         } else {
           // Execute the one instruction we broke at with breakpoints disabled.
           sim_->ExecuteInstruction(
@@ -430,7 +429,7 @@ void PPCDebugger::Debug() {
 
         if (argc == 1) {
           cur = reinterpret_cast<byte*>(sim_->get_pc());
-          end = cur + (10 * Instruction::kInstrSize);
+          end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int regnum = Registers::Number(arg1);
           if (regnum != kNoRegister || strncmp(arg1, "0x", 2) == 0) {
@@ -439,7 +438,7 @@ void PPCDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(value);
               // Disassemble 10 instructions at <arg1>.
-              end = cur + (10 * Instruction::kInstrSize);
+              end = cur + (10 * kInstrSize);
             }
           } else {
             // The argument is the number of instructions.
@@ -447,7 +446,7 @@ void PPCDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(sim_->get_pc());
               // Disassemble <arg1> instructions.
-              end = cur + (value * Instruction::kInstrSize);
+              end = cur + (value * kInstrSize);
             }
           }
         } else {
@@ -455,7 +454,7 @@ void PPCDebugger::Debug() {
           intptr_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
             cur = reinterpret_cast<byte*>(value1);
-            end = cur + (value2 * Instruction::kInstrSize);
+            end = cur + (value2 * kInstrSize);
           }
         }
 
@@ -498,11 +497,10 @@ void PPCDebugger::Debug() {
         PrintF("FPSCR: %08x\n", sim_->fp_condition_reg_);
       } else if (strcmp(cmd, "stop") == 0) {
         intptr_t value;
-        intptr_t stop_pc =
-            sim_->get_pc() - (Instruction::kInstrSize + kPointerSize);
+        intptr_t stop_pc = sim_->get_pc() - (kInstrSize + kPointerSize);
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         Instruction* msg_address =
-            reinterpret_cast<Instruction*>(stop_pc + Instruction::kInstrSize);
+            reinterpret_cast<Instruction*>(stop_pc + kInstrSize);
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
           if (sim_->isStopInstruction(stop_instr)) {
@@ -725,9 +723,8 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
   char* cached_line = cache_page->CachedData(offset & ~CachePage::kLineMask);
   if (cache_hit) {
     // Check that the data in memory matches the contents of the I-cache.
-    CHECK_EQ(0,
-             memcmp(reinterpret_cast<void*>(instr),
-                    cache_page->CachedData(offset), Instruction::kInstrSize));
+    CHECK_EQ(0, memcmp(reinterpret_cast<void*>(instr),
+                       cache_page->CachedData(offset), kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
     memcpy(cached_line, line, CachePage::kLineLength);
@@ -1469,7 +1466,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PPCDebugger dbg(this);
           dbg.Stop(instr);
         } else {
-          set_pc(get_pc() + Instruction::kInstrSize + kPointerSize);
+          set_pc(get_pc() + kInstrSize + kPointerSize);
         }
       } else {
         // This is not a valid svc code.
@@ -3922,10 +3919,9 @@ void Simulator::ExecuteInstruction(Instruction* instr) {
     ExecuteGeneric(instr);
   }
   if (!pc_modified_) {
-    set_pc(reinterpret_cast<intptr_t>(instr) + Instruction::kInstrSize);
+    set_pc(reinterpret_cast<intptr_t>(instr) + kInstrSize);
   }
 }
-
 
 void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the

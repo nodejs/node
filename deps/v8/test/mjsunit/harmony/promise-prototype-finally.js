@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
+load('test/mjsunit/test-async.js');
+
 assertThrows(() => Promise.prototype.finally.call(5), TypeError);
 
 testAsync(assert => {

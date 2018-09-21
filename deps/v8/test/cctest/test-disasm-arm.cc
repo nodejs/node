@@ -58,7 +58,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 
   std::vector<std::string> expected_disassembly = {expected_strings...};
   size_t n_expected = expected_disassembly.size();
-  byte* end = begin + (n_expected * Assembler::kInstrSize);
+  byte* end = begin + (n_expected * kInstrSize);
 
   std::vector<std::string> disassembly;
   for (byte* pc = begin; pc < end;) {
@@ -483,6 +483,9 @@ TEST(Type3) {
 
     COMPARE(rbit(r1, r2), "e6ff1f32       rbit r1, r2");
     COMPARE(rbit(r10, ip), "e6ffaf3c       rbit r10, ip");
+
+    COMPARE(rev(r1, r2), "e6bf1f32       rev r1, r2");
+    COMPARE(rev(r10, ip), "e6bfaf3c       rev r10, ip");
   }
 
   COMPARE(usat(r0, 1, Operand(r1)),
@@ -672,14 +675,14 @@ TEST(Vfp) {
     COMPARE(vmov(s3, Float32(13.0f)),
             "eef21a0a       vmov.f32 s3, #13");
 
-    COMPARE(vmov(d0, VmovIndexLo, r0),
+    COMPARE(vmov(NeonS32, d0, 0, r0),
             "ee000b10       vmov.32 d0[0], r0");
-    COMPARE(vmov(d0, VmovIndexHi, r0),
+    COMPARE(vmov(NeonS32, d0, 1, r0),
             "ee200b10       vmov.32 d0[1], r0");
 
-    COMPARE(vmov(r2, VmovIndexLo, d15),
+    COMPARE(vmov(NeonS32, r2, d15, 0),
             "ee1f2b10       vmov.32 r2, d15[0]");
-    COMPARE(vmov(r3, VmovIndexHi, d14),
+    COMPARE(vmov(NeonS32, r3, d14, 1),
             "ee3e3b10       vmov.32 r3, d14[1]");
 
     COMPARE(vldr(s0, r0, 0),
@@ -833,9 +836,9 @@ TEST(Vfp) {
       COMPARE(vmov(d30, Double(16.0)),
               "eef3eb00       vmov.f64 d30, #16");
 
-      COMPARE(vmov(d31, VmovIndexLo, r7),
+      COMPARE(vmov(NeonS32, d31, 0, r7),
               "ee0f7b90       vmov.32 d31[0], r7");
-      COMPARE(vmov(d31, VmovIndexHi, r7),
+      COMPARE(vmov(NeonS32, d31, 1, r7),
               "ee2f7b90       vmov.32 d31[1], r7");
 
       COMPARE(vldr(d25, r0, 0),
@@ -1513,7 +1516,7 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
   char expected_string[80];
   snprintf(expected_string, sizeof(expected_string), expected_string_template,
            abs(offset), offset,
-           progcounter + Instruction::kPCReadOffset + offset);
+           progcounter + Instruction::kPcLoadDelta + offset);
   if (!DisassembleAndCompare(progcounter, kRawString, expected_string)) {
     *failure = true;
   }
@@ -1612,6 +1615,9 @@ TEST(LoadStoreExclusive) {
   COMPARE(strexh(r0, r1, r2), "e1e20f91       strexh r0, r1, [r2]");
   COMPARE(ldrex(r0, r1), "e1910f9f       ldrex r0, [r1]");
   COMPARE(strex(r0, r1, r2), "e1820f91       strex r0, r1, [r2]");
+  COMPARE(ldrexd(r0, r1, r2), "e1b20f9f       ldrexd r0, [r2]");
+  COMPARE(strexd(r0, r2, r3, r4),
+          "e1a40f92       strexd r0, r2, [r4]");
 
   VERIFY_RUN();
 }

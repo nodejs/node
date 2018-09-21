@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/debug/liveedit.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -248,14 +248,16 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context, "function foo() { return 1; }",
                  "function foo() { return 42; }");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            42);
   // It is expected, we do not reevaluate top level function.
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var a = 3; function foo() { return a; }");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            1);
   // Throw exception since var b is not defined in original source.
@@ -270,14 +272,16 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var b = 4; function foo() { var b = 5; return b; }");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            5);
 
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var b = 4; function foo() { var a = 6; return a; }");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            6);
 
@@ -292,7 +296,8 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var b = 1; var a = 2; function foo() { return a; }");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            1);
 
@@ -307,14 +312,16 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context, "function foo() { var a = 1; return a; }",
                  "function foo() { var b = 1; return b; }");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            1);
 
   PatchFunctions(context, "var a = 3; function foo() { var a = 1; return a; }",
                  "function foo() { var b = 1; return a; }");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            3);
 
@@ -330,14 +337,16 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context, "function fooArgs(a1, b1) { return a1 + b1; }",
                  "function fooArgs(a2, b2, c2) { return a2 + b2 + c2; }");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "fooArgs(1,2,3)")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            6);
 
   PatchFunctions(context, "function fooArgs(a1, b1) { return a1 + b1; }",
                  "function fooArgs(a1, b1, c1) { return a1 + b1 + c1; }");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "fooArgs(1,2,3)")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            6);
 
@@ -347,7 +356,8 @@ TEST(LiveEditPatchFunctions) {
                  "%OptimizeFunctionOnNextCall(foo); foo(1,2);",
                  "function foo(a, b) { return a * b; };");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo(5,7)")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            35);
   i::FLAG_allow_natives_syntax = false;
@@ -359,7 +369,8 @@ TEST(LiveEditPatchFunctions) {
       "function foo(a,b) { function op(a,b) { return a * b } return op(a,b); "
       "}");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo(8,9)")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            72);
 
@@ -368,7 +379,8 @@ TEST(LiveEditPatchFunctions) {
                  "class Foo { constructor(a,b) { this.data = a + b; } };",
                  "class Foo { constructor(a,b) { this.data = a * b; } };");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "new Foo(4,5).data")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            20);
   // Change inner functions.
@@ -379,7 +391,8 @@ TEST(LiveEditPatchFunctions) {
       "function f(evt) { function f2() { return 1; } return f2() + f3(); "
       "function f3() { return 2; }  } function f4() {}");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            3);
   // Change usage of outer scope.
@@ -424,21 +437,24 @@ TEST(LiveEditPatchFunctions) {
   // TODO(kozyatinskiy): should work when we remove (.
   PatchFunctions(context, "f = () => 2", "f = a => a");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f(3)")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            2);
 
   // Replace function with not a function.
   PatchFunctions(context, "f = () => 2", "f = a == 2");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f(3)")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            2);
 
   // TODO(kozyatinskiy): should work when we put function into (...).
   PatchFunctions(context, "f = a => 2", "f = (a => 5)()");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            2);
 
@@ -457,11 +473,13 @@ TEST(LiveEditPatchFunctions) {
                  "f()\n");
   // TODO(kozyatinskiy): ditto.
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f2()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            5);
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f()")
-               ->ToInt32(env->GetIsolate())
+               ->ToInt32(context)
+               .ToLocalChecked()
                ->Value(),
            3);
 }

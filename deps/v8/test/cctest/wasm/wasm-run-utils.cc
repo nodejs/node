@@ -14,13 +14,13 @@ namespace internal {
 namespace wasm {
 
 TestingModuleBuilder::TestingModuleBuilder(
-    Zone* zone, ManuallyImportedJSFunction* maybe_import,
-    WasmExecutionMode mode, RuntimeExceptionSupport exception_support,
-    LowerSimd lower_simd)
+    Zone* zone, ManuallyImportedJSFunction* maybe_import, ExecutionTier tier,
+    RuntimeExceptionSupport exception_support, LowerSimd lower_simd)
     : test_module_(std::make_shared<WasmModule>()),
       test_module_ptr_(test_module_.get()),
       isolate_(CcTest::InitIsolateOnce()),
-      execution_mode_(mode),
+      enabled_features_(WasmFeaturesFromIsolate(isolate_)),
+      execution_tier_(tier),
       runtime_exception_support_(exception_support),
       lower_simd_(lower_simd) {
   WasmJs::Install(isolate_, true);
@@ -47,14 +47,13 @@ TestingModuleBuilder::TestingModuleBuilder(
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);
     auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
-        code.ToHandleChecked(), wasm::WasmCode::kWasmToJsWrapper,
-        maybe_import_index);
+        code.ToHandleChecked(), WasmCode::kWasmToJsWrapper, maybe_import_index);
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
         .set_wasm_to_js(*maybe_import->js_function, wasm_to_js_wrapper);
   }
 
-  if (mode == kExecuteInterpreter) {
+  if (tier == ExecutionTier::kInterpreter) {
     interpreter_ = WasmDebugInfo::SetupForTesting(instance_object_);
   }
 }
@@ -69,7 +68,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   test_module_->has_memory = true;
   uint32_t alloc_size = RoundUp(size, kWasmPageSize);
   Handle<JSArrayBuffer> new_buffer;
-  CHECK(wasm::NewArrayBuffer(isolate_, alloc_size).ToHandle(&new_buffer));
+  CHECK(NewArrayBuffer(isolate_, alloc_size).ToHandle(&new_buffer));
   CHECK(!new_buffer.is_null());
   mem_start_ = reinterpret_cast<byte*>(new_buffer->backing_store());
   mem_size_ = size;
@@ -195,7 +194,7 @@ ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
   return {
       test_module_ptr_,
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler,
-      runtime_exception_support_};
+      runtime_exception_support_, lower_simd()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -214,8 +213,9 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
   ModuleEnv env = CreateModuleEnv();
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate_, test_module_, env, {}, script, Handle<ByteArray>::null());
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate_, enabled_features_, test_module_, env, {},
+                            script, Handle<ByteArray>::null());
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
@@ -230,14 +230,18 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
                                   Zone* zone, FunctionSig* sig,
                                   const byte* start, const byte* end) {
+  WasmFeatures unused_detected_features;
+  FunctionBody body(sig, 0, start, end);
   DecodeResult result =
-      BuildTFGraph(zone->allocator(), builder, sig, start, end);
+      BuildTFGraph(zone->allocator(), kAllWasmFeatures, nullptr, builder,
+                   &unused_detected_features, body, nullptr);
   if (result.failed()) {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
       FLAG_trace_wasm_decoder = true;
-      result = BuildTFGraph(zone->allocator(), builder, sig, start, end);
+      result = BuildTFGraph(zone->allocator(), kAllWasmFeatures, nullptr,
+                            builder, &unused_detected_features, body, nullptr);
     }
 #endif
 
@@ -398,6 +402,13 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
     interpreter_->SetFunctionCodeForTesting(function_, start, end);
   }
 
+  // TODO(wasm): tests that go through JS depend on having a compiled version
+  // of each function, even if the execution tier is the interpreter. Fix.
+  auto tier = builder_->execution_tier();
+  if (tier == ExecutionTier::kInterpreter) {
+    tier = ExecutionTier::kOptimized;
+  }
+
   Vector<const uint8_t> wire_bytes = builder_->instance_object()
                                          ->module_object()
                                          ->native_module()
@@ -416,18 +427,15 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.start(), func_wire_bytes.end()};
-  WasmCompilationUnit::CompilationMode comp_mode =
-      builder_->execution_mode() == WasmExecutionMode::kExecuteLiftoff
-          ? WasmCompilationUnit::CompilationMode::kLiftoff
-          : WasmCompilationUnit::CompilationMode::kTurbofan;
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
-  WasmCompilationUnit unit(isolate(), &module_env, native_module, func_body,
-                           func_name, function_->func_index, comp_mode,
-                           isolate()->counters(), builder_->lower_simd());
-  unit.ExecuteCompilation();
-  wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
-  if (wasm::WasmCode::ShouldBeLogged(isolate())) {
+  WasmCompilationUnit unit(isolate()->wasm_engine(), &module_env, native_module,
+                           func_body, func_name, function_->func_index,
+                           isolate()->counters(), tier);
+  WasmFeatures unused_detected_features;
+  unit.ExecuteCompilation(&unused_detected_features);
+  WasmCode* wasm_code = unit.FinishCompilation(&thrower);
+  if (WasmCode::ShouldBeLogged(isolate())) {
     wasm_code->LogCode(isolate());
   }
   CHECK(!thrower.error());

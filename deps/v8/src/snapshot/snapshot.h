@@ -96,7 +96,7 @@ class EmbeddedData final {
 
   // Padded with kCodeAlignment.
   uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
-    return RoundUp<kCodeAlignment>(InstructionSizeOfBuiltin(i));
+    return PadAndAlign(InstructionSizeOfBuiltin(i));
   }
 
   size_t CreateHash() const;
@@ -104,40 +104,48 @@ class EmbeddedData final {
     return *reinterpret_cast<const size_t*>(data_ + HashOffset());
   }
 
+  struct Metadata {
+    // Blob layout information.
+    uint32_t instructions_offset;
+    uint32_t instructions_length;
+  };
+  STATIC_ASSERT(offsetof(Metadata, instructions_offset) == 0);
+  STATIC_ASSERT(offsetof(Metadata, instructions_length) == kUInt32Size);
+  STATIC_ASSERT(sizeof(Metadata) == kUInt32Size + kUInt32Size);
+
   // The layout of the blob is as follows:
   //
-  // [0]     hash of the remaining blob
-  // [1]     offset of instruction stream 0
-  // ...     offsets
-  // [N + 1] length of instruction stream 0
-  // ...     lengths
-  // ...     instruction streams
+  // [0] hash of the remaining blob
+  // [1] metadata of instruction stream 0
+  // ... metadata
+  // ... instruction streams
 
   static constexpr uint32_t kTableSize = Builtins::builtin_count;
   static constexpr uint32_t HashOffset() { return 0; }
   static constexpr uint32_t HashSize() { return kSizetSize; }
-  static constexpr uint32_t OffsetsOffset() {
+  static constexpr uint32_t MetadataOffset() {
     return HashOffset() + HashSize();
   }
-  static constexpr uint32_t OffsetsSize() { return kUInt32Size * kTableSize; }
-  static constexpr uint32_t LengthsOffset() {
-    return OffsetsOffset() + OffsetsSize();
+  static constexpr uint32_t MetadataSize() {
+    return sizeof(struct Metadata) * kTableSize;
   }
-  static constexpr uint32_t LengthsSize() { return kUInt32Size * kTableSize; }
   static constexpr uint32_t RawDataOffset() {
-    return RoundUp<kCodeAlignment>(LengthsOffset() + LengthsSize());
+    return PadAndAlign(MetadataOffset() + MetadataSize());
   }
 
  private:
   EmbeddedData(const uint8_t* data, uint32_t size) : data_(data), size_(size) {}
 
-  const uint32_t* Offsets() const {
-    return reinterpret_cast<const uint32_t*>(data_ + OffsetsOffset());
-  }
-  const uint32_t* Lengths() const {
-    return reinterpret_cast<const uint32_t*>(data_ + LengthsOffset());
+  const Metadata* Metadata() const {
+    return reinterpret_cast<const struct Metadata*>(data_ + MetadataOffset());
   }
   const uint8_t* RawData() const { return data_ + RawDataOffset(); }
+
+  static constexpr int PadAndAlign(int size) {
+    // Ensure we have at least one byte trailing the actual builtin
+    // instructions which we can later fill with int3.
+    return RoundUp<kCodeAlignment>(size + 1);
+  }
 
   void PrintStatistics() const;
 

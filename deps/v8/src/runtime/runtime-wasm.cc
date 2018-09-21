@@ -2,10 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
-#include "src/assembler.h"
+#include "src/arguments-inl.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
@@ -13,6 +10,7 @@
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/v8memory.h"
 #include "src/wasm/module-compiler.h"
@@ -195,7 +193,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
         CONVERT_SMI_ARG_CHECKED(index, 0);
         CHECK_LT(index, Smi::ToInt(values->length()));
         auto* vals =
-            reinterpret_cast<uint16_t*>(values->GetBuffer()->allocation_base());
+            reinterpret_cast<uint16_t*>(values->GetBuffer()->backing_store());
         return Smi::FromInt(vals[index]);
       }
     }
@@ -265,8 +263,13 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
     frame_pointer = it.frame()->fp();
   }
 
-  bool success = instance->debug_info()->RunInterpreter(frame_pointer,
-                                                        func_index, arg_buffer);
+  // Run the function in the interpreter. Note that neither the {WasmDebugInfo}
+  // nor the {InterpreterHandle} have to exist, because interpretation might
+  // have been triggered by another Isolate sharing the same WasmEngine.
+  Handle<WasmDebugInfo> debug_info =
+      WasmInstanceObject::GetOrCreateDebugInfo(instance);
+  bool success = WasmDebugInfo::RunInterpreter(
+      isolate, debug_info, frame_pointer, func_index, arg_buffer);
 
   if (!success) {
     DCHECK(isolate->has_pending_exception());

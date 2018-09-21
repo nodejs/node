@@ -72,8 +72,7 @@ void SortBlockData(std::vector<CoverageBlock>& v) {
   std::sort(v.begin(), v.end(), CompareCoverageBlock);
 }
 
-std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
-                                              SharedFunctionInfo* shared) {
+std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo* shared) {
   DCHECK(shared->HasCoverageInfo());
 
   CoverageInfo* coverage_info =
@@ -385,13 +384,12 @@ bool IsBinaryMode(debug::Coverage::Mode mode) {
   }
 }
 
-void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
-                          SharedFunctionInfo* info,
+void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo* info,
                           debug::Coverage::Mode mode) {
   DCHECK(IsBlockMode(mode));
 
   function->has_block_coverage = true;
-  function->blocks = GetSortedBlockData(isolate, info);
+  function->blocks = GetSortedBlockData(info);
 
   // If in binary mode, only report counts of 0/1.
   if (mode == debug::Coverage::kBlockBinary) ClampToBinary(function);
@@ -544,7 +542,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
       CoverageFunction function(start, end, count, name);
 
       if (IsBlockMode(collectionMode) && info->HasCoverageInfo()) {
-        CollectBlockCoverage(isolate, &function, info, collectionMode);
+        CollectBlockCoverage(&function, info, collectionMode);
       }
 
       // Only include a function range if itself or its parent function is

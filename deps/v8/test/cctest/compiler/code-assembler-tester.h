@@ -60,6 +60,10 @@ class CodeAssemblerTester {
         &state_, AssemblerOptions::Default(scope_.isolate()));
   }
 
+  Handle<Code> GenerateCode(const AssemblerOptions& options) {
+    return CodeAssembler::GenerateCode(&state_, options);
+  }
+
   Handle<Code> GenerateCodeCloseAndEscape() {
     return scope_.CloseAndEscape(GenerateCode());
   }

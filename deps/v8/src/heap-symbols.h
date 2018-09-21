@@ -37,14 +37,17 @@
   V(call_string, "call")                                           \
   V(callee_string, "callee")                                       \
   V(caller_string, "caller")                                       \
+  V(caseFirst_string, "caseFirst")                                 \
   V(cell_value_string, "%cell_value")                              \
   V(char_at_string, "CharAt")                                      \
   V(closure_string, "(closure)")                                   \
+  V(collation_string, "collation")                                 \
   V(column_string, "column")                                       \
   V(CompileError_string, "CompileError")                           \
   V(configurable_string, "configurable")                           \
   V(construct_string, "construct")                                 \
   V(constructor_string, "constructor")                             \
+  V(conjunction_string, "conjunction")                             \
   V(create_string, "create")                                       \
   V(currency_string, "currency")                                   \
   V(Date_string, "Date")                                           \
@@ -56,6 +59,7 @@
   V(defineProperty_string, "defineProperty")                       \
   V(deleteProperty_string, "deleteProperty")                       \
   V(did_handle_string, "didHandle")                                \
+  V(disjunction_string, "disjunction")                             \
   V(display_name_string, "displayName")                            \
   V(done_string, "done")                                           \
   V(dot_catch_string, ".catch")                                    \
@@ -69,6 +73,7 @@
   V(enqueue_string, "enqueue")                                     \
   V(entries_string, "entries")                                     \
   V(enumerable_string, "enumerable")                               \
+  V(element_string, "element")                                     \
   V(era_string, "era")                                             \
   V(Error_string, "Error")                                         \
   V(error_to_string, "[object Error]")                             \
@@ -91,11 +96,13 @@
   V(getOwnPropertyDescriptors_string, "getOwnPropertyDescriptors") \
   V(getPrototypeOf_string, "getPrototypeOf")                       \
   V(global_string, "global")                                       \
+  V(globalThis_string, "globalThis")                               \
   V(group_string, "group")                                         \
   V(groups_string, "groups")                                       \
   V(has_string, "has")                                             \
   V(hour_string, "hour")                                           \
   V(ignoreCase_string, "ignoreCase")                               \
+  V(ignorePunctuation_string, "ignorePunctuation")                 \
   V(illegal_access_string, "illegal access")                       \
   V(illegal_argument_string, "illegal argument")                   \
   V(index_string, "index")                                         \
@@ -179,10 +186,10 @@
   V(Script_string, "Script")                                       \
   V(script_string, "script")                                       \
   V(short_string, "short")                                         \
-  V(style_string, "style")                                         \
   V(second_string, "second")                                       \
-  V(set_space_string, "set ")                                      \
   V(Set_string, "Set")                                             \
+  V(sensitivity_string, "sensitivity")                             \
+  V(set_space_string, "set ")                                      \
   V(set_string, "set")                                             \
   V(SetIterator_string, "Set Iterator")                            \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
@@ -196,6 +203,7 @@
   V(String_string, "String")                                       \
   V(string_string, "string")                                       \
   V(string_to_string, "[object String]")                           \
+  V(style_string, "style")                                         \
   V(symbol_species_string, "[Symbol.species]")                     \
   V(Symbol_string, "Symbol")                                       \
   V(symbol_string, "symbol")                                       \
@@ -220,6 +228,7 @@
   V(unicode_string, "unicode")                                     \
   V(unit_string, "unit")                                           \
   V(URIError_string, "URIError")                                   \
+  V(usage_string, "usage")                                         \
   V(use_asm_string, "use asm")                                     \
   V(use_strict_string, "use strict")                               \
   V(value_string, "value")                                         \
@@ -324,7 +333,6 @@
   F(MC_CLEAR_SLOTS_BUFFER)                           \
   F(MC_CLEAR_STORE_BUFFER)                           \
   F(MC_CLEAR_STRING_TABLE)                           \
-  F(MC_CLEAR_WEAK_CELLS)                             \
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
@@ -349,6 +357,7 @@
   F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)               \
   F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                 \
   F(MC_MARK_WEAK_CLOSURE_HARMONY)                    \
+  F(MC_MARK_WRAPPERS)                                \
   F(MC_MARK_WRAPPER_EPILOGUE)                        \
   F(MC_MARK_WRAPPER_PROLOGUE)                        \
   F(MC_MARK_WRAPPER_TRACING)                         \

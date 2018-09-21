@@ -39,7 +39,6 @@ class MapProcessor extends LogReader {
         processor: this.processMapDetails
       }
     };
-    this.deserializedEntriesNames_ = [];
     this.profile_ = new Profile();
     this.timeline_ = new Timeline();
   }
@@ -66,7 +65,7 @@ class MapProcessor extends LogReader {
         this.processLogLine(line);
       }
     } catch(e) {
-      console.log("Error occurred during parsing, trying to continue: " + e);
+      console.error("Error occurred during parsing, trying to continue: " + e);
     }
     return this.finalize();
   }
@@ -108,10 +107,6 @@ class MapProcessor extends LogReader {
 
   processCodeCreation(
     type, kind, timestamp, start, size, name, maybe_func) {
-    name = this.deserializedEntriesNames_[start] || name;
-    if (name.startsWith("onComplete")) {
-      console.log(name);
-    }
     if (maybe_func.length) {
       let funcAddr = parseInt(maybe_func[0]);
       let state = this.parseState(maybe_func[1]);
@@ -180,9 +175,6 @@ class MapProcessor extends LogReader {
   }
 
   createMap(id, time) {
-    if (id == 0x1821257d1761) {
-      console.log(id);
-    }
     let map = new V8Map(id, time);
     this.timeline_.push(map);
     return map;

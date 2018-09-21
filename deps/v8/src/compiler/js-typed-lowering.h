@@ -32,7 +32,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   JSTypedLowering(Editor* editor, JSGraph* jsgraph,
-                  const JSHeapBroker* js_heap_broker, Zone* zone);
+                  JSHeapBroker* js_heap_broker, Zone* zone);
   ~JSTypedLowering() final {}
 
   const char* reducer_name() const override { return "JSTypedLowering"; }
@@ -98,14 +98,14 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* jsgraph_;
-  const JSHeapBroker* js_heap_broker_;
+  JSHeapBroker* js_heap_broker_;
   Type empty_string_type_;
   Type pointer_comparable_type_;
   TypeCache const& type_cache_;

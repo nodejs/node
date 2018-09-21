@@ -19,37 +19,32 @@ namespace v8 {
 namespace internal {
 
 // Base relative time format accessors.
-ACCESSORS(JSRelativeTimeFormat, locale, String, kLocaleOffset);
-ACCESSORS(JSRelativeTimeFormat, formatter, Foreign, kFormatterOffset);
+ACCESSORS(JSRelativeTimeFormat, locale, String, kLocaleOffset)
+ACCESSORS(JSRelativeTimeFormat, formatter, Foreign, kFormatterOffset)
+SMI_ACCESSORS(JSRelativeTimeFormat, flags, kFlagsOffset)
 
 // TODO(ftang): Use bit field accessor for style and numeric later.
 
 inline void JSRelativeTimeFormat::set_style(Style style) {
   DCHECK_GT(Style::COUNT, style);
-  int value = static_cast<int>(style);
-  WRITE_FIELD(this, kStyleOffset, Smi::FromInt(value));
+  int hints = flags();
+  hints = StyleBits::update(hints, style);
+  set_flags(hints);
 }
 
 inline JSRelativeTimeFormat::Style JSRelativeTimeFormat::style() const {
-  Object* value = READ_FIELD(this, kStyleOffset);
-  int style = Smi::ToInt(value);
-  DCHECK_LE(0, style);
-  DCHECK_GT(static_cast<int>(Style::COUNT), style);
-  return static_cast<Style>(style);
+  return StyleBits::decode(flags());
 }
 
 inline void JSRelativeTimeFormat::set_numeric(Numeric numeric) {
   DCHECK_GT(Numeric::COUNT, numeric);
-  int value = static_cast<int>(numeric);
-  WRITE_FIELD(this, kNumericOffset, Smi::FromInt(value));
+  int hints = flags();
+  hints = NumericBits::update(hints, numeric);
+  set_flags(hints);
 }
 
 inline JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::numeric() const {
-  Object* value = READ_FIELD(this, kNumericOffset);
-  int numeric = Smi::ToInt(value);
-  DCHECK_LE(0, numeric);
-  DCHECK_GT(static_cast<int>(Numeric::COUNT), numeric);
-  return static_cast<Numeric>(numeric);
+  return NumericBits::decode(flags());
 }
 
 CAST_ACCESSOR(JSRelativeTimeFormat);

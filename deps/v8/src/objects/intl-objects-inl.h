@@ -7,6 +7,8 @@
 
 #include "src/objects/intl-objects.h"
 
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 

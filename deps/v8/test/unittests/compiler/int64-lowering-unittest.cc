@@ -882,7 +882,7 @@ TEST_F(Int64LoweringTest, I64PhiWord32) {
 }
 
 TEST_F(Int64LoweringTest, I64ReverseBytes) {
-  LowerGraph(graph()->NewNode(machine()->Word64ReverseBytes().placeholder(),
+  LowerGraph(graph()->NewNode(machine()->Word64ReverseBytes(),
                               Int64Constant(value(0))),
              MachineRepresentation::kWord64);
   EXPECT_THAT(

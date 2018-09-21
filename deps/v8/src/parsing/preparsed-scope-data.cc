@@ -481,6 +481,11 @@ uint8_t ConsumedPreParsedScopeData::ByteData::ReadQuarter() {
   return result;
 }
 
+size_t ConsumedPreParsedScopeData::ByteData::RemainingBytes() const {
+  DCHECK_NOT_NULL(data_);
+  return data_->length() - index_;
+}
+
 ConsumedPreParsedScopeData::ConsumedPreParsedScopeData()
     : isolate_(nullptr), scope_data_(new ByteData()), child_index_(0) {}
 
@@ -577,7 +582,7 @@ void ConsumedPreParsedScopeData::RestoreData(Scope* scope) {
   if (scope_data_->RemainingBytes() < kUint8Size) {
     // Temporary debugging code for detecting inconsistent data. Write debug
     // information on the stack, then crash.
-    data_->GetIsolate()->PushStackTraceAndDie();
+    isolate_->PushStackTraceAndDie();
   }
 
   // scope_type is stored only in debug mode.

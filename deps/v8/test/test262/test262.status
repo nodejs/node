@@ -419,10 +419,6 @@
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7480
-  'intl402/Collator/unicode-ext-seq-in-private-tag': [FAIL],
-  'intl402/Collator/unicode-ext-seq-with-attribute': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7481
   'intl402/NumberFormat/ignore-invalid-unicode-ext-values': [FAIL],
   'intl402/DateTimeFormat/ignore-invalid-unicode-ext-values': [FAIL],
@@ -435,7 +431,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7669
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
 
   # Tests assume that the sort order of "same elements" (comparator returns 0)
   # is deterministic.
@@ -467,12 +462,6 @@
   'intl402/Locale/invalid-tag-throws': [FAIL],
   'intl402/Locale/likely-subtags': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-  'intl402/Locale/prototype/maximize/length': [FAIL],
-  'intl402/Locale/prototype/maximize/name': [FAIL],
-  'intl402/Locale/prototype/maximize/prop-desc': [FAIL],
-  'intl402/Locale/prototype/minimize/length': [FAIL],
-  'intl402/Locale/prototype/minimize/name': [FAIL],
-  'intl402/Locale/prototype/minimize/prop-desc': [FAIL],
   'intl402/Locale/prototype/toStringTag/toStringTag': [FAIL],
   'intl402/Locale/prototype/toStringTag/toString': [FAIL],
 
@@ -481,15 +470,9 @@
   'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/length': [FAIL],
   'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/name': [FAIL],
   'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/prop-desc': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/length': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/name': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/prop-desc': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/length': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/name': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/prop-desc': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7813
-  'built-ins/Array/prototype/lastIndexOf/calls-only-has-on-prototype-after-length-zeroed': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7993
+  'intl402/RelativeTimeFormat/prototype/toStringTag/toStringTag': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7814
   'built-ins/Array/prototype/splice/property-traps-order-with-species': [FAIL],
@@ -534,7 +517,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6538
   'built-ins/Array/prototype/unshift/throws-if-integer-limit-exceeded': [SKIP],
-  'built-ins/Array/prototype/reverse/length-exceeding-integer-limit-with-proxy': [FAIL],
   'built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit': [FAIL],
   'built-ins/Array/prototype/splice/throws-if-integer-limit-exceeded': [SKIP],
 

@@ -251,7 +251,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // The entry hook is a "push ra" instruction, followed by a call.
   // Note: on MIPS "push" is 2 instruction
   const int32_t kReturnAddressDistanceFromFunctionStart =
-      Assembler::kCallTargetAddressOffset + (2 * Assembler::kInstrSize);
+      Assembler::kCallTargetAddressOffset + (2 * kInstrSize);
 
   // This should contain all kJSCallerSaved registers.
   const RegList kSavedRegs =

@@ -155,6 +155,28 @@ Node* GraphAssembler::Load(MachineType rep, Node* object, Node* offset) {
                               current_effect_, current_control_);
 }
 
+Node* GraphAssembler::StoreUnaligned(MachineRepresentation rep, Node* object,
+                                     Node* offset, Node* value) {
+  Operator const* const op =
+      (rep == MachineRepresentation::kWord8 ||
+       machine()->UnalignedStoreSupported(rep))
+          ? machine()->Store(StoreRepresentation(rep, kNoWriteBarrier))
+          : machine()->UnalignedStore(rep);
+  return current_effect_ = graph()->NewNode(op, object, offset, value,
+                                            current_effect_, current_control_);
+}
+
+Node* GraphAssembler::LoadUnaligned(MachineType rep, Node* object,
+                                    Node* offset) {
+  Operator const* const op =
+      (rep.representation() == MachineRepresentation::kWord8 ||
+       machine()->UnalignedLoadSupported(rep.representation()))
+          ? machine()->Load(rep)
+          : machine()->UnalignedLoad(rep);
+  return current_effect_ = graph()->NewNode(op, object, offset, current_effect_,
+                                            current_control_);
+}
+
 Node* GraphAssembler::Retain(Node* buffer) {
   return current_effect_ =
              graph()->NewNode(common()->Retain(), buffer, current_effect_);

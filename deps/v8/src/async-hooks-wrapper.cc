@@ -4,6 +4,7 @@
 
 #include "src/async-hooks-wrapper.h"
 #include "src/d8.h"
+#include "src/isolate-inl.h"
 
 namespace v8 {
 
@@ -42,6 +43,18 @@ static AsyncHooksWrap* UnwrapHook(
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   Local<Object> hook = args.This();
+
+  AsyncHooks* hooks = PerIsolateData::Get(isolate)->GetAsyncHooks();
+
+  if (!hooks->async_hook_ctor.Get(isolate)->HasInstance(hook)) {
+    isolate->ThrowException(
+        String::NewFromUtf8(
+            isolate, "Invalid 'this' passed instead of AsyncHooks instance",
+            NewStringType::kNormal)
+            .ToLocalChecked());
+    return nullptr;
+  }
+
   Local<External> wrap = Local<External>::Cast(hook->GetInternalField(0));
   void* ptr = wrap->Value();
   return static_cast<AsyncHooksWrap*>(ptr);
@@ -49,12 +62,16 @@ static AsyncHooksWrap* UnwrapHook(
 
 static void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
   AsyncHooksWrap* wrap = UnwrapHook(args);
-  wrap->Enable();
+  if (wrap) {
+    wrap->Enable();
+  }
 }
 
 static void DisableHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
   AsyncHooksWrap* wrap = UnwrapHook(args);
-  wrap->Disable();
+  if (wrap) {
+    wrap->Disable();
+  }
 }
 
 async_id_t AsyncHooks::GetExecutionAsyncId() const {
@@ -182,10 +199,12 @@ void AsyncHooks::Initialize() {
                           async_hook_ctor.Get(isolate_)->InstanceTemplate());
   async_hooks_templ.Get(isolate_)->SetInternalFieldCount(1);
   async_hooks_templ.Get(isolate_)->Set(
-      String::NewFromUtf8(isolate_, "enable"),
+      String::NewFromUtf8(isolate_, "enable", v8::NewStringType::kNormal)
+          .ToLocalChecked(),
       FunctionTemplate::New(isolate_, EnableHook));
   async_hooks_templ.Get(isolate_)->Set(
-      String::NewFromUtf8(isolate_, "disable"),
+      String::NewFromUtf8(isolate_, "disable", v8::NewStringType::kNormal)
+          .ToLocalChecked(),
       FunctionTemplate::New(isolate_, DisableHook));
 
   async_id_smb.Reset(isolate_, Private::New(isolate_));
@@ -214,13 +233,25 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
   TryCatch try_catch(hooks->isolate_);
   try_catch.SetVerbose(true);
 
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(hooks->isolate_);
+  if (isolate->has_scheduled_exception()) {
+    isolate->ScheduleThrow(isolate->scheduled_exception());
+
+    DCHECK(try_catch.HasCaught());
+    Shell::ReportException(hooks->isolate_, &try_catch);
+    return;
+  }
+
   Local<Value> rcv = Undefined(hooks->isolate_);
+  Local<Context> context = hooks->isolate_->GetCurrentContext();
   Local<Value> async_id =
-      promise
-          ->GetPrivate(hooks->isolate_->GetCurrentContext(),
-                       hooks->async_id_smb.Get(hooks->isolate_))
+      promise->GetPrivate(context, hooks->async_id_smb.Get(hooks->isolate_))
           .ToLocalChecked();
   Local<Value> args[1] = {async_id};
+
+  // This is unused. It's here to silence the warning about
+  // not using the MaybeLocal return value from Call.
+  MaybeLocal<Value> result;
 
   // Sacrifice the brevity for readability and debugfulness
   if (type == PromiseHookType::kInit) {
@@ -231,23 +262,22 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
                               NewStringType::kNormal)
               .ToLocalChecked(),
           promise
-              ->GetPrivate(hooks->isolate_->GetCurrentContext(),
-                           hooks->trigger_id_smb.Get(hooks->isolate_))
+              ->GetPrivate(context, hooks->trigger_id_smb.Get(hooks->isolate_))
               .ToLocalChecked(),
           promise};
-      wrap->init_function()->Call(rcv, 4, initArgs);
+      result = wrap->init_function()->Call(context, rcv, 4, initArgs);
     }
   } else if (type == PromiseHookType::kBefore) {
     if (!wrap->before_function().IsEmpty()) {
-      wrap->before_function()->Call(rcv, 1, args);
+      result = wrap->before_function()->Call(context, rcv, 1, args);
     }
   } else if (type == PromiseHookType::kAfter) {
     if (!wrap->after_function().IsEmpty()) {
-      wrap->after_function()->Call(rcv, 1, args);
+      result = wrap->after_function()->Call(context, rcv, 1, args);
     }
   } else if (type == PromiseHookType::kResolve) {
     if (!wrap->promiseResolve_function().IsEmpty()) {
-      wrap->promiseResolve_function()->Call(rcv, 1, args);
+      result = wrap->promiseResolve_function()->Call(context, rcv, 1, args);
     }
   }
 

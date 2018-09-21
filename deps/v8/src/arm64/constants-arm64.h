@@ -28,10 +28,10 @@ namespace internal {
 
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 128;
 
-const unsigned kInstructionSize = 4;
-const unsigned kInstructionSizeLog2 = 2;
-const unsigned kLoadLiteralScaleLog2 = 2;
-const unsigned kMaxLoadLiteralRange = 1 * MB;
+constexpr uint8_t kInstrSize = 4;
+constexpr uint8_t kInstrSizeLog2 = 2;
+constexpr size_t kLoadLiteralScaleLog2 = 2;
+constexpr size_t kMaxLoadLiteralRange = 1 * MB;
 
 const int kNumberOfRegisters = 32;
 const int kNumberOfVRegisters = 32;
@@ -42,7 +42,7 @@ const int kFirstCalleeSavedRegisterIndex = 19;
 const int kNumberOfCalleeSavedVRegisters = 8;
 const int kFirstCalleeSavedVRegisterIndex = 8;
 // Callee saved registers with no specific purpose in JS are x19-x25.
-const unsigned kJSCalleeSavedRegList = 0x03f80000;
+const size_t kJSCalleeSavedRegList = 0x03f80000;
 const int kWRegSizeInBits = 32;
 const int kWRegSizeInBitsLog2 = 5;
 const int kWRegSize = kWRegSizeInBits >> 3;
@@ -327,36 +327,6 @@ inline Condition NegateCondition(Condition cond) {
   // inverted, because there is no never condition.
   DCHECK((cond != al) && (cond != nv));
   return static_cast<Condition>(cond ^ 1);
-}
-
-// Commute a condition such that {a cond b == b cond' a}.
-inline Condition CommuteCondition(Condition cond) {
-  switch (cond) {
-    case lo:
-      return hi;
-    case hi:
-      return lo;
-    case hs:
-      return ls;
-    case ls:
-      return hs;
-    case lt:
-      return gt;
-    case gt:
-      return lt;
-    case ge:
-      return le;
-    case le:
-      return ge;
-    case eq:
-      return eq;
-    default:
-      // In practice this function is only used with a condition coming from
-      // TokenToCondition in lithium-codegen-arm64.cc. Any other condition is
-      // invalid as it doesn't necessary make sense to reverse it (consider
-      // 'mi' for instance).
-      UNREACHABLE();
-  }
 }
 
 enum FlagsUpdate {

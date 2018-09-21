@@ -5,8 +5,6 @@
 #ifndef V8_TORQUE_GLOBAL_CONTEXT_H_
 #define V8_TORQUE_GLOBAL_CONTEXT_H_
 
-#include "src/torque/TorqueLexer.h"
-#include "src/torque/TorqueParser.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declarations.h"
 #include "src/torque/scope.h"
@@ -19,6 +17,8 @@ namespace torque {
 class GlobalContext;
 class Scope;
 class TypeOracle;
+class Builtin;
+class Label;
 
 class Module {
  public:
@@ -36,15 +36,6 @@ class Module {
   bool is_default_;
   std::stringstream header_stream_;
   std::stringstream source_stream_;
-};
-
-struct SourceFileContext {
-  std::string name;
-  std::unique_ptr<antlr4::ANTLRFileStream> stream;
-  std::unique_ptr<TorqueLexer> lexer;
-  std::unique_ptr<antlr4::CommonTokenStream> tokens;
-  std::unique_ptr<TorqueParser> parser;
-  TorqueParser::FileContext* file;
 };
 
 class GlobalContext {

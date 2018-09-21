@@ -33,6 +33,7 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 
@@ -47,14 +48,6 @@ namespace wasm {
 
 constexpr uint32_t kMaxFunctions = 10;
 constexpr uint32_t kMaxGlobalsSize = 128;
-
-enum WasmExecutionMode {
-  kExecuteInterpreter,
-  kExecuteTurbofan,
-  kExecuteLiftoff
-};
-
-enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
 
 using compiler::CallDescriptor;
 using compiler::MachineTypeForC;
@@ -90,7 +83,7 @@ struct ManuallyImportedJSFunction {
 // the interpreter.
 class TestingModuleBuilder {
  public:
-  TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, WasmExecutionMode,
+  TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, ExecutionTier,
                        RuntimeExceptionSupport, LowerSimd);
 
   void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsOrigin; }
@@ -203,7 +196,7 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> instance_object() const {
     return instance_object_;
   }
-  wasm::WasmCode* GetFunctionCode(uint32_t index) const {
+  WasmCode* GetFunctionCode(uint32_t index) const {
     return native_module_->code(index);
   }
   Address globals_start() const {
@@ -217,7 +210,7 @@ class TestingModuleBuilder {
 
   ModuleEnv CreateModuleEnv();
 
-  WasmExecutionMode execution_mode() const { return execution_mode_; }
+  ExecutionTier execution_tier() const { return execution_tier_; }
 
   RuntimeExceptionSupport runtime_exception_support() const {
     return runtime_exception_support_;
@@ -227,12 +220,13 @@ class TestingModuleBuilder {
   std::shared_ptr<WasmModule> test_module_;
   WasmModule* test_module_ptr_;
   Isolate* isolate_;
+  WasmFeatures enabled_features_;
   uint32_t global_offset = 0;
   byte* mem_start_ = nullptr;
   uint32_t mem_size_ = 0;
   V8_ALIGNED(16) byte globals_data_[kMaxGlobalsSize];
   WasmInterpreter* interpreter_ = nullptr;
-  WasmExecutionMode execution_mode_;
+  ExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
   bool linked_ = false;
@@ -265,7 +259,7 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
     Init(call_descriptor, MachineTypeForC<ReturnType>(), param_vec);
   }
 
-  void SetInnerCode(wasm::WasmCode* code) {
+  void SetInnerCode(WasmCode* code) {
     intptr_t address = static_cast<intptr_t>(code->instruction_start());
     compiler::NodeProperties::ChangeOp(
         inner_code_node_,
@@ -347,11 +341,11 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
 class WasmRunnerBase : public HandleAndZoneScope {
  public:
   WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
-                 WasmExecutionMode execution_mode, int num_params,
+                 ExecutionTier execution_tier, int num_params,
                  RuntimeExceptionSupport runtime_exception_support,
                  LowerSimd lower_simd)
       : zone_(&allocator_, ZONE_NAME),
-        builder_(&zone_, maybe_import, execution_mode,
+        builder_(&zone_, maybe_import, execution_tier,
                  runtime_exception_support, lower_simd),
         wrapper_(&zone_, num_params) {}
 
@@ -428,13 +422,13 @@ class WasmRunnerBase : public HandleAndZoneScope {
 template <typename ReturnType, typename... ParamTypes>
 class WasmRunner : public WasmRunnerBase {
  public:
-  WasmRunner(WasmExecutionMode execution_mode,
+  WasmRunner(ExecutionTier execution_tier,
              ManuallyImportedJSFunction* maybe_import = nullptr,
              const char* main_fn_name = "main",
              RuntimeExceptionSupport runtime_exception_support =
                  kNoRuntimeExceptionSupport,
              LowerSimd lower_simd = kNoLowerSimd)
-      : WasmRunnerBase(maybe_import, execution_mode, sizeof...(ParamTypes),
+      : WasmRunnerBase(maybe_import, execution_tier, sizeof...(ParamTypes),
                        runtime_exception_support, lower_simd) {
     NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     if (!interpret()) {
@@ -442,8 +436,8 @@ class WasmRunner : public WasmRunnerBase {
     }
   }
 
-  WasmRunner(WasmExecutionMode execution_mode, LowerSimd lower_simd)
-      : WasmRunner(execution_mode, nullptr, "main", kNoRuntimeExceptionSupport,
+  WasmRunner(ExecutionTier execution_tier, LowerSimd lower_simd)
+      : WasmRunner(execution_tier, nullptr, "main", kNoRuntimeExceptionSupport,
                    lower_simd) {}
 
   ReturnType Call(ParamTypes... p) {
@@ -501,18 +495,20 @@ class WasmRunner : public WasmRunnerBase {
 };
 
 // A macro to define tests that run in different engine configurations.
-#define WASM_EXEC_TEST(name)                                               \
-  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
-  TEST(RunWasmTurbofan_##name) { RunWasm_##name(kExecuteTurbofan); }       \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(kExecuteLiftoff); }         \
-  TEST(RunWasmInterpreter_##name) { RunWasm_##name(kExecuteInterpreter); } \
-  void RunWasm_##name(WasmExecutionMode execution_mode)
+#define WASM_EXEC_TEST(name)                                                  \
+  void RunWasm_##name(ExecutionTier execution_tier);                          \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kOptimized); } \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kBaseline); }   \
+  TEST(RunWasmInterpreter_##name) {                                           \
+    RunWasm_##name(ExecutionTier::kInterpreter);                              \
+  }                                                                           \
+  void RunWasm_##name(ExecutionTier execution_tier)
 
-#define WASM_COMPILED_EXEC_TEST(name)                                \
-  void RunWasm_##name(WasmExecutionMode execution_mode);             \
-  TEST(RunWasmTurbofan_##name) { RunWasm_##name(kExecuteTurbofan); } \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(kExecuteLiftoff); }   \
-  void RunWasm_##name(WasmExecutionMode execution_mode)
+#define WASM_COMPILED_EXEC_TEST(name)                                         \
+  void RunWasm_##name(ExecutionTier execution_tier);                          \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kOptimized); } \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kBaseline); }   \
+  void RunWasm_##name(ExecutionTier execution_tier)
 
 }  // namespace wasm
 }  // namespace internal

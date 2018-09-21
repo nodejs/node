@@ -83,8 +83,8 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and
   // FixedArrays representing Simd128 values.
-  Node* state_out = __ AllocateFixedArray(PACKED_ELEMENTS,
-                                          __ IntPtrConstant(parameters.size()));
+  TNode<FixedArray> state_out = __ Cast(__ AllocateFixedArray(
+      PACKED_ELEMENTS, __ IntPtrConstant(parameters.size())));
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
@@ -94,8 +94,8 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
         __ StoreFixedArrayElement(state_out, i, __ AllocateHeapNumber());
         break;
       case MachineRepresentation::kSimd128: {
-        Node* vector =
-            __ AllocateFixedArray(PACKED_SMI_ELEMENTS, __ IntPtrConstant(4));
+        TNode<FixedArray> vector = __ Cast(
+            __ AllocateFixedArray(PACKED_SMI_ELEMENTS, __ IntPtrConstant(4)));
         for (int lane = 0; lane < 4; lane++) {
           __ StoreFixedArrayElement(vector, lane, __ SmiConstant(0));
         }
@@ -109,7 +109,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   }
   params.push_back(state_out);
   // Then take each element of the initial state and pass them as arguments.
-  Node* state_in = __ Parameter(1);
+  TNode<FixedArray> state_in = __ Cast(__ Parameter(1));
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     Node* element = __ LoadFixedArrayElement(state_in, __ IntPtrConstant(i));
     // Unbox all elements before passing them as arguments.
@@ -197,7 +197,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
                                    std::vector<AllocatedOperand> parameters) {
   CodeAssemblerTester tester(isolate, call_descriptor, "teardown");
   CodeStubAssembler assembler(tester.state());
-  Node* result_array = __ Parameter(1);
+  TNode<FixedArray> result_array = __ Cast(__ Parameter(1));
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     // The first argument is not used and the second is "result_array".
     Node* param = __ Parameter(i + 2);
@@ -216,7 +216,8 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
             param, MachineRepresentation::kFloat64);
         break;
       case MachineRepresentation::kSimd128: {
-        Node* vector = __ LoadFixedArrayElement(result_array, i);
+        TNode<FixedArray> vector =
+            __ Cast(__ LoadFixedArrayElement(result_array, i));
         for (int lane = 0; lane < 4; lane++) {
           Node* lane_value =
               __ SmiFromInt32(tester.raw_assembler_for_testing()->AddNode(
@@ -995,8 +996,7 @@ class CodeGeneratorTester {
     generator_ = new CodeGenerator(
         environment->main_zone(), &frame_, &linkage_, environment->code(),
         &info_, environment->main_isolate(), base::Optional<OsrHelper>(),
-        kNoSourcePosition, nullptr, nullptr,
-        PoisoningMitigationLevel::kDontPoison,
+        kNoSourcePosition, nullptr, PoisoningMitigationLevel::kDontPoison,
         AssemblerOptions::Default(environment->main_isolate()),
         Builtins::kNoBuiltinId);
 

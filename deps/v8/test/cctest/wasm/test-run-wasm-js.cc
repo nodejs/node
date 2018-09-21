@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -96,7 +96,7 @@ void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a,
 }  // namespace
 
 WASM_EXEC_TEST(Run_Int32Sub_jswrapped) {
-  WasmRunner<int, int, int> r(execution_mode);
+  WasmRunner<int, int, int> r(execution_tier);
   BUILD(r, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   Handle<JSFunction> jsfunc = r.builder().WrapCode(r.function()->func_index);
 
@@ -105,7 +105,7 @@ WASM_EXEC_TEST(Run_Int32Sub_jswrapped) {
 }
 
 WASM_EXEC_TEST(Run_Float32Div_jswrapped) {
-  WasmRunner<float, float, float> r(execution_mode);
+  WasmRunner<float, float, float> r(execution_tier);
   BUILD(r, WASM_F32_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   Handle<JSFunction> jsfunc = r.builder().WrapCode(r.function()->func_index);
 
@@ -114,7 +114,7 @@ WASM_EXEC_TEST(Run_Float32Div_jswrapped) {
 }
 
 WASM_EXEC_TEST(Run_Float64Add_jswrapped) {
-  WasmRunner<double, double, double> r(execution_mode);
+  WasmRunner<double, double, double> r(execution_tier);
   BUILD(r, WASM_F64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   Handle<JSFunction> jsfunc = r.builder().WrapCode(r.function()->func_index);
 
@@ -123,7 +123,7 @@ WASM_EXEC_TEST(Run_Float64Add_jswrapped) {
 }
 
 WASM_EXEC_TEST(Run_I32Popcount_jswrapped) {
-  WasmRunner<int, int> r(execution_mode);
+  WasmRunner<int, int> r(execution_tier);
   BUILD(r, WASM_I32_POPCNT(WASM_GET_LOCAL(0)));
   Handle<JSFunction> jsfunc = r.builder().WrapCode(r.function()->func_index);
 
@@ -140,7 +140,7 @@ WASM_EXEC_TEST(Run_CallJS_Add_jswrapped) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.i_i(), js_function};
-  WasmRunner<int, int> r(execution_mode, &import);
+  WasmRunner<int, int> r(execution_tier, &import);
   uint32_t js_index = 0;
 
   WasmFunctionCompiler& t = r.NewFunction(sigs.i_i());
@@ -153,7 +153,7 @@ WASM_EXEC_TEST(Run_CallJS_Add_jswrapped) {
   EXPECT_CALL(-666666801, jsfunc, -666666900, -1);
 }
 
-void RunJSSelectTest(WasmExecutionMode mode, int which) {
+void RunJSSelectTest(ExecutionTier tier, int which) {
   const int kMaxParams = 8;
   PredictableInputValues inputs(0x100);
   ValueType type = kWasmF64;
@@ -164,7 +164,7 @@ void RunJSSelectTest(WasmExecutionMode mode, int which) {
     FunctionSig sig(1, num_params, types);
 
     ManuallyImportedJSFunction import = CreateJSSelector(&sig, which);
-    WasmRunner<void> r(mode, &import);
+    WasmRunner<void> r(tier, &import);
     uint32_t js_index = 0;
 
     WasmFunctionCompiler& t = r.NewFunction(&sig);
@@ -191,45 +191,45 @@ void RunJSSelectTest(WasmExecutionMode mode, int which) {
 
 WASM_EXEC_TEST(Run_JSSelect_0) {
   CcTest::InitializeVM();
-  RunJSSelectTest(execution_mode, 0);
+  RunJSSelectTest(execution_tier, 0);
 }
 
 WASM_EXEC_TEST(Run_JSSelect_1) {
   CcTest::InitializeVM();
-  RunJSSelectTest(execution_mode, 1);
+  RunJSSelectTest(execution_tier, 1);
 }
 
 WASM_EXEC_TEST(Run_JSSelect_2) {
   CcTest::InitializeVM();
-  RunJSSelectTest(execution_mode, 2);
+  RunJSSelectTest(execution_tier, 2);
 }
 
 WASM_EXEC_TEST(Run_JSSelect_3) {
   CcTest::InitializeVM();
-  RunJSSelectTest(execution_mode, 3);
+  RunJSSelectTest(execution_tier, 3);
 }
 
 WASM_EXEC_TEST(Run_JSSelect_4) {
   CcTest::InitializeVM();
-  RunJSSelectTest(execution_mode, 4);
+  RunJSSelectTest(execution_tier, 4);
 }
 
 WASM_EXEC_TEST(Run_JSSelect_5) {
   CcTest::InitializeVM();
-  RunJSSelectTest(execution_mode, 5);
+  RunJSSelectTest(execution_tier, 5);
 }
 
 WASM_EXEC_TEST(Run_JSSelect_6) {
   CcTest::InitializeVM();
-  RunJSSelectTest(execution_mode, 6);
+  RunJSSelectTest(execution_tier, 6);
 }
 
 WASM_EXEC_TEST(Run_JSSelect_7) {
   CcTest::InitializeVM();
-  RunJSSelectTest(execution_mode, 7);
+  RunJSSelectTest(execution_tier, 7);
 }
 
-void RunWASMSelectTest(WasmExecutionMode mode, int which) {
+void RunWASMSelectTest(ExecutionTier tier, int which) {
   PredictableInputValues inputs(0x200);
   Isolate* isolate = CcTest::InitIsolateOnce();
   const int kMaxParams = 8;
@@ -239,7 +239,7 @@ void RunWASMSelectTest(WasmExecutionMode mode, int which) {
                                        type, type, type, type};
     FunctionSig sig(1, num_params, types);
 
-    WasmRunner<void> r(mode);
+    WasmRunner<void> r(tier);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
     BUILD(t, WASM_GET_LOCAL(which));
     Handle<JSFunction> jsfunc = r.builder().WrapCode(t.function_index());
@@ -262,46 +262,45 @@ void RunWASMSelectTest(WasmExecutionMode mode, int which) {
 
 WASM_EXEC_TEST(Run_WASMSelect_0) {
   CcTest::InitializeVM();
-  RunWASMSelectTest(execution_mode, 0);
+  RunWASMSelectTest(execution_tier, 0);
 }
 
 WASM_EXEC_TEST(Run_WASMSelect_1) {
   CcTest::InitializeVM();
-  RunWASMSelectTest(execution_mode, 1);
+  RunWASMSelectTest(execution_tier, 1);
 }
 
 WASM_EXEC_TEST(Run_WASMSelect_2) {
   CcTest::InitializeVM();
-  RunWASMSelectTest(execution_mode, 2);
+  RunWASMSelectTest(execution_tier, 2);
 }
 
 WASM_EXEC_TEST(Run_WASMSelect_3) {
   CcTest::InitializeVM();
-  RunWASMSelectTest(execution_mode, 3);
+  RunWASMSelectTest(execution_tier, 3);
 }
 
 WASM_EXEC_TEST(Run_WASMSelect_4) {
   CcTest::InitializeVM();
-  RunWASMSelectTest(execution_mode, 4);
+  RunWASMSelectTest(execution_tier, 4);
 }
 
 WASM_EXEC_TEST(Run_WASMSelect_5) {
   CcTest::InitializeVM();
-  RunWASMSelectTest(execution_mode, 5);
+  RunWASMSelectTest(execution_tier, 5);
 }
 
 WASM_EXEC_TEST(Run_WASMSelect_6) {
   CcTest::InitializeVM();
-  RunWASMSelectTest(execution_mode, 6);
+  RunWASMSelectTest(execution_tier, 6);
 }
 
 WASM_EXEC_TEST(Run_WASMSelect_7) {
   CcTest::InitializeVM();
-  RunWASMSelectTest(execution_mode, 7);
+  RunWASMSelectTest(execution_tier, 7);
 }
 
-void RunWASMSelectAlignTest(WasmExecutionMode mode, int num_args,
-                            int num_params) {
+void RunWASMSelectAlignTest(ExecutionTier tier, int num_args, int num_params) {
   PredictableInputValues inputs(0x300);
   Isolate* isolate = CcTest::InitIsolateOnce();
   const int kMaxParams = 10;
@@ -312,7 +311,7 @@ void RunWASMSelectAlignTest(WasmExecutionMode mode, int num_args,
   FunctionSig sig(1, num_params, types);
 
   for (int which = 0; which < num_params; which++) {
-    WasmRunner<void> r(mode);
+    WasmRunner<void> r(tier);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
     BUILD(t, WASM_GET_LOCAL(which));
     Handle<JSFunction> jsfunc = r.builder().WrapCode(t.function_index());
@@ -336,67 +335,66 @@ void RunWASMSelectAlignTest(WasmExecutionMode mode, int num_args,
 
 WASM_EXEC_TEST(Run_WASMSelectAlign_0) {
   CcTest::InitializeVM();
-  RunWASMSelectAlignTest(execution_mode, 0, 1);
-  RunWASMSelectAlignTest(execution_mode, 0, 2);
+  RunWASMSelectAlignTest(execution_tier, 0, 1);
+  RunWASMSelectAlignTest(execution_tier, 0, 2);
 }
 
 WASM_EXEC_TEST(Run_WASMSelectAlign_1) {
   CcTest::InitializeVM();
-  RunWASMSelectAlignTest(execution_mode, 1, 2);
-  RunWASMSelectAlignTest(execution_mode, 1, 3);
+  RunWASMSelectAlignTest(execution_tier, 1, 2);
+  RunWASMSelectAlignTest(execution_tier, 1, 3);
 }
 
 WASM_EXEC_TEST(Run_WASMSelectAlign_2) {
   CcTest::InitializeVM();
-  RunWASMSelectAlignTest(execution_mode, 2, 3);
-  RunWASMSelectAlignTest(execution_mode, 2, 4);
+  RunWASMSelectAlignTest(execution_tier, 2, 3);
+  RunWASMSelectAlignTest(execution_tier, 2, 4);
 }
 
 WASM_EXEC_TEST(Run_WASMSelectAlign_3) {
   CcTest::InitializeVM();
-  RunWASMSelectAlignTest(execution_mode, 3, 3);
-  RunWASMSelectAlignTest(execution_mode, 3, 4);
+  RunWASMSelectAlignTest(execution_tier, 3, 3);
+  RunWASMSelectAlignTest(execution_tier, 3, 4);
 }
 
 WASM_EXEC_TEST(Run_WASMSelectAlign_4) {
   CcTest::InitializeVM();
-  RunWASMSelectAlignTest(execution_mode, 4, 3);
-  RunWASMSelectAlignTest(execution_mode, 4, 4);
+  RunWASMSelectAlignTest(execution_tier, 4, 3);
+  RunWASMSelectAlignTest(execution_tier, 4, 4);
 }
 
 WASM_EXEC_TEST(Run_WASMSelectAlign_7) {
   CcTest::InitializeVM();
-  RunWASMSelectAlignTest(execution_mode, 7, 5);
-  RunWASMSelectAlignTest(execution_mode, 7, 6);
-  RunWASMSelectAlignTest(execution_mode, 7, 7);
+  RunWASMSelectAlignTest(execution_tier, 7, 5);
+  RunWASMSelectAlignTest(execution_tier, 7, 6);
+  RunWASMSelectAlignTest(execution_tier, 7, 7);
 }
 
 WASM_EXEC_TEST(Run_WASMSelectAlign_8) {
   CcTest::InitializeVM();
-  RunWASMSelectAlignTest(execution_mode, 8, 5);
-  RunWASMSelectAlignTest(execution_mode, 8, 6);
-  RunWASMSelectAlignTest(execution_mode, 8, 7);
-  RunWASMSelectAlignTest(execution_mode, 8, 8);
+  RunWASMSelectAlignTest(execution_tier, 8, 5);
+  RunWASMSelectAlignTest(execution_tier, 8, 6);
+  RunWASMSelectAlignTest(execution_tier, 8, 7);
+  RunWASMSelectAlignTest(execution_tier, 8, 8);
 }
 
 WASM_EXEC_TEST(Run_WASMSelectAlign_9) {
   CcTest::InitializeVM();
-  RunWASMSelectAlignTest(execution_mode, 9, 6);
-  RunWASMSelectAlignTest(execution_mode, 9, 7);
-  RunWASMSelectAlignTest(execution_mode, 9, 8);
-  RunWASMSelectAlignTest(execution_mode, 9, 9);
+  RunWASMSelectAlignTest(execution_tier, 9, 6);
+  RunWASMSelectAlignTest(execution_tier, 9, 7);
+  RunWASMSelectAlignTest(execution_tier, 9, 8);
+  RunWASMSelectAlignTest(execution_tier, 9, 9);
 }
 
 WASM_EXEC_TEST(Run_WASMSelectAlign_10) {
   CcTest::InitializeVM();
-  RunWASMSelectAlignTest(execution_mode, 10, 7);
-  RunWASMSelectAlignTest(execution_mode, 10, 8);
-  RunWASMSelectAlignTest(execution_mode, 10, 9);
-  RunWASMSelectAlignTest(execution_mode, 10, 10);
+  RunWASMSelectAlignTest(execution_tier, 10, 7);
+  RunWASMSelectAlignTest(execution_tier, 10, 8);
+  RunWASMSelectAlignTest(execution_tier, 10, 9);
+  RunWASMSelectAlignTest(execution_tier, 10, 10);
 }
 
-void RunJSSelectAlignTest(WasmExecutionMode mode, int num_args,
-                          int num_params) {
+void RunJSSelectAlignTest(ExecutionTier tier, int num_args, int num_params) {
   PredictableInputValues inputs(0x400);
   Isolate* isolate = CcTest::InitIsolateOnce();
   Factory* factory = isolate->factory();
@@ -427,7 +425,7 @@ void RunJSSelectAlignTest(WasmExecutionMode mode, int num_args,
   for (int which = 0; which < num_params; which++) {
     HandleScope scope(isolate);
     ManuallyImportedJSFunction import = CreateJSSelector(&sig, which);
-    WasmRunner<void> r(mode, &import);
+    WasmRunner<void> r(tier, &import);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
     t.Build(&code[0], &code[end]);
 
@@ -454,64 +452,64 @@ void RunJSSelectAlignTest(WasmExecutionMode mode, int num_args,
 
 WASM_EXEC_TEST(Run_JSSelectAlign_0) {
   CcTest::InitializeVM();
-  RunJSSelectAlignTest(execution_mode, 0, 1);
-  RunJSSelectAlignTest(execution_mode, 0, 2);
+  RunJSSelectAlignTest(execution_tier, 0, 1);
+  RunJSSelectAlignTest(execution_tier, 0, 2);
 }
 
 WASM_EXEC_TEST(Run_JSSelectAlign_1) {
   CcTest::InitializeVM();
-  RunJSSelectAlignTest(execution_mode, 1, 2);
-  RunJSSelectAlignTest(execution_mode, 1, 3);
+  RunJSSelectAlignTest(execution_tier, 1, 2);
+  RunJSSelectAlignTest(execution_tier, 1, 3);
 }
 
 WASM_EXEC_TEST(Run_JSSelectAlign_2) {
   CcTest::InitializeVM();
-  RunJSSelectAlignTest(execution_mode, 2, 3);
-  RunJSSelectAlignTest(execution_mode, 2, 4);
+  RunJSSelectAlignTest(execution_tier, 2, 3);
+  RunJSSelectAlignTest(execution_tier, 2, 4);
 }
 
 WASM_EXEC_TEST(Run_JSSelectAlign_3) {
   CcTest::InitializeVM();
-  RunJSSelectAlignTest(execution_mode, 3, 3);
-  RunJSSelectAlignTest(execution_mode, 3, 4);
+  RunJSSelectAlignTest(execution_tier, 3, 3);
+  RunJSSelectAlignTest(execution_tier, 3, 4);
 }
 
 WASM_EXEC_TEST(Run_JSSelectAlign_4) {
   CcTest::InitializeVM();
-  RunJSSelectAlignTest(execution_mode, 4, 3);
-  RunJSSelectAlignTest(execution_mode, 4, 4);
+  RunJSSelectAlignTest(execution_tier, 4, 3);
+  RunJSSelectAlignTest(execution_tier, 4, 4);
 }
 
 WASM_EXEC_TEST(Run_JSSelectAlign_7) {
   CcTest::InitializeVM();
-  RunJSSelectAlignTest(execution_mode, 7, 3);
-  RunJSSelectAlignTest(execution_mode, 7, 4);
-  RunJSSelectAlignTest(execution_mode, 7, 4);
-  RunJSSelectAlignTest(execution_mode, 7, 4);
+  RunJSSelectAlignTest(execution_tier, 7, 3);
+  RunJSSelectAlignTest(execution_tier, 7, 4);
+  RunJSSelectAlignTest(execution_tier, 7, 4);
+  RunJSSelectAlignTest(execution_tier, 7, 4);
 }
 
 WASM_EXEC_TEST(Run_JSSelectAlign_8) {
   CcTest::InitializeVM();
-  RunJSSelectAlignTest(execution_mode, 8, 5);
-  RunJSSelectAlignTest(execution_mode, 8, 6);
-  RunJSSelectAlignTest(execution_mode, 8, 7);
-  RunJSSelectAlignTest(execution_mode, 8, 8);
+  RunJSSelectAlignTest(execution_tier, 8, 5);
+  RunJSSelectAlignTest(execution_tier, 8, 6);
+  RunJSSelectAlignTest(execution_tier, 8, 7);
+  RunJSSelectAlignTest(execution_tier, 8, 8);
 }
 
 WASM_EXEC_TEST(Run_JSSelectAlign_9) {
   CcTest::InitializeVM();
-  RunJSSelectAlignTest(execution_mode, 9, 6);
-  RunJSSelectAlignTest(execution_mode, 9, 7);
-  RunJSSelectAlignTest(execution_mode, 9, 8);
-  RunJSSelectAlignTest(execution_mode, 9, 9);
+  RunJSSelectAlignTest(execution_tier, 9, 6);
+  RunJSSelectAlignTest(execution_tier, 9, 7);
+  RunJSSelectAlignTest(execution_tier, 9, 8);
+  RunJSSelectAlignTest(execution_tier, 9, 9);
 }
 
 WASM_EXEC_TEST(Run_JSSelectAlign_10) {
   CcTest::InitializeVM();
-  RunJSSelectAlignTest(execution_mode, 10, 7);
-  RunJSSelectAlignTest(execution_mode, 10, 8);
-  RunJSSelectAlignTest(execution_mode, 10, 9);
-  RunJSSelectAlignTest(execution_mode, 10, 10);
+  RunJSSelectAlignTest(execution_tier, 10, 7);
+  RunJSSelectAlignTest(execution_tier, 10, 8);
+  RunJSSelectAlignTest(execution_tier, 10, 9);
+  RunJSSelectAlignTest(execution_tier, 10, 10);
 }
 
 #undef ADD_CODE

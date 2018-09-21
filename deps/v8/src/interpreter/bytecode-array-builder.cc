@@ -986,6 +986,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEmptyObjectLiteral() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CloneObject(Register source,
+                                                        int flags,
+                                                        int feedback_slot) {
+  OutputCloneObject(source, flags, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::GetTemplateObject(
     size_t template_object_description_entry, int feedback_slot) {
   OutputGetTemplateObject(template_object_description_entry, feedback_slot);

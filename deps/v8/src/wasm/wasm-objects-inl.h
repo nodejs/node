@@ -9,9 +9,10 @@
 
 #include "src/contexts-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/objects/js-array-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed.h"
 #include "src/v8memory.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
 
 // Has to be the last include (doesn't have include guards)
@@ -85,8 +86,7 @@ ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
-OPTIONAL_ACCESSORS(WasmMemoryObject, instances, FixedArrayOfWeakCells,
-                   kInstancesOffset)
+OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakArrayList, kInstancesOffset)
 
 // WasmGlobalObject
 ACCESSORS(WasmGlobalObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
@@ -108,36 +108,42 @@ Address WasmGlobalObject::address() const {
   return Address(array_buffer()->backing_store()) + offset();
 }
 
-int32_t WasmGlobalObject::GetI32() { return Memory::int32_at(address()); }
+int32_t WasmGlobalObject::GetI32() {
+  return ReadLittleEndianValue<int32_t>(address());
+}
 
-int64_t WasmGlobalObject::GetI64() { return Memory::int64_at(address()); }
+int64_t WasmGlobalObject::GetI64() {
+  return ReadLittleEndianValue<int64_t>(address());
+}
 
-float WasmGlobalObject::GetF32() { return Memory::float_at(address()); }
+float WasmGlobalObject::GetF32() {
+  return ReadLittleEndianValue<float>(address());
+}
 
-double WasmGlobalObject::GetF64() { return Memory::double_at(address()); }
+double WasmGlobalObject::GetF64() {
+  return ReadLittleEndianValue<double>(address());
+}
 
 void WasmGlobalObject::SetI32(int32_t value) {
-  Memory::int32_at(address()) = value;
+  WriteLittleEndianValue<int32_t>(address(), value);
 }
 
 void WasmGlobalObject::SetI64(int64_t value) {
-  Memory::int64_at(address()) = value;
+  WriteLittleEndianValue<int64_t>(address(), value);
 }
 
 void WasmGlobalObject::SetF32(float value) {
-  Memory::float_at(address()) = value;
+  WriteLittleEndianValue<float>(address(), value);
 }
 
 void WasmGlobalObject::SetF64(double value) {
-  Memory::double_at(address()) = value;
+  WriteLittleEndianValue<double>(address(), value);
 }
 
 // WasmInstanceObject
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_start, byte*, kMemoryStartOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, uint32_t,
-                    kMemorySizeOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_mask, uint32_t,
-                    kMemoryMaskOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, size_t, kMemorySizeOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_mask, size_t, kMemoryMaskOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, roots_array_address, Address,
                     kRootsArrayAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, stack_limit_address, Address,
@@ -156,8 +162,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids,
                     uint32_t*, kIndirectFunctionTableSigIdsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
                     Address*, kIndirectFunctionTableTargetsOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_adjusted_start, Address,
-                    kJumpTableAdjustedStartOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_start, Address,
+                    kJumpTableStartOffset)
 
 ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
           kModuleObjectOffset)
@@ -207,6 +213,8 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 ACCESSORS(WasmExportedFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
           kInstanceOffset)
+SMI_ACCESSORS(WasmExportedFunctionData, jump_table_offset,
+              kJumpTableOffsetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
 
 // WasmDebugInfo

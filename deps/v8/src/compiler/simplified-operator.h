@@ -14,6 +14,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/machine-type.h"
+#include "src/maybe-handles.h"
 #include "src/objects.h"
 #include "src/type-hints.h"
 #include "src/vector-slot-pair.h"
@@ -23,7 +24,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-enum class AbortReason;
+enum class AbortReason : uint8_t;
 class Zone;
 
 namespace compiler {
@@ -194,8 +195,31 @@ size_t hash_value(CheckFloat64HoleMode);
 
 std::ostream& operator<<(std::ostream&, CheckFloat64HoleMode);
 
-CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator*)
+class CheckFloat64HoleParameters {
+ public:
+  CheckFloat64HoleParameters(CheckFloat64HoleMode mode,
+                             VectorSlotPair const& feedback)
+      : mode_(mode), feedback_(feedback) {}
+
+  CheckFloat64HoleMode mode() const { return mode_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
+
+ private:
+  CheckFloat64HoleMode mode_;
+  VectorSlotPair feedback_;
+};
+
+CheckFloat64HoleParameters const& CheckFloat64HoleParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
+
+std::ostream& operator<<(std::ostream&, CheckFloat64HoleParameters const&);
+
+size_t hash_value(CheckFloat64HoleParameters const&);
+
+bool operator==(CheckFloat64HoleParameters const&,
+                CheckFloat64HoleParameters const&);
+bool operator!=(CheckFloat64HoleParameters const&,
+                CheckFloat64HoleParameters const&);
 
 enum class CheckTaggedInputMode : uint8_t {
   kNumber,
@@ -640,7 +664,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckBounds(const VectorSlotPair& feedback);
   const Operator* CheckEqualsInternalizedString();
   const Operator* CheckEqualsSymbol();
-  const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
+  const Operator* CheckFloat64Hole(CheckFloat64HoleMode, VectorSlotPair const&);
   const Operator* CheckHeapObject();
   const Operator* CheckIf(DeoptimizeReason deoptimize_reason,
                           const VectorSlotPair& feedback = VectorSlotPair());

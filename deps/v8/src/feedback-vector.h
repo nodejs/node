@@ -51,6 +51,7 @@ enum class FeedbackSlotKind {
   kLiteral,
   kForIn,
   kInstanceOf,
+  kCloneObject,
 
   kKindsNumber  // Last value indicating number of kinds.
 };
@@ -105,6 +106,10 @@ inline bool IsGlobalICKind(FeedbackSlotKind kind) {
 
 inline bool IsTypeProfileKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kTypeProfile;
+}
+
+inline bool IsCloneObjectKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kCloneObject;
 }
 
 inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
@@ -398,6 +403,10 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
 
   FeedbackSlot AddTypeProfileSlot();
 
+  FeedbackSlot AddCloneObjectSlot() {
+    return AddSlot(FeedbackSlotKind::kCloneObject);
+  }
+
 #ifdef OBJECT_PRINT
   // For gdb debugging.
   void Print();
@@ -492,14 +501,6 @@ class FeedbackMetadata : public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackMetadata);
 };
 
-// The following asserts protect an optimization in type feedback vector
-// code that looks into the contents of a slot assuming to find a String,
-// a Symbol, an AllocationSite, a WeakCell, or a FixedArray.
-STATIC_ASSERT(WeakCell::kSize >= 2 * kPointerSize);
-STATIC_ASSERT(WeakCell::kValueOffset ==
-              AllocationSite::kTransitionInfoOrBoilerplateOffset);
-STATIC_ASSERT(WeakCell::kValueOffset == FixedArray::kLengthOffset);
-STATIC_ASSERT(WeakCell::kValueOffset == Name::kHashFieldSlot);
 // Verify that an empty hash field looks like a tagged object, but can't
 // possibly be confused with a pointer.
 STATIC_ASSERT((Name::kEmptyHashField & kHeapObjectTag) == kHeapObjectTag);
@@ -601,7 +602,10 @@ class FeedbackNexus final {
   // Clear() returns true if the state of the underlying vector was changed.
   bool Clear();
   void ConfigureUninitialized();
-  void ConfigurePremonomorphic();
+  void ConfigurePremonomorphic(Handle<Map> receiver_map);
+  // ConfigureMegamorphic() returns true if the state of the underlying vector
+  // was changed. Extra feedback is cleared if the 0 parameter version is used.
+  bool ConfigureMegamorphic();
   bool ConfigureMegamorphic(IcCheckType property_type);
 
   inline MaybeObject* GetFeedback() const;
@@ -654,6 +658,10 @@ class FeedbackNexus final {
                                int context_slot_index);
   void ConfigureHandlerMode(const MaybeObjectHandle& handler);
 
+  // For CloneObject ICs
+  static constexpr int kCloneObjectPolymorphicEntrySize = 2;
+  void ConfigureCloneObject(Handle<Map> source_map, Handle<Map> result_map);
+
 // Bit positions in a smi that encodes lexical environment variable access.
 #define LEXICAL_MODE_BIT_FIELDS(V, _)  \
   V(ContextIndexBits, unsigned, 12, _) \
@@ -676,7 +684,6 @@ class FeedbackNexus final {
   std::vector<int> GetSourcePositions() const;
   std::vector<Handle<String>> GetTypesForSourcePositions(uint32_t pos) const;
 
- protected:
   inline void SetFeedback(Object* feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetFeedback(MaybeObject* feedback,

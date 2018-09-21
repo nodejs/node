@@ -27,7 +27,6 @@
 
 #include "src/ast/ast-value-factory.h"
 
-#include "src/api.h"
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"

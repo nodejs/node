@@ -24,7 +24,7 @@ class JSCallReducerTest : public TypedGraphTest {
       : TypedGraphTest(3),
         javascript_(zone()),
         deps_(isolate(), zone()),
-        js_heap_broker(isolate()) {}
+        js_heap_broker(isolate(), zone()) {}
   ~JSCallReducerTest() override {}
 
  protected:

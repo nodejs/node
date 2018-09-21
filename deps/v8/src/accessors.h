@@ -98,8 +98,8 @@ class Accessors : public AllStatic {
                                       FieldIndex* field_index);
 
   static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
-      Isolate* isolate, Handle<Object> receiver, Handle<JSObject> holder,
-      Handle<Name> name, Handle<Object> value);
+      Handle<Object> receiver, Handle<JSObject> holder, Handle<Name> name,
+      Handle<Object> value);
 
   // Create an AccessorInfo. The setter is optional (can be nullptr).
   //

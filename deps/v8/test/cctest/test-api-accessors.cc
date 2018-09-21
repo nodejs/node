@@ -17,7 +17,7 @@ static void UnreachableCallback(
 }
 
 TEST(CachedAccessor) {
-  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // TurboFan support for fast accessors is not implemented; turbofanned
   // code uses the slow accessor which breaks this test's expectations.
   v8::internal::FLAG_always_opt = false;
   LocalContext env;
@@ -64,7 +64,7 @@ TEST(CachedAccessor) {
       "Shhh, I'm private!");
 }
 
-TEST(CachedAccessorCrankshaft) {
+TEST(CachedAccessorTurboFan) {
   i::FLAG_allow_natives_syntax = true;
   // v8::internal::FLAG_always_opt = false;
   LocalContext env;
@@ -116,7 +116,7 @@ TEST(CachedAccessorCrankshaft) {
   CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 456))
             .FromJust());
 
-  // Test Crankshaft.
+  // Test TurboFan.
   CompileRun("%OptimizeFunctionOnNextCall(f);");
 
   ExpectInt32("f()", 456);
@@ -140,7 +140,7 @@ TEST(CachedAccessorCrankshaft) {
   CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 789))
             .FromJust());
 
-  // Test non-global access in Crankshaft.
+  // Test non-global access in TurboFan.
   CompileRun("%OptimizeFunctionOnNextCall(g);");
 
   ExpectInt32("g()", 789);
@@ -198,7 +198,7 @@ TEST(CachedAccessorOnGlobalObject) {
     CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 456))
               .FromJust());
 
-    // Test Crankshaft.
+    // Test TurboFan.
     CompileRun("%OptimizeFunctionOnNextCall(f);");
 
     ExpectInt32("f()", 456);
@@ -222,7 +222,7 @@ TEST(CachedAccessorOnGlobalObject) {
     CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 789))
               .FromJust());
 
-    // Test non-global access in Crankshaft.
+    // Test non-global access in TurboFan.
     CompileRun("%OptimizeFunctionOnNextCall(g);");
 
     ExpectInt32("g()", 789);

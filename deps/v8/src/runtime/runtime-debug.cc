@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include <vector>
 
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/compiler.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
@@ -22,7 +20,9 @@
 #include "src/isolate-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-objects-inl.h"

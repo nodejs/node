@@ -8,7 +8,7 @@
 #include "src/v8.h"
 
 #include "src/accessors.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/field-type.h"
@@ -124,7 +124,7 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
       d = Descriptor::AccessorConstant(name, info, NONE);
 
     } else {
-      d = Descriptor::DataField(name, next_field_offset, NONE,
+      d = Descriptor::DataField(isolate, name, next_field_offset, NONE,
                                 representations[kind]);
     }
     descriptors->Append(&d);
@@ -658,7 +658,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
       d = Descriptor::AccessorConstant(name, info, NONE);
 
     } else {
-      d = Descriptor::DataField(name, next_field_offset, NONE,
+      d = Descriptor::DataField(isolate, name, next_field_offset, NONE,
                                 representations[kind]);
     }
     PropertyDetails details = d.GetDetails();

@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
+load('test/mjsunit/test-async.js');
+
 testAsync(assert => {
   assert.plan(1);
   const error = new TypeError('Throwing');

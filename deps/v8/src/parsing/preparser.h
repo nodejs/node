@@ -8,8 +8,9 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/parsing/parser-base.h"
-#include "src/parsing/preparse-data.h"
+#include "src/parsing/preparser-logger.h"
 #include "src/pending-compilation-error-handler.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -64,7 +65,7 @@ class PreParserIdentifier {
   bool IsPrivateName() const { return type_ == kPrivateNameIdentifier; }
 
  private:
-  enum Type {
+  enum Type : uint8_t {
     kNullIdentifier,
     kUnknownIdentifier,
     kEvalIdentifier,
@@ -76,10 +77,11 @@ class PreParserIdentifier {
     kPrivateNameIdentifier
   };
 
-  explicit PreParserIdentifier(Type type) : type_(type), string_(nullptr) {}
-  Type type_;
+  explicit PreParserIdentifier(Type type) : string_(nullptr), type_(type) {}
   // Only non-nullptr when PreParser.track_unresolved_variables_ is true.
   const AstRawString* string_;
+
+  Type type_;
   friend class PreParserExpression;
   friend class PreParser;
   friend class PreParserFactory;
@@ -341,6 +343,7 @@ class PreParserExpression {
 
   // More dummy implementations of things PreParser doesn't need to track:
   void SetShouldEagerCompile() {}
+  void mark_as_iife() {}
 
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
@@ -400,7 +403,7 @@ class PreParserExpression {
   typedef BitField<ExpressionType, TypeField::kNext, 4> ExpressionTypeField;
   typedef BitField<bool, TypeField::kNext, 1> IsUseStrictField;
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseAsmField;
-  typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 10>
+  typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 8>
       IdentifierTypeField;
   typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
 
@@ -787,12 +790,14 @@ class PreParserFactory {
   }
 
   PreParserStatement NewDoWhileStatement(
-      ZonePtrList<const AstRawString>* labels, int pos) {
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
-  PreParserStatement NewWhileStatement(ZonePtrList<const AstRawString>* labels,
-                                       int pos) {
+  PreParserStatement NewWhileStatement(
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
@@ -807,25 +812,28 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
 
-  PreParserStatement NewForStatement(ZonePtrList<const AstRawString>* labels,
-                                     int pos) {
+  PreParserStatement NewForStatement(
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
   PreParserStatement NewForEachStatement(
       ForEachStatement::VisitMode visit_mode,
-      ZonePtrList<const AstRawString>* labels, int pos) {
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
-  PreParserStatement NewForOfStatement(ZonePtrList<const AstRawString>* labels,
-                                       int pos) {
+  PreParserStatement NewForOfStatement(
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
-  PreParserExpression NewCallRuntime(Runtime::FunctionId id,
-                                     ZoneList<PreParserExpression>* arguments,
-                                     int pos) {
+  PreParserExpression NewCallRuntime(
+      Runtime::FunctionId id, ZoneChunkList<PreParserExpression>* arguments,
+      int pos) {
     return PreParserExpression::Default();
   }
 
@@ -1070,12 +1078,11 @@ class PreParser : public ParserBase<PreParser> {
       const DeclarationParsingResult::Declaration* declaration,
       ZonePtrList<const AstRawString>* names, bool* ok);
 
-  V8_INLINE ZonePtrList<const AstRawString>* DeclareLabel(
-      ZonePtrList<const AstRawString>* labels, const PreParserExpression& expr,
-      bool* ok) {
+  V8_INLINE void DeclareLabel(ZonePtrList<const AstRawString>** labels,
+                              ZonePtrList<const AstRawString>** own_labels,
+                              const PreParserExpression& expr, bool* ok) {
     DCHECK(!parsing_module_ || !expr.AsIdentifier().IsAwait());
     DCHECK(IsIdentifier(expr));
-    return labels;
   }
 
   // TODO(nikolaos): The preparser currently does not keep track of labels.
@@ -1726,7 +1733,7 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserExpression& value, const PreParserExpression& identifier) {
   }
 
-  V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
+  V8_INLINE ZoneVector<typename ExpressionClassifier::Error>*
   GetReportedErrorList() const {
     return function_state_->GetReportedErrorList();
   }

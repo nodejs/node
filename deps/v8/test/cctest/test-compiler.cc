@@ -30,7 +30,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/compiler.h"
 #include "src/disasm.h"
 #include "src/heap/factory.h"
@@ -66,8 +66,9 @@ static Handle<JSFunction> Compile(const char* source) {
       CStrVector(source)).ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
-          source_code, Compiler::ScriptDetails(), v8::ScriptOriginOptions(),
-          nullptr, nullptr, v8::ScriptCompiler::kNoCompileOptions,
+          isolate, source_code, Compiler::ScriptDetails(),
+          v8::ScriptOriginOptions(), nullptr, nullptr,
+          v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -658,7 +659,7 @@ TEST(CompileFunctionInContextScriptOrigin) {
       v8::Exception::GetStackTrace(try_catch.Exception());
   CHECK(!stack.IsEmpty());
   CHECK_GT(stack->GetFrameCount(), 0);
-  v8::Local<v8::StackFrame> frame = stack->GetFrame(0);
+  v8::Local<v8::StackFrame> frame = stack->GetFrame(CcTest::isolate(), 0);
   CHECK_EQ(23, frame->GetLineNumber());
   CHECK_EQ(42 + strlen("throw "), static_cast<unsigned>(frame->GetColumn()));
 }

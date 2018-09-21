@@ -11,7 +11,6 @@
 #include "src/globals.h"
 #include "src/parsing/duplicate-finder.h"
 #include "src/parsing/parser-base.h"
-#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparsed-scope-data.h"
 #include "src/parsing/preparser.h"
 #include "src/unicode.h"

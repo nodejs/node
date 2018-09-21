@@ -665,7 +665,6 @@ void GCTracer::PrintNVP() const {
           "clear.slots_buffer=%.1f "
           "clear.store_buffer=%.1f "
           "clear.string_table=%.1f "
-          "clear.weak_cells=%.1f "
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
           "clear.weak_references=%.1f "
@@ -762,7 +761,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_CLEAR_SLOTS_BUFFER],
           current_.scopes[Scope::MC_CLEAR_STORE_BUFFER],
           current_.scopes[Scope::MC_CLEAR_STRING_TABLE],
-          current_.scopes[Scope::MC_CLEAR_WEAK_CELLS],
           current_.scopes[Scope::MC_CLEAR_WEAK_COLLECTIONS],
           current_.scopes[Scope::MC_CLEAR_WEAK_LISTS],
           current_.scopes[Scope::MC_CLEAR_WEAK_REFERENCES],

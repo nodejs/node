@@ -10,22 +10,22 @@ for (let i = 0; i < 100000; i++) {
   proxy = new Proxy(proxy, {});
 }
 
-// We get a stack overflow in all cases except for Reflect.apply, which here
-// happens to run in constant space: Call jumps into CallProxy and CallProxy
-// jumps into the next Call.
-assertDoesNotThrow(() => Reflect.apply(proxy, {}, []));
-assertThrows(() => Reflect.construct(proxy, []), RangeError);
-assertThrows(() => Reflect.defineProperty(proxy, "x", {}), RangeError);
-assertThrows(() => Reflect.deleteProperty(proxy, "x"), RangeError);
-assertThrows(() => Reflect.get(proxy, "x"), RangeError);
-assertThrows(() => Reflect.getOwnPropertyDescriptor(proxy, "x"), RangeError);
-assertThrows(() => Reflect.getPrototypeOf(proxy), RangeError);
-assertThrows(() => Reflect.has(proxy, "x"), RangeError);
-assertThrows(() => Reflect.isExtensible(proxy), RangeError);
-assertThrows(() => Reflect.ownKeys(proxy), RangeError);
-assertThrows(() => Reflect.preventExtensions(proxy), RangeError);
-assertThrows(() => Reflect.setPrototypeOf(proxy, {}), RangeError);
-assertThrows(() => Reflect.set(proxy, "x", {}), RangeError);
+// Ensure these nested calls don't segfault. They may not all throw exceptions
+// depending on whether the compiler is able to perform tail call optimization
+// on the affected routines.
+try { Reflect.apply(proxy, {}, []) } catch(_) {}
+try { Reflect.construct(proxy, []) } catch(_) {}
+try { Reflect.defineProperty(proxy, "x", {}) } catch(_) {}
+try { Reflect.deleteProperty(proxy, "x") } catch(_) {}
+try { Reflect.get(proxy, "x") } catch(_) {}
+try { Reflect.getOwnPropertyDescriptor(proxy, "x") } catch(_) {}
+try { Reflect.getPrototypeOf(proxy) } catch(_) {}
+try { Reflect.has(proxy, "x") } catch(_) {}
+try { Reflect.isExtensible(proxy) } catch(_) {}
+try { Reflect.ownKeys(proxy) } catch(_) {}
+try { Reflect.preventExtensions(proxy) } catch(_) {}
+try { Reflect.setPrototypeOf(proxy, {}) } catch(_) {}
+try { Reflect.set(proxy, "x", {}) } catch(_) {}
 
 
 // Recursive handler.

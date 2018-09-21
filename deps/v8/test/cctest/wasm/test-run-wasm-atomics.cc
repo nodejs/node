@@ -10,10 +10,10 @@ namespace internal {
 namespace wasm {
 namespace test_run_wasm_atomics {
 
-void RunU32BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
+void RunU32BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                  Uint32BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t> r(execution_mode);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
   r.builder().SetHasSharedMemory();
@@ -33,28 +33,28 @@ void RunU32BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
 }
 
 WASM_EXEC_TEST(I32AtomicAdd) {
-  RunU32BinOp(execution_mode, kExprI32AtomicAdd, Add);
+  RunU32BinOp(execution_tier, kExprI32AtomicAdd, Add);
 }
 WASM_EXEC_TEST(I32AtomicSub) {
-  RunU32BinOp(execution_mode, kExprI32AtomicSub, Sub);
+  RunU32BinOp(execution_tier, kExprI32AtomicSub, Sub);
 }
 WASM_EXEC_TEST(I32AtomicAnd) {
-  RunU32BinOp(execution_mode, kExprI32AtomicAnd, And);
+  RunU32BinOp(execution_tier, kExprI32AtomicAnd, And);
 }
 WASM_EXEC_TEST(I32AtomicOr) {
-  RunU32BinOp(execution_mode, kExprI32AtomicOr, Or);
+  RunU32BinOp(execution_tier, kExprI32AtomicOr, Or);
 }
 WASM_EXEC_TEST(I32AtomicXor) {
-  RunU32BinOp(execution_mode, kExprI32AtomicXor, Xor);
+  RunU32BinOp(execution_tier, kExprI32AtomicXor, Xor);
 }
 WASM_EXEC_TEST(I32AtomicExchange) {
-  RunU32BinOp(execution_mode, kExprI32AtomicExchange, Exchange);
+  RunU32BinOp(execution_tier, kExprI32AtomicExchange, Exchange);
 }
 
-void RunU16BinOp(WasmExecutionMode mode, WasmOpcode wasm_op,
+void RunU16BinOp(ExecutionTier tier, WasmOpcode wasm_op,
                  Uint16BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t> r(mode);
+  WasmRunner<uint32_t, uint32_t> r(tier);
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
       r.builder().AddMemoryElems<uint16_t>(kWasmPageSize / sizeof(uint16_t));
@@ -74,28 +74,28 @@ void RunU16BinOp(WasmExecutionMode mode, WasmOpcode wasm_op,
 }
 
 WASM_EXEC_TEST(I32AtomicAdd16U) {
-  RunU16BinOp(execution_mode, kExprI32AtomicAdd16U, Add);
+  RunU16BinOp(execution_tier, kExprI32AtomicAdd16U, Add);
 }
 WASM_EXEC_TEST(I32AtomicSub16U) {
-  RunU16BinOp(execution_mode, kExprI32AtomicSub16U, Sub);
+  RunU16BinOp(execution_tier, kExprI32AtomicSub16U, Sub);
 }
 WASM_EXEC_TEST(I32AtomicAnd16U) {
-  RunU16BinOp(execution_mode, kExprI32AtomicAnd16U, And);
+  RunU16BinOp(execution_tier, kExprI32AtomicAnd16U, And);
 }
 WASM_EXEC_TEST(I32AtomicOr16U) {
-  RunU16BinOp(execution_mode, kExprI32AtomicOr16U, Or);
+  RunU16BinOp(execution_tier, kExprI32AtomicOr16U, Or);
 }
 WASM_EXEC_TEST(I32AtomicXor16U) {
-  RunU16BinOp(execution_mode, kExprI32AtomicXor16U, Xor);
+  RunU16BinOp(execution_tier, kExprI32AtomicXor16U, Xor);
 }
 WASM_EXEC_TEST(I32AtomicExchange16U) {
-  RunU16BinOp(execution_mode, kExprI32AtomicExchange16U, Exchange);
+  RunU16BinOp(execution_tier, kExprI32AtomicExchange16U, Exchange);
 }
 
-void RunU8BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
+void RunU8BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                 Uint8BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t> r(execution_mode);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
 
@@ -114,27 +114,27 @@ void RunU8BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
 }
 
 WASM_EXEC_TEST(I32AtomicAdd8U) {
-  RunU8BinOp(execution_mode, kExprI32AtomicAdd8U, Add);
+  RunU8BinOp(execution_tier, kExprI32AtomicAdd8U, Add);
 }
 WASM_EXEC_TEST(I32AtomicSub8U) {
-  RunU8BinOp(execution_mode, kExprI32AtomicSub8U, Sub);
+  RunU8BinOp(execution_tier, kExprI32AtomicSub8U, Sub);
 }
 WASM_EXEC_TEST(I32AtomicAnd8U) {
-  RunU8BinOp(execution_mode, kExprI32AtomicAnd8U, And);
+  RunU8BinOp(execution_tier, kExprI32AtomicAnd8U, And);
 }
 WASM_EXEC_TEST(I32AtomicOr8U) {
-  RunU8BinOp(execution_mode, kExprI32AtomicOr8U, Or);
+  RunU8BinOp(execution_tier, kExprI32AtomicOr8U, Or);
 }
 WASM_EXEC_TEST(I32AtomicXor8U) {
-  RunU8BinOp(execution_mode, kExprI32AtomicXor8U, Xor);
+  RunU8BinOp(execution_tier, kExprI32AtomicXor8U, Xor);
 }
 WASM_EXEC_TEST(I32AtomicExchange8U) {
-  RunU8BinOp(execution_mode, kExprI32AtomicExchange8U, Exchange);
+  RunU8BinOp(execution_tier, kExprI32AtomicExchange8U, Exchange);
 }
 
 WASM_EXEC_TEST(I32AtomicCompareExchange) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_mode);
+  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
@@ -155,7 +155,7 @@ WASM_EXEC_TEST(I32AtomicCompareExchange) {
 
 WASM_EXEC_TEST(I32AtomicCompareExchange16U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_mode);
+  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
       r.builder().AddMemoryElems<uint16_t>(kWasmPageSize / sizeof(uint16_t));
@@ -177,7 +177,7 @@ WASM_EXEC_TEST(I32AtomicCompareExchange16U) {
 
 WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_mode);
+  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
   BUILD(r,
@@ -198,7 +198,7 @@ WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
 
 WASM_EXEC_TEST(I32AtomicLoad) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t> r(execution_mode);
+  WasmRunner<uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
@@ -214,7 +214,7 @@ WASM_EXEC_TEST(I32AtomicLoad) {
 
 WASM_EXEC_TEST(I32AtomicLoad16U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t> r(execution_mode);
+  WasmRunner<uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
       r.builder().AddMemoryElems<uint16_t>(kWasmPageSize / sizeof(uint16_t));
@@ -230,7 +230,7 @@ WASM_EXEC_TEST(I32AtomicLoad16U) {
 
 WASM_EXEC_TEST(I32AtomicLoad8U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t> r(execution_mode);
+  WasmRunner<uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
   BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad8U, WASM_ZERO,
@@ -245,7 +245,7 @@ WASM_EXEC_TEST(I32AtomicLoad8U) {
 
 WASM_EXEC_TEST(I32AtomicStoreLoad) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t> r(execution_mode);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
@@ -265,7 +265,7 @@ WASM_EXEC_TEST(I32AtomicStoreLoad) {
 
 WASM_EXEC_TEST(I32AtomicStoreLoad16U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t> r(execution_mode);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
       r.builder().AddMemoryElems<uint16_t>(kWasmPageSize / sizeof(uint16_t));
@@ -286,7 +286,7 @@ WASM_EXEC_TEST(I32AtomicStoreLoad16U) {
 
 WASM_EXEC_TEST(I32AtomicStoreLoad8U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t> r(execution_mode);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
 
@@ -305,7 +305,7 @@ WASM_EXEC_TEST(I32AtomicStoreLoad8U) {
 
 WASM_EXEC_TEST(I32AtomicStoreParameter) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t> r(execution_mode);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
   r.builder().SetHasSharedMemory();

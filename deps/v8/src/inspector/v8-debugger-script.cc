@@ -8,7 +8,7 @@
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/wasm-translation.h"
-#include "src/utils.h"
+#include "src/v8memory.h"
 
 namespace v8_inspector {
 
@@ -113,7 +113,7 @@ class ActualScript : public V8DebuggerScript {
   ActualScript(v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
                bool isLiveEdit, V8InspectorClient* client)
       : V8DebuggerScript(isolate, String16::fromInteger(script->Id()),
-                         GetScriptURL(script, client)),
+                         GetScriptURL(isolate, script, client)),
         m_isLiveEdit(isLiveEdit) {
     Initialize(script);
   }
@@ -219,14 +219,15 @@ class ActualScript : public V8DebuggerScript {
   }
 
  private:
-  String16 GetScriptURL(v8::Local<v8::debug::Script> script,
+  String16 GetScriptURL(v8::Isolate* isolate,
+                        v8::Local<v8::debug::Script> script,
                         V8InspectorClient* client) {
     v8::Local<v8::String> sourceURL;
     if (script->SourceURL().ToLocal(&sourceURL) && sourceURL->Length() > 0)
-      return toProtocolString(sourceURL);
+      return toProtocolString(isolate, sourceURL);
     v8::Local<v8::String> v8Name;
     if (script->Name().ToLocal(&v8Name) && v8Name->Length() > 0) {
-      String16 name = toProtocolString(v8Name);
+      String16 name = toProtocolString(isolate, v8Name);
       std::unique_ptr<StringBuffer> url =
           client->resourceNameToUrl(toStringView(name));
       return url ? toString16(url->string()) : name;
@@ -243,7 +244,7 @@ class ActualScript : public V8DebuggerScript {
     m_hasSourceURLComment =
         script->SourceURL().ToLocal(&tmp) && tmp->Length() > 0;
     if (script->SourceMappingURL().ToLocal(&tmp))
-      m_sourceMappingURL = toProtocolString(tmp);
+      m_sourceMappingURL = toProtocolString(m_isolate, tmp);
     m_startLine = script->LineOffset();
     m_startColumn = script->ColumnOffset();
     std::vector<int> lineEnds = script->LineEnds();
@@ -264,7 +265,7 @@ class ActualScript : public V8DebuggerScript {
     USE(script->ContextId().To(&m_executionContextId));
 
     if (script->Source().ToLocal(&tmp)) {
-      m_source = toProtocolString(tmp);
+      m_source = toProtocolString(m_isolate, tmp);
     }
 
     m_isModule = script->IsModule();

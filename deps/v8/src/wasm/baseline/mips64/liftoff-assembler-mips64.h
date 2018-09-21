@@ -88,6 +88,115 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   }
 }
 
+#if defined(V8_TARGET_BIG_ENDIAN)
+inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
+                                 LoadType type, LiftoffRegList pinned) {
+  bool is_float = false;
+  LiftoffRegister tmp = dst;
+  switch (type.value()) {
+    case LoadType::kI64Load8U:
+    case LoadType::kI64Load8S:
+    case LoadType::kI32Load8U:
+    case LoadType::kI32Load8S:
+      // No need to change endianness for byte size.
+      return;
+    case LoadType::kF32Load:
+      is_float = true;
+      tmp = assm->GetUnusedRegister(kGpReg, pinned);
+      assm->emit_type_conversion(kExprI32ReinterpretF32, tmp, dst);
+      V8_FALLTHROUGH;
+    case LoadType::kI64Load32U:
+      assm->TurboAssembler::ByteSwapUnsigned(tmp.gp(), tmp.gp(), 4);
+      assm->dsrl32(tmp.gp(), tmp.gp(), 0);
+      break;
+    case LoadType::kI32Load:
+    case LoadType::kI64Load32S:
+      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 4);
+      assm->dsra32(tmp.gp(), tmp.gp(), 0);
+      break;
+    case LoadType::kI32Load16S:
+    case LoadType::kI64Load16S:
+      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 2);
+      assm->dsra32(tmp.gp(), tmp.gp(), 0);
+      break;
+    case LoadType::kI32Load16U:
+    case LoadType::kI64Load16U:
+      assm->TurboAssembler::ByteSwapUnsigned(tmp.gp(), tmp.gp(), 2);
+      assm->dsrl32(tmp.gp(), tmp.gp(), 0);
+      break;
+    case LoadType::kF64Load:
+      is_float = true;
+      tmp = assm->GetUnusedRegister(kGpReg, pinned);
+      assm->emit_type_conversion(kExprI64ReinterpretF64, tmp, dst);
+      V8_FALLTHROUGH;
+    case LoadType::kI64Load:
+      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 8);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  if (is_float) {
+    switch (type.value()) {
+      case LoadType::kF32Load:
+        assm->emit_type_conversion(kExprF32ReinterpretI32, dst, tmp);
+        break;
+      case LoadType::kF64Load:
+        assm->emit_type_conversion(kExprF64ReinterpretI64, dst, tmp);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
+inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
+                                  StoreType type, LiftoffRegList pinned) {
+  bool is_float = false;
+  LiftoffRegister tmp = src;
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      // No need to change endianness for byte size.
+      return;
+    case StoreType::kF32Store:
+      is_float = true;
+      tmp = assm->GetUnusedRegister(kGpReg, pinned);
+      assm->emit_type_conversion(kExprI32ReinterpretF32, tmp, src);
+      V8_FALLTHROUGH;
+    case StoreType::kI32Store:
+    case StoreType::kI32Store16:
+      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 4);
+      break;
+    case StoreType::kF64Store:
+      is_float = true;
+      tmp = assm->GetUnusedRegister(kGpReg, pinned);
+      assm->emit_type_conversion(kExprI64ReinterpretF64, tmp, src);
+      V8_FALLTHROUGH;
+    case StoreType::kI64Store:
+    case StoreType::kI64Store32:
+    case StoreType::kI64Store16:
+      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 8);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  if (is_float) {
+    switch (type.value()) {
+      case StoreType::kF32Store:
+        assm->emit_type_conversion(kExprF32ReinterpretI32, src, tmp);
+        break;
+      case StoreType::kF64Store:
+        assm->emit_type_conversion(kExprF64ReinterpretI64, src, tmp);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+#endif  // V8_TARGET_BIG_ENDIAN
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -212,7 +321,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_load_mem) {
-    ChangeEndiannessLoad(dst, type, pinned);
+    liftoff::ChangeEndiannessLoad(this, dst, type, pinned);
   }
 #endif
 }
@@ -237,7 +346,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
     src = tmp;
     pinned.set(tmp);
-    ChangeEndiannessStore(src, type, pinned);
+    liftoff::ChangeEndiannessStore(this, src, type, pinned);
   }
 #endif
 
@@ -266,114 +375,6 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     default:
       UNREACHABLE();
-  }
-}
-
-void LiftoffAssembler::ChangeEndiannessLoad(LiftoffRegister dst, LoadType type,
-                                            LiftoffRegList pinned) {
-  bool is_float = false;
-  LiftoffRegister tmp = dst;
-  switch (type.value()) {
-    case LoadType::kI64Load8U:
-    case LoadType::kI64Load8S:
-    case LoadType::kI32Load8U:
-    case LoadType::kI32Load8S:
-      // No need to change endianness for byte size.
-      return;
-    case LoadType::kF32Load:
-      is_float = true;
-      tmp = GetUnusedRegister(kGpReg, pinned);
-      emit_type_conversion(kExprI32ReinterpretF32, tmp, dst);
-      V8_FALLTHROUGH;
-    case LoadType::kI64Load32U:
-      TurboAssembler::ByteSwapUnsigned(tmp.gp(), tmp.gp(), 4);
-      dsrl32(tmp.gp(), tmp.gp(), 0);
-      break;
-    case LoadType::kI32Load:
-    case LoadType::kI64Load32S:
-      TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 4);
-      dsra32(tmp.gp(), tmp.gp(), 0);
-      break;
-    case LoadType::kI32Load16S:
-    case LoadType::kI64Load16S:
-      TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 2);
-      dsra32(tmp.gp(), tmp.gp(), 0);
-      break;
-    case LoadType::kI32Load16U:
-    case LoadType::kI64Load16U:
-      TurboAssembler::ByteSwapUnsigned(tmp.gp(), tmp.gp(), 2);
-      dsrl32(tmp.gp(), tmp.gp(), 0);
-      break;
-    case LoadType::kF64Load:
-      is_float = true;
-      tmp = GetUnusedRegister(kGpReg, pinned);
-      emit_type_conversion(kExprI64ReinterpretF64, tmp, dst);
-      V8_FALLTHROUGH;
-    case LoadType::kI64Load:
-      TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 8);
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  if (is_float) {
-    switch (type.value()) {
-      case LoadType::kF32Load:
-        emit_type_conversion(kExprF32ReinterpretI32, dst, tmp);
-        break;
-      case LoadType::kF64Load:
-        emit_type_conversion(kExprF64ReinterpretI64, dst, tmp);
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-}
-
-void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
-                                             StoreType type,
-                                             LiftoffRegList pinned) {
-  bool is_float = false;
-  LiftoffRegister tmp = src;
-  switch (type.value()) {
-    case StoreType::kI64Store8:
-    case StoreType::kI32Store8:
-      // No need to change endianness for byte size.
-      return;
-    case StoreType::kF32Store:
-      is_float = true;
-      tmp = GetUnusedRegister(kGpReg, pinned);
-      emit_type_conversion(kExprI32ReinterpretF32, tmp, src);
-      V8_FALLTHROUGH;
-    case StoreType::kI32Store:
-    case StoreType::kI32Store16:
-      TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 4);
-      break;
-    case StoreType::kF64Store:
-      is_float = true;
-      tmp = GetUnusedRegister(kGpReg, pinned);
-      emit_type_conversion(kExprI64ReinterpretF64, tmp, src);
-      V8_FALLTHROUGH;
-    case StoreType::kI64Store:
-    case StoreType::kI64Store32:
-    case StoreType::kI64Store16:
-      TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 8);
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  if (is_float) {
-    switch (type.value()) {
-      case StoreType::kF32Store:
-        emit_type_conversion(kExprF32ReinterpretI32, src, tmp);
-        break;
-      case StoreType::kF64Store:
-        emit_type_conversion(kExprF64ReinterpretI64, src, tmp);
-        break;
-      default:
-        UNREACHABLE();
-    }
   }
 }
 

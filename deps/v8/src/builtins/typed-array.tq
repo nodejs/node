@@ -10,7 +10,7 @@ module typed_array {
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;
   extern macro StoreFixedTypedArrayElementFromTagged(
-      Context, FixedArrayBase, Smi, Object, constexpr ElementsKind,
+      Context, FixedTypedArrayBase, Smi, Object, constexpr ElementsKind,
       constexpr ParameterMode);
 
   type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
@@ -60,7 +60,7 @@ module typed_array {
   builtin StoreFixedElement<T : type>(
       context: Context, array: JSTypedArray, index: Smi,
       value: Object): Object {
-    let elements: FixedTypedArrayBase =
+    const elements: FixedTypedArrayBase =
         unsafe_cast<FixedTypedArrayBase>(array.elements);
     StoreFixedTypedArrayElementFromTagged(
         context, elements, index, value, KindForArrayType<T>(), SMI_PARAMETERS);
@@ -71,7 +71,7 @@ module typed_array {
       context: Context, array: JSTypedArray, comparefn: Callable, a: Object,
       b: Object): Number labels Detached {
     // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
-    let v: Number =
+    const v: Number =
         ToNumber_Inline(context, Call(context, comparefn, Undefined, a, b));
 
     // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
@@ -95,11 +95,11 @@ module typed_array {
     if (IsDetachedBuffer(array.buffer)) goto Detached;
 
     for (let i: Smi = from + 1; i < to; ++i) {
-      let element: Object = Load(context, array, i);
+      const element: Object = Load(context, array, i);
       let j: Smi = i - 1;
       for (; j >= from; --j) {
-        let tmp: Object = Load(context, array, j);
-        let order: Number = CallCompareWithDetachedCheck(
+        const tmp: Object = Load(context, array, j);
+        const order: Number = CallCompareWithDetachedCheck(
             context, array, comparefn, tmp, element) otherwise Detached;
         if (order > 0) {
           Store(context, array, j + 1, tmp);
@@ -131,7 +131,7 @@ module typed_array {
 
       // TODO(szuend): Check if a more involved third_index calculation is
       //               worth it for very large arrays.
-      let third_index: Smi = from + ((to - from) >>> 1);
+      const third_index: Smi = from + ((to - from) >>> 1);
 
       if (IsDetachedBuffer(array.buffer)) goto Detached;
 
@@ -140,7 +140,7 @@ module typed_array {
       let v1: Object = Load(context, array, to - 1);
       let v2: Object = Load(context, array, third_index);
 
-      let c01: Number = CallCompareWithDetachedCheck(
+      const c01: Number = CallCompareWithDetachedCheck(
           context, array, comparefn, v0, v1) otherwise Detached;
       if (c01 > 0) {
         // v1 < v0, so swap them.
@@ -149,21 +149,21 @@ module typed_array {
         v1 = tmp;
       }
       // v0 <= v1.
-      let c02: Number = CallCompareWithDetachedCheck(
+      const c02: Number = CallCompareWithDetachedCheck(
           context, array, comparefn, v0, v2) otherwise Detached;
       if (c02 >= 0) {
         // v2 <= v0 <= v1.
-        let tmp: Object = v0;
+        const tmp: Object = v0;
         v0 = v2;
         v2 = v1;
         v1 = tmp;
       } else {
         // v0 <= v1 && v0 < v2.
-        let c12: Number = CallCompareWithDetachedCheck(
+        const c12: Number = CallCompareWithDetachedCheck(
             context, array, comparefn, v1, v2) otherwise Detached;
         if (c12 > 0) {
           // v0 <= v2 < v1.
-          let tmp: Object = v1;
+          const tmp: Object = v1;
           v1 = v2;
           v2 = tmp;
         }
@@ -173,7 +173,7 @@ module typed_array {
       Store(context, array, from, v0);
       Store(context, array, to - 1, v2);
 
-      let pivot: Object = v1;
+      const pivot: Object = v1;
       let low_end: Smi = from + 1;   // Upper bound of elems lower than pivot.
       let high_start: Smi = to - 1;  // Lower bound of elems greater than pivot.
 
@@ -203,7 +203,7 @@ module typed_array {
               break;
             }
 
-            let top_elem: Object = Load(context, array, high_start);
+            const top_elem: Object = Load(context, array, high_start);
             order = CallCompareWithDetachedCheck(
                 context, array, comparefn, top_elem, pivot) otherwise Detached;
           }
@@ -212,7 +212,7 @@ module typed_array {
             break;
           }
 
-          let high_start_value: Object = Load(context, array, high_start);
+          const high_start_value: Object = Load(context, array, high_start);
           Store(context, array, idx, high_start_value);
           Store(context, array, high_start, element);
 
@@ -258,17 +258,18 @@ module typed_array {
       context: Context, receiver: Object, ...arguments): JSTypedArray {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
-    let comparefn_obj: Object = arguments.length > 0 ? arguments[0] : Undefined;
+    const comparefn_obj: Object =
+        arguments.length > 0 ? arguments[0] : Undefined;
     if (comparefn_obj != Undefined && !TaggedIsCallable(comparefn_obj)) {
       ThrowTypeError(context, kBadSortComparisonFunction, comparefn_obj);
     }
 
     // 2. Let obj be the this value.
-    let obj: Object = receiver;
+    const obj: Object = receiver;
 
     // 3. Let buffer be ? ValidateTypedArray(obj).
     //    ValidateTypedArray currently returns the array, not the ViewBuffer.
-    let array: JSTypedArray =
+    const array: JSTypedArray =
         ValidateTypedArray(context, obj, '%TypedArray%.prototype.sort');
 
     // Default sorting is done in C++ using std::sort
@@ -277,10 +278,10 @@ module typed_array {
     }
 
     // 4. Let len be obj.[[ArrayLength]].
-    let len: Smi = array.length;
+    const len: Smi = array.length;
 
     try {
-      let comparefn: Callable =
+      const comparefn: Callable =
           cast<Callable>(comparefn_obj) otherwise CastError;
       let loadfn: LoadFn;
       let storefn: StoreFn;

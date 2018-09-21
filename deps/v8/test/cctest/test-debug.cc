@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
@@ -191,10 +191,6 @@ class DebugEventCounter : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context>,
                              const std::vector<v8::debug::BreakpointId>&) {
-    v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-    // When hitting a debug event listener there must be a break set.
-    CHECK_NE(debug->break_id(), 0);
-
     break_point_hit_count++;
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
@@ -217,10 +213,6 @@ class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context>,
                              const std::vector<v8::debug::BreakpointId>&) {
-    v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-    // When hitting a debug event listener there must be a break set.
-    CHECK_NE(debug->break_id(), 0);
-
     // Perform a garbage collection when break point is hit and continue. Based
     // on the number of break points hit either scavenge or mark compact
     // collector is used.
@@ -241,10 +233,6 @@ class DebugEventBreak : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context>,
                              const std::vector<v8::debug::BreakpointId>&) {
-    v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-    // When hitting a debug event listener there must be a break set.
-    CHECK_NE(debug->break_id(), 0);
-
     // Count the number of breaks.
     break_point_hit_count++;
 
@@ -271,9 +259,6 @@ class DebugEventBreakMax : public v8::debug::DebugDelegate {
                              const std::vector<v8::debug::BreakpointId>&) {
     v8::Isolate* v8_isolate = CcTest::isolate();
     v8::internal::Isolate* isolate = CcTest::i_isolate();
-    v8::internal::Debug* debug = isolate->debug();
-    // When hitting a debug event listener there must be a break set.
-    CHECK_NE(debug->break_id(), 0);
     if (break_point_hit_count < max_break_point_hit_count) {
       // Count the number of breaks.
       break_point_hit_count++;

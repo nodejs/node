@@ -74,16 +74,23 @@ TEST(TestAllocationSiteMaps) {
 #undef CHECK_IN_RO_SPACE
 
 namespace {
-bool IsInitiallyMutable(Heap* heap, Object* object) {
+bool IsInitiallyMutable(Factory* factory, Address object_address) {
 // Entries in this list are in STRONG_MUTABLE_ROOT_LIST, but may initially point
 // to objects that in RO_SPACE.
-#define INITIALLY_READ_ONLY_ROOT_LIST(V) \
-  V(materialized_objects)                \
-  V(retaining_path_targets)              \
-  V(retained_maps)
+#define INITIALLY_READ_ONLY_ROOT_LIST(V)  \
+  V(builtins_constants_table)             \
+  V(detached_contexts)                    \
+  V(feedback_vectors_for_profiling_tools) \
+  V(materialized_objects)                 \
+  V(microtask_queue)                      \
+  V(noscript_shared_function_infos)       \
+  V(retained_maps)                        \
+  V(retaining_path_targets)               \
+  V(serialized_global_proxy_sizes)        \
+  V(serialized_objects)
 
 #define TEST_CAN_BE_READ_ONLY(name) \
-  if (heap->name() == object) return false;
+  if (factory->name().address() == object_address) return false;
   INITIALLY_READ_ONLY_ROOT_LIST(TEST_CAN_BE_READ_ONLY)
 #undef TEST_CAN_BE_READ_ONLY
 #undef INITIALLY_READ_ONLY_ROOT_LIST
@@ -91,15 +98,21 @@ bool IsInitiallyMutable(Heap* heap, Object* object) {
 }
 }  // namespace
 
-#define CHECK_NOT_IN_RO_SPACE(name)                           \
-  Object* name = heap->name();                                \
-  if (name->IsHeapObject() && IsInitiallyMutable(heap, name)) \
-    CHECK_NE(RO_SPACE, GetSpaceFromObject(name));
+// The CHECK_EQ line is there just to ensure that the root is publicly
+// accessible from Heap, but ultimately the factory is used as it provides
+// handles that have the address in the root table.
+#define CHECK_NOT_IN_RO_SPACE(name)                                        \
+  Handle<Object> name = factory->name();                                   \
+  CHECK_EQ(*name, heap->name());                                           \
+  if (name->IsHeapObject() && IsInitiallyMutable(factory, name.address())) \
+    CHECK_NE(RO_SPACE,                                                     \
+             GetSpaceFromObject(reinterpret_cast<HeapObject*>(*name)));
 
 // The following tests check that all the roots accessible via public Heap
 // accessors are not in RO_SPACE with the exception of the objects listed in
 // INITIALLY_READ_ONLY_ROOT_LIST.
 TEST(TestHeapRootsNotReadOnly) {
+  Factory* factory = CcTest::i_isolate()->factory();
   Heap* heap = CcTest::i_isolate()->heap();
 
 #define TEST_ROOT(type, name, camel_name) CHECK_NOT_IN_RO_SPACE(name)
@@ -108,6 +121,7 @@ TEST(TestHeapRootsNotReadOnly) {
 }
 
 TEST(TestAccessorInfosNotReadOnly) {
+  Factory* factory = CcTest::i_isolate()->factory();
   Heap* heap = CcTest::i_isolate()->heap();
 
 #define TEST_ROOT(name, AccessorName) CHECK_NOT_IN_RO_SPACE(name##_accessor)

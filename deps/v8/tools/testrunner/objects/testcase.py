@@ -240,7 +240,8 @@ class TestCase(object):
       args=params,
       env=env,
       timeout=timeout,
-      verbose=self._test_config.verbose
+      verbose=self._test_config.verbose,
+      resources_func=self._get_resources,
     )
 
   def _parse_source_flags(self, source=None):
@@ -259,6 +260,14 @@ class TestCase(object):
 
   def _get_source_path(self):
     return None
+
+  def _get_resources(self):
+    """Returns a list of absolute paths with additional files needed by the
+    test case.
+
+    Used to push additional files to Android devices.
+    """
+    return []
 
   @property
   def output_proc(self):

@@ -28,7 +28,6 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/api.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
@@ -195,7 +194,7 @@ class ObjectHashTableTest: public ObjectHashTable {
   }
 
   int lookup(int key) {
-    Handle<Object> key_obj(Smi::FromInt(key), GetIsolate());
+    Handle<Object> key_obj(Smi::FromInt(key), CcTest::i_isolate());
     return Smi::ToInt(Lookup(key_obj));
   }
 

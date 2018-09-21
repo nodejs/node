@@ -125,13 +125,12 @@ class FutexEmulation : public AllStatic {
   // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
   // woken. The rest of the waiters will continue to wait. The return value is
   // the number of woken waiters.
-  static Object* Wake(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-                      size_t addr, uint32_t num_waiters_to_wake);
+  static Object* Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
+                      uint32_t num_waiters_to_wake);
 
   // Return the number of threads waiting on |addr|. Should only be used for
   // testing.
-  static Object* NumWaitersForTesting(Isolate* isolate,
-                                      Handle<JSArrayBuffer> array_buffer,
+  static Object* NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
                                       size_t addr);
 
  private:

@@ -154,17 +154,23 @@
   'asm/poppler/*': [PASS, SLOW, NO_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
 
+  # OOM flakes in isolates tests because too many largish heaps are created.
+  'asm/asm-heap': [PASS, NO_VARIANTS, ['isolates', SKIP]],
+
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
+  'md5': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
   'regress/regress-1122': [PASS, SLOW],
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
+  'string-replace-gc': [PASS, SLOW],
   'wasm/asm-wasm-f32': [PASS, SLOW],
+  'wasm/asm-wasm-f64': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
@@ -253,6 +259,7 @@
   'regress/regress-2249': [SKIP],
   'regress/regress-4121': [SKIP],
   'compare-known-objects-slow': [SKIP],
+  'compiler/array-multiple-receiver-maps': [SKIP],
   # Tests taking too long
   'packed-elements': [SKIP],
   'regress/regress-1122': [SKIP],
@@ -294,12 +301,6 @@
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', NO_VARIANTS]],
 
-  # BUG(chromium:751825): Crashes flakily.
-  'wasm/js-api': [SKIP],
-
-  # BUG(chromium:773631): Crashes flakily.
-  'wasm/streaming-trap-location': [SKIP],
-
   # BUG(v8:7880): Slow tests.
   'regress/regress-707066': [SKIP],
   'regress/regress-446389': [SKIP],
@@ -319,6 +320,9 @@
   'asm/sqlite3/*': [SKIP],
   # TODO(mips-team): Fix Wasm for big-endian.
   'wasm/*': [SKIP],
+  # TODO(mips-team): Fix SEGV on regress-864509.js on big endian
+  # (https://crbug.com/v8/7953).
+  'regress/wasm/regress-864509': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
@@ -638,6 +642,18 @@
 }],  # 'system == windows'
 
 ##############################################################################
+['system == android', {
+  # Tests consistently failing on Android.
+  # Unable to change locale on Android:
+  'icu-date-to-string': [FAIL],
+  'regress/regress-6288': [FAIL],
+  # OOM:
+  'regress/regress-748069': [FAIL],
+  'regress/regress-752764': [FAIL],
+  'regress/regress-779407': [FAIL],
+}],  # 'system == android'
+
+##############################################################################
 ['system == macos', {
   # BUG(v8:5333)
   'big-object-literal': [SKIP],
@@ -769,15 +785,37 @@
 
   # Flaky crash on Odroid devices: https://crbug.com/v8/7678
   'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],
+
+  # Too slow for TSAN in stress mode.
+  'es6/classes': [PASS, ['tsan', SKIP]],
+  'regress/regress-1122': [PASS, ['tsan', SKIP]],
+
+  # Slow on arm64 simulator: https://crbug.com/v8/7783
+  'string-replace-gc': [PASS, ['arch == arm64 and simulator_run', SKIP]],
 }],  # variant == stress
 
 ##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'lexicographic-compare': [SKIP],
+  'md5': [SKIP],
   'regress/regress-2185': [SKIP],
+  'wasm/asm-wasm-f32': [SKIP],
+  'wasm/asm-wasm-f64': [SKIP],
   'wasm/grow-memory': [SKIP],
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
+['(arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'regress/regress-2185': [SKIP],
+}],  # (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
+['(arch == arm or arch == arm64)', {
+  # Flaky tests: https://crbug.com/v8/8090
+  'regress/regress-752764': [SKIP],
+}],  # (arch == arm or arch == arm64)
 
 ##############################################################################
 ['gcov_coverage', {

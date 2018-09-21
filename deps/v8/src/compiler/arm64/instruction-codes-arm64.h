@@ -77,6 +77,8 @@ namespace compiler {
   V(Arm64Bfi)                               \
   V(Arm64Rbit)                              \
   V(Arm64Rbit32)                            \
+  V(Arm64Rev)                               \
+  V(Arm64Rev32)                             \
   V(Arm64TestAndBranch32)                   \
   V(Arm64TestAndBranch)                     \
   V(Arm64CompareAndBranch32)                \

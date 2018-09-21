@@ -23,7 +23,7 @@ struct V8StackTraceId;
 
 class StackFrame {
  public:
-  explicit StackFrame(v8::Local<v8::StackFrame> frame);
+  explicit StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> frame);
   ~StackFrame() = default;
 
   void translate(WasmTranslation* wasmTranslation);

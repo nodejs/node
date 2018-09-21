@@ -21,7 +21,7 @@ const char src_simple[] = "function foo() { var x = 2 * a() + b; }";
 
 struct ScannerTestHelper {
   ScannerTestHelper() = default;
-  ScannerTestHelper(ScannerTestHelper&& other)
+  ScannerTestHelper(ScannerTestHelper&& other) V8_NOEXCEPT
       : unicode_cache(std::move(other.unicode_cache)),
         stream(std::move(other.stream)),
         scanner(std::move(other.scanner)) {}
@@ -38,9 +38,9 @@ ScannerTestHelper make_scanner(const char* src) {
   ScannerTestHelper helper;
   helper.unicode_cache = std::unique_ptr<UnicodeCache>(new UnicodeCache);
   helper.stream = ScannerStream::ForTesting(src);
-  helper.scanner =
-      std::unique_ptr<Scanner>(new Scanner(helper.unicode_cache.get()));
-  helper.scanner->Initialize(helper.stream.get(), false);
+  helper.scanner = std::unique_ptr<Scanner>(
+      new Scanner(helper.unicode_cache.get(), helper.stream.get(), false));
+  helper.scanner->Initialize();
   return helper;
 }
 

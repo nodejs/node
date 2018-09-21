@@ -13,7 +13,9 @@
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-generator.h"
 #include "src/runtime/runtime.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -74,7 +76,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     __ PushArgument(x1);
 
     __ CallRuntime(function_id, 1);
-    __ Move(x2, x0);
+    __ Mov(x2, x0);
 
     // Restore target function and new target.
     __ Pop(padreg, x3, x1, x0);
@@ -494,8 +496,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
-    __ Move(x3, x1);
-    __ Move(x1, x4);
+    __ Mov(x3, x1);
+    __ Mov(x1, x4);
     static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
     __ Ldr(x2, FieldMemOperand(x1, JSFunction::kCodeOffset));
     __ Add(x2, x2, Code::kHeaderSize - kHeapObjectTag);
@@ -2675,7 +2677,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   __ sxtw(x8, w8);
   __ SmiTag(x8, x8);
   {
-    TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
+    HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
     // Save all parameter registers (see wasm-linkage.cc). They might be
@@ -2696,7 +2698,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
                                WasmInstanceObject::kCEntryStubOffset));
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
-    __ Move(cp, Smi::kZero);
+    __ Mov(cp, Smi::kZero);
     __ CallRuntimeWithCEntry(Runtime::kWasmCompileLazy, x2);
     // The entrypoint address is the return value.
     __ mov(x8, kReturnRegister0);
@@ -2717,7 +2719,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // fall-back Abort mechanism.
   //
   // Note that this stub must be generated before any use of Abort.
-  MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
+  HardAbortScope hard_aborts(masm);
 
   ASM_LOCATION("CEntry::Generate entry");
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
@@ -2937,7 +2939,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   DCHECK(result.Is64Bits());
 
-  TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
+  HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
   UseScratchRegisterScope temps(masm);
   Register scratch1 = temps.AcquireX();
   Register scratch2 = temps.AcquireX();

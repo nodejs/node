@@ -7,7 +7,7 @@
 #include <sstream>
 
 #include "include/v8-platform.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/template-utils.h"

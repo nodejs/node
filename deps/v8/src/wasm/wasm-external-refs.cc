@@ -10,8 +10,8 @@
 #include "include/v8config.h"
 
 #include "src/base/bits.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
+#include "src/v8memory.h"
 #include "src/wasm/wasm-external-refs.h"
 
 namespace v8 {
@@ -246,10 +246,6 @@ void float64_pow_wrapper(Address data) {
   double y = ReadUnalignedValue<double>(data + sizeof(x));
   WriteUnalignedValue<double>(data, Pow(x, y));
 }
-
-void set_thread_in_wasm_flag() { trap_handler::SetThreadInWasm(); }
-
-void clear_thread_in_wasm_flag() { trap_handler::ClearThreadInWasm(); }
 
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
 

@@ -19,7 +19,7 @@ namespace compiler {
 
 namespace {
 
-Decision DecideCondition(const JSHeapBroker* broker, Node* const cond) {
+Decision DecideCondition(JSHeapBroker* broker, Node* const cond) {
   switch (cond->opcode()) {
     case IrOpcode::kInt32Constant: {
       Int32Matcher mcond(cond);
@@ -38,7 +38,7 @@ Decision DecideCondition(const JSHeapBroker* broker, Node* const cond) {
 }  // namespace
 
 CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
-                                             const JSHeapBroker* js_heap_broker,
+                                             JSHeapBroker* js_heap_broker,
                                              CommonOperatorBuilder* common,
                                              MachineOperatorBuilder* machine,
                                              Zone* temp_zone)

@@ -229,7 +229,7 @@ bytecodes: [
                 B(JumpIfUndefined), U8(6),
                 B(Ldar), R(3),
                 B(JumpIfNotNull), U8(16),
-                B(LdaSmi), I8(78),
+                B(LdaSmi), I8(81),
                 B(Star), R(4),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),

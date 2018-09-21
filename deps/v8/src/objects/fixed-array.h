@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_H_
 #define V8_OBJECTS_FIXED_ARRAY_H_
 
+#include "src/maybe-handles.h"
 #include "src/objects.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -84,6 +85,15 @@ class FixedArrayBase : public HeapObject {
 
   bool IsCowArray() const;
 
+// Maximal allowed size, in bytes, of a single FixedArrayBase.
+// Prevents overflowing size computations, as well as extreme memory
+// consumption.
+#ifdef V8_HOST_ARCH_32_BIT
+  static const int kMaxSize = 512 * MB;
+#else
+  static const int kMaxSize = 1024 * MB;
+#endif  // V8_HOST_ARCH_32_BIT
+
   // Layout description.
   // Length is smi tagged when it is stored.
   static const int kLengthOffset = HeapObject::kHeaderSize;
@@ -159,13 +169,11 @@ class FixedArray : public FixedArrayBase {
   inline Object** RawFieldOfElementAt(int index);
 
   DECL_CAST(FixedArray)
-
-  // Maximal allowed size, in bytes, of a single FixedArray.
-  // Prevents overflowing size computations, as well as extreme memory
-  // consumption.
-  static const int kMaxSize = 128 * MB * kPointerSize;
   // Maximally allowed length of a FixedArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "FixedArray maxLength not a Smi");
+
   // Maximally allowed length for regular (non large object space) object.
   STATIC_ASSERT(kMaxRegularHeapObjectSize < kMaxSize);
   static const int kMaxRegularLength =
@@ -238,12 +246,10 @@ class FixedDoubleArray : public FixedArrayBase {
 
   DECL_CAST(FixedDoubleArray)
 
-  // Maximal allowed size, in bytes, of a single FixedDoubleArray.
-  // Prevents overflowing size computations, as well as extreme memory
-  // consumption.
-  static const int kMaxSize = 512 * MB;
   // Maximally allowed length of a FixedArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "FixedDoubleArray maxLength not a Smi");
 
   // Dispatched behavior.
   DECL_PRINTER(FixedDoubleArray)
@@ -299,6 +305,8 @@ class WeakFixedArray : public HeapObject {
 
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "WeakFixedArray maxLength not a Smi");
 
  protected:
   static int OffsetOfElementAt(int index) {
@@ -362,10 +370,33 @@ class WeakArrayList : public HeapObject {
   static const int kMaxCapacity =
       (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
 
- protected:
-  static Handle<WeakArrayList> EnsureSpace(Isolate* isolate,
-                                           Handle<WeakArrayList> array,
-                                           int length);
+  static Handle<WeakArrayList> EnsureSpace(
+      Isolate* isolate, Handle<WeakArrayList> array, int length,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Returns the number of non-cleaned weak references in the array.
+  int CountLiveWeakReferences() const;
+
+  // Returns whether an entry was found and removed. Will move the elements
+  // around in the array - this method can only be used in cases where the user
+  // doesn't care about the indices! Users should make sure there are no
+  // duplicates.
+  bool RemoveOne(MaybeObjectHandle value);
+
+  class Iterator {
+   public:
+    explicit Iterator(WeakArrayList* array) : index_(0), array_(array) {}
+
+    inline HeapObject* Next();
+
+   private:
+    int index_;
+    WeakArrayList* array_;
+#ifdef DEBUG
+    DisallowHeapAllocation no_gc_;
+#endif  // DEBUG
+    DISALLOW_COPY_AND_ASSIGN(Iterator);
+  };
 
  private:
   static int OffsetOfElementAt(int index) {
@@ -373,79 +404,6 @@ class WeakArrayList : public HeapObject {
   }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WeakArrayList);
-};
-
-// Deprecated. Use WeakFixedArray instead.
-class FixedArrayOfWeakCells : public FixedArray {
- public:
-  // If |maybe_array| is not a FixedArrayOfWeakCells, a fresh one will be
-  // allocated. This function does not check if the value exists already,
-  // callers must ensure this themselves if necessary.
-  static Handle<FixedArrayOfWeakCells> Add(Isolate* isolate,
-                                           Handle<Object> maybe_array,
-                                           Handle<HeapObject> value,
-                                           int* assigned_index = nullptr);
-
-  // Returns true if an entry was found and removed.
-  bool Remove(Handle<HeapObject> value);
-
-  class NullCallback {
-   public:
-    static void Callback(Object* value, int old_index, int new_index) {}
-  };
-
-  template <class CompactionCallback>
-  void Compact(Isolate* isolate);
-
-  inline Object* Get(int index) const;
-  inline void Clear(int index);
-  inline int Length() const;
-
-  inline bool IsEmptySlot(int index) const;
-  static Object* Empty() { return Smi::kZero; }
-
-  class Iterator {
-   public:
-    explicit Iterator(Object* maybe_array) : list_(nullptr) {
-      Reset(maybe_array);
-    }
-    void Reset(Object* maybe_array);
-
-    template <class T>
-    inline T* Next();
-
-   private:
-    int index_;
-    FixedArrayOfWeakCells* list_;
-#ifdef DEBUG
-    int last_used_index_;
-    DisallowHeapAllocation no_gc_;
-#endif  // DEBUG
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
-  };
-
-  DECL_CAST(FixedArrayOfWeakCells)
-
- private:
-  static const int kLastUsedIndexIndex = 0;
-  static const int kFirstIndex = 1;
-
-  static Handle<FixedArrayOfWeakCells> Allocate(
-      Isolate* isolate, int size,
-      Handle<FixedArrayOfWeakCells> initialize_from);
-
-  static void Set(Isolate* isolate, Handle<FixedArrayOfWeakCells> array,
-                  int index, Handle<HeapObject> value);
-  inline void clear(int index);
-
-  inline int last_used_index() const;
-  inline void set_last_used_index(int index);
-
-  // Disallow inherited setters.
-  void set(int index, Smi* value);
-  void set(int index, Object* value);
-  void set(int index, Object* value, WriteBarrierMode mode);
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArrayOfWeakCells);
 };
 
 // Generic array grows dynamically with O(1) amortized insertion.
@@ -557,10 +515,10 @@ class ByteArray : public FixedArrayBase {
   // Layout description.
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
-  // Maximal memory consumption for a single ByteArray.
-  static const int kMaxSize = 512 * MB;
   // Maximal length of a single ByteArray.
   static const int kMaxLength = kMaxSize - kHeaderSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "ByteArray maxLength not a Smi");
 
   class BodyDescriptor;
   // No weak fields.
@@ -590,26 +548,12 @@ class PodArray : public ByteArray {
     copy_in(index * sizeof(T), reinterpret_cast<const byte*>(&value),
             sizeof(T));
   }
-  int length() { return ByteArray::length() / sizeof(T); }
+  inline int length();
   DECL_CAST(PodArray<T>)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PodArray<T>);
 };
-
-// V has parameters (Type, type, TYPE, C type, element_size)
-#define TYPED_ARRAYS(V)                                     \
-  V(Uint8, uint8, UINT8, uint8_t, 1)                        \
-  V(Int8, int8, INT8, int8_t, 1)                            \
-  V(Uint16, uint16, UINT16, uint16_t, 2)                    \
-  V(Int16, int16, INT16, int16_t, 2)                        \
-  V(Uint32, uint32, UINT32, uint32_t, 4)                    \
-  V(Int32, int32, INT32, int32_t, 4)                        \
-  V(Float32, float32, FLOAT32, float, 4)                    \
-  V(Float64, float64, FLOAT64, double, 8)                   \
-  V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t, 1) \
-  V(BigUint64, biguint64, BIGUINT64, uint64_t, 8)           \
-  V(BigInt64, bigint64, BIGINT64, int64_t, 8)
 
 class FixedTypedArrayBase : public FixedArrayBase {
  public:
@@ -676,7 +620,8 @@ class FixedTypedArray : public FixedTypedArrayBase {
 
   static inline ElementType get_scalar_from_data_ptr(void* data_ptr, int index);
   inline ElementType get_scalar(int index);
-  static inline Handle<Object> get(FixedTypedArray* array, int index);
+  static inline Handle<Object> get(Isolate* isolate, FixedTypedArray* array,
+                                   int index);
   inline void set(int index, ElementType value);
 
   static inline ElementType from(int value);
@@ -699,18 +644,18 @@ class FixedTypedArray : public FixedTypedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArray);
 };
 
-#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType, size)    \
-  STATIC_ASSERT(size <= FixedTypedArrayBase::kMaxElementSize);           \
-  class Type##ArrayTraits {                                              \
-   public: /* NOLINT */                                                  \
-    typedef elementType ElementType;                                     \
-    static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE; \
-    static const char* Designator() { return #type " array"; }           \
-    static inline Handle<Object> ToHandle(Isolate* isolate,              \
-                                          elementType scalar);           \
-    static inline elementType defaultValue();                            \
-  };                                                                     \
-                                                                         \
+#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType)               \
+  STATIC_ASSERT(sizeof(elementType) <= FixedTypedArrayBase::kMaxElementSize); \
+  class Type##ArrayTraits {                                                   \
+   public: /* NOLINT */                                                       \
+    typedef elementType ElementType;                                          \
+    static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;      \
+    static const char* Designator() { return #type " array"; }                \
+    static inline Handle<Object> ToHandle(Isolate* isolate,                   \
+                                          elementType scalar);                \
+    static inline elementType defaultValue();                                 \
+  };                                                                          \
+                                                                              \
   typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;
 
 TYPED_ARRAYS(FIXED_TYPED_ARRAY_TRAITS)

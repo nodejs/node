@@ -25,10 +25,6 @@ declare_args() {
   # Dynamically set an additional dependency from v8/custom_deps.
   v8_custom_deps = ""
 
-  # Turns on deprecation warnings for HeapObject::GetIsolate,
-  # HeapObject::GetHeap, Handle(T* obj) and handle(T* obj).
-  v8_deprecate_get_isolate = false
-
   # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
   # within a release Chrome.
   v8_enable_debugging_features = is_debug
@@ -43,10 +39,10 @@ declare_args() {
   v8_enable_verify_predictable = false
 
   # Enable compiler warnings when using V8_DEPRECATED apis.
-  v8_deprecation_warnings = false
+  v8_deprecation_warnings = true
 
   # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
-  v8_imminent_deprecation_warnings = false
+  v8_imminent_deprecation_warnings = true
 
   # Embeds the given script into the snapshot.
   v8_embed_script = ""
@@ -77,10 +73,11 @@ declare_args() {
 
   # Enable embedded builtins.
   # TODO(jgruber,v8:6666): Support ia32 and maybe MSVC.
-  # TODO(jgruber,v8:6666): Enable for remaining architectures once performance
-  #                        regressions are addressed.
-  v8_enable_embedded_builtins =
-      v8_use_snapshot && v8_current_cpu == "x64" && (!is_win || is_clang)
+  v8_enable_embedded_builtins = v8_use_snapshot && v8_current_cpu != "x86" &&
+                                !is_aix && (!is_win || is_clang)
+
+  # Enable embedded bytecode handlers.
+  v8_enable_embedded_bytecode_handlers = false
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
@@ -162,6 +159,11 @@ declare_args() {
 
   # Enable minor mark compact.
   v8_enable_minor_mc = true
+
+  # Check that each header can be included in isolation (requires also
+  # setting the "check_v8_header_includes" gclient variable to run a
+  # specific hook).
+  v8_check_header_includes = false
 }
 
 # Derived defaults.
@@ -190,6 +192,13 @@ if (v8_check_microtasks_scopes_consistency == "") {
 
 assert(!v8_enable_embedded_builtins || v8_use_snapshot,
        "Embedded builtins only work with snapshots")
+assert(
+    v8_current_cpu != "x86" || !v8_enable_embedded_builtins ||
+        !v8_untrusted_code_mitigations,
+    "Embedded builtins on ia32 and untrusted code mitigations are incompatible")
+
+assert(!v8_enable_embedded_bytecode_handlers || v8_enable_embedded_builtins,
+       "Embedded bytecode handlers only work with embedded builtins")
 
 # Specifies if the target build is a simulator build. Comparing target cpu
 # with v8 target cpu to not affect simulator builds for making cross-compile
@@ -259,6 +268,12 @@ config("external_config") {
   }
   if (v8_enable_v8_checks) {
     defines += [ "V8_ENABLE_CHECKS" ]  # Used in "include/v8.h".
+  }
+  if (v8_deprecation_warnings) {
+    defines += [ "V8_DEPRECATION_WARNINGS" ]
+  }
+  if (v8_imminent_deprecation_warnings) {
+    defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
   }
   include_dirs = [
     "include",
@@ -340,9 +355,6 @@ config("features") {
   if (v8_imminent_deprecation_warnings) {
     defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
   }
-  if (v8_deprecate_get_isolate) {
-    defines += [ "DEPRECATE_GET_ISOLATE" ]
-  }
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
   }
@@ -366,6 +378,9 @@ config("features") {
   }
   if (v8_enable_embedded_builtins) {
     defines += [ "V8_EMBEDDED_BUILTINS" ]
+  }
+  if (v8_enable_embedded_bytecode_handlers) {
+    defines += [ "V8_EMBEDDED_BYTECODE_HANDLERS" ]
   }
   if (v8_use_multi_snapshots) {
     defines += [ "V8_MULTI_SNAPSHOTS" ]
@@ -585,10 +600,6 @@ config("toolchain") {
     if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
         v8_current_cpu == "mips64el") {
       cflags += [ "-Wshorten-64-to-32" ]
-    }
-
-    if (v8_deprecate_get_isolate) {
-      cflags += [ "-Wno-error=deprecated" ]
     }
   }
 
@@ -846,6 +857,8 @@ action("postmortem-metadata") {
     "src/objects/fixed-array.h",
     "src/objects/js-array-inl.h",
     "src/objects/js-array.h",
+    "src/objects/js-array-buffer-inl.h",
+    "src/objects/js-array-buffer.h",
     "src/objects/js-regexp-inl.h",
     "src/objects/js-regexp.h",
     "src/objects/js-regexp-string-iterator-inl.h",
@@ -872,11 +885,13 @@ action("postmortem-metadata") {
 torque_files = [
   "src/builtins/base.tq",
   "src/builtins/array.tq",
+  "src/builtins/array-copywithin.tq",
   "src/builtins/array-foreach.tq",
-  "src/builtins/array-sort.tq",
+  "src/builtins/array-reverse.tq",
   "src/builtins/typed-array.tq",
   "src/builtins/data-view.tq",
   "test/torque/test-torque.tq",
+  "third_party/v8/builtins/array-sort.tq",
 ]
 
 torque_modules = [
@@ -1106,6 +1121,7 @@ action("v8_dump_build_config") {
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
     "current_cpu=\"$current_cpu\"",
     "dcheck_always_on=$dcheck_always_on",
+    "is_android=$is_android",
     "is_asan=$is_asan",
     "is_cfi=$is_cfi",
     "is_component_build=$is_component_build",
@@ -1502,11 +1518,13 @@ v8_source_set("v8_base") {
     "src/allocation.cc",
     "src/allocation.h",
     "src/api-arguments-inl.h",
+    "src/api-arguments.cc",
     "src/api-arguments.h",
     "src/api-natives.cc",
     "src/api-natives.h",
     "src/api.cc",
     "src/api.h",
+    "src/arguments-inl.h",
     "src/arguments.cc",
     "src/arguments.h",
     "src/asan.h",
@@ -1521,6 +1539,7 @@ v8_source_set("v8_base") {
     "src/asmjs/asm-types.h",
     "src/asmjs/switch-logic.cc",
     "src/asmjs/switch-logic.h",
+    "src/assembler-arch-inl.h",
     "src/assembler-arch.h",
     "src/assembler-inl.h",
     "src/assembler.cc",
@@ -1591,6 +1610,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-symbol.cc",
     "src/builtins/builtins-trace.cc",
     "src/builtins/builtins-typed-array.cc",
+    "src/builtins/builtins-utils-inl.h",
     "src/builtins/builtins-utils.h",
     "src/builtins/builtins.cc",
     "src/builtins/builtins.h",
@@ -1726,6 +1746,8 @@ v8_source_set("v8_base") {
     "src/compiler/js-graph.h",
     "src/compiler/js-heap-broker.cc",
     "src/compiler/js-heap-broker.h",
+    "src/compiler/js-heap-copy-reducer.cc",
+    "src/compiler/js-heap-copy-reducer.h",
     "src/compiler/js-inlining-heuristic.cc",
     "src/compiler/js-inlining-heuristic.h",
     "src/compiler/js-inlining.cc",
@@ -1892,6 +1914,7 @@ v8_source_set("v8_base") {
     "src/dtoa.h",
     "src/eh-frame.cc",
     "src/eh-frame.h",
+    "src/elements-inl.h",
     "src/elements-kind.cc",
     "src/elements-kind.h",
     "src/elements.cc",
@@ -1967,6 +1990,8 @@ v8_source_set("v8_base") {
     "src/heap/heap-controller.cc",
     "src/heap/heap-controller.h",
     "src/heap/heap-inl.h",
+    "src/heap/heap-write-barrier-inl.h",
+    "src/heap/heap-write-barrier.h",
     "src/heap/heap.cc",
     "src/heap/heap.h",
     "src/heap/incremental-marking-inl.h",
@@ -1979,6 +2004,7 @@ v8_source_set("v8_base") {
     "src/heap/invalidated-slots.h",
     "src/heap/item-parallel-job.cc",
     "src/heap/item-parallel-job.h",
+    "src/heap/local-allocator-inl.h",
     "src/heap/local-allocator.h",
     "src/heap/mark-compact-inl.h",
     "src/heap/mark-compact.cc",
@@ -2002,6 +2028,7 @@ v8_source_set("v8_base") {
     "src/heap/spaces-inl.h",
     "src/heap/spaces.cc",
     "src/heap/spaces.h",
+    "src/heap/store-buffer-inl.h",
     "src/heap/store-buffer.cc",
     "src/heap/store-buffer.h",
     "src/heap/stress-marking-observer.cc",
@@ -2101,6 +2128,7 @@ v8_source_set("v8_base") {
     "src/lookup-cache-inl.h",
     "src/lookup-cache.cc",
     "src/lookup-cache.h",
+    "src/lookup-inl.h",
     "src/lookup.cc",
     "src/lookup.h",
     "src/lsan.h",
@@ -2110,6 +2138,8 @@ v8_source_set("v8_base") {
     "src/macro-assembler.h",
     "src/map-updater.cc",
     "src/map-updater.h",
+    "src/maybe-handles-inl.h",
+    "src/maybe-handles.h",
     "src/messages.cc",
     "src/messages.h",
     "src/msan.h",
@@ -2144,15 +2174,31 @@ v8_source_set("v8_base") {
     "src/objects/intl-objects-inl.h",
     "src/objects/intl-objects.cc",
     "src/objects/intl-objects.h",
+    "src/objects/js-array-buffer-inl.h",
+    "src/objects/js-array-buffer.cc",
+    "src/objects/js-array-buffer.h",
     "src/objects/js-array-inl.h",
     "src/objects/js-array.h",
+    "src/objects/js-collator-inl.h",
+    "src/objects/js-collator.cc",
+    "src/objects/js-collator.h",
     "src/objects/js-collection-inl.h",
     "src/objects/js-collection.h",
+    "src/objects/js-generator-inl.h",
+    "src/objects/js-generator.h",
+    "src/objects/js-list-format-inl.h",
+    "src/objects/js-list-format.cc",
+    "src/objects/js-list-format.h",
     "src/objects/js-locale-inl.h",
     "src/objects/js-locale.cc",
     "src/objects/js-locale.h",
+    "src/objects/js-plural-rules-inl.h",
+    "src/objects/js-plural-rules.cc",
+    "src/objects/js-plural-rules.h",
     "src/objects/js-promise-inl.h",
     "src/objects/js-promise.h",
+    "src/objects/js-proxy-inl.h",
+    "src/objects/js-proxy.h",
     "src/objects/js-regexp-inl.h",
     "src/objects/js-regexp-string-iterator-inl.h",
     "src/objects/js-regexp-string-iterator.h",
@@ -2219,10 +2265,9 @@ v8_source_set("v8_base") {
     "src/parsing/parsing.cc",
     "src/parsing/parsing.h",
     "src/parsing/pattern-rewriter.cc",
-    "src/parsing/preparse-data.cc",
-    "src/parsing/preparse-data.h",
     "src/parsing/preparsed-scope-data.cc",
     "src/parsing/preparsed-scope-data.h",
+    "src/parsing/preparser-logger.h",
     "src/parsing/preparser.cc",
     "src/parsing/preparser.h",
     "src/parsing/rewriter.cc",
@@ -2294,6 +2339,8 @@ v8_source_set("v8_base") {
     "src/register-configuration.cc",
     "src/register-configuration.h",
     "src/reglist.h",
+    "src/reloc-info.cc",
+    "src/reloc-info.h",
     "src/roots-inl.h",
     "src/roots.h",
     "src/runtime-profiler.cc",
@@ -2386,8 +2433,8 @@ v8_source_set("v8_base") {
     "src/splay-tree.h",
     "src/startup-data-util.cc",
     "src/startup-data-util.h",
+    "src/string-builder-inl.h",
     "src/string-builder.cc",
-    "src/string-builder.h",
     "src/string-case.cc",
     "src/string-case.h",
     "src/string-hasher-inl.h",
@@ -2482,6 +2529,9 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-engine.h",
     "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-external-refs.h",
+    "src/wasm/wasm-feature-flags.h",
+    "src/wasm/wasm-features.cc",
+    "src/wasm/wasm-features.h",
     "src/wasm/wasm-interpreter.cc",
     "src/wasm/wasm-interpreter.h",
     "src/wasm/wasm-js.cc",
@@ -2505,6 +2555,7 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-serialization.h",
     "src/wasm/wasm-text.cc",
     "src/wasm/wasm-text.h",
+    "src/wasm/wasm-tier.h",
     "src/wasm/wasm-value.h",
     "src/zone/accounting-allocator.cc",
     "src/zone/accounting-allocator.h",
@@ -2518,6 +2569,13 @@ v8_source_set("v8_base") {
     "src/zone/zone.cc",
     "src/zone/zone.h",
   ]
+
+  if (v8_check_header_includes) {
+    # This file will be generated by tools/generate-header-include-checks.py
+    # if the "check_v8_header_includes" gclient variable is set.
+    import("check-header-includes/sources.gni")
+    sources += check_header_includes_sources
+  }
 
   if (use_jumbo_build == true) {
     jumbo_excluded_sources = [
@@ -2833,9 +2891,18 @@ v8_source_set("v8_base") {
       "src/objects/intl-objects-inl.h",
       "src/objects/intl-objects.cc",
       "src/objects/intl-objects.h",
+      "src/objects/js-collator-inl.h",
+      "src/objects/js-collator.cc",
+      "src/objects/js-collator.h",
+      "src/objects/js-list-format-inl.h",
+      "src/objects/js-list-format.cc",
+      "src/objects/js-list-format.h",
       "src/objects/js-locale-inl.h",
       "src/objects/js-locale.cc",
       "src/objects/js-locale.h",
+      "src/objects/js-plural-rules-inl.h",
+      "src/objects/js-plural-rules.cc",
+      "src/objects/js-plural-rules.h",
       "src/objects/js-relative-time-format-inl.h",
       "src/objects/js-relative-time-format.cc",
       "src/objects/js-relative-time-format.h",
@@ -2847,6 +2914,46 @@ v8_source_set("v8_base") {
     sources += [ "$target_gen_dir/debug-support.cc" ]
     deps += [ ":postmortem-metadata" ]
   }
+}
+
+v8_source_set("torque_base") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  sources = [
+    "src/torque/ast.h",
+    "src/torque/contextual.h",
+    "src/torque/declarable.cc",
+    "src/torque/declarable.h",
+    "src/torque/declaration-visitor.cc",
+    "src/torque/declaration-visitor.h",
+    "src/torque/declarations.cc",
+    "src/torque/declarations.h",
+    "src/torque/earley-parser.cc",
+    "src/torque/earley-parser.h",
+    "src/torque/file-visitor.cc",
+    "src/torque/file-visitor.h",
+    "src/torque/global-context.h",
+    "src/torque/implementation-visitor.cc",
+    "src/torque/implementation-visitor.h",
+    "src/torque/scope.cc",
+    "src/torque/scope.h",
+    "src/torque/source-positions.cc",
+    "src/torque/source-positions.h",
+    "src/torque/torque-parser.cc",
+    "src/torque/torque-parser.h",
+    "src/torque/type-oracle.cc",
+    "src/torque/type-oracle.h",
+    "src/torque/types.cc",
+    "src/torque/types.h",
+    "src/torque/utils.cc",
+    "src/torque/utils.h",
+  ]
+
+  deps = [
+    ":v8_libbase",
+  ]
+
+  configs = [ ":internal_config" ]
 }
 
 v8_component("v8_libbase") {
@@ -3153,65 +3260,16 @@ if (current_toolchain == v8_snapshot_toolchain) {
   v8_executable("torque") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-    defines = [ "ANTLR4CPP_STATIC" ]
-
-    include_dirs = [
-      "third_party/antlr4/runtime/Cpp/runtime/src",
-      "src/torque",
-    ]
-
     sources = [
-      "src/torque/TorqueBaseVisitor.cpp",
-      "src/torque/TorqueBaseVisitor.h",
-      "src/torque/TorqueLexer.cpp",
-      "src/torque/TorqueLexer.h",
-      "src/torque/TorqueParser.cpp",
-      "src/torque/TorqueParser.h",
-      "src/torque/TorqueVisitor.cpp",
-      "src/torque/TorqueVisitor.h",
-      "src/torque/ast-generator.cc",
-      "src/torque/ast-generator.h",
-      "src/torque/ast.h",
-      "src/torque/contextual.h",
-      "src/torque/declarable.cc",
-      "src/torque/declarable.h",
-      "src/torque/declaration-visitor.cc",
-      "src/torque/declaration-visitor.h",
-      "src/torque/declarations.cc",
-      "src/torque/declarations.h",
-      "src/torque/file-visitor.cc",
-      "src/torque/file-visitor.h",
-      "src/torque/global-context.h",
-      "src/torque/implementation-visitor.cc",
-      "src/torque/implementation-visitor.h",
-      "src/torque/scope.cc",
-      "src/torque/scope.h",
       "src/torque/torque.cc",
-      "src/torque/type-oracle.h",
-      "src/torque/types.cc",
-      "src/torque/types.h",
-      "src/torque/utils.cc",
-      "src/torque/utils.h",
     ]
 
     deps = [
-      ":v8_libbase",
-      "third_party/antlr4:antlr4",
+      ":torque_base",
       "//build/win:default_exe_manifest",
     ]
 
-    remove_configs = [
-      "//build/config/compiler:no_rtti",
-      "//build/config/compiler:no_exceptions",
-    ]
-
-    configs = [
-      "//build/config/compiler:rtti",
-      "//build/config/compiler:exceptions",
-      "third_party/antlr4:antlr-compatibility",
-      ":external_config",
-      ":internal_config_base",
-    ]
+    configs = [ ":internal_config" ]
   }
 }
 
@@ -3316,6 +3374,7 @@ if (is_component_build) {
     ]
 
     public_deps = [
+      ":torque_base",
       ":v8_base",
       ":v8_maybe_snapshot",
     ]
@@ -3342,6 +3401,7 @@ if (is_component_build) {
     testonly = true
 
     public_deps = [
+      ":torque_base",
       ":v8_base",
       ":v8_maybe_snapshot",
     ]

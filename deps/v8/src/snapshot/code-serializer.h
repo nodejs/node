@@ -5,7 +5,6 @@
 #ifndef V8_SNAPSHOT_CODE_SERIALIZER_H_
 #define V8_SNAPSHOT_CODE_SERIALIZER_H_
 
-#include "src/parsing/preparse-data.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {

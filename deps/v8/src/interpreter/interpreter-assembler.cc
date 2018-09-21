@@ -647,8 +647,8 @@ Node* InterpreterAssembler::BytecodeOperandIntrinsicId(int operand_index) {
 }
 
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
-  Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
-                                        BytecodeArray::kConstantPoolOffset);
+  TNode<FixedArray> constant_pool = CAST(LoadObjectField(
+      BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
   return LoadFixedArrayElement(constant_pool, UncheckedCast<IntPtrT>(index),
                                LoadSensitivity::kCritical);
 }
@@ -1599,16 +1599,18 @@ void InterpreterAssembler::AbortIfRegisterCountInvalid(
 }
 
 Node* InterpreterAssembler::ExportParametersAndRegisterFile(
-    Node* array, const RegListNodePair& registers,
-    Node* formal_parameter_count) {
+    TNode<FixedArray> array, const RegListNodePair& registers,
+    TNode<Int32T> formal_parameter_count) {
   // Store the formal parameters (without receiver) followed by the
   // registers into the generator's internal parameters_and_registers field.
-  formal_parameter_count = ChangeInt32ToIntPtr(formal_parameter_count);
+  TNode<IntPtrT> formal_parameter_count_intptr =
+      ChangeInt32ToIntPtr(formal_parameter_count);
   Node* register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
     CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
-    AbortIfRegisterCountInvalid(array, formal_parameter_count, register_count);
+    AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
+                                register_count);
   }
 
   {
@@ -1620,13 +1622,14 @@ Node* InterpreterAssembler::ExportParametersAndRegisterFile(
 
     Node* reg_base = IntPtrAdd(
         IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() - 1),
-        formal_parameter_count);
+        formal_parameter_count_intptr);
 
     Goto(&loop);
     BIND(&loop);
     {
       Node* index = var_index.value();
-      GotoIfNot(UintPtrLessThan(index, formal_parameter_count), &done_loop);
+      GotoIfNot(UintPtrLessThan(index, formal_parameter_count_intptr),
+                &done_loop);
 
       Node* reg_index = IntPtrSub(reg_base, index);
       Node* value = LoadRegister(reg_index);
@@ -1657,7 +1660,7 @@ Node* InterpreterAssembler::ExportParametersAndRegisterFile(
           IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
       Node* value = LoadRegister(reg_index);
 
-      Node* array_index = IntPtrAdd(formal_parameter_count, index);
+      Node* array_index = IntPtrAdd(formal_parameter_count_intptr, index);
       StoreFixedArrayElement(array, array_index, value);
 
       var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
@@ -1669,19 +1672,20 @@ Node* InterpreterAssembler::ExportParametersAndRegisterFile(
   return array;
 }
 
-Node* InterpreterAssembler::ImportRegisterFile(Node* array,
-                                               const RegListNodePair& registers,
-                                               Node* formal_parameter_count) {
-  formal_parameter_count = ChangeInt32ToIntPtr(formal_parameter_count);
-  Node* register_count = ChangeUint32ToWord(registers.reg_count());
+Node* InterpreterAssembler::ImportRegisterFile(
+    TNode<FixedArray> array, const RegListNodePair& registers,
+    TNode<Int32T> formal_parameter_count) {
+  TNode<IntPtrT> formal_parameter_count_intptr =
+      ChangeInt32ToIntPtr(formal_parameter_count);
+  TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
     CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
-    AbortIfRegisterCountInvalid(array, formal_parameter_count, register_count);
+    AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
+                                register_count);
   }
 
-  Variable var_index(this, MachineType::PointerRepresentation());
-  var_index.Bind(IntPtrConstant(0));
+  TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
 
   // Iterate over array and write values into register file.  Also erase the
   // array contents to not keep them alive artificially.
@@ -1689,19 +1693,21 @@ Node* InterpreterAssembler::ImportRegisterFile(Node* array,
   Goto(&loop);
   BIND(&loop);
   {
-    Node* index = var_index.value();
+    TNode<IntPtrT> index = var_index.value();
     GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
 
-    Node* array_index = IntPtrAdd(formal_parameter_count, index);
-    Node* value = LoadFixedArrayElement(array, array_index);
+    TNode<IntPtrT> array_index =
+        IntPtrAdd(formal_parameter_count_intptr, index);
+    TNode<Object> value = LoadFixedArrayElement(array, array_index);
 
-    Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
+    TNode<IntPtrT> reg_index =
+        IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
     StoreRegister(value, reg_index);
 
     StoreFixedArrayElement(array, array_index,
                            LoadRoot(Heap::kStaleRegisterRootIndex));
 
-    var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+    var_index = IntPtrAdd(index, IntPtrConstant(1));
     Goto(&loop);
   }
   BIND(&done_loop);

@@ -702,14 +702,14 @@ void Deoptimizer::DoComputeOutputFrames() {
     caller_frame_top_ = stack_fp_ + ComputeInputFrameAboveFpFixedSize();
 
     Address fp_address = input_->GetFramePointerAddress();
-    caller_fp_ = Memory::intptr_at(fp_address);
+    caller_fp_ = Memory<intptr_t>(fp_address);
     caller_pc_ =
-        Memory::intptr_at(fp_address + CommonFrameConstants::kCallerPCOffset);
-    input_frame_context_ = Memory::intptr_at(
+        Memory<intptr_t>(fp_address + CommonFrameConstants::kCallerPCOffset);
+    input_frame_context_ = Memory<intptr_t>(
         fp_address + CommonFrameConstants::kContextOrFrameTypeOffset);
 
     if (FLAG_enable_embedded_constant_pool) {
-      caller_constant_pool_ = Memory::intptr_at(
+      caller_constant_pool_ = Memory<intptr_t>(
           fp_address + CommonFrameConstants::kConstantPoolOffset);
     }
   }
@@ -1830,7 +1830,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   GenerateDeoptimizationEntries(&masm, kMaxNumberOfEntries, kind);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocationAfterCodegen(desc));
 
   // Allocate the code as immovable since the entry addresses will be used
   // directly and there is no support for relocating them.
@@ -2596,9 +2596,9 @@ int TranslatedValue::GetChildrenCount() const {
 uint32_t TranslatedState::GetUInt32Slot(Address fp, int slot_offset) {
   Address address = fp + slot_offset;
 #if V8_TARGET_BIG_ENDIAN && V8_HOST_ARCH_64_BIT
-  return Memory::uint32_at(address + kIntSize);
+  return Memory<uint32_t>(address + kIntSize);
 #else
-  return Memory::uint32_at(address);
+  return Memory<uint32_t>(address);
 #endif
 }
 
@@ -2606,12 +2606,12 @@ Float32 TranslatedState::GetFloatSlot(Address fp, int slot_offset) {
 #if !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
   return Float32::FromBits(GetUInt32Slot(fp, slot_offset));
 #else
-  return Float32::FromBits(Memory::uint32_at(fp + slot_offset));
+  return Float32::FromBits(Memory<uint32_t>(fp + slot_offset));
 #endif
 }
 
 Float64 TranslatedState::GetDoubleSlot(Address fp, int slot_offset) {
-  return Float64::FromBits(Memory::uint64_at(fp + slot_offset));
+  return Float64::FromBits(Memory<uint64_t>(fp + slot_offset));
 }
 
 void TranslatedValue::Handlify() {
@@ -2851,7 +2851,7 @@ Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
                                                   int* length) {
   Address parent_frame_pointer = *reinterpret_cast<Address*>(
       input_frame_pointer + StandardFrameConstants::kCallerFPOffset);
-  intptr_t parent_frame_type = Memory::intptr_at(
+  intptr_t parent_frame_type = Memory<intptr_t>(
       parent_frame_pointer + CommonFrameConstants::kContextOrFrameTypeOffset);
 
   Address arguments_frame;
@@ -3719,8 +3719,8 @@ void TranslatedState::InitializeJSObjectAt(
     Handle<Object> properties = GetValueAndAdvance(frame, value_index);
     WRITE_FIELD(*object_storage, JSObject::kPropertiesOrHashOffset,
                 *properties);
-    WRITE_BARRIER(isolate()->heap(), *object_storage,
-                  JSObject::kPropertiesOrHashOffset, *properties);
+    WRITE_BARRIER(*object_storage, JSObject::kPropertiesOrHashOffset,
+                  *properties);
   }
 
   // For all the other fields we first look at the fixed array and check the
@@ -3747,11 +3747,11 @@ void TranslatedState::InitializeJSObjectAt(
     } else if (marker == kStoreMutableHeapNumber) {
       CHECK(field_value->IsMutableHeapNumber());
       WRITE_FIELD(*object_storage, offset, *field_value);
-      WRITE_BARRIER(isolate()->heap(), *object_storage, offset, *field_value);
+      WRITE_BARRIER(*object_storage, offset, *field_value);
     } else {
       CHECK_EQ(kStoreTagged, marker);
       WRITE_FIELD(*object_storage, offset, *field_value);
-      WRITE_BARRIER(isolate()->heap(), *object_storage, offset, *field_value);
+      WRITE_BARRIER(*object_storage, offset, *field_value);
     }
   }
   object_storage->synchronized_set_map(*map);
@@ -3787,7 +3787,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     }
 
     WRITE_FIELD(*object_storage, offset, *field_value);
-    WRITE_BARRIER(isolate()->heap(), *object_storage, offset, *field_value);
+    WRITE_BARRIER(*object_storage, offset, *field_value);
   }
 
   object_storage->synchronized_set_map(*map);

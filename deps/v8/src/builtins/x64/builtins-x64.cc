@@ -12,7 +12,9 @@
 #include "src/frames.h"
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects.h"
+#include "src/objects/js-generator.h"
 #include "src/wasm/wasm-linkage.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -2338,7 +2340,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // Convert to Smi for the runtime call.
   __ SmiTag(r11, r11);
   {
-    TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
+    HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
     // Save all parameter registers (see wasm-linkage.cc). They might be

@@ -25,7 +25,6 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   ++break_count;
   try {
-    var break_id = exec_state.break_id;
     var frame_count = exec_state.frameCount();
     assertEquals(expected_frames.length, frame_count, 'frame count');
 

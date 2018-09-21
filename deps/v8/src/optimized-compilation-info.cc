@@ -5,12 +5,10 @@
 #include "src/optimized-compilation-info.h"
 
 #include "src/api.h"
-#include "src/ast/ast.h"
-#include "src/ast/scopes.h"
 #include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/parsing/parse-info.h"
+#include "src/objects/shared-function-info.h"
 #include "src/source-position.h"
 
 namespace v8 {

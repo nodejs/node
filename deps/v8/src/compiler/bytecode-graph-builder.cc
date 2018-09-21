@@ -14,6 +14,8 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-inl.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/vector-slot-pair.h"
 
@@ -1624,6 +1626,18 @@ void BytecodeGraphBuilder::VisitCreateEmptyObjectLiteral() {
   environment()->BindAccumulator(literal);
 }
 
+void BytecodeGraphBuilder::VisitCloneObject() {
+  PrepareEagerCheckpoint();
+  Node* source =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  int flags = bytecode_iterator().GetFlagOperand(1);
+  int slot = bytecode_iterator().GetIndexOperand(2);
+  const Operator* op =
+      javascript()->CloneObject(CreateVectorSlotPair(slot), flags);
+  Node* value = NewNode(op, source);
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitGetTemplateObject() {
   Handle<TemplateObjectDescription> description(
       TemplateObjectDescription::cast(
@@ -2439,17 +2453,13 @@ void BytecodeGraphBuilder::VisitTestReferenceEqual() {
   environment()->BindAccumulator(result);
 }
 
-void BytecodeGraphBuilder::BuildTestingOp(const Operator* op) {
-  PrepareEagerCheckpoint();
-  Node* left =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* right = environment()->LookupAccumulator();
-  Node* node = NewNode(op, left, right);
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::VisitTestIn() {
-  BuildTestingOp(javascript()->HasProperty());
+  PrepareEagerCheckpoint();
+  Node* object = environment()->LookupAccumulator();
+  Node* key =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* node = NewNode(javascript()->HasProperty(), object, key);
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitTestInstanceOf() {

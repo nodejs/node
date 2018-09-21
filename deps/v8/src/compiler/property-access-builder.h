@@ -26,7 +26,7 @@ class SimplifiedOperatorBuilder;
 
 class PropertyAccessBuilder {
  public:
-  PropertyAccessBuilder(JSGraph* jsgraph, const JSHeapBroker* js_heap_broker,
+  PropertyAccessBuilder(JSGraph* jsgraph, JSHeapBroker* js_heap_broker,
                         CompilationDependencies* dependencies)
       : jsgraph_(jsgraph),
         js_heap_broker_(js_heap_broker),
@@ -54,7 +54,7 @@ class PropertyAccessBuilder {
 
  private:
   JSGraph* jsgraph() const { return jsgraph_; }
-  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Graph* graph() const;
   Isolate* isolate() const;
@@ -69,7 +69,7 @@ class PropertyAccessBuilder {
   Node* ResolveHolder(PropertyAccessInfo const& access_info, Node* receiver);
 
   JSGraph* jsgraph_;
-  const JSHeapBroker* js_heap_broker_;
+  JSHeapBroker* js_heap_broker_;
   CompilationDependencies* dependencies_;
 };
 

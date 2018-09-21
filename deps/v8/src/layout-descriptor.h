@@ -101,9 +101,10 @@ class LayoutDescriptor : public ByteArray {
       SmiValuesAre32Bits() ? 32 : kSmiValueSize - 1;
 
   static const int kBitsPerLayoutWord = 32;
-  int number_of_layout_words() { return length() / kUInt32Size; }
-  uint32_t get_layout_word(int index) const { return get_uint32(index); }
-  void set_layout_word(int index, uint32_t value) { set_uint32(index, value); }
+
+  V8_INLINE int number_of_layout_words();
+  V8_INLINE uint32_t get_layout_word(int index) const;
+  V8_INLINE void set_layout_word(int index, uint32_t value);
 
   V8_INLINE static Handle<LayoutDescriptor> New(Isolate* isolate, int length);
   V8_INLINE static LayoutDescriptor* FromSmi(Smi* smi);

@@ -1640,7 +1640,8 @@ class StringPadAssembler : public StringBuiltinsAssembler {
     TVARIABLE(String, var_fill_string, StringConstant(" "));
     TVARIABLE(IntPtrT, var_fill_length, IntPtrConstant(1));
 
-    Label argc_2(this), dont_pad(this), invalid_string_length(this), pad(this);
+    Label check_fill(this), dont_pad(this), invalid_string_length(this),
+        pad(this);
 
     // If no max_length was provided, return the string.
     GotoIf(IntPtrEqual(argc, IntPtrConstant(0)), &dont_pad);
@@ -1649,41 +1650,41 @@ class StringPadAssembler : public StringBuiltinsAssembler {
         ToLength_Inline(context, arguments.AtIndex(0));
     CSA_ASSERT(this, IsNumberNormalized(max_length));
 
-    // Throw if max_length is not a smi or greater than the max string length.
-    GotoIfNot(TaggedIsSmi(max_length), &invalid_string_length);
-    TNode<Smi> smi_max_length = CAST(max_length);
-    GotoIfNot(
-        SmiLessThanOrEqual(smi_max_length, SmiConstant(String::kMaxLength)),
-        &invalid_string_length);
+    // If max_length <= string_length, return the string.
+    GotoIfNot(TaggedIsSmi(max_length), &check_fill);
+    Branch(SmiLessThanOrEqual(CAST(max_length), string_length), &dont_pad,
+           &check_fill);
 
-    // If the max_length is less than length of the string, return the string.
-    CSA_ASSERT(this, TaggedIsPositiveSmi(smi_max_length));
-    GotoIf(SmiLessThanOrEqual(smi_max_length, string_length), &dont_pad);
-
-    Branch(IntPtrEqual(argc, IntPtrConstant(1)), &pad, &argc_2);
-    BIND(&argc_2);
+    BIND(&check_fill);
     {
+      GotoIf(IntPtrEqual(argc, IntPtrConstant(1)), &pad);
       Node* const fill = arguments.AtIndex(1);
       GotoIf(IsUndefined(fill), &pad);
 
       var_fill_string = ToString_Inline(context, fill);
       var_fill_length = LoadStringLengthAsWord(var_fill_string.value());
-
-      Branch(IntPtrGreaterThan(var_fill_length.value(), IntPtrConstant(0)),
-             &pad, &dont_pad);
+      Branch(WordEqual(var_fill_length.value(), IntPtrConstant(0)), &dont_pad,
+             &pad);
     }
+
     BIND(&pad);
     {
       CSA_ASSERT(this,
                  IntPtrGreaterThan(var_fill_length.value(), IntPtrConstant(0)));
-      CSA_ASSERT(this, SmiGreaterThan(smi_max_length, string_length));
+
+      // Throw if max_length is greater than String::kMaxLength.
+      GotoIfNot(TaggedIsSmi(max_length), &invalid_string_length);
+      TNode<Smi> smi_max_length = CAST(max_length);
+      GotoIfNot(
+          SmiLessThanOrEqual(smi_max_length, SmiConstant(String::kMaxLength)),
+          &invalid_string_length);
 
       Callable stringadd_callable =
           CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+      CSA_ASSERT(this, SmiGreaterThan(smi_max_length, string_length));
       TNode<Smi> const pad_length = SmiSub(smi_max_length, string_length);
 
       VARIABLE(var_pad, MachineRepresentation::kTagged);
-
       Label single_char_fill(this), multi_char_fill(this), return_result(this);
       Branch(IntPtrEqual(var_fill_length.value(), IntPtrConstant(1)),
              &single_char_fill, &multi_char_fill);
@@ -1837,8 +1838,8 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
     ToDirectStringAssembler to_direct(state(), subject_string);
     to_direct.TryToDirect(&call_runtime);
-    TNode<FixedArray> elements = AllocateFixedArray(
-        PACKED_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation);
+    TNode<FixedArray> elements = CAST(AllocateFixedArray(
+        PACKED_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation));
     // Don't allocate anything while {string_data} is live!
     TNode<RawPtrT> string_data = UncheckedCast<RawPtrT>(
         to_direct.PointerToData(&fill_thehole_and_call_runtime));
@@ -1951,7 +1952,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     Node* const capacity = IntPtrConstant(1);
     Node* const result = AllocateJSArray(kind, array_map, capacity, length);
 
-    Node* const fixed_array = LoadElements(result);
+    TNode<FixedArray> const fixed_array = CAST(LoadElements(result));
     StoreFixedArrayElement(fixed_array, 0, subject_string);
 
     args.PopAndReturn(result);

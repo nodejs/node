@@ -19,6 +19,7 @@ namespace {
 
 bool IsRename(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kCheckHeapObject:
     case IrOpcode::kFinishRegion:
     case IrOpcode::kTypeGuard:
       return true;
@@ -35,12 +36,14 @@ Node* ResolveRenames(Node* node) {
 }
 
 bool MayAlias(Node* a, Node* b) {
-  if (a == b) return true;
-  if (!NodeProperties::GetType(a).Maybe(NodeProperties::GetType(b))) {
-    return false;
-  }
-  switch (b->opcode()) {
-    case IrOpcode::kAllocate: {
+  if (a != b) {
+    if (!NodeProperties::GetType(a).Maybe(NodeProperties::GetType(b))) {
+      return false;
+    } else if (IsRename(b)) {
+      return MayAlias(a, b->InputAt(0));
+    } else if (IsRename(a)) {
+      return MayAlias(a->InputAt(0), b);
+    } else if (b->opcode() == IrOpcode::kAllocate) {
       switch (a->opcode()) {
         case IrOpcode::kAllocate:
         case IrOpcode::kHeapConstant:
@@ -49,16 +52,7 @@ bool MayAlias(Node* a, Node* b) {
         default:
           break;
       }
-      break;
-    }
-    case IrOpcode::kFinishRegion:
-    case IrOpcode::kTypeGuard:
-      return MayAlias(a, b->InputAt(0));
-    default:
-      break;
-  }
-  switch (a->opcode()) {
-    case IrOpcode::kAllocate: {
+    } else if (a->opcode() == IrOpcode::kAllocate) {
       switch (b->opcode()) {
         case IrOpcode::kHeapConstant:
         case IrOpcode::kParameter:
@@ -66,13 +60,7 @@ bool MayAlias(Node* a, Node* b) {
         default:
           break;
       }
-      break;
     }
-    case IrOpcode::kFinishRegion:
-    case IrOpcode::kTypeGuard:
-      return MayAlias(a->InputAt(0), b);
-    default:
-      break;
   }
   return true;
 }
@@ -445,6 +433,7 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
 }
 
 void LoadElimination::AbstractMaps::Print() const {
+  AllowHandleDereference allow_handle_dereference;
   StdoutStream os;
   for (auto pair : info_for_node_) {
     os << "    #" << pair.first->id() << ":" << pair.first->op()->mnemonic()
@@ -676,6 +665,12 @@ Node* LoadElimination::AbstractState::LookupField(Node* object,
 }
 
 bool LoadElimination::AliasStateInfo::MayAlias(Node* other) const {
+  // If {object} is being initialized right here (indicated by {object} being
+  // an Allocate node instead of a FinishRegion node), we know that {other}
+  // can only alias with {object} if they refer to exactly the same node.
+  if (object_->opcode() == IrOpcode::kAllocate) {
+    return object_ == other;
+  }
   // Decide aliasing based on the node kinds.
   if (!compiler::MayAlias(object_, other)) {
     return false;
@@ -905,8 +900,9 @@ Reduction LoadElimination::ReduceTransitionAndStoreElement(Node* node) {
 
 Reduction LoadElimination::ReduceLoadField(Node* node) {
   FieldAccess const& access = FieldAccessOf(node->op());
-  Node* const object = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
   if (access.offset == HeapObject::kMapOffset &&
@@ -924,12 +920,19 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
     if (field_index >= 0) {
       if (Node* replacement = state->LookupField(object, field_index)) {
         // Make sure we don't resurrect dead {replacement} nodes.
-        // Skip lowering if the type of the {replacement} node is not a subtype
-        // of the original {node}'s type.
-        // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
-        // these two types here once we properly handle {Type::None} everywhere.
-        if (!replacement->IsDead() && NodeProperties::GetType(replacement)
-                                          .Is(NodeProperties::GetType(node))) {
+        if (!replacement->IsDead()) {
+          // Introduce a TypeGuard if the type of the {replacement} node is not
+          // a subtype of the original {node}'s type.
+          if (!NodeProperties::GetType(replacement)
+                   .Is(NodeProperties::GetType(node))) {
+            Type replacement_type = Type::Intersect(
+                NodeProperties::GetType(node),
+                NodeProperties::GetType(replacement), graph()->zone());
+            replacement = effect =
+                graph()->NewNode(common()->TypeGuard(replacement_type),
+                                 replacement, effect, control);
+            NodeProperties::SetType(replacement, replacement_type);
+          }
           ReplaceWithValue(node, replacement, effect);
           return Replace(replacement);
         }

@@ -81,6 +81,8 @@ std::ostream& operator<<(std::ostream& os, const Generic& g) {
   return os;
 }
 
+size_t Label::next_id_ = 0;
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

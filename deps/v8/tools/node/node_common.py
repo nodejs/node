@@ -8,6 +8,7 @@ import pipes
 import shutil
 import stat
 import subprocess
+import sys
 
 DEPOT_TOOLS_URL = \
   "https://chromium.googlesource.com/chromium/tools/depot_tools.git"
@@ -27,6 +28,10 @@ def EnsureDepotTools(v8_path, fetch_if_not_exist):
       subprocess.check_call("git clone {} {}".format(
           pipes.quote(DEPOT_TOOLS_URL),
           pipes.quote(depot_tools)), shell=True)
+      # Using check_output to hide warning messages.
+      subprocess.check_output(
+          [sys.executable, gclient_path, "metrics", "--opt-out"],
+          cwd=depot_tools)
       return depot_tools
     return None
   depot_tools = _Get(v8_path)

@@ -18,7 +18,7 @@ TF_BUILTIN(ReflectHas, CodeStubAssembler) {
   ThrowIfNotJSReceiver(context, target, MessageTemplate::kCalledOnNonObject,
                        "Reflect.has");
 
-  Return(CallBuiltin(Builtins::kHasProperty, context, key, target));
+  Return(CallBuiltin(Builtins::kHasProperty, context, target, key));
 }
 
 }  // namespace internal

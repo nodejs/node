@@ -123,8 +123,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     GotoIf(Uint32LessThanOrEqual(argc, Int32Constant(1)), &empty_arguments);
     TNode<IntPtrT> elements_length =
         Signed(ChangeUint32ToWord(Unsigned(Int32Sub(argc, Int32Constant(1)))));
-    Node* elements = AllocateFixedArray(PACKED_ELEMENTS, elements_length,
-                                        kAllowLargeObjectAllocation);
+    TNode<FixedArray> elements = CAST(AllocateFixedArray(
+        PACKED_ELEMENTS, elements_length, kAllowLargeObjectAllocation));
     VARIABLE(index, MachineType::PointerRepresentation());
     index.Bind(IntPtrConstant(0));
     VariableList foreach_vars({&index}, zone());

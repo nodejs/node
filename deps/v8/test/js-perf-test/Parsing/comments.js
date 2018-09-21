@@ -2,21 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-const iterations = 100;
-
-new BenchmarkSuite('OneLineComment', [1000], [
-  new Benchmark('OneLineComment', false, true, iterations, Run, OneLineCommentSetup)
+new BenchmarkSuite("OneLineComment", [1000], [
+  new Benchmark("OneLineComment", false, true, iterations, Run, OneLineCommentSetup)
 ]);
 
-new BenchmarkSuite('OneLineComments', [1000], [
-  new Benchmark('OneLineComments', false, true, iterations, Run, OneLineCommentsSetup)
+new BenchmarkSuite("OneLineComments", [1000], [
+  new Benchmark("OneLineComments", false, true, iterations, Run, OneLineCommentsSetup)
 ]);
 
-new BenchmarkSuite('MultiLineComment', [1000], [
-  new Benchmark('MultiLineComment', false, true, iterations, Run, MultiLineCommentSetup)
+new BenchmarkSuite("MultiLineComment", [1000], [
+  new Benchmark("MultiLineComment", false, true, iterations, Run, MultiLineCommentSetup)
 ]);
-
-let code;
 
 function OneLineCommentSetup() {
   code = "//" + " This is a comment... ".repeat(600);

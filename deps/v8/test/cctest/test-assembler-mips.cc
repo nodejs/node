@@ -3164,16 +3164,13 @@ TEST(jump_tables1) {
   Label done;
   {
     __ BlockTrampolinePoolFor(kNumCases + 7);
-    PredictableCodeSizeScope predictable(
-        &assm, (kNumCases + 7) * Assembler::kInstrSize);
-    Label here;
+    PredictableCodeSizeScope predictable(&assm, (kNumCases + 7) * kInstrSize);
 
-    __ bal(&here);
+    __ nal();
     __ nop();
-    __ bind(&here);
     __ sll(at, a0, 2);
     __ addu(at, at, ra);
-    __ lw(at, MemOperand(at, 5 * Assembler::kInstrSize));
+    __ lw(at, MemOperand(at, 5 * kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -3243,16 +3240,13 @@ TEST(jump_tables2) {
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases + 7);
-    PredictableCodeSizeScope predictable(
-        &assm, (kNumCases + 7) * Assembler::kInstrSize);
-    Label here;
+    PredictableCodeSizeScope predictable(&assm, (kNumCases + 7) * kInstrSize);
 
-    __ bal(&here);
+    __ nal();
     __ nop();
-    __ bind(&here);
     __ sll(at, a0, 2);
     __ addu(at, at, ra);
-    __ lw(at, MemOperand(at, 5 * Assembler::kInstrSize));
+    __ lw(at, MemOperand(at, 5 * kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -3319,16 +3313,13 @@ TEST(jump_tables3) {
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases + 7);
-    PredictableCodeSizeScope predictable(
-        &assm, (kNumCases + 7) * Assembler::kInstrSize);
-    Label here;
+    PredictableCodeSizeScope predictable(&assm, (kNumCases + 7) * kInstrSize);
 
-    __ bal(&here);
+    __ nal();
     __ nop();
-    __ bind(&here);
     __ sll(at, a0, 2);
     __ addu(at, at, ra);
-    __ lw(at, MemOperand(at, 5 * Assembler::kInstrSize));
+    __ lw(at, MemOperand(at, 5 * kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -4811,8 +4802,8 @@ uint32_t run_jic(int16_t offset) {
   __ beq(v0, t1, &stop_execution);
   __ nop();
 
-  __ bal(&get_program_counter);  // t0 <- program counter
-  __ nop();
+  __ nal();  // t0 <- program counter
+  __ mov(t0, ra);
   __ jic(t0, offset);
 
   __ addiu(v0, v0, 0x100);
@@ -4820,11 +4811,6 @@ uint32_t run_jic(int16_t offset) {
   __ addiu(v0, v0, 0x1000);
   __ addiu(v0, v0, 0x2000);   // <--- offset = 16
   __ pop(ra);
-  __ jr(ra);
-  __ nop();
-
-  __ bind(&get_program_counter);
-  __ mov(t0, ra);
   __ jr(ra);
   __ nop();
 
@@ -5158,8 +5144,8 @@ uint32_t run_jialc(int16_t offset) {
 
   // Block 3 (Main)
   __ bind(&main_block);
-  __ bal(&get_program_counter);  // t0 <- program counter
-  __ nop();
+  __ nal();  // t0 <- program counter
+  __ mov(t0, ra);
   __ jialc(t0, offset);
   __ addiu(v0, v0, 0x4);
   __ pop(ra);
@@ -5175,11 +5161,6 @@ uint32_t run_jialc(int16_t offset) {
   // Block 5
   __ addiu(v0, v0, 0x1000);     // <--- offset = 36
   __ addiu(v0, v0, 0x2000);
-  __ jr(ra);
-  __ nop();
-
-  __ bind(&get_program_counter);
-  __ mov(t0, ra);
   __ jr(ra);
   __ nop();
 
@@ -5557,7 +5538,7 @@ TEST(Trampoline) {
   MacroAssembler assm(isolate, nullptr, 0,
                       v8::internal::CodeObjectRequired::kYes);
   Label done;
-  size_t nr_calls = kMaxBranchOffset / (2 * Instruction::kInstrSize) + 2;
+  size_t nr_calls = kMaxBranchOffset / (2 * kInstrSize) + 2;
 
   for (size_t i = 0; i < nr_calls; ++i) {
     __ BranchShort(&done, eq, a0, Operand(a1));
@@ -5715,8 +5696,7 @@ uint32_t run_Subu(uint32_t imm, int32_t num_instr) {
   Label code_start;
   __ bind(&code_start);
   __ Subu(v0, zero_reg, imm);
-  CHECK_EQ(assm.SizeOfCodeGeneratedSince(&code_start),
-           num_instr * Assembler::kInstrSize);
+  CHECK_EQ(assm.SizeOfCodeGeneratedSince(&code_start), num_instr * kInstrSize);
   __ jr(ra);
   __ nop();
 

@@ -114,6 +114,16 @@ constexpr auto fold(Func func, Ts&&... more) ->
                                                 std::forward<Ts>(more)...);
 }
 
+// {is_same<Ts...>::value} is true if all Ts are the same, false otherwise.
+template <typename... Ts>
+struct is_same : public std::false_type {};
+template <>
+struct is_same<> : public std::true_type {};
+template <typename T>
+struct is_same<T> : public std::true_type {};
+template <typename T, typename... Ts>
+struct is_same<T, T, Ts...> : public is_same<T, Ts...> {};
+
 }  // namespace base
 }  // namespace v8
 

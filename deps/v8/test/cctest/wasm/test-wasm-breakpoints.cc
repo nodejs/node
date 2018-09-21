@@ -242,7 +242,7 @@ std::vector<WasmValue> wasmVec(Args... args) {
 }  // namespace
 
 WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
-  WasmRunner<int> runner(execution_mode);
+  WasmRunner<int> runner(execution_tier);
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
 
@@ -269,7 +269,7 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
-  WasmRunner<int> runner(execution_mode);
+  WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
@@ -290,7 +290,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
-  WasmRunner<int> runner(execution_mode);
+  WasmRunner<int> runner(execution_tier);
   BUILD(runner, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
 
   Isolate* isolate = runner.main_isolate();
@@ -317,7 +317,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
 }
 
 WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
-  WasmRunner<int, int> runner(execution_mode);
+  WasmRunner<int, int> runner(execution_tier);
   WasmFunctionCompiler& f2 = runner.NewFunction<void>();
   f2.AllocateLocal(kWasmI32);
 
@@ -357,7 +357,7 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
 }
 
 WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
-  WasmRunner<void, int> runner(execution_mode);
+  WasmRunner<void, int> runner(execution_tier);
   runner.AllocateLocal(kWasmI64);
   runner.AllocateLocal(kWasmF32);
   runner.AllocateLocal(kWasmF64);

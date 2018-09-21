@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class JSProxy;
+
 enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX };
 
 // This is a helper class for JSReceiver::GetKeys which collects and sorts keys.
@@ -101,7 +103,7 @@ class KeyAccumulator final BASE_EMBEDDED {
                                  Handle<FixedArray> keys);
   bool IsShadowed(Handle<Object> key);
   bool HasShadowingKeys();
-  Handle<OrderedHashSet> keys() { return Handle<OrderedHashSet>::cast(keys_); }
+  Handle<OrderedHashSet> keys();
 
   Isolate* isolate_;
   // keys_ is either an Handle<OrderedHashSet> or in the case of own JSProxy

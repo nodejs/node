@@ -108,12 +108,15 @@ class Declarations {
                           GenericDeclaration* generic);
 
   TypeVector GetCurrentSpecializationTypeNamesVector();
+  base::Optional<Generic*> GetCurrentGeneric();
 
   ScopeChain::Snapshot GetScopeChainSnapshot() { return chain_.TaskSnapshot(); }
 
   std::set<const Variable*> GetLiveVariables() {
     return chain_.GetLiveVariables();
   }
+
+  bool IsDeclaredInCurrentScope(const std::string& name);
 
   Statement* next_body() const { return next_body_; }
 

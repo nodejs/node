@@ -276,21 +276,23 @@ class Simulator : public SimulatorBase {
   inline void WriteB(int32_t addr, int8_t value);
   int WriteExB(int32_t addr, uint8_t value);
 
-  inline uint16_t ReadHU(int32_t addr, Instruction* instr);
-  inline int16_t ReadH(int32_t addr, Instruction* instr);
-  uint16_t ReadExHU(int32_t addr, Instruction* instr);
+  inline uint16_t ReadHU(int32_t addr);
+  inline int16_t ReadH(int32_t addr);
+  uint16_t ReadExHU(int32_t addr);
   // Note: Overloaded on the sign of the value.
-  inline void WriteH(int32_t addr, uint16_t value, Instruction* instr);
-  inline void WriteH(int32_t addr, int16_t value, Instruction* instr);
-  int WriteExH(int32_t addr, uint16_t value, Instruction* instr);
+  inline void WriteH(int32_t addr, uint16_t value);
+  inline void WriteH(int32_t addr, int16_t value);
+  int WriteExH(int32_t addr, uint16_t value);
 
-  inline int ReadW(int32_t addr, Instruction* instr);
-  int ReadExW(int32_t addr, Instruction* instr);
-  inline void WriteW(int32_t addr, int value, Instruction* instr);
-  int WriteExW(int32_t addr, int value, Instruction* instr);
+  inline int ReadW(int32_t addr);
+  int ReadExW(int32_t addr);
+  inline void WriteW(int32_t addr, int value);
+  int WriteExW(int32_t addr, int value);
 
   int32_t* ReadDW(int32_t addr);
   void WriteDW(int32_t addr, int32_t value1, int32_t value2);
+  int32_t* ReadExDW(int32_t addr);
+  int WriteExDW(int32_t addr, int32_t value1, int32_t value2);
 
   // Executing is handled based on the instruction type.
   // Both type 0 and type 1 rolled into one.
@@ -414,6 +416,7 @@ class Simulator : public SimulatorBase {
     Byte = 1,
     HalfWord = 2,
     Word = 4,
+    DoubleWord = 8,
   };
 
   // The least-significant bits of the address are ignored. The number of bits

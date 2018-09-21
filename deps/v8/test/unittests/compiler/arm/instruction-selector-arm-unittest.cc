@@ -1183,12 +1183,12 @@ TEST_P(InstructionSelectorShiftTest, Word32EqualToZeroWithImmediate) {
   }
 }
 
-
-TEST_P(InstructionSelectorShiftTest, Word32NotWithParameters) {
+TEST_P(InstructionSelectorShiftTest, Word32BitwiseNotWithParameters) {
   const Shift shift = GetParam();
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                   MachineType::Int32());
-  m.Return(m.Word32Not((m.*shift.constructor)(m.Parameter(0), m.Parameter(1))));
+  m.Return(m.Word32BitwiseNot(
+      (m.*shift.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArmMvn, s[0]->arch_opcode());
@@ -1197,12 +1197,11 @@ TEST_P(InstructionSelectorShiftTest, Word32NotWithParameters) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-
-TEST_P(InstructionSelectorShiftTest, Word32NotWithImmediate) {
+TEST_P(InstructionSelectorShiftTest, Word32BitwiseNotWithImmediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    m.Return(m.Word32Not(
+    m.Return(m.Word32BitwiseNot(
         (m.*shift.constructor)(m.Parameter(0), m.Int32Constant(imm))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1214,13 +1213,14 @@ TEST_P(InstructionSelectorShiftTest, Word32NotWithImmediate) {
   }
 }
 
-
-TEST_P(InstructionSelectorShiftTest, Word32AndWithWord32NotWithParameters) {
+TEST_P(InstructionSelectorShiftTest,
+       Word32AndWithWord32BitwiseNotWithParameters) {
   const Shift shift = GetParam();
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                   MachineType::Int32(), MachineType::Int32());
-  m.Return(m.Word32And(m.Parameter(0), m.Word32Not((m.*shift.constructor)(
-                                           m.Parameter(1), m.Parameter(2)))));
+  m.Return(
+      m.Word32And(m.Parameter(0), m.Word32BitwiseNot((m.*shift.constructor)(
+                                      m.Parameter(1), m.Parameter(2)))));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArmBic, s[0]->arch_opcode());
@@ -1229,14 +1229,14 @@ TEST_P(InstructionSelectorShiftTest, Word32AndWithWord32NotWithParameters) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-
-TEST_P(InstructionSelectorShiftTest, Word32AndWithWord32NotWithImmediate) {
+TEST_P(InstructionSelectorShiftTest,
+       Word32AndWithWord32BitwiseNotWithImmediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
     m.Return(m.Word32And(m.Parameter(0),
-                         m.Word32Not((m.*shift.constructor)(
+                         m.Word32BitwiseNot((m.*shift.constructor)(
                              m.Parameter(1), m.Int32Constant(imm)))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -2971,12 +2971,11 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediateForARMv7) {
   }
 }
 
-
-TEST_F(InstructionSelectorTest, Word32AndWithWord32Not) {
+TEST_F(InstructionSelectorTest, Word32AndWithWord32BitwiseNot) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
-    m.Return(m.Word32And(m.Parameter(0), m.Word32Not(m.Parameter(1))));
+    m.Return(m.Word32And(m.Parameter(0), m.Word32BitwiseNot(m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArmBic, s[0]->arch_opcode());
@@ -2987,7 +2986,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithWord32Not) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
-    m.Return(m.Word32And(m.Word32Not(m.Parameter(0)), m.Parameter(1)));
+    m.Return(m.Word32And(m.Word32BitwiseNot(m.Parameter(0)), m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArmBic, s[0]->arch_opcode());
@@ -3076,10 +3075,9 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
   }
 }
 
-
-TEST_F(InstructionSelectorTest, Word32NotWithParameter) {
+TEST_F(InstructionSelectorTest, Word32BitwiseNotWithParameter) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-  m.Return(m.Word32Not(m.Parameter(0)));
+  m.Return(m.Word32BitwiseNot(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArmMvn, s[0]->arch_opcode());

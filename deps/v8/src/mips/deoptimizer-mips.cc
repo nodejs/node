@@ -237,9 +237,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
 // Maximum size of a table entry generated below.
 #ifdef _MIPS_ARCH_MIPS32R6
-const int Deoptimizer::table_entry_size_ = 2 * Assembler::kInstrSize;
+const int Deoptimizer::table_entry_size_ = 2 * kInstrSize;
 #else
-const int Deoptimizer::table_entry_size_ = 3 * Assembler::kInstrSize;
+const int Deoptimizer::table_entry_size_ = 3 * kInstrSize;
 #endif
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
@@ -252,10 +252,10 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
 
 #ifdef _MIPS_ARCH_MIPS32R6
   int kMaxEntriesBranchReach =
-      (1 << (kImm26Bits - 2)) / (table_entry_size_ / Assembler::kInstrSize);
+      (1 << (kImm26Bits - 2)) / (table_entry_size_ / kInstrSize);
 #else
-  int kMaxEntriesBranchReach = (1 << (kImm16Bits - 2))/
-     (table_entry_size_ /  Assembler::kInstrSize);
+  int kMaxEntriesBranchReach =
+      (1 << (kImm16Bits - 2)) / (table_entry_size_ / kInstrSize);
 #endif
 
   if (count() <= kMaxEntriesBranchReach) {

@@ -195,7 +195,7 @@ struct HeapObjectMatcher final
     return this->HasValue() && this->Value().address() == value.address();
   }
 
-  ObjectRef Ref(const JSHeapBroker* broker) const {
+  ObjectRef Ref(JSHeapBroker* broker) const {
     return ObjectRef(broker, this->Value());
   }
 };

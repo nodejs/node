@@ -426,7 +426,8 @@ Response V8RuntimeAgentImpl::getProperties(
     if (!response.isSuccess()) return response;
     propertiesProtocolArray->addItem(
         InternalPropertyDescriptor::create()
-            .setName(toProtocolString(name.As<v8::String>()))
+            .setName(
+                toProtocolString(m_inspector->isolate(), name.As<v8::String>()))
             .setValue(std::move(wrappedValue))
             .build());
   }
@@ -622,7 +623,8 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
   v8::debug::GlobalLexicalScopeNames(scope.context(), &names);
   *outNames = protocol::Array<String16>::create();
   for (size_t i = 0; i < names.Size(); ++i) {
-    (*outNames)->addItem(toProtocolString(names.Get(i)));
+    (*outNames)->addItem(
+        toProtocolString(m_inspector->isolate(), names.Get(i)));
   }
   return Response::OK();
 }
@@ -690,8 +692,10 @@ void V8RuntimeAgentImpl::bindingCallback(
   int contextId = InspectedContext::contextId(isolate->GetCurrentContext());
   int contextGroupId = inspector->contextGroupId(contextId);
 
-  String16 name = toProtocolString(v8::Local<v8::String>::Cast(info.Data()));
-  String16 payload = toProtocolString(v8::Local<v8::String>::Cast(info[0]));
+  String16 name =
+      toProtocolString(isolate, v8::Local<v8::String>::Cast(info.Data()));
+  String16 payload =
+      toProtocolString(isolate, v8::Local<v8::String>::Cast(info[0]));
 
   inspector->forEachSession(
       contextGroupId,

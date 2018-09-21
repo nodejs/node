@@ -460,7 +460,7 @@ TF_BUILTIN(ProxyHasProperty, ProxiesCodeStubAssembler) {
   BIND(&trap_undefined);
   {
     // 7.a. Return ? target.[[HasProperty]](P).
-    TailCallBuiltin(Builtins::kHasProperty, context, name, target);
+    TailCallBuiltin(Builtins::kHasProperty, context, target, name);
   }
 
   BIND(&return_false);

@@ -16,9 +16,10 @@ namespace compiler {
 GraphTest::GraphTest(int num_parameters)
     : TestWithNativeContext(),
       TestWithIsolateAndZone(),
+      canonical_(isolate()),
       common_(zone()),
       graph_(zone()),
-      js_heap_broker_(isolate()),
+      js_heap_broker_(isolate(), zone()),
       source_positions_(&graph_),
       node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));

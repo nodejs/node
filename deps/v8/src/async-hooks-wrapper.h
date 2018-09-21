@@ -69,10 +69,11 @@ class AsyncHooks {
 
   Local<Object> CreateHook(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  Persistent<FunctionTemplate> async_hook_ctor;
+
  private:
   std::vector<AsyncHooksWrap*> async_wraps_;
   Isolate* isolate_;
-  Persistent<FunctionTemplate> async_hook_ctor;
   Persistent<ObjectTemplate> async_hooks_templ;
   Persistent<Private> async_id_smb;
   Persistent<Private> trigger_id_smb;

@@ -9,28 +9,24 @@ function SortAsc() {
 }
 
 function Random(length) {
+  array_to_sort = [];
   for (let i = 0; i < length; ++i) {
-    array_to_sort.push(Math.floor(Math.random()) * length);
+    array_to_sort.push(Math.floor(Math.random() * length));
   }
   AssertPackedSmiElements();
 }
 
 function Sorted(length) {
+  array_to_sort = [];
   for (let i = 0; i < length; ++i) {
     array_to_sort.push(i);
   }
   AssertPackedSmiElements();
 }
 
-function TearDown() {
-  array_to_sort = [];
-}
-
 function CreateSortSuitesForLength(length) {
-  createSortSuite(
-      'Random' + length, 1000, SortAsc, () => Random(length), TearDown);
-  createSortSuite(
-      'Sorted' + length, 1000, SortAsc, () => Sorted(length), TearDown);
+  createSortSuite('Random' + length, 1000, SortAsc, () => Random(length));
+  createSortSuite('Sorted' + length, 1000, SortAsc, () => Sorted(length));
 }
 
 CreateSortSuitesForLength(10);

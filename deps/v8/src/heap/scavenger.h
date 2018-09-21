@@ -114,7 +114,7 @@ class Scavenger {
 // filtering out non-HeapObjects and objects which do not reside in new space.
 class RootScavengeVisitor final : public RootVisitor {
  public:
-  explicit RootScavengeVisitor(Scavenger* scavenger) : scavenger_(scavenger) {}
+  explicit RootScavengeVisitor(Scavenger* scavenger);
 
   void VisitRootPointer(Root root, const char* description, Object** p) final;
   void VisitRootPointers(Root root, const char* description, Object** start,
@@ -128,7 +128,7 @@ class RootScavengeVisitor final : public RootVisitor {
 
 class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
  public:
-  explicit ScavengeVisitor(Scavenger* scavenger) : scavenger_(scavenger) {}
+  explicit ScavengeVisitor(Scavenger* scavenger);
 
   V8_INLINE void VisitPointers(HeapObject* host, Object** start,
                                Object** end) final;

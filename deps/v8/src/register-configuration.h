@@ -34,6 +34,9 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   // Register configuration with reserved masking register.
   static const RegisterConfiguration* Poisoning();
 
+  // Register configuration with reserved root register on ia32.
+  static const RegisterConfiguration* PreserveRootIA32();
+
   static const RegisterConfiguration* RestrictGeneralRegisters(
       RegList registers);
 

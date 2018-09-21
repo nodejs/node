@@ -27,6 +27,8 @@ namespace torque {
 template <class Derived, class VarType>
 class ContextualVariable {
  public:
+  using VariableType = VarType;
+
   // A {Scope} contains a new object of type {VarType} and gives
   // ContextualVariable::Get() access to it. Upon destruction, the contextual
   // variable is restored to the state before the {Scope} was created. Scopes
@@ -36,13 +38,13 @@ class ContextualVariable {
    public:
     template <class... Args>
     explicit Scope(Args&&... args)
-        : current_(std::forward<Args>(args)...), previous_(top_) {
-      top_ = &current_;
+        : current_(std::forward<Args>(args)...), previous_(Top()) {
+      Top() = &current_;
     }
     ~Scope() {
       // Ensure stack discipline.
-      DCHECK_EQ(&current_, top_);
-      top_ = previous_;
+      DCHECK_EQ(&current_, Top());
+      Top() = previous_;
     }
 
    private:
@@ -59,21 +61,26 @@ class ContextualVariable {
   // Access the most recent active {Scope}. There has to be an active {Scope}
   // for this contextual variable.
   static VarType& Get() {
-    DCHECK_NOT_NULL(top_);
-    return *top_;
+    DCHECK_NOT_NULL(Top());
+    return *Top();
   }
 
  private:
-  static thread_local VarType* top_;
+  V8_EXPORT_PRIVATE static VarType*& Top();
 };
-
-template <class Derived, class VarType>
-thread_local VarType* ContextualVariable<Derived, VarType>::top_ = nullptr;
 
 // Usage: DECLARE_CONTEXTUAL_VARIABLE(VarName, VarType)
 #define DECLARE_CONTEXTUAL_VARIABLE(VarName, ...) \
   struct VarName                                  \
       : v8::internal::torque::ContextualVariable<VarName, __VA_ARGS__> {};
+
+#define DEFINE_CONTEXTUAL_VARIABLE(VarName)                   \
+  template <>                                                 \
+  V8_EXPORT_PRIVATE VarName::VariableType*&                   \
+  ContextualVariable<VarName, VarName::VariableType>::Top() { \
+    static thread_local VarName::VariableType* top = nullptr; \
+    return top;                                               \
+  }
 
 // By inheriting from {ContextualClass} a class can become a contextual variable
 // of itself, which is very similar to a singleton.

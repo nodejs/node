@@ -18,7 +18,7 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   // Returns object[Symbol.iterator].
-  Node* GetIteratorMethod(Node* context, Node* object);
+  TNode<Object> GetIteratorMethod(Node* context, Node* object);
 
   // https://tc39.github.io/ecma262/#sec-getiterator --- never used for
   // @@asyncIterator.
@@ -53,6 +53,11 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
                                 Label* if_exception, Variable* exception);
   void IteratorCloseOnException(Node* context, const IteratorRecord& iterator,
                                 Variable* exception);
+
+  // /#sec-iterabletolist
+  TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable,
+                                TNode<Object> iterator_fn);
+  TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable);
 };
 
 }  // namespace internal

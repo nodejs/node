@@ -33,8 +33,12 @@ namespace internal {
 // Many of the functions in this class use arguments of type {BigIntBase},
 // indicating that they will be used in a read-only capacity, and both
 // {BigInt} and {MutableBigInt} objects can be passed in.
-class MutableBigInt : public FreshlyAllocatedBigInt {
+class MutableBigInt : public FreshlyAllocatedBigInt,
+                      public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   // Bottleneck for converting MutableBigInts to BigInts.
   static MaybeHandle<BigInt> MakeImmutable(MaybeHandle<MutableBigInt> maybe);
   static Handle<BigInt> MakeImmutable(Handle<MutableBigInt> result);
@@ -152,7 +156,8 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   static MaybeHandle<String> ToStringBasePowerOfTwo(Isolate* isolate,
                                                     Handle<BigIntBase> x,
                                                     int radix);
-  static MaybeHandle<String> ToStringGeneric(Handle<BigIntBase> x, int radix);
+  static MaybeHandle<String> ToStringGeneric(Isolate* isolate,
+                                             Handle<BigIntBase> x, int radix);
 
   static double ToDouble(Handle<BigIntBase> x);
   enum Rounding { kRoundDown, kTie, kRoundUp };
@@ -926,7 +931,7 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
   if (base::bits::IsPowerOfTwo(radix)) {
     return MutableBigInt::ToStringBasePowerOfTwo(isolate, bigint, radix);
   }
-  return MutableBigInt::ToStringGeneric(bigint, radix);
+  return MutableBigInt::ToStringGeneric(isolate, bigint, radix);
 }
 
 MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
@@ -1981,12 +1986,12 @@ MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(Isolate* isolate,
   return result;
 }
 
-MaybeHandle<String> MutableBigInt::ToStringGeneric(Handle<BigIntBase> x,
+MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
+                                                   Handle<BigIntBase> x,
                                                    int radix) {
   DCHECK(radix >= 2 && radix <= 36);
   DCHECK(!x->is_zero());
-  Heap* heap = x->GetHeap();
-  Isolate* isolate = heap->isolate();
+  Heap* heap = isolate->heap();
 
   const int length = x->length();
   const bool sign = x->sign();

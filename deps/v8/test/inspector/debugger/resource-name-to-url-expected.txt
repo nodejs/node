@@ -12,7 +12,7 @@ Check script with url:
         isModule : false
         length : 16
         scriptId : <scriptId>
-        sourceMapURL :
+        sourceMapURL : 
         startColumn : 0
         startLine : 0
         url : prefix://url
@@ -31,7 +31,7 @@ Check script with sourceURL comment:
         isModule : false
         length : 37
         scriptId : <scriptId>
-        sourceMapURL :
+        sourceMapURL : 
         startColumn : 0
         startLine : 0
         url : foo.js
@@ -49,7 +49,7 @@ Check script failed to parse:
         isModule : false
         length : 15
         scriptId : <scriptId>
-        sourceMapURL :
+        sourceMapURL : 
         startColumn : 0
         startLine : 0
         url : prefix://url
@@ -67,7 +67,7 @@ Check script failed to parse with sourceURL comment:
         isModule : false
         length : 36
         scriptId : <scriptId>
-        sourceMapURL :
+        sourceMapURL : 
         startColumn : 0
         startLine : 0
         url : foo.js
@@ -96,14 +96,14 @@ Test runtime stack trace:
                 }
                 [1] : {
                     columnNumber : 0
-                    functionName :
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
                     url : boo.js
                 }
                 [2] : {
                     columnNumber : 4
-                    functionName :
+                    functionName : 
                     lineNumber : 4
                     scriptId : <scriptId>
                     url : prefix://url

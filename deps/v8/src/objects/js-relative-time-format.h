@@ -38,7 +38,6 @@ class JSRelativeTimeFormat : public JSObject {
 
   // Unpacks formatter object from corresponding JavaScript object.
   static icu::RelativeDateTimeFormatter* UnpackFormatter(
-      Isolate* isolate,
       Handle<JSRelativeTimeFormat> relative_time_format_holder);
   Handle<String> StyleAsString() const;
   Handle<String> NumericAsString() const;
@@ -47,10 +46,9 @@ class JSRelativeTimeFormat : public JSObject {
 
   // RelativeTimeFormat accessors.
   DECL_ACCESSORS(locale, String)
-  // TODO(ftang): Style requires only 3 bits and Numeric requires only 2 bits
-  // but here we're using 64 bits for each. We should fold these two fields into
-  // a single Flags field and use BIT_FIELD_ACCESSORS to access it.
-  //
+
+  DECL_ACCESSORS(formatter, Foreign)
+
   // Style: identifying the relative time format style used.
   //
   // ecma402/#sec-properties-of-intl-relativetimeformat-instances
@@ -78,22 +76,36 @@ class JSRelativeTimeFormat : public JSObject {
   inline void set_numeric(Numeric numeric);
   inline Numeric numeric() const;
 
-  DECL_ACCESSORS(formatter, Foreign)
+// Bit positions in |flags|.
+#define FLAGS_BIT_FIELDS(V, _) \
+  V(StyleBits, Style, 2, _)    \
+  V(NumericBits, Numeric, 1, _)
+  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
+#undef FLAGS_BIT_FIELDS
+
+  STATIC_ASSERT(Style::LONG <= StyleBits::kMax);
+  STATIC_ASSERT(Style::SHORT <= StyleBits::kMax);
+  STATIC_ASSERT(Style::NARROW <= StyleBits::kMax);
+  STATIC_ASSERT(Numeric::AUTO <= NumericBits::kMax);
+  STATIC_ASSERT(Numeric::ALWAYS <= NumericBits::kMax);
+
+  // [flags] Bit field containing various flags about the function.
+  DECL_INT_ACCESSORS(flags)
+
   DECL_PRINTER(JSRelativeTimeFormat)
   DECL_VERIFIER(JSRelativeTimeFormat)
 
   // Layout description.
   static const int kJSRelativeTimeFormatOffset = JSObject::kHeaderSize;
   static const int kLocaleOffset = kJSRelativeTimeFormatOffset + kPointerSize;
-  static const int kStyleOffset = kLocaleOffset + kPointerSize;
-  static const int kNumericOffset = kStyleOffset + kPointerSize;
-  static const int kFormatterOffset = kNumericOffset + kPointerSize;
-  static const int kSize = kFormatterOffset + kPointerSize;
-
-  // Constant to access field
-  static const int kFormatterField = 3;
+  static const int kFormatterOffset = kLocaleOffset + kPointerSize;
+  static const int kFlagsOffset = kFormatterOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
 
  private:
+  static Style getStyle(const char* str);
+  static Numeric getNumeric(const char* str);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSRelativeTimeFormat);
 };
 

@@ -68,6 +68,7 @@ class PreParsedScopeData : public HeapObject {
 // not stored in the SharedFunctionInfo.
 class UncompiledData : public HeapObject {
  public:
+  DECL_ACCESSORS(inferred_name, String)
   DECL_INT32_ACCESSORS(start_position)
   DECL_INT32_ACCESSORS(end_position)
   DECL_INT32_ACCESSORS(function_literal_id)
@@ -75,6 +76,9 @@ class UncompiledData : public HeapObject {
   DECL_CAST(UncompiledData)
 
 #define UNCOMPILED_DATA_FIELDS(V)         \
+  V(kStartOfPointerFieldsOffset, 0)       \
+  V(kInferredNameOffset, kPointerSize)    \
+  V(kEndOfPointerFieldsOffset, 0)         \
   V(kStartPositionOffset, kInt32Size)     \
   V(kEndPositionOffset, kInt32Size)       \
   V(kFunctionLiteralIdOffset, kInt32Size) \
@@ -85,6 +89,10 @@ class UncompiledData : public HeapObject {
 #undef UNCOMPILED_DATA_FIELDS
 
   static const int kSize = POINTER_SIZE_ALIGN(kUnalignedSize);
+
+  typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
+                              kEndOfPointerFieldsOffset, kSize>
+      BodyDescriptor;
 
   // Clear uninitialized padding space.
   inline void clear_padding();
@@ -103,6 +111,11 @@ class UncompiledDataWithoutPreParsedScope : public UncompiledData {
   DECL_VERIFIER(UncompiledDataWithoutPreParsedScope)
 
   static const int kSize = UncompiledData::kSize;
+
+  // No extra fields compared to UncompiledData.
+  typedef UncompiledData::BodyDescriptor BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithoutPreParsedScope);
@@ -132,8 +145,10 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
   // Make sure the size is aligned
   STATIC_ASSERT(kSize == POINTER_SIZE_ALIGN(kSize));
 
-  typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                              kEndOfPointerFieldsOffset, kSize>
+  typedef SubclassBodyDescriptor<
+      UncompiledData::BodyDescriptor,
+      FixedBodyDescriptor<kStartOfPointerFieldsOffset,
+                          kEndOfPointerFieldsOffset, kSize>>
       BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
@@ -174,7 +189,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline void SetName(String* name);
 
   // Get the code object which represents the execution of this function.
-  inline Code* GetCode() const;
+  Code* GetCode() const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -259,7 +274,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 
   // [expected_nof_properties]: Expected number of properties for the
   // function. The value is only reliable when the function has been compiled.
-  DECL_UINT16_ACCESSORS(expected_nof_properties)
+  DECL_UINT8_ACCESSORS(expected_nof_properties)
 
 #if V8_SFI_HAS_UNIQUE_ID
   // [unique_id] - For --trace-maps purposes, an identifier that's persistent
@@ -316,39 +331,34 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
       UncompiledDataWithPreParsedScope* data);
   inline bool HasUncompiledDataWithoutPreParsedScope() const;
   inline bool HasWasmExportedFunctionData() const;
-  inline WasmExportedFunctionData* wasm_exported_function_data() const;
+  WasmExportedFunctionData* wasm_exported_function_data() const;
   inline void set_wasm_exported_function_data(WasmExportedFunctionData* data);
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreParsedScope,
   // turning it into UncompiledDataWithoutPreParsedScope.
   inline void ClearPreParsedScopeData();
 
-  // [function identifier]: This field holds an additional identifier for the
-  // function.
-  //  - a Smi identifying a builtin function [HasBuiltinFunctionId()].
-  //  - a String identifying the function's inferred name [HasInferredName()].
-  //  - a DebugInfo which holds the actual function_identifier [HasDebugInfo()].
-  // The inferred_name is inferred from variable or property
-  // assignment of this function. It is used to facilitate debugging and
-  // profiling of JavaScript code written in OO style, where almost
-  // all functions are anonymous but are assigned to object
-  // properties.
-  DECL_ACCESSORS(function_identifier_or_debug_info, Object)
-
+  // [raw_builtin_function_id]: The id of the built-in function this function
+  // represents, used during optimization to improve code generation.
+  // TODO(leszeks): Once there are no more JS builtins, this can be replaced
+  // by BuiltinId.
+  DECL_UINT8_ACCESSORS(raw_builtin_function_id)
   inline bool HasBuiltinFunctionId();
   inline BuiltinFunctionId builtin_function_id();
   inline void set_builtin_function_id(BuiltinFunctionId id);
+  // Make sure BuiltinFunctionIds fit in a uint8_t
+  STATIC_ASSERT((std::is_same<std::underlying_type<BuiltinFunctionId>::type,
+                              uint8_t>::value));
+
+  // The inferred_name is inferred from variable or property assignment of this
+  // function. It is used to facilitate debugging and profiling of JavaScript
+  // code written in OO style, where almost all functions are anonymous but are
+  // assigned to object properties.
   inline bool HasInferredName();
   inline String* inferred_name();
-  inline void set_inferred_name(String* inferred_name);
 
   // Get the function literal id associated with this function, for parsing.
   inline int FunctionLiteralId(Isolate* isolate) const;
-
-  // The function is subject to debugging if a debug info is attached.
-  inline bool HasDebugInfo() const;
-  inline DebugInfo* GetDebugInfo() const;
-  inline void SetDebugInfo(DebugInfo* debug_info);
 
   // Break infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
@@ -366,8 +376,18 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
 
-  // [script]: Script from which the function originates.
-  DECL_ACCESSORS(script, Object)
+  // [script_or_debug_info]: One of:
+  //  - Script from which the function originates.
+  //  - a DebugInfo which holds the actual script [HasDebugInfo()].
+  DECL_ACCESSORS(script_or_debug_info, Object)
+
+  inline Object* script() const;
+  inline void set_script(Object* script);
+
+  // The function is subject to debugging if a debug info is attached.
+  inline bool HasDebugInfo() const;
+  inline DebugInfo* GetDebugInfo() const;
+  inline void SetDebugInfo(DebugInfo* debug_info);
 
   // The offset of the 'function' token in the script source relative to the
   // start position. Can return kFunctionTokenOutOfRange if offset doesn't
@@ -395,7 +415,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
 
   // Indicates the language mode.
-  inline LanguageMode language_mode();
+  inline LanguageMode language_mode() const;
   inline void set_language_mode(LanguageMode language_mode);
 
   // Indicates whether the source is implicitly wrapped in a function.
@@ -554,7 +574,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 
    private:
     Script::Iterator script_iterator_;
-    FixedArrayOfWeakCells::Iterator noscript_sfi_iterator_;
+    WeakArrayList::Iterator noscript_sfi_iterator_;
     SharedFunctionInfo::ScriptIterator sfi_iterator_;
     DisallowHeapAllocation no_gc_;
     DISALLOW_COPY_AND_ASSIGN(GlobalIterator);
@@ -583,14 +603,14 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   V(kFunctionDataOffset, kPointerSize)                     \
   V(kNameOrScopeInfoOffset, kPointerSize)                  \
   V(kOuterScopeInfoOrFeedbackMetadataOffset, kPointerSize) \
-  V(kScriptOffset, kPointerSize)                           \
-  V(kFunctionIdentifierOrDebugInfoOffset, kPointerSize)    \
+  V(kScriptOrDebugInfoOffset, kPointerSize)                \
   V(kEndOfPointerFieldsOffset, 0)                          \
   /* Raw data fields. */                                   \
   V(kUniqueIdOffset, kUniqueIdFieldSize)                   \
   V(kLengthOffset, kUInt16Size)                            \
   V(kFormalParameterCountOffset, kUInt16Size)              \
-  V(kExpectedNofPropertiesOffset, kUInt16Size)             \
+  V(kExpectedNofPropertiesOffset, kUInt8Size)              \
+  V(kBuiltinFunctionId, kUInt8Size)                        \
   V(kFunctionTokenOffsetOffset, kUInt16Size)               \
   V(kFlagsOffset, kInt32Size)                              \
   /* Total size. */                                        \
@@ -603,7 +623,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
   typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                              kEndOfPointerFieldsOffset, kSize>
+                              kEndOfPointerFieldsOffset, kAlignedSize>
       BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
@@ -653,8 +673,6 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
   DECL_ACCESSORS(outer_scope_info, HeapObject)
-
-  inline Object* function_identifier() const;
 
   inline void set_kind(FunctionKind kind);
 

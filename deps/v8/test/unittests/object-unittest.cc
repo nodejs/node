@@ -6,6 +6,7 @@
 #include <iostream>
 #include <limits>
 
+#include "src/api-inl.h"
 #include "src/compiler.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"

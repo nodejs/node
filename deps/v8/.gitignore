@@ -36,6 +36,7 @@
 /_*
 /build
 /buildtools
+/check-header-includes
 /hydrogen.cfg
 /obj
 /out
@@ -68,6 +69,7 @@
 !/third_party/googletest/src/googletest/include/gtest
 /third_party/googletest/src/googletest/include/gtest/*
 !/third_party/googletest/src/googletest/include/gtest/gtest_prod.h
+!/third_party/v8
 /tools/clang
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz

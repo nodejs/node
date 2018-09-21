@@ -5,7 +5,7 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

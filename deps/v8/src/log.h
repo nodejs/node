@@ -144,6 +144,8 @@ class Logger : public CodeEventListener {
 
   sampler::Sampler* sampler();
 
+  void StopProfilerThread();
+
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
   // leaving the file open.

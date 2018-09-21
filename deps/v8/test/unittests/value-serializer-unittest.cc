@@ -8,7 +8,7 @@
 #include <string>
 
 #include "include/v8.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/base/build_config.h"
 #include "src/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -1689,12 +1689,12 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   // Check that the right type comes out the other side for every kind of typed
   // array.
   Local<Value> value;
-#define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype, size) \
-  value = RoundTripTest("new " #Type "Array(2)");                  \
-  ASSERT_TRUE(value->Is##Type##Array());                           \
-  EXPECT_EQ(2u * size, TypedArray::Cast(*value)->ByteLength());    \
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());               \
-  ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type      \
+#define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
+  value = RoundTripTest("new " #Type "Array(2)");                        \
+  ASSERT_TRUE(value->Is##Type##Array());                                 \
+  EXPECT_EQ(2u * sizeof(ctype), TypedArray::Cast(*value)->ByteLength()); \
+  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());                     \
+  ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
                    "Array.prototype");
 
   TYPED_ARRAYS(TYPED_ARRAY_ROUND_TRIP_TEST)
@@ -2514,7 +2514,8 @@ TEST_F(ValueSerializerTestWithWasm, DefaultSerializationDelegate) {
   Local<Message> message = InvalidEncodeTest(MakeWasm());
   size_t msg_len = static_cast<size_t>(message->Get()->Length());
   std::unique_ptr<char[]> buff(new char[msg_len + 1]);
-  message->Get()->WriteOneByte(reinterpret_cast<uint8_t*>(buff.get()));
+  message->Get()->WriteOneByte(isolate(),
+                               reinterpret_cast<uint8_t*>(buff.get()));
   // the message ends with the custom error string
   size_t custom_msg_len = strlen(kUnsupportedSerialization);
   ASSERT_GE(msg_len, custom_msg_len);

@@ -174,7 +174,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
     // Sample potential return address value for frameless invocation of
     // stubs (we'll figure out later, if this value makes sense).
     tos = reinterpret_cast<void*>(
-        i::Memory::Address_at(reinterpret_cast<i::Address>(regs.sp)));
+        i::Memory<i::Address>(reinterpret_cast<i::Address>(regs.sp)));
   } else {
     tos = nullptr;
   }
@@ -255,9 +255,9 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
       // bytecode_array might be garbage, so don't actually dereference it. We
       // avoid the frame->GetXXX functions since they call BytecodeArray::cast,
       // which has a heap access in its DCHECK.
-      i::Object* bytecode_array = i::Memory::Object_at(
+      i::Object* bytecode_array = i::Memory<i::Object*>(
           frame->fp() + i::InterpreterFrameConstants::kBytecodeArrayFromFp);
-      i::Object* bytecode_offset = i::Memory::Object_at(
+      i::Object* bytecode_offset = i::Memory<i::Object*>(
           frame->fp() + i::InterpreterFrameConstants::kBytecodeOffsetFromFp);
 
       // If the bytecode array is a heap object and the bytecode offset is a

@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_ARM
 
-#include "src/api-arguments.h"
+#include "src/api-arguments-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
@@ -227,7 +227,7 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
   if (tasm->isolate()->function_entry_hook() != nullptr) {
     tasm->MaybeCheckConstPool();
     PredictableCodeSizeScope predictable(
-        tasm, tasm->CallStubSize() + 2 * Assembler::kInstrSize);
+        tasm, TurboAssembler::kCallStubSize + 2 * kInstrSize);
     tasm->push(lr);
     tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
     tasm->pop(lr);
@@ -239,7 +239,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
     ProfileEntryHookStub stub(masm->isolate());
     masm->MaybeCheckConstPool();
     PredictableCodeSizeScope predictable(
-        masm, masm->CallStubSize() + 2 * Assembler::kInstrSize);
+        masm, TurboAssembler::kCallStubSize + 2 * kInstrSize);
     __ push(lr);
     __ CallStub(&stub);
     __ pop(lr);
@@ -249,8 +249,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // The entry hook is a "push lr" instruction, followed by a call.
-  const int32_t kReturnAddressDistanceFromFunctionStart =
-      3 * Assembler::kInstrSize;
+  const int32_t kReturnAddressDistanceFromFunctionStart = 3 * kInstrSize;
 
   // This should contain all kCallerSaved registers.
   const RegList kSavedRegs =
