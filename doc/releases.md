@@ -455,8 +455,8 @@ Cherry-pick the release commit to `master`. After cherry-picking, edit
 previously on `master`. `NODE_VERSION_IS_RELEASE` should be `0`. **Do not**
 cherry-pick the "Working on vx.y.z" commit to `master`.
 
-Run `make lint-md-build; make lint` before pushing to `master`, to make sure the
-Changelog formatting passes the lint rules on `master`.
+Run `make lint` before pushing to `master`, to make sure the Changelog
+formatting passes the lint rules on `master`.
 
 ### 13. Promote and Sign the Release Builds
 

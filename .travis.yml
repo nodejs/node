@@ -8,10 +8,8 @@ matrix:
   include:
     - name: "Linter"
       node_js: "latest"
-      env: 
+      env:
         - NODE=$(which node)
-      install:
-        - make lint-md-build
       script:
         - make lint
     - name: "Test Suite"
