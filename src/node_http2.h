@@ -799,6 +799,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
   static void Ping(const FunctionCallbackInfo<Value>& args);
   static void AltSvc(const FunctionCallbackInfo<Value>& args);
   static void Origin(const FunctionCallbackInfo<Value>& args);
+  static void GetLastReceivedTime(const FunctionCallbackInfo<Value>& args);
 
   template <get_setting fn>
   static void RefreshSettings(const FunctionCallbackInfo<Value>& args);
@@ -827,6 +828,8 @@ class Http2Session : public AsyncWrap, public StreamListener {
   // Tell our custom memory allocator that this rcbuf is independent of
   // this session now, and may outlive it.
   void StopTrackingRcbuf(nghttp2_rcbuf* buf);
+
+  double LastReceivedTime() { return last_received_ts_ / 1e6; }
 
   // Returns the current session memory including memory allocated by nghttp2,
   // the current outbound storage queue, and pending writes.
@@ -991,6 +994,8 @@ class Http2Session : public AsyncWrap, public StreamListener {
   std::vector<nghttp2_stream_write> outgoing_buffers_;
   std::vector<uint8_t> outgoing_storage_;
   std::vector<int32_t> pending_rst_streams_;
+
+  uint64_t last_received_ts_ = 0;
 
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);

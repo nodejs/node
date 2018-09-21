@@ -855,6 +855,14 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   return retval;
 }
 
+// last_received_ts_ tracks the last time data was received by this
+// Http2Session object from the underlying i/o
+void Http2Session::GetLastReceivedTime(
+    const FunctionCallbackInfo<Value>& args) {
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  args.GetReturnValue().Set(session->LastReceivedTime());
+}
 
 // Write data received from the i/o stream to the underlying nghttp2_session.
 // On each call to nghttp2_session_mem_recv, nghttp2 will begin calling the
@@ -866,6 +874,7 @@ ssize_t Http2Session::Write(const uv_buf_t* bufs, size_t nbufs) {
   // Note that nghttp2_session_mem_recv is a synchronous operation that
   // will trigger a number of other callbacks. Those will, in turn have
   // multiple side effects.
+  last_received_ts_ = uv_hrtime();
   for (size_t n = 0; n < nbufs; n++) {
     Debug(this, "receiving %d bytes [wants data? %d]",
           bufs[n].len,
@@ -2987,6 +2996,8 @@ void Initialize(Local<Object> target,
   session->SetClassName(http2SessionClassName);
   session->InstanceTemplate()->SetInternalFieldCount(1);
   AsyncWrap::AddWrapMethods(env, session);
+  env->SetProtoMethod(session, "getLastReceivedTime",
+                      Http2Session::GetLastReceivedTime);
   env->SetProtoMethod(session, "origin", Http2Session::Origin);
   env->SetProtoMethod(session, "altsvc", Http2Session::AltSvc);
   env->SetProtoMethod(session, "ping", Http2Session::Ping);

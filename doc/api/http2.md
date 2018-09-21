@@ -411,6 +411,17 @@ added: v9.4.0
 Transmits a `GOAWAY` frame to the connected peer *without* shutting down the
 `Http2Session`.
 
+#### http2session.lastReceivedTime
+<!-- YAML
+added: REPLACEME
+-->
+
+* { double }
+
+A timestamp indicating the moment the most recently received communication of
+any kind was received from the connected peer. A value of `0` indicates that
+the session is still open but no data has yet been received.
+
 #### http2session.localSettings
 <!-- YAML
 added: v8.4.0
