@@ -72,7 +72,7 @@ if (!id) {
   }));
 
   b.on('message', common.mustCall((m) => {
-    assert.strictEqual(m, 'EADDRINUSE');
+    assert.strictEqual(m.code, 'EADDRINUSE');
     a.send('QUIT');
     b.send('QUIT');
   }));
