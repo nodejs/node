@@ -1,7 +1,4 @@
 # Node.js Collaborator Guide
-
-**Contents**
-
 * [Issues and Pull Requests](#issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
  - [Involving the TC](#involving-the-tc)
@@ -27,7 +24,6 @@ Collaborators should feel free to take full responsibility for
 managing issues and pull requests they feel qualified to handle, as
 long as this is done while being mindful of these guidelines, the
 opinions of other Collaborators and guidance of the TC.
-
 Collaborators may **close** any issue or pull request they believe is
 not relevant for the future of the Node.js project. Where this is
 unclear, the issue should be left open for several days to allow for
@@ -35,8 +31,6 @@ additional discussion. Where this does not yield input from Node.js
 Collaborators or additional evidence that the issue has relevance, the
 issue may be closed. Remember that issues can always be re-opened if
 necessary.
-
-## Accepting Modifications
 
 All modifications to the Node.js code and documentation should be
 performed via GitHub pull requests, including modifications by
@@ -68,7 +62,6 @@ TC for resolution (see below).
 
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
-
 All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
@@ -127,28 +120,20 @@ Checkout proper target branch
 ```text
 $ git checkout master
 ```
-
 Update the tree
-
 ```text
 $ git fetch origin
 $ git merge --ff-only origin/master
 ```
-
 Apply external patches
-
 ```text
 $ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
 ```
-
 Check and re-review the changes
-
 ```text
 $ git diff origin/master
 ```
-
 Check number of commits and commit messages
-
 ```text
 $ git log origin/master...master
 ```
@@ -160,7 +145,6 @@ you'll need to use `squash` or `fixup`:
 ```text
 $ git rebase -i origin/master
 ```
-
 This will open a screen like this (in the default shell editor):
 
 ```text
@@ -211,15 +195,11 @@ Save the file and close the editor. You'll be asked to enter a new
 commit message for that commit. This is a good moment to fix incorrect
 commit logs, ensure that they are properly formatted, and add
 `Reviewed-By` lines.
-
 Time to push it:
-
 ```text
 $ git push origin master
 ```
-
 ### I Just Made a Mistake
-
 With `git`, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
 you're rewriting history on a repository other people are working
@@ -228,9 +208,7 @@ messages. However, you are only allowed to force push to any Node.js
 branch within 10 minutes from your original push. If someone else
 pushes to the branch or the 10 minute period passes, consider the
 commit final.
-
 ### Long Term Support
-
 #### What is LTS?
 
 Long Term Support (often referred to as *LTS*) guarantees application developers
