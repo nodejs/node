@@ -1,3 +1,12 @@
+/*
+ * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 /**
  * The Whirlpool hashing function.
  *
@@ -48,14 +57,14 @@
  *
  * Unlike authors' reference implementation, block processing
  * routine whirlpool_block is designed to operate on multi-block
- * input. This is done for perfomance.
+ * input. This is done for performance.
  */
 
-#include "wp_locl.h"
 #include <openssl/crypto.h>
+#include "wp_locl.h"
 #include <string.h>
 
-fips_md_init(WHIRLPOOL)
+int WHIRLPOOL_Init(WHIRLPOOL_CTX *c)
 {
     memset(c, 0, sizeof(*c));
     return (1);
@@ -165,7 +174,7 @@ void WHIRLPOOL_BitUpdate(WHIRLPOOL_CTX *c, const void *_inp, size_t bits)
                 goto reconsider;
             } else
 #endif
-            if (bits >= 8) {
+            if (bits > 8) {
                 b = ((inp[0] << inpgap) | (inp[1] >> (8 - inpgap)));
                 b &= 0xff;
                 if (bitrem)
@@ -182,7 +191,7 @@ void WHIRLPOOL_BitUpdate(WHIRLPOOL_CTX *c, const void *_inp, size_t bits)
                 }
                 if (bitrem)
                     c->data[byteoff] = b << (8 - bitrem);
-            } else {            /* remaining less than 8 bits */
+            } else {            /* remaining less than or equal to 8 bits */
 
                 b = (inp[0] << inpgap) & 0xff;
                 if (bitrem)
@@ -237,7 +246,7 @@ int WHIRLPOOL_Final(unsigned char *md, WHIRLPOOL_CTX *c)
 
     if (md) {
         memcpy(md, c->H.c, WHIRLPOOL_DIGEST_LENGTH);
-        memset(c, 0, sizeof(*c));
+        OPENSSL_cleanse(c, sizeof(*c));
         return (1);
     }
     return (0);

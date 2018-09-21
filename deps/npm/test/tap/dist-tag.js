@@ -27,7 +27,7 @@ function mocks (server) {
   // add c
   server.get('/-/package/@scoped%2fanother/dist-tags')
     .reply(200, { latest: '2.0.0', a: '0.0.2', b: '0.6.0' })
-  server.put('/-/package/@scoped%2fanother/dist-tags/c', '\"7.7.7\"')
+  server.put('/-/package/@scoped%2fanother/dist-tags/c', '"7.7.7"')
     .reply(200, { latest: '7.7.7', a: '0.0.2', b: '0.6.0', c: '7.7.7' })
 
   // set same version

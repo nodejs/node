@@ -73,17 +73,17 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
     return status;
   if (aptr + len + QFIXEDSZ > abuf + alen)
     {
-      free(ptrname);
+      ares_free(ptrname);
       return ARES_EBADRESP;
     }
   aptr += len + QFIXEDSZ;
 
   /* Examine each answer resource record (RR) in turn. */
   hostname = NULL;
-  aliases = malloc(alias_alloc * sizeof(char *));
+  aliases = ares_malloc(alias_alloc * sizeof(char *));
   if (!aliases)
     {
-      free(ptrname);
+      ares_free(ptrname);
       return ARES_ENOMEM;
     }
   for (i = 0; i < (int)ancount; i++)
@@ -95,7 +95,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
       aptr += len;
       if (aptr + RRFIXEDSZ > abuf + alen)
         {
-          free(rr_name);
+          ares_free(rr_name);
           status = ARES_EBADRESP;
           break;
         }
@@ -105,7 +105,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
       aptr += RRFIXEDSZ;
       if (aptr + rr_len > abuf + alen)
         {
-          free(rr_name);
+          ares_free(rr_name);
           status = ARES_EBADRESP;
           break;
         }
@@ -118,16 +118,16 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
                                                   &len);
           if (status != ARES_SUCCESS)
             {
-              free(rr_name);
+              ares_free(rr_name);
               break;
             }
           if (hostname)
-            free(hostname);
+            ares_free(hostname);
           hostname = rr_data;
-          aliases[aliascnt] = malloc((strlen(rr_data)+1) * sizeof(char));
+          aliases[aliascnt] = ares_malloc((strlen(rr_data)+1) * sizeof(char));
           if (!aliases[aliascnt])
             {
-              free(rr_name);
+              ares_free(rr_name);
               status = ARES_ENOMEM;
               break;
             }
@@ -136,9 +136,9 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
           if (aliascnt >= alias_alloc) {
             char **ptr;
             alias_alloc *= 2;
-            ptr = realloc(aliases, alias_alloc * sizeof(char *));
+            ptr = ares_realloc(aliases, alias_alloc * sizeof(char *));
             if(!ptr) {
-              free(rr_name);
+              ares_free(rr_name);
               status = ARES_ENOMEM;
               break;
             }
@@ -153,20 +153,20 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
                                                   &len);
           if (status != ARES_SUCCESS)
             {
-              free(rr_name);
+              ares_free(rr_name);
               break;
             }
-          free(ptrname);
+          ares_free(ptrname);
           ptrname = rr_data;
         }
 
-      free(rr_name);
+      ares_free(rr_name);
       aptr += rr_len;
       if (aptr > abuf + alen)
-        {
+        {  /* LCOV_EXCL_START: already checked above */
           status = ARES_EBADRESP;
           break;
-        }
+        }  /* LCOV_EXCL_STOP */
     }
 
   if (status == ARES_SUCCESS && !hostname)
@@ -174,16 +174,16 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
   if (status == ARES_SUCCESS)
     {
       /* We got our answer.  Allocate memory to build the host entry. */
-      hostent = malloc(sizeof(struct hostent));
+      hostent = ares_malloc(sizeof(struct hostent));
       if (hostent)
         {
-          hostent->h_addr_list = malloc(2 * sizeof(char *));
+          hostent->h_addr_list = ares_malloc(2 * sizeof(char *));
           if (hostent->h_addr_list)
             {
-              hostent->h_addr_list[0] = malloc(addrlen);
+              hostent->h_addr_list[0] = ares_malloc(addrlen);
               if (hostent->h_addr_list[0])
                 {
-                  hostent->h_aliases = malloc((aliascnt+1) * sizeof (char *));
+                  hostent->h_aliases = ares_malloc((aliascnt+1) * sizeof (char *));
                   if (hostent->h_aliases)
                     {
                       /* Fill in the hostent and return successfully. */
@@ -196,24 +196,24 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
                       memcpy(hostent->h_addr_list[0], addr, addrlen);
                       hostent->h_addr_list[1] = NULL;
                       *host = hostent;
-                      free(aliases);
-                      free(ptrname);
+                      ares_free(aliases);
+                      ares_free(ptrname);
                       return ARES_SUCCESS;
                     }
-                  free(hostent->h_addr_list[0]);
+                  ares_free(hostent->h_addr_list[0]);
                 }
-              free(hostent->h_addr_list);
+              ares_free(hostent->h_addr_list);
             }
-          free(hostent);
+          ares_free(hostent);
         }
       status = ARES_ENOMEM;
     }
   for (i=0 ; i<aliascnt ; i++)
     if (aliases[i])
-      free(aliases[i]);
-  free(aliases);
+      ares_free(aliases[i]);
+  ares_free(aliases);
   if (hostname)
-    free(hostname);
-  free(ptrname);
+    ares_free(hostname);
+  ares_free(ptrname);
   return status;
 }

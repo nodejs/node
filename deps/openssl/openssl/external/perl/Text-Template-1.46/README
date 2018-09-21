@@ -1,0 +1,339 @@
+
+Text::Template v1.46
+
+This is a library for generating form letters, building HTML pages, or
+filling in templates generally.  A `template' is a piece of text that
+has little Perl programs embedded in it here and there.  When you
+`fill in' a template, you evaluate the little programs and replace
+them with their values.  
+
+Here's an example of a template:
+
+	Dear {$title} {$lastname},
+
+	It has come to our attention that you are delinquent in your
+	{$monthname[$last_paid_month]} payment.  Please remit
+	${sprintf("%.2f", $amount)} immediately, or your patellae may
+	be needlessly endangered.
+
+			Love,
+
+			Mark "{nickname(rand 20)}" Dominus
+
+
+The result of filling in this template is a string, which might look
+something like this:
+
+	Dear Mr. Gates,
+
+	It has come to our attention that you are delinquent in your
+	February payment.  Please remit
+	$392.12 immediately, or your patellae may
+	be needlessly endangered.
+
+
+			Love,
+
+			Mark "Vizopteryx" Dominus
+
+You can store a template in a file outside your program.  People can
+modify the template without modifying the program.  You can separate
+the formatting details from the main code, and put the formatting
+parts of the program into the template.  That prevents code bloat and
+encourages functional separation.
+
+You can fill in the template in a `Safe' compartment.  This means that
+if you don't trust the person who wrote the code in the template, you
+won't have to worry that they are tampering with your program when you
+execute it.  
+
+----------------------------------------------------------------
+
+Text::Template was originally released some time in late 1995 or early
+1996.  After three years of study and investigation, I rewrote it from
+scratch in January 1999.  The new version, 1.0, was much faster,
+delivered better functionality and was almost 100% backward-compatible
+with the previous beta versions.
+
+I have added a number of useful features and conveniences since the
+1.0 release, while still retaining backward compatibility.  With one
+merely cosmetic change, the current version of Text::Template passes
+the test suite that the old beta versions passed.
+
+Questions or comments should be addressed to
+mjd-perl-template+@plover.com.  This address goes directly to me, and
+not to anyone else; it is not a mailing list address.
+
+To receive occasional announcements of new versions of T::T, send an
+empty note to mjd-perl-template-request@plover.com.  This mailing list
+is not for discussion; it is for announcements only.  Therefore, there
+is no address for sending messages to the list.
+
+You can get the most recent version of Text::Template, news, comments,
+and other collateral information from
+<URL:http://www.plover.com/~mjd/perl/Template/>.
+
+----------------------------------------------------------------
+
+What's new in v1.46 since v1.44:
+
+        Thanks to Rik Signes, there is a new
+        Text::Template->append_text_to_output method, which
+        Text::Template always uses whenever it wants to emit output.
+        You can subclass this to get control over the output, for
+        example for postprocessing.
+
+        A spurious warning is no longer emitted when the TYPE
+        parameter to ->new is omitted.
+
+----------------------------------------------------------------
+What's new in v1.44 since v1.43: 
+
+This is a maintentance release.  There are no feature changes.
+
+        _scrubpkg, which was responsible for eptying out temporary
+        packages after the module had done with them, wasn't always
+        working; the result was memory-leaks in long-running
+        applications.  This should be fixed now, and there is a test
+        in the test suite for it.
+
+        Minor changes to the test suite to prevent spurious errors.
+
+        Minor documentation changes.
+
+----------------------------------------------------------------
+What's new in v1.43 since v1.42:
+
+        The ->new method now fails immediately and sets
+        $Text::Template::ERROR if the file that is named by a filename
+        argument does not exist or cannot be opened for some other
+        reason.  Formerly, the constructor would succeed and the
+        ->fill_in call would fail.
+
+----------------------------------------------------------------
+
+What's new in v1.42 since v1.41:
+
+This is a maintentance release.  There are no feature changes.
+
+        Fixed a bug relating to use of UNTAINT under perl 5.005_03 and
+        possibly other versions.
+
+        Taint-related tests are now more comprehensive.
+----------------------------------------------------------------
+
+What's new in v1.41 since v1.40:
+
+This is a maintentance release.  There are no feature changes.
+
+        Tests now work correctly on Windows systems and possibly on
+        other non-unix systems.
+
+----------------------------------------------------------------
+
+What's new in v1.40 since v1.31:
+
+        New UNTAINT option tells the module that it is safe to 'eval'
+        code even though it has come from a file or filehandle.
+
+        Code added to prevent memory leaks when filling many
+        templates.  Thanks to Itamar Almeida de Carvalho.
+
+        Bug fix:  $OUT was not correctly initialized when used in
+        conjunction with SAFE.
+
+        You may now use a glob ref when passing a filehandle to the
+        ->new funcion.  Formerly, a glob was reuqired.
+
+        New subclass:  Text::Template::Preprocess.  Just like
+        Text::Template, but you may supply a PREPROCESS option in the
+        constructor or the fill_in call; this is a function which
+        receives each code fragment prior to evaluation, and which may
+        modify and return the fragment; the modified fragment is what
+        is evaluated.
+
+        Error messages passed to BROKEN subroutines will now report
+        the correct line number of the template at which the error
+        occurred:
+
+                Illegal division by zero at template line 37.
+
+        If the template comes from a file, the filename will be
+        reported as well:
+
+                Illegal division by zero at catalog.tmpl line 37.
+
+
+        INCOMPATIBLE CHANGE:
+
+        The format of the default error message has changed.  It used
+        to look like:
+
+                Program fragment at line 30 delivered error ``Illegal division by zero''
+
+        It now looks like:
+
+                Program fragment delivered error ``Illegal division by zero at catalog.tmpl line 37''
+
+        Note that the default message used to report the line number
+        at which the program fragment began; it now reports the line
+        number at which the error actually occurred.
+
+----------------------------------------------------------------
+What's new in v1.31 since v1.23:
+
+	Just bug fixes---fill_in_string was failing.  Thanks to 
+        Donald L. Greer Jr. for the test case.
+
+----------------------------------------------------------------
+What's new in v1.23 since v1.22:
+
+	Small bug fix:  DELIMITER and other arguments were being
+	ignored in calls to fill_in_file and fill_this_in.  (Thanks to
+	Jonathan Roy for reporting this.)
+
+----------------------------------------------------------------
+What's new in v1.22 since v1.20:
+
+	You can now specify that certain Perl statements be prepended
+	to the beginning of every program fragment in a template,
+	either per template, or for all templates, or for the duration
+	of only one call to fill_in.  This is useful, for example, if
+	you want to enable `strict' checks in your templates but you
+	don't want to manually add `use strict' to the front of every
+	program fragment everywhere.
+
+----------------------------------------------------------------
+What's new in v1.20 since v1.12:
+
+	You can now specify that the program fragment delimiters are
+	strings other than { and }.  This has three interesting
+	effects: First, it changes the delimiter strings.  Second, it
+	disables the special meaning of \, so you have to be really,
+	really sure that the delimiters will not appear in your
+	templates.  And third, because of the simplifications
+	introduced by the elimination of \ processing, template
+	parsing is 20-25% faster.
+
+	See the manual section on `Alternative Delimiters'.
+
+	Fixed bug having to do with undefined values in HASH options.
+	In particular, Text::Template no longer generates a warning if
+	you try to give a variable an undefined value.
+
+----------------------------------------------------------------
+
+What's new in v1.12 since v1.11:
+
+	I forgot to say that Text::Template ISA Exporter, so the
+	exported functions never got exported.  Duhhh!
+
+	Template TYPEs are now case-insensitive.  The `new' method now
+	diagnoses attempts to use an invalid TYPE.
+
+	More tests for these things.
+
+----------------------------------------------------------------
+
+What's new in v1.11 since v1.10:
+
+	Fixed a bug in the way backslashes were processed.  The 1.10
+	behavior was incompatible with the beta versions and was also
+	inconvenient.  (`\n' in templates was replaced with `n' before
+	it was given to Perl for evaluation.)  The new behavior is
+	also incompatible with the beta versions, but it is only a
+	little bit incompatible, and it is probbaly better.
+
+	Documentation for the new behavior, and tests for the bug.
+
+----------------------------------------------------------------
+
+What's new in v1.10 since v1.03:
+
+	New OUTPUT option delivers template results directly to a
+	filehandle instead of making them into a string.  Saves space
+	and time. 
+
+	PACKAGE and HASH now work intelligently with SAFE.
+
+	Fragments may now output data directly to the template, rather
+	than having to arrange to return it as a return value at the
+	end.  This means that where you used to have to write this:
+
+			{ my $blist = '';
+		          foreach $i (@items) {
+		            $blist .= qq{  * $i\n};
+		          }    
+		          $blist;
+		        } 
+
+	You can now write this instead, because $OUT is special.
+
+			{ foreach $i (@items) {
+		            $OUT.= "  * $i\n";
+		          }    
+		        } 
+
+	(`A spoonful of sugar makes the medicine go down.')
+
+	Fixed some small bugs.  Worked around a bug in Perl that does
+	the wrong thing with $x = <Y> when $x contains a glob.
+
+	More documentation.  Errors fixed.
+
+	Lots more tests.  
+
+----------------------------------------------------------------
+
+What's new in v1.03 since v1.0:
+
+	Code added to support HASH option to fill_in.
+	(Incl. `_gensym' function.)
+	
+	Documentation for HASH.
+	
+	New test file for HASH.
+	
+	Note about failure of lexical variables to propagate into
+ 	templates.  Why does this surprise people?
+	
+	Bug fix: program fragments are evaluated in an environment with
+ 	`no strict' by default.  Otherwise, you get a lot of `Global
+ 	symbol "$v" requires explicit package name' failures.  Why didn't
+ 	the test program pick this up?  Because the only variable the test
+ 	program ever used was `$a', which is exempt.  Duhhhhh.
+	
+	Fixed the test program.
+	
+	Various minor documentation fixes.
+
+
+
+----------------------------------------------------------------
+
+Improvements of 1.0 over the old 0.1beta:
+
+New features:
+
+      At least twice as fast 
+
+      Better support for filling out the same template more than once 
+
+      Now supports evaluation of program fragments in Safe
+      compartments. (Thanks, Jonathan!)  
+
+      Better argument syntax 
+
+      More convenience functions 
+
+      The parser is much better and simpler. 
+
+      Once a template is parsed, the parsed version is stored so that
+      it needn't be parsed again.  
+
+      BROKEN function behavior is rationalized. You can now pass an
+      arbitrary argument to your BROKEN function, or return a value
+      from it to the main program.  
+
+      Documentation overhauled. 
+

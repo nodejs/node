@@ -26,7 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 var builtInPropertyNames = [
-  'prototype', 'length', 'caller', 0, 1, '$1', 'arguments', 'name', 'message', 'constructor'
+  'prototype', 'length', 0, 1, '$1', 'name', 'message', 'constructor'
+];
+
+var builtInPropertyNamesMayThrow = [
+  'caller', 'arguments'
 ];
 
 function getAnException() {
@@ -76,6 +80,13 @@ function runTest(fun) {
       for (var k in builtInPropertyNames) {
         var propertyName = builtInPropertyNames[k];
         fun(obj, propertyName);
+      }
+      for (var k in builtInPropertyNamesMayThrow) {
+        var propertyName = builtInPropertyNamesMayThrow[k];
+        try {
+          fun(obj, propertyName);
+        } catch (e) {
+        }
       }
     }
   }

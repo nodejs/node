@@ -2,17 +2,24 @@
 
 =head1 NAME
 
-X509_STORE_CTX_get_error, X509_STORE_CTX_set_error, X509_STORE_CTX_get_error_depth, X509_STORE_CTX_get_current_cert, X509_STORE_CTX_get1_chain, X509_verify_cert_error_string - get or set certificate verification status information
+X509_STORE_CTX_get_error, X509_STORE_CTX_set_error,
+X509_STORE_CTX_get_error_depth, X509_STORE_CTX_set_error_depth,
+X509_STORE_CTX_get_current_cert, X509_STORE_CTX_set_current_cert,
+X509_STORE_CTX_get0_cert, X509_STORE_CTX_get1_chain,
+X509_verify_cert_error_string - get or set certificate verification status
+information
 
 =head1 SYNOPSIS
 
  #include <openssl/x509.h>
- #include <openssl/x509_vfy.h>
 
- int	X509_STORE_CTX_get_error(X509_STORE_CTX *ctx);
- void	X509_STORE_CTX_set_error(X509_STORE_CTX *ctx,int s);
- int	X509_STORE_CTX_get_error_depth(X509_STORE_CTX *ctx);
- X509 *	X509_STORE_CTX_get_current_cert(X509_STORE_CTX *ctx);
+ int   X509_STORE_CTX_get_error(X509_STORE_CTX *ctx);
+ void  X509_STORE_CTX_set_error(X509_STORE_CTX *ctx, int s);
+ int   X509_STORE_CTX_get_error_depth(X509_STORE_CTX *ctx);
+ void  X509_STORE_CTX_set_error_depth(X509_STORE_CTX *ctx, int depth);
+ X509 *X509_STORE_CTX_get_current_cert(X509_STORE_CTX *ctx);
+ void  X509_STORE_CTX_set_current_cert(X509_STORE_CTX *ctx, X509 *x);
+ X509 *X509_STORE_CTX_get0_cert(X509_STORE_CTX *ctx);
 
  STACK_OF(X509) *X509_STORE_CTX_get1_chain(X509_STORE_CTX *ctx);
 
@@ -35,8 +42,27 @@ non-negative integer representing where in the certificate chain the error
 occurred. If it is zero it occurred in the end entity certificate, one if
 it is the certificate which signed the end entity certificate and so on.
 
+X509_STORE_CTX_set_error_depth() sets the error B<depth>.
+This can be used in combination with X509_STORE_CTX_set_error() to set the
+depth at which an error condition was detected.
+
 X509_STORE_CTX_get_current_cert() returns the certificate in B<ctx> which
 caused the error or B<NULL> if no certificate is relevant.
+
+X509_STORE_CTX_set_current_cert() sets the certificate B<x> in B<ctx> which
+caused the error.
+This value is not intended to remain valid for very long, and remains owned by
+the caller.
+It may be examined by a verification callback invoked to handle each error
+encountered during chain verification and is no longer required after such a
+callback.
+If a callback wishes the save the certificate for use after it returns, it
+needs to increment its reference count via L<X509_up_ref(3)>.
+Once such a I<saved> certificate is no longer needed it can be freed with
+L<X509_free(3)>.
+
+X509_STORE_CTX_get0_cert() retrieves an internal pointer to the
+certificate being verified by the B<ctx>.
 
 X509_STORE_CTX_get1_chain() returns a complete validate chain if a previous
 call to X509_verify_cert() is successful. If the call to X509_verify_cert()
@@ -55,7 +81,7 @@ X509_STORE_CTX_get_error() returns B<X509_V_OK> or an error code.
 
 X509_STORE_CTX_get_error_depth() returns a non-negative error depth.
 
-X509_STORE_CTX_get_current_cert() returns the cerificate which caused the
+X509_STORE_CTX_get_current_cert() returns the certificate which caused the
 error or B<NULL> if no certificate is relevant to the error.
 
 X509_verify_cert_error_string() returns a human readable error string for
@@ -177,7 +203,7 @@ consistent with the supplied purpose.
 
 =item B<X509_V_ERR_PATH_LENGTH_EXCEEDED: path length constraint exceeded>
 
-the basicConstraints pathlength parameter has been exceeded.
+the basicConstraints path-length parameter has been exceeded.
 
 =item B<X509_V_ERR_INVALID_PURPOSE: unsupported certificate purpose>
 
@@ -296,10 +322,17 @@ thread safe but will never happen unless an invalid code is passed.
 
 =head1 SEE ALSO
 
-L<X509_verify_cert(3)|X509_verify_cert(3)>
+L<X509_verify_cert(3)>,
+L<X509_up_ref(3)>,
+L<X509_free(3)>.
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-TBA
+Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

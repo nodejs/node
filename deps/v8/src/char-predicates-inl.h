@@ -48,24 +48,20 @@ inline bool IsDecimalDigit(uc32 c) {
   return IsInRange(c, '0', '9');
 }
 
-
 inline bool IsHexDigit(uc32 c) {
   // ECMA-262, 3rd, 7.6 (p 15)
   return IsDecimalDigit(c) || IsInRange(AsciiAlphaToLower(c), 'a', 'f');
 }
-
 
 inline bool IsOctalDigit(uc32 c) {
   // ECMA-262, 6th, 7.8.3
   return IsInRange(c, '0', '7');
 }
 
-
 inline bool IsBinaryDigit(uc32 c) {
   // ECMA-262, 6th, 7.8.3
   return c == '0' || c == '1';
 }
-
 
 inline bool IsRegExpWord(uc16 c) {
   return IsInRange(AsciiAlphaToLower(c), 'a', 'z')
@@ -85,6 +81,7 @@ inline bool IsRegExpNewline(uc16 c) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CHAR_PREDICATES_INL_H_

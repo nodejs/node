@@ -14,12 +14,28 @@ var MapBenchmark = new BenchmarkSuite('WeakMap', [1000], [
       WeakMapTearDown),
 ]);
 
+var MapBenchmark = new BenchmarkSuite('WeakMapSetGet-Large', [1e7], [
+  new Benchmark('Set-Get', false, false, 0, WeakMapSetGetLarge,
+                WeakMapSetupBaseLarge, WeakMapTearDown),
+]);
+
+var MapBenchmark = new BenchmarkSuite('WeakMap-Constructor', [1000], [
+  new Benchmark('Constructor', false, false, 0, WeakMapConstructor, SetupObjectKeyValuePairs,
+      WeakMapTearDown),
+]);
+
 
 var wm;
 
 
 function WeakMapSetupBase() {
   SetupObjectKeys();
+  wm = new WeakMap;
+}
+
+
+function WeakMapSetupBaseLarge() {
+  SetupObjectKeys(2 * LargeN);
   wm = new WeakMap;
 }
 
@@ -34,6 +50,10 @@ function WeakMapTearDown() {
   wm = null;
 }
 
+
+function WeakMapConstructor() {
+  wm = new WeakMap(keyValuePairs);
+}
 
 function WeakMapSet() {
   for (var i = 0; i < N; i++) {
@@ -75,5 +95,21 @@ function WeakMapDelete() {
   // more than once. Therefore, we do not the return value of delete.
   for (var i = 0; i < N; i++) {
     wm.delete(keys[i]);
+  }
+}
+
+function WeakMapSetGetLarge() {
+  for (var i = 0; i < LargeN; i++) {
+    wm.set(keys[i * 2], i);
+  }
+  for (var i = 0; i < LargeN; i++) {
+    if (wm.get(keys[i * 2]) !== i) {
+      throw new Error();
+    }
+  }
+  for (var i = N; i < 2 * LargeN; i++) {
+    if (wm.get(keys[i * 2 + 1]) !== undefined) {
+      throw new Error();
+    }
   }
 }

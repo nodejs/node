@@ -30,7 +30,7 @@
 // Limit the number of stress runs to reduce polymorphism it defeats some of the
 // assumptions made about how elements transitions work because transition stubs
 // end up going generic.
-// Flags: --stress-runs=2
+// Flags: --stress-runs=1
 
 var elements_kind = {
   fast_smi_only             :  'fast smi only elements',
@@ -49,9 +49,9 @@ var elements_kind = {
 }
 
 function getKind(obj) {
-  if (%HasFastSmiElements(obj)) return elements_kind.fast_smi_only;
-  if (%HasFastObjectElements(obj)) return elements_kind.fast;
-  if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
+  if (%HasSmiElements(obj)) return elements_kind.fast_smi_only;
+  if (%HasObjectElements(obj)) return elements_kind.fast;
+  if (%HasDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
 
   if (%HasFixedInt8Elements(obj)) {
@@ -116,7 +116,7 @@ function construct_doubles() {
   return a;
 }
 
-// Test transition chain SMI->DOUBLE->FAST (crankshafted function will
+// Test transition chain SMI->DOUBLE->FAST (optimized function will
 // transition to FAST directly).
 function convert_mixed(array, value, kind) {
   array[1] = value;

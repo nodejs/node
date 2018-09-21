@@ -1,8 +1,11 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
 
-const socket = net.connect(common.PORT, common.localhostIPv4, assert.fail);
-socket.on('error', assert.fail);
+const server = net.createServer();
+server.listen(0);
+const port = server.address().port;
+const socket = net.connect(port, common.localhostIPv4, common.mustNotCall());
+socket.on('error', common.mustNotCall());
+server.close();
 socket.destroy();

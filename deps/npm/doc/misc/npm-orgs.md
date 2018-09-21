@@ -7,7 +7,7 @@ There are three levels of org users:
 
 1. Super admin, controls billing & adding people to the org.
 2. Team admin, manages team membership & package access.
-3. Developer, works on packages they are given access to.
+3. Developer, works on packages they are given access to.  
 
 The super admin is the only person who can add users to the org because it impacts the monthly bill. The super admin will use the website to manage membership. Every org has a `developers` team that all users are automatically added to.
 
@@ -17,8 +17,8 @@ The developer will be able to access packages based on the teams they are on. Ac
 
 There are two main commands:
 
-1. `npm team` see npm-access(1) for more details
-2. `npm access` see npm-team(1) for more details
+1. `npm team` see npm-team(1) for more details
+2. `npm access` see npm-access(1) for more details
 
 ## Team Admins create teams
 
@@ -51,7 +51,7 @@ npm init --scope=<org>
 ```
 to scope it for your org & publish as usual
 
-* Grant access:
+* Grant access:  
 
 ```
 npm access grant <read-only|read-write> <org:team> [<package>]

@@ -7,7 +7,7 @@ var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
-var npm = npm = require('../../')
+var npm = require('../../')
 
 var common = require('../common-tap.js')
 var pkg = path.resolve(__dirname, 'shrinkwrap-prod-dependency')
@@ -26,7 +26,7 @@ test("shrinkwrap --dev doesn't strip out prod dependencies", function (t) {
         npm.commands.shrinkwrap([], true, function (err, results) {
           if (err) return t.fail(err)
 
-          t.deepEqual(results, desired)
+          t.deepEqual(results.dependencies, desired.dependencies)
           s.close()
           t.end()
         })
@@ -46,13 +46,14 @@ var desired = {
   dependencies: {
     request: {
       version: '0.9.0',
-      from: 'request@0.9.0',
-      resolved: common.registry + '/request/-/request-0.9.0.tgz'
+      resolved: common.registry + '/request/-/request-0.9.0.tgz',
+      integrity: 'sha1-EEn1mm9GWI5tAwkh+7hMovDCcU4='
     },
     underscore: {
+      dev: true,
       version: '1.5.1',
-      from: 'underscore@1.5.1',
-      resolved: common.registry + '/underscore/-/underscore-1.5.1.tgz'
+      resolved: common.registry + '/underscore/-/underscore-1.5.1.tgz',
+      integrity: 'sha1-0r3oF9F2/63olKtxRY5oKhS4bck='
     }
   }
 }

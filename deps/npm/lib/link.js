@@ -10,18 +10,22 @@ var chain = require('slide').chain
 var path = require('path')
 var build = require('./build.js')
 var npa = require('npm-package-arg')
+var usage = require('./utils/usage')
+var output = require('./utils/output.js')
 
 module.exports = link
 
-link.usage = 'npm link (in package dir)' +
-             '\nnpm link [<@scope>/]<pkg>[@<version>]' +
-             '\n\nalias: npm ln'
+link.usage = usage(
+  'link',
+  'npm link (in package dir)' +
+  '\nnpm link [<@scope>/]<pkg>[@<version>]'
+)
 
 link.completion = function (opts, cb) {
   var dir = npm.globalDir
   fs.readdir(dir, function (er, files) {
     cb(er, files.filter(function (f) {
-      return !f.match(/^[\._-]/)
+      return !f.match(/^[._-]/)
     }))
   })
 }
@@ -33,7 +37,7 @@ function link (args, cb) {
       var msg = 'npm link not supported on windows prior to node 0.7.9'
       var e = new Error(msg)
       e.code = 'ENOTSUP'
-      e.errno = require('constants').ENOTSUP
+      e.errno = require('constants').ENOTSUP // eslint-disable-line node/no-deprecated-api
       return cb(e)
     }
   }
@@ -118,7 +122,7 @@ function linkInstall (pkgs, cb) {
             log.verbose('link', 'symlinking %s to %s', pp, target)
             cb()
           } ],
-          [symlink, pp, target],
+          [symlink, pp, target, false, false],
           // do not run any scripts
           rp && [build, [target], npm.config.get('global'), build._noLC, true],
           [resultPrinter, pkg, pp, target, rp]
@@ -144,8 +148,8 @@ function linkPkg (folder, cb_) {
       er = new Error('Package must have a name field to be linked')
       return cb(er)
     }
-    if (npm.config.get('dry-run')) return resultPrinter(path.basename(me), me, target, cb)
     var target = path.resolve(npm.globalDir, d.name)
+    if (npm.config.get('dry-run')) return resultPrinter(path.basename(me), me, target, cb)
     symlink(me, target, false, true, function (er) {
       if (er) return cb(er)
       log.verbose('link', 'build target', target)
@@ -176,9 +180,7 @@ function resultPrinter (pkg, src, dest, rp, cb) {
     return parseableOutput(dest, rp || src, cb)
   }
   if (rp === src) rp = null
-  log.clearProgress()
-  console.log(where + ' -> ' + src + (rp ? ' -> ' + rp : ''))
-  log.showProgress()
+  output(where + ' -> ' + src + (rp ? ' -> ' + rp : ''))
   cb()
 }
 
@@ -190,8 +192,6 @@ function parseableOutput (dest, rp, cb) {
   // *just* print the target folder.
   // However, we don't actually ever read the version number, so
   // the second field is always blank.
-  log.clearProgress()
-  console.log(dest + '::' + rp)
-  log.showProgress()
+  output(dest + '::' + rp)
   cb()
 }

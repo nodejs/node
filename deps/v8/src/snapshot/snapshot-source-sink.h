@@ -38,7 +38,10 @@ class SnapshotByteSource final {
 
   void Advance(int by) { position_ += by; }
 
-  void CopyRaw(byte* to, int number_of_bytes);
+  void CopyRaw(byte* to, int number_of_bytes) {
+    memcpy(to, data_ + position_, number_of_bytes);
+    position_ += number_of_bytes;
+  }
 
   inline int GetInt() {
     // This way of decoding variable-length encoded integers does not
@@ -57,11 +60,11 @@ class SnapshotByteSource final {
     return answer;
   }
 
-  bool GetBlob(const byte** data, int* number_of_bytes);
-
-  bool AtEOF();
+  // Returns length.
+  int GetBlob(const byte** data);
 
   int position() { return position_; }
+  void set_position(int position) { position_ = position; }
 
  private:
   const byte* data_;
@@ -84,7 +87,7 @@ class SnapshotByteSink {
 
   ~SnapshotByteSink() {}
 
-  void Put(byte b, const char* description) { data_.Add(b); }
+  void Put(byte b, const char* description) { data_.push_back(b); }
 
   void PutSection(int b, const char* description) {
     DCHECK_LE(b, kMaxUInt8);
@@ -93,15 +96,15 @@ class SnapshotByteSink {
 
   void PutInt(uintptr_t integer, const char* description);
   void PutRaw(const byte* data, int number_of_bytes, const char* description);
-  int Position() { return data_.length(); }
+  int Position() const { return static_cast<int>(data_.size()); }
 
-  const List<byte>& data() const { return data_; }
+  const std::vector<byte>* data() const { return &data_; }
 
  private:
-  List<byte> data_;
+  std::vector<byte> data_;
 };
 
-}  // namespace v8::internal
+}  // namespace internal
 }  // namespace v8
 
 #endif  // V8_SNAPSHOT_SNAPSHOT_SOURCE_SINK_H_

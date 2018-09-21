@@ -1,13 +1,14 @@
 'use strict'
+var parseJsonWithErrors = require('json-parse-better-errors')
 var parseJSON = module.exports = function (content) {
-  return JSON.parse(stripBOM(content))
+  return parseJsonWithErrors(stripBOM(content))
 }
 
 parseJSON.noExceptions = function (content) {
   try {
     return parseJSON(content)
   } catch (ex) {
-    return
+
   }
 }
 

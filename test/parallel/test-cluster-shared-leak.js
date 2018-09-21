@@ -10,19 +10,21 @@ const cluster = require('cluster');
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
 if (cluster.isMaster) {
-  var conn, worker1, worker2;
+  let conn, worker2;
 
-  worker1 = cluster.fork();
-  worker1.on('message', common.mustCall(function() {
+  const worker1 = cluster.fork();
+  worker1.on('listening', common.mustCall(function(address) {
     worker2 = cluster.fork();
-    conn = net.connect(common.PORT, common.mustCall(function() {
-      worker1.send('die');
-      worker2.send('die');
-    }));
-    conn.on('error', function(e) {
-      // ECONNRESET is OK
-      if (e.code !== 'ECONNRESET')
-        throw e;
+    worker2.on('online', function() {
+      conn = net.connect(address.port, common.mustCall(function() {
+        worker1.disconnect();
+        worker2.disconnect();
+      }));
+      conn.on('error', function(e) {
+        // ECONNRESET is OK
+        if (e.code !== 'ECONNRESET')
+          throw e;
+      });
     });
   }));
 
@@ -37,17 +39,13 @@ if (cluster.isMaster) {
   return;
 }
 
-var server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
+  c.on('error', function(e) {
+    // ECONNRESET is OK, so we don't exit with code !== 0
+    if (e.code !== 'ECONNRESET')
+      throw e;
+  });
   c.end('bye');
 });
 
-server.listen(common.PORT, function() {
-  process.send('listening');
-});
-
-process.on('message', function(msg) {
-  if (msg !== 'die') return;
-  server.close(function() {
-    setImmediate(() => process.disconnect());
-  });
-});
+server.listen(0);

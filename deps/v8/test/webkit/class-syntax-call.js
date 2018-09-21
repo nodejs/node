@@ -21,20 +21,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-sloppy
-
 description('Tests for calling the constructors of ES6 classes');
 
 class A { constructor() {} };
 class B extends A { constructor() { super() } };
 
 shouldNotThrow('new A');
-shouldThrow('A()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
+shouldThrow('A()', '"TypeError: Class constructor A cannot be invoked without \'new\'"');
 shouldNotThrow('new B');
-shouldThrow('B()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
+shouldThrow('B()', '"TypeError: Class constructor B cannot be invoked without \'new\'"');
 shouldNotThrow('new (class { constructor() {} })()');
-shouldThrow('(class { constructor() {} })()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
-shouldThrow('new (class extends null { constructor() { super() } })()', '"TypeError: function () {} is not a constructor"');
-shouldThrow('(class extends null { constructor() { super() } })()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
+shouldThrow('(class { constructor() {} })()', '"TypeError: Class constructor  cannot be invoked without \'new\'"');
+shouldThrow('new (class extends null { constructor() { super() } })()', '"TypeError: Super constructor null of anonymous class is not a constructor"');
+shouldThrow('(class extends null { constructor() { super() } })()', '"TypeError: Class constructor  cannot be invoked without \'new\'"');
 
 var successfullyParsed = true;

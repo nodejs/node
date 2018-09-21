@@ -27,6 +27,11 @@
 
 assertEquals(1, String.prototype.includes.length);
 
+var s = 'a';
+assertFalse(s.includes(null));
+assertFalse(s.includes(undefined));
+assertFalse(s.includes());
+
 var reString = "asdf[a-z]+(asdf)?";
 assertTrue(reString.includes("[a-z]+"));
 assertTrue(reString.includes("(asdf)?"));
@@ -162,3 +167,11 @@ assertThrows("String.prototype.includes.apply({ 'toString': function() { " +
   "throw RangeError(); } }, [/./])", RangeError);
 assertThrows("String.prototype.includes.apply({ 'toString': function() { " +
   "return 'abc'; } }, [/./])", TypeError);
+
+// includes does its brand checks with Symbol.match
+var re = /./;
+assertThrows(function() {
+  "".includes(re);
+}, TypeError);
+re[Symbol.match] = false;
+assertEquals(false, "".includes(re));

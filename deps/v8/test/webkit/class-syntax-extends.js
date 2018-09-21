@@ -21,8 +21,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-sloppy
-
 description('Tests for ES6 class syntax "extends"');
 
 class Base {
@@ -60,8 +58,8 @@ shouldBe('x.prototype.__proto__', 'Base.prototype');
 shouldBe('Object.getPrototypeOf(x.prototype)', 'Base.prototype');
 shouldBe('x = class extends null { constructor() { } }; x.__proto__', 'Function.prototype');
 shouldBe('x.__proto__', 'Function.prototype');
-shouldThrow('x = class extends 3 { constructor() { } }; x.__proto__', '"TypeError: Class extends value 3 is not a function or null"');
-shouldThrow('x = class extends "abc" { constructor() { } }; x.__proto__', '"TypeError: Class extends value abc is not a function or null"');
+shouldThrow('x = class extends 3 { constructor() { } }; x.__proto__', '"TypeError: Class extends value 3 is not a constructor or null"');
+shouldThrow('x = class extends "abc" { constructor() { } }; x.__proto__', '"TypeError: Class extends value abc is not a constructor or null"');
 shouldNotThrow('baseWithBadPrototype = function () {}; baseWithBadPrototype.prototype = 3; new baseWithBadPrototype');
 shouldThrow('x = class extends baseWithBadPrototype { constructor() { } }', '"TypeError: Class extends value does not have valid prototype property 3"');
 shouldNotThrow('baseWithBadPrototype.prototype = "abc"');
@@ -94,13 +92,13 @@ shouldBe('x = 1; namespace = {}; namespace.A = class { constructor() { } }; try 
 
 shouldBe('Object.getPrototypeOf((class { constructor () { } }).prototype)', 'Object.prototype');
 shouldBe('Object.getPrototypeOf((class extends null { constructor () { super(); } }).prototype)', 'null');
-shouldThrow('new (class extends undefined { constructor () { this } })', '"TypeError: Class extends value undefined is not a function or null"');
-shouldThrow('new (class extends undefined { constructor () { super(); } })', '"TypeError: Class extends value undefined is not a function or null"');
-shouldThrow('x = {}; new (class extends undefined { constructor () { return x; } })', '"TypeError: Class extends value undefined is not a function or null"');
-shouldThrow('y = 12; new (class extends undefined { constructor () { return y; } })', '"TypeError: Class extends value undefined is not a function or null"');
+shouldThrow('new (class extends undefined { constructor () { this } })', '"TypeError: Class extends value undefined is not a constructor or null"');
+shouldThrow('new (class extends undefined { constructor () { super(); } })', '"TypeError: Class extends value undefined is not a constructor or null"');
+shouldThrow('x = {}; new (class extends undefined { constructor () { return x; } })', '"TypeError: Class extends value undefined is not a constructor or null"');
+shouldThrow('y = 12; new (class extends undefined { constructor () { return y; } })', '"TypeError: Class extends value undefined is not a constructor or null"');
 shouldBeTrue ('class x {}; new (class extends null { constructor () { return new x; } }) instanceof x');
-shouldThrow('new (class extends null { constructor () { this; } })', '"ReferenceError: this is not defined"');
-shouldThrow('new (class extends null { constructor () { super(); } })', '"TypeError: function () {} is not a constructor"');
+shouldThrow('new (class extends null { constructor () { this; } })', '"ReferenceError: Must call super constructor in derived class before accessing \'this\' or returning from derived constructor"');
+shouldThrow('new (class extends null { constructor () { super(); } })', '"TypeError: Super constructor null of anonymous class is not a constructor"');
 shouldBe('x = {}; new (class extends null { constructor () { return x } })', 'x');
 shouldThrow('y = 12; new (class extends null { constructor () { return y; } })', '"TypeError: Derived constructors may only return object or undefined"');
 shouldBeTrue ('class x {}; new (class extends null { constructor () { return new x; } }) instanceof x');

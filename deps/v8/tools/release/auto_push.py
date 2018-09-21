@@ -46,12 +46,12 @@ class Preparation(Step):
 
 
 class FetchCandidate(Step):
-  MESSAGE = "Fetching V8 roll ref."
+  MESSAGE = "Fetching V8 lkgr ref."
 
   def RunStep(self):
     # The roll ref points to the candidate to be rolled.
-    self.Git("fetch origin +refs/heads/roll:refs/heads/roll")
-    self["candidate"] = self.Git("show-ref -s refs/heads/roll").strip()
+    self.Git("fetch origin +refs/heads/lkgr:refs/heads/lkgr")
+    self["candidate"] = self.Git("show-ref -s refs/heads/lkgr").strip()
 
 
 class LastReleaseBailout(Step):

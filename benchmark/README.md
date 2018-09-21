@@ -1,147 +1,243 @@
-# Node.js core benchmark tests
+# Node.js Core Benchmarks
 
-This folder contains benchmark tests to measure the performance for certain
-Node.js APIs.
+This folder contains code and data used to measure performance
+of different Node.js implementations and different ways of
+writing JavaScript run by the built-in JavaScript engine.
 
-## Prerequisites
+For a detailed guide on how to write and run benchmarks in this
+directory, see [the guide on benchmarks](../doc/guides/writing-and-running-benchmarks.md).
 
-Most of the http benchmarks require [`wrk`][wrk] and [`ab`][ab] (ApacheBench) being installed.
-These may be available through your preferred package manager.
+## Table of Contents
 
-If they are not available:
-- `wrk` may easily be built [from source][wrk] via `make`.
-- `ab` is sometimes bundled in a package called `apache2-utils`.
+* [Benchmark directories](#benchmark-directories)
+* [Common API](#common-api)
 
-[wrk]: https://github.com/wg/wrk
-[ab]: http://httpd.apache.org/docs/2.2/programs/ab.html
+## Benchmark Directories
 
-## How to run tests
+<table>
+  <thead>
+    <tr>
+      <th>Directory</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>arrays</td>
+      <td>
+        Benchmarks for various operations on array-like objects,
+        including <code>Array</code>, <code>Buffer</code>, and typed arrays.
+      </td>
+    </tr>
+    <tr>
+      <td>assert</td>
+      <td>
+        Benchmarks for the <code>assert</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>buffers</td>
+      <td>
+        Benchmarks for the <code>buffer</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>child_process</td>
+      <td>
+        Benchmarks for the <code>child_process</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>crypto</td>
+      <td>
+        Benchmarks for the <code>crypto</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>dgram</td>
+      <td>
+        Benchmarks for the <code>dgram</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>domain</td>
+      <td>
+        Benchmarks for the <code>domain</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>es</td>
+      <td>
+        Benchmarks for various new ECMAScript features and their
+        pre-ES2015 counterparts.
+      </td>
+    </tr>
+    <tr>
+      <td>events</td>
+      <td>
+        Benchmarks for the <code>events</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>fixtures</td>
+      <td>
+        Benchmarks fixtures used in various benchmarks throughout
+        the benchmark suite.
+      </td>
+    </tr>
+    <tr>
+      <td>fs</td>
+      <td>
+        Benchmarks for the <code>fs</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>http</td>
+      <td>
+        Benchmarks for the <code>http</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>http2</td>
+      <td>
+        Benchmarks for the <code>http2</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>misc</td>
+      <td>
+        Miscellaneous benchmarks and benchmarks for shared
+        internal modules.
+      </td>
+    </tr>
+    <tr>
+      <td>module</td>
+      <td>
+        Benchmarks for the <code>module</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>net</td>
+      <td>
+        Benchmarks for the <code>net</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>path</td>
+      <td>
+        Benchmarks for the <code>path</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>process</td>
+      <td>
+        Benchmarks for the <code>process</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>querystring</td>
+      <td>
+        Benchmarks for the <code>querystring</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>streams</td>
+      <td>
+        Benchmarks for the <code>streams</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>string_decoder</td>
+      <td>
+        Benchmarks for the <code>string_decoder</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>timers</td>
+      <td>
+        Benchmarks for the <code>timers</code> subsystem, including
+        <code>setTimeout</code>, <code>setInterval</code>, .etc.
+      </td>
+    </tr>
+    <tr>
+      <td>tls</td>
+      <td>
+        Benchmarks for the <code>tls</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>url</td>
+      <td>
+        Benchmarks for the <code>url</code> subsystem, including the legacy
+        <code>url</code> implementation and the WHATWG URL implementation.
+      </td>
+    </tr>
+    <tr>
+      <td>util</td>
+      <td>
+        Benchmarks for the <code>util</code> subsystem.
+      </td>
+    </tr>
+    <tr>
+      <td>vm</td>
+      <td>
+        Benchmarks for the <code>vm</code> subsystem.
+      </td>
+    </tr>
+  </tbody>
+</table>
 
-There are three ways to run benchmark tests:
+### Other Top-level files
 
-### Run all tests of a given type
+The top-level files include common dependencies of the benchmarks
+and the tools for launching benchmarks and visualizing their output.
+The actual benchmark scripts should be placed in their corresponding
+directories.
 
-For example, buffers:
+* `_benchmark_progress.js`: implements the progress bar displayed
+  when running `compare.js`
+* `_cli.js`: parses the command line arguments passed to `compare.js`,
+  `run.js` and `scatter.js`
+* `_cli.R`: parses the command line arguments passed to `compare.R`
+* `_http-benchmarkers.js`: selects and runs external tools for benchmarking
+  the `http` subsystem.
+* `common.js`: see [Common API](#common-api).
+* `compare.js`: command line tool for comparing performance between different
+  Node.js binaries.
+* `compare.R`: R script for statistically analyzing the output of
+  `compare.js`
+* `run.js`: command line tool for running individual benchmark suite(s).
+* `scatter.js`: command line tool for comparing the performance
+  between different parameters in benchmark configurations,
+  for example to analyze the time complexity.
+* `scatter.R`: R script for visualizing the output of `scatter.js` with
+  scatter plots.
 
-```bash
-node benchmark/common.js buffers
-```
+## Common API
 
-The above command will find all scripts under `buffers` directory and require
-each of them as a module. When a test script is required, it creates an instance
-of `Benchmark` (a class defined in common.js). In the next tick, the `Benchmark`
-constructor iterates through the configuration object property values and runs
-the test function with each of the combined arguments in spawned processes. For
-example, buffers/buffer-read.js has the following configuration:
+The common.js module is used by benchmarks for consistency across repeated
+tasks. It has a number of helpful functions and properties to help with
+writing benchmarks.
 
-```js
-var bench = common.createBenchmark(main, {
-    noAssert: [false, true],
-    buffer: ['fast', 'slow'],
-    type: ['UInt8', 'UInt16LE', 'UInt16BE',
-        'UInt32LE', 'UInt32BE',
-        'Int8', 'Int16LE', 'Int16BE',
-        'Int32LE', 'Int32BE',
-        'FloatLE', 'FloatBE',
-        'DoubleLE', 'DoubleBE'],
-        millions: [1]
-});
-```
-The runner takes one item from each of the property array value to build a list
-of arguments to run the main function. The main function will receive the conf
-object as follows:
+### createBenchmark(fn, configs[, options])
 
-- first run:
-```js
-    {   noAssert: false,
-        buffer: 'fast',
-        type: 'UInt8',
-        millions: 1
-    }
-```
-- second run:
-```js
-    {
-        noAssert: false,
-        buffer: 'fast',
-        type: 'UInt16LE',
-        millions: 1
-    }
-```
-...
+See [the guide on writing benchmarks](../doc/guides/writing-and-running-benchmarks.md#basics-of-a-benchmark).
 
-In this case, the main function will run 2*2*14*1 = 56 times. The console output
-looks like the following:
+### default\_http\_benchmarker
 
-```
-buffers//buffer-read.js
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt8 millions=1: 271.83
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt16LE millions=1: 239.43
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt16BE millions=1: 244.57
-...
-```
-
-The last number is the rate of operations. Higher is better.
-
-### Run an individual test
-
-For example, buffer-slice.js:
-
-```bash
-node benchmark/buffers/buffer-read.js
-```
-The output:
-```
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt8 millions=1: 246.79
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt16LE millions=1: 240.11
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt16BE millions=1: 245.91
-...
-```
-
-### Run tests with options
-
-This example will run only the first type of url test, with one iteration.
-(Note: benchmarks require __many__ iterations to be statistically accurate.)
+The default benchmarker used to run HTTP benchmarks.
+See [the guide on writing HTTP benchmarks](../doc/guides/writing-and-running-benchmarks.md#creating-an-http-benchmark).
 
 
-```bash
-node benchmark/url/url-parse.js type=one n=1
-```
-Output:
-```
-url/url-parse.js type=one n=1: 1663.74402
-```
+### PORT
 
-## How to write a benchmark test
+The default port used to run HTTP benchmarks.
+See [the guide on writing HTTP benchmarks](../doc/guides/writing-and-running-benchmarks.md#creating-an-http-benchmark).
 
-The benchmark tests are grouped by types. Each type corresponds to a subdirectory,
-such as `arrays`, `buffers`, or `fs`.
+### sendResult(data)
 
-Let's add a benchmark test for Buffer.slice function. We first create a file
-buffers/buffer-slice.js.
+Used in special benchmarks that can't use `createBenchmark` and the object
+it returns to accomplish what they need. This function reports timing
+data to the parent process (usually created by running `compare.js`, `run.js` or
+`scatter.js`).
 
-### The code snippet
-
-```js
-var common = require('../common.js'); // Load the test runner
-
-var SlowBuffer = require('buffer').SlowBuffer;
-
-// Create a benchmark test for function `main` and the configuration variants
-var bench = common.createBenchmark(main, {
-  type: ['fast', 'slow'], // Two types of buffer
-  n: [512] // Number of times (each unit is 1024) to call the slice API
-});
-
-function main(conf) {
-  // Read the parameters from the configuration
-  var n = +conf.n;
-  var b = conf.type === 'fast' ? buf : slowBuf;
-  bench.start(); // Start benchmarking
-  for (var i = 0; i < n * 1024; i++) {
-    // Add your test here
-    b.slice(10, 256);
-  }
-  bench.end(n); // End benchmarking
-}
-```

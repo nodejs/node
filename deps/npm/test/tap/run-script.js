@@ -25,8 +25,13 @@ var fullyPopulated = {
     'prewith-both': 'node -e "console.log(process.argv[1] || \'pre\')"',
     'with-both': 'node -e "console.log(process.argv[1] || \'main\')"',
     'postwith-both': 'node -e "console.log(process.argv[1] || \'post\')"',
-    'stop': 'node -e "console.log(process.argv[1] || \'stop\')"'
-  }
+    'stop': 'node -e "console.log(process.argv[1] || \'stop\')"',
+    'env-vars': 'node -e "console.log(process.env.run_script_foo_var)"',
+    'npm-env-vars': 'node -e "console.log(process.env.npm_run_script_foo_var)"',
+    'package-env-vars': 'node -e "console.log(process.env.run_script_foo_var)"',
+    'prefixed-package-env-vars': 'node -e "console.log(process.env.npm_package_run_script_foo_var)"'
+  },
+  'run_script_foo_var': 'run_script_test_foo_val'
 }
 
 var lifecycleOnly = {
@@ -59,6 +64,22 @@ var preversionOnly = {
   version: '1.2.3',
   scripts: {
     'preversion': 'echo preversion'
+  }
+}
+
+var exitCode = {
+  name: 'scripted',
+  version: '1.2.3',
+  scripts: {
+    'start': 'node -e "process.exit(7)"'
+  }
+}
+
+var shell = {
+  name: 'scripted',
+  version: '1.2.3',
+  scripts: {
+    'start': 'echo foo'
   }
 }
 
@@ -180,6 +201,64 @@ test('npm run-script nonexistent-script with --if-present flag', function (t) {
   })
 })
 
+test('npm run-script env vars accessible', function (t) {
+  process.env.run_script_foo_var = 'run_script_test_foo_val'
+  common.npm(['run-script', 'env-vars'], {
+    cwd: pkg
+  }, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 0, 'exited normally')
+    t.equal(stderr, '', 'no error output')
+    t.match(stdout,
+      new RegExp(process.env.run_script_foo_var),
+      'script had env access')
+    t.end()
+  })
+})
+
+test('npm run-script package.json vars injected', function (t) {
+  common.npm(['run-script', 'package-env-vars'], {
+    cwd: pkg
+  }, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 0, 'exited normally')
+    t.equal(stderr, '', 'no error output')
+    t.match(stdout,
+      new RegExp(fullyPopulated.run_script_foo_var),
+      'script injected package.json value')
+    t.end()
+  })
+})
+
+test('npm run-script package.json vars injected with prefix', function (t) {
+  common.npm(['run-script', 'prefixed-package-env-vars'], {
+    cwd: pkg
+  }, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 0, 'exited normally')
+    t.equal(stderr, '', 'no error output')
+    t.match(stdout,
+      new RegExp(fullyPopulated.run_script_foo_var),
+      'script injected npm_package-prefixed package.json value')
+    t.end()
+  })
+})
+
+test('npm run-script env vars stripped npm-prefixed', function (t) {
+  process.env.npm_run_script_foo_var = 'run_script_test_foo_val'
+  common.npm(['run-script', 'npm-env-vars'], {
+    cwd: pkg
+  }, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 0, 'exited normally')
+    t.equal(stderr, '', 'no error output')
+    t.notMatch(stdout,
+      new RegExp(process.env.npm_run_script_foo_var),
+      'script stripped npm-prefixed env var')
+    t.end()
+  })
+})
+
 test('npm run-script no-params (lifecycle only)', function (t) {
   var expected = [
     'Lifecycle scripts included in scripted:',
@@ -237,6 +316,12 @@ test('npm run-script no-params (direct only)', function (t) {
   })
 })
 
+test('npm run-script script-shell config', function (t) {
+  writeMetadata(shell)
+
+  common.npm(['run-script', 'start', '--script-shell', 'echo'], opts, testOutput.bind(null, t, '-c echo foo'))
+})
+
 test('npm run-script no-params (direct only)', function (t) {
   var expected = [
     'Lifecycle scripts included in scripted:',
@@ -256,6 +341,28 @@ test('npm run-script no-params (direct only)', function (t) {
     t.notOk(code, 'npm exited without error code')
     t.notOk(stderr, 'npm printed nothing to stderr')
     t.equal(stdout, expected, 'got expected output')
+    t.end()
+  })
+})
+
+test('npm run-script keep non-zero exit code', function (t) {
+  writeMetadata(exitCode)
+
+  common.npm(['run-script', 'start'], opts, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without parameters without crashing')
+    t.equal(code, 7, 'got expected exit code')
+    t.ok(stderr, 'should generate errors')
+    t.end()
+  })
+})
+
+test('npm run-script nonexistent script and display suggestions', function (t) {
+  writeMetadata(directOnly)
+
+  common.npm(['run-script', 'whoop'], opts, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 1, 'got expected exit code')
+    t.has(stderr, 'Did you mean this?')
     t.end()
   })
 })

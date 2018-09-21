@@ -34,7 +34,7 @@ for (var i = 0; i < 5000; i++)
 declarationTestString += ";return true;";
 
 var commaExpressionTestString = "1";
-for (var i = 0; i < 5000; i++)
+for (var i = 0; i < 2500; i++)
     commaExpressionTestString += ",1";
 commaExpressionTestString += ";return true;";
 

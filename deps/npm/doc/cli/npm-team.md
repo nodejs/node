@@ -21,7 +21,7 @@ handle permissions for packages.
 Teams must always be fully qualified with the organization/scope they belong to
 when operating on them, separated by a colon (`:`). That is, if you have a
 `developers` team on a `foo` organization, you must always refer to that team as
-`developers:foo` in these commands.
+`foo:developers` in these commands.
 
 * create / destroy:
   Create a new team, or destroy an existing one.
@@ -33,6 +33,9 @@ when operating on them, separated by a colon (`:`). That is, if you have a
   If performed on an organization name, will return a list of existing teams
   under that organization. If performed on a team, it will instead return a list
   of all users belonging to that particular team.
+
+* edit:
+  Edit a current team.
 
 ## DETAILS
 

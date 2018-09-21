@@ -4,7 +4,10 @@
 
 #include "src/libplatform/task-queue.h"
 
+#include "include/v8-platform.h"
 #include "src/base/logging.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
 namespace platform {
@@ -18,27 +21,25 @@ TaskQueue::~TaskQueue() {
   DCHECK(task_queue_.empty());
 }
 
-
-void TaskQueue::Append(Task* task) {
+void TaskQueue::Append(std::unique_ptr<Task> task) {
   base::LockGuard<base::Mutex> guard(&lock_);
   DCHECK(!terminated_);
-  task_queue_.push(task);
+  task_queue_.push(std::move(task));
   process_queue_semaphore_.Signal();
 }
 
-
-Task* TaskQueue::GetNext() {
+std::unique_ptr<Task> TaskQueue::GetNext() {
   for (;;) {
     {
       base::LockGuard<base::Mutex> guard(&lock_);
       if (!task_queue_.empty()) {
-        Task* result = task_queue_.front();
+        std::unique_ptr<Task> result = std::move(task_queue_.front());
         task_queue_.pop();
         return result;
       }
       if (terminated_) {
         process_queue_semaphore_.Signal();
-        return NULL;
+        return nullptr;
       }
     }
     process_queue_semaphore_.Wait();
@@ -53,4 +54,15 @@ void TaskQueue::Terminate() {
   process_queue_semaphore_.Signal();
 }
 
-} }  // namespace v8::platform
+void TaskQueue::BlockUntilQueueEmptyForTesting() {
+  for (;;) {
+    {
+      base::LockGuard<base::Mutex> guard(&lock_);
+      if (task_queue_.empty()) return;
+    }
+    base::OS::Sleep(base::TimeDelta::FromMilliseconds(5));
+  }
+}
+
+}  // namespace platform
+}  // namespace v8

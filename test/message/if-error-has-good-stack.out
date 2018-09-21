@@ -1,0 +1,19 @@
+assert.js:*
+    throw newErr;
+    ^
+
+AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
+    at z (*if-error-has-good-stack.js:*:*
+    at y (*if-error-has-good-stack.js:*:*)
+    at x (*if-error-has-good-stack.js:*:*)
+    at Object.<anonymous> (*if-error-has-good-stack.js:*:*)
+    at c (*if-error-has-good-stack.js:*:*)
+    at b (*if-error-has-good-stack.js:*:*)
+    at a (*if-error-has-good-stack.js:*:*)
+    at Object.<anonymous> (*if-error-has-good-stack.js:*:*)
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:*:*)
+    at Module.load (internal/modules/cjs/loader.js:*:*)
+    at tryModuleLoad (internal/modules/cjs/loader.js:*:*)
+    at Function.Module._load (internal/modules/cjs/loader.js:*:*)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)

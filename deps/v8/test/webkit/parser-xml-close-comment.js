@@ -26,7 +26,7 @@ description("Test to ensure correct handling of --> as a single line comment whe
 shouldThrow("'should be a syntax error' -->");
 shouldThrow("/**/ 1 -->");
 shouldThrow("1 /**/ -->");
-shouldThrow("1/*\n*/-->");
+shouldBe("1/*\n*/-->", "1");
 
 shouldBeUndefined("-->");
 shouldBeUndefined("/**/-->");

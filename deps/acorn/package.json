@@ -1,0 +1,60 @@
+{
+  "name": "acorn",
+  "description": "ECMAScript parser",
+  "homepage": "https://github.com/acornjs/acorn",
+  "main": "dist/acorn.js",
+  "module": "dist/acorn.es.js",
+  "version": "5.7.2",
+  "engines": {
+    "node": ">=0.4.0"
+  },
+  "maintainers": [
+    {
+      "name": "Marijn Haverbeke",
+      "email": "marijnh@gmail.com",
+      "web": "http://marijnhaverbeke.nl"
+    },
+    {
+      "name": "Ingvar Stepanyan",
+      "email": "me@rreverser.com",
+      "web": "http://rreverser.com/"
+    },
+    {
+      "name": "Adrian Heine",
+      "email": "http://adrianheine.de"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/acornjs/acorn.git"
+  },
+  "license": "MIT",
+  "scripts": {
+    "prepare": "npm run build && node test/run.js && node test/lint.js",
+    "test": "node test/run.js && node test/lint.js",
+    "pretest": "npm run build:main && npm run build:loose",
+    "test:test262": "node bin/run_test262.js",
+    "build": "npm run build:main && npm run build:walk && npm run build:loose && npm run build:bin",
+    "build:main": "rollup -c rollup/config.main.js",
+    "build:walk": "rollup -c rollup/config.walk.js",
+    "build:loose": "rollup -c rollup/config.loose.js && rollup -c rollup/config.loose_es.js",
+    "build:bin": "rollup -c rollup/config.bin.js",
+    "lint": "eslint src/"
+  },
+  "bin": {
+    "acorn": "./bin/acorn"
+  },
+  "devDependencies": {
+    "eslint": "^4.10.0",
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-node": "^5.2.1",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "rollup": "^0.45.0",
+    "rollup-plugin-buble": "^0.16.0",
+    "test262": "git+https://github.com/tc39/test262.git#3bfad28cc302fd4455badcfcbca7c5bb7ce41a72",
+    "test262-parser-runner": "^0.4.0",
+    "unicode-11.0.0": "^0.7.7"
+  }
+}

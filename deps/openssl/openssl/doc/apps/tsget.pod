@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-tsget,
 tsget - Time Stamping HTTP/HTTPS client
 
 =head1 SYNOPSIS
@@ -33,15 +34,15 @@ line.
 
 The tool sends the following HTTP request for each time stamp request:
 
-	POST url HTTP/1.1
-	User-Agent: OpenTSA tsget.pl/<version>
-	Host: <host>:<port>
-	Pragma: no-cache
-	Content-Type: application/timestamp-query
-	Accept: application/timestamp-reply
-	Content-Length: length of body
+        POST url HTTP/1.1
+        User-Agent: OpenTSA tsget.pl/<version>
+        Host: <host>:<port>
+        Pragma: no-cache
+        Content-Type: application/timestamp-query
+        Accept: application/timestamp-reply
+        Content-Length: length of body
 
-	...binary request specified by the user...
+        ...binary request specified by the user...
 
 B<tsget> expects a response of type application/timestamp-reply, which is
 written to a file without any interpretation.
@@ -142,7 +143,7 @@ time stamp requests, tsa.opentsa.org listens at port 8080 for HTTP requests
 and at port 8443 for HTTPS requests, the TSA service is available at the /tsa
 absolute path.
 
-Get a time stamp response for file1.tsq over HTTP, output is written to 
+Get a time stamp response for file1.tsq over HTTP, output is written to
 file1.tsr:
 
   tsget -h http://tsa.opentsa.org:8080/tsa file1.tsq
@@ -151,44 +152,49 @@ Get a time stamp response for file1.tsq and file2.tsq over HTTP showing
 progress, output is written to file1.reply and file2.reply respectively:
 
   tsget -h http://tsa.opentsa.org:8080/tsa -v -e .reply \
-	file1.tsq file2.tsq
+        file1.tsq file2.tsq
 
 Create a time stamp request, write it to file3.tsq, send it to the server and
 write the response to file3.tsr:
 
   openssl ts -query -data file3.txt -cert | tee file3.tsq \
-	| tsget -h http://tsa.opentsa.org:8080/tsa \
-	-o file3.tsr
+        | tsget -h http://tsa.opentsa.org:8080/tsa \
+        -o file3.tsr
 
 Get a time stamp response for file1.tsq over HTTPS without client
 authentication:
 
   tsget -h https://tsa.opentsa.org:8443/tsa \
-	-C cacerts.pem file1.tsq
+        -C cacerts.pem file1.tsq
 
 Get a time stamp response for file1.tsq over HTTPS with certificate-based
 client authentication (it will ask for the passphrase if client_key.pem is
 protected):
 
   tsget -h https://tsa.opentsa.org:8443/tsa -C cacerts.pem \
-	-k client_key.pem -c client_cert.pem file1.tsq
+        -k client_key.pem -c client_cert.pem file1.tsq
 
 You can shorten the previous command line if you make use of the B<TSGET>
 environment variable. The following commands do the same as the previous
 example:
 
   TSGET='-h https://tsa.opentsa.org:8443/tsa -C cacerts.pem \
-	-k client_key.pem -c client_cert.pem'
+        -k client_key.pem -c client_cert.pem'
   export TSGET
   tsget file1.tsq
 
-=head1 AUTHOR
-
-Zoltan Glozik <zglozik@opentsa.org>, OpenTSA project (http://www.opentsa.org)
-
 =head1 SEE ALSO
 
-L<openssl(1)|openssl(1)>, L<ts(1)|ts(1)>, L<curl(1)|curl(1)>, 
+L<openssl(1)>, L<ts(1)>, L<curl(1)>,
 B<RFC 3161>
+
+=head1 COPYRIGHT
+
+Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

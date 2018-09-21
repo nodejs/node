@@ -1,27 +1,82 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const common = require('../common');
+const http = require('http');
+const net = require('net');
+const assert = require('assert');
 
-var create = 0;
-var response = 0;
-process.on('exit', function() {
-  assert.equal(1, create, 'createConnection() http option was not called');
-  assert.equal(1, response, 'http server "request" callback was not called');
-});
-
-var server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCall(function(req, res) {
   res.end();
-  response++;
-}).listen(common.PORT, '127.0.0.1', function() {
-  http.get({ createConnection: createConnection }, function(res) {
+}, 4)).listen(0, '127.0.0.1', function() {
+  let fn = common.mustCall(createConnection);
+  http.get({ createConnection: fn }, function(res) {
     res.resume();
-    server.close();
+    fn = common.mustCall(createConnectionAsync);
+    http.get({ createConnection: fn }, function(res) {
+      res.resume();
+      fn = common.mustCall(createConnectionBoth1);
+      http.get({ createConnection: fn }, function(res) {
+        res.resume();
+        fn = common.mustCall(createConnectionBoth2);
+        http.get({ createConnection: fn }, function(res) {
+          res.resume();
+          fn = common.mustCall(createConnectionError);
+          http.get({ createConnection: fn }, function(res) {
+            assert.fail('Unexpected response callback');
+          }).on('error', common.mustCall(function(err) {
+            assert.strictEqual(err.message, 'Could not create socket');
+            server.close();
+          }));
+        });
+      });
+    });
   });
 });
 
 function createConnection() {
-  create++;
-  return net.createConnection(common.PORT, '127.0.0.1');
+  return net.createConnection(server.address().port, '127.0.0.1');
+}
+
+function createConnectionAsync(options, cb) {
+  setImmediate(function() {
+    cb(null, net.createConnection(server.address().port, '127.0.0.1'));
+  });
+}
+
+function createConnectionBoth1(options, cb) {
+  const socket = net.createConnection(server.address().port, '127.0.0.1');
+  setImmediate(function() {
+    cb(null, socket);
+  });
+  return socket;
+}
+
+function createConnectionBoth2(options, cb) {
+  const socket = net.createConnection(server.address().port, '127.0.0.1');
+  cb(null, socket);
+  return socket;
+}
+
+function createConnectionError(options, cb) {
+  process.nextTick(cb, new Error('Could not create socket'));
 }

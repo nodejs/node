@@ -1,0 +1,105 @@
+Checks Runtime.queryObjects
+
+Running test: testClass
+Declare class Foo & store its constructor.
+Create object with class Foo.
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+    [0] : Foo,object
+]
+Create object with class Foo.
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+    [0] : Foo,object
+    [1] : Foo,object
+]
+
+Running test: testDerivedNewClass
+Declare class Foo & store its constructor.
+Declare class Boo extends Foo & store its constructor.
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+    [0] : Boo,object
+]
+Query objects with Boo prototype.
+Dump each object constructor name.
+[
+]
+Create object with class Foo
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+    [0] : Boo,object
+    [1] : Foo,object
+]
+Create object with class Boo
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+    [0] : Boo,object
+    [1] : Boo,object
+    [2] : Foo,object
+]
+Query objects with Boo prototype.
+Dump each object constructor name.
+[
+    [0] : Boo,object
+]
+
+Running test: testNewFunction
+Declare Foo & store it.
+Create object using Foo.
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+    [0] : Foo,object
+]
+Create object using Foo.
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+    [0] : Foo,object
+    [1] : Foo,object
+]
+
+Running test: testNonInspectable
+Declare Foo & store it.
+Create object using Foo.
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+    [0] : Foo,object
+]
+Mark object as not inspectable.
+Query objects with Foo prototype.
+Dump each object constructor name.
+[
+]
+
+Running test: testObjectCreate
+Declare Object p & store it.
+Create object using Object.create(p).
+Query objects with p prototype.
+Dump each object constructor name.
+[
+    [0] : Object,object
+]
+Create object using Object.create(p).
+Query objects with p prototype.
+Dump each object constructor name.
+[
+    [0] : Object,object
+    [1] : Object,object
+]
+
+Running test: testWithObjectGroup
+Query for Array.prototype 3 times
+Results since initial: 0
+Results since initial: 1
+Results since initial: 2
+
+Released object group.
+Results since initial: 0

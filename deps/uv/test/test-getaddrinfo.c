@@ -83,10 +83,18 @@ static void getaddrinfo_cuncurrent_cb(uv_getaddrinfo_t* handle,
 TEST_IMPL(getaddrinfo_fail) {
   uv_getaddrinfo_t req;
 
+  ASSERT(UV_EINVAL == uv_getaddrinfo(uv_default_loop(),
+                                     &req,
+                                     (uv_getaddrinfo_cb) abort,
+                                     NULL,
+                                     NULL,
+                                     NULL));
+
+  /* Use a FQDN by ending in a period */
   ASSERT(0 == uv_getaddrinfo(uv_default_loop(),
                              &req,
                              getaddrinfo_fail_cb,
-                             "xyzzy.xyzzy.xyzzy",
+                             "xyzzy.xyzzy.xyzzy.",
                              NULL,
                              NULL));
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
@@ -100,10 +108,11 @@ TEST_IMPL(getaddrinfo_fail) {
 TEST_IMPL(getaddrinfo_fail_sync) {
   uv_getaddrinfo_t req;
 
+  /* Use a FQDN by ending in a period */
   ASSERT(0 > uv_getaddrinfo(uv_default_loop(),
                             &req,
                             NULL,
-                            "xyzzy.xyzzy.xyzzy",
+                            "xyzzy.xyzzy.xyzzy.",
                             NULL,
                             NULL));
   uv_freeaddrinfo(req.addrinfo);

@@ -1,0 +1,52 @@
+Tests that evaluation works when code generation from strings is not allowed.
+
+Running test: testEvaluateNotPaused
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : Global1
+        }
+    }
+}
+
+Running test: testEvaluatePaused
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : Global2
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : Local
+        }
+    }
+}
+
+Running test: testCallFunctionOn
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 3
+            type : number
+            value : 3
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}

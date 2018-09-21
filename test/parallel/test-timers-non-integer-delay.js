@@ -1,4 +1,27 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
+const common = require('../common');
+
 /*
  * This test makes sure that non-integer timer delays do not make the process
  * hang. See https://github.com/joyent/node/issues/8065 and
@@ -15,17 +38,12 @@
  * it 100%.
  */
 
-require('../common');
-var assert = require('assert');
+const TIMEOUT_DELAY = 1.1;
+let N = 50;
 
-var TIMEOUT_DELAY = 1.1;
-var NB_TIMEOUTS_FIRED = 50;
-
-var nbTimeoutFired = 0;
-var interval = setInterval(function() {
-  ++nbTimeoutFired;
-  if (nbTimeoutFired === NB_TIMEOUTS_FIRED) {
+const interval = setInterval(common.mustCall(() => {
+  if (--N === 0) {
     clearInterval(interval);
     process.exit(0);
   }
-}, TIMEOUT_DELAY);
+}, N), TIMEOUT_DELAY);

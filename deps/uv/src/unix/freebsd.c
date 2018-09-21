@@ -25,11 +25,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include <ifaddrs.h>
-#include <net/if.h>
-#include <net/if_dl.h>
-
-#include <kvm.h>
 #include <paths.h>
 #include <sys/user.h>
 #include <sys/types.h>
@@ -40,9 +35,6 @@
 #include <stdlib.h>
 #include <unistd.h> /* sysconf */
 #include <fcntl.h>
-
-#undef NANOSEC
-#define NANOSEC ((uint64_t) 1e9)
 
 #ifndef CPUSTATES
 # define CPUSTATES 5U
@@ -55,7 +47,14 @@
 # define CP_INTR 4
 #endif
 
+static uv_mutex_t process_title_mutex;
+static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
 static char *process_title;
+
+
+static void init_process_title_mutex_once(void) {
+  uv_mutex_init(&process_title_mutex);
+}
 
 
 int uv__platform_loop_init(uv_loop_t* loop) {
@@ -67,24 +66,17 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 }
 
 
-uint64_t uv__hrtime(uv_clocktype_t type) {
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
-}
-
-
 #ifdef __DragonFly__
 int uv_exepath(char* buffer, size_t* size) {
   char abspath[PATH_MAX * 2 + 1];
   ssize_t abspath_size;
 
   if (buffer == NULL || size == NULL || *size == 0)
-    return -EINVAL;
+    return UV_EINVAL;
 
   abspath_size = readlink("/proc/curproc/file", abspath, sizeof(abspath));
   if (abspath_size < 0)
-    return -errno;
+    return UV__ERR(errno);
 
   assert(abspath_size > 0);
   *size -= 1;
@@ -104,7 +96,7 @@ int uv_exepath(char* buffer, size_t* size) {
   size_t abspath_size;
 
   if (buffer == NULL || size == NULL || *size == 0)
-    return -EINVAL;
+    return UV_EINVAL;
 
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC;
@@ -113,7 +105,7 @@ int uv_exepath(char* buffer, size_t* size) {
 
   abspath_size = sizeof abspath;
   if (sysctl(mib, 4, abspath, &abspath_size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   assert(abspath_size > 0);
   abspath_size -= 1;
@@ -134,7 +126,7 @@ uint64_t uv_get_free_memory(void) {
   size_t size = sizeof(freecount);
 
   if (sysctlbyname("vm.stats.vm.v_free_count", &freecount, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   return (uint64_t) freecount * sysconf(_SC_PAGESIZE);
 
@@ -148,7 +140,7 @@ uint64_t uv_get_total_memory(void) {
   size_t size = sizeof(info);
 
   if (sysctl(which, 2, &info, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   return (uint64_t) info;
 }
@@ -175,9 +167,20 @@ char** uv_setup_args(int argc, char** argv) {
 
 int uv_set_process_title(const char* title) {
   int oid[4];
+  char* new_title;
 
-  if (process_title) uv__free(process_title);
-  process_title = uv__strdup(title);
+  new_title = uv__strdup(title);
+
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
+
+  if (process_title == NULL) {
+    uv_mutex_unlock(&process_title_mutex);
+    return UV_ENOMEM;
+  }
+
+  uv__free(process_title);
+  process_title = new_title;
 
   oid[0] = CTL_KERN;
   oid[1] = KERN_PROC;
@@ -191,51 +194,66 @@ int uv_set_process_title(const char* title) {
          process_title,
          strlen(process_title) + 1);
 
+  uv_mutex_unlock(&process_title_mutex);
+
   return 0;
 }
 
 
 int uv_get_process_title(char* buffer, size_t size) {
+  size_t len;
+
+  if (buffer == NULL || size == 0)
+    return UV_EINVAL;
+
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
+
   if (process_title) {
-    strncpy(buffer, process_title, size);
-  } else {
-    if (size > 0) {
-      buffer[0] = '\0';
+    len = strlen(process_title) + 1;
+
+    if (size < len) {
+      uv_mutex_unlock(&process_title_mutex);
+      return UV_ENOBUFS;
     }
+
+    memcpy(buffer, process_title, len);
+  } else {
+    len = 0;
   }
+
+  uv_mutex_unlock(&process_title_mutex);
+
+  buffer[len] = '\0';
 
   return 0;
 }
 
-
 int uv_resident_set_memory(size_t* rss) {
-  kvm_t *kd = NULL;
-  struct kinfo_proc *kinfo = NULL;
-  pid_t pid;
-  int nprocs;
-  size_t page_size = getpagesize();
+  struct kinfo_proc kinfo;
+  size_t page_size;
+  size_t kinfo_size;
+  int mib[4];
 
-  pid = getpid();
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PID;
+  mib[3] = getpid();
 
-  kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, "kvm_open");
-  if (kd == NULL) goto error;
+  kinfo_size = sizeof(kinfo);
 
-  kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
-  if (kinfo == NULL) goto error;
+  if (sysctl(mib, 4, &kinfo, &kinfo_size, NULL, 0))
+    return UV__ERR(errno);
+
+  page_size = getpagesize();
 
 #ifdef __DragonFly__
-  *rss = kinfo->kp_vm_rssize * page_size;
+  *rss = kinfo.kp_vm_rssize * page_size;
 #else
-  *rss = kinfo->ki_rssize * page_size;
+  *rss = kinfo.ki_rssize * page_size;
 #endif
 
-  kvm_close(kd);
-
   return 0;
-
-error:
-  if (kd) kvm_close(kd);
-  return -EPERM;
 }
 
 
@@ -244,7 +262,7 @@ int uv_uptime(double* uptime) {
   struct timespec sp;
   r = clock_gettime(CLOCK_MONOTONIC, &sp);
   if (r)
-    return -errno;
+    return UV__ERR(errno);
 
   *uptime = sp.tv_sec;
   return 0;
@@ -258,6 +276,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   uv_cpu_info_t* cpu_info;
   const char* maxcpus_key;
   const char* cptimes_key;
+  const char* model_key;
   char model[512];
   long* cp_times;
   int numcpus;
@@ -276,33 +295,39 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   cptimes_key = "kern.cp_times";
 #endif
 
-  size = sizeof(model);
-  if (sysctlbyname("hw.model", &model, &size, NULL, 0))
+#if defined(__arm__) || defined(__aarch64__)
+  /* The key hw.model and hw.clockrate are not available on FreeBSD ARM. */
+  model_key = "hw.machine";
+  cpuspeed = 0;
+#else
+  model_key = "hw.model";
+
+  size = sizeof(cpuspeed);
+  if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0))
     return -errno;
+#endif
+
+  size = sizeof(model);
+  if (sysctlbyname(model_key, &model, &size, NULL, 0))
+    return UV__ERR(errno);
 
   size = sizeof(numcpus);
   if (sysctlbyname("hw.ncpu", &numcpus, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos))
-    return -ENOMEM;
+    return UV_ENOMEM;
 
   *count = numcpus;
-
-  size = sizeof(cpuspeed);
-  if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(*cpu_infos));
-    return -errno;
-  }
 
   /* kern.cp_times on FreeBSD i386 gives an array up to maxcpus instead of
    * ncpu.
    */
   size = sizeof(maxcpus);
   if (sysctlbyname(maxcpus_key, &maxcpus, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(*cpu_infos));
-    return -errno;
+    uv__free(*cpu_infos);
+    return UV__ERR(errno);
   }
 
   size = maxcpus * CPUSTATES * sizeof(long);
@@ -310,13 +335,13 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   cp_times = uv__malloc(size);
   if (cp_times == NULL) {
     uv__free(*cpu_infos);
-    return -ENOMEM;
+    return UV_ENOMEM;
   }
 
   if (sysctlbyname(cptimes_key, cp_times, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(cp_times));
-    SAVE_ERRNO(uv__free(*cpu_infos));
-    return -errno;
+    uv__free(cp_times);
+    uv__free(*cpu_infos);
+    return UV__ERR(errno);
   }
 
   for (i = 0; i < numcpus; i++) {
@@ -347,102 +372,4 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   }
 
   uv__free(cpu_infos);
-}
-
-
-int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
-  struct ifaddrs *addrs, *ent;
-  uv_interface_address_t* address;
-  int i;
-  struct sockaddr_dl *sa_addr;
-
-  if (getifaddrs(&addrs))
-    return -errno;
-
-   *count = 0;
-
-  /* Count the number of interfaces */
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
-        (ent->ifa_addr == NULL) ||
-        (ent->ifa_addr->sa_family == AF_LINK)) {
-      continue;
-    }
-
-    (*count)++;
-  }
-
-  *addresses = uv__malloc(*count * sizeof(**addresses));
-  if (!(*addresses))
-    return -ENOMEM;
-
-  address = *addresses;
-
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
-      continue;
-
-    if (ent->ifa_addr == NULL)
-      continue;
-
-    /*
-     * On FreeBSD getifaddrs returns information related to the raw underlying
-     * devices. We're not interested in this information yet.
-     */
-    if (ent->ifa_addr->sa_family == AF_LINK)
-      continue;
-
-    address->name = uv__strdup(ent->ifa_name);
-
-    if (ent->ifa_addr->sa_family == AF_INET6) {
-      address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
-    } else {
-      address->address.address4 = *((struct sockaddr_in*) ent->ifa_addr);
-    }
-
-    if (ent->ifa_netmask->sa_family == AF_INET6) {
-      address->netmask.netmask6 = *((struct sockaddr_in6*) ent->ifa_netmask);
-    } else {
-      address->netmask.netmask4 = *((struct sockaddr_in*) ent->ifa_netmask);
-    }
-
-    address->is_internal = !!(ent->ifa_flags & IFF_LOOPBACK);
-
-    address++;
-  }
-
-  /* Fill in physical addresses for each interface */
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
-        (ent->ifa_addr == NULL) ||
-        (ent->ifa_addr->sa_family != AF_LINK)) {
-      continue;
-    }
-
-    address = *addresses;
-
-    for (i = 0; i < (*count); i++) {
-      if (strcmp(address->name, ent->ifa_name) == 0) {
-        sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
-        memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
-      }
-      address++;
-    }
-  }
-
-  freeifaddrs(addrs);
-
-  return 0;
-}
-
-
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-  int count) {
-  int i;
-
-  for (i = 0; i < count; i++) {
-    uv__free(addresses[i].name);
-  }
-
-  uv__free(addresses);
 }

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
+// Flags: --allow-natives-syntax --expose-gc --no-always-opt
 
 var a = new Int32Array(1024);
 
@@ -108,7 +108,7 @@ test_base(dictionary_map_array, -2, true);
 assertUnoptimized(test_base);
 
 // Forget about the dictionary_map_array's map.
-%ClearFunctionTypeFeedback(test_base);
+%ClearFunctionFeedback(test_base);
 
 test_base(a, 5, true);
 test_base(a, 6, true);

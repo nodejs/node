@@ -44,7 +44,7 @@ static void close_cb(uv_handle_t* handle) {
 
 static void sv_send_cb(uv_udp_send_t* req, int status) {
   ASSERT(req != NULL);
-  ASSERT(status == 0 || status == UV_ENETUNREACH);
+  ASSERT(status == 0 || status == UV_ENETUNREACH || status == UV_EPERM);
   CHECK_HANDLE(req->handle);
 
   sv_send_cb_called++;

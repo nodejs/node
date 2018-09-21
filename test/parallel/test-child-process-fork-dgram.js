@@ -1,100 +1,108 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 /*
  * The purpose of this test is to make sure that when forking a process,
  * sending a fd representing a UDP socket to the child and sending messages
  * to this endpoint, these messages are distributed to the parent and the
  * child process.
- *
- * Because it's not really possible to predict how the messages will be
- * distributed among the parent and the child processes, we keep sending
- * messages until both the parent and the child received at least one
- * message. The worst case scenario is when either one never receives
- * a message. In this case the test runner will timeout after 60 secs
- * and the test will fail.
  */
 
-var dgram = require('dgram');
-var fork = require('child_process').fork;
-var assert = require('assert');
-var common = require('../common');
+const common = require('../common');
+if (common.isWindows)
+  common.skip('Sending dgram sockets to child processes is not supported');
 
-if (common.isWindows) {
-  console.log('1..0 # Skipped: Sending dgram sockets to child processes is ' +
-              'not supported');
-  return;
-}
+const dgram = require('dgram');
+const fork = require('child_process').fork;
+const assert = require('assert');
 
 if (process.argv[2] === 'child') {
-  var childCollected = 0;
-  var server;
+  let childServer;
 
-  process.on('message', function removeMe(msg, clusterServer) {
-    if (msg === 'server') {
-      server = clusterServer;
+  process.once('message', function(msg, clusterServer) {
+    childServer = clusterServer;
 
-      server.on('message', function() {
-        process.send('gotMessage');
-      });
+    childServer.once('message', function() {
+      process.send('gotMessage');
+      childServer.close();
+    });
 
-    } else if (msg === 'stop') {
-      server.close();
-      process.removeListener('message', removeMe);
-    }
+    process.send('handleReceived');
   });
 
 } else {
-  var server = dgram.createSocket('udp4');
-  var client = dgram.createSocket('udp4');
-  var child = fork(__filename, ['child']);
+  const parentServer = dgram.createSocket('udp4');
+  const client = dgram.createSocket('udp4');
+  const child = fork(__filename, ['child']);
 
-  var msg = new Buffer('Some bytes');
+  const msg = Buffer.from('Some bytes');
 
-  var childGotMessage = false;
-  var parentGotMessage = false;
+  let childGotMessage = false;
+  let parentGotMessage = false;
 
-  server.on('message', function(msg, rinfo) {
+  parentServer.once('message', function(msg, rinfo) {
     parentGotMessage = true;
+    parentServer.close();
   });
 
-  server.on('listening', function() {
-    child.send('server', server);
+  parentServer.on('listening', function() {
+    child.send('server', parentServer);
 
-    child.once('message', function(msg) {
+    child.on('message', function(msg) {
       if (msg === 'gotMessage') {
         childGotMessage = true;
+      } else if (msg = 'handlReceived') {
+        sendMessages();
       }
     });
-
-    sendMessages();
   });
 
-  var sendMessages = function() {
-    var timer = setInterval(function() {
-      client.send(msg, 0, msg.length, common.PORT, '127.0.0.1', function(err) {
-          if (err) throw err;
-        }
-      );
+  function sendMessages() {
+    const serverPort = parentServer.address().port;
 
+    const timer = setInterval(function() {
       /*
        * Both the parent and the child got at least one message,
-       * test passed, clean up everyting.
+       * test passed, clean up everything.
        */
       if (parentGotMessage && childGotMessage) {
         clearInterval(timer);
-        shutdown();
+        client.close();
+      } else {
+        client.send(
+          msg,
+          0,
+          msg.length,
+          serverPort,
+          '127.0.0.1',
+          function(err) {
+            assert.ifError(err);
+          }
+        );
       }
-
     }, 1);
-  };
+  }
 
-  var shutdown = function() {
-    child.send('stop');
-
-    server.close();
-    client.close();
-  };
-
-  server.bind(common.PORT, '127.0.0.1');
+  parentServer.bind(0, '127.0.0.1');
 
   process.once('exit', function() {
     assert(parentGotMessage);

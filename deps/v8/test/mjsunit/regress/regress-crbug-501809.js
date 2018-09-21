@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer --harmony-atomics
+// Flags: --harmony-sharedarraybuffer
 var sab = new SharedArrayBuffer(8);
 var ta = new Int32Array(sab);
 ta.__defineSetter__('length', function() {;});
-Atomics.compareExchange(ta, 4294967295, 0, 0);
+assertThrows(function() {
+  Atomics.compareExchange(ta, 4294967295, 0, 0);
+}, RangeError);

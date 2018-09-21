@@ -5,11 +5,14 @@ prefix sequential
 # sample-test                       : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# This test will be flaky until https://github.com/libuv/libuv/pull/1742 lands
+# on Node.js.
+test-fs-readfile-tostring-fail: PASS, FLAKY
 
 [$system==win32]
+test-http2-large-file: PASS, FLAKY
 
 [$system==linux]
-test-vm-syntax-error-stderr                     : PASS,FLAKY
 
 [$system==macos]
 
@@ -17,3 +20,4 @@ test-vm-syntax-error-stderr                     : PASS,FLAKY
 
 [$system==freebsd]
 
+[$system==aix]

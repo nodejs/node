@@ -125,7 +125,7 @@ test('cleanup', function (t) {
 })
 
 function contains (list, element) {
-  var matcher = new RegExp(element + '$')
+  var matcher = new RegExp(element.replace(/\//g, '[\\\\/]') + '$')
   for (var i = 0; i < list.length; ++i) {
     if (matcher.test(list[i])) {
       return true

@@ -2,17 +2,17 @@
 /*
  * This is a regression test for https://github.com/joyent/node/issues/8874.
  */
-var common = require('../common');
-var assert = require('assert');
+require('../common');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 // use -i to force node into interactive mode, despite stdout not being a TTY
-var args = [ '-i' ];
-var child = spawn(process.execPath, args);
+const args = [ '-i' ];
+const child = spawn(process.execPath, args);
 
-var input = 'var foo = "bar\\\nbaz"';
+const input = 'var foo = "bar\\\nbaz"';
 // Match '...' as well since it marks a multi-line statement
-var expectOut = /^> ... undefined\n/;
+const expectOut = /^> \.\.\. undefined\n/;
 
 child.stderr.setEncoding('utf8');
 child.stderr.on('data', function(c) {
@@ -20,7 +20,7 @@ child.stderr.on('data', function(c) {
 });
 
 child.stdout.setEncoding('utf8');
-var out = '';
+let out = '';
 child.stdout.on('data', function(c) {
   out += c;
 });

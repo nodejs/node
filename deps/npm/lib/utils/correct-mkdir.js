@@ -10,6 +10,13 @@ var stats = {}
 var effectiveOwner
 module.exports = function correctMkdir (path, cb) {
   cb = dezalgo(cb)
+  cb = inflight('correctMkdir:' + path, cb)
+  if (!cb) {
+    return log.verbose('correctMkdir', path, 'correctMkdir already in flight; waiting')
+  } else {
+    log.verbose('correctMkdir', path, 'correctMkdir not in flight; initializing')
+  }
+
   if (stats[path]) return cb(null, stats[path])
 
   fs.stat(path, function (er, st) {
@@ -36,8 +43,13 @@ function calculateOwner () {
   if (!effectiveOwner) {
     effectiveOwner = { uid: 0, gid: 0 }
 
-    if (process.getuid) effectiveOwner.uid = +process.getuid()
-    if (process.getgid) effectiveOwner.gid = +process.getgid()
+    // Pretty much only on windows
+    if (!process.getuid) {
+      return effectiveOwner
+    }
+
+    effectiveOwner.uid = +process.getuid()
+    effectiveOwner.gid = +process.getgid()
 
     if (effectiveOwner.uid === 0) {
       if (process.env.SUDO_UID) effectiveOwner.uid = +process.env.SUDO_UID
@@ -105,6 +117,7 @@ function makeDirectory (path, cb) {
 
 function setPermissions (path, st, cb) {
   chownr(path, st.uid, st.gid, function (er) {
+    if (er && er.code === 'ENOENT') return cb(null, st)
     return cb(er, st)
   })
 }

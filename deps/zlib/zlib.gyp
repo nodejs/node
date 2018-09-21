@@ -51,7 +51,7 @@
           'conditions': [
             ['OS!="win"', {
               'cflags!': [ '-ansi' ],
-              'defines': [ 'Z_HAVE_UNISTD_H' ],
+              'defines': [ 'Z_HAVE_UNISTD_H', 'HAVE_HIDDEN' ],
             }],
             ['OS=="mac" or OS=="ios" or OS=="freebsd" or OS=="android"', {
               # Mac, Android and the BSDs don't have fopen64, ftello64, or

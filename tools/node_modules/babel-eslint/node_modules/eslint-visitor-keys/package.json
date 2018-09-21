@@ -1,0 +1,68 @@
+{
+  "_from": "eslint-visitor-keys@^1.0.0",
+  "_id": "eslint-visitor-keys@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-qzm/XxIbxm/FHyH341ZrbnMUpe+5Bocte9xkmFMzPMjRaZMcXww+MpBptFvtU+79L362nqiLhekCxCxDPaUMBQ==",
+  "_location": "/babel-eslint/eslint-visitor-keys",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "eslint-visitor-keys@^1.0.0",
+    "name": "eslint-visitor-keys",
+    "escapedName": "eslint-visitor-keys",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/babel-eslint"
+  ],
+  "_resolved": "https://registry.npmjs.org/eslint-visitor-keys/-/eslint-visitor-keys-1.0.0.tgz",
+  "_shasum": "3f3180fb2e291017716acb4c9d6d5b5c34a6a81d",
+  "_spec": "eslint-visitor-keys@^1.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/babel-eslint-tmp/node_modules/babel-eslint",
+  "author": {
+    "name": "Toru Nagashima",
+    "url": "https://github.com/mysticatea"
+  },
+  "bugs": {
+    "url": "https://github.com/eslint/eslint-visitor-keys/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Constants and utilities about visitor keys to traverse AST.",
+  "devDependencies": {
+    "eslint": "^4.7.2",
+    "eslint-config-eslint": "^4.0.0",
+    "eslint-release": "^0.10.3",
+    "mocha": "^3.5.3",
+    "nyc": "^11.2.1",
+    "opener": "^1.4.3"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "lib"
+  ],
+  "homepage": "https://github.com/eslint/eslint-visitor-keys#readme",
+  "keywords": [],
+  "license": "Apache-2.0",
+  "main": "lib/index.js",
+  "name": "eslint-visitor-keys",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eslint/eslint-visitor-keys.git"
+  },
+  "scripts": {
+    "ci-release": "eslint-ci-release",
+    "coverage": "nyc report --reporter lcov && opener coverage/lcov-report/index.html",
+    "lint": "eslint lib tests/lib",
+    "pretest": "npm run -s lint",
+    "release": "eslint-release",
+    "test": "nyc mocha tests/lib"
+  },
+  "version": "1.0.0"
+}

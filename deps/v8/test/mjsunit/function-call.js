@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-var should_throw_on_null_and_undefined =
+const should_throw_on_null_and_undefined =
     [Object.prototype.toLocaleString,
      Object.prototype.valueOf,
      Object.prototype.hasOwnProperty,
@@ -39,7 +39,6 @@ var should_throw_on_null_and_undefined =
      Array.prototype.reverse,
      Array.prototype.shift,
      Array.prototype.slice,
-     Array.prototype.sort,
      Array.prototype.splice,
      Array.prototype.unshift,
      Array.prototype.indexOf,
@@ -72,7 +71,7 @@ var should_throw_on_null_and_undefined =
 // Non generic natives do not work on any input other than the specific
 // type, but since this change will allow call to be invoked with undefined
 // or null as this we still explicitly test that we throw on these here.
-var non_generic =
+const non_generic =
     [Array.prototype.toString,
      Array.prototype.toLocaleString,
      Function.prototype.toString,
@@ -137,7 +136,7 @@ var non_generic =
 
 
 // Mapping functions.
-var mapping_functions =
+const mapping_functions =
     [Array.prototype.every,
      Array.prototype.some,
      Array.prototype.forEach,
@@ -145,27 +144,27 @@ var mapping_functions =
      Array.prototype.filter];
 
 // Reduce functions.
-var reducing_functions =
+const reducing_functions =
     [Array.prototype.reduce,
      Array.prototype.reduceRight];
 
 function checkExpectedMessage(e) {
-  assertTrue(e.message.indexOf("called on null or undefined") >= 0 ||
-      e.message.indexOf("invoked on undefined or null value") >= 0 ||
-      e.message.indexOf("Cannot convert undefined or null to object") >= 0);
+  assertTrue(e.message.includes("called on null or undefined") ||
+      e.message.includes("invoked on undefined or null value") ||
+      e.message.includes("Cannot convert undefined or null to object"));
 }
 
 // Test that all natives using the ToObject call throw the right exception.
-for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
+for (const fn of should_throw_on_null_and_undefined) {
   // Sanity check that all functions are correct
-  assertEquals(typeof(should_throw_on_null_and_undefined[i]), "function");
+  assertEquals(typeof fn, "function");
 
-  var exception = false;
+  let exception = false;
   try {
     // We need to pass a dummy object argument ({}) to these functions because
     // of Object.prototype.isPrototypeOf's special behavior, see issue 3483
     // for more details.
-    should_throw_on_null_and_undefined[i].call(null, {});
+    fn.call(null, {});
   } catch (e) {
     exception = true;
     checkExpectedMessage(e);
@@ -174,7 +173,7 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
 
   exception = false;
   try {
-    should_throw_on_null_and_undefined[i].call(undefined, {});
+    fn.call(undefined, {});
   } catch (e) {
     exception = true;
     checkExpectedMessage(e);
@@ -183,7 +182,7 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
 
   exception = false;
   try {
-    should_throw_on_null_and_undefined[i].apply(null, [{}]);
+    fn.apply(null, [{}]);
   } catch (e) {
     exception = true;
     checkExpectedMessage(e);
@@ -192,7 +191,7 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
 
   exception = false;
   try {
-    should_throw_on_null_and_undefined[i].apply(undefined, [{}]);
+    fn.apply(undefined, [{}]);
   } catch (e) {
     exception = true;
     checkExpectedMessage(e);
@@ -201,13 +200,13 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
 }
 
 // Test that all natives that are non generic throw on null and undefined.
-for (var i = 0; i < non_generic.length; i++) {
+for (const fn of non_generic) {
   // Sanity check that all functions are correct
-  assertEquals(typeof(non_generic[i]), "function");
+  assertEquals(typeof fn, "function");
 
   exception = false;
   try {
-    non_generic[i].call(null);
+    fn.call(null);
   } catch (e) {
     exception = true;
     assertTrue(e instanceof TypeError);
@@ -216,7 +215,7 @@ for (var i = 0; i < non_generic.length; i++) {
 
   exception = false;
   try {
-    non_generic[i].call(null);
+    fn.call(null);
   } catch (e) {
     exception = true;
     assertTrue(e instanceof TypeError);
@@ -225,7 +224,7 @@ for (var i = 0; i < non_generic.length; i++) {
 
   exception = false;
   try {
-    non_generic[i].apply(null);
+    fn.apply(null);
   } catch (e) {
     exception = true;
     assertTrue(e instanceof TypeError);
@@ -234,7 +233,7 @@ for (var i = 0; i < non_generic.length; i++) {
 
   exception = false;
   try {
-    non_generic[i].apply(null);
+    fn.apply(null);
   } catch (e) {
     exception = true;
     assertTrue(e instanceof TypeError);
@@ -247,14 +246,14 @@ for (var i = 0; i < non_generic.length; i++) {
 // through an array mapping function.
 // We need to make sure that the elements of `array` are all object values,
 // see issue 3483 for more details.
-var array = [{}, [], new Number, new Map, new WeakSet];
-for (var j = 0; j < mapping_functions.length; j++) {
-  for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
+const array = [{}, [], new Number, new Map, new WeakSet];
+for (const mapping_function of mapping_functions) {
+  for (const fn of should_throw_on_null_and_undefined) {
     exception = false;
     try {
-      mapping_functions[j].call(array,
-                                should_throw_on_null_and_undefined[i],
-                                null);
+      mapping_function.call(array,
+                            fn,
+                            null);
     } catch (e) {
       exception = true;
       checkExpectedMessage(e);
@@ -263,9 +262,9 @@ for (var j = 0; j < mapping_functions.length; j++) {
 
     exception = false;
     try {
-      mapping_functions[j].call(array,
-                                should_throw_on_null_and_undefined[i],
-                                undefined);
+      mapping_function.call(array,
+                            fn,
+                            undefined);
     } catch (e) {
       exception = true;
       checkExpectedMessage(e);
@@ -274,13 +273,13 @@ for (var j = 0; j < mapping_functions.length; j++) {
   }
 }
 
-for (var j = 0; j < mapping_functions.length; j++) {
-  for (var i = 0; i < non_generic.length; i++) {
+for (const mapping_function of mapping_functions) {
+  for (const fn of non_generic) {
     exception = false;
     try {
-      mapping_functions[j].call(array,
-                                non_generic[i],
-                                null);
+      mapping_function.call(array,
+                            fn,
+                            null);
     } catch (e) {
       exception = true;
       assertTrue(e instanceof TypeError);
@@ -289,9 +288,9 @@ for (var j = 0; j < mapping_functions.length; j++) {
 
     exception = false;
     try {
-      mapping_functions[j].call(array,
-                                non_generic[i],
-                                undefined);
+      mapping_function.call(array,
+                            fn,
+                            undefined);
     } catch (e) {
       exception = true;
       assertTrue(e instanceof TypeError);
@@ -302,11 +301,11 @@ for (var j = 0; j < mapping_functions.length; j++) {
 
 
 // Reduce functions do a call with null as this argument.
-for (var j = 0; j < reducing_functions.length; j++) {
-  for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
+for (const reducing_function of reducing_functions) {
+  for (const fn of should_throw_on_null_and_undefined) {
     exception = false;
     try {
-      reducing_functions[j].call(array, should_throw_on_null_and_undefined[i]);
+      reducing_function.call(array, fn);
     } catch (e) {
       exception = true;
       checkExpectedMessage(e);
@@ -315,7 +314,7 @@ for (var j = 0; j < reducing_functions.length; j++) {
 
     exception = false;
     try {
-      reducing_functions[j].call(array, should_throw_on_null_and_undefined[i]);
+      reducing_function.call(array, fn);
     } catch (e) {
       exception = true;
       checkExpectedMessage(e);
@@ -324,11 +323,11 @@ for (var j = 0; j < reducing_functions.length; j++) {
   }
 }
 
-for (var j = 0; j < reducing_functions.length; j++) {
-  for (var i = 0; i < non_generic.length; i++) {
+for (const reducing_function of reducing_functions) {
+  for (const fn of non_generic) {
     exception = false;
     try {
-      reducing_functions[j].call(array, non_generic[i]);
+      reducing_function.call(array, fn);
     } catch (e) {
       exception = true;
       assertTrue(e instanceof TypeError);
@@ -337,7 +336,7 @@ for (var j = 0; j < reducing_functions.length; j++) {
 
     exception = false;
     try {
-      reducing_functions[j].call(array, non_generic[i]);
+      reducing_function.call(array, fn);
     } catch (e) {
       exception = true;
       assertTrue(e instanceof TypeError);

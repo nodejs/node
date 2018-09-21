@@ -1,9 +1,9 @@
 'use strict'
+var fs = require('fs')
 var path = require('path')
 var test = require('tap').test
 var requireInject = require('require-inject')
 var osenv = require('osenv')
-var inherits = require('inherits')
 var npm = require('../../lib/npm.js')
 
 var packages = {
@@ -34,10 +34,9 @@ var mockReadPackageJson = function (file, cb) {
   er.code = 'ENOENT'
   cb(er)
 }
-var mockFs = {
-  realpath: function (dir, cb) {
-    return cb(null, dir)
-  }
+var mockFs = Object.create(fs)
+mockFs.realpath = function (dir, cb) {
+  return cb(null, dir)
 }
 
 test('setup', function (t) {
@@ -47,26 +46,26 @@ test('setup', function (t) {
   })
 })
 
-function loadArgMetadata (cb) {
-  this.args = this.args.map(function (arg) { return {name: arg} })
-  cb()
-}
-
 test('installer', function (t) {
   t.plan(1)
   var installer = requireInject('../../lib/install.js', {
     'fs': mockFs,
     'readdir-scoped-modules': mockReaddir,
-    'read-package-json': mockReadPackageJson
+    'read-package-json': mockReadPackageJson,
+    'mkdirp': function (path, cb) { cb() }
   })
 
   var Installer = installer.Installer
-  var TestInstaller = function () {
-    Installer.apply(this, arguments)
-    this.global = true
+  class TestInstaller extends Installer {
+    constructor (where, dryrun, args) {
+      super(where, dryrun, args)
+      this.global = true
+    }
+    loadArgMetadata (cb) {
+      this.args = this.args.map(function (arg) { return {name: arg} })
+      cb()
+    }
   }
-  inherits(TestInstaller, Installer)
-  TestInstaller.prototype.loadArgMetadata = loadArgMetadata
 
   var inst = new TestInstaller(__dirname, false, ['def', 'abc'])
   inst.loadCurrentTree(function () {
@@ -81,15 +80,17 @@ test('uninstaller', function (t) {
   var uninstaller = requireInject('../../lib/uninstall.js', {
     'fs': mockFs,
     'readdir-scoped-modules': mockReaddir,
-    'read-package-json': mockReadPackageJson
+    'read-package-json': mockReadPackageJson,
+    'mkdirp': function (path, cb) { cb() }
   })
 
   var Uninstaller = uninstaller.Uninstaller
-  var TestUninstaller = function () {
-    Uninstaller.apply(this, arguments)
-    this.global = true
+  class TestUninstaller extends Uninstaller {
+    constructor (where, dryrun, args) {
+      super(where, dryrun, args)
+      this.global = true
+    }
   }
-  inherits(TestUninstaller, Uninstaller)
 
   var uninst = new TestUninstaller(__dirname, false, ['ghi', 'jkl'])
   uninst.loadCurrentTree(function () {

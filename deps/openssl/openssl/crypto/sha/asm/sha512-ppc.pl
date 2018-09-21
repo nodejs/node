@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -259,7 +266,7 @@ Lunaligned:
 	andi.	$t1,$t1,`4096-16*$SZ`	; distance to closest page boundary
 	beq	Lcross_page
 	$UCMP	$num,$t1
-	ble-	Laligned		; didn't cross the page boundary
+	ble	Laligned		; didn't cross the page boundary
 	subfc	$num,$t1,$num
 	add	$t1,$inp,$t1
 	$PUSH	$num,`$FRAME-$SIZE_T*25`($sp)	; save real remaining num
@@ -317,7 +324,7 @@ $code.=<<___;
 	$POP	$inp,`$FRAME-$SIZE_T*26`($sp)	; restore real inp
 	$POP	$num,`$FRAME-$SIZE_T*25`($sp)	; restore real num
 	addic.	$num,$num,`-16*$SZ`		; num--
-	bne-	Lunaligned
+	bne	Lunaligned
 
 Ldone:
 	$POP	r0,`$FRAME+$LRSAVE`($sp)
@@ -396,7 +403,7 @@ for(;$i<32;$i++) {
 	unshift(@V,pop(@V));
 }
 $code.=<<___;
-	bdnz-	Lrounds
+	bdnz	Lrounds
 
 	$POP	$ctx,`$FRAME-$SIZE_T*22`($sp)
 	$POP	$inp,`$FRAME-$SIZE_T*23`($sp)	; inp pointer
@@ -644,7 +651,7 @@ for(;$i<32;$i++) {
 	($a0,$a1,$a2,$a3) = ($a2,$a3,$a0,$a1);
 }
 $code.=<<___;
-	bdnz-	Lrounds
+	bdnz	Lrounds
 
 	$POP	$ctx,`$FRAME-$SIZE_T*22`($sp)
 	$POP	$inp,`$FRAME-$SIZE_T*23`($sp)	; inp pointer

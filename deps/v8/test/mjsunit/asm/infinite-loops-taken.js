@@ -7,6 +7,7 @@ function counter(x) {
   return (function() { if (x-- == 0) throw error;});
 }
 
+// TODO(asm): This module is not valid asm.js.
 function Module() {
   "use asm";
 
@@ -35,7 +36,7 @@ function Module() {
 }
 
 var m = Module();
-assertThrows(function() { m.w0(counter(5)) }, error);
-assertThrows(function() { m.w1(counter(5)) }, error);
-assertThrows(function() { m.w2(counter(5)) }, error);
+assertThrowsEquals(function() { m.w0(counter(5)) }, error);
+assertThrowsEquals(function() { m.w1(counter(5)) }, error);
+assertThrowsEquals(function() { m.w2(counter(5)) }, error);
 assertEquals(111, m.w3(counter(5)));

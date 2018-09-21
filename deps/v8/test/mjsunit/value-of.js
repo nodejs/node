@@ -25,8 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function MyException() { }
+let valueOf = Object.prototype.valueOf;
 
+assertEquals('object', typeof valueOf.call(true));
+assertEquals('object', typeof valueOf.call(false));
+assertEquals('object', typeof valueOf.call(1.23));
+assertEquals('object', typeof valueOf.call(0));
+assertEquals('object', typeof valueOf.call('a'));
+assertEquals('object', typeof valueOf.call(Symbol.isConcatSpreadable));
+assertThrows(() => valueOf.call(undefined), TypeError);
+assertThrows(() => valueOf.call(null), TypeError);
+
+function MyException() { }
 var o = new Object();
 o.valueOf = function() { throw new MyException(); }
 

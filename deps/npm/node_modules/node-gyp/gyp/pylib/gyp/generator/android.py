@@ -164,7 +164,7 @@ class AndroidMkWriter(object):
     if self.toolset == 'host':
       self.WriteLn('LOCAL_IS_HOST_MODULE := true')
       self.WriteLn('LOCAL_MULTILIB := $(GYP_HOST_MULTILIB)')
-    else:
+    elif sdk_version > 0:
       self.WriteLn('LOCAL_MODULE_TARGET_ARCH := '
                    '$(TARGET_$(GYP_VAR_PREFIX)ARCH)')
       self.WriteLn('LOCAL_SDK_VERSION := %s' % sdk_version)
@@ -875,6 +875,7 @@ class AndroidMkWriter(object):
       self.WriteLn('LOCAL_PRELINK_MODULE := false')
       self.WriteLn('include $(BUILD_%sSHARED_LIBRARY)' % modifier)
     elif self.type == 'executable':
+      self.WriteLn('LOCAL_CXX_STL := libc++_static')
       # Executables are for build and test purposes only, so they're installed
       # to a directory that doesn't get included in the system image.
       self.WriteLn('LOCAL_MODULE_PATH := $(gyp_shared_intermediate_dir)')
@@ -965,7 +966,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
   builddir_name = generator_flags.get('output_dir', 'out')
   limit_to_target_all = generator_flags.get('limit_to_target_all', False)
   write_alias_targets = generator_flags.get('write_alias_targets', True)
-  sdk_version = generator_flags.get('aosp_sdk_version', 19)
+  sdk_version = generator_flags.get('aosp_sdk_version', 0)
   android_top_dir = os.environ.get('ANDROID_BUILD_TOP')
   assert android_top_dir, '$ANDROID_BUILD_TOP not set; you need to run lunch.'
 
@@ -1080,7 +1081,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
   root_makefile.write('GYP_CONFIGURATION ?= %s\n' % default_configuration)
   root_makefile.write('GYP_VAR_PREFIX ?=\n')
   root_makefile.write('GYP_HOST_VAR_PREFIX ?=\n')
-  root_makefile.write('GYP_HOST_MULTILIB ?=\n')
+  root_makefile.write('GYP_HOST_MULTILIB ?= first\n')
 
   # Write out the sorted list of includes.
   root_makefile.write('\n')

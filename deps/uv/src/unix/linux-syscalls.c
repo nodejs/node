@@ -444,18 +444,18 @@ int uv__utimesat(int dirfd,
 }
 
 
-ssize_t uv__preadv(int fd, const struct iovec *iov, int iovcnt, off_t offset) {
+ssize_t uv__preadv(int fd, const struct iovec *iov, int iovcnt, int64_t offset) {
 #if defined(__NR_preadv)
-  return syscall(__NR_preadv, fd, iov, iovcnt, offset);
+  return syscall(__NR_preadv, fd, iov, iovcnt, (long)offset, (long)(offset >> 32));
 #else
   return errno = ENOSYS, -1;
 #endif
 }
 
 
-ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset) {
+ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, int64_t offset) {
 #if defined(__NR_pwritev)
-  return syscall(__NR_pwritev, fd, iov, iovcnt, offset);
+  return syscall(__NR_pwritev, fd, iov, iovcnt, (long)offset, (long)(offset >> 32));
 #else
   return errno = ENOSYS, -1;
 #endif

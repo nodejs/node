@@ -23,6 +23,9 @@ are:
   - Valgrind client API header, located at third_party/valgrind/valgrind.h
     This is release under the BSD license.
 
+  - antlr4 parser generator Cpp library located in third_party/antlr4
+    This is release under the BSD license.
+
 These libraries have their own licenses; we recommend you read them,
 as their terms may differ from the terms below.
 

@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 ######################################################################
 ## Constant-time SSSE3 AES core implementation.
@@ -31,6 +38,7 @@
 # Nehalem	29.6/40.3/14.6		10.0/11.8
 # Atom		57.3/74.2/32.1		60.9/77.2(***)
 # Silvermont	52.7/64.0/19.5		48.8/60.8(***)
+# Goldmont	38.9/49.0/17.8		10.6/12.6
 #
 # (*)	"Hyper-threading" in the context refers rather to cache shared
 #	among multiple cores, than to specifically Intel HTT. As vast
@@ -57,7 +65,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 $PREFIX="vpaes";

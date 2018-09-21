@@ -67,7 +67,7 @@ returned.
 If B<CMS_NO_SIGNER_CERT_VERIFY> is set the signing certificates are not
 verified.
 
-If B<CMS_NO_ATTR_VERIFY> is set the signed attributes signature is not 
+If B<CMS_NO_ATTR_VERIFY> is set the signed attributes signature is not
 verified.
 
 If B<CMS_NO_CONTENT_VERIFY> is set then the content digest is not checked.
@@ -81,13 +81,13 @@ certificates supplied in B<certs> then the verify will fail because the
 signer cannot be found.
 
 In some cases the standard techniques for looking up and validating
-certificates are not appropriate: for example an application may wish to 
+certificates are not appropriate: for example an application may wish to
 lookup certificates in a database or perform customised verification. This
-can be achieved by setting and verifying the signers certificates manually 
+can be achieved by setting and verifying the signers certificates manually
 using the signed data utility functions.
 
 Care should be taken when modifying the default verify behaviour, for example
-setting B<CMS_NO_CONTENT_VERIFY> will totally disable all content verification 
+setting B<CMS_NO_CONTENT_VERIFY> will totally disable all content verification
 and any modified content will be considered valid. This combination is however
 useful if one merely wishes to write the content to B<out> and its validity
 is not considered important.
@@ -104,7 +104,7 @@ occurred.
 
 CMS_get0_signers() returns all signers or NULL if an error occurred.
 
-The error can be obtained from L<ERR_get_error(3)|ERR_get_error(3)>
+The error can be obtained from L<ERR_get_error(3)>
 
 =head1 BUGS
 
@@ -117,10 +117,15 @@ be held in memory if it is not detached.
 
 =head1 SEE ALSO
 
-L<ERR_get_error(3)|ERR_get_error(3)>, L<CMS_sign(3)|CMS_sign(3)>
+L<ERR_get_error(3)>, L<CMS_sign(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-CMS_verify() was added to OpenSSL 0.9.8
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

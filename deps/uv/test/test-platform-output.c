@@ -29,9 +29,12 @@ TEST_IMPL(platform_output) {
   size_t rss;
   size_t size;
   double uptime;
+  uv_pid_t pid;
+  uv_pid_t ppid;
   uv_rusage_t rusage;
   uv_cpu_info_t* cpus;
   uv_interface_address_t* interfaces;
+  uv_passwd_t pwd;
   int count;
   int i;
   int err;
@@ -46,8 +49,12 @@ TEST_IMPL(platform_output) {
   printf("uv_cwd: %s\n", buffer);
 
   err = uv_resident_set_memory(&rss);
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  ASSERT(err == UV_ENOSYS);
+#else
   ASSERT(err == 0);
   printf("uv_resident_set_memory: %llu\n", (unsigned long long) rss);
+#endif
 
   err = uv_uptime(&uptime);
   ASSERT(err == 0);
@@ -67,8 +74,14 @@ TEST_IMPL(platform_output) {
   printf("  system: %llu sec %llu microsec\n",
          (unsigned long long) rusage.ru_stime.tv_sec,
          (unsigned long long) rusage.ru_stime.tv_usec);
+  printf("  page faults: %llu\n", (unsigned long long) rusage.ru_majflt);
+  printf("  maximum resident set size: %llu\n",
+         (unsigned long long) rusage.ru_maxrss);
 
   err = uv_cpu_info(&cpus, &count);
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  ASSERT(err == UV_ENOSYS);
+#else
   ASSERT(err == 0);
 
   printf("uv_cpu_info:\n");
@@ -84,6 +97,7 @@ TEST_IMPL(platform_output) {
     printf("  times.nice: %llu\n",
            (unsigned long long) cpus[i].cpu_times.nice);
   }
+#endif
   uv_free_cpu_info(cpus, count);
 
   err = uv_interface_addresses(&interfaces, &count);
@@ -121,6 +135,23 @@ TEST_IMPL(platform_output) {
     }
   }
   uv_free_interface_addresses(interfaces, count);
+
+  err = uv_os_get_passwd(&pwd);
+  ASSERT(err == 0);
+
+  printf("uv_os_get_passwd:\n");
+  printf("  euid: %ld\n", pwd.uid);
+  printf("  gid: %ld\n", pwd.gid);
+  printf("  username: %s\n", pwd.username);
+  printf("  shell: %s\n", pwd.shell);
+  printf("  home directory: %s\n", pwd.homedir);
+
+  pid = uv_os_getpid();
+  ASSERT(pid > 0);
+  printf("uv_os_getpid: %d\n", (int) pid);
+  ppid = uv_os_getppid();
+  ASSERT(ppid > 0);
+  printf("uv_os_getppid: %d\n", (int) ppid);
 
   return 0;
 }

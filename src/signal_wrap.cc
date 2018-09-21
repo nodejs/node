@@ -1,23 +1,43 @@
-#include "async-wrap.h"
-#include "async-wrap-inl.h"
-#include "env.h"
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+#include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
-#include "util.h"
 #include "util-inl.h"
 #include "v8.h"
 
 namespace node {
 
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::String;
 using v8::Value;
+
+namespace {
 
 class SignalWrap : public HandleWrap {
  public:
@@ -27,19 +47,24 @@ class SignalWrap : public HandleWrap {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
-    constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Signal"));
+    Local<String> signalString =
+        FIXED_ONE_BYTE_STRING(env->isolate(), "Signal");
+    constructor->SetClassName(signalString);
 
-    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
-    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
+    AsyncWrap::AddWrapMethods(env, constructor);
+    HandleWrap::AddWrapMethods(env, constructor);
+
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
-    target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Signal"),
-                constructor->GetFunction());
+    target->Set(signalString, constructor->GetFunction());
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
+  ADD_MEMORY_INFO_NAME(SignalWrap)
 
  private:
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -61,14 +86,28 @@ class SignalWrap : public HandleWrap {
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
-    SignalWrap* wrap = Unwrap<SignalWrap>(args.Holder());
-    int signum = args[0]->Int32Value();
+    SignalWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+    Environment* env = wrap->env();
+    int signum;
+    if (!args[0]->Int32Value(env->context()).To(&signum)) return;
+#if defined(__POSIX__) && HAVE_INSPECTOR
+    if (signum == SIGPROF) {
+      Environment* env = Environment::GetCurrent(args);
+      if (env->inspector_agent()->IsListening()) {
+        ProcessEmitWarning(env,
+                           "process.on(SIGPROF) is reserved while debugging");
+        return;
+      }
+    }
+#endif
     int err = uv_signal_start(&wrap->handle_, OnSignal, signum);
     args.GetReturnValue().Set(err);
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
-    SignalWrap* wrap = Unwrap<SignalWrap>(args.Holder());
+    SignalWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
     int err = uv_signal_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
   }
@@ -87,7 +126,8 @@ class SignalWrap : public HandleWrap {
 };
 
 
+}  // anonymous namespace
 }  // namespace node
 
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(signal_wrap, node::SignalWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(signal_wrap, node::SignalWrap::Initialize)

@@ -43,6 +43,15 @@ assertEquals('undefined', typeof a[2]);
 assertEquals('undefined', typeof a[3]);
 
 
+for(var i = 0; i < 10; i++) {
+      var array = new Array(i).fill(42);
+      array.push(42);
+      array.length = i;
+      array.length = i+1;
+      assertEquals('undefined' , typeof array[i]);
+}
+
+
 var a = new Array();
 a[0] = 0;
 a[1000] = 1000;
@@ -115,7 +124,7 @@ assertEquals(20, a.length);
 
 var o = { length: -23 };
 Array.prototype.pop.apply(o);
-assertEquals(4294967272, o.length);
+assertEquals(0, o.length);
 
 // Check case of compiled stubs.
 var a = [];
@@ -131,4 +140,31 @@ for (var i = 0; i < 7; i++) {
   "use strict";
   var frozen_object = Object.freeze({__proto__:[]});
   assertThrows(function () { frozen_object.length = 10 });
+})();
+
+(function sloppyReentrantDescriptorChange() {
+  var b = [];
+  b.length = {
+    valueOf() {
+      Object.defineProperty(b, "length", {writable: false});
+      return 1;
+    }
+  };
+  assertEquals(0, b.length);
+})();
+
+(function strictReentrantDescriptorChange() {
+  var b = [];
+  assertThrows(() => {
+    "use strict";
+    b.length = {
+      valueOf() {
+        Object.defineProperty(b, "length", {writable: false});
+        return 1;
+      }
+    };
+  }, TypeError);
+
+  b.length = { valueOf() { return 0; } };
+  assertEquals(0, b.length);
 })();

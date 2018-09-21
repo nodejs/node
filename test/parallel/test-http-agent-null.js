@@ -1,27 +1,37 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const common = require('../common');
+const http = require('http');
 
-var request = 0;
-var response = 0;
-process.on('exit', function() {
-  assert.equal(request, 1, 'http server "request" callback was not called');
-  assert.equal(response, 1, 'http request "response" callback was not called');
-});
-
-var server = http.createServer(function(req, res) {
-  request++;
+const server = http.createServer(common.mustCall((req, res) => {
   res.end();
-}).listen(common.PORT, function() {
-  var options = {
+})).listen(0, common.mustCall(() => {
+  const options = {
     agent: null,
-    port: this.address().port
+    port: server.address().port
   };
-  http.get(options, function(res) {
-    response++;
+  http.get(options, common.mustCall((res) => {
     res.resume();
     server.close();
-  });
-});
+  }));
+}));

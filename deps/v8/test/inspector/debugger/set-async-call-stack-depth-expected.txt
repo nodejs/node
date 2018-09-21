@@ -1,0 +1,37 @@
+Checks that we report not more then maxDepth call chains.
+
+Running test: testPaused
+Actual call chain length: 8
+setAsyncCallStackDepth(maxDepth): 16
+reported: 1
+
+Actual call chain length: 8
+setAsyncCallStackDepth(maxDepth): 8
+reported: 1
+
+Actual call chain length: 8
+setAsyncCallStackDepth(maxDepth): 7
+reported: 1
+
+Actual call chain length: 8
+setAsyncCallStackDepth(maxDepth): 0
+reported: 0
+
+
+Running test: testConsoleTrace
+Actual call chain length: 8
+setAsyncCallStackDepth(maxDepth): 16
+reported: 1
+
+Actual call chain length: 8
+setAsyncCallStackDepth(maxDepth): 8
+reported: 1
+
+Actual call chain length: 8
+setAsyncCallStackDepth(maxDepth): 7
+reported: 1
+
+Actual call chain length: 8
+setAsyncCallStackDepth(maxDepth): 0
+reported: 0
+

@@ -29,50 +29,74 @@
 /**
  * Creates a CSV lines parser.
  */
-function CsvParser() {
-};
+class CsvParser {
+  /**
+   * Converts \x00 and \u0000 escape sequences in the given string.
+   *
+   * @param {string} input field.
+   **/
+  escapeField(string) {
+    let nextPos = string.indexOf("\\");
+    if (nextPos === -1) return string;
 
-
-/**
- * A regex for matching a CSV field.
- * @private
- */
-CsvParser.CSV_FIELD_RE_ = /^"((?:[^"]|"")*)"|([^,]*)/;
-
-
-/**
- * A regex for matching a double quote.
- * @private
- */
-CsvParser.DOUBLE_QUOTE_RE_ = /""/g;
-
-
-/**
- * Parses a line of CSV-encoded values. Returns an array of fields.
- *
- * @param {string} line Input line.
- */
-CsvParser.prototype.parseLine = function(line) {
-  var fieldRe = CsvParser.CSV_FIELD_RE_;
-  var doubleQuoteRe = CsvParser.DOUBLE_QUOTE_RE_;
-  var pos = 0;
-  var endPos = line.length;
-  var fields = [];
-  if (endPos > 0) {
-    do {
-      var fieldMatch = fieldRe.exec(line.substr(pos));
-      if (typeof fieldMatch[1] === "string") {
-        var field = fieldMatch[1];
-        pos += field.length + 3;  // Skip comma and quotes.
-        fields.push(field.replace(doubleQuoteRe, '"'));
+    let result = string.substring(0, nextPos);
+    // Escape sequences of the form \x00 and \u0000;
+    let endPos = string.length;
+    let pos = 0;
+    while (nextPos !== -1) {
+      let escapeIdentifier = string.charAt(nextPos + 1);
+      pos = nextPos + 2;
+      if (escapeIdentifier == 'n') {
+        result += '\n';
+        nextPos = pos;
       } else {
-        // The second field pattern will match anything, thus
-        // in the worst case the match will be an empty string.
-        var field = fieldMatch[2];
-        pos += field.length + 1;  // Skip comma.
-        fields.push(field);
+        if (escapeIdentifier == 'x') {
+          // \x00 ascii range escapes consume 2 chars.
+          nextPos = pos + 2;
+        } else {
+          // \u0000 unicode range escapes consume 4 chars.
+          nextPos = pos + 4;
+        }
+        // Convert the selected escape sequence to a single character.
+        let escapeChars = string.substring(pos, nextPos);
+        result += String.fromCharCode(parseInt(escapeChars, 16));
       }
-    } while (pos <= endPos);
+
+      // Continue looking for the next escape sequence.
+      pos = nextPos;
+      nextPos = string.indexOf("\\", pos);
+      // If there are no more escape sequences consume the rest of the string.
+      if (nextPos === -1) {
+        result += string.substr(pos);
+      } else if (pos != nextPos) {
+        result += string.substring(pos, nextPos);
+      }
+    }
+    return result;
   }
-  return fields;
-};
+
+  /**
+   * Parses a line of CSV-encoded values. Returns an array of fields.
+   *
+   * @param {string} line Input line.
+   */
+  parseLine(line) {
+    var pos = 0;
+    var endPos = line.length;
+    var fields = [];
+    if (endPos == 0) return fields;
+    let nextPos = 0;
+    while(nextPos !== -1) {
+      nextPos = line.indexOf(',', pos);
+      let field;
+      if (nextPos === -1) {
+        field = line.substr(pos);
+      } else {
+        field = line.substring(pos, nextPos);
+      }
+      fields.push(this.escapeField(field));
+      pos = nextPos + 1;
+    };
+    return fields
+  }
+}

@@ -1,25 +1,56 @@
-var nock = require('nock')
 var test = require('tap').test
 var path = require('path')
-var npm = require('../../')
-var addNamed = require('../../lib/cache/add-named')
+var mkdirp = require('mkdirp')
+var rimraf = require('rimraf')
+var common = require('../common-tap.js')
+var mr = require('npm-registry-mock')
+var server
 
 var packageName = path.basename(__filename, '.js')
+var testdir = path.join(__dirname, packageName)
 
-test('package names not mangled on error with non-root registry', function test404 (t) {
-  nock('http://localhost:1337')
-    .get('/registry/' + packageName)
-    .reply(404, {
-      error: 'not_found',
-      reason: 'document not found'
-    })
+function setup () {
+  cleanup()
+  mkdirp.sync(testdir)
+}
 
-  npm.load({registry: 'http://localhost:1337/registry', global: true}, function () {
-    addNamed(packageName, '*', null, function checkError (err) {
-      t.ok(err, 'should error')
-      t.equal(err.message, '404 Not Found: ' + packageName, 'should have package name in error')
-      t.equal(err.pkgid, packageName, 'err.pkgid should match package name')
-      t.end()
-    })
+function cleanup () {
+  rimraf.sync(testdir)
+}
+
+test('setup', function (t) {
+  setup()
+  mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
+    t.ifError(err, 'registry mocked successfully')
+    server = s
+    t.end()
   })
+})
+
+test('package names not mangled on error with non-root registry', function (t) {
+  server.get('/' + packageName).reply(404, {})
+  common.npm(
+    [
+      '--registry=' + common.registry,
+      '--cache=' + testdir,
+      'cache',
+      'add',
+      packageName + '@*'
+    ],
+    {},
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'correctly handled 404')
+      t.equal(code, 1, 'exited with error')
+      t.match(stderr, packageName, 'should have package name in error')
+      server.done()
+      t.end()
+    }
+  )
+})
+
+test('cleanup', function (t) {
+  server.close()
+  cleanup()
+  t.pass('cleaned up')
+  t.end()
 })

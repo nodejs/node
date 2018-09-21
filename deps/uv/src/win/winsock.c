@@ -80,7 +80,7 @@ static int error_means_no_support(DWORD error) {
 }
 
 
-void uv_winsock_init() {
+void uv_winsock_init(void) {
   WSADATA wsa_data;
   int errorno;
   SOCKET dummy;
@@ -256,8 +256,8 @@ int uv_ntstatus_to_winsock_error(NTSTATUS status) {
     default:
       if ((status & (FACILITY_NTWIN32 << 16)) == (FACILITY_NTWIN32 << 16) &&
           (status & (ERROR_SEVERITY_ERROR | ERROR_SEVERITY_WARNING))) {
-        /* It's a windows error that has been previously mapped to an */
-        /* ntstatus code. */
+        /* It's a windows error that has been previously mapped to an ntstatus
+         * code. */
         return (DWORD) (status & 0xffff);
       } else {
         /* The default fallback for unmappable ntstatus codes. */
@@ -519,8 +519,8 @@ int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info_in,
                                   sizeof *info_out);
 
   if (overlapped == NULL) {
-    /* If this is a blocking operation, wait for the event to become */
-    /* signaled, and then grab the real status from the io status block. */
+    /* If this is a blocking operation, wait for the event to become signaled,
+     * and then grab the real status from the io status block. */
     if (status == STATUS_PENDING) {
       DWORD r = WaitForSingleObject(event, INFINITE);
 
@@ -557,5 +557,35 @@ int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info_in,
     return 0;
   } else {
     return SOCKET_ERROR;
+  }
+}
+
+int uv__convert_to_localhost_if_unspecified(const struct sockaddr* addr,
+                                            struct sockaddr_storage* storage) {
+  struct sockaddr_in* dest4;
+  struct sockaddr_in6* dest6;
+
+  if (addr == NULL)
+    return UV_EINVAL;
+
+  switch (addr->sa_family) {
+  case AF_INET:
+    dest4 = (struct sockaddr_in*) storage;
+    memcpy(dest4, addr, sizeof(*dest4));
+    if (dest4->sin_addr.s_addr == 0)
+      dest4->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    return 0;
+  case AF_INET6:
+    dest6 = (struct sockaddr_in6*) storage;
+    memcpy(dest6, addr, sizeof(*dest6));
+    if (memcmp(&dest6->sin6_addr,
+               &uv_addr_ip6_any_.sin6_addr,
+               sizeof(uv_addr_ip6_any_.sin6_addr)) == 0) {
+      struct in6_addr init_sin6_addr = IN6ADDR_LOOPBACK_INIT;
+      dest6->sin6_addr = init_sin6_addr;
+    }
+    return 0;
+  default:
+    return UV_EINVAL;
   }
 }

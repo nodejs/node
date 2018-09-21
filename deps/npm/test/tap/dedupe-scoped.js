@@ -11,12 +11,12 @@ var modules = join(pkg, 'node_modules')
 
 var EXEC_OPTS = { cwd: pkg }
 
-var body = function () {/*
-@scope/shared@2.1.6 node_modules/first/node_modules/@scope/shared -> node_modules/@scope/shared
-firstUnique@0.6.0 node_modules/first/node_modules/firstUnique -> node_modules/firstUnique
-secondUnique@1.2.0 node_modules/second/node_modules/secondUnique -> node_modules/secondUnique
-- @scope/shared@2.1.6 node_modules/second/node_modules/@scope/shared
-*/}.toString().split('\n').slice(1, -1)
+var body = [
+  'move\t@scope/shared\t2.1.6\tnode_modules/@scope/shared\t\tnode_modules/first/node_modules/@scope/shared',
+  'move\tfirstUnique\t0.6.0\tnode_modules/firstUnique\t\tnode_modules/first/node_modules/firstUnique',
+  'remove\t@scope/shared\t2.1.6\tnode_modules/second/node_modules/@scope/shared',
+  'move\tsecondUnique\t1.2.0\tnode_modules/secondUnique\t\tnode_modules/second/node_modules/secondUnique'
+]
 
 var deduper = {
   'name': 'dedupe',
@@ -33,7 +33,9 @@ var first = {
   'dependencies': {
     'firstUnique': '0.6.0',
     '@scope/shared': '2.1.6'
-  }
+  },
+  '_resolved': 'foo',
+  '_integrity': 'sha1-deadbeef'
 }
 
 var second = {
@@ -42,22 +44,30 @@ var second = {
   'dependencies': {
     'secondUnique': '1.2.0',
     '@scope/shared': '2.1.6'
-  }
+  },
+  '_resolved': 'foo',
+  '_integrity': 'sha1-deadbeef'
 }
 
 var shared = {
   'name': '@scope/shared',
-  'version': '2.1.6'
+  'version': '2.1.6',
+  '_resolved': 'foo',
+  '_integrity': 'sha1-deadbeef'
 }
 
 var firstUnique = {
   'name': 'firstUnique',
-  'version': '0.6.0'
+  'version': '0.6.0',
+  '_resolved': 'foo',
+  '_integrity': 'sha1-deadbeef'
 }
 
 var secondUnique = {
   'name': 'secondUnique',
-  'version': '1.2.0'
+  'version': '1.2.0',
+  '_resolved': 'foo',
+  '_integrity': 'sha1-deadbeef'
 }
 
 test('setup', function (t) {
@@ -79,7 +89,7 @@ test('dedupe finds the common scoped modules and moves it up one level', functio
       t.notOk(code, 'npm ran without issue')
       t.notOk(stderr, 'npm printed no errors')
       t.same(
-        stdout.trim().split('\n').map(ltrimm),
+        stdout.trim().replace(/\\/g, '/').split('\n').map(ltrimm),
         body.map(ltrimm),
         'got expected output'
       )

@@ -11,46 +11,30 @@
 namespace v8 {
 namespace internal {
 
-template <>
-FixedArray* NativesCollection<CORE>::GetSourceCache(Heap* heap) {
-  return heap->natives_source_cache();
-}
-
-
-template <>
-FixedArray* NativesCollection<EXPERIMENTAL>::GetSourceCache(Heap* heap) {
-  return heap->experimental_natives_source_cache();
-}
-
-
-template <>
-FixedArray* NativesCollection<EXTRAS>::GetSourceCache(Heap* heap) {
-  return heap->extra_natives_source_cache();
-}
-
-
-template <>
-FixedArray* NativesCollection<CODE_STUB>::GetSourceCache(Heap* heap) {
-  return heap->code_stub_natives_source_cache();
-}
-
-
-template <NativeType type>
-void NativesCollection<type>::UpdateSourceCache(Heap* heap) {
-  for (int i = 0; i < GetBuiltinsCount(); i++) {
-    Object* source = GetSourceCache(heap)->get(i);
-    if (!source->IsUndefined()) {
-      ExternalOneByteString::cast(source)->update_data_cache();
-    }
+NativesExternalStringResource::NativesExternalStringResource(NativeType type,
+                                                             int index)
+    : type_(type), index_(index) {
+  Vector<const char> source;
+  DCHECK_LE(0, index);
+  switch (type_) {
+    case CORE:
+      DCHECK(index < Natives::GetBuiltinsCount());
+      source = Natives::GetScriptSource(index);
+      break;
+    case EXTRAS:
+      DCHECK(index < ExtraNatives::GetBuiltinsCount());
+      source = ExtraNatives::GetScriptSource(index);
+      break;
+    case EXPERIMENTAL_EXTRAS:
+      DCHECK(index < ExperimentalExtraNatives::GetBuiltinsCount());
+      source = ExperimentalExtraNatives::GetScriptSource(index);
+      break;
+    default:
+      UNREACHABLE();
   }
+  data_ = source.start();
+  length_ = source.length();
 }
-
-
-// Explicit template instantiations.
-template void NativesCollection<CORE>::UpdateSourceCache(Heap* heap);
-template void NativesCollection<CODE_STUB>::UpdateSourceCache(Heap* heap);
-template void NativesCollection<EXPERIMENTAL>::UpdateSourceCache(Heap* heap);
-template void NativesCollection<EXTRAS>::UpdateSourceCache(Heap* heap);
 
 }  // namespace internal
 }  // namespace v8

@@ -229,7 +229,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen9;
         *exponent = 9;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 29:
     case 28:
     case 27:
@@ -237,7 +238,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen8;
         *exponent = 8;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 26:
     case 25:
     case 24:
@@ -245,7 +247,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen7;
         *exponent = 7;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 23:
     case 22:
     case 21:
@@ -254,7 +257,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen6;
         *exponent = 6;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 19:
     case 18:
     case 17:
@@ -262,7 +266,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen5;
         *exponent = 5;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 16:
     case 15:
     case 14:
@@ -270,7 +275,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen4;
         *exponent = 4;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 13:
     case 12:
     case 11:
@@ -279,7 +285,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = 1000;
         *exponent = 3;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 9:
     case 8:
     case 7:
@@ -287,7 +294,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = 100;
         *exponent = 2;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 6:
     case 5:
     case 4:
@@ -295,7 +303,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = 10;
         *exponent = 1;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 3:
     case 2:
     case 1:
@@ -303,7 +312,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = 1;
         *exponent = 0;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 0:
       *power = 0;
       *exponent = -1;
@@ -315,7 +325,6 @@ static void BiggestPowerTen(uint32_t number,
       UNREACHABLE();
   }
 }
-
 
 // Generates the digits of input number w.
 // w is a floating-point number (DiyFp), consisting of a significand and an
@@ -345,15 +354,15 @@ static void BiggestPowerTen(uint32_t number,
 //   then false is returned. This usually happens rarely (~0.5%).
 //
 // Say, for the sake of example, that
-//   w.e() == -48, and w.f() == 0x1234567890abcdef
+//   w.e() == -48, and w.f() == 0x1234567890ABCDEF
 // w's value can be computed by w.f() * 2^w.e()
 // We can obtain w's integral digits by simply shifting w.f() by -w.e().
 //  -> w's integral part is 0x1234
-//  w's fractional part is therefore 0x567890abcdef.
+//  w's fractional part is therefore 0x567890ABCDEF.
 // Printing w's integral part is easy (simply print 0x1234 in decimal).
 // In order to print its fraction we repeatedly multiply the fraction by 10 and
 // get each digit. Example the first digit after the point would be computed by
-//   (0x567890abcdef * 10) >> 48. -> 3
+//   (0x567890ABCDEF * 10) >> 48. -> 3
 // The whole thing becomes slightly more complicated because we want to stop
 // once we have enough digits. That is, once the digits inside the buffer
 // represent 'w' we can stop. Everything inside the interval low - high
@@ -435,7 +444,7 @@ static bool DigitGen(DiyFp low,
   // data (like the interval or 'unit'), too.
   // Note that the multiplication by 10 does not overflow, because w.e >= -60
   // and thus one.e >= -60.
-  DCHECK(one.e() >= -60);
+  DCHECK_GE(one.e(), -60);
   DCHECK(fractionals < one.f());
   DCHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
   while (true) {
@@ -491,8 +500,8 @@ static bool DigitGenCounted(DiyFp w,
                             int* length,
                             int* kappa) {
   DCHECK(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
-  DCHECK(kMinimalTargetExponent >= -60);
-  DCHECK(kMaximalTargetExponent <= -32);
+  DCHECK_GE(kMinimalTargetExponent, -60);
+  DCHECK_LE(kMaximalTargetExponent, -32);
   // w is assumed to have an error less than 1 unit. Whenever w is scaled we
   // also scale its error.
   uint64_t w_error = 1;
@@ -543,7 +552,7 @@ static bool DigitGenCounted(DiyFp w,
   // data (the 'unit'), too.
   // Note that the multiplication by 10 does not overflow, because w.e >= -60
   // and thus one.e >= -60.
-  DCHECK(one.e() >= -60);
+  DCHECK_GE(one.e(), -60);
   DCHECK(fractionals < one.f());
   DCHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
   while (requested_digits > 0 && fractionals > w_error) {
@@ -689,7 +698,7 @@ bool FastDtoa(double v,
               Vector<char> buffer,
               int* length,
               int* decimal_point) {
-  DCHECK(v > 0);
+  DCHECK_GT(v, 0);
   DCHECK(!Double(v).IsSpecial());
 
   bool result = false;

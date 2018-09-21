@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2009-2018 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 $flavour = shift;
 $output = shift;
@@ -124,6 +131,37 @@ L\$ittle
 	addib,*<>	-1,$len,L\$ittle
 	ldo		1($inp),$inp
 L\$done
+	bv		($rp)
+	.EXIT
+	nop
+	.PROCEND
+___
+}
+{
+my ($in1,$in2,$len)=("%r26","%r25","%r24");
+
+$code.=<<___;
+	.EXPORT	CRYPTO_memcmp,ENTRY,ARGW0=GR,ARGW1=GR,ARGW1=GR
+	.ALIGN	8
+CRYPTO_memcmp
+	.PROC
+	.CALLINFO	NO_CALLS
+	.ENTRY
+	cmpib,*=	0,$len,L\$no_data
+	xor		$rv,$rv,$rv
+
+L\$oop_cmp
+	ldb		0($in1),%r19
+	ldb		0($in2),%r20
+	ldo		1($in1),$in1
+	ldo		1($in2),$in2
+	xor		%r19,%r20,%r29
+	addib,*<>	-1,$len,L\$oop_cmp
+	or		%r29,$rv,$rv
+
+	sub		%r0,$rv,%r29
+	extru		%r29,0,1,$rv
+L\$no_data
 	bv		($rp)
 	.EXIT
 	nop

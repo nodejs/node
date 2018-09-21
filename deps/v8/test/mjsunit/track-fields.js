@@ -263,6 +263,9 @@ assertEquals(100, o20.dbl);
 
 function attr_mismatch_obj(v, writable) {
   var o = {};
+  // Assign twice to make the field non-constant.
+  // TODO(ishell): update test once constant field tracking is done.
+  o.some_value = 0;
   o.some_value = v;
   Object.defineProperty(o, "second_value", {value:10, writable:writable});
   return o;

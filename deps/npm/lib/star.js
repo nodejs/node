@@ -4,9 +4,14 @@ var npm = require('./npm.js')
 var log = require('npmlog')
 var asyncMap = require('slide').asyncMap
 var mapToRegistry = require('./utils/map-to-registry.js')
+var usage = require('./utils/usage')
+var output = require('./utils/output.js')
 
-star.usage = 'npm star [<pkg>...]\n' +
-             'npm unstar [<pkg>...]'
+star.usage = usage(
+  'star',
+  'npm star [<pkg>...]\n' +
+  'npm unstar [<pkg>...]'
+)
 
 star.completion = function (opts, cb) {
   // FIXME: there used to be registry completion here, but it stopped making
@@ -30,7 +35,7 @@ function star (args, cb) {
       }
       npm.registry.star(uri, params, function (er, data, raw, req) {
         if (!er) {
-          console.log(s + ' ' + pkg)
+          output(s + ' ' + pkg)
           log.verbose('star', data)
         }
         cb(er, data, raw, req)

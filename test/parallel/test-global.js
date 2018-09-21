@@ -1,19 +1,51 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+// This test cannot run in strict mode because it tests that `baseFoo` is
+// treated as a global without being declared with `var`/`let`/`const`.
+
 /* eslint-disable strict */
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const fixtures = require('../common/fixtures');
 
-common.globalCheck = false;
+const assert = require('assert');
 
-baseFoo = 'foo';
+common.allowGlobals('bar', 'foo');
+
+baseFoo = 'foo'; // eslint-disable-line no-undef
 global.baseBar = 'bar';
 
-assert.equal('foo', global.baseFoo, 'x -> global.x in base level not working');
+assert.strictEqual(global.baseFoo, 'foo',
+                   `x -> global.x failed: global.baseFoo = ${global.baseFoo}`);
 
-assert.equal('bar', baseBar, 'global.x -> x in base level not working');
+assert.strictEqual(baseBar, // eslint-disable-line no-undef
+                   'bar',
+                   // eslint-disable-next-line no-undef
+                   `global.x -> x failed: baseBar = ${baseBar}`);
 
-var module = require('../fixtures/global/plain'),
-    fooBar = module.fooBar;
+const mod = require(fixtures.path('global', 'plain'));
+const fooBar = mod.fooBar;
 
-assert.equal('foo', fooBar.foo, 'x -> global.x in sub level not working');
+assert.strictEqual(fooBar.foo, 'foo');
 
-assert.equal('bar', fooBar.bar, 'global.x -> x in sub level not working');
+assert.strictEqual(fooBar.bar, 'bar');
+
+assert.strictEqual(Object.prototype.toString.call(global), '[object global]');

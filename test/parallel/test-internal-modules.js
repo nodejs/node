@@ -1,9 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+require('../common');
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
 
 assert.throws(function() {
   require('internal/freelist');
-});
+}, /^Error: Cannot find module 'internal\/freelist'$/);
 
-assert(require('../fixtures/internal-modules') === 42);
+assert.strictEqual(
+  require(fixtures.path('internal-modules')),
+  42
+);

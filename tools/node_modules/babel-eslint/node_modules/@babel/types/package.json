@@ -1,0 +1,55 @@
+{
+  "_from": "@babel/types@7.0.0-beta.36",
+  "_id": "@babel/types@7.0.0-beta.36",
+  "_inBundle": false,
+  "_integrity": "sha512-PyAORDO9um9tfnrddXgmWN9e6Sq9qxraQIt5ynqBOSXKA5qvK1kUr+Q3nSzKFdzorsiK+oqcUnAFvEoKxv9D+Q==",
+  "_location": "/babel-eslint/@babel/types",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "@babel/types@7.0.0-beta.36",
+    "name": "@babel/types",
+    "escapedName": "@babel%2ftypes",
+    "scope": "@babel",
+    "rawSpec": "7.0.0-beta.36",
+    "saveSpec": null,
+    "fetchSpec": "7.0.0-beta.36"
+  },
+  "_requiredBy": [
+    "/babel-eslint",
+    "/babel-eslint/@babel/helper-function-name",
+    "/babel-eslint/@babel/helper-get-function-arity",
+    "/babel-eslint/@babel/template",
+    "/babel-eslint/@babel/traverse"
+  ],
+  "_resolved": "https://registry.npmjs.org/@babel/types/-/types-7.0.0-beta.36.tgz",
+  "_shasum": "64f2004353de42adb72f9ebb4665fc35b5499d23",
+  "_spec": "@babel/types@7.0.0-beta.36",
+  "_where": "/home/mzasso/git/nodejs/node/tools/babel-eslint-tmp/node_modules/babel-eslint",
+  "author": {
+    "name": "Sebastian McKenzie",
+    "email": "sebmck@gmail.com"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "esutils": "^2.0.2",
+    "lodash": "^4.2.0",
+    "to-fast-properties": "^2.0.0"
+  },
+  "deprecated": false,
+  "description": "Babel Types is a Lodash-esque utility library for AST nodes",
+  "devDependencies": {
+    "@babel/generator": "7.0.0-beta.36",
+    "babylon": "7.0.0-beta.36"
+  },
+  "homepage": "https://babeljs.io/",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "name": "@babel/types",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel/tree/master/packages/babel-types"
+  },
+  "version": "7.0.0-beta.36"
+}

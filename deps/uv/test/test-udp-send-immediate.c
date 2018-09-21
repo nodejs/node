@@ -74,8 +74,7 @@ static void sv_recv_cb(uv_udp_t* handle,
   }
 
   if (nread == 0) {
-    /* Returning unused buffer */
-    /* Don't count towards sv_recv_cb_called */
+    /* Returning unused buffer. Don't count towards sv_recv_cb_called */
     ASSERT(addr == NULL);
     return;
   }
@@ -136,6 +135,7 @@ TEST_IMPL(udp_send_immediate) {
                   1,
                   (const struct sockaddr*) &addr,
                   cl_send_cb);
+  ASSERT(r == 0);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 

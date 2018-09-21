@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -15,10 +12,12 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
-#include "src/lithium.h"
+#include "src/objects-inl.h"
+#include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 typedef v8::internal::compiler::Instruction TestInstr;
 typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
@@ -31,7 +30,7 @@ class InstructionTester : public HandleAndZoneScope {
         schedule(zone()),
         common(zone()),
         machine(zone()),
-        code(NULL) {}
+        code(nullptr) {}
 
   Graph graph;
   Schedule schedule;
@@ -45,7 +44,7 @@ class InstructionTester : public HandleAndZoneScope {
     if (schedule.rpo_order()->size() == 0) {
       // Compute the RPO order.
       Scheduler::ComputeSpecialRPO(main_zone(), &schedule);
-      DCHECK(schedule.rpo_order()->size() > 0);
+      CHECK_NE(0u, schedule.rpo_order()->size());
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
@@ -83,8 +82,13 @@ class InstructionTester : public HandleAndZoneScope {
     return code->AddInstruction(instr);
   }
 
+  int NewNop() {
+    TestInstr* instr = TestInstr::New(zone(), kArchNop);
+    return code->AddInstruction(instr);
+  }
+
   UnallocatedOperand Unallocated(int vreg) {
-    return UnallocatedOperand(UnallocatedOperand::ANY, vreg);
+    return UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT, vreg);
   }
 
   RpoNumber RpoFor(BasicBlock* block) {
@@ -164,6 +168,7 @@ TEST(InstructionGetBasicBlock) {
   int i8 = R.NewInstr();
   R.code->EndBlock(R.RpoFor(b2));
   R.code->StartBlock(R.RpoFor(b3));
+  R.NewNop();
   R.code->EndBlock(R.RpoFor(b3));
 
   CHECK_EQ(b0, R.GetBasicBlock(i0));
@@ -206,7 +211,7 @@ TEST(InstructionIsGapAt) {
   R.code->AddInstruction(g);
   R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK(R.code->instructions().size() == 2);
+  CHECK_EQ(2, R.code->instructions().size());
 }
 
 
@@ -233,7 +238,7 @@ TEST(InstructionIsGapAt2) {
   R.code->AddInstruction(g1);
   R.code->EndBlock(R.RpoFor(b1));
 
-  CHECK(R.code->instructions().size() == 4);
+  CHECK_EQ(4, R.code->instructions().size());
 }
 
 
@@ -251,7 +256,7 @@ TEST(InstructionAddGapMove) {
   R.code->AddInstruction(g);
   R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK(R.code->instructions().size() == 2);
+  CHECK_EQ(2, R.code->instructions().size());
 
   int index = 0;
   for (auto instr : R.code->instructions()) {
@@ -270,7 +275,8 @@ TEST(InstructionAddGapMove) {
 
 
 TEST(InstructionOperands) {
-  Zone zone;
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
 
   {
     TestInstr* i = TestInstr::New(&zone, 101);
@@ -322,3 +328,7 @@ TEST(InstructionOperands) {
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

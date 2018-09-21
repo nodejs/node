@@ -43,41 +43,44 @@ assertEquals(
     parser.parseLine('1997,Ford,E350'));
 
 assertEquals(
-    ['1997','Ford','E350'],
-    parser.parseLine('"1997","Ford","E350"'));
+    ['"', '\'', ',', '\n'],
+    parser.parseLine('",\',\\x2c,\\x0a'));
 
 assertEquals(
-    ['1997','Ford','E350','Super, luxurious truck'],
-    parser.parseLine('1997,Ford,E350,"Super, luxurious truck"'));
+    ['"1997"','Ford','E350'],
+    parser.parseLine('"1997",Ford,E350'));
+assertEquals(
+    ['1997', 'Ford', 'E350', 'Super', ' luxurious truck'],
+    parser.parseLine('1997,Ford,E350,Super, luxurious truck'));
 
 assertEquals(
     ['1997','Ford','E350','Super "luxurious" truck'],
-    parser.parseLine('1997,Ford,E350,"Super ""luxurious"" truck"'));
+    parser.parseLine('1997,Ford,E350,Super "luxurious" truck'));
 
 assertEquals(
     ['1997','Ford','E350','Super "luxurious" "truck"'],
-    parser.parseLine('1997,Ford,E350,"Super ""luxurious"" ""truck"""'));
+    parser.parseLine('1997,Ford,E350,Super "luxurious" "truck"'));
 
 assertEquals(
     ['1997','Ford','E350','Super "luxurious""truck"'],
-    parser.parseLine('1997,Ford,E350,"Super ""luxurious""""truck"""'));
+    parser.parseLine('1997,Ford,E350,Super "luxurious""truck"'));
 
 assertEquals(
     ['shared-library','/lib/ld-2.3.6.so','0x489a2000','0x489b7000'],
-    parser.parseLine('shared-library,"/lib/ld-2.3.6.so",0x489a2000,0x489b7000'));
+    parser.parseLine('shared-library,/lib/ld-2.3.6.so,0x489a2000,0x489b7000'));
 
 assertEquals(
     ['code-creation','LazyCompile','0xf6fe2d20','1201','APPLY_PREPARE native runtime.js:165'],
-    parser.parseLine('code-creation,LazyCompile,0xf6fe2d20,1201,"APPLY_PREPARE native runtime.js:165"'));
+    parser.parseLine('code-creation,LazyCompile,0xf6fe2d20,1201,APPLY_PREPARE native runtime.js:165'));
 
 assertEquals(
     ['code-creation','LazyCompile','0xf6fe4bc0','282',' native v8natives.js:69'],
-    parser.parseLine('code-creation,LazyCompile,0xf6fe4bc0,282," native v8natives.js:69"'));
+    parser.parseLine('code-creation,LazyCompile,0xf6fe4bc0,282, native v8natives.js:69'));
 
 assertEquals(
     ['code-creation','RegExp','0xf6c21c00','826','NccyrJroXvg\\/([^,]*)'],
-    parser.parseLine('code-creation,RegExp,0xf6c21c00,826,"NccyrJroXvg\\/([^,]*)"'));
+    parser.parseLine('code-creation,RegExp,0xf6c21c00,826,NccyrJroXvg\\x5C/([^\\x2C]*)'));
 
 assertEquals(
-    ['code-creation','Function','0x42f0a0','163',''],
+    ['code-creation','Function','0x42f0a0','163','""'],
     parser.parseLine('code-creation,Function,0x42f0a0,163,""'));

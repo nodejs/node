@@ -7,9 +7,8 @@
 #define V8_REGEXP_JSREGEXP_INL_H_
 
 #include "src/allocation.h"
-#include "src/handles.h"
-#include "src/heap/heap.h"
 #include "src/objects.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/regexp/jsregexp.h"
 
 namespace v8 {
@@ -32,7 +31,7 @@ int32_t* RegExpImpl::GlobalCache::FetchNext() {
     // Fail if last batch was not even fully filled.
     if (num_matches_ < max_matches_) {
       num_matches_ = 0;  // Signal failed match.
-      return NULL;
+      return nullptr;
     }
 
     int32_t* last_match =
@@ -40,26 +39,25 @@ int32_t* RegExpImpl::GlobalCache::FetchNext() {
     int last_end_index = last_match[1];
 
     if (regexp_->TypeTag() == JSRegExp::ATOM) {
-      num_matches_ = RegExpImpl::AtomExecRaw(regexp_,
-                                             subject_,
-                                             last_end_index,
-                                             register_array_,
-                                             register_array_size_);
+      num_matches_ =
+          RegExpImpl::AtomExecRaw(isolate_, regexp_, subject_, last_end_index,
+                                  register_array_, register_array_size_);
     } else {
       int last_start_index = last_match[0];
-      if (last_start_index == last_end_index) last_end_index++;
+      if (last_start_index == last_end_index) {
+        // Zero-length match. Advance by one code point.
+        last_end_index = AdvanceZeroLength(last_end_index);
+      }
       if (last_end_index > subject_->length()) {
         num_matches_ = 0;  // Signal failed match.
-        return NULL;
+        return nullptr;
       }
-      num_matches_ = RegExpImpl::IrregexpExecRaw(regexp_,
-                                                 subject_,
-                                                 last_end_index,
-                                                 register_array_,
-                                                 register_array_size_);
+      num_matches_ = RegExpImpl::IrregexpExecRaw(
+          isolate_, regexp_, subject_, last_end_index, register_array_,
+          register_array_size_);
     }
 
-    if (num_matches_ <= 0) return NULL;
+    if (num_matches_ <= 0) return nullptr;
     current_match_index_ = 0;
     return register_array_;
   } else {
@@ -78,6 +76,7 @@ int32_t* RegExpImpl::GlobalCache::LastSuccessfulMatch() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_JSREGEXP_INL_H_

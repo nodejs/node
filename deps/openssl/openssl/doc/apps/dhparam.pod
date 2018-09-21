@@ -2,11 +2,13 @@
 
 =head1 NAME
 
+openssl-dhparam,
 dhparam - DH parameter manipulation and generation
 
 =head1 SYNOPSIS
 
 B<openssl dhparam>
+[B<-help>]
 [B<-inform DER|PEM>]
 [B<-outform DER|PEM>]
 [B<-in> I<filename>]
@@ -30,6 +32,10 @@ This command is used to manipulate DH parameter files.
 
 =over 4
 
+=item B<-help>
+
+Print out a usage message.
+
 =item B<-inform DER|PEM>
 
 This specifies the input format. The B<DER> option uses an ASN1 DER encoded
@@ -39,7 +45,7 @@ additional header and footer lines.
 
 =item B<-outform DER|PEM>
 
-This specifies the output format, the options have the same meaning as the 
+This specifies the output format, the options have the same meaning as the
 B<-inform> option.
 
 =item B<-in> I<filename>
@@ -67,7 +73,8 @@ avoid small-subgroup attacks that may be possible otherwise.
 
 =item B<-check>
 
-check if the parameters are valid primes and generator.
+Performs numerous checks to see if the supplied parameters are valid and
+displays a warning if not.
 
 =item B<-2>, B<-5>
 
@@ -79,8 +86,8 @@ default generator 2.
 =item B<-rand> I<file(s)>
 
 a file or files containing random data used to seed the random number
-generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
-Multiple files can be specified separated by a OS-dependent character.
+generator, or an EGD socket (see L<RAND_egd(3)>).
+Multiple files can be specified separated by an OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
 
@@ -103,7 +110,7 @@ this option prints out the DH parameters in human readable form.
 =item B<-C>
 
 this option converts the parameters into C code. The parameters can then
-be loaded by calling the B<get_dh>I<numbits>B<()> function.
+be loaded by calling the get_dhNNNN() function.
 
 =item B<-engine id>
 
@@ -117,8 +124,8 @@ for all available algorithms.
 =head1 WARNINGS
 
 The program B<dhparam> combines the functionality of the programs B<dh> and
-B<gendh> in previous versions of OpenSSL and SSLeay. The B<dh> and B<gendh>
-programs are retained for now but may have different purposes in future 
+B<gendh> in previous versions of OpenSSL. The B<dh> and B<gendh>
+programs are retained for now but may have different purposes in future
 versions of OpenSSL.
 
 =head1 NOTES
@@ -139,11 +146,15 @@ There should be a way to generate and manipulate DH keys.
 
 =head1 SEE ALSO
 
-L<dsaparam(1)|dsaparam(1)>
+L<dsaparam(1)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-The B<dhparam> command was added in OpenSSL 0.9.5.
-The B<-dsaparam> option was added in OpenSSL 0.9.6.
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

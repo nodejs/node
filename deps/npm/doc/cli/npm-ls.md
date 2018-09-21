@@ -76,7 +76,7 @@ Max display depth of the dependency tree.
 
 Display only the dependency tree for packages in `dependencies`.
 
-### dev
+### dev / development
 
 * Type: Boolean
 * Default: false
@@ -89,7 +89,14 @@ Display only the dependency tree for packages in `devDependencies`.
 
 When "dev" or "development", is an alias to `dev`.
 
-When "prod" or "production", is an alias to `production`.`
+When "prod" or "production", is an alias to `production`.
+
+### link
+
+* Type: Boolean
+* Default: false
+
+Display only dependencies which are linked
 
 ## SEE ALSO
 

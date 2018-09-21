@@ -88,7 +88,7 @@ Object.preventExtensions(arr);
 arr[2] = 42;
 assertEquals(10, arr[1]);
 
-// We should still be able to change exiting elements.
+// We should still be able to change existing elements.
 arr[1]= 42;
 assertEquals(42, arr[1]);
 

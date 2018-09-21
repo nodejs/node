@@ -24,8 +24,8 @@
     "region": "none",
     "zone": "locales",
     "converters": "none",
-    "stringprep": "none",
-    "translit": "none",
+    "stringprep": "locales",
+    "translit": "locales",
     "brkfiles": "none",
     "brkdict": "none",
     "confusables": "none",
@@ -34,7 +34,6 @@
   "remove": [
     "cnvalias.icu",
     "postalCodeData.res",
-    "uts46.nrm",
     "genderList.res",
     "brkitr/root.res",
     "unames.icu"

@@ -1,8 +1,18 @@
-#!/usr/local/bin/perl
+#! /usr/bin/env perl
+# Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
+
+$output = pop;
+open STDOUT,">$output";
 
 &asm_init($ARGV[0],$0);
 
@@ -20,6 +30,8 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 &bn_sub_part_words("bn_sub_part_words");
 
 &asm_finish();
+
+close STDOUT;
 
 sub bn_mul_add_words
 	{
@@ -771,4 +783,3 @@ sub bn_sub_part_words
 
 	&function_end($name);
 	}
-

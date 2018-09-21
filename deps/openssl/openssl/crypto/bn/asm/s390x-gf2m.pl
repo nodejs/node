@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -35,7 +42,7 @@ if ($flavour =~ /3[12]/) {
         $g="g";
 }
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
+while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
 
 $stdframe=16*$SIZE_T+4*8;
@@ -172,19 +179,19 @@ ___
 if ($SIZE_T==8) {
 my @r=map("%r$_",(6..9));
 $code.=<<___;
-	bras	$ra,_mul_1x1			# a1·b1
+	bras	$ra,_mul_1x1			# a1Â·b1
 	stmg	$lo,$hi,16($rp)
 
 	lg	$a,`$stdframe+128+4*$SIZE_T`($sp)
 	lg	$b,`$stdframe+128+6*$SIZE_T`($sp)
-	bras	$ra,_mul_1x1			# a0·b0
+	bras	$ra,_mul_1x1			# a0Â·b0
 	stmg	$lo,$hi,0($rp)
 
 	lg	$a,`$stdframe+128+3*$SIZE_T`($sp)
 	lg	$b,`$stdframe+128+5*$SIZE_T`($sp)
 	xg	$a,`$stdframe+128+4*$SIZE_T`($sp)
 	xg	$b,`$stdframe+128+6*$SIZE_T`($sp)
-	bras	$ra,_mul_1x1			# (a0+a1)·(b0+b1)
+	bras	$ra,_mul_1x1			# (a0+a1)Â·(b0+b1)
 	lmg	@r[0],@r[3],0($rp)
 
 	xgr	$lo,$hi

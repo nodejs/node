@@ -21,6 +21,8 @@ var json = {
   man: [ './install-bad-man.1.lol' ]
 }
 
+common.pendIfWindows('man pages do not get installed on Windows')
+
 test('setup', function (t) {
   setup()
   t.pass('setup ran')

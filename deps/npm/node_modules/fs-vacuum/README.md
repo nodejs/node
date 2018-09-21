@@ -18,7 +18,7 @@ var options = {
 /* Assuming there are no other files or directories in "out", "to", or "my",
  * the final path will just be "/path/to/my/tree/root".
  */
-vacuum("/path/to/my/tree/root/out/to/my/files", function (error) {
+vacuum("/path/to/my/tree/root/out/to/my/files", options, function (error) {
   if (error) console.error("Unable to cleanly vacuum:", error.message);
 });
 ```

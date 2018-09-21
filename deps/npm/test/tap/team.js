@@ -37,6 +37,30 @@ test('team create basic', function (t) {
   })
 })
 
+test('team create (allow optional @ prefix on scope)', function (t) {
+  var teamData = {
+    name: 'test',
+    scope_id: 1234,
+    created: '2015-07-23T18:07:49.959Z',
+    updated: '2015-07-23T18:07:49.959Z',
+    deleted: null
+  }
+  server.put('/-/org/myorg/team', JSON.stringify({
+    name: teamData.name
+  })).reply(200, teamData)
+  common.npm([
+    'team', 'create', '@myorg:' + teamData.name,
+    '--registry', common.registry,
+    '--loglevel', 'silent'
+  ], {}, function (err, code, stdout, stderr) {
+    t.ifError(err, 'npm team')
+    t.equal(code, 0, 'exited OK')
+    t.equal(stderr, '', 'no error output')
+    t.same(JSON.parse(stdout), teamData)
+    t.end()
+  })
+})
+
 test('team destroy', function (t) {
   var teamData = {
     name: 'myteam',

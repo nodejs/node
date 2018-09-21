@@ -2,21 +2,21 @@
 
 =head1 NAME
 
-SSL_CTX_set_read_ahead, SSL_CTX_set_default_read_ahead, SSL_CTX_get_read_ahead,
-SSL_CTX_get_default_read_ahead, SSL_set_read_ahead, SSL_get_read_ahead
+SSL_CTX_set_read_ahead, SSL_CTX_get_read_ahead,
+SSL_set_read_ahead, SSL_get_read_ahead,
+SSL_CTX_get_default_read_ahead
 - manage whether to read as many input bytes as possible
 
 =head1 SYNOPSIS
 
  #include <openssl/ssl.h>
 
- int SSL_get_read_ahead(const SSL *s);
  void SSL_set_read_ahead(SSL *s, int yes);
+ int SSL_get_read_ahead(const SSL *s);
 
- #define SSL_CTX_get_default_read_ahead(ctx)
- #define SSL_CTX_set_default_read_ahead(ctx,m)
- #define SSL_CTX_get_read_ahead(ctx)
- #define SSL_CTX_set_read_ahead(ctx,m)
+ SSL_CTX_set_read_ahead(SSL_CTX *ctx, int yes);
+ long SSL_CTX_get_read_ahead(SSL_CTX *ctx);
+ long SSL_CTX_get_default_read_ahead(SSL_CTX *ctx);
 
 =head1 DESCRIPTION
 
@@ -27,9 +27,7 @@ the underlying BIO (where B<y> > B<x>), then OpenSSL will read all B<y> bytes
 into its buffer (providing that the buffer is large enough) if reading ahead is
 on, or B<x> bytes otherwise. The parameter B<yes> or B<m> should be 0 to ensure
 reading ahead is off, or non zero otherwise.
-
-SSL_CTX_set_default_read_ahead is a synonym for SSL_CTX_set_read_ahead, and
-SSL_CTX_get_default_read_ahead is a synonym for SSL_CTX_get_read_ahead.
+SSL_CTX_set_default_read_ahead() is identical to SSL_CTX_set_read_ahead().
 
 SSL_CTX_get_read_ahead() and SSL_get_read_ahead() indicate whether reading
 ahead has been set or not.
@@ -37,15 +35,26 @@ ahead has been set or not.
 =head1 NOTES
 
 These functions have no impact when used with DTLS. The return values for
-SSL_CTX_get_read_head() and SSL_get_read_ahead() are undefined for DTLS.
+SSL_CTX_get_read_head() and SSL_get_read_ahead() are undefined for DTLS. Setting
+B<read_ahead> can impact the behaviour of the SSL_pending() function
+(see L<SSL_pending(3)>).
 
 =head1 RETURN VALUES
 
-SSL_get_read_ahead and SSL_CTX_get_read_ahead return 0 if reading ahead is off,
+SSL_get_read_ahead() and SSL_CTX_get_read_ahead() return 0 if reading ahead is off,
 and non zero otherwise.
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>
+L<ssl(3)>, L<SSL_pending(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

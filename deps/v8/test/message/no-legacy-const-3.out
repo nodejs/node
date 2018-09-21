@@ -1,5 +1,0 @@
-*%(basename)s:7: SyntaxError: Unexpected token const
-const
-^^^^^
-
-SyntaxError: Unexpected token const

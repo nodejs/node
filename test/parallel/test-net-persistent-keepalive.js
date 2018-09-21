@@ -1,34 +1,34 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var serverConnection;
-var clientConnection;
-var echoServer = net.createServer(function(connection) {
+let serverConnection;
+let clientConnection;
+const echoServer = net.createServer(function(connection) {
   serverConnection = connection;
   setTimeout(function() {
     // make sure both connections are still open
-    assert.equal(serverConnection.readyState, 'open');
-    assert.equal(clientConnection.readyState, 'open');
+    assert.strictEqual(serverConnection.readyState, 'open');
+    assert.strictEqual(clientConnection.readyState, 'open');
     serverConnection.end();
     clientConnection.end();
     echoServer.close();
   }, 600);
   connection.setTimeout(0);
-  assert.equal(typeof connection.setKeepAlive, 'function');
+  assert.strictEqual(typeof connection.setKeepAlive, 'function');
   connection.on('end', function() {
     connection.end();
   });
 });
-echoServer.listen(common.PORT);
+echoServer.listen(0);
 
 echoServer.on('listening', function() {
   clientConnection = new net.Socket();
   // send a keepalive packet after 1000 ms
   // and make sure it persists
-  var s = clientConnection.setKeepAlive(true, 400);
+  const s = clientConnection.setKeepAlive(true, 400);
   assert.ok(s instanceof net.Socket);
-  clientConnection.connect(common.PORT);
+  clientConnection.connect(this.address().port);
   clientConnection.setTimeout(0);
 });

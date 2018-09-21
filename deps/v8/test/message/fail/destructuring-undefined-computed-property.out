@@ -1,0 +1,5 @@
+*%(basename)s:5: TypeError: Cannot destructure 'undefined' or 'null'.
+var { [x] : y } = undefined;
+    ^
+TypeError: Cannot destructure 'undefined' or 'null'.
+    at *%(basename)s:5:19

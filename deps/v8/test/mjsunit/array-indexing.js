@@ -111,7 +111,7 @@ assertEquals(10, Array.prototype.indexOf.call(funky_object, 42));
 assertEquals(-1, Array.prototype.indexOf.call(funky_object, 42, 15));
 assertEquals(-1, Array.prototype.indexOf.call(funky_object, 37));
 
-assertEquals(-1, Array.prototype.indexOf.call(infinite_object, 42));
+assertEquals(10, Array.prototype.indexOf.call(infinite_object, 42));
 
 // ----------------------------------------------------------------------
 // Array.prototype.lastIndexOf.
@@ -183,4 +183,5 @@ assertEquals(10, Array.prototype.lastIndexOf.call(funky_object, 42, 15));
 assertEquals(10, Array.prototype.lastIndexOf.call(funky_object, 42));
 assertEquals(-1, Array.prototype.lastIndexOf.call(funky_object, 37));
 
-assertEquals(-1, Array.prototype.lastIndexOf.call(infinite_object, 42));
+// This call would take too long because it would search backwards from 2**53-1
+// assertEquals(-1, Array.prototype.lastIndexOf.call(infinite_object, 42));

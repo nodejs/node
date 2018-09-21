@@ -1,23 +1,34 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_SPAWN_SYNC_H_
 #define SRC_SPAWN_SYNC_H_
 
-#include "node.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "node_internals.h"
 #include "node_buffer.h"
 
 namespace node {
 
-using v8::Array;
-using v8::Context;
-using v8::FunctionCallbackInfo;
-using v8::HandleScope;
-using v8::Integer;
-using v8::Isolate;
-using v8::Local;
-using v8::Null;
-using v8::Number;
-using v8::Object;
-using v8::String;
-using v8::Value;
 
 
 class SyncProcessOutputBuffer;
@@ -71,7 +82,7 @@ class SyncProcessStdioPipe {
   int Start();
   void Close();
 
-  Local<Object> GetOutputAsBuffer(Environment* env) const;
+  v8::Local<v8::Object> GetOutputAsBuffer(Environment* env) const;
 
   inline bool readable() const;
   inline bool writable() const;
@@ -128,10 +139,10 @@ class SyncProcessRunner {
   };
 
  public:
-  static void Initialize(Local<Object> target,
-                         Local<Value> unused,
-                         Local<Context> context);
-  static void Spawn(const FunctionCallbackInfo<Value>& args);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context);
+  static void Spawn(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   friend class SyncProcessStdioPipe;
@@ -141,8 +152,8 @@ class SyncProcessRunner {
 
   inline Environment* env() const;
 
-  Local<Object> Run(Local<Value> options);
-  void TryInitializeAndRunLoop(Local<Value> options);
+  v8::MaybeLocal<v8::Object> Run(v8::Local<v8::Value> options);
+  v8::Maybe<bool> TryInitializeAndRunLoop(v8::Local<v8::Value> options);
   void CloseHandlesAndDeleteLoop();
 
   void CloseStdioPipes();
@@ -158,12 +169,12 @@ class SyncProcessRunner {
   void SetError(int error);
   void SetPipeError(int pipe_error);
 
-  Local<Object> BuildResultObject();
-  Local<Array> BuildOutputArray();
+  v8::Local<v8::Object> BuildResultObject();
+  v8::Local<v8::Array> BuildOutputArray();
 
-  int ParseOptions(Local<Value> js_value);
-  int ParseStdioOptions(Local<Value> js_value);
-  int ParseStdioOption(int child_fd, Local<Object> js_stdio_option);
+  v8::Maybe<int> ParseOptions(v8::Local<v8::Value> js_value);
+  int ParseStdioOptions(v8::Local<v8::Value> js_value);
+  int ParseStdioOption(int child_fd, v8::Local<v8::Object> js_stdio_option);
 
   inline int AddStdioIgnore(uint32_t child_fd);
   inline int AddStdioPipe(uint32_t child_fd,
@@ -172,10 +183,11 @@ class SyncProcessRunner {
                           uv_buf_t input_buffer);
   inline int AddStdioInheritFD(uint32_t child_fd, int inherit_fd);
 
-  static bool IsSet(Local<Value> value);
-  template <typename t> static bool CheckRange(Local<Value> js_value);
-  int CopyJsString(Local<Value> js_value, const char** target);
-  int CopyJsStringArray(Local<Value> js_value, char** target);
+  static bool IsSet(v8::Local<v8::Value> value);
+  v8::Maybe<int> CopyJsString(v8::Local<v8::Value> js_value,
+                              const char** target);
+  v8::Maybe<int> CopyJsStringArray(v8::Local<v8::Value> js_value,
+                                   char** target);
 
   static void ExitCallback(uv_process_t* handle,
                            int64_t exit_status,
@@ -183,7 +195,7 @@ class SyncProcessRunner {
   static void KillTimerCallback(uv_timer_t* handle);
   static void KillTimerCloseCallback(uv_handle_t* handle);
 
-  size_t max_buffer_;
+  double max_buffer_;
   uint64_t timeout_;
   int kill_signal_;
 
@@ -191,7 +203,7 @@ class SyncProcessRunner {
 
   uint32_t stdio_count_;
   uv_stdio_container_t* uv_stdio_containers_;
-  SyncProcessStdioPipe** stdio_pipes_;
+  std::unique_ptr<std::unique_ptr<SyncProcessStdioPipe>[]> stdio_pipes_;
   bool stdio_pipes_initialized_;
 
   uv_process_options_t uv_process_options_;
@@ -220,6 +232,9 @@ class SyncProcessRunner {
 
   Environment* env_;
 };
-}
+
+}  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_SPAWN_SYNC_H_

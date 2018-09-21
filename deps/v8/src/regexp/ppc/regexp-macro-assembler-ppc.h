@@ -7,7 +7,6 @@
 
 #include "src/macro-assembler.h"
 #include "src/ppc/assembler-ppc.h"
-#include "src/ppc/frames-ppc.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
@@ -34,9 +33,11 @@ class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckNotAtStart(Label* on_not_at_start);
-  virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
+  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
+  virtual void CheckNotBackReference(int start_reg, bool read_backward,
+                                     Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
+                                               bool read_backward, bool unicode,
                                                Label* on_no_match);
   virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(unsigned c, unsigned mask,
@@ -76,7 +77,6 @@ class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
-  virtual bool CanReadUnaligned();
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
@@ -95,9 +95,8 @@ class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
   static const int kReturnAddress = kStoredRegisters + 7 * kPointerSize;
   static const int kCallerFrame = kReturnAddress + kPointerSize;
   // Stack parameters placed by caller.
-  static const int kSecondaryReturnAddress =
+  static const int kIsolate =
       kCallerFrame + kStackFrameExtraParamSlot * kPointerSize;
-  static const int kIsolate = kSecondaryReturnAddress + kPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
@@ -112,9 +111,9 @@ class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
   static const int kSuccessfulCaptures = kInputString - kPointerSize;
-  static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
+  static const int kStringStartMinusOne = kSuccessfulCaptures - kPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
+  static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
@@ -161,7 +160,7 @@ class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
-  // is NULL, in which case it is a conditional Backtrack.
+  // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to, CRegister cr = cr7);
 
   // Call and return internally in the generated code in a way that
@@ -208,7 +207,7 @@ const RegList kRegExpCalleeSaved =
     1 << 25 | 1 << 26 | 1 << 27 | 1 << 28 | 1 << 29 | 1 << 30 | 1 << 31;
 
 #endif  // V8_INTERPRETED_REGEXP
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_PPC_REGEXP_MACRO_ASSEMBLER_PPC_H_

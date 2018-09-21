@@ -1,60 +1,12 @@
-/* crypto/ec/eck_prn.c */
 /*
- * Written by Nils Larsch for the OpenSSL project.
+ * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* ====================================================================
- * Copyright (c) 1998-2005 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
+
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  * Portions originally developed by SUN MICROSYSTEMS, INC., and
@@ -62,12 +14,12 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/evp.h>
 #include <openssl/ec.h>
 #include <openssl/bn.h>
 
-#ifndef OPENSSL_NO_FP_API
+#ifndef OPENSSL_NO_STDIO
 int ECPKParameters_print_fp(FILE *fp, const EC_GROUP *x, int off)
 {
     BIO *b;
@@ -114,42 +66,16 @@ int ECParameters_print_fp(FILE *fp, const EC_KEY *x)
 }
 #endif
 
-int EC_KEY_print(BIO *bp, const EC_KEY *x, int off)
-{
-    EVP_PKEY *pk;
-    int ret;
-    pk = EVP_PKEY_new();
-    if (!pk || !EVP_PKEY_set1_EC_KEY(pk, (EC_KEY *)x))
-        return 0;
-    ret = EVP_PKEY_print_private(bp, pk, off, NULL);
-    EVP_PKEY_free(pk);
-    return ret;
-}
-
-int ECParameters_print(BIO *bp, const EC_KEY *x)
-{
-    EVP_PKEY *pk;
-    int ret;
-    pk = EVP_PKEY_new();
-    if (!pk || !EVP_PKEY_set1_EC_KEY(pk, (EC_KEY *)x))
-        return 0;
-    ret = EVP_PKEY_print_params(bp, pk, 4, NULL);
-    EVP_PKEY_free(pk);
-    return ret;
-}
-
 static int print_bin(BIO *fp, const char *str, const unsigned char *num,
                      size_t len, int off);
 
 int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off)
 {
-    unsigned char *buffer = NULL;
-    size_t buf_len = 0, i;
     int ret = 0, reason = ERR_R_BIO_LIB;
     BN_CTX *ctx = NULL;
     const EC_POINT *point = NULL;
-    BIGNUM *p = NULL, *a = NULL, *b = NULL, *gen = NULL,
-        *order = NULL, *cofactor = NULL;
+    BIGNUM *p = NULL, *a = NULL, *b = NULL, *gen = NULL;
+    const BIGNUM *order = NULL, *cofactor = NULL;
     const unsigned char *seed;
     size_t seed_len = 0;
 
@@ -179,7 +105,6 @@ int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off)
         nid = EC_GROUP_get_curve_name(x);
         if (nid == 0)
             goto err;
-
         if (BIO_printf(bp, "ASN1 OID: %s", OBJ_nid2sn(nid)) <= 0)
             goto err;
         if (BIO_printf(bp, "\n") <= 0)
@@ -201,8 +126,7 @@ int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off)
             is_char_two = 1;
 
         if ((p = BN_new()) == NULL || (a = BN_new()) == NULL ||
-            (b = BN_new()) == NULL || (order = BN_new()) == NULL ||
-            (cofactor = BN_new()) == NULL) {
+            (b = BN_new()) == NULL) {
             reason = ERR_R_MALLOC_FAILURE;
             goto err;
         }
@@ -225,8 +149,9 @@ int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off)
             reason = ERR_R_EC_LIB;
             goto err;
         }
-        if (!EC_GROUP_get_order(x, order, NULL) ||
-            !EC_GROUP_get_cofactor(x, cofactor, NULL)) {
+        order = EC_GROUP_get0_order(x);
+        cofactor = EC_GROUP_get0_cofactor(x);
+        if (order == NULL) {
             reason = ERR_R_EC_LIB;
             goto err;
         }
@@ -238,26 +163,8 @@ int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off)
             goto err;
         }
 
-        buf_len = (size_t)BN_num_bytes(p);
-        if (buf_len < (i = (size_t)BN_num_bytes(a)))
-            buf_len = i;
-        if (buf_len < (i = (size_t)BN_num_bytes(b)))
-            buf_len = i;
-        if (buf_len < (i = (size_t)BN_num_bytes(gen)))
-            buf_len = i;
-        if (buf_len < (i = (size_t)BN_num_bytes(order)))
-            buf_len = i;
-        if (buf_len < (i = (size_t)BN_num_bytes(cofactor)))
-            buf_len = i;
-
         if ((seed = EC_GROUP_get0_seed(x)) != NULL)
             seed_len = EC_GROUP_get_seed_len(x);
-
-        buf_len += 10;
-        if ((buffer = OPENSSL_malloc(buf_len)) == NULL) {
-            reason = ERR_R_MALLOC_FAILURE;
-            goto err;
-        }
 
         if (!BIO_indent(bp, off, 128))
             goto err;
@@ -281,36 +188,36 @@ int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off)
                 goto err;
 
             /* print the polynomial */
-            if ((p != NULL) && !ASN1_bn_print(bp, "Polynomial:", p, buffer,
+            if ((p != NULL) && !ASN1_bn_print(bp, "Polynomial:", p, NULL,
                                               off))
                 goto err;
         } else {
-            if ((p != NULL) && !ASN1_bn_print(bp, "Prime:", p, buffer, off))
+            if ((p != NULL) && !ASN1_bn_print(bp, "Prime:", p, NULL, off))
                 goto err;
         }
-        if ((a != NULL) && !ASN1_bn_print(bp, "A:   ", a, buffer, off))
+        if ((a != NULL) && !ASN1_bn_print(bp, "A:   ", a, NULL, off))
             goto err;
-        if ((b != NULL) && !ASN1_bn_print(bp, "B:   ", b, buffer, off))
+        if ((b != NULL) && !ASN1_bn_print(bp, "B:   ", b, NULL, off))
             goto err;
         if (form == POINT_CONVERSION_COMPRESSED) {
             if ((gen != NULL) && !ASN1_bn_print(bp, gen_compressed, gen,
-                                                buffer, off))
+                                                NULL, off))
                 goto err;
         } else if (form == POINT_CONVERSION_UNCOMPRESSED) {
             if ((gen != NULL) && !ASN1_bn_print(bp, gen_uncompressed, gen,
-                                                buffer, off))
+                                                NULL, off))
                 goto err;
         } else {                /* form == POINT_CONVERSION_HYBRID */
 
             if ((gen != NULL) && !ASN1_bn_print(bp, gen_hybrid, gen,
-                                                buffer, off))
+                                                NULL, off))
                 goto err;
         }
         if ((order != NULL) && !ASN1_bn_print(bp, "Order: ", order,
-                                              buffer, off))
+                                              NULL, off))
             goto err;
         if ((cofactor != NULL) && !ASN1_bn_print(bp, "Cofactor: ", cofactor,
-                                                 buffer, off))
+                                                 NULL, off))
             goto err;
         if (seed && !print_bin(bp, "Seed:", seed, seed_len, off))
             goto err;
@@ -319,22 +226,11 @@ int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off)
  err:
     if (!ret)
         ECerr(EC_F_ECPKPARAMETERS_PRINT, reason);
-    if (p)
-        BN_free(p);
-    if (a)
-        BN_free(a);
-    if (b)
-        BN_free(b);
-    if (gen)
-        BN_free(gen);
-    if (order)
-        BN_free(order);
-    if (cofactor)
-        BN_free(cofactor);
-    if (ctx)
-        BN_CTX_free(ctx);
-    if (buffer != NULL)
-        OPENSSL_free(buffer);
+    BN_free(p);
+    BN_free(a);
+    BN_free(b);
+    BN_free(gen);
+    BN_CTX_free(ctx);
     return (ret);
 }
 
@@ -342,7 +238,7 @@ static int print_bin(BIO *fp, const char *name, const unsigned char *buf,
                      size_t len, int off)
 {
     size_t i;
-    char str[128];
+    char str[128 + 1 + 4];
 
     if (buf == NULL)
         return 1;

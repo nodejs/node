@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nodead-code-elimination
-// Flags: --nofold-constants --nouse-gvn
+// Flags: --allow-natives-syntax
 
 // Create a function to get a long series of removable simulates.
 // f() {

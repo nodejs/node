@@ -29,7 +29,7 @@
 #include <stdlib.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-# include "stdint-msvc2008.h"
+# include "uv/stdint-msvc2008.h"
 #else
 # include <stdint.h>
 #endif
@@ -50,9 +50,11 @@
 #ifdef _WIN32
 # define TEST_PIPENAME "\\\\?\\pipe\\uv-test"
 # define TEST_PIPENAME_2 "\\\\?\\pipe\\uv-test2"
+# define TEST_PIPENAME_3 "\\\\?\\pipe\\uv-test3"
 #else
 # define TEST_PIPENAME "/tmp/uv-test-sock"
 # define TEST_PIPENAME_2 "/tmp/uv-test-sock2"
+# define TEST_PIPENAME_3 "/tmp/uv-test-sock3"
 #endif
 
 #ifdef _WIN32
@@ -106,10 +108,10 @@ typedef enum {
 /* This macro cleans up the main loop. This is used to avoid valgrind
  * warnings about memory being "leaked" by the main event loop.
  */
-#define MAKE_VALGRIND_HAPPY()           \
-  do {                                  \
-    close_loop(uv_default_loop());      \
-    uv_loop_delete(uv_default_loop());  \
+#define MAKE_VALGRIND_HAPPY()                       \
+  do {                                              \
+    close_loop(uv_default_loop());                  \
+    ASSERT(0 == uv_loop_close(uv_default_loop()));  \
   } while (0)
 
 /* Just sugar for wrapping the main() for a task or helper. */
@@ -134,20 +136,12 @@ const char* fmt(double d);
 /* Reserved test exit codes. */
 enum test_status {
   TEST_OK = 0,
-  TEST_TODO,
   TEST_SKIP
 };
 
 #define RETURN_OK()                                                           \
   do {                                                                        \
     return TEST_OK;                                                           \
-  } while (0)
-
-#define RETURN_TODO(explanation)                                              \
-  do {                                                                        \
-    fprintf(stderr, "%s\n", explanation);                                     \
-    fflush(stderr);                                                           \
-    return TEST_TODO;                                                         \
   } while (0)
 
 #define RETURN_SKIP(explanation)                                              \
@@ -174,40 +168,8 @@ enum test_status {
 
 #endif
 
-
-#if defined _WIN32 && ! defined __GNUC__
-
-#include <stdarg.h>
-
-/* Define inline for MSVC<2015 */
-# if defined(_MSC_VER) && _MSC_VER < 1900
-#  define inline __inline
-# endif
-
-# if defined(_MSC_VER) && _MSC_VER < 1900
-/* Emulate snprintf() on MSVC<2015, _snprintf() doesn't zero-terminate the buffer
- * on overflow...
- */
-inline int snprintf(char* buf, size_t len, const char* fmt, ...) {
-  va_list ap;
-  int n;
-
-  va_start(ap, fmt);
-  n = _vsprintf_p(buf, len, fmt, ap);
-  va_end(ap);
-
-  /* It's a sad fact of life that no one ever checks the return value of
-   * snprintf(). Zero-terminating the buffer hopefully reduces the risk
-   * of gaping security holes.
-   */
-  if (n < 0)
-    if (len > 0)
-      buf[0] = '\0';
-
-  return n;
-}
-# endif
-
+#if !defined(snprintf) && defined(_MSC_VER) && _MSC_VER < 1900
+extern int snprintf(char*, size_t, const char*, ...);
 #endif
 
 #if defined(__clang__) ||                                \
@@ -237,7 +199,7 @@ UNUSED static int can_ipv6(void) {
   int i;
 
   if (uv_interface_addresses(&addr, &count))
-    return 1;  /* Assume IPv6 support on failure. */
+    return 0;  /* Assume no IPv6 support on failure. */
 
   supported = 0;
   for (i = 0; supported == 0 && i < count; i += 1)
@@ -246,5 +208,25 @@ UNUSED static int can_ipv6(void) {
   uv_free_interface_addresses(addr, count);
   return supported;
 }
+
+#if defined(__CYGWIN__) || defined(__MSYS__)
+# define NO_FS_EVENTS "Filesystem watching not supported on this platform."
+#endif
+
+#if defined(__MSYS__)
+# define NO_SEND_HANDLE_ON_PIPE \
+  "MSYS2 runtime does not support sending handles on pipes."
+#elif defined(__CYGWIN__)
+# define NO_SEND_HANDLE_ON_PIPE \
+  "Cygwin runtime does not support sending handles on pipes."
+#endif
+
+#if defined(__MSYS__)
+# define NO_SELF_CONNECT \
+  "MSYS2 runtime hangs on listen+connect in same process."
+#elif defined(__CYGWIN__)
+# define NO_SELF_CONNECT \
+  "Cygwin runtime hangs on listen+connect in same process."
+#endif
 
 #endif /* TASK_H_ */

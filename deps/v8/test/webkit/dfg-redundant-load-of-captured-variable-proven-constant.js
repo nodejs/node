@@ -28,7 +28,7 @@ description(
 function foo(o, p) {
     var x = o.f;
     if (p)
-        return function() { return x; }
+        return function () { return x; }
     else {
         var a = x;
         var b = x;
@@ -36,7 +36,7 @@ function foo(o, p) {
     }
 }
 
-var o = {f:function() { return 32; }};
+var o = {f:function () { return 32; }};
 
 for (var i = 0; i < 100; ++i) {
     var expected;

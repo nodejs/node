@@ -1,4 +1,5 @@
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -64,6 +65,18 @@
 #define RDWR_BUF_SIZE   4096
 #define EQ(a,b)         (strcmp(a,b) == 0)
 
+static uv_mutex_t process_title_mutex;
+static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
+static void* args_mem = NULL;
+static char** process_argv = NULL;
+static int process_argc = 0;
+static char* process_title_ptr = NULL;
+
+static void init_process_title_mutex_once(void) {
+  uv_mutex_init(&process_title_mutex);
+}
+
+
 int uv__platform_loop_init(uv_loop_t* loop) {
   loop->fs_fd = -1;
 
@@ -91,6 +104,31 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 }
 
 
+int uv__io_fork(uv_loop_t* loop) {
+  uv__platform_loop_delete(loop);
+
+  return uv__platform_loop_init(loop);
+}
+
+
+int uv__io_check_fd(uv_loop_t* loop, int fd) {
+  struct poll_ctl pc;
+
+  pc.events = POLLIN;
+  pc.cmd = PS_MOD;  /* Equivalent to PS_ADD if the fd is not in the pollset. */
+  pc.fd = fd;
+
+  if (pollset_ctl(loop->backend_fd, &pc, 1))
+    return UV__ERR(errno);
+
+  pc.cmd = PS_DELETE;
+  if (pollset_ctl(loop->backend_fd, &pc, 1))
+    abort();
+
+  return 0;
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct pollfd events[1024];
   struct pollfd pqry;
@@ -100,6 +138,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   uv__io_t* w;
   uint64_t base;
   uint64_t diff;
+  int have_signals;
   int nevents;
   int count;
   int nfds;
@@ -137,7 +176,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         pqry.fd = pc.fd;
         rc = pollset_query(loop->backend_fd, &pqry);
         switch (rc) {
-        case -1: 
+        case -1:
           assert(0 && "Failed to query pollset for file descriptor");
           abort();
         case 0:
@@ -207,6 +246,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       goto update_timeout;
     }
 
+    have_signals = 0;
     nevents = 0;
 
     assert(loop->watchers != NULL);
@@ -237,12 +277,25 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
       }
 
-      w->cb(loop, w, pe->revents);
+      /* Run signal watchers last.  This also affects child process watchers
+       * because those are implemented in terms of signal watchers.
+       */
+      if (w == &loop->signal_io_watcher)
+        have_signals = 1;
+      else
+        w->cb(loop, w, pe->revents);
+
       nevents++;
     }
 
+    if (have_signals != 0)
+      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
+
+    if (have_signals != 0)
+      return;  /* Event loop should cycle now so don't poll again. */
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {
@@ -267,104 +320,6 @@ update_timeout:
       return;
 
     timeout -= diff;
-  }
-}
-
-
-uint64_t uv__hrtime(uv_clocktype_t type) {
-  uint64_t G = 1000000000;
-  timebasestruct_t t;
-  read_wall_time(&t, TIMEBASE_SZ);
-  time_base_to_time(&t, TIMEBASE_SZ);
-  return (uint64_t) t.tb_high * G + t.tb_low;
-}
-
-
-/*
- * We could use a static buffer for the path manipulations that we need outside
- * of the function, but this function could be called by multiple consumers and
- * we don't want to potentially create a race condition in the use of snprintf.
- * There is no direct way of getting the exe path in AIX - either through /procfs
- * or through some libc APIs. The below approach is to parse the argv[0]'s pattern
- * and use it in conjunction with PATH environment variable to craft one.
- */
-int uv_exepath(char* buffer, size_t* size) {
-  int res;
-  char args[PATH_MAX];
-  char abspath[PATH_MAX];
-  size_t abspath_size;
-  struct procsinfo pi;
-
-  if (buffer == NULL || size == NULL || *size == 0)
-    return -EINVAL;
-
-  pi.pi_pid = getpid();
-  res = getargs(&pi, sizeof(pi), args, sizeof(args));
-  if (res < 0) 
-    return -EINVAL;
-
-  /*
-   * Possibilities for args:
-   * i) an absolute path such as: /home/user/myprojects/nodejs/node
-   * ii) a relative path such as: ./node or ../myprojects/nodejs/node
-   * iii) a bare filename such as "node", after exporting PATH variable 
-   *     to its location.
-   */
-
-  /* Case i) and ii) absolute or relative paths */
-  if (strchr(args, '/') != NULL) {
-    if (realpath(args, abspath) != abspath) 
-      return -errno;
-
-    abspath_size = strlen(abspath);
-
-    *size -= 1;
-    if (*size > abspath_size)
-      *size = abspath_size;
-
-    memcpy(buffer, abspath, *size);
-    buffer[*size] = '\0';
-
-    return 0;
-  } else {
-  /* Case iii). Search PATH environment variable */ 
-    char trypath[PATH_MAX];
-    char *clonedpath = NULL;
-    char *token = NULL;
-    char *path = getenv("PATH");
-
-    if (path == NULL)
-      return -EINVAL;
-
-    clonedpath = uv__strdup(path);
-    if (clonedpath == NULL)
-      return -ENOMEM;
-
-    token = strtok(clonedpath, ":");
-    while (token != NULL) {
-      snprintf(trypath, sizeof(trypath) - 1, "%s/%s", token, args);
-      if (realpath(trypath, abspath) == abspath) { 
-        /* Check the match is executable */
-        if (access(abspath, X_OK) == 0) {
-          abspath_size = strlen(abspath);
-
-          *size -= 1;
-          if (*size > abspath_size)
-            *size = abspath_size;
-
-          memcpy(buffer, abspath, *size);
-          buffer[*size] = '\0';
-
-          uv__free(clonedpath);
-          return 0;
-        }
-      }
-      token = strtok(NULL, ":");
-    }
-    uv__free(clonedpath);
-
-    /* Out of tokens (path entries), and no match found */
-    return -EINVAL;
   }
 }
 
@@ -419,7 +374,7 @@ static char *uv__rawname(char *cp) {
 }
 
 
-/* 
+/*
  * Determine whether given pathname is a directory
  * Returns 0 if the path is a directory, -1 if not
  *
@@ -439,7 +394,7 @@ static int uv__path_is_a_directory(char* filename) {
 }
 
 
-/* 
+/*
  * Check whether AHAFS is mounted.
  * Returns 0 if AHAFS is mounted, or an error code < 0 on failure
  */
@@ -454,22 +409,22 @@ static int uv__is_ahafs_mounted(void){
 
   p = uv__malloc(siz);
   if (p == NULL)
-    return -errno;
+    return UV__ERR(errno);
 
   /* Retrieve all mounted filesystems */
   rv = mntctl(MCTL_QUERY, siz, (char*)p);
   if (rv < 0)
-    return -errno;
+    return UV__ERR(errno);
   if (rv == 0) {
     /* buffer was not large enough, reallocate to correct size */
     siz = *(int*)p;
     uv__free(p);
     p = uv__malloc(siz);
     if (p == NULL)
-      return -errno;
+      return UV__ERR(errno);
     rv = mntctl(MCTL_QUERY, siz, (char*)p);
     if (rv < 0)
-      return -errno;
+      return UV__ERR(errno);
   }
 
   /* Look for dev in filesystems mount info */
@@ -506,7 +461,7 @@ static int uv__makedir_p(const char *dir) {
     if (*p == '/') {
       *p = 0;
       err = mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-      if(err != 0)
+      if (err != 0 && errno != EEXIST)
         return err;
       *p = '/';
     }
@@ -514,7 +469,7 @@ static int uv__makedir_p(const char *dir) {
   return mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 }
 
-/* 
+/*
  * Creates necessary subdirectories in the AIX Event Infrastructure
  * file system for monitoring the object specified.
  * Returns code from mkdir call
@@ -540,7 +495,7 @@ static int uv__make_subdirs_p(const char *filename) {
   rc = uv__makedir_p(cmd);
 
   if (rc == -1 && errno != EEXIST){
-    return -errno;
+    return UV__ERR(errno);
   }
 
   return rc;
@@ -567,7 +522,7 @@ static int uv__setup_ahafs(const char* filename, int *fd) {
     sprintf(mon_file, "/aha/fs/modFile.monFactory");
 
   if ((strlen(mon_file) + strlen(filename) + 5) > PATH_MAX)
-    return -ENAMETOOLONG;
+    return UV_ENAMETOOLONG;
 
   /* Make the necessary subdirectories for the monitor file */
   rc = uv__make_subdirs_p(filename);
@@ -582,7 +537,7 @@ static int uv__setup_ahafs(const char* filename, int *fd) {
   /* Open the monitor file, creating it if necessary */
   *fd = open(mon_file, O_CREAT|O_RDWR);
   if (*fd < 0)
-    return -errno;
+    return UV__ERR(errno);
 
   /* Write out the monitoring specifications.
    * In this case, we are monitoring for a state change event type
@@ -603,7 +558,7 @@ static int uv__setup_ahafs(const char* filename, int *fd) {
 
   rc = write(*fd, mon_file_write_string, strlen(mon_file_write_string)+1);
   if (rc < 0)
-    return -errno;
+    return UV__ERR(errno);
 
   return 0;
 }
@@ -632,7 +587,7 @@ static int uv__skip_lines(char **p, int n) {
 /*
  * Parse the event occurrence data to figure out what event just occurred
  * and take proper action.
- * 
+ *
  * The buf is a pointer to the buffer containing the event occurrence data
  * Returns 0 on success, -1 if unrecoverable error in parsing
  *
@@ -707,17 +662,10 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
   int bytes, rc = 0;
   uv_fs_event_t* handle;
   int events = 0;
-  int  i = 0;
   char fname[PATH_MAX];
   char *p;
 
   handle = container_of(event_watch, uv_fs_event_t, event_watcher);
-
-  /* Clean all the buffers*/
-  for(i = 0; i < PATH_MAX; i++) {
-    fname[i] = 0;
-  }
-  i = 0;
 
   /* At this point, we assume that polling has been done on the
    * file descriptor, so we can just read the AHAFS event occurrence
@@ -725,41 +673,40 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
    */
   bytes = pread(event_watch->fd, result_data, RDWR_BUF_SIZE, 0);
 
-  assert((bytes <= 0) && "uv__ahafs_event - Error reading monitor file");
+  assert((bytes >= 0) && "uv__ahafs_event - Error reading monitor file");
+
+  /* In file / directory move cases, AIX Event infrastructure
+   * produces a second event with no data.
+   * Ignore it and return gracefully.
+   */
+  if(bytes == 0)
+    return;
 
   /* Parse the data */
   if(bytes > 0)
     rc = uv__parse_data(result_data, &events, handle);
+
+  /* Unrecoverable error */
+  if (rc == -1)
+    return;
 
   /* For directory changes, the name of the files that triggered the change
    * are never absolute pathnames
    */
   if (uv__path_is_a_directory(handle->path) == 0) {
     p = handle->dir_filename;
-    while(*p != NULL){
-      fname[i]= *p;
-      i++;
-      p++;
-    }
   } else {
-    /* For file changes, figure out whether filename is absolute or not */
-    if (handle->path[0] == '/') {
-      p = strrchr(handle->path, '/');
+    p = strrchr(handle->path, '/');
+    if (p == NULL)
+      p = handle->path;
+    else
       p++;
-
-      while(*p != NULL) {
-        fname[i]= *p;
-        i++;
-        p++;
-      }
-    }
   }
+  strncpy(fname, p, sizeof(fname) - 1);
+  /* Just in case */
+  fname[sizeof(fname) - 1] = '\0';
 
-  /* Unrecoverable error */
-  if (rc == -1)
-    return;
-  else /* Call the actual JavaScript callback function */
-    handle->cb(handle, (const char*)&fname, events, 0);
+  handle->cb(handle, fname, events, 0);
 }
 #endif
 
@@ -769,7 +716,7 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
   uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
   return 0;
 #else
-  return -ENOSYS;
+  return UV_ENOSYS;
 #endif
 }
 
@@ -779,53 +726,30 @@ int uv_fs_event_start(uv_fs_event_t* handle,
                       const char* filename,
                       unsigned int flags) {
 #ifdef HAVE_SYS_AHAFS_EVPRODS_H
-  int  fd, rc, i = 0, res = 0;
+  int  fd, rc, str_offset = 0;
   char cwd[PATH_MAX];
   char absolute_path[PATH_MAX];
-  char fname[PATH_MAX];
-  char *p;
+  char readlink_cwd[PATH_MAX];
 
-  /* Clean all the buffers*/
-  for(i = 0; i < PATH_MAX; i++) {
-    cwd[i] = 0;
-    absolute_path[i] = 0;
-    fname[i] = 0;
-  }
-  i = 0;
 
   /* Figure out whether filename is absolute or not */
   if (filename[0] == '/') {
-    /* We have absolute pathname, create the relative pathname*/
-    sprintf(absolute_path, filename);
-    p = strrchr(filename, '/');
-    p++;
+    /* We have absolute pathname */
+    snprintf(absolute_path, sizeof(absolute_path), "%s", filename);
   } else {
-    if (filename[0] == '.' && filename[1] == '/') {
-      /* We have a relative pathname, compose the absolute pathname */
-      sprintf(fname, filename);
-      snprintf(cwd, PATH_MAX-1, "/proc/%lu/cwd", (unsigned long) getpid());
-      res = readlink(cwd, absolute_path, sizeof(absolute_path) - 1);
-      if (res < 0)
-        return res;
-      p = strrchr(absolute_path, '/');
-      p++;
-      p++;
-    } else {
-      /* We have a relative pathname, compose the absolute pathname */
-      sprintf(fname, filename);
-      snprintf(cwd, PATH_MAX-1, "/proc/%lu/cwd", (unsigned long) getpid());
-      res = readlink(cwd, absolute_path, sizeof(absolute_path) - 1);
-      if (res < 0)
-        return res;
-      p = strrchr(absolute_path, '/');
-      p++;
-    }
-    /* Copy to filename buffer */
-    while(filename[i] != NULL) {
-      *p = filename[i];
-      i++;
-      p++;
-    }
+    /* We have a relative pathname, compose the absolute pathname */
+    snprintf(cwd, sizeof(cwd), "/proc/%lu/cwd", (unsigned long) getpid());
+    rc = readlink(cwd, readlink_cwd, sizeof(readlink_cwd) - 1);
+    if (rc < 0)
+      return rc;
+    /* readlink does not null terminate our string */
+    readlink_cwd[rc] = '\0';
+
+    if (filename[0] == '.' && filename[1] == '/')
+      str_offset = 2;
+
+    snprintf(absolute_path, sizeof(absolute_path), "%s%s", readlink_cwd,
+             filename + str_offset);
   }
 
   if (uv__is_ahafs_mounted() < 0)  /* /aha checks failed */
@@ -839,14 +763,15 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   /* Setup/Initialize all the libuv routines */
   uv__handle_start(handle);
   uv__io_init(&handle->event_watcher, uv__ahafs_event, fd);
-  handle->path = uv__strdup((const char*)&absolute_path);
+  handle->path = uv__strdup(filename);
   handle->cb = cb;
+  handle->dir_filename = NULL;
 
-  uv__io_start(handle->loop, &handle->event_watcher, UV__POLLIN);
+  uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
 
   return 0;
 #else
-  return -ENOSYS;
+  return UV_ENOSYS;
 #endif
 }
 
@@ -871,7 +796,7 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
 
   return 0;
 #else
-  return -ENOSYS;
+  return UV_ENOSYS;
 #endif
 }
 
@@ -886,20 +811,101 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
 
 
 char** uv_setup_args(int argc, char** argv) {
-  return argv;
+  char** new_argv;
+  size_t size;
+  char* s;
+  int i;
+
+  if (argc <= 0)
+    return argv;
+
+  /* Save the original pointer to argv.
+   * AIX uses argv to read the process name.
+   * (Not the memory pointed to by argv[0..n] as on Linux.)
+   */
+  process_argv = argv;
+  process_argc = argc;
+
+  /* Calculate how much memory we need for the argv strings. */
+  size = 0;
+  for (i = 0; i < argc; i++)
+    size += strlen(argv[i]) + 1;
+
+  /* Add space for the argv pointers. */
+  size += (argc + 1) * sizeof(char*);
+
+  new_argv = uv__malloc(size);
+  if (new_argv == NULL)
+    return argv;
+  args_mem = new_argv;
+
+  /* Copy over the strings and set up the pointer table. */
+  s = (char*) &new_argv[argc + 1];
+  for (i = 0; i < argc; i++) {
+    size = strlen(argv[i]) + 1;
+    memcpy(s, argv[i], size);
+    new_argv[i] = s;
+    s += size;
+  }
+  new_argv[i] = NULL;
+
+  return new_argv;
 }
 
 
 int uv_set_process_title(const char* title) {
+  char* new_title;
+
+  /* We cannot free this pointer when libuv shuts down,
+   * the process may still be using it.
+   */
+  new_title = uv__strdup(title);
+  if (new_title == NULL)
+    return UV_ENOMEM;
+
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
+
+  /* If this is the first time this is set,
+   * don't free and set argv[1] to NULL.
+   */
+  if (process_title_ptr != NULL)
+    uv__free(process_title_ptr);
+
+  process_title_ptr = new_title;
+
+  process_argv[0] = process_title_ptr;
+  if (process_argc > 1)
+     process_argv[1] = NULL;
+
+  uv_mutex_unlock(&process_title_mutex);
+
   return 0;
 }
 
 
 int uv_get_process_title(char* buffer, size_t size) {
-  if (size > 0) {
-    buffer[0] = '\0';
-  }
+  size_t len;
+  len = strlen(process_argv[0]);
+  if (buffer == NULL || size == 0)
+    return UV_EINVAL;
+  else if (size <= len)
+    return UV_ENOBUFS;
+
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
+
+  memcpy(buffer, process_argv[0], len + 1);
+
+  uv_mutex_unlock(&process_title_mutex);
+
   return 0;
+}
+
+
+UV_DESTRUCTOR(static void free_args_mem(void)) {
+  uv__free(args_mem);  /* Keep valgrind happy. */
+  args_mem = NULL;
 }
 
 
@@ -913,10 +919,10 @@ int uv_resident_set_memory(size_t* rss) {
 
   fd = open(pp, O_RDONLY);
   if (fd == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   /* FIXME(bnoordhuis) Handle EINTR. */
-  err = -EINVAL;
+  err = UV_EINVAL;
   if (read(fd, &psinfo, sizeof(psinfo)) == sizeof(psinfo)) {
     *rss = (size_t)psinfo.pr_rssize * 1024;
     err = 0;
@@ -932,6 +938,7 @@ int uv_uptime(double* uptime) {
   size_t entries = 0;
   time_t boot_time;
 
+  boot_time = 0;
   utmpname(UTMP_FILE);
 
   setutent();
@@ -946,7 +953,7 @@ int uv_uptime(double* uptime) {
   endutent();
 
   if (boot_time == 0)
-    return -ENOSYS;
+    return UV_ENOSYS;
 
   *uptime = time(NULL) - boot_time;
   return 0;
@@ -962,30 +969,30 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   result = perfstat_cpu_total(NULL, &ps_total, sizeof(ps_total), 1);
   if (result == -1) {
-    return -ENOSYS;
+    return UV_ENOSYS;
   }
 
   ncpus = result = perfstat_cpu(NULL, NULL, sizeof(perfstat_cpu_t), 0);
   if (result == -1) {
-    return -ENOSYS;
+    return UV_ENOSYS;
   }
 
   ps_cpus = (perfstat_cpu_t*) uv__malloc(ncpus * sizeof(perfstat_cpu_t));
   if (!ps_cpus) {
-    return -ENOMEM;
+    return UV_ENOMEM;
   }
 
   strcpy(cpu_id.name, FIRST_CPU);
   result = perfstat_cpu(&cpu_id, ps_cpus, sizeof(perfstat_cpu_t), ncpus);
   if (result == -1) {
     uv__free(ps_cpus);
-    return -ENOSYS;
+    return UV_ENOSYS;
   }
 
   *cpu_infos = (uv_cpu_info_t*) uv__malloc(ncpus * sizeof(uv_cpu_info_t));
   if (!*cpu_infos) {
     uv__free(ps_cpus);
-    return -ENOMEM;
+    return UV_ENOMEM;
   }
 
   *count = ncpus;
@@ -1007,130 +1014,6 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   return 0;
 }
 
-
-void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
-  int i;
-
-  for (i = 0; i < count; ++i) {
-    uv__free(cpu_infos[i].model);
-  }
-
-  uv__free(cpu_infos);
-}
-
-
-int uv_interface_addresses(uv_interface_address_t** addresses,
-  int* count) {
-  uv_interface_address_t* address;
-  int sockfd, size = 1;
-  struct ifconf ifc;
-  struct ifreq *ifr, *p, flg;
-
-  *count = 0;
-
-  if (0 > (sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP))) {
-    return -errno;
-  }
-
-  if (ioctl(sockfd, SIOCGSIZIFCONF, &size) == -1) {
-    SAVE_ERRNO(uv__close(sockfd));
-    return -errno;
-  }
-
-  ifc.ifc_req = (struct ifreq*)uv__malloc(size);
-  ifc.ifc_len = size;
-  if (ioctl(sockfd, SIOCGIFCONF, &ifc) == -1) {
-    SAVE_ERRNO(uv__close(sockfd));
-    return -errno;
-  }
-
-#define ADDR_SIZE(p) MAX((p).sa_len, sizeof(p))
-
-  /* Count all up and running ipv4/ipv6 addresses */
-  ifr = ifc.ifc_req;
-  while ((char*)ifr < (char*)ifc.ifc_req + ifc.ifc_len) {
-    p = ifr;
-    ifr = (struct ifreq*)
-      ((char*)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
-
-    if (!(p->ifr_addr.sa_family == AF_INET6 ||
-          p->ifr_addr.sa_family == AF_INET))
-      continue;
-
-    memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
-    if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
-      SAVE_ERRNO(uv__close(sockfd));
-      return -errno;
-    }
-
-    if (!(flg.ifr_flags & IFF_UP && flg.ifr_flags & IFF_RUNNING))
-      continue;
-
-    (*count)++;
-  }
-
-  /* Alloc the return interface structs */
-  *addresses = (uv_interface_address_t*)
-    uv__malloc(*count * sizeof(uv_interface_address_t));
-  if (!(*addresses)) {
-    uv__close(sockfd);
-    return -ENOMEM;
-  }
-  address = *addresses;
-
-  ifr = ifc.ifc_req;
-  while ((char*)ifr < (char*)ifc.ifc_req + ifc.ifc_len) {
-    p = ifr;
-    ifr = (struct ifreq*)
-      ((char*)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
-
-    if (!(p->ifr_addr.sa_family == AF_INET6 ||
-          p->ifr_addr.sa_family == AF_INET))
-      continue;
-
-    memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
-    if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
-      uv__close(sockfd);
-      return -ENOSYS;
-    }
-
-    if (!(flg.ifr_flags & IFF_UP && flg.ifr_flags & IFF_RUNNING))
-      continue;
-
-    /* All conditions above must match count loop */
-
-    address->name = uv__strdup(p->ifr_name);
-
-    if (p->ifr_addr.sa_family == AF_INET6) {
-      address->address.address6 = *((struct sockaddr_in6*) &p->ifr_addr);
-    } else {
-      address->address.address4 = *((struct sockaddr_in*) &p->ifr_addr);
-    }
-
-    /* TODO: Retrieve netmask using SIOCGIFNETMASK ioctl */
-
-    address->is_internal = flg.ifr_flags & IFF_LOOPBACK ? 1 : 0;
-
-    address++;
-  }
-
-#undef ADDR_SIZE
-
-  uv__close(sockfd);
-  return 0;
-}
-
-
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-  int count) {
-  int i;
-
-  for (i = 0; i < count; ++i) {
-    uv__free(addresses[i].name);
-  }
-
-  uv__free(addresses);
-}
 
 void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
   struct pollfd* events;

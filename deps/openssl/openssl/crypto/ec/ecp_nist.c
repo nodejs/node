@@ -1,60 +1,12 @@
-/* crypto/ec/ecp_nist.c */
 /*
- * Written by Nils Larsch for the OpenSSL project.
+ * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* ====================================================================
- * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
+
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  * Portions of this software developed by SUN MICROSYSTEMS, INC.,
@@ -66,10 +18,6 @@
 #include <openssl/err.h>
 #include <openssl/obj_mac.h>
 #include "ec_lcl.h"
-
-#ifdef OPENSSL_FIPS
-# include <openssl/fips.h>
-#endif
 
 const EC_METHOD *EC_GFp_nist_method(void)
 {
@@ -83,6 +31,7 @@ const EC_METHOD *EC_GFp_nist_method(void)
         ec_GFp_nist_group_set_curve,
         ec_GFp_simple_group_get_curve,
         ec_GFp_simple_group_get_degree,
+        ec_group_simple_order_bits,
         ec_GFp_simple_group_check_discriminant,
         ec_GFp_simple_point_init,
         ec_GFp_simple_point_finish,
@@ -110,13 +59,17 @@ const EC_METHOD *EC_GFp_nist_method(void)
         0 /* field_div */ ,
         0 /* field_encode */ ,
         0 /* field_decode */ ,
-        0                       /* field_set_to_one */
+        0,                      /* field_set_to_one */
+        ec_key_simple_priv2oct,
+        ec_key_simple_oct2priv,
+        0, /* set private */
+        ec_key_simple_generate_key,
+        ec_key_simple_check_key,
+        ec_key_simple_generate_public_key,
+        0, /* keycopy */
+        0, /* keyfinish */
+        ecdh_simple_compute_key
     };
-
-#ifdef OPENSSL_FIPS
-    if (FIPS_mode())
-        return fips_ec_gfp_nist_method();
-#endif
 
     return &ret;
 }
@@ -133,15 +86,12 @@ int ec_GFp_nist_group_set_curve(EC_GROUP *group, const BIGNUM *p,
 {
     int ret = 0;
     BN_CTX *new_ctx = NULL;
-    BIGNUM *tmp_bn;
 
     if (ctx == NULL)
         if ((ctx = new_ctx = BN_CTX_new()) == NULL)
             return 0;
 
     BN_CTX_start(ctx);
-    if ((tmp_bn = BN_CTX_get(ctx)) == NULL)
-        goto err;
 
     if (BN_ucmp(BN_get0_nist_prime_192(), p) == 0)
         group->field_mod_func = BN_nist_mod_192;
@@ -162,8 +112,7 @@ int ec_GFp_nist_group_set_curve(EC_GROUP *group, const BIGNUM *p,
 
  err:
     BN_CTX_end(ctx);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
+    BN_CTX_free(new_ctx);
     return ret;
 }
 
@@ -183,13 +132,12 @@ int ec_GFp_nist_field_mul(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a,
 
     if (!BN_mul(r, a, b, ctx))
         goto err;
-    if (!group->field_mod_func(r, r, &group->field, ctx))
+    if (!group->field_mod_func(r, r, group->field, ctx))
         goto err;
 
     ret = 1;
  err:
-    if (ctx_new)
-        BN_CTX_free(ctx_new);
+    BN_CTX_free(ctx_new);
     return ret;
 }
 
@@ -209,12 +157,11 @@ int ec_GFp_nist_field_sqr(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a,
 
     if (!BN_sqr(r, a, ctx))
         goto err;
-    if (!group->field_mod_func(r, r, &group->field, ctx))
+    if (!group->field_mod_func(r, r, group->field, ctx))
         goto err;
 
     ret = 1;
  err:
-    if (ctx_new)
-        BN_CTX_free(ctx_new);
+    BN_CTX_free(ctx_new);
     return ret;
 }

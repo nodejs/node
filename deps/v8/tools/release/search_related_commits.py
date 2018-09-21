@@ -48,7 +48,7 @@ def _search_related_commits(
       return []
 
   # Extract commit position
-  original_message = _git_execute(
+  original_message = git_execute(
       git_working_dir,
       ["show", "-s", "--format=%B", start_hash],
       verbose)
@@ -74,13 +74,13 @@ def _search_related_commits(
       search_range,
     ]
 
-  found_by_hash = _git_execute(
+  found_by_hash = git_execute(
       git_working_dir, git_args(start_hash), verbose).strip()
 
   if verbose:
     print "2.) Found by hash: " + found_by_hash
 
-  found_by_commit_pos = _git_execute(
+  found_by_commit_pos = git_execute(
       git_working_dir, git_args(commit_position), verbose).strip()
 
   if verbose:
@@ -90,7 +90,7 @@ def _search_related_commits(
   title = title.replace("[", "\\[")
   title = title.replace("]", "\\]")
 
-  found_by_title = _git_execute(
+  found_by_title = git_execute(
       git_working_dir, git_args(title), verbose).strip()
 
   if verbose:
@@ -113,7 +113,7 @@ def _search_related_commits(
   return hits
 
 def _find_commits_inbetween(start_hash, end_hash, git_working_dir, verbose):
-  commits_between = _git_execute(
+  commits_between = git_execute(
         git_working_dir,
         ["rev-list", "--reverse", start_hash + ".." + end_hash],
         verbose)
@@ -129,7 +129,7 @@ def _remove_duplicates(array):
       no_duplicates.append(current)
    return no_duplicates
 
-def _git_execute(working_dir, args, verbose=False):
+def git_execute(working_dir, args, verbose=False):
   command = ["git", "-C", working_dir] + args
   if verbose:
     print "Git working dir: " + working_dir
@@ -145,7 +145,7 @@ def _git_execute(working_dir, args, verbose=False):
   return output
 
 def _pretty_print_entry(hash, git_dir, pre_text, verbose):
-  text_to_print = _git_execute(
+  text_to_print = git_execute(
       git_dir,
       ["show",
        "--quiet",
@@ -164,7 +164,7 @@ def main(options):
         options.verbose)
 
     sort_key = lambda x: (
-        _git_execute(
+        git_execute(
             options.git_dir,
             ["show", "--quiet", "--date=iso", x, "--format=%ad"],
             options.verbose)).strip()

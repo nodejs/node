@@ -18,10 +18,10 @@ glob(root + '/{README.md,doc/*/*.md}', function (er, files) {
     return f
   }).sort(function (a, b) {
     return (a[0] === b[0])
-            ? (path.basename(a[1]) === 'npm.md' ? -1
-            : path.basename(b[1]) === 'npm.md' ? 1
-            : a[1] > b[1] ? 1 : -1)
-            : a[0] - b[0]
+      ? (path.basename(a[1]) === 'npm.md' ? -1
+        : path.basename(b[1]) === 'npm.md' ? 1
+          : a[1] > b[1] ? 1 : -1)
+      : a[0] - b[0]
   }))
 })
 

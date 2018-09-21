@@ -1,0 +1,56 @@
+{
+  "_from": "stream-iterate@^1.1.0",
+  "_id": "stream-iterate@1.2.0",
+  "_inBundle": false,
+  "_integrity": "sha1-K9fHcpbBcCpGSIuK1B95hl7s1OE=",
+  "_location": "/stream-iterate",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "stream-iterate@^1.1.0",
+    "name": "stream-iterate",
+    "escapedName": "stream-iterate",
+    "rawSpec": "^1.1.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.1.0"
+  },
+  "_requiredBy": [
+    "/sorted-union-stream"
+  ],
+  "_resolved": "https://registry.npmjs.org/stream-iterate/-/stream-iterate-1.2.0.tgz",
+  "_shasum": "2bd7c77296c1702a46488b8ad41f79865eecd4e1",
+  "_spec": "stream-iterate@^1.1.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/sorted-union-stream",
+  "author": {
+    "name": "Mathias Buus",
+    "url": "@mafintosh"
+  },
+  "bugs": {
+    "url": "https://github.com/mafintosh/stream-iterate/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "readable-stream": "^2.1.5",
+    "stream-shift": "^1.0.0"
+  },
+  "deprecated": false,
+  "description": "Iterate through the values of a stream",
+  "devDependencies": {
+    "from2": "^1.3.0",
+    "standard": "^3.3.2",
+    "tape": "^4.0.0"
+  },
+  "homepage": "https://github.com/mafintosh/stream-iterate",
+  "license": "MIT",
+  "main": "index.js",
+  "name": "stream-iterate",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mafintosh/stream-iterate.git"
+  },
+  "scripts": {
+    "test": "standard && tape test.js"
+  },
+  "version": "1.2.0"
+}

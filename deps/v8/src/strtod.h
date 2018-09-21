@@ -14,6 +14,7 @@ namespace internal {
 // contain a dot or a sign. It must not start with '0', and must not be empty.
 double Strtod(Vector<const char> buffer, int exponent);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STRTOD_H_

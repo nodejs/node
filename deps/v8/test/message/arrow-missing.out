@@ -1,4 +1,0 @@
-*%(basename)s:7: SyntaxError: Expected () to start arrow function, but got ';' instead of '=>'
-function foo() { return(); }
-                         ^
-SyntaxError: Expected () to start arrow function, but got ';' instead of '=>'

@@ -8,6 +8,9 @@ In libuv errors are negative numbered constants. As a rule of thumb, whenever
 there is a status parameter, or an API functions returns an integer, a negative
 number will imply an error.
 
+When a function which takes a callback returns an error, the callback will never
+be called.
+
 .. note::
     Implementation detail: on Unix error codes are the negated `errno` (or `-errno`), while on
     Windows they are defined by libuv to arbitrary negative numbers.
@@ -320,12 +323,43 @@ Error constants
 API
 ---
 
+.. c:function:: UV_ERRNO_MAP(iter_macro)
+
+    Macro that expands to a series of invocations of `iter_macro` for
+    each of the error constants above. `iter_macro` is invoked with two
+    arguments: the name of the error constant without the `UV_` prefix,
+    and the error message string literal.
+
 .. c:function:: const char* uv_strerror(int err)
 
     Returns the error message for the given error code.  Leaks a few bytes
     of memory when you call it with an unknown error code.
 
+.. c:function:: char* uv_strerror_r(int err, char* buf, size_t buflen)
+
+    Returns the error message for the given error code. The zero-terminated
+    message is stored in the user-supplied buffer `buf` of at most `buflen` bytes.
+
+    .. versionadded:: 1.22.0
+
 .. c:function:: const char* uv_err_name(int err)
 
     Returns the error name for the given error code.  Leaks a few bytes
     of memory when you call it with an unknown error code.
+
+.. c:function:: char* uv_err_name_r(int err, char* buf, size_t buflen)
+
+    Returns the error name for the given error code. The zero-terminated
+    name is stored in the user-supplied buffer `buf` of at most `buflen` bytes.
+
+    .. versionadded:: 1.22.0
+
+.. c:function:: int uv_translate_sys_error(int sys_errno)
+
+   Returns the libuv error code equivalent to the given platform dependent error
+   code: POSIX error codes on Unix (the ones stored in `errno`), and Win32 error
+   codes on Windows (those returned by `GetLastError()` or `WSAGetLastError()`).
+
+   If `sys_errno` is already a libuv error, it is simply returned.
+
+   .. versionchanged:: 1.10.0 function declared public.

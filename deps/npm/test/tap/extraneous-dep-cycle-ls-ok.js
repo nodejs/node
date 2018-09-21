@@ -54,10 +54,11 @@ test('setup', function (t) {
 
 var expected = pkg + '\n' +
                '└─┬ moduleA@1.0.0\n' +
-               '  └── moduleB@1.0.0\n\n'
+               '  └─┬ moduleB@1.0.0\n' +
+               '    └── moduleA@1.0.0 deduped\n\n'
 
 test('extraneous-dep-cycle', function (t) {
-  common.npm(['ls'], {cwd: pkg}, function (er, code, stdout, stderr) {
+  common.npm(['ls', '--unicode=true'], {cwd: pkg}, function (er, code, stdout, stderr) {
     t.ifErr(er, 'install finished successfully')
     t.is(stdout, expected, 'ls output shows module')
     t.end()

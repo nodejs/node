@@ -27,16 +27,27 @@
 
 
 import signal
+import copy
 
 from ..local import utils
 
+
 class Output(object):
 
-  def __init__(self, exit_code, timed_out, stdout, stderr):
+  def __init__(self, exit_code, timed_out, stdout, stderr, pid, duration):
     self.exit_code = exit_code
     self.timed_out = timed_out
     self.stdout = stdout
     self.stderr = stderr
+    self.pid = pid
+    self.duration = duration
+
+  def without_text(self):
+    """Returns copy of the output without stdout and stderr."""
+    other = copy.copy(self)
+    other.stdout = None
+    other.stderr = None
+    return other
 
   def HasCrashed(self):
     if utils.IsWindows():
@@ -50,11 +61,3 @@ class Output(object):
 
   def HasTimedOut(self):
     return self.timed_out
-
-  def Pack(self):
-    return [self.exit_code, self.timed_out, self.stdout, self.stderr]
-
-  @staticmethod
-  def Unpack(packed):
-    # For the order of the fields, refer to Pack() above.
-    return Output(packed[0], packed[1], packed[2], packed[3])

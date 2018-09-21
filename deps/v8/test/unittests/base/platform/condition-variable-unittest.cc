@@ -35,9 +35,8 @@ class ThreadWithMutexAndConditionVariable final : public Thread {
       : Thread(Options("ThreadWithMutexAndConditionVariable")),
         running_(false),
         finished_(false) {}
-  virtual ~ThreadWithMutexAndConditionVariable() {}
 
-  virtual void Run() override {
+  void Run() override {
     LockGuard<Mutex> lock_guard(&mutex_);
     running_ = true;
     cv_.NotifyOne();
@@ -116,9 +115,8 @@ class ThreadWithSharedMutexAndConditionVariable final : public Thread {
         finished_(false),
         cv_(NULL),
         mutex_(NULL) {}
-  virtual ~ThreadWithSharedMutexAndConditionVariable() {}
 
-  virtual void Run() override {
+  void Run() override {
     LockGuard<Mutex> lock_guard(mutex_);
     running_ = true;
     cv_->NotifyAll();
@@ -233,7 +231,7 @@ class LoopIncrementThread final : public Thread {
     EXPECT_EQ(0, limit % thread_count);
   }
 
-  virtual void Run() override {
+  void Run() override {
     int last_count = -1;
     while (true) {
       LockGuard<Mutex> lock_guard(mutex_);

@@ -1,21 +1,14 @@
 'use strict'
 
 var jsonSafeStringify = require('json-stringify-safe')
-  , crypto = require('crypto')
+var crypto = require('crypto')
+var Buffer = require('safe-buffer').Buffer
 
-function deferMethod() {
-  if (typeof setImmediate === 'undefined') {
-    return process.nextTick
-  }
+var defer = typeof setImmediate === 'undefined'
+  ? process.nextTick
+  : setImmediate
 
-  return setImmediate
-}
-
-function isFunction(value) {
-  return typeof value === 'function'
-}
-
-function paramsHaveRequestBody(params) {
+function paramsHaveRequestBody (params) {
   return (
     params.body ||
     params.requestBodyStream ||
@@ -24,12 +17,12 @@ function paramsHaveRequestBody(params) {
   )
 }
 
-function safeStringify (obj) {
+function safeStringify (obj, replacer) {
   var ret
   try {
-    ret = JSON.stringify(obj)
+    ret = JSON.stringify(obj, replacer)
   } catch (e) {
-    ret = jsonSafeStringify(obj)
+    ret = jsonSafeStringify(obj, replacer)
   }
   return ret
 }
@@ -43,7 +36,7 @@ function isReadStream (rs) {
 }
 
 function toBase64 (str) {
-  return (new Buffer(str || '', 'utf8')).toString('base64')
+  return Buffer.from(str || '', 'utf8').toString('base64')
 }
 
 function copy (obj) {
@@ -63,12 +56,11 @@ function version () {
   }
 }
 
-exports.isFunction            = isFunction
 exports.paramsHaveRequestBody = paramsHaveRequestBody
-exports.safeStringify         = safeStringify
-exports.md5                   = md5
-exports.isReadStream          = isReadStream
-exports.toBase64              = toBase64
-exports.copy                  = copy
-exports.version               = version
-exports.defer                 = deferMethod()
+exports.safeStringify = safeStringify
+exports.md5 = md5
+exports.isReadStream = isReadStream
+exports.toBase64 = toBase64
+exports.copy = copy
+exports.version = version
+exports.defer = defer

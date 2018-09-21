@@ -1,11 +1,13 @@
-.TH "NPM\-ADDUSER" "1" "November 2015" "" ""
+.TH "NPM\-ADDUSER" "1" "August 2018" "" ""
 .SH "NAME"
 \fBnpm-adduser\fR \- Add a registry user account
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm adduser [\-\-registry=url] [\-\-scope=@orgname] [\-\-always\-auth]
+npm adduser [\-\-registry=url] [\-\-scope=@orgname] [\-\-always\-auth] [\-\-auth\-type=legacy]
+
+aliases: login, add\-user
 .fi
 .RE
 .SH DESCRIPTION
@@ -29,10 +31,11 @@ your existing record\.
 .SH CONFIGURATION
 .SS registry
 .P
-Default: http://registry\.npmjs\.org/
+Default: https://
 .P
 The base URL of the npm package registry\. If \fBscope\fP is also specified,
-this registry will only be used for packages with that scope\. See npm help 7 \fBnpm\-scope\fP\|\.
+this registry will only be used for packages with that scope\. \fBscope\fP defaults
+to the scope of the project directory you're currently in, if any\. See npm help 7 \fBnpm\-scope\fP\|\.
 .SS scope
 .P
 Default: none
@@ -64,9 +67,23 @@ npm adduser \-\-registry=http://private\-registry\.example\.com \-\-always\-auth
 .RE
 .P
 This will ensure that all requests to that registry (including for tarballs)
-include an authorization header\. See \fBalways\-auth\fP in npm help 7 \fBnpm\-config\fP for more
-details on always\-auth\. Registry\-specific configuration of \fBalways\-auth\fP takes
-precedence over any global configuration\.
+include an authorization header\. This setting may be necessary for use with
+private registries where metadata and package tarballs are stored on hosts with
+different hostnames\. See \fBalways\-auth\fP in npm help 7 \fBnpm\-config\fP for more details on
+always\-auth\. Registry\-specific configuration of \fBalways\-auth\fP takes precedence
+over any global configuration\.
+.SS auth\-type
+.RS 0
+.IP \(bu 2
+Default: \fB\|'legacy'\fP
+.IP \(bu 2
+Type: \fB\|'legacy'\fP, \fB\|'sso'\fP, \fB\|'saml'\fP, \fB\|'oauth'\fP
+
+.RE
+.P
+What authentication strategy to use with \fBadduser\fP/\fBlogin\fP\|\. Some npm registries
+(for example, npmE) might support alternative auth strategies besides classic
+username/password entry in legacy npm\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

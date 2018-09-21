@@ -10,8 +10,8 @@ EVP_PKEY_verify_init, EVP_PKEY_verify - signature verification using a public ke
 
  int EVP_PKEY_verify_init(EVP_PKEY_CTX *ctx);
  int EVP_PKEY_verify(EVP_PKEY_CTX *ctx,
-			const unsigned char *sig, size_t siglen,
-			const unsigned char *tbs, size_t tbslen);
+                        const unsigned char *sig, size_t siglen,
+                        const unsigned char *tbs, size_t tbslen);
 
 =head1 DESCRIPTION
 
@@ -53,20 +53,20 @@ Verify signature using PKCS#1 and SHA256 digest:
 
  EVP_PKEY_CTX *ctx;
  unsigned char *md, *sig;
- size_t mdlen, siglen; 
+ size_t mdlen, siglen;
  EVP_PKEY *verify_key;
  /* NB: assumes verify_key, sig, siglen md and mdlen are already set up
   * and that verify_key is an RSA public key
   */
  ctx = EVP_PKEY_CTX_new(verify_key);
  if (!ctx)
-	/* Error occurred */
+        /* Error occurred */
  if (EVP_PKEY_verify_init(ctx) <= 0)
-	/* Error */
+        /* Error */
  if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0)
-	/* Error */
+        /* Error */
  if (EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha256()) <= 0)
-	/* Error */
+        /* Error */
 
  /* Perform operation */
  ret = EVP_PKEY_verify(ctx, sig, siglen, md, mdlen);
@@ -77,15 +77,24 @@ Verify signature using PKCS#1 and SHA256 digest:
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_CTX_new(3)|EVP_PKEY_CTX_new(3)>,
-L<EVP_PKEY_encrypt(3)|EVP_PKEY_encrypt(3)>,
-L<EVP_PKEY_decrypt(3)|EVP_PKEY_decrypt(3)>,
-L<EVP_PKEY_sign(3)|EVP_PKEY_sign(3)>,
-L<EVP_PKEY_verify_recover(3)|EVP_PKEY_verify_recover(3)>,
-L<EVP_PKEY_derive(3)|EVP_PKEY_derive(3)> 
+L<EVP_PKEY_CTX_new(3)>,
+L<EVP_PKEY_encrypt(3)>,
+L<EVP_PKEY_decrypt(3)>,
+L<EVP_PKEY_sign(3)>,
+L<EVP_PKEY_verify_recover(3)>,
+L<EVP_PKEY_derive(3)>
 
 =head1 HISTORY
 
 These functions were first added to OpenSSL 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

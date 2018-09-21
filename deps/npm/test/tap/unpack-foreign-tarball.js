@@ -21,8 +21,7 @@ var EXEC_OPTS = {
     'npm_config_cache': cache,
     'npm_config_tmp': tmp
   },
-  cwd: pkg,
-  stdio: [ 'pipe', 'pipe', 2 ]
+  cwd: pkg
 }
 
 function verify (t, files, err, code) {
