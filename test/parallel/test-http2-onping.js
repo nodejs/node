@@ -16,7 +16,7 @@ const {
   connect
 } = require('http2');
 
-const check = Buffer.from([1,2,3,4,5,6,7,8]);
+const check = Buffer.from([ 1, 2, 3, 4, 5, 6, 7, 8 ]);
 
 const server = createServer();
 server.on('stream', mustCall((stream) => {
