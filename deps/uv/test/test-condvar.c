@@ -259,7 +259,7 @@ TEST_IMPL(condvar_5) {
    * https://msdn.microsoft.com/en-us/library/ms687069(VS.85).aspx */
   elapsed = after - before;
   ASSERT(0.75 * timeout <= elapsed); /* 1.0 too large for Windows. */
-  ASSERT(elapsed <= 1.5 * timeout); /* 1.1 too small for OSX. */
+  ASSERT(elapsed <= 5.0 * timeout); /* MacOS has reported failures up to 1.75. */
 
   worker_config_destroy(&wc);
 
