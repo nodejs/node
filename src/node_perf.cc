@@ -405,7 +405,7 @@ void Initialize(Local<Object> target,
 
   Local<FunctionTemplate> pe = FunctionTemplate::New(isolate);
   pe->SetClassName(performanceEntryString);
-  Local<Function> fn = pe->GetFunction();
+  Local<Function> fn = pe->GetFunction(context).ToLocalChecked();
   target->Set(context, performanceEntryString, fn).FromJust();
   env->set_performance_entry_template(fn);
 
