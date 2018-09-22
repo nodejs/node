@@ -36,12 +36,9 @@ function verify(src, dest) {
 tmpdir.refresh();
 
 // Verify that flags are defined.
-assert.strictEqual(typeof COPYFILE_EXCL, 'number');
-assert.strictEqual(typeof COPYFILE_FICLONE, 'number');
-assert.strictEqual(typeof COPYFILE_FICLONE_FORCE, 'number');
-assert.strictEqual(typeof UV_FS_COPYFILE_EXCL, 'number');
-assert.strictEqual(typeof UV_FS_COPYFILE_FICLONE, 'number');
-assert.strictEqual(typeof UV_FS_COPYFILE_FICLONE_FORCE, 'number');
+[COPYFILE_EXCL, COPYFILE_FICLONE, COPYFILE_FICLONE_FORCE, UV_FS_COPYFILE_EXCL,
+ UV_FS_COPYFILE_FICLONE, UV_FS_COPYFILE_FICLONE_FORCE]
+  .forEach((cons) => assert.strictEqual(typeof cons, 'number'));
 assert.strictEqual(COPYFILE_EXCL, UV_FS_COPYFILE_EXCL);
 assert.strictEqual(COPYFILE_FICLONE, UV_FS_COPYFILE_FICLONE);
 assert.strictEqual(COPYFILE_FICLONE_FORCE, UV_FS_COPYFILE_FICLONE_FORCE);
