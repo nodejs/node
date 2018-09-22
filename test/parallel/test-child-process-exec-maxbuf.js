@@ -56,6 +56,30 @@ function runChecks(err, stdio, streamName, expected) {
   );
 }
 
+// default value
+{
+  const cmd = `"${process.execPath}" -e "console.log('a'.repeat(200 * 1024))"`;
+
+  cp.exec(
+    cmd,
+    common.mustCall((err, stdout, stderr) => {
+      runChecks(err, { stdout, stderr }, 'stdout', 'a'.repeat(200 * 1024));
+    })
+  );
+}
+
+// default value
+{
+  const cmd =
+    `"${process.execPath}" -e "console.log('a'.repeat(200 * 1024 - 1))"`;
+
+  cp.exec(cmd, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout.trim(), 'a'.repeat(200 * 1024 - 1));
+    assert.strictEqual(stderr, '');
+  }));
+}
+
 const unicode = '中文测试'; // length = 4, byte length = 12
 
 {

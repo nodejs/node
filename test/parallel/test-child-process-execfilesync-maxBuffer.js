@@ -1,23 +1,23 @@
 'use strict';
 require('../common');
 
-// This test checks that the maxBuffer option for child_process.spawnSync()
+// This test checks that the maxBuffer option for child_process.spawnFileSync()
 // works as expected.
 
 const assert = require('assert');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const msgOut = 'this is stdout';
 const msgOutBuf = Buffer.from(`${msgOut}\n`);
 
 const args = [
   '-e',
-  `"console.log('${msgOut}')";`
+  `console.log("${msgOut}");`
 ];
 
 // Verify that an error is returned if maxBuffer is surpassed.
 {
   assert.throws(() => {
-    execSync(`"${process.execPath}" ${args.join(' ')}`, { maxBuffer: 1 });
+    execFileSync(process.execPath, args, { maxBuffer: 1 });
   }, (e) => {
     assert.ok(e, 'maxBuffer should error');
     assert.strictEqual(e.errno, 'ENOBUFS');
@@ -30,10 +30,7 @@ const args = [
 
 // Verify that a maxBuffer size of Infinity works.
 {
-  const ret = execSync(
-    `"${process.execPath}" ${args.join(' ')}`,
-    { maxBuffer: Infinity }
-  );
+  const ret = execFileSync(process.execPath, args, { maxBuffer: Infinity });
 
   assert.deepStrictEqual(ret, msgOutBuf);
 }
@@ -41,19 +38,13 @@ const args = [
 // Default maxBuffer size is 200 * 1024.
 {
   assert.throws(() => {
-    execSync(`"${process.execPath}" -e "console.log('a'.repeat(200 * 1024))"`);
+    execFileSync(
+      process.execPath,
+      ['-e', "console.log('a'.repeat(200 * 1024))"]
+    );
   }, (e) => {
     assert.ok(e, 'maxBuffer should error');
     assert.strictEqual(e.errno, 'ENOBUFS');
     return true;
   });
-}
-
-// Default maxBuffer size is 200 * 1024.
-{
-  const ret = execSync(
-    `"${process.execPath}" -e "console.log('a'.repeat(200 * 1024 - 1))"`
-  );
-
-  assert.deepStrictEqual(ret.toString().trim(), 'a'.repeat(200 * 1024 - 1));
 }
