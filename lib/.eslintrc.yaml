@@ -44,3 +44,4 @@ globals:
   DCHECK_LE: false
   DCHECK_LT: false
   DCHECK_NE: false
+  internalBinding: false
