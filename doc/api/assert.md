@@ -1073,19 +1073,19 @@ added: v10.11.1
 Verify that requested constraints match the provided input :
 
 ```js
-const assert = require("assert");
+const assert = require('assert');
 
 // default case : check if string(s) match criterias
 // should be false
-assert.stringMatching('blublu', ['blublu', 'blu']),
+assert.stringMatching('blublu', ['blublu', 'blu']);
 
 // advanced case : check that strings matches regex
 // should be true
-assert.stringMatching(['blublu','blu'], /blu\.*/),
+assert.stringMatching(['blublu', 'blu'], /blu\.*/);
 
 // or to mix both of them ^^
 // should be false
-assert.stringMatching(['blublu', 'lol'], ['blublu', /blu\.*/])
+assert.stringMatching(['blublu', 'lol'], ['blublu', /blu\.*/]);
 ```
 
 ## assert.throws(fn[, error][, message])
