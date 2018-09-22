@@ -290,7 +290,7 @@ const portErr = (port) => {
   const err = {
     code: 'ERR_SOCKET_BAD_PORT',
     message:
-      `Port should be > 0 and < 65536. Received ${port}.`,
+      `Port should be >= 0 and < 65536. Received ${port}.`,
     type: RangeError
   };
 
