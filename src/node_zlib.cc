@@ -489,8 +489,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
           data + Buffer::Length(args[6]));
     }
 
-    bool ret = Init(ctx, level, windowBits, memLevel, strategy, write_result,
-                    write_js_callback, std::move(dictionary));
+    bool ret = ctx->Init(level, windowBits, memLevel, strategy, write_result,
+                         write_js_callback, std::move(dictionary));
     if (ret)
       ctx->SetDictionary();
 
@@ -516,70 +516,70 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     ctx->SetDictionary();
   }
 
-  static bool Init(ZCtx* ctx, int level, int windowBits, int memLevel,
-                   int strategy, uint32_t* write_result,
-                   Local<Function> write_js_callback,
-                   std::vector<unsigned char>&& dictionary) {
-    AllocScope alloc_scope(ctx);
-    ctx->level_ = level;
-    ctx->windowBits_ = windowBits;
-    ctx->memLevel_ = memLevel;
-    ctx->strategy_ = strategy;
+  bool Init(int level, int windowBits, int memLevel,
+            int strategy, uint32_t* write_result,
+            Local<Function> write_js_callback,
+            std::vector<unsigned char>&& dictionary) {
+    AllocScope alloc_scope(this);
+    level_ = level;
+    windowBits_ = windowBits;
+    memLevel_ = memLevel;
+    strategy_ = strategy;
 
-    ctx->strm_.zalloc = AllocForZlib;
-    ctx->strm_.zfree = FreeForZlib;
-    ctx->strm_.opaque = static_cast<void*>(ctx);
+    strm_.zalloc = AllocForZlib;
+    strm_.zfree = FreeForZlib;
+    strm_.opaque = static_cast<void*>(this);
 
-    ctx->flush_ = Z_NO_FLUSH;
+    flush_ = Z_NO_FLUSH;
 
-    ctx->err_ = Z_OK;
+    err_ = Z_OK;
 
-    if (ctx->mode_ == GZIP || ctx->mode_ == GUNZIP) {
-      ctx->windowBits_ += 16;
+    if (mode_ == GZIP || mode_ == GUNZIP) {
+      windowBits_ += 16;
     }
 
-    if (ctx->mode_ == UNZIP) {
-      ctx->windowBits_ += 32;
+    if (mode_ == UNZIP) {
+      windowBits_ += 32;
     }
 
-    if (ctx->mode_ == DEFLATERAW || ctx->mode_ == INFLATERAW) {
-      ctx->windowBits_ *= -1;
+    if (mode_ == DEFLATERAW || mode_ == INFLATERAW) {
+      windowBits_ *= -1;
     }
 
-    switch (ctx->mode_) {
+    switch (mode_) {
       case DEFLATE:
       case GZIP:
       case DEFLATERAW:
-        ctx->err_ = deflateInit2(&ctx->strm_,
-                                 ctx->level_,
-                                 Z_DEFLATED,
-                                 ctx->windowBits_,
-                                 ctx->memLevel_,
-                                 ctx->strategy_);
+        err_ = deflateInit2(&strm_,
+                            level_,
+                            Z_DEFLATED,
+                            windowBits_,
+                            memLevel_,
+                            strategy_);
         break;
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
       case UNZIP:
-        ctx->err_ = inflateInit2(&ctx->strm_, ctx->windowBits_);
+        err_ = inflateInit2(&strm_, windowBits_);
         break;
       default:
         UNREACHABLE();
     }
 
-    ctx->dictionary_ = std::move(dictionary);
+    dictionary_ = std::move(dictionary);
 
-    ctx->write_in_progress_ = false;
-    ctx->init_done_ = true;
+    write_in_progress_ = false;
+    init_done_ = true;
 
-    if (ctx->err_ != Z_OK) {
-      ctx->dictionary_.clear();
-      ctx->mode_ = NONE;
+    if (err_ != Z_OK) {
+      dictionary_.clear();
+      mode_ = NONE;
       return false;
     }
 
-    ctx->write_result_ = write_result;
-    ctx->write_js_callback_.Reset(ctx->env()->isolate(), write_js_callback);
+    write_result_ = write_result;
+    write_js_callback_.Reset(env()->isolate(), write_js_callback);
     return true;
   }
 
