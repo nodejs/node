@@ -20,6 +20,7 @@
   * [Ownership and Smart Pointers](#ownership-and-smart-pointers)
 * [Others](#others)
   * [Type casting](#type-casting)
+  * [Using `auto`](#using-auto)
   * [Do not include `*.h` if `*-inl.h` has already been included](#do-not-include-h-if--inlh-has-already-been-included)
   * [Avoid throwing JavaScript errors in C++ methods](#avoid-throwing-javascript-errors-in-c)
     * [Avoid throwing JavaScript errors in nested C++ methods](#avoid-throwing-javascript-errors-in-nested-c-methods)
@@ -208,6 +209,24 @@ Never use `std::auto_ptr`. Instead, use `std::unique_ptr`.
 - `dynamic_cast` does not work because RTTI is not enabled
 - Use `static_cast` for casting whenever it works
 - `reinterpret_cast` is okay if `static_cast` is not appropriate
+
+### Using `auto`
+
+Being explicit about types is usually preferred over using `auto`.
+
+Use `auto` to avoid type names that are noisy, obvious, or unimportant. When
+doing so, keep in mind that explicit types often help with readability and
+verifying the correctness of code.
+
+```cpp
+for (const auto& item : some_map) {
+  const KeyType& key = item.first;
+  const ValType& value = item.second;
+  // The rest of the loop can now just refer to key and value,
+  // a reader can see the types in question, and we've avoided
+  // the too-common case of extra copies in this iteration.
+}
+```
 
 ### Do not include `*.h` if `*-inl.h` has already been included
 
