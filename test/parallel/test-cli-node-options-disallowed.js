@@ -29,7 +29,6 @@ disallow('--interactive');
 disallow('-i');
 disallow('--v8-options');
 disallow('--');
-disallow('--no_warnings'); // Node options don't allow '_' instead of '-'.
 
 function disallow(opt) {
   const env = Object.assign({}, process.env, { NODE_OPTIONS: opt });

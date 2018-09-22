@@ -19,6 +19,7 @@ expect(`-r ${printA}`, 'A\nB\n');
 expect(`-r ${printA} -r ${printA}`, 'A\nB\n');
 expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
+expect('--no_warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
 expect('--redirect-warnings=_', 'B\n');
 expect('--trace-deprecation', 'B\n');
