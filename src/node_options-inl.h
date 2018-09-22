@@ -307,11 +307,10 @@ void OptionsParser<Options>::Parse(
     if (equals_index != std::string::npos)
       original_name += '=';
 
-    {
-      // Normalize by replacing `_` with `-` in options.
-      std::string::size_type index = 2;  // Start after initial '--'.
-      while ((index = name.find('_', index + 1)) != std::string::npos)
-        name[index] = '-';
+    // Normalize by replacing `_` with `-` in options.
+    for (std::string::size_type i = 2; i < name.size(); ++i) {
+      if (name[i] == '_')
+        name[i] = '-';
     }
 
     {
