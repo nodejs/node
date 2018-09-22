@@ -215,6 +215,13 @@ class ConverterObject : public BaseObject, Converter {
       result.AllocateSufficientStorage(limit);
 
     UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
+    OnScopeLeave cleanup([&]() {
+      if (flush) {
+        // Reset the converter state.
+        converter->bomSeen_ = false;
+        ucnv_reset(converter->conv);
+      }
+    });
 
     const char* source = input_obj_data;
     size_t source_length = input_obj_length;
@@ -238,17 +245,10 @@ class ConverterObject : public BaseObject, Converter {
         result.SetLength(target - &result[0]);
       ret = ToBufferEndian(env, &result);
       args.GetReturnValue().Set(ret.ToLocalChecked());
-      goto reset;
+      return;
     }
 
     args.GetReturnValue().Set(status);
-
-   reset:
-    if (flush) {
-      // Reset the converter state
-      converter->bomSeen_ = false;
-      ucnv_reset(converter->conv);
-    }
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
