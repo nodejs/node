@@ -7,6 +7,8 @@
 
 #include "src/objects/microtask.h"
 
+#include "src/objects-inl.h"  // Needed for write barriers
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 

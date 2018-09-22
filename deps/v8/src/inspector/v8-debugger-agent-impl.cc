@@ -250,7 +250,7 @@ String16 scopeType(v8::debug::ScopeIterator::ScopeType type) {
 
 namespace {
 
-Response buildScopes(v8::debug::ScopeIterator* iterator,
+Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
                      InjectedScript* injectedScript,
                      std::unique_ptr<Array<Scope>>* scopes) {
   *scopes = Array<Scope>::create();
@@ -270,8 +270,8 @@ Response buildScopes(v8::debug::ScopeIterator* iterator,
                      .setObject(std::move(object))
                      .build();
 
-    String16 name =
-        toProtocolStringWithTypeCheck(iterator->GetFunctionDebugName());
+    String16 name = toProtocolStringWithTypeCheck(
+        isolate, iterator->GetFunctionDebugName());
     if (!name.isEmpty()) scope->setName(name);
 
     if (iterator->HasLocationInfo()) {
@@ -878,7 +878,7 @@ Response V8DebuggerAgentImpl::setScriptSource(
     *optOutCompileError =
         protocol::Runtime::ExceptionDetails::create()
             .setExceptionId(m_inspector->nextExceptionId())
-            .setText(toProtocolString(result.message))
+            .setText(toProtocolString(m_isolate, result.message))
             .setLineNumber(result.line_number != -1 ? result.line_number - 1
                                                     : 0)
             .setColumnNumber(result.column_number != -1 ? result.column_number
@@ -1265,7 +1265,8 @@ Response V8DebuggerAgentImpl::currentCallFrames(
 
     std::unique_ptr<Array<Scope>> scopes;
     auto scopeIterator = iterator->GetScopeIterator();
-    Response res = buildScopes(scopeIterator.get(), injectedScript, &scopes);
+    Response res =
+        buildScopes(m_isolate, scopeIterator.get(), injectedScript, &scopes);
     if (!res.isSuccess()) return res;
 
     std::unique_ptr<RemoteObject> protocolReceiver;
@@ -1300,15 +1301,15 @@ Response V8DebuggerAgentImpl::currentCallFrames(
       url = scriptIterator->second->sourceURL();
     }
 
-    auto frame =
-        CallFrame::create()
-            .setCallFrameId(callFrameId)
-            .setFunctionName(toProtocolString(iterator->GetFunctionDebugName()))
-            .setLocation(std::move(location))
-            .setUrl(url)
-            .setScopeChain(std::move(scopes))
-            .setThis(std::move(protocolReceiver))
-            .build();
+    auto frame = CallFrame::create()
+                     .setCallFrameId(callFrameId)
+                     .setFunctionName(toProtocolString(
+                         m_isolate, iterator->GetFunctionDebugName()))
+                     .setLocation(std::move(location))
+                     .setUrl(url)
+                     .setScopeChain(std::move(scopes))
+                     .setThis(std::move(protocolReceiver))
+                     .build();
 
     v8::Local<v8::Function> func = iterator->GetFunction();
     if (!func.IsEmpty()) {

@@ -11,7 +11,7 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/context-slot-cache.h"
@@ -20,7 +20,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/basic-block-profiler.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/cancelable-task.h"
@@ -42,6 +41,7 @@
 #include "src/messages.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/profiler/tracing-cpu-profiler.h"
@@ -156,8 +156,9 @@ void ThreadLocalTop::Initialize(Isolate* isolate) {
   simulator_ = Simulator::current(isolate);
 #endif
   thread_id_ = ThreadId::Current();
+  thread_in_wasm_flag_address_ = reinterpret_cast<Address>(
+      trap_handler::GetThreadInWasmThreadLocalAddress());
 }
-
 
 void ThreadLocalTop::Free() {
   wasm_caught_exception_ = nullptr;
@@ -1124,6 +1125,8 @@ void ReportBootstrappingException(Handle<Object> exception,
 }
 
 bool Isolate::is_catchable_by_wasm(Object* exception) {
+  // TODO(titzer): thread WASM features here, or just remove this check?
+  if (!FLAG_experimental_wasm_eh) return false;
   if (!is_catchable_by_javascript(exception) || !exception->IsJSError())
     return false;
   HandleScope scope(this);
@@ -1307,7 +1310,7 @@ Object* Isolate::UnwindAndFindHandler() {
           trap_handler::ClearThreadInWasm();
         }
 
-        if (!FLAG_experimental_wasm_eh || !is_catchable_by_wasm(exception)) {
+        if (!is_catchable_by_wasm(exception)) {
           break;
         }
         int stack_slots = 0;  // Will contain stack slot count of frame.
@@ -1735,18 +1738,15 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
       uint32_t func_index =
           static_cast<uint32_t>(elements->WasmFunctionIndex(i)->value());
+      wasm::WasmCode* wasm_code = reinterpret_cast<wasm::WasmCode*>(
+          elements->WasmCodeObject(i)->foreign_address());
       int code_offset = elements->Offset(i)->value();
-
-      // TODO(titzer): store a reference to the code object in FrameArray;
-      // a second lookup here could lead to inconsistency.
-      int byte_offset =
-          FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-              instance->module_object()->native_module()->code(func_index),
-              code_offset);
-
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
+      int byte_offset =
+          FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+              wasm_code, code_offset);
       int pos = WasmModuleObject::GetSourcePosition(
           handle(instance->module_object(), this), func_index, byte_offset,
           is_at_number_conversion);
@@ -2216,12 +2216,12 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
   abort_on_uncaught_exception_callback_ = callback;
 }
 
-Handle<Context> Isolate::GetCallingNativeContext() {
-  JavaScriptFrameIterator it(this);
-  if (it.done()) return Handle<Context>::null();
-  JavaScriptFrame* frame = it.frame();
-  Context* context = Context::cast(frame->context());
-  return Handle<Context>(context->native_context(), this);
+bool Isolate::AreWasmThreadsEnabled(Handle<Context> context) {
+  if (wasm_threads_enabled_callback()) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    return wasm_threads_enabled_callback()(api_context);
+  }
+  return FLAG_experimental_wasm_threads;
 }
 
 Handle<Context> Isolate::GetIncumbentContext() {
@@ -2486,6 +2486,7 @@ Isolate::Isolate()
       language_singleton_regexp_matcher_(nullptr),
       language_tag_regexp_matcher_(nullptr),
       language_variant_regexp_matcher_(nullptr),
+      default_locale_(""),
 #endif  // V8_INTL_SUPPORT
       serializer_enabled_(false),
       has_fatal_error_(false),
@@ -2506,7 +2507,6 @@ Isolate::Isolate()
 #endif
       is_running_microtasks_(false),
       use_counter_callback_(nullptr),
-      basic_block_profiler_(nullptr),
       cancelable_task_manager_(new CancelableTaskManager()),
       abort_on_uncaught_exception_callback_(nullptr),
       total_regexp_code_generated_(0) {
@@ -2608,13 +2608,13 @@ void Isolate::Deinit() {
 
   debug()->Unload();
 
-  wasm_engine()->TearDown();
-
   if (concurrent_recompilation_enabled()) {
     optimizing_compile_dispatcher_->Stop();
     delete optimizing_compile_dispatcher_;
     optimizing_compile_dispatcher_ = nullptr;
   }
+
+  wasm_engine()->DeleteCompileJobsOnIsolate(this);
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
   heap_.memory_allocator()->unmapper()->EnsureUnmappingCompleted();
@@ -2630,6 +2630,7 @@ void Isolate::Deinit() {
   if (sampler && sampler->IsActive()) sampler->Stop();
 
   FreeThreadResources();
+  logger_->StopProfilerThread();
 
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.
@@ -2647,9 +2648,6 @@ void Isolate::Deinit() {
     runtime_profiler_ = nullptr;
   }
 
-  delete basic_block_profiler_;
-  basic_block_profiler_ = nullptr;
-
   delete heap_profiler_;
   heap_profiler_ = nullptr;
 
@@ -2657,11 +2655,13 @@ void Isolate::Deinit() {
   delete compiler_dispatcher_;
   compiler_dispatcher_ = nullptr;
 
-  // This stops cancelable tasks (i.e. concurrent masking tasks)
+  // This stops cancelable tasks (i.e. concurrent marking tasks)
   cancelable_task_manager()->CancelAndWait();
 
   heap_.TearDown();
   logger_->TearDown();
+
+  wasm_engine_.reset();
 
   if (FLAG_embedded_builtins) {
     if (DefaultEmbeddedBlob() == nullptr && embedded_blob() != nullptr) {
@@ -2876,6 +2876,19 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
     }
   }
 }
+
+void PrintEmbeddedBuiltinCandidates(Isolate* isolate) {
+  CHECK(FLAG_print_embedded_builtin_candidates);
+  bool found_a_candidate = false;
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    if (Builtins::IsIsolateIndependent(i)) continue;
+    Code* builtin = isolate->heap()->builtin(i);
+    if (!builtin->IsIsolateIndependent(isolate)) continue;
+    if (!found_a_candidate) PrintF("Found embedded builtin candidates:\n");
+    found_a_candidate = true;
+    PrintF("  %s\n", Builtins::name(i));
+  }
+}
 }  // namespace
 
 void Isolate::PrepareEmbeddedBlobForSerialization() {
@@ -2963,17 +2976,10 @@ bool Isolate::Init(StartupDeserializer* des) {
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp();
 
-  // Setup the wasm engine. Currently, there's one per Isolate by default.
+  // Setup the wasm engine.
   if (wasm_engine_ == nullptr) {
-    wasm_engine_.reset(
-        new wasm::WasmEngine(std::unique_ptr<wasm::WasmCodeManager>(
-            new wasm::WasmCodeManager(kMaxWasmCodeMemory))));
-    wasm_engine_->memory_tracker()->SetAllocationResultHistogram(
-        counters()->wasm_memory_allocation_result());
-    wasm_engine_->memory_tracker()->SetAddressSpaceUsageHistogram(
-        counters()->wasm_address_space_usage_mb());
-    wasm_engine_->code_manager()->SetModuleCodeSizeHistogram(
-        counters()->wasm_module_code_size_mb());
+    wasm_engine_ = wasm::WasmEngine::GetWasmEngine();
+    wasm::WasmCodeManager::InstallSamplingGCCallback(this);
   }
 
   deoptimizer_data_ = new DeoptimizerData(heap());
@@ -3018,7 +3024,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);
   }
 
-  if (FLAG_trace_turbo || FLAG_trace_turbo_graph) {
+  if (FLAG_trace_turbo || FLAG_trace_turbo_graph || FLAG_turbo_profiling) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   } else if (OptimizingCompileDispatcher::Enabled()) {
     optimizing_compile_dispatcher_ = new OptimizingCompileDispatcher(this);
@@ -3044,6 +3050,9 @@ bool Isolate::Init(StartupDeserializer* des) {
   setup_delegate_ = nullptr;
 
   if (FLAG_print_builtin_size) PrintBuiltinSizes(this);
+  if (FLAG_print_embedded_builtin_candidates) {
+    PrintEmbeddedBuiltinCandidates(this);
+  }
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();
@@ -3763,7 +3772,8 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 
 MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     Handle<Script> referrer, Handle<Object> specifier) {
-  v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
+  v8::Local<v8::Context> api_context =
+      v8::Utils::ToLocal(Handle<Context>(native_context()));
 
   if (host_import_module_dynamically_callback_ == nullptr) {
     Handle<Object> exception =
@@ -3802,7 +3812,8 @@ Handle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
   if (host_meta->IsTheHole(this)) {
     host_meta = factory()->NewJSObjectWithNullProto();
     if (host_initialize_import_meta_object_callback_ != nullptr) {
-      v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
+      v8::Local<v8::Context> api_context =
+          v8::Utils::ToLocal(Handle<Context>(native_context()));
       host_initialize_import_meta_object_callback_(
           api_context, Utils::ToLocal(module),
           v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(host_meta)));
@@ -3995,15 +4006,6 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
   }
 }
 
-
-BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
-  if (basic_block_profiler_ == nullptr) {
-    basic_block_profiler_ = new BasicBlockProfiler();
-  }
-  return basic_block_profiler_;
-}
-
-
 std::string Isolate::GetTurboCfgFileName() {
   if (FLAG_trace_turbo_cfg_file == nullptr) {
     std::ostringstream os;
@@ -4018,50 +4020,50 @@ std::string Isolate::GetTurboCfgFileName() {
 // (number of GC since the context was detached, the context).
 void Isolate::AddDetachedContext(Handle<Context> context) {
   HandleScope scope(this);
-  Handle<WeakCell> cell = factory()->NewWeakCell(context);
-  Handle<FixedArray> detached_contexts =
-      factory()->CopyFixedArrayAndGrow(factory()->detached_contexts(), 2);
-  int new_length = detached_contexts->length();
-  detached_contexts->set(new_length - 2, Smi::kZero);
-  detached_contexts->set(new_length - 1, *cell);
+  Handle<WeakArrayList> detached_contexts = factory()->detached_contexts();
+  detached_contexts = WeakArrayList::AddToEnd(
+      this, detached_contexts, MaybeObjectHandle(Smi::kZero, this));
+  detached_contexts = WeakArrayList::AddToEnd(this, detached_contexts,
+                                              MaybeObjectHandle::Weak(context));
   heap()->set_detached_contexts(*detached_contexts);
 }
 
 
 void Isolate::CheckDetachedContextsAfterGC() {
   HandleScope scope(this);
-  Handle<FixedArray> detached_contexts = factory()->detached_contexts();
+  Handle<WeakArrayList> detached_contexts = factory()->detached_contexts();
   int length = detached_contexts->length();
   if (length == 0) return;
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
-    int mark_sweeps = Smi::ToInt(detached_contexts->get(i));
-    DCHECK(detached_contexts->get(i + 1)->IsWeakCell());
-    WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
-    if (!cell->cleared()) {
-      detached_contexts->set(new_length, Smi::FromInt(mark_sweeps + 1));
-      detached_contexts->set(new_length + 1, cell);
+    int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->ToSmi());
+    MaybeObject* context = detached_contexts->Get(i + 1);
+    DCHECK(context->IsWeakHeapObject() || context->IsClearedWeakHeapObject());
+    if (!context->IsClearedWeakHeapObject()) {
+      detached_contexts->Set(
+          new_length, MaybeObject::FromSmi(Smi::FromInt(mark_sweeps + 1)));
+      detached_contexts->Set(new_length + 1, context);
       new_length += 2;
     }
-    counters()->detached_context_age_in_gc()->AddSample(mark_sweeps + 1);
   }
+  detached_contexts->set_length(new_length);
+  while (new_length < length) {
+    detached_contexts->Set(new_length, MaybeObject::FromSmi(Smi::kZero));
+    ++new_length;
+  }
+
   if (FLAG_trace_detached_contexts) {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
-      int mark_sweeps = Smi::ToInt(detached_contexts->get(i));
-      DCHECK(detached_contexts->get(i + 1)->IsWeakCell());
-      WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
+      int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->ToSmi());
+      MaybeObject* context = detached_contexts->Get(i + 1);
+      DCHECK(context->IsWeakHeapObject() || context->IsClearedWeakHeapObject());
       if (mark_sweeps > 3) {
         PrintF("detached context %p\n survived %d GCs (leak?)\n",
-               static_cast<void*>(cell->value()), mark_sweeps);
+               static_cast<void*>(context), mark_sweeps);
       }
     }
-  }
-  if (new_length == 0) {
-    heap()->set_detached_contexts(ReadOnlyRoots(heap()).empty_fixed_array());
-  } else if (new_length < length) {
-    heap()->RightTrimFixedArray(*detached_contexts, length - new_length);
   }
 }
 

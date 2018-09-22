@@ -23,8 +23,8 @@ class TypeCache;
 
 class V8_EXPORT_PRIVATE SimplifiedLowering final {
  public:
-  SimplifiedLowering(JSGraph* jsgraph, const JSHeapBroker* js_heap_broker,
-                     Zone* zone, SourcePositionTable* source_position,
+  SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* js_heap_broker, Zone* zone,
+                     SourcePositionTable* source_position,
                      NodeOriginTable* node_origins,
                      PoisoningMitigationLevel poisoning_level);
   ~SimplifiedLowering() {}
@@ -48,12 +48,14 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
 
  private:
   JSGraph* const jsgraph_;
-  const JSHeapBroker* js_heap_broker_;
+  JSHeapBroker* js_heap_broker_;
   Zone* const zone_;
   TypeCache const& type_cache_;
   SetOncePointer<Node> to_number_code_;
+  SetOncePointer<Node> to_number_convert_big_int_code_;
   SetOncePointer<Node> to_numeric_code_;
   SetOncePointer<Operator const> to_number_operator_;
+  SetOncePointer<Operator const> to_number_convert_big_int_operator_;
   SetOncePointer<Operator const> to_numeric_operator_;
 
   // TODO(danno): SimplifiedLowering shouldn't know anything about the source
@@ -76,8 +78,10 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   Node* Uint32Mod(Node* const node);
 
   Node* ToNumberCode();
+  Node* ToNumberConvertBigIntCode();
   Node* ToNumericCode();
   Operator const* ToNumberOperator();
+  Operator const* ToNumberConvertBigIntOperator();
   Operator const* ToNumericOperator();
 
   friend class RepresentationSelector;

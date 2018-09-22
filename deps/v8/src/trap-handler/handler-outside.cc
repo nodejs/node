@@ -134,7 +134,6 @@ CodeProtectionInfo* CreateHandlerData(
 int RegisterHandlerData(
     Address base, size_t size, size_t num_protected_instructions,
     const ProtectedInstructionData* protected_instructions) {
-  // TODO(eholk): in debug builds, make sure this data isn't already registered.
 
   CodeProtectionInfo* data = CreateHandlerData(
       base, size, num_protected_instructions, protected_instructions);

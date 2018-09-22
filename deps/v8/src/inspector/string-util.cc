@@ -52,16 +52,18 @@ v8::Local<v8::String> toV8String(v8::Isolate* isolate,
       .ToLocalChecked();
 }
 
-String16 toProtocolString(v8::Local<v8::String> value) {
+String16 toProtocolString(v8::Isolate* isolate, v8::Local<v8::String> value) {
   if (value.IsEmpty() || value->IsNullOrUndefined()) return String16();
   std::unique_ptr<UChar[]> buffer(new UChar[value->Length()]);
-  value->Write(reinterpret_cast<uint16_t*>(buffer.get()), 0, value->Length());
+  value->Write(isolate, reinterpret_cast<uint16_t*>(buffer.get()), 0,
+               value->Length());
   return String16(buffer.get(), value->Length());
 }
 
-String16 toProtocolStringWithTypeCheck(v8::Local<v8::Value> value) {
+String16 toProtocolStringWithTypeCheck(v8::Isolate* isolate,
+                                       v8::Local<v8::Value> value) {
   if (value.IsEmpty() || !value->IsString()) return String16();
-  return toProtocolString(value.As<v8::String>());
+  return toProtocolString(isolate, value.As<v8::String>());
 }
 
 String16 toString16(const StringView& string) {

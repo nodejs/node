@@ -7,8 +7,8 @@
 #include <memory>
 #include <sstream>
 
-#include "src/api.h"
-#include "src/arguments.h"
+#include "src/api-inl.h"
+#include "src/arguments-inl.h"
 #include "src/assembler-inl.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
@@ -658,17 +658,6 @@ RUNTIME_FUNCTION(Runtime_SystemBreak) {
 }
 
 
-// Sets a v8 flag.
-RUNTIME_FUNCTION(Runtime_SetFlags) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(String, arg, 0);
-  std::unique_ptr<char[]> flags =
-      arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  FlagList::SetFlagsFromString(flags.get(), StrLength(flags.get()));
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_SetForceSlowPath) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
@@ -847,6 +836,23 @@ RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
   return *isolate->factory()->NewNumberFromSize(trap_count);
 }
 
+namespace {
+bool EnableWasmThreads(v8::Local<v8::Context> context) { return true; }
+
+bool DisableWasmThreads(v8::Local<v8::Context> context) { return false; }
+}  // namespace
+
+// This runtime function enables WebAssembly threads through an embedder
+// callback and thereby bypasses the value in FLAG_experimental_wasm_threads.
+RUNTIME_FUNCTION(Runtime_SetWasmThreadsEnabled) {
+  DCHECK_EQ(1, args.length());
+  CONVERT_BOOLEAN_ARG_CHECKED(flag, 0);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8_isolate->SetWasmThreadsEnabledCallback(flag ? EnableWasmThreads
+                                                 : DisableWasmThreads);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)       \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                  \
     CONVERT_ARG_CHECKED(JSObject, obj, 0);               \
@@ -866,11 +872,10 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)
 
 #undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
 
-
-#define FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype, s) \
-  RUNTIME_FUNCTION(Runtime_HasFixed##Type##Elements) {                        \
-    CONVERT_ARG_CHECKED(JSObject, obj, 0);                                    \
-    return isolate->heap()->ToBoolean(obj->HasFixed##Type##Elements());       \
+#define FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype) \
+  RUNTIME_FUNCTION(Runtime_HasFixed##Type##Elements) {                     \
+    CONVERT_ARG_CHECKED(JSObject, obj, 0);                                 \
+    return isolate->heap()->ToBoolean(obj->HasFixed##Type##Elements());    \
   }
 
 TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
@@ -900,19 +905,18 @@ RUNTIME_FUNCTION(Runtime_PromiseSpeciesProtector) {
 // Take a compiled wasm module and serialize it into an array buffer, which is
 // then returned.
 RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
-  HandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
 
   wasm::NativeModule* native_module = module_obj->native_module();
-  size_t compiled_size =
-      wasm::GetSerializedNativeModuleSize(isolate, native_module);
+  wasm::WasmSerializer wasm_serializer(isolate, native_module);
+  size_t compiled_size = wasm_serializer.GetSerializedNativeModuleSize();
   void* array_data = isolate->array_buffer_allocator()->Allocate(compiled_size);
   Handle<JSArrayBuffer> array_buffer = isolate->factory()->NewJSArrayBuffer();
   JSArrayBuffer::Setup(array_buffer, isolate, false, array_data, compiled_size);
   if (!array_data ||
-      !wasm::SerializeNativeModule(
-          isolate, native_module,
+      !wasm_serializer.SerializeNativeModule(
           {reinterpret_cast<uint8_t*>(array_data), compiled_size})) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -922,31 +926,20 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
 // Take an array buffer and attempt to reconstruct a compiled wasm module.
 // Return undefined if unsuccessful.
 RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
-  HandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, wire_bytes, 1);
 
-  uint8_t* mem_start = reinterpret_cast<uint8_t*>(buffer->backing_store());
-  size_t mem_size = static_cast<size_t>(buffer->byte_length()->Number());
-
   // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
-  // JSArrayBuffer doesn't get relocated.
-  bool already_external = wire_bytes->is_external();
-  if (!already_external) {
-    wire_bytes->set_is_external(true);
-    isolate->heap()->UnregisterArrayBuffer(*wire_bytes);
-  }
+  // JSArrayBuffer backing store doesn't get relocated.
   MaybeHandle<WasmModuleObject> maybe_module_object =
       wasm::DeserializeNativeModule(
-          isolate, {mem_start, mem_size},
-          Vector<const uint8_t>(
-              reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
-              static_cast<int>(wire_bytes->byte_length()->Number())));
-  if (!already_external) {
-    wire_bytes->set_is_external(false);
-    isolate->heap()->RegisterNewArrayBuffer(*wire_bytes);
-  }
+          isolate,
+          {reinterpret_cast<uint8_t*>(buffer->backing_store()),
+           static_cast<size_t>(buffer->byte_length()->Number())},
+          {reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
+           static_cast<size_t>(wire_bytes->byte_length()->Number())});
   Handle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -1005,7 +998,7 @@ RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
-  HandleScope hs(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Smi, info_addr, 0);
 
@@ -1025,16 +1018,29 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   // TODO(titzer): eliminate dependency on WasmModule definition here.
   int func_start =
       frame->wasm_instance()->module()->functions[func_index].code.offset();
-  wasm::ExecutionEngine eng = frame->wasm_code()->is_liftoff()
-                                  ? wasm::ExecutionEngine::kLiftoff
-                                  : wasm::ExecutionEngine::kTurbofan;
-  wasm::TraceMemoryOperation(eng, info, func_index, pos - func_start,
+  wasm::ExecutionTier tier = frame->wasm_code()->is_liftoff()
+                                 ? wasm::ExecutionTier::kBaseline
+                                 : wasm::ExecutionTier::kOptimized;
+  wasm::TraceMemoryOperation(tier, info, func_index, pos - func_start,
                              mem_start);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_SMI_ARG_CHECKED(function_index, 1);
+  if (!isolate->wasm_engine()->CompileFunction(
+          isolate, instance->module_object()->native_module(), function_index,
+          wasm::ExecutionTier::kOptimized)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
-  HandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));

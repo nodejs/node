@@ -201,12 +201,12 @@ class Module : public Struct, public NeverReadOnlySpaceObject {
   static void ResetGraph(Isolate* isolate, Handle<Module> module);
 
   // To set status to kErrored, RecordError should be used.
-  void SetStatus(Isolate* isolate, Status status);
+  void SetStatus(Status status);
   void RecordError(Isolate* isolate);
 
 #ifdef DEBUG
   // For --trace-module-status.
-  void PrintStatusTransition(Isolate* isolate, Status new_status);
+  void PrintStatusTransition(Status new_status);
 #endif  // DEBUG
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Module);

@@ -207,7 +207,10 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_COLLATOR_TYPE:
+    case JS_INTL_LIST_FORMAT_TYPE:
     case JS_INTL_LOCALE_TYPE:
+    case JS_INTL_PLURAL_RULES_TYPE:
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
 #endif  // V8_INTL_SUPPORT
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -273,6 +276,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
+    case ARRAY_BOILERPLATE_DESCRIPTION_TYPE:
     case DESCRIPTOR_ARRAY_TYPE:
     case TRANSITION_ARRAY_TYPE:
     case FEEDBACK_CELL_TYPE:
@@ -305,7 +309,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     // require bit set types, they should get kOtherInternal.
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FREE_SPACE_TYPE:
-#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   case FIXED_##TYPE##_ARRAY_TYPE:
 
       TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE)
@@ -321,14 +325,12 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case PROMISE_REACTION_TYPE:
     case DEBUG_INFO_TYPE:
     case STACK_FRAME_INFO_TYPE:
-    case WEAK_CELL_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case INTERPRETER_DATA_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
-    case ARRAY_BOILERPLATE_DESCRIPTION_TYPE:
     case WASM_DEBUG_INFO_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
     case LOAD_HANDLER_TYPE:
@@ -820,22 +822,19 @@ Type Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type Type::NewConstant(const JSHeapBroker* js_heap_broker,
-                       Handle<i::Object> value, Zone* zone) {
-  auto maybe_smi = JSHeapBroker::TryGetSmi(value);
-  if (maybe_smi.has_value()) {
-    return NewConstant(static_cast<double>(maybe_smi.value()), zone);
+Type Type::NewConstant(JSHeapBroker* js_heap_broker, Handle<i::Object> value,
+                       Zone* zone) {
+  ObjectRef ref(js_heap_broker, value);
+  if (ref.IsSmi()) {
+    return NewConstant(static_cast<double>(ref.AsSmi()), zone);
   }
-
-  HeapObjectRef heap_ref(js_heap_broker, value);
-  if (heap_ref.IsHeapNumber()) {
-    return NewConstant(heap_ref.AsHeapNumber().value(), zone);
+  if (ref.IsHeapNumber()) {
+    return NewConstant(ref.AsHeapNumber().value(), zone);
   }
-
-  if (heap_ref.IsString() && !heap_ref.IsInternalizedString()) {
+  if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
-  return HeapConstant(js_heap_broker, value, zone);
+  return HeapConstant(ref.AsHeapObject(), zone);
 }
 
 Type Type::Union(Type type1, Type type2, Zone* zone) {
@@ -1061,10 +1060,15 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(const JSHeapBroker* js_heap_broker,
-                        Handle<i::Object> value, Zone* zone) {
+Type Type::HeapConstant(JSHeapBroker* js_heap_broker, Handle<i::Object> value,
+                        Zone* zone) {
   return FromTypeBase(
       HeapConstantType::New(HeapObjectRef(js_heap_broker, value), zone));
+}
+
+// static
+Type Type::HeapConstant(const HeapObjectRef& value, Zone* zone) {
+  return HeapConstantType::New(value, zone);
 }
 
 // static

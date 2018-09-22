@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-iterator-gen.h"
+#include "src/builtins/growable-fixed-array-gen.h"
 
 #include "src/heap/factory-inl.h"
 
@@ -11,8 +12,8 @@ namespace internal {
 
 using compiler::Node;
 
-Node* IteratorBuiltinsAssembler::GetIteratorMethod(Node* context,
-                                                   Node* object) {
+TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(Node* context,
+                                                           Node* object) {
   return GetProperty(context, object, factory()->iterator_symbol());
 }
 
@@ -192,6 +193,66 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
   BIND(&rethrow);
   CallRuntime(Runtime::kReThrow, context, exception->value());
   Unreachable();
+}
+
+TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
+    TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn) {
+  Label fast_path(this), slow_path(this), done(this);
+
+  TVARIABLE(JSArray, created_list);
+
+  Branch(IsFastJSArrayWithNoCustomIteration(iterable, context), &fast_path,
+         &slow_path);
+
+  // This is a fast-path for ignoring the iterator.
+  BIND(&fast_path);
+  {
+    TNode<JSArray> input_array = CAST(iterable);
+    created_list = CAST(CloneFastJSArray(context, input_array));
+    Goto(&done);
+  }
+
+  BIND(&slow_path);
+  {
+    // 1. Let iteratorRecord be ? GetIterator(items, method).
+    IteratorRecord iterator_record =
+        GetIterator(context, iterable, iterator_fn);
+
+    // 2. Let values be a new empty List.
+    GrowableFixedArray values(state());
+
+    Variable* vars[] = {values.var_array(), values.var_length(),
+                        values.var_capacity()};
+    Label loop_start(this, 3, vars), loop_end(this);
+    Goto(&loop_start);
+    // 3. Let next be true.
+    // 4. Repeat, while next is not false
+    BIND(&loop_start);
+    {
+      //  a. Set next to ? IteratorStep(iteratorRecord).
+      TNode<Object> next =
+          CAST(IteratorStep(context, iterator_record, &loop_end));
+      //  b. If next is not false, then
+      //   i. Let nextValue be ? IteratorValue(next).
+      TNode<Object> next_value = CAST(IteratorValue(context, next));
+      //   ii. Append nextValue to the end of the List values.
+      values.Push(next_value);
+      Goto(&loop_start);
+    }
+    BIND(&loop_end);
+
+    created_list = values.ToJSArray(context);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return created_list.value();
+}
+
+TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
+    TNode<Context> context, TNode<Object> iterable) {
+  TNode<Object> method = GetIteratorMethod(context, iterable);
+  return IterableToList(context, iterable, method);
 }
 
 }  // namespace internal

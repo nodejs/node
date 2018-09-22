@@ -468,13 +468,6 @@ V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
   return AllocateRaw(size_in_bytes, alignment);
 }
 
-
-LocalAllocationBuffer LocalAllocationBuffer::InvalidBuffer() {
-  return LocalAllocationBuffer(
-      nullptr, LinearAllocationArea(kNullAddress, kNullAddress));
-}
-
-
 LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
                                                         AllocationResult result,
                                                         intptr_t size) {

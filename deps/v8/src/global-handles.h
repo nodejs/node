@@ -99,11 +99,6 @@ class GlobalHandles {
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Object** location);
 
-  // Mark the reference to this object independent.
-  static void MarkIndependent(Object** location);
-
-  static bool IsIndependent(Object** location);
-
   // Tells whether global handle is near death.
   static bool IsNearDeath(Object** location);
 

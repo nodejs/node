@@ -5,17 +5,8 @@
 #ifndef V8_WASM_BASELINE_LIFTOFF_ASSEMBLER_DEFS_H_
 #define V8_WASM_BASELINE_LIFTOFF_ASSEMBLER_DEFS_H_
 
+#include "src/assembler-arch.h"
 #include "src/reglist.h"
-
-#if V8_TARGET_ARCH_IA32
-#include "src/ia32/assembler-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "src/x64/assembler-x64.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/mips/assembler-mips.h"
-#elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/assembler-mips64.h"
-#endif
 
 namespace v8 {
 namespace internal {

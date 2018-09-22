@@ -11,6 +11,7 @@
 
 #include "src/allocation.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
 #include "src/ostreams.h"
@@ -19,6 +20,8 @@ namespace v8 {
 namespace internal {
 
 class Logger;
+template <typename T>
+class Vector;
 
 enum class LogSeparator { kSeparator };
 
@@ -53,8 +56,8 @@ class Log {
   static const char* const kLogToTemporaryFile;
   static const char* const kLogToConsole;
 
-  // Utility class for formatting log messages. It fills the message into the
-  // static buffer in Log.
+  // Utility class for formatting log messages. It escapes the given messages
+  // and then appends them to the static buffer in Log.
   class MessageBuilder BASE_EMBEDDED {
    public:
     // Create a message builder starting from position 0.
@@ -62,25 +65,14 @@ class Log {
     explicit MessageBuilder(Log* log);
     ~MessageBuilder() { }
 
-    // Append string data to the log message.
-    void PRINTF_FORMAT(2, 3) Append(const char* format, ...);
-
-    // Append string data to the log message.
-    void PRINTF_FORMAT(2, 0) AppendVA(const char* format, va_list args);
-
+    void AppendString(String* str,
+                      base::Optional<int> length_limit = base::nullopt);
+    void AppendString(Vector<const char> str);
+    void AppendString(const char* str);
+    void AppendString(const char* str, size_t length);
+    void PRINTF_FORMAT(2, 3) AppendFormatString(const char* format, ...);
+    void AppendCharacter(char c);
     void AppendSymbolName(Symbol* symbol);
-
-    void AppendDetailed(String* str, bool show_impl_info);
-
-    // Append and escape a full string.
-    void AppendString(String* source);
-    void AppendString(const char* string);
-
-    // Append and escpae a portion of a string.
-    void AppendStringPart(String* source, int len);
-    void AppendStringPart(const char* str, size_t len);
-
-    void AppendCharacter(const char character);
 
     // Delegate insertion to the underlying {log_}.
     // All appended strings are escaped to maintain one-line log entries.
@@ -94,6 +86,16 @@ class Log {
     void WriteToLogFile();
 
    private:
+    // Prints the format string into |log_->format_buffer_|. Returns the length
+    // of the result, or kMessageBufferSize if it was truncated.
+    int PRINTF_FORMAT(2, 0)
+        FormatStringIntoBuffer(const char* format, va_list args);
+
+    void AppendSymbolNameDetails(String* str, bool show_impl_info);
+
+    void PRINTF_FORMAT(2, 3) AppendRawFormatString(const char* format, ...);
+    void AppendRawCharacter(const char character);
+
     Log* log_;
     base::LockGuard<base::Mutex> lock_guard_;
   };

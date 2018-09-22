@@ -17,9 +17,13 @@ compared. Differences are reported as errors.
 import sys
 
 from testrunner.local import command
+from testrunner.local import utils
 
 MAX_TRIES = 3
 TIMEOUT = 120
+
+# Predictable mode works only when run on the host os.
+command.setup(utils.GuessOS())
 
 def main(args):
   def allocation_str(stdout):

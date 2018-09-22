@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
-#include "src/handles.h"
+#include "src/maybe-handles.h"
 #include "src/runtime/runtime.h"
 #include "src/type-hints.h"
 #include "src/vector-slot-pair.h"
@@ -457,15 +457,15 @@ CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op);
 // used as parameter by JSCreateArray operators.
 class CreateArrayParameters final {
  public:
-  explicit CreateArrayParameters(size_t arity, Handle<AllocationSite> site)
+  explicit CreateArrayParameters(size_t arity, MaybeHandle<AllocationSite> site)
       : arity_(arity), site_(site) {}
 
   size_t arity() const { return arity_; }
-  Handle<AllocationSite> site() const { return site_; }
+  MaybeHandle<AllocationSite> site() const { return site_; }
 
  private:
   size_t const arity_;
-  Handle<AllocationSite> const site_;
+  MaybeHandle<AllocationSite> const site_;
 };
 
 bool operator==(CreateArrayParameters const&, CreateArrayParameters const&);
@@ -626,6 +626,28 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
+class CloneObjectParameters final {
+ public:
+  CloneObjectParameters(VectorSlotPair const& feedback, int flags)
+      : feedback_(feedback), flags_(flags) {}
+
+  VectorSlotPair const& feedback() const { return feedback_; }
+  int flags() const { return flags_; }
+
+ private:
+  VectorSlotPair const feedback_;
+  int const flags_;
+};
+
+bool operator==(CloneObjectParameters const&, CloneObjectParameters const&);
+bool operator!=(CloneObjectParameters const&, CloneObjectParameters const&);
+
+size_t hash_value(CloneObjectParameters const&);
+
+std::ostream& operator<<(std::ostream&, CloneObjectParameters const&);
+
+const CloneObjectParameters& CloneObjectParametersOf(const Operator* op);
+
 // Descriptor used by the JSForInPrepare and JSForInNext opcodes.
 enum class ForInMode : uint8_t {
   kUseEnumCacheKeysAndIndices,
@@ -685,13 +707,14 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ToLength();
   const Operator* ToName();
   const Operator* ToNumber();
+  const Operator* ToNumberConvertBigInt();
   const Operator* ToNumeric();
   const Operator* ToObject();
   const Operator* ToString();
 
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
-  const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
+  const Operator* CreateArray(size_t arity, MaybeHandle<AllocationSite> site);
   const Operator* CreateArrayIterator(IterationKind);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
@@ -716,6 +739,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       Handle<ObjectBoilerplateDescription> constant,
       VectorSlotPair const& feedback, int literal_flags,
       int number_of_properties);
+  const Operator* CloneObject(VectorSlotPair const& feedback,
+                              int literal_flags);
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       VectorSlotPair const& feedback,
                                       int literal_flags);

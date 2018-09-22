@@ -9,6 +9,11 @@ assertThrows(() => Intl.Locale('sr'), TypeError);
 
 // Non-string locale.
 assertThrows(() => new Intl.Locale(5), TypeError);
+assertThrows(() => new Intl.Locale(Symbol()), TypeError);
+assertThrows(() => new Intl.Locale(null), TypeError);
+assertThrows(() => new Intl.Locale(undefined), TypeError);
+assertThrows(() => new Intl.Locale(false), TypeError);
+assertThrows(() => new Intl.Locale(true), TypeError);
 
 // Invalid locale string.
 assertThrows(() => new Intl.Locale('abcdefghi'), RangeError);

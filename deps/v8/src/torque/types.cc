@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <fstream>
 #include <iostream>
 
 #include "src/torque/declarable.h"
@@ -33,6 +32,7 @@ std::string Type::ToString() const {
 }
 
 bool Type::IsSubtypeOf(const Type* supertype) const {
+  if (IsNever()) return true;
   if (const UnionType* union_type = UnionType::DynamicCast(supertype)) {
     return union_type->IsSupertypeOf(this);
   }
@@ -154,6 +154,36 @@ const Type* UnionType::NonConstexprVersion() const {
   return this;
 }
 
+void UnionType::RecomputeParent() {
+  const Type* parent = nullptr;
+  for (const Type* t : types_) {
+    if (parent == nullptr) {
+      parent = t;
+    } else {
+      parent = CommonSupertype(parent, t);
+    }
+  }
+  set_parent(parent);
+}
+
+void UnionType::Subtract(const Type* t) {
+  for (auto it = types_.begin(); it != types_.end();) {
+    if ((*it)->IsSubtypeOf(t)) {
+      it = types_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  if (types_.size() == 0) types_.insert(TypeOracle::GetNeverType());
+  RecomputeParent();
+}
+
+const Type* SubtractType(const Type* a, const Type* b) {
+  UnionType result = UnionType::FromType(a);
+  result.Subtract(b);
+  return TypeOracle::GetUnionType(result);
+}
+
 std::string StructType::ToExplicitString() const {
   std::stringstream result;
   result << "{";
@@ -271,6 +301,7 @@ std::string VisitResult::LValue() const {
 }
 
 std::string VisitResult::RValue() const {
+  std::string result;
   if (declarable()) {
     auto value = *declarable();
     if (value->IsVariable() && !Variable::cast(value)->IsDefined()) {
@@ -278,10 +309,12 @@ std::string VisitResult::RValue() const {
       s << "\"" << value->name() << "\" is used before it is defined";
       ReportError(s.str());
     }
-    return value->RValue();
+    result = value->RValue();
   } else {
-    return value_;
+    result = value_;
   }
+  return "implicit_cast<" + type()->GetGeneratedTypeName() + ">(" + result +
+         ")";
 }
 
 }  // namespace torque

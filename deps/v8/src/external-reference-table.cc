@@ -30,10 +30,10 @@ void ExternalReferenceTable::Init(Isolate* isolate) {
   // kNullAddress is preserved through serialization/deserialization.
   Add(kNullAddress, "nullptr", &index);
   AddReferences(isolate, &index);
-  AddBuiltins(isolate, &index);
-  AddRuntimeFunctions(isolate, &index);
+  AddBuiltins(&index);
+  AddRuntimeFunctions(&index);
   AddIsolateAddresses(isolate, &index);
-  AddAccessors(isolate, &index);
+  AddAccessors(&index);
   AddStubCache(isolate, &index);
   is_initialized_ = static_cast<uint32_t>(true);
   USE(unused_padding_);
@@ -75,7 +75,7 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate, int* index) {
   CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount, *index);
 }
 
-void ExternalReferenceTable::AddBuiltins(Isolate* isolate, int* index) {
+void ExternalReferenceTable::AddBuiltins(int* index) {
   CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount, *index);
 
   struct CBuiltinEntry {
@@ -97,7 +97,7 @@ void ExternalReferenceTable::AddBuiltins(Isolate* isolate, int* index) {
            *index);
 }
 
-void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate, int* index) {
+void ExternalReferenceTable::AddRuntimeFunctions(int* index) {
   CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
                kBuiltinsReferenceCount,
            *index);
@@ -146,7 +146,7 @@ void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate, int* index) {
            *index);
 }
 
-void ExternalReferenceTable::AddAccessors(Isolate* isolate, int* index) {
+void ExternalReferenceTable::AddAccessors(int* index) {
   CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
                kBuiltinsReferenceCount + kRuntimeReferenceCount +
                kIsolateAddressReferenceCount,

@@ -35,6 +35,7 @@
 #include "src/objects-inl.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
+#include "test/common/assembler-tester.h"
 
 namespace v8 {
 namespace internal {

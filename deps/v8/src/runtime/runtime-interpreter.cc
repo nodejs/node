@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include <iomanip>
 
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/frames-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
@@ -16,6 +14,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/ostreams.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {

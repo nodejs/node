@@ -12,6 +12,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/macro-assembler.h"
 #include "src/objects-body-descriptors-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -21,6 +21,7 @@
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/snapshot.h"
+#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {
@@ -2389,7 +2390,7 @@ void TurboAssembler::Trunc_uw_s(Register rd, FPURegister fs,
 void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
   DCHECK(fs != scratch);
-  DCHECK(!AreAliased(rd, result, at));
+  DCHECK(result.is_valid() ? !AreAliased(rd, result, at) : !AreAliased(rd, at));
 
   Label simple_convert, done, fail;
   if (result.is_valid()) {
@@ -2444,7 +2445,7 @@ void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
 void TurboAssembler::Trunc_ul_s(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
   DCHECK(fs != scratch);
-  DCHECK(!AreAliased(rd, result, at));
+  DCHECK(result.is_valid() ? !AreAliased(rd, result, at) : !AreAliased(rd, at));
 
   Label simple_convert, done, fail;
   if (result.is_valid()) {
@@ -4206,6 +4207,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
       if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
           Builtins::IsIsolateIndependent(builtin_index)) {
         // Inline the trampoline.
+        RecordCommentForOffHeapTrampoline(builtin_index);
         CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
@@ -4218,32 +4220,10 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
 }
 
-int TurboAssembler::CallSize(Register target, Condition cond, Register rs,
-                             const Operand& rt, BranchDelaySlot bd) {
-  int size = 0;
-
-  if (cond == cc_always) {
-    size += 1;
-  } else {
-    size += 3;
-  }
-
-  if (bd == PROTECT && kArchVariant != kMips64r6) size += 1;
-
-  return size * kInstrSize;
-}
-
-
 // Note: To call gcc-compiled C code on mips, you must call through t9.
 void TurboAssembler::Call(Register target, Condition cond, Register rs,
                           const Operand& rt, BranchDelaySlot bd) {
-#ifdef DEBUG
-  int size = IsPrevInstrCompactBranch() ? kInstrSize : 0;
-#endif
-
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Label start;
-  bind(&start);
   if (kArchVariant == kMips64r6 && bd == PROTECT) {
     if (cond == cc_always) {
       jialc(target, 0);
@@ -4263,35 +4243,13 @@ void TurboAssembler::Call(Register target, Condition cond, Register rs,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
-
-#ifdef DEBUG
-  DCHECK_EQ(size + CallSize(target, cond, rs, rt, bd),
-            SizeOfCodeGeneratedSince(&start));
-#endif
-}
-
-int TurboAssembler::CallSize(Address target, RelocInfo::Mode rmode,
-                             Condition cond, Register rs, const Operand& rt,
-                             BranchDelaySlot bd) {
-  int size = CallSize(t9, cond, rs, rt, bd);
-  return size + 4 * kInstrSize;
 }
 
 void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
                           Register rs, const Operand& rt, BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Label start;
-  bind(&start);
   li(t9, Operand(static_cast<int64_t>(target), rmode), ADDRESS_LOAD);
   Call(t9, cond, rs, rt, bd);
-  DCHECK_EQ(CallSize(target, rmode, cond, rs, rt, bd),
-            SizeOfCodeGeneratedSince(&start));
-}
-
-int TurboAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode,
-                             Condition cond, Register rs, const Operand& rt,
-                             BranchDelaySlot bd) {
-  return CallSize(code.address(), rmode, cond, rs, rt, bd);
 }
 
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
@@ -4309,6 +4267,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
       if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
           Builtins::IsIsolateIndependent(builtin_index)) {
         // Inline the trampoline.
+        RecordCommentForOffHeapTrampoline(builtin_index);
         CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
@@ -4318,12 +4277,8 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
       }
     }
   }
-  Label start;
-  bind(&start);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   Call(code.address(), rmode, cond, rs, rt, bd);
-  DCHECK_EQ(CallSize(code, rmode, cond, rs, rt, bd),
-            SizeOfCodeGeneratedSince(&start));
 }
 
 void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt,
@@ -4336,17 +4291,22 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
       (!L->is_bound() || is_near_r6(L))) {
     BranchShortHelperR6(0, L);
   } else {
-    EmitForbiddenSlotInstruction();
+    // Generate position independent long branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    {
-      BlockGrowBufferScope block_buf_growth(this);
-      // Buffer growth (and relocation) must be blocked for internal references
-      // until associated instructions are emitted and available to be patched.
-      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-      j(L);
+    int64_t imm64;
+    imm64 = branch_long_offset(L);
+    DCHECK(is_int32(imm64));
+    or_(t8, ra, zero_reg);
+    nal();                                        // Read PC into ra register.
+    lui(t9, (imm64 & kHiMaskOf32) >> kLuiShift);  // Branch delay slot.
+    ori(t9, t9, (imm64 & kImm16Mask));
+    daddu(t9, ra, t9);
+    if (bdslot == USE_DELAY_SLOT) {
+      or_(ra, t8, zero_reg);
     }
-    // Emit a nop in the branch delay slot if required.
-    if (bdslot == PROTECT) nop();
+    jr(t9);
+    // Emit a or_ in the branch delay slot if it's protected.
+    if (bdslot == PROTECT) or_(ra, t8, zero_reg);
   }
 }
 
@@ -4355,15 +4315,16 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
       (!L->is_bound() || is_near_r6(L))) {
     BranchAndLinkShortHelperR6(0, L);
   } else {
-    EmitForbiddenSlotInstruction();
+    // Generate position independent long branch and link.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    {
-      BlockGrowBufferScope block_buf_growth(this);
-      // Buffer growth (and relocation) must be blocked for internal references
-      // until associated instructions are emitted and available to be patched.
-      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-      jal(L);
-    }
+    int64_t imm64;
+    imm64 = branch_long_offset(L);
+    DCHECK(is_int32(imm64));
+    lui(t8, (imm64 & kHiMaskOf32) >> kLuiShift);
+    nal();                              // Read PC into ra register.
+    ori(t8, t8, (imm64 & kImm16Mask));  // Branch delay slot.
+    daddu(t8, ra, t8);
+    jalr(t8);
     // Emit a nop in the branch delay slot if required.
     if (bdslot == PROTECT) nop();
   }
@@ -5065,6 +5026,15 @@ void TurboAssembler::Abort(AbortReason reason) {
   // Avoid emitting call to builtin if requested.
   if (trap_on_abort()) {
     stop(msg);
+    return;
+  }
+
+  if (should_abort_hard()) {
+    // We don't care if we constructed a frame. Just pretend we did.
+    FrameScope assume_frame(this, StackFrame::NONE);
+    PrepareCallCFunction(0, a0);
+    li(a0, Operand(static_cast<int>(reason)));
+    CallCFunction(ExternalReference::abort_with_reason(), 1);
     return;
   }
 
@@ -5802,7 +5772,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
 void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met) {
-  And(scratch, object, Operand(~Page::kPageAlignmentMask));
+  And(scratch, object, Operand(~kPageAlignmentMask));
   Ld(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
@@ -5833,42 +5803,20 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   UNREACHABLE();
 }
 
-bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
-                Register reg5, Register reg6, Register reg7, Register reg8,
-                Register reg9, Register reg10) {
-  int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() + reg3.is_valid() +
-                        reg4.is_valid() + reg5.is_valid() + reg6.is_valid() +
-                        reg7.is_valid() + reg8.is_valid() + reg9.is_valid() +
-                        reg10.is_valid();
-
-  RegList regs = 0;
-  if (reg1.is_valid()) regs |= reg1.bit();
-  if (reg2.is_valid()) regs |= reg2.bit();
-  if (reg3.is_valid()) regs |= reg3.bit();
-  if (reg4.is_valid()) regs |= reg4.bit();
-  if (reg5.is_valid()) regs |= reg5.bit();
-  if (reg6.is_valid()) regs |= reg6.bit();
-  if (reg7.is_valid()) regs |= reg7.bit();
-  if (reg8.is_valid()) regs |= reg8.bit();
-  if (reg9.is_valid()) regs |= reg9.bit();
-  if (reg10.is_valid()) regs |= reg10.bit();
-  int n_of_non_aliasing_regs = NumRegs(regs);
-
-  return n_of_valid_regs != n_of_non_aliasing_regs;
-}
-
 void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   // This push on ra and the pop below together ensure that we restore the
   // register ra, which is needed while computing the code start address.
   push(ra);
 
-  // The bal instruction puts the address of the current instruction into
+  // The nal instruction puts the address of the current instruction into
   // the return address (ra) register, which we can use later on.
-  Label current;
-  bal(&current);
-  nop();
+  if (kArchVariant == kMips64r6) {
+    addiupc(ra, 1);
+  } else {
+    nal();
+    nop();
+  }
   int pc = pc_offset();
-  bind(&current);
   li(dst, Operand(pc));
   Dsubu(dst, ra, dst);
 

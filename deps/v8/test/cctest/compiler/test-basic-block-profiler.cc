@@ -18,12 +18,11 @@ class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
     FLAG_turbo_profiling = true;
   }
 
-  void ResetCounts() { isolate()->basic_block_profiler()->ResetCounts(); }
+  void ResetCounts() { BasicBlockProfiler::Get()->ResetCounts(); }
 
   void Expect(size_t size, uint32_t* expected) {
-    CHECK(isolate()->basic_block_profiler());
     const BasicBlockProfiler::DataList* l =
-        isolate()->basic_block_profiler()->data_list();
+        BasicBlockProfiler::Get()->data_list();
     CHECK_NE(0, static_cast<int>(l->size()));
     const BasicBlockProfiler::Data* data = l->back();
     CHECK_EQ(static_cast<int>(size), static_cast<int>(data->n_blocks()));

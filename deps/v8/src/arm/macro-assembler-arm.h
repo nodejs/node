@@ -36,6 +36,7 @@ constexpr Register kJavaScriptCallExtraArg1Register = r2;
 constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r1;
 constexpr Register kRuntimeCallArgCountRegister = r0;
+constexpr Register kRuntimeCallArgvRegister = r2;
 constexpr Register kWasmInstanceRegister = r3;
 
 // ----------------------------------------------------------------------------
@@ -51,15 +52,6 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 constexpr Register cp = r7;              // JavaScript context pointer.
 constexpr Register kRootRegister = r10;  // Roots array pointer.
 
-// Flags used for AllocateHeapNumber
-enum TaggingMode {
-  // Tag the result.
-  TAG_RESULT,
-  // Don't tag
-  DONT_TAG_RESULT
-};
-
-
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
@@ -72,25 +64,12 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
                                    Register reg5 = no_reg,
                                    Register reg6 = no_reg);
 
-
-#ifdef DEBUG
-bool AreAliased(Register reg1,
-                Register reg2,
-                Register reg3 = no_reg,
-                Register reg4 = no_reg,
-                Register reg5 = no_reg,
-                Register reg6 = no_reg,
-                Register reg7 = no_reg,
-                Register reg8 = no_reg);
-#endif
-
-
 enum TargetAddressStorageMode {
   CAN_INLINE_TARGET_ADDRESS,
   NEVER_INLINE_TARGET_ADDRESS
 };
 
-class TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int buffer_size,
@@ -259,8 +238,8 @@ class TurboAssembler : public TurboAssemblerBase {
   // C++ code.
   // Needs a scratch register to do some arithmetic. This register will be
   // trashed.
-  void PrepareCallCFunction(int num_reg_arguments,
-                            int num_double_registers = 0);
+  void PrepareCallCFunction(int num_reg_arguments, int num_double_registers = 0,
+                            Register scratch = no_reg);
 
   // Removes current frame and its arguments from the stack preserving
   // the arguments and a return address pushed to the stack for the next call.
@@ -324,16 +303,7 @@ class TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
 
-  // Returns the size of a call in instructions. Note, the value returned is
-  // only valid as long as no entries are added to the constant pool between
-  // checking the call size and emitting the actual call.
-  static int CallSize(Register target, Condition cond = al);
-  int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(Handle<Code> code,
-               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-               Condition cond = al);
-  int CallStubSize();
-
+  static constexpr int kCallStubSize = 2 * kInstrSize;
   void CallStubDelayed(CodeStub* stub);
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
@@ -617,13 +587,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // GC Support
-
-  // Record in the remembered set the fact that we have a pointer to new space
-  // at the address pointed to by the addr register.  Only works if addr is not
-  // in new space.
-  void RememberedSetHelper(Register object,  // Used for debug code.
-                           Register addr, Register scratch,
-                           SaveFPRegsMode save_fp);
 
   // Check if object is in new space.  Jumps if the object is not in new space.
   // The register scratch can be object itself, but scratch will be clobbered.

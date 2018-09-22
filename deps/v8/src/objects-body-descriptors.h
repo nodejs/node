@@ -109,6 +109,43 @@ class FlexibleBodyDescriptor final : public BodyDescriptorBase {
 
 typedef FlexibleBodyDescriptor<HeapObject::kHeaderSize> StructBodyDescriptor;
 
+// This class describes a body of an object which has a parent class that also
+// has a body descriptor. This represents a union of the parent's body
+// descriptor, and a new descriptor for the child -- so, both parent and child's
+// slots are iterated. The parent must be fixed size, and its slots be disjoint
+// with the child's.
+template <class ParentBodyDescriptor, class ChildBodyDescriptor>
+class SubclassBodyDescriptor final : public BodyDescriptorBase {
+ public:
+  // The parent must end be before the child's start offset, to make sure that
+  // their slots are disjoint.
+  STATIC_ASSERT(ParentBodyDescriptor::kSize <=
+                ChildBodyDescriptor::kStartOffset);
+
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return ParentBodyDescriptor::IsValidSlot(map, obj, offset) ||
+           ChildBodyDescriptor::IsValidSlot(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, ObjectVisitor* v) {
+    ParentBodyDescriptor::IterateBody(map, obj, v);
+    ChildBodyDescriptor::IterateBody(map, obj, v);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    ParentBodyDescriptor::IterateBody(map, obj, object_size, v);
+    ChildBodyDescriptor::IterateBody(map, obj, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    // The child should know its full size.
+    return ChildBodyDescriptor::SizeOf(map, object);
+  }
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -45,6 +45,7 @@ group("v8_perf") {
   data_deps = [
     "cctest:cctest",
     "..:d8",
+    "../tools:v8_android_test_runner_deps",
   ]
 
   data = [
@@ -52,6 +53,7 @@ group("v8_perf") {
 
     # TODO(machenbach): These files are referenced by the perf runner.
     # They should be transformed into a proper python module.
+    "../tools/testrunner/local/android.py",
     "../tools/testrunner/local/command.py",
     "../tools/testrunner/local/utils.py",
     "../tools/testrunner/objects/output.py",
@@ -62,15 +64,6 @@ group("v8_perf") {
     "js-perf-test/",
     "memory/",
   ]
-
-  if (is_android && !build_with_chromium) {
-    data_deps += [ "../build/android:test_runner_py" ]
-
-    data += [
-      # This is used by run_perf.py, but not included by test_runner_py above.
-      "../third_party/catapult/devil/devil/android/perf/",
-    ]
-  }
 }
 
 group("v8_bot_default") {

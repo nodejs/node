@@ -1927,10 +1927,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 bool IsNodeUnsigned(Node* n) {
   NodeMatcher m(n);
 
-  if (m.IsLoad()) {
-    LoadRepresentation load_rep = LoadRepresentationOf(n->op());
-    return load_rep.IsUnsigned();
-  } else if (m.IsUnalignedLoad()) {
+  if (m.IsLoad() || m.IsUnalignedLoad() || m.IsPoisonedLoad() ||
+      m.IsProtectedLoad() || m.IsWord32AtomicLoad() || m.IsWord64AtomicLoad()) {
     LoadRepresentation load_rep = LoadRepresentationOf(n->op());
     return load_rep.IsUnsigned();
   } else {
@@ -2443,7 +2441,7 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   ArchOpcode opcode = kArchNop;
-  MachineType type = AtomicOpRepresentationOf(node->op());
+  MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
     opcode = kWord32AtomicExchangeInt8;
   } else if (type == MachineType::Uint8()) {
@@ -2482,7 +2480,7 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   Node* old_value = node->InputAt(2);
   Node* new_value = node->InputAt(3);
   ArchOpcode opcode = kArchNop;
-  MachineType type = AtomicOpRepresentationOf(node->op());
+  MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
     opcode = kWord32AtomicCompareExchangeInt8;
   } else if (type == MachineType::Uint8()) {
@@ -2523,7 +2521,7 @@ void InstructionSelector::VisitWord32AtomicBinaryOperation(
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   ArchOpcode opcode = kArchNop;
-  MachineType type = AtomicOpRepresentationOf(node->op());
+  MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
     opcode = int8_op;
   } else if (type == MachineType::Uint8()) {
@@ -2839,8 +2837,8 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   uint8_t offset;
   Mips64OperandGenerator g(this);
   if (TryMatchConcat(shuffle, &offset)) {
-    Emit(kMips64S8x16Concat, g.DefineSameAsFirst(node), g.UseRegister(input0),
-         g.UseRegister(input1), g.UseImmediate(offset));
+    Emit(kMips64S8x16Concat, g.DefineSameAsFirst(node), g.UseRegister(input1),
+         g.UseRegister(input0), g.UseImmediate(offset));
     return;
   }
   if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
@@ -2899,9 +2897,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesEven |
-         MachineOperatorBuilder::kFloat32RoundTiesEven |
-         MachineOperatorBuilder::kWord32ReverseBytes |
-         MachineOperatorBuilder::kWord64ReverseBytes;
+         MachineOperatorBuilder::kFloat32RoundTiesEven;
 }
 
 // static

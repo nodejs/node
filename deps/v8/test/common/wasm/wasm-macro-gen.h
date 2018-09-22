@@ -591,10 +591,12 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define SIG_ENTRY_x(r) kWasmFunctionTypeCode, 0, 1, r
 #define SIG_ENTRY_x_x(r, a) kWasmFunctionTypeCode, 1, a, 1, r
 #define SIG_ENTRY_x_xx(r, a, b) kWasmFunctionTypeCode, 2, a, b, 1, r
+#define SIG_ENTRY_xx_xx(r, s, a, b) kWasmFunctionTypeCode, 2, a, b, 2, r, s
 #define SIG_ENTRY_x_xxx(r, a, b, c) kWasmFunctionTypeCode, 3, a, b, c, 1, r
 #define SIZEOF_SIG_ENTRY_x 4
 #define SIZEOF_SIG_ENTRY_x_x 5
 #define SIZEOF_SIG_ENTRY_x_xx 6
+#define SIZEOF_SIG_ENTRY_xx_xx 7
 #define SIZEOF_SIG_ENTRY_x_xxx 7
 
 #define WASM_BRV(depth, ...) __VA_ARGS__, kExprBr, static_cast<byte>(depth)

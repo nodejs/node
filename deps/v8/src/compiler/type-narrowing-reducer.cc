@@ -12,7 +12,7 @@ namespace internal {
 namespace compiler {
 
 TypeNarrowingReducer::TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph,
-                                           const JSHeapBroker* js_heap_broker)
+                                           JSHeapBroker* js_heap_broker)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
       op_typer_(jsgraph->isolate(), js_heap_broker, zone()) {}

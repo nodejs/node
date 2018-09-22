@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <memory>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
 #include "src/ast/prettyprinter.h"
@@ -130,11 +130,7 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 // Implementation of UnoptimizedCompilationJob
 
 CompilationJob::Status UnoptimizedCompilationJob::ExecuteJob() {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-  DisallowCodeDependencyChange no_dependency_change;
-
+  DisallowHeapAccess no_heap_access;
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
   ScopedTimer t(&time_taken_to_execute_);
@@ -212,11 +208,7 @@ CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
 }
 
 CompilationJob::Status OptimizedCompilationJob::ExecuteJob() {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-  DisallowCodeDependencyChange no_dependency_change;
-
+  DisallowHeapAccess no_heap_access;
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
   ScopedTimer t(&time_taken_to_execute_);
@@ -478,9 +470,7 @@ std::unique_ptr<UnoptimizedCompilationJob> ExecuteUnoptimizedCompileJobs(
 std::unique_ptr<UnoptimizedCompilationJob> GenerateUnoptimizedCode(
     ParseInfo* parse_info, AccountingAllocator* allocator,
     UnoptimizedCompilationJobList* inner_function_jobs) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
+  DisallowHeapAccess no_heap_access;
   DCHECK(inner_function_jobs->empty());
 
   if (!Compiler::Analyze(parse_info)) {
@@ -922,9 +912,7 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
 std::unique_ptr<UnoptimizedCompilationJob> CompileTopLevelOnBackgroundThread(
     ParseInfo* parse_info, AccountingAllocator* allocator,
     UnoptimizedCompilationJobList* inner_function_jobs) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
+  DisallowHeapAccess no_heap_access;
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileCodeBackground");
   RuntimeCallTimerScope runtimeTimer(
@@ -1003,9 +991,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
 
 void BackgroundCompileTask::Run() {
   TimedHistogramScope timer(timer_);
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
+  DisallowHeapAccess no_heap_access;
 
   source_->info->set_on_background_thread(true);
 
@@ -1397,6 +1383,7 @@ struct ScriptCompileTimerScope {
     kNoCacheBecausePacScript,
     kNoCacheBecauseInDocumentWrite,
     kNoCacheBecauseResourceWithNoCacheHandler,
+    kHitIsolateCacheWhenStreamingSource,
     kCount
   };
 
@@ -1469,8 +1456,9 @@ struct ScriptCompileTimerScope {
     }
 
     if (hit_isolate_cache_) {
-      // There's probably no need to distinguish the different isolate cache
-      // hits.
+      if (no_cache_reason_ == ScriptCompiler::kNoCacheBecauseStreamingSource) {
+        return CacheBehaviour::kHitIsolateCacheWhenStreamingSource;
+      }
       return CacheBehaviour::kHitIsolateCacheWhenNoCache;
     }
 
@@ -1524,6 +1512,7 @@ struct ScriptCompileTimerScope {
         return isolate_->counters()->compile_script_with_produce_cache();
       case CacheBehaviour::kHitIsolateCacheWhenNoCache:
       case CacheBehaviour::kHitIsolateCacheWhenConsumeCodeCache:
+      case CacheBehaviour::kHitIsolateCacheWhenStreamingSource:
         return isolate_->counters()->compile_script_with_isolate_cache_hit();
       case CacheBehaviour::kConsumeCodeCacheFailed:
         return isolate_->counters()->compile_script_consume_failed();
@@ -1595,11 +1584,11 @@ Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
 }  // namespace
 
 MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
-    Handle<String> source, const Compiler::ScriptDetails& script_details,
+    Isolate* isolate, Handle<String> source,
+    const Compiler::ScriptDetails& script_details,
     ScriptOriginOptions origin_options, v8::Extension* extension,
     ScriptData* cached_data, ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
-  Isolate* isolate = source->GetIsolate();
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
 
   if (compile_options == ScriptCompiler::kNoCompileOptions ||
@@ -1621,8 +1610,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   MaybeHandle<SharedFunctionInfo> maybe_result;
   if (extension == nullptr) {
     bool can_consume_code_cache =
-        compile_options == ScriptCompiler::kConsumeCodeCache &&
-        !isolate->debug()->is_active();
+        compile_options == ScriptCompiler::kConsumeCodeCache;
     if (can_consume_code_cache) {
       compile_timer.set_consuming_code_cache();
     }
@@ -1666,7 +1654,6 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
               natives);
 
     // Compile the function and add it to the isolate cache.
-    Zone compile_zone(isolate->allocator(), ZONE_NAME);
     if (origin_options.IsModule()) parse_info.set_module();
     parse_info.set_extension(extension);
     parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
@@ -1712,8 +1699,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
   bool can_consume_code_cache =
-      compile_options == ScriptCompiler::kConsumeCodeCache &&
-      !isolate->debug()->is_active();
+      compile_options == ScriptCompiler::kConsumeCodeCache;
   if (can_consume_code_cache) {
     compile_timer.set_consuming_code_cache();
     // Then check cached code provided by embedder.
@@ -1775,9 +1761,9 @@ ScriptCompiler::ScriptStreamingTask* Compiler::NewBackgroundCompileTask(
 
 MaybeHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
-    Handle<String> source, const ScriptDetails& script_details,
-    ScriptOriginOptions origin_options, ScriptStreamingData* streaming_data) {
-  Isolate* isolate = source->GetIsolate();
+    Isolate* isolate, Handle<String> source,
+    const ScriptDetails& script_details, ScriptOriginOptions origin_options,
+    ScriptStreamingData* streaming_data) {
   ScriptCompileTimerScope compile_timer(
       isolate, ScriptCompiler::kNoCacheBecauseStreamingSource);
   PostponeInterruptsScope postpone(isolate);

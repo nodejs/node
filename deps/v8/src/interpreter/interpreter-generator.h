@@ -13,7 +13,8 @@ namespace internal {
 namespace interpreter {
 
 extern Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
-                                            OperandScale operand_scale);
+                                            OperandScale operand_scale,
+                                            int builtin_index);
 
 extern Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
                                                    OperandScale operand_scale);

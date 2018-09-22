@@ -7,7 +7,7 @@
 #include <memory>
 #include <unordered_set>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/arguments.h"
 #include "src/assembler-inl.h"
 #include "src/base/platform/mutex.h"
@@ -30,6 +30,7 @@
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
@@ -322,6 +323,7 @@ BreakLocation BreakIterator::GetBreakLocation() {
                        generator_object_reg_index);
 }
 
+Isolate* BreakIterator::isolate() { return debug_info_->GetIsolate(); }
 
 void DebugFeatureTracker::Track(DebugFeatureTracker::Feature feature) {
   uint32_t mask = 1 << feature;
@@ -334,8 +336,6 @@ void DebugFeatureTracker::Track(DebugFeatureTracker::Feature feature) {
 
 // Threading support.
 void Debug::ThreadInit() {
-  thread_local_.break_count_ = 0;
-  thread_local_.break_id_ = 0;
   thread_local_.break_frame_id_ = StackFrame::NO_ID;
   thread_local_.last_step_action_ = StepNone;
   thread_local_.last_statement_position_ = kNoSourcePosition;
@@ -1583,11 +1583,10 @@ void Debug::FreeDebugInfoListNode(DebugInfoListNode* prev,
     prev->set_next(node->next());
   }
 
-  // Pack function_identifier back into the
-  // SFI::function_identifier_or_debug_info field.
+  // Pack script back into the
+  // SFI::script_or_debug_info field.
   Handle<DebugInfo> debug_info(node->debug_info());
-  debug_info->shared()->set_function_identifier_or_debug_info(
-      debug_info->function_identifier());
+  debug_info->shared()->set_script_or_debug_info(debug_info->script());
 
   delete node;
 }
@@ -1632,12 +1631,12 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   isolate_->heap()->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
                                       GarbageCollectionReason::kDebugger);
   Factory* factory = isolate_->factory();
-  if (!factory->script_list()->IsFixedArrayOfWeakCells()) {
+  if (!factory->script_list()->IsWeakArrayList()) {
     return factory->empty_fixed_array();
   }
-  Handle<FixedArrayOfWeakCells> array =
-      Handle<FixedArrayOfWeakCells>::cast(factory->script_list());
-  Handle<FixedArray> results = factory->NewFixedArray(array->Length());
+  Handle<WeakArrayList> array =
+      Handle<WeakArrayList>::cast(factory->script_list());
+  Handle<FixedArray> results = factory->NewFixedArray(array->length());
   int length = 0;
   {
     Script::Iterator iterator(isolate_);
@@ -1742,7 +1741,6 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
 
   DebugScope debug_scope(this);
   HandleScope scope(isolate_);
-  PostponeInterruptsScope postpone(isolate_);
   DisableBreak no_recursive_break(this);
 
   Handle<Context> native_context(isolate_->native_context());
@@ -1870,7 +1868,6 @@ void Debug::ProcessCompileEvent(bool has_compile_error, Handle<Script> script) {
   SuppressDebug while_processing(this);
   DebugScope debug_scope(this);
   HandleScope scope(isolate_);
-  PostponeInterruptsScope postpone(isolate_);
   DisableBreak no_recursive_break(this);
   AllowJavascriptExecution allow_script(isolate_);
   debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
@@ -2011,15 +2008,14 @@ void Debug::PrintBreakLocation() {
 
 DebugScope::DebugScope(Debug* debug)
     : debug_(debug),
-      prev_(debug->debugger_entry()),
-      no_termination_exceptons_(debug_->isolate_,
-                                StackGuard::TERMINATE_EXECUTION) {
+      prev_(reinterpret_cast<DebugScope*>(
+          base::Relaxed_Load(&debug->thread_local_.current_debug_scope_))),
+      no_interrupts_(debug_->isolate_) {
   // Link recursive debugger entry.
   base::Relaxed_Store(&debug_->thread_local_.current_debug_scope_,
                       reinterpret_cast<base::AtomicWord>(this));
 
-  // Store the previous break id, frame id and return value.
-  break_id_ = debug_->break_id();
+  // Store the previous frame id and return value.
   break_frame_id_ = debug_->break_frame_id();
 
   // Create the new break info. If there is no proper frames there is no break
@@ -2028,7 +2024,6 @@ DebugScope::DebugScope(Debug* debug)
   bool has_frames = !it.done();
   debug_->thread_local_.break_frame_id_ =
       has_frames ? it.frame()->id() : StackFrame::NO_ID;
-  debug_->SetNextBreakId();
 
   debug_->UpdateState();
 }
@@ -2041,7 +2036,6 @@ DebugScope::~DebugScope() {
 
   // Restore to the previous break state.
   debug_->thread_local_.break_frame_id_ = break_frame_id_;
-  debug_->thread_local_.break_id_ = break_id_;
 
   debug_->UpdateState();
 }
@@ -2183,6 +2177,10 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
   }
   UNREACHABLE();
   return false;
+}
+
+Handle<Object> Debug::return_value_handle() {
+  return handle(thread_local_.return_value_, isolate_);
 }
 
 bool Debug::PerformSideEffectCheckForCallback(Handle<Object> callback_info) {

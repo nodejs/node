@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/frames-inl.h"
 #include "src/string-stream.h"
 #include "test/cctest/cctest.h"
@@ -812,7 +812,7 @@ TEST(PrototypeGetterAccessCheck) {
     CHECK(try_catch.HasCaught());
   }
 
-  // Test crankshaft.
+  // Test TurboFan.
   CompileRun("%OptimizeFunctionOnNextCall(f);");
 
   security_check_value = true;

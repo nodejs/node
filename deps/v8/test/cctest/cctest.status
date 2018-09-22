@@ -345,6 +345,13 @@
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
+['arch == mipsel or arch == mips64el or arch == mips or arch == mips64 or arch == ppc or arch == ppc64 or arch == s390 or arch == s390x', {
+  # TODO(mips-team): Implement I64Atomic operations on MIPS
+  # TODO(ppc-team, s390-team): Implement I64Atomic operations on PPC/s390
+  'test-run-wasm-atomics64/*': [SKIP],
+}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64 or arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
+
+##############################################################################
 ['mips_arch_variant == r6', {
   # For MIPS[64] architecture release 6, fusion multiply-accumulate instructions
   # will cause failures on several tests that expect exact floating-point
@@ -383,6 +390,7 @@
   # TODO(ppc): Implement load/store reverse byte instructions
   'test-run-wasm-simd/RunWasmCompiled_SimdLoadStoreLoad': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
+  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
 
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
@@ -402,57 +410,6 @@
   'test-run-wasm-atomics/*': [SKIP],
 
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
-
-##############################################################################
-['byteorder == big', {
-
-  # BUG(7827). fix simd globals for big endian
-  'test-run-wasm-simd/RunWasm_SimdI32x4GetGlobal_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_SimdI32x4SetGlobal_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_SimdF32x4GetGlobal_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_SimdF32x4SetGlobal_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_simd_turbofan': [SKIP],
-  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_simd_lowered': [SKIP],
-  'test-run-wasm-simd/RunWasm_I32x4AddHoriz_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_I16x8AddHoriz_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_F32x4AddHoriz_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4Dup_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4ZipLeft_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4ZipRight_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4UnzipLeft_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4UnzipRight_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4TransposeLeft_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4TransposeRight_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x2Reverse_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4Irregular_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8Dup_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8ZipLeft_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8ZipRight_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8UnzipLeft_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8UnzipRight_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8TransposeLeft_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8TransposeRight_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x4Reverse_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x2Reverse_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8Irregular_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16Dup_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16ZipLeft_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16ZipRight_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16UnzipLeft_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16UnzipRight_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16TransposeLeft_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16TransposeRight_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x8Reverse_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x4Reverse_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x2Reverse_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16Irregular_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16Blend_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16Concat_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_I16x8ConvertI32x4*': [SKIP],
-  'test-run-wasm-simd/RunWasm_I8x16ConvertI16x8*': [SKIP],
-
-}],  # 'byteorder == big'
 
 ##############################################################################
 ['variant == stress_incremental_marking', {

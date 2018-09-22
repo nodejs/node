@@ -120,6 +120,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoadForRegister(Register obj, Property* expr,
                                     Register destination);
 
+  void BuildLoadNamedProperty(Property* property, Register object,
+                              const AstRawString* name);
+  void BuildStoreNamedProperty(Property* property, Register object,
+                               const AstRawString* name);
+
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   void BuildVariableLoadForAccumulatorValue(
@@ -182,6 +187,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                           ZonePtrList<Expression>* elements,
                                           bool skip_constants);
 
+  void BuildCreateObjectLiteral(Register literal, uint8_t flags, size_t entry);
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
@@ -276,6 +282,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   FeedbackSlot GetDummyCompareICSlot();
 
   void AddToEagerLiteralsIfEager(FunctionLiteral* literal);
+
+  // Checks if the visited expression is one shot, i.e executed only once. Any
+  // expression either in a top level code or an IIFE that is not within a loop
+  // is eligible for one shot optimizations.
+  inline bool ShouldOptimizeAsOneShot() const;
 
   static constexpr ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint) {
     return type_hint == TypeHint::kBoolean ? ToBooleanMode::kAlreadyBoolean

@@ -47,7 +47,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   ExternalReference c_entry_fp_address =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  __ mov(Operand::StaticVariable(c_entry_fp_address), ebp);
+  __ mov(masm()->StaticVariable(c_entry_fp_address), ebp);
 
   const int kSavedRegistersAreaSize =
       kNumberOfRegisters * kPointerSize + kDoubleRegsSize + kFloatRegsSize;

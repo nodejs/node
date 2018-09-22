@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -19,6 +19,7 @@
 #include "src/ostreams.h"
 #include "src/snapshot/natives.h"
 #include "src/splay-tree-inl.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
@@ -473,11 +474,11 @@ void ELFSection::PopulateHeader(Writer::Slot<ELFSection::Header> header,
 #if defined(__MACH_O)
 class MachO BASE_EMBEDDED {
  public:
-  explicit MachO(Zone* zone) : zone_(zone), sections_(6, zone) { }
+  explicit MachO(Zone* zone) : sections_(zone) {}
 
-  uint32_t AddSection(MachOSection* section) {
-    sections_.Add(section, zone_);
-    return sections_.length() - 1;
+  size_t AddSection(MachOSection* section) {
+    sections_.push_back(section);
+    return sections_.size() - 1;
   }
 
   void Write(Writer* w, uintptr_t code_start, uintptr_t code_size) {
@@ -570,7 +571,7 @@ class MachO BASE_EMBEDDED {
     cmd->maxprot = 7;
     cmd->initprot = 7;
     cmd->flags = 0;
-    cmd->nsects = sections_.length();
+    cmd->nsects = static_cast<uint32_t>(sections_.size());
     memset(cmd->segname, 0, 16);
     cmd->cmdsize = sizeof(MachOSegmentCommand) + sizeof(MachOSection::Header) *
         cmd->nsects;
@@ -583,19 +584,21 @@ class MachO BASE_EMBEDDED {
                      Writer::Slot<MachOHeader> header,
                      uintptr_t load_command_start) {
     Writer::Slot<MachOSection::Header> headers =
-        w->CreateSlotsHere<MachOSection::Header>(sections_.length());
+        w->CreateSlotsHere<MachOSection::Header>(
+            static_cast<uint32_t>(sections_.size()));
     cmd->fileoff = w->position();
     header->sizeofcmds =
         static_cast<uint32_t>(w->position() - load_command_start);
-    for (int section = 0; section < sections_.length(); ++section) {
-      sections_[section]->PopulateHeader(headers.at(section));
-      sections_[section]->WriteBody(headers.at(section), w);
+    uint32_t index = 0;
+    for (MachOSection* section : sections_) {
+      section->PopulateHeader(headers.at(index));
+      section->WriteBody(headers.at(index), w);
+      index++;
     }
     cmd->filesize = w->position() - (uintptr_t)cmd->fileoff;
   }
 
-  Zone* zone_;
-  ZoneList<MachOSection*> sections_;
+  ZoneChunkList<MachOSection*> sections_;
 };
 #endif  // defined(__MACH_O)
 
@@ -603,9 +606,9 @@ class MachO BASE_EMBEDDED {
 #if defined(__ELF)
 class ELF BASE_EMBEDDED {
  public:
-  explicit ELF(Zone* zone) : zone_(zone), sections_(6, zone) {
-    sections_.Add(new(zone) ELFSection("", ELFSection::TYPE_NULL, 0), zone);
-    sections_.Add(new(zone) ELFStringTable(".shstrtab"), zone);
+  explicit ELF(Zone* zone) : sections_(zone) {
+    sections_.push_back(new (zone) ELFSection("", ELFSection::TYPE_NULL, 0));
+    sections_.push_back(new (zone) ELFStringTable(".shstrtab"));
   }
 
   void Write(Writer* w) {
@@ -614,14 +617,12 @@ class ELF BASE_EMBEDDED {
     WriteSections(w);
   }
 
-  ELFSection* SectionAt(uint32_t index) {
-    return sections_[index];
-  }
+  ELFSection* SectionAt(uint32_t index) { return *sections_.Find(index); }
 
-  uint32_t AddSection(ELFSection* section) {
-    sections_.Add(section, zone_);
-    section->set_index(sections_.length() - 1);
-    return sections_.length() - 1;
+  size_t AddSection(ELFSection* section) {
+    sections_.push_back(section);
+    section->set_index(sections_.size() - 1);
+    return sections_.size() - 1;
   }
 
  private:
@@ -704,7 +705,7 @@ class ELF BASE_EMBEDDED {
     header->pht_entry_size = 0;
     header->pht_entry_num = 0;
     header->sht_entry_size = sizeof(ELFSection::Header);
-    header->sht_entry_num = sections_.length();
+    header->sht_entry_num = sections_.size();
     header->sht_strtab_index = 1;
   }
 
@@ -713,15 +714,16 @@ class ELF BASE_EMBEDDED {
     DCHECK(w->position() == sizeof(ELFHeader));
 
     Writer::Slot<ELFSection::Header> headers =
-        w->CreateSlotsHere<ELFSection::Header>(sections_.length());
+        w->CreateSlotsHere<ELFSection::Header>(
+            static_cast<uint32_t>(sections_.size()));
 
     // String table for section table is the first section.
     ELFStringTable* strtab = static_cast<ELFStringTable*>(SectionAt(1));
     strtab->AttachWriter(w);
-    for (int i = 0, length = sections_.length();
-         i < length;
-         i++) {
-      sections_[i]->PopulateHeader(headers.at(i), strtab);
+    uint32_t index = 0;
+    for (ELFSection* section : sections_) {
+      section->PopulateHeader(headers.at(index), strtab);
+      index++;
     }
     strtab->DetachWriter();
   }
@@ -734,15 +736,14 @@ class ELF BASE_EMBEDDED {
     Writer::Slot<ELFSection::Header> headers =
         w->SlotAt<ELFSection::Header>(sizeof(ELFHeader));
 
-    for (int i = 0, length = sections_.length();
-         i < length;
-         i++) {
-      sections_[i]->WriteBody(headers.at(i), w);
+    uint32_t index = 0;
+    for (ELFSection* section : sections_) {
+      section->WriteBody(headers.at(index), w);
+      index++;
     }
   }
 
-  Zone* zone_;
-  ZoneList<ELFSection*> sections_;
+  ZoneChunkList<ELFSection*> sections_;
 };
 
 
@@ -834,7 +835,7 @@ class ELFSymbol BASE_EMBEDDED {
   };
 #endif
 
-  void Write(Writer::Slot<SerializedLayout> s, ELFStringTable* t) {
+  void Write(Writer::Slot<SerializedLayout> s, ELFStringTable* t) const {
     // Convert symbol names from strings to indexes in the string table.
     s->name = static_cast<uint32_t>(t->Add(name));
     s->value = value;
@@ -858,17 +859,17 @@ class ELFSymbolTable : public ELFSection {
  public:
   ELFSymbolTable(const char* name, Zone* zone)
       : ELFSection(name, TYPE_SYMTAB, sizeof(uintptr_t)),
-        locals_(1, zone),
-        globals_(1, zone) {
-  }
+        locals_(zone),
+        globals_(zone) {}
 
   virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
     w->Align(header->alignment);
-    int total_symbols = locals_.length() + globals_.length() + 1;
+    size_t total_symbols = locals_.size() + globals_.size() + 1;
     header->offset = w->position();
 
     Writer::Slot<ELFSymbol::SerializedLayout> symbols =
-        w->CreateSlotsHere<ELFSymbol::SerializedLayout>(total_symbols);
+        w->CreateSlotsHere<ELFSymbol::SerializedLayout>(
+            static_cast<uint32_t>(total_symbols));
 
     header->size = w->position() - header->offset;
 
@@ -883,15 +884,17 @@ class ELFSymbolTable : public ELFSection {
                                                   ELFSymbol::TYPE_NOTYPE,
                                                   0));
     WriteSymbolsList(&locals_, symbols.at(1), strtab);
-    WriteSymbolsList(&globals_, symbols.at(locals_.length() + 1), strtab);
+    WriteSymbolsList(&globals_,
+                     symbols.at(static_cast<uint32_t>(locals_.size() + 1)),
+                     strtab);
     strtab->DetachWriter();
   }
 
-  void Add(const ELFSymbol& symbol, Zone* zone) {
+  void Add(const ELFSymbol& symbol) {
     if (symbol.binding() == ELFSymbol::BIND_LOCAL) {
-      locals_.Add(symbol, zone);
+      locals_.push_back(symbol);
     } else {
-      globals_.Add(symbol, zone);
+      globals_.push_back(symbol);
     }
   }
 
@@ -900,23 +903,22 @@ class ELFSymbolTable : public ELFSection {
     ELFSection::PopulateHeader(header);
     // We are assuming that string table will follow symbol table.
     header->link = index() + 1;
-    header->info = locals_.length() + 1;
+    header->info = static_cast<uint32_t>(locals_.size() + 1);
     header->entry_size = sizeof(ELFSymbol::SerializedLayout);
   }
 
  private:
-  void WriteSymbolsList(const ZoneList<ELFSymbol>* src,
+  void WriteSymbolsList(const ZoneChunkList<ELFSymbol>* src,
                         Writer::Slot<ELFSymbol::SerializedLayout> dst,
                         ELFStringTable* strtab) {
-    for (int i = 0, len = src->length();
-         i < len;
-         i++) {
-      src->at(i).Write(dst.at(i), strtab);
+    int i = 0;
+    for (const ELFSymbol& symbol : *src) {
+      symbol.Write(dst.at(i++), strtab);
     }
   }
 
-  ZoneList<ELFSymbol> locals_;
-  ZoneList<ELFSymbol> globals_;
+  ZoneChunkList<ELFSymbol> locals_;
+  ZoneChunkList<ELFSymbol> globals_;
 };
 #endif  // defined(__ELF)
 
@@ -1039,10 +1041,8 @@ class CodeDescription BASE_EMBEDDED {
 };
 
 #if defined(__ELF)
-static void CreateSymbolsTable(CodeDescription* desc,
-                               Zone* zone,
-                               ELF* elf,
-                               int text_section_index) {
+static void CreateSymbolsTable(CodeDescription* desc, Zone* zone, ELF* elf,
+                               size_t text_section_index) {
   ELFSymbolTable* symtab = new(zone) ELFSymbolTable(".symtab", zone);
   ELFStringTable* strtab = new(zone) ELFStringTable(".strtab");
 
@@ -1050,21 +1050,12 @@ static void CreateSymbolsTable(CodeDescription* desc,
   elf->AddSection(symtab);
   elf->AddSection(strtab);
 
-  symtab->Add(ELFSymbol("V8 Code",
-                        0,
-                        0,
-                        ELFSymbol::BIND_LOCAL,
-                        ELFSymbol::TYPE_FILE,
-                        ELFSection::INDEX_ABSOLUTE),
-              zone);
+  symtab->Add(ELFSymbol("V8 Code", 0, 0, ELFSymbol::BIND_LOCAL,
+                        ELFSymbol::TYPE_FILE, ELFSection::INDEX_ABSOLUTE));
 
-  symtab->Add(ELFSymbol(desc->name(),
-                        0,
-                        desc->CodeSize(),
-                        ELFSymbol::BIND_GLOBAL,
-                        ELFSymbol::TYPE_FUNC,
-                        text_section_index),
-              zone);
+  symtab->Add(ELFSymbol(desc->name(), 0, desc->CodeSize(),
+                        ELFSymbol::BIND_GLOBAL, ELFSymbol::TYPE_FUNC,
+                        text_section_index));
 }
 #endif  // defined(__ELF)
 
@@ -1928,15 +1919,9 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
   ELF elf(&zone);
   Writer w(&elf);
 
-  int text_section_index = elf.AddSection(
-      new(&zone) FullHeaderELFSection(
-          ".text",
-          ELFSection::TYPE_NOBITS,
-          kCodeAlignment,
-          desc->CodeStart(),
-          0,
-          desc->CodeSize(),
-          ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC));
+  size_t text_section_index = elf.AddSection(new (&zone) FullHeaderELFSection(
+      ".text", ELFSection::TYPE_NOBITS, kCodeAlignment, desc->CodeStart(), 0,
+      desc->CodeSize(), ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC));
 
   CreateSymbolsTable(desc, &zone, &elf, text_section_index);
 

@@ -89,7 +89,9 @@ void BuiltinsConstantsTableBuilder::Finalize() {
             isolate_->heap()->builtins_constants_table());
   DCHECK(isolate_->serializer_enabled());
 
-  DCHECK_LT(0, map_.size());
+  // An empty map means there's nothing to do.
+  if (map_.size() == 0) return;
+
   Handle<FixedArray> table =
       isolate_->factory()->NewFixedArray(map_.size(), TENURED);
 

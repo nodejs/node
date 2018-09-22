@@ -5,9 +5,11 @@
 #ifndef V8_STRING_HASHER_INL_H_
 #define V8_STRING_HASHER_INL_H_
 
+#include "src/string-hasher.h"
+
 #include "src/char-predicates-inl.h"
 #include "src/objects.h"
-#include "src/string-hasher.h"
+#include "src/objects/string-inl.h"
 
 namespace v8 {
 namespace internal {

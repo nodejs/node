@@ -131,43 +131,56 @@ assertEquals(b4, readFloat64(16));
 dataview.setFloat64(16, b4, true);
 assertEquals(b4, readFloat64(16, true));
 
-
-// TurboFan out of bounds read, throw with exception handler.
+// TurboFan out of bounds reads deopt.
 assertOptimized(readInt8Handled);
 assertInstanceof(readInt8Handled(24), RangeError);
-assertOptimized(readInt8Handled);
+assertUnoptimized(readInt8Handled);
 assertOptimized(readInt16Handled);
 assertInstanceof(readInt16Handled(23), RangeError);
-assertOptimized(readInt16Handled);
+assertUnoptimized(readInt16Handled);
 assertOptimized(readInt32Handled);
 assertInstanceof(readInt32Handled(21), RangeError);
-assertOptimized(readInt32Handled);
+assertUnoptimized(readInt32Handled);
 
 // Without exception handler.
 assertOptimized(readUint8);
 assertThrows(() => readUint8(24));
-assertOptimized(readUint8);
+assertUnoptimized(readUint8);
 assertOptimized(readFloat32);
 assertThrows(() => readFloat32(21));
-assertOptimized(readFloat32);
+assertUnoptimized(readFloat32);
 assertOptimized(readFloat64);
 assertThrows(() => readFloat64(17));
-assertOptimized(readFloat64);
+assertUnoptimized(readFloat64);
 
+// Negative Smi deopts.
+(function() {
+  function readInt8Handled(offset) {
+    try { return dataview.getInt8(offset); } catch (e) { return e; }
+  }
+  warmup(readInt8Handled);
+  assertOptimized(readInt8Handled);
+  assertInstanceof(readInt8Handled(-1), RangeError);
+  assertUnoptimized(readInt8Handled);
+})();
 
-// TurboFan deoptimizations.
-assertOptimized(readInt8Handled);
-assertInstanceof(readInt8Handled(-1), RangeError); // Negative Smi deopts.
-assertUnoptimized(readInt8Handled);
+// Non-Smi index deopts.
+(function() {
+  function readUint8(offset) { return dataview.getUint8(offset); }
+  warmup(readUint8);
+  assertOptimized(readUint8);
+  assertEquals(values[3], readUint8(3.14));
+  assertUnoptimized(readUint8);
+})();
 
-warmup(readInt8Handled);
-assertOptimized(readInt8Handled);
-assertEquals(values[3], readInt8Handled(3.14)); // Non-Smi index deopts.
-assertUnoptimized(readInt8Handled);
-
-// TurboFan neutered buffer.
-warmup(readInt8Handled);
-assertOptimized(readInt8Handled);
-%ArrayBufferNeuter(buffer);
-assertInstanceof(readInt8Handled(0), TypeError);
-assertOptimized(readInt8Handled);
+// TurboFan neutered buffer deopts.
+(function() {
+  function readInt8Handled(offset) {
+    try { return dataview.getInt8(offset); } catch (e) { return e; }
+  }
+  warmup(readInt8Handled);
+  assertOptimized(readInt8Handled);
+  %ArrayBufferNeuter(buffer);
+  assertInstanceof(readInt8Handled(0), TypeError);
+  assertUnoptimized(readInt8Handled);
+})();

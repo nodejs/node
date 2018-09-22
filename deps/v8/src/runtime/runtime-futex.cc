@@ -4,11 +4,12 @@
 
 #include "src/runtime/runtime-utils.h"
 
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/base/platform/time.h"
 #include "src/conversions-inl.h"
 #include "src/futex-emulation.h"
 #include "src/globals.h"
+#include "src/objects/js-array-buffer-inl.h"
 
 // Implement Futex API for SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here:
@@ -16,7 +17,6 @@
 
 namespace v8 {
 namespace internal {
-
 
 RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   HandleScope scope(isolate);
@@ -30,7 +30,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
 
-  return FutexEmulation::NumWaitersForTesting(isolate, array_buffer, addr);
+  return FutexEmulation::NumWaitersForTesting(array_buffer, addr);
 }
 
 RUNTIME_FUNCTION(Runtime_SetAllowAtomicsWait) {
@@ -41,5 +41,6 @@ RUNTIME_FUNCTION(Runtime_SetAllowAtomicsWait) {
   isolate->set_allow_atomics_wait(set);
   return ReadOnlyRoots(isolate).undefined_value();
 }
+
 }  // namespace internal
 }  // namespace v8

@@ -411,33 +411,35 @@ TEST_F(InstructionSelectorTest, Word32ShlWithWord32And) {
 }
 
 TEST_F(InstructionSelectorTest, Word32SarWithWord32Shl) {
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    Node* const p0 = m.Parameter(0);
-    Node* const r =
-        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(24)), m.Int32Constant(24));
-    m.Return(r);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMipsSeb, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
-  }
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    Node* const p0 = m.Parameter(0);
-    Node* const r =
-        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(16)), m.Int32Constant(16));
-    m.Return(r);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMipsSeh, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    {
+      StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+      Node* const p0 = m.Parameter(0);
+      Node* const r = m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(24)),
+                                  m.Int32Constant(24));
+      m.Return(r);
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kMipsSeb, s[0]->arch_opcode());
+      ASSERT_EQ(1U, s[0]->InputCount());
+      EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+      ASSERT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+    }
+    {
+      StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+      Node* const p0 = m.Parameter(0);
+      Node* const r = m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(16)),
+                                  m.Int32Constant(16));
+      m.Return(r);
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kMipsSeh, s[0]->arch_opcode());
+      ASSERT_EQ(1U, s[0]->InputCount());
+      EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+      ASSERT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+    }
   }
 }
 

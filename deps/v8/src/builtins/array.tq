@@ -3,6 +3,17 @@
 // found in the LICENSE file.
 
 module array {
+  // Naming convention from elements.cc. We have a similar intent but implement
+  // fastpaths using generics instead of using a class hierarchy for elements
+  // kinds specific implementations.
+  type GenericElementsAccessor;
+  type FastPackedSmiElements;
+  type FastPackedObjectElements;
+  type FastPackedDoubleElements;
+  type FastSmiOrObjectElements;
+  type FastDoubleElements;
+  type DictionaryElements;
+
   macro GetLengthProperty(context: Context, o: Object): Number {
     if (BranchIfFastJSArray(o, context)) {
       let a: JSArray = unsafe_cast<JSArray>(o);
@@ -110,7 +121,7 @@ module array {
   javascript builtin ArraySpliceTorque(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
-    let o: Object = ToObject(context, receiver);
+    let o: JSReceiver = ToObject(context, receiver);
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
     let len: Number = GetLengthProperty(context, o);
@@ -178,8 +189,7 @@ module array {
       let from: String = ToString_Inline(context, actualStart + k);
 
       // b. Let fromPresent be ? HasProperty(O, from).
-      let fromPresent: Oddball =
-          HasPropertyObject(o, from, context, kHasProperty);
+      let fromPresent: Oddball = HasProperty(context, o, from);
 
       // c. If fromPresent is true, then
       if (fromPresent == True) {
@@ -195,7 +205,7 @@ module array {
     }
 
     // 12. Perform ? Set(A, "length", actualDeleteCount, true).
-    SetProperty(context, a, 'length', actualDeleteCount, kStrict);
+    SetProperty(context, a, 'length', actualDeleteCount);
 
     // 13. Let items be a List whose elements are, in left-to-right order,
     //     the portion of the actual argument list starting with the third
@@ -217,8 +227,7 @@ module array {
         let to: String = ToString_Inline(context, k + itemCount);
 
         // iii. Let fromPresent be ? HasProperty(O, from).
-        let fromPresent: Oddball =
-            HasPropertyObject(o, from, context, kHasProperty);
+        let fromPresent: Oddball = HasProperty(context, o, from);
 
         // iv. If fromPresent is true, then
         if (fromPresent == True) {
@@ -226,7 +235,7 @@ module array {
           let fromValue: Object = GetProperty(context, o, from);
 
           // 2. Perform ? Set(O, to, fromValue, true).
-          SetProperty(context, o, to, fromValue, kStrict);
+          SetProperty(context, o, to, fromValue);
 
           // v. Else fromPresent is false,
         } else {
@@ -261,8 +270,7 @@ module array {
         let to: String = ToString_Inline(context, k + itemCount - 1);
 
         // iii. Let fromPresent be ? HasProperty(O, from).
-        let fromPresent: Oddball =
-            HasPropertyObject(o, from, context, kHasProperty);
+        let fromPresent: Oddball = HasProperty(context, o, from);
 
         // iv. If fromPresent is true, then
         if (fromPresent == True) {
@@ -270,7 +278,7 @@ module array {
           let fromValue: Object = GetProperty(context, o, from);
 
           // 2. Perform ? Set(O, to, fromValue, true).
-          SetProperty(context, o, to, fromValue, kStrict);
+          SetProperty(context, o, to, fromValue);
 
           // v. Else fromPresent is false,
         } else {
@@ -292,7 +300,7 @@ module array {
     if (arguments.length > 2) {
       for (let e: Object of arguments [2: ]) {
         // b. Perform ? Set(O, ! ToString(k), E, true).
-        SetProperty(context, o, ToString_Inline(context, k), e, kStrict);
+        SetProperty(context, o, ToString_Inline(context, k), e);
 
         // c. Increase k by 1.
         k = k + 1;
@@ -301,8 +309,7 @@ module array {
 
     // 19. Perform ? Set(O, "length", len - actualDeleteCount + itemCount,
     // true).
-    SetProperty(
-        context, o, 'length', len - actualDeleteCount + itemCount, kStrict);
+    SetProperty(context, o, 'length', len - actualDeleteCount + itemCount);
 
     return a;
   }

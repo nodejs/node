@@ -14,15 +14,24 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-collator-inl.h"
+#endif  // V8_INTL_SUPPORT
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-generator-inl.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/literal-objects-inl.h"
@@ -159,12 +168,12 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       FreeSpace::cast(this)->FreeSpacePrint(os);
       break;
 
-#define PRINT_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size) \
-  case Fixed##Type##Array::kInstanceType:                      \
-    Fixed##Type##Array::cast(this)->FixedTypedArrayPrint(os);  \
+#define PRINT_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)      \
+  case Fixed##Type##Array::kInstanceType:                     \
+    Fixed##Type##Array::cast(this)->FixedTypedArrayPrint(os); \
     break;
 
-    TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
+      TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
 #undef PRINT_FIXED_TYPED_ARRAY
 
     case FILLER_TYPE:
@@ -180,9 +189,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     // TODO(titzer): debug printing for more wasm objects
     case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
-    case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
       JSObject::cast(this)->JSObjectPrint(os);
+      break;
+    case WASM_MODULE_TYPE:
+      WasmModuleObject::cast(this)->WasmModuleObjectPrint(os);
       break;
     case WASM_INSTANCE_TYPE:
       WasmInstanceObject::cast(this)->WasmInstanceObjectPrint(os);
@@ -285,9 +296,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case PROPERTY_CELL_TYPE:
       PropertyCell::cast(this)->PropertyCellPrint(os);
       break;
-    case WEAK_CELL_TYPE:
-      WeakCell::cast(this)->WeakCellPrint(os);
-      break;
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferPrint(os);
       break;
@@ -301,8 +309,17 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       JSDataView::cast(this)->JSDataViewPrint(os);
       break;
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_COLLATOR_TYPE:
+      JSCollator::cast(this)->JSCollatorPrint(os);
+      break;
+    case JS_INTL_LIST_FORMAT_TYPE:
+      JSListFormat::cast(this)->JSListFormatPrint(os);
+      break;
     case JS_INTL_LOCALE_TYPE:
       JSLocale::cast(this)->JSLocalePrint(os);
+      break;
+    case JS_INTL_PLURAL_RULES_TYPE:
+      JSPluralRules::cast(this)->JSPluralRulesPrint(os);
       break;
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatPrint(os);
@@ -574,10 +591,10 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
       break;
     }
 
-#define PRINT_ELEMENTS(Type, type, TYPE, elementType, size) \
-  case TYPE##_ELEMENTS: {                                   \
-    DoPrintElements<Fixed##Type##Array>(os, elements());    \
-    break;                                                  \
+#define PRINT_ELEMENTS(Type, type, TYPE, elementType)    \
+  case TYPE##_ELEMENTS: {                                \
+    DoPrintElements<Fixed##Type##Array>(os, elements()); \
+    break;                                               \
   }
       TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS
@@ -802,12 +819,12 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     layout_descriptor()->ShortPrint(os);
   }
 
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(this);
+  Isolate* isolate;
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (chunk->owner()->identity() != RO_SPACE) {
+  if (Isolate::FromWritableHeapObject(this, &isolate)) {
     DisallowHeapAllocation no_gc;
-    TransitionsAccessor transitions(chunk->heap()->isolate(), this, &no_gc);
+    TransitionsAccessor transitions(isolate, this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0) {
       os << "\n - transitions #" << nof_transitions << ": ";
@@ -894,7 +911,7 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
     if (previous_index != i - 1) {
       ss << '-' << (i - 1);
     }
-    os << std::setw(12) << ss.str() << ": " << MaybeObjectBrief(previous_value);
+    os << std::setw(12) << ss.str() << ": " << Brief(previous_value);
     previous_index = i;
     previous_value = value;
   }
@@ -1043,7 +1060,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     if (entry_size > 0) os << " {";
     for (int i = 0; i < entry_size; i++) {
       int index = GetIndex(slot) + i;
-      os << "\n     [" << index << "]: " << MaybeObjectBrief(get(index));
+      os << "\n     [" << index << "]: " << Brief(get(index));
     }
     if (entry_size > 0) os << "\n  }";
   }
@@ -1095,7 +1112,8 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kStoreDataPropertyInLiteral:
     case FeedbackSlotKind::kStoreKeyedStrict:
-    case FeedbackSlotKind::kStoreInArrayLiteral: {
+    case FeedbackSlotKind::kStoreInArrayLiteral:
+    case FeedbackSlotKind::kCloneObject: {
       os << ICState2String(StateFromFeedback());
       break;
     }
@@ -1506,18 +1524,6 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-
-void WeakCell::WeakCellPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "WeakCell");
-  if (cleared()) {
-    os << "\n - cleared";
-  } else {
-    os << "\n - value: " << Brief(value());
-  }
-  os << "\n";
-}
-
-
 void Code::CodePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Code");
   os << "\n";
@@ -1666,10 +1672,10 @@ void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {  // NOLINT
 
 void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PrototypeInfo");
-  os << "\n - weak cell: " << Brief(weak_cell());
+  os << "\n - module namespace: " << Brief(module_namespace());
   os << "\n - prototype users: " << Brief(prototype_users());
   os << "\n - registry slot: " << registry_slot();
-  os << "\n - object create map: " << MaybeObjectBrief(object_create_map());
+  os << "\n - object create map: " << Brief(object_create_map());
   os << "\n - should_be_fast_map: " << should_be_fast_map();
   os << "\n";
 }
@@ -1762,14 +1768,17 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(
 }
 
 void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, this, "WasmModuleObject");
-  JSObjectPrintBody(os, this);
+  HeapObject::PrintHeader(os, "WasmModuleObject");
   os << "\n - module: " << module();
   os << "\n - native module: " << native_module();
   os << "\n - export wrappers: " << Brief(export_wrappers());
   os << "\n - script: " << Brief(script());
-  os << "\n - asm_js_offset_table: " << Brief(asm_js_offset_table());
-  os << "\n - breakpoint_infos: " << Brief(breakpoint_infos());
+  if (has_asm_js_offset_table()) {
+    os << "\n - asm_js_offset_table: " << Brief(asm_js_offset_table());
+  }
+  if (has_breakpoint_infos()) {
+    os << "\n - breakpoint_infos: " << Brief(breakpoint_infos());
+  }
   os << "\n";
 }
 
@@ -1780,7 +1789,7 @@ void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
   if (data_count >= 1) {
-    os << "\n - data1: " << MaybeObjectBrief(data1());
+    os << "\n - data1: " << Brief(data1());
   }
   if (data_count >= 2) {
     os << "\n - data2: " << Brief(data2());
@@ -1798,7 +1807,7 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {  // NOLINT
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
   if (data_count >= 1) {
-    os << "\n - data1: " << MaybeObjectBrief(data1());
+    os << "\n - data1: " << Brief(data1());
   }
   if (data_count >= 2) {
     os << "\n - data2: " << Brief(data2());
@@ -1944,6 +1953,23 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
 }
 
 #ifdef V8_INTL_SUPPORT
+void JSCollator::JSCollatorPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSCollator");
+  os << "\n - usage: " << JSCollator::UsageToString(usage());
+  os << "\n - icu collator: " << Brief(icu_collator());
+  os << "\n - bound compare: " << Brief(bound_compare());
+  os << "\n";
+}
+
+void JSListFormat::JSListFormatPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSListFormat");
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - style: " << StyleAsString();
+  os << "\n - type: " << TypeAsString();
+  os << "\n - formatter: " << Brief(formatter());
+  os << "\n";
+}
+
 void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSLocale");
   os << "\n - language: " << Brief(language());
@@ -1957,6 +1983,16 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
   os << "\n - hourCycle: " << Brief(hour_cycle());
   os << "\n - numeric: " << Brief(numeric());
   os << "\n - numberingSystem: " << Brief(numbering_system());
+  os << "\n";
+}
+
+void JSPluralRules::JSPluralRulesPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "JSPluralRules");
+  JSObjectPrint(os);
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - type: " << Brief(type());
+  os << "\n - icu plural rules: " << Brief(icu_plural_rules());
+  os << "\n - icu decimal format: " << Brief(icu_decimal_format());
   os << "\n";
 }
 
@@ -2046,7 +2082,7 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - flags: " << flags();
   os << "\n - debugger_hints: " << debugger_hints();
   os << "\n - shared: " << Brief(shared());
-  os << "\n - function_identifier: " << Brief(function_identifier());
+  os << "\n - script: " << Brief(script());
   os << "\n - original bytecode array: " << Brief(original_bytecode_array());
   os << "\n - break_points: ";
   break_points()->FixedArrayPrint(os);
@@ -2396,11 +2432,11 @@ void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
 //
 // The following functions are used by our gdb macros.
 //
-extern void _v8_internal_Print_Object(void* object) {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
   reinterpret_cast<i::Object*>(object)->Print();
 }
 
-extern void _v8_internal_Print_Code(void* object) {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   i::Address address = reinterpret_cast<i::Address>(object);
   i::Isolate* isolate = i::Isolate::Current();
 
@@ -2435,7 +2471,8 @@ extern void _v8_internal_Print_Code(void* object) {
 #endif  // ENABLE_DISASSEMBLER
 }
 
-extern void _v8_internal_Print_LayoutDescriptor(void* object) {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_LayoutDescriptor(
+    void* object) {
   i::Object* o = reinterpret_cast<i::Object*>(object);
   if (!o->IsLayoutDescriptor()) {
     printf("Please provide a layout descriptor\n");
@@ -2444,12 +2481,12 @@ extern void _v8_internal_Print_LayoutDescriptor(void* object) {
   }
 }
 
-extern void _v8_internal_Print_StackTrace() {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->PrintStack(stdout);
 }
 
-extern void _v8_internal_Print_TransitionTree(void* object) {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
   i::Object* o = reinterpret_cast<i::Object*>(object);
   if (!o->IsMap()) {
     printf("Please provide a valid Map\n");
@@ -2457,7 +2494,7 @@ extern void _v8_internal_Print_TransitionTree(void* object) {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
     i::DisallowHeapAllocation no_gc;
     i::Map* map = reinterpret_cast<i::Map*>(object);
-    i::TransitionsAccessor transitions(map->GetIsolate(), map, &no_gc);
+    i::TransitionsAccessor transitions(i::Isolate::Current(), map, &no_gc);
     transitions.PrintTransitionTree();
 #endif
   }

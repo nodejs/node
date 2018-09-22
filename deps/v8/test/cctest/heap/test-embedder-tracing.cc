@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/module.h"
 #include "src/objects/script.h"
@@ -61,7 +61,7 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
   void TracePrologue() final {}
   void TraceEpilogue() final {}
   void AbortTracing() final {}
-  void EnterFinalPause() final {}
+  void EnterFinalPause(EmbedderStackState) final {}
 
   bool IsRegisteredFromV8(void* first_field) const {
     for (auto pair : registered_from_v8_) {
@@ -249,6 +249,20 @@ TEST(FinalizeTracingWhenMarking) {
   CHECK(marking->IsMarking());
   tracer.FinalizeTracing();
   CHECK(marking->IsStopped());
+}
+
+TEST(GarbageCollectionForTesting) {
+  ManualGCScope manual_gc;
+  i::FLAG_expose_gc = true;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  TestEmbedderHeapTracer tracer(isolate);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  int saved_gc_counter = i_isolate->heap()->gc_count();
+  tracer.GarbageCollectionForTesting(EmbedderHeapTracer::kUnknown);
+  CHECK_GT(i_isolate->heap()->gc_count(), saved_gc_counter);
 }
 
 }  // namespace heap

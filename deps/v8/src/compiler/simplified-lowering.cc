@@ -286,7 +286,7 @@ class RepresentationSelector {
     bool weakened_ = false;
   };
 
-  RepresentationSelector(JSGraph* jsgraph, const JSHeapBroker* js_heap_broker,
+  RepresentationSelector(JSGraph* jsgraph, JSHeapBroker* js_heap_broker,
                          Zone* zone, RepresentationChanger* changer,
                          SourcePositionTable* source_positions,
                          NodeOriginTable* node_origins)
@@ -1563,6 +1563,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kJSToNumber:
+      case IrOpcode::kJSToNumberConvertBigInt:
       case IrOpcode::kJSToNumeric: {
         VisitInputs(node);
         // TODO(bmeurer): Optimize somewhat based on input type?
@@ -2972,7 +2973,8 @@ class RepresentationSelector {
         if (input_type.Is(Type::Number())) {
           VisitNoop(node, truncation);
         } else {
-          CheckFloat64HoleMode mode = CheckFloat64HoleModeOf(node->op());
+          CheckFloat64HoleMode mode =
+              CheckFloat64HoleParametersOf(node->op()).mode();
           switch (mode) {
             case CheckFloat64HoleMode::kAllowReturnHole:
               if (truncation.IsUnused()) return VisitUnused(node);
@@ -3274,8 +3276,7 @@ class RepresentationSelector {
 };
 
 SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph,
-                                       const JSHeapBroker* js_heap_broker,
-                                       Zone* zone,
+                                       JSHeapBroker* js_heap_broker, Zone* zone,
                                        SourcePositionTable* source_positions,
                                        NodeOriginTable* node_origins,
                                        PoisoningMitigationLevel poisoning_level)
@@ -3297,6 +3298,7 @@ void SimplifiedLowering::LowerAllNodes() {
 void SimplifiedLowering::DoJSToNumberOrNumericTruncatesToFloat64(
     Node* node, RepresentationSelector* selector) {
   DCHECK(node->opcode() == IrOpcode::kJSToNumber ||
+         node->opcode() == IrOpcode::kJSToNumberConvertBigInt ||
          node->opcode() == IrOpcode::kJSToNumeric);
   Node* value = node->InputAt(0);
   Node* context = node->InputAt(1);
@@ -3320,11 +3322,17 @@ void SimplifiedLowering::DoJSToNumberOrNumericTruncatesToFloat64(
   Node* efalse0 = effect;
   Node* vfalse0;
   {
-    Operator const* op = node->opcode() == IrOpcode::kJSToNumber
-                             ? ToNumberOperator()
-                             : ToNumericOperator();
-    Node* code = node->opcode() == IrOpcode::kJSToNumber ? ToNumberCode()
-                                                         : ToNumericCode();
+    Operator const* op =
+        node->opcode() == IrOpcode::kJSToNumber
+            ? (node->opcode() == IrOpcode::kJSToNumberConvertBigInt
+                   ? ToNumberConvertBigIntOperator()
+                   : ToNumberOperator())
+            : ToNumericOperator();
+    Node* code = node->opcode() == IrOpcode::kJSToNumber
+                     ? ToNumberCode()
+                     : (node->opcode() == IrOpcode::kJSToNumberConvertBigInt
+                            ? ToNumberConvertBigIntCode()
+                            : ToNumericCode());
     vfalse0 = efalse0 = if_false0 = graph()->NewNode(
         op, code, value, context, frame_state, efalse0, if_false0);
 
@@ -3392,6 +3400,7 @@ void SimplifiedLowering::DoJSToNumberOrNumericTruncatesToFloat64(
 void SimplifiedLowering::DoJSToNumberOrNumericTruncatesToWord32(
     Node* node, RepresentationSelector* selector) {
   DCHECK(node->opcode() == IrOpcode::kJSToNumber ||
+         node->opcode() == IrOpcode::kJSToNumberConvertBigInt ||
          node->opcode() == IrOpcode::kJSToNumeric);
   Node* value = node->InputAt(0);
   Node* context = node->InputAt(1);
@@ -3412,11 +3421,17 @@ void SimplifiedLowering::DoJSToNumberOrNumericTruncatesToWord32(
   Node* efalse0 = effect;
   Node* vfalse0;
   {
-    Operator const* op = node->opcode() == IrOpcode::kJSToNumber
-                             ? ToNumberOperator()
-                             : ToNumericOperator();
-    Node* code = node->opcode() == IrOpcode::kJSToNumber ? ToNumberCode()
-                                                         : ToNumericCode();
+    Operator const* op =
+        node->opcode() == IrOpcode::kJSToNumber
+            ? (node->opcode() == IrOpcode::kJSToNumberConvertBigInt
+                   ? ToNumberConvertBigIntOperator()
+                   : ToNumberOperator())
+            : ToNumericOperator();
+    Node* code = node->opcode() == IrOpcode::kJSToNumber
+                     ? ToNumberCode()
+                     : (node->opcode() == IrOpcode::kJSToNumberConvertBigInt
+                            ? ToNumberConvertBigIntCode()
+                            : ToNumericCode());
     vfalse0 = efalse0 = if_false0 = graph()->NewNode(
         op, code, value, context, frame_state, efalse0, if_false0);
 
@@ -3922,6 +3937,16 @@ Node* SimplifiedLowering::ToNumberCode() {
   return to_number_code_.get();
 }
 
+Node* SimplifiedLowering::ToNumberConvertBigIntCode() {
+  if (!to_number_convert_big_int_code_.is_set()) {
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kToNumberConvertBigInt);
+    to_number_convert_big_int_code_.set(
+        jsgraph()->HeapConstant(callable.code()));
+  }
+  return to_number_convert_big_int_code_.get();
+}
+
 Node* SimplifiedLowering::ToNumericCode() {
   if (!to_numeric_code_.is_set()) {
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumeric);
@@ -3940,6 +3965,19 @@ Operator const* SimplifiedLowering::ToNumberOperator() {
     to_number_operator_.set(common()->Call(call_descriptor));
   }
   return to_number_operator_.get();
+}
+
+Operator const* SimplifiedLowering::ToNumberConvertBigIntOperator() {
+  if (!to_number_convert_big_int_operator_.is_set()) {
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kToNumberConvertBigInt);
+    CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+    auto call_descriptor =
+        Linkage::GetStubCallDescriptor(graph()->zone(), callable.descriptor(),
+                                       0, flags, Operator::kNoProperties);
+    to_number_convert_big_int_operator_.set(common()->Call(call_descriptor));
+  }
+  return to_number_convert_big_int_operator_.get();
 }
 
 Operator const* SimplifiedLowering::ToNumericOperator() {

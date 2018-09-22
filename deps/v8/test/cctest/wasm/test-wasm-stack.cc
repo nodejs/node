@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -35,7 +35,7 @@ namespace {
 void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack) {
   printf("Stack Trace (length %d):\n", stack->GetFrameCount());
   for (int i = 0, e = stack->GetFrameCount(); i != e; ++i) {
-    v8::Local<v8::StackFrame> frame = stack->GetFrame(i);
+    v8::Local<v8::StackFrame> frame = stack->GetFrame(isolate, i);
     v8::Local<v8::String> script = frame->GetScriptName();
     v8::Local<v8::String> func = frame->GetFunctionName();
     printf(
@@ -68,7 +68,7 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   CHECK_EQ(N, stack->GetFrameCount());
 
   for (int frameNr = 0; frameNr < N; ++frameNr) {
-    v8::Local<v8::StackFrame> frame = stack->GetFrame(frameNr);
+    v8::Local<v8::StackFrame> frame = stack->GetFrame(v8_isolate, frameNr);
     v8::String::Utf8Value funName(v8_isolate, frame->GetFunctionName());
     CHECK_CSTREQ(excInfos[frameNr].func_name, *funName);
     // Line and column are 1-based in v8::StackFrame, just as in ExceptionInfo.
@@ -111,7 +111,7 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.v_v(), js_function};
   uint32_t js_throwing_index = 0;
-  WasmRunner<void> r(execution_mode, &import);
+  WasmRunner<void> r(execution_tier, &import);
 
   // Add a nop such that we don't always get position 1.
   BUILD(r, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));
@@ -157,7 +157,7 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     int unreachable_pos = 1 << (8 * pos_shift);
     TestSignatures sigs;
     // Create a WasmRunner with stack checks and traps enabled.
-    WasmRunner<int> r(execution_mode, 0, "main", kRuntimeExceptionSupport);
+    WasmRunner<int> r(execution_tier, 0, "main", kRuntimeExceptionSupport);
 
     std::vector<byte> code(unreachable_pos + 1, kExprNop);
     code[unreachable_pos] = kExprUnreachable;

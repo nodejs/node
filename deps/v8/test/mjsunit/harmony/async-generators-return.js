@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
+load('test/mjsunit/test-async.js');
+
 testAsync(test => {
   test.plan(2);
 
@@ -68,7 +70,7 @@ testAsync(test => {
 
 // Return a thenable which is fulfilled later
 testAsync(test => {
-  test.plan(2);
+  test.plan(3);
 
   let resolve;
   let awaitedThenable = { then(resolveFn) { resolve = resolveFn; } };
@@ -84,7 +86,8 @@ testAsync(test => {
 
   gen().next().then(
       (iterResult) => {
-        test.equals({ value: "resolvedPromise", done: true }, iterResult);
+        test.equals("resolvedPromise", iterResult.value);
+        test.equals(true, iterResult.done);
         test.equals(true, finallyEvaluated);
       },
       test.unexpectedRejection());

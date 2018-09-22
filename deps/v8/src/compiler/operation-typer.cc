@@ -16,8 +16,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-OperationTyper::OperationTyper(Isolate* isolate,
-                               const JSHeapBroker* js_heap_broker, Zone* zone)
+OperationTyper::OperationTyper(Isolate* isolate, JSHeapBroker* js_heap_broker,
+                               Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
   Factory* factory = isolate->factory();
   infinity_ =
@@ -265,7 +265,9 @@ Type OperationTyper::ConvertReceiver(Type type) {
   return type;
 }
 
-Type OperationTyper::ToNumberOrNumeric(Object::Conversion mode, Type type) {
+// Returns the result type of converting {type} to number, if the
+// result does not depend on conversion options.
+base::Optional<Type> OperationTyper::ToNumberCommon(Type type) {
   if (type.Is(Type::Number())) return type;
   if (type.Is(Type::NullOrUndefined())) {
     if (type.Is(Type::Null())) return cache_.kSingletonZero;
@@ -289,6 +291,13 @@ Type OperationTyper::ToNumberOrNumeric(Object::Conversion mode, Type type) {
     }
     return Type::Intersect(type, Type::Number(), zone());
   }
+  return base::Optional<Type>();
+}
+
+Type OperationTyper::ToNumberOrNumeric(Object::Conversion mode, Type type) {
+  if (base::Optional<Type> maybe_result_type = ToNumberCommon(type)) {
+    return *maybe_result_type;
+  }
   if (type.Is(Type::BigInt())) {
     return mode == Object::Conversion::kToNumber ? Type::None() : type;
   }
@@ -298,6 +307,13 @@ Type OperationTyper::ToNumberOrNumeric(Object::Conversion mode, Type type) {
 
 Type OperationTyper::ToNumber(Type type) {
   return ToNumberOrNumeric(Object::Conversion::kToNumber, type);
+}
+
+Type OperationTyper::ToNumberConvertBigInt(Type type) {
+  if (base::Optional<Type> maybe_result_type = ToNumberCommon(type)) {
+    return *maybe_result_type;
+  }
+  return Type::Number();
 }
 
 Type OperationTyper::ToNumeric(Type type) {

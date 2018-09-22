@@ -815,7 +815,7 @@ TEST_(adr) {
 TEST_(branch) {
   SET_UP_ASM();
 
-  #define INST_OFF(x) ((x) >> kInstructionSizeLog2)
+#define INST_OFF(x) ((x) >> kInstrSizeLog2)
   COMPARE_PREFIX(b(INST_OFF(0x4)), "b #+0x4");
   COMPARE_PREFIX(b(INST_OFF(-0x4)), "b #-0x4");
   COMPARE_PREFIX(b(INST_OFF(0x7fffffc)), "b #+0x7fffffc");
@@ -840,6 +840,7 @@ TEST_(branch) {
   COMPARE_PREFIX(tbnz(w10, 31, INST_OFF(0)), "tbnz w10, #31, #+0x0");
   COMPARE_PREFIX(tbnz(x11, 31, INST_OFF(0x4)), "tbnz w11, #31, #+0x4");
   COMPARE_PREFIX(tbnz(x12, 32, INST_OFF(0x8)), "tbnz x12, #32, #+0x8");
+#undef INST_OFF
   COMPARE(br(x0), "br x0");
   COMPARE(blr(x1), "blr x1");
   COMPARE(ret(x2), "ret x2");
@@ -1881,7 +1882,11 @@ TEST_(debug) {
     byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));
     uint32_t encoding = 0;
     AssemblerOptions options;
+#ifdef USE_SIMULATOR
     options.enable_simulator_code = (i == 1);
+#else
+    CHECK(!options.enable_simulator_code);
+#endif
     Assembler* assm = new Assembler(options, buf, INSTR_SIZE);
     Decoder<DispatchingDecoderVisitor>* decoder =
         new Decoder<DispatchingDecoderVisitor>();

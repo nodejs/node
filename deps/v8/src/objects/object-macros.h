@@ -14,6 +14,8 @@
 // for fields that can be written to and read from multiple threads at the same
 // time. See comments in src/base/atomicops.h for the memory ordering sematics.
 
+#include <src/v8memory.h>
+
 #define DECL_PRIMITIVE_ACCESSORS(name, type) \
   inline type name() const;                  \
   inline void set_##name(type value);
@@ -26,6 +28,10 @@
 
 #define DECL_UINT16_ACCESSORS(name) \
   inline uint16_t name() const;     \
+  inline void set_##name(int value);
+
+#define DECL_UINT8_ACCESSORS(name) \
+  inline uint8_t name() const;     \
   inline void set_##name(int value);
 
 #define DECL_ACCESSORS(name, type)    \
@@ -65,18 +71,25 @@
     WRITE_UINT16_FIELD(this, offset, value);                                \
   }
 
-#define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition,   \
-                           set_condition)                               \
-  type* holder::name() const {                                          \
-    type* value = type::cast(READ_FIELD(this, offset));                 \
-    DCHECK(get_condition);                                              \
-    return value;                                                       \
-  }                                                                     \
-  void holder::set_##name(type* value, WriteBarrierMode mode) {         \
-    DCHECK(set_condition);                                              \
-    WRITE_FIELD(this, offset, value);                                   \
-    CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this, \
-                              offset, value, mode);                     \
+#define UINT8_ACCESSORS(holder, name, offset)                             \
+  uint8_t holder::name() const { return READ_UINT8_FIELD(this, offset); } \
+  void holder::set_##name(int value) {                                    \
+    DCHECK_GE(value, 0);                                                  \
+    DCHECK_LE(value, static_cast<uint8_t>(-1));                           \
+    WRITE_UINT8_FIELD(this, offset, value);                               \
+  }
+
+#define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
+                           set_condition)                             \
+  type* holder::name() const {                                        \
+    type* value = type::cast(READ_FIELD(this, offset));               \
+    DCHECK(get_condition);                                            \
+    return value;                                                     \
+  }                                                                   \
+  void holder::set_##name(type* value, WriteBarrierMode mode) {       \
+    DCHECK(set_condition);                                            \
+    WRITE_FIELD(this, offset, value);                                 \
+    CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);             \
   }
 #define ACCESSORS_CHECKED(holder, name, type, offset, condition) \
   ACCESSORS_CHECKED2(holder, name, type, offset, condition, condition)
@@ -84,18 +97,17 @@
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
 
-#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,         \
-                                set_condition)                               \
-  MaybeObject* holder::name() const {                                        \
-    MaybeObject* value = READ_WEAK_FIELD(this, offset);                      \
-    DCHECK(get_condition);                                                   \
-    return value;                                                            \
-  }                                                                          \
-  void holder::set_##name(MaybeObject* value, WriteBarrierMode mode) {       \
-    DCHECK(set_condition);                                                   \
-    WRITE_WEAK_FIELD(this, offset, value);                                   \
-    CONDITIONAL_WEAK_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this, \
-                                   offset, value, mode);                     \
+#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,   \
+                                set_condition)                         \
+  MaybeObject* holder::name() const {                                  \
+    MaybeObject* value = READ_WEAK_FIELD(this, offset);                \
+    DCHECK(get_condition);                                             \
+    return value;                                                      \
+  }                                                                    \
+  void holder::set_##name(MaybeObject* value, WriteBarrierMode mode) { \
+    DCHECK(set_condition);                                             \
+    WRITE_WEAK_FIELD(this, offset, value);                             \
+    CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);         \
   }
 
 #define WEAK_ACCESSORS_CHECKED(holder, name, offset, condition) \
@@ -154,9 +166,14 @@
     set_##field(BitField::update(field(), value));              \
   }
 
-#define TYPE_CHECKER(type, instancetype)           \
-  bool HeapObject::Is##type() const {              \
-    return map()->instance_type() == instancetype; \
+#define INSTANCE_TYPE_CHECKER(type, forinstancetype)    \
+  V8_INLINE bool Is##type(InstanceType instance_type) { \
+    return instance_type == forinstancetype;            \
+  }
+
+#define TYPE_CHECKER(type, ...)                                   \
+  bool HeapObject::Is##type() const {                             \
+    return InstanceTypeChecker::Is##type(map()->instance_type()); \
   }
 
 #define FIELD_ADDR(p, offset) \
@@ -206,48 +223,45 @@
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
       reinterpret_cast<base::AtomicWord>(value));
 
-#define WRITE_BARRIER(heap, object, offset, value)                      \
-  do {                                                                  \
-    Heap* __heap__ = heap;                                              \
-    __heap__->incremental_marking()->RecordWrite(                       \
-        object, HeapObject::RawField(object, offset), value);           \
-    __heap__->RecordWrite(object, HeapObject::RawField(object, offset), \
-                          value);                                       \
+#define WRITE_BARRIER(object, offset, value)                                  \
+  do {                                                                        \
+    DCHECK_NOT_NULL(Heap::FromWritableHeapObject(object));                    \
+    MarkingBarrier(object, HeapObject::RawField(object, offset), value);      \
+    GenerationalBarrier(object, HeapObject::RawField(object, offset), value); \
   } while (false)
 
-#define WEAK_WRITE_BARRIER(heap, object, offset, value)                \
-  do {                                                                 \
-    Heap* __heap__ = heap;                                             \
-    __heap__->incremental_marking()->RecordMaybeWeakWrite(             \
-        object, HeapObject::RawMaybeWeakField(object, offset), value); \
-    __heap__->RecordWrite(                                             \
-        object, HeapObject::RawMaybeWeakField(object, offset), value); \
+#define WEAK_WRITE_BARRIER(object, offset, value)                              \
+  do {                                                                         \
+    DCHECK_NOT_NULL(Heap::FromWritableHeapObject(object));                     \
+    MarkingBarrier(object, HeapObject::RawMaybeWeakField(object, offset),      \
+                   value);                                                     \
+    GenerationalBarrier(object, HeapObject::RawMaybeWeakField(object, offset), \
+                        value);                                                \
   } while (false)
 
-#define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode)      \
-  do {                                                                    \
-    Heap* __heap__ = heap;                                                \
-    if (mode != SKIP_WRITE_BARRIER) {                                     \
-      if (mode == UPDATE_WRITE_BARRIER) {                                 \
-        __heap__->incremental_marking()->RecordWrite(                     \
-            object, HeapObject::RawField(object, offset), value);         \
-      }                                                                   \
-      __heap__->RecordWrite(object, HeapObject::RawField(object, offset), \
-                            value);                                       \
-    }                                                                     \
+#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)               \
+  do {                                                                       \
+    DCHECK_NOT_NULL(Heap::FromWritableHeapObject(object));                   \
+    if (mode != SKIP_WRITE_BARRIER) {                                        \
+      if (mode == UPDATE_WRITE_BARRIER) {                                    \
+        MarkingBarrier(object, HeapObject::RawField(object, offset), value); \
+      }                                                                      \
+      GenerationalBarrier(object, HeapObject::RawField(object, offset),      \
+                          value);                                            \
+    }                                                                        \
   } while (false)
 
-#define CONDITIONAL_WEAK_WRITE_BARRIER(heap, object, offset, value, mode)  \
-  do {                                                                     \
-    Heap* __heap__ = heap;                                                 \
-    if (mode != SKIP_WRITE_BARRIER) {                                      \
-      if (mode == UPDATE_WRITE_BARRIER) {                                  \
-        __heap__->incremental_marking()->RecordMaybeWeakWrite(             \
-            object, HeapObject::RawMaybeWeakField(object, offset), value); \
-      }                                                                    \
-      __heap__->RecordWrite(                                               \
-          object, HeapObject::RawMaybeWeakField(object, offset), value);   \
-    }                                                                      \
+#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)           \
+  do {                                                                        \
+    DCHECK_NOT_NULL(Heap::FromWritableHeapObject(object));                    \
+    if (mode != SKIP_WRITE_BARRIER) {                                         \
+      if (mode == UPDATE_WRITE_BARRIER) {                                     \
+        MarkingBarrier(object, HeapObject::RawMaybeWeakField(object, offset), \
+                       value);                                                \
+      }                                                                       \
+      GenerationalBarrier(                                                    \
+          object, HeapObject::RawMaybeWeakField(object, offset), value);      \
+    }                                                                         \
   } while (false)
 
 #define READ_DOUBLE_FIELD(p, offset) ReadDoubleValue(FIELD_ADDR(p, offset))

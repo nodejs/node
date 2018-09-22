@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
 #include "src/vector.h"
@@ -88,7 +88,7 @@ enum class CompilationState {
   kFailed,
 };
 
-class TestResolver : public i::wasm::CompilationResultResolver {
+class TestResolver : public CompilationResultResolver {
  public:
   explicit TestResolver(CompilationState* state) : state_(state) {}
 
@@ -109,12 +109,13 @@ class StreamTester {
   StreamTester() : zone_(&allocator_, "StreamTester") {
     v8::Isolate* isolate = CcTest::isolate();
     i::Isolate* i_isolate = CcTest::i_isolate();
+    i::HandleScope internal_scope(i_isolate);
 
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
     stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
-        i_isolate, v8::Utils::OpenHandle(*context),
-        base::make_unique<TestResolver>(&state_));
+        i_isolate, kAllWasmFeatures, v8::Utils::OpenHandle(*context),
+        std::make_shared<TestResolver>(&state_));
   }
 
   std::shared_ptr<StreamingDecoder> stream() { return stream_; }
@@ -151,8 +152,6 @@ class StreamTester {
   TEST(name) {                                          \
     MockPlatform platform;                              \
     CcTest::InitializeVM();                             \
-    v8::HandleScope handle_scope(CcTest::isolate());    \
-    i::HandleScope internal_scope(CcTest::i_isolate()); \
     RunStream_##name();                                 \
   }                                                     \
   void RunStream_##name()
@@ -212,8 +211,9 @@ STREAM_TEST(TestAllBytesArriveAOTCompilerFinishesFirst) {
 
 size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
                          size_t size, size_t index) {
-  ModuleResult result = SyncDecodeWasmModule(isolate, buffer, buffer + size,
-                                             false, ModuleOrigin::kWasmOrigin);
+  ModuleResult result = DecodeWasmModule(
+      kAllWasmFeatures, buffer, buffer + size, false, ModuleOrigin::kWasmOrigin,
+      isolate->counters(), isolate->allocator());
   CHECK(result.ok());
   const WasmFunction* func = &result.val->functions[1];
   return func->code.offset();

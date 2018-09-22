@@ -8,12 +8,11 @@
 #include <cstdint>
 
 #include "src/machine-type.h"
+#include "src/wasm/wasm-tier.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
-
-enum class ExecutionEngine { kTurbofan, kLiftoff, kInterpreter };
 
 // This struct is create in generated code, hence use low-level types.
 struct MemoryTracingInfo {
@@ -31,7 +30,7 @@ struct MemoryTracingInfo {
 
 // Callback for tracing a memory operation for debugging.
 // Triggered by --wasm-trace-memory.
-void TraceMemoryOperation(ExecutionEngine, const MemoryTracingInfo* info,
+void TraceMemoryOperation(ExecutionTier, const MemoryTracingInfo* info,
                           int func_index, int position, uint8_t* mem_start);
 
 }  // namespace wasm

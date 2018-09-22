@@ -70,8 +70,9 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   } else if (obj->IsSharedFunctionInfo()) {
     // Clear inferred name for native functions.
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-    if (!shared->IsSubjectToDebugging() && shared->HasInferredName()) {
-      shared->set_inferred_name(ReadOnlyRoots(isolate()).empty_string());
+    if (!shared->IsSubjectToDebugging() && shared->HasUncompiledData()) {
+      shared->uncompiled_data()->set_inferred_name(
+          ReadOnlyRoots(isolate()).empty_string());
     }
   }
 
@@ -131,24 +132,13 @@ void StartupSerializer::VisitRootPointers(Root root, const char* description,
                                           Object** start, Object** end) {
   if (start == isolate()->heap()->roots_array_start()) {
     // Serializing the root list needs special handling:
-    // - The first pass over the root list only serializes immortal immovables.
-    // - The second pass over the root list serializes the rest.
     // - Only root list elements that have been fully serialized can be
-    //   referenced via as root by using kRootArray bytecodes.
-    int skip = 0;
+    //   referenced using kRootArray bytecodes.
     for (Object** current = start; current < end; current++) {
+      SerializeRootObject(*current);
       int root_index = static_cast<int>(current - start);
-      if ((*current)->IsSmi()) {
-        FlushSkip(skip);
-        PutSmi(Smi::cast(*current));
-      } else {
-        SerializeObject(HeapObject::cast(*current), kPlain, kStartOfObject,
-                        skip);
-      }
       root_has_been_serialized_.set(root_index);
-      skip = 0;
     }
-    FlushSkip(skip);
   } else {
     Serializer::VisitRootPointers(root, description, start, end);
   }

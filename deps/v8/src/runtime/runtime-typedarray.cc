@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/elements.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -123,7 +124,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   Handle<FixedTypedArrayBase> elements(
       FixedTypedArrayBase::cast(array->elements()), isolate);
   switch (array->type()) {
-#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype, size)     \
+#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)           \
   case kExternal##Type##Array: {                            \
     ctype* data = static_cast<ctype*>(elements->DataPtr()); \
     if (kExternal##Type##Array == kExternalFloat64Array ||  \

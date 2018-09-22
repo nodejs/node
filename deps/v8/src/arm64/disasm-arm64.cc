@@ -3917,7 +3917,7 @@ int DisassemblingDecoder::SubstituteBranchTargetField(Instruction* instr,
     case 'e': offset = instr->ImmTestBranch(); break;
     default: UNREACHABLE();
   }
-  offset <<= kInstructionSizeLog2;
+  offset <<= kInstrSizeLog2;
   char sign = '+';
   if (offset < 0) {
     sign = '-';
@@ -4106,21 +4106,15 @@ class BufferDisassembler : public v8::internal::DisassemblingDecoder {
   v8::internal::Vector<char> out_buffer_;
 };
 
-Disassembler::Disassembler(const NameConverter& converter)
-    : converter_(converter) {}
-
-
-Disassembler::~Disassembler() { USE(converter_); }
-
-
 int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
                                     byte* instr) {
+  USE(converter_);  // avoid unused field warning
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   BufferDisassembler disasm(buffer);
   decoder.AppendVisitor(&disasm);
 
   decoder.Decode(reinterpret_cast<v8::internal::Instruction*>(instr));
-  return v8::internal::kInstructionSize;
+  return v8::internal::kInstrSize;
 }
 
 
@@ -4129,13 +4123,13 @@ int Disassembler::ConstantPoolSizeAt(byte* instr) {
       reinterpret_cast<v8::internal::Instruction*>(instr));
 }
 
-
-void Disassembler::Disassemble(FILE* file, byte* start, byte* end) {
+void Disassembler::Disassemble(FILE* file, byte* start, byte* end,
+                               UnimplementedOpcodeAction) {
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   v8::internal::PrintDisassembler disasm(file);
   decoder.AppendVisitor(&disasm);
 
-  for (byte* pc = start; pc < end; pc += v8::internal::kInstructionSize) {
+  for (byte* pc = start; pc < end; pc += v8::internal::kInstrSize) {
     decoder.Decode(reinterpret_cast<v8::internal::Instruction*>(pc));
   }
 }

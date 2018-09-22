@@ -16,7 +16,7 @@ function module(stdlib,foreign,buffer) {
 
 var global = {Uint32Array:Uint32Array};
 var env = {};
-memory = new WebAssembly.Memory({initial:200});
+memory = new WebAssembly.Memory({initial:128});
 var buffer = memory.buffer;
 evil_f = module(global,env,buffer);
 

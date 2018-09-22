@@ -23,47 +23,48 @@ class DataHandler;
 class JSArrayBuffer;
 class JSRegExp;
 class JSWeakCollection;
+class UncompiledDataWithoutPreParsedScope;
 class UncompiledDataWithPreParsedScope;
 
-#define TYPED_VISITOR_ID_LIST(V)      \
-  V(AllocationSite)                   \
-  V(BigInt)                           \
-  V(ByteArray)                        \
-  V(BytecodeArray)                    \
-  V(Cell)                             \
-  V(Code)                             \
-  V(CodeDataContainer)                \
-  V(ConsString)                       \
-  V(DataHandler)                      \
-  V(EphemeronHashTable)               \
-  V(FeedbackCell)                     \
-  V(FeedbackVector)                   \
-  V(FixedArray)                       \
-  V(FixedDoubleArray)                 \
-  V(FixedFloat64Array)                \
-  V(FixedTypedArrayBase)              \
-  V(JSArrayBuffer)                    \
-  V(JSFunction)                       \
-  V(JSObject)                         \
-  V(JSWeakCollection)                 \
-  V(Map)                              \
-  V(Oddball)                          \
-  V(PreParsedScopeData)               \
-  V(PropertyArray)                    \
-  V(PropertyCell)                     \
-  V(PrototypeInfo)                    \
-  V(SeqOneByteString)                 \
-  V(SeqTwoByteString)                 \
-  V(SharedFunctionInfo)               \
-  V(SlicedString)                     \
-  V(SmallOrderedHashMap)              \
-  V(SmallOrderedHashSet)              \
-  V(Symbol)                           \
-  V(ThinString)                       \
-  V(TransitionArray)                  \
-  V(UncompiledDataWithPreParsedScope) \
-  V(WasmInstanceObject)               \
-  V(WeakCell)
+#define TYPED_VISITOR_ID_LIST(V)         \
+  V(AllocationSite)                      \
+  V(BigInt)                              \
+  V(ByteArray)                           \
+  V(BytecodeArray)                       \
+  V(Cell)                                \
+  V(Code)                                \
+  V(CodeDataContainer)                   \
+  V(ConsString)                          \
+  V(DataHandler)                         \
+  V(EphemeronHashTable)                  \
+  V(FeedbackCell)                        \
+  V(FeedbackVector)                      \
+  V(FixedArray)                          \
+  V(FixedDoubleArray)                    \
+  V(FixedFloat64Array)                   \
+  V(FixedTypedArrayBase)                 \
+  V(JSArrayBuffer)                       \
+  V(JSFunction)                          \
+  V(JSObject)                            \
+  V(JSWeakCollection)                    \
+  V(Map)                                 \
+  V(Oddball)                             \
+  V(PreParsedScopeData)                  \
+  V(PropertyArray)                       \
+  V(PropertyCell)                        \
+  V(PrototypeInfo)                       \
+  V(SeqOneByteString)                    \
+  V(SeqTwoByteString)                    \
+  V(SharedFunctionInfo)                  \
+  V(SlicedString)                        \
+  V(SmallOrderedHashMap)                 \
+  V(SmallOrderedHashSet)                 \
+  V(Symbol)                              \
+  V(ThinString)                          \
+  V(TransitionArray)                     \
+  V(UncompiledDataWithoutPreParsedScope) \
+  V(UncompiledDataWithPreParsedScope)    \
+  V(WasmInstanceObject)
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using

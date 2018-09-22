@@ -99,7 +99,8 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
   }
 
   switch (node->opcode()) {
-    case IrOpcode::kAllocate: {
+    case IrOpcode::kAllocate:
+    case IrOpcode::kTypeGuard: {
       const VirtualObject* vobject = analysis_result().GetVirtualObject(node);
       if (vobject && !vobject->HasEscaped()) {
         RelaxEffectsAndControls(node);

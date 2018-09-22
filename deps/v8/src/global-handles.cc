@@ -4,7 +4,7 @@
 
 #include "src/global-handles.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/cancelable-task.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
@@ -191,12 +191,6 @@ class GlobalHandles::Node {
     set_state(PENDING);
   }
 
-  // Independent flag accessors.
-  void MarkIndependent() {
-    DCHECK(IsInUse());
-    set_independent(true);
-  }
-
   // Callback parameter accessors.
   void set_parameter(void* parameter) {
     DCHECK(IsInUse());
@@ -262,7 +256,7 @@ class GlobalHandles::Node {
   }
 
   void CollectPhantomCallbackData(
-      Isolate* isolate,
+
       std::vector<PendingPhantomCallback>* pending_phantom_callbacks) {
     DCHECK(weakness_type() == PHANTOM_WEAK ||
            weakness_type() == PHANTOM_WEAK_2_EMBEDDER_FIELDS);
@@ -600,14 +594,6 @@ void GlobalHandles::AnnotateStrongRetainer(Object** location,
   Node::FromLocation(location)->AnnotateStrongRetainer(label);
 }
 
-void GlobalHandles::MarkIndependent(Object** location) {
-  Node::FromLocation(location)->MarkIndependent();
-}
-
-bool GlobalHandles::IsIndependent(Object** location) {
-  return Node::FromLocation(location)->is_independent();
-}
-
 bool GlobalHandles::IsNearDeath(Object** location) {
   return Node::FromLocation(location)->IsNearDeath();
 }
@@ -644,8 +630,7 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
         ++number_of_phantom_handle_resets_;
       } else if (node->IsPhantomCallback()) {
         node->MarkPending();
-        node->CollectPhantomCallbackData(isolate(),
-                                         &pending_phantom_callbacks_);
+        node->CollectPhantomCallbackData(&pending_phantom_callbacks_);
       }
     }
   }
@@ -743,8 +728,7 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
 
         } else if (node->IsPhantomCallback()) {
           node->MarkPending();
-          node->CollectPhantomCallbackData(isolate(),
-                                           &pending_phantom_callbacks_);
+          node->CollectPhantomCallbackData(&pending_phantom_callbacks_);
         } else {
           UNREACHABLE();
         }

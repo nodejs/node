@@ -50,6 +50,8 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   bool DefaultLowering(Node* node, bool low_word_only = false);
   void LowerComparison(Node* node, const Operator* signed_op,
                        const Operator* unsigned_op);
+  void LowerWord64AtomicBinop(Node* node, const Operator* op);
+  void LowerWord64AtomicNarrowOp(Node* node, const Operator* op);
 
   void ReplaceNode(Node* old, Node* new_low, Node* new_high);
   bool HasReplacementLow(Node* node);
@@ -58,6 +60,7 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   Node* GetReplacementHigh(Node* node);
   void PreparePhiReplacement(Node* phi);
   void GetIndexNodes(Node* index, Node*& index_low, Node*& index_high);
+  void ReplaceNodeWithProjections(Node* node);
 
   struct NodeState {
     Node* node;

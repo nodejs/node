@@ -17,7 +17,6 @@ namespace internal {
 namespace compiler {
 
 Reduction JSContextSpecialization::Reduce(Node* node) {
-  DisallowHeapAccess no_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kParameter:
       return ReduceParameter(node);
@@ -101,7 +100,7 @@ bool IsContextParameter(Node* node) {
 // specialization context.  If successful, update {distance} to whatever
 // distance remains from the specialization context.
 base::Optional<ContextRef> GetSpecializationContext(
-    const JSHeapBroker* broker, Node* node, size_t* distance,
+    JSHeapBroker* broker, Node* node, size_t* distance,
     Maybe<OuterContext> maybe_outer) {
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {

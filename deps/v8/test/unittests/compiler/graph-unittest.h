@@ -10,6 +10,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/typer.h"
+#include "src/handles.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -17,8 +18,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-template <class T>
-class Handle;
 class HeapObject;
 
 namespace compiler {
@@ -62,9 +61,10 @@ class GraphTest : public virtual TestWithNativeContext,
   Graph* graph() { return &graph_; }
   SourcePositionTable* source_positions() { return &source_positions_; }
   NodeOriginTable* node_origins() { return &node_origins_; }
-  const JSHeapBroker* js_heap_broker() { return &js_heap_broker_; }
+  JSHeapBroker* js_heap_broker() { return &js_heap_broker_; }
 
  private:
+  CanonicalHandleScope canonical_;
   CommonOperatorBuilder common_;
   Graph graph_;
   JSHeapBroker js_heap_broker_;

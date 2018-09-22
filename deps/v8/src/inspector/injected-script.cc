@@ -204,6 +204,7 @@ class InjectedScript::ProtocolPromiseHandler {
     v8::Isolate* isolate = session->inspector()->isolate();
     if (result->IsNativeError()) {
       message = " " + toProtocolString(
+                          isolate,
                           result->ToDetailString(isolate->GetCurrentContext())
                               .ToLocalChecked());
       v8::Local<v8::StackTrace> stackTrace = v8::debug::GetDetailedStackTrace(
@@ -564,7 +565,9 @@ Response InjectedScript::createExceptionDetails(
   v8::Local<v8::Message> message = tryCatch.Message();
   v8::Local<v8::Value> exception = tryCatch.Exception();
   String16 messageText =
-      message.IsEmpty() ? String16() : toProtocolString(message->Get());
+      message.IsEmpty()
+          ? String16()
+          : toProtocolString(m_context->isolate(), message->Get());
   std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails =
       protocol::Runtime::ExceptionDetails::create()
           .setExceptionId(m_context->inspector()->nextExceptionId())

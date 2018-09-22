@@ -132,36 +132,45 @@ class SourceGroup {
 class ExternalizedContents {
  public:
   explicit ExternalizedContents(const ArrayBuffer::Contents& contents)
-      : base_(contents.AllocationBase()),
-        length_(contents.AllocationLength()),
-        mode_(contents.AllocationMode()) {}
+      : data_(contents.Data()),
+        length_(contents.ByteLength()),
+        deleter_(contents.Deleter()),
+        deleter_data_(contents.DeleterData()) {}
   explicit ExternalizedContents(const SharedArrayBuffer::Contents& contents)
-      : base_(contents.AllocationBase()),
-        length_(contents.AllocationLength()),
-        mode_(contents.AllocationMode()) {}
-  ExternalizedContents(ExternalizedContents&& other)
-      : base_(other.base_), length_(other.length_), mode_(other.mode_) {
-    other.base_ = nullptr;
+      : data_(contents.Data()),
+        length_(contents.ByteLength()),
+        deleter_(contents.Deleter()),
+        deleter_data_(contents.DeleterData()) {}
+  ExternalizedContents(ExternalizedContents&& other) V8_NOEXCEPT
+      : data_(other.data_),
+        length_(other.length_),
+        deleter_(other.deleter_),
+        deleter_data_(other.deleter_data_) {
+    other.data_ = nullptr;
     other.length_ = 0;
-    other.mode_ = ArrayBuffer::Allocator::AllocationMode::kNormal;
+    other.deleter_ = nullptr;
+    other.deleter_data_ = nullptr;
   }
-  ExternalizedContents& operator=(ExternalizedContents&& other) {
+  ExternalizedContents& operator=(ExternalizedContents&& other) V8_NOEXCEPT {
     if (this != &other) {
-      base_ = other.base_;
+      data_ = other.data_;
       length_ = other.length_;
-      mode_ = other.mode_;
-      other.base_ = nullptr;
+      deleter_ = other.deleter_;
+      deleter_data_ = other.deleter_data_;
+      other.data_ = nullptr;
       other.length_ = 0;
-      other.mode_ = ArrayBuffer::Allocator::AllocationMode::kNormal;
+      other.deleter_ = nullptr;
+      other.deleter_data_ = nullptr;
     }
     return *this;
   }
   ~ExternalizedContents();
 
  private:
-  void* base_;
+  void* data_;
   size_t length_;
-  ArrayBuffer::Allocator::AllocationMode mode_;
+  ArrayBuffer::Contents::DeleterCallback deleter_;
+  void* deleter_data_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalizedContents);
 };
@@ -318,8 +327,7 @@ class ShellOptions {
   };
 
   ShellOptions()
-      : script_executed(false),
-        send_idle_notification(false),
+      : send_idle_notification(false),
         invoke_weak_callbacks(false),
         omit_quit(false),
         wait_for_wasm(true),
@@ -350,11 +358,6 @@ class ShellOptions {
     delete[] isolate_sources;
   }
 
-  bool use_interactive_shell() {
-    return (interactive_shell || !script_executed) && !test_shell;
-  }
-
-  bool script_executed;
   bool send_idle_notification;
   bool invoke_weak_callbacks;
   bool omit_quit;
@@ -528,6 +531,12 @@ class Shell : public i::AllStatic {
 
   static char* ReadCharsFromTcpPort(const char* name, int* size_out);
 
+  static void set_script_executed() { script_executed_.store(true); }
+  static bool use_interactive_shell() {
+    return (options.interactive_shell || !script_executed_.load()) &&
+           !options.test_shell;
+  }
+
  private:
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
@@ -541,10 +550,13 @@ class Shell : public i::AllStatic {
   static base::LazyMutex context_mutex_;
   static const base::TimeTicks kInitialTicks;
 
-  static base::LazyMutex workers_mutex_;
+  static base::LazyMutex workers_mutex_;  // Guards the following members.
   static bool allow_new_workers_;
   static std::vector<Worker*> workers_;
   static std::vector<ExternalizedContents> externalized_contents_;
+
+  // Multiple isolates may update this flag concurrently.
+  static std::atomic<bool> script_executed_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   // Append LCOV coverage data to file.

@@ -160,7 +160,6 @@ function TickProcessor(
   this.stateFilter_ = stateFilter;
   this.runtimeTimerFilter_ = runtimeTimerFilter;
   this.sourceMap = sourceMap;
-  this.deserializedEntriesNames_ = [];
   var ticks = this.ticks_ =
     { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
 
@@ -299,7 +298,6 @@ TickProcessor.prototype.processSharedLibrary = function(
 
 TickProcessor.prototype.processCodeCreation = function(
     type, kind, timestamp, start, size, name, maybe_func) {
-  name = this.deserializedEntriesNames_[start] || name;
   if (maybe_func.length) {
     var funcAddr = parseInt(maybe_func[0]);
     var state = parseState(maybe_func[1]);

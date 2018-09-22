@@ -10,6 +10,7 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
 #include "src/handles-inl.h"
+#include "src/heap/factory-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -312,6 +313,7 @@ void TypedArrayBuiltinsAssembler::ConstructByLength(TNode<Context> context,
                                                     TNode<JSTypedArray> holder,
                                                     TNode<Object> length,
                                                     TNode<Smi> element_size) {
+  // TODO(7881): support larger-than-smi typed array lengths
   CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
 
   Label invalid_length(this, Label::kDeferred), done(this);
@@ -322,6 +324,7 @@ void TypedArrayBuiltinsAssembler::ConstructByLength(TNode<Context> context,
   // The maximum length of a TypedArray is MaxSmi().
   // Note: this is not per spec, but rather a constraint of our current
   // representation (which uses Smis).
+  // TODO(7881): support larger-than-smi typed array lengths
   GotoIf(TaggedIsNotSmi(converted_length), &invalid_length);
   // The goto above ensures that byte_length is a Smi.
   TNode<Smi> smi_converted_length = CAST(converted_length);
@@ -358,8 +361,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
       invalid_offset_error(this, Label::kDeferred);
   Label offset_is_smi(this), offset_not_smi(this, Label::kDeferred),
       check_length(this), call_init(this), invalid_length(this),
-      length_undefined(this), length_defined(this), detached_error(this),
-      done(this);
+      length_undefined(this), length_defined(this), done(this);
 
   GotoIf(IsUndefined(byte_offset), &check_length);
 
@@ -396,7 +398,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
 
   BIND(&length_undefined);
   {
-    GotoIf(IsDetachedBuffer(buffer), &detached_error);
+    ThrowIfArrayBufferIsDetached(context, buffer, "Construct");
     Node* buffer_byte_length =
         LoadObjectField(buffer, JSArrayBuffer::kByteLengthOffset);
 
@@ -418,7 +420,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
   BIND(&length_defined);
   {
     TNode<Smi> new_length = ToSmiIndex(length, context, &invalid_length);
-    GotoIf(IsDetachedBuffer(buffer), &detached_error);
+    ThrowIfArrayBufferIsDetached(context, buffer, "Construct");
     new_byte_length.Bind(SmiMul(new_length, element_size));
     // Reading the byte length must come after the ToIndex operation, which
     // could cause the buffer to become detached.
@@ -472,9 +474,6 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
   {
     ThrowRangeError(context, MessageTemplate::kInvalidTypedArrayLength, length);
   }
-
-  BIND(&detached_error);
-  { ThrowTypeError(context, MessageTemplate::kDetachedOperation, "Construct"); }
 
   BIND(&done);
 }
@@ -570,7 +569,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
     TNode<HeapObject> array_like, TNode<Object> initial_length,
     TNode<Smi> element_size, TNode<JSReceiver> buffer_constructor) {
   Label invalid_length(this, Label::kDeferred), fill(this), fast_copy(this),
-      detached_check(this), done(this), detached_error(this, Label::kDeferred);
+      detached_check(this), done(this);
 
   // The caller has looked up length on array_like, which is observable.
   TNode<Smi> length = ToSmiLength(initial_length, context, &invalid_length);
@@ -583,9 +582,8 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
   Goto(&fill);
 
   BIND(&detached_check);
-  GotoIf(IsDetachedBuffer(
-             LoadObjectField(array_like, JSTypedArray::kBufferOffset)),
-         &detached_error);
+  ThrowIfArrayBufferViewBufferIsDetached(context, CAST(array_like),
+                                         "Construct");
   Goto(&fill);
 
   BIND(&fill);
@@ -625,9 +623,6 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
                    holder_data_ptr, source_data_ptr, byte_length_intptr);
     Goto(&done);
   }
-
-  BIND(&detached_error);
-  { ThrowTypeError(context, MessageTemplate::kDetachedOperation, "Construct"); }
 
   BIND(&invalid_length);
   {
@@ -750,12 +745,6 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(TypedArrayConstructorLazyDeoptContinuation,
-           TypedArrayBuiltinsAssembler) {
-  Node* result = Parameter(Descriptor::kResult);
-  Return(result);
-}
-
 // ES #sec-typedarray-constructors
 TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -789,10 +778,7 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
     Node* context, Node* receiver, const char* method_name, int object_offset) {
   // Check if the {receiver} is actually a JSTypedArray.
-  Label receiver_is_incompatible(this, Label::kDeferred);
-  GotoIf(TaggedIsSmi(receiver), &receiver_is_incompatible);
-  GotoIfNot(HasInstanceType(receiver, JS_TYPED_ARRAY_TYPE),
-            &receiver_is_incompatible);
+  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, method_name);
 
   // Check if the {receiver}'s JSArrayBuffer was neutered.
   Node* receiver_buffer =
@@ -805,13 +791,6 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
   {
     // The {receiver}s buffer was neutered, default to zero.
     Return(SmiConstant(0));
-  }
-
-  BIND(&receiver_is_incompatible);
-  {
-    // The {receiver} is not a valid JSTypedArray.
-    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
-                   StringConstant(method_name), receiver);
   }
 }
 
@@ -977,18 +956,12 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::GetBuffer(
 
 TNode<JSTypedArray> TypedArrayBuiltinsAssembler::ValidateTypedArray(
     TNode<Context> context, TNode<Object> obj, const char* method_name) {
-  Label validation_done(this);
-
   // If it is not a typed array, throw
   ThrowIfNotInstanceType(context, obj, JS_TYPED_ARRAY_TYPE, method_name);
 
   // If the typed array's buffer is detached, throw
-  TNode<Object> buffer =
-      LoadObjectField(CAST(obj), JSTypedArray::kBufferOffset);
-  GotoIfNot(IsDetachedBuffer(buffer), &validation_done);
-  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
+  ThrowIfArrayBufferViewBufferIsDetached(context, CAST(obj), method_name);
 
-  BIND(&validation_done);
   return CAST(obj);
 }
 
@@ -1129,7 +1102,8 @@ void TypedArrayBuiltinsAssembler::
                                                    TNode<JSTypedArray> dest,
                                                    TNode<IntPtrT> source_length,
                                                    TNode<IntPtrT> offset) {
-  CSA_ASSERT(this, Word32Not(IsBigInt64ElementsKind(LoadElementsKind(dest))));
+  CSA_ASSERT(this,
+             Word32BinaryNot(IsBigInt64ElementsKind(LoadElementsKind(dest))));
   TNode<ExternalReference> f = ExternalConstant(
       ExternalReference::copy_fast_number_jsarray_elements_to_typed_array());
   CallCFunction5(MachineType::AnyTagged(), MachineType::AnyTagged(),
@@ -1164,18 +1138,17 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   Label next(this), if_unknown_type(this, Label::kDeferred);
 
   int32_t elements_kinds[] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) TYPE##_ELEMENTS,
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  Label if_##type##array(this);
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) Label if_##type##array(this);
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
   Label* elements_kind_labels[] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &if_##type##array,
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &if_##type##array,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
@@ -1184,11 +1157,12 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
          arraysize(elements_kinds));
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                    \
-  BIND(&if_##type##array);                                                 \
-  {                                                                        \
-    case_function(TYPE##_ELEMENTS, size, Context::TYPE##_ARRAY_FUN_INDEX); \
-    Goto(&next);                                                           \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)   \
+  BIND(&if_##type##array);                          \
+  {                                                 \
+    case_function(TYPE##_ELEMENTS, sizeof(ctype),   \
+                  Context::TYPE##_ARRAY_FUN_INDEX); \
+    Goto(&next);                                    \
   }
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -1201,6 +1175,7 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
 
 // ES #sec-get-%typedarray%.prototype.set
 TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
+  const char* method_name = "%TypedArray%.prototype.set";
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CodeStubArguments args(
       this,
@@ -1209,7 +1184,6 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   Label if_source_is_typed_array(this), if_source_is_fast_jsarray(this),
       if_offset_is_out_of_bounds(this, Label::kDeferred),
       if_source_too_large(this, Label::kDeferred),
-      if_typed_array_is_neutered(this, Label::kDeferred),
       if_receiver_is_not_typedarray(this, Label::kDeferred);
 
   // Check the receiver is a typed array.
@@ -1233,9 +1207,7 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   TNode<Smi> offset_smi = CAST(offset_num);
 
   // Check the receiver is not neutered.
-  TNode<Object> receiver_buffer =
-      LoadObjectField(CAST(receiver), JSTypedArray::kBufferOffset);
-  GotoIf(IsDetachedBuffer(receiver_buffer), &if_typed_array_is_neutered);
+  ThrowIfArrayBufferViewBufferIsDetached(context, CAST(receiver), method_name);
 
   // Check the source argument is valid and whether a fast path can be taken.
   Label call_runtime(this);
@@ -1249,9 +1221,7 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   BIND(&if_source_is_typed_array);
   {
     // Check the source argument is not neutered.
-    TNode<Object> source_buffer =
-        LoadObjectField(CAST(source), JSTypedArray::kBufferOffset);
-    GotoIf(IsDetachedBuffer(source_buffer), &if_typed_array_is_neutered);
+    ThrowIfArrayBufferViewBufferIsDetached(context, CAST(source), method_name);
 
     SetTypedArraySource(context, CAST(source), CAST(receiver),
                         SmiUntag(offset_smi), &call_runtime,
@@ -1277,10 +1247,6 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   BIND(&if_source_too_large);
   ThrowRangeError(context, MessageTemplate::kTypedArraySetSourceTooLarge);
 
-  BIND(&if_typed_array_is_neutered);
-  ThrowTypeError(context, MessageTemplate::kDetachedOperation,
-                 "%TypedArray%.prototype.set");
-
   BIND(&if_receiver_is_not_typedarray);
   ThrowTypeError(context, MessageTemplate::kNotTypedArray);
 }
@@ -1289,7 +1255,6 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
 TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   const char* method_name = "%TypedArray%.prototype.slice";
   Label call_c(this), call_memmove(this), if_count_is_not_zero(this),
-      if_typed_array_is_neutered(this, Label::kDeferred),
       if_bigint_mixed_types(this, Label::kDeferred);
 
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -1333,9 +1298,9 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   // result array is neutered or not since TypedArraySpeciesCreate checked it.
   CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(LoadObjectField(
                        result_array, JSTypedArray::kBufferOffset))));
-  TNode<Object> receiver_buffer =
-      LoadObjectField(CAST(receiver), JSTypedArray::kBufferOffset);
-  GotoIf(IsDetachedBuffer(receiver_buffer), &if_typed_array_is_neutered);
+  TNode<JSArrayBuffer> receiver_buffer =
+      LoadArrayBufferViewBuffer(CAST(receiver));
+  ThrowIfArrayBufferIsDetached(context, receiver_buffer, method_name);
 
   // result_array could be a different type from source or share the same
   // buffer with the source because of custom species constructor.
@@ -1401,9 +1366,6 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
         source, result_array, SmiToIntPtr(start_index), SmiToIntPtr(end_index));
     args.PopAndReturn(result_array);
   }
-
-  BIND(&if_typed_array_is_neutered);
-  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
 
   BIND(&if_bigint_mixed_types);
   ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
@@ -1491,19 +1453,19 @@ TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
   size_t const kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
                                          FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
                                          1;
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  Label return_##type##array(this);                     \
-  BIND(&return_##type##array);                          \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  Label return_##type##array(this);               \
+  BIND(&return_##type##array);                    \
   Return(StringConstant(#Type "Array"));
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   Label* elements_kind_labels[kTypedElementsKindCount] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &return_##type##array,
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &return_##type##array,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
   int32_t elements_kinds[kTypedElementsKindCount] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   TYPE##_ELEMENTS - FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -1532,18 +1494,12 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   GotoIfNot(IsJSTypedArray(CAST(receiver)), &throw_bad_receiver);
 
   // Check if the {receiver}'s JSArrayBuffer was neutered.
-  TNode<JSArrayBuffer> receiver_buffer = LoadObjectField<JSArrayBuffer>(
-      CAST(receiver), JSTypedArray::kBufferOffset);
-  Label if_receiverisneutered(this, Label::kDeferred);
-  GotoIf(IsDetachedBuffer(receiver_buffer), &if_receiverisneutered);
+  ThrowIfArrayBufferViewBufferIsDetached(context, CAST(receiver), method_name);
 
   Return(CreateArrayIterator(context, receiver, kind));
 
   BIND(&throw_bad_receiver);
   ThrowTypeError(context, MessageTemplate::kNotTypedArray, method_name);
-
-  BIND(&if_receiverisneutered);
-  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
 }
 
 // ES #sec-%typedarray%.prototype.values
@@ -1650,44 +1606,6 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
                  "%TypedArray%.of");
 }
 
-void TypedArrayBuiltinsAssembler::IterableToListSlowPath(
-    TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn,
-    Variable* created_list) {
-  IteratorBuiltinsAssembler iterator_assembler(state());
-
-  // 1. Let iteratorRecord be ? GetIterator(items, method).
-  IteratorRecord iterator_record =
-      iterator_assembler.GetIterator(context, iterable, iterator_fn);
-
-  // 2. Let values be a new empty List.
-  GrowableFixedArray values(state());
-
-  Variable* vars[] = {values.var_array(), values.var_length(),
-                      values.var_capacity()};
-  Label loop_start(this, 3, vars), loop_end(this);
-  Goto(&loop_start);
-  // 3. Let next be true.
-  // 4. Repeat, while next is not false
-  BIND(&loop_start);
-  {
-    //  a. Set next to ? IteratorStep(iteratorRecord).
-    TNode<Object> next = CAST(
-        iterator_assembler.IteratorStep(context, iterator_record, &loop_end));
-    //  b. If next is not false, then
-    //   i. Let nextValue be ? IteratorValue(next).
-    TNode<Object> next_value =
-        CAST(iterator_assembler.IteratorValue(context, next));
-    //   ii. Append nextValue to the end of the List values.
-    values.Push(next_value);
-    Goto(&loop_start);
-  }
-  BIND(&loop_end);
-
-  // 5. Return values.
-  TNode<JSArray> js_array_values = values.ToJSArray(context);
-  created_list->Bind(js_array_values);
-}
-
 // This builtin always returns a new JSArray and is thus safe to use even in the
 // presence of code that may call back into user-JS.
 TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
@@ -1695,33 +1613,8 @@ TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
   TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
   TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
 
-  Label fast_path(this), slow_path(this), done(this);
-
-  TVARIABLE(JSArray, created_list);
-
-  // This is a fast-path for ignoring the iterator.
-  // TODO(petermarshall): Port IterableToListCanBeElided to CSA.
-  Node* elided =
-      CallRuntime(Runtime::kIterableToListCanBeElided, context, iterable);
-  CSA_ASSERT(this, IsBoolean(elided));
-  Branch(IsTrue(elided), &fast_path, &slow_path);
-
-  BIND(&fast_path);
-  {
-    TNode<JSArray> input_array = CAST(iterable);
-    TNode<JSArray> new_array = CAST(CloneFastJSArray(context, input_array));
-    created_list = new_array;
-    Goto(&done);
-  }
-
-  BIND(&slow_path);
-  {
-    IterableToListSlowPath(context, iterable, iterator_fn, &created_list);
-    Goto(&done);
-  }
-
-  BIND(&done);
-  Return(created_list.value());
+  IteratorBuiltinsAssembler iterator_assembler(state());
+  Return(iterator_assembler.IterableToList(context, iterable, iterator_fn));
 }
 
 // ES6 #sec-%typedarray%.from
@@ -1807,6 +1700,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
   BIND(&from_array_like);
   {
+    // TODO(7881): support larger-than-smi typed array lengths
     Label if_length_not_smi(this, Label::kDeferred);
     final_source = source;
 

@@ -20,6 +20,7 @@
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/snapshot.h"
+#include "src/wasm/wasm-code-manager.h"
 
 #include "src/s390/macro-assembler-s390.h"
 
@@ -191,6 +192,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
       if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
           Builtins::IsIsolateIndependent(builtin_index)) {
         // Inline the trampoline.
+        RecordCommentForOffHeapTrampoline(builtin_index);
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
         // Use ip directly instead of using UseScratchRegisterScope, as we do
@@ -204,33 +206,14 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   jump(code, rmode, cond);
 }
 
-int TurboAssembler::CallSize(Register target) { return 2; }  // BASR
-
 void TurboAssembler::Call(Register target) {
-  Label start;
-  bind(&start);
-
   // Branch to target via indirect branch
   basr(r14, target);
-
-  DCHECK_EQ(CallSize(target), SizeOfCodeGeneratedSince(&start));
 }
 
 void MacroAssembler::CallJSEntry(Register target) {
   DCHECK(target == r4);
   Call(target);
-}
-
-int TurboAssembler::CallSize(Address target, RelocInfo::Mode rmode,
-                             Condition cond) {
-  // S390 Assembler::move sequence is IILF / IIHF
-  int size;
-#if V8_TARGET_ARCH_S390X
-  size = 14;  // IILF + IIHF + BASR
-#else
-  size = 8;  // IILF + BASR
-#endif
-  return size;
 }
 
 int MacroAssembler::CallSizeNotPredictableCodeSize(Address target,
@@ -250,23 +233,8 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(cond == al);
 
-#ifdef DEBUG
-  // Check the expected size before generating code to ensure we assume the same
-  // constant pool availability (e.g., whether constant pool is full or not).
-  int expected_size = CallSize(target, rmode, cond);
-  Label start;
-  bind(&start);
-#endif
-
   mov(ip, Operand(target, rmode));
   basr(r14, ip);
-
-  DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
-}
-
-int TurboAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode,
-                             Condition cond) {
-  return 6;  // BRASL
 }
 
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
@@ -286,6 +254,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
       if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
           Builtins::IsIsolateIndependent(builtin_index)) {
         // Inline the trampoline.
+        RecordCommentForOffHeapTrampoline(builtin_index);
         DCHECK(Builtins::IsBuiltinId(builtin_index));
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
@@ -827,6 +796,9 @@ void TurboAssembler::ConvertDoubleToInt32(const Register dst,
       UNIMPLEMENTED();
       break;
   }
+#ifdef V8_TARGET_ARCH_S390X
+  lghi(dst, Operand::Zero());
+#endif
   cfdbr(m, dst, double_input);
 }
 
@@ -851,6 +823,9 @@ void TurboAssembler::ConvertFloat32ToInt32(const Register result,
       UNIMPLEMENTED();
       break;
   }
+#ifdef V8_TARGET_ARCH_S390X
+  lghi(result, Operand::Zero());
+#endif
   cfebr(m, result, double_input);
 }
 
@@ -875,6 +850,9 @@ void TurboAssembler::ConvertFloat32ToUnsignedInt32(
       UNIMPLEMENTED();
       break;
   }
+#ifdef V8_TARGET_ARCH_S390X
+  lghi(result, Operand::Zero());
+#endif
   clfebr(m, Condition(0), result, double_input);
 }
 
@@ -947,6 +925,9 @@ void TurboAssembler::ConvertDoubleToUnsignedInt32(
       UNIMPLEMENTED();
       break;
   }
+#ifdef V8_TARGET_ARCH_S390X
+  lghi(dst, Operand::Zero());
+#endif
   clfdbr(m, Condition(0), dst, double_input);
 }
 
@@ -1727,6 +1708,18 @@ void TurboAssembler::Abort(AbortReason reason) {
     return;
   }
 
+  if (should_abort_hard()) {
+    // We don't care if we constructed a frame. Just pretend we did.
+    FrameScope assume_frame(this, StackFrame::NONE);
+    lgfi(r2, Operand(static_cast<int>(reason)));
+    PrepareCallCFunction(1, 0, r3);
+    Move(r3, ExternalReference::abort_with_reason());
+    // Use Call directly to avoid any unneeded overhead. The function won't
+    // return anyway.
+    Call(r3);
+    return;
+  }
+
   LoadSmiLiteral(r3, Smi::FromInt(static_cast<int>(reason)));
 
   // Disable stub call restrictions to always allow calls to abort.
@@ -1889,7 +1882,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
   } else {
     stack_space += stack_passed_arguments;
   }
-  lay(sp, MemOperand(sp, -(stack_space)*kPointerSize));
+  lay(sp, MemOperand(sp, (-stack_space) * kPointerSize));
 }
 
 void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
@@ -4391,56 +4384,6 @@ void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
   StoreDouble(scratch_0, dst);
   StoreDouble(scratch_1, src);
 }
-
-#ifdef DEBUG
-bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
-                Register reg5, Register reg6, Register reg7, Register reg8,
-                Register reg9, Register reg10) {
-  int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() + reg3.is_valid() +
-                        reg4.is_valid() + reg5.is_valid() + reg6.is_valid() +
-                        reg7.is_valid() + reg8.is_valid() + reg9.is_valid() +
-                        reg10.is_valid();
-
-  RegList regs = 0;
-  if (reg1.is_valid()) regs |= reg1.bit();
-  if (reg2.is_valid()) regs |= reg2.bit();
-  if (reg3.is_valid()) regs |= reg3.bit();
-  if (reg4.is_valid()) regs |= reg4.bit();
-  if (reg5.is_valid()) regs |= reg5.bit();
-  if (reg6.is_valid()) regs |= reg6.bit();
-  if (reg7.is_valid()) regs |= reg7.bit();
-  if (reg8.is_valid()) regs |= reg8.bit();
-  if (reg9.is_valid()) regs |= reg9.bit();
-  if (reg10.is_valid()) regs |= reg10.bit();
-  int n_of_non_aliasing_regs = NumRegs(regs);
-
-  return n_of_valid_regs != n_of_non_aliasing_regs;
-}
-bool AreAliased(DoubleRegister reg1, DoubleRegister reg2, DoubleRegister reg3,
-                DoubleRegister reg4, DoubleRegister reg5, DoubleRegister reg6,
-                DoubleRegister reg7, DoubleRegister reg8, DoubleRegister reg9,
-                DoubleRegister reg10) {
-  int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() + reg3.is_valid() +
-                        reg4.is_valid() + reg5.is_valid() + reg6.is_valid() +
-                        reg7.is_valid() + reg8.is_valid() + reg9.is_valid() +
-                        reg10.is_valid();
-
-  RegList regs = 0;
-  if (reg1.is_valid()) regs |= reg1.bit();
-  if (reg2.is_valid()) regs |= reg2.bit();
-  if (reg3.is_valid()) regs |= reg3.bit();
-  if (reg4.is_valid()) regs |= reg4.bit();
-  if (reg5.is_valid()) regs |= reg5.bit();
-  if (reg6.is_valid()) regs |= reg6.bit();
-  if (reg7.is_valid()) regs |= reg7.bit();
-  if (reg8.is_valid()) regs |= reg8.bit();
-  if (reg9.is_valid()) regs |= reg9.bit();
-  if (reg10.is_valid()) regs |= reg10.bit();
-  int n_of_non_aliasing_regs = NumRegs(regs);
-
-  return n_of_valid_regs != n_of_non_aliasing_regs;
-}
-#endif
 
 void TurboAssembler::ResetSpeculationPoisonRegister() {
   mov(kSpeculationPoisonRegister, Operand(-1));

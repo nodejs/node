@@ -91,6 +91,8 @@ TEST(DisasmIa320) {
   __ add(edi, Operand(ebp, ecx, times_4, -3999));
   __ add(Operand(ebp, ecx, times_4, 12), Immediate(12));
 
+  __ bswap(eax);
+
   __ nop();
   __ add(ebx, Immediate(12));
   __ nop();
@@ -391,6 +393,7 @@ TEST(DisasmIa320) {
     __ shufps(xmm0, xmm0, 0x0);
     __ cvtsd2ss(xmm0, xmm1);
     __ cvtsd2ss(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movq(xmm0, Operand(edx, 4));
 
     // logic operation
     __ andps(xmm0, xmm1);
@@ -871,6 +874,8 @@ TEST(DisasmIa320) {
     __ cmpxchg_b(Operand(esp, 12), eax);
     __ cmpxchg_w(Operand(ebx, ecx, times_4, 10000), eax);
     __ cmpxchg(Operand(ebx, ecx, times_4, 10000), eax);
+    __ cmpxchg(Operand(ebx, ecx, times_4, 10000), eax);
+    __ cmpxchg8b(Operand(ebx, ecx, times_8, 10000));
   }
 
   // lock prefix.

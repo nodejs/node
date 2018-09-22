@@ -29,7 +29,7 @@
 #include "test/cctest/cctest.h"
 
 #include "src/accessors.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/property.h"

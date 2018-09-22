@@ -67,9 +67,6 @@ uint32_t word32_ror_wrapper(Address data);
 
 void float64_pow_wrapper(Address data);
 
-void set_thread_in_wasm_flag();
-void clear_thread_in_wasm_flag();
-
 typedef void (*WasmTrapCallbackForTesting)();
 
 void set_trap_callback_for_testing(WasmTrapCallbackForTesting callback);

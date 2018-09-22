@@ -24,6 +24,7 @@
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/snapshot.h"
+#include "src/wasm/wasm-code-manager.h"
 
 #include "src/arm/macro-assembler-arm.h"
 
@@ -172,7 +173,6 @@ void TurboAssembler::Jump(Register target, Condition cond) { bx(target, cond); }
 
 void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
-  DCHECK(RelocInfo::IsCodeTarget(rmode));
   mov(pc, Operand(target, rmode), LeaveCC, cond);
 }
 
@@ -193,8 +193,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     if (target_is_isolate_independent_builtin &&
         options().use_pc_relative_calls_and_jumps) {
       int32_t code_target_index = AddCodeTarget(code);
-      b(code_target_index * Instruction::kInstrSize, cond,
-        RelocInfo::RELATIVE_CODE_TARGET);
+      b(code_target_index * kInstrSize, cond, RelocInfo::RELATIVE_CODE_TARGET);
       return;
     } else if (root_array_available_ && options().isolate_independent_code) {
       UseScratchRegisterScope temps(this);
@@ -206,6 +205,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     } else if (target_is_isolate_independent_builtin &&
                options().inline_offheap_trampolines) {
       // Inline the trampoline.
+      RecordCommentForOffHeapTrampoline(builtin_index);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       // Use ip directly instead of using UseScratchRegisterScope, as we do not
@@ -219,29 +219,10 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(code.address()), rmode, cond);
 }
 
-int TurboAssembler::CallSize(Register target, Condition cond) {
-  return kInstrSize;
-}
-
 void TurboAssembler::Call(Register target, Condition cond) {
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
-  Label start;
-  bind(&start);
   blx(target, cond);
-  DCHECK_EQ(CallSize(target, cond), SizeOfCodeGeneratedSince(&start));
-}
-
-int TurboAssembler::CallSize(Address target, RelocInfo::Mode rmode,
-                             Condition cond) {
-  Instr mov_instr = cond | MOV | LeaveCC;
-  Operand mov_operand = Operand(target, rmode);
-  return kInstrSize +
-         mov_operand.InstructionsRequired(this, mov_instr) * kInstrSize;
-}
-
-int TurboAssembler::CallStubSize() {
-  return CallSize(Handle<Code>(), RelocInfo::CODE_TARGET, al);
 }
 
 void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
@@ -251,19 +232,11 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   if (check_constant_pool) MaybeCheckConstPool();
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
-  Label start;
-  bind(&start);
 
   bool old_predictable_code_size = predictable_code_size();
   if (mode == NEVER_INLINE_TARGET_ADDRESS) {
     set_predictable_code_size(true);
   }
-
-#ifdef DEBUG
-  // Check the expected size before generating code to ensure we assume the same
-  // constant pool availability (e.g., whether constant pool is full or not).
-  int expected_size = CallSize(target, rmode, cond);
-#endif
 
   // Use ip directly instead of using UseScratchRegisterScope, as we do not
   // preserve scratch registers across calls.
@@ -282,15 +255,9 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   mov(ip, Operand(target, rmode));
   blx(ip, cond);
 
-  DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
   if (mode == NEVER_INLINE_TARGET_ADDRESS) {
     set_predictable_code_size(old_predictable_code_size);
   }
-}
-
-int TurboAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode,
-                             Condition cond) {
-  return CallSize(code.address(), rmode, cond);
 }
 
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
@@ -305,8 +272,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     if (target_is_isolate_independent_builtin &&
         options().use_pc_relative_calls_and_jumps) {
       int32_t code_target_index = AddCodeTarget(code);
-      bl(code_target_index * Instruction::kInstrSize, cond,
-         RelocInfo::RELATIVE_CODE_TARGET);
+      bl(code_target_index * kInstrSize, cond, RelocInfo::RELATIVE_CODE_TARGET);
       return;
     } else if (root_array_available_ && options().isolate_independent_code) {
       // Use ip directly instead of using UseScratchRegisterScope, as we do not
@@ -318,7 +284,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     } else if (target_is_isolate_independent_builtin &&
                options().inline_offheap_trampolines) {
       // Inline the trampoline.
-      DCHECK(Builtins::IsBuiltinId(builtin_index));
+      RecordCommentForOffHeapTrampoline(builtin_index);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       // Use ip directly instead of using UseScratchRegisterScope, as we do not
@@ -867,7 +833,7 @@ void TurboAssembler::VmovHigh(Register dst, DwVfpRegister src) {
     const LowDwVfpRegister loc = LowDwVfpRegister::from_code(src.code());
     vmov(dst, loc.high());
   } else {
-    vmov(dst, VmovIndexHi, src);
+    vmov(NeonS32, dst, src, 1);
   }
 }
 
@@ -876,7 +842,7 @@ void TurboAssembler::VmovHigh(DwVfpRegister dst, Register src) {
     const LowDwVfpRegister loc = LowDwVfpRegister::from_code(dst.code());
     vmov(loc.high(), src);
   } else {
-    vmov(dst, VmovIndexHi, src);
+    vmov(NeonS32, dst, 1, src);
   }
 }
 
@@ -885,7 +851,7 @@ void TurboAssembler::VmovLow(Register dst, DwVfpRegister src) {
     const LowDwVfpRegister loc = LowDwVfpRegister::from_code(src.code());
     vmov(dst, loc.low());
   } else {
-    vmov(dst, VmovIndexLo, src);
+    vmov(NeonS32, dst, src, 0);
   }
 }
 
@@ -894,7 +860,7 @@ void TurboAssembler::VmovLow(DwVfpRegister dst, Register src) {
     const LowDwVfpRegister loc = LowDwVfpRegister::from_code(dst.code());
     vmov(loc.low(), src);
   } else {
-    vmov(dst, VmovIndexLo, src);
+    vmov(NeonS32, dst, 0, src);
   }
 }
 
@@ -1698,13 +1664,10 @@ void TurboAssembler::CallStubDelayed(CodeStub* stub) {
 
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
-  Label start;
-  bind(&start);
 
 #ifdef DEBUG
-  // Check the expected size before generating code to ensure we assume the same
-  // constant pool availability (e.g., whether constant pool is full or not).
-  int expected_size = CallStubSize();
+  Label start;
+  bind(&start);
 #endif
 
   // Call sequence on V7 or later may be :
@@ -1721,7 +1684,7 @@ void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   mov(ip, Operand::EmbeddedCode(stub));
   blx(ip, al);
 
-  DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
+  DCHECK_EQ(kCallStubSize, SizeOfCodeGeneratedSince(&start));
 }
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
@@ -1917,6 +1880,18 @@ void TurboAssembler::Abort(AbortReason reason) {
     return;
   }
 
+  if (should_abort_hard()) {
+    // We don't care if we constructed a frame. Just pretend we did.
+    FrameScope assume_frame(this, StackFrame::NONE);
+    Move32BitImmediate(r0, Operand(static_cast<int>(reason)));
+    PrepareCallCFunction(1, 0, r1);
+    Move(r1, ExternalReference::abort_with_reason());
+    // Use Call directly to avoid any unneeded overhead. The function won't
+    // return anyway.
+    Call(r1);
+    return;
+  }
+
   Move(r1, Smi::FromInt(static_cast<int>(reason)));
 
   // Disable stub call restrictions to always allow calls to abort.
@@ -1929,17 +1904,6 @@ void TurboAssembler::Abort(AbortReason reason) {
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
   }
   // will not return here
-  if (is_const_pool_blocked()) {
-    // If the calling code cares about the exact number of
-    // instructions generated, we insert padding here to keep the size
-    // of the Abort macro constant.
-    static const int kExpectedAbortInstructions = 7;
-    int abort_instructions = InstructionsGeneratedSince(&abort_start);
-    DCHECK_LE(abort_instructions, kExpectedAbortInstructions);
-    while (abort_instructions++ < kExpectedAbortInstructions) {
-      nop();
-    }
-  }
 }
 
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
@@ -2285,13 +2249,14 @@ int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
 }
 
 void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
-                                          int num_double_arguments) {
+                                          int num_double_arguments,
+                                          Register scratch) {
   int frame_alignment = ActivationFrameAlignment();
   int stack_passed_arguments = CalculateStackPassedWords(
       num_reg_arguments, num_double_arguments);
   if (frame_alignment > kPointerSize) {
     UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
+    if (!scratch.is_valid()) scratch = temps.Acquire();
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
     mov(scratch, sp);
@@ -2299,7 +2264,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
     str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else {
+  } else if (stack_passed_arguments > 0) {
     sub(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
 }
@@ -2420,34 +2385,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   }
   UNREACHABLE();
 }
-
-#ifdef DEBUG
-bool AreAliased(Register reg1,
-                Register reg2,
-                Register reg3,
-                Register reg4,
-                Register reg5,
-                Register reg6,
-                Register reg7,
-                Register reg8) {
-  int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() +
-      reg3.is_valid() + reg4.is_valid() + reg5.is_valid() + reg6.is_valid() +
-      reg7.is_valid() + reg8.is_valid();
-
-  RegList regs = 0;
-  if (reg1.is_valid()) regs |= reg1.bit();
-  if (reg2.is_valid()) regs |= reg2.bit();
-  if (reg3.is_valid()) regs |= reg3.bit();
-  if (reg4.is_valid()) regs |= reg4.bit();
-  if (reg5.is_valid()) regs |= reg5.bit();
-  if (reg6.is_valid()) regs |= reg6.bit();
-  if (reg7.is_valid()) regs |= reg7.bit();
-  if (reg8.is_valid()) regs |= reg8.bit();
-  int n_of_non_aliasing_regs = NumRegs(regs);
-
-  return n_of_valid_regs != n_of_non_aliasing_regs;
-}
-#endif
 
 void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   // We can use the register pc - 8 for the address of the current instruction.

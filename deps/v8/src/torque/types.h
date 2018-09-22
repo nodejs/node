@@ -34,6 +34,7 @@ static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
 class Label;
 class Value;
+class Module;
 
 class TypeBase {
  public:
@@ -247,13 +248,6 @@ class UnionType final : public Type {
     return base::nullopt;
   }
 
-  const Type* Normalize() const {
-    if (types_.size() == 1) {
-      return parent();
-    }
-    return this;
-  }
-
   bool IsSubtypeOf(const Type* other) const override {
     for (const Type* member : types_) {
       if (!member->IsSubtypeOf(other)) return false;
@@ -287,6 +281,8 @@ class UnionType final : public Type {
     }
   }
 
+  void Subtract(const Type* t);
+
   static UnionType FromType(const Type* t) {
     const UnionType* union_type = UnionType::DynamicCast(t);
     return union_type ? UnionType(*union_type) : UnionType(t);
@@ -294,9 +290,12 @@ class UnionType final : public Type {
 
  private:
   explicit UnionType(const Type* t) : Type(Kind::kUnionType, t), types_({t}) {}
+  void RecomputeParent();
 
   std::set<const Type*, TypeLess> types_;
 };
+
+const Type* SubtractType(const Type* a, const Type* b);
 
 class StructType final : public Type {
  public:
@@ -310,6 +309,15 @@ class StructType final : public Type {
   bool IsConstexpr() const override { return false; }
 
   const std::vector<NameAndType>& fields() const { return fields_; }
+  const Type* GetFieldType(const std::string& fieldname) const {
+    for (const NameAndType& field : fields()) {
+      if (field.name == fieldname) return field.type;
+    }
+    std::stringstream s;
+    s << "\"" << fieldname << "\" is not a field of struct type \"" << name()
+      << "\"";
+    ReportError(s.str());
+  }
   const std::string& name() const { return name_; }
   Module* module() const { return module_; }
 
@@ -341,14 +349,13 @@ class VisitResult {
       : type_(type), value_(value), declarable_{} {}
   VisitResult(const Type* type, const Value* declarable);
   const Type* type() const { return type_; }
-  // const std::string& variable() const { return variable_; }
   base::Optional<const Value*> declarable() const { return declarable_; }
   std::string LValue() const;
   std::string RValue() const;
   void SetType(const Type* new_type) { type_ = new_type; }
 
  private:
-  const Type* type_;
+  const Type* type_ = nullptr;
   std::string value_;
   base::Optional<const Value*> declarable_;
 };

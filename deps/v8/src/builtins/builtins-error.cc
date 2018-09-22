@@ -2,16 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
-#include "src/builtins/builtins-utils.h"
-
 #include "src/accessors.h"
+#include "src/builtins/builtins-utils-inl.h"
+#include "src/builtins/builtins.h"
 #include "src/counters.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/property-descriptor.h"
-#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {

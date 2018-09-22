@@ -23,6 +23,8 @@ SUPPORTED_BUILDER_SPEC_KEYS = [
 SUPPORTED_SWARMING_DIMENSIONS = [
   'cores',
   'cpu',
+  'device_os',
+  'device_type',
   'os',
 ]
 

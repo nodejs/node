@@ -43,10 +43,13 @@ Scope* Declarations::GetGenericScope(Generic* generic,
   return result;
 }
 
+bool Declarations::IsDeclaredInCurrentScope(const std::string& name) {
+  return chain_.ShallowLookup(name) != nullptr;
+}
+
 void Declarations::CheckAlreadyDeclared(const std::string& name,
                                         const char* new_type) {
-  auto i = chain_.ShallowLookup(name);
-  if (i != nullptr) {
+  if (IsDeclaredInCurrentScope(name)) {
     std::stringstream s;
     s << "cannot redeclare " << name << " (type " << new_type << ")";
     ReportError(s.str());
@@ -85,7 +88,7 @@ const Type* Declarations::GetType(TypeExpression* type_expression) {
   } else {
     auto* function_type_exp = FunctionTypeExpression::cast(type_expression);
     TypeVector argument_types;
-    for (TypeExpression* type_exp : function_type_exp->parameters.types) {
+    for (TypeExpression* type_exp : function_type_exp->parameters) {
       argument_types.push_back(GetType(type_exp));
     }
     return TypeOracle::GetFunctionPointerType(
@@ -269,8 +272,8 @@ MacroList* Declarations::GetMacroListForName(const std::string& name,
 Macro* Declarations::DeclareMacro(const std::string& name,
                                   const Signature& signature,
                                   base::Optional<std::string> op) {
-  Macro* macro =
-      RegisterDeclarable(std::unique_ptr<Macro>(new Macro(name, signature)));
+  Macro* macro = RegisterDeclarable(
+      std::unique_ptr<Macro>(new Macro(name, signature, GetCurrentGeneric())));
   GetMacroListForName(name, signature)->AddMacro(macro);
   if (op) GetMacroListForName(*op, signature)->AddMacro(macro);
   return macro;
@@ -280,7 +283,8 @@ Builtin* Declarations::DeclareBuiltin(const std::string& name,
                                       Builtin::Kind kind, bool external,
                                       const Signature& signature) {
   CheckAlreadyDeclared(name, "builtin");
-  Builtin* result = new Builtin(name, kind, external, signature);
+  Builtin* result =
+      new Builtin(name, kind, external, signature, GetCurrentGeneric());
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }
@@ -288,7 +292,8 @@ Builtin* Declarations::DeclareBuiltin(const std::string& name,
 RuntimeFunction* Declarations::DeclareRuntimeFunction(
     const std::string& name, const Signature& signature) {
   CheckAlreadyDeclared(name, "runtime function");
-  RuntimeFunction* result = new RuntimeFunction(name, signature);
+  RuntimeFunction* result =
+      new RuntimeFunction(name, signature, GetCurrentGeneric());
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }
@@ -365,6 +370,13 @@ TypeVector Declarations::GetCurrentSpecializationTypeNamesVector() {
     result = current_generic_specialization_->second;
   }
   return result;
+}
+
+base::Optional<Generic*> Declarations::GetCurrentGeneric() {
+  if (current_generic_specialization_ != nullptr) {
+    return current_generic_specialization_->first;
+  }
+  return base::nullopt;
 }
 
 std::string GetGeneratedCallableName(const std::string& name,

@@ -7,6 +7,7 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/heap/heap-inl.h"
+#include "src/lsan.h"
 #include "src/snapshot/serializer-common.h"
 
 namespace v8 {
@@ -25,7 +26,6 @@ TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate,
 
 void TurboAssemblerBase::IndirectLoadConstant(Register destination,
                                               Handle<HeapObject> object) {
-  CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
 
   // Before falling back to the (fairly slow) lookup from the constants table,
@@ -47,6 +47,7 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
     LoadRootRelative(destination,
                      RootRegisterOffsetForBuiltinIndex(maybe_builtin_index_));
   } else {
+    CHECK(isolate()->ShouldLoadConstantsFromRootList());
     // Ensure the given object is in the builtins constants table and fetch its
     // index.
     BuiltinsConstantsTableBuilder* builder =
@@ -60,7 +61,6 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
 
 void TurboAssemblerBase::IndirectLoadExternalReference(
     Register destination, ExternalReference reference) {
-  CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
 
   if (IsAddressableThroughRootRegister(isolate(), reference)) {
@@ -116,6 +116,18 @@ int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
     int builtin_index) {
   return Heap::roots_to_builtins_offset() - kRootRegisterBias +
          builtin_index * kPointerSize;
+}
+
+void TurboAssemblerBase::RecordCommentForOffHeapTrampoline(int builtin_index) {
+  if (!FLAG_code_comments) return;
+  size_t len = strlen("-- Inlined Trampoline to  --") +
+               strlen(Builtins::name(builtin_index)) + 1;
+  Vector<char> buffer = Vector<char>::New(static_cast<int>(len));
+  char* buffer_start = buffer.start();
+  LSAN_IGNORE_OBJECT(buffer_start);
+  SNPrintF(buffer, "-- Inlined Trampoline to %s --",
+           Builtins::name(builtin_index));
+  RecordComment(buffer_start);
 }
 
 }  // namespace internal

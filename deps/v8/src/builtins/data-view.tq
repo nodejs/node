@@ -13,6 +13,58 @@ module data_view {
   extern operator '.backing_store'
       macro LoadArrayBufferBackingStore(JSArrayBuffer): RawPtr;
 
+  macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
+    if constexpr (kind == UINT8_ELEMENTS) {
+      return 'DataView.prototype.getUint8';
+    } else if constexpr (kind == INT8_ELEMENTS) {
+      return 'DataView.prototype.getInt8';
+    } else if constexpr (kind == UINT16_ELEMENTS) {
+      return 'DataView.prototype.getUint16';
+    } else if constexpr (kind == INT16_ELEMENTS) {
+      return 'DataView.prototype.getInt16';
+    } else if constexpr (kind == UINT32_ELEMENTS) {
+      return 'DataView.prototype.getUint32';
+    } else if constexpr (kind == INT32_ELEMENTS) {
+      return 'DataView.prototype.getInt32';
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      return 'DataView.prototype.getFloat32';
+    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+      return 'DataView.prototype.getFloat64';
+    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      return 'DataView.prototype.getBigInt64';
+    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+      return 'DataView.prototype.getBigUint64';
+    } else {
+      unreachable;
+    }
+  }
+
+  macro MakeDataViewSetterNameString(kind: constexpr ElementsKind): String {
+    if constexpr (kind == UINT8_ELEMENTS) {
+      return 'DataView.prototype.setUint8';
+    } else if constexpr (kind == INT8_ELEMENTS) {
+      return 'DataView.prototype.setInt8';
+    } else if constexpr (kind == UINT16_ELEMENTS) {
+      return 'DataView.prototype.setUint16';
+    } else if constexpr (kind == INT16_ELEMENTS) {
+      return 'DataView.prototype.setInt16';
+    } else if constexpr (kind == UINT32_ELEMENTS) {
+      return 'DataView.prototype.setUint32';
+    } else if constexpr (kind == INT32_ELEMENTS) {
+      return 'DataView.prototype.setInt32';
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      return 'DataView.prototype.setFloat32';
+    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+      return 'DataView.prototype.setFloat64';
+    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      return 'DataView.prototype.setBigInt64';
+    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+      return 'DataView.prototype.setBigUint64';
+    } else {
+      unreachable;
+    }
+  }
+
   macro WasNeutered(view: JSArrayBufferView): bool {
     return IsDetachedBuffer(view.buffer);
   }
@@ -71,12 +123,13 @@ module data_view {
   extern macro LoadUint8(RawPtr, intptr): uint32;
   extern macro LoadInt8(RawPtr, intptr): int32;
 
-  macro LoadDataViewUint8(buffer: JSArrayBuffer, offset: intptr): Smi {
-    return convert<Smi>(LoadUint8(buffer.backing_store, offset));
-  }
-
-  macro LoadDataViewInt8(buffer: JSArrayBuffer, offset: intptr): Smi {
-    return convert<Smi>(LoadInt8(buffer.backing_store, offset));
+  macro LoadDataView8(buffer: JSArrayBuffer, offset: intptr,
+                          signed: constexpr bool): Smi {
+    if constexpr (signed) {
+      return convert<Smi>(LoadInt8(buffer.backing_store, offset));
+    } else {
+      return convert<Smi>(LoadUint8(buffer.backing_store, offset));
+    }
   }
 
   macro LoadDataView16(buffer: JSArrayBuffer, offset: intptr,
@@ -108,7 +161,7 @@ module data_view {
 
   macro LoadDataView32(buffer: JSArrayBuffer, offset: intptr,
                        requested_little_endian: bool,
-                       signed: constexpr bool): Number {
+                       kind: constexpr ElementsKind): Number {
     let data_pointer: RawPtr = buffer.backing_store;
 
     let b0: uint32 = LoadUint8(data_pointer, offset);
@@ -123,31 +176,16 @@ module data_view {
       result = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
     }
 
-    if constexpr (signed) {
+    if constexpr (kind == INT32_ELEMENTS) {
       return convert<Number>(Signed(result));
-    } else {
+    } else if constexpr (kind == UINT32_ELEMENTS) {
       return convert<Number>(result);
-    }
-  }
-
-  macro LoadDataViewFloat32(buffer: JSArrayBuffer, offset: intptr,
-                            requested_little_endian: bool): Number {
-    let data_pointer: RawPtr = buffer.backing_store;
-
-    let b0: uint32 = LoadUint8(data_pointer, offset);
-    let b1: uint32 = LoadUint8(data_pointer, offset + 1);
-    let b2: uint32 = LoadUint8(data_pointer, offset + 2);
-    let b3: uint32 = LoadUint8(data_pointer, offset + 3);
-    let result: uint32;
-
-    if (requested_little_endian) {
-      result = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      let float_res: float64 = convert<float64>(BitcastInt32ToFloat32(result));
+      return convert<Number>(float_res);
     } else {
-      result = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+      unreachable;
     }
-
-    let float_res: float64 = convert<float64>(BitcastInt32ToFloat32(result));
-    return convert<Number>(float_res);
   }
 
   macro LoadDataViewFloat64(buffer: JSArrayBuffer, offset: intptr,
@@ -186,11 +224,11 @@ module data_view {
   extern macro DataViewEncodeBigIntBits(constexpr bool,
       constexpr int31): intptr;
 
-  const kPositiveBigInt: constexpr bool generates 'false';
-  const kNegativeBigInt: constexpr bool generates 'true';
-  const kZeroDigitBigInt: constexpr int31 generates '0';
-  const kOneDigitBigInt: constexpr int31 generates '1';
-  const kTwoDigitBigInt: constexpr int31 generates '2';
+  const kPositiveBigInt: constexpr bool = false;
+  const kNegativeBigInt: constexpr bool = true;
+  const kZeroDigitBigInt: constexpr int31 = 0;
+  const kOneDigitBigInt: constexpr int31 = 1;
+  const kTwoDigitBigInt: constexpr int31 = 2;
 
   macro CreateEmptyBigInt(is_positive: bool, length: constexpr int31): BigInt {
     // Allocate a BigInt with the desired length (number of digits).
@@ -357,10 +395,8 @@ module data_view {
                     requested_little_endian: Object,
                     kind: constexpr ElementsKind): Numeric {
 
-    // TODO(theotime): add more specific method name to match
-    // the former implementation.
     let data_view: JSDataView = ValidateDataView(
-        context, receiver, 'get DataView.prototype.get');
+        context, receiver, MakeDataViewGetterNameString(kind));
 
     let getIndex: Number;
     try {
@@ -374,7 +410,8 @@ module data_view {
     let buffer: JSArrayBuffer = data_view.buffer;
 
     if (IsDetachedBuffer(buffer)) {
-      ThrowTypeError(context, kDetachedOperation, 'DataView.prototype.get');
+      ThrowTypeError(context, kDetachedOperation,
+                     MakeDataViewGetterNameString(kind));
     }
 
     let viewOffset: Number = data_view.byte_offset;
@@ -393,29 +430,37 @@ module data_view {
     let bufferIndex: intptr = getIndexIntptr + viewOffsetIntptr;
 
     if constexpr (kind == UINT8_ELEMENTS) {
-      return LoadDataViewUint8(buffer, bufferIndex);
+      return LoadDataView8(buffer, bufferIndex, false);
     } else if constexpr (kind == INT8_ELEMENTS) {
-      return LoadDataViewInt8(buffer, bufferIndex);
+      return LoadDataView8(buffer, bufferIndex, true);
     } else if constexpr (kind == UINT16_ELEMENTS) {
       return LoadDataView16(buffer, bufferIndex, littleEndian, false);
     } else if constexpr (kind == INT16_ELEMENTS) {
       return LoadDataView16(buffer, bufferIndex, littleEndian, true);
     } else if constexpr (kind == UINT32_ELEMENTS) {
-      return LoadDataView32(buffer, bufferIndex, littleEndian, false);
+      return LoadDataView32(buffer, bufferIndex, littleEndian, kind);
     } else if constexpr (kind == INT32_ELEMENTS) {
-      return LoadDataView32(buffer, bufferIndex, littleEndian, true);
+      return LoadDataView32(buffer, bufferIndex, littleEndian, kind);
     } else if constexpr (kind == FLOAT32_ELEMENTS) {
-      return LoadDataViewFloat32(buffer, bufferIndex, littleEndian);
+      return LoadDataView32(buffer, bufferIndex, littleEndian, kind);
     } else if constexpr (kind == FLOAT64_ELEMENTS) {
       return LoadDataViewFloat64(buffer, bufferIndex, littleEndian);
-    } else if constexpr (kind == BIGINT64_ELEMENTS) {
-      return LoadDataViewBigInt(buffer, bufferIndex, littleEndian, true);
     } else if constexpr (kind == BIGUINT64_ELEMENTS) {
       return LoadDataViewBigInt(buffer, bufferIndex, littleEndian, false);
+    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      return LoadDataViewBigInt(buffer, bufferIndex, littleEndian, true);
     } else {
       unreachable;
     }
   }
+
+  javascript builtin DataViewPrototypeGetUint8(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, Undefined, UINT8_ELEMENTS);
+    }
 
   javascript builtin DataViewPrototypeGetInt8(
       context: Context, receiver: Object, ...arguments): Object {
@@ -425,12 +470,16 @@ module data_view {
     return DataViewGet(context, receiver, offset, Undefined, INT8_ELEMENTS);
   }
 
-  javascript builtin DataViewPrototypeGetUint8(
+  javascript builtin DataViewPrototypeGetUint16(
     context: Context, receiver: Object, ...arguments): Object {
       let offset: Object = arguments.length > 0 ?
           arguments[0] :
           Undefined;
-      return DataViewGet(context, receiver, offset, Undefined, UINT8_ELEMENTS);
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         UINT16_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetInt16(
@@ -445,7 +494,7 @@ module data_view {
                          INT16_ELEMENTS);
     }
 
-  javascript builtin DataViewPrototypeGetUint16(
+  javascript builtin DataViewPrototypeGetUint32(
     context: Context, receiver: Object, ...arguments): Object {
       let offset: Object = arguments.length > 0 ?
           arguments[0] :
@@ -454,7 +503,7 @@ module data_view {
           arguments[1] :
           Undefined;
       return DataViewGet(context, receiver, offset, is_little_endian,
-                         UINT16_ELEMENTS);
+                         UINT32_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetInt32(
@@ -467,18 +516,6 @@ module data_view {
           Undefined;
       return DataViewGet(context, receiver, offset, is_little_endian,
                          INT32_ELEMENTS);
-    }
-
-  javascript builtin DataViewPrototypeGetUint32(
-    context: Context, receiver: Object, ...arguments): Object {
-      let offset: Object = arguments.length > 0 ?
-          arguments[0] :
-          Undefined;
-      let is_little_endian : Object = arguments.length > 1 ?
-          arguments[1] :
-          Undefined;
-      return DataViewGet(context, receiver, offset, is_little_endian,
-                         UINT32_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeGetFloat32(
@@ -505,18 +542,6 @@ module data_view {
                          FLOAT64_ELEMENTS);
     }
 
-  javascript builtin DataViewPrototypeGetBigInt64(
-    context: Context, receiver: Object, ...arguments): Object {
-      let offset: Object = arguments.length > 0 ?
-          arguments[0] :
-          Undefined;
-      let is_little_endian : Object = arguments.length > 1 ?
-          arguments[1] :
-          Undefined;
-      return DataViewGet(context, receiver, offset, is_little_endian,
-                         BIGINT64_ELEMENTS);
-    }
-
   javascript builtin DataViewPrototypeGetBigUint64(
     context: Context, receiver: Object, ...arguments): Object {
       let offset: Object = arguments.length > 0 ?
@@ -527,6 +552,18 @@ module data_view {
           Undefined;
       return DataViewGet(context, receiver, offset, is_little_endian,
                          BIGUINT64_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeGetBigInt64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         BIGINT64_ELEMENTS);
     }
 
   extern macro ToNumber(Context, Object): Number;
@@ -670,10 +707,8 @@ module data_view {
                     requested_little_endian: Object,
                     kind: constexpr ElementsKind): Object {
 
-    // TODO(theotime): add more specific method name to match
-    // the former implementation.
     let data_view: JSDataView = ValidateDataView(
-        context, receiver, 'get DataView.prototype.get');
+        context, receiver, MakeDataViewSetterNameString(kind));
 
     let getIndex: Number;
     try {
@@ -697,7 +732,8 @@ module data_view {
     }
 
     if (IsDetachedBuffer(buffer)) {
-      ThrowTypeError(context, kDetachedOperation, 'DataView.prototype.get');
+      ThrowTypeError(context, kDetachedOperation,
+                     MakeDataViewSetterNameString(kind));
     }
 
     let viewOffset: Number = data_view.byte_offset;
@@ -749,18 +785,6 @@ module data_view {
     return Undefined;
   }
 
-  javascript builtin DataViewPrototypeSetInt8(
-    context: Context, receiver: Object, ...arguments): Object {
-      let offset: Object = arguments.length > 0 ?
-          arguments[0] :
-          Undefined;
-      let value : Object = arguments.length > 1 ?
-          arguments[1] :
-          Undefined;
-      return DataViewSet(context, receiver, offset, value, Undefined,
-                         INT8_ELEMENTS);
-    }
-
   javascript builtin DataViewPrototypeSetUint8(
     context: Context, receiver: Object, ...arguments): Object {
       let offset: Object = arguments.length > 0 ?
@@ -773,7 +797,7 @@ module data_view {
                          UINT8_ELEMENTS);
     }
 
-  javascript builtin DataViewPrototypeSetInt16(
+  javascript builtin DataViewPrototypeSetInt8(
     context: Context, receiver: Object, ...arguments): Object {
       let offset: Object = arguments.length > 0 ?
           arguments[0] :
@@ -781,11 +805,8 @@ module data_view {
       let value : Object = arguments.length > 1 ?
           arguments[1] :
           Undefined;
-      let is_little_endian : Object = arguments.length > 2 ?
-          arguments[2] :
-          Undefined;
-      return DataViewSet(context, receiver, offset, value,
-                         is_little_endian, INT16_ELEMENTS);
+      return DataViewSet(context, receiver, offset, value, Undefined,
+                         INT8_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeSetUint16(
@@ -803,7 +824,7 @@ module data_view {
                          is_little_endian, UINT16_ELEMENTS);
     }
 
-  javascript builtin DataViewPrototypeSetInt32(
+  javascript builtin DataViewPrototypeSetInt16(
     context: Context, receiver: Object, ...arguments): Object {
       let offset: Object = arguments.length > 0 ?
           arguments[0] :
@@ -815,7 +836,7 @@ module data_view {
           arguments[2] :
           Undefined;
       return DataViewSet(context, receiver, offset, value,
-                         is_little_endian, INT32_ELEMENTS);
+                         is_little_endian, INT16_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeSetUint32(
@@ -831,6 +852,21 @@ module data_view {
           Undefined;
       return DataViewSet(context, receiver, offset, value,
                          is_little_endian, UINT32_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetInt32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, INT32_ELEMENTS);
     }
 
   javascript builtin DataViewPrototypeSetFloat32(
@@ -863,21 +899,6 @@ module data_view {
                          is_little_endian, FLOAT64_ELEMENTS);
     }
 
-  javascript builtin DataViewPrototypeSetBigInt64(
-    context: Context, receiver: Object, ...arguments): Object {
-      let offset: Object = arguments.length > 0 ?
-          arguments[0] :
-          Undefined;
-      let value : Object = arguments.length > 1 ?
-          arguments[1] :
-          Undefined;
-      let is_little_endian : Object = arguments.length > 2 ?
-          arguments[2] :
-          Undefined;
-      return DataViewSet(context, receiver, offset, value,
-                         is_little_endian, BIGINT64_ELEMENTS);
-    }
-
   javascript builtin DataViewPrototypeSetBigUint64(
     context: Context, receiver: Object, ...arguments): Object {
       let offset: Object = arguments.length > 0 ?
@@ -891,6 +912,21 @@ module data_view {
           Undefined;
       return DataViewSet(context, receiver, offset, value,
                          is_little_endian, BIGUINT64_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetBigInt64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, BIGINT64_ELEMENTS);
     }
 
 }

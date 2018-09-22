@@ -246,30 +246,6 @@ void InterpreterPushArgsThenConstructDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-namespace {
-
-void InterpreterCEntryDescriptor_InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      r3,  // argument count (argc)
-      r5,  // address of first argument (argv)
-      r4   // the runtime function to call
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-}  // namespace
-
-void InterpreterCEntry1Descriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  InterpreterCEntryDescriptor_InitializePlatformSpecific(data);
-}
-
-void InterpreterCEntry2Descriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  InterpreterCEntryDescriptor_InitializePlatformSpecific(data);
-}
-
 void ResumeGeneratorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {

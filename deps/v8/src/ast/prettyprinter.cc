@@ -11,12 +11,13 @@
 #include "src/base/platform/platform.h"
 #include "src/globals.h"
 #include "src/objects-inl.h"
+#include "src/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
 
 CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
-    : builder_(isolate) {
+    : builder_(new IncrementalStringBuilder(isolate)) {
   isolate_ = isolate;
   position_ = 0;
   num_prints_ = 0;
@@ -29,6 +30,8 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   function_kind_ = kNormalFunction;
   InitializeAstVisitor(isolate);
 }
+
+CallPrinter::~CallPrinter() {}
 
 CallPrinter::ErrorHint CallPrinter::GetErrorHint() const {
   if (is_call_error_) {
@@ -45,7 +48,7 @@ Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
   num_prints_ = 0;
   position_ = position;
   Find(program);
-  return builder_.Finish().ToHandleChecked();
+  return builder_->Finish().ToHandleChecked();
 }
 
 
@@ -65,13 +68,13 @@ void CallPrinter::Find(AstNode* node, bool print) {
 void CallPrinter::Print(const char* str) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_.AppendCString(str);
+  builder_->AppendCString(str);
 }
 
 void CallPrinter::Print(Handle<String> str) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_.AppendString(str);
+  builder_->AppendString(str);
 }
 
 void CallPrinter::VisitBlock(Block* node) {
@@ -746,17 +749,21 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info, Variable* var,
   }
 }
 
-void AstPrinter::PrintLabelsIndented(ZonePtrList<const AstRawString>* labels) {
+void AstPrinter::PrintLabelsIndented(ZonePtrList<const AstRawString>* labels,
+                                     const char* prefix) {
   if (labels == nullptr || labels->length() == 0) return;
-  PrintIndented("LABELS ");
+  PrintIndented(prefix);
+  Print("LABELS ");
   PrintLabels(labels);
   Print("\n");
 }
 
 
 void AstPrinter::PrintIndentedVisit(const char* s, AstNode* node) {
-  IndentedScope indent(this, s, node->position());
-  Visit(node);
+  if (node != nullptr) {
+    IndentedScope indent(this, s, node->position());
+    Visit(node);
+  }
 }
 
 
@@ -823,6 +830,7 @@ void AstPrinter::VisitBlock(Block* node) {
   const char* block_txt =
       node->ignore_completion_value() ? "BLOCK NOCOMPLETIONS" : "BLOCK";
   IndentedScope indent(this, block_txt, node->position());
+  PrintLabelsIndented(node->labels());
   PrintStatements(node->statements());
 }
 
@@ -916,6 +924,7 @@ void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
 void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
   IndentedScope indent(this, "DO", node->position());
   PrintLabelsIndented(node->labels());
+  PrintLabelsIndented(node->own_labels(), "OWN ");
   PrintIndentedVisit("BODY", node->body());
   PrintIndentedVisit("COND", node->cond());
 }
@@ -924,6 +933,7 @@ void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
 void AstPrinter::VisitWhileStatement(WhileStatement* node) {
   IndentedScope indent(this, "WHILE", node->position());
   PrintLabelsIndented(node->labels());
+  PrintLabelsIndented(node->own_labels(), "OWN ");
   PrintIndentedVisit("COND", node->cond());
   PrintIndentedVisit("BODY", node->body());
 }
@@ -932,6 +942,7 @@ void AstPrinter::VisitWhileStatement(WhileStatement* node) {
 void AstPrinter::VisitForStatement(ForStatement* node) {
   IndentedScope indent(this, "FOR", node->position());
   PrintLabelsIndented(node->labels());
+  PrintLabelsIndented(node->own_labels(), "OWN ");
   if (node->init()) PrintIndentedVisit("INIT", node->init());
   if (node->cond()) PrintIndentedVisit("COND", node->cond());
   PrintIndentedVisit("BODY", node->body());
@@ -941,6 +952,8 @@ void AstPrinter::VisitForStatement(ForStatement* node) {
 
 void AstPrinter::VisitForInStatement(ForInStatement* node) {
   IndentedScope indent(this, "FOR IN", node->position());
+  PrintLabelsIndented(node->labels());
+  PrintLabelsIndented(node->own_labels(), "OWN ");
   PrintIndentedVisit("FOR", node->each());
   PrintIndentedVisit("IN", node->enumerable());
   PrintIndentedVisit("BODY", node->body());
@@ -949,6 +962,8 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
 
 void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
   IndentedScope indent(this, "FOR OF", node->position());
+  PrintLabelsIndented(node->labels());
+  PrintLabelsIndented(node->own_labels(), "OWN ");
   PrintIndentedVisit("INIT", node->assign_iterator());
   PrintIndentedVisit("NEXT", node->next_result());
   PrintIndentedVisit("DONE", node->result_done());

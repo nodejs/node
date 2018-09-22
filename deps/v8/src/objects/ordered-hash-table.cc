@@ -126,13 +126,17 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   Handle<FixedArray> result = Handle<FixedArray>::cast(table);
   // From this point on table is no longer a valid OrderedHashSet.
   result->set_map(ReadOnlyRoots(isolate).fixed_array_map());
+  int const kMaxStringTableEntries =
+      isolate->heap()->MaxNumberToStringCacheSize();
   for (int i = 0; i < length; i++) {
     int index = kHashTableStartIndex + nof_buckets + (i * kEntrySize);
     Object* key = table->get(index);
     if (convert == GetKeysConversion::kConvertToString) {
       uint32_t index_value;
       if (key->ToArrayIndex(&index_value)) {
-        key = *isolate->factory()->Uint32ToString(index_value);
+        // Avoid trashing the Number2String cache if indices get very large.
+        bool use_cache = i < kMaxStringTableEntries;
+        key = *isolate->factory()->Uint32ToString(index_value, use_cache);
       } else {
         CHECK(key->IsName());
       }

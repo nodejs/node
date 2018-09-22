@@ -48,8 +48,6 @@ var collatorBraket = new Intl.Collator({});
 assertEquals(options.locale, collatorBraket.resolvedOptions().locale);
 
 var collatorWithOptions = new Intl.Collator(undefined, {usage: 'search'});
-assertLanguageTag(%GetDefaultICULocale(),
-                  collatorWithOptions.resolvedOptions().locale);
-assertNotNull(
-    %regexp_internal_match(/-u(-[a-zA-Z]+-[a-zA-Z]+)*-co-search/,
-        collatorWithOptions.resolvedOptions().locale));
+var locale = collatorWithOptions.resolvedOptions().locale;
+assertLanguageTag(%GetDefaultICULocale(), locale);
+assertEquals(locale.indexOf('-co-search'), -1);

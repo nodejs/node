@@ -30,11 +30,11 @@ class SignatureMap;
 class WireBytesRef;
 class WasmInterpreter;
 using FunctionSig = Signature<ValueType>;
+struct WasmFeatures;
 }  // namespace wasm
 
 class BreakPoint;
 class JSArrayBuffer;
-class FixedArrayOfWeakCells;
 class SeqOneByteString;
 class WasmDebugInfo;
 class WasmInstanceObject;
@@ -134,9 +134,10 @@ class WasmModuleObject : public JSObject {
 
   // Creates a new {WasmModuleObject} with a new {NativeModule} underneath.
   static Handle<WasmModuleObject> New(
-      Isolate* isolate, std::shared_ptr<const wasm::WasmModule> module,
-      wasm::ModuleEnv& env, OwnedVector<const uint8_t> wire_bytes,
-      Handle<Script> script, Handle<ByteArray> asm_js_offset_table);
+      Isolate* isolate, const wasm::WasmFeatures& enabled,
+      std::shared_ptr<const wasm::WasmModule> module, wasm::ModuleEnv& env,
+      OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
+      Handle<ByteArray> asm_js_offset_table);
 
   // Creates a new {WasmModuleObject} for an existing {NativeModule} that is
   // reference counted and might be shared between multiple Isolates.
@@ -174,8 +175,8 @@ class WasmModuleObject : public JSObject {
                                                    uint32_t func_index);
 
   // Get the function name of the function identified by the given index.
-  // Returns "<WASM UNNAMED>" if the function is unnamed or the name is not a
-  // valid UTF-8 string.
+  // Returns "wasm-function[func_index]" if the function is unnamed or the
+  // name is not a valid UTF-8 string.
   static Handle<String> GetFunctionName(Isolate*, Handle<WasmModuleObject>,
                                         uint32_t func_index);
 
@@ -284,7 +285,7 @@ class WasmMemoryObject : public JSObject {
 
   DECL_ACCESSORS(array_buffer, JSArrayBuffer)
   DECL_INT_ACCESSORS(maximum_pages)
-  DECL_OPTIONAL_ACCESSORS(instances, FixedArrayOfWeakCells)
+  DECL_OPTIONAL_ACCESSORS(instances, WeakArrayList)
 
 // Layout description.
 #define WASM_MEMORY_OBJECT_FIELDS(V)   \
@@ -301,7 +302,7 @@ class WasmMemoryObject : public JSObject {
   static void AddInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
                           Handle<WasmInstanceObject> object);
   // Remove an instance from the internal (weak) list.
-  static void RemoveInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
+  static void RemoveInstance(Handle<WasmMemoryObject> memory,
                              Handle<WasmInstanceObject> object);
   uint32_t current_pages();
   inline bool has_maximum_pages();
@@ -390,8 +391,8 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(null_value, Oddball)
   DECL_ACCESSORS(centry_stub, Code)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
-  DECL_PRIMITIVE_ACCESSORS(memory_size, uint32_t)
-  DECL_PRIMITIVE_ACCESSORS(memory_mask, uint32_t)
+  DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
+  DECL_PRIMITIVE_ACCESSORS(memory_mask, size_t)
   DECL_PRIMITIVE_ACCESSORS(roots_array_address, Address)
   DECL_PRIMITIVE_ACCESSORS(stack_limit_address, Address)
   DECL_PRIMITIVE_ACCESSORS(real_stack_limit_address, Address)
@@ -401,7 +402,7 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_sig_ids, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_targets, Address*)
-  DECL_PRIMITIVE_ACCESSORS(jump_table_adjusted_start, Address)
+  DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInstanceObject)
@@ -426,8 +427,8 @@ class WasmInstanceObject : public JSObject {
   V(kCEntryStubOffset, kPointerSize)                                    \
   V(kFirstUntaggedOffset, 0)                             /* marker */   \
   V(kMemoryStartOffset, kPointerSize)                    /* untagged */ \
-  V(kMemorySizeOffset, kUInt32Size)                      /* untagged */ \
-  V(kMemoryMaskOffset, kUInt32Size)                      /* untagged */ \
+  V(kMemorySizeOffset, kSizetSize)                       /* untagged */ \
+  V(kMemoryMaskOffset, kSizetSize)                       /* untagged */ \
   V(kRootsArrayAddressOffset, kPointerSize)              /* untagged */ \
   V(kStackLimitAddressOffset, kPointerSize)              /* untagged */ \
   V(kRealStackLimitAddressOffset, kPointerSize)          /* untagged */ \
@@ -436,7 +437,7 @@ class WasmInstanceObject : public JSObject {
   V(kImportedMutableGlobalsOffset, kPointerSize)         /* untagged */ \
   V(kIndirectFunctionTableSigIdsOffset, kPointerSize)    /* untagged */ \
   V(kIndirectFunctionTableTargetsOffset, kPointerSize)   /* untagged */ \
-  V(kJumpTableAdjustedStartOffset, kPointerSize)         /* untagged */ \
+  V(kJumpTableStartOffset, kPointerSize)                 /* untagged */ \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)       /* untagged */ \
   V(k64BitArchPaddingOffset, kPointerSize - kUInt32Size) /* padding */  \
   V(kSize, 0)
@@ -452,7 +453,7 @@ class WasmInstanceObject : public JSObject {
 
   bool has_indirect_function_table();
 
-  void SetRawMemory(byte* mem_start, uint32_t mem_size);
+  void SetRawMemory(byte* mem_start, size_t mem_size);
 
   // Get the debug info associated with the given wasm object.
   // If no debug info exists yet, it is created automatically.
@@ -496,6 +497,7 @@ class WasmExportedFunctionData : public Struct {
  public:
   DECL_ACCESSORS(wrapper_code, Code);
   DECL_ACCESSORS(instance, WasmInstanceObject)
+  DECL_INT_ACCESSORS(jump_table_offset);
   DECL_INT_ACCESSORS(function_index);
 
   DECL_CAST(WasmExportedFunctionData)
@@ -505,10 +507,11 @@ class WasmExportedFunctionData : public Struct {
   DECL_VERIFIER(WasmExportedFunctionData)
 
 // Layout description.
-#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V)     \
-  V(kWrapperCodeOffset, kPointerSize)             \
-  V(kInstanceOffset, kPointerSize)                \
-  V(kFunctionIndexOffset, kPointerSize) /* Smi */ \
+#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V)       \
+  V(kWrapperCodeOffset, kPointerSize)               \
+  V(kInstanceOffset, kPointerSize)                  \
+  V(kJumpTableOffsetOffset, kPointerSize) /* Smi */ \
+  V(kFunctionIndexOffset, kPointerSize)   /* Smi */ \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -516,8 +519,11 @@ class WasmExportedFunctionData : public Struct {
 #undef WASM_EXPORTED_FUNCTION_DATA_FIELDS
 };
 
-class WasmDebugInfo : public Struct {
+class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
   DECL_ACCESSORS(interpreter_handle, Object);
   DECL_ACCESSORS(interpreted_functions, Object);
@@ -571,8 +577,9 @@ class WasmDebugInfo : public Struct {
   // interpreter for unwinding and frame inspection.
   // Returns true if exited regularly, false if a trap occurred. In the latter
   // case, a pending exception will have been set on the isolate.
-  bool RunInterpreter(Address frame_pointer, int func_index,
-                      Address arg_buffer);
+  static bool RunInterpreter(Isolate* isolate, Handle<WasmDebugInfo>,
+                             Address frame_pointer, int func_index,
+                             Address arg_buffer);
 
   // Get the stack of the wasm interpreter as pairs of <function index, byte
   // offset>. The list is ordered bottom-to-top, i.e. caller before callee.

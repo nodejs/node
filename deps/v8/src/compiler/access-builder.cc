@@ -12,6 +12,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/arguments.h"
 #include "src/objects/js-collection.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/module.h"
 
 namespace v8 {
@@ -733,13 +734,11 @@ FieldAccess AccessBuilder::ForJSGlobalProxyNativeContext() {
 
 // static
 FieldAccess AccessBuilder::ForJSArrayIteratorIteratedObject() {
-  FieldAccess access = {kTaggedBase,
-                        JSArrayIterator::kIteratedObjectOffset,
-                        Handle<Name>(),
-                        MaybeHandle<Map>(),
-                        Type::ReceiverOrUndefined(),
-                        MachineType::TaggedPointer(),
-                        kPointerWriteBarrier};
+  FieldAccess access = {
+      kTaggedBase,         JSArrayIterator::kIteratedObjectOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::Receiver(),    MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
   return access;
 }
 

@@ -12,6 +12,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -602,6 +603,7 @@ bool NodeProperties::CanBeNullOrUndefined(Isolate* isolate, Node* receiver,
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:
       case IrOpcode::kJSToNumber:
+      case IrOpcode::kJSToNumberConvertBigInt:
       case IrOpcode::kJSToNumeric:
       case IrOpcode::kJSToString:
       case IrOpcode::kToBoolean:

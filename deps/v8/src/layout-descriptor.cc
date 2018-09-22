@@ -243,7 +243,7 @@ LayoutDescriptor* LayoutDescriptor::Trim(Heap* heap, Map* map,
       CalculateCapacity(map, descriptors, num_descriptors);
   // It must not become fast-mode descriptor here, because otherwise it has to
   // be fast pointer layout descriptor already but it's is slow mode now.
-  DCHECK_LT(kSmiValueSize, layout_descriptor_length);
+  DCHECK_LT(kBitsInSmiLayout, layout_descriptor_length);
 
   // Trim, clean and reinitialize this slow-mode layout descriptor.
   int new_backing_store_length =

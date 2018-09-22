@@ -67,6 +67,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
       return 1;
 
     case FeedbackSlotKind::kCall:
+    case FeedbackSlotKind::kCloneObject:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
@@ -166,7 +167,7 @@ void FeedbackVector::set(int index, MaybeObject* value, WriteBarrierMode mode) {
   DCHECK_LT(index, this->length());
   int offset = kFeedbackSlotsOffset + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+  CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);
 }
 
 void FeedbackVector::Set(FeedbackSlot slot, Object* value,
@@ -337,6 +338,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       }
       case FeedbackSlotKind::kCreateClosure:
       case FeedbackSlotKind::kLiteral:
+      case FeedbackSlotKind::kCloneObject:
         break;
       case FeedbackSlotKind::kInvalid:
       case FeedbackSlotKind::kKindsNumber:

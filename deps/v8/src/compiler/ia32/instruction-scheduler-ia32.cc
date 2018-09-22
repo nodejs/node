@@ -43,6 +43,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Lzcnt:
     case kIA32Tzcnt:
     case kIA32Popcnt:
+    case kIA32Bswap:
     case kIA32Lea:
     case kSSEFloat32Cmp:
     case kSSEFloat32Add:
@@ -366,6 +367,40 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32PushSimd128:
     case kIA32Poke:
     case kLFence:
+      return kHasSideEffect;
+
+    case kIA32Word32AtomicPairLoad:
+      return kIsLoadOperation;
+
+    case kIA32Word32AtomicPairStore:
+    case kIA32Word32AtomicPairAdd:
+    case kIA32Word32AtomicPairSub:
+    case kIA32Word32AtomicPairAnd:
+    case kIA32Word32AtomicPairOr:
+    case kIA32Word32AtomicPairXor:
+    case kIA32Word32AtomicPairExchange:
+    case kIA32Word32AtomicPairCompareExchange:
+    case kIA32Word64AtomicNarrowAddUint8:
+    case kIA32Word64AtomicNarrowAddUint16:
+    case kIA32Word64AtomicNarrowAddUint32:
+    case kIA32Word64AtomicNarrowSubUint8:
+    case kIA32Word64AtomicNarrowSubUint16:
+    case kIA32Word64AtomicNarrowSubUint32:
+    case kIA32Word64AtomicNarrowAndUint8:
+    case kIA32Word64AtomicNarrowAndUint16:
+    case kIA32Word64AtomicNarrowAndUint32:
+    case kIA32Word64AtomicNarrowOrUint8:
+    case kIA32Word64AtomicNarrowOrUint16:
+    case kIA32Word64AtomicNarrowOrUint32:
+    case kIA32Word64AtomicNarrowXorUint8:
+    case kIA32Word64AtomicNarrowXorUint16:
+    case kIA32Word64AtomicNarrowXorUint32:
+    case kIA32Word64AtomicNarrowExchangeUint8:
+    case kIA32Word64AtomicNarrowExchangeUint16:
+    case kIA32Word64AtomicNarrowExchangeUint32:
+    case kIA32Word64AtomicNarrowCompareExchangeUint8:
+    case kIA32Word64AtomicNarrowCompareExchangeUint16:
+    case kIA32Word64AtomicNarrowCompareExchangeUint32:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

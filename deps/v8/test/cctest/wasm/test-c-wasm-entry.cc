@@ -30,7 +30,7 @@ class CWasmEntryArgTester {
  public:
   CWasmEntryArgTester(std::initializer_list<uint8_t> wasm_function_bytes,
                       std::function<ReturnType(Args...)> expected_fn)
-      : runner_(kExecuteTurbofan),
+      : runner_(ExecutionTier::kOptimized),
         isolate_(runner_.main_isolate()),
         expected_fn_(expected_fn),
         sig_(runner_.template CreateSig<ReturnType, Args...>()) {
@@ -93,7 +93,7 @@ class CWasmEntryArgTester {
   std::function<ReturnType(Args...)> expected_fn_;
   FunctionSig* sig_;
   Handle<JSFunction> c_wasm_entry_fn_;
-  wasm::WasmCode* wasm_code_;
+  WasmCode* wasm_code_;
 };
 
 }  // namespace

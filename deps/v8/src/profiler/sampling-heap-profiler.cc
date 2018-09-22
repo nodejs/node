@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 #include <memory>
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/base/ieee754.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/frames-inl.h"
@@ -99,7 +99,16 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   Sample* sample = new Sample(size, node, loc, this);
   samples_.emplace(sample);
   sample->global.SetWeak(sample, OnWeakCallback, WeakCallbackType::kParameter);
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+  // MarkIndependent is marked deprecated but we still rely on it here
+  // temporarily.
   sample->global.MarkIndependent();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
 }
 
 void SamplingHeapProfiler::OnWeakCallback(

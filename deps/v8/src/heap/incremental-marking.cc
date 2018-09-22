@@ -11,6 +11,7 @@
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -113,8 +114,9 @@ int IncrementalMarking::RecordWriteFromCode(HeapObject* obj, MaybeObject** slot,
   return 0;
 }
 
-void IncrementalMarking::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
-                                                 Object* value) {
+void IncrementalMarking::RecordWriteIntoCode(Code* host, RelocInfo* rinfo,
+                                             HeapObject* value) {
+  DCHECK(IsMarking());
   if (BaseRecordWrite(host, value)) {
     // Object is not going to be rescanned.  We need to record the slot.
     heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, value);
@@ -130,6 +132,9 @@ bool IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
 }
 
 void IncrementalMarking::MarkBlackAndPush(HeapObject* obj) {
+  // Marking left-trimmable fixed array black is unsafe because left-trimming
+  // re-pushes only grey arrays onto the marking worklist.
+  DCHECK(!obj->IsFixedArrayBase());
   // Color the object black and push it into the bailout deque.
   marking_state()->WhiteToGrey(obj);
   if (marking_state()->GreyToBlack(obj)) {
@@ -197,7 +202,10 @@ void IncrementalMarking::NotifyLeftTrimming(HeapObject* from, HeapObject* to) {
       DCHECK(success);
       USE(success);
     }
-    marking_worklist()->Push(to);
+    // Subsequent left-trimming will re-push only grey arrays.
+    // Ensure that this array is grey.
+    DCHECK(Marking::IsGrey<kAtomicity>(new_mark_bit));
+    marking_worklist()->PushBailout(to);
     RestartIfNotMarking();
   }
 }
@@ -928,10 +936,7 @@ double IncrementalMarking::AdvanceIncrementalMarking(
           heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
       if (!heap_->local_embedder_heap_tracer()
                ->ShouldFinalizeIncrementalMarking()) {
-        heap_->local_embedder_heap_tracer()->Trace(
-            wrapper_deadline, EmbedderHeapTracer::AdvanceTracingActions(
-                                  EmbedderHeapTracer::ForceCompletionAction::
-                                      DO_NOT_FORCE_COMPLETION));
+        heap_->local_embedder_heap_tracer()->Trace(wrapper_deadline);
       }
     } else {
       Step(step_size_in_bytes, completion_action, step_origin);

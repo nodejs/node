@@ -117,15 +117,15 @@ assertEquals(b4, dataview.getFloat64(8));
 writeFloat64(8, b4, true);
 assertEquals(b4, dataview.getFloat64(8, true));
 
-// TurboFan out of bounds read, throw with exception handler.
+// TurboFan out of bounds read, deopt.
 assertOptimized(writeInt8Handled);
 assertInstanceof(writeInt8Handled(24, 0), RangeError);
-assertOptimized(writeInt8Handled);
+assertUnoptimized(writeInt8Handled);
 
-// Without exception handler.
+// Without exception handler, deopt too.
 assertOptimized(writeUint8);
 assertThrows(() => writeUint8(24, 0));
-assertOptimized(writeUint8);
+assertUnoptimized(writeUint8);
 
 // None of the stores wrote out of bounds.
 var bytes = new Uint8Array(buffer);

@@ -41,7 +41,7 @@ TEST(FUZZ_decoder) {
   seed48(seed);
 
   Decoder<DispatchingDecoderVisitor> decoder;
-  Instruction buffer[kInstructionSize];
+  Instruction buffer[kInstrSize];
 
   for (int i = 0; i < instruction_count; i++) {
     uint32_t instr = static_cast<uint32_t>(mrand48());
@@ -61,7 +61,7 @@ TEST(FUZZ_disasm) {
 
   Decoder<DispatchingDecoderVisitor> decoder;
   DisassemblingDecoder disasm;
-  Instruction buffer[kInstructionSize];
+  Instruction buffer[kInstrSize];
 
   decoder.AppendVisitor(&disasm);
   for (int i = 0; i < instruction_count; i++) {

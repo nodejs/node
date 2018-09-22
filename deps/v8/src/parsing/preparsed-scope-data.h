@@ -12,7 +12,6 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects/shared-function-info.h"
-#include "src/parsing/preparse-data.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -212,10 +211,7 @@ class ConsumedPreParsedScopeData {
     uint8_t ReadUint8();
     uint8_t ReadQuarter();
 
-    size_t RemainingBytes() const {
-      DCHECK_NOT_NULL(data_);
-      return data_->length() - index_;
-    }
+    size_t RemainingBytes() const;
 
     // private:
     PodArray<uint8_t>* data_;

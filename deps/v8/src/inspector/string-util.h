@@ -67,8 +67,8 @@ v8::Local<v8::String> toV8StringInternalized(v8::Isolate*, const String16&);
 v8::Local<v8::String> toV8StringInternalized(v8::Isolate*, const char*);
 v8::Local<v8::String> toV8String(v8::Isolate*, const StringView&);
 // TODO(dgozman): rename to toString16.
-String16 toProtocolString(v8::Local<v8::String>);
-String16 toProtocolStringWithTypeCheck(v8::Local<v8::Value>);
+String16 toProtocolString(v8::Isolate*, v8::Local<v8::String>);
+String16 toProtocolStringWithTypeCheck(v8::Isolate*, v8::Local<v8::Value>);
 String16 toString16(const StringView&);
 StringView toStringView(const String16&);
 bool stringViewStartsWith(const StringView&, const char*);

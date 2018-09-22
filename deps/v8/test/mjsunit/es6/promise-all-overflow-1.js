@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
+load('test/mjsunit/test-async.js');
+
 // Make sure we properly throw a RangeError when overflowing the maximum
 // number of elements for Promise.all, which is capped at 2^21 bits right
 // now, since we store the indices as identity hash on the resolve element

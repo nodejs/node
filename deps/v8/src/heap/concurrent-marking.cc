@@ -310,7 +310,6 @@ class ConcurrentMarkingVisitor final
       VisitPointer(map, HeapObject::RawMaybeWeakField(
                             map, Map::kTransitionsOrPrototypeInfoOffset));
       VisitPointer(map, HeapObject::RawField(map, Map::kDependentCodeOffset));
-      VisitPointer(map, HeapObject::RawField(map, Map::kWeakCellCacheOffset));
       bailout_.Push(map);
     }
     return 0;
@@ -331,26 +330,6 @@ class ConcurrentMarkingVisitor final
     TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
     weak_objects_->transition_arrays.Push(task_id_, array);
     return size;
-  }
-
-  int VisitWeakCell(Map* map, WeakCell* object) {
-    if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object, object->map_slot());
-    if (!object->cleared()) {
-      HeapObject* value = HeapObject::cast(object->value());
-      if (marking_state_.IsBlackOrGrey(value)) {
-        // Weak cells with live values are directly processed here to reduce
-        // the processing time of weak cells during the main GC pause.
-        Object** slot = HeapObject::RawField(object, WeakCell::kValueOffset);
-        MarkCompactCollector::RecordSlot(object, slot, value);
-      } else {
-        // If we do not know about liveness of values of weak cells, we have to
-        // process them when we know the liveness of the whole transitive
-        // closure.
-        weak_objects_->weak_cells.Push(task_id_, object);
-      }
-    }
-    return WeakCell::BodyDescriptor::SizeOf(map, object);
   }
 
   int VisitJSWeakCollection(Map* map, JSWeakCollection* object) {
@@ -648,7 +627,6 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     bailout_->FlushToGlobal(task_id);
     on_hold_->FlushToGlobal(task_id);
 
-    weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
     weak_objects_->ephemeron_hash_tables.FlushToGlobal(task_id);
     weak_objects_->current_ephemerons.FlushToGlobal(task_id);

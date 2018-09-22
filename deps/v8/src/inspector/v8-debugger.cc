@@ -722,7 +722,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
     String16 name;
     v8::Local<v8::Value> maybe_name = iterator->GetFunctionDebugName();
     if (!maybe_name->IsUndefined()) {
-      name = toProtocolStringWithTypeCheck(maybe_name);
+      name = toProtocolStringWithTypeCheck(m_isolate, maybe_name);
     }
     v8::Local<v8::Object> object = iterator->GetObject();
     createDataProperty(context, scope,
@@ -1134,7 +1134,7 @@ std::shared_ptr<StackFrame> V8Debugger::symbolize(
   if (it != m_framesCache.end() && !it->second.expired()) {
     return std::shared_ptr<StackFrame>(it->second);
   }
-  std::shared_ptr<StackFrame> frame(new StackFrame(v8Frame));
+  std::shared_ptr<StackFrame> frame(new StackFrame(isolate(), v8Frame));
   // TODO(clemensh): Figure out a way to do this translation only right before
   // sending the stack trace over wire.
   if (v8Frame->IsWasm()) frame->translate(&m_wasmTranslation);

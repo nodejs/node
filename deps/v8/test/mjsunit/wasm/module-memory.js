@@ -160,13 +160,15 @@ function testOOBThrows() {
     assertEquals(0, write());
   }
 
-
+  // Note that this test might be run concurrently in multiple Isolates, which
+  // makes an exact comparison of the expected trap count unreliable. But is is
+  // still possible to check the lower bound for the expected trap count.
   for (offset = 65534; offset < 66536; offset++) {
     const trap_count = %GetWasmRecoveredTrapCount();
     assertTraps(kTrapMemOutOfBounds, read);
     assertTraps(kTrapMemOutOfBounds, write);
     if (%IsWasmTrapHandlerEnabled()) {
-      assertEquals(trap_count + 2, %GetWasmRecoveredTrapCount());
+      assertTrue(trap_count + 2 <= %GetWasmRecoveredTrapCount());
     }
   }
 }

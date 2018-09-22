@@ -251,6 +251,8 @@ namespace interpreter {
   V(CreateObjectLiteral, AccumulatorUse::kNone, OperandType::kIdx,             \
     OperandType::kIdx, OperandType::kFlag8, OperandType::kRegOut)              \
   V(CreateEmptyObjectLiteral, AccumulatorUse::kWrite)                          \
+  V(CloneObject, AccumulatorUse::kWrite, OperandType::kReg,                    \
+    OperandType::kFlag8, OperandType::kIdx)                                    \
                                                                                \
   /* Tagged templates */                                                       \
   V(GetTemplateObject, AccumulatorUse::kWrite, OperandType::kIdx,              \

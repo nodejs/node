@@ -4,7 +4,7 @@
 
 #include "src/execution.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/bootstrapper.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug.h"

@@ -18,6 +18,7 @@
 #include "src/globals.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
+#include "src/objects/shared-function-info.h"
 #include "src/source-position.h"
 #include "src/zone/zone-chunk-list.h"
 

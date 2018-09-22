@@ -122,8 +122,8 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
 }
 #elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
 // For x32 a 128-bit struct return is done as rax and rdx from the ObjectPair
-// are used in the full codegen and Crankshaft compiler. An alternative is
-// using uint64_t and modifying full codegen and Crankshaft compiler.
+// are used in generated code. An alternative is using uint64_t and modifying
+// generated code.
 struct ObjectPair {
   Object* x;
   uint32_t x_upper;

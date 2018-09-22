@@ -774,7 +774,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   }
 
   void ExecuteInstruction() {
-    DCHECK(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstructionSize));
+    DCHECK(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstrSize));
     CheckBreakNext();
     Decode(pc_);
     increment_pc();

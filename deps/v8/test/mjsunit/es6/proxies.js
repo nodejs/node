@@ -55,7 +55,7 @@ function TestWithFunctionProxy(test, x, y, z) {
 (function TestProxyProperties() {
   assertEquals(2, Proxy.length);
   assertEquals(Function.__proto__, Proxy.__proto__);
-  assertEquals(null, Proxy.prototype);
+  assertEquals(undefined, Proxy.prototype);
   assertEquals(undefined, Object.getOwnPropertyDescriptor(Proxy, "arguments"));
   assertThrows(() => Proxy.arguments, TypeError);
   assertEquals(undefined, Object.getOwnPropertyDescriptor(Proxy, "caller"));

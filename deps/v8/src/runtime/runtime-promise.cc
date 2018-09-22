@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/api.h"
-#include "src/arguments.h"
+#include "src/api-inl.h"
+#include "src/arguments-inl.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {

@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/conversions.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/regexp-utils.h"
-#include "src/string-builder.h"
+#include "src/runtime/runtime-utils.h"
+#include "src/string-builder-inl.h"
 #include "src/string-search.h"
 
 namespace v8 {

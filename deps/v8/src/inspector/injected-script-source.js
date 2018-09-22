@@ -401,9 +401,12 @@ InjectedScript.prototype = {
                     var isAccessorProperty = descriptor && ("get" in descriptor || "set" in descriptor);
                     if (accessorPropertiesOnly && !isAccessorProperty)
                         continue;
-                    if (descriptor && "get" in descriptor && "set" in descriptor && name !== "__proto__" &&
+                    // Special case for Symbol.prototype.description where the receiver of the getter is not an actual object.
+                    // Should only occur for nested previews.
+                    var isSymbolDescription = isSymbol(object) && name === 'description';
+                    if (isSymbolDescription || (descriptor && "get" in descriptor && "set" in descriptor && name !== "__proto__" &&
                             InjectedScriptHost.formatAccessorsAsProperties(object, descriptor.get) &&
-                            !doesAttributeHaveObservableSideEffectOnGet(object, name)) {
+                            !doesAttributeHaveObservableSideEffectOnGet(object, name))) {
                         descriptor.value = object[property];
                         descriptor.isOwn = true;
                         delete descriptor.get;
@@ -594,6 +597,9 @@ InjectedScript.prototype = {
             return toString(obj);
 
         if (subtype === "node") {
+            // We should warmup blink dom binding before calling anything,
+            // see (crbug.com/827585) for details.
+            InjectedScriptHost.getOwnPropertyDescriptor(/** @type {!Object} */(obj), "nodeName");
             var description = "";
             var nodeName = InjectedScriptHost.getProperty(obj, "nodeName");
             if (nodeName) {

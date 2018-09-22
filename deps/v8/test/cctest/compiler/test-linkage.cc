@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
@@ -35,8 +35,9 @@ static Handle<JSFunction> Compile(const char* source) {
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
-          source_code, Compiler::ScriptDetails(), v8::ScriptOriginOptions(),
-          nullptr, nullptr, v8::ScriptCompiler::kNoCompileOptions,
+          isolate, source_code, Compiler::ScriptDetails(),
+          v8::ScriptOriginOptions(), nullptr, nullptr,
+          v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(

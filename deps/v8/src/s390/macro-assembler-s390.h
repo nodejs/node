@@ -36,6 +36,7 @@ constexpr Register kJavaScriptCallExtraArg1Register = r4;
 constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r3;
 constexpr Register kRuntimeCallArgCountRegister = r2;
+constexpr Register kRuntimeCallArgvRegister = r4;
 constexpr Register kWasmInstanceRegister = r6;
 
 // ----------------------------------------------------------------------------
@@ -56,14 +57,6 @@ inline MemOperand RootMemOperand(Heap::RootListIndex index) {
   return MemOperand(kRootRegister, index << kPointerSizeLog2);
 }
 
-// Flags used for AllocateHeapNumber
-enum TaggingMode {
-  // Tag the result.
-  TAG_RESULT,
-  // Don't tag
-  DONT_TAG_RESULT
-};
-
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
@@ -74,22 +67,8 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
                                    Register reg5 = no_reg,
                                    Register reg6 = no_reg);
 
-#ifdef DEBUG
-bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
-                Register reg4 = no_reg, Register reg5 = no_reg,
-                Register reg6 = no_reg, Register reg7 = no_reg,
-                Register reg8 = no_reg, Register reg9 = no_reg,
-                Register reg10 = no_reg);
-bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
-                DoubleRegister reg3 = no_dreg, DoubleRegister reg4 = no_dreg,
-                DoubleRegister reg5 = no_dreg, DoubleRegister reg6 = no_dreg,
-                DoubleRegister reg7 = no_dreg, DoubleRegister reg8 = no_dreg,
-                DoubleRegister reg9 = no_dreg, DoubleRegister reg10 = no_dreg);
-#endif
-
 // These exist to provide portability between 32 and 64bit
 #if V8_TARGET_ARCH_S390X
-#define Div divd
 
 // The length of the arithmetic operation is the length
 // of the register.
@@ -172,7 +151,7 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
 
 #endif
 
-class TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int buffer_size,
@@ -184,10 +163,6 @@ class TurboAssembler : public TurboAssemblerBase {
                               int constant_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
-
-  // Returns the size of a call in instructions.
-  static int CallSize(Register target);
-  int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target, Condition cond = al);
@@ -203,9 +178,6 @@ class TurboAssembler : public TurboAssemblerBase {
 
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(Handle<Code> code,
-               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-               Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             Condition cond = al);
   void Ret() { b(r14); }
@@ -680,11 +652,6 @@ class TurboAssembler : public TurboAssemblerBase {
     mov(kRootRegister, Operand(roots_array_start));
     AddP(kRootRegister, kRootRegister, Operand(kRootRegisterBias));
   }
-
-  // Flush the I-cache from asm code. You should use CpuFeatures::FlushICache
-  // from C.
-  // Does not handle errors.
-  void FlushICache(Register address, size_t size, Register scratch);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
   void CanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
@@ -1300,13 +1267,6 @@ class MacroAssembler : public TurboAssembler {
 
   void IncrementalMarkingRecordWriteHelper(Register object, Register value,
                                            Register address);
-
-  // Record in the remembered set the fact that we have a pointer to new space
-  // at the address pointed to by the addr register.  Only works if addr is not
-  // in new space.
-  void RememberedSetHelper(Register object,  // Used for debug code.
-                           Register addr, Register scratch,
-                           SaveFPRegsMode save_fp);
 
   void CallJSEntry(Register target);
   static int CallSizeNotPredictableCodeSize(Address target,

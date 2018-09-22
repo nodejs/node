@@ -11,12 +11,6 @@ for (let i = 0; i < kArraySize; ++i) {
 
 let array_to_sort = [];
 
-function assert(condition, message) {
-  if (!condition) {
-    throw Error(message);
-  }
-}
-
 function AssertPackedSmiElements() {
   assert(%HasFastPackedElements(array_to_sort) &&
          %HasSmiElements(array_to_sort),

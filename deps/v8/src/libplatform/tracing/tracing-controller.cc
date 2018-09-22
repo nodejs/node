@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "include/libplatform/v8-tracing.h"
@@ -41,7 +42,20 @@ v8::base::AtomicWord g_category_index = g_num_builtin_categories;
 
 TracingController::TracingController() {}
 
-TracingController::~TracingController() { StopTracing(); }
+TracingController::~TracingController() {
+  StopTracing();
+
+  {
+    // Free memory for category group names allocated via strdup.
+    base::LockGuard<base::Mutex> lock(mutex_.get());
+    for (size_t i = g_category_index - 1; i >= g_num_builtin_categories; --i) {
+      const char* group = g_category_groups[i];
+      g_category_groups[i] = nullptr;
+      free(const_cast<char*>(group));
+    }
+    g_category_index = g_num_builtin_categories;
+  }
+}
 
 void TracingController::Initialize(TraceBuffer* trace_buffer) {
   trace_buffer_.reset(trace_buffer);
@@ -189,17 +203,21 @@ const uint8_t* TracingController::GetCategoryGroupEnabledInternal(
   DCHECK(!strchr(category_group, '"'));
 
   // The g_category_groups is append only, avoid using a lock for the fast path.
-  size_t current_category_index = v8::base::Acquire_Load(&g_category_index);
+  size_t category_index = base::Acquire_Load(&g_category_index);
 
   // Search for pre-existing category group.
-  for (size_t i = 0; i < current_category_index; ++i) {
+  for (size_t i = 0; i < category_index; ++i) {
     if (strcmp(g_category_groups[i], category_group) == 0) {
       return &g_category_group_enabled[i];
     }
   }
 
+  // Slow path. Grab the lock.
+  base::LockGuard<base::Mutex> lock(mutex_.get());
+
+  // Check the list again with lock in hand.
   unsigned char* category_group_enabled = nullptr;
-  size_t category_index = base::Acquire_Load(&g_category_index);
+  category_index = base::Acquire_Load(&g_category_index);
   for (size_t i = 0; i < category_index; ++i) {
     if (strcmp(g_category_groups[i], category_group) == 0) {
       return &g_category_group_enabled[i];

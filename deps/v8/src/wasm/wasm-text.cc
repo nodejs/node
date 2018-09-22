@@ -100,7 +100,8 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+                                                     i.pc());
         os << WasmOpcodes::OpcodeName(opcode);
         if (imm.type == kWasmVar) {
           os << " (type " << imm.sig_index << ")";

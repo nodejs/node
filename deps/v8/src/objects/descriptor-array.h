@@ -107,6 +107,10 @@ class DescriptorArray : public WeakFixedArray {
       Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
       PropertyAttributes attributes, int slack = 0);
 
+  static Handle<DescriptorArray> CopyForFastObjectClone(
+      Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
+      int slack = 0);
+
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort();
 

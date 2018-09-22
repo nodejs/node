@@ -21,7 +21,7 @@ namespace compiler {
 TypedOptimization::TypedOptimization(Editor* editor,
                                      CompilationDependencies* dependencies,
                                      JSGraph* jsgraph,
-                                     const JSHeapBroker* js_heap_broker)
+                                     JSHeapBroker* js_heap_broker)
     : AdvancedReducer(editor),
       dependencies_(dependencies),
       jsgraph_(jsgraph),
@@ -89,8 +89,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
 
 namespace {
 
-base::Optional<MapRef> GetStableMapFromObjectType(
-    const JSHeapBroker* js_heap_broker, Type object_type) {
+base::Optional<MapRef> GetStableMapFromObjectType(JSHeapBroker* js_heap_broker,
+                                                  Type object_type) {
   if (object_type.IsHeapConstant()) {
     HeapObjectRef object = object_type.AsHeapConstant()->Ref();
     MapRef object_map = object.map();

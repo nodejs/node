@@ -124,17 +124,85 @@ class LinkageAllocator {
                              const DoubleRegister* fp, int fpc)
       : gp_count_(gpc), gp_regs_(gp), fp_count_(fpc), fp_regs_(fp) {}
 
-  bool has_more_gp_regs() const { return gp_offset_ < gp_count_; }
-  bool has_more_fp_regs() const { return fp_offset_ < fp_count_; }
-
-  Register NextGpReg() {
-    DCHECK_LT(gp_offset_, gp_count_);
-    return gp_regs_[gp_offset_++];
+  bool CanAllocateGP() const { return gp_offset_ < gp_count_; }
+  bool CanAllocateFP(MachineRepresentation rep) const {
+#if V8_TARGET_ARCH_ARM
+    switch (rep) {
+      case MachineRepresentation::kFloat32:
+        return extra_float_reg >= 0 || fp_offset_ < fp_count_;
+      case MachineRepresentation::kFloat64:
+        return extra_double_reg >= 0 || fp_offset_ < fp_count_;
+      case MachineRepresentation::kSimd128:
+        return ((fp_offset_ + 1) & ~1) + 1 < fp_count_;
+      default:
+        UNREACHABLE();
+        return false;
+    }
+#endif
+    return fp_offset_ < fp_count_;
   }
 
-  DoubleRegister NextFpReg() {
+  int NextGpReg() {
+    DCHECK_LT(gp_offset_, gp_count_);
+    return gp_regs_[gp_offset_++].code();
+  }
+
+  int NextFpReg(MachineRepresentation rep) {
+#if V8_TARGET_ARCH_ARM
+    switch (rep) {
+      case MachineRepresentation::kFloat32: {
+        // Use the extra S-register if we can.
+        if (extra_float_reg >= 0) {
+          int reg_code = extra_float_reg;
+          extra_float_reg = -1;
+          return reg_code;
+        }
+        // Allocate a D-register and split into 2 float registers.
+        int d_reg_code = NextFpReg(MachineRepresentation::kFloat64);
+        DCHECK_GT(16, d_reg_code);  // D-registers 16 - 31 can't split.
+        int reg_code = d_reg_code * 2;
+        // Save the extra S-register.
+        DCHECK_EQ(-1, extra_float_reg);
+        extra_float_reg = reg_code + 1;
+        return reg_code;
+      }
+      case MachineRepresentation::kFloat64: {
+        // Use an extra D-register if we can.
+        if (extra_double_reg >= 0) {
+          int reg_code = extra_double_reg;
+          extra_double_reg = -1;
+          return reg_code;
+        }
+        DCHECK_LT(fp_offset_, fp_count_);
+        return fp_regs_[fp_offset_++].code();
+      }
+      case MachineRepresentation::kSimd128: {
+        // Q-register must be an even-odd pair, so we must try to allocate at
+        // the end, not using extra_double_reg. If we are at an odd D-register,
+        // skip past it (saving it to extra_double_reg).
+        DCHECK_LT(((fp_offset_ + 1) & ~1) + 1, fp_count_);
+        int d_reg1_code = fp_regs_[fp_offset_++].code();
+        if (d_reg1_code % 2 != 0) {
+          // If we're misaligned then extra_double_reg must have been consumed.
+          DCHECK_EQ(-1, extra_double_reg);
+          int odd_double_reg = d_reg1_code;
+          d_reg1_code = fp_regs_[fp_offset_++].code();
+          extra_double_reg = odd_double_reg;
+        }
+        // Combine the current D-register with the next to form a Q-register.
+        int d_reg2_code = fp_regs_[fp_offset_++].code();
+        DCHECK_EQ(0, d_reg1_code % 2);
+        DCHECK_EQ(d_reg1_code + 1, d_reg2_code);
+        USE(d_reg2_code);
+        return d_reg1_code / 2;
+      }
+      default:
+        UNREACHABLE();
+    }
+#else
     DCHECK_LT(fp_offset_, fp_count_);
-    return fp_regs_[fp_offset_++];
+    return fp_regs_[fp_offset_++].code();
+#endif
   }
 
   // Stackslots are counted upwards starting from 0 (or the offset set by
@@ -171,6 +239,14 @@ class LinkageAllocator {
   const int fp_count_;
   int fp_offset_ = 0;
   const DoubleRegister* const fp_regs_;
+
+#if V8_TARGET_ARCH_ARM
+  // ARM FP register aliasing may require splitting or merging double registers.
+  // Track fragments of registers below fp_offset_ here. There can only be one
+  // extra float and double register.
+  int extra_float_reg = -1;
+  int extra_double_reg = -1;
+#endif
 
   int stack_offset_ = 0;
 };

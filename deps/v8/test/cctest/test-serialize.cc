@@ -31,7 +31,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
@@ -40,6 +40,8 @@
 #include "src/heap/spaces.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/builtin-deserializer.h"
 #include "src/snapshot/builtin-serializer.h"
@@ -372,7 +374,6 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
     // - NullValue
     // - Internalized one byte string
     // - Map for Internalized one byte string
-    // - WeakCell
     // - TheHoleValue
     // - HeapNumber
     // HeapNumber objects require kDoubleUnaligned on 32-bit
@@ -381,7 +382,6 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
     v8::internal::Handle<Map> map(
         ReadOnlyRoots(internal_isolate).one_byte_internalized_string_map(),
         internal_isolate);
-    Map::WeakCellForMap(internal_isolate, map);
     // Need to avoid DCHECKs inside SnapshotCreator.
     snapshot_creator.SetDefaultContext(v8::Context::New(isolate));
   }
@@ -1365,9 +1365,9 @@ static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
     ScriptData* cached_data, v8::ScriptCompiler::CompileOptions options) {
   return Compiler::GetSharedFunctionInfoForScript(
-             source, Compiler::ScriptDetails(name), v8::ScriptOriginOptions(),
-             nullptr, cached_data, options, ScriptCompiler::kNoCacheNoReason,
-             NOT_NATIVES_CODE)
+             isolate, source, Compiler::ScriptDetails(name),
+             v8::ScriptOriginOptions(), nullptr, cached_data, options,
+             ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
       .ToHandleChecked();
 }
 
@@ -1376,9 +1376,9 @@ static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
     ScriptData** script_data, v8::ScriptCompiler::CompileOptions options) {
   Handle<SharedFunctionInfo> sfi =
       Compiler::GetSharedFunctionInfoForScript(
-          source, Compiler::ScriptDetails(name), v8::ScriptOriginOptions(),
-          nullptr, nullptr, options, ScriptCompiler::kNoCacheNoReason,
-          NOT_NATIVES_CODE)
+          isolate, source, Compiler::ScriptDetails(name),
+          v8::ScriptOriginOptions(), nullptr, nullptr, options,
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
   std::unique_ptr<ScriptCompiler::CachedData> cached_data(
       ScriptCompiler::CreateCodeCache(ToApiHandle<UnboundScript>(sfi)));
@@ -1439,6 +1439,13 @@ void TestCodeSerializerOnePlusOneImpl() {
 }
 
 TEST(CodeSerializerOnePlusOne) { TestCodeSerializerOnePlusOneImpl(); }
+
+TEST(CodeSerializerOnePlusOneWithDebugger) {
+  v8::HandleScope scope(CcTest::isolate());
+  static v8::debug::DebugDelegate dummy_delegate;
+  v8::debug::SetDebugDelegate(CcTest::isolate(), &dummy_delegate);
+  TestCodeSerializerOnePlusOneImpl();
+}
 
 TEST(CodeSerializerOnePlusOne1) {
   FLAG_serialization_chunk_size = 1;
@@ -1903,9 +1910,9 @@ TEST(CodeSerializerExternalString) {
 
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(one_byte_string)
-      ->set_resource(nullptr);
+      ->SetResource(isolate, nullptr);
   i::Handle<i::ExternalTwoByteString>::cast(two_byte_string)
-      ->set_resource(nullptr);
+      ->SetResource(isolate, nullptr);
   delete cache;
 }
 
@@ -1963,7 +1970,8 @@ TEST(CodeSerializerLargeExternalString) {
   CHECK_EQ(42.0, copy_result->Number());
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalOneByteString>::cast(name)->set_resource(nullptr);
+  i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(isolate,
+                                                               nullptr);
   delete cache;
   string.Dispose();
 }
@@ -2014,7 +2022,8 @@ TEST(CodeSerializerExternalScriptName) {
   CHECK_EQ(10.0, copy_result->Number());
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalOneByteString>::cast(name)->set_resource(nullptr);
+  i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(isolate,
+                                                               nullptr);
   delete cache;
 }
 

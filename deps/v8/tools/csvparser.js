@@ -49,6 +49,9 @@ class CsvParser {
       if (escapeIdentifier == 'n') {
         result += '\n';
         nextPos = pos;
+      } else if (escapeIdentifier == '\\') {
+        result += '\\';
+        nextPos = pos;
       } else {
         if (escapeIdentifier == 'x') {
           // \x00 ascii range escapes consume 2 chars.

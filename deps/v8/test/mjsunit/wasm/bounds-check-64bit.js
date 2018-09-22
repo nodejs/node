@@ -21,13 +21,14 @@ builder.addFunction('load', kSig_i_ii)
 const module = builder.instantiate();
 let start = 12;
 let address = start;
-for (i = 1; i < 64; i++) {
+for (i = 0; i < 64; i++) {
   // This is the address which will be accessed in the code. We cannot use
   // shifts to calculate the address because JS shifts work on 32-bit integers.
-  address = (address * 2) % 4294967296;
+  print(`address=${address}`);
   if (address < kPageSize) {
     assertEquals(0, module.exports.load(start, i));
   } else {
     assertTraps(kTrapMemOutOfBounds, _ => { module.exports.load(start, i);});
   }
+  address = (address * 2) % 4294967296;
 }

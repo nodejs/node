@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/builtins/builtins-utils.h"
-
 #include "src/counters.h"
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
@@ -31,12 +30,11 @@ BUILTIN(JsonParse) {
 // ES6 section 24.3.2 JSON.stringify.
 BUILTIN(JsonStringify) {
   HandleScope scope(isolate);
-  JsonStringifier stringifier(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   Handle<Object> replacer = args.atOrUndefined(isolate, 2);
   Handle<Object> indent = args.atOrUndefined(isolate, 3);
   RETURN_RESULT_OR_FAILURE(isolate,
-                           stringifier.Stringify(object, replacer, indent));
+                           JsonStringify(isolate, object, replacer, indent));
 }
 
 }  // namespace internal

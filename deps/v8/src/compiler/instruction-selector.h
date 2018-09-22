@@ -731,6 +731,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,
                                         ArchOpcode uint64_op);
+  void VisitWord64AtomicNarrowBinop(Node* node, ArchOpcode uint8_op,
+                                    ArchOpcode uint16_op, ArchOpcode uint32_op);
 
   // ===========================================================================
 

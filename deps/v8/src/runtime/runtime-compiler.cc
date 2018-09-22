@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
@@ -12,6 +10,9 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 

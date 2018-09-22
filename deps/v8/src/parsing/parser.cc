@@ -412,7 +412,8 @@ Parser::Parser(ParseInfo* info)
                          info->runtime_call_stats(), info->logger(),
                          info->script().is_null() ? -1 : info->script()->id(),
                          info->is_module(), true),
-      scanner_(info->unicode_cache()),
+      scanner_(info->unicode_cache(), info->character_stream(),
+               info->is_module()),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
@@ -507,7 +508,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // Initialize parser state.
   DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
 
-  scanner_.Initialize(info->character_stream(), info->is_module());
+  scanner_.Initialize();
   FunctionLiteral* result = DoParseProgram(isolate, info);
   MaybeResetCharacterStream(info, result);
 
@@ -701,7 +702,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   // Initialize parser state.
   Handle<String> name(shared_info->Name(), isolate);
   info->set_function_name(ast_value_factory()->GetString(name));
-  scanner_.Initialize(info->character_stream(), info->is_module());
+  scanner_.Initialize();
 
   FunctionLiteral* result =
       DoParseFunction(isolate, info, info->function_name());
@@ -775,7 +776,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 
     if (IsArrowFunction(kind)) {
       if (IsAsyncFunction(kind)) {
-        DCHECK(!scanner()->HasAnyLineTerminatorAfterNext());
+        DCHECK(!scanner()->HasLineTerminatorAfterNext());
         if (!Check(Token::ASYNC)) {
           CHECK(stack_overflow());
           return nullptr;
@@ -798,7 +799,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
       ParserFormalParameters formals(scope);
       // The outer FunctionState should not contain destructuring assignments.
       DCHECK_EQ(0,
-                function_state.destructuring_assignments_to_rewrite().length());
+                function_state.destructuring_assignments_to_rewrite().size());
       {
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Enter arrow function
@@ -943,10 +944,8 @@ const AstRawString* Parser::ParseModuleSpecifier(bool* ok) {
   return GetSymbol();
 }
 
-void Parser::ParseExportClause(ZonePtrList<const AstRawString>* export_names,
-                               ZoneList<Scanner::Location>* export_locations,
-                               ZonePtrList<const AstRawString>* local_names,
-                               Scanner::Location* reserved_loc, bool* ok) {
+ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
+    Scanner::Location* reserved_loc, bool* ok) {
   // ExportClause :
   //   '{' '}'
   //   '{' ExportsList '}'
@@ -959,8 +958,10 @@ void Parser::ParseExportClause(ZonePtrList<const AstRawString>* export_names,
   // ExportSpecifier :
   //   IdentifierName
   //   IdentifierName 'as' IdentifierName
+  ZoneChunkList<ExportClauseData>* export_data =
+      new (zone()) ZoneChunkList<ExportClauseData>(zone());
 
-  Expect(Token::LBRACE, CHECK_OK_VOID);
+  Expect(Token::LBRACE, CHECK_OK);
 
   Token::Value name_tok;
   while ((name_tok = peek()) != Token::RBRACE) {
@@ -971,11 +972,11 @@ void Parser::ParseExportClause(ZonePtrList<const AstRawString>* export_names,
                              parsing_module_)) {
       *reserved_loc = scanner()->location();
     }
-    const AstRawString* local_name = ParseIdentifierName(CHECK_OK_VOID);
+    const AstRawString* local_name = ParseIdentifierName(CHECK_OK);
     const AstRawString* export_name = nullptr;
     Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(Token::AS)) {
-      export_name = ParseIdentifierName(CHECK_OK_VOID);
+      export_name = ParseIdentifierName(CHECK_OK);
       // Set the location to the whole "a as b" string, so that it makes sense
       // both for errors due to "a" and for errors due to "b".
       location.end_pos = scanner()->location().end_pos;
@@ -983,14 +984,13 @@ void Parser::ParseExportClause(ZonePtrList<const AstRawString>* export_names,
     if (export_name == nullptr) {
       export_name = local_name;
     }
-    export_names->Add(export_name, zone());
-    local_names->Add(local_name, zone());
-    export_locations->Add(location, zone());
+    export_data->push_back({export_name, local_name, location});
     if (peek() == Token::RBRACE) break;
-    Expect(Token::COMMA, CHECK_OK_VOID);
+    Expect(Token::COMMA, CHECK_OK);
   }
 
-  Expect(Token::RBRACE, CHECK_OK_VOID);
+  Expect(Token::RBRACE, CHECK_OK);
+  return export_data;
 }
 
 ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos,
@@ -1179,7 +1179,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
 
     case Token::ASYNC:
       if (PeekAhead() == Token::FUNCTION &&
-          !scanner()->HasAnyLineTerminatorAfterNext()) {
+          !scanner()->HasLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
         result = ParseAsyncFunctionDeclaration(&local_names, true, CHECK_OK);
         break;
@@ -1264,11 +1264,8 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       // encountered, and then throw a SyntaxError if we are in the
       // non-FromClause case.
       Scanner::Location reserved_loc = Scanner::Location::invalid();
-      ZonePtrList<const AstRawString> export_names(1, zone());
-      ZoneList<Scanner::Location> export_locations(1, zone());
-      ZonePtrList<const AstRawString> original_names(1, zone());
-      ParseExportClause(&export_names, &export_locations, &original_names,
-                        &reserved_loc, CHECK_OK);
+      ZoneChunkList<ExportClauseData>* export_data =
+          ParseExportClause(&reserved_loc, CHECK_OK);
       const AstRawString* module_specifier = nullptr;
       Scanner::Location specifier_loc;
       if (CheckContextualKeyword(Token::FROM)) {
@@ -1281,21 +1278,18 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
         return nullptr;
       }
       ExpectSemicolon(CHECK_OK);
-      const int length = export_names.length();
-      DCHECK_EQ(length, original_names.length());
-      DCHECK_EQ(length, export_locations.length());
       if (module_specifier == nullptr) {
-        for (int i = 0; i < length; ++i) {
-          module()->AddExport(original_names[i], export_names[i],
-                              export_locations[i], zone());
+        for (const ExportClauseData& data : *export_data) {
+          module()->AddExport(data.local_name, data.export_name, data.location,
+                              zone());
         }
-      } else if (length == 0) {
+      } else if (export_data->is_empty()) {
         module()->AddEmptyImport(module_specifier, specifier_loc);
       } else {
-        for (int i = 0; i < length; ++i) {
-          module()->AddExport(original_names[i], export_names[i],
-                              module_specifier, export_locations[i],
-                              specifier_loc, zone());
+        for (const ExportClauseData& data : *export_data) {
+          module()->AddExport(data.local_name, data.export_name,
+                              module_specifier, data.location, specifier_loc,
+                              zone());
         }
       }
       return factory()->NewEmptyStatement(pos);
@@ -1410,7 +1404,7 @@ Block* Parser::BuildInitializationBlock(
     DeclarationParsingResult* parsing_result,
     ZonePtrList<const AstRawString>* names, bool* ok) {
   Block* result = factory()->NewBlock(1, true);
-  for (auto declaration : parsing_result->declarations) {
+  for (const auto& declaration : parsing_result->declarations) {
     DeclareAndInitializeVariables(result, &(parsing_result->descriptor),
                                   &declaration, names, CHECK_OK);
   }
@@ -1473,29 +1467,40 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos, bool* ok) {
       pos);
 }
 
-ZonePtrList<const AstRawString>* Parser::DeclareLabel(
-    ZonePtrList<const AstRawString>* labels, VariableProxy* var, bool* ok) {
+void Parser::DeclareLabel(ZonePtrList<const AstRawString>** labels,
+                          ZonePtrList<const AstRawString>** own_labels,
+                          VariableProxy* var, bool* ok) {
   DCHECK(IsIdentifier(var));
   const AstRawString* label = var->raw_name();
+
   // TODO(1240780): We don't check for redeclaration of labels
   // during preparsing since keeping track of the set of active
   // labels requires nontrivial changes to the way scopes are
   // structured.  However, these are probably changes we want to
   // make later anyway so we should go back and fix this then.
-  if (ContainsLabel(labels, label) || TargetStackContainsLabel(label)) {
+  if (ContainsLabel(*labels, label) || TargetStackContainsLabel(label)) {
     ReportMessage(MessageTemplate::kLabelRedeclaration, label);
     *ok = false;
-    return nullptr;
+    return;
   }
-  if (labels == nullptr) {
-    labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+
+  // Add {label} to both {labels} and {own_labels}.
+  if (*labels == nullptr) {
+    DCHECK_NULL(*own_labels);
+    *labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+    *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+  } else {
+    if (*own_labels == nullptr) {
+      *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+    }
   }
-  labels->Add(label, zone());
+  (*labels)->Add(label, zone());
+  (*own_labels)->Add(label, zone());
+
   // Remove the "ghost" variable that turned out to be a label
   // from the top scope. This way, we don't try to resolve it
   // during the scope processing.
   scope()->RemoveUnresolved(var);
-  return labels;
 }
 
 bool Parser::ContainsLabel(ZonePtrList<const AstRawString>* labels,
@@ -2194,7 +2199,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   // need to know about it. This should be safe because we don't run any code
   // in this function that looks up break targets.
   ForStatement* outer_loop =
-      factory()->NewForStatement(nullptr, kNoSourcePosition);
+      factory()->NewForStatement(nullptr, nullptr, kNoSourcePosition);
   outer_block->statements()->Add(outer_loop, zone());
   outer_block->set_scope(scope());
 
@@ -3396,9 +3401,10 @@ IterationStatement* Parser::LookupContinueTarget(const AstRawString* label,
     if (stat == nullptr) continue;
 
     DCHECK(stat->is_target_for_anonymous());
-    if (anonymous || ContainsLabel(stat->labels(), label)) {
+    if (anonymous || ContainsLabel(stat->own_labels(), label)) {
       return stat;
     }
+    if (ContainsLabel(stat->labels(), label)) break;
   }
   return nullptr;
 }
@@ -3442,7 +3448,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
 
-  scanner_.Initialize(info->character_stream(), info->is_module());
+  scanner_.Initialize();
   DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);
@@ -3652,10 +3658,11 @@ void Parser::RewriteAsyncFunctionBody(ZonePtrList<Statement>* body,
 void Parser::RewriteDestructuringAssignments() {
   const auto& assignments =
       function_state_->destructuring_assignments_to_rewrite();
-  for (int i = assignments.length() - 1; i >= 0; --i) {
+  auto it = assignments.rbegin();
+  for (; it != assignments.rend(); ++it) {
     // Rewrite list in reverse, so that nested assignment patterns are rewritten
     // correctly.
-    RewritableExpression* to_rewrite = assignments[i];
+    RewritableExpression* to_rewrite = *it;
     DCHECK_NOT_NULL(to_rewrite);
     if (!to_rewrite->is_rewritten()) {
       // Since this function is called at the end of parsing the program,

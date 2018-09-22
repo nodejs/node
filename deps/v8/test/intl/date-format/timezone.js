@@ -31,11 +31,15 @@
 // var df = Intl.DateTimeFormat();
 // assertEquals(getDefaultTimeZone(), df.resolvedOptions().timeZone);
 
-df = Intl.DateTimeFormat(undefined, {timeZone: 'UtC'});
-assertEquals('UTC', df.resolvedOptions().timeZone);
+[
+  'UtC', 'gmt', 'Etc/UTC', 'Etc/GMT', 'Etc/GMT0', 'Etc/GMT+0',
+  'etc/gmt-0', 'etc/zulu', 'Etc/universal', 'etc/greenwich'
+].forEach((timezone) => {
+  const df = Intl.DateTimeFormat(undefined, {timeZone: timezone});
+  assertEquals('UTC', df.resolvedOptions().timeZone);
+})
 
-df = Intl.DateTimeFormat(undefined, {timeZone: 'gmt'});
-assertEquals('UTC', df.resolvedOptions().timeZone);
+// See test/mjsunit/regress/regress-crbug-364374.js for additional/ tests.
 
 df = Intl.DateTimeFormat(undefined, {timeZone: 'America/Los_Angeles'});
 assertEquals('America/Los_Angeles', df.resolvedOptions().timeZone);
@@ -43,22 +47,29 @@ assertEquals('America/Los_Angeles', df.resolvedOptions().timeZone);
 df = Intl.DateTimeFormat(undefined, {timeZone: 'Europe/Belgrade'});
 assertEquals('Europe/Belgrade', df.resolvedOptions().timeZone);
 
-// Check Etc/XXX variants. They should work too.
-df = Intl.DateTimeFormat(undefined, {timeZone: 'Etc/UTC'});
-assertEquals('UTC', df.resolvedOptions().timeZone);
-
-df = Intl.DateTimeFormat(undefined, {timeZone: 'Etc/GMT'});
-assertEquals('UTC', df.resolvedOptions().timeZone);
-
 df = Intl.DateTimeFormat(undefined, {timeZone: 'euRope/beLGRade'});
 assertEquals('Europe/Belgrade', df.resolvedOptions().timeZone);
+
+// Etc/GMT-14 to Etc/GMT+12 are valid.
+df = Intl.DateTimeFormat(undefined, {timeZone: 'etc/gmt+12'});
+assertEquals('Etc/GMT+12', df.resolvedOptions().timeZone);
+
+df = Intl.DateTimeFormat(undefined, {timeZone: 'etc/gmt+9'});
+assertEquals('Etc/GMT+9', df.resolvedOptions().timeZone);
+
+df = Intl.DateTimeFormat(undefined, {timeZone: 'etc/gmt-9'});
+assertEquals('Etc/GMT-9', df.resolvedOptions().timeZone);
+
+df = Intl.DateTimeFormat(undefined, {timeZone: 'etc/gmt-14'});
+assertEquals('Etc/GMT-14', df.resolvedOptions().timeZone);
+
+assertThrows('Intl.DateTimeFormat(undefined, {timeZone: \'Etc/GMT+13\'})');
 
 // : + - are not allowed, only / _ are.
 assertThrows('Intl.DateTimeFormat(undefined, {timeZone: \'GMT+07:00\'})');
 assertThrows('Intl.DateTimeFormat(undefined, {timeZone: \'GMT+0700\'})');
 assertThrows('Intl.DateTimeFormat(undefined, {timeZone: \'GMT-05:00\'})');
 assertThrows('Intl.DateTimeFormat(undefined, {timeZone: \'GMT-0500\'})');
-assertThrows('Intl.DateTimeFormat(undefined, {timeZone: \'Etc/GMT+0\'})');
 assertThrows('Intl.DateTimeFormat(undefined, ' +
     '{timeZone: \'America/Los-Angeles\'})');
 

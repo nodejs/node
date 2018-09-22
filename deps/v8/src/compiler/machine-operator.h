@@ -110,7 +110,7 @@ V8_EXPORT_PRIVATE StackSlotRepresentation const& StackSlotRepresentationOf(
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op)
     V8_WARN_UNUSED_RESULT;
 
-MachineType AtomicOpRepresentationOf(Operator const* op) V8_WARN_UNUSED_RESULT;
+MachineType AtomicOpType(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
@@ -140,8 +140,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord64Popcnt = 1u << 15,
     kWord32ReverseBits = 1u << 16,
     kWord64ReverseBits = 1u << 17,
-    kWord32ReverseBytes = 1u << 18,
-    kWord64ReverseBytes = 1u << 19,
     kInt32AbsWithOverflow = 1u << 20,
     kInt64AbsWithOverflow = 1u << 21,
     kSpeculationFence = 1u << 22,
@@ -150,9 +148,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
         kFloat64RoundTiesAway | kFloat32RoundTiesEven | kFloat64RoundTiesEven |
         kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
-        kWord32ReverseBits | kWord64ReverseBits | kWord32ReverseBytes |
-        kWord64ReverseBytes | kInt32AbsWithOverflow | kInt64AbsWithOverflow |
-        kSpeculationFence
+        kWord32ReverseBits | kWord64ReverseBits | kInt32AbsWithOverflow |
+        kInt64AbsWithOverflow | kSpeculationFence
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -238,8 +235,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const OptionalOperator Word64Popcnt();
   const OptionalOperator Word32ReverseBits();
   const OptionalOperator Word64ReverseBits();
-  const OptionalOperator Word32ReverseBytes();
-  const OptionalOperator Word64ReverseBytes();
+  const Operator* Word32ReverseBytes();
+  const Operator* Word64ReverseBytes();
   const OptionalOperator Int32AbsWithOverflow();
   const OptionalOperator Int64AbsWithOverflow();
 
@@ -624,33 +621,66 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // atomic-store [base + index], value
   const Operator* Word64AtomicStore(MachineRepresentation rep);
   // atomic-exchange [base + index], value
-  const Operator* Word32AtomicExchange(MachineType rep);
+  const Operator* Word32AtomicExchange(MachineType type);
   // atomic-exchange [base + index], value
-  const Operator* Word64AtomicExchange(MachineType rep);
+  const Operator* Word64AtomicExchange(MachineType type);
   // atomic-compare-exchange [base + index], old_value, new_value
-  const Operator* Word32AtomicCompareExchange(MachineType rep);
+  const Operator* Word32AtomicCompareExchange(MachineType type);
   // atomic-compare-exchange [base + index], old_value, new_value
-  const Operator* Word64AtomicCompareExchange(MachineType rep);
+  const Operator* Word64AtomicCompareExchange(MachineType type);
   // atomic-add [base + index], value
-  const Operator* Word32AtomicAdd(MachineType rep);
+  const Operator* Word32AtomicAdd(MachineType type);
   // atomic-sub [base + index], value
-  const Operator* Word32AtomicSub(MachineType rep);
+  const Operator* Word32AtomicSub(MachineType type);
   // atomic-and [base + index], value
-  const Operator* Word32AtomicAnd(MachineType rep);
+  const Operator* Word32AtomicAnd(MachineType type);
   // atomic-or [base + index], value
-  const Operator* Word32AtomicOr(MachineType rep);
+  const Operator* Word32AtomicOr(MachineType type);
   // atomic-xor [base + index], value
   const Operator* Word32AtomicXor(MachineType rep);
-  // atomic-load [base + index]
+  // atomic-add [base + index], value
   const Operator* Word64AtomicAdd(MachineType rep);
   // atomic-sub [base + index], value
-  const Operator* Word64AtomicSub(MachineType rep);
+  const Operator* Word64AtomicSub(MachineType type);
   // atomic-and [base + index], value
-  const Operator* Word64AtomicAnd(MachineType rep);
+  const Operator* Word64AtomicAnd(MachineType type);
   // atomic-or [base + index], value
-  const Operator* Word64AtomicOr(MachineType rep);
+  const Operator* Word64AtomicOr(MachineType type);
   // atomic-xor [base + index], value
   const Operator* Word64AtomicXor(MachineType rep);
+  // atomic-narrow-add [base + index], value
+  const Operator* Word64AtomicNarrowAdd(MachineType type);
+  // atomic-narow-sub [base + index], value
+  const Operator* Word64AtomicNarrowSub(MachineType type);
+  // atomic-narrow-and [base + index], value
+  const Operator* Word64AtomicNarrowAnd(MachineType type);
+  // atomic-narrow-or [base + index], value
+  const Operator* Word64AtomicNarrowOr(MachineType type);
+  // atomic-narrow-xor [base + index], value
+  const Operator* Word64AtomicNarrowXor(MachineType type);
+  // atomic-narrow-exchange [base + index], value
+  const Operator* Word64AtomicNarrowExchange(MachineType type);
+  // atomic-narrow-compare-exchange [base + index], old_value, new_value
+  const Operator* Word64AtomicNarrowCompareExchange(MachineType type);
+  // atomic-pair-load [base + index]
+  const Operator* Word32AtomicPairLoad();
+  // atomic-pair-sub [base + index], value_high, value-low
+  const Operator* Word32AtomicPairStore();
+  // atomic-pair-add [base + index], value_high, value_low
+  const Operator* Word32AtomicPairAdd();
+  // atomic-pair-sub [base + index], value_high, value-low
+  const Operator* Word32AtomicPairSub();
+  // atomic-pair-and [base + index], value_high, value_low
+  const Operator* Word32AtomicPairAnd();
+  // atomic-pair-or [base + index], value_high, value_low
+  const Operator* Word32AtomicPairOr();
+  // atomic-pair-xor [base + index], value_high, value_low
+  const Operator* Word32AtomicPairXor();
+  // atomic-pair-exchange [base + index], value_high, value_low
+  const Operator* Word32AtomicPairExchange();
+  // atomic-pair-compare-exchange [base + index], old_value_high, old_value_low,
+  // new_value_high, new_value_low
+  const Operator* Word32AtomicPairCompareExchange();
 
   const OptionalOperator SpeculationFence();
 

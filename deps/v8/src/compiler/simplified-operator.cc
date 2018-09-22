@@ -166,9 +166,31 @@ std::ostream& operator<<(std::ostream& os, CheckFloat64HoleMode mode) {
   UNREACHABLE();
 }
 
-CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator* op) {
+CheckFloat64HoleParameters const& CheckFloat64HoleParametersOf(
+    Operator const* op) {
   DCHECK_EQ(IrOpcode::kCheckFloat64Hole, op->opcode());
-  return OpParameter<CheckFloat64HoleMode>(op);
+  return OpParameter<CheckFloat64HoleParameters>(op);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CheckFloat64HoleParameters const& params) {
+  os << params.mode();
+  if (params.feedback().IsValid()) os << "; " << params.feedback();
+  return os;
+}
+
+size_t hash_value(const CheckFloat64HoleParameters& params) {
+  return base::hash_combine(params.mode(), params.feedback());
+}
+
+bool operator==(CheckFloat64HoleParameters const& lhs,
+                CheckFloat64HoleParameters const& rhs) {
+  return lhs.mode() == rhs.mode() && lhs.feedback() == rhs.feedback();
+}
+
+bool operator!=(CheckFloat64HoleParameters const& lhs,
+                CheckFloat64HoleParameters const& rhs) {
+  return !(lhs == rhs);
 }
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
@@ -1005,12 +1027,13 @@ struct SimplifiedOperatorGlobalCache final {
 
   template <CheckFloat64HoleMode kMode>
   struct CheckFloat64HoleNaNOperator final
-      : public Operator1<CheckFloat64HoleMode> {
+      : public Operator1<CheckFloat64HoleParameters> {
     CheckFloat64HoleNaNOperator()
-        : Operator1<CheckFloat64HoleMode>(
+        : Operator1<CheckFloat64HoleParameters>(
               IrOpcode::kCheckFloat64Hole,
               Operator::kFoldable | Operator::kNoThrow, "CheckFloat64Hole", 1,
-              1, 1, 1, 1, 0, kMode) {}
+              1, 1, 1, 1, 0,
+              CheckFloat64HoleParameters(kMode, VectorSlotPair())) {}
   };
   CheckFloat64HoleNaNOperator<CheckFloat64HoleMode::kAllowReturnHole>
       kCheckFloat64HoleAllowReturnHoleOperator;
@@ -1289,14 +1312,20 @@ const Operator* SimplifiedOperatorBuilder::ConvertReceiver(
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
-    CheckFloat64HoleMode mode) {
-  switch (mode) {
-    case CheckFloat64HoleMode::kAllowReturnHole:
-      return &cache_.kCheckFloat64HoleAllowReturnHoleOperator;
-    case CheckFloat64HoleMode::kNeverReturnHole:
-      return &cache_.kCheckFloat64HoleNeverReturnHoleOperator;
+    CheckFloat64HoleMode mode, VectorSlotPair const& feedback) {
+  if (!feedback.IsValid()) {
+    switch (mode) {
+      case CheckFloat64HoleMode::kAllowReturnHole:
+        return &cache_.kCheckFloat64HoleAllowReturnHoleOperator;
+      case CheckFloat64HoleMode::kNeverReturnHole:
+        return &cache_.kCheckFloat64HoleNeverReturnHoleOperator;
+    }
+    UNREACHABLE();
   }
-  UNREACHABLE();
+  return new (zone()) Operator1<CheckFloat64HoleParameters>(
+      IrOpcode::kCheckFloat64Hole, Operator::kFoldable | Operator::kNoThrow,
+      "CheckFloat64Hole", 1, 1, 1, 1, 1, 0,
+      CheckFloat64HoleParameters(mode, feedback));
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(

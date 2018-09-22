@@ -10,6 +10,8 @@
 #include "src/compiler/code-assembler.h"
 #include "src/handles-inl.h"
 #include "src/interface-descriptors.h"
+#include "src/interpreter/bytecodes.h"
+#include "src/interpreter/interpreter-generator.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -38,13 +40,22 @@ void PostBuildProfileAndTracing(Isolate* isolate, Code* code,
 AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
                                          int32_t builtin_index) {
   AssemblerOptions options = AssemblerOptions::Default(isolate);
-  if (isolate->ShouldLoadConstantsFromRootList() &&
-      Builtins::IsIsolateIndependent(builtin_index) &&
-      isolate->heap()->memory_allocator()->code_range()->valid() &&
-      isolate->heap()->memory_allocator()->code_range()->size() <=
-          kMaxPCRelativeCodeRangeInMB * MB) {
-    options.use_pc_relative_calls_and_jumps = true;
+  CHECK(!options.isolate_independent_code);
+  CHECK(!options.use_pc_relative_calls_and_jumps);
+
+  if (!isolate->ShouldLoadConstantsFromRootList() ||
+      !Builtins::IsIsolateIndependent(builtin_index)) {
+    return options;
   }
+
+  CodeRange* code_range = isolate->heap()->memory_allocator()->code_range();
+  bool pc_relative_calls_fit_in_code_range =
+      code_range->valid() &&
+      code_range->size() <= kMaxPCRelativeCodeRangeInMB * MB;
+
+  options.isolate_independent_code = true;
+  options.use_pc_relative_calls_and_jumps = pc_relative_calls_fit_in_code_range;
+
   return options;
 }
 
@@ -235,6 +246,27 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   }
 }
 
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
+namespace {
+Code* GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
+                              const char* name, interpreter::Bytecode bytecode,
+                              interpreter::OperandScale operand_scale) {
+  if (!interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
+    // TODO(v8:8068): Consider returning something else to avoid placeholders
+    // being serialized with the snapshot.
+    return nullptr;
+  }
+
+  Handle<Code> code = interpreter::GenerateBytecodeHandler(
+      isolate, bytecode, operand_scale, builtin_index);
+
+  PostBuildProfileAndTracing(isolate, *code, name);
+
+  return *code;
+}
+}  // namespace
+#endif
+
 // static
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
@@ -276,13 +308,28 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
       isolate, index, &Builtins::Generate_##Name,          \
       CallDescriptors::InterfaceDescriptor, #Name, 1);     \
   AddBuiltin(builtins, index++, code);
+
+#define BUILD_BCH_WITH_SCALE(Code, Scale)                               \
+  code = GenerateBytecodeHandler(isolate, index, Builtins::name(index), \
+                                 interpreter::Bytecode::k##Code,        \
+                                 interpreter::OperandScale::k##Scale);  \
+  if (code) {                                                           \
+    AddBuiltin(builtins, index, code);                                  \
+  }                                                                     \
+  ++index;
+
+#define BUILD_BCH(Code, ...)         \
+  BUILD_BCH_WITH_SCALE(Code, Single) \
+  BUILD_BCH_WITH_SCALE(Code, Double) \
+  BUILD_BCH_WITH_SCALE(Code, Quadruple)
+
 #define BUILD_ASM(Name)                                                     \
   code = BuildWithMacroAssembler(isolate, index, Builtins::Generate_##Name, \
                                  #Name);                                    \
   AddBuiltin(builtins, index++, code);
 
   BUILTIN_LIST(BUILD_CPP, BUILD_API, BUILD_TFJ, BUILD_TFC, BUILD_TFS, BUILD_TFH,
-               BUILD_ASM);
+               BUILD_BCH, BUILD_ASM);
 
 #undef BUILD_CPP
 #undef BUILD_API
@@ -290,6 +337,8 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 #undef BUILD_TFC
 #undef BUILD_TFS
 #undef BUILD_TFH
+#undef BUILD_BCH
+#undef BUILD_BCH_WITH_SCALE
 #undef BUILD_ASM
   CHECK_EQ(Builtins::builtin_count, index);
 

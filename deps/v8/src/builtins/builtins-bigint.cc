@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/counters.h"
@@ -13,25 +13,25 @@ namespace internal {
 
 BUILTIN(BigIntConstructor) {
   HandleScope scope(isolate);
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
-    Handle<Object> value = args.atOrUndefined(isolate, 1);
-
-    if (value->IsJSReceiver()) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, value,
-          JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(value),
-                                  ToPrimitiveHint::kNumber));
-    }
-
-    if (value->IsNumber()) {
-      RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, value));
-    } else {
-      RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, value));
-    }
-  } else {  // [[Construct]]
+  if (!args.new_target()->IsUndefined(isolate)) {  // [[Construct]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotConstructor,
                               isolate->factory()->BigInt_string()));
+  }
+  // [[Call]]
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+
+  if (value->IsJSReceiver()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(value),
+                                ToPrimitiveHint::kNumber));
+  }
+
+  if (value->IsNumber()) {
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, value));
+  } else {
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, value));
   }
 }
 

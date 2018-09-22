@@ -37,7 +37,6 @@ class MachineGraph;
 class NodeOriginTable;
 class Schedule;
 class SourcePositionTable;
-class WasmCompilationData;
 
 class Pipeline : public AllStatic {
  public:
@@ -51,7 +50,6 @@ class Pipeline : public AllStatic {
       OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
       MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-      WasmCompilationData* wasm_compilation_data,
       wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
       wasm::NativeModule* native_module, int function_index,
       wasm::ModuleOrigin wasm_origin);

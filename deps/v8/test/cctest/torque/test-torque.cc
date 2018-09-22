@@ -4,7 +4,6 @@
 
 #include <cmath>
 
-#include "src/api.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-string-gen.h"
@@ -218,6 +217,42 @@ TEST(TestLocalConstBindings) {
   TestBuiltinsFromDSLAssembler m(asm_tester.state());
   {
     m.TestLocalConstBindings();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestForLoop) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    m.TestForLoop();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestTypeswitch) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    m.TestTypeswitch();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestGenericOverload) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    m.TestGenericOverload();
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);

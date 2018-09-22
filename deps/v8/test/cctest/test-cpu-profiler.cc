@@ -33,7 +33,7 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/deoptimizer.h"
 #include "src/libplatform/default-platform.h"

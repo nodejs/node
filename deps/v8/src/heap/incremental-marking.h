@@ -209,13 +209,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   V8_INLINE void RecordWrite(HeapObject* obj, Object** slot, Object* value);
   V8_INLINE void RecordMaybeWeakWrite(HeapObject* obj, MaybeObject** slot,
                                       MaybeObject* value);
-  V8_INLINE void RecordWriteIntoCode(Code* host, RelocInfo* rinfo,
-                                     Object* value);
-  V8_INLINE void RecordWrites(HeapObject* obj);
+  void RevisitObject(HeapObject* obj);
 
   void RecordWriteSlow(HeapObject* obj, HeapObjectReference** slot,
                        Object* value);
-  void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* value);
+  void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, HeapObject* value);
 
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
@@ -300,8 +298,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   // Visits the object and returns its size.
   V8_INLINE int VisitObject(Map* map, HeapObject* obj);
-
-  void RevisitObject(HeapObject* obj);
 
   void IncrementIdleMarkingDelayCounter();
 

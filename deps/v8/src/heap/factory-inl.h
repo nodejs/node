@@ -7,6 +7,8 @@
 
 #include "src/heap/factory.h"
 
+// Clients of this interface shouldn't depend on lots of heap internals.
+// Do not include anything from src/heap here!
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/string-hasher.h"
@@ -162,8 +164,14 @@ Handle<Object> Factory::NewURIError() {
                   MessageTemplate::kURIMalformed);
 }
 
-Handle<String> Factory::Uint32ToString(uint32_t value) {
-  Handle<String> result = NumberToString(NewNumberFromUint(value));
+Handle<String> Factory::Uint32ToString(uint32_t value, bool check_cache) {
+  Handle<String> result;
+  int32_t int32v = static_cast<int32_t>(value);
+  if (int32v >= 0 && Smi::IsValid(int32v)) {
+    result = NumberToString(Smi::FromInt(int32v), check_cache);
+  } else {
+    result = NumberToString(NewNumberFromUint(value), check_cache);
+  }
 
   if (result->length() <= String::kMaxArrayIndexSize &&
       result->hash_field() == String::kEmptyHashField) {

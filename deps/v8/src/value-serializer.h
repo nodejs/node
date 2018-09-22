@@ -12,6 +12,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/identity-map.h"
+#include "src/maybe-handles.h"
 #include "src/messages.h"
 #include "src/vector.h"
 #include "src/zone/zone.h"

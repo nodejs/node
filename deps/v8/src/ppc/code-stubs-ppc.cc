@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_PPC
 
-#include "src/api-arguments.h"
+#include "src/api-arguments-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
@@ -222,9 +222,9 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
   if (tasm->isolate()->function_entry_hook() != nullptr) {
     PredictableCodeSizeScope predictable(tasm,
 #if V8_TARGET_ARCH_PPC64
-                                         14 * Assembler::kInstrSize);
+                                         14 * kInstrSize);
 #else
-                                         11 * Assembler::kInstrSize);
+                                         11 * kInstrSize);
 #endif
     tasm->mflr(r0);
     tasm->Push(r0, ip);
@@ -238,9 +238,9 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != nullptr) {
     PredictableCodeSizeScope predictable(masm,
 #if V8_TARGET_ARCH_PPC64
-                                         14 * Assembler::kInstrSize);
+                                         14 * kInstrSize);
 #else
-                                         11 * Assembler::kInstrSize);
+                                         11 * kInstrSize);
 #endif
     ProfileEntryHookStub stub(masm->isolate());
     __ mflr(r0);
@@ -255,7 +255,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // The entry hook is a "push lr, ip" instruction, followed by a call.
   const int32_t kReturnAddressDistanceFromFunctionStart =
-      Assembler::kCallTargetAddressOffset + 3 * Assembler::kInstrSize;
+      Assembler::kCallTargetAddressOffset + 3 * kInstrSize;
 
   // This should contain all kJSCallerSaved registers.
   const RegList kSavedRegs = kJSCallerSaved |  // Caller saved registers.

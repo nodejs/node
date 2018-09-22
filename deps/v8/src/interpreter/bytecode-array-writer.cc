@@ -4,7 +4,7 @@
 
 #include "src/interpreter/bytecode-array-writer.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"

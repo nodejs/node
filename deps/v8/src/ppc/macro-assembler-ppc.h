@@ -37,6 +37,7 @@ constexpr Register kJavaScriptCallExtraArg1Register = r5;
 constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r4;
 constexpr Register kRuntimeCallArgCountRegister = r3;
+constexpr Register kRuntimeCallArgvRegister = r5;
 constexpr Register kWasmInstanceRegister = r10;
 
 // ----------------------------------------------------------------------------
@@ -46,16 +47,6 @@ constexpr Register kWasmInstanceRegister = r10;
 inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
-
-
-// Flags used for AllocateHeapNumber
-enum TaggingMode {
-  // Tag the result.
-  TAG_RESULT,
-  // Don't tag
-  DONT_TAG_RESULT
-};
-
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
@@ -67,20 +58,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
                                    Register reg4 = no_reg,
                                    Register reg5 = no_reg,
                                    Register reg6 = no_reg);
-
-
-#ifdef DEBUG
-bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
-                Register reg4 = no_reg, Register reg5 = no_reg,
-                Register reg6 = no_reg, Register reg7 = no_reg,
-                Register reg8 = no_reg, Register reg9 = no_reg,
-                Register reg10 = no_reg);
-bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
-                DoubleRegister reg3 = no_dreg, DoubleRegister reg4 = no_dreg,
-                DoubleRegister reg5 = no_dreg, DoubleRegister reg6 = no_dreg,
-                DoubleRegister reg7 = no_dreg, DoubleRegister reg8 = no_dreg,
-                DoubleRegister reg9 = no_dreg, DoubleRegister reg10 = no_dreg);
-#endif
 
 // These exist to provide portability between 32 and 64bit
 #if V8_TARGET_ARCH_PPC64
@@ -96,8 +73,6 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
 #define ShiftLeft_ sld
 #define ShiftRight_ srd
 #define ShiftRightArith srad
-#define Mul mulld
-#define Div divd
 #else
 #define LoadPX lwzx
 #define LoadPUX lwzux
@@ -111,11 +86,9 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
 #define ShiftLeft_ slw
 #define ShiftRight_ srw
 #define ShiftRightArith sraw
-#define Mul mullw
-#define Div divw
 #endif
 
-class TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int buffer_size,
@@ -445,12 +418,6 @@ class TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
 
-  // Returns the size of a call in instructions. Note, the value returned is
-  // only valid as long as no entries are added to the constant pool between
-  // checking the call size and emitting the actual call.
-  static int CallSize(Register target);
-  int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
-
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al,
@@ -461,9 +428,6 @@ class TurboAssembler : public TurboAssemblerBase {
             CRegister cr = cr7);
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(Handle<Code> code,
-               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-               Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             Condition cond = al);
   void Call(Label* target);
@@ -711,13 +675,6 @@ class MacroAssembler : public TurboAssembler {
   void IncrementalMarkingRecordWriteHelper(Register object, Register value,
                                            Register address);
 
-  // Record in the remembered set the fact that we have a pointer to new space
-  // at the address pointed to by the addr register.  Only works if addr is not
-  // in new space.
-  void RememberedSetHelper(Register object,  // Used for debug code.
-                           Register addr, Register scratch,
-                           SaveFPRegsMode save_fp);
-
   void JumpToJSEntry(Register target);
   // Check if object is in new space.  Jumps if the object is not in new space.
   // The register scratch can be object itself, but scratch will be clobbered.
@@ -767,11 +724,6 @@ class MacroAssembler : public TurboAssembler {
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
-
-  // Flush the I-cache from asm code. You should use CpuFeatures::FlushICache
-  // from C.
-  // Does not handle errors.
-  void FlushICache(Register address, size_t size, Register scratch);
 
   // Enter exit frame.
   // stack_space - extra stack space, used for parameters before call to C.
