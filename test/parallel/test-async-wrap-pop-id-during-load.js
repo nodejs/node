@@ -16,7 +16,8 @@ const { spawnSync } = require('child_process');
 
 const ret = spawnSync(
   process.execPath,
-  ['--stack_size=150', __filename, 'async']
+  ['--stack_size=150', __filename, 'async'],
+  { maxBuffer: Infinity }
 );
 assert.strictEqual(ret.status, 0,
                    `EXIT CODE: ${ret.status}, STDERR:\n${ret.stderr}`);

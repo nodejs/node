@@ -26,7 +26,7 @@ assert(logfile);
 const { stdout } = spawnSync(
   process.execPath,
   [ '--prof-process', '--preprocess', logfile ],
-  { cwd: tmpdir.path, encoding: 'utf8' });
+  { cwd: tmpdir.path, encoding: 'utf8', maxBuffer: Infinity });
 
 // Make sure that the result is valid JSON.
 JSON.parse(stdout);
