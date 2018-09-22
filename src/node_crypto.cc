@@ -2658,8 +2658,8 @@ void CipherBase::Init(const char* cipher_type,
                        cipher_type);
   }
 
-  this->CommonInit(cipher_type, cipher, key, key_len, iv,
-                   EVP_CIPHER_iv_length(cipher), auth_tag_len);
+  CommonInit(cipher_type, cipher, key, key_len, iv,
+             EVP_CIPHER_iv_length(cipher), auth_tag_len);
 }
 
 
@@ -2717,7 +2717,7 @@ void CipherBase::InitIv(const char* cipher_type,
     return env()->ThrowError("Invalid IV length");
   }
 
-  this->CommonInit(cipher_type, cipher, key, key_len, iv, iv_len, auth_tag_len);
+  CommonInit(cipher_type, cipher, key, key_len, iv, iv_len, auth_tag_len);
 }
 
 
