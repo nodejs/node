@@ -13,9 +13,14 @@ const { internalBinding } = require('internal/test/binding');
 const { UV_ENOENT } = internalBinding('uv');
 
 const tmpdir = require('../common/tmpdir');
-const doesNotExist = path.join(tmpdir.path, '__this_should_not_exist');
-const readOnlyFile = path.join(tmpdir.path, 'read_only_file');
-const readWriteFile = path.join(tmpdir.path, 'read_write_file');
+
+const { doesNotExist, readOnlyFile, readWriteFile } = Object.assign(
+  ...Object.entries({
+    doesNotExist: '__this_should_not_exist',
+    readOnlyFile: 'read_only_file',
+    readWriteFile: 'read_write_file'
+  }).map(([k, v]) => ({ [k]: path.join(tmpdir.path, v) })));
+
 
 function createFileWithPerms(file, mode) {
   fs.writeFileSync(file, '');
@@ -59,10 +64,9 @@ if (!common.isWindows && process.getuid() === 0) {
   }
 }
 
-assert.strictEqual(typeof fs.F_OK, 'number');
-assert.strictEqual(typeof fs.R_OK, 'number');
-assert.strictEqual(typeof fs.W_OK, 'number');
-assert.strictEqual(typeof fs.X_OK, 'number');
+[fs.F_OK, fs.R_OK, fs.W_OK, fs.X_OK].forEach(
+  (cons) => assert.strictEqual(cons, 'number')
+);
 
 const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
