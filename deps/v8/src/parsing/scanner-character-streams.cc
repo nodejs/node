@@ -4,6 +4,9 @@
 
 #include "src/parsing/scanner-character-streams.h"
 
+#include <memory>
+#include <vector>
+
 #include "include/v8.h"
 #include "src/counters.h"
 #include "src/globals.h"
@@ -15,21 +18,50 @@
 namespace v8 {
 namespace internal {
 
+class ScopedExternalStringLock {
+ public:
+  explicit ScopedExternalStringLock(ExternalString* string) {
+    DCHECK(string);
+    if (string->IsExternalOneByteString()) {
+      resource_ = ExternalOneByteString::cast(string)->resource();
+    } else {
+      DCHECK(string->IsExternalTwoByteString());
+      resource_ = ExternalTwoByteString::cast(string)->resource();
+    }
+    DCHECK(resource_);
+    resource_->Lock();
+  }
+
+  // Copying a lock increases the locking depth.
+  ScopedExternalStringLock(const ScopedExternalStringLock& other)
+      : resource_(other.resource_) {
+    resource_->Lock();
+  }
+
+  ~ScopedExternalStringLock() { resource_->Unlock(); }
+
+ private:
+  // Not nullptr.
+  const v8::String::ExternalStringResourceBase* resource_;
+};
+
 namespace {
 const unibrow::uchar kUtf8Bom = 0xFEFF;
 }  // namespace
 
 template <typename Char>
-struct HeapStringType;
+struct CharTraits;
 
 template <>
-struct HeapStringType<uint8_t> {
+struct CharTraits<uint8_t> {
   typedef SeqOneByteString String;
+  typedef ExternalOneByteString ExternalString;
 };
 
 template <>
-struct HeapStringType<uint16_t> {
+struct CharTraits<uint16_t> {
   typedef SeqTwoByteString String;
+  typedef ExternalTwoByteString ExternalString;
 };
 
 template <typename Char>
@@ -47,16 +79,21 @@ struct Range {
 template <typename Char>
 class OnHeapStream {
  public:
-  typedef typename HeapStringType<Char>::String String;
+  typedef typename CharTraits<Char>::String String;
 
   OnHeapStream(Handle<String> string, size_t start_offset, size_t end)
       : string_(string), start_offset_(start_offset), length_(end) {}
+
+  OnHeapStream(const OnHeapStream& other) : start_offset_(0), length_(0) {
+    UNREACHABLE();
+  }
 
   Range<Char> GetDataAt(size_t pos) {
     return {&string_->GetChars()[start_offset_ + Min(length_, pos)],
             &string_->GetChars()[start_offset_ + length_]};
   }
 
+  static const bool kCanBeCloned = false;
   static const bool kCanAccessHeap = true;
 
  private:
@@ -69,14 +106,42 @@ class OnHeapStream {
 // ExternalTwoByteString.
 template <typename Char>
 class ExternalStringStream {
+  typedef typename CharTraits<Char>::ExternalString ExternalString;
+
  public:
-  ExternalStringStream(const Char* data, size_t end)
-      : data_(data), length_(end) {}
+  ExternalStringStream(ExternalString* string, size_t start_offset,
+                       size_t length)
+      : lock_(string),
+        data_(string->GetChars() + start_offset),
+        length_(length) {}
+
+  ExternalStringStream(const ExternalStringStream& other)
+      : lock_(other.lock_), data_(other.data_), length_(other.length_) {}
 
   Range<Char> GetDataAt(size_t pos) {
     return {&data_[Min(length_, pos)], &data_[length_]};
   }
 
+  static const bool kCanBeCloned = true;
+  static const bool kCanAccessHeap = false;
+
+ private:
+  ScopedExternalStringLock lock_;
+  const Char* const data_;
+  const size_t length_;
+};
+
+// A Char stream backed by a C array. Testing only.
+template <typename Char>
+class TestingStream {
+ public:
+  TestingStream(const Char* data, size_t length)
+      : data_(data), length_(length) {}
+  Range<Char> GetDataAt(size_t pos) {
+    return {&data_[Min(length_, pos)], &data_[length_]};
+  }
+
+  static const bool kCanBeCloned = true;
   static const bool kCanAccessHeap = false;
 
  private:
@@ -92,6 +157,11 @@ class ChunkedStream {
                 RuntimeCallStats* stats)
       : source_(source), stats_(stats) {}
 
+  ChunkedStream(const ChunkedStream& other) {
+    // TODO(rmcilroy): Implement cloning for chunked streams.
+    UNREACHABLE();
+  }
+
   Range<Char> GetDataAt(size_t pos) {
     Chunk chunk = FindChunk(pos);
     size_t buffer_end = chunk.length;
@@ -103,6 +173,7 @@ class ChunkedStream {
     for (Chunk& chunk : chunks_) delete[] chunk.data;
   }
 
+  static const bool kCanBeCloned = false;
   static const bool kCanAccessHeap = false;
 
  private:
@@ -261,6 +332,16 @@ class BufferedCharacterStream : public Utf16CharacterStream {
     buffer_pos_ = pos;
   }
 
+  bool can_be_cloned() const final {
+    return ByteStream<uint16_t>::kCanBeCloned;
+  }
+
+  std::unique_ptr<Utf16CharacterStream> Clone() const override {
+    CHECK(can_be_cloned());
+    return std::unique_ptr<Utf16CharacterStream>(
+        new BufferedCharacterStream<ByteStream>(*this));
+  }
+
  protected:
   bool ReadBlock() final {
     size_t position = pos();
@@ -280,9 +361,14 @@ class BufferedCharacterStream : public Utf16CharacterStream {
     return true;
   }
 
-  bool can_access_heap() final { return ByteStream<uint8_t>::kCanAccessHeap; }
+  bool can_access_heap() const final {
+    return ByteStream<uint8_t>::kCanAccessHeap;
+  }
 
  private:
+  BufferedCharacterStream(const BufferedCharacterStream<ByteStream>& other)
+      : byte_stream_(other.byte_stream_) {}
+
   static const size_t kBufferSize = 512;
   uc16 buffer_[kBufferSize];
   ByteStream<uint8_t> byte_stream_;
@@ -296,6 +382,19 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
   template <class... TArgs>
   UnbufferedCharacterStream(size_t pos, TArgs... args) : byte_stream_(args...) {
     buffer_pos_ = pos;
+  }
+
+  bool can_access_heap() const final {
+    return ByteStream<uint16_t>::kCanAccessHeap;
+  }
+
+  bool can_be_cloned() const final {
+    return ByteStream<uint16_t>::kCanBeCloned;
+  }
+
+  std::unique_ptr<Utf16CharacterStream> Clone() const override {
+    return std::unique_ptr<Utf16CharacterStream>(
+        new UnbufferedCharacterStream<ByteStream>(*this));
   }
 
  protected:
@@ -313,7 +412,8 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
     return true;
   }
 
-  bool can_access_heap() final { return ByteStream<uint16_t>::kCanAccessHeap; }
+  UnbufferedCharacterStream(const UnbufferedCharacterStream<ByteStream>& other)
+      : byte_stream_(other.byte_stream_) {}
 
   ByteStream<uint16_t> byte_stream_;
 };
@@ -421,7 +521,13 @@ class Utf8ExternalStreamingStream : public BufferedUtf16CharacterStream {
     for (size_t i = 0; i < chunks_.size(); i++) delete[] chunks_[i].data;
   }
 
-  bool can_access_heap() final { return false; }
+  bool can_access_heap() const final { return false; }
+
+  bool can_be_cloned() const final { return false; }
+
+  std::unique_ptr<Utf16CharacterStream> Clone() const override {
+    UNREACHABLE();
+  }
 
  protected:
   size_t FillBuffer(size_t position) final;
@@ -704,14 +810,12 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
   }
   if (data->IsExternalOneByteString()) {
     return new BufferedCharacterStream<ExternalStringStream>(
-        static_cast<size_t>(start_pos),
-        ExternalOneByteString::cast(*data)->GetChars() + start_offset,
-        static_cast<size_t>(end_pos));
+        static_cast<size_t>(start_pos), ExternalOneByteString::cast(*data),
+        start_offset, static_cast<size_t>(end_pos));
   } else if (data->IsExternalTwoByteString()) {
     return new UnbufferedCharacterStream<ExternalStringStream>(
-        static_cast<size_t>(start_pos),
-        ExternalTwoByteString::cast(*data)->GetChars() + start_offset,
-        static_cast<size_t>(end_pos));
+        static_cast<size_t>(start_pos), ExternalTwoByteString::cast(*data),
+        start_offset, static_cast<size_t>(end_pos));
   } else if (data->IsSeqOneByteString()) {
     return new BufferedCharacterStream<OnHeapStream>(
         static_cast<size_t>(start_pos), Handle<SeqOneByteString>::cast(data),
@@ -734,7 +838,7 @@ std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
 std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
     const char* data, size_t length) {
   return std::unique_ptr<Utf16CharacterStream>(
-      new BufferedCharacterStream<ExternalStringStream>(
+      new BufferedCharacterStream<TestingStream>(
           static_cast<size_t>(0), reinterpret_cast<const uint8_t*>(data),
           static_cast<size_t>(length)));
 }

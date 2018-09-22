@@ -39,7 +39,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             InstructionSelector::SupportedMachineOperatorFlags(),
             InstructionSelector::AlignmentRequirements()) {}
 
-  virtual ~RawMachineAssemblerTester() {}
+  ~RawMachineAssemblerTester() override = default;
 
   void CheckNumber(double expected, Object* number) {
     CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
@@ -59,7 +59,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   }
 
  protected:
-  virtual Address Generate() {
+  Address Generate() override {
     if (code_.is_null()) {
       Schedule* schedule = this->Export();
       auto call_descriptor = this->call_descriptor();
@@ -395,7 +395,7 @@ class BinopGen {
  public:
   virtual void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) = 0;
   virtual T expected(T a, T b) = 0;
-  virtual ~BinopGen() {}
+  virtual ~BinopGen() = default;
 };
 
 // A helper class to generate various combination of input shape combinations

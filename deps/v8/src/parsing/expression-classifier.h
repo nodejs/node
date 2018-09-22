@@ -7,7 +7,6 @@
 
 #include "src/messages.h"
 #include "src/parsing/scanner.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -96,7 +95,7 @@ class ExpressionClassifier {
         invalid_productions_(0),
         is_non_simple_parameter_list_(0) {
     base->classifier_ = this;
-    reported_errors_begin_ = reported_errors_end_ = reported_errors_->size();
+    reported_errors_begin_ = reported_errors_end_ = reported_errors_->length();
   }
 
   V8_INLINE ~ExpressionClassifier() {
@@ -278,7 +277,7 @@ class ExpressionClassifier {
   void Accumulate(ExpressionClassifier* inner, unsigned productions) {
     DCHECK_EQ(inner->reported_errors_, reported_errors_);
     DCHECK_EQ(inner->reported_errors_begin_, reported_errors_end_);
-    DCHECK_EQ(inner->reported_errors_end_, reported_errors_->size());
+    DCHECK_EQ(inner->reported_errors_end_, reported_errors_->length());
     // Propagate errors from inner, but don't overwrite already recorded
     // errors.
     unsigned non_arrow_inner_invalid_productions =
@@ -338,14 +337,14 @@ class ExpressionClassifier {
         }
       }
     }
-    reported_errors_->resize(reported_errors_end_);
+    reported_errors_->Rewind(reported_errors_end_);
     inner->reported_errors_begin_ = inner->reported_errors_end_ =
         reported_errors_end_;
   }
 
   V8_INLINE void Discard() {
-    if (reported_errors_end_ == reported_errors_->size()) {
-      reported_errors_->resize(reported_errors_begin_);
+    if (reported_errors_end_ == reported_errors_->length()) {
+      reported_errors_->Rewind(reported_errors_begin_);
       reported_errors_end_ = reported_errors_begin_;
     }
     DCHECK_EQ(reported_errors_begin_, reported_errors_end_);
@@ -375,8 +374,8 @@ class ExpressionClassifier {
   // Adds e to the end of the list of reported errors for this classifier.
   // It is expected that this classifier is the last one in the stack.
   V8_INLINE void Add(const Error& e) {
-    DCHECK_EQ(reported_errors_end_, reported_errors_->size());
-    reported_errors_->push_back(e);
+    DCHECK_EQ(reported_errors_end_, reported_errors_->length());
+    reported_errors_->Add(e, zone_);
     reported_errors_end_++;
   }
 
@@ -386,7 +385,7 @@ class ExpressionClassifier {
   // in an inner classifier) or it could be an existing error (in case a
   // copy is needed).
   V8_INLINE void Copy(int i) {
-    DCHECK_LT(i, reported_errors_->size());
+    DCHECK_LT(i, reported_errors_->length());
     if (reported_errors_end_ != i)
       reported_errors_->at(reported_errors_end_) = reported_errors_->at(i);
     reported_errors_end_++;
@@ -395,7 +394,7 @@ class ExpressionClassifier {
   typename Types::Base* base_;
   ExpressionClassifier* previous_;
   Zone* zone_;
-  ZoneVector<Error>* reported_errors_;
+  ZoneList<Error>* reported_errors_;
   DuplicateFinder* duplicate_finder_;
   unsigned invalid_productions_ : 15;
   unsigned is_non_simple_parameter_list_ : 1;

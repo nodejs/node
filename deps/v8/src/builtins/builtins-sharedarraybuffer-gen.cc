@@ -50,10 +50,9 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
             &invalid);
 
   // Fail if the array's JSArrayBuffer is not shared.
-  Node* array_buffer = LoadObjectField(tagged, JSTypedArray::kBufferOffset);
-  Node* bitfield = LoadObjectField(array_buffer, JSArrayBuffer::kBitFieldOffset,
-                                   MachineType::Uint32());
-  GotoIfNot(IsSetWord32<JSArrayBuffer::IsShared>(bitfield), &invalid);
+  TNode<JSArrayBuffer> array_buffer = LoadJSArrayBufferViewBuffer(CAST(tagged));
+  TNode<Uint32T> bitfield = LoadJSArrayBufferBitField(array_buffer);
+  GotoIfNot(IsSetWord32<JSArrayBuffer::IsSharedBit>(bitfield), &invalid);
 
   // Fail if the array's element type is float32, float64 or clamped.
   Node* elements_instance_type = LoadInstanceType(LoadElements(tagged));
@@ -76,12 +75,9 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
   BIND(&not_float_or_clamped);
   *out_instance_type = elements_instance_type;
 
-  Node* backing_store =
-      LoadObjectField(array_buffer, JSArrayBuffer::kBackingStoreOffset);
-  Node* byte_offset = ChangeUint32ToWord(TruncateTaggedToWord32(
-      context, LoadObjectField(tagged, JSArrayBufferView::kByteOffsetOffset)));
-  *out_backing_store =
-      IntPtrAdd(BitcastTaggedToWord(backing_store), byte_offset);
+  TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStore(array_buffer);
+  TNode<UintPtrT> byte_offset = LoadJSArrayBufferViewByteOffset(CAST(tagged));
+  *out_backing_store = IntPtrAdd(backing_store, byte_offset);
 }
 
 // https://tc39.github.io/ecmascript_sharedmem/shmem.html#Atomics.ValidateAtomicAccess
@@ -112,7 +108,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateAtomicIndex(Node* array,
   // Check if the index is in bounds. If not, throw RangeError.
   Label check_passed(this);
   Node* array_length_word32 =
-      TruncateTaggedToWord32(context, LoadTypedArrayLength(CAST(array)));
+      TruncateTaggedToWord32(context, LoadJSTypedArrayLength(CAST(array)));
   GotoIf(Uint32LessThan(index_word, array_length_word32), &check_passed);
 
   ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex);
@@ -130,7 +126,7 @@ void SharedArrayBufferBuiltinsAssembler::DebugSanityCheckAtomicIndex(
   CSA_ASSERT(this,
              Uint32LessThan(index_word,
                             TruncateTaggedToWord32(
-                                context, LoadTypedArrayLength(CAST(array)))));
+                                context, LoadJSTypedArrayLength(CAST(array)))));
 }
 #endif
 

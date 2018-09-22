@@ -16,11 +16,11 @@ typedef TestWithIsolate SpacesTest;
 TEST_F(SpacesTest, CompactionSpaceMerge) {
   Heap* heap = i_isolate()->heap();
   OldSpace* old_space = heap->old_space();
-  EXPECT_TRUE(old_space != NULL);
+  EXPECT_TRUE(old_space != nullptr);
 
   CompactionSpace* compaction_space =
       new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
-  EXPECT_TRUE(compaction_space != NULL);
+  EXPECT_TRUE(compaction_space != nullptr);
 
   for (Page* p : *old_space) {
     // Unlink free lists from the main space to avoid reusing the memory for

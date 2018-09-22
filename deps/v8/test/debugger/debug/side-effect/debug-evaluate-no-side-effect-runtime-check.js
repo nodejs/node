@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --no-enable-one-shot-optimization
+
 Debug = debug.Debug;
 
 // StaCurrentContextSlot
@@ -50,8 +52,7 @@ success([1], `return_array_use_spread([1])`);
 // CallAccessorSetter
 var array = [1,2,3];
 fail(`array.length = 2`);
-// TODO(7515): this one should be side effect free
-fail(`[1,2,3].length = 2`);
+success(2, `[1,2,3].length = 2`);
 
 // StaDataPropertyInLiteral
 function return_literal_with_data_property(a) {

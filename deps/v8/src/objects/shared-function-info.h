@@ -53,8 +53,6 @@ class PreParsedScopeData : public HeapObject {
       POINTER_SIZE_ALIGN(kUnalignedChildDataStartOffset);
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   static constexpr int SizeFor(int length) {
     return kChildDataStartOffset + length * kPointerSize;
@@ -114,8 +112,6 @@ class UncompiledDataWithoutPreParsedScope : public UncompiledData {
 
   // No extra fields compared to UncompiledData.
   typedef UncompiledData::BodyDescriptor BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithoutPreParsedScope);
@@ -150,8 +146,6 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
       FixedBodyDescriptor<kStartOfPointerFieldsOffset,
                           kEndOfPointerFieldsOffset, kSize>>
       BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithPreParsedScope);
@@ -179,9 +173,6 @@ class InterpreterData : public Struct {
 // shared by multiple instances of the function.
 class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   static constexpr Object* const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
@@ -230,14 +221,14 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   DECL_ACCESSORS(scope_info, ScopeInfo)
 
   // End position of this function in the script source.
-  inline int EndPosition() const;
+  V8_EXPORT_PRIVATE int EndPosition() const;
 
   // Start position of this function in the script source.
-  inline int StartPosition() const;
+  V8_EXPORT_PRIVATE int StartPosition() const;
 
   // Set the start and end position of this function in the script source.
   // Updates the scope info if available.
-  inline void SetPosition(int start_position, int end_position);
+  V8_EXPORT_PRIVATE void SetPosition(int start_position, int end_position);
 
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
@@ -358,7 +349,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline String* inferred_name();
 
   // Get the function literal id associated with this function, for parsing.
-  inline int FunctionLiteralId(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE int FunctionLiteralId(Isolate* isolate) const;
 
   // Break infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
@@ -625,8 +616,6 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
                               kEndOfPointerFieldsOffset, kAlignedSize>
       BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _)                           \

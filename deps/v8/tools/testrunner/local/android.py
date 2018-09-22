@@ -18,8 +18,9 @@ DEVICE_DIR = '/data/local/tmp/v8/'
 
 
 class TimeoutException(Exception):
-  def __init__(self, timeout):
+  def __init__(self, timeout, output=None):
     self.timeout = timeout
+    self.output = output
 
 
 class CommandFailedException(Exception):
@@ -170,8 +171,8 @@ class _Driver(object):
         return '\n'.join(output)
       except device_errors.AdbCommandFailedError as e:
         raise CommandFailedException(e.status, e.output)
-      except device_errors.CommandTimeoutError:
-        raise TimeoutException(timeout)
+      except device_errors.CommandTimeoutError as e:
+        raise TimeoutException(timeout, e.output)
 
 
     if logcat_file:

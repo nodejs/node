@@ -105,10 +105,7 @@ class V8_BASE_EXPORT TimeDelta final {
   static TimeDelta FromTimespec(struct timespec ts);
   struct timespec ToTimespec() const;
 
-  TimeDelta& operator=(const TimeDelta& other) {
-    delta_ = other.delta_;
-    return *this;
-  }
+  TimeDelta& operator=(const TimeDelta& other) = default;
 
   // Computations with other deltas.
   TimeDelta operator+(const TimeDelta& other) const {

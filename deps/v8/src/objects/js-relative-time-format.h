@@ -28,19 +28,28 @@ class JSRelativeTimeFormat : public JSObject {
  public:
   // Initializes relative time format object with properties derived from input
   // locales and options.
-  static MaybeHandle<JSRelativeTimeFormat> InitializeRelativeTimeFormat(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSRelativeTimeFormat>
+  InitializeRelativeTimeFormat(
       Isolate* isolate,
       Handle<JSRelativeTimeFormat> relative_time_format_holder,
       Handle<Object> locales, Handle<Object> options);
 
-  static Handle<JSObject> ResolvedOptions(
+  V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSRelativeTimeFormat> format_holder);
 
   // Unpacks formatter object from corresponding JavaScript object.
-  static icu::RelativeDateTimeFormatter* UnpackFormatter(
+  V8_WARN_UNUSED_RESULT static icu::RelativeDateTimeFormatter* UnpackFormatter(
       Handle<JSRelativeTimeFormat> relative_time_format_holder);
+
   Handle<String> StyleAsString() const;
   Handle<String> NumericAsString() const;
+
+  // ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
+  // ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Format(
+      Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
+      Handle<JSRelativeTimeFormat> format_holder, const char* func_name,
+      bool to_parts);
 
   DECL_CAST(JSRelativeTimeFormat)
 

@@ -258,7 +258,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
+                    sta->byte_offset();
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -286,7 +286,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
+                    sta->byte_offset();
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -315,7 +315,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
   CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
+                    sta->byte_offset();
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -344,7 +344,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsSub) {
   CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
+                    sta->byte_offset();
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -373,7 +373,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
   CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
+                    sta->byte_offset();
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -402,7 +402,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) {
   CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
+                    sta->byte_offset();
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -431,7 +431,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
   CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
+                    sta->byte_offset();
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \

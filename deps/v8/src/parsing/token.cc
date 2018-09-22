@@ -29,7 +29,6 @@ const uint8_t Token::string_length_[NUM_TOKENS] = {TOKEN_LIST(T, T, T)};
 const int8_t Token::precedence_[NUM_TOKENS] = {TOKEN_LIST(T, T, T)};
 #undef T
 
-
 #define KT(a, b, c) 'T',
 #define KK(a, b, c) 'K',
 #define KC(a, b, c) 'C',

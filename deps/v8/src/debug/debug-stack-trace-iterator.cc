@@ -35,7 +35,7 @@ DebugStackTraceIterator::DebugStackTraceIterator(Isolate* isolate, int index)
   for (; !Done() && index > 0; --index) Advance();
 }
 
-DebugStackTraceIterator::~DebugStackTraceIterator() {}
+DebugStackTraceIterator::~DebugStackTraceIterator() = default;
 
 bool DebugStackTraceIterator::Done() const { return iterator_.done(); }
 

@@ -40,7 +40,9 @@
   V(caseFirst_string, "caseFirst")                                 \
   V(cell_value_string, "%cell_value")                              \
   V(char_at_string, "CharAt")                                      \
+  V(character_string, "character")                                 \
   V(closure_string, "(closure)")                                   \
+  V(code_string, "code")                                           \
   V(collation_string, "collation")                                 \
   V(column_string, "column")                                       \
   V(CompileError_string, "CompileError")                           \
@@ -50,10 +52,11 @@
   V(conjunction_string, "conjunction")                             \
   V(create_string, "create")                                       \
   V(currency_string, "currency")                                   \
+  V(currencyDisplay_string, "currencyDisplay")                     \
   V(Date_string, "Date")                                           \
   V(date_to_string, "[object Date]")                               \
   V(day_string, "day")                                             \
-  V(dayperiod_string, "dayperiod")                                 \
+  V(dayPeriod_string, "dayPeriod")                                 \
   V(decimal_string, "decimal")                                     \
   V(default_string, "default")                                     \
   V(defineProperty_string, "defineProperty")                       \
@@ -128,9 +131,14 @@
   V(long_string, "long")                                           \
   V(Map_string, "Map")                                             \
   V(MapIterator_string, "Map Iterator")                            \
+  V(maximumFractionDigits_string, "maximumFractionDigits")         \
+  V(maximumSignificantDigits_string, "maximumSignificantDigits")   \
   V(message_string, "message")                                     \
   V(minus_Infinity_string, "-Infinity")                            \
   V(minus_zero_string, "-0")                                       \
+  V(minimumFractionDigits_string, "minimumFractionDigits")         \
+  V(minimumIntegerDigits_string, "minimumIntegerDigits")           \
+  V(minimumSignificantDigits_string, "minimumSignificantDigits")   \
   V(minusSign_string, "minusSign")                                 \
   V(minute_string, "minute")                                       \
   V(Module_string, "Module")                                       \
@@ -153,6 +161,7 @@
   V(Number_string, "Number")                                       \
   V(number_string, "number")                                       \
   V(number_to_string, "[object Number]")                           \
+  V(numberingSystem_string, "numberingSystem")                     \
   V(numeric_string, "numeric")                                     \
   V(Object_string, "Object")                                       \
   V(object_string, "object")                                       \
@@ -160,6 +169,7 @@
   V(ok, "ok")                                                      \
   V(one_string, "1")                                               \
   V(ownKeys_string, "ownKeys")                                     \
+  V(percent_string, "percent")                                     \
   V(percentSign_string, "percentSign")                             \
   V(plusSign_string, "plusSign")                                   \
   V(position_string, "position")                                   \
@@ -171,6 +181,7 @@
   V(prototype_string, "prototype")                                 \
   V(proxy_string, "proxy")                                         \
   V(Proxy_string, "Proxy")                                         \
+  V(quarter_string, "quarter")                                     \
   V(query_colon_string, "(?:)")                                    \
   V(RangeError_string, "RangeError")                               \
   V(raw_string, "raw")                                             \
@@ -189,6 +200,7 @@
   V(second_string, "second")                                       \
   V(Set_string, "Set")                                             \
   V(sensitivity_string, "sensitivity")                             \
+  V(sentence_string, "sentence")                                   \
   V(set_space_string, "set ")                                      \
   V(set_string, "set")                                             \
   V(SetIterator_string, "Set Iterator")                            \
@@ -231,13 +243,16 @@
   V(usage_string, "usage")                                         \
   V(use_asm_string, "use asm")                                     \
   V(use_strict_string, "use strict")                               \
+  V(useGrouping_string, "useGrouping")                             \
   V(value_string, "value")                                         \
   V(valueOf_string, "valueOf")                                     \
   V(values_string, "values")                                       \
   V(WeakMap_string, "WeakMap")                                     \
   V(WeakSet_string, "WeakSet")                                     \
+  V(week_string, "week")                                           \
   V(weekday_string, "weekday")                                     \
   V(will_handle_string, "willHandle")                              \
+  V(word_string, "word")                                           \
   V(writable_string, "writable")                                   \
   V(year_string, "year")                                           \
   V(zero_string, "0")
@@ -258,7 +273,6 @@
   V(generic_symbol)                    \
   V(home_object_symbol)                \
   V(intl_initialized_marker_symbol)    \
-  V(intl_pattern_symbol)               \
   V(intl_resolved_symbol)              \
   V(interpreter_trampoline_symbol)     \
   V(megamorphic_symbol)                \
@@ -274,6 +288,8 @@
   V(sealed_symbol)                     \
   V(stack_trace_symbol)                \
   V(strict_function_transition_symbol) \
+  V(wasm_exception_tag_symbol)         \
+  V(wasm_exception_values_symbol)      \
   V(uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST(V)                    \

@@ -60,7 +60,7 @@ struct WasmDisassemblyOffsetTableEntry {
 
 struct WasmDisassembly {
   using OffsetTable = std::vector<WasmDisassemblyOffsetTableEntry>;
-  WasmDisassembly() {}
+  WasmDisassembly() = default;
   WasmDisassembly(std::string disassembly, OffsetTable offset_table)
       : disassembly(std::move(disassembly)),
         offset_table(std::move(offset_table)) {}

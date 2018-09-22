@@ -55,7 +55,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(5),
                 B(Mov), R(1), R(2),
-  /*   94 E> */ B(CallRuntime), U16(Runtime::kSetProperty), R(2), U8(4),
+  /*   94 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(2), U8(4),
   /*  105 S> */ B(LdaGlobal), U8(1), U8(3),
                 B(Star), R(1),
   /*  114 E> */ B(LdaGlobal), U8(1), U8(3),
@@ -71,7 +71,7 @@ bytecodes: [
                 B(Star), R(6),
                 B(Mov), R(1), R(3),
                 B(Mov), R(2), R(5),
-  /*  112 E> */ B(CallRuntime), U16(Runtime::kSetProperty), R(3), U8(4),
+  /*  112 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(3), U8(4),
                 B(Mov), R(5), R(0),
                 B(Ldar), R(0),
   /*  128 S> */ B(Return),
@@ -338,7 +338,7 @@ bytecodes: [
                 B(Star), R(6),
                 B(Mov), R(1), R(3),
                 B(Mov), R(2), R(5),
-  /*   96 E> */ B(CallRuntime), U16(Runtime::kSetProperty), R(3), U8(4),
+  /*   96 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(3), U8(4),
                 B(Mov), R(5), R(0),
                 B(Ldar), R(2),
                 B(Jump), U8(34),
@@ -352,7 +352,7 @@ bytecodes: [
                 B(Star), R(6),
                 B(Mov), R(1), R(3),
                 B(Mov), R(2), R(5),
-  /*  131 E> */ B(CallRuntime), U16(Runtime::kSetProperty), R(3), U8(4),
+  /*  131 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(3), U8(4),
                 B(Mov), R(5), R(0),
                 B(Ldar), R(2),
                 B(Ldar), R(0),
@@ -373,16 +373,16 @@ snippet: "
         a = [1.1, [2.2, 4.5]];
        
 "
-frame size: 3
+frame size: 5
 parameter count: 1
 bytecode array length: 20
 bytecodes: [
   /*    0 E> */ B(StackCheck),
   /*    7 S> */ B(LdaConstant), U8(0),
-                B(Star), R(1),
+                B(Star), R(3),
                 B(LdaSmi), I8(4),
-                B(Star), R(2),
-                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(1), U8(2),
+                B(Star), R(4),
+                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(3), U8(2),
   /*    9 E> */ B(StaGlobal), U8(1), U8(0),
                 B(Star), R(0),
   /*   36 S> */ B(Return),
@@ -400,16 +400,16 @@ snippet: "
         b = [];
        
 "
-frame size: 3
+frame size: 5
 parameter count: 1
 bytecode array length: 20
 bytecodes: [
   /*    0 E> */ B(StackCheck),
   /*    7 S> */ B(LdaConstant), U8(0),
-                B(Star), R(1),
+                B(Star), R(3),
                 B(LdaSmi), I8(37),
-                B(Star), R(2),
-                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(1), U8(2),
+                B(Star), R(4),
+                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(3), U8(2),
   /*    9 E> */ B(StaGlobal), U8(1), U8(0),
                 B(Star), R(0),
   /*   21 S> */ B(Return),

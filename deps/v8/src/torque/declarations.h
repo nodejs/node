@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-static constexpr const char* const kFromConstexprMacroName = "from_constexpr";
+static constexpr const char* const kFromConstexprMacroName = "FromConstexpr";
 static constexpr const char* kTrueLabelName = "_True";
 static constexpr const char* kFalseLabelName = "_False";
 
@@ -79,7 +79,8 @@ class Declarations {
   void DeclareStruct(Module* module, const std::string& name,
                      const std::vector<NameAndType>& fields);
 
-  Label* DeclareLabel(const std::string& name);
+  Label* DeclareLabel(const std::string& name,
+                      base::Optional<Statement*> statement = {});
 
   Macro* DeclareMacro(const std::string& name, const Signature& signature,
                       base::Optional<std::string> op = {});
@@ -219,7 +220,7 @@ class Declarations::ScopedGenericScopeChainSnapshot {
   ScopedGenericScopeChainSnapshot(Declarations* declarations,
                                   const SpecializationKey& key)
       : restorer_(declarations->generic_declaration_scopes_[key.first]) {}
-  ~ScopedGenericScopeChainSnapshot() {}
+  ~ScopedGenericScopeChainSnapshot() = default;
 
  private:
   ScopeChain::ScopedSnapshotRestorer restorer_;

@@ -31,7 +31,7 @@ class SourcePositionTable;
 
 struct TurboJsonFile : public std::ofstream {
   TurboJsonFile(OptimizedCompilationInfo* info, std::ios_base::openmode mode);
-  ~TurboJsonFile();
+  ~TurboJsonFile() override;
 };
 
 struct SourcePositionAsJSON {

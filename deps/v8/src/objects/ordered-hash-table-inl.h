@@ -14,19 +14,19 @@ namespace v8 {
 namespace internal {
 
 int OrderedHashSet::GetMapRootIndex() {
-  return Heap::kOrderedHashSetMapRootIndex;
+  return static_cast<int>(RootIndex::kOrderedHashSetMap);
 }
 
 int OrderedHashMap::GetMapRootIndex() {
-  return Heap::kOrderedHashMapMapRootIndex;
+  return static_cast<int>(RootIndex::kOrderedHashMapMap);
 }
 
 int SmallOrderedHashMap::GetMapRootIndex() {
-  return Heap::kSmallOrderedHashMapMapRootIndex;
+  return static_cast<int>(RootIndex::kSmallOrderedHashMapMap);
 }
 
 int SmallOrderedHashSet::GetMapRootIndex() {
-  return Heap::kSmallOrderedHashSetMapRootIndex;
+  return static_cast<int>(RootIndex::kSmallOrderedHashSetMap);
 }
 
 inline Object* OrderedHashMap::ValueAt(int entry) {

@@ -38,7 +38,7 @@ bool NodeCache<Key, Hash, Pred>::Resize(Zone* zone) {
   size_ *= 4;
   size_t num_entries = size_ + kLinearProbe;
   entries_ = zone->NewArray<Entry>(num_entries);
-  memset(entries_, 0, sizeof(Entry) * num_entries);
+  memset(static_cast<void*>(entries_), 0, sizeof(Entry) * num_entries);
 
   // Insert the old entries into the new block.
   for (size_t i = 0; i < old_size; ++i) {
@@ -69,7 +69,7 @@ Node** NodeCache<Key, Hash, Pred>::Find(Zone* zone, Key key) {
     size_t num_entries = kInitialSize + kLinearProbe;
     entries_ = zone->NewArray<Entry>(num_entries);
     size_ = kInitialSize;
-    memset(entries_, 0, sizeof(Entry) * num_entries);
+    memset(static_cast<void*>(entries_), 0, sizeof(Entry) * num_entries);
     Entry* entry = &entries_[hash & (kInitialSize - 1)];
     entry->key_ = key;
     return &entry->value_;

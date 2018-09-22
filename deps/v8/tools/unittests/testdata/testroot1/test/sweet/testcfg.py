@@ -20,7 +20,7 @@ class TestSuite(testsuite.TestSuite):
     return TestCase
 
 
-class TestCase(testcase.TestCase):
+class TestCase(testcase.D8TestCase):
   def get_shell(self):
     return 'd8_mocked.py'
 

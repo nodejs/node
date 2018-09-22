@@ -26,6 +26,12 @@ CAST_ACCESSOR(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
+CAST_ACCESSOR(SourcePositionTableWithFrameCache)
+
+ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
+          kSourcePositionTableIndex)
+ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
+          SimpleNumberDictionary, kStackFrameCacheIndex)
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
@@ -133,14 +139,14 @@ BytecodeArray* AbstractCode::GetBytecodeArray() {
 }
 
 DependentCode* DependentCode::next_link() {
-  return DependentCode::cast(Get(kNextLinkIndex)->ToStrongHeapObject());
+  return DependentCode::cast(Get(kNextLinkIndex)->GetHeapObjectAssumeStrong());
 }
 
 void DependentCode::set_next_link(DependentCode* next) {
   Set(kNextLinkIndex, HeapObjectReference::Strong(next));
 }
 
-int DependentCode::flags() { return Smi::ToInt(Get(kFlagsIndex)->ToSmi()); }
+int DependentCode::flags() { return Smi::ToInt(Get(kFlagsIndex)->cast<Smi>()); }
 
 void DependentCode::set_flags(int flags) {
   Set(kFlagsIndex, MaybeObject::FromObject(Smi::FromInt(flags)));

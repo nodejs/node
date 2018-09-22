@@ -46,6 +46,7 @@
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -417,6 +418,13 @@ Operand Operand::EmbeddedCode(CodeStub* stub) {
   return result;
 }
 
+Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(str);
+  return result;
+}
+
 MemOperand::MemOperand(Register rn, int32_t offset, AddrMode am)
     : rn_(rn), rm_(no_reg), offset_(offset), am_(am) {
   // Accesses below the stack pointer are not safe, and are prohibited by the
@@ -472,6 +480,7 @@ void NeonMemOperand::SetAlignment(int align) {
 }
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
     switch (request.kind()) {
@@ -483,6 +492,12 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         request.code_stub()->set_isolate(isolate);
         object = request.code_stub()->GetCode();
         break;
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        object = str->AllocateStringConstant(isolate);
+        break;
+      }
     }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     Memory<Address>(constant_pool_entry_address(pc, 0 /* unused */)) =

@@ -67,6 +67,10 @@ class S390OperandConverter final : public InstructionOperandConverter {
         return Operand(constant.ToInt64());
 #endif
       case Constant::kExternalReference:
+        return Operand(constant.ToExternalReference());
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
         break;
@@ -2776,7 +2780,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
   // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual ||
+      condition == kOverflow || condition == kNotOverflow) {
     return;
   }
 
@@ -3170,9 +3175,13 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kExternalReference:
           __ Move(dst, src.ToExternalReference());
           break;
+        case Constant::kDelayedStringConstant:
+          __ mov(dst, Operand::EmbeddedStringConstant(
+                          src.ToDelayedStringConstant()));
+          break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
-          Heap::RootListIndex index;
+          RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {

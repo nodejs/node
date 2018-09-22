@@ -535,7 +535,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 // via a trap. Adding properties to primitive values is not observable.
 void LookupIterator::PrepareTransitionToDataProperty(
     Handle<JSReceiver> receiver, Handle<Object> value,
-    PropertyAttributes attributes, Object::StoreFromKeyed store_mode) {
+    PropertyAttributes attributes, StoreOrigin store_origin) {
   DCHECK_IMPLIES(receiver->IsJSProxy(), name()->IsPrivate());
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
   if (state_ == TRANSITION) return;
@@ -589,7 +589,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
 
   Handle<Map> transition =
       Map::TransitionToDataProperty(isolate_, map, name_, value, attributes,
-                                    kDefaultFieldConstness, store_mode);
+                                    kDefaultFieldConstness, store_origin);
   state_ = TRANSITION;
   transition_ = transition;
 

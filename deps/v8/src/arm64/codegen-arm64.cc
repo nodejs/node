@@ -8,7 +8,6 @@
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/arm64/simulator-arm64.h"
 #include "src/codegen.h"
-#include "src/isolate.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -16,9 +15,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
-  return nullptr;
-}
+UnaryMathFunction CreateSqrtFunction() { return nullptr; }
 
 #undef __
 

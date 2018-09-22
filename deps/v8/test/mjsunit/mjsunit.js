@@ -64,6 +64,9 @@ var assertNotSame;
 // and the properties of non-Array objects).
 var assertEquals;
 
+// Deep equality predicate used by assertEquals.
+var deepEquals;
+
 // Expected and found values are not identical primitive values or functions
 // or similarly structured objects (checking internal properties
 // of, e.g., Number and Date objects, the elements of arrays
@@ -183,6 +186,9 @@ var isTurboFanned;
 // Monkey-patchable all-purpose failure handler.
 var failWithMessage;
 
+// Returns the formatted failure text.  Used by test-async.js.
+var formatFailureText;
+
 // Returns a pretty-printed string representation of the passed value.
 var prettyPrinted;
 
@@ -297,7 +303,7 @@ var prettyPrinted;
     throw new MjsUnitAssertionError(message);
   }
 
-  function formatFailureText(expectedText, found, name_opt) {
+  formatFailureText = function(expectedText, found, name_opt) {
     var message = "Fail" + "ure";
     if (name_opt) {
       // Fix this when we ditch the old test runner.
@@ -335,7 +341,7 @@ var prettyPrinted;
   }
 
 
-  function deepEquals(a, b) {
+  deepEquals = function deepEquals(a, b) {
     if (a === b) {
       // Check for -0.
       if (a === 0) return (1 / a) === (1 / b);

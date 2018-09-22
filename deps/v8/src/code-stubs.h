@@ -114,7 +114,7 @@ class CodeStub : public ZoneObject {
   static const char* MajorName(Major major_key);
 
   explicit CodeStub(Isolate* isolate) : minor_key_(0), isolate_(isolate) {}
-  virtual ~CodeStub() {}
+  virtual ~CodeStub() = default;
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
 
@@ -299,7 +299,9 @@ class CodeStubDescriptor {
     DCHECK(!stack_parameter_count_.is_valid());
   }
 
-  void set_call_descriptor(CallInterfaceDescriptor d) { call_descriptor_ = d; }
+  void set_call_descriptor(CallInterfaceDescriptor d) {
+    call_descriptor_ = std::move(d);
+  }
   CallInterfaceDescriptor call_descriptor() const { return call_descriptor_; }
 
   int GetRegisterParameterCount() const {

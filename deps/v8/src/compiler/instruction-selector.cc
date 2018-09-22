@@ -456,6 +456,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
     case IrOpcode::kNumberConstant:
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
+    case IrOpcode::kDelayedStringConstant:
       return g->UseImmediate(input);
     case IrOpcode::kHeapConstant: {
       if (!CanBeTaggedPointer(rep)) {
@@ -470,9 +471,9 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
       }
 
       Handle<HeapObject> constant = HeapConstantOf(input->op());
-      Heap::RootListIndex root_index;
+      RootIndex root_index;
       if (isolate->heap()->IsRootHandle(constant, &root_index) &&
-          root_index == Heap::kOptimizedOutRootIndex) {
+          root_index == RootIndex::kOptimizedOut) {
         // For an optimized-out object we return an invalid instruction
         // operand, so that we take the fast path for optimized-out values.
         return InstructionOperand();
@@ -1081,6 +1082,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     std::reverse(instructions_.begin() + instruction_start,
                  instructions_.end());
     if (!node) return true;
+    if (!source_positions_) return true;
     SourcePosition source_position = source_positions_->GetSourcePosition(node);
     if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
       sequence()->SetSourcePosition(instructions_[instruction_start],
@@ -1293,6 +1295,8 @@ void InstructionSelector::VisitNode(Node* node) {
       if (!IsSmiDouble(value)) MarkAsReference(node);
       return VisitConstant(node);
     }
+    case IrOpcode::kDelayedStringConstant:
+      return MarkAsReference(node), VisitConstant(node);
     case IrOpcode::kCall:
       return VisitCall(node);
     case IrOpcode::kCallWithCallerSavedRegisters:
@@ -1467,10 +1471,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
       return MarkAsFloat64(node), VisitChangeInt32ToFloat64(node);
+    case IrOpcode::kChangeInt64ToFloat64:
+      return MarkAsFloat64(node), VisitChangeInt64ToFloat64(node);
     case IrOpcode::kChangeUint32ToFloat64:
       return MarkAsFloat64(node), VisitChangeUint32ToFloat64(node);
     case IrOpcode::kChangeFloat64ToInt32:
       return MarkAsWord32(node), VisitChangeFloat64ToInt32(node);
+    case IrOpcode::kChangeFloat64ToInt64:
+      return MarkAsWord64(node), VisitChangeFloat64ToInt64(node);
     case IrOpcode::kChangeFloat64ToUint32:
       return MarkAsWord32(node), VisitChangeFloat64ToUint32(node);
     case IrOpcode::kChangeFloat64ToUint64:
@@ -1738,21 +1746,6 @@ void InstructionSelector::VisitNode(Node* node) {
     MarkAsWord32(node);                       \
     MarkPairProjectionsAsWord32(node);        \
     return VisitWord32AtomicPair##name(node); \
-  }
-      ATOMIC_CASE(Add)
-      ATOMIC_CASE(Sub)
-      ATOMIC_CASE(And)
-      ATOMIC_CASE(Or)
-      ATOMIC_CASE(Xor)
-      ATOMIC_CASE(Exchange)
-      ATOMIC_CASE(CompareExchange)
-#undef ATOMIC_CASE
-#define ATOMIC_CASE(name)                              \
-  case IrOpcode::kWord64AtomicNarrow##name: {          \
-    MachineType type = AtomicOpType(node->op());       \
-    MarkAsRepresentation(type.representation(), node); \
-    MarkPairProjectionsAsWord32(node);                 \
-    return VisitWord64AtomicNarrow##name(node);        \
   }
       ATOMIC_CASE(Add)
       ATOMIC_CASE(Sub)
@@ -2299,8 +2292,15 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitChangeInt64ToFloat64(Node* node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 
@@ -2423,34 +2423,6 @@ void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
 }
 
 void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitWord64AtomicNarrowAdd(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitWord64AtomicNarrowSub(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitWord64AtomicNarrowAnd(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitWord64AtomicNarrowOr(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitWord64AtomicNarrowXor(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitWord64AtomicNarrowExchange(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitWord64AtomicNarrowCompareExchange(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
@@ -2807,7 +2779,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   buffer.instruction_args.push_back(g.TempImmediate(optional_padding_slot));
 
   int first_unused_stack_slot =
-      (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0) +
+      (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? true : false) +
       stack_param_delta;
   buffer.instruction_args.push_back(g.TempImmediate(first_unused_stack_slot));
 

@@ -703,7 +703,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Increment();
   const Operator* Negate();
 
-  const Operator* ToInteger();
   const Operator* ToLength();
   const Operator* ToName();
   const Operator* ToNumber();
@@ -733,6 +732,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       VectorSlotPair const& feedback, int literal_flags,
       int number_of_elements);
   const Operator* CreateEmptyLiteralArray(VectorSlotPair const& feedback);
+  const Operator* CreateArrayFromIterable();
   const Operator* CreateEmptyLiteralObject();
 
   const Operator* CreateLiteralObject(

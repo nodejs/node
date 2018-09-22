@@ -86,7 +86,7 @@ class WasmCompilationUnit final {
   // If used exclusively from a foreground thread, Isolate::counters() may be
   // used by callers to pass Counters.
   WasmCompilationUnit(WasmEngine* wasm_engine, ModuleEnv*, NativeModule*,
-                      FunctionBody, WasmName, int index, Counters*,
+                      FunctionBody, int index, Counters*,
                       ExecutionTier = GetDefaultExecutionTier());
 
   ~WasmCompilationUnit();
@@ -109,7 +109,6 @@ class WasmCompilationUnit final {
   ModuleEnv* env_;
   WasmEngine* wasm_engine_;
   FunctionBody func_body_;
-  WasmName func_name_;
   Counters* counters_;
   int func_index_;
   NativeModule* native_module_;

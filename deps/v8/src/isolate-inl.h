@@ -58,17 +58,6 @@ bool Isolate::has_pending_exception() {
   return !thread_local_top_.pending_exception_->IsTheHole(this);
 }
 
-Object* Isolate::get_wasm_caught_exception() {
-  return thread_local_top_.wasm_caught_exception_;
-}
-
-void Isolate::set_wasm_caught_exception(Object* exception) {
-  thread_local_top_.wasm_caught_exception_ = exception;
-}
-
-void Isolate::clear_wasm_caught_exception() {
-  thread_local_top_.wasm_caught_exception_ = nullptr;
-}
 
 void Isolate::clear_pending_message() {
   thread_local_top_.pending_message_obj_ = ReadOnlyRoots(this).the_hole_value();

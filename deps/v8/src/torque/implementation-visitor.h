@@ -20,7 +20,7 @@ namespace torque {
 
 struct LocationReference {
   LocationReference(Value* value, VisitResult base, VisitResult index)
-      : value(value), base(base), index(index) {}
+      : value(value), base(std::move(base)), index(std::move(index)) {}
   Value* value;
   VisitResult base;
   VisitResult index;
@@ -48,22 +48,22 @@ class ImplementationVisitor : public FileVisitor {
     return LocationReference({}, Visit(expr->array), Visit(expr->index));
   }
 
-  std::string RValueFlattenStructs(VisitResult result);
+  std::string RValueFlattenStructs(const VisitResult& result);
 
-  VisitResult GenerateFetchFromLocation(LocationReference reference) {
+  VisitResult GenerateFetchFromLocation(const LocationReference& reference) {
     const Value* value = reference.value;
     return VisitResult(value->type(), value);
   }
   VisitResult GenerateFetchFromLocation(LocationExpression* location,
-                                        LocationReference reference);
+                                        const LocationReference& reference);
   VisitResult GenerateFetchFromLocation(IdentifierExpression* expr,
-                                        LocationReference reference) {
+                                        const LocationReference& reference) {
     return GenerateFetchFromLocation(reference);
   }
   VisitResult GenerateFetchFromLocation(FieldAccessExpression* expr,
-                                        LocationReference reference);
+                                        const LocationReference& reference);
   VisitResult GenerateFetchFromLocation(ElementAccessExpression* expr,
-                                        LocationReference reference) {
+                                        const LocationReference& reference) {
     Arguments arguments;
     arguments.parameters = {reference.base, reference.index};
     return GenerateCall("[]", arguments);
@@ -183,11 +183,11 @@ class ImplementationVisitor : public FileVisitor {
 
   VisitResult GenerateCopy(const VisitResult& to_copy);
 
-  void GenerateAssignToVariable(Variable* var, VisitResult value);
+  void GenerateAssignToVariable(Variable* var, const VisitResult& value);
 
   void GenerateAssignToLocation(LocationExpression* location,
                                 const LocationReference& reference,
-                                VisitResult assignment_value);
+                                const VisitResult& assignment_value);
 
   void GenerateVariableDeclaration(const Variable* var);
 

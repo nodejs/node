@@ -77,7 +77,9 @@ class PerThreadAssertScopeDebugOnly : public
 #else
 class PerThreadAssertScopeDebugOnly {
  public:
-  PerThreadAssertScopeDebugOnly() { }
+  PerThreadAssertScopeDebugOnly() {  // NOLINT (modernize-use-equals-default)
+    // Define a constructor to avoid unused variable warnings.
+  }
   void Release() {}
 #endif
 };

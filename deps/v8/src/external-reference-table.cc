@@ -159,8 +159,8 @@ void ExternalReferenceTable::AddAccessors(int* index) {
   };
 
   static const AccessorRefTable getters[] = {
-#define ACCESSOR_INFO_DECLARATION(accessor_name, AccessorName) \
-  {FUNCTION_ADDR(&Accessors::AccessorName##Getter),            \
+#define ACCESSOR_INFO_DECLARATION(accessor_name, AccessorName, ...) \
+  {FUNCTION_ADDR(&Accessors::AccessorName##Getter),                 \
    "Accessors::" #AccessorName "Getter"}, /* NOLINT(whitespace/indent) */
       ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION

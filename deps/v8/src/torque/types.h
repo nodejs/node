@@ -44,7 +44,7 @@ class TypeBase {
     kUnionType,
     kStructType
   };
-  virtual ~TypeBase() {}
+  virtual ~TypeBase() = default;
   bool IsAbstractType() const { return kind() == Kind::kAbstractType; }
   bool IsFunctionPointerType() const {
     return kind() == Kind::kFunctionPointerType;
@@ -344,7 +344,7 @@ inline std::ostream& operator<<(std::ostream& os, const Type& t) {
 
 class VisitResult {
  public:
-  VisitResult() {}
+  VisitResult() = default;
   VisitResult(const Type* type, const std::string& value)
       : type_(type), value_(value), declarable_{} {}
   VisitResult(const Type* type, const Value* declarable);

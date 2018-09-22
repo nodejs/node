@@ -32,9 +32,10 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   Heap* heap = isolate->heap();
   Object** roots_array_start = heap->roots_array_start();
   if (roots_array_start <= location_ &&
-      location_ < roots_array_start + Heap::kStrongRootListLength &&
+      location_ < roots_array_start +
+                      static_cast<int>(RootIndex::kStrongRootListLength) &&
       heap->RootCanBeTreatedAsConstant(
-          static_cast<Heap::RootListIndex>(location_ - roots_array_start))) {
+          static_cast<RootIndex>(location_ - roots_array_start))) {
     return true;
   }
   if (!AllowHandleDereference::IsAllowed()) return false;
@@ -160,7 +161,7 @@ Object** CanonicalHandleScope::Lookup(Object* object) {
     int index = root_index_map_->Lookup(HeapObject::cast(object));
     if (index != RootIndexMap::kInvalidRootIndex) {
       return isolate_->heap()
-          ->root_handle(static_cast<Heap::RootListIndex>(index))
+          ->root_handle(static_cast<RootIndex>(index))
           .location();
     }
   }

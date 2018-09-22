@@ -69,8 +69,7 @@ template <class AllocatorT>
 void Deserializer<AllocatorT>::VisitRootPointers(Root root,
                                                  const char* description,
                                                  Object** start, Object** end) {
-  // Builtins and bytecode handlers are deserialized in a separate pass by the
-  // BuiltinDeserializer.
+  // Builtins are deserialized in a separate pass by the BuiltinDeserializer.
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
 
   // The space must be new space.  Any other space would cause ReadChunk to try
@@ -179,18 +178,11 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
   }
 
   if (obj->IsAllocationSite()) {
-    // Allocation sites are present in the snapshot, and must be linked into
-    // a list at deserialization time.
-    AllocationSite* site = AllocationSite::cast(obj);
-    // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
-    // as a (weak) root. If this root is relocated correctly, this becomes
-    // unnecessary.
-    if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
-      site->set_weak_next(ReadOnlyRoots(isolate_).undefined_value());
-    } else {
-      site->set_weak_next(isolate_->heap()->allocation_sites_list());
-    }
-    isolate_->heap()->set_allocation_sites_list(site);
+    // We should link new allocation sites, but we can't do this immediately
+    // because |AllocationSite::HasWeakNext()| internally accesses
+    // |Heap::roots_| that may not have been initialized yet. So defer this to
+    // |ObjectDeserializer::CommitPostProcessedObjects()|.
+    new_allocation_sites_.push_back(AllocationSite::cast(obj));
   } else if (obj->IsCode()) {
     // We flush all code pages after deserializing the startup snapshot. In that
     // case, we only need to remember code objects in the large object space.
@@ -209,7 +201,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
   } else if (obj->IsExternalString()) {
     if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(obj);
-      DCHECK(string->is_short());
+      DCHECK(string->is_uncached());
       string->SetResource(
           isolate_, NativesExternalStringResource::DecodeForDeserialization(
                         string->resource()));
@@ -225,8 +217,8 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj->IsJSTypedArray()) {
     JSTypedArray* typed_array = JSTypedArray::cast(obj);
-    CHECK(typed_array->byte_offset()->IsSmi());
-    int32_t byte_offset = NumberToInt32(typed_array->byte_offset());
+    CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
+    int32_t byte_offset = static_cast<int32_t>(typed_array->byte_offset());
     if (byte_offset > 0) {
       FixedTypedArrayBase* elements =
           FixedTypedArrayBase::cast(typed_array->elements());
@@ -370,11 +362,7 @@ Object* Deserializer<AllocatorT>::ReadDataSingle() {
   Address current_object = kNullAddress;
 
   CHECK(ReadData(start, end, source_space, current_object));
-  HeapObject* heap_object;
-  bool success = o->ToStrongHeapObject(&heap_object);
-  DCHECK(success);
-  USE(success);
-  return heap_object;
+  return o->GetHeapObjectAssumeStrong();
 }
 
 static void NoExternalReferencesCallback() {
@@ -684,7 +672,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       SIXTEEN_CASES(kRootArrayConstants)
       SIXTEEN_CASES(kRootArrayConstants + 16) {
         int id = data & kRootArrayConstantsMask;
-        Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
+        RootIndex root_index = static_cast<RootIndex>(id);
         MaybeObject* object =
             MaybeObject::FromObject(isolate->heap()->root(root_index));
         DCHECK(!Heap::InNewSpace(object));
@@ -818,7 +806,7 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
       new_object = GetBackReferencedObject(data & kSpaceMask);
     } else if (where == kRootArray) {
       int id = source_.GetInt();
-      Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
+      RootIndex root_index = static_cast<RootIndex>(id);
       new_object = isolate->heap()->root(root_index);
       emit_write_barrier = Heap::InNewSpace(new_object);
       hot_objects_.Add(HeapObject::cast(new_object));

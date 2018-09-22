@@ -310,20 +310,37 @@ MaybeHandle<JSLocale> JSLocale::InitializeLocale(Isolate* isolate,
 
 namespace {
 
-Handle<String> MorphLocale(Isolate* isolate, String* input,
+Handle<String> MorphLocale(Isolate* isolate, String* language_tag,
                            int32_t (*morph_func)(const char*, char*, int32_t,
                                                  UErrorCode*)) {
   Factory* factory = isolate->factory();
   char localeBuffer[ULOC_FULLNAME_CAPACITY];
+  char morphBuffer[ULOC_FULLNAME_CAPACITY];
+
   UErrorCode status = U_ZERO_ERROR;
-  DCHECK_NOT_NULL(morph_func);
-  int32_t length = (*morph_func)(input->ToCString().get(), localeBuffer,
-                                 ULOC_FULLNAME_CAPACITY, &status);
+  // Convert from language id to locale.
+  int32_t parsed_length;
+  int32_t length =
+      uloc_forLanguageTag(language_tag->ToCString().get(), localeBuffer,
+                          ULOC_FULLNAME_CAPACITY, &parsed_length, &status);
+  CHECK(parsed_length == language_tag->length());
   DCHECK(U_SUCCESS(status));
   DCHECK_GT(length, 0);
-  std::string locale(localeBuffer, length);
-  std::replace(locale.begin(), locale.end(), '_', '-');
-  return factory->NewStringFromAsciiChecked(locale.c_str());
+  DCHECK_NOT_NULL(morph_func);
+  // Add the likely subtags or Minimize the subtags on the locale id
+  length =
+      (*morph_func)(localeBuffer, morphBuffer, ULOC_FULLNAME_CAPACITY, &status);
+  DCHECK(U_SUCCESS(status));
+  DCHECK_GT(length, 0);
+  // Returns a well-formed language tag
+  length = uloc_toLanguageTag(morphBuffer, localeBuffer, ULOC_FULLNAME_CAPACITY,
+                              false, &status);
+  DCHECK(U_SUCCESS(status));
+  DCHECK_GT(length, 0);
+  std::string lang(localeBuffer, length);
+  std::replace(lang.begin(), lang.end(), '_', '-');
+
+  return factory->NewStringFromAsciiChecked(lang.c_str());
 }
 
 }  // namespace

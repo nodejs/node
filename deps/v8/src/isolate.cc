@@ -161,7 +161,6 @@ void ThreadLocalTop::Initialize(Isolate* isolate) {
 }
 
 void ThreadLocalTop::Free() {
-  wasm_caught_exception_ = nullptr;
   // Match unmatched PopPromise calls.
   while (promise_on_stack_) isolate_->PopPromise();
 }
@@ -252,7 +251,6 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
 void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
   v->VisitRootPointer(Root::kTop, nullptr, &thread->pending_exception_);
-  v->VisitRootPointer(Root::kTop, nullptr, &thread->wasm_caught_exception_);
   v->VisitRootPointer(Root::kTop, nullptr, &thread->pending_message_obj_);
   v->VisitRootPointer(Root::kTop, nullptr,
                       bit_cast<Object**>(&(thread->context_)));
@@ -1124,19 +1122,6 @@ void ReportBootstrappingException(Handle<Object> exception,
 #endif
 }
 
-bool Isolate::is_catchable_by_wasm(Object* exception) {
-  // TODO(titzer): thread WASM features here, or just remove this check?
-  if (!FLAG_experimental_wasm_eh) return false;
-  if (!is_catchable_by_javascript(exception) || !exception->IsJSError())
-    return false;
-  HandleScope scope(this);
-  Handle<Object> exception_handle(exception, this);
-  return JSReceiver::HasProperty(Handle<JSReceiver>::cast(exception_handle),
-                                 factory()->InternalizeUtf8String(
-                                     wasm::WasmException::kRuntimeIdStr))
-      .IsJust();
-}
-
 Object* Isolate::Throw(Object* raw_exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
 
@@ -1310,11 +1295,10 @@ Object* Isolate::UnwindAndFindHandler() {
           trap_handler::ClearThreadInWasm();
         }
 
-        if (!is_catchable_by_wasm(exception)) {
-          break;
-        }
-        int stack_slots = 0;  // Will contain stack slot count of frame.
+        // For WebAssembly frames we perform a lookup in the handler table.
+        if (!catchable_by_js) break;
         WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
+        int stack_slots = 0;  // Will contain stack slot count of frame.
         int offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
         if (offset < 0) break;
         // Compute the stack pointer from the frame pointer. This ensures that
@@ -1324,10 +1308,10 @@ Object* Isolate::UnwindAndFindHandler() {
                             stack_slots * kPointerSize;
 
         // This is going to be handled by Wasm, so we need to set the TLS flag
-        // again.
+        // again. It was cleared above assuming the frame would be unwound.
         trap_handler::SetThreadInWasm();
 
-        set_wasm_caught_exception(exception);
+        // Gather information from the frame.
         wasm::WasmCode* wasm_code =
             wasm_engine()->code_manager()->LookupCode(frame->pc());
         return FoundHandler(nullptr, wasm_code->instruction_start(), offset,
@@ -2229,9 +2213,16 @@ Handle<Context> Isolate::GetIncumbentContext() {
 
   // 1st candidate: most-recently-entered author function's context
   // if it's newer than the last Context::BackupIncumbentScope entry.
-  if (!it.done() &&
-      static_cast<const void*>(it.frame()) >
-          static_cast<const void*>(top_backup_incumbent_scope())) {
+  //
+  // NOTE: This code assumes that the stack grows downward.
+  // This code doesn't work with ASAN because ASAN seems allocating stack
+  // separated for native C++ code and compiled JS code, and the following
+  // comparison doesn't make sense in ASAN.
+  // TODO(yukishiino): Make the implementation of BackupIncumbentScope more
+  // robust.
+  if (!it.done() && (!top_backup_incumbent_scope() ||
+                     it.frame()->sp() < reinterpret_cast<Address>(
+                                            top_backup_incumbent_scope()))) {
     Context* context = Context::cast(it.frame()->context());
     return Handle<Context>(context->native_context(), this);
   }
@@ -2274,10 +2265,6 @@ char* Isolate::RestoreThread(char* from) {
   return from + sizeof(ThreadLocalTop);
 }
 
-Isolate::ThreadDataTable::ThreadDataTable() : table_() {}
-
-Isolate::ThreadDataTable::~ThreadDataTable() {}
-
 void Isolate::ReleaseSharedPtrs() {
   while (managed_ptr_destructors_head_) {
     ManagedPtrDestructor* l = managed_ptr_destructors_head_;
@@ -2313,6 +2300,7 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
   destructor->next_ = nullptr;
 }
 
+// NOLINTNEXTLINE
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
 #if defined(USE_SIMULATOR)
   delete simulator_;
@@ -2545,7 +2533,7 @@ Isolate::Isolate()
 
   tracing_cpu_profiler_.reset(new TracingCpuProfilerImpl(this));
 
-  init_memcopy_functions(this);
+  init_memcopy_functions();
 
   if (FLAG_embedded_builtins) {
 #ifdef V8_MULTI_SNAPSHOTS
@@ -2602,19 +2590,26 @@ void Isolate::ClearSerializerData() {
   external_reference_map_ = nullptr;
 }
 
+bool Isolate::LogObjectRelocation() {
+  return FLAG_verify_predictable || logger()->is_logging() || is_profiling() ||
+         heap()->isolate()->logger()->is_listening_to_code_events() ||
+         (heap_profiler() != nullptr &&
+          heap_profiler()->is_tracking_object_moves()) ||
+         heap()->has_heap_object_allocation_tracker();
+}
 
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
 
   debug()->Unload();
 
+  wasm_engine()->DeleteCompileJobsOnIsolate(this);
+
   if (concurrent_recompilation_enabled()) {
     optimizing_compile_dispatcher_->Stop();
     delete optimizing_compile_dispatcher_;
     optimizing_compile_dispatcher_ = nullptr;
   }
-
-  wasm_engine()->DeleteCompileJobsOnIsolate(this);
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
   heap_.memory_allocator()->unmapper()->EnsureUnmappingCompleted();
@@ -3042,8 +3037,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     if (!create_heap_objects) des->DeserializeInto(this);
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
-    setup_delegate_->SetupInterpreter(interpreter_);
-
+    interpreter_->InitializeDispatchTable();
     heap_.NotifyDeserializationComplete();
   }
   delete setup_delegate_;
@@ -3227,6 +3221,8 @@ void Isolate::DumpAndResetStats() {
   }
   if (V8_UNLIKELY(FLAG_runtime_stats ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
+    counters()->worker_thread_runtime_call_stats()->AddToMainTable(
+        counters()->runtime_call_stats());
     counters()->runtime_call_stats()->Print();
     counters()->runtime_call_stats()->Reset();
   }
@@ -3642,7 +3638,7 @@ ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
-Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
+Handle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
                                   Handle<String> name, bool private_symbol) {
   Handle<String> key = factory()->InternalizeString(name);
   Handle<NameDictionary> dictionary =
@@ -3656,14 +3652,14 @@ Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
     dictionary = NameDictionary::Add(this, dictionary, key, symbol,
                                      PropertyDetails::Empty(), &entry);
     switch (dictionary_index) {
-      case Heap::kPublicSymbolTableRootIndex:
+      case RootIndex::kPublicSymbolTable:
         symbol->set_is_public(true);
         heap()->set_public_symbol_table(*dictionary);
         break;
-      case Heap::kApiSymbolTableRootIndex:
+      case RootIndex::kApiSymbolTable:
         heap()->set_api_symbol_table(*dictionary);
         break;
-      case Heap::kApiPrivateSymbolTableRootIndex:
+      case RootIndex::kApiPrivateSymbolTable:
         heap()->set_api_private_symbol_table(*dictionary);
         break;
       default:
@@ -3724,7 +3720,7 @@ void Isolate::FireCallCompletedCallback() {
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
 
   bool run_microtasks =
-      pending_microtask_count() &&
+      heap()->default_microtask_queue()->pending_microtask_count() &&
       !handle_scope_implementer()->HasMicrotasksSuppressions() &&
       handle_scope_implementer()->microtasks_policy() ==
           v8::MicrotasksPolicy::kAuto;
@@ -3826,6 +3822,29 @@ Handle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
 void Isolate::SetHostInitializeImportMetaObjectCallback(
     HostInitializeImportMetaObjectCallback callback) {
   host_initialize_import_meta_object_callback_ = callback;
+}
+
+MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
+    Handle<Context> context, Handle<JSObject> error) {
+  v8::Local<v8::Context> api_context = Utils::ToLocal(context);
+
+  v8::Local<StackTrace> trace =
+      Utils::StackTraceToLocal(GetDetailedStackTrace(error));
+
+  v8::Local<v8::Value> stack;
+  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+      this, stack,
+      prepare_stack_trace_callback_(api_context, Utils::ToLocal(error), trace),
+      MaybeHandle<Object>());
+  return Utils::OpenHandle(*stack);
+}
+
+void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
+  prepare_stack_trace_callback_ = callback;
+}
+
+bool Isolate::HasPrepareStackTraceCallback() const {
+  return prepare_stack_trace_callback_ != nullptr;
 }
 
 void Isolate::SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
@@ -3944,18 +3963,9 @@ void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
 }
 
 void Isolate::EnqueueMicrotask(Handle<Microtask> microtask) {
-  Handle<FixedArray> queue(heap()->microtask_queue(), this);
-  int num_tasks = pending_microtask_count();
-  DCHECK_LE(num_tasks, queue->length());
-  if (num_tasks == queue->length()) {
-    queue = factory()->CopyFixedArrayAndGrow(queue, std::max(num_tasks, 8));
-    heap()->set_microtask_queue(*queue);
-  }
-  DCHECK_LE(8, queue->length());
-  DCHECK_LT(num_tasks, queue->length());
-  DCHECK(queue->get(num_tasks)->IsUndefined(this));
-  queue->set(num_tasks, *microtask);
-  set_pending_microtask_count(num_tasks + 1);
+  Handle<MicrotaskQueue> microtask_queue(heap()->default_microtask_queue(),
+                                         this);
+  MicrotaskQueue::EnqueueMicrotask(this, microtask_queue, microtask);
 }
 
 
@@ -3963,25 +3973,27 @@ void Isolate::RunMicrotasks() {
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
       reinterpret_cast<v8::Isolate*>(this));
-  if (pending_microtask_count()) {
+  HandleScope scope(this);
+  Handle<MicrotaskQueue> microtask_queue(heap()->default_microtask_queue(),
+                                         this);
+  if (microtask_queue->pending_microtask_count()) {
     is_running_microtasks_ = true;
     TRACE_EVENT0("v8.execute", "RunMicrotasks");
     TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
 
-    HandleScope scope(this);
     MaybeHandle<Object> maybe_exception;
     MaybeHandle<Object> maybe_result = Execution::RunMicrotasks(
         this, Execution::MessageHandling::kReport, &maybe_exception);
     // If execution is terminating, bail out, clean up, and propagate to
     // TryCatch scope.
     if (maybe_result.is_null() && maybe_exception.is_null()) {
-      heap()->set_microtask_queue(ReadOnlyRoots(heap()).empty_fixed_array());
-      set_pending_microtask_count(0);
+      microtask_queue->set_queue(ReadOnlyRoots(heap()).empty_fixed_array());
+      microtask_queue->set_pending_microtask_count(0);
       handle_scope_implementer()->LeaveMicrotaskContext();
       SetTerminationOnExternalTryCatch();
     }
-    CHECK_EQ(0, pending_microtask_count());
-    CHECK_EQ(0, heap()->microtask_queue()->length());
+    CHECK_EQ(0, microtask_queue->pending_microtask_count());
+    CHECK_EQ(0, microtask_queue->queue()->length());
     is_running_microtasks_ = false;
   }
   FireMicrotasksCompletedCallback();
@@ -4036,10 +4048,10 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (length == 0) return;
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
-    int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->ToSmi());
+    int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
     MaybeObject* context = detached_contexts->Get(i + 1);
-    DCHECK(context->IsWeakHeapObject() || context->IsClearedWeakHeapObject());
-    if (!context->IsClearedWeakHeapObject()) {
+    DCHECK(context->IsWeakOrCleared());
+    if (!context->IsCleared()) {
       detached_contexts->Set(
           new_length, MaybeObject::FromSmi(Smi::FromInt(mark_sweeps + 1)));
       detached_contexts->Set(new_length + 1, context);
@@ -4056,9 +4068,9 @@ void Isolate::CheckDetachedContextsAfterGC() {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
-      int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->ToSmi());
+      int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
       MaybeObject* context = detached_contexts->Get(i + 1);
-      DCHECK(context->IsWeakHeapObject() || context->IsClearedWeakHeapObject());
+      DCHECK(context->IsWeakOrCleared());
       if (mark_sweeps > 3) {
         PrintF("detached context %p\n survived %d GCs (leak?)\n",
                static_cast<void*>(context), mark_sweeps);

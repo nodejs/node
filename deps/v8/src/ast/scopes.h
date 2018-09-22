@@ -20,8 +20,7 @@ class AstValueFactory;
 class AstRawString;
 class Declaration;
 class ParseInfo;
-class PreParsedScopeData;
-class ProducedPreParsedScopeData;
+class PreParsedScopeDataBuilder;
 class SloppyBlockFunctionStatement;
 class Statement;
 class StringSet;
@@ -114,7 +113,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   ModuleScope* AsModuleScope();
   const ModuleScope* AsModuleScope() const;
 
-  class Snapshot final BASE_EMBEDDED {
+  class Snapshot final {
    public:
     explicit Snapshot(Scope* scope);
     ~Snapshot();
@@ -218,8 +217,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     DCHECK(!already_resolved_);
     DCHECK_EQ(factory->zone(), zone());
     VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_pos);
-    proxy->set_next_unresolved(unresolved_);
-    unresolved_ = proxy;
+    AddUnresolved(proxy);
     return proxy;
   }
 
@@ -480,6 +478,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return false;
   }
 
+  static void* const kDummyPreParserVariable;
+  static void* const kDummyPreParserLexicalVariable;
+
  protected:
   explicit Scope(Zone* zone);
 
@@ -525,7 +526,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   ThreadedList<Variable> locals_;
   // Unresolved variables referred to from this scope. The proxies themselves
   // form a linked list of all unresolved proxies.
-  VariableProxy* unresolved_;
+  ThreadedList<VariableProxy> unresolved_list_;
   // Declarations.
   ThreadedList<Declaration> decls_;
 
@@ -597,9 +598,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
   // If a ParseInfo* is passed, non-free variables will be resolved.
-  VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
-                                    ParseInfo* info = nullptr,
-                                    VariableProxy* stack = nullptr);
+  template <typename T>
+  void ResolveScopesThenForEachVariable(DeclarationScope* max_outer_scope,
+                                        T variable_proxy_stackvisitor,
+                                        ParseInfo* info = nullptr);
 
   // Predicates.
   bool MustAllocate(Variable* var);
@@ -682,6 +684,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   }
   bool is_being_lazily_parsed() const { return is_being_lazily_parsed_; }
 #endif
+  void set_zone(Zone* zone) { zone_ = zone; }
 
   bool ShouldEagerCompile() const;
   void set_should_eager_compile();
@@ -919,13 +922,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // saved in produced_preparsed_scope_data_.
   void SavePreParsedScopeDataForDeclarationScope();
 
-  void set_produced_preparsed_scope_data(
-      ProducedPreParsedScopeData* produced_preparsed_scope_data) {
-    produced_preparsed_scope_data_ = produced_preparsed_scope_data;
+  void set_preparsed_scope_data_builder(
+      PreParsedScopeDataBuilder* preparsed_scope_data_builder) {
+    preparsed_scope_data_builder_ = preparsed_scope_data_builder;
   }
 
-  ProducedPreParsedScopeData* produced_preparsed_scope_data() const {
-    return produced_preparsed_scope_data_;
+  PreParsedScopeDataBuilder* preparsed_scope_data_builder() const {
+    return preparsed_scope_data_builder_;
   }
 
  private:
@@ -981,7 +984,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Variable* arguments_;
 
   // For producing the scope allocation data during preparsing.
-  ProducedPreParsedScopeData* produced_preparsed_scope_data_;
+  PreParsedScopeDataBuilder* preparsed_scope_data_builder_;
 
   struct RareData : public ZoneObject {
     // Convenience variable; Subclass constructor only

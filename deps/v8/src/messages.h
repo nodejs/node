@@ -50,7 +50,7 @@ class MessageLocation {
 
 class StackFrameBase {
  public:
-  virtual ~StackFrameBase() {}
+  virtual ~StackFrameBase() = default;
 
   virtual Handle<Object> GetReceiver() const = 0;
   virtual Handle<Object> GetFunction() const = 0;
@@ -77,7 +77,7 @@ class StackFrameBase {
   virtual MaybeHandle<String> ToString() = 0;
 
  protected:
-  StackFrameBase() {}
+  StackFrameBase() = default;
   explicit StackFrameBase(Isolate* isolate) : isolate_(isolate) {}
   Isolate* isolate_;
 
@@ -91,7 +91,7 @@ class JSStackFrame : public StackFrameBase {
   JSStackFrame(Isolate* isolate, Handle<Object> receiver,
                Handle<JSFunction> function, Handle<AbstractCode> code,
                int offset);
-  virtual ~JSStackFrame() {}
+  ~JSStackFrame() override = default;
 
   Handle<Object> GetReceiver() const override { return receiver_; }
   Handle<Object> GetFunction() const override;
@@ -114,7 +114,7 @@ class JSStackFrame : public StackFrameBase {
   MaybeHandle<String> ToString() override;
 
  private:
-  JSStackFrame();
+  JSStackFrame() = default;
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
 
   bool HasScript() const override;
@@ -133,7 +133,7 @@ class JSStackFrame : public StackFrameBase {
 
 class WasmStackFrame : public StackFrameBase {
  public:
-  virtual ~WasmStackFrame() {}
+  ~WasmStackFrame() override = default;
 
   Handle<Object> GetReceiver() const override;
   Handle<Object> GetFunction() const override;
@@ -168,7 +168,7 @@ class WasmStackFrame : public StackFrameBase {
   int offset_;
 
  private:
-  WasmStackFrame();
+  WasmStackFrame() = default;
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
 
   friend class FrameArrayIterator;
@@ -177,7 +177,7 @@ class WasmStackFrame : public StackFrameBase {
 
 class AsmJsWasmStackFrame : public WasmStackFrame {
  public:
-  virtual ~AsmJsWasmStackFrame() {}
+  ~AsmJsWasmStackFrame() override = default;
 
   Handle<Object> GetReceiver() const override;
   Handle<Object> GetFunction() const override;
@@ -193,7 +193,7 @@ class AsmJsWasmStackFrame : public WasmStackFrame {
 
  private:
   friend class FrameArrayIterator;
-  AsmJsWasmStackFrame();
+  AsmJsWasmStackFrame() = default;
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
 
   bool is_at_number_conversion_;
@@ -377,6 +377,7 @@ class ErrorUtils : public AllStatic {
     "% is not a function or its return value is not async iterable")           \
   T(NotFiniteNumber, "Value need to be finite number for %()")                 \
   T(NotIterable, "% is not iterable")                                          \
+  T(NotIterableNoSymbolLoad, "% is not iterable (cannot read property %)")     \
   T(NotAsyncIterable, "% is not async iterable")                               \
   T(NotPropertyName, "% is not a valid property name")                         \
   T(NotTypedArray, "this is not a typed array.")                               \

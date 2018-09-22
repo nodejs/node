@@ -20,7 +20,7 @@ namespace compiler {
 InstructionSelectorTest::InstructionSelectorTest() : rng_(FLAG_random_seed) {}
 
 
-InstructionSelectorTest::~InstructionSelectorTest() {}
+InstructionSelectorTest::~InstructionSelectorTest() = default;
 
 
 InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(

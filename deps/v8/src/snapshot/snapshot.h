@@ -175,12 +175,6 @@ class Snapshot : public AllStatic {
   static Code* EnsureBuiltinIsDeserialized(Isolate* isolate,
                                            Handle<SharedFunctionInfo> shared);
 
-  // Deserializes a single given handler code object. Intended to be called at
-  // runtime after the isolate has been fully initialized.
-  static Code* DeserializeHandler(Isolate* isolate,
-                                  interpreter::Bytecode bytecode,
-                                  interpreter::OperandScale operand_scale);
-
   // ---------------- Helper methods ----------------
 
   static bool HasContextSnapshot(Isolate* isolate, size_t index);

@@ -113,6 +113,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowConstructorReturnedNonObject:
     case Runtime::kThrowInvalidStringLength:
     case Runtime::kThrowInvalidTypedArrayAlignment:
+    case Runtime::kThrowIteratorError:
     case Runtime::kThrowIteratorResultNotAnObject:
     case Runtime::kThrowThrowMethodMissing:
     case Runtime::kThrowSymbolIteratorInvalid:

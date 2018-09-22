@@ -39,7 +39,7 @@ typedef std::vector<MockTraceObject*> MockTraceObjectList;
 class MockTracingController : public v8::TracingController {
  public:
   MockTracingController() = default;
-  ~MockTracingController() {
+  ~MockTracingController() override {
     for (size_t i = 0; i < trace_object_list_.size(); ++i) {
       delete trace_object_list_[i];
     }
@@ -98,7 +98,7 @@ class MockTracingPlatform : public TestPlatform {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  virtual ~MockTracingPlatform() {}
+  ~MockTracingPlatform() override = default;
 
   v8::TracingController* GetTracingController() override {
     return &tracing_controller_;

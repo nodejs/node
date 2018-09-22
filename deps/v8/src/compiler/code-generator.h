@@ -50,28 +50,40 @@ class InstructionOperandIterator {
   size_t pos_;
 };
 
-// Either a non-null Handle<Object> or a double.
+enum class DeoptimizationLiteralKind { kObject, kNumber, kString };
+
+// Either a non-null Handle<Object>, a double or a StringConstantBase.
 class DeoptimizationLiteral {
  public:
-  DeoptimizationLiteral() : object_(), number_(0) {}
+  DeoptimizationLiteral() : object_(), number_(0), string_(nullptr) {}
   explicit DeoptimizationLiteral(Handle<Object> object)
-      : object_(object), number_(0) {
+      : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
     DCHECK(!object_.is_null());
   }
-  explicit DeoptimizationLiteral(double number) : object_(), number_(number) {}
+  explicit DeoptimizationLiteral(double number)
+      : kind_(DeoptimizationLiteralKind::kNumber), number_(number) {}
+  explicit DeoptimizationLiteral(const StringConstantBase* string)
+      : kind_(DeoptimizationLiteralKind::kString), string_(string) {}
 
   Handle<Object> object() const { return object_; }
+  const StringConstantBase* string() const { return string_; }
 
   bool operator==(const DeoptimizationLiteral& other) const {
-    return object_.equals(other.object_) &&
-           bit_cast<uint64_t>(number_) == bit_cast<uint64_t>(other.number_);
+    return kind_ == other.kind_ && object_.equals(other.object_) &&
+           bit_cast<uint64_t>(number_) == bit_cast<uint64_t>(other.number_) &&
+           bit_cast<intptr_t>(string_) == bit_cast<intptr_t>(other.string_);
   }
 
   Handle<Object> Reify(Isolate* isolate) const;
 
+  DeoptimizationLiteralKind kind() const { return kind_; }
+
  private:
+  DeoptimizationLiteralKind kind_;
+
   Handle<Object> object_;
-  double number_;
+  double number_ = 0;
+  const StringConstantBase* string_ = nullptr;
 };
 
 // Generates native code for a sequence of instructions.
@@ -151,7 +163,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   // which is cheaper on some platforms than materializing the actual heap
   // object constant.
   bool IsMaterializableFromRoot(Handle<HeapObject> object,
-                                Heap::RootListIndex* index_return);
+                                RootIndex* index_return);
 
   enum CodeGenResult { kSuccess, kTooManyDeoptimizationBailouts };
 

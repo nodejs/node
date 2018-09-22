@@ -255,7 +255,7 @@ bool Signature::HasSameTypesAs(const Signature& other) const {
     return false;
   }
   size_t i = 0;
-  for (auto l : labels) {
+  for (const auto& l : labels) {
     if (l.types != other.labels[i++].types) {
       return false;
     }

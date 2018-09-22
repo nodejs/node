@@ -7,6 +7,7 @@
 
 #include <deque>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "include/v8-profiler.h"
@@ -30,6 +31,10 @@ class HeapProfiler;
 class HeapSnapshot;
 class JSArrayBuffer;
 class JSCollection;
+class JSGeneratorObject;
+class JSGlobalObject;
+class JSGlobalProxy;
+class JSPromise;
 class JSWeakCollection;
 class SnapshotFiller;
 
@@ -43,7 +48,7 @@ struct SourceLocation {
   const int col;
 };
 
-class HeapGraphEdge BASE_EMBEDDED {
+class HeapGraphEdge {
  public:
   enum Type {
     kContextVariable = v8::HeapGraphEdge::kContextVariable,
@@ -96,7 +101,7 @@ class HeapGraphEdge BASE_EMBEDDED {
 
 // HeapEntry instances represent an entity from the heap (or a special
 // virtual node, e.g. root).
-class HeapEntry BASE_EMBEDDED {
+class HeapEntry {
  public:
   enum Type {
     kHidden = v8::HeapGraphNode::kHidden,
@@ -116,7 +121,7 @@ class HeapEntry BASE_EMBEDDED {
   };
   static const int kNoEntry;
 
-  HeapEntry() { }
+  HeapEntry() = default;
   HeapEntry(HeapSnapshot* snapshot,
             Type type,
             const char* name,
@@ -294,57 +299,16 @@ typedef void* HeapThing;
 // An interface that creates HeapEntries by HeapThings.
 class HeapEntriesAllocator {
  public:
-  virtual ~HeapEntriesAllocator() { }
+  virtual ~HeapEntriesAllocator() = default;
   virtual HeapEntry* AllocateEntry(HeapThing ptr) = 0;
 };
 
-// The HeapEntriesMap instance is used to track a mapping between
-// real heap objects and their representations in heap snapshots.
-class HeapEntriesMap {
- public:
-  HeapEntriesMap();
-
-  int Map(HeapThing thing);
-  void Pair(HeapThing thing, int entry);
-
- private:
-  static uint32_t Hash(HeapThing thing) {
-    return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)));
-  }
-
-  base::HashMap entries_;
-
-  friend class HeapObjectsSet;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapEntriesMap);
-};
-
-
-class HeapObjectsSet {
- public:
-  HeapObjectsSet();
-  void Clear();
-  bool Contains(Object* object);
-  void Insert(Object* obj);
-  const char* GetTag(Object* obj);
-  void SetTag(Object* obj, const char* tag);
-  bool is_empty() const { return entries_.occupancy() == 0; }
-
- private:
-  base::HashMap entries_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapObjectsSet);
-};
-
-
 class SnapshottingProgressReportingInterface {
  public:
-  virtual ~SnapshottingProgressReportingInterface() { }
+  virtual ~SnapshottingProgressReportingInterface() = default;
   virtual void ProgressStep() = 0;
   virtual bool ProgressReport(bool force) = 0;
 };
-
 
 // An implementation of V8 heap graph extractor.
 class V8HeapExplorer : public HeapEntriesAllocator {
@@ -352,8 +316,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   V8HeapExplorer(HeapSnapshot* snapshot,
                  SnapshottingProgressReportingInterface* progress,
                  v8::HeapProfiler::ObjectNameResolver* resolver);
-  virtual ~V8HeapExplorer();
-  virtual HeapEntry* AllocateEntry(HeapThing ptr);
+  ~V8HeapExplorer() override = default;
+  HeapEntry* AllocateEntry(HeapThing ptr) override;
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(SnapshotFiller* filler);
   void TagGlobalObjects();
@@ -481,9 +445,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   SnapshotFiller* filler_;
-  HeapObjectsSet objects_tags_;
-  HeapObjectsSet strong_gc_subroot_names_;
-  HeapObjectsSet user_roots_;
+  std::unordered_map<JSGlobalObject*, const char*> objects_tags_;
+  std::unordered_map<Object*, const char*> strong_gc_subroot_names_;
+  std::unordered_set<JSGlobalObject*> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> visited_fields_;
@@ -520,7 +484,7 @@ class NativeObjectsExplorer {
 
   struct RetainedInfoHasher {
     std::size_t operator()(v8::RetainedObjectInfo* info) const {
-      return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
+      return ComputeUnseededHash(static_cast<uint32_t>(info->GetHash()));
     }
   };
   struct RetainedInfoEquals {
@@ -538,7 +502,7 @@ class NativeObjectsExplorer {
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
   bool embedder_queried_;
-  HeapObjectsSet in_groups_;
+  std::unordered_set<Object*> in_groups_;
   std::unordered_map<v8::RetainedObjectInfo*, std::vector<HeapObject*>*,
                      RetainedInfoHasher, RetainedInfoEquals>
       objects_by_info_;
@@ -562,6 +526,10 @@ class NativeObjectsExplorer {
 
 class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
  public:
+  // The HeapEntriesMap instance is used to track a mapping between
+  // real heap objects and their representations in heap snapshots.
+  using HeapEntriesMap = std::unordered_map<HeapThing, int>;
+
   HeapSnapshotGenerator(HeapSnapshot* snapshot,
                         v8::ActivityControl* control,
                         v8::HeapProfiler::ObjectNameResolver* resolver,
@@ -570,16 +538,16 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
 
  private:
   bool FillReferences();
-  void ProgressStep();
-  bool ProgressReport(bool force = false);
+  void ProgressStep() override;
+  bool ProgressReport(bool force = false) override;
   void InitProgressCounter();
 
   HeapSnapshot* snapshot_;
   v8::ActivityControl* control_;
   V8HeapExplorer v8_heap_explorer_;
   NativeObjectsExplorer dom_explorer_;
-  // Mapping from HeapThing pointers to HeapEntry* pointers.
-  HeapEntriesMap entries_;
+  // Mapping from HeapThing pointers to HeapEntry indices.
+  HeapEntriesMap entries_map_;
   // Used during snapshot generation.
   int progress_counter_;
   int progress_total_;

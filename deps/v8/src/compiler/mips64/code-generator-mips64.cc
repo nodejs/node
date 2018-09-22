@@ -87,6 +87,9 @@ class MipsOperandConverter final : public InstructionOperandConverter {
         // TODO(plind): Maybe we should handle ExtRef & HeapObj here?
         //    maybe not done on arm due to const pool ??
         break;
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(titzer): RPO immediates on mips?
         break;
@@ -2496,7 +2499,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label all_false;
       __ BranchMSA(&all_false, MSA_BRANCH_V, all_zero,
                    i.InputSimd128Register(0), USE_DELAY_SLOT);
-      __ li(dst, 0);  // branch delay slot
+      __ li(dst, 0l);  // branch delay slot
       __ li(dst, -1);
       __ bind(&all_false);
       break;
@@ -2508,7 +2511,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ BranchMSA(&all_true, MSA_BRANCH_W, all_not_zero,
                    i.InputSimd128Register(0), USE_DELAY_SLOT);
       __ li(dst, -1);  // branch delay slot
-      __ li(dst, 0);
+      __ li(dst, 0l);
       __ bind(&all_true);
       break;
     }
@@ -2519,7 +2522,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ BranchMSA(&all_true, MSA_BRANCH_H, all_not_zero,
                    i.InputSimd128Register(0), USE_DELAY_SLOT);
       __ li(dst, -1);  // branch delay slot
-      __ li(dst, 0);
+      __ li(dst, 0l);
       __ bind(&all_true);
       break;
     }
@@ -2530,7 +2533,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ BranchMSA(&all_true, MSA_BRANCH_B, all_not_zero,
                    i.InputSimd128Register(0), USE_DELAY_SLOT);
       __ li(dst, -1);  // branch delay slot
-      __ li(dst, 0);
+      __ li(dst, 0l);
       __ bind(&all_true);
       break;
     }
@@ -3621,9 +3624,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kExternalReference:
           __ li(dst, src.ToExternalReference());
           break;
+        case Constant::kDelayedStringConstant:
+          __ li(dst, src.ToDelayedStringConstant());
+          break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
-          Heap::RootListIndex index;
+          RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {

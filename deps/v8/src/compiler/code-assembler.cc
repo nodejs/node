@@ -84,13 +84,13 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
       code_generated_(false),
       variables_(zone) {}
 
-CodeAssemblerState::~CodeAssemblerState() {}
+CodeAssemblerState::~CodeAssemblerState() = default;
 
 int CodeAssemblerState::parameter_count() const {
   return static_cast<int>(raw_assembler_->call_descriptor()->ParameterCount());
 }
 
-CodeAssembler::~CodeAssembler() {}
+CodeAssembler::~CodeAssembler() = default;
 
 #if DEBUG
 void CodeAssemblerState::PrintCurrentBlock(std::ostream& os) {
@@ -309,7 +309,7 @@ TNode<Float64T> CodeAssembler::Float64Constant(double value) {
 }
 
 TNode<HeapNumber> CodeAssembler::NaNConstant() {
-  return UncheckedCast<HeapNumber>(LoadRoot(Heap::kNanValueRootIndex));
+  return UncheckedCast<HeapNumber>(LoadRoot(RootIndex::kNanValue));
 }
 
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t& out_value) {
@@ -924,6 +924,17 @@ TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(
       raw_assembler()->ChangeFloat64ToUint32(value));
 }
 
+TNode<Float64T> CodeAssembler::ChangeUintPtrToFloat64(TNode<UintPtrT> value) {
+  if (raw_assembler()->machine()->Is64()) {
+    // TODO(turbofan): Maybe we should introduce a ChangeUint64ToFloat64
+    // machine operator to TurboFan here?
+    return ReinterpretCast<Float64T>(
+        raw_assembler()->RoundUint64ToFloat64(value));
+  }
+  return ReinterpretCast<Float64T>(
+      raw_assembler()->ChangeUint32ToFloat64(value));
+}
+
 Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
   if (raw_assembler()->machine()->Is64()) {
     return raw_assembler()->RoundInt64ToFloat64(value);
@@ -952,7 +963,7 @@ Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
   return raw_assembler()->AtomicLoad(rep, base, offset);
 }
 
-TNode<Object> CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
+TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(root_index)) {
     Handle<Object> root = isolate()->heap()->root_handle(root_index);
     if (root->IsSmi()) {
@@ -967,8 +978,9 @@ TNode<Object> CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
   // cases, it would boil down to loading from a fixed kRootRegister offset.
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
+  size_t offset = static_cast<size_t>(root_index) * kPointerSize;
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), roots_array_start,
-                                    IntPtrConstant(root_index * kPointerSize)));
+                                    IntPtrConstant(offset)));
 }
 
 Node* CodeAssembler::Store(Node* base, Node* value) {
@@ -1022,12 +1034,13 @@ Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
                                                 new_value);
 }
 
-Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
+Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
   DCHECK(Heap::RootCanBeWrittenAfterInitialization(root_index));
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
+  size_t offset = static_cast<size_t>(root_index) * kPointerSize;
   return StoreNoWriteBarrier(MachineRepresentation::kTagged, roots_array_start,
-                             IntPtrConstant(root_index * kPointerSize), value);
+                             IntPtrConstant(offset), value);
 }
 
 Node* CodeAssembler::Retain(Node* value) {
@@ -1392,8 +1405,8 @@ void CodeAssembler::Branch(SloppyTNode<IntegralT> condition, Label* true_label,
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition,
-                           std::function<void()> true_body,
-                           std::function<void()> false_body) {
+                           const std::function<void()>& true_body,
+                           const std::function<void()>& false_body) {
   int32_t constant;
   if (ToInt32Constant(condition, constant)) {
     return constant ? true_body() : false_body();
@@ -1410,7 +1423,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition,
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition, Label* true_label,
-                           std::function<void()> false_body) {
+                           const std::function<void()>& false_body) {
   int32_t constant;
   if (ToInt32Constant(condition, constant)) {
     return constant ? Goto(true_label) : false_body();
@@ -1423,7 +1436,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition, Label* true_label,
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition,
-                           std::function<void()> true_body,
+                           const std::function<void()>& true_body,
                            Label* false_label) {
   int32_t constant;
   if (ToInt32Constant(condition, constant)) {

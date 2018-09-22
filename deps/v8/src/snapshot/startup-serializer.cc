@@ -152,9 +152,12 @@ void StartupSerializer::CheckRehashability(HeapObject* obj) {
 }
 
 bool StartupSerializer::MustBeDeferred(HeapObject* object) {
-  if (root_has_been_serialized_.test(Heap::kFreeSpaceMapRootIndex) &&
-      root_has_been_serialized_.test(Heap::kOnePointerFillerMapRootIndex) &&
-      root_has_been_serialized_.test(Heap::kTwoPointerFillerMapRootIndex)) {
+  if (root_has_been_serialized_.test(
+          static_cast<size_t>(RootIndex::kFreeSpaceMap)) &&
+      root_has_been_serialized_.test(
+          static_cast<size_t>(RootIndex::kOnePointerFillerMap)) &&
+      root_has_been_serialized_.test(
+          static_cast<size_t>(RootIndex::kTwoPointerFillerMap))) {
     // All required root objects are serialized, so any aligned objects can
     // be saved without problems.
     return false;

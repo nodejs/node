@@ -353,7 +353,6 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
 
 }  // namespace
 
-
 #define ASSEMBLE_UNOP(asm_instr)         \
   do {                                   \
     if (instr->Output()->IsRegister()) { \
@@ -361,7 +360,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     } else {                             \
       __ asm_instr(i.OutputOperand());   \
     }                                    \
-  } while (0)
+  } while (false)
 
 #define ASSEMBLE_BINOP(asm_instr)                                     \
   do {                                                                \
@@ -384,7 +383,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
         }                                                             \
       }                                                               \
     }                                                                 \
-  } while (0)
+  } while (false)
 
 #define ASSEMBLE_COMPARE(asm_instr)                                   \
   do {                                                                \
@@ -411,7 +410,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
         }                                                             \
       }                                                               \
     }                                                                 \
-  } while (0)
+  } while (false)
 
 #define ASSEMBLE_MULT(asm_instr)                              \
   do {                                                        \
@@ -430,8 +429,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
         __ asm_instr(i.OutputRegister(), i.InputOperand(1));  \
       }                                                       \
     }                                                         \
-  } while (0)
-
+  } while (false)
 
 #define ASSEMBLE_SHIFT(asm_instr, width)                                   \
   do {                                                                     \
@@ -448,8 +446,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
         __ asm_instr##_cl(i.OutputOperand());                              \
       }                                                                    \
     }                                                                      \
-  } while (0)
-
+  } while (false)
 
 #define ASSEMBLE_MOVX(asm_instr)                            \
   do {                                                      \
@@ -460,7 +457,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     } else {                                                \
       __ asm_instr(i.OutputRegister(), i.InputOperand(0));  \
     }                                                       \
-  } while (0)
+  } while (false)
 
 #define ASSEMBLE_SSE_BINOP(asm_instr)                                   \
   do {                                                                  \
@@ -469,7 +466,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     } else {                                                            \
       __ asm_instr(i.InputDoubleRegister(0), i.InputOperand(1));        \
     }                                                                   \
-  } while (0)
+  } while (false)
 
 #define ASSEMBLE_SSE_UNOP(asm_instr)                                    \
   do {                                                                  \
@@ -478,7 +475,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     } else {                                                            \
       __ asm_instr(i.OutputDoubleRegister(), i.InputOperand(0));        \
     }                                                                   \
-  } while (0)
+  } while (false)
 
 #define ASSEMBLE_AVX_BINOP(asm_instr)                                  \
   do {                                                                 \
@@ -490,7 +487,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
       __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
                    i.InputOperand(1));                                 \
     }                                                                  \
-  } while (0)
+  } while (false)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                     \
   do {                                                                   \
@@ -2657,7 +2654,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64StackCheck:
-      __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+      __ CompareRoot(rsp, RootIndex::kStackLimit);
       break;
     case kWord32AtomicExchangeInt8: {
       __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
@@ -3273,12 +3270,17 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         break;
       case Constant::kHeapObject: {
         Handle<HeapObject> src_object = src.ToHeapObject();
-        Heap::RootListIndex index;
+        RootIndex index;
         if (IsMaterializableFromRoot(src_object, &index)) {
           __ LoadRoot(dst, index);
         } else {
           __ Move(dst, src_object);
         }
+        break;
+      }
+      case Constant::kDelayedStringConstant: {
+        const StringConstantBase* src_constant = src.ToDelayedStringConstant();
+        __ MoveStringConstant(dst, src_constant);
         break;
       }
       case Constant::kRpoNumber:

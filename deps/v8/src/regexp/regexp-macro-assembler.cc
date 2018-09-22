@@ -23,10 +23,7 @@ RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
       isolate_(isolate),
       zone_(zone) {}
 
-
-RegExpMacroAssembler::~RegExpMacroAssembler() {
-}
-
+RegExpMacroAssembler::~RegExpMacroAssembler() = default;
 
 int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
                                                      Address byte_offset2,
@@ -117,10 +114,7 @@ NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Isolate* isolate,
                                                        Zone* zone)
     : RegExpMacroAssembler(isolate, zone) {}
 
-
-NativeRegExpMacroAssembler::~NativeRegExpMacroAssembler() {
-}
-
+NativeRegExpMacroAssembler::~NativeRegExpMacroAssembler() = default;
 
 bool NativeRegExpMacroAssembler::CanReadUnaligned() {
   return FLAG_enable_regexp_unaligned_accesses && !slow_safe();

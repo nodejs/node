@@ -76,7 +76,7 @@ class Sweeper::SweeperTask final : public CancelableTask {
         space_to_start_(space_to_start),
         tracer_(isolate->heap()->tracer()) {}
 
-  virtual ~SweeperTask() {}
+  ~SweeperTask() override = default;
 
  private:
   void RunInternal() final {
@@ -111,7 +111,7 @@ class Sweeper::IncrementalSweeperTask final : public CancelableTask {
   IncrementalSweeperTask(Isolate* isolate, Sweeper* sweeper)
       : CancelableTask(isolate), isolate_(isolate), sweeper_(sweeper) {}
 
-  virtual ~IncrementalSweeperTask() {}
+  ~IncrementalSweeperTask() override = default;
 
  private:
   void RunInternal() final {
@@ -530,7 +530,7 @@ class Sweeper::IterabilityTask final : public CancelableTask {
         pending_iterability_task_(pending_iterability_task),
         tracer_(isolate->heap()->tracer()) {}
 
-  virtual ~IterabilityTask() {}
+  ~IterabilityTask() override = default;
 
  private:
   void RunInternal() final {

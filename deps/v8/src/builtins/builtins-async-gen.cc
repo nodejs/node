@@ -275,11 +275,11 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
   StoreMapNoWriteBarrier(function, function_map);
   StoreObjectFieldRoot(function, JSObject::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(function, JSObject::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(function, JSFunction::kFeedbackCellOffset,
-                       Heap::kManyClosuresCellRootIndex);
+                       RootIndex::kManyClosuresCell);
 
   Node* shared_info = LoadContextElement(native_context, context_index);
   CSA_ASSERT(this, IsSharedFunctionInfo(shared_info));

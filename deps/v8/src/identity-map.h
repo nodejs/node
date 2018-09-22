@@ -120,7 +120,7 @@ class IdentityMap : public IdentityMapBase {
     void* v = nullptr;
     bool deleted_something = DeleteEntry(key, &v);
     if (deleted_value != nullptr && deleted_something) {
-      *deleted_value = (V) reinterpret_cast<intptr_t>(v);
+      *deleted_value = *reinterpret_cast<V*>(&v);
     }
     return deleted_something;
   }

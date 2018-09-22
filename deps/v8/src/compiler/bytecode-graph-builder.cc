@@ -571,7 +571,9 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 }
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
-  return VectorSlotPair(feedback_vector(), FeedbackVector::ToSlot(slot_id));
+  FeedbackSlot slot = FeedbackVector::ToSlot(slot_id);
+  FeedbackNexus nexus(feedback_vector(), slot);
+  return VectorSlotPair(feedback_vector(), slot, nexus.ic_state());
 }
 
 void BytecodeGraphBuilder::CreateGraph() {
@@ -801,7 +803,7 @@ void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops(
   int current_parent_offset =
       analysis.GetLoopInfoFor(osr_offset).parent_offset();
   while (current_parent_offset != -1) {
-    LoopInfo current_parent_loop =
+    const LoopInfo& current_parent_loop =
         analysis.GetLoopInfoFor(current_parent_offset);
     // We iterate until the back edge of the parent loop, which we detect by
     // the offset that the JumpLoop targets.
@@ -1601,6 +1603,12 @@ void BytecodeGraphBuilder::VisitCreateEmptyArrayLiteral() {
   environment()->BindAccumulator(literal);
 }
 
+void BytecodeGraphBuilder::VisitCreateArrayFromIterable() {
+  Node* iterable = NewNode(javascript()->CreateArrayFromIterable(),
+                           environment()->LookupAccumulator());
+  environment()->BindAccumulator(iterable, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   Handle<ObjectBoilerplateDescription> constant_properties(
       ObjectBoilerplateDescription::cast(
@@ -1655,8 +1663,9 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
         TemplateObjectDescription::CreateTemplateObject(isolate(), description);
     nexus.vector()->Set(slot, *cached_value);
   } else {
-    cached_value = handle(
-        JSArray::cast(nexus.GetFeedback()->ToStrongHeapObject()), isolate());
+    cached_value =
+        handle(JSArray::cast(nexus.GetFeedback()->GetHeapObjectAssumeStrong()),
+               isolate());
   }
 
   Node* template_object = jsgraph()->HeapConstant(cached_value);
@@ -1779,6 +1788,22 @@ void BytecodeGraphBuilder::BuildCallVarArgs(ConvertReceiverMode receiver_mode) {
 
 void BytecodeGraphBuilder::VisitCallAnyReceiver() {
   BuildCallVarArgs(ConvertReceiverMode::kAny);
+}
+
+void BytecodeGraphBuilder::VisitCallNoFeedback() {
+  PrepareEagerCheckpoint();
+  // CallNoFeedback is emitted only for one-shot code. Normally the compiler
+  // will not have to optimize one-shot code. But when the --always-opt or
+  // --stress-opt flags are set compiler is forced to optimize one-shot code.
+  // Emiting SoftDeopt to prevent compiler from inlining CallNoFeedback in
+  // one-shot.
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+
+  JSTypeHintLowering::LoweringResult deoptimize =
+      type_hint_lowering().BuildSoftDeopt(effect, control,
+                                          DeoptimizeReason::kDeoptimizeNow);
+  ApplyEarlyReduction(deoptimize);
 }
 
 void BytecodeGraphBuilder::VisitCallProperty() {

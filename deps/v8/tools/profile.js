@@ -975,7 +975,7 @@ JsonProfile.prototype.addSourcePositions = function(
   if (!entry) return;
   var codeId = entry.codeId;
 
-  // Resolve the inlined fucntions list.
+  // Resolve the inlined functions list.
   if (inlinedFunctions.length > 0) {
     inlinedFunctions = inlinedFunctions.substring(1).split("S");
     for (var i = 0; i < inlinedFunctions.length; i++) {

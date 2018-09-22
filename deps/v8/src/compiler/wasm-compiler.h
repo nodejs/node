@@ -76,23 +76,16 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.
-// TODO(clemensh): Remove the {UseTrapHandler} parameter to make js-to-wasm
-// wrappers sharable across instances.
 V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(
-    Isolate*, const wasm::NativeModule*, wasm::FunctionSig*, bool is_import,
-    wasm::UseTrapHandler);
+    Isolate*, const wasm::NativeModule*, wasm::FunctionSig*, bool is_import);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
 MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate*, uint32_t func_index,
                                               wasm::FunctionSig*);
 
-// Helper function to get the offset into a fixed array for a given {index}.
-// TODO(titzer): access-builder.h is not accessible outside compiler. Move?
-int FixedArrayOffsetMinusTag(uint32_t index);
-
 enum CWasmEntryParameters {
-  kCodeObject,
+  kCodeEntry,
   kWasmInstance,
   kArgumentsBuffer,
   // marker:
@@ -164,12 +157,14 @@ class WasmGraphBuilder {
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* GrowMemory(Node* input);
-  Node* Throw(uint32_t tag, const wasm::WasmException* exception,
+  Node* Throw(uint32_t exception_index, const wasm::WasmException* exception,
               const Vector<Node*> values);
-  Node* Rethrow();
-  Node* ConvertExceptionTagToRuntimeId(uint32_t tag);
-  Node* GetExceptionRuntimeId();
-  Node** GetExceptionValues(const wasm::WasmException* except_decl);
+  Node* Rethrow(Node* except_obj);
+  Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
+  Node* LoadExceptionTagFromTable(uint32_t exception_index);
+  Node* GetExceptionTag(Node* except_obj);
+  Node** GetExceptionValues(Node* except_obj,
+                            const wasm::WasmException* except_decl);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
@@ -436,8 +431,6 @@ class WasmGraphBuilder {
   Node* BuildSmiShiftBitsConstant();
   Node* BuildChangeSmiToInt32(Node* value);
 
-  Node* BuildLoadInstanceFromExportedFunction(Node* closure);
-
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);
   Node* BuildI32AsmjsSConvertF64(Node* input);
@@ -451,7 +444,8 @@ class WasmGraphBuilder {
   Node* BuildAsmjsStoreMem(MachineType type, Node* index, Node* val);
 
   uint32_t GetExceptionEncodedSize(const wasm::WasmException* exception) const;
-  void BuildEncodeException32BitValue(uint32_t* index, Node* value);
+  void BuildEncodeException32BitValue(Node* except_obj, uint32_t* index,
+                                      Node* value);
   Node* BuildDecodeException32BitValue(Node* const* values, uint32_t* index);
 
   Node** Realloc(Node* const* buffer, size_t old_count, size_t new_count) {
@@ -462,6 +456,8 @@ class WasmGraphBuilder {
 
   void SetNeedsStackCheck() { needs_stack_check_ = true; }
 
+  Node* BuildLoadBuiltinFromInstance(int builtin_index);
+
   //-----------------------------------------------------------------------
   // Operations involving the CEntry, a dependency we want to remove
   // to get off the GC heap.
@@ -471,10 +467,6 @@ class WasmGraphBuilder {
 
   Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
                                       Node** parameters, int parameter_count);
-  Node* BuildCallToRuntimeWithContextFromJS(Runtime::FunctionId f,
-                                            Node* js_context,
-                                            Node* const* parameters,
-                                            int parameter_count);
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 };
 

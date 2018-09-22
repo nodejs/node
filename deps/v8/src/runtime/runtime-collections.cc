@@ -39,16 +39,6 @@ RUNTIME_FUNCTION(Runtime_SetShrink) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_SetIteratorClone) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
-  return *isolate->factory()->NewJSSetIterator(
-      handle(holder->map(), isolate),
-      handle(OrderedHashSet::cast(holder->table()), isolate),
-      Smi::ToInt(holder->index()));
-}
-
 RUNTIME_FUNCTION(Runtime_MapShrink) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -67,25 +57,6 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
   table = OrderedHashMap::EnsureGrowable(isolate, table);
   holder->set_table(*table);
   return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_MapIteratorClone) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
-  return *isolate->factory()->NewJSMapIterator(
-      handle(holder->map(), isolate),
-      handle(OrderedHashMap::cast(holder->table()), isolate),
-      Smi::ToInt(holder->index()));
-}
-
-RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
-  CONVERT_NUMBER_CHECKED(int, max_entries, Int32, args[1]);
-  CHECK_GE(max_entries, 0);
-  return *JSWeakCollection::GetEntries(holder, max_entries);
 }
 
 RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
@@ -108,15 +79,6 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
 
   bool was_present = JSWeakCollection::Delete(weak_collection, key, hash);
   return isolate->heap()->ToBoolean(was_present);
-}
-
-RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
-  CONVERT_NUMBER_CHECKED(int, max_values, Int32, args[1]);
-  CHECK_GE(max_values, 0);
-  return *JSWeakCollection::GetEntries(holder, max_values);
 }
 
 RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {

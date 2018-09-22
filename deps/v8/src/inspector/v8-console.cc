@@ -63,6 +63,7 @@ class ConsoleHelper {
   void reportCall(ConsoleAPIType type) {
     if (!m_info.Length()) return;
     std::vector<v8::Local<v8::Value>> arguments;
+    arguments.reserve(m_info.Length());
     for (int i = 0; i < m_info.Length(); ++i) arguments.push_back(m_info[i]);
     reportCall(type, arguments);
   }
@@ -143,7 +144,7 @@ class ConsoleHelper {
   }
 
   void forEachSession(std::function<void(V8InspectorSessionImpl*)> callback) {
-    m_inspector->forEachSession(m_groupId, callback);
+    m_inspector->forEachSession(m_groupId, std::move(callback));
   }
 
  private:

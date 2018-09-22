@@ -1068,7 +1068,7 @@ TEST(AssemblerX64FMA_sd) {
     // - xmm0 * xmm1 + xmm2
     __ movaps(xmm3, xmm0);
     __ mulsd(xmm3, xmm1);
-    __ Move(xmm4, (uint64_t)1 << 63);
+    __ Move(xmm4, static_cast<uint64_t>(1) << 63);
     __ xorpd(xmm3, xmm4);
     __ addsd(xmm3, xmm2);  // Expected result in xmm3
 
@@ -1117,7 +1117,7 @@ TEST(AssemblerX64FMA_sd) {
     // - xmm0 * xmm1 - xmm2
     __ movaps(xmm3, xmm0);
     __ mulsd(xmm3, xmm1);
-    __ Move(xmm4, (uint64_t)1 << 63);
+    __ Move(xmm4, static_cast<uint64_t>(1) << 63);
     __ xorpd(xmm3, xmm4);
     __ subsd(xmm3, xmm2);  // Expected result in xmm3
 
@@ -1294,7 +1294,7 @@ TEST(AssemblerX64FMA_ss) {
     // - xmm0 * xmm1 + xmm2
     __ movaps(xmm3, xmm0);
     __ mulss(xmm3, xmm1);
-    __ Move(xmm4, (uint32_t)1 << 31);
+    __ Move(xmm4, static_cast<uint32_t>(1) << 31);
     __ xorps(xmm3, xmm4);
     __ addss(xmm3, xmm2);  // Expected result in xmm3
 
@@ -1343,7 +1343,7 @@ TEST(AssemblerX64FMA_ss) {
     // - xmm0 * xmm1 - xmm2
     __ movaps(xmm3, xmm0);
     __ mulss(xmm3, xmm1);
-    __ Move(xmm4, (uint32_t)1 << 31);
+    __ Move(xmm4, static_cast<uint32_t>(1) << 31);
     __ xorps(xmm3, xmm4);
     __ subss(xmm3, xmm2);  // Expected result in xmm3
 

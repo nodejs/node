@@ -423,7 +423,7 @@ class SignalHandler {
 
   static void Restore() {
     if (signal_handler_installed_) {
-      sigaction(SIGPROF, &old_signal_handler_, 0);
+      sigaction(SIGPROF, &old_signal_handler_, nullptr);
       signal_handler_installed_ = false;
     }
   }

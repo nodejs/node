@@ -492,17 +492,23 @@ JSTypeHintLowering::ReduceStoreKeyedOperation(const Operator* op, Node* obj,
   return LoweringResult::NoChange();
 }
 
+JSTypeHintLowering::LoweringResult JSTypeHintLowering::BuildSoftDeopt(
+    Node* effect, Node* control, DeoptimizeReason reason) const {
+  Node* deoptimize = jsgraph()->graph()->NewNode(
+      jsgraph()->common()->Deoptimize(DeoptimizeKind::kSoft, reason,
+                                      VectorSlotPair()),
+      jsgraph()->Dead(), effect, control);
+  Node* frame_state = NodeProperties::FindFrameStateBefore(deoptimize);
+  deoptimize->ReplaceInput(0, frame_state);
+  return LoweringResult::Exit(deoptimize);
+}
+
 Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackNexus& nexus, Node* effect,
                                             Node* control,
                                             DeoptimizeReason reason) const {
   if ((flags() & kBailoutOnUninitialized) && nexus.IsUninitialized()) {
-    Node* deoptimize = jsgraph()->graph()->NewNode(
-        jsgraph()->common()->Deoptimize(DeoptimizeKind::kSoft, reason,
-                                        VectorSlotPair()),
-        jsgraph()->Dead(), effect, control);
-    Node* frame_state = NodeProperties::FindFrameStateBefore(deoptimize);
-    deoptimize->ReplaceInput(0, frame_state);
-    return deoptimize;
+    LoweringResult deoptimize = BuildSoftDeopt(effect, control, reason);
+    return deoptimize.control();
   }
   return nullptr;
 }

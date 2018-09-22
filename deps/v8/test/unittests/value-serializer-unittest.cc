@@ -58,7 +58,7 @@ class ValueSerializerTest : public TestWithIsolate {
     isolate_ = reinterpret_cast<i::Isolate*>(isolate());
   }
 
-  ~ValueSerializerTest() {
+  ~ValueSerializerTest() override {
     // In some cases unhandled scheduled exceptions from current test produce
     // that Context::New(isolate()) from next test's constructor returns NULL.
     // In order to prevent that, we added destructor which will clear scheduled

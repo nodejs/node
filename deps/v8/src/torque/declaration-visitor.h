@@ -114,7 +114,9 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(LogicalOrExpression* expr);
   void Visit(LogicalAndExpression* expr);
-  void DeclareExpressionForBranch(Expression* node);
+  void DeclareExpressionForBranch(
+      Expression* node, base::Optional<Statement*> true_statement = {},
+      base::Optional<Statement*> false_statement = {});
 
   void Visit(ConditionalExpression* expr);
   void Visit(IfStatement* stmt);

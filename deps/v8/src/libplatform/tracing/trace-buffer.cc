@@ -15,8 +15,6 @@ TraceBufferRingBuffer::TraceBufferRingBuffer(size_t max_chunks,
   chunks_.resize(max_chunks);
 }
 
-TraceBufferRingBuffer::~TraceBufferRingBuffer() {}
-
 TraceObject* TraceBufferRingBuffer::AddTraceEvent(uint64_t* handle) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   if (is_empty_ || chunks_[chunk_index_]->IsFull()) {

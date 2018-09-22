@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -144,7 +145,7 @@ class OrderedHashTable : public OrderedHashTableBase {
     // This special cases for Smi, so that we avoid the HandleScope
     // creation below.
     if (key->IsSmi()) {
-      uint32_t hash = ComputeIntegerHash(Smi::ToInt(key));
+      uint32_t hash = ComputeUnseededHash(Smi::ToInt(key));
       return HashToEntry(hash & Smi::kMaxValue);
     }
     HandleScope scope(isolate);
@@ -325,9 +326,6 @@ class SmallOrderedHashTable : public HeapObject {
 
   // Iterates only fields in the DataTable.
   class BodyDescriptor;
-
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   // Returns total size in bytes required for a table of given
   // capacity.

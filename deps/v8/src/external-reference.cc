@@ -134,11 +134,6 @@ ExternalReference ExternalReference::handle_scope_implementer_address(
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
-ExternalReference ExternalReference::pending_microtask_count_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->pending_microtask_count_address());
-}
-
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->interpreter()->dispatch_table_address());
@@ -764,6 +759,15 @@ ExternalReference ExternalReference::jsreceiver_create_identity_hash(
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
+static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
+  DisallowHeapAllocation no_gc;
+  return ComputeSeededHash(key, isolate->heap()->HashSeed());
+}
+
+ExternalReference ExternalReference::compute_integer_hash() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(ComputeSeededIntegerHash)));
+}
+
 ExternalReference
 ExternalReference::copy_fast_number_jsarray_elements_to_typed_array() {
   return ExternalReference(
@@ -784,6 +788,10 @@ ExternalReference ExternalReference::copy_typed_array_elements_slice() {
 ExternalReference ExternalReference::try_internalize_string_function() {
   return ExternalReference(
       Redirect(FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
+}
+
+ExternalReference ExternalReference::smi_lexicographic_compare_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(Smi::LexicographicCompare)));
 }
 
 ExternalReference ExternalReference::check_object_type() {
@@ -816,8 +824,8 @@ ExternalReference ExternalReference::page_flags(Page* page) {
                            MemoryChunk::kFlagsOffset);
 }
 
-ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
-  return ExternalReference(entry);
+ExternalReference ExternalReference::FromRawAddress(Address address) {
+  return ExternalReference(address);
 }
 
 ExternalReference ExternalReference::cpu_features() {
@@ -841,6 +849,11 @@ ExternalReference::promise_hook_or_async_event_delegate_address(
       isolate->promise_hook_or_async_event_delegate_address());
 }
 
+ExternalReference ExternalReference::debug_execution_mode_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug_execution_mode_address());
+}
+
 ExternalReference ExternalReference::debug_is_active_address(Isolate* isolate) {
   return ExternalReference(isolate->debug()->is_active_address());
 }
@@ -861,21 +874,19 @@ ExternalReference ExternalReference::invalidate_prototype_chains_function() {
       Redirect(FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
 }
 
-double power_helper(Isolate* isolate, double x, double y) {
+double power_helper(double x, double y) {
   int y_int = static_cast<int>(y);
   if (y == y_int) {
     return power_double_int(x, y_int);  // Returns 1 if exponent is 0.
   }
   if (y == 0.5) {
-    lazily_initialize_fast_sqrt(isolate);
+    lazily_initialize_fast_sqrt();
     return (std::isinf(x)) ? V8_INFINITY
-                           : fast_sqrt(x + 0.0, isolate);  // Convert -0 to +0.
+                           : fast_sqrt(x + 0.0);  // Convert -0 to +0.
   }
   if (y == -0.5) {
-    lazily_initialize_fast_sqrt(isolate);
-    return (std::isinf(x)) ? 0
-                           : 1.0 / fast_sqrt(x + 0.0,
-                                             isolate);  // Convert -0 to +0.
+    lazily_initialize_fast_sqrt();
+    return (std::isinf(x)) ? 0 : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
   }
   return power_double_double(x, y);
 }

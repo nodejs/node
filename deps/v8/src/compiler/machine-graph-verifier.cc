@@ -168,6 +168,7 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kHeapConstant:
           case IrOpcode::kNumberConstant:
+          case IrOpcode::kDelayedStringConstant:
           case IrOpcode::kChangeBitToTagged:
           case IrOpcode::kIfException:
           case IrOpcode::kOsrValue:

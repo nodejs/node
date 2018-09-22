@@ -215,6 +215,7 @@ class Variable final : public ZoneObject {
                           ForceHoleInitializationField::kNext, 1> {};
   Variable** next() { return &next_; }
   friend List;
+  friend ThreadedListTraits<Variable>;
 };
 }  // namespace internal
 }  // namespace v8

@@ -69,7 +69,8 @@ class StartupSerializer : public Serializer<> {
 
   void CheckRehashability(HeapObject* obj);
 
-  std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;
+  std::bitset<static_cast<size_t>(RootIndex::kStrongRootListLength)>
+      root_has_been_serialized_;
   PartialCacheIndexMap partial_cache_index_map_;
   std::vector<AccessorInfo*> accessor_infos_;
   std::vector<CallHandlerInfo*> call_handler_infos_;
@@ -83,8 +84,8 @@ class StartupSerializer : public Serializer<> {
 class SerializedHandleChecker : public RootVisitor {
  public:
   SerializedHandleChecker(Isolate* isolate, std::vector<Context*>* contexts);
-  virtual void VisitRootPointers(Root root, const char* description,
-                                 Object** start, Object** end);
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
   bool CheckGlobalAndEternalHandles();
 
  private:

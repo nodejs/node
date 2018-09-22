@@ -99,8 +99,8 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
     // Fail safe in the unlikely case of an arbitrary root-relative offset.
     if (offset_in_roots_table % kPointerSize != 0) return nullptr;
 
-    Heap::RootListIndex root_index =
-        static_cast<Heap::RootListIndex>(offset_in_roots_table / kPointerSize);
+    RootIndex root_index =
+        static_cast<RootIndex>(offset_in_roots_table / kPointerSize);
 
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);

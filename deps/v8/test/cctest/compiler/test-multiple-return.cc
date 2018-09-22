@@ -190,9 +190,8 @@ void TestReturnMultipleValues(MachineType type) {
 
       std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
           handles.main_isolate(), code->raw_instruction_size());
-      byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
-                             ->instructions()
-                             .start();
+      byte* code_start =
+          module->AddCodeForTesting(code)->instructions().start();
 
       RawMachineAssemblerTester<int32_t> mt;
       const int input_count = 2 + param_count;
@@ -280,9 +279,7 @@ void ReturnLastValue(MachineType type) {
 
     std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
-    byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
-                           ->instructions()
-                           .start();
+    byte* code_start = module->AddCodeForTesting(code)->instructions().start();
 
     // Generate caller.
     int expect = return_count - 1;
@@ -343,9 +340,7 @@ void ReturnSumOfReturns(MachineType type) {
 
     std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
-    byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
-                           ->instructions()
-                           .start();
+    byte* code_start = module->AddCodeForTesting(code)->instructions().start();
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;

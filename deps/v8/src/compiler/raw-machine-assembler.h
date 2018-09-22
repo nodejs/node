@@ -47,7 +47,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
               FullUnalignedAccessSupport(),
       PoisoningMitigationLevel poisoning_level =
           PoisoningMitigationLevel::kPoisonCriticalOnly);
-  ~RawMachineAssembler() {}
+  ~RawMachineAssembler() = default;
 
   Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }
@@ -605,11 +605,17 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* ChangeInt32ToFloat64(Node* a) {
     return AddNode(machine()->ChangeInt32ToFloat64(), a);
   }
+  Node* ChangeInt64ToFloat64(Node* a) {
+    return AddNode(machine()->ChangeInt64ToFloat64(), a);
+  }
   Node* ChangeUint32ToFloat64(Node* a) {
     return AddNode(machine()->ChangeUint32ToFloat64(), a);
   }
   Node* ChangeFloat64ToInt32(Node* a) {
     return AddNode(machine()->ChangeFloat64ToInt32(), a);
+  }
+  Node* ChangeFloat64ToInt64(Node* a) {
+    return AddNode(machine()->ChangeFloat64ToInt64(), a);
   }
   Node* ChangeFloat64ToUint32(Node* a) {
     return AddNode(machine()->ChangeFloat64ToUint32(), a);

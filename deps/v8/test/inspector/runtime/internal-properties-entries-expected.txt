@@ -15,6 +15,12 @@ expression: new Map([[1,2],[3,4]])
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -65,6 +71,12 @@ expression: new Map()
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : false
@@ -97,6 +109,12 @@ expression: new Map([[1,2],[3,4]]).entries()
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -151,6 +169,12 @@ expression: it = new Map([[1,2],[3,4]]).entries(); it.next(); it
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -190,6 +214,12 @@ expression: it = new Map([[1,2],[3,4]]).keys(); it.next(); it
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -229,6 +259,12 @@ expression: it = new Map([[1,2],[3,4]]).values(); it.next(); it
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -265,6 +301,12 @@ expression: it = new Map([[1,2],[3,4]]).entries(); it.next(); it.next(); it
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : false
@@ -295,6 +337,12 @@ expression: new Set([1,2])
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -345,6 +393,12 @@ expression: new Set()
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : false
@@ -375,6 +429,12 @@ expression: new Set([1,2]).values()
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -428,6 +488,12 @@ expression: it = new Set([1,2]).values(); it.next(); it
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -467,6 +533,12 @@ expression: it = new Set([1,2]).keys(); it.next(); it
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -506,6 +578,12 @@ expression: it = new Set([1,2]).entries(); it.next(); it
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -542,6 +620,12 @@ expression: it = new Set([1,2]).values(); it.next(); it.next(); it
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : false
@@ -566,6 +650,12 @@ expression: new WeakMap()
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : false
@@ -594,6 +684,12 @@ expression: new WeakMap([[{ a: 2 }, 42]])
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -632,6 +728,12 @@ expression: new WeakSet()
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : false
@@ -659,6 +761,12 @@ expression: new WeakSet([{a:2}])
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true

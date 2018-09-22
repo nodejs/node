@@ -26,6 +26,8 @@ int WrappedMain(int argc, const char** argv) {
   CurrentSourceFile::Scope unknown_sourcefile_scope(
       SourceFileMap::AddSource("<unknown>"));
   CurrentAst::Scope ast_scope;
+  LintErrorStatus::Scope lint_error_status_scope;
+
   for (int i = 1; i < argc; ++i) {
     // Check for options
     if (!strcmp("-o", argv[i])) {
@@ -76,6 +78,9 @@ int WrappedMain(int argc, const char** argv) {
       visitor.GenerateImplementation(output_directory, module.second.get());
     }
   }
+
+  if (LintErrorStatus::HasLintErrors()) std::abort();
+
   return 0;
 }
 

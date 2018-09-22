@@ -5,6 +5,7 @@
 #ifndef V8_ROOTS_H_
 #define V8_ROOTS_H_
 
+#include "src/accessors.h"
 #include "src/handles.h"
 #include "src/heap-symbols.h"
 #include "src/objects-definitions.h"
@@ -120,22 +121,23 @@ namespace internal {
   V(Map, external_string_with_one_byte_data_map,                               \
     ExternalStringWithOneByteDataMap)                                          \
   V(Map, external_one_byte_string_map, ExternalOneByteStringMap)               \
-  V(Map, short_external_string_map, ShortExternalStringMap)                    \
-  V(Map, short_external_string_with_one_byte_data_map,                         \
-    ShortExternalStringWithOneByteDataMap)                                     \
+  V(Map, uncached_external_string_map, UncachedExternalStringMap)              \
+  V(Map, uncached_external_string_with_one_byte_data_map,                      \
+    UncachedExternalStringWithOneByteDataMap)                                  \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
   V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
   V(Map, external_internalized_string_with_one_byte_data_map,                  \
     ExternalInternalizedStringWithOneByteDataMap)                              \
   V(Map, external_one_byte_internalized_string_map,                            \
     ExternalOneByteInternalizedStringMap)                                      \
-  V(Map, short_external_internalized_string_map,                               \
-    ShortExternalInternalizedStringMap)                                        \
-  V(Map, short_external_internalized_string_with_one_byte_data_map,            \
-    ShortExternalInternalizedStringWithOneByteDataMap)                         \
-  V(Map, short_external_one_byte_internalized_string_map,                      \
-    ShortExternalOneByteInternalizedStringMap)                                 \
-  V(Map, short_external_one_byte_string_map, ShortExternalOneByteStringMap)    \
+  V(Map, uncached_external_internalized_string_map,                            \
+    UncachedExternalInternalizedStringMap)                                     \
+  V(Map, uncached_external_internalized_string_with_one_byte_data_map,         \
+    UncachedExternalInternalizedStringWithOneByteDataMap)                      \
+  V(Map, uncached_external_one_byte_internalized_string_map,                   \
+    UncachedExternalOneByteInternalizedStringMap)                              \
+  V(Map, uncached_external_one_byte_string_map,                                \
+    UncachedExternalOneByteStringMap)                                          \
   /* Array element maps */                                                     \
   V(Map, fixed_uint8_array_map, FixedUint8ArrayMap)                            \
   V(Map, fixed_int8_array_map, FixedInt8ArrayMap)                              \
@@ -235,7 +237,7 @@ namespace internal {
   V(WeakArrayList, script_list, ScriptList)                                  \
   V(SimpleNumberDictionary, code_stubs, CodeStubs)                           \
   V(FixedArray, materialized_objects, MaterializedObjects)                   \
-  V(FixedArray, microtask_queue, MicrotaskQueue)                             \
+  V(MicrotaskQueue, default_microtask_queue, DefaultMicrotaskQueue)          \
   V(WeakArrayList, detached_contexts, DetachedContexts)                      \
   V(WeakArrayList, retaining_path_targets, RetainingPathTargets)             \
   V(WeakArrayList, retained_maps, RetainedMaps)                              \
@@ -249,11 +251,6 @@ namespace internal {
   V(FixedArray, serialized_objects, SerializedObjects)                       \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)   \
   V(TemplateList, message_listeners, MessageListeners)                       \
-  /* DeserializeLazy handlers for lazy bytecode deserialization */           \
-  V(Object, deserialize_lazy_handler, DeserializeLazyHandler)                \
-  V(Object, deserialize_lazy_handler_wide, DeserializeLazyHandlerWide)       \
-  V(Object, deserialize_lazy_handler_extra_wide,                             \
-    DeserializeLazyHandlerExtraWide)                                         \
   /* Hash seed */                                                            \
   V(ByteArray, hash_seed, HashSeed)                                          \
   /* JS Entries */                                                           \
@@ -290,6 +287,94 @@ namespace internal {
   MUTABLE_ROOT_LIST(V) \
   STRONG_READ_ONLY_ROOT_LIST(V)
 
+// Declare all the root indices.  This defines the root list order.
+// clang-format off
+enum class RootIndex {
+#define DECL(type, name, CamelName) k##CamelName,
+  STRONG_ROOT_LIST(DECL)
+#undef DECL
+
+#define DECL(name, str) k##name,
+  INTERNALIZED_STRING_LIST(DECL)
+#undef DECL
+
+#define DECL(name) k##name,
+  PRIVATE_SYMBOL_LIST(DECL)
+#undef DECL
+
+#define DECL(name, description) k##name,
+  PUBLIC_SYMBOL_LIST(DECL)
+  WELL_KNOWN_SYMBOL_LIST(DECL)
+#undef DECL
+
+#define DECL(accessor_name, AccessorName, ...) k##AccessorName##Accessor,
+  ACCESSOR_INFO_LIST(DECL)
+#undef DECL
+
+#define DECL(type, name, CamelName) k##CamelName,
+  STRUCT_MAPS_LIST(DECL)
+  ALLOCATION_SITE_MAPS_LIST(DECL)
+  DATA_HANDLER_MAPS_LIST(DECL)
+#undef DECL
+
+  kStringTable,
+
+#define DECL(type, name, CamelName) k##CamelName,
+  SMI_ROOT_LIST(DECL)
+#undef DECL
+
+  kRootListLength,
+
+  // Helper aliases.
+  kRootsStart = 0,
+  kStrongRootListLength = kStringTable,
+  kSmiRootsStart = kStringTable + 1
+};
+// clang-format on
+
+// Represents a storage of V8 heap roots.
+class RootsTable {
+ public:
+  static constexpr size_t kEntriesCount =
+      static_cast<size_t>(RootIndex::kRootListLength);
+
+  static constexpr size_t kSmiRootsStart =
+      static_cast<size_t>(RootIndex::kSmiRootsStart);
+
+  RootsTable() : roots_{} {}
+
+  template <typename T>
+  bool IsRootHandle(Handle<T> handle, RootIndex* index) const {
+    Object** const handle_location = bit_cast<Object**>(handle.address());
+    if (handle_location >= &roots_[kEntriesCount]) return false;
+    if (handle_location < &roots_[0]) return false;
+    *index = static_cast<RootIndex>(handle_location - &roots_[0]);
+    return true;
+  }
+
+  Object* const& operator[](RootIndex root_index) const {
+    size_t index = static_cast<size_t>(root_index);
+    DCHECK_LT(index, kEntriesCount);
+    return roots_[index];
+  }
+
+ private:
+  Object** smi_roots_begin() { return &roots_[kSmiRootsStart]; }
+  Object** smi_roots_end() { return &roots_[kEntriesCount]; }
+
+  Object*& operator[](RootIndex root_index) {
+    size_t index = static_cast<size_t>(root_index);
+    DCHECK_LT(index, kEntriesCount);
+    return roots_[index];
+  }
+
+  Object* roots_[kEntriesCount];
+
+  friend class Heap;
+  friend class Factory;
+  friend class ReadOnlyRoots;
+};
+
 class FixedTypedArrayBase;
 class Heap;
 class Isolate;
@@ -302,11 +387,10 @@ class ReadOnlyRoots {
   explicit ReadOnlyRoots(Heap* heap) : heap_(heap) {}
   inline explicit ReadOnlyRoots(Isolate* isolate);
 
-#define ROOT_ACCESSOR(type, name, camel_name) \
-  inline class type* name();                  \
+#define ROOT_ACCESSOR(type, name, CamelName) \
+  inline class type* name();                 \
   inline Handle<type> name##_handle();
   STRONG_READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR
 
 #define STRING_ACCESSOR(name, str) \
   inline String* name();           \
@@ -327,18 +411,9 @@ class ReadOnlyRoots {
   WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-// Utility type maps.
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name) \
-  inline Map* name##_map();                   \
-  inline class Handle<Map> name##_map_handle();
-  STRUCT_LIST(STRUCT_MAP_ACCESSOR)
-#undef STRUCT_MAP_ACCESSOR
-
-#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name) \
-  inline Map* name##_map();                                  \
-  inline class Handle<Map> name##_map_handle();
-  ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
-#undef ALLOCATION_SITE_MAP_ACCESSOR
+  STRUCT_MAPS_LIST(ROOT_ACCESSOR)
+  ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
   inline FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map* map);
 

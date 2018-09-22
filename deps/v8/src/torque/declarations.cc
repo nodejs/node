@@ -233,9 +233,15 @@ void Declarations::DeclareStruct(Module* module, const std::string& name,
   DeclareType(name, new_type);
 }
 
-Label* Declarations::DeclareLabel(const std::string& name) {
+Label* Declarations::DeclareLabel(const std::string& name,
+                                  base::Optional<Statement*> statement) {
   CheckAlreadyDeclared(name, "label");
-  Label* result = new Label(name);
+  bool deferred = false;
+  if (statement) {
+    BlockStatement* block = BlockStatement::DynamicCast(*statement);
+    deferred = block && block->deferred;
+  }
+  Label* result = new Label(name, deferred);
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }

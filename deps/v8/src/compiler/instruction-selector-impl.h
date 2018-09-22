@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 #define V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 
+#include "src/compiler/common-operator.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/linkage.h"
@@ -319,6 +320,8 @@ class OperandGenerator {
       }
       case IrOpcode::kHeapConstant:
         return Constant(HeapConstantOf(node->op()));
+      case IrOpcode::kDelayedStringConstant:
+        return Constant(StringConstantBaseOf(node->op()));
       case IrOpcode::kDeadValue: {
         switch (DeadValueRepresentationOf(node->op())) {
           case MachineRepresentation::kBit:

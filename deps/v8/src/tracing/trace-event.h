@@ -175,7 +175,7 @@ enum CategoryGroupEnabledFlags {
           v8::internal::tracing::kGlobalScope, v8::internal::tracing::kNoId, \
           v8::internal::tracing::kNoId, flags, ##__VA_ARGS__);               \
     }                                                                        \
-  } while (0)
+  } while (false)
 
 // Implementation detail: internal macro to create static category and add begin
 // event if the category is enabled. Also adds the end event when the scope
@@ -227,7 +227,7 @@ enum CategoryGroupEnabledFlags {
           trace_event_trace_id.scope(), trace_event_trace_id.raw_id(),         \
           v8::internal::tracing::kNoId, trace_event_flags, ##__VA_ARGS__);     \
     }                                                                          \
-  } while (0)
+  } while (false)
 
 // Adds a trace event with a given timestamp.
 #define INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(phase, category_group, name, \
@@ -240,7 +240,7 @@ enum CategoryGroupEnabledFlags {
           v8::internal::tracing::kGlobalScope, v8::internal::tracing::kNoId, \
           v8::internal::tracing::kNoId, flags, timestamp, ##__VA_ARGS__);    \
     }                                                                        \
-  } while (0)
+  } while (false)
 
 // Adds a trace event with a given id and timestamp.
 #define INTERNAL_TRACE_EVENT_ADD_WITH_ID_AND_TIMESTAMP(                        \
@@ -257,7 +257,7 @@ enum CategoryGroupEnabledFlags {
           v8::internal::tracing::kNoId, trace_event_flags, timestamp,          \
           ##__VA_ARGS__);                                                      \
     }                                                                          \
-  } while (0)
+  } while (false)
 
 // Adds a trace event with a given id, thread_id, and timestamp. This redirects
 // to INTERNAL_TRACE_EVENT_ADD_WITH_ID_AND_TIMESTAMP as we presently do not care

@@ -244,7 +244,7 @@ class HashTableKey {
   virtual bool IsMatch(Object* other) = 0;
   // Returns the hash value for this key.
   // Required.
-  virtual ~HashTableKey() {}
+  virtual ~HashTableKey() = default;
 
   uint32_t Hash() const { return hash_; }
 

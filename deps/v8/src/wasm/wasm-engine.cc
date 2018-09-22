@@ -189,9 +189,11 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_module) {
   CHECK_EQ(code_manager(), shared_module->code_manager());
   Vector<const byte> wire_bytes = shared_module->wire_bytes();
-  Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
+  const WasmModule* module = shared_module->module();
+  Handle<Script> script =
+      CreateWasmScript(isolate, wire_bytes, module->source_map_url);
   Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, shared_module, script);
+      WasmModuleObject::New(isolate, std::move(shared_module), script);
 
   // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}.
   // This requires unlocking the code space here. This should eventually be

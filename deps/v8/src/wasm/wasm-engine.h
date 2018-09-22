@@ -30,14 +30,14 @@ class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
   virtual void OnCompilationSucceeded(Handle<WasmModuleObject> result) = 0;
   virtual void OnCompilationFailed(Handle<Object> error_reason) = 0;
-  virtual ~CompilationResultResolver() {}
+  virtual ~CompilationResultResolver() = default;
 };
 
 class V8_EXPORT_PRIVATE InstantiationResultResolver {
  public:
   virtual void OnInstantiationSucceeded(Handle<WasmInstanceObject> result) = 0;
   virtual void OnInstantiationFailed(Handle<Object> error_reason) = 0;
-  virtual ~InstantiationResultResolver() {}
+  virtual ~InstantiationResultResolver() = default;
 };
 
 // The central data structure that represents an engine instance capable of

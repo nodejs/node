@@ -341,7 +341,7 @@ class RelocInfo {
 
 // RelocInfoWriter serializes a stream of relocation info. It writes towards
 // lower addresses.
-class RelocInfoWriter BASE_EMBEDDED {
+class RelocInfoWriter {
  public:
   RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
 

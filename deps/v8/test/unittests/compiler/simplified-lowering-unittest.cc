@@ -25,7 +25,7 @@ class SimplifiedLoweringTest : public GraphTest {
         simplified_(zone()),
         jsgraph_(isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_) {}
-  ~SimplifiedLoweringTest() override {}
+  ~SimplifiedLoweringTest() override = default;
 
   void LowerGraph(Node* node) {
     // Make sure we always start with an empty graph.

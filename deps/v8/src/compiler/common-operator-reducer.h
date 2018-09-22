@@ -28,7 +28,7 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
                         JSHeapBroker* js_heap_broker,
                         CommonOperatorBuilder* common,
                         MachineOperatorBuilder* machine, Zone* temp_zone);
-  ~CommonOperatorReducer() final {}
+  ~CommonOperatorReducer() final = default;
 
   const char* reducer_name() const override { return "CommonOperatorReducer"; }
 

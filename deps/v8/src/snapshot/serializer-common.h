@@ -39,7 +39,7 @@ class ExternalReferenceEncoder {
   };
 
   explicit ExternalReferenceEncoder(Isolate* isolate);
-  ~ExternalReferenceEncoder();
+  ~ExternalReferenceEncoder();  // NOLINT (modernize-use-equals-default)
 
   Value Encode(Address key);
   Maybe<Value> TryEncode(Address key);

@@ -373,7 +373,7 @@ C_REGISTERS(DECLARE_C_REGISTER)
 // Machine instruction Operands
 
 // Class Operand represents a shifter operand in data processing instructions
-class Operand BASE_EMBEDDED {
+class Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(intptr_t immediate,
@@ -394,6 +394,7 @@ class Operand BASE_EMBEDDED {
   V8_INLINE explicit Operand(Register rm);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedStringConstant(const StringConstantBase* str);
   static Operand EmbeddedCode(CodeStub* stub);
 
   // Return true if this is a register operand.
@@ -442,7 +443,7 @@ class Operand BASE_EMBEDDED {
 // Class MemOperand represents a memory operand in load and store instructions
 // On PowerPC we have base register + 16bit signed value
 // Alternatively we can have a 16bit signed value immediate
-class MemOperand BASE_EMBEDDED {
+class MemOperand {
  public:
   explicit MemOperand(Register rn, int32_t offset = 0);
 
@@ -1632,8 +1633,7 @@ class Assembler : public AssemblerBase {
   friend class EnsureSpace;
 };
 
-
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 };

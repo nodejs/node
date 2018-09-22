@@ -234,6 +234,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& CreateArrayLiteral(size_t constant_elements_entry,
                                            int literal_index, int flags);
   BytecodeArrayBuilder& CreateEmptyArrayLiteral(int literal_index);
+  BytecodeArrayBuilder& CreateArrayFromIterable();
   BytecodeArrayBuilder& CreateObjectLiteral(size_t constant_properties_entry,
                                             int literal_index, int flags,
                                             Register output);
@@ -275,6 +276,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // feedback is recorded in the |feedback_slot| in the type feedback vector.
   BytecodeArrayBuilder& CallAnyReceiver(Register callable, RegisterList args,
                                         int feedback_slot);
+
+  // Call a JS function with an any receiver, possibly (but not necessarily)
+  // undefined. The JSFunction or Callable to be called should be in |callable|.
+  // The arguments should be in |args|, with the receiver in |args[0]|.
+  BytecodeArrayBuilder& CallNoFeedback(Register callable, RegisterList args);
 
   // Tail call into a JS function. The JSFunction or Callable to be called
   // should be in |callable|. The arguments should be in |args|, with the

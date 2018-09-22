@@ -13,7 +13,7 @@ namespace torque {
 
 Signature FileVisitor::MakeSignature(const CallableNodeSignature* signature) {
   LabelDeclarationVector definition_vector;
-  for (auto label : signature->labels) {
+  for (const auto& label : signature->labels) {
     LabelDeclaration def = {label.name, GetTypeVector(label.types)};
     definition_vector.push_back(def);
   }

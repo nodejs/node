@@ -40,7 +40,7 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
     }
     chunks_.push_back({nullptr, 0});
   }
-  ~ChunkSource() {}
+  ~ChunkSource() override = default;
   bool SetBookmark() override { return false; }
   void ResetToBookmark() override {}
   size_t GetMoreData(const uint8_t** src) override {
@@ -61,15 +61,43 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
   size_t current_;
 };
 
-class TestExternalResource : public v8::String::ExternalStringResource {
+// Checks that Lock() / Unlock() pairs are balanced. Not thread-safe.
+class LockChecker {
+ public:
+  LockChecker() : lock_depth_(0) {}
+  ~LockChecker() { CHECK_EQ(0, lock_depth_); }
+
+  void Lock() const { lock_depth_++; }
+
+  void Unlock() const {
+    CHECK_GT(lock_depth_, 0);
+    lock_depth_--;
+  }
+
+  bool IsLocked() const { return lock_depth_ > 0; }
+
+  int LockDepth() const { return lock_depth_; }
+
+ protected:
+  mutable int lock_depth_;
+};
+
+class TestExternalResource : public v8::String::ExternalStringResource,
+                             public LockChecker {
  public:
   explicit TestExternalResource(uint16_t* data, int length)
-      : data_(data), length_(static_cast<size_t>(length)) {}
+      : LockChecker(), data_(data), length_(static_cast<size_t>(length)) {}
 
-  ~TestExternalResource() {}
+  const uint16_t* data() const override {
+    CHECK(IsLocked());
+    return data_;
+  }
 
-  const uint16_t* data() const { return data_; }
-  size_t length() const { return length_; }
+  size_t length() const override { return length_; }
+
+  bool IsCacheable() const override { return false; }
+  void Lock() const override { LockChecker::Lock(); }
+  void Unlock() const override { LockChecker::Unlock(); }
 
  private:
   uint16_t* data_;
@@ -77,13 +105,21 @@ class TestExternalResource : public v8::String::ExternalStringResource {
 };
 
 class TestExternalOneByteResource
-    : public v8::String::ExternalOneByteStringResource {
+    : public v8::String::ExternalOneByteStringResource,
+      public LockChecker {
  public:
   TestExternalOneByteResource(const char* data, size_t length)
       : data_(data), length_(length) {}
 
-  const char* data() const { return data_; }
-  size_t length() const { return length_; }
+  const char* data() const override {
+    CHECK(IsLocked());
+    return data_;
+  }
+  size_t length() const override { return length_; }
+
+  bool IsCacheable() const override { return false; }
+  void Lock() const override { LockChecker::Lock(); }
+  void Unlock() const override { LockChecker::Unlock(); }
 
  private:
   const char* data_;
@@ -100,6 +136,17 @@ const char unicode_utf8[] =
     "def";              // 3x ascii again.
 const uint16_t unicode_ucs2[] = {97,    98,  99,  228, 10784, 55357,
                                  56489, 100, 101, 102, 0};
+
+i::Handle<i::String> NewExternalTwoByteStringFromResource(
+    i::Isolate* isolate, TestExternalResource* resource) {
+  i::Factory* factory = isolate->factory();
+  // String creation accesses the resource.
+  resource->Lock();
+  i::Handle<i::String> uc16_string(
+      factory->NewExternalStringFromTwoByte(resource).ToHandleChecked());
+  resource->Unlock();
+  return uc16_string;
+}
 
 }  // anonymous namespace
 
@@ -400,6 +447,26 @@ void TestCharacterStream(const char* reference, i::Utf16CharacterStream* stream,
   CHECK_LT(stream->Advance(), 0);
 }
 
+void TestCloneCharacterStream(const char* reference,
+                              i::Utf16CharacterStream* stream,
+                              unsigned length) {
+  std::unique_ptr<i::Utf16CharacterStream> clone = stream->Clone();
+
+  unsigned i;
+  unsigned halfway = length / 2;
+  // Advance original half way.
+  for (i = 0; i < halfway; i++) {
+    CHECK_EQU(i, stream->pos());
+    CHECK_EQU(reference[i], stream->Advance());
+  }
+
+  // Test advancing original stream didn't affect the clone.
+  TestCharacterStream(reference, clone.get(), length, 0, length);
+
+  // Test advancing clone didn't affect original stream.
+  TestCharacterStream(reference, stream, length, i, length);
+}
+
 #undef CHECK_EQU
 
 void TestCharacterStreams(const char* one_byte_source, unsigned length,
@@ -419,7 +486,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     }
     TestExternalResource resource(uc16_buffer.get(), length);
     i::Handle<i::String> uc16_string(
-        factory->NewExternalStringFromTwoByte(&resource).ToHandleChecked());
+        NewExternalTwoByteStringFromResource(isolate, &resource));
     std::unique_ptr<i::Utf16CharacterStream> uc16_stream(
         i::ScannerStream::For(isolate, uc16_string, start, end));
     TestCharacterStream(one_byte_source, uc16_stream.get(), length, start, end);
@@ -694,4 +761,101 @@ TEST(RelocatingCharacterStream) {
   CHECK_NE(raw, *two_byte_string);
   CHECK_EQ('c', two_byte_string_stream->Advance());
   CHECK_EQ('d', two_byte_string_stream->Advance());
+}
+
+TEST(CloneCharacterStreams) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  const char* one_byte_source = "abcdefghi";
+  unsigned length = static_cast<unsigned>(strlen(one_byte_source));
+
+  // Check that cloning a character stream does not update
+
+  // 2-byte external string
+  std::unique_ptr<i::uc16[]> uc16_buffer(new i::uc16[length]);
+  i::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(),
+                                           static_cast<int>(length));
+  {
+    for (unsigned i = 0; i < length; i++) {
+      uc16_buffer[i] = static_cast<i::uc16>(one_byte_source[i]);
+    }
+    TestExternalResource resource(uc16_buffer.get(), length);
+    i::Handle<i::String> uc16_string(
+        NewExternalTwoByteStringFromResource(isolate, &resource));
+    std::unique_ptr<i::Utf16CharacterStream> uc16_stream(
+        i::ScannerStream::For(isolate, uc16_string, 0, length));
+
+    CHECK(resource.IsLocked());
+    CHECK_EQ(1, resource.LockDepth());
+    std::unique_ptr<i::Utf16CharacterStream> cloned = uc16_stream->Clone();
+    CHECK_EQ(2, resource.LockDepth());
+    uc16_stream = std::move(cloned);
+    CHECK_EQ(1, resource.LockDepth());
+
+    TestCloneCharacterStream(one_byte_source, uc16_stream.get(), length);
+
+    // This avoids the GC from trying to free a stack allocated resource.
+    if (uc16_string->IsExternalString())
+      i::Handle<i::ExternalTwoByteString>::cast(uc16_string)
+          ->SetResource(isolate, nullptr);
+  }
+
+  // 1-byte external string
+  i::Vector<const uint8_t> one_byte_vector =
+      i::OneByteVector(one_byte_source, static_cast<int>(length));
+  i::Handle<i::String> one_byte_string =
+      factory->NewStringFromOneByte(one_byte_vector).ToHandleChecked();
+  {
+    TestExternalOneByteResource one_byte_resource(one_byte_source, length);
+    i::Handle<i::String> ext_one_byte_string(
+        factory->NewExternalStringFromOneByte(&one_byte_resource)
+            .ToHandleChecked());
+    std::unique_ptr<i::Utf16CharacterStream> one_byte_stream(
+        i::ScannerStream::For(isolate, ext_one_byte_string, 0, length));
+    TestCloneCharacterStream(one_byte_source, one_byte_stream.get(), length);
+    // This avoids the GC from trying to free a stack allocated resource.
+    if (ext_one_byte_string->IsExternalString())
+      i::Handle<i::ExternalOneByteString>::cast(ext_one_byte_string)
+          ->SetResource(isolate, nullptr);
+  }
+
+  // Relocatinable streams aren't clonable.
+  {
+    std::unique_ptr<i::Utf16CharacterStream> string_stream(
+        i::ScannerStream::For(isolate, one_byte_string, 0, length));
+    CHECK(!string_stream->can_be_cloned());
+
+    i::Handle<i::String> two_byte_string =
+        factory->NewStringFromTwoByte(two_byte_vector).ToHandleChecked();
+    std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
+        i::ScannerStream::For(isolate, two_byte_string, 0, length));
+    CHECK(!two_byte_string_stream->can_be_cloned());
+  }
+
+  // Chunk sources currently not cloneable.
+  {
+    const char* chunks[] = {"1234", "\0"};
+    ChunkSource chunk_source(chunks);
+    std::unique_ptr<i::Utf16CharacterStream> one_byte_streaming_stream(
+        i::ScannerStream::For(&chunk_source,
+                              v8::ScriptCompiler::StreamedSource::ONE_BYTE,
+                              nullptr));
+    CHECK(!one_byte_streaming_stream->can_be_cloned());
+
+    std::unique_ptr<i::Utf16CharacterStream> utf8_streaming_stream(
+        i::ScannerStream::For(
+            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
+    CHECK(!utf8_streaming_stream->can_be_cloned());
+
+    std::unique_ptr<i::Utf16CharacterStream> two_byte_streaming_stream(
+        i::ScannerStream::For(&chunk_source,
+                              v8::ScriptCompiler::StreamedSource::TWO_BYTE,
+                              nullptr));
+    CHECK(!two_byte_streaming_stream->can_be_cloned());
+  }
 }

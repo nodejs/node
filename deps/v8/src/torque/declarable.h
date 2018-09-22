@@ -24,7 +24,7 @@ class Generic;
 
 class Declarable {
  public:
-  virtual ~Declarable() {}
+  virtual ~Declarable() = default;
   enum Kind {
     kVariable,
     kParameter,
@@ -172,20 +172,23 @@ class Label : public Declarable {
   DECLARE_DECLARABLE_BOILERPLATE(Label, label);
   void MarkUsed() { used_ = true; }
   bool IsUsed() const { return used_; }
+  bool IsDeferred() const { return deferred_; }
 
  private:
   friend class Declarations;
-  explicit Label(const std::string& name)
+  explicit Label(const std::string& name, bool deferred = false)
       : Declarable(Declarable::kLabel),
         name_(name),
         generated_("label_" + name + "_" + std::to_string(next_id_++)),
-        used_(false) {}
+        used_(false),
+        deferred_(deferred) {}
 
   std::string name_;
   std::string generated_;
   std::vector<Variable*> parameters_;
   static size_t next_id_;
   bool used_;
+  bool deferred_;
 };
 
 class ExternConstant : public Value {

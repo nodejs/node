@@ -116,13 +116,13 @@ ConversionResult convertUTF16ToUTF8(const UChar** sourceStart,
       }
     }
     // Figure out how many bytes the result will require
-    if (ch < (UChar32)0x80) {
+    if (ch < static_cast<UChar32>(0x80)) {
       bytesToWrite = 1;
-    } else if (ch < (UChar32)0x800) {
+    } else if (ch < static_cast<UChar32>(0x800)) {
       bytesToWrite = 2;
-    } else if (ch < (UChar32)0x10000) {
+    } else if (ch < static_cast<UChar32>(0x10000)) {
       bytesToWrite = 3;
-    } else if (ch < (UChar32)0x110000) {
+    } else if (ch < static_cast<UChar32>(0x110000)) {
       bytesToWrite = 4;
     } else {
       bytesToWrite = 3;
@@ -370,10 +370,9 @@ static inline void putUTF8Triple(char*& buffer, UChar ch) {
 
 }  // namespace
 
-String16::String16() {}
+String16::String16() = default;
 
-String16::String16(const String16& other)
-    : m_impl(other.m_impl), hash_code(other.hash_code) {}
+String16::String16(const String16& other) = default;
 
 String16::String16(String16&& other) V8_NOEXCEPT
     : m_impl(std::move(other.m_impl)),
@@ -394,11 +393,7 @@ String16::String16(const char* characters, size_t size) {
 
 String16::String16(const std::basic_string<UChar>& impl) : m_impl(impl) {}
 
-String16& String16::operator=(const String16& other) {
-  m_impl = other.m_impl;
-  hash_code = other.hash_code;
-  return *this;
-}
+String16& String16::operator=(const String16& other) = default;
 
 String16& String16::operator=(String16&& other) V8_NOEXCEPT {
   m_impl = std::move(other.m_impl);
@@ -471,7 +466,7 @@ String16 String16::stripWhiteSpace() const {
   return String16(characters16() + start, end + 1 - start);
 }
 
-String16Builder::String16Builder() {}
+String16Builder::String16Builder() = default;
 
 void String16Builder::append(const String16& s) {
   m_buffer.insert(m_buffer.end(), s.characters16(),
@@ -547,7 +542,7 @@ String16 String16::fromUTF8(const char* stringStart, size_t length) {
   UChar* bufferCurrent = bufferStart;
   const char* stringCurrent = stringStart;
   if (convertUTF8ToUTF16(&stringCurrent, stringStart + length, &bufferCurrent,
-                         bufferCurrent + buffer.size(), 0,
+                         bufferCurrent + buffer.size(), nullptr,
                          true) != conversionOK)
     return String16();
 

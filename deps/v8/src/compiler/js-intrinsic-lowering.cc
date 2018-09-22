@@ -32,16 +32,12 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   switch (f->function_id) {
     case Runtime::kInlineCreateIterResultObject:
       return ReduceCreateIterResultObject(node);
-    case Runtime::kInlineDebugIsActive:
-      return ReduceDebugIsActive(node);
     case Runtime::kInlineDeoptimizeNow:
       return ReduceDeoptimizeNow(node);
     case Runtime::kInlineGeneratorClose:
       return ReduceGeneratorClose(node);
     case Runtime::kInlineCreateJSGeneratorObject:
       return ReduceCreateJSGeneratorObject(node);
-    case Runtime::kInlineGeneratorGetInputOrDebugPos:
-      return ReduceGeneratorGetInputOrDebugPos(node);
     case Runtime::kInlineAsyncGeneratorReject:
       return ReduceAsyncGeneratorReject(node);
     case Runtime::kInlineAsyncGeneratorResolve:
@@ -54,8 +50,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
-    case Runtime::kInlineIsJSProxy:
-      return ReduceIsInstanceType(node, JS_PROXY_TYPE);
     case Runtime::kInlineIsJSReceiver:
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
@@ -64,12 +58,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceRejectPromise(node);
     case Runtime::kInlineResolvePromise:
       return ReduceResolvePromise(node);
-    case Runtime::kInlineToInteger:
-      return ReduceToInteger(node);
     case Runtime::kInlineToLength:
       return ReduceToLength(node);
-    case Runtime::kInlineToNumber:
-      return ReduceToNumber(node);
     case Runtime::kInlineToObject:
       return ReduceToObject(node);
     case Runtime::kInlineToString:
@@ -90,16 +80,6 @@ Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   return Change(node, javascript()->CreateIterResultObject(), value, done,
                 context, effect);
-}
-
-Reduction JSIntrinsicLowering::ReduceDebugIsActive(Node* node) {
-  Node* const value = jsgraph()->ExternalConstant(
-      ExternalReference::debug_is_active_address(isolate()));
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op =
-      simplified()->LoadField(AccessBuilder::ForExternalUint8Value());
-  return Change(node, op, value, effect, control);
 }
 
 Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
@@ -145,16 +125,6 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
   ReplaceWithValue(node, undefined, node);
   NodeProperties::RemoveType(node);
   return Change(node, op, generator, closed, effect, control);
-}
-
-Reduction JSIntrinsicLowering::ReduceGeneratorGetInputOrDebugPos(Node* node) {
-  Node* const generator = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op = simplified()->LoadField(
-      AccessBuilder::ForJSGeneratorObjectInputOrDebugPos());
-
-  return Change(node, op, generator, effect, control);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {
@@ -258,17 +228,6 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   return Changed(node);
 }
 
-Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
-  NodeProperties::ChangeOp(node, javascript()->ToInteger());
-  return Changed(node);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceToNumber(Node* node) {
-  NodeProperties::ChangeOp(node, javascript()->ToNumber());
-  return Changed(node);
-}
-
 
 Reduction JSIntrinsicLowering::ReduceToLength(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->ToLength());
@@ -297,11 +256,6 @@ Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
 Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   size_t const arity = CallRuntimeParametersOf(node->op()).arity();
   NodeProperties::ChangeOp(node, javascript()->Call(arity));
-  return Changed(node);
-}
-
-Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
-  NodeProperties::ChangeOp(node, javascript()->GetSuperConstructor());
   return Changed(node);
 }
 

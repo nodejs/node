@@ -434,7 +434,6 @@ TEST_F(TyperTest, TypeJSStrictEqual) {
   TEST_F(TyperTest, Monotonicity_##name) {     \
     TestUnaryMonotonicity(javascript_.name()); \
   }
-TEST_MONOTONICITY(ToInteger)
 TEST_MONOTONICITY(ToLength)
 TEST_MONOTONICITY(ToName)
 TEST_MONOTONICITY(ToNumber)

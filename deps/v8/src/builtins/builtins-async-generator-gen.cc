@@ -207,7 +207,7 @@ Node* AsyncGeneratorBuiltinsAssembler::AllocateAsyncGeneratorRequest(
     Node* promise) {
   CSA_SLOW_ASSERT(this, HasInstanceType(promise, JS_PROMISE_TYPE));
   Node* request = Allocate(AsyncGeneratorRequest::kSize);
-  StoreMapNoWriteBarrier(request, Heap::kAsyncGeneratorRequestMapRootIndex);
+  StoreMapNoWriteBarrier(request, RootIndex::kAsyncGeneratorRequestMap);
   StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kNextOffset,
                                  UndefinedConstant());
   StoreObjectFieldNoWriteBarrier(request,
@@ -218,7 +218,7 @@ Node* AsyncGeneratorBuiltinsAssembler::AllocateAsyncGeneratorRequest(
   StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kPromiseOffset,
                                  promise);
   StoreObjectFieldRoot(request, AsyncGeneratorRequest::kNextOffset,
-                       Heap::kUndefinedValueRootIndex);
+                       RootIndex::kUndefinedValue);
   return request;
 }
 
@@ -519,9 +519,9 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
                                    Context::ITERATOR_RESULT_MAP_INDEX);
     StoreMapNoWriteBarrier(iter_result, map);
     StoreObjectFieldRoot(iter_result, JSIteratorResult::kPropertiesOrHashOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
+                         RootIndex::kEmptyFixedArray);
     StoreObjectFieldRoot(iter_result, JSIteratorResult::kElementsOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
+                         RootIndex::kEmptyFixedArray);
     StoreObjectFieldNoWriteBarrier(iter_result, JSIteratorResult::kValueOffset,
                                    value);
     StoreObjectFieldNoWriteBarrier(iter_result, JSIteratorResult::kDoneOffset,

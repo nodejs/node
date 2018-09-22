@@ -69,12 +69,6 @@ class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape>,
       public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
-  // Find cached value for a string key, otherwise return null.
-  Handle<Object> Lookup(Handle<String> src, Handle<SharedFunctionInfo> shared,
-                        LanguageMode language_mode);
   MaybeHandle<SharedFunctionInfo> LookupScript(Handle<String> src,
                                                Handle<Context> native_context,
                                                LanguageMode language_mode);
@@ -82,11 +76,6 @@ class CompilationCacheTable
                           Handle<Context> native_context,
                           LanguageMode language_mode, int position);
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
-  static Handle<CompilationCacheTable> Put(Handle<CompilationCacheTable> cache,
-                                           Handle<String> src,
-                                           Handle<SharedFunctionInfo> shared,
-                                           LanguageMode language_mode,
-                                           Handle<Object> value);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<Context> native_context, LanguageMode language_mode,

@@ -29,7 +29,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
  public:
   TypedOptimization(Editor* editor, CompilationDependencies* dependencies,
                     JSGraph* jsgraph, JSHeapBroker* js_heap_broker);
-  ~TypedOptimization();
+  ~TypedOptimization() override;
 
   const char* reducer_name() const override { return "TypedOptimization"; }
 
@@ -46,10 +46,12 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberFloor(Node* node);
   Reduction ReduceNumberRoundop(Node* node);
+  Reduction ReduceNumberSilenceNaN(Node* node);
   Reduction ReduceNumberToUint8Clamped(Node* node);
   Reduction ReducePhi(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
   Reduction ReduceStringComparison(Node* node);
+  Reduction ReduceStringLength(Node* node);
   Reduction ReduceSameValue(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSpeculativeToNumber(Node* node);

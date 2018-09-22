@@ -411,25 +411,40 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
       GenerateIndent();
       source_out() << "GotoIf(" << RValueFlattenStructs(left_result) << ", "
                    << true_label->generated() << ");\n";
-    } else if (!left_result.type()->IsConstexprBool()) {
+    } else if (left_result.type()->IsNever()) {
       GenerateLabelBind(false_label);
+    } else if (!left_result.type()->IsConstexprBool()) {
+      ReportError(
+          "expected type bool, constexpr bool, or never on left-hand side of "
+          "operator ||");
     }
   }
-  VisitResult right_result = Visit(expr->right);
-  if (right_result.type() != left_result.type()) {
-    std::stringstream stream;
-    stream << "types of left and right expression of logical OR don't match (\""
-           << *left_result.type() << "\" vs. \"" << *right_result.type()
-           << "\")";
-    ReportError(stream.str());
-  }
+
   if (left_result.type()->IsConstexprBool()) {
+    VisitResult right_result = Visit(expr->right);
+    if (!right_result.type()->IsConstexprBool()) {
+      ReportError(
+          "expected type constexpr bool on right-hand side of operator "
+          "||");
+    }
     return VisitResult(left_result.type(),
                        std::string("(") + RValueFlattenStructs(left_result) +
                            " || " + RValueFlattenStructs(right_result) + ")");
-  } else {
-    return right_result;
   }
+
+  VisitResult right_result = Visit(expr->right);
+  if (right_result.type()->IsBool()) {
+    Label* true_label = declarations()->LookupLabel(kTrueLabelName);
+    Label* false_label = declarations()->LookupLabel(kFalseLabelName);
+    source_out() << "Branch(" << RValueFlattenStructs(right_result) << ", "
+                 << true_label->generated() << ", " << false_label->generated()
+                 << ");\n";
+    return VisitResult(TypeOracle::GetNeverType(), "/*never*/");
+  } else if (!right_result.type()->IsNever()) {
+    ReportError(
+        "expected type bool or never on right-hand side of operator ||");
+  }
+  return right_result;
 }
 
 VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
@@ -444,25 +459,40 @@ VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
       GenerateIndent();
       source_out() << "GotoIfNot(" << RValueFlattenStructs(left_result) << ", "
                    << false_label->generated() << ");\n";
-    } else if (!left_result.type()->IsConstexprBool()) {
+    } else if (left_result.type()->IsNever()) {
       GenerateLabelBind(true_label);
+    } else if (!left_result.type()->IsConstexprBool()) {
+      ReportError(
+          "expected type bool, constexpr bool, or never on left-hand side of "
+          "operator &&");
     }
   }
-  VisitResult right_result = Visit(expr->right);
-  if (right_result.type() != left_result.type()) {
-    std::stringstream stream;
-    stream
-        << "types of left and right expression of logical AND don't match (\""
-        << *left_result.type() << "\" vs. \"" << *right_result.type() << "\")";
-    ReportError(stream.str());
-  }
+
   if (left_result.type()->IsConstexprBool()) {
+    VisitResult right_result = Visit(expr->right);
+    if (!right_result.type()->IsConstexprBool()) {
+      ReportError(
+          "expected type constexpr bool on right-hand side of operator "
+          "&&");
+    }
     return VisitResult(left_result.type(),
                        std::string("(") + RValueFlattenStructs(left_result) +
                            " && " + RValueFlattenStructs(right_result) + ")");
-  } else {
-    return right_result;
   }
+
+  VisitResult right_result = Visit(expr->right);
+  if (right_result.type()->IsBool()) {
+    Label* true_label = declarations()->LookupLabel(kTrueLabelName);
+    Label* false_label = declarations()->LookupLabel(kFalseLabelName);
+    source_out() << "Branch(" << RValueFlattenStructs(right_result) << ", "
+                 << true_label->generated() << ", " << false_label->generated()
+                 << ");\n";
+    return VisitResult(TypeOracle::GetNeverType(), "/*never*/");
+  } else if (!right_result.type()->IsNever()) {
+    ReportError(
+        "expected type bool or never on right-hand side of operator &&");
+  }
+  return right_result;
 }
 
 VisitResult ImplementationVisitor::Visit(IncrementDecrementExpression* expr) {
@@ -1399,7 +1429,8 @@ LocationReference ImplementationVisitor::GetLocationReference(
   return LocationReference(nullptr, result, {});
 }
 
-std::string ImplementationVisitor::RValueFlattenStructs(VisitResult result) {
+std::string ImplementationVisitor::RValueFlattenStructs(
+    const VisitResult& result) {
   if (result.declarable()) {
     const Value* value = *result.declarable();
     const Type* type = value->type();
@@ -1422,7 +1453,7 @@ std::string ImplementationVisitor::RValueFlattenStructs(VisitResult result) {
 }
 
 VisitResult ImplementationVisitor::GenerateFetchFromLocation(
-    LocationExpression* location, LocationReference reference) {
+    LocationExpression* location, const LocationReference& reference) {
   switch (location->kind) {
     case AstNode::Kind::kIdentifierExpression:
       return GenerateFetchFromLocation(
@@ -1439,7 +1470,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
 }
 
 VisitResult ImplementationVisitor::GenerateFetchFromLocation(
-    FieldAccessExpression* expr, LocationReference reference) {
+    FieldAccessExpression* expr, const LocationReference& reference) {
   if (reference.value != nullptr) {
     return GenerateFetchFromLocation(reference);
   }
@@ -1455,7 +1486,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
 }
 
 void ImplementationVisitor::GenerateAssignToVariable(Variable* var,
-                                                     VisitResult value) {
+                                                     const VisitResult& value) {
   if (var->type()->IsStructType()) {
     if (value.type() != var->type()) {
       std::stringstream s;
@@ -1491,16 +1522,16 @@ void ImplementationVisitor::GenerateAssignToVariable(Variable* var,
 
 void ImplementationVisitor::GenerateAssignToLocation(
     LocationExpression* location, const LocationReference& reference,
-    VisitResult assignment_value) {
+    const VisitResult& assignment_value) {
   if (reference.value != nullptr) {
     Value* value = reference.value;
-    Variable* var = Variable::cast(value);
-    if (var->IsConst()) {
+    if (value->IsConst()) {
       std::stringstream s;
-      s << "\"" << var->name()
+      s << "\"" << value->name()
         << "\" is declared const (maybe implicitly) and cannot be assigned to";
       ReportError(s.str());
     }
+    Variable* var = Variable::cast(value);
     GenerateAssignToVariable(var, assignment_value);
   } else if (auto access = FieldAccessExpression::DynamicCast(location)) {
     GenerateCall(std::string(".") + access->field + "=",
@@ -1595,7 +1626,7 @@ void ImplementationVisitor::GenerateParameter(
 
 void ImplementationVisitor::GenerateParameterList(const NameVector& list,
                                                   size_t first) {
-  for (auto p : list) {
+  for (const auto& p : list) {
     if (first == 0) {
       GenerateParameter(p);
     } else {
@@ -1858,16 +1889,16 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
                                          bool is_tailcall) {
   Arguments arguments;
   std::string name = expr->callee.name;
-    TypeVector specialization_types =
-        GetTypeVector(expr->callee.generic_arguments);
-    bool has_template_arguments = !specialization_types.empty();
-    for (Expression* arg : expr->arguments)
-      arguments.parameters.push_back(Visit(arg));
-    arguments.labels = LabelsFromIdentifiers(expr->labels);
-    VisitResult result;
-    if (!has_template_arguments &&
-        declarations()->Lookup(expr->callee.name)->IsValue()) {
-      result = GeneratePointerCall(&expr->callee, arguments, is_tailcall);
+  TypeVector specialization_types =
+      GetTypeVector(expr->callee.generic_arguments);
+  bool has_template_arguments = !specialization_types.empty();
+  for (Expression* arg : expr->arguments)
+    arguments.parameters.push_back(Visit(arg));
+  arguments.labels = LabelsFromIdentifiers(expr->labels);
+  VisitResult result;
+  if (!has_template_arguments &&
+      declarations()->Lookup(expr->callee.name)->IsValue()) {
+    result = GeneratePointerCall(&expr->callee, arguments, is_tailcall);
   } else {
     result = GenerateCall(name, arguments, specialization_types, is_tailcall);
   }
@@ -1934,6 +1965,10 @@ bool ImplementationVisitor::GenerateExpressionBranch(
 
 VisitResult ImplementationVisitor::GenerateImplicitConvert(
     const Type* destination_type, VisitResult source) {
+  if (source.type() == TypeOracle::GetNeverType()) {
+    ReportError("it is not allowed to use a value of type never");
+  }
+
   if (destination_type == source.type()) {
     return source;
   }
@@ -1977,6 +2012,11 @@ void ImplementationVisitor::GenerateLabelDefinition(Label* label,
     source_out() << ", ";
     GenerateChangedVarsFromControlSplit(node);
   }
+  if (label->IsDeferred()) {
+    source_out() << ", compiler::CodeAssemblerLabel::kDeferred";
+  } else {
+    source_out() << ", compiler::CodeAssemblerLabel::kNonDeferred";
+  }
   source_out() << ");\n";
   GenerateIndent();
   source_out() << "Label* " + label_string + " = &" << label_string_impl
@@ -1998,7 +2038,8 @@ void ImplementationVisitor::GenerateLabelGoto(Label* label) {
 std::vector<Label*> ImplementationVisitor::LabelsFromIdentifiers(
     const std::vector<std::string>& names) {
   std::vector<Label*> result;
-  for (auto name : names) {
+  result.reserve(names.size());
+  for (const auto& name : names) {
     result.push_back(declarations()->LookupLabel(name));
   }
   return result;

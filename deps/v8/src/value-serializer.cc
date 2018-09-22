@@ -834,7 +834,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     ThrowDataCloneError(MessageTemplate::kDataCloneErrorNeuteredArrayBuffer);
     return Nothing<bool>();
   }
-  double byte_length = array_buffer->byte_length()->Number();
+  double byte_length = array_buffer->byte_length();
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
     return Nothing<bool>();
@@ -865,8 +865,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
     tag = ArrayBufferViewTag::kDataView;
   }
   WriteVarint(static_cast<uint8_t>(tag));
-  WriteVarint(NumberToUint32(view->byte_offset()));
-  WriteVarint(NumberToUint32(view->byte_length()));
+  WriteVarint(static_cast<uint32_t>(view->byte_offset()));
+  WriteVarint(static_cast<uint32_t>(view->byte_length()));
   return ThrowIfOutOfMemory();
 }
 
@@ -1702,7 +1702,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
 
 MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
     Handle<JSArrayBuffer> buffer) {
-  uint32_t buffer_byte_length = NumberToUint32(buffer->byte_length());
+  uint32_t buffer_byte_length = static_cast<uint32_t>(buffer->byte_length());
   uint8_t tag = 0;
   uint32_t byte_offset = 0;
   uint32_t byte_length = 0;

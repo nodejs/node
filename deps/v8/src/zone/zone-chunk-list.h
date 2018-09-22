@@ -155,8 +155,8 @@ class ZoneChunkListIterator
   using ChunkList = maybe_const<ZoneChunkList<T>>;
 
  public:
-  maybe_const<T>& operator*() { return current_->items()[position_]; }
-  maybe_const<T>* operator->() { return &current_->items()[position_]; }
+  maybe_const<T>& operator*() const { return current_->items()[position_]; }
+  maybe_const<T>* operator->() const { return &current_->items()[position_]; }
   bool operator==(const ZoneChunkListIterator& other) const {
     return other.current_ == current_ && other.position_ == position_;
   }

@@ -37,7 +37,7 @@ class MockPlatform : public TestPlatform {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  virtual ~MockPlatform() {
+  ~MockPlatform() override {
     delete task_;
     i::V8::SetPlatformForTesting(old_platform_);
     for (auto& task : worker_tasks_) {

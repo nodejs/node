@@ -21,6 +21,7 @@
 #include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
+#include "src/string-constants.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -335,6 +336,7 @@ bool Operand::AddressUsesRegister(Register reg) const {
 }
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     switch (request.kind()) {
@@ -347,6 +349,13 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
         UpdateCodeTarget(Memory<int32_t>(pc), request.code_stub()->GetCode());
+        break;
+      }
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        Handle<String> allocated = str->AllocateStringConstant(isolate);
+        Memory<Handle<Object>>(pc) = allocated;
         break;
       }
     }
@@ -943,7 +952,7 @@ void Assembler::bswapq(Register dst) {
   emit(0xC8 + dst.low_bits());
 }
 
-void Assembler::bt(Operand dst, Register src) {
+void Assembler::btq(Operand dst, Register src) {
   EnsureSpace ensure_space(this);
   emit_rex_64(src, dst);
   emit(0x0F);
@@ -951,7 +960,7 @@ void Assembler::bt(Operand dst, Register src) {
   emit_operand(src, dst);
 }
 
-void Assembler::bts(Operand dst, Register src) {
+void Assembler::btsq(Operand dst, Register src) {
   EnsureSpace ensure_space(this);
   emit_rex_64(src, dst);
   emit(0x0F);
@@ -959,6 +968,23 @@ void Assembler::bts(Operand dst, Register src) {
   emit_operand(src, dst);
 }
 
+void Assembler::btsq(Register dst, Immediate imm8) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(dst);
+  emit(0x0F);
+  emit(0xBA);
+  emit_modrm(0x5, dst);
+  emit(imm8.value_);
+}
+
+void Assembler::btrq(Register dst, Immediate imm8) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(dst);
+  emit(0x0F);
+  emit(0xBA);
+  emit_modrm(0x6, dst);
+  emit(imm8.value_);
+}
 
 void Assembler::bsrl(Register dst, Register src) {
   EnsureSpace ensure_space(this);
@@ -1815,6 +1841,14 @@ void Assembler::movp_heap_number(Register dst, double value) {
   emit_rex(dst, kPointerSize);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(value));
+  emitp(0, RelocInfo::EMBEDDED_OBJECT);
+}
+
+void Assembler::movp_string(Register dst, const StringConstantBase* str) {
+  EnsureSpace ensure_space(this);
+  emit_rex(dst, kPointerSize);
+  emit(0xB8 | dst.low_bits());
+  RequestHeapObject(HeapObjectRequest(str));
   emitp(0, RelocInfo::EMBEDDED_OBJECT);
 }
 

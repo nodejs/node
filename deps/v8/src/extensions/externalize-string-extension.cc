@@ -20,11 +20,11 @@ class SimpleStringResource : public Base {
       : data_(data),
         length_(length) {}
 
-  virtual ~SimpleStringResource() { delete[] data_; }
+  ~SimpleStringResource() override { delete[] data_; }
 
-  virtual const Char* data() const { return data_; }
+  const Char* data() const override { return data_; }
 
-  virtual size_t length() const { return length_; }
+  size_t length() const override { return length_; }
 
  private:
   Char* const data_;

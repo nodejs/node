@@ -75,11 +75,6 @@ AllocationTraceTree::AllocationTraceTree()
       root_(this, 0) {
 }
 
-
-AllocationTraceTree::~AllocationTraceTree() {
-}
-
-
 AllocationTraceNode* AllocationTraceTree::AddPathFromEnd(
     const Vector<unsigned>& path) {
   AllocationTraceNode* node = root();
@@ -239,7 +234,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
 
 
 static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
-  return ComputeIntegerHash(static_cast<uint32_t>(id));
+  return ComputeUnseededHash(static_cast<uint32_t>(id));
 }
 
 

@@ -16,8 +16,8 @@ namespace interpreter {
 
 class BytecodeArrayIteratorTest : public TestWithIsolateAndZone {
  public:
-  BytecodeArrayIteratorTest() {}
-  ~BytecodeArrayIteratorTest() override {}
+  BytecodeArrayIteratorTest() = default;
+  ~BytecodeArrayIteratorTest() override = default;
 };
 
 TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {

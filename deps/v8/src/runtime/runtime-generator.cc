@@ -53,12 +53,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
   return generator->function();
 }
 
-RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
-  // Runtime call is implemented in InterpreterIntrinsics and lowered in
-  // JSIntrinsicLowering
-  UNREACHABLE();
-}
-
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorResolve) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering

@@ -45,13 +45,11 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
                                          ModuleEnv* env,
                                          NativeModule* native_module,
-                                         FunctionBody body, WasmName name,
-                                         int index, Counters* counters,
-                                         ExecutionTier mode)
+                                         FunctionBody body, int index,
+                                         Counters* counters, ExecutionTier mode)
     : env_(env),
       wasm_engine_(wasm_engine),
       func_body_(body),
-      func_name_(name),
       counters_(counters),
       func_index_(index),
       native_module_(native_module),
@@ -71,7 +69,7 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 
 // Declared here such that {LiftoffCompilationUnit} and
 // {TurbofanWasmCompilationUnit} can be opaque in the header file.
-WasmCompilationUnit::~WasmCompilationUnit() {}
+WasmCompilationUnit::~WasmCompilationUnit() = default;
 
 void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   auto size_histogram = SELECT_WASM_COUNTER(counters_, env_->module->origin,
@@ -155,7 +153,6 @@ WasmCode* WasmCompilationUnit::CompileWasmFunction(
 
   WasmCompilationUnit unit(isolate->wasm_engine(), env, native_module,
                            function_body,
-                           wire_bytes.GetNameOrNull(function, env->module),
                            function->func_index, isolate->counters(), mode);
   unit.ExecuteCompilation(detected);
   return unit.FinishCompilation(thrower);

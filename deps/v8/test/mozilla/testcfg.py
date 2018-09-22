@@ -85,7 +85,7 @@ class TestSuite(testsuite.TestSuite):
     return TestCase
 
 
-class TestCase(testcase.TestCase):
+class TestCase(testcase.D8TestCase):
   def _get_files_params(self):
     files = [os.path.join(self.suite.root, "mozilla-shell-emulation.js")]
     testfilename = self.path + ".js"

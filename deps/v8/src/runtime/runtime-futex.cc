@@ -28,7 +28,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
+  size_t addr = (index << 2) + sta->byte_offset();
 
   return FutexEmulation::NumWaitersForTesting(array_buffer, addr);
 }

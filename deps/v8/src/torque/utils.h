@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/base/functional.h"
+#include "src/torque/contextual.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +21,30 @@ typedef std::vector<std::string> NameVector;
 std::string StringLiteralUnquote(const std::string& s);
 std::string StringLiteralQuote(const std::string& s);
 
+class LintErrorStatus : public ContextualClass<LintErrorStatus> {
+ public:
+  LintErrorStatus() : has_lint_errors_(false) {}
+
+  static bool HasLintErrors() { return Get().has_lint_errors_; }
+  static void SetLintError() { Get().has_lint_errors_ = true; }
+
+ private:
+  bool has_lint_errors_;
+};
+
 [[noreturn]] void ReportError(const std::string& error);
+void LintError(const std::string& error);
+
+// Prints a LintError with the format "{type} '{name}' doesn't follow
+// '{convention}' naming convention".
+void NamingConventionError(const std::string& type, const std::string& name,
+                           const std::string& convention);
+
+bool IsLowerCamelCase(const std::string& s);
+bool IsUpperCamelCase(const std::string& s);
+bool IsSnakeCase(const std::string& s);
+bool IsValidModuleConstName(const std::string& s);
+bool IsValidTypeName(const std::string& s);
 
 std::string CamelifyString(const std::string& underscore_string);
 std::string DashifyString(const std::string& underscore_string);

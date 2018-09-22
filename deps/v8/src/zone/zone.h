@@ -11,6 +11,7 @@
 #include "src/base/logging.h"
 #include "src/globals.h"
 #include "src/splay-tree.h"
+#include "src/utils.h"
 #include "src/zone/accounting-allocator.h"
 
 #ifndef ZONE_NAME
@@ -56,6 +57,9 @@ class V8_EXPORT_PRIVATE Zone final {
   // Seals the zone to prevent any further allocation.
   void Seal() { sealed_ = true; }
 
+  // Deletes all objects and free all memory allocated in the Zone.
+  void DeleteAll();
+
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
   bool excess_allocation() const {
@@ -80,9 +84,6 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
-
-  // Deletes all objects and free all memory allocated in the Zone.
-  void DeleteAll();
 
   // The number of bytes allocated in this zone so far.
   size_t allocation_size_;
@@ -294,6 +295,11 @@ class ZoneList final {
 // zone as the list object.
 template <typename T>
 using ZonePtrList = ZoneList<T*>;
+
+// ZoneThreadedList is a special variant of the ThreadedList that can be put
+// into a Zone.
+template <typename T, typename TLTraits = ThreadedListTraits<T>>
+using ZoneThreadedList = ThreadedListBase<T, ZoneObject, TLTraits>;
 
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).

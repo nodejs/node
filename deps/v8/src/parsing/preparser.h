@@ -10,7 +10,6 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparser-logger.h"
 #include "src/pending-compilation-error-handler.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +22,7 @@ namespace internal {
 // interface as AstNodeFactory, so ParserBase doesn't need to care which one is
 // used.
 
-class ProducedPreParsedScopeData;
+class PreParsedScopeDataBuilder;
 
 class PreParserIdentifier {
  public:
@@ -87,16 +86,18 @@ class PreParserIdentifier {
   friend class PreParserFactory;
 };
 
-
 class PreParserExpression {
  public:
+  using VariableZoneThreadedListType =
+      ZoneThreadedList<VariableProxy, VariableProxy::PreParserNext>;
+
   PreParserExpression()
       : code_(TypeField::encode(kNull)), variables_(nullptr) {}
 
   static PreParserExpression Null() { return PreParserExpression(); }
 
   static PreParserExpression Default(
-      ZonePtrList<VariableProxy>* variables = nullptr) {
+      VariableZoneThreadedListType* variables = nullptr) {
     return PreParserExpression(TypeField::encode(kExpression), variables);
   }
 
@@ -125,9 +126,7 @@ class PreParserExpression {
                                    right.variables_);
       }
       if (right.variables_ != nullptr) {
-        for (auto variable : *right.variables_) {
-          left.variables_->Add(variable, zone);
-        }
+        left.variables_->Append(std::move(*right.variables_));
       }
       return PreParserExpression(TypeField::encode(kExpression),
                                  left.variables_);
@@ -135,7 +134,8 @@ class PreParserExpression {
     return PreParserExpression(TypeField::encode(kExpression));
   }
 
-  static PreParserExpression Assignment(ZonePtrList<VariableProxy>* variables) {
+  static PreParserExpression Assignment(
+      VariableZoneThreadedListType* variables) {
     return PreParserExpression(TypeField::encode(kExpression) |
                                    ExpressionTypeField::encode(kAssignment),
                                variables);
@@ -146,13 +146,13 @@ class PreParserExpression {
   }
 
   static PreParserExpression ObjectLiteral(
-      ZonePtrList<VariableProxy>* variables) {
+      VariableZoneThreadedListType* variables) {
     return PreParserExpression(TypeField::encode(kObjectLiteralExpression),
                                variables);
   }
 
   static PreParserExpression ArrayLiteral(
-      ZonePtrList<VariableProxy>* variables) {
+      VariableZoneThreadedListType* variables) {
     return PreParserExpression(TypeField::encode(kArrayLiteralExpression),
                                variables);
   }
@@ -171,7 +171,7 @@ class PreParserExpression {
                                IsUseAsmField::encode(true));
   }
 
-  static PreParserExpression This(ZonePtrList<VariableProxy>* variables) {
+  static PreParserExpression This(VariableZoneThreadedListType* variables) {
     return PreParserExpression(TypeField::encode(kExpression) |
                                    ExpressionTypeField::encode(kThisExpression),
                                variables);
@@ -336,7 +336,7 @@ class PreParserExpression {
     if (variables_ != nullptr) {
       DCHECK(IsIdentifier());
       DCHECK(AsIdentifier().IsPrivateName());
-      DCHECK_EQ(1, variables_->length());
+      DCHECK_EQ(1, variables_->LengthForTest());
       variables_->first()->set_is_private_field();
     }
   }
@@ -374,8 +374,9 @@ class PreParserExpression {
     kAssignment
   };
 
-  explicit PreParserExpression(uint32_t expression_code,
-                               ZonePtrList<VariableProxy>* variables = nullptr)
+  explicit PreParserExpression(
+      uint32_t expression_code,
+      VariableZoneThreadedListType* variables = nullptr)
       : code_(expression_code), variables_(variables) {}
 
   void AddVariable(VariableProxy* variable, Zone* zone) {
@@ -383,9 +384,9 @@ class PreParserExpression {
       return;
     }
     if (variables_ == nullptr) {
-      variables_ = new (zone) ZonePtrList<VariableProxy>(1, zone);
+      variables_ = new (zone) VariableZoneThreadedListType();
     }
-    variables_->Add(variable, zone);
+    variables_->Add(variable);
   }
 
   // The first three bits are for the Type.
@@ -410,7 +411,7 @@ class PreParserExpression {
   uint32_t code_;
   // If the PreParser is used in the variable tracking mode, PreParserExpression
   // accumulates variables in that expression.
-  ZonePtrList<VariableProxy>* variables_;
+  VariableZoneThreadedListType* variables_;
 
   friend class PreParser;
   friend class PreParserFactory;
@@ -424,6 +425,9 @@ class PreParserExpression {
 // build lists of variables though.
 template <typename T>
 class PreParserList {
+  using VariableZoneThreadedListType =
+      ZoneThreadedList<VariableProxy, VariableProxy::PreParserNext>;
+
  public:
   // These functions make list->Add(some_expression) work (and do nothing).
   PreParserList() : length_(0), variables_(nullptr) {}
@@ -437,7 +441,8 @@ class PreParserList {
  private:
   explicit PreParserList(int n) : length_(n), variables_(nullptr) {}
   int length_;
-  ZonePtrList<VariableProxy>* variables_;
+
+  VariableZoneThreadedListType* variables_;
 
   friend class PreParser;
   friend class PreParserFactory;
@@ -450,11 +455,9 @@ inline void PreParserList<PreParserExpression>::Add(
     DCHECK(FLAG_lazy_inner_functions);
     DCHECK_NOT_NULL(zone);
     if (variables_ == nullptr) {
-      variables_ = new (zone) ZonePtrList<VariableProxy>(1, zone);
+      variables_ = new (zone) VariableZoneThreadedListType();
     }
-    for (auto identifier : (*expression.variables_)) {
-      variables_->Add(identifier, zone);
-    }
+    variables_->Append(std::move(*expression.variables_));
   }
   ++length_;
 }
@@ -562,11 +565,6 @@ class PreParserFactory {
  public:
   explicit PreParserFactory(AstValueFactory* ast_value_factory, Zone* zone)
       : ast_node_factory_(ast_value_factory, zone), zone_(zone) {}
-
-  void set_zone(Zone* zone) {
-    ast_node_factory_.set_zone(zone);
-    zone_ = zone;
-  }
 
   AstNodeFactory* ast_node_factory() { return &ast_node_factory_; }
 
@@ -852,12 +850,15 @@ class PreParserFactory {
 
 struct PreParserFormalParameters : FormalParametersBase {
   struct Parameter : public ZoneObject {
-    Parameter(ZonePtrList<VariableProxy>* variables, bool is_rest)
+    using VariableZoneThreadedListType =
+        ZoneThreadedList<VariableProxy, VariableProxy::PreParserNext>;
+
+    Parameter(VariableZoneThreadedListType* variables, bool is_rest)
         : variables_(variables), is_rest(is_rest) {}
     Parameter** next() { return &next_parameter; }
     Parameter* const* next() const { return &next_parameter; }
 
-    ZonePtrList<VariableProxy>* variables_;
+    VariableZoneThreadedListType* variables_;
     Parameter* next_parameter = nullptr;
     bool is_rest : 1;
   };
@@ -879,6 +880,25 @@ class PreParserTarget {
 class PreParserTargetScope {
  public:
   explicit PreParserTargetScope(ParserBase<PreParser>* preparser) {}
+};
+
+class PreParserFuncNameInferrer {
+ public:
+  PreParserFuncNameInferrer(AstValueFactory* avf, Zone* zone) {}
+  void RemoveAsyncKeywordFromEnd() {}
+  void Infer() {}
+  void RemoveLastFunction() {}
+
+  class State {
+   public:
+    explicit State(PreParserFuncNameInferrer* fni) {}
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(State);
+  };
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(PreParserFuncNameInferrer);
 };
 
 template <>
@@ -910,6 +930,7 @@ struct ParserTypes<PreParser> {
 
   typedef PreParserTarget Target;
   typedef PreParserTargetScope TargetScope;
+  typedef PreParserFuncNameInferrer FuncNameInferrer;
 };
 
 
@@ -946,13 +967,16 @@ class PreParser : public ParserBase<PreParser> {
             RuntimeCallStats* runtime_call_stats, Logger* logger,
             int script_id = -1, bool parsing_module = false,
             bool parsing_on_main_thread = true)
-      : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
-                              ast_value_factory, pending_error_handler,
-                              runtime_call_stats, logger, script_id,
-                              parsing_module, parsing_on_main_thread),
+      : ParserBase<PreParser>(new Zone(zone->allocator(), ZONE_NAME), scanner,
+                              stack_limit, nullptr, ast_value_factory,
+                              pending_error_handler, runtime_call_stats, logger,
+                              script_id, parsing_module,
+                              parsing_on_main_thread),
         use_counts_(nullptr),
         track_unresolved_variables_(false),
-        produced_preparsed_scope_data_(nullptr) {}
+        preparsed_scope_data_builder_(nullptr) {}
+
+  ~PreParser() { delete zone(); }
 
   static bool IsPreParser() { return true; }
 
@@ -980,13 +1004,17 @@ class PreParser : public ParserBase<PreParser> {
       ProducedPreParsedScopeData** produced_preparser_scope_data,
       int script_id);
 
-  ProducedPreParsedScopeData* produced_preparsed_scope_data() const {
-    return produced_preparsed_scope_data_;
+  V8_INLINE static bool ShouldTrackUnresolvedVariables(bool is_inner_function) {
+    return FLAG_preparser_scope_analysis || is_inner_function;
   }
 
-  void set_produced_preparsed_scope_data(
-      ProducedPreParsedScopeData* produced_preparsed_scope_data) {
-    produced_preparsed_scope_data_ = produced_preparsed_scope_data;
+  PreParsedScopeDataBuilder* preparsed_scope_data_builder() const {
+    return preparsed_scope_data_builder_;
+  }
+
+  void set_preparsed_scope_data_builder(
+      PreParsedScopeDataBuilder* preparsed_scope_data_builder) {
+    preparsed_scope_data_builder_ = preparsed_scope_data_builder;
   }
 
  private:
@@ -1558,14 +1586,15 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression ThisExpression(int pos = kNoSourcePosition) {
-    ZonePtrList<VariableProxy>* variables = nullptr;
+    PreParserExpression::VariableZoneThreadedListType* variables = nullptr;
     if (track_unresolved_variables_) {
       VariableProxy* proxy = scope()->NewUnresolved(
           factory()->ast_node_factory(), ast_value_factory()->this_string(),
           pos, THIS_VARIABLE);
 
-      variables = new (zone()) ZonePtrList<VariableProxy>(1, zone());
-      variables->Add(proxy, zone());
+      variables =
+          new (zone()) PreParserExpression::VariableZoneThreadedListType();
+      variables->Add(proxy);
     }
     return PreParserExpression::This(variables);
   }
@@ -1678,7 +1707,7 @@ class PreParser : public ParserBase<PreParser> {
       DCHECK(FLAG_lazy_inner_functions);
       for (auto parameter : parameters) {
         DCHECK_IMPLIES(is_simple, parameter->variables_ != nullptr);
-        DCHECK_IMPLIES(is_simple, parameter->variables_->length() == 1);
+        DCHECK_IMPLIES(is_simple, parameter->variables_->LengthForTest() == 1);
         // Make sure each parameter is added only once even if it's a
         // destructuring parameter which contains multiple names.
         bool add_parameter = true;
@@ -1733,7 +1762,7 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserExpression& value, const PreParserExpression& identifier) {
   }
 
-  V8_INLINE ZoneVector<typename ExpressionClassifier::Error>*
+  V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
   GetReportedErrorList() const {
     return function_state_->GetReportedErrorList();
   }
@@ -1758,7 +1787,7 @@ class PreParser : public ParserBase<PreParser> {
   bool track_unresolved_variables_;
   PreParserLogger log_;
 
-  ProducedPreParsedScopeData* produced_preparsed_scope_data_;
+  PreParsedScopeDataBuilder* preparsed_scope_data_builder_;
 };
 
 PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,

@@ -57,7 +57,7 @@ class AllocationTraceNode {
 class AllocationTraceTree {
  public:
   AllocationTraceTree();
-  ~AllocationTraceTree();
+  ~AllocationTraceTree() = default;
   AllocationTraceNode* AddPathFromEnd(const Vector<unsigned>& path);
   AllocationTraceNode* root() { return &root_; }
   unsigned next_node_id() { return next_node_id_++; }

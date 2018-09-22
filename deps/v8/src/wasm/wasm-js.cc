@@ -212,7 +212,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
   AsyncCompilationResolver(i::Isolate* isolate, i::Handle<i::JSPromise> promise)
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
-  ~AsyncCompilationResolver() {
+  ~AsyncCompilationResolver() override {
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
   }
 
@@ -248,7 +248,7 @@ class InstantiateModuleResultResolver
                                   i::Handle<i::JSPromise> promise)
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
-  ~InstantiateModuleResultResolver() {
+  ~InstantiateModuleResultResolver() override {
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
   }
 
@@ -284,7 +284,7 @@ class InstantiateBytesResultResolver
         promise_(isolate_->global_handles()->Create(*promise)),
         module_(isolate_->global_handles()->Create(*module)) {}
 
-  ~InstantiateBytesResultResolver() {
+  ~InstantiateBytesResultResolver() override {
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(module_).location());
   }
@@ -349,7 +349,7 @@ class AsyncInstantiateCompileResultResolver
                            : isolate_->global_handles()->Create(
                                  *maybe_imports.ToHandleChecked())) {}
 
-  ~AsyncInstantiateCompileResultResolver() {
+  ~AsyncInstantiateCompileResultResolver() override {
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
     if (!maybe_imports_.is_null()) {
       i::GlobalHandles::Destroy(
@@ -1095,6 +1095,15 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(global_js_object));
 }
 
+// WebAssembly.Exception
+void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Excepion()");
+  thrower.TypeError("WebAssembly.Exception cannot be called");
+}
+
 constexpr const char* kName_WasmGlobalObject = "WebAssembly.Global";
 constexpr const char* kName_WasmMemoryObject = "WebAssembly.Memory";
 constexpr const char* kName_WasmInstanceObject = "WebAssembly.Instance";
@@ -1250,8 +1259,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.RangeError("This memory cannot be grown");
     return;
   }
-  uint32_t old_size =
-      old_buffer->byte_length()->Number() / i::wasm::kWasmPageSize;
+  int64_t old_size = old_buffer->byte_length() / i::wasm::kWasmPageSize;
   int64_t new_size64 = old_size + delta_size;
   if (delta_size < 0 || max_size64 < new_size64 || new_size64 < old_size) {
     thrower.RangeError(new_size64 < old_size ? "trying to shrink memory"
@@ -1580,11 +1588,11 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSObject::AddProperty(isolate, memory_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Memory"), ro_attributes);
 
-  // Setup Global
-
   // The context is not set up completely yet. That's why we cannot use
   // {WasmFeaturesFromIsolate} and have to use {WasmFeaturesFromFlags} instead.
   auto enabled_features = i::wasm::WasmFeaturesFromFlags();
+
+  // Setup Global
   if (enabled_features.mut_global) {
     Handle<JSFunction> global_constructor =
         InstallFunc(isolate, webassembly, "Global", WebAssemblyGlobal, 1);
@@ -1602,6 +1610,21 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     JSObject::AddProperty(isolate, global_proto,
                           factory->to_string_tag_symbol(),
                           v8_str(isolate, "WebAssembly.Global"), ro_attributes);
+  }
+
+  // Setup Exception
+  if (enabled_features.eh) {
+    Handle<JSFunction> exception_constructor =
+        InstallFunc(isolate, webassembly, "Exception", WebAssemblyException, 1);
+    context->set_wasm_exception_constructor(*exception_constructor);
+    SetDummyInstanceTemplate(isolate, exception_constructor);
+    JSFunction::EnsureHasInitialMap(exception_constructor);
+    Handle<JSObject> exception_proto(
+        JSObject::cast(exception_constructor->instance_prototype()), isolate);
+    i::Handle<i::Map> exception_map = isolate->factory()->NewMap(
+        i::WASM_EXCEPTION_TYPE, WasmExceptionObject::kSize);
+    JSFunction::SetInitialMap(exception_constructor, exception_map,
+                              exception_proto);
   }
 
   // Setup errors

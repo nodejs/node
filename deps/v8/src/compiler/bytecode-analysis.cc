@@ -666,7 +666,7 @@ bool BytecodeAnalysis::ResumeJumpTargetsAreValid() {
       valid = false;
     }
     // Check loops.
-    for (const std::pair<int, LoopInfo>& loop_info : header_to_info_) {
+    for (const std::pair<const int, LoopInfo>& loop_info : header_to_info_) {
       if (!loop_info.second.resume_jump_targets().empty()) {
         PrintF(stderr,
                "Found %zu resume targets at loop at offset %d, but no resume "
@@ -700,7 +700,7 @@ bool BytecodeAnalysis::ResumeJumpTargetsAreValid() {
     valid = false;
   }
   // Check loops.
-  for (const std::pair<int, LoopInfo>& loop_info : header_to_info_) {
+  for (const std::pair<const int, LoopInfo>& loop_info : header_to_info_) {
     if (!ResumeJumpTargetLeavesResolveSuspendIds(
             loop_info.first, loop_info.second.resume_jump_targets(),
             &unresolved_suspend_ids)) {
@@ -714,7 +714,7 @@ bool BytecodeAnalysis::ResumeJumpTargetsAreValid() {
            "Found suspend ids that are not resolved by a final leaf resume "
            "jump:\n");
 
-    for (const std::pair<int, int>& target : unresolved_suspend_ids) {
+    for (const std::pair<const int, int>& target : unresolved_suspend_ids) {
       PrintF(stderr, "  %d -> %d\n", target.first, target.second);
     }
     valid = false;

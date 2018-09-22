@@ -113,8 +113,8 @@ class ThreadWithSharedMutexAndConditionVariable final : public Thread {
       : Thread(Options("ThreadWithSharedMutexAndConditionVariable")),
         running_(false),
         finished_(false),
-        cv_(NULL),
-        mutex_(NULL) {}
+        cv_(nullptr),
+        mutex_(nullptr) {}
 
   void Run() override {
     LockGuard<Mutex> lock_guard(mutex_);
