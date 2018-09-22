@@ -18,6 +18,7 @@
   * [Memory allocation](#memory-allocation)
   * [Use `nullptr` instead of `NULL` or `0`](#use-nullptr-instead-of-null-or-0)
   * [Ownership and Smart Pointers](#ownership-and-smart-pointers)
+  * [Avoid non-const references](#avoid-non-const-references)
 * [Others](#others)
   * [Type casting](#type-casting)
   * [Do not include `*.h` if `*-inl.h` has already been included](#do-not-include-h-if--inlh-has-already-been-included)
@@ -199,6 +200,11 @@ void FooConsumer(std::unique_ptr<Foo> ptr);
 ```
 
 Never use `std::auto_ptr`. Instead, use `std::unique_ptr`.
+
+### Avoid non-const references
+
+Using non-const references often obscures which values are changed by an
+assignment. A pointer is almost always a better choice.
 
 ## Others
 
