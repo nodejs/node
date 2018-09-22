@@ -591,7 +591,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       if (!r) {
         ret = 0;
         issuer = nullptr;
-        goto end;
+        break;
       }
       // Note that we must not free r if it was successfully
       // added to the chain (while we must free the main
@@ -618,12 +618,10 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       issuer = X509_dup(issuer);
       if (issuer == nullptr) {
         ret = 0;
-        goto end;
       }
     }
   }
 
- end:
   issuer_->reset(issuer);
 
   if (ret && x != nullptr) {
