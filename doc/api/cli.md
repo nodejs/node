@@ -24,7 +24,7 @@ _For more info about `node inspect`, please see the [debugger][] documentation._
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23020
     description: Underscores instead of dashes are now allowed for
                  Node.js options as well, in addition to V8 options.
 -->
