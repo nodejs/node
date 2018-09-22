@@ -1067,8 +1067,8 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v10.11.1
 -->
-* `input` {string|String|(string|String)[]}
-* `match` {(RegExp|String|string)[]}
+* `input` {string|string[]}
+* `match` {(RegExp|string)[]}
 
 Verify that requested constraints match the provided input :
 
