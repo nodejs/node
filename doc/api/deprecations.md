@@ -2168,7 +2168,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime (supports [`--pending-deprecation`][])
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 In recent versions of Node.js, there is no difference between
 [`crypto.randomBytes()`][] and `crypto.pseudoRandomBytes()`. The latter is
