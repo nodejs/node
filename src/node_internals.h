@@ -936,6 +936,8 @@ void GetEGid(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 
+void DefineZlibConstants(v8::Local<v8::Object> target);
+
 }  // namespace node
 
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
