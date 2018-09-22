@@ -65,7 +65,7 @@ if (!common.isWindows && process.getuid() === 0) {
 }
 
 [fs.F_OK, fs.R_OK, fs.W_OK, fs.X_OK].forEach(
-  (cons) => assert.strictEqual(cons, 'number')
+  (cons) => assert.strictEqual(typeof cons, 'number')
 );
 
 const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
