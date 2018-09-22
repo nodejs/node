@@ -78,8 +78,6 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
         ThreadPoolWork(env),
-        dictionary_(nullptr),
-        dictionary_len_(0),
         err_(0),
         flush_(0),
         init_done_(false),
@@ -126,10 +124,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     CHECK(status == Z_OK || status == Z_DATA_ERROR);
     mode_ = NONE;
 
-    if (dictionary_ != nullptr) {
-      delete[] dictionary_;
-      dictionary_ = nullptr;
-    }
+    dictionary_.clear();
   }
 
 
@@ -294,9 +289,11 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
         // SetDictionary, don't repeat that here)
         if (mode_ != INFLATERAW &&
             err_ == Z_NEED_DICT &&
-            dictionary_ != nullptr) {
+            !dictionary_.empty()) {
           // Load it
-          err_ = inflateSetDictionary(&strm_, dictionary_, dictionary_len_);
+          err_ = inflateSetDictionary(&strm_,
+                                      dictionary_.data(),
+                                      dictionary_.size());
           if (err_ == Z_OK) {
             // And try to decode again
             err_ = inflate(&strm_, flush_);
@@ -346,7 +343,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
       // normal statuses, not fatal
       break;
     case Z_NEED_DICT:
-      if (dictionary_ == nullptr)
+      if (dictionary_.empty())
         Error("Missing dictionary");
       else
         Error("Bad dictionary");
@@ -483,23 +480,20 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
     Local<Function> write_js_callback = args[5].As<Function>();
 
-    char* dictionary = nullptr;
-    size_t dictionary_len = 0;
+    std::vector<unsigned char> dictionary;
     if (Buffer::HasInstance(args[6])) {
-      const char* dictionary_ = Buffer::Data(args[6]);
-      dictionary_len = Buffer::Length(args[6]);
-
-      dictionary = new char[dictionary_len];
-      memcpy(dictionary, dictionary_, dictionary_len);
+      unsigned char* data =
+          reinterpret_cast<unsigned char*>(Buffer::Data(args[6]));
+      dictionary = std::vector<unsigned char>(
+          data,
+          data + Buffer::Length(args[6]));
     }
 
     bool ret = Init(ctx, level, windowBits, memLevel, strategy, write_result,
-                    write_js_callback, dictionary, dictionary_len);
-    if (!ret) goto end;
+                    write_js_callback, std::move(dictionary));
+    if (ret)
+      ctx->SetDictionary();
 
-    ctx->SetDictionary();
-
-   end:
     return args.GetReturnValue().Set(ret);
   }
 
@@ -524,8 +518,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
   static bool Init(ZCtx* ctx, int level, int windowBits, int memLevel,
                    int strategy, uint32_t* write_result,
-                   Local<Function> write_js_callback, char* dictionary,
-                   size_t dictionary_len) {
+                   Local<Function> write_js_callback,
+                   std::vector<unsigned char>&& dictionary) {
     AllocScope alloc_scope(ctx);
     ctx->level_ = level;
     ctx->windowBits_ = windowBits;
@@ -573,17 +567,13 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
         UNREACHABLE();
     }
 
-    ctx->dictionary_ = reinterpret_cast<Bytef *>(dictionary);
-    ctx->dictionary_len_ = dictionary_len;
+    ctx->dictionary_ = std::move(dictionary);
 
     ctx->write_in_progress_ = false;
     ctx->init_done_ = true;
 
     if (ctx->err_ != Z_OK) {
-      if (dictionary != nullptr) {
-        delete[] dictionary;
-        ctx->dictionary_ = nullptr;
-      }
+      ctx->dictionary_.clear();
       ctx->mode_ = NONE;
       return false;
     }
@@ -594,7 +584,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   }
 
   void SetDictionary() {
-    if (dictionary_ == nullptr)
+    if (dictionary_.empty())
       return;
 
     err_ = Z_OK;
@@ -602,12 +592,16 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     switch (mode_) {
       case DEFLATE:
       case DEFLATERAW:
-        err_ = deflateSetDictionary(&strm_, dictionary_, dictionary_len_);
+        err_ = deflateSetDictionary(&strm_,
+                                    dictionary_.data(),
+                                    dictionary_.size());
         break;
       case INFLATERAW:
         // The other inflate cases will have the dictionary set when inflate()
         // returns Z_NEED_DICT in Process()
-        err_ = inflateSetDictionary(&strm_, dictionary_, dictionary_len_);
+        err_ = inflateSetDictionary(&strm_,
+                                    dictionary_.data(),
+                                    dictionary_.size());
         break;
       default:
         break;
@@ -664,7 +658,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
-    tracker->TrackFieldWithSize("dictionary", dictionary_len_);
+    tracker->TrackField("dictionary", dictionary_);
     tracker->TrackFieldWithSize("zlib memory",
         zlib_memory_ + unreported_allocations_);
   }
@@ -732,8 +726,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     ZCtx* ctx;
   };
 
-  Bytef* dictionary_;
-  size_t dictionary_len_;
+  std::vector<unsigned char> dictionary_;
   int err_;
   int flush_;
   bool init_done_;
