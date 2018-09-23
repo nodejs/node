@@ -10,8 +10,6 @@ const { internalBinding } = require('internal/test/binding');
   const spawn = require('child_process').spawn;
   const cmd = common.isWindows ? 'rundll32' : 'ls';
   const cp = spawn(cmd);
-  strictEqual(Object.getPrototypeOf(cp._handle).hasOwnProperty('hasRef'),
-              true, 'process_wrap: hasRef() missing');
   strictEqual(cp._handle.hasRef(),
               true, 'process_wrap: not initially refed');
   cp.unref();
@@ -34,8 +32,6 @@ const { kStateSymbol } = require('internal/dgram');
   const sock4 = dgram.createSocket('udp4');
   const handle = sock4[kStateSymbol].handle;
 
-  strictEqual(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'),
-              true, 'udp_wrap: ipv4: hasRef() missing');
   strictEqual(handle.hasRef(),
               true, 'udp_wrap: ipv4: not initially refed');
   sock4.unref();
@@ -55,8 +51,6 @@ const { kStateSymbol } = require('internal/dgram');
   const sock6 = dgram.createSocket('udp6');
   const handle = sock6[kStateSymbol].handle;
 
-  strictEqual(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'),
-              true, 'udp_wrap: ipv6: hasRef() missing');
   strictEqual(handle.hasRef(),
               true, 'udp_wrap: ipv6: not initially refed');
   sock6.unref();
@@ -75,8 +69,6 @@ const { kStateSymbol } = require('internal/dgram');
 {
   const { Pipe, constants: PipeConstants } = internalBinding('pipe_wrap');
   const handle = new Pipe(PipeConstants.SOCKET);
-  strictEqual(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'),
-              true, 'pipe_wrap: hasRef() missing');
   strictEqual(handle.hasRef(),
               true, 'pipe_wrap: not initially refed');
   handle.unref();
@@ -95,8 +87,6 @@ const { kStateSymbol } = require('internal/dgram');
 {
   const net = require('net');
   const server = net.createServer(() => {}).listen(0);
-  strictEqual(Object.getPrototypeOf(server._handle).hasOwnProperty('hasRef'),
-              true, 'tcp_wrap: hasRef() missing');
   strictEqual(server._handle.hasRef(),
               true, 'tcp_wrap: not initially refed');
   strictEqual(server._unref,
