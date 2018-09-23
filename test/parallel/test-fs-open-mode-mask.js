@@ -7,7 +7,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-const mode = (common.isWindows) ? 0o444 : 0o644;
+const mode = common.isWindows ? 0o444 : 0o644;
 
 
 const maskToIgnore = 0o10000;
