@@ -69,3 +69,12 @@ const { MessageChannel, MessagePort } = require('worker_threads');
     });
   });
 }
+
+{
+  assert.deepStrictEqual(
+    Object.getOwnPropertyNames(MessagePort.prototype).sort(),
+    [
+      'ref', 'unref', 'start', 'close', 'postMessage', 'onmessage',
+      'constructor'
+    ].sort());
+}
