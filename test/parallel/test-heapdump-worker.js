@@ -19,8 +19,7 @@ validateSnapshotNodes('Worker', [
 validateSnapshotNodes('MessagePort', [
   {
     children: [
-      { name: 'MessagePortData' },
-      { name: 'MessagePort' }
+      { name: 'MessagePortData' }
     ]
   }
 ], { loose: true });
