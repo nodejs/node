@@ -755,8 +755,8 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> z = env->NewFunctionTemplate(ZCtx::New);
 
   z->InstanceTemplate()->SetInternalFieldCount(1);
+  z->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  AsyncWrap::AddWrapMethods(env, z);
   env->SetProtoMethod(z, "write", ZCtx::Write<true>);
   env->SetProtoMethod(z, "writeSync", ZCtx::Write<false>);
   env->SetProtoMethod(z, "init", ZCtx::Init);

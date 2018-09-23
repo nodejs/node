@@ -2956,14 +2956,14 @@ void Initialize(Local<Object> target,
 
   Local<FunctionTemplate> ping = FunctionTemplate::New(env->isolate());
   ping->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Ping"));
-  AsyncWrap::AddWrapMethods(env, ping);
+  ping->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<ObjectTemplate> pingt = ping->InstanceTemplate();
   pingt->SetInternalFieldCount(1);
   env->set_http2ping_constructor_template(pingt);
 
   Local<FunctionTemplate> setting = FunctionTemplate::New(env->isolate());
   setting->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Setting"));
-  AsyncWrap::AddWrapMethods(env, setting);
+  setting->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<ObjectTemplate> settingt = setting->InstanceTemplate();
   settingt->SetInternalFieldCount(1);
   env->set_http2settings_constructor_template(settingt);
@@ -2980,7 +2980,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(stream, "respond", Http2Stream::Respond);
   env->SetProtoMethod(stream, "rstStream", Http2Stream::RstStream);
   env->SetProtoMethod(stream, "refreshState", Http2Stream::RefreshState);
-  AsyncWrap::AddWrapMethods(env, stream);
+  stream->Inherit(AsyncWrap::GetConstructorTemplate(env));
   StreamBase::AddMethods<Http2Stream>(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
   streamt->SetInternalFieldCount(1);
@@ -2993,7 +2993,7 @@ void Initialize(Local<Object> target,
       env->NewFunctionTemplate(Http2Session::New);
   session->SetClassName(http2SessionClassName);
   session->InstanceTemplate()->SetInternalFieldCount(1);
-  AsyncWrap::AddWrapMethods(env, session);
+  session->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(session, "origin", Http2Session::Origin);
   env->SetProtoMethod(session, "altsvc", Http2Session::AltSvc);
   env->SetProtoMethod(session, "ping", Http2Session::Ping);
