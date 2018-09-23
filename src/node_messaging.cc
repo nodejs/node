@@ -483,14 +483,14 @@ MessagePort* MessagePort::New(
   Local<Function> ctor;
   if (!GetMessagePortConstructor(env, context).ToLocal(&ctor))
     return nullptr;
-  MessagePort* port = nullptr;
 
   // Construct a new instance, then assign the listener instance and possibly
   // the MessagePortData to it.
   Local<Object> instance;
   if (!ctor->NewInstance(context).ToLocal(&instance))
     return nullptr;
-  ASSIGN_OR_RETURN_UNWRAP(&port, instance, nullptr);
+  MessagePort* port = Unwrap<MessagePort>(instance);
+  CHECK_NOT_NULL(port);
   if (data) {
     port->Detach();
     port->data_ = std::move(data);
