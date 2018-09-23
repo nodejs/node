@@ -6,6 +6,7 @@
 #define V8_COMPILER_GRAPH_TRIMMER_H_
 
 #include "src/compiler/node-marker.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -14,9 +15,8 @@ namespace compiler {
 // Forward declarations.
 class Graph;
 
-
 // Trims dead nodes from the node graph.
-class GraphTrimmer final {
+class V8_EXPORT_PRIVATE GraphTrimmer final {
  public:
   GraphTrimmer(Zone* zone, Graph* graph);
   ~GraphTrimmer();
@@ -28,14 +28,18 @@ class GraphTrimmer final {
   // or any of the roots in the sequence [{begin},{end}[.
   template <typename ForwardIterator>
   void TrimGraph(ForwardIterator begin, ForwardIterator end) {
-    while (begin != end) MarkAsLive(*begin++);
+    while (begin != end) {
+      Node* const node = *begin++;
+      if (!node->IsDead()) MarkAsLive(node);
+    }
     TrimGraph();
   }
 
  private:
   V8_INLINE bool IsLive(Node* const node) { return is_live_.Get(node); }
   V8_INLINE void MarkAsLive(Node* const node) {
-    if (!node->IsDead() && !IsLive(node)) {
+    DCHECK(!node->IsDead());
+    if (!IsLive(node)) {
       is_live_.Set(node, true);
       live_.push_back(node);
     }

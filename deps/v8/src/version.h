@@ -5,10 +5,15 @@
 #ifndef V8_VERSION_H_
 #define V8_VERSION_H_
 
+#include <cstdint>
+
 #include "src/base/functional.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Vector;
 
 class Version {
  public:
@@ -17,6 +22,7 @@ class Version {
   static int GetMinor() { return minor_; }
   static int GetBuild() { return build_; }
   static int GetPatch() { return patch_; }
+  static const char* GetEmbedder() { return embedder_; }
   static bool IsCandidate() { return candidate_; }
   static uint32_t Hash() {
     return static_cast<uint32_t>(
@@ -37,15 +43,18 @@ class Version {
   static int minor_;
   static int build_;
   static int patch_;
+  static const char* embedder_;
   static bool candidate_;
   static const char* soname_;
   static const char* version_string_;
 
   // In test-version.cc.
   friend void SetVersion(int major, int minor, int build, int patch,
-                         bool candidate, const char* soname);
+                         const char* embedder, bool candidate,
+                         const char* soname);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_VERSION_H_

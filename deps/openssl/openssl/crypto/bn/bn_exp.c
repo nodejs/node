@@ -1,115 +1,14 @@
-/* crypto/bn/bn_exp.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
- */
-/* ====================================================================
- * Copyright (c) 1998-2005 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
+#include "internal/constant_time_locl.h"
 #include "bn_lcl.h"
 
 #include <stdlib.h>
@@ -144,10 +43,11 @@ int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
     int i, bits, ret = 0;
     BIGNUM *v, *rr;
 
-    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0) {
+    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0
+            || BN_get_flags(a, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
         BNerr(BN_F_BN_EXP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
+        return 0;
     }
 
     BN_CTX_start(ctx);
@@ -179,8 +79,9 @@ int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
                 goto err;
         }
     }
-    if (r != rr)
-        BN_copy(r, rr);
+    if (r != rr && BN_copy(r, rr) == NULL)
+        goto err;
+
     ret = 1;
  err:
     BN_CTX_end(ctx);
@@ -198,7 +99,7 @@ int BN_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
     bn_check_top(m);
 
     /*-
-     * For even modulus  m = 2^k*m_odd,  it might make sense to compute
+     * For even modulus  m = 2^k*m_odd, it might make sense to compute
      * a^p mod m_odd  and  a^p mod 2^k  separately (with Montgomery
      * exponentiation for the odd part), using appropriate exponent
      * reductions, and combine the results using the CRT.
@@ -243,7 +144,9 @@ int BN_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
     if (BN_is_odd(m)) {
 # ifdef MONT_EXP_WORD
         if (a->top == 1 && !a->neg
-            && (BN_get_flags(p, BN_FLG_CONSTTIME) == 0)) {
+            && (BN_get_flags(p, BN_FLG_CONSTTIME) == 0)
+            && (BN_get_flags(a, BN_FLG_CONSTTIME) == 0)
+            && (BN_get_flags(m, BN_FLG_CONSTTIME) == 0)) {
             BN_ULONG A = a->d[0];
             ret = BN_mod_exp_mont_word(r, A, p, m, ctx, NULL);
         } else
@@ -275,16 +178,23 @@ int BN_mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
     BIGNUM *val[TABLE_SIZE];
     BN_RECP_CTX recp;
 
-    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0) {
+    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0
+            || BN_get_flags(a, BN_FLG_CONSTTIME) != 0
+            || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
         BNerr(BN_F_BN_MOD_EXP_RECP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
+        return 0;
     }
 
     bits = BN_num_bits(p);
-
     if (bits == 0) {
-        ret = BN_one(r);
+        /* x**0 mod 1, or x**0 mod -1 is still zero. */
+        if (BN_abs_is_word(m, 1)) {
+            ret = 1;
+            BN_zero(r);
+        } else {
+            ret = BN_one(r);
+        }
         return ret;
     }
 
@@ -404,7 +314,9 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     BIGNUM *val[TABLE_SIZE];
     BN_MONT_CTX *mont = NULL;
 
-    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0) {
+    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0
+            || BN_get_flags(a, BN_FLG_CONSTTIME) != 0
+            || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         return BN_mod_exp_mont_consttime(rr, a, p, m, ctx, in_mont);
     }
 
@@ -418,7 +330,13 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     }
     bits = BN_num_bits(p);
     if (bits == 0) {
-        ret = BN_one(rr);
+        /* x**0 mod 1, or x**0 mod -1 is still zero. */
+        if (BN_abs_is_word(m, 1)) {
+            ret = 1;
+            BN_zero(rr);
+        } else {
+            ret = BN_one(rr);
+        }
         return ret;
     }
 
@@ -453,17 +371,17 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         ret = 1;
         goto err;
     }
-    if (!BN_to_montgomery(val[0], aa, mont, ctx))
+    if (!bn_to_mont_fixed_top(val[0], aa, mont, ctx))
         goto err;               /* 1 */
 
     window = BN_window_bits_for_exponent_size(bits);
     if (window > 1) {
-        if (!BN_mod_mul_montgomery(d, val[0], val[0], mont, ctx))
+        if (!bn_mul_mont_fixed_top(d, val[0], val[0], mont, ctx))
             goto err;           /* 2 */
         j = 1 << (window - 1);
         for (i = 1; i < j; i++) {
             if (((val[i] = BN_CTX_get(ctx)) == NULL) ||
-                !BN_mod_mul_montgomery(val[i], val[i - 1], d, mont, ctx))
+                !bn_mul_mont_fixed_top(val[i], val[i - 1], d, mont, ctx))
                 goto err;
         }
     }
@@ -485,19 +403,15 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         for (i = 1; i < j; i++)
             r->d[i] = (~m->d[i]) & BN_MASK2;
         r->top = j;
-        /*
-         * Upper words will be zero if the corresponding words of 'm' were
-         * 0xfff[...], so decrement r->top accordingly.
-         */
-        bn_correct_top(r);
+        r->flags |= BN_FLG_FIXED_TOP;
     } else
 #endif
-    if (!BN_to_montgomery(r, BN_value_one(), mont, ctx))
+    if (!bn_to_mont_fixed_top(r, BN_value_one(), mont, ctx))
         goto err;
     for (;;) {
         if (BN_is_bit_set(p, wstart) == 0) {
             if (!start) {
-                if (!BN_mod_mul_montgomery(r, r, r, mont, ctx))
+                if (!bn_mul_mont_fixed_top(r, r, r, mont, ctx))
                     goto err;
             }
             if (wstart == 0)
@@ -528,12 +442,12 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         /* add the 'bytes above' */
         if (!start)
             for (i = 0; i < j; i++) {
-                if (!BN_mod_mul_montgomery(r, r, r, mont, ctx))
+                if (!bn_mul_mont_fixed_top(r, r, r, mont, ctx))
                     goto err;
             }
 
         /* wvalue will be an odd number < 2^window */
-        if (!BN_mod_mul_montgomery(r, r, val[wvalue >> 1], mont, ctx))
+        if (!bn_mul_mont_fixed_top(r, r, val[wvalue >> 1], mont, ctx))
             goto err;
 
         /* move the 'window' down further */
@@ -543,6 +457,11 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         if (wstart < 0)
             break;
     }
+    /*
+     * Done with zero-padded intermediate BIGNUMs. Final BN_from_montgomery
+     * removes padding [if any] and makes return value suitable for public
+     * API consumer.
+     */
 #if defined(SPARC_T4_MONT)
     if (OPENSSL_sparcv9cap_P[0] & (SPARCV9_VIS3 | SPARCV9_PREFER_FPU)) {
         j = mont->N.top;        /* borrow j */
@@ -558,7 +477,7 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         goto err;
     ret = 1;
  err:
-    if ((in_mont == NULL) && (mont != NULL))
+    if (in_mont == NULL)
         BN_MONT_CTX_free(mont);
     BN_CTX_end(ctx);
     bn_check_top(rr);
@@ -595,15 +514,17 @@ static BN_ULONG bn_get_bits(const BIGNUM *a, int bitpos)
 
 static int MOD_EXP_CTIME_COPY_TO_PREBUF(const BIGNUM *b, int top,
                                         unsigned char *buf, int idx,
-                                        int width)
+                                        int window)
 {
-    size_t i, j;
+    int i, j;
+    int width = 1 << window;
+    BN_ULONG *table = (BN_ULONG *)buf;
 
     if (top > b->top)
         top = b->top;           /* this works because 'buf' is explicitly
                                  * zeroed */
-    for (i = 0, j = idx; i < top * sizeof b->d[0]; i++, j += width) {
-        buf[j] = ((unsigned char *)b->d)[i];
+    for (i = 0, j = idx; i < top; i++, j += width) {
+        table[j] = b->d[i];
     }
 
     return 1;
@@ -611,19 +532,63 @@ static int MOD_EXP_CTIME_COPY_TO_PREBUF(const BIGNUM *b, int top,
 
 static int MOD_EXP_CTIME_COPY_FROM_PREBUF(BIGNUM *b, int top,
                                           unsigned char *buf, int idx,
-                                          int width)
+                                          int window)
 {
-    size_t i, j;
+    int i, j;
+    int width = 1 << window;
+    /*
+     * We declare table 'volatile' in order to discourage compiler
+     * from reordering loads from the table. Concern is that if
+     * reordered in specific manner loads might give away the
+     * information we are trying to conceal. Some would argue that
+     * compiler can reorder them anyway, but it can as well be
+     * argued that doing so would be violation of standard...
+     */
+    volatile BN_ULONG *table = (volatile BN_ULONG *)buf;
 
     if (bn_wexpand(b, top) == NULL)
         return 0;
 
-    for (i = 0, j = idx; i < top * sizeof b->d[0]; i++, j += width) {
-        ((unsigned char *)b->d)[i] = buf[j];
+    if (window <= 3) {
+        for (i = 0; i < top; i++, table += width) {
+            BN_ULONG acc = 0;
+
+            for (j = 0; j < width; j++) {
+                acc |= table[j] &
+                       ((BN_ULONG)0 - (constant_time_eq_int(j,idx)&1));
+            }
+
+            b->d[i] = acc;
+        }
+    } else {
+        int xstride = 1 << (window - 2);
+        BN_ULONG y0, y1, y2, y3;
+
+        i = idx >> (window - 2);        /* equivalent of idx / xstride */
+        idx &= xstride - 1;             /* equivalent of idx % xstride */
+
+        y0 = (BN_ULONG)0 - (constant_time_eq_int(i,0)&1);
+        y1 = (BN_ULONG)0 - (constant_time_eq_int(i,1)&1);
+        y2 = (BN_ULONG)0 - (constant_time_eq_int(i,2)&1);
+        y3 = (BN_ULONG)0 - (constant_time_eq_int(i,3)&1);
+
+        for (i = 0; i < top; i++, table += width) {
+            BN_ULONG acc = 0;
+
+            for (j = 0; j < xstride; j++) {
+                acc |= ( (table[j + 0 * xstride] & y0) |
+                         (table[j + 1 * xstride] & y1) |
+                         (table[j + 2 * xstride] & y2) |
+                         (table[j + 3 * xstride] & y3) )
+                       & ((BN_ULONG)0 - (constant_time_eq_int(j,idx)&1));
+            }
+
+            b->d[i] = acc;
+        }
     }
 
     b->top = top;
-    bn_correct_top(b);
+    b->flags |= BN_FLG_FIXED_TOP;
     return 1;
 }
 
@@ -639,7 +604,7 @@ static int MOD_EXP_CTIME_COPY_FROM_PREBUF(BIGNUM *b, int top,
  * precomputation memory layout to limit data-dependency to a minimum to
  * protect secret exponents (cf. the hyper-threading timing attacks pointed
  * out by Colin Percival,
- * http://www.daemong-consideredperthreading-considered-harmful/)
+ * http://www.daemonology.net/hyperthreading-considered-harmful/)
  */
 int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
                               const BIGNUM *m, BN_CTX *ctx,
@@ -662,15 +627,26 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     bn_check_top(p);
     bn_check_top(m);
 
-    top = m->top;
-
-    if (!(m->d[0] & 1)) {
+    if (!BN_is_odd(m)) {
         BNerr(BN_F_BN_MOD_EXP_MONT_CONSTTIME, BN_R_CALLED_WITH_EVEN_MODULUS);
         return (0);
     }
-    bits = BN_num_bits(p);
+
+    top = m->top;
+
+    /*
+     * Use all bits stored in |p|, rather than |BN_num_bits|, so we do not leak
+     * whether the top bits are zero.
+     */
+    bits = p->top * BN_BITS2;
     if (bits == 0) {
-        ret = BN_one(rr);
+        /* x**0 mod 1, or x**0 mod -1 is still zero. */
+        if (BN_abs_is_word(m, 1)) {
+            ret = 1;
+            BN_zero(rr);
+        } else {
+            ret = BN_one(rr);
+        }
         return ret;
     }
 
@@ -731,8 +707,8 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     if (window >= 5) {
         window = 5;             /* ~5% improvement for RSA2048 sign, and even
                                  * for RSA4096 */
-        if ((top & 7) == 0)
-            powerbufLen += 2 * top * sizeof(m->d[0]);
+        /* reserve space for mont->N.d[] copy */
+        powerbufLen += top * sizeof(mont->N.d[0]);
     }
 #endif
     (void)0;
@@ -752,8 +728,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     else
 #endif
         if ((powerbufFree =
-             (unsigned char *)OPENSSL_malloc(powerbufLen +
-                                             MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH))
+             OPENSSL_malloc(powerbufLen + MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH))
             == NULL)
         goto err;
 
@@ -783,16 +758,16 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         tmp.top = top;
     } else
 #endif
-    if (!BN_to_montgomery(&tmp, BN_value_one(), mont, ctx))
+    if (!bn_to_mont_fixed_top(&tmp, BN_value_one(), mont, ctx))
         goto err;
 
     /* prepare a^1 in Montgomery domain */
     if (a->neg || BN_ucmp(a, m) >= 0) {
         if (!BN_mod(&am, a, m, ctx))
             goto err;
-        if (!BN_to_montgomery(&am, &am, mont, ctx))
+        if (!bn_to_mont_fixed_top(&am, &am, mont, ctx))
             goto err;
-    } else if (!BN_to_montgomery(&am, a, mont, ctx))
+    } else if (!bn_to_mont_fixed_top(&am, a, mont, ctx))
         goto err;
 
 #if defined(SPARC_T4_MONT)
@@ -953,7 +928,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
                                const BN_ULONG *not_used, const BN_ULONG *np,
                                const BN_ULONG *n0, int num);
 
-        BN_ULONG *np = mont->N.d, *n0 = mont->n0, *np2;
+        BN_ULONG *n0 = mont->n0, *np;
 
         /*
          * BN_to_montgomery can contaminate words above .top [in
@@ -964,11 +939,11 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         for (i = tmp.top; i < top; i++)
             tmp.d[i] = 0;
 
-        if (top & 7)
-            np2 = np;
-        else
-            for (np2 = am.d + top, i = 0; i < top; i++)
-                np2[2 * i] = np[i];
+        /*
+         * copy mont->N.d[] to improve cache locality
+         */
+        for (np = am.d + top, i = 0; i < top; i++)
+            np[i] = mont->N.d[i];
 
         bn_scatter5(tmp.d, top, powerbuf, 0);
         bn_scatter5(am.d, am.top, powerbuf, 1);
@@ -978,7 +953,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 # if 0
         for (i = 3; i < 32; i++) {
             /* Calculate a^i = a^(i-1) * a */
-            bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np2, n0, top, i - 1);
+            bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np, n0, top, i - 1);
             bn_scatter5(tmp.d, top, powerbuf, i);
         }
 # else
@@ -989,7 +964,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         }
         for (i = 3; i < 8; i += 2) {
             int j;
-            bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np2, n0, top, i - 1);
+            bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np, n0, top, i - 1);
             bn_scatter5(tmp.d, top, powerbuf, i);
             for (j = 2 * i; j < 32; j *= 2) {
                 bn_mul_mont(tmp.d, tmp.d, tmp.d, np, n0, top);
@@ -997,13 +972,13 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
             }
         }
         for (; i < 16; i += 2) {
-            bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np2, n0, top, i - 1);
+            bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np, n0, top, i - 1);
             bn_scatter5(tmp.d, top, powerbuf, i);
             bn_mul_mont(tmp.d, tmp.d, tmp.d, np, n0, top);
             bn_scatter5(tmp.d, top, powerbuf, 2 * i);
         }
         for (; i < 32; i += 2) {
-            bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np2, n0, top, i - 1);
+            bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np, n0, top, i - 1);
             bn_scatter5(tmp.d, top, powerbuf, i);
         }
 # endif
@@ -1032,11 +1007,11 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
             while (bits >= 0) {
                 wvalue = bn_get_bits5(p->d, bits - 4);
                 bits -= 5;
-                bn_power5(tmp.d, tmp.d, powerbuf, np2, n0, top, wvalue);
+                bn_power5(tmp.d, tmp.d, powerbuf, np, n0, top, wvalue);
             }
         }
 
-        ret = bn_from_montgomery(tmp.d, tmp.d, NULL, np2, n0, top);
+        ret = bn_from_montgomery(tmp.d, tmp.d, NULL, np, n0, top);
         tmp.top = top;
         bn_correct_top(&tmp);
         if (ret) {
@@ -1047,9 +1022,9 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     } else
 #endif
     {
-        if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&tmp, top, powerbuf, 0, numPowers))
+        if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&tmp, top, powerbuf, 0, window))
             goto err;
-        if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&am, top, powerbuf, 1, numPowers))
+        if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&am, top, powerbuf, 1, window))
             goto err;
 
         /*
@@ -1059,17 +1034,17 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
          * performance advantage of sqr over mul).
          */
         if (window > 1) {
-            if (!BN_mod_mul_montgomery(&tmp, &am, &am, mont, ctx))
+            if (!bn_mul_mont_fixed_top(&tmp, &am, &am, mont, ctx))
                 goto err;
-            if (!MOD_EXP_CTIME_COPY_TO_PREBUF
-                (&tmp, top, powerbuf, 2, numPowers))
+            if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&tmp, top, powerbuf, 2,
+                                              window))
                 goto err;
             for (i = 3; i < numPowers; i++) {
                 /* Calculate a^i = a^(i-1) * a */
-                if (!BN_mod_mul_montgomery(&tmp, &am, &tmp, mont, ctx))
+                if (!bn_mul_mont_fixed_top(&tmp, &am, &tmp, mont, ctx))
                     goto err;
-                if (!MOD_EXP_CTIME_COPY_TO_PREBUF
-                    (&tmp, top, powerbuf, i, numPowers))
+                if (!MOD_EXP_CTIME_COPY_TO_PREBUF(&tmp, top, powerbuf, i,
+                                                  window))
                     goto err;
             }
         }
@@ -1077,8 +1052,8 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         bits--;
         for (wvalue = 0, i = bits % window; i >= 0; i--, bits--)
             wvalue = (wvalue << 1) + BN_is_bit_set(p, bits);
-        if (!MOD_EXP_CTIME_COPY_FROM_PREBUF
-            (&tmp, top, powerbuf, wvalue, numPowers))
+        if (!MOD_EXP_CTIME_COPY_FROM_PREBUF(&tmp, top, powerbuf, wvalue,
+                                            window))
             goto err;
 
         /*
@@ -1090,7 +1065,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 
             /* Scan the window, squaring the result as we go */
             for (i = 0; i < window; i++, bits--) {
-                if (!BN_mod_mul_montgomery(&tmp, &tmp, &tmp, mont, ctx))
+                if (!bn_mul_mont_fixed_top(&tmp, &tmp, &tmp, mont, ctx))
                     goto err;
                 wvalue = (wvalue << 1) + BN_is_bit_set(p, bits);
             }
@@ -1098,17 +1073,21 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
             /*
              * Fetch the appropriate pre-computed value from the pre-buf
              */
-            if (!MOD_EXP_CTIME_COPY_FROM_PREBUF
-                (&am, top, powerbuf, wvalue, numPowers))
+            if (!MOD_EXP_CTIME_COPY_FROM_PREBUF(&am, top, powerbuf, wvalue,
+                                                window))
                 goto err;
 
             /* Multiply the result into the intermediate result */
-            if (!BN_mod_mul_montgomery(&tmp, &tmp, &am, mont, ctx))
+            if (!bn_mul_mont_fixed_top(&tmp, &tmp, &am, mont, ctx))
                 goto err;
         }
     }
 
-    /* Convert the final result from montgomery to standard format */
+    /*
+     * Done with zero-padded intermediate BIGNUMs. Final BN_from_montgomery
+     * removes padding [if any] and makes return value suitable for public
+     * API consumer.
+     */
 #if defined(SPARC_T4_MONT)
     if (OPENSSL_sparcv9cap_P[0] & (SPARCV9_VIS3 | SPARCV9_PREFER_FPU)) {
         am.d[0] = 1;            /* borrow am */
@@ -1122,12 +1101,11 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         goto err;
     ret = 1;
  err:
-    if ((in_mont == NULL) && (mont != NULL))
+    if (in_mont == NULL)
         BN_MONT_CTX_free(mont);
     if (powerbuf != NULL) {
         OPENSSL_cleanse(powerbuf, powerbufLen);
-        if (powerbufFree)
-            OPENSSL_free(powerbufFree);
+        OPENSSL_free(powerbufFree);
     }
     BN_CTX_end(ctx);
     return (ret);
@@ -1159,10 +1137,11 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
 #define BN_TO_MONTGOMERY_WORD(r, w, mont) \
                 (BN_set_word(r, (w)) && BN_to_montgomery(r, r, (mont), ctx))
 
-    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0) {
+    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0
+            || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
         BNerr(BN_F_BN_MOD_EXP_MONT_WORD, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
+        return 0;
     }
 
     bn_check_top(p);
@@ -1177,12 +1156,13 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
 
     bits = BN_num_bits(p);
     if (bits == 0) {
-        /* x**0 mod 1 is still zero. */
-        if (BN_is_one(m)) {
+        /* x**0 mod 1, or x**0 mod -1 is still zero. */
+        if (BN_abs_is_word(m, 1)) {
             ret = 1;
             BN_zero(rr);
-        } else
+        } else {
             ret = BN_one(rr);
+        }
         return ret;
     }
     if (a == 0) {
@@ -1272,7 +1252,7 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
     }
     ret = 1;
  err:
-    if ((in_mont == NULL) && (mont != NULL))
+    if (in_mont == NULL)
         BN_MONT_CTX_free(mont);
     BN_CTX_end(ctx);
     bn_check_top(rr);
@@ -1289,16 +1269,23 @@ int BN_mod_exp_simple(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
     /* Table of variables obtained from 'ctx' */
     BIGNUM *val[TABLE_SIZE];
 
-    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0) {
+    if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0
+            || BN_get_flags(a, BN_FLG_CONSTTIME) != 0
+            || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
         BNerr(BN_F_BN_MOD_EXP_SIMPLE, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
+        return 0;
     }
 
     bits = BN_num_bits(p);
-
     if (bits == 0) {
-        ret = BN_one(r);
+        /* x**0 mod 1, or x**0 mod -1 is still zero. */
+        if (BN_abs_is_word(m, 1)) {
+            ret = 1;
+            BN_zero(r);
+        } else {
+            ret = BN_one(r);
+        }
         return ret;
     }
 

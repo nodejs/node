@@ -1,36 +1,71 @@
 semver(1) -- The semantic versioner for npm
 ===========================================
 
+## Install
+
+```bash
+npm install --save semver
+````
+
 ## Usage
 
-    $ npm install semver
+As a node module:
 
-    semver.valid('1.2.3') // '1.2.3'
-    semver.valid('a.b.c') // null
-    semver.clean('  =v1.2.3   ') // '1.2.3'
-    semver.satisfies('1.2.3', '1.x || >=2.5.0 || 5.0.0 - 7.2.3') // true
-    semver.gt('1.2.3', '9.8.7') // false
-    semver.lt('1.2.3', '9.8.7') // true
+```js
+const semver = require('semver')
+
+semver.valid('1.2.3') // '1.2.3'
+semver.valid('a.b.c') // null
+semver.clean('  =v1.2.3   ') // '1.2.3'
+semver.satisfies('1.2.3', '1.x || >=2.5.0 || 5.0.0 - 7.2.3') // true
+semver.gt('1.2.3', '9.8.7') // false
+semver.lt('1.2.3', '9.8.7') // true
+semver.valid(semver.coerce('v2')) // '2.0.0'
+semver.valid(semver.coerce('42.6.7.9.3-alpha')) // '42.6.7'
+```
 
 As a command-line utility:
 
-    $ semver -h
+```
+$ semver -h
 
-    Usage: semver <version> [<version> [...]] [-r <range> | -i <inc> | --preid <identifier> | -l | -rv]
-    Test if version(s) satisfy the supplied range(s), and sort them.
+SemVer 5.3.0
 
-    Multiple versions or ranges may be supplied, unless increment
-    option is specified.  In that case, only a single version may
-    be used, and it is incremented by the specified level
+A JavaScript implementation of the http://semver.org/ specification
+Copyright Isaac Z. Schlueter
 
-    Program exits successfully if any valid version satisfies
-    all supplied ranges, and prints all satisfying versions.
+Usage: semver [options] <version> [<version> [...]]
+Prints valid versions sorted by SemVer precedence
 
-    If no versions are valid, or ranges are not satisfied,
-    then exits failure.
+Options:
+-r --range <range>
+        Print versions that match the specified range.
 
-    Versions are printed in ascending order, so supplying
-    multiple versions to the utility will just sort them.
+-i --increment [<level>]
+        Increment a version by the specified level.  Level can
+        be one of: major, minor, patch, premajor, preminor,
+        prepatch, or prerelease.  Default level is 'patch'.
+        Only one version may be specified.
+
+--preid <identifier>
+        Identifier to be used to prefix premajor, preminor,
+        prepatch or prerelease version increments.
+
+-l --loose
+        Interpret versions and ranges loosely
+
+-c --coerce
+        Coerce a string into SemVer if possible
+        (does not imply --loose)
+
+Program exits successfully if any valid version satisfies
+all supplied ranges, and prints all satisfying versions.
+
+If no satisfying versions are found, then exits failure.
+
+Versions are printed in ascending order, so supplying
+multiple versions to the utility will just sort them.
+```
 
 ## Versions
 
@@ -107,20 +142,20 @@ The method `.inc` takes an additional `identifier` string argument that
 will append the value of the string as a prerelease identifier:
 
 ```javascript
-> semver.inc('1.2.3', 'pre', 'beta')
-'1.2.4-beta.0'
+semver.inc('1.2.3', 'prerelease', 'beta')
+// '1.2.4-beta.0'
 ```
 
 command-line example:
 
-```shell
+```bash
 $ semver 1.2.3 -i prerelease --preid beta
 1.2.4-beta.0
 ```
 
 Which then can be used to increment further:
 
-```shell
+```bash
 $ semver 1.2.4-beta.0 -i prerelease
 1.2.4-beta.1
 ```
@@ -228,6 +263,30 @@ zero.
 * `^1.x` := `>=1.0.0 <2.0.0`
 * `^0.x` := `>=0.0.0 <1.0.0`
 
+### Range Grammar
+
+Putting all this together, here is a Backus-Naur grammar for ranges,
+for the benefit of parser authors:
+
+```bnf
+range-set  ::= range ( logical-or range ) *
+logical-or ::= ( ' ' ) * '||' ( ' ' ) *
+range      ::= hyphen | simple ( ' ' simple ) * | ''
+hyphen     ::= partial ' - ' partial
+simple     ::= primitive | partial | tilde | caret
+primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' | ) partial
+partial    ::= xr ( '.' xr ( '.' xr qualifier ? )? )?
+xr         ::= 'x' | 'X' | '*' | nr
+nr         ::= '0' | ['1'-'9'] ( ['0'-'9'] ) *
+tilde      ::= '~' partial
+caret      ::= '^' partial
+qualifier  ::= ( '-' pre )? ( '+' build )?
+pre        ::= parts
+build      ::= parts
+parts      ::= part ( '.' part ) *
+part       ::= nr | [-0-9A-Za-z]+
+```
+
 ## Functions
 
 All methods and classes take a final `loose` boolean argument that, if
@@ -248,9 +307,13 @@ strings that they parse.
     same as `prepatch`. It increments the patch version, then makes a
     prerelease. If the input version is already a prerelease it simply
     increments it.
+* `prerelease(v)`: Returns an array of prerelease components, or null
+  if none exist. Example: `prerelease('1.2.3-alpha.1') -> ['alpha', 1]`
 * `major(v)`: Return the major version number.
 * `minor(v)`: Return the minor version number.
 * `patch(v)`: Return the patch version number.
+* `intersects(r1, r2, loose)`: Return true if the two supplied ranges
+  or comparators intersect.
 
 ### Comparison
 
@@ -274,6 +337,9 @@ strings that they parse.
   (`major`, `premajor`, `minor`, `preminor`, `patch`, `prepatch`, or `prerelease`),
   or null if the versions are the same.
 
+### Comparators
+
+* `intersects(comparator)`: Return true if the comparators intersect
 
 ### Ranges
 
@@ -281,6 +347,8 @@ strings that they parse.
 * `satisfies(version, range)`: Return true if the version satisfies the
   range.
 * `maxSatisfying(versions, range)`: Return the highest version in the list
+  that satisfies the range, or `null` if none of them do.
+* `minSatisfying(versions, range)`: Return the lowest version in the list
   that satisfies the range, or `null` if none of them do.
 * `gtr(version, range)`: Return `true` if version is greater than all the
   versions possible in the range.
@@ -290,6 +358,7 @@ strings that they parse.
   the bounds of the range in either the high or low direction.  The
   `hilo` argument must be either the string `'>'` or `'<'`.  (This is
   the function called by `gtr` and `ltr`.)
+* `intersects(range)`: Return true if any of the ranges comparators intersect
 
 Note that, since ranges may be non-contiguous, a version might not be
 greater than a range, less than a range, *or* satisfy a range!  For
@@ -301,3 +370,19 @@ satisfy the range.
 
 If you want to know if a version satisfies or does not satisfy a
 range, use the `satisfies(version, range)` function.
+
+### Coercion
+
+* `coerce(version)`: Coerces a string to semver if possible
+
+This aims to provide a very forgiving translation of a non-semver
+string to semver. It looks for the first digit in a string, and
+consumes all remaining characters which satisfy at least a partial semver
+(e.g., `1`, `1.2`, `1.2.3`) up to the max permitted length (256 characters).
+Longer versions are simply truncated (`4.6.3.9.2-alpha2` becomes `4.6.3`).
+All surrounding text is simply ignored (`v3.4 replaces v3.3.1` becomes `3.4.0`).
+Only text which lacks digits will fail coercion (`version one` is not valid).
+The maximum  length for any semver component considered for coercion is 16 characters;
+longer components will be ignored (`10000000000000000.4.7.4` becomes `4.7.4`).
+The maximum value for any semver component is `Integer.MAX_SAFE_INTEGER || (2**53 - 1)`;
+higher value components are invalid (`9999999999999999.4.7.4` is likely invalid).

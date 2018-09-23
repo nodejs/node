@@ -8,4 +8,4 @@ if [ "X$SIGN" == "X" ]; then
   exit 0
 fi
 
-codesign -s "$SIGN" "$PKGDIR"/usr/local/bin/node
+codesign -s "$SIGN" "$PKGDIR"/bin/node

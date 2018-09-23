@@ -25,20 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 // The type feedback oracle had a bug when retrieving the map from an IC
 // starting with a negative lookup.
 
 // Create a holder in fast mode.
-var holder = Object.create(null, {
+var holder = Object.create({}, {
   holderMethod: {value: function() {}}
 });
 assertTrue(%HasFastProperties(holder));
 
+// We assume dict usage for null prototype.
+var holder = Object.create(null, {
+  holderMethod: {value: function() {}}
+});
+assertFalse(%HasFastProperties(holder));
+
 // Create a receiver into dictionary mode.
 var receiver = Object.create(holder, {
   killMe: {value: 0, configurable: true},
+  keepMe: {value: 0, configurable: true}
 });
 delete receiver.killMe;
 assertFalse(%HasFastProperties(receiver));

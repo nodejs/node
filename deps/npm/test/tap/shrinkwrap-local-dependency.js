@@ -1,121 +1,125 @@
 var test = require('tap').test
 var path = require('path')
 var fs = require('fs')
-var osenv = require('osenv')
 var rimraf = require('rimraf')
-var mkdirp = require('mkdirp')
 var common = require('../common-tap.js')
+var Tacks = require('tacks')
+var unixFormatPath = require('../../lib/utils/unix-format-path.js')
+var File = Tacks.File
+var Dir = Tacks.Dir
 
-var PKG_DIR = path.resolve(__dirname, 'shrinkwrap-local-dependency')
-var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
-var DEP_DIR = path.resolve(PKG_DIR, 'dep')
+var testdir = path.resolve(__dirname, path.basename(__filename, '.js'))
+var cachedir = path.resolve(testdir, 'cache')
+var config = ['--cache=' + cachedir, '--loglevel=error']
 
-var desired = {
-  'name': 'npm-test-shrinkwrap-local-dependency',
-  'version': '0.0.0',
-  'dependencies': {
-    'npm-test-shrinkwrap-local-dependency-dep': {
-      'version': '0.0.0',
-      'from': 'dep',
-      'resolved': 'file:dep'
+var shrinkwrap = {
+  name: 'shrinkwrap-local-dependency',
+  version: '1.0.0',
+  dependencies: {
+    mod2: {
+      version: 'file:' + unixFormatPath(path.join('mods', 'mod2')),
+      dependencies: {
+        mod1: {
+          version: 'file:' + unixFormatPath(path.join('mods', 'mod1')),
+          bundled: true
+        }
+      }
     }
   }
 }
 
-var root = {
-  'author': 'Thomas Torp',
-  'name': 'npm-test-shrinkwrap-local-dependency',
-  'version': '0.0.0',
-  'dependencies': {
-    'npm-test-shrinkwrap-local-dependency-dep': 'file:./dep'
-  }
+var fixture = new Tacks(
+  Dir({
+    cache: Dir(),
+    mods: Dir({
+      mod1: Dir({
+        'package.json': File({
+          name: 'mod1',
+          version: '1.0.0'
+        })
+      }),
+      mod2: Dir({
+        'package.json': File({
+          name: 'mod2',
+          version: '1.0.0',
+          dependencies: {
+            mod1: 'file:' + path.join('..', 'mod1')
+          }
+        })
+      })
+    }),
+    'package.json': File({
+      name: 'shrinkwrap-local-dependency',
+      version: '1.0.0',
+      dependencies: {
+        mod2: 'file:' + path.join('mods', 'mod2')
+      }
+    })
+  })
+)
+
+function setup () {
+  cleanup()
+  fixture.create(testdir)
 }
 
-var dependency = {
-  'author': 'Thomas Torp',
-  'name': 'npm-test-shrinkwrap-local-dependency-dep',
-  'version': '0.0.0'
+function cleanNodeModules () {
+  rimraf.sync(path.resolve(testdir, 'node_modules'))
+}
+
+function cleanup () {
+  fixture.remove(testdir)
 }
 
 test('shrinkwrap uses resolved with file: on local deps', function (t) {
   setup()
 
-  common.npm(
-    ['--cache=' + CACHE_DIR, '--loglevel=silent', 'install', '.'],
-    {},
-    function (err, code) {
-      t.ifError(err, 'npm install worked')
+  common.npm(config.concat(['install', '--legacy']), {cwd: testdir}, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.comment(stdout.trim())
+    t.comment(stderr.trim())
+    t.equal(code, 0, 'npm exited normally')
+
+    common.npm(config.concat('shrinkwrap'), {cwd: testdir}, function (err, code, stdout, stderr) {
+      if (err) throw err
+      t.comment(stdout.trim())
+      t.comment(stderr.trim())
       t.equal(code, 0, 'npm exited normally')
-
-      common.npm(
-        ['--cache=' + CACHE_DIR, '--loglevel=silent', 'shrinkwrap'],
-        {},
-        function (err, code) {
-          t.ifError(err, 'npm shrinkwrap worked')
-          t.equal(code, 0, 'npm exited normally')
-
-          fs.readFile('npm-shrinkwrap.json', { encoding: 'utf8' }, function (err, data) {
-            t.ifError(err, 'read file correctly')
-            t.deepEqual(JSON.parse(data), desired, 'shrinkwrap looks correct')
-
-            t.end()
-          })
-        }
+      var data = fs.readFileSync(path.join(testdir, 'npm-shrinkwrap.json'), { encoding: 'utf8' })
+      t.like(
+        JSON.parse(data).dependencies,
+        shrinkwrap.dependencies,
+        'shrinkwrap looks correct'
       )
-    }
-  )
+      t.end()
+    })
+  })
 })
+
+function exists (file) {
+  try {
+    fs.statSync(file)
+    return true
+  } catch (ex) {
+    return false
+  }
+}
 
 test("'npm install' should install local packages from shrinkwrap", function (t) {
   cleanNodeModules()
 
-  common.npm(
-    ['--cache=' + CACHE_DIR, '--loglevel=silent', 'install', '.'],
-    {},
-    function (err, code) {
-      t.ifError(err, 'install ran correctly')
-      t.notOk(code, 'npm install exited with code 0')
-      var dependencyPackageJson = path.resolve(
-        PKG_DIR,
-        'node_modules/npm-test-shrinkwrap-local-dependency-dep/package.json'
-      )
-      t.ok(
-        JSON.parse(fs.readFileSync(dependencyPackageJson, 'utf8')),
-        'package with local dependency installed from shrinkwrap'
-      )
-
-      t.end()
-    }
-  )
+  common.npm(config.concat(['install']), {cwd: testdir}, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.comment(stdout.trim())
+    t.comment(stderr.trim())
+    t.equal(code, 0, 'npm exited normally')
+    t.ok(exists(path.join(testdir, 'node_modules', 'mod2')), 'mod2 exists')
+    t.ok(exists(path.join(testdir, 'node_modules', 'mod2', 'node_modules', 'mod1')), 'mod1 exists')
+    t.end()
+  })
 })
 
 test('cleanup', function (t) {
   cleanup()
   t.end()
 })
-
-function setup () {
-  cleanup()
-  mkdirp.sync(PKG_DIR)
-  mkdirp.sync(CACHE_DIR)
-  mkdirp.sync(DEP_DIR)
-  fs.writeFileSync(
-    path.resolve(PKG_DIR, 'package.json'),
-    JSON.stringify(root, null, 2)
-  )
-  fs.writeFileSync(
-    path.resolve(DEP_DIR, 'package.json'),
-    JSON.stringify(dependency, null, 2)
-  )
-  process.chdir(PKG_DIR)
-}
-
-function cleanNodeModules () {
-  rimraf.sync(path.resolve(PKG_DIR, 'node_modules'))
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  cleanNodeModules()
-  rimraf.sync(PKG_DIR)
-}

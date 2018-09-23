@@ -30,6 +30,7 @@ class GCExtension : public v8::Extension {
   char buffer_[50];
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXTENSIONS_GC_EXTENSION_H_

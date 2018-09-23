@@ -5,6 +5,7 @@
 #ifndef V8_DOUBLE_H_
 #define V8_DOUBLE_H_
 
+#include "src/base/macros.h"
 #include "src/diy-fp.h"
 
 namespace v8 {
@@ -17,13 +18,16 @@ inline double uint64_to_double(uint64_t d64) { return bit_cast<double>(d64); }
 // Helper functions for doubles.
 class Double {
  public:
-  static const uint64_t kSignMask = V8_2PART_UINT64_C(0x80000000, 00000000);
-  static const uint64_t kExponentMask = V8_2PART_UINT64_C(0x7FF00000, 00000000);
-  static const uint64_t kSignificandMask =
+  static constexpr uint64_t kSignMask = V8_2PART_UINT64_C(0x80000000, 00000000);
+  static constexpr uint64_t kExponentMask =
+      V8_2PART_UINT64_C(0x7FF00000, 00000000);
+  static constexpr uint64_t kSignificandMask =
       V8_2PART_UINT64_C(0x000FFFFF, FFFFFFFF);
-  static const uint64_t kHiddenBit = V8_2PART_UINT64_C(0x00100000, 00000000);
-  static const int kPhysicalSignificandSize = 52;  // Excludes the hidden bit.
-  static const int kSignificandSize = 53;
+  static constexpr uint64_t kHiddenBit =
+      V8_2PART_UINT64_C(0x00100000, 00000000);
+  static constexpr int kPhysicalSignificandSize =
+      52;  // Excludes the hidden bit.
+  static constexpr int kSignificandSize = 53;
 
   Double() : d64_(0) {}
   explicit Double(double d) : d64_(double_to_uint64(d)) {}
@@ -34,14 +38,14 @@ class Double {
   // The value encoded by this Double must be greater or equal to +0.0.
   // It must not be special (infinity, or NaN).
   DiyFp AsDiyFp() const {
-    DCHECK(Sign() > 0);
+    DCHECK_GT(Sign(), 0);
     DCHECK(!IsSpecial());
     return DiyFp(Significand(), Exponent());
   }
 
   // The value encoded by this Double must be strictly greater than 0.
   DiyFp AsNormalizedDiyFp() const {
-    DCHECK(value() > 0.0);
+    DCHECK_GT(value(), 0.0);
     uint64_t f = Significand();
     int e = Exponent();
 
@@ -121,7 +125,7 @@ class Double {
   // Precondition: the value encoded by this Double must be greater or equal
   // than +0.0.
   DiyFp UpperBoundary() const {
-    DCHECK(Sign() > 0);
+    DCHECK_GT(Sign(), 0);
     return DiyFp(Significand() * 2 + 1, Exponent() - 1);
   }
 
@@ -130,7 +134,7 @@ class Double {
   // exponent as m_plus.
   // Precondition: the value encoded by this Double must be greater than 0.
   void NormalizedBoundaries(DiyFp* out_m_minus, DiyFp* out_m_plus) const {
-    DCHECK(value() > 0.0);
+    DCHECK_GT(value(), 0.0);
     DiyFp v = this->AsDiyFp();
     bool significand_is_zero = (v.f() == kHiddenBit);
     DiyFp m_plus = DiyFp::Normalize(DiyFp((v.f() << 1) + 1, v.e() - 1));
@@ -169,12 +173,14 @@ class Double {
   }
 
  private:
-  static const int kExponentBias = 0x3FF + kPhysicalSignificandSize;
-  static const int kDenormalExponent = -kExponentBias + 1;
-  static const int kMaxExponent = 0x7FF - kExponentBias;
-  static const uint64_t kInfinity = V8_2PART_UINT64_C(0x7FF00000, 00000000);
+  static constexpr int kExponentBias = 0x3FF + kPhysicalSignificandSize;
+  static constexpr int kDenormalExponent = -kExponentBias + 1;
+  static constexpr int kMaxExponent = 0x7FF - kExponentBias;
+  static constexpr uint64_t kInfinity = V8_2PART_UINT64_C(0x7FF00000, 00000000);
 
-  const uint64_t d64_;
+  // The field d64_ is not marked as const to permit the usage of the copy
+  // constructor.
+  uint64_t d64_;
 
   static uint64_t DiyFpToUint64(DiyFp diy_fp) {
     uint64_t significand = diy_fp.f();
@@ -204,6 +210,7 @@ class Double {
   }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DOUBLE_H_

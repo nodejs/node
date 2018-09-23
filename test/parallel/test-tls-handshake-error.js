@@ -1,46 +1,27 @@
 'use strict';
 
-var assert = require('assert');
-var common = require('../common');
+const common = require('../common');
 
-if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
-  return;
-}
-var tls = require('tls');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var fs = require('fs');
-var net = require('net');
+const assert = require('assert');
+const tls = require('tls');
 
-var errorCount = 0;
-var closeCount = 0;
+const fixtures = require('../common/fixtures');
 
-var server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
+const server = tls.createServer({
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem'),
   rejectUnauthorized: true
 }, function(c) {
-}).listen(common.PORT, function() {
-  var c = tls.connect({
-    port: common.PORT,
-    ciphers: 'RC4'
-  }, function() {
-    assert(false, 'should not be called');
-  });
+}).listen(0, common.mustCall(function() {
+  assert.throws(() => {
+    tls.connect({
+      port: this.address().port,
+      ciphers: 'RC4'
+    }, common.mustNotCall());
+  }, /no cipher match/i);
 
-  c.on('error', function(err) {
-    errorCount++;
-    assert.notEqual(err.code, 'ECONNRESET');
-  });
-
-  c.on('close', function(err) {
-    if (err)
-      closeCount++;
-    server.close();
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(errorCount, 1);
-  assert.equal(closeCount, 1);
-});
+  server.close();
+}));

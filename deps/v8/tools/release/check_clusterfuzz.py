@@ -71,7 +71,25 @@ BUG_SPECS = [
   },
   {
     "args": {
+      "job_type": "linux_asan_d8_ignition_dbg",
+      "reproducible": "True",
+      "open": "True",
+      "bug_information": "",
+    },
+    "crash_state": ANY_RE,
+  },
+  {
+    "args": {
       "job_type": "linux_asan_d8_v8_arm_dbg",
+      "reproducible": "True",
+      "open": "True",
+      "bug_information": "",
+    },
+    "crash_state": ANY_RE,
+  },
+  {
+    "args": {
+      "job_type": "linux_asan_d8_ignition_v8_arm_dbg",
       "reproducible": "True",
       "open": "True",
       "bug_information": "",
@@ -196,7 +214,8 @@ def Main():
     issues = APIRequest(key, **args)
     assert issues is not None
     for issue in issues:
-      if re.match(spec["crash_state"], issue["crash_state"]):
+      if (re.match(spec["crash_state"], issue["crash_state"]) and
+          not issue.get('has_bug_flag')):
         results.append(issue["id"])
 
   if options.results_file:

@@ -1,59 +1,10 @@
-/* crypto/des/des_locl.h */
-/* Copyright (C) 1995-1997 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #ifndef HEADER_DES_LOCL_H
@@ -61,37 +12,11 @@
 
 # include <openssl/e_os2.h>
 
-# if defined(OPENSSL_SYS_WIN32)
-#  ifndef OPENSSL_SYS_MSDOS
-#   define OPENSSL_SYS_MSDOS
-#  endif
-# endif
-
 # include <stdio.h>
 # include <stdlib.h>
+# include <string.h>
 
-# ifndef OPENSSL_SYS_MSDOS
-#  if !defined(OPENSSL_SYS_VMS) || defined(__DECC)
-#   ifdef OPENSSL_UNISTD
-#    include OPENSSL_UNISTD
-#   else
-#    include <unistd.h>
-#   endif
-#   include <math.h>
-#  endif
-# endif
 # include <openssl/des.h>
-
-# ifdef OPENSSL_SYS_MSDOS       /* Visual C++ 2.1 (Windows NT/95) */
-#  include <stdlib.h>
-#  include <errno.h>
-#  include <time.h>
-#  include <io.h>
-# endif
-
-# if defined(__STDC__) || defined(OPENSSL_SYS_VMS) || defined(M_XENIX) || defined(OPENSSL_SYS_MSDOS)
-#  include <string.h>
-# endif
 
 # ifdef OPENSSL_BUILD_SHLIBCRYPTO
 #  undef OPENSSL_EXTERN
@@ -116,13 +41,20 @@
                         l1=l2=0; \
                         switch (n) { \
                         case 8: l2 =((DES_LONG)(*(--(c))))<<24L; \
+                        /* fall thru */                          \
                         case 7: l2|=((DES_LONG)(*(--(c))))<<16L; \
+                        /* fall thru */                          \
                         case 6: l2|=((DES_LONG)(*(--(c))))<< 8L; \
-                        case 5: l2|=((DES_LONG)(*(--(c))));     \
+                        /* fall thru */                          \
+                        case 5: l2|=((DES_LONG)(*(--(c))));      \
+                        /* fall thru */                          \
                         case 4: l1 =((DES_LONG)(*(--(c))))<<24L; \
+                        /* fall thru */                          \
                         case 3: l1|=((DES_LONG)(*(--(c))))<<16L; \
+                        /* fall thru */                          \
                         case 2: l1|=((DES_LONG)(*(--(c))))<< 8L; \
-                        case 1: l1|=((DES_LONG)(*(--(c))));     \
+                        /* fall thru */                          \
+                        case 1: l1|=((DES_LONG)(*(--(c))));      \
                                 } \
                         }
 
@@ -152,12 +84,19 @@
                         c+=n; \
                         switch (n) { \
                         case 8: *(--(c))=(unsigned char)(((l2)>>24L)&0xff); \
+                        /* fall thru */                                     \
                         case 7: *(--(c))=(unsigned char)(((l2)>>16L)&0xff); \
+                        /* fall thru */                                     \
                         case 6: *(--(c))=(unsigned char)(((l2)>> 8L)&0xff); \
+                        /* fall thru */                                     \
                         case 5: *(--(c))=(unsigned char)(((l2)     )&0xff); \
+                        /* fall thru */                                     \
                         case 4: *(--(c))=(unsigned char)(((l1)>>24L)&0xff); \
+                        /* fall thru */                                     \
                         case 3: *(--(c))=(unsigned char)(((l1)>>16L)&0xff); \
+                        /* fall thru */                                     \
                         case 2: *(--(c))=(unsigned char)(((l1)>> 8L)&0xff); \
+                        /* fall thru */                                     \
                         case 1: *(--(c))=(unsigned char)(((l1)     )&0xff); \
                                 } \
                         }
@@ -204,171 +143,23 @@
 # endif
 
 /*
- * The changes to this macro may help or hinder, depending on the compiler
- * and the architecture.  gcc2 always seems to do well :-). Inspired by Dana
- * How <how@isl.stanford.edu> DO NOT use the alternative version on machines
- * with 8 byte longs. It does not seem to work on the Alpha, even when
- * DES_LONG is 4 bytes, probably an issue of accessing non-word aligned
- * objects :-(
- */
-# ifdef DES_PTR
-
-/*
  * It recently occurred to me that 0^0^0^0^0^0^0 == 0, so there is no reason
  * to not xor all the sub items together.  This potentially saves a register
  * since things can be xored directly into L
  */
 
-#  if defined(DES_RISC1) || defined(DES_RISC2)
-#   ifdef DES_RISC1
-#    define D_ENCRYPT(LL,R,S) { \
-        unsigned int u1,u2,u3; \
-        LOAD_DATA(R,S,u,t,E0,E1,u1); \
-        u2=(int)u>>8L; \
-        u1=(int)u&0xfc; \
-        u2&=0xfc; \
-        t=ROTATE(t,4); \
-        u>>=16L; \
-        LL^= *(const DES_LONG *)(des_SP      +u1); \
-        LL^= *(const DES_LONG *)(des_SP+0x200+u2); \
-        u3=(int)(u>>8L); \
-        u1=(int)u&0xfc; \
-        u3&=0xfc; \
-        LL^= *(const DES_LONG *)(des_SP+0x400+u1); \
-        LL^= *(const DES_LONG *)(des_SP+0x600+u3); \
-        u2=(int)t>>8L; \
-        u1=(int)t&0xfc; \
-        u2&=0xfc; \
-        t>>=16L; \
-        LL^= *(const DES_LONG *)(des_SP+0x100+u1); \
-        LL^= *(const DES_LONG *)(des_SP+0x300+u2); \
-        u3=(int)t>>8L; \
-        u1=(int)t&0xfc; \
-        u3&=0xfc; \
-        LL^= *(const DES_LONG *)(des_SP+0x500+u1); \
-        LL^= *(const DES_LONG *)(des_SP+0x700+u3); }
-#   endif
-#   ifdef DES_RISC2
-#    define D_ENCRYPT(LL,R,S) { \
-        unsigned int u1,u2,s1,s2; \
-        LOAD_DATA(R,S,u,t,E0,E1,u1); \
-        u2=(int)u>>8L; \
-        u1=(int)u&0xfc; \
-        u2&=0xfc; \
-        t=ROTATE(t,4); \
-        LL^= *(const DES_LONG *)(des_SP      +u1); \
-        LL^= *(const DES_LONG *)(des_SP+0x200+u2); \
-        s1=(int)(u>>16L); \
-        s2=(int)(u>>24L); \
-        s1&=0xfc; \
-        s2&=0xfc; \
-        LL^= *(const DES_LONG *)(des_SP+0x400+s1); \
-        LL^= *(const DES_LONG *)(des_SP+0x600+s2); \
-        u2=(int)t>>8L; \
-        u1=(int)t&0xfc; \
-        u2&=0xfc; \
-        LL^= *(const DES_LONG *)(des_SP+0x100+u1); \
-        LL^= *(const DES_LONG *)(des_SP+0x300+u2); \
-        s1=(int)(t>>16L); \
-        s2=(int)(t>>24L); \
-        s1&=0xfc; \
-        s2&=0xfc; \
-        LL^= *(const DES_LONG *)(des_SP+0x500+s1); \
-        LL^= *(const DES_LONG *)(des_SP+0x700+s2); }
-#   endif
-#  else
-#   define D_ENCRYPT(LL,R,S) { \
+# define D_ENCRYPT(LL,R,S) { \
         LOAD_DATA_tmp(R,S,u,t,E0,E1); \
         t=ROTATE(t,4); \
         LL^= \
-        *(const DES_LONG *)(des_SP      +((u     )&0xfc))^ \
-        *(const DES_LONG *)(des_SP+0x200+((u>> 8L)&0xfc))^ \
-        *(const DES_LONG *)(des_SP+0x400+((u>>16L)&0xfc))^ \
-        *(const DES_LONG *)(des_SP+0x600+((u>>24L)&0xfc))^ \
-        *(const DES_LONG *)(des_SP+0x100+((t     )&0xfc))^ \
-        *(const DES_LONG *)(des_SP+0x300+((t>> 8L)&0xfc))^ \
-        *(const DES_LONG *)(des_SP+0x500+((t>>16L)&0xfc))^ \
-        *(const DES_LONG *)(des_SP+0x700+((t>>24L)&0xfc)); }
-#  endif
-
-# else                          /* original version */
-
-#  if defined(DES_RISC1) || defined(DES_RISC2)
-#   ifdef DES_RISC1
-#    define D_ENCRYPT(LL,R,S) {\
-        unsigned int u1,u2,u3; \
-        LOAD_DATA(R,S,u,t,E0,E1,u1); \
-        u>>=2L; \
-        t=ROTATE(t,6); \
-        u2=(int)u>>8L; \
-        u1=(int)u&0x3f; \
-        u2&=0x3f; \
-        u>>=16L; \
-        LL^=DES_SPtrans[0][u1]; \
-        LL^=DES_SPtrans[2][u2]; \
-        u3=(int)u>>8L; \
-        u1=(int)u&0x3f; \
-        u3&=0x3f; \
-        LL^=DES_SPtrans[4][u1]; \
-        LL^=DES_SPtrans[6][u3]; \
-        u2=(int)t>>8L; \
-        u1=(int)t&0x3f; \
-        u2&=0x3f; \
-        t>>=16L; \
-        LL^=DES_SPtrans[1][u1]; \
-        LL^=DES_SPtrans[3][u2]; \
-        u3=(int)t>>8L; \
-        u1=(int)t&0x3f; \
-        u3&=0x3f; \
-        LL^=DES_SPtrans[5][u1]; \
-        LL^=DES_SPtrans[7][u3]; }
-#   endif
-#   ifdef DES_RISC2
-#    define D_ENCRYPT(LL,R,S) {\
-        unsigned int u1,u2,s1,s2; \
-        LOAD_DATA(R,S,u,t,E0,E1,u1); \
-        u>>=2L; \
-        t=ROTATE(t,6); \
-        u2=(int)u>>8L; \
-        u1=(int)u&0x3f; \
-        u2&=0x3f; \
-        LL^=DES_SPtrans[0][u1]; \
-        LL^=DES_SPtrans[2][u2]; \
-        s1=(int)u>>16L; \
-        s2=(int)u>>24L; \
-        s1&=0x3f; \
-        s2&=0x3f; \
-        LL^=DES_SPtrans[4][s1]; \
-        LL^=DES_SPtrans[6][s2]; \
-        u2=(int)t>>8L; \
-        u1=(int)t&0x3f; \
-        u2&=0x3f; \
-        LL^=DES_SPtrans[1][u1]; \
-        LL^=DES_SPtrans[3][u2]; \
-        s1=(int)t>>16; \
-        s2=(int)t>>24L; \
-        s1&=0x3f; \
-        s2&=0x3f; \
-        LL^=DES_SPtrans[5][s1]; \
-        LL^=DES_SPtrans[7][s2]; }
-#   endif
-
-#  else
-
-#   define D_ENCRYPT(LL,R,S) {\
-        LOAD_DATA_tmp(R,S,u,t,E0,E1); \
-        t=ROTATE(t,4); \
-        LL^=\
-                DES_SPtrans[0][(u>> 2L)&0x3f]^ \
-                DES_SPtrans[2][(u>>10L)&0x3f]^ \
-                DES_SPtrans[4][(u>>18L)&0x3f]^ \
-                DES_SPtrans[6][(u>>26L)&0x3f]^ \
-                DES_SPtrans[1][(t>> 2L)&0x3f]^ \
-                DES_SPtrans[3][(t>>10L)&0x3f]^ \
-                DES_SPtrans[5][(t>>18L)&0x3f]^ \
-                DES_SPtrans[7][(t>>26L)&0x3f]; }
-#  endif
-# endif
+            DES_SPtrans[0][(u>> 2L)&0x3f]^ \
+            DES_SPtrans[2][(u>>10L)&0x3f]^ \
+            DES_SPtrans[4][(u>>18L)&0x3f]^ \
+            DES_SPtrans[6][(u>>26L)&0x3f]^ \
+            DES_SPtrans[1][(t>> 2L)&0x3f]^ \
+            DES_SPtrans[3][(t>>10L)&0x3f]^ \
+            DES_SPtrans[5][(t>>18L)&0x3f]^ \
+            DES_SPtrans[7][(t>>26L)&0x3f]; }
 
         /*-
          * IP and FP
@@ -437,7 +228,4 @@ extern const DES_LONG DES_SPtrans[8][64];
 void fcrypt_body(DES_LONG *out, DES_key_schedule *ks,
                  DES_LONG Eswap0, DES_LONG Eswap1);
 
-# ifdef OPENSSL_SMALL_FOOTPRINT
-#  undef DES_UNROLL
-# endif
 #endif

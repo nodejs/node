@@ -6,24 +6,27 @@
 #define V8_SAFEPOINT_TABLE_H_
 
 #include "src/allocation.h"
-#include "src/heap/heap.h"
+#include "src/assert-scope.h"
+#include "src/utils.h"
 #include "src/v8memory.h"
-#include "src/zone.h"
+#include "src/zone/zone-chunk-list.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
-struct Register;
+class Register;
 
 class SafepointEntry BASE_EMBEDDED {
  public:
-  SafepointEntry() : info_(0), bits_(NULL) {}
+  SafepointEntry() : info_(0), bits_(nullptr), trampoline_pc_(-1) {}
 
-  SafepointEntry(unsigned info, uint8_t* bits) : info_(info), bits_(bits) {
+  SafepointEntry(unsigned info, uint8_t* bits, int trampoline_pc)
+      : info_(info), bits_(bits), trampoline_pc_(trampoline_pc) {
     DCHECK(is_valid());
   }
 
-  bool is_valid() const { return bits_ != NULL; }
+  bool is_valid() const { return bits_ != nullptr; }
 
   bool Equals(const SafepointEntry& other) const {
     return info_ == other.info_ && bits_ == other.bits_;
@@ -31,7 +34,7 @@ class SafepointEntry BASE_EMBEDDED {
 
   void Reset() {
     info_ = 0;
-    bits_ = NULL;
+    bits_ = nullptr;
   }
 
   int deoptimization_index() const {
@@ -39,10 +42,15 @@ class SafepointEntry BASE_EMBEDDED {
     return DeoptimizationIndexField::decode(info_);
   }
 
+  int trampoline_pc() { return trampoline_pc_; }
+
+  void set_trampoline_pc(int trampoline_pc) { trampoline_pc_ = trampoline_pc; }
+
   static const int kArgumentsFieldBits = 3;
   static const int kSaveDoublesFieldBits = 1;
   static const int kDeoptIndexBits =
       32 - kArgumentsFieldBits - kSaveDoublesFieldBits;
+
   class DeoptimizationIndexField:
     public BitField<int, 0, kDeoptIndexBits> {};  // NOLINT
   class ArgumentsField:
@@ -75,30 +83,43 @@ class SafepointEntry BASE_EMBEDDED {
  private:
   unsigned info_;
   uint8_t* bits_;
+  // It needs to be an integer as it is -1 for eager deoptimizations.
+  int trampoline_pc_;
 };
 
 
 class SafepointTable BASE_EMBEDDED {
  public:
   explicit SafepointTable(Code* code);
+  explicit SafepointTable(Address instruction_start,
+                          size_t safepoint_table_offset, uint32_t stack_slots,
+                          bool has_deopt = false);
 
   int size() const {
-    return kHeaderSize +
-           (length_ * (kPcAndDeoptimizationIndexSize + entry_size_));
+    return kHeaderSize + (length_ * (kFixedEntrySize + entry_size_));
   }
   unsigned length() const { return length_; }
   unsigned entry_size() const { return entry_size_; }
 
   unsigned GetPcOffset(unsigned index) const {
     DCHECK(index < length_);
-    return Memory::uint32_at(GetPcOffsetLocation(index));
+    return Memory<uint32_t>(GetPcOffsetLocation(index));
   }
+
+  int GetTrampolinePcOffset(unsigned index) const {
+    DCHECK(index < length_);
+    return Memory<int>(GetTrampolineLocation(index));
+  }
+
+  unsigned find_return_pc(unsigned pc_offset);
 
   SafepointEntry GetEntry(unsigned index) const {
     DCHECK(index < length_);
-    unsigned info = Memory::uint32_at(GetInfoLocation(index));
-    uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
-    return SafepointEntry(info, bits);
+    unsigned info = Memory<uint32_t>(GetInfoLocation(index));
+    uint8_t* bits = &Memory<uint8_t>(entries_ + (index * entry_size_));
+    int trampoline_pc =
+        has_deopt_ ? Memory<int>(GetTrampolineLocation(index)) : -1;
+    return SafepointEntry(info, bits, trampoline_pc);
   }
 
   // Returns the entry for the given pc.
@@ -109,34 +130,40 @@ class SafepointTable BASE_EMBEDDED {
  private:
   static const uint8_t kNoRegisters = 0xFF;
 
+  // Layout information
   static const int kLengthOffset = 0;
   static const int kEntrySizeOffset = kLengthOffset + kIntSize;
   static const int kHeaderSize = kEntrySizeOffset + kIntSize;
-
-  static const int kPcSize = kIntSize;
-  static const int kDeoptimizationIndexSize = kIntSize;
-  static const int kPcAndDeoptimizationIndexSize =
-      kPcSize + kDeoptimizationIndexSize;
+  static const int kPcOffset = 0;
+  static const int kDeoptimizationIndexOffset = kPcOffset + kIntSize;
+  static const int kTrampolinePcOffset = kDeoptimizationIndexOffset + kIntSize;
+  static const int kFixedEntrySize = kTrampolinePcOffset + kIntSize;
 
   Address GetPcOffsetLocation(unsigned index) const {
-    return pc_and_deoptimization_indexes_ +
-           (index * kPcAndDeoptimizationIndexSize);
+    return pc_and_deoptimization_indexes_ + (index * kFixedEntrySize);
   }
 
+  // TODO(juliana): rename this to GetDeoptimizationIndexLocation
   Address GetInfoLocation(unsigned index) const {
-    return GetPcOffsetLocation(index) + kPcSize;
+    return GetPcOffsetLocation(index) + kDeoptimizationIndexOffset;
+  }
+
+  Address GetTrampolineLocation(unsigned index) const {
+    return GetPcOffsetLocation(index) + kTrampolinePcOffset;
   }
 
   static void PrintBits(std::ostream& os,  // NOLINT
                         uint8_t byte, int digits);
 
   DisallowHeapAllocation no_allocation_;
-  Code* code_;
+  Address instruction_start_;
+  uint32_t stack_slots_;
   unsigned length_;
   unsigned entry_size_;
 
   Address pc_and_deoptimization_indexes_;
   Address entries_;
+  bool has_deopt_;
 
   friend class SafepointTableBuilder;
   friend class SafepointEntry;
@@ -162,14 +189,14 @@ class Safepoint BASE_EMBEDDED {
   static const int kNoDeoptimizationIndex =
       (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
 
-  void DefinePointerSlot(int index, Zone* zone) { indexes_->Add(index, zone); }
-  void DefinePointerRegister(Register reg, Zone* zone);
+  void DefinePointerSlot(int index) { indexes_->push_back(index); }
+  void DefinePointerRegister(Register reg);
 
  private:
-  Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers)
+  Safepoint(ZoneChunkList<int>* indexes, ZoneChunkList<int>* registers)
       : indexes_(indexes), registers_(registers) {}
-  ZoneList<int>* indexes_;
-  ZoneList<int>* registers_;
+  ZoneChunkList<int>* const indexes_;
+  ZoneChunkList<int>* const registers_;
 
   friend class SafepointTableBuilder;
 };
@@ -178,13 +205,10 @@ class Safepoint BASE_EMBEDDED {
 class SafepointTableBuilder BASE_EMBEDDED {
  public:
   explicit SafepointTableBuilder(Zone* zone)
-      : deoptimization_info_(32, zone),
-        deopt_index_list_(32, zone),
-        indexes_(32, zone),
-        registers_(32, zone),
+      : deoptimization_info_(zone),
         emitted_(false),
         last_lazy_safepoint_(0),
-        zone_(zone) { }
+        zone_(zone) {}
 
   // Get the offset of the emitted safepoint table in the code.
   unsigned GetCodeOffset() const;
@@ -199,37 +223,62 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // outstanding safepoints.
   void RecordLazyDeoptimizationIndex(int index);
   void BumpLastLazySafepointIndex() {
-    last_lazy_safepoint_ = deopt_index_list_.length();
+    last_lazy_safepoint_ = deoptimization_info_.size();
   }
 
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.
   void Emit(Assembler* assembler, int bits_per_entry);
 
+  // Find the Deoptimization Info with pc offset {pc} and update its
+  // trampoline field. Calling this function ensures that the safepoint
+  // table contains the trampoline PC (trampoline} that replaced the
+  // return PC {pc} on the stack.
+  int UpdateDeoptimizationInfo(int pc, int trampoline, int start);
 
  private:
   struct DeoptimizationInfo {
     unsigned pc;
     unsigned arguments;
     bool has_doubles;
+    int trampoline;
+    ZoneChunkList<int>* indexes;
+    ZoneChunkList<int>* registers;
+    unsigned deopt_index;
+    DeoptimizationInfo(Zone* zone, unsigned pc, unsigned arguments,
+                       Safepoint::Kind kind)
+        : pc(pc),
+          arguments(arguments),
+          has_doubles(kind & Safepoint::kWithDoubles),
+          trampoline(-1),
+          indexes(new (zone) ZoneChunkList<int>(
+              zone, ZoneChunkList<int>::StartMode::kSmall)),
+          registers(kind & Safepoint::kWithRegisters
+                        ? new (zone) ZoneChunkList<int>(
+                              zone, ZoneChunkList<int>::StartMode::kSmall)
+                        : nullptr),
+          deopt_index(Safepoint::kNoDeoptimizationIndex) {}
   };
 
-  uint32_t EncodeExceptPC(const DeoptimizationInfo& info, unsigned index);
+  uint32_t EncodeExceptPC(const DeoptimizationInfo&);
 
-  ZoneList<DeoptimizationInfo> deoptimization_info_;
-  ZoneList<unsigned> deopt_index_list_;
-  ZoneList<ZoneList<int>*> indexes_;
-  ZoneList<ZoneList<int>*> registers_;
+  bool IsIdenticalExceptForPc(const DeoptimizationInfo&,
+                              const DeoptimizationInfo&) const;
+  // If all entries are identical, replace them by 1 entry with pc = kMaxUInt32.
+  void RemoveDuplicates();
+
+  ZoneChunkList<DeoptimizationInfo> deoptimization_info_;
 
   unsigned offset_;
   bool emitted_;
-  int last_lazy_safepoint_;
+  size_t last_lazy_safepoint_;
 
   Zone* zone_;
 
   DISALLOW_COPY_AND_ASSIGN(SafepointTableBuilder);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SAFEPOINT_TABLE_H_

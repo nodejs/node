@@ -1,8 +1,12 @@
 // Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// Flags: --expose-gc
 
 // Based on Mozilla Array.of() tests at http://dxr.mozilla.org/mozilla-central/source/js/src/jit-test/tests/collections
+
+'use strict';
 
 var typedArrayConstructors = [
   Uint8Array,
@@ -51,28 +55,29 @@ function TestTypedArrayOf(constructor) {
   assertEquals(aux.length, a.length);
   assertArrayEquals(aux, a);
 
-  // %TypedArray%.of can be transplanted to other constructors.
+  // %TypedArray%.of can be called on subclasses of TypedArrays
   var hits = 0;
-  function Bag(length) {
-    assertEquals(arguments.length, 1);
-    assertEquals(length, 2);
-    this.length = length;
-    hits++;
+  class Bag extends constructor {
+    constructor(length) {
+      super(length);
+      assertEquals(arguments.length, 1);
+      assertEquals(length, 2);
+      hits++;
+    }
   }
-  Bag.of = constructor.of;
 
   hits = 0;
-  a = Bag.of("zero", "one");
+  a = Bag.of(5, 6);
   assertEquals(1, hits);
   assertEquals(2, a.length);
-  assertArrayEquals(["zero", "one"], a);
+  assertArrayEquals([5, 6], a);
   assertEquals(Bag.prototype, a.__proto__);
 
   hits = 0;
-  actual = constructor.of.call(Bag, "zero", "one");
+  var actual = constructor.of.call(Bag, 5, 6);
   assertEquals(1, hits);
   assertEquals(2, a.length);
-  assertArrayEquals(["zero", "one"], a);
+  assertArrayEquals([5, 6], a);
   assertEquals(Bag.prototype, a.__proto__);
 
   // %TypedArray%.of does not trigger prototype setters.
@@ -90,30 +95,31 @@ function TestTypedArrayOf(constructor) {
   // invoked.
 
   // Setter on the newly created object.
-  function Pack() {
-    Object.defineProperty(this, "length", {
-      set: function (v) { status = "fail"; }
-    });
+  class Pack extends constructor {
+    constructor(length) {
+      super(length);
+      Object.defineProperty(this, "length", {
+        set: function (v) { status = "fail"; }
+      });
+    }
   }
-  Pack.of = constructor.of;
-  var pack = Pack.of("wolves", "cards", "cigarettes", "lies");
+  var pack = Pack.of(5, 6, 7, 8);
   assertEquals("pass", status);
 
   // when the setter is on the new object's prototype
-  function Bevy() {}
+  class Bevy extends constructor {}
   Object.defineProperty(Bevy.prototype, "length", {
     set: function (v) { status = "fail"; }
   });
-  Bevy.of = constructor.of;
-  var bevy = Bevy.of("quail");
+  var bevy = Bevy.of(3);
   assertEquals("pass", status);
 
   // Check superficial features of %TypedArray%.of.
-  var desc = Object.getOwnPropertyDescriptor(constructor, "of");
+  var desc = Object.getOwnPropertyDescriptor(constructor.__proto__, "of");
 
-  assertEquals(desc.configurable, false);
+  assertEquals(desc.configurable, true);
   assertEquals(desc.enumerable, false);
-  assertEquals(desc.writable, false);
+  assertEquals(desc.writable, true);
   assertEquals(constructor.of.length, 0);
 
   // %TypedArray%.of is not a constructor.
@@ -125,6 +131,20 @@ function TestTypedArrayOf(constructor) {
   // Array as default constructor.
   for (var x of [undefined, null, false, true, "cow", 42, 3.14]) {
     assertThrows(function () { constructor.of.call(x); }, TypeError);
+  }
+
+  // Check if it's correctly accessing new typed array elements even after
+  // garbage collection is invoked in ToNumber.
+  var not_number = {
+    [Symbol.toPrimitive]() {
+      gc();
+      return 123;
+    }
+  };
+  var dangerous_array = new Array(64).fill(not_number);
+  var a = constructor.of(...dangerous_array);
+  for (var i = 0; i < 64; i++) {
+    assertEquals(123, a[i]);
   }
 }
 

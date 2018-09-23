@@ -28,10 +28,10 @@
 // Tests supportedLocalesOf method.
 
 var undef = Intl.DateTimeFormat.supportedLocalesOf();
-assertEquals(undefined, undef[0]);
+assertEquals([], undef);
 
 var empty = Intl.DateTimeFormat.supportedLocalesOf([]);
-assertEquals(undefined, empty[0]);
+assertEquals([], empty);
 
 var strLocale = Intl.DateTimeFormat.supportedLocalesOf('sr');
 assertEquals('sr', strLocale[0]);
@@ -41,3 +41,41 @@ var multiLocale =
 assertEquals('sr-Thai-RS', multiLocale[0]);
 assertEquals('de', multiLocale[1]);
 assertEquals('zh-CN', multiLocale[2]);
+
+collatorUndef = Intl.Collator.supportedLocalesOf();
+assertEquals([], collatorUndef);
+
+collatorEmpty = Intl.Collator.supportedLocalesOf([]);
+assertEquals([], collatorEmpty);
+
+collatorStrLocale = Intl.Collator.supportedLocalesOf('sr');
+assertEquals('sr', collatorStrLocale[0]);
+
+collatorMultiLocale =
+    Intl.Collator.supportedLocalesOf(['sr-Thai-RS', 'de', 'zh-CN']);
+assertEquals('sr-Thai-RS', collatorMultiLocale[0]);
+assertEquals('de', collatorMultiLocale[1]);
+assertEquals('zh-CN', collatorMultiLocale[2]);
+
+numLocale = Intl.Collator.supportedLocalesOf(1);
+assertEquals([], numLocale);
+
+assertThrows(function() {
+  numLocale = Intl.Collator.supportedLocalesOf([1]);
+}, TypeError);
+
+extensionLocale = Intl.Collator.supportedLocalesOf('id-u-co-pinyin');
+assertEquals('id-u-co-pinyin', extensionLocale[0]);
+
+bestFitLocale =
+    Intl.Collator.supportedLocalesOf('de', {localeMatcher: 'best fit'});
+assertEquals('de', bestFitLocale[0]);
+
+// Need a better test for "lookup" once it differs from "best fit".
+lookupLocale =
+    Intl.Collator.supportedLocalesOf('zh-CN', {localeMatcher: 'lookup'});
+assertEquals('zh-CN', lookupLocale[0]);
+
+assertThrows(function() {
+  Intl.Collator.supportedLocalesOf('id-u-co-pinyin', {localeMatcher: 'xyz'});
+}, RangeError);

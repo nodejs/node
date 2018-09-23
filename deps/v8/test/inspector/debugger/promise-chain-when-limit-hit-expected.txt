@@ -1,0 +1,548 @@
+Tests how async promise chains behave when reaching the limit of stacks
+Checks correctness of promise chains when limit hit
+inspector.setMaxAsyncTaskStacks(3)
+Run expression 'console.trace()' with async chain len: 3
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.trace
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+            parent : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
+            }
+        }
+        timestamp : <timestamp>
+        type : trace
+    }
+}
+inspector.setMaxAsyncTaskStacks(4)
+Run expression 'console.trace()' with async chain len: 3
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.trace
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+            parent : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
+            }
+        }
+        timestamp : <timestamp>
+        type : trace
+    }
+}
+inspector.setMaxAsyncTaskStacks(5)
+Run expression 'console.trace()' with async chain len: 3
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.trace
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+            parent : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
+            }
+        }
+        timestamp : <timestamp>
+        type : trace
+    }
+}
+inspector.setMaxAsyncTaskStacks(6)
+Run expression 'console.trace()' with async chain len: 3
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.trace
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+            parent : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
+            }
+        }
+        timestamp : <timestamp>
+        type : trace
+    }
+}
+inspector.setMaxAsyncTaskStacks(7)
+Run expression 'console.trace()' with async chain len: 3
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.trace
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+            parent : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
+            }
+        }
+        timestamp : <timestamp>
+        type : trace
+    }
+}
+inspector.setMaxAsyncTaskStacks(8)
+Run expression 'console.trace()' with async chain len: 3
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.trace
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+            parent : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
+            }
+        }
+        timestamp : <timestamp>
+        type : trace
+    }
+}

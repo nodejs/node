@@ -460,3 +460,58 @@ function test_switches(opt) {
 
 test_switches(false);
 test_switches(true);
+
+
+// Test labeled and anonymous breaks in switch statements
+(function test_switch_break() {
+  A: for (var i = 1; i < 10; i++) {
+    switch (i) {
+      case 1:
+        break A;
+    }
+  }
+  assertEquals(1, i);
+
+  for (var i = 1; i < 10; i++) {
+    B: switch (i) {
+      case 1:
+        break B;
+    }
+  }
+  assertEquals(10, i);
+
+  for (var i = 1; i < 10; i++) {
+    switch (i) {
+      case 1:
+        break;
+    }
+  }
+  assertEquals(10, i);
+
+  switch (1) {
+    case 1:
+      C: for (var i = 1; i < 10; i++) {
+        break C;
+      }
+      i = 2;
+  }
+  assertEquals(2, i);
+
+  switch (1) {
+    case 1:
+      for (var i = 1; i < 10; i++) {
+        break;
+      }
+      i = 2;
+  }
+  assertEquals(2, i);
+
+  D: switch (1) {
+    case 1:
+      for (var i = 1; i < 10; i++) {
+        break D;
+      }
+      i = 2;
+  }
+  assertEquals(1, i);
+})();

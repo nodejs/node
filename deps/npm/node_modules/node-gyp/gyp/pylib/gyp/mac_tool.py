@@ -603,8 +603,7 @@ class MacTool(object):
     if isinstance(data, list):
       return [self._ExpandVariables(v, substitutions) for v in data]
     if isinstance(data, dict):
-      return dict((k, self._ExpandVariables(data[k],
-                                            substitutions)) for k in data)
+      return {k: self._ExpandVariables(data[k], substitutions) for k in data}
     return data
 
 if __name__ == '__main__':

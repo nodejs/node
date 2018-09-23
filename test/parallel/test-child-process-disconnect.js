@@ -1,14 +1,35 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var assert = require('assert');
-var common = require('../common');
-var fork = require('child_process').fork;
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const fork = require('child_process').fork;
+const net = require('net');
 
 // child
 if (process.argv[2] === 'child') {
 
   // Check that the 'disconnect' event is deferred to the next event loop tick.
-  var disconnect = process.disconnect;
+  const disconnect = process.disconnect;
   process.disconnect = function() {
     disconnect.apply(this, arguments);
     // If the event is emitted synchronously, we're too late by now.
@@ -17,7 +38,7 @@ if (process.argv[2] === 'child') {
     function disconnectIsNotAsync() {}
   };
 
-  var server = net.createServer();
+  const server = net.createServer();
 
   server.on('connection', function(socket) {
 
@@ -38,38 +59,33 @@ if (process.argv[2] === 'child') {
 
   // when the server is ready tell parent
   server.on('listening', function() {
-    process.send('ready');
+    process.send({ msg: 'ready', port: server.address().port });
   });
 
-  server.listen(common.PORT);
+  server.listen(0);
 
 } else {
   // testcase
-  var child = fork(process.argv[1], ['child']);
+  const child = fork(process.argv[1], ['child']);
 
-  var childFlag = false;
-  var childSelfTerminate = false;
-  var parentEmit = false;
-  var parentFlag = false;
+  let childFlag = false;
+  let parentFlag = false;
 
   // when calling .disconnect the event should emit
   // and the disconnected flag should be true.
-  child.on('disconnect', function() {
-    parentEmit = true;
+  child.on('disconnect', common.mustCall(function() {
     parentFlag = child.connected;
-  });
+  }));
 
   // the process should also self terminate without using signals
-  child.on('exit', function() {
-    childSelfTerminate = true;
-  });
+  child.on('exit', common.mustCall());
 
   // when child is listening
-  child.on('message', function(msg) {
-    if (msg === 'ready') {
+  child.on('message', function(obj) {
+    if (obj && obj.msg === 'ready') {
 
       // connect to child using TCP to know if disconnect was emitted
-      var socket = net.connect(common.PORT);
+      const socket = net.connect(obj.port);
 
       socket.on('data', function(data) {
         data = data.toString();
@@ -89,10 +105,7 @@ if (process.argv[2] === 'child') {
   });
 
   process.on('exit', function() {
-    assert.equal(childFlag, false);
-    assert.equal(parentFlag, false);
-
-    assert.ok(childSelfTerminate);
-    assert.ok(parentEmit);
+    assert.strictEqual(childFlag, false);
+    assert.strictEqual(parentFlag, false);
   });
 }

@@ -40,42 +40,22 @@
 
 #include "ares_nowarn.h"
 
-#if (SIZEOF_SHORT == 2)
+#ifndef HAVE_LIMITS_H
+/* systems without <limits.h> we guess have 16 bit shorts, 32bit ints and
+   32bit longs */
 #  define CARES_MASK_SSHORT  0x7FFF
 #  define CARES_MASK_USHORT  0xFFFF
-#elif (SIZEOF_SHORT == 4)
-#  define CARES_MASK_SSHORT  0x7FFFFFFF
-#  define CARES_MASK_USHORT  0xFFFFFFFF
-#elif (SIZEOF_SHORT == 8)
-#  define CARES_MASK_SSHORT  0x7FFFFFFFFFFFFFFF
-#  define CARES_MASK_USHORT  0xFFFFFFFFFFFFFFFF
+#  define CARES_MASK_SINT    0x7FFFFFFF
+#  define CARES_MASK_UINT    0xFFFFFFFF
+#  define CARES_MASK_SLONG   0x7FFFFFFFL
+#  define CARES_MASK_ULONG   0xFFFFFFFFUL
 #else
-#  error "SIZEOF_SHORT not defined"
-#endif
-
-#if (SIZEOF_INT == 2)
-#  define CARES_MASK_SINT  0x7FFF
-#  define CARES_MASK_UINT  0xFFFF
-#elif (SIZEOF_INT == 4)
-#  define CARES_MASK_SINT  0x7FFFFFFF
-#  define CARES_MASK_UINT  0xFFFFFFFF
-#elif (SIZEOF_INT == 8)
-#  define CARES_MASK_SINT  0x7FFFFFFFFFFFFFFF
-#  define CARES_MASK_UINT  0xFFFFFFFFFFFFFFFF
-#elif (SIZEOF_INT == 16)
-#  define CARES_MASK_SINT  0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-#  define CARES_MASK_UINT  0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-#else
-#  error "SIZEOF_INT not defined"
-#endif
-
-#ifndef HAVE_LIMITS_H
-/* systems without <limits.h> we guess have 32 bit longs */
-#define CARES_MASK_SLONG  0x7FFFFFFFL
-#define CARES_MASK_ULONG  0xFFFFFFFFUL
-#else
-#define CARES_MASK_ULONG  ULONG_MAX
-#define CARES_MASK_SLONG  LONG_MAX
+#  define CARES_MASK_SSHORT  SHRT_MAX
+#  define CARES_MASK_USHORT  USHRT_MAX
+#  define CARES_MASK_SINT    INT_MAX
+#  define CARES_MASK_UINT    UINT_MAX
+#  define CARES_MASK_SLONG   LONG_MAX
+#  define CARES_MASK_ULONG   ULONG_MAX
 #endif
 
 /*
@@ -171,10 +151,10 @@ int aresx_sltosi(long slnum)
 }
 
 /*
-** signed ssize_t to signed int
+** signed ares_ssize_t to signed int
 */
 
-int aresx_sztosi(ssize_t sznum)
+int aresx_sztosi(ares_ssize_t sznum)
 {
 #ifdef __INTEL_COMPILER
 #  pragma warning(push)
@@ -182,7 +162,7 @@ int aresx_sztosi(ssize_t sznum)
 #endif
 
   DEBUGASSERT(sznum >= 0);
-  return (int)(sznum & (ssize_t) CARES_MASK_SINT);
+  return (int)(sznum & (ares_ssize_t) CARES_MASK_SINT);
 
 #ifdef __INTEL_COMPILER
 #  pragma warning(pop)
@@ -190,10 +170,10 @@ int aresx_sztosi(ssize_t sznum)
 }
 
 /*
-** signed ssize_t to unsigned int
+** signed ares_ssize_t to unsigned int
 */
 
-unsigned int aresx_sztoui(ssize_t sznum)
+unsigned int aresx_sztoui(ares_ssize_t sznum)
 {
 #ifdef __INTEL_COMPILER
 #  pragma warning(push)
@@ -201,7 +181,7 @@ unsigned int aresx_sztoui(ssize_t sznum)
 #endif
 
   DEBUGASSERT(sznum >= 0);
-  return (unsigned int)(sznum & (ssize_t) CARES_MASK_UINT);
+  return (unsigned int)(sznum & (ares_ssize_t) CARES_MASK_UINT);
 
 #ifdef __INTEL_COMPILER
 #  pragma warning(pop)

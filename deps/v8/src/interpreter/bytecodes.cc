@@ -4,26 +4,95 @@
 
 #include "src/interpreter/bytecodes.h"
 
-#include "src/interpreter/bytecode-array-builder.h"
+#include <iomanip>
+
+#include "src/base/bits.h"
+#include "src/interpreter/bytecode-traits.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
 
-// Maximum number of operands a bytecode may have.
-static const int kMaxOperands = 3;
-
-// kBytecodeTable relies on kNone being the same as zero to detect length.
-STATIC_ASSERT(static_cast<int>(OperandType::kNone) == 0);
-
-static const OperandType kBytecodeTable[][kMaxOperands] = {
-#define DECLARE_OPERAND(_, ...) \
-  { __VA_ARGS__ }               \
-  ,
-    BYTECODE_LIST(DECLARE_OPERAND)
-#undef DECLARE_OPERAND
+// clang-format off
+const OperandType* const Bytecodes::kOperandTypes[] = {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kOperandTypes,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
 };
 
+const OperandTypeInfo* const Bytecodes::kOperandTypeInfos[] = {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kOperandTypeInfos,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+};
+
+const int Bytecodes::kOperandCount[] = {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kOperandCount,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+};
+
+const AccumulatorUse Bytecodes::kAccumulatorUse[] = {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kAccumulatorUse,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+};
+
+const int Bytecodes::kBytecodeSizes[3][kBytecodeCount] = {
+  {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kSingleScaleSize,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kDoubleScaleSize,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleSize,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }
+};
+
+const OperandSize* const Bytecodes::kOperandSizes[3][kBytecodeCount] = {
+  {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kSingleScaleOperandSizes,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kDoubleScaleOperandSizes,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleOperandSizes,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }
+};
+
+const OperandSize
+Bytecodes::kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount] = {
+  {
+#define ENTRY(Name, ...)  \
+    OperandScaler<OperandType::k##Name, OperandScale::kSingle>::kOperandSize,
+  OPERAND_TYPE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    OperandScaler<OperandType::k##Name, OperandScale::kDouble>::kOperandSize,
+  OPERAND_TYPE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    OperandScaler<OperandType::k##Name, OperandScale::kQuadruple>::kOperandSize,
+  OPERAND_TYPE_LIST(ENTRY)
+#undef ENTRY
+  }
+};
+// clang-format on
 
 // static
 const char* Bytecodes::ToString(Bytecode bytecode) {
@@ -35,122 +104,233 @@ const char* Bytecodes::ToString(Bytecode bytecode) {
 #undef CASE
   }
   UNREACHABLE();
-  return "";
 }
 
+// static
+std::string Bytecodes::ToString(Bytecode bytecode, OperandScale operand_scale) {
+  static const char kSeparator = '.';
+
+  std::string value(ToString(bytecode));
+  if (operand_scale > OperandScale::kSingle) {
+    Bytecode prefix_bytecode = OperandScaleToPrefixBytecode(operand_scale);
+    std::string suffix = ToString(prefix_bytecode);
+    return value.append(1, kSeparator).append(suffix);
+  } else {
+    return value;
+  }
+}
 
 // static
-const char* Bytecodes::OperandTypeToString(OperandType operand_type) {
+Bytecode Bytecodes::GetDebugBreak(Bytecode bytecode) {
+  DCHECK(!IsDebugBreak(bytecode));
+  if (bytecode == Bytecode::kWide) {
+    return Bytecode::kDebugBreakWide;
+  }
+  if (bytecode == Bytecode::kExtraWide) {
+    return Bytecode::kDebugBreakExtraWide;
+  }
+  int bytecode_size = Size(bytecode, OperandScale::kSingle);
+#define RETURN_IF_DEBUG_BREAK_SIZE_MATCHES(Name)                         \
+  if (bytecode_size == Size(Bytecode::k##Name, OperandScale::kSingle)) { \
+    return Bytecode::k##Name;                                            \
+  }
+  DEBUG_BREAK_PLAIN_BYTECODE_LIST(RETURN_IF_DEBUG_BREAK_SIZE_MATCHES)
+#undef RETURN_IF_DEBUG_BREAK_SIZE_MATCHES
+  UNREACHABLE();
+}
+
+// static
+int Bytecodes::GetOperandOffset(Bytecode bytecode, int i,
+                                OperandScale operand_scale) {
+  DCHECK_LT(i, Bytecodes::NumberOfOperands(bytecode));
+  // TODO(oth): restore this to a statically determined constant.
+  int offset = 1;
+  for (int operand_index = 0; operand_index < i; ++operand_index) {
+    OperandSize operand_size =
+        GetOperandSize(bytecode, operand_index, operand_scale);
+    offset += static_cast<int>(operand_size);
+  }
+  return offset;
+}
+
+// static
+Bytecode Bytecodes::GetJumpWithoutToBoolean(Bytecode bytecode) {
+  switch (bytecode) {
+    case Bytecode::kJumpIfToBooleanTrue:
+      return Bytecode::kJumpIfTrue;
+    case Bytecode::kJumpIfToBooleanFalse:
+      return Bytecode::kJumpIfFalse;
+    case Bytecode::kJumpIfToBooleanTrueConstant:
+      return Bytecode::kJumpIfTrueConstant;
+    case Bytecode::kJumpIfToBooleanFalseConstant:
+      return Bytecode::kJumpIfFalseConstant;
+    default:
+      break;
+  }
+  UNREACHABLE();
+}
+
+// static
+bool Bytecodes::IsDebugBreak(Bytecode bytecode) {
+  switch (bytecode) {
+#define CASE(Name, ...) case Bytecode::k##Name:
+    DEBUG_BREAK_BYTECODE_LIST(CASE);
+#undef CASE
+    return true;
+    default:
+      break;
+  }
+  return false;
+}
+
+// static
+bool Bytecodes::IsRegisterOperandType(OperandType operand_type) {
   switch (operand_type) {
-#define CASE(Name)           \
+#define CASE(Name, _)        \
   case OperandType::k##Name: \
-    return #Name;
+    return true;
+    REGISTER_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    break;
+    NON_REGISTER_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+  }
+  return false;
+}
+
+// static
+bool Bytecodes::IsRegisterListOperandType(OperandType operand_type) {
+  switch (operand_type) {
+    case OperandType::kRegList:
+    case OperandType::kRegOutList:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool Bytecodes::MakesCallAlongCriticalPath(Bytecode bytecode) {
+  if (IsCallOrConstruct(bytecode) || IsCallRuntime(bytecode)) return true;
+  switch (bytecode) {
+    case Bytecode::kCreateWithContext:
+    case Bytecode::kCreateBlockContext:
+    case Bytecode::kCreateCatchContext:
+    case Bytecode::kCreateRegExpLiteral:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// static
+bool Bytecodes::IsRegisterInputOperandType(OperandType operand_type) {
+  switch (operand_type) {
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    return true;
+    REGISTER_INPUT_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    break;
+    NON_REGISTER_OPERAND_TYPE_LIST(CASE)
+    REGISTER_OUTPUT_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+  }
+  return false;
+}
+
+// static
+bool Bytecodes::IsRegisterOutputOperandType(OperandType operand_type) {
+  switch (operand_type) {
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    return true;
+    REGISTER_OUTPUT_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    break;
+    NON_REGISTER_OPERAND_TYPE_LIST(CASE)
+    REGISTER_INPUT_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+  }
+  return false;
+}
+
+// static
+bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
+  if (operand_scale == OperandScale::kSingle) {
+    switch (bytecode) {
+      case Bytecode::kLdaZero:
+      case Bytecode::kLdaSmi:
+      case Bytecode::kLdaNull:
+      case Bytecode::kLdaTheHole:
+      case Bytecode::kLdaConstant:
+      case Bytecode::kLdaUndefined:
+      case Bytecode::kLdaGlobal:
+      case Bytecode::kLdaNamedProperty:
+      case Bytecode::kLdaKeyedProperty:
+      case Bytecode::kLdaContextSlot:
+      case Bytecode::kLdaCurrentContextSlot:
+      case Bytecode::kAdd:
+      case Bytecode::kSub:
+      case Bytecode::kMul:
+      case Bytecode::kAddSmi:
+      case Bytecode::kSubSmi:
+      case Bytecode::kInc:
+      case Bytecode::kDec:
+      case Bytecode::kTypeOf:
+      case Bytecode::kCallAnyReceiver:
+      case Bytecode::kCallProperty:
+      case Bytecode::kCallProperty0:
+      case Bytecode::kCallProperty1:
+      case Bytecode::kCallProperty2:
+      case Bytecode::kCallUndefinedReceiver:
+      case Bytecode::kCallUndefinedReceiver0:
+      case Bytecode::kCallUndefinedReceiver1:
+      case Bytecode::kCallUndefinedReceiver2:
+      case Bytecode::kConstruct:
+      case Bytecode::kConstructWithSpread:
+        return true;
+      default:
+        return false;
+    }
+  }
+  return false;
+}
+
+// static
+bool Bytecodes::IsBytecodeWithScalableOperands(Bytecode bytecode) {
+  for (int i = 0; i < NumberOfOperands(bytecode); i++) {
+    if (OperandIsScalable(bytecode, i)) return true;
+  }
+  return false;
+}
+
+// static
+bool Bytecodes::IsUnsignedOperandType(OperandType operand_type) {
+  switch (operand_type) {
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    return OperandTraits<OperandType::k##Name>::TypeInfoTraits::kIsUnsigned;
     OPERAND_TYPE_LIST(CASE)
 #undef CASE
   }
   UNREACHABLE();
-  return "";
 }
 
-
 // static
-uint8_t Bytecodes::ToByte(Bytecode bytecode) {
-  return static_cast<uint8_t>(bytecode);
+bool Bytecodes::BytecodeHasHandler(Bytecode bytecode,
+                                   OperandScale operand_scale) {
+  return operand_scale == OperandScale::kSingle ||
+         Bytecodes::IsBytecodeWithScalableOperands(bytecode);
 }
-
-
-// static
-Bytecode Bytecodes::FromByte(uint8_t value) {
-  Bytecode bytecode = static_cast<Bytecode>(value);
-  DCHECK(bytecode <= Bytecode::kLast);
-  return bytecode;
-}
-
-
-// static
-int Bytecodes::NumberOfOperands(Bytecode bytecode) {
-  DCHECK(bytecode <= Bytecode::kLast);
-  int count;
-  uint8_t row = ToByte(bytecode);
-  for (count = 0; count < kMaxOperands; count++) {
-    if (kBytecodeTable[row][count] == OperandType::kNone) {
-      break;
-    }
-  }
-  return count;
-}
-
-
-// static
-OperandType Bytecodes::GetOperandType(Bytecode bytecode, int i) {
-  DCHECK(bytecode <= Bytecode::kLast && i < NumberOfOperands(bytecode));
-  return kBytecodeTable[ToByte(bytecode)][i];
-}
-
-
-// static
-int Bytecodes::Size(Bytecode bytecode) {
-  return 1 + NumberOfOperands(bytecode);
-}
-
-
-// static
-int Bytecodes::MaximumNumberOfOperands() { return kMaxOperands; }
-
-
-// static
-int Bytecodes::MaximumSize() { return 1 + kMaxOperands; }
-
-
-// static
-std::ostream& Bytecodes::Decode(std::ostream& os,
-                                const uint8_t* bytecode_start) {
-  Vector<char> buf = Vector<char>::New(50);
-
-  Bytecode bytecode = Bytecodes::FromByte(bytecode_start[0]);
-  int bytecode_size = Bytecodes::Size(bytecode);
-
-  for (int i = 0; i < bytecode_size; i++) {
-    SNPrintF(buf, "%02x ", bytecode_start[i]);
-    os << buf.start();
-  }
-  for (int i = bytecode_size; i < Bytecodes::MaximumSize(); i++) {
-    os << "   ";
-  }
-
-  os << bytecode << " ";
-
-  const uint8_t* operands_start = bytecode_start + 1;
-  int operands_size = bytecode_size - 1;
-  for (int i = 0; i < operands_size; i++) {
-    OperandType op_type = GetOperandType(bytecode, i);
-    uint8_t operand = operands_start[i];
-    switch (op_type) {
-      case interpreter::OperandType::kImm8:
-        os << "#" << static_cast<int>(operand);
-        break;
-      case interpreter::OperandType::kReg:
-        os << "r" << Register::FromOperand(operand).index();
-        break;
-      case interpreter::OperandType::kNone:
-        UNREACHABLE();
-        break;
-    }
-    if (i != operands_size - 1) {
-      os << ", ";
-    }
-  }
-  return os;
-}
-
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {
   return os << Bytecodes::ToString(bytecode);
-}
-
-
-std::ostream& operator<<(std::ostream& os, const OperandType& operand_type) {
-  return os << Bytecodes::OperandTypeToString(operand_type);
 }
 
 }  // namespace interpreter

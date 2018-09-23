@@ -93,7 +93,7 @@ test('verify bins', function (t) {
   var bin = path.dirname(
     path.resolve(
       installBin,
-      fs.readlinkSync(path.join(installBin, 'testbin'))))
+      common.readBinLink(path.join(installBin, 'testbin'))))
   t.is(bin, path.join(installPath, 'node_modules', 'b'))
   t.end()
 })
@@ -114,7 +114,7 @@ test('verify postremoval bins', function (t) {
   var bin = path.dirname(
     path.resolve(
       installBin,
-      fs.readlinkSync(path.join(installBin, 'testbin'))))
+      common.readBinLink(path.join(installBin, 'testbin'))))
   t.is(bin, path.join(installPath, 'node_modules', 'b'))
   t.end()
 })

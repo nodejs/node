@@ -8,6 +8,15 @@ var mapToRegistry = require('./utils/map-to-registry.js')
 
 logout.usage = 'npm logout [--registry=<url>] [--scope=<@scope>]'
 
+function afterLogout (normalized, cb) {
+  var scope = npm.config.get('scope')
+
+  if (scope) npm.config.del(scope + ':registry')
+
+  npm.config.clearCredentialsByURI(normalized)
+  npm.config.save('user', cb)
+}
+
 function logout (args, cb) {
   cb = dezalgo(cb)
 
@@ -19,13 +28,12 @@ function logout (args, cb) {
       npm.registry.logout(normalized, { auth: auth }, function (err) {
         if (err) return cb(err)
 
-        npm.config.clearCredentialsByURI(normalized)
-        npm.config.save('user', cb)
+        afterLogout(normalized, cb)
       })
     } else if (auth.username || auth.password) {
       log.verbose('logout', 'clearing user credentials for', normalized)
-      npm.config.clearCredentialsByURI(normalized)
-      npm.config.save('user', cb)
+
+      afterLogout(normalized, cb)
     } else {
       cb(new Error(
         'Not logged in to', normalized + ',', "so can't log out."

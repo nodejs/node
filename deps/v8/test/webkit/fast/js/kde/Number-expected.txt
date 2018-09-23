@@ -86,11 +86,11 @@ PASS Number(-Math.pow(10,21)).toFixed(20) is "-1e+21"
 PASS toFixedOrException(2,-1).indexOf('Range') >= 0 is true
 PASS Number(2).toFixed(0) is "2"
 PASS Number(2).toFixed(20) is "2.00000000000000000000"
-PASS toFixedOrException(2,21).indexOf('Range') >= 0 is true
+FAIL toFixedOrException(2,21).indexOf('Range') >= 0 should be true. Was false.
 PASS toFixedOrException(-2,-1).indexOf('Range') >= 0 is true
 PASS Number(-2).toFixed(0) is "-2"
 PASS Number(-2).toFixed(20) is "-2.00000000000000000000"
-PASS toFixedOrException(-2,21).indexOf('Range') >= 0 is true
+FAIL toFixedOrException(-2,21).indexOf('Range') >= 0 should be true. Was false.
 PASS Number(NaN).toExponential() is "NaN"
 PASS Number(Infinity).toExponential() is "Infinity"
 PASS Number(-Infinity).toExponential() is "-Infinity"
@@ -120,7 +120,7 @@ PASS Number(123.456).toExponential(17) is "1.23456000000000003e+2"
 PASS Number(123.456).toExponential(18) is "1.234560000000000031e+2"
 PASS Number(123.456).toExponential(19) is "1.2345600000000000307e+2"
 PASS Number(123.456).toExponential(20) is "1.23456000000000003070e+2"
-PASS try { Number(123.456).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } is true
+FAIL try { Number(123.456).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } should be true (of type boolean). Was 1.234560000000000030695e+2 (of type string).
 PASS Number(-123.456).toExponential() is "-1.23456e+2"
 PASS try { Number(-123.456).toExponential(-1) } catch (e) { String(e).indexOf('Range') >= 0; } is true
 PASS Number(-123.456).toExponential(0) is "-1e+2"
@@ -144,7 +144,7 @@ PASS Number(-123.456).toExponential(17) is "-1.23456000000000003e+2"
 PASS Number(-123.456).toExponential(18) is "-1.234560000000000031e+2"
 PASS Number(-123.456).toExponential(19) is "-1.2345600000000000307e+2"
 PASS Number(-123.456).toExponential(20) is "-1.23456000000000003070e+2"
-PASS try { Number(-123.456).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } is true
+FAIL try { Number(-123.456).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } should be true (of type boolean). Was -1.234560000000000030695e+2 (of type string).
 PASS Number(.000123456).toExponential() is "1.23456e-4"
 PASS try { Number(.000123456).toExponential(-1) } catch (e) { String(e).indexOf('Range') >= 0; } is true
 PASS Number(.000123456).toExponential(0) is "1e-4"
@@ -168,7 +168,7 @@ PASS Number(.000123456).toExponential(17) is "1.23456000000000005e-4"
 PASS Number(.000123456).toExponential(18) is "1.234560000000000052e-4"
 PASS Number(.000123456).toExponential(19) is "1.2345600000000000519e-4"
 PASS Number(.000123456).toExponential(20) is "1.23456000000000005188e-4"
-PASS try { Number(.000123456).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } is true
+FAIL try { Number(.000123456).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } should be true (of type boolean). Was 1.234560000000000051876e-4 (of type string).
 PASS Number(-.000123456).toExponential() is "-1.23456e-4"
 PASS try { Number(-.000123456).toExponential(-1) } catch (e) { String(e).indexOf('Range') >= 0; } is true
 PASS Number(-.000123456).toExponential(0) is "-1e-4"
@@ -192,7 +192,7 @@ PASS Number(-.000123456).toExponential(17) is "-1.23456000000000005e-4"
 PASS Number(-.000123456).toExponential(18) is "-1.234560000000000052e-4"
 PASS Number(-.000123456).toExponential(19) is "-1.2345600000000000519e-4"
 PASS Number(-.000123456).toExponential(20) is "-1.23456000000000005188e-4"
-PASS try { Number(-.000123456).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } is true
+FAIL try { Number(-.000123456).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } should be true (of type boolean). Was -1.234560000000000051876e-4 (of type string).
 PASS Number(123.4567890123456789012).toExponential() is "1.2345678901234568e+2"
 PASS try { Number(123.4567890123456789012).toExponential(-1) } catch (e) { String(e).indexOf('Range') >= 0; } is true
 PASS Number(123.4567890123456789012).toExponential(0) is "1e+2"
@@ -216,7 +216,7 @@ PASS Number(123.4567890123456789012).toExponential(17) is "1.23456789012345681e+
 PASS Number(123.4567890123456789012).toExponential(18) is "1.234567890123456806e+2"
 PASS Number(123.4567890123456789012).toExponential(19) is "1.2345678901234568059e+2"
 PASS Number(123.4567890123456789012).toExponential(20) is "1.23456789012345680590e+2"
-PASS try { Number(123.4567890123456789012).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } is true
+FAIL try { Number(123.4567890123456789012).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } should be true (of type boolean). Was 1.234567890123456805895e+2 (of type string).
 PASS Number(-123.4567890123456789012).toExponential() is "-1.2345678901234568e+2"
 PASS try { Number(-123.4567890123456789012).toExponential(-1) } catch (e) { String(e).indexOf('Range') >= 0; } is true
 PASS Number(-123.4567890123456789012).toExponential(0) is "-1e+2"
@@ -240,7 +240,7 @@ PASS Number(-123.4567890123456789012).toExponential(17) is "-1.23456789012345681
 PASS Number(-123.4567890123456789012).toExponential(18) is "-1.234567890123456806e+2"
 PASS Number(-123.4567890123456789012).toExponential(19) is "-1.2345678901234568059e+2"
 PASS Number(-123.4567890123456789012).toExponential(20) is "-1.23456789012345680590e+2"
-PASS try { Number(-123.4567890123456789012).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } is true
+FAIL try { Number(-123.4567890123456789012).toExponential(21) } catch (e) { String(e).indexOf('Range') >= 0; } should be true (of type boolean). Was -1.234567890123456805895e+2 (of type string).
 PASS Number(.0000000000000000000001).toExponential() is "1e-22"
 PASS Number(.0000000000000000000012).toExponential() is "1.2e-21"
 PASS Number(.0000000000000000000123).toExponential() is "1.23e-20"
@@ -331,7 +331,7 @@ PASS try { Number(1).toPrecision(-1); } catch (e) { String(e).indexOf('Range') >
 PASS try { Number(1).toPrecision(0); } catch (e) { String(e).indexOf('Range') >= 0; } is true
 PASS try { Number(1).toPrecision(1); } catch (e) { String(e); } is "1"
 PASS try { Number(1).toPrecision(21); } catch (e) { String(e); } is "1.00000000000000000000"
-PASS try { Number(1).toPrecision(22); } catch (e) { String(e).indexOf('Range') >= 0; } is true
+FAIL try { Number(1).toPrecision(22); } catch (e) { String(e).indexOf('Range') >= 0; } should be true (of type boolean). Was 1.000000000000000000000 (of type string).
 PASS Number(NaN).toPrecision() is "NaN"
 PASS Number(NaN).toPrecision(1) is "NaN"
 PASS Number(Infinity).toPrecision() is "Infinity"

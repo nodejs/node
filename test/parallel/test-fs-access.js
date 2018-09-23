@@ -1,27 +1,28 @@
+// Flags: --expose-internals
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
-var doesNotExist = __filename + '__this_should_not_exist';
-var readOnlyFile = path.join(common.tmpDir, 'read_only_file');
-var readWriteFile = path.join(common.tmpDir, 'read_write_file');
 
-var removeFile = function(file) {
-  try {
-    fs.unlinkSync(file);
-  } catch (err) {
-    // Ignore error
-  }
-};
+// This tests that fs.access and fs.accessSync works as expected
+// and the errors thrown from these APIs include the desired properties
 
-var createFileWithPerms = function(file, mode) {
-  removeFile(file);
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+
+const { internalBinding } = require('internal/test/binding');
+const { UV_ENOENT } = internalBinding('uv');
+
+const tmpdir = require('../common/tmpdir');
+const doesNotExist = path.join(tmpdir.path, '__this_should_not_exist');
+const readOnlyFile = path.join(tmpdir.path, 'read_only_file');
+const readWriteFile = path.join(tmpdir.path, 'read_write_file');
+
+function createFileWithPerms(file, mode) {
   fs.writeFileSync(file, '');
   fs.chmodSync(file, mode);
-};
+}
 
-common.refreshTmpDir();
+tmpdir.refresh();
 createFileWithPerms(readOnlyFile, 0o444);
 createFileWithPerms(readWriteFile, 0o666);
 
@@ -37,18 +38,18 @@ createFileWithPerms(readWriteFile, 0o666);
  * The change of user id is done after creating the fixtures files for the same
  * reason: the test may be run as the superuser within a directory in which
  * only the superuser can create files, and thus it may need superuser
- * priviledges to create them.
+ * privileges to create them.
  *
  * There's not really any point in resetting the process' user id to 0 after
  * changing it to 'nobody', since in the case that the test runs without
- * superuser priviledge, it is not possible to change its process user id to
+ * superuser privilege, it is not possible to change its process user id to
  * superuser.
  *
  * It can prevent the test from removing files created before the change of user
- * id, but that's fine. In this case, it is the responsability of the
+ * id, but that's fine. In this case, it is the responsibility of the
  * continuous integration platform to take care of that.
  */
-var hasWriteAccessForReadonlyFile = false;
+let hasWriteAccessForReadonlyFile = false;
 if (!common.isWindows && process.getuid() === 0) {
   hasWriteAccessForReadonlyFile = true;
   try {
@@ -58,67 +59,127 @@ if (!common.isWindows && process.getuid() === 0) {
   }
 }
 
-assert(typeof fs.F_OK === 'number');
-assert(typeof fs.R_OK === 'number');
-assert(typeof fs.W_OK === 'number');
-assert(typeof fs.X_OK === 'number');
+assert.strictEqual(typeof fs.F_OK, 'number');
+assert.strictEqual(typeof fs.R_OK, 'number');
+assert.strictEqual(typeof fs.W_OK, 'number');
+assert.strictEqual(typeof fs.X_OK, 'number');
 
-fs.access(__filename, function(err) {
-  assert.strictEqual(err, null, 'error should not exist');
-});
+const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
-fs.access(__filename, fs.R_OK, function(err) {
-  assert.strictEqual(err, null, 'error should not exist');
-});
+fs.access(__filename, common.mustCall(function(...args) {
+  assert.deepStrictEqual(args, [null]);
+}));
+fs.promises.access(__filename)
+  .then(common.mustCall())
+  .catch(throwNextTick);
+fs.access(__filename, fs.R_OK, common.mustCall(function(...args) {
+  assert.deepStrictEqual(args, [null]);
+}));
+fs.promises.access(__filename, fs.R_OK)
+  .then(common.mustCall())
+  .catch(throwNextTick);
+fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall(function(...args) {
+  assert.deepStrictEqual(args, [null]);
+}));
+fs.promises.access(readOnlyFile, fs.F_OK | fs.R_OK)
+  .then(common.mustCall())
+  .catch(throwNextTick);
 
-fs.access(doesNotExist, function(err) {
-  assert.notEqual(err, null, 'error should exist');
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.path, doesNotExist);
-});
+{
+  const expectedError = (err) => {
+    assert.notStrictEqual(err, null);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.path, doesNotExist);
+  };
+  fs.access(doesNotExist, common.mustCall(expectedError));
+  fs.promises.access(doesNotExist)
+    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .catch(throwNextTick);
+}
 
-fs.access(readOnlyFile, fs.F_OK | fs.R_OK, function(err) {
-  assert.strictEqual(err, null, 'error should not exist');
-});
-
-fs.access(readOnlyFile, fs.W_OK, function(err) {
-  if (hasWriteAccessForReadonlyFile) {
-    assert.equal(err, null, 'error should not exist');
-  } else {
-    assert.notEqual(err, null, 'error should exist');
-    assert.strictEqual(err.path, readOnlyFile);
+{
+  function expectedError(err) {
+    assert.strictEqual(this, undefined);
+    if (hasWriteAccessForReadonlyFile) {
+      assert.ifError(err);
+    } else {
+      assert.notStrictEqual(err, null);
+      assert.strictEqual(err.path, readOnlyFile);
+    }
   }
-});
+  fs.access(readOnlyFile, fs.W_OK, common.mustCall(expectedError));
+  fs.promises.access(readOnlyFile, fs.W_OK)
+    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .catch(throwNextTick);
+}
 
-assert.throws(function() {
-  fs.access(100, fs.F_OK, function(err) {});
-}, /path must be a string/);
+{
+  const expectedError = (err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
+    assert.ok(err instanceof TypeError);
+    return true;
+  };
+  assert.throws(
+    () => { fs.access(100, fs.F_OK, common.mustNotCall()); },
+    expectedError
+  );
 
-assert.throws(function() {
-  fs.access(__filename, fs.F_OK);
-}, /"callback" argument must be a function/);
+  fs.promises.access(100, fs.F_OK)
+    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .catch(throwNextTick);
+}
 
-assert.throws(function() {
-  fs.access(__filename, fs.F_OK, {});
-}, /"callback" argument must be a function/);
+common.expectsError(
+  () => {
+    fs.access(__filename, fs.F_OK);
+  },
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  });
 
-assert.doesNotThrow(function() {
-  fs.accessSync(__filename);
-});
+common.expectsError(
+  () => {
+    fs.access(__filename, fs.F_OK, {});
+  },
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  });
 
-assert.doesNotThrow(function() {
-  var mode = fs.F_OK | fs.R_OK | fs.W_OK;
+// Regular access should not throw.
+fs.accessSync(__filename);
+const mode = fs.F_OK | fs.R_OK | fs.W_OK;
+fs.accessSync(readWriteFile, mode);
 
-  fs.accessSync(readWriteFile, mode);
-});
+assert.throws(
+  () => { fs.accessSync(doesNotExist); },
+  (err) => {
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.path, doesNotExist);
+    assert.strictEqual(
+      err.message,
+      `ENOENT: no such file or directory, access '${doesNotExist}'`
+    );
+    assert.strictEqual(err.constructor, Error);
+    assert.strictEqual(err.syscall, 'access');
+    assert.strictEqual(err.errno, UV_ENOENT);
+    return true;
+  }
+);
 
-assert.throws(function() {
-  fs.accessSync(doesNotExist);
-}, function(err) {
-  return err.code === 'ENOENT' && err.path === doesNotExist;
-});
-
-process.on('exit', function() {
-  removeFile(readOnlyFile);
-  removeFile(readWriteFile);
-});
+assert.throws(
+  () => { fs.accessSync(Buffer.from(doesNotExist)); },
+  (err) => {
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.path, doesNotExist);
+    assert.strictEqual(
+      err.message,
+      `ENOENT: no such file or directory, access '${doesNotExist}'`
+    );
+    assert.strictEqual(err.constructor, Error);
+    assert.strictEqual(err.syscall, 'access');
+    assert.strictEqual(err.errno, UV_ENOENT);
+    return true;
+  }
+);

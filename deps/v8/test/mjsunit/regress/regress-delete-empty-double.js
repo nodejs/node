@@ -31,10 +31,10 @@ a = [1.1,2.2,3.3];
 a.length = 1;
 delete a[1];
 
-assertTrue(%HasFastDoubleElements(a));
-assertFalse(%HasFastHoleyElements(a));
+assertTrue(%HasDoubleElements(a));
+assertFalse(%HasHoleyElements(a));
 
 delete a[0];
 
-assertTrue(%HasFastDoubleElements(a));
-assertTrue(%HasFastHoleyElements(a));
+assertTrue(%HasDoubleElements(a));
+assertTrue(%HasHoleyElements(a));

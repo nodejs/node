@@ -15,37 +15,48 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
+class NodeOriginTable;
 class RepresentationChanger;
+class RepresentationSelector;
 class SourcePositionTable;
+class TypeCache;
 
-class SimplifiedLowering final {
+class V8_EXPORT_PRIVATE SimplifiedLowering final {
  public:
-  SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
-                     SourcePositionTable* source_positions);
+  SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* js_heap_broker, Zone* zone,
+                     SourcePositionTable* source_position,
+                     NodeOriginTable* node_origins,
+                     PoisoningMitigationLevel poisoning_level);
   ~SimplifiedLowering() {}
 
   void LowerAllNodes();
 
-  // TODO(titzer): These are exposed for direct testing. Use a friend class.
-  void DoAllocate(Node* node);
-  void DoLoadField(Node* node);
-  void DoStoreField(Node* node);
-  // TODO(turbofan): The output_type can be removed once the result of the
-  // representation analysis is stored in the node bounds.
-  void DoLoadBuffer(Node* node, MachineType output_type,
-                    RepresentationChanger* changer);
-  void DoStoreBuffer(Node* node);
-  void DoLoadElement(Node* node);
-  void DoStoreElement(Node* node);
-  void DoShift(Node* node, Operator const* op);
-  void DoStringEqual(Node* node);
-  void DoStringLessThan(Node* node);
-  void DoStringLessThanOrEqual(Node* node);
+  void DoMax(Node* node, Operator const* op, MachineRepresentation rep);
+  void DoMin(Node* node, Operator const* op, MachineRepresentation rep);
+  void DoJSToNumberOrNumericTruncatesToFloat64(
+      Node* node, RepresentationSelector* selector);
+  void DoJSToNumberOrNumericTruncatesToWord32(Node* node,
+                                              RepresentationSelector* selector);
+  void DoShift(Node* node, Operator const* op, Type rhs_type);
+  void DoIntegral32ToBit(Node* node);
+  void DoOrderedNumberToBit(Node* node);
+  void DoNumberToBit(Node* node);
+  void DoIntegerToUint8Clamped(Node* node);
+  void DoNumberToUint8Clamped(Node* node);
+  void DoSigned32ToUint8Clamped(Node* node);
+  void DoUnsigned32ToUint8Clamped(Node* node);
 
  private:
   JSGraph* const jsgraph_;
+  JSHeapBroker* js_heap_broker_;
   Zone* const zone_;
-  Type* const zero_thirtyone_range_;
+  TypeCache const& type_cache_;
+  SetOncePointer<Node> to_number_code_;
+  SetOncePointer<Node> to_number_convert_big_int_code_;
+  SetOncePointer<Node> to_numeric_code_;
+  SetOncePointer<Operator const> to_number_operator_;
+  SetOncePointer<Operator const> to_number_convert_big_int_operator_;
+  SetOncePointer<Operator const> to_numeric_operator_;
 
   // TODO(danno): SimplifiedLowering shouldn't know anything about the source
   // positions table, but must for now since there currently is no other way to
@@ -53,25 +64,35 @@ class SimplifiedLowering final {
   // lowering. Once this phase becomes a vanilla reducer, it should get source
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
+  NodeOriginTable* node_origins_;
 
-  Node* SmiTag(Node* node);
-  Node* IsTagged(Node* node);
-  Node* Untag(Node* node);
-  Node* OffsetMinusTagConstant(int32_t offset);
-  Node* ComputeIndex(const ElementAccess& access, Node* const key);
-  Node* StringComparison(Node* node, bool requires_ordering);
+  PoisoningMitigationLevel poisoning_level_;
+
+  Node* Float64Round(Node* const node);
+  Node* Float64Sign(Node* const node);
+  Node* Int32Abs(Node* const node);
   Node* Int32Div(Node* const node);
   Node* Int32Mod(Node* const node);
+  Node* Int32Sign(Node* const node);
   Node* Uint32Div(Node* const node);
   Node* Uint32Mod(Node* const node);
 
+  Node* ToNumberCode();
+  Node* ToNumberConvertBigIntCode();
+  Node* ToNumericCode();
+  Operator const* ToNumberOperator();
+  Operator const* ToNumberConvertBigIntOperator();
+  Operator const* ToNumericOperator();
+
   friend class RepresentationSelector;
 
+  Isolate* isolate() { return jsgraph_->isolate(); }
   Zone* zone() { return jsgraph_->zone(); }
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph()->graph(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
+  SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
 };
 
 }  // namespace compiler

@@ -1,9 +1,10 @@
 'use strict'
 var path = require('path')
-var nock = require('nock')
 var test = require('tap').test
-var npm = require('../../')
-var addNamed = require('../../lib/cache/add-named')
+var common = require('../common-tap')
+var mr = require('npm-registry-mock')
+var server1
+var server2
 
 var packageName = path.basename(__filename, '.js')
 
@@ -36,44 +37,77 @@ var fooiPkg = {
   }
 }
 
-test('tarball paths should update port if updating protocol', function (t) {
-  nock('http://localhost:1337/registry')
-    .get('/' + packageName)
-    .reply(200, fooPkg)
-
-  nock('http://localhost:1337/registry')
-    .get('/' + packageName + '/-/' + packageName + '-0.0.0.tgz')
-    .reply(200, '1')
-
-  nock('http://localhost:1338/registry')
-    .get('/' + packageName + '/-/' + packageName + '-0.0.0.tgz')
-    .reply(404)
-
-  npm.load({registry: 'http://localhost:1337/registry', global: true}, function () {
-    addNamed(packageName, '0.0.0', null, function checkPath (err, pkg) {
-      t.ifError(err, 'addNamed worked')
+test('setup', function (t) {
+  mr({
+    port: 1337,
+    throwOnUnmatched: true
+  }, function (err, s) {
+    t.ifError(err, 'registry mocked successfully')
+    server1 = s
+    mr({
+      port: 1338,
+      throwOnUnmatched: true
+    }, function (err, s) {
+      t.ifError(err, 'registry mocked successfully')
+      server2 = s
       t.end()
     })
   })
 })
 
-test('tarball paths should NOT update if different hostname', function (t) {
-  nock('http://localhost:1337/registry')
-    .get('/' + iPackageName)
-    .reply(200, fooiPkg)
+test('tarball paths should update port if updating protocol', function (t) {
+  server1.get('/registry/' + packageName).reply(200, fooPkg)
+  server1.get(
+    '/registry/' + packageName + '/-/' + packageName + '-0.0.0.tgz'
+  ).reply(200, '1')
 
-  nock('http://127.0.0.1:1338/registry')
-    .get('/' + iPackageName + '/-/' + iPackageName + '-0.0.0.tgz')
-    .reply(200, '1')
-
-  nock('http://127.0.0.1:1337/registry')
-    .get('/' + iPackageName + '/-/' + iPackageName + '-0.0.0.tgz')
-    .reply(404)
-
-  npm.load({registry: 'http://localhost:1337/registry', global: true}, function () {
-    addNamed(iPackageName, '0.0.0', null, function checkPath (err, pkg) {
-      t.ifError(err, 'addNamed worked')
+  common.npm(
+    [
+      'cache',
+      'add',
+      packageName + '@0.0.0',
+      '--registry',
+      'http://localhost:1337/registry'
+    ],
+    {},
+    function (er, code, stdout, stderr) {
+      if (er) { throw er }
+      t.equal(stderr, '', 'no error output')
+      t.equal(code, 0, 'addNamed worked')
+      server1.done()
       t.end()
-    })
-  })
+    }
+  )
+})
+
+test('tarball paths should NOT update if different hostname', function (t) {
+  server1.get('/registry/' + iPackageName).reply(200, fooiPkg)
+  server2.get(
+    '/registry/' + iPackageName + '/-/' + iPackageName + '-0.0.0.tgz'
+  ).reply(200, '1')
+
+  common.npm(
+    [
+      'cache',
+      'add',
+      iPackageName + '@0.0.0',
+      '--registry',
+      'http://localhost:1337/registry'
+    ],
+    {},
+    function (er, code, stdout, stderr) {
+      if (er) { throw er }
+      t.equal(code, 0, 'addNamed worked')
+      server1.done()
+      server2.done()
+      t.end()
+    }
+  )
+})
+
+test('cleanup', function (t) {
+  t.pass('cleaned up')
+  server1.close()
+  server2.close()
+  t.end()
 })

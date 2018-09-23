@@ -5,15 +5,19 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
-#ifndef V8_SHARED
+#include <iterator>
+#include <map>
+#include <memory>
+#include <queue>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "src/allocation.h"
+#include "src/async-hooks-wrapper.h"
 #include "src/base/platform/time.h"
-#include "src/hashmap.h"
-#include "src/list.h"
-#else
-#include "include/v8.h"
-#include "src/base/compiler-specific.h"
-#endif  // !V8_SHARED
+#include "src/string-hasher.h"
+#include "src/utils.h"
 
 #include "src/base/once.h"
 
@@ -21,7 +25,6 @@
 namespace v8 {
 
 
-#ifndef V8_SHARED
 // A single counter in a counter collection.
 class Counter {
  public:
@@ -56,54 +59,31 @@ class CounterCollection {
   Counter counters_[kMaxCounters];
 };
 
-
-class CounterMap {
- public:
-  CounterMap(): hash_map_(Match) { }
-  Counter* Lookup(const char* name) {
-    i::HashMap::Entry* answer =
-        hash_map_.Lookup(const_cast<char*>(name), Hash(name));
-    if (!answer) return NULL;
-    return reinterpret_cast<Counter*>(answer->value);
+struct CStringHasher {
+  std::size_t operator()(const char* name) const {
+    size_t h = 0;
+    size_t c;
+    while ((c = *name++) != 0) {
+      h += h << 5;
+      h += c;
+    }
+    return h;
   }
-  void Set(const char* name, Counter* value) {
-    i::HashMap::Entry* answer =
-        hash_map_.LookupOrInsert(const_cast<char*>(name), Hash(name));
-    DCHECK(answer != NULL);
-    answer->value = value;
-  }
-  class Iterator {
-   public:
-    explicit Iterator(CounterMap* map)
-        : map_(&map->hash_map_), entry_(map_->Start()) { }
-    void Next() { entry_ = map_->Next(entry_); }
-    bool More() { return entry_ != NULL; }
-    const char* CurrentKey() { return static_cast<const char*>(entry_->key); }
-    Counter* CurrentValue() { return static_cast<Counter*>(entry_->value); }
-   private:
-    i::HashMap* map_;
-    i::HashMap::Entry* entry_;
-  };
-
- private:
-  static int Hash(const char* name);
-  static bool Match(void* key1, void* key2);
-  i::HashMap hash_map_;
 };
-#endif  // !V8_SHARED
 
+typedef std::unordered_map<const char*, Counter*, CStringHasher,
+                           i::StringEquals>
+    CounterMap;
 
 class SourceGroup {
  public:
-  SourceGroup() :
-#ifndef V8_SHARED
-      next_semaphore_(0),
-      done_semaphore_(0),
-      thread_(NULL),
-#endif  // !V8_SHARED
-      argv_(NULL),
-      begin_offset_(0),
-      end_offset_(0) {}
+  SourceGroup()
+      : next_semaphore_(0),
+        done_semaphore_(0),
+        thread_(nullptr),
+        argv_(nullptr),
+        begin_offset_(0),
+        end_offset_(0) {}
 
   ~SourceGroup();
 
@@ -116,7 +96,6 @@ class SourceGroup {
 
   void Execute(Isolate* isolate);
 
-#ifndef V8_SHARED
   void StartExecuteInThread();
   void WaitForThread();
   void JoinThread();
@@ -124,8 +103,7 @@ class SourceGroup {
  private:
   class IsolateThread : public base::Thread {
    public:
-    explicit IsolateThread(SourceGroup* group)
-        : base::Thread(GetThreadOptions()), group_(group) {}
+    explicit IsolateThread(SourceGroup* group);
 
     virtual void Run() {
       group_->ExecuteInThread();
@@ -135,13 +113,11 @@ class SourceGroup {
     SourceGroup* group_;
   };
 
-  static base::Thread::Options GetThreadOptions();
   void ExecuteInThread();
 
   base::Semaphore next_semaphore_;
   base::Semaphore done_semaphore_;
   base::Thread* thread_;
-#endif  // !V8_SHARED
 
   void ExitShell(int exit_code);
   Local<String> ReadFile(Isolate* isolate, const char* name);
@@ -151,69 +127,100 @@ class SourceGroup {
   int end_offset_;
 };
 
-#ifndef V8_SHARED
-enum SerializationTag {
-  kSerializationTagUndefined,
-  kSerializationTagNull,
-  kSerializationTagTrue,
-  kSerializationTagFalse,
-  kSerializationTagNumber,
-  kSerializationTagString,
-  kSerializationTagArray,
-  kSerializationTagObject,
-  kSerializationTagArrayBuffer,
-  kSerializationTagTransferredArrayBuffer,
-  kSerializationTagTransferredSharedArrayBuffer,
-};
+// The backing store of an ArrayBuffer or SharedArrayBuffer, after
+// Externalize() has been called on it.
+class ExternalizedContents {
+ public:
+  explicit ExternalizedContents(const ArrayBuffer::Contents& contents)
+      : data_(contents.Data()),
+        length_(contents.ByteLength()),
+        deleter_(contents.Deleter()),
+        deleter_data_(contents.DeleterData()) {}
+  explicit ExternalizedContents(const SharedArrayBuffer::Contents& contents)
+      : data_(contents.Data()),
+        length_(contents.ByteLength()),
+        deleter_(contents.Deleter()),
+        deleter_data_(contents.DeleterData()) {}
+  ExternalizedContents(ExternalizedContents&& other) V8_NOEXCEPT
+      : data_(other.data_),
+        length_(other.length_),
+        deleter_(other.deleter_),
+        deleter_data_(other.deleter_data_) {
+    other.data_ = nullptr;
+    other.length_ = 0;
+    other.deleter_ = nullptr;
+    other.deleter_data_ = nullptr;
+  }
+  ExternalizedContents& operator=(ExternalizedContents&& other) V8_NOEXCEPT {
+    if (this != &other) {
+      data_ = other.data_;
+      length_ = other.length_;
+      deleter_ = other.deleter_;
+      deleter_data_ = other.deleter_data_;
+      other.data_ = nullptr;
+      other.length_ = 0;
+      other.deleter_ = nullptr;
+      other.deleter_data_ = nullptr;
+    }
+    return *this;
+  }
+  ~ExternalizedContents();
 
+ private:
+  void* data_;
+  size_t length_;
+  ArrayBuffer::Contents::DeleterCallback deleter_;
+  void* deleter_data_;
+
+  DISALLOW_COPY_AND_ASSIGN(ExternalizedContents);
+};
 
 class SerializationData {
  public:
-  SerializationData() {}
-  ~SerializationData();
+  SerializationData() : size_(0) {}
 
-  void WriteTag(SerializationTag tag);
-  void WriteMemory(const void* p, int length);
-  void WriteArrayBufferContents(const ArrayBuffer::Contents& contents);
-  void WriteSharedArrayBufferContents(
-      const SharedArrayBuffer::Contents& contents);
-
-  template <typename T>
-  void Write(const T& data) {
-    WriteMemory(&data, sizeof(data));
+  uint8_t* data() { return data_.get(); }
+  size_t size() { return size_; }
+  const std::vector<ArrayBuffer::Contents>& array_buffer_contents() {
+    return array_buffer_contents_;
   }
-
-  SerializationTag ReadTag(int* offset) const;
-  void ReadMemory(void* p, int length, int* offset) const;
-  void ReadArrayBufferContents(ArrayBuffer::Contents* contents,
-                               int* offset) const;
-  void ReadSharedArrayBufferContents(SharedArrayBuffer::Contents* contents,
-                                     int* offset) const;
-
-  template <typename T>
-  T Read(int* offset) const {
-    T value;
-    ReadMemory(&value, sizeof(value), offset);
-    return value;
+  const std::vector<SharedArrayBuffer::Contents>&
+  shared_array_buffer_contents() {
+    return shared_array_buffer_contents_;
+  }
+  const std::vector<WasmCompiledModule::TransferrableModule>&
+  transferrable_modules() {
+    return transferrable_modules_;
   }
 
  private:
-  i::List<uint8_t> data_;
-  i::List<ArrayBuffer::Contents> array_buffer_contents_;
-  i::List<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
+  struct DataDeleter {
+    void operator()(uint8_t* p) const { free(p); }
+  };
+
+  std::unique_ptr<uint8_t, DataDeleter> data_;
+  size_t size_;
+  std::vector<ArrayBuffer::Contents> array_buffer_contents_;
+  std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
+  std::vector<WasmCompiledModule::TransferrableModule> transferrable_modules_;
+
+ private:
+  friend class Serializer;
+
+  DISALLOW_COPY_AND_ASSIGN(SerializationData);
 };
 
 
 class SerializationDataQueue {
  public:
-  void Enqueue(SerializationData* data);
-  bool Dequeue(SerializationData** data);
+  void Enqueue(std::unique_ptr<SerializationData> data);
+  bool Dequeue(std::unique_ptr<SerializationData>* data);
   bool IsEmpty();
   void Clear();
 
  private:
   base::Mutex mutex_;
-  i::List<SerializationData*> data_;
+  std::vector<std::unique_ptr<SerializationData>> data_;
 };
 
 
@@ -228,13 +235,13 @@ class Worker {
   // Post a message to the worker's incoming message queue. The worker will
   // take ownership of the SerializationData.
   // This function should only be called by the thread that created the Worker.
-  void PostMessage(SerializationData* data);
+  void PostMessage(std::unique_ptr<SerializationData> data);
   // Synchronously retrieve messages from the worker's outgoing message queue.
   // If there is no message in the queue, block until a message is available.
   // If there are no messages in the queue and the worker is no longer running,
   // return nullptr.
   // This function should only be called by the thread that created the Worker.
-  SerializationData* GetMessage();
+  std::unique_ptr<SerializationData> GetMessage();
   // Terminate the worker's event loop. Messages from the worker that have been
   // queued can still be read via GetMessage().
   // This function can be called by any thread.
@@ -267,77 +274,138 @@ class Worker {
   char* script_;
   base::Atomic32 running_;
 };
-#endif  // !V8_SHARED
 
+class PerIsolateData {
+ public:
+  explicit PerIsolateData(Isolate* isolate);
+
+  ~PerIsolateData();
+
+  inline static PerIsolateData* Get(Isolate* isolate) {
+    return reinterpret_cast<PerIsolateData*>(isolate->GetData(0));
+  }
+
+  class RealmScope {
+   public:
+    explicit RealmScope(PerIsolateData* data);
+    ~RealmScope();
+
+   private:
+    PerIsolateData* data_;
+  };
+
+  inline void SetTimeout(Local<Function> callback, Local<Context> context);
+  inline MaybeLocal<Function> GetTimeoutCallback();
+  inline MaybeLocal<Context> GetTimeoutContext();
+
+  AsyncHooks* GetAsyncHooks() { return async_hooks_wrapper_; }
+
+ private:
+  friend class Shell;
+  friend class RealmScope;
+  Isolate* isolate_;
+  int realm_count_;
+  int realm_current_;
+  int realm_switch_;
+  Global<Context>* realms_;
+  Global<Value> realm_shared_;
+  std::queue<Global<Function>> set_timeout_callbacks_;
+  std::queue<Global<Context>> set_timeout_contexts_;
+  AsyncHooks* async_hooks_wrapper_;
+
+  int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
+                        int arg_offset);
+  int RealmFind(Local<Context> context);
+};
 
 class ShellOptions {
  public:
+  enum CodeCacheOptions {
+    kNoProduceCache,
+    kProduceCache,
+    kProduceCacheAfterExecute
+  };
+
   ShellOptions()
-      : script_executed(false),
-        send_idle_notification(false),
+      : send_idle_notification(false),
         invoke_weak_callbacks(false),
         omit_quit(false),
+        wait_for_wasm(true),
         stress_opt(false),
         stress_deopt(false),
         stress_runs(1),
         interactive_shell(false),
         test_shell(false),
-        dump_heap_constants(false),
         expected_to_throw(false),
         mock_arraybuffer_allocator(false),
+        enable_inspector(false),
         num_isolates(1),
         compile_options(v8::ScriptCompiler::kNoCompileOptions),
-        isolate_sources(NULL),
-        icu_data_file(NULL),
-        natives_blob(NULL),
-        snapshot_blob(NULL) {}
+        stress_background_compile(false),
+        code_cache_options(CodeCacheOptions::kNoProduceCache),
+        isolate_sources(nullptr),
+        icu_data_file(nullptr),
+        natives_blob(nullptr),
+        snapshot_blob(nullptr),
+        trace_enabled(false),
+        trace_path(nullptr),
+        trace_config(nullptr),
+        lcov_file(nullptr),
+        disable_in_process_stack_traces(false),
+        read_from_tcp_port(-1) {}
 
   ~ShellOptions() {
     delete[] isolate_sources;
   }
 
-  bool use_interactive_shell() {
-    return (interactive_shell || !script_executed) && !test_shell;
-  }
-
-  bool script_executed;
   bool send_idle_notification;
   bool invoke_weak_callbacks;
   bool omit_quit;
+  bool wait_for_wasm;
   bool stress_opt;
   bool stress_deopt;
   int stress_runs;
   bool interactive_shell;
   bool test_shell;
-  bool dump_heap_constants;
   bool expected_to_throw;
   bool mock_arraybuffer_allocator;
+  bool enable_inspector;
   int num_isolates;
   v8::ScriptCompiler::CompileOptions compile_options;
+  bool stress_background_compile;
+  CodeCacheOptions code_cache_options;
   SourceGroup* isolate_sources;
   const char* icu_data_file;
   const char* natives_blob;
   const char* snapshot_blob;
+  bool trace_enabled;
+  const char* trace_path;
+  const char* trace_config;
+  const char* lcov_file;
+  bool disable_in_process_stack_traces;
+  int read_from_tcp_port;
+  bool enable_os_system = false;
+  bool quiet_load = false;
+  int thread_pool_size = 0;
 };
 
-#ifdef V8_SHARED
-class Shell {
-#else
 class Shell : public i::AllStatic {
-#endif  // V8_SHARED
-
  public:
-  enum SourceType { SCRIPT, MODULE };
+  enum PrintResult : bool { kPrintResult = true, kNoPrintResult = false };
+  enum ReportExceptions : bool {
+    kReportExceptions = true,
+    kNoReportExceptions = false
+  };
+  enum ProcessMessageQueue : bool {
+    kProcessMessageQueue = true,
+    kNoProcessMessageQueue = false
+  };
 
-  static MaybeLocal<Script> CompileString(
-      Isolate* isolate, Local<String> source, Local<Value> name,
-      v8::ScriptCompiler::CompileOptions compile_options,
-      SourceType source_type);
   static bool ExecuteString(Isolate* isolate, Local<String> source,
-                            Local<Value> name, bool print_result,
-                            bool report_exceptions,
-                            SourceType source_type = SCRIPT);
-  static const char* ToCString(const v8::String::Utf8Value& value);
+                            Local<Value> name, PrintResult print_result,
+                            ReportExceptions report_exceptions,
+                            ProcessMessageQueue process_message_queue);
+  static bool ExecuteModule(Isolate* isolate, const char* file_name);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);
@@ -346,19 +414,13 @@ class Shell : public i::AllStatic {
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate);
   static void CollectGarbage(Isolate* isolate);
-  static void EmptyMessageQueues(Isolate* isolate);
+  static bool EmptyMessageQueues(Isolate* isolate);
+  static void CompleteMessageLoop(Isolate* isolate);
 
-#ifndef V8_SHARED
-  // TODO(binji): stupid implementation for now. Is there an easy way to hash an
-  // object for use in i::HashMap? By pointer?
-  typedef i::List<Local<Object>> ObjectList;
-  static bool SerializeValue(Isolate* isolate, Local<Value> value,
-                             const ObjectList& to_transfer,
-                             ObjectList* seen_objects,
-                             SerializationData* out_data);
-  static MaybeLocal<Value> DeserializeValue(Isolate* isolate,
-                                            const SerializationData& data,
-                                            int* offset);
+  static std::unique_ptr<SerializationData> SerializeValue(
+      Isolate* isolate, Local<Value> value, Local<Value> transfer);
+  static MaybeLocal<Value> DeserializeValue(
+      Isolate* isolate, std::unique_ptr<SerializationData> data);
   static void CleanupWorkers();
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name,
@@ -369,12 +431,14 @@ class Shell : public i::AllStatic {
   static void MapCounters(v8::Isolate* isolate, const char* name);
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif  // !V8_SHARED
 
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmCreateAllowCrossRealmAccess(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -384,8 +448,18 @@ class Shell : public i::AllStatic {
                              Local<Value> value,
                              const  PropertyCallbackInfo<void>& info);
 
+  static void AsyncHooksCreateHook(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AsyncHooksExecutionAsyncId(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AsyncHooksTriggerAsyncId(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WaitUntilDone(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args);
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -396,6 +470,7 @@ class Shell : public i::AllStatic {
     args.GetReturnValue().Set(ReadFromStdin(args.GetIsolate()));
   }
   static void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WorkerPostMessage(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -434,7 +509,17 @@ class Shell : public i::AllStatic {
   static void SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static MaybeLocal<Promise> HostImportModuleDynamically(
+      Local<Context> context, Local<ScriptOrModule> referrer,
+      Local<String> specifier);
+  static void HostInitializeImportMetaObject(Local<Context> context,
+                                             Local<Module> module,
+                                             Local<Object> meta);
 
+  // Data is of type DynamicImportData*. We use void* here to be able
+  // to conform with MicrotaskCallback interface and enqueue this
+  // function in the microtask queue.
+  static void DoHostImportModuleDynamically(void* data);
   static void AddOSMethods(v8::Isolate* isolate,
                            Local<ObjectTemplate> os_template);
 
@@ -442,11 +527,20 @@ class Shell : public i::AllStatic {
   static ShellOptions options;
   static ArrayBuffer::Allocator* array_buffer_allocator;
 
+  static void SetWaitUntilDone(Isolate* isolate, bool value);
+
+  static char* ReadCharsFromTcpPort(const char* name, int* size_out);
+
+  static void set_script_executed() { script_executed_.store(true); }
+  static bool use_interactive_shell() {
+    return (options.interactive_shell || !script_executed_.load()) &&
+           !options.test_shell;
+  }
+
  private:
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
-#ifndef V8_SHARED
-  static Global<Context> utility_context_;
+  static Global<Function> stringify_function_;
   static CounterMap* counter_map_;
   // We statically allocate a set of local counters to be used if we
   // don't want to store the stats in a memory-mapped file
@@ -456,18 +550,42 @@ class Shell : public i::AllStatic {
   static base::LazyMutex context_mutex_;
   static const base::TimeTicks kInitialTicks;
 
-  static base::LazyMutex workers_mutex_;
+  static base::LazyMutex workers_mutex_;  // Guards the following members.
   static bool allow_new_workers_;
-  static i::List<Worker*> workers_;
-  static i::List<SharedArrayBuffer::Contents> externalized_shared_contents_;
+  static std::vector<Worker*> workers_;
+  static std::vector<ExternalizedContents> externalized_contents_;
 
+  // Multiple isolates may update this flag concurrently.
+  static std::atomic<bool> script_executed_;
+
+  static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
+  // Append LCOV coverage data to file.
+  static void WriteLcovData(v8::Isolate* isolate, const char* file);
   static Counter* GetCounter(const char* name, bool is_histogram);
-  static void InstallUtilityScript(Isolate* isolate);
-#endif  // !V8_SHARED
+  static Local<String> Stringify(Isolate* isolate, Local<Value> value);
   static void Initialize(Isolate* isolate);
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static MaybeLocal<Context> CreateRealm(
+      const v8::FunctionCallbackInfo<v8::Value>& args, int index,
+      v8::MaybeLocal<Value> global_object);
+  static void DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
+                           int index);
+  static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Context> context,
+                                            const std::string& file_name);
+  static ScriptCompiler::CachedData* LookupCodeCache(Isolate* isolate,
+                                                     Local<Value> name);
+  static void StoreInCodeCache(Isolate* isolate, Local<Value> name,
+                               const ScriptCompiler::CachedData* data);
+  // We may have multiple isolates running concurrently, so the access to
+  // the isolate_status_ needs to be concurrency-safe.
+  static base::LazyMutex isolate_status_lock_;
+  static std::map<Isolate*, bool> isolate_status_;
+
+  static base::LazyMutex cached_code_mutex_;
+  static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
+      cached_code_map_;
 };
 
 

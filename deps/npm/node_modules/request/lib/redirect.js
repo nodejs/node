@@ -8,7 +8,8 @@ function Redirect (request) {
   this.followRedirect = true
   this.followRedirects = true
   this.followAllRedirects = false
-  this.allowRedirect = function () {return true}
+  this.followOriginalHttpMethod = false
+  this.allowRedirect = function () { return true }
   this.maxRedirects = 10
   this.redirects = []
   this.redirectsFollowed = 0
@@ -36,11 +37,14 @@ Redirect.prototype.onRequest = function (options) {
   if (options.removeRefererHeader !== undefined) {
     self.removeRefererHeader = options.removeRefererHeader
   }
+  if (options.followOriginalHttpMethod !== undefined) {
+    self.followOriginalHttpMethod = options.followOriginalHttpMethod
+  }
 }
 
 Redirect.prototype.redirectTo = function (response) {
   var self = this
-    , request = self.request
+  var request = self.request
 
   var redirectTo = null
   if (response.statusCode >= 300 && response.statusCode < 400 && response.caseless.has('location')) {
@@ -74,7 +78,7 @@ Redirect.prototype.redirectTo = function (response) {
 
 Redirect.prototype.onResponse = function (response) {
   var self = this
-    , request = self.request
+  var request = self.request
 
   var redirectTo = self.redirectTo(response)
   if (!redirectTo || !self.allowRedirect.call(request, response)) {
@@ -105,22 +109,18 @@ Redirect.prototype.onResponse = function (response) {
 
   // handle the case where we change protocol from https to http or vice versa
   if (request.uri.protocol !== uriPrev.protocol) {
-    request._updateProtocol()
+    delete request.agent
   }
 
-  self.redirects.push(
-    { statusCode : response.statusCode
-    , redirectUri: redirectTo
-    }
-  )
-  if (self.followAllRedirects && request.method !== 'HEAD'
-    && response.statusCode !== 401 && response.statusCode !== 307) {
-    request.method = 'GET'
+  self.redirects.push({ statusCode: response.statusCode, redirectUri: redirectTo })
+
+  if (self.followAllRedirects && request.method !== 'HEAD' &&
+    response.statusCode !== 401 && response.statusCode !== 307) {
+    request.method = self.followOriginalHttpMethod ? request.method : 'GET'
   }
   // request.method = 'GET' // Force all redirects to use GET || commented out fixes #215
   delete request.src
   delete request.req
-  delete request.agent
   delete request._started
   if (response.statusCode !== 401 && response.statusCode !== 307) {
     // Remove parameters from the previous response, unless this is the second request
@@ -141,7 +141,7 @@ Redirect.prototype.onResponse = function (response) {
   }
 
   if (!self.removeRefererHeader) {
-    request.setHeader('referer', request.uri.href)
+    request.setHeader('referer', uriPrev.href)
   }
 
   request.emit('redirect')

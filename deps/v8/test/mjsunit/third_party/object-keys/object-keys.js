@@ -42,6 +42,7 @@ assertEquals(Object.keys({a:null, b:null}), ['a', 'b']);
 assertEquals(Object.keys({b:null, a:null}), ['b', 'a']);
 assertEquals(Object.keys([]), []);
 assertEquals(Object.keys([null]), ['0']);
+assertEquals(Object.keys([undefined]), ['0']);
 assertEquals(Object.keys([null,null]), ['0', '1']);
 assertEquals(Object.keys([null,null,,,,null]), ['0', '1', '5']);
 assertEquals(Object.keys({__proto__:{a:null}}), []);
@@ -66,3 +67,34 @@ keysBefore[0] = 'x';
 var keysAfter = Object.keys(literal);
 assertEquals(['a', 'b', 'c'], keysAfter);
 assertEquals(['x', 'b', 'c'], keysBefore);
+
+
+var o = [1, 2, 3];
+assertEquals(['0', '1', '2'], Object.keys(o));
+Object.defineProperty(o, '0', {
+    enumerable: false,
+});
+assertEquals(['1', '2'], Object.keys(o));
+
+
+(function(){
+  assertEquals(['0', '1', '2'], Object.keys(arguments));
+  Object.defineProperty(arguments, '0', {
+      enumerable: false,
+  });
+  assertEquals(['1', '2'], Object.keys(arguments));
+})(0,1,2);
+
+
+(function(a, b){
+  assertEquals(['0', '1', '2'], Object.keys(arguments));
+  Object.defineProperty(arguments, '0', {
+      enumerable: false,
+  });
+  assertEquals(['1', '2'], Object.keys(arguments));
+})(0,1,2);
+
+var b = [];
+assertEquals(0, Object.keys(b).length);
+b[0] = undefined;
+assertEquals(1, Object.keys(b).length);

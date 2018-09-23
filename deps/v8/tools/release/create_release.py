@@ -11,17 +11,11 @@ import urllib2
 
 from common_includes import *
 
-
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    fetchspecs = [
-      "+refs/heads/*:refs/heads/*",
-      "+refs/pending/*:refs/pending/*",
-      "+refs/pending-tags/*:refs/pending-tags/*",
-    ]
-    self.Git("fetch origin %s" % " ".join(fetchspecs))
+    self.Git("fetch origin +refs/heads/*:refs/heads/*")
     self.GitCheckout("origin/master")
     self.DeleteBranch("work-branch")
 
@@ -83,24 +77,6 @@ class DetectLastRelease(Step):
 class PrepareChangeLog(Step):
   MESSAGE = "Prepare raw ChangeLog entry."
 
-  def Reload(self, body):
-    """Attempts to reload the commit message from rietveld in order to allow
-    late changes to the LOG flag. Note: This is brittle to future changes of
-    the web page name or structure.
-    """
-    match = re.search(r"^Review URL: https://codereview\.chromium\.org/(\d+)$",
-                      body, flags=re.M)
-    if match:
-      cl_url = ("https://codereview.chromium.org/%s/description"
-                % match.group(1))
-      try:
-        # Fetch from Rietveld but only retry once with one second delay since
-        # there might be many revisions.
-        body = self.ReadURL(cl_url, wait_plan=[1])
-      except urllib2.URLError:  # pragma: no cover
-        pass
-    return body
-
   def RunStep(self):
     self["date"] = self.GetDate()
     output = "%s: Version %s\n\n" % (self["date"], self["version"])
@@ -113,7 +89,7 @@ class PrepareChangeLog(Step):
     commit_messages = [
       [
         self.GitLog(n=1, format="%s", git_hash=commit),
-        self.Reload(self.GitLog(n=1, format="%B", git_hash=commit)),
+        self.GitLog(n=1, format="%B", git_hash=commit),
         self.GitLog(n=1, format="%an", git_hash=commit),
       ] for commit in commits.splitlines()
     ]
@@ -156,14 +132,26 @@ class EditChangeLog(Step):
     TextToFile(changelog_entry, self.Config("CHANGELOG_ENTRY_FILE"))
 
 
+class PushBranchRef(Step):
+  MESSAGE = "Create branch ref."
+
+  def RunStep(self):
+    cmd = "push origin %s:refs/heads/%s" % (self["push_hash"], self["version"])
+    if self._options.dry_run:
+      print "Dry run. Command:\ngit %s" % cmd
+    else:
+      self.Git(cmd)
+
+
 class MakeBranch(Step):
   MESSAGE = "Create the branch."
 
   def RunStep(self):
     self.Git("reset --hard origin/master")
-    self.Git("checkout -b work-branch %s" % self["push_hash"])
+    self.Git("new-branch work-branch --upstream origin/%s" % self["version"])
     self.GitCheckoutFile(CHANGELOG_FILE, self["latest_version"])
     self.GitCheckoutFile(VERSION_FILE, self["latest_version"])
+    self.GitCheckoutFile(WATCHLISTS_FILE, self["latest_version"])
 
 
 class AddChangeLog(Step):
@@ -181,6 +169,19 @@ class SetVersion(Step):
 
   def RunStep(self):
     self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
+
+
+class EnableMergeWatchlist(Step):
+  MESSAGE = "Enable watchlist entry for merge notifications."
+
+  def RunStep(self):
+    old_watchlist_content = FileToText(os.path.join(self.default_cwd,
+                                                    WATCHLISTS_FILE))
+    new_watchlist_content = re.sub("(# 'v8-merges@googlegroups\.com',)",
+                                   "'v8-merges@googlegroups.com',",
+                                   old_watchlist_content)
+    TextToFile(new_watchlist_content, os.path.join(self.default_cwd,
+                                                   WATCHLISTS_FILE))
 
 
 class CommitBranch(Step):
@@ -202,6 +203,7 @@ class CommitBranch(Step):
 
     if not text:  # pragma: no cover
       self.Die("Commit message editing failed.")
+    text += "\n\nTBR=%s" % self._options.reviewer
     self["commit_title"] = text.splitlines()[0]
     TextToFile(text, self.Config("COMMITMSG_FILE"))
 
@@ -210,16 +212,18 @@ class CommitBranch(Step):
     os.remove(self.Config("CHANGELOG_ENTRY_FILE"))
 
 
-class PushBranch(Step):
-  MESSAGE = "Push changes."
+class LandBranch(Step):
+  MESSAGE = "Upload and land changes."
 
   def RunStep(self):
-    pushspecs = [
-      "refs/heads/work-branch:refs/pending/heads/%s" % self["version"],
-      "%s:refs/pending-tags/heads/%s" % (self["push_hash"], self["version"]),
-      "%s:refs/heads/%s" % (self["push_hash"], self["version"]),
-    ]
-    cmd = "push origin %s" % " ".join(pushspecs)
+    if self._options.dry_run:
+      print "Dry run - upload CL."
+    else:
+      self.GitUpload(author=self._options.author,
+                     force=True,
+                     bypass_hooks=True,
+                     private=True)
+    cmd = "cl land --bypass-hooks -f"
     if self._options.dry_run:
       print "Dry run. Command:\ngit %s" % cmd
     else:
@@ -285,11 +289,13 @@ class CreateRelease(ScriptsBase):
       DetectLastRelease,
       PrepareChangeLog,
       EditChangeLog,
+      PushBranchRef,
       MakeBranch,
       AddChangeLog,
       SetVersion,
+      EnableMergeWatchlist,
       CommitBranch,
-      PushBranch,
+      LandBranch,
       TagRevision,
       CleanUp,
     ]

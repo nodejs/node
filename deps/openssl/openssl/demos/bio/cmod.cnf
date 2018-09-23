@@ -1,0 +1,24 @@
+# Example config module configuration
+
+# Name supplied by application to CONF_modules_load_file
+# and section containing configuration
+testapp = test_sect
+
+[test_sect]
+# list of configuration modules
+
+# SSL configuration module
+ssl_conf = ssl_sect
+
+[ssl_sect]
+# list of SSL configurations
+server = server_sect
+
+[server_sect]
+# Only support 3 curves
+Curves = P-521:P-384:P-256
+# Restricted signature algorithms
+SignatureAlgorithms = RSA+SHA512:ECDSA+SHA512
+# Certificates and keys
+RSA.Certificate=server.pem
+ECDSA.Certificate=server-ec.pem

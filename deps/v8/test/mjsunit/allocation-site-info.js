@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --noalways-opt
+// Flags: --allow-natives-syntax --expose-gc --opt --no-always-opt
 
 var elements_kind = {
   fast_smi_only            :  'fast smi only elements',
@@ -45,14 +44,14 @@ var elements_kind = {
 }
 
 function getKind(obj) {
-  if (%HasFastSmiElements(obj)) return elements_kind.fast_smi_only;
-  if (%HasFastObjectElements(obj)) return elements_kind.fast;
-  if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
+  if (%HasSmiElements(obj)) return elements_kind.fast_smi_only;
+  if (%HasObjectElements(obj)) return elements_kind.fast;
+  if (%HasDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
 }
 
 function isHoley(obj) {
-  if (%HasFastHoleyElements(obj)) return true;
+  if (%HasHoleyElements(obj)) return true;
   return false;
 }
 
@@ -81,7 +80,7 @@ assertNotHoley(obj);
 assertKind(elements_kind.fast_smi_only, obj);
 
 obj = new Array(0);
-assertNotHoley(obj);
+assertHoley(obj);
 assertKind(elements_kind.fast_smi_only, obj);
 
 obj = new Array(2);
@@ -136,7 +135,7 @@ assertKind(elements_kind.fast, obj);
 obj = fastliteralcase(get_standard_literal(), 3);
 assertKind(elements_kind.fast, obj);
 
-// Make sure this works in crankshafted code too.
+// Make sure this works in optimized code too.
   %OptimizeFunctionOnNextCall(get_standard_literal);
 get_standard_literal();
 obj = get_standard_literal();
@@ -259,6 +258,12 @@ assertKind(elements_kind.fast, obj);
 obj = newarraycase_list_smiobj(2);
 assertKind(elements_kind.fast, obj);
 
+// Perform a gc because without it the test below can experience an
+// allocation failure at an inconvenient point. Allocation mementos get
+// cleared on gc, and they can't deliver elements kind feedback when that
+// happens.
+gc();
+
 // Case: array constructor calls with out of date feedback.
 // The boilerplate should incorporate all feedback, but the input array
 // should be minimally transitioned based on immediate need.
@@ -271,7 +276,7 @@ assertKind(elements_kind.fast, obj);
     return a;
   }
 
-  for (i = 0; i < 2; i++) {
+  for (var i = 0; i < 2; i++) {
     a = foo(i);
     b = foo(i);
     b[5] = 1;  // boilerplate goes holey
@@ -279,7 +284,7 @@ assertKind(elements_kind.fast, obj);
     a[0] = 3.5;  // boilerplate goes holey double
     assertKind(elements_kind.fast_double, a);
     assertNotHoley(a);
-    c = foo(i);
+    var c = foo(i);
     assertKind(elements_kind.fast_double, c);
     assertHoley(c);
   }
@@ -317,6 +322,9 @@ function instanceof_check2(type) {
 }
 
 var realmBArray = Realm.eval(realmB, "Array");
+// Two calls with Array because ES6 instanceof desugars into a load of Array,
+// and load has a premonomorphic state.
+instanceof_check(Array);
 instanceof_check(Array);
 instanceof_check(realmBArray);
 
@@ -327,6 +335,10 @@ instanceof_check(realmBArray);
 // It'll go (uninit->realmBArray) then (realmBArray->megamorphic). Recognize
 // that state "Array" implies an AllocationSite is present, and code is
 // configured to use it.
+
+// Two calls with realmBArray because ES6 instanceof desugars into a load of
+// realmBArray, and load has a premonomorphic state.
+instanceof_check2(realmBArray);
 instanceof_check2(realmBArray);
 instanceof_check2(Array);
 
@@ -340,10 +352,10 @@ instanceof_check(realmBArray);
 assertOptimized(instanceof_check);
 
 // Try to optimize again, but first clear all type feedback, and allow it
-// to be monomorphic on first call. Only after crankshafting do we introduce
+// to be monomorphic on first call. Only after optimizing do we introduce
 // realmBArray. This should deopt the method.
   %DeoptimizeFunction(instanceof_check);
-  %ClearFunctionTypeFeedback(instanceof_check);
+  %ClearFunctionFeedback(instanceof_check);
 instanceof_check(Array);
 instanceof_check(Array);
   %OptimizeFunctionOnNextCall(instanceof_check);
@@ -352,6 +364,12 @@ assertOptimized(instanceof_check);
 
 instanceof_check(realmBArray);
 assertUnoptimized(instanceof_check);
+
+// Perform a gc because without it the test below can experience an
+// allocation failure at an inconvenient point. Allocation mementos get
+// cleared on gc, and they can't deliver elements kind feedback when that
+// happens.
+gc();
 
 // Case: make sure nested arrays benefit from allocation site feedback as
 // well.
@@ -409,8 +427,10 @@ gc();
 
   obj = get_object_literal();
   assertKind(elements_kind.fast_smi_only, obj.array);
+  // Force double transition.
   obj.array[1] = 3.5;
   assertKind(elements_kind.fast_double, obj.array);
+  // Transition information should be fed back to the inner literal.
   obj = get_object_literal();
   assertKind(elements_kind.fast_double, obj.array);
 
@@ -466,4 +486,88 @@ gc();
   obj = get_deep_nested_literal();
   assertKind(elements_kind.fast_double, obj[0]);
   assertKind(elements_kind.fast, obj[1][0]);
+})();
+
+// Test gathering allocation site feedback for generic ics.
+(function() {
+  function make() { return new Array(); }
+  function foo(a, i) { a[0] = i; }
+
+  var a = make();
+  assertKind(elements_kind.fast_smi_only, a);
+
+  // Make the keyed store ic go generic.
+  foo("howdy", 1);
+  foo(a, 3.5);
+
+  var b = make();
+  assertKind(elements_kind.fast_double, b);
+})();
+
+(function TestBoilerplateMapDeprecation() {
+  function literal() {
+    return { a: 1, b: 2 };
+  }
+  literal();
+  literal();
+  let instance = literal();
+  assertKind(elements_kind.fast_smi_only, [instance.a, instance.b]);
+  // Create literal instances with double insteand of smi values.
+  for (let i = 0; i < 1000; i++) {
+    instance  = literal();
+    instance.a = 1.2;
+    assertKind(elements_kind.fast_double, [instance.a, instance.b]);
+  }
+
+  // After deprecating the original boilerplate map we should get heap numbers
+  // back for the original unmodified literal as well.
+  for (let i =0; i < 100; i++) {
+    instance = literal();
+    assertKind(elements_kind.fast_double, [instance.a, instance.b]);
+  }
+})();
+
+(function TestInnerBoilerplateMapDeprecation() {
+  // Create a literal where the inner literals cause a map deprecation of the
+  // previous inner literal.
+  function literal() {
+    return [
+    {xA2A:false, a: 1,   b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1,   b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1,   b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1,   b: 2, c: 3, d: 4.1},
+
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1},
+    {xA2A:false, a: 1.1, b: 2, c: 3, d: 4.1}
+    ];
+  };
+  let instance = literal();
+
+  // Make sure all sub-literals are migrated properly.
+  for (let i = 0; i < instance.length; i++) {
+    let sub_literal = instance[i];
+    assertKind(elements_kind.fast_double, [sub_literal.a]);
+    assertKind(elements_kind.fast_smi_only, [sub_literal.b]);
+    assertKind(elements_kind.fast_smi_only, [sub_literal.c]);
+    assertKind(elements_kind.fast_double, [sub_literal.d]);
+  }
+
+  instance = literal();
+  instance = literal();
+  instance = literal();
+  for (let i = 0; i < instance.length; i++) {
+    let sub_literal = instance[i];
+    assertKind(elements_kind.fast_double, [sub_literal.a]);
+    assertKind(elements_kind.fast_smi_only, [sub_literal.b]);
+    assertKind(elements_kind.fast_smi_only, [sub_literal.c]);
+    assertKind(elements_kind.fast_double, [sub_literal.d]);
+  }
 })();

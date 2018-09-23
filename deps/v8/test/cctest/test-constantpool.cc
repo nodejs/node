@@ -9,7 +9,8 @@
 #include "src/assembler.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 const ConstantPoolEntry::Type kPtrType = ConstantPoolEntry::INTPTR;
 const ConstantPoolEntry::Type kDblType = ConstantPoolEntry::DOUBLE;
@@ -245,3 +246,6 @@ TEST(ConstantPoolNoSharing) {
   access = builder.AddEntry(pos, dblValue);
   CHECK_EQ(access, kOvflAccess);
 }
+
+}  // namespace internal
+}  // namespace v8

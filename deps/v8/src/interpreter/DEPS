@@ -1,4 +1,0 @@
-include_rules = [
-  "+src/compiler/interpreter-assembler.h",
-  "-src/v8.h",
-]

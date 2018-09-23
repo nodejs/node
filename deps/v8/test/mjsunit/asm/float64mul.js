@@ -10,7 +10,7 @@ function Module(stdlib, foreign, heap) {
   }
   function f2(i) {
     i = +i;
-    return +(-1 * i);
+    return +(-1. * i);
   }
   function f3(i) {
     i = +i;

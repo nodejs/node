@@ -1,54 +1,50 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const Countdown = require('../common/countdown');
 
-var agent = new http.Agent({
+const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: 1000,
   maxSockets: 2,
   maxFreeSockets: 2
 });
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCall((req, res) => {
   res.end('hello world');
-});
+}, 2));
+
+server.keepAliveTimeout = 0;
 
 function get(path, callback) {
   return http.get({
     host: 'localhost',
-    port: common.PORT,
+    port: server.address().port,
     agent: agent,
     path: path
   }, callback);
 }
 
-var count = 0;
-function done() {
-  if (++count !== 2) {
-    return;
-  }
-  var freepool = agent.freeSockets[Object.keys(agent.freeSockets)[0]];
-  assert.equal(freepool.length, 2,
-      'expect keep 2 free sockets, but got ' + freepool.length);
+const countdown = new Countdown(2, () => {
+  const freepool = agent.freeSockets[Object.keys(agent.freeSockets)[0]];
+  assert.strictEqual(freepool.length, 2,
+                     `expect keep 2 free sockets, but got ${freepool.length}`);
   agent.destroy();
   server.close();
+});
+
+function dec() {
+  process.nextTick(() => countdown.dec());
 }
 
-server.listen(common.PORT, function() {
-  get('/1', function(res) {
-    assert.equal(res.statusCode, 200);
-    res.resume();
-    res.on('end', function() {
-      process.nextTick(done);
-    });
-  });
+function onGet(res) {
+  assert.strictEqual(res.statusCode, 200);
+  res.resume();
+  res.on('end', common.mustCall(dec));
+}
 
-  get('/2', function(res) {
-    assert.equal(res.statusCode, 200);
-    res.resume();
-    res.on('end', function() {
-      process.nextTick(done);
-    });
-  });
-});
+server.listen(0, common.mustCall(() => {
+  get('/1', common.mustCall(onGet));
+  get('/2', common.mustCall(onGet));
+}));

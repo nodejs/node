@@ -41,5 +41,5 @@ Or from the command line:
 $ npm-init
 ```
 
-See [PromZard](https://github.com/isaacs/promzard) for details about
+See [PromZard](https://github.com/npm/promzard) for details about
 what can go in the config file.

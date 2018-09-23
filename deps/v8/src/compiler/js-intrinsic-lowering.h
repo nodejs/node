@@ -5,80 +5,80 @@
 #ifndef V8_COMPILER_JS_INTRINSIC_LOWERING_H_
 #define V8_COMPILER_JS_INTRINSIC_LOWERING_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/simplified-operator.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Callable;
+
+
 namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+struct FieldAccess;
 class JSOperatorBuilder;
 class JSGraph;
-class MachineOperatorBuilder;
+class SimplifiedOperatorBuilder;
 
 
 // Lowers certain JS-level runtime calls.
-class JSIntrinsicLowering final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSIntrinsicLowering final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  enum DeoptimizationMode { kDeoptimizationEnabled, kDeoptimizationDisabled };
-
-  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
-                      DeoptimizationMode mode);
+  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph);
   ~JSIntrinsicLowering() final {}
+
+  const char* reducer_name() const override { return "JSIntrinsicLowering"; }
 
   Reduction Reduce(Node* node) final;
 
  private:
-  Reduction ReduceConstructDouble(Node* node);
-  Reduction ReduceDateField(Node* node);
+  Reduction ReduceCreateIterResultObject(Node* node);
+  Reduction ReduceDebugIsActive(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
-  Reduction ReduceDoubleHi(Node* node);
-  Reduction ReduceDoubleLo(Node* node);
-  Reduction ReduceHeapObjectGetMap(Node* node);
-  Reduction ReduceIncrementStatsCounter(Node* node);
-  Reduction ReduceIsMinusZero(Node* node);
+  Reduction ReduceCreateJSGeneratorObject(Node* node);
+  Reduction ReduceGeneratorClose(Node* node);
+  Reduction ReduceGeneratorGetInputOrDebugPos(Node* node);
+  Reduction ReduceAsyncGeneratorReject(Node* node);
+  Reduction ReduceAsyncGeneratorResolve(Node* node);
+  Reduction ReduceAsyncGeneratorYield(Node* node);
+  Reduction ReduceGeneratorSaveInputForAwait(Node* node);
+  Reduction ReduceGeneratorGetResumeMode(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
-  Reduction ReduceIsNonNegativeSmi(Node* node);
+  Reduction ReduceIsJSReceiver(Node* node);
   Reduction ReduceIsSmi(Node* node);
-  Reduction ReduceJSValueGetValue(Node* node);
-  Reduction ReduceMapGetInstanceType(Node* node);
-  Reduction ReduceMathClz32(Node* node);
-  Reduction ReduceMathFloor(Node* node);
-  Reduction ReduceMathSqrt(Node* node);
-  Reduction ReduceSeqStringGetChar(Node* node, String::Encoding encoding);
-  Reduction ReduceSeqStringSetChar(Node* node, String::Encoding encoding);
-  Reduction ReduceStringGetLength(Node* node);
-  Reduction ReduceUnLikely(Node* node, BranchHint hint);
-  Reduction ReduceValueOf(Node* node);
-  Reduction ReduceFixedArrayGet(Node* node);
-  Reduction ReduceFixedArraySet(Node* node);
-  Reduction ReduceGetTypeFeedbackVector(Node* node);
-  Reduction ReduceGetCallerJSFunction(Node* node);
-  Reduction ReduceThrowNotDateError(Node* node);
+  Reduction ReduceRejectPromise(Node* node);
+  Reduction ReduceResolvePromise(Node* node);
+  Reduction ReduceToInteger(Node* node);
+  Reduction ReduceToLength(Node* node);
+  Reduction ReduceToNumber(Node* node);
   Reduction ReduceToObject(Node* node);
-  Reduction ReduceCallFunction(Node* node);
+  Reduction ReduceToString(Node* node);
+  Reduction ReduceCall(Node* node);
+  Reduction ReduceGetSuperConstructor(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c,
                    Node* d);
-  Reduction ChangeToUndefined(Node* node, Node* effect = nullptr);
+  Reduction Change(Node* node, Callable const& callable,
+                   int stack_parameter_count);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
-  MachineOperatorBuilder* machine() const;
-  DeoptimizationMode mode() const { return mode_; }
-  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* const jsgraph_;
-  DeoptimizationMode const mode_;
-  SimplifiedOperatorBuilder simplified_;
 };
 
 }  // namespace compiler

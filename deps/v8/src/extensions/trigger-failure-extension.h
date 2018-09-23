@@ -26,6 +26,7 @@ class TriggerFailureExtension : public v8::Extension {
   static const char* const kSource;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXTENSIONS_TRIGGER_FAILURE_EXTENSION_H_

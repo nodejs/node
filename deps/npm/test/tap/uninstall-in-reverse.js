@@ -8,10 +8,10 @@ The remove actions need to happen in the opposite of their normally defined
 order. That is, they need to go shallow -> deep.
 */
 
-var removed = []
+var unbuilt = []
 var npm = requireInject.installGlobally('../../lib/npm.js', {
-  '../../lib/install/action/remove.js': function (top, buildpath, pkg, log, next) {
-    removed.push(pkg.package.name)
+  '../../lib/install/action/unbuild.js': function (staging, pkg, log, next) {
+    unbuilt.push(pkg.package.name)
     next()
   }
 })
@@ -28,11 +28,11 @@ test('abc', function (t) {
   var inst = new Installer(__dirname, false, [])
   inst.progress = {executeActions: log}
   inst.todo = [
-    ['remove', {package: {name: 'first'}}],
-    ['remove', {package: {name: 'second'}}]
+    ['unbuild', {package: {name: 'first'}}],
+    ['unbuild', {package: {name: 'second'}}]
   ]
   inst.executeActions(function () {
-    t.isDeeply(removed, ['second', 'first'])
+    t.isDeeply(unbuilt, ['second', 'first'])
     t.end()
   })
 })

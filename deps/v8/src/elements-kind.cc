@@ -4,9 +4,9 @@
 
 #include "src/elements-kind.h"
 
-#include "src/api.h"
 #include "src/base/lazy-instance.h"
 #include "src/elements.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -26,23 +26,31 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case INT32_ELEMENTS:
     case FLOAT32_ELEMENTS:
       return 2;
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS:
     case FLOAT64_ELEMENTS:
+    case BIGINT64_ELEMENTS:
+    case BIGUINT64_ELEMENTS:
       return 3;
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SLOW_STRING_WRAPPER_ELEMENTS:
       return kPointerSizeLog2;
+    case NO_ELEMENTS:
+      UNREACHABLE();
   }
   UNREACHABLE();
-  return 0;
 }
 
+int ElementsKindToByteSize(ElementsKind elements_kind) {
+  return 1 << ElementsKindToShiftSize(elements_kind);
+}
 
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
@@ -62,26 +70,27 @@ const char* ElementsKindToString(ElementsKind kind) {
 
 
 struct InitializeFastElementsKindSequence {
-  static void Construct(
-      ElementsKind** fast_elements_kind_sequence_ptr) {
+  static void Construct(void* fast_elements_kind_sequence_ptr_arg) {
+    auto fast_elements_kind_sequence_ptr =
+        reinterpret_cast<ElementsKind**>(fast_elements_kind_sequence_ptr_arg);
     ElementsKind* fast_elements_kind_sequence =
         new ElementsKind[kFastElementsKindCount];
     *fast_elements_kind_sequence_ptr = fast_elements_kind_sequence;
-    STATIC_ASSERT(FAST_SMI_ELEMENTS == FIRST_FAST_ELEMENTS_KIND);
-    fast_elements_kind_sequence[0] = FAST_SMI_ELEMENTS;
-    fast_elements_kind_sequence[1] = FAST_HOLEY_SMI_ELEMENTS;
-    fast_elements_kind_sequence[2] = FAST_DOUBLE_ELEMENTS;
-    fast_elements_kind_sequence[3] = FAST_HOLEY_DOUBLE_ELEMENTS;
-    fast_elements_kind_sequence[4] = FAST_ELEMENTS;
-    fast_elements_kind_sequence[5] = FAST_HOLEY_ELEMENTS;
+    STATIC_ASSERT(PACKED_SMI_ELEMENTS == FIRST_FAST_ELEMENTS_KIND);
+    fast_elements_kind_sequence[0] = PACKED_SMI_ELEMENTS;
+    fast_elements_kind_sequence[1] = HOLEY_SMI_ELEMENTS;
+    fast_elements_kind_sequence[2] = PACKED_DOUBLE_ELEMENTS;
+    fast_elements_kind_sequence[3] = HOLEY_DOUBLE_ELEMENTS;
+    fast_elements_kind_sequence[4] = PACKED_ELEMENTS;
+    fast_elements_kind_sequence[5] = HOLEY_ELEMENTS;
 
     // Verify that kFastElementsKindPackedToHoley is correct.
-    STATIC_ASSERT(FAST_SMI_ELEMENTS + kFastElementsKindPackedToHoley ==
-                  FAST_HOLEY_SMI_ELEMENTS);
-    STATIC_ASSERT(FAST_DOUBLE_ELEMENTS + kFastElementsKindPackedToHoley ==
-                  FAST_HOLEY_DOUBLE_ELEMENTS);
-    STATIC_ASSERT(FAST_ELEMENTS + kFastElementsKindPackedToHoley ==
-                  FAST_HOLEY_ELEMENTS);
+    STATIC_ASSERT(PACKED_SMI_ELEMENTS + kFastElementsKindPackedToHoley ==
+                  HOLEY_SMI_ELEMENTS);
+    STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS + kFastElementsKindPackedToHoley ==
+                  HOLEY_DOUBLE_ELEMENTS);
+    STATIC_ASSERT(PACKED_ELEMENTS + kFastElementsKindPackedToHoley ==
+                  HOLEY_ELEMENTS);
   }
 };
 
@@ -105,7 +114,6 @@ int GetSequenceIndexFromFastElementsKind(ElementsKind elements_kind) {
     }
   }
   UNREACHABLE();
-  return 0;
 }
 
 
@@ -122,35 +130,115 @@ static inline bool IsFastTransitionTarget(ElementsKind elements_kind) {
 
 bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind) {
-  if (IsFixedTypedArrayElementsKind(from_kind) ||
-      IsFixedTypedArrayElementsKind(to_kind)) {
-    return false;
+  if (!IsFastElementsKind(from_kind)) return false;
+  if (!IsFastTransitionTarget(to_kind)) return false;
+  DCHECK(!IsFixedTypedArrayElementsKind(from_kind));
+  DCHECK(!IsFixedTypedArrayElementsKind(to_kind));
+  switch (from_kind) {
+    case PACKED_SMI_ELEMENTS:
+      return to_kind != PACKED_SMI_ELEMENTS;
+    case HOLEY_SMI_ELEMENTS:
+      return to_kind != PACKED_SMI_ELEMENTS && to_kind != HOLEY_SMI_ELEMENTS;
+    case PACKED_DOUBLE_ELEMENTS:
+      return to_kind != PACKED_SMI_ELEMENTS && to_kind != HOLEY_SMI_ELEMENTS &&
+             to_kind != PACKED_DOUBLE_ELEMENTS;
+    case HOLEY_DOUBLE_ELEMENTS:
+      return to_kind == PACKED_ELEMENTS || to_kind == HOLEY_ELEMENTS;
+    case PACKED_ELEMENTS:
+      return to_kind == HOLEY_ELEMENTS;
+    case HOLEY_ELEMENTS:
+      return false;
+    default:
+      return false;
   }
-  if (IsFastElementsKind(from_kind) && IsFastTransitionTarget(to_kind)) {
-    switch (from_kind) {
-      case FAST_SMI_ELEMENTS:
-        return to_kind != FAST_SMI_ELEMENTS;
-      case FAST_HOLEY_SMI_ELEMENTS:
-        return to_kind != FAST_SMI_ELEMENTS &&
-            to_kind != FAST_HOLEY_SMI_ELEMENTS;
-      case FAST_DOUBLE_ELEMENTS:
-        return to_kind != FAST_SMI_ELEMENTS &&
-            to_kind != FAST_HOLEY_SMI_ELEMENTS &&
-            to_kind != FAST_DOUBLE_ELEMENTS;
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        return to_kind == FAST_ELEMENTS ||
-            to_kind == FAST_HOLEY_ELEMENTS;
-      case FAST_ELEMENTS:
-        return to_kind == FAST_HOLEY_ELEMENTS;
-      case FAST_HOLEY_ELEMENTS:
-        return false;
-      default:
-        return false;
-    }
+}
+
+bool UnionElementsKindUptoSize(ElementsKind* a_out, ElementsKind b) {
+  // Assert that the union of two ElementKinds can be computed via std::max.
+  static_assert(PACKED_SMI_ELEMENTS < HOLEY_SMI_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  static_assert(HOLEY_SMI_ELEMENTS < PACKED_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  static_assert(PACKED_ELEMENTS < HOLEY_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  static_assert(PACKED_DOUBLE_ELEMENTS < HOLEY_DOUBLE_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  ElementsKind a = *a_out;
+  switch (a) {
+    case PACKED_SMI_ELEMENTS:
+      switch (b) {
+        case PACKED_SMI_ELEMENTS:
+        case HOLEY_SMI_ELEMENTS:
+        case PACKED_ELEMENTS:
+        case HOLEY_ELEMENTS:
+          *a_out = b;
+          return true;
+        default:
+          return false;
+      }
+    case HOLEY_SMI_ELEMENTS:
+      switch (b) {
+        case PACKED_SMI_ELEMENTS:
+        case HOLEY_SMI_ELEMENTS:
+          *a_out = HOLEY_SMI_ELEMENTS;
+          return true;
+        case PACKED_ELEMENTS:
+        case HOLEY_ELEMENTS:
+          *a_out = HOLEY_ELEMENTS;
+          return true;
+        default:
+          return false;
+      }
+    case PACKED_ELEMENTS:
+      switch (b) {
+        case PACKED_SMI_ELEMENTS:
+        case PACKED_ELEMENTS:
+          *a_out = PACKED_ELEMENTS;
+          return true;
+        case HOLEY_SMI_ELEMENTS:
+        case HOLEY_ELEMENTS:
+          *a_out = HOLEY_ELEMENTS;
+          return true;
+        default:
+          return false;
+      }
+    case HOLEY_ELEMENTS:
+      switch (b) {
+        case PACKED_SMI_ELEMENTS:
+        case HOLEY_SMI_ELEMENTS:
+        case PACKED_ELEMENTS:
+        case HOLEY_ELEMENTS:
+          *a_out = HOLEY_ELEMENTS;
+          return true;
+        default:
+          return false;
+      }
+      break;
+    case PACKED_DOUBLE_ELEMENTS:
+      switch (b) {
+        case PACKED_DOUBLE_ELEMENTS:
+        case HOLEY_DOUBLE_ELEMENTS:
+          *a_out = b;
+          return true;
+        default:
+          return false;
+      }
+    case HOLEY_DOUBLE_ELEMENTS:
+      switch (b) {
+        case PACKED_DOUBLE_ELEMENTS:
+        case HOLEY_DOUBLE_ELEMENTS:
+          *a_out = HOLEY_DOUBLE_ELEMENTS;
+          return true;
+        default:
+          return false;
+      }
+
+      break;
+    default:
+      break;
   }
   return false;
 }
-
 
 }  // namespace internal
 }  // namespace v8

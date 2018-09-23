@@ -1,0 +1,316 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module array {
+  // Naming convention from elements.cc. We have a similar intent but implement
+  // fastpaths using generics instead of using a class hierarchy for elements
+  // kinds specific implementations.
+  type GenericElementsAccessor;
+  type FastPackedSmiElements;
+  type FastPackedObjectElements;
+  type FastPackedDoubleElements;
+  type FastSmiOrObjectElements;
+  type FastDoubleElements;
+  type DictionaryElements;
+
+  macro GetLengthProperty(context: Context, o: Object): Number {
+    if (BranchIfFastJSArray(o, context)) {
+      let a: JSArray = unsafe_cast<JSArray>(o);
+      return a.length_fast;
+    } else
+      deferred {
+        return ToLength_Inline(context, GetProperty(context, o, 'length'));
+      }
+  }
+
+  macro FastArraySplice(
+      context: Context, args: constexpr Arguments, o: Object,
+      originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
+      actualDeleteCountNumber: Number): Object
+  labels Bailout {
+    let originalLength: Smi = cast<Smi>(originalLengthNumber) otherwise Bailout;
+    let actualStart: Smi = cast<Smi>(actualStartNumber) otherwise Bailout;
+    let actualDeleteCount: Smi =
+        cast<Smi>(actualDeleteCountNumber) otherwise Bailout;
+    let lengthDelta: Smi = insertCount - actualDeleteCount;
+    let newLength: Smi = originalLength + lengthDelta;
+
+    let a: JSArray = cast<JSArray>(o) otherwise Bailout;
+
+    let map: Map = a.map;
+    if (!IsPrototypeInitialArrayPrototype(context, map)) goto Bailout;
+    if (IsNoElementsProtectorCellInvalid()) goto Bailout;
+    if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
+
+    // Fast path only works on fast elements kind and with writable length.
+    let elementsKind: ElementsKind = EnsureArrayPushable(map) otherwise Bailout;
+    if (!IsFastElementsKind(elementsKind)) goto Bailout;
+
+    // For now, only support non-double fast elements
+    if (!IsFastSmiOrTaggedElementsKind(elementsKind)) goto Bailout;
+
+    if (IsFastSmiElementsKind(elementsKind)) {
+      for (let e: Object of args [2: ]) {
+        if (TaggedIsNotSmi(e)) goto Bailout;
+      }
+    }
+
+    // Make sure that the length hasn't been changed by side-effect.
+    let length: Smi = cast<Smi>(a.length) otherwise Bailout;
+    if (originalLength != length) goto Bailout;
+
+    let deletedResult: JSArray =
+        ExtractFastJSArray(context, a, actualStart, actualDeleteCount);
+
+    if (newLength == 0) {
+      a.elements = kEmptyFixedArray;
+      a.length = 0;
+      return deletedResult;
+    }
+
+    let elements: FixedArray = cast<FixedArray>(a.elements) otherwise Bailout;
+    let elementsMap: Map = elements.map;
+
+    // If the source is a COW array or the spliced array is larger then the
+    // source array, then allocate a new FixedArray to hold the result.
+    let newElements: FixedArray = elements;
+    if ((elementsMap == kCOWMap) || (lengthDelta > 0)) {
+      newElements = ExtractFixedArray(
+          elements, 0, actualStart, newLength, kAllFixedArrays);
+      newElements.map = elementsMap;
+      a.elements = newElements;
+    }
+
+    // Double check that the array is still in fast elements mode
+    assert(IsFastSmiElementsKind(a.map.elements_kind));
+
+    // Copy over inserted elements.
+    let k: Smi = actualStart;
+    if (insertCount > 0) {
+      for (let e: Object of args [2: ]) {
+        newElements[k++] = e;
+      }
+    }
+
+    // Copy over elements after deleted elements.
+    let count: Smi = length - actualStart - actualDeleteCount;
+    while (count > 0) {
+      let e: Object = elements[k - lengthDelta];
+      newElements[k++] = e;
+      count--;
+    }
+
+    // Fill rest of spliced FixedArray with the hole, but only if the
+    // destination FixedArray is the original array's, since otherwise the array
+    // is pre-filled with holes.
+    if (elements == newElements) {
+      let limit: Smi = elements.length;
+      while (k < limit) {
+        newElements[k++] = Hole;
+      }
+    }
+
+    // Update the array's length after all the FixedArray shuffling is done.
+    a.length = newLength;
+
+    return deletedResult;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-array.prototype.splice
+  javascript builtin ArraySpliceTorque(
+      context: Context, receiver: Object, ...arguments): Object {
+    // 1. Let O be ? ToObject(this value).
+    let o: JSReceiver = ToObject(context, receiver);
+
+    // 2. Let len be ? ToLength(? Get(O, "length")).
+    let len: Number = GetLengthProperty(context, o);
+
+    // 3. Let relativeStart be ? ToInteger(start).
+    let start: Object = arguments[0];
+    let relativeStart: Number = ToInteger_Inline(context, start);
+
+    // 4. If relativeStart < 0, let actualStart be max((len + relativeStart),
+    // 0);
+    //    else let actualStart be min(relativeStart, len).
+    let actualStart: Number = relativeStart < 0 ?
+        max((len + relativeStart), 0) :
+        min(relativeStart, len);
+
+    let insertCount: Smi;
+    let actualDeleteCount: Number;
+    // 5. If the Number of actual arguments is 0, then
+    if (arguments.length == 0) {
+      // a. Let insertCount be 0.
+      insertCount = 0;
+      // b. Let actualDeleteCount be 0.
+      actualDeleteCount = 0;
+      // 6. Else if the Number of actual arguments is 1, then
+    } else if (arguments.length == 1) {
+      // a. Let insertCount be 0.
+      insertCount = 0;
+      // b. Let actualDeleteCount be len - actualStart.
+      actualDeleteCount = len - actualStart;
+      // 7. Else,
+    } else {
+      // a. Let insertCount be the Number of actual arguments minus 2.
+      insertCount = convert<Smi>(arguments.length) - 2;
+      // b. Let dc be ? ToInteger(deleteCount).
+      let deleteCount: Object = arguments[1];
+      let dc: Number = ToInteger_Inline(context, deleteCount);
+      // c. Let actualDeleteCount be min(max(dc, 0), len - actualStart).
+      actualDeleteCount = min(max(dc, 0), len - actualStart);
+    }
+
+    // 8. If len + insertCount - actualDeleteCount > 2^53-1, throw a
+    //    Bailout exception.
+    if (len + insertCount - actualDeleteCount > kMaxSafeInteger) {
+      ThrowRangeError(context, kInvalidArrayLength);
+    }
+
+    try {
+      return FastArraySplice(
+          context, arguments, o, len, actualStart, insertCount,
+          actualDeleteCount) otherwise Bailout;
+    }
+    label Bailout {}
+    // If the fast case fails, just continue with the slow, correct,
+    // spec-compliant case.
+
+    // 9. Let A be ? ArraySpeciesCreate(O, actualDeleteCount).
+    let a: Object = ArraySpeciesCreate(context, o, actualDeleteCount);
+
+    // 10. Let k be 0.
+    let k: Number = 0;
+
+    // 11. Repeat, while k < actualDeleteCount
+    while (k < actualDeleteCount) {
+      // a. Let from be ! ToString(actualStart + k).
+      let from: String = ToString_Inline(context, actualStart + k);
+
+      // b. Let fromPresent be ? HasProperty(O, from).
+      let fromPresent: Oddball = HasProperty(context, o, from);
+
+      // c. If fromPresent is true, then
+      if (fromPresent == True) {
+        // i. Let fromValue be ? Get(O, from).
+        let fromValue: Object = GetProperty(context, o, from);
+
+        // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(k), fromValue).
+        CreateDataProperty(context, a, ToString_Inline(context, k), fromValue);
+      }
+
+      // d. Increment k by 1.
+      k = k + 1;
+    }
+
+    // 12. Perform ? Set(A, "length", actualDeleteCount, true).
+    SetProperty(context, a, 'length', actualDeleteCount);
+
+    // 13. Let items be a List whose elements are, in left-to-right order,
+    //     the portion of the actual argument list starting with the third
+    //     argument. The list is empty if fewer than three arguments were
+    //     passed.
+    // 14. Let itemCount be the Number of elements in items.
+    let itemCount: Number = insertCount;
+
+    // 15. If itemCount < actualDeleteCount, then
+    if (itemCount < actualDeleteCount) {
+      // a. Let k be actualStart.
+      let k: Number = actualStart;
+
+      // b. Repeat, while k < (len - actualDeleteCount)
+      while (k < (len - actualDeleteCount)) {
+        // i. Let from be ! ToString(k + actualDeleteCount).
+        let from: String = ToString_Inline(context, k + actualDeleteCount);
+        // ii. Let to be ! ToString(k + itemCount).
+        let to: String = ToString_Inline(context, k + itemCount);
+
+        // iii. Let fromPresent be ? HasProperty(O, from).
+        let fromPresent: Oddball = HasProperty(context, o, from);
+
+        // iv. If fromPresent is true, then
+        if (fromPresent == True) {
+          // 1. Let fromValue be ? Get(O, from).
+          let fromValue: Object = GetProperty(context, o, from);
+
+          // 2. Perform ? Set(O, to, fromValue, true).
+          SetProperty(context, o, to, fromValue);
+
+          // v. Else fromPresent is false,
+        } else {
+          // 1. Perform ? DeletePropertyOrThrow(O, to).
+          DeleteProperty(context, o, to, kStrict);
+        }
+        // vi. Increase k by 1.
+        k = k + 1;
+      }
+
+      // c. Let k be len.
+      k = len;
+      // d. Repeat, while k > (len - actualDeleteCount + itemCount)
+      while (k > (len - actualDeleteCount + itemCount)) {
+        // i. Perform ? DeletePropertyOrThrow(O, ! ToString(k - 1)).
+        DeleteProperty(context, o, ToString_Inline(context, k - 1), kStrict);
+
+        // ii. Decrease k by 1.
+        k = k - 1;
+      }
+      // 16. Else if itemCount > actualDeleteCount, then
+    } else if (itemCount > actualDeleteCount) {
+      // a. Let k be (len - actualDeleteCount).
+      let k: Number = len - actualDeleteCount;
+
+      // b. Repeat, while k > actualStart
+      while (k > actualStart) {
+        // i. Let from be ! ToString(k + actualDeleteCount - 1).
+        let from: String = ToString_Inline(context, k + actualDeleteCount - 1);
+
+        // ii. Let to be ! ToString(k + itemCount - 1).
+        let to: String = ToString_Inline(context, k + itemCount - 1);
+
+        // iii. Let fromPresent be ? HasProperty(O, from).
+        let fromPresent: Oddball = HasProperty(context, o, from);
+
+        // iv. If fromPresent is true, then
+        if (fromPresent == True) {
+          // 1. Let fromValue be ? Get(O, from).
+          let fromValue: Object = GetProperty(context, o, from);
+
+          // 2. Perform ? Set(O, to, fromValue, true).
+          SetProperty(context, o, to, fromValue);
+
+          // v. Else fromPresent is false,
+        } else {
+          // 1. Perform ? DeletePropertyOrThrow(O, to).
+          DeleteProperty(context, o, to, kStrict);
+        }
+
+        // vi. Decrease k by 1.
+        k = k - 1;
+      }
+    }
+
+    // 17. Let k be actualStart.
+    k = actualStart;
+
+    // 18. Repeat, while items is not empty
+    //   a. Remove the first element from items and let E be the value of that
+    //   element.
+    if (arguments.length > 2) {
+      for (let e: Object of arguments [2: ]) {
+        // b. Perform ? Set(O, ! ToString(k), E, true).
+        SetProperty(context, o, ToString_Inline(context, k), e);
+
+        // c. Increase k by 1.
+        k = k + 1;
+      }
+    }
+
+    // 19. Perform ? Set(O, "length", len - actualDeleteCount + itemCount,
+    // true).
+    SetProperty(context, o, 'length', len - actualDeleteCount + itemCount);
+
+    return a;
+  }
+}

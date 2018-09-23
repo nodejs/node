@@ -1,0 +1,30 @@
+Tests console object and it's prototype
+
+Running test: consoleExistsOnGlobal
+true
+
+Running test: consoleHasRightPropertyDescriptor
+{
+    configurable : true
+    enumerable : false
+    value : <value>
+    writable : true
+}
+
+Running test: ConsoleNotExistsOnGlobal
+false
+
+Running test: prototypeChainMustBeCorrect
+true
+
+Running test: consoleToString
+[object Object]
+
+Running test: consoleMethodPropertyDescriptor
+{
+    configurable : true
+    enumerable : true
+    value : {
+    }
+    writable : true
+}

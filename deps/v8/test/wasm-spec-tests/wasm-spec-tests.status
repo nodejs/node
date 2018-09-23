@@ -1,0 +1,46 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+[ALWAYS, {
+  #TODO(ahaas): Add additional stack checks on mips.
+  'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or ((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
+}],  # ALWAYS
+
+['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
+  # These tests fail because mips does not support the correct NaN bit patterns.
+  'tests/float_misc': [SKIP],
+  'tests/float_exprs': [SKIP],
+  'tests/f32': [SKIP],
+  'tests/f64': [SKIP],
+  'tests/f32_bitwise': [SKIP],
+  'tests/f64_bitwise': [SKIP],
+}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
+
+['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run', {
+  # This test fail because mips does not support the correct NaN bit patterns.
+  # But it doesn't fail in simulator.
+  'tests/conversions': [SKIP],
+}],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run'
+
+['arch == arm and not simulator_run', {
+  # Too slow on chromebooks.
+  'tests/br_table': [SKIP],
+}],  # 'arch == arm and not simulator_run'
+
+['arch == ppc or arch == ppc64', {
+  # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
+  'tests/f32': [SKIP],
+  'tests/f64': [SKIP],
+  # This test fails because ppc float to double doesn't convert sNaN to qNaN.
+  'tests/conversions': [SKIP],
+}],  # 'arch == ppc or arch == ppc64'
+
+['arch == s390 or arch == s390x', {
+  # These tests fail because s390 float min and max doesn't convert sNaN to qNaN.
+  'tests/f32': [SKIP],
+  'tests/f64': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
+
+]

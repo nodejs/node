@@ -12,13 +12,15 @@ function Int32Div(divisor) {
     name += "minus_";
   }
   name += Math.abs(divisor);
-  var m = eval("function Module(stdlib, foreign, heap) {\n"
-      + " \"use asm\";\n"
-      + " function " + name + "(dividend) {\n"
-      + "  return ((dividend | 0) / " + divisor + ") | 0;\n"
-      + " }\n"
-      + " return { f: " + name + "}\n"
-      + "}; Module");
+  var m = eval(
+      'function Module(stdlib, foreign, heap) {\n' +
+      ' "use asm";\n' +
+      ' function ' + name + '(dividend) {\n' +
+      '  dividend = dividend | 0;\n' +
+      '  return ((dividend | 0) / ' + divisor + ') | 0;\n' +
+      ' }\n' +
+      ' return { f: ' + name + '}\n' +
+      '}; Module');
   return m(stdlib, foreign, heap).f;
 }
 

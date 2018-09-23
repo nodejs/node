@@ -28,8 +28,8 @@
 // Flags: --allow-natives-syntax
 
 var a = new Array(0, 1, 2);
-assertTrue(%HasFastSmiElements(a));
+assertTrue(%HasSmiElements(a));
 var b = new Array(0.5, 1.2, 2.3);
-assertTrue(%HasFastDoubleElements(b));
+assertTrue(%HasDoubleElements(b));
 var c = new Array(0.5, 1.2, new Object());
-assertTrue(%HasFastObjectElements(c));
+assertTrue(%HasObjectElements(c));

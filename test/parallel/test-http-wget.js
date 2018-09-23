@@ -1,8 +1,29 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
 
 // wget sends an HTTP/1.0 request with Connection: Keep-Alive
 //
@@ -19,20 +40,17 @@ var http = require('http');
 // content-length is not provided, that the connection is in fact
 // closed.
 
-var server_response = '';
-var client_got_eof = false;
-var connection_was_closed = false;
-
-var server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+const server = http.createServer(function(req, res) {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('hello ');
   res.write('world\n');
   res.end();
 });
-server.listen(common.PORT);
+server.listen(0);
 
-server.on('listening', function() {
-  var c = net.createConnection(common.PORT);
+server.on('listening', common.mustCall(function() {
+  const c = net.createConnection(this.address().port);
+  let server_response = '';
 
   c.setEncoding('utf8');
 
@@ -46,22 +64,15 @@ server.on('listening', function() {
     server_response += chunk;
   });
 
-  c.on('end', function() {
-    client_got_eof = true;
+  c.on('end', common.mustCall(function() {
+    const m = server_response.split('\r\n\r\n');
+    assert.strictEqual(m[1], 'hello world\n');
     console.log('got end');
     c.end();
-  });
+  }));
 
-  c.on('close', function() {
-    connection_was_closed = true;
+  c.on('close', common.mustCall(function() {
     console.log('got close');
     server.close();
-  });
-});
-
-process.on('exit', function() {
-  var m = server_response.split('\r\n\r\n');
-  assert.equal(m[1], 'hello world\n');
-  assert.ok(client_got_eof);
-  assert.ok(connection_was_closed);
-});
+  }));
+}));

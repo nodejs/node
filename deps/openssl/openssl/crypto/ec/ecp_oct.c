@@ -1,62 +1,12 @@
-/* crypto/ec/ecp_oct.c */
 /*
- * Includes code written by Lenka Fibikova <fibikova@exp-math.uni-essen.de>
- * for the OpenSSL project. Includes code written by Bodo Moeller for the
- * OpenSSL project.
+ * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* ====================================================================
- * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
+
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  * Portions of this software developed by SUN MICROSYSTEMS, INC.,
@@ -103,7 +53,7 @@ int ec_GFp_simple_set_compressed_coordinates(const EC_GROUP *group,
      */
 
     /* tmp1 := x^3 */
-    if (!BN_nnmod(x, x_, &group->field, ctx))
+    if (!BN_nnmod(x, x_, group->field, ctx))
         goto err;
     if (group->meth->field_decode == 0) {
         /* field_{sqr,mul} work on standard representation */
@@ -112,48 +62,48 @@ int ec_GFp_simple_set_compressed_coordinates(const EC_GROUP *group,
         if (!group->meth->field_mul(group, tmp1, tmp2, x_, ctx))
             goto err;
     } else {
-        if (!BN_mod_sqr(tmp2, x_, &group->field, ctx))
+        if (!BN_mod_sqr(tmp2, x_, group->field, ctx))
             goto err;
-        if (!BN_mod_mul(tmp1, tmp2, x_, &group->field, ctx))
+        if (!BN_mod_mul(tmp1, tmp2, x_, group->field, ctx))
             goto err;
     }
 
     /* tmp1 := tmp1 + a*x */
     if (group->a_is_minus3) {
-        if (!BN_mod_lshift1_quick(tmp2, x, &group->field))
+        if (!BN_mod_lshift1_quick(tmp2, x, group->field))
             goto err;
-        if (!BN_mod_add_quick(tmp2, tmp2, x, &group->field))
+        if (!BN_mod_add_quick(tmp2, tmp2, x, group->field))
             goto err;
-        if (!BN_mod_sub_quick(tmp1, tmp1, tmp2, &group->field))
+        if (!BN_mod_sub_quick(tmp1, tmp1, tmp2, group->field))
             goto err;
     } else {
         if (group->meth->field_decode) {
-            if (!group->meth->field_decode(group, tmp2, &group->a, ctx))
+            if (!group->meth->field_decode(group, tmp2, group->a, ctx))
                 goto err;
-            if (!BN_mod_mul(tmp2, tmp2, x, &group->field, ctx))
+            if (!BN_mod_mul(tmp2, tmp2, x, group->field, ctx))
                 goto err;
         } else {
             /* field_mul works on standard representation */
-            if (!group->meth->field_mul(group, tmp2, &group->a, x, ctx))
+            if (!group->meth->field_mul(group, tmp2, group->a, x, ctx))
                 goto err;
         }
 
-        if (!BN_mod_add_quick(tmp1, tmp1, tmp2, &group->field))
+        if (!BN_mod_add_quick(tmp1, tmp1, tmp2, group->field))
             goto err;
     }
 
     /* tmp1 := tmp1 + b */
     if (group->meth->field_decode) {
-        if (!group->meth->field_decode(group, tmp2, &group->b, ctx))
+        if (!group->meth->field_decode(group, tmp2, group->b, ctx))
             goto err;
-        if (!BN_mod_add_quick(tmp1, tmp1, tmp2, &group->field))
+        if (!BN_mod_add_quick(tmp1, tmp1, tmp2, group->field))
             goto err;
     } else {
-        if (!BN_mod_add_quick(tmp1, tmp1, &group->b, &group->field))
+        if (!BN_mod_add_quick(tmp1, tmp1, group->b, group->field))
             goto err;
     }
 
-    if (!BN_mod_sqrt(y, tmp1, &group->field, ctx)) {
+    if (!BN_mod_sqrt(y, tmp1, group->field, ctx)) {
         unsigned long err = ERR_peek_last_error();
 
         if (ERR_GET_LIB(err) == ERR_LIB_BN
@@ -171,7 +121,7 @@ int ec_GFp_simple_set_compressed_coordinates(const EC_GROUP *group,
         if (BN_is_zero(y)) {
             int kron;
 
-            kron = BN_kronecker(x, &group->field, ctx);
+            kron = BN_kronecker(x, group->field, ctx);
             if (kron == -2)
                 goto err;
 
@@ -186,7 +136,7 @@ int ec_GFp_simple_set_compressed_coordinates(const EC_GROUP *group,
                       EC_R_INVALID_COMPRESSED_POINT);
             goto err;
         }
-        if (!BN_usub(y, &group->field, y))
+        if (!BN_usub(y, group->field, y))
             goto err;
     }
     if (y_bit != BN_is_odd(y)) {
@@ -202,8 +152,7 @@ int ec_GFp_simple_set_compressed_coordinates(const EC_GROUP *group,
 
  err:
     BN_CTX_end(ctx);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
+    BN_CTX_free(new_ctx);
     return ret;
 }
 
@@ -237,7 +186,7 @@ size_t ec_GFp_simple_point2oct(const EC_GROUP *group, const EC_POINT *point,
     }
 
     /* ret := required output buffer length */
-    field_len = BN_num_bytes(&group->field);
+    field_len = BN_num_bytes(group->field);
     ret =
         (form ==
          POINT_CONVERSION_COMPRESSED) ? 1 + field_len : 1 + 2 * field_len;
@@ -312,15 +261,13 @@ size_t ec_GFp_simple_point2oct(const EC_GROUP *group, const EC_POINT *point,
 
     if (used_ctx)
         BN_CTX_end(ctx);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
+    BN_CTX_free(new_ctx);
     return ret;
 
  err:
     if (used_ctx)
         BN_CTX_end(ctx);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
+    BN_CTX_free(new_ctx);
     return 0;
 }
 
@@ -361,7 +308,7 @@ int ec_GFp_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
         return EC_POINT_set_to_infinity(group, point);
     }
 
-    field_len = BN_num_bytes(&group->field);
+    field_len = BN_num_bytes(group->field);
     enc_len =
         (form ==
          POINT_CONVERSION_COMPRESSED) ? 1 + field_len : 1 + 2 * field_len;
@@ -385,7 +332,7 @@ int ec_GFp_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
 
     if (!BN_bin2bn(buf + 1, field_len, x))
         goto err;
-    if (BN_ucmp(x, &group->field) >= 0) {
+    if (BN_ucmp(x, group->field) >= 0) {
         ECerr(EC_F_EC_GFP_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
         goto err;
     }
@@ -397,7 +344,7 @@ int ec_GFp_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
     } else {
         if (!BN_bin2bn(buf + 1 + field_len, field_len, y))
             goto err;
-        if (BN_ucmp(y, &group->field) >= 0) {
+        if (BN_ucmp(y, group->field) >= 0) {
             ECerr(EC_F_EC_GFP_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
             goto err;
         }
@@ -408,21 +355,18 @@ int ec_GFp_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
             }
         }
 
+        /*
+         * EC_POINT_set_affine_coordinates_GFp is responsible for checking that
+         * the point is on the curve.
+         */
         if (!EC_POINT_set_affine_coordinates_GFp(group, point, x, y, ctx))
             goto err;
-    }
-
-    /* test required by X9.62 */
-    if (EC_POINT_is_on_curve(group, point, ctx) <= 0) {
-        ECerr(EC_F_EC_GFP_SIMPLE_OCT2POINT, EC_R_POINT_IS_NOT_ON_CURVE);
-        goto err;
     }
 
     ret = 1;
 
  err:
     BN_CTX_end(ctx);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
+    BN_CTX_free(new_ctx);
     return ret;
 }

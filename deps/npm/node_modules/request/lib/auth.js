@@ -1,12 +1,11 @@
 'use strict'
 
 var caseless = require('caseless')
-  , uuid = require('node-uuid')
-  , helpers = require('./helpers')
+var uuid = require('uuid/v4')
+var helpers = require('./helpers')
 
 var md5 = helpers.md5
-  , toBase64 = helpers.toBase64
-
+var toBase64 = helpers.toBase64
 
 function Auth (request) {
   // define all public properties here
@@ -126,7 +125,7 @@ Auth.prototype.digest = function (method, path, authHeader) {
 
 Auth.prototype.onRequest = function (user, pass, sendImmediately, bearer) {
   var self = this
-    , request = self.request
+  var request = self.request
 
   var authHeader
   if (bearer === undefined && user === undefined) {
@@ -143,7 +142,7 @@ Auth.prototype.onRequest = function (user, pass, sendImmediately, bearer) {
 
 Auth.prototype.onResponse = function (response) {
   var self = this
-    , request = self.request
+  var request = self.request
 
   if (!self.hasAuth || self.sentAuth) { return null }
 

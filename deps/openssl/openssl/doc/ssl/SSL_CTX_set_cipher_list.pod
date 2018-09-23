@@ -15,7 +15,7 @@ SSL_CTX_set_cipher_list, SSL_set_cipher_list - choose list of available SSL_CIPH
 
 SSL_CTX_set_cipher_list() sets the list of available ciphers for B<ctx>
 using the control string B<str>. The format of the string is described
-in L<ciphers(1)|ciphers(1)>. The list of ciphers is inherited by all
+in L<ciphers(1)>. The list of ciphers is inherited by all
 B<ssl> objects created from B<ctx>.
 
 SSL_set_cipher_list() sets the list of ciphers only for B<ssl>.
@@ -31,32 +31,24 @@ at all.
 
 It should be noted, that inclusion of a cipher to be used into the list is
 a necessary condition. On the client side, the inclusion into the list is
-also sufficient. On the server side, additional restrictions apply. All ciphers
-have additional requirements. ADH ciphers don't need a certificate, but
-DH-parameters must have been set. All other ciphers need a corresponding
-certificate and key.
+also sufficient unless the security level excludes it. On the server side,
+additional restrictions apply. All ciphers have additional requirements.
+ADH ciphers don't need a certificate, but DH-parameters must have been set.
+All other ciphers need a corresponding certificate and key.
 
 A RSA cipher can only be chosen, when a RSA certificate is available.
-RSA export ciphers with a keylength of 512 bits for the RSA key require
-a temporary 512 bit RSA key, as typically the supplied key has a length
-of 1024 bit (see
-L<SSL_CTX_set_tmp_rsa_callback(3)|SSL_CTX_set_tmp_rsa_callback(3)>).
 RSA ciphers using DHE need a certificate and key and additional DH-parameters
-(see L<SSL_CTX_set_tmp_dh_callback(3)|SSL_CTX_set_tmp_dh_callback(3)>).
+(see L<SSL_CTX_set_tmp_dh_callback(3)>).
 
 A DSA cipher can only be chosen, when a DSA certificate is available.
 DSA ciphers always use DH key exchange and therefore need DH-parameters
-(see L<SSL_CTX_set_tmp_dh_callback(3)|SSL_CTX_set_tmp_dh_callback(3)>).
+(see L<SSL_CTX_set_tmp_dh_callback(3)>).
 
 When these conditions are not met for any cipher in the list (e.g. a
-client only supports export RSA ciphers with a asymmetric key length
+client only supports export RSA ciphers with an asymmetric key length
 of 512 bits and the server is not configured to use temporary RSA
 keys), the "no shared cipher" (SSL_R_NO_SHARED_CIPHER) error is generated
 and the handshake will fail.
-
-If the cipher list does not contain any SSLv2 cipher suites (this is the
-default) then SSLv2 is effectively disabled and neither clients nor servers
-will attempt to use SSLv2.
 
 =head1 RETURN VALUES
 
@@ -65,10 +57,18 @@ could be selected and 0 on complete failure.
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>, L<SSL_get_ciphers(3)|SSL_get_ciphers(3)>,
-L<SSL_CTX_use_certificate(3)|SSL_CTX_use_certificate(3)>,
-L<SSL_CTX_set_tmp_rsa_callback(3)|SSL_CTX_set_tmp_rsa_callback(3)>,
-L<SSL_CTX_set_tmp_dh_callback(3)|SSL_CTX_set_tmp_dh_callback(3)>,
-L<ciphers(1)|ciphers(1)>
+L<ssl(3)>, L<SSL_get_ciphers(3)>,
+L<SSL_CTX_use_certificate(3)>,
+L<SSL_CTX_set_tmp_dh_callback(3)>,
+L<ciphers(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

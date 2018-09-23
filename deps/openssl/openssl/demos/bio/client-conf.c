@@ -1,3 +1,13 @@
+/*
+ * Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#include <string.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
@@ -16,10 +26,6 @@ int main(int argc, char **argv)
     const char *connect_str = "localhost:4433";
     long errline = -1;
 
-    ERR_load_crypto_strings();
-    ERR_load_SSL_strings();
-    SSL_library_init();
-
     conf = NCONF_new(NULL);
 
     if (NCONF_load(conf, "connect.cnf", &errline) <= 0) {
@@ -37,7 +43,7 @@ int main(int argc, char **argv)
         goto end;
     }
 
-    ctx = SSL_CTX_new(SSLv23_client_method());
+    ctx = SSL_CTX_new(TLS_client_method());
     cctx = SSL_CONF_CTX_new();
     SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CLIENT);
     SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_FILE);
@@ -53,7 +59,7 @@ int main(int argc, char **argv)
             ERR_print_errors_fp(stderr);
             goto end;
         }
-        if (!strcmp(cnf->name, "Connect")) {
+        if (strcmp(cnf->name, "Connect") == 0) {
             connect_str = cnf->value;
         } else {
             fprintf(stderr, "Unknown configuration option %s\n", cnf->name);
@@ -64,7 +70,7 @@ int main(int argc, char **argv)
     if (!SSL_CONF_CTX_finish(cctx)) {
         fprintf(stderr, "Finish error\n");
         ERR_print_errors_fp(stderr);
-        goto err;
+        goto end;
     }
 
     /*

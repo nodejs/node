@@ -1,8 +1,5 @@
 SHELL := /bin/bash
 
-test:
-	@node test/runner.js
-
 release-major: test
 	npm version major -m "Release %s"
 	git push
@@ -18,5 +15,4 @@ release-patch: test
 	git push
 	npm publish
 
-.PHONY: test
-
+.PHONY: test release-major release-minor release-patch

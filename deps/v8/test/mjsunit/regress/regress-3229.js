@@ -12,12 +12,11 @@ testEscapes("\\/", /\//);
 testEscapes("\\/\\/", /\/\//);
 testEscapes("\\/", new RegExp("/"));
 testEscapes("\\/", new RegExp("\\/"));
-testEscapes("\\\\/", new RegExp("\\\\/"));
+testEscapes("\\\\\\/", new RegExp("\\\\/"));
 testEscapes("\\/\\/", new RegExp("\\/\\/"));
 testEscapes("\\/\\/\\/\\/", new RegExp("////"));
 testEscapes("\\/\\/\\/\\/", new RegExp("\\//\\//"));
 testEscapes("(?:)", new RegExp(""));
-testEscapes("(?:)", RegExp.prototype);
 
 // Read-only property.
 var r = /\/\//;

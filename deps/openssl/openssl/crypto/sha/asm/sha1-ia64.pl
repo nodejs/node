@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -13,6 +20,8 @@
 # bits of 64-bit register. Just follow mux2 and shrp instructions...
 # Performance under big-endian OS such as HP-UX is 179MBps*1GHz, which
 # is >50% better than HP C and >2x better than gcc.
+
+$output = pop;
 
 $code=<<___;
 .ident  \"sha1-ia64.s, version 1.3\"
@@ -301,5 +310,5 @@ $code.=<<___;
 stringz	"SHA1 block transform for IA64, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 
-$output=shift and open STDOUT,">$output";
+open STDOUT,">$output" if $output;
 print $code;

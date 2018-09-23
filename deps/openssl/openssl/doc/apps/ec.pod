@@ -2,11 +2,13 @@
 
 =head1 NAME
 
+openssl-ec,
 ec - EC key processing
 
 =head1 SYNOPSIS
 
 B<openssl> B<ec>
+[B<-help>]
 [B<-inform PEM|DER>]
 [B<-outform PEM|DER>]
 [B<-in filename>]
@@ -23,19 +25,25 @@ B<openssl> B<ec>
 [B<-pubout>]
 [B<-conv_form arg>]
 [B<-param_enc arg>]
+[B<-no_public>]
+[B<-check>]
 [B<-engine id>]
 
 =head1 DESCRIPTION
 
 The B<ec> command processes EC keys. They can be converted between various
-forms and their components printed out. B<Note> OpenSSL uses the 
+forms and their components printed out. B<Note> OpenSSL uses the
 private key format specified in 'SEC 1: Elliptic Curve Cryptography'
-(http://www.secg.org/). To convert a OpenSSL EC private key into the
+(http://www.secg.org/). To convert an OpenSSL EC private key into the
 PKCS#8 private key format use the B<pkcs8> command.
 
-=head1 COMMAND OPTIONS
+=head1 OPTIONS
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
 
 =item B<-inform DER|PEM>
 
@@ -48,7 +56,7 @@ PKCS#8 format is also accepted.
 
 =item B<-outform DER|PEM>
 
-This specifies the output format, the options have the same meaning as the 
+This specifies the output format, the options have the same meaning as the
 B<-inform> option.
 
 =item B<-in filename>
@@ -60,7 +68,7 @@ prompted for.
 =item B<-passin arg>
 
 the input file password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-out filename>
 
@@ -72,11 +80,11 @@ filename.
 =item B<-passout arg>
 
 the output file password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-des|-des3|-idea>
 
-These options encrypt the private key with the DES, triple DES, IDEA or 
+These options encrypt the private key with the DES, triple DES, IDEA or
 any other cipher supported by OpenSSL before outputting it. A pass phrase is
 prompted for.
 If none of these options is specified the key is written in plain text. This
@@ -122,11 +130,19 @@ the preprocessor macro B<OPENSSL_EC_BIN_PT_COMP> at compile time.
 
 This specifies how the elliptic curve parameters are encoded.
 Possible value are: B<named_curve>, i.e. the ec parameters are
-specified by a OID, or B<explicit> where the ec parameters are
-explicitly given (see RFC 3279 for the definition of the 
+specified by an OID, or B<explicit> where the ec parameters are
+explicitly given (see RFC 3279 for the definition of the
 EC parameters structures). The default value is B<named_curve>.
-B<Note> the B<implicitlyCA> alternative ,as specified in RFC 3279,
+B<Note> the B<implicitlyCA> alternative, as specified in RFC 3279,
 is currently not implemented in OpenSSL.
+
+=item B<-no_public>
+
+This option omits the public key components from the private key output.
+
+=item B<-check>
+
+this option checks the consistency of an EC private or public key.
 
 =item B<-engine id>
 
@@ -155,7 +171,7 @@ To encrypt a private key using triple DES:
 
  openssl ec -in key.pem -des3 -out keyout.pem
 
-To convert a private key from PEM to DER format: 
+To convert a private key from PEM to DER format:
 
  openssl ec -in key.pem -outform DER -out keyout.der
 
@@ -177,14 +193,15 @@ To change the point conversion form to B<compressed>:
 
 =head1 SEE ALSO
 
-L<ecparam(1)|ecparam(1)>, L<dsa(1)|dsa(1)>, L<rsa(1)|rsa(1)>
+L<ecparam(1)>, L<dsa(1)>, L<rsa(1)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-The ec command was first introduced in OpenSSL 0.9.8.
+Copyright 2003-2016 The OpenSSL Project Authors. All Rights Reserved.
 
-=head1 AUTHOR
-
-Nils Larsch for the OpenSSL project (http://www.openssl.org).
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

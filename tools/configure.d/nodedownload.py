@@ -35,7 +35,7 @@ def retrievefile(url, targetfile):
     try:
         sys.stdout.write(' <%s>\nConnecting...\r' % url)
         sys.stdout.flush()
-        msg = ConfigOpener().retrieve(url, targetfile, reporthook=reporthook)
+        ConfigOpener().retrieve(url, targetfile, reporthook=reporthook)
         print ''  # clear the line
         return targetfile
     except:
@@ -60,7 +60,7 @@ def unpack(packedfile, parent_path):
             icuzip.extractall(parent_path)
             return parent_path
     elif tarfile.is_tarfile(packedfile):
-        with tarfile.TarFile.open(packedfile, 'r') as icuzip:
+        with contextlib.closing(tarfile.TarFile.open(packedfile, 'r')) as icuzip:
             print ' Extracting tarfile: %s' % packedfile
             icuzip.extractall(parent_path)
             return parent_path

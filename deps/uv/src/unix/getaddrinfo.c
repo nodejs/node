@@ -32,6 +32,7 @@
 #include <stddef.h> /* NULL */
 #include <stdlib.h>
 #include <string.h>
+#include <net/if.h> /* if_indextoname() */
 
 /* EAI_* constants. */
 #include <netdb.h>
@@ -85,7 +86,7 @@ int uv__getaddrinfo_translate_error(int sys_err) {
   case EAI_SOCKTYPE: return UV_EAI_SOCKTYPE;
 #endif
 #if defined(EAI_SYSTEM)
-  case EAI_SYSTEM: return -errno;
+  case EAI_SYSTEM: return UV__ERR(errno);
 #endif
   }
   assert(!"unknown EAI_* error code");
@@ -124,7 +125,7 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   req->service = NULL;
   req->hostname = NULL;
 
-  if (status == -ECANCELED) {
+  if (status == UV_ECANCELED) {
     assert(req->retcode == 0);
     req->retcode = UV_EAI_CANCELED;
   }
@@ -147,7 +148,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   char* buf;
 
   if (req == NULL || (hostname == NULL && service == NULL))
-    return -EINVAL;
+    return UV_EINVAL;
 
   hostname_len = hostname ? strlen(hostname) + 1 : 0;
   service_len = service ? strlen(service) + 1 : 0;
@@ -155,7 +156,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   buf = uv__malloc(hostname_len + service_len + hints_len);
 
   if (buf == NULL)
-    return -ENOMEM;
+    return UV_ENOMEM;
 
   uv__req_init(loop, req, UV_GETADDRINFO);
   req->loop = loop;
@@ -199,4 +200,33 @@ int uv_getaddrinfo(uv_loop_t* loop,
 void uv_freeaddrinfo(struct addrinfo* ai) {
   if (ai)
     freeaddrinfo(ai);
+}
+
+
+int uv_if_indextoname(unsigned int ifindex, char* buffer, size_t* size) {
+  char ifname_buf[UV_IF_NAMESIZE];
+  size_t len;
+
+  if (buffer == NULL || size == NULL || *size == 0)
+    return UV_EINVAL;
+
+  if (if_indextoname(ifindex, ifname_buf) == NULL)
+    return UV__ERR(errno);
+
+  len = strnlen(ifname_buf, sizeof(ifname_buf));
+
+  if (*size <= len) {
+    *size = len + 1;
+    return UV_ENOBUFS;
+  }
+
+  memcpy(buffer, ifname_buf, len);
+  buffer[len] = '\0';
+  *size = len;
+
+  return 0;
+}
+
+int uv_if_indextoiid(unsigned int ifindex, char* buffer, size_t* size) {
+  return uv_if_indextoname(ifindex, buffer, size);
 }

@@ -21,8 +21,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-sloppy
-
 description('Tests for ES6 class syntax declarations');
 
 var constructorCallCount = 0;
@@ -66,9 +64,9 @@ shouldThrow("class X { set constructor() {} }", "'SyntaxError: Class constructor
 shouldNotThrow("class X { constructor() {} static constructor() { return staticMethodValue; } }");
 shouldBe("class X { constructor() {} static constructor() { return staticMethodValue; } }; X.constructor()", "staticMethodValue");
 
-shouldThrow("class X { constructor() {} static prototype() {} }", "'SyntaxError: Classes may not have static property named prototype'");
-shouldThrow("class X { constructor() {} static get prototype() {} }", "'SyntaxError: Classes may not have static property named prototype'");
-shouldThrow("class X { constructor() {} static set prototype() {} }", "'SyntaxError: Classes may not have static property named prototype'");
+shouldThrow("class X { constructor() {} static prototype() {} }", '"SyntaxError: Classes may not have a static property named \'prototype\'"');
+shouldThrow("class X { constructor() {} static get prototype() {} }", '"SyntaxError: Classes may not have a static property named \'prototype\'"');
+shouldThrow("class X { constructor() {} static set prototype() {} }", '"SyntaxError: Classes may not have a static property named \'prototype\'"');
 shouldNotThrow("class X { constructor() {} prototype() { return instanceMethodValue; } }");
 shouldBe("class X { constructor() {} prototype() { return instanceMethodValue; } }; (new X).prototype()", "instanceMethodValue");
 

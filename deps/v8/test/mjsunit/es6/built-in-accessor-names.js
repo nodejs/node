@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-tostring
-
 'use strict';
 
 function assertGetterName(expected, object, name) {
@@ -23,25 +21,13 @@ assertGetterName('get size', Set.prototype, 'size');
 assertGetterName('get size', Map.prototype, 'size');
 
 
-let typedArrays = [
-  Uint8Array,
-  Int8Array,
-  Uint16Array,
-  Int16Array,
-  Uint32Array,
-  Int32Array,
-  Float32Array,
-  Float64Array,
-  Uint8ClampedArray
-];
+let TypedArray = Uint8Array.__proto__;
 
-for (let f of typedArrays) {
-  assertGetterName('get buffer', f.prototype, 'buffer');
-  assertGetterName('get byteOffset', f.prototype, 'byteOffset');
-  assertGetterName('get byteLength', f.prototype, 'byteLength');
-  assertGetterName('get length', f.prototype, 'length');
-  assertGetterName('get [Symbol.toStringTag]', f.prototype, Symbol.toStringTag);
-}
+assertGetterName('get buffer', TypedArray.prototype, 'buffer');
+assertGetterName('get byteOffset', TypedArray.prototype, 'byteOffset');
+assertGetterName('get byteLength', TypedArray.prototype, 'byteLength');
+assertGetterName('get length', TypedArray.prototype, 'length');
+assertGetterName('get [Symbol.toStringTag]', TypedArray.prototype, Symbol.toStringTag);
 
 
 assertGetterName('get buffer', DataView.prototype, 'buffer');

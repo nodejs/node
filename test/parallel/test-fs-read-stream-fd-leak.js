@@ -1,17 +1,17 @@
 'use strict';
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
+require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
-var openCount = 0;
-var _fsopen = fs.open;
-var _fsclose = fs.close;
+let openCount = 0;
+const _fsopen = fs.open;
+const _fsclose = fs.close;
 
-var loopCount = 50;
-var totalCheck = 50;
-var emptyTxt = path.join(common.fixturesDir, 'empty.txt');
+const loopCount = 50;
+const totalCheck = 50;
+const emptyTxt = fixtures.path('empty.txt');
 
 fs.open = function() {
   openCount++;
@@ -24,25 +24,30 @@ fs.close = function() {
 };
 
 function testLeak(endFn, callback) {
-  console.log('testing for leaks from fs.createReadStream().%s()...', endFn);
+  console.log(`testing for leaks from fs.createReadStream().${endFn}()...`);
 
-  var i = 0;
-  var check = 0;
+  let i = 0;
+  let check = 0;
 
-  var checkFunction = function() {
-    if (openCount != 0 && check < totalCheck) {
+  function checkFunction() {
+    if (openCount !== 0 && check < totalCheck) {
       check++;
       setTimeout(checkFunction, 100);
       return;
     }
-    assert.equal(0, openCount, 'no leaked file descriptors using ' +
-                 endFn + '() (got ' + openCount + ')');
+
+    assert.strictEqual(
+      0,
+      openCount,
+      `no leaked file descriptors using ${endFn}() (got ${openCount})`
+    );
+
     openCount = 0;
     callback && setTimeout(callback, 100);
-  };
+  }
 
   setInterval(function() {
-    var s = fs.createReadStream(emptyTxt);
+    const s = fs.createReadStream(emptyTxt);
     s[endFn]();
 
     if (++i === loopCount) {

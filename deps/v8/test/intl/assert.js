@@ -27,6 +27,14 @@
 
 // Some methods are taken from v8/test/mjsunit/mjsunit.js
 
+
+function classOf(object) {
+   // Argument must not be null or undefined.
+   var string = Object.prototype.toString.call(object);
+   // String has format [object <ClassName>].
+   return string.substring(8, string.length - 1);
+}
+
 /**
  * Compares two objects for key/value equality.
  * Returns true if they are equal, false otherwise.
@@ -87,14 +95,13 @@ function deepEquals(a, b) {
   return deepObjectEquals(a, b);
 }
 
-
 /**
- * Throws an exception, and prints the values in case of error.
+ * Throws an exception containing the user_message (if any) and the values.
  */
-function fail(expected, found) {
+function fail(expected, found, user_message = '') {
   // TODO(cira): Replace String with PrettyPrint for objects and arrays.
-  var message = 'Failure: expected <' + String(expected) + '>, found <' +
-      String(found) + '>.';
+  var message = 'Failure' + (user_message ? ' (' + user_message + ')' : '') +
+      ': expected <' + String(expected) + '>, found <' + String(found) + '>.';
   throw new Error(message);
 }
 
@@ -102,9 +109,9 @@ function fail(expected, found) {
 /**
  * Throws if two variables have different types or values.
  */
-function assertEquals(expected, found) {
+function assertEquals(expected, found, user_message = '') {
   if (!deepEquals(expected, found)) {
-    fail(expected, found);
+    fail(expected, found, user_message);
   }
 }
 
@@ -112,49 +119,59 @@ function assertEquals(expected, found) {
 /**
  * Throws if value is false.
  */
-function assertTrue(value) {
-  assertEquals(true, value)
+function assertTrue(value, user_message = '') {
+  assertEquals(true, value, user_message);
 }
 
 
 /**
  * Throws if value is true.
  */
-function assertFalse(value) {
-  assertEquals(false, value);
+function assertFalse(value, user_message = '') {
+  assertEquals(false, value, user_message);
 }
 
 
 /**
- * Returns true if code throws specified exception.
+ * Throws if value is null.
+ */
+function assertNotNull(value, user_message = '') {
+  if (value === null) {
+    fail("not null", value, user_message);
+  }
+}
+
+
+/**
+ * Runs code() and asserts that it throws the specified exception.
  */
 function assertThrows(code, type_opt, cause_opt) {
-  var threwException = true;
   try {
     if (typeof code == 'function') {
       code();
     } else {
       eval(code);
     }
-    threwException = false;
   } catch (e) {
     if (typeof type_opt == 'function') {
       assertInstanceof(e, type_opt);
     }
     if (arguments.length >= 3) {
-      assertEquals(e.type, cause_opt);
+      assertEquals(cause_opt, e.type, 'thrown exception type mismatch');
     }
     // Success.
     return;
   }
-  throw new Error("Did not throw exception");
+  var expected = arguments.length >= 3 ? cause_opt :
+      typeof type_opt == 'function' ? type_opt : 'any exception';
+  fail(expected, 'no exception', 'expected thrown exception');
 }
 
 
 /**
- * Throws an exception if code throws.
+ * Runs code() and asserts that it does now throw any exception.
  */
-function assertDoesNotThrow(code, name_opt) {
+function assertDoesNotThrow(code, user_message = '') {
   try {
     if (typeof code == 'function') {
       code();
@@ -162,7 +179,7 @@ function assertDoesNotThrow(code, name_opt) {
       eval(code);
     }
   } catch (e) {
-    fail("threw an exception: ", e.message || e, name_opt);
+    fail("no expection", "exception: " + String(e), user_message);
   }
 }
 
@@ -173,12 +190,43 @@ function assertDoesNotThrow(code, name_opt) {
 function assertInstanceof(obj, type) {
   if (!(obj instanceof type)) {
     var actualTypeName = null;
-    var actualConstructor = Object.prototypeOf(obj).constructor;
+    var actualConstructor = Object.getPrototypeOf(obj).constructor;
     if (typeof actualConstructor == "function") {
       actualTypeName = actualConstructor.name || String(actualConstructor);
     }
     throw new Error('Object <' + obj + '> is not an instance of <' +
-         (type.name || type) + '>' +
-         (actualTypeName ? ' but of < ' + actualTypeName + '>' : ''));
+                    (type.name || type) + '>' +
+                    (actualTypeName ? ' but of < ' + actualTypeName + '>' : ''));
+  }
+}
+
+
+/**
+ * Split a BCP 47 language tag into locale and extension.
+ */
+function splitLanguageTag(tag) {
+  var extRe = /(-[0-9A-Za-z](-[0-9A-Za-z]{2,8})+)+$/;
+  var match = %regexp_internal_match(extRe, tag);
+  if (match) {
+    return { locale: tag.slice(0, match.index), extension: match[0] };
+  }
+
+  return { locale: tag, extension: '' };
+}
+
+
+/**
+ * Throw if |parent| is not a more general language tag of |child|, nor |child|
+ * itself, per BCP 47 rules.
+ */
+function assertLanguageTag(child, parent) {
+  var childSplit = splitLanguageTag(child);
+  var parentSplit = splitLanguageTag(parent);
+
+  // Do not compare extensions at this moment, as %GetDefaultICULocale()
+  // doesn't always output something we support.
+  if (childSplit.locale !== parentSplit.locale &&
+      !childSplit.locale.startsWith(parentSplit.locale + '-')) {
+    fail(child, parent, 'language tag comparison');
   }
 }

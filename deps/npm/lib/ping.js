@@ -1,4 +1,5 @@
 var npm = require('./npm.js')
+var output = require('./utils/output.js')
 
 module.exports = ping
 
@@ -13,8 +14,14 @@ function ping (args, silent, cb) {
   if (!registry) return cb(new Error('no default registry set'))
   var auth = npm.config.getCredentialsByURI(registry)
 
-  npm.registry.ping(registry, {auth: auth}, function (er, pong) {
-    if (!silent) console.log(JSON.stringify(pong))
-    cb(er, er ? null : pong)
+  npm.registry.ping(registry, {auth: auth}, function (er, pong, data, res) {
+    if (!silent) {
+      if (er) {
+        output('Ping error: ' + er)
+      } else {
+        output('Ping success: ' + JSON.stringify(pong))
+      }
+    }
+    cb(er, er ? null : pong, data, res)
   })
 }

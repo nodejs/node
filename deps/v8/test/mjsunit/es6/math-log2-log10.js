@@ -44,7 +44,9 @@
 for (var i = -310; i <= 308; i += 0.5) {
   assertEquals(i, Math.log10(Math.pow(10, i)));
   // Square roots are tested below.
-  if (i != -0.5 && i != 0.5) assertEquals(i, Math.log2(Math.pow(2, i)));
+  if (i != -0.5 && i != 0.5 ) {
+    assertEqualsDelta(i, Math.log2(Math.pow(2, i)), Number.EPSILON);
+  }
 }
 
 // Test denormals.
@@ -57,13 +59,13 @@ assertEqualsDelta(-9.643274665532873e-17, Math.log10(1-Number.EPSILON), 3e-32);
 var n = -1074;
 // This loop covers n from -1074 to -1043
 for (var lowbits = 1; lowbits <= 0x80000000; lowbits *= 2) {
-  var x = %_ConstructDouble(0, lowbits);
+  var x = %ConstructDouble(0, lowbits);
   assertEquals(n, Math.log2(x));
   n++;
 }
 // This loop covers n from -1042 to -1023
 for (var hibits = 1; hibits <= 0x80000; hibits *= 2) {
-  var x = %_ConstructDouble(hibits, 0);
+  var x = %ConstructDouble(hibits, 0);
   assertEquals(n, Math.log2(x));
   n++;
 }

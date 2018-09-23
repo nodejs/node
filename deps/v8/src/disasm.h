@@ -24,6 +24,12 @@ class NameConverter {
   virtual const char* NameOfConstant(byte* addr) const;
   virtual const char* NameInCode(byte* addr) const;
 
+  // Given a root-relative offset, returns either a name or nullptr if none is
+  // found.
+  // TODO(jgruber,v8:7989): This is a temporary solution until we can preserve
+  // code comments through snapshotting.
+  virtual const char* RootRelativeName(int offset) const { UNREACHABLE(); }
+
  protected:
   v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
 };
@@ -32,10 +38,21 @@ class NameConverter {
 // A generic Disassembler interface
 class Disassembler {
  public:
-  // Caller deallocates converter.
-  explicit Disassembler(const NameConverter& converter);
+  enum UnimplementedOpcodeAction : int8_t {
+    kContinueOnUnimplementedOpcode,
+    kAbortOnUnimplementedOpcode
+  };
 
-  virtual ~Disassembler();
+  // Caller deallocates converter.
+  explicit Disassembler(const NameConverter& converter,
+                        UnimplementedOpcodeAction unimplemented_opcode_action =
+                            kAbortOnUnimplementedOpcode)
+      : converter_(converter),
+        unimplemented_opcode_action_(unimplemented_opcode_action) {}
+
+  UnimplementedOpcodeAction unimplemented_opcode_action() const {
+    return unimplemented_opcode_action_;
+  }
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
@@ -47,9 +64,13 @@ class Disassembler {
 
   // Write disassembly into specified file 'f' using specified NameConverter
   // (see constructor).
-  static void Disassemble(FILE* f, byte* begin, byte* end);
+  static void Disassemble(FILE* f, byte* begin, byte* end,
+                          UnimplementedOpcodeAction unimplemented_action =
+                              kAbortOnUnimplementedOpcode);
+
  private:
   const NameConverter& converter_;
+  const UnimplementedOpcodeAction unimplemented_opcode_action_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Disassembler);
 };

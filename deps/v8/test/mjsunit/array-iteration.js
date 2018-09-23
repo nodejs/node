@@ -45,17 +45,22 @@
   // Use specified object as this object when calling the function.
   var o = { value: 42 }
   a = [1,42,3,42,4];
-  assertArrayEquals([42,42], a.filter(function(n) { return this.value == n }, o))
+  assertArrayEquals([42,42],
+      a.filter(function(n) { return this.value == n }, o))
 
   // Modify original array.
   a = [1,42,3,42,4];
-  assertArrayEquals([42,42], a.filter(function(n, index, array) { array[index] = 43; return 42 == n; }));
+  assertArrayEquals([42,42],
+      a.filter(function(n, index, array) {
+          array[index] = 43; return 42 == n;
+      }));
   assertArrayEquals([43,43,43,43,43], a);
 
   // Only loop through initial part of array eventhough elements are
   // added.
   a = [1,1];
-  assertArrayEquals([], a.filter(function(n, index, array) { array.push(n+1); return n == 2; }));
+  assertArrayEquals([],
+      a.filter(function(n, index, array) { array.push(n+1); return n == 2; }));
   assertArrayEquals([1,1,2,2], a);
 
   // Respect holes.
@@ -67,6 +72,31 @@
   var a = a.filter(function(n) { count++; return n == 2; });
   assertEquals(3, count);
   for (var i in a) assertEquals(2, a[i]);
+
+  // Skip over missing properties.
+  a = {
+    "0": 0,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  assertArrayEquals([2],
+      Array.prototype.filter.call(a, function(n) {
+        received.push(n);
+        return n == 2;
+      }));
+  assertArrayEquals([0, 2], received);
+
+  // Modify array prototype
+  a = [0, , 2];
+  received = [];
+  assertArrayEquals([2],
+      Array.prototype.filter.call(a, function(n) {
+        a.__proto__ = null;
+        received.push(n);
+        return n == 2;
+      }));
+  assertArrayEquals([0, 2], received);
 
   // Create a new object in each function call when receiver is a
   // primitive value. See ECMA-262, Annex C.
@@ -126,6 +156,26 @@
   a.forEach(function(n) { count++; });
   assertEquals(1, count);
 
+  // Skip over missing properties.
+  a = {
+    "0": 0,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  Array.prototype.forEach.call(a, function(n) { received.push(n); });
+  assertArrayEquals([0, 2], received);
+
+  // Modify array prototype
+  a = [0, , 2];
+  received = [];
+  Array.prototype.forEach.call(a, function(n) {
+    a.__proto__ = null;
+    received.push(n);
+    return n == 2;
+  });
+  assertArrayEquals([0, 2], received);
+
   // Create a new object in each function call when receiver is a
   // primitive value. See ECMA-262, Annex C.
   a = [];
@@ -166,13 +216,19 @@
 
   // Modify original array.
   a = [0,1];
-  assertFalse(a.every(function(n, index, array) { array[index] = n + 1; return n == 1;}));
+  assertFalse(
+      a.every(function(n, index, array) {
+        array[index] = n + 1; return n == 1;
+      }));
   assertArrayEquals([1,1], a);
 
   // Only loop through initial part of array eventhough elements are
   // added.
   a = [1,1];
-  assertTrue(a.every(function(n, index, array) { array.push(n + 1); return n == 1;}));
+  assertTrue(
+      a.every(function(n, index, array) {
+        array.push(n + 1); return n == 1;
+      }));
   assertArrayEquals([1,1,2,2], a);
 
   // Respect holes.
@@ -182,6 +238,31 @@
   a[15] = 2;
   assertTrue(a.every(function(n) { count++; return n == 2; }));
   assertEquals(2, count);
+
+  // Skip over missing properties.
+  a = {
+    "0": 2,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  assertTrue(
+      Array.prototype.every.call(a, function(n) {
+        received.push(n);
+        return n == 2;
+      }));
+  assertArrayEquals([2, 2], received);
+
+  // Modify array prototype
+  a = [2, , 2];
+  received = [];
+  assertTrue(
+      Array.prototype.every.call(a, function(n) {
+        a.__proto__ = null;
+        received.push(n);
+        return n == 2;
+      }));
+  assertArrayEquals([2, 2], received);
 
   // Create a new object in each function call when receiver is a
   // primitive value. See ECMA-262, Annex C.
@@ -221,14 +302,18 @@
   // Modify original array.
   a = [0,1,2,3,4];
   result = [1,2,3,4,5];
-  assertArrayEquals(result, a.map(function(n, index, array) { array[index] = n + 1; return n + 1;}));
+  assertArrayEquals(result,
+      a.map(function(n, index, array) {
+        array[index] = n + 1; return n + 1;
+      }));
   assertArrayEquals(result, a);
 
   // Only loop through initial part of array eventhough elements are
   // added.
   a = [0,1,2,3,4];
   result = [1,2,3,4,5];
-  assertArrayEquals(result, a.map(function(n, index, array) { array.push(n); return n + 1;}));
+  assertArrayEquals(result,
+      a.map(function(n, index, array) { array.push(n); return n + 1; }));
   assertArrayEquals([0,1,2,3,4,0,1,2,3,4], a);
 
   // Respect holes.
@@ -236,6 +321,31 @@
   a[15] = 2;
   a = a.map(function(n) { return 2*n; });
   for (var i in a) assertEquals(4, a[i]);
+
+  // Skip over missing properties.
+  a = {
+    "0": 1,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  assertArrayEquals([2, , 4],
+      Array.prototype.map.call(a, function(n) {
+        received.push(n);
+        return n * 2;
+      }));
+  assertArrayEquals([1, 2], received);
+
+  // Modify array prototype
+  a = [1, , 2];
+  received = [];
+  assertArrayEquals([2, , 4],
+      Array.prototype.map.call(a, function(n) {
+        a.__proto__ = null;
+        received.push(n);
+        return n * 2;
+      }));
+  assertArrayEquals([1, 2], received);
 
   // Create a new object in each function call when receiver is a
   // primitive value. See ECMA-262, Annex C.
@@ -275,12 +385,15 @@
 
   // Modify original array.
   a = [0,1,2,3];
-  assertTrue(a.some(function(n, index, array) { array[index] = n + 1; return n == 2; }));
+  assertTrue(
+      a.some(function(n, index, array) {
+        array[index] = n + 1; return n == 2; }));
   assertArrayEquals([1,2,3,3], a);
 
   // Only loop through initial part when elements are added.
   a = [0,1,2];
-  assertFalse(a.some(function(n, index, array) { array.push(42); return n == 42; }));
+  assertFalse(
+      a.some(function(n, index, array) { array.push(42); return n == 42; }));
   assertArrayEquals([0,1,2,42,42,42], a);
 
   // Respect holes.

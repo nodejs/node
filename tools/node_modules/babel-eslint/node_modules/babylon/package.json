@@ -1,0 +1,74 @@
+{
+  "_from": "babylon@7.0.0-beta.36",
+  "_id": "babylon@7.0.0-beta.36",
+  "_inBundle": false,
+  "_integrity": "sha512-rw4YdadGwajAMMRl6a5swhQ0JCOOFyaYCfJ0AsmNBD8uBD/r4J8mux7wBaqavvFKqUKQYWOzA1Speams4YDzsQ==",
+  "_location": "/babel-eslint/babylon",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "babylon@7.0.0-beta.36",
+    "name": "babylon",
+    "escapedName": "babylon",
+    "rawSpec": "7.0.0-beta.36",
+    "saveSpec": null,
+    "fetchSpec": "7.0.0-beta.36"
+  },
+  "_requiredBy": [
+    "/babel-eslint",
+    "/babel-eslint/@babel/template",
+    "/babel-eslint/@babel/traverse"
+  ],
+  "_resolved": "https://registry.npmjs.org/babylon/-/babylon-7.0.0-beta.36.tgz",
+  "_shasum": "3a3683ba6a9a1e02b0aa507c8e63435e39305b9e",
+  "_spec": "babylon@7.0.0-beta.36",
+  "_where": "/home/mzasso/git/nodejs/node/tools/babel-eslint-tmp/node_modules/babel-eslint",
+  "author": {
+    "name": "Sebastian McKenzie",
+    "email": "sebmck@gmail.com"
+  },
+  "bin": {
+    "babylon": "./bin/babylon.js"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "A JavaScript parser",
+  "devDependencies": {
+    "@babel/helper-fixtures": "7.0.0-beta.36",
+    "babel-plugin-transform-charcodes": "0.0.10",
+    "charcodes": "0.0.10",
+    "rollup": "^0.50.0",
+    "rollup-plugin-babel": "^4.0.0-beta.0",
+    "rollup-plugin-node-resolve": "^3.0.0",
+    "rollup-watch": "^4.0.0",
+    "unicode-10.0.0": "^0.7.4"
+  },
+  "engines": {
+    "node": ">=4.2.0"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "homepage": "https://babeljs.io/",
+  "keywords": [
+    "babel",
+    "javascript",
+    "parser",
+    "tc39",
+    "ecmascript",
+    "babylon"
+  ],
+  "license": "MIT",
+  "main": "lib/index.js",
+  "name": "babylon",
+  "publishConfig": {
+    "tag": "next"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel/tree/master/packages/babylon"
+  },
+  "version": "7.0.0-beta.36"
+}

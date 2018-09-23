@@ -1,0 +1,449 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module test {
+  macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
+    if constexpr((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
+        return true;
+      }
+    else {
+      return false;
+    }
+  }
+
+  macro ElementsKindTestHelper2(kind: constexpr ElementsKind): bool {
+    return ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS));
+  }
+
+  macro ElementsKindTestHelper3(kind: constexpr ElementsKind): constexpr bool {
+    return ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS));
+  }
+
+  macro LabelTestHelper1(): never
+  labels Label1 {
+    goto Label1;
+  }
+
+  macro LabelTestHelper2(): never
+  labels Label2(Smi) {
+    goto Label2(42);
+  }
+
+  macro LabelTestHelper3(): never
+  labels Label3(String, Smi) {
+    goto Label3('foo', 7);
+  }
+
+  macro TestConstexpr1() {
+    check(from_constexpr<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
+  }
+
+  macro TestConstexprIf() {
+    check(ElementsKindTestHelper1(UINT8_ELEMENTS));
+    check(ElementsKindTestHelper1(UINT16_ELEMENTS));
+    check(!ElementsKindTestHelper1(UINT32_ELEMENTS));
+  }
+
+  macro TestConstexprReturn() {
+    check(from_constexpr<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
+    check(from_constexpr<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
+    check(!from_constexpr<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(from_constexpr<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
+  }
+
+  macro TestGotoLabel(): Boolean {
+    try {
+      LabelTestHelper1() otherwise Label1;
+    }
+    label Label1 {
+      return True;
+    }
+  }
+
+  macro TestGotoLabelWithOneParameter(): Boolean {
+    try {
+      LabelTestHelper2() otherwise Label2;
+    }
+    label Label2(smi: Smi) {
+      check(smi == 42);
+      return True;
+    }
+  }
+
+  macro TestGotoLabelWithTwoParameters(): Boolean {
+    try {
+      LabelTestHelper3() otherwise Label3;
+    }
+    label Label3(str: String, smi: Smi) {
+      check(str == 'foo');
+      check(smi == 7);
+      return True;
+    }
+  }
+
+  builtin GenericBuiltinTest<T : type>(c: Context, param: T): Object {
+    return Null;
+  }
+
+  GenericBuiltinTest<Object>(c: Context, param: Object): Object {
+    return param;
+  }
+
+  macro TestBuiltinSpecialization(c: Context) {
+    check(GenericBuiltinTest<Smi>(c, 0) == Null);
+    check(GenericBuiltinTest<Smi>(c, 1) == Null);
+    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
+    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
+  }
+
+  macro LabelTestHelper4(flag: constexpr bool): never labels Label4, Label5 {
+    if constexpr(flag) {
+      goto Label4;
+    } else {
+      goto Label5;
+    }
+  }
+
+  macro CallLabelTestHelper4(flag: constexpr bool): bool {
+    try {
+      LabelTestHelper4(flag) otherwise Label4, Label5;
+    }
+    label Label4 {
+      return true;
+    }
+    label Label5 {
+      return false;
+    }
+  }
+
+  macro TestPartiallyUnusedLabel(): Boolean {
+    let r1: bool = CallLabelTestHelper4(true);
+    let r2: bool = CallLabelTestHelper4(false);
+
+    if (r1 && !r2) {
+      return True;
+    } else {
+      return False;
+    }
+  }
+
+  macro GenericMacroTest<T : type>(param: T): Object {
+    return Undefined;
+  }
+
+  GenericMacroTest<Object>(param2: Object): Object {
+    return param2;
+  }
+
+  macro GenericMacroTestWithLabels<T : type>(param: T): Object labels X {
+    return Undefined;
+  }
+
+  GenericMacroTestWithLabels<Object>(param2: Object): Object labels Y {
+    return param2;
+  }
+
+  macro TestMacroSpecialization() {
+    try {
+      check(GenericMacroTest<Smi>(0) == Undefined);
+      check(GenericMacroTest<Smi>(1) == Undefined);
+      check(GenericMacroTest<Object>(Null) == Null);
+      check(GenericMacroTest<Object>(False) == False);
+      check(GenericMacroTest<Object>(True) == True);
+      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
+      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
+      check(GenericMacroTestWithLabels<Object>(Null) otherwise Fail == Null);
+      check(GenericMacroTestWithLabels<Object>(False) otherwise Fail == False);
+    }
+    label Fail {
+      unreachable;
+    }
+  }
+
+  builtin TestHelperPlus1(context: Context, x: Smi): Smi {
+    return x + 1;
+  }
+  builtin TestHelperPlus2(context: Context, x: Smi): Smi {
+    return x + 2;
+  }
+
+  macro TestFunctionPointers(context: Context): Boolean {
+    let fptr: builtin(Context, Smi) => Smi = TestHelperPlus1;
+    check(fptr(context, 42) == 43);
+    fptr = TestHelperPlus2;
+    check(fptr(context, 42) == 44);
+    return True;
+  }
+
+  macro TestVariableRedeclaration(context: Context): Boolean {
+    let var1: int31 = from_constexpr<bool>(42 == 0) ? 0 : 1;
+    let var2: int31 = from_constexpr<bool>(42 == 0) ? 1 : 0;
+    return True;
+  }
+
+  macro TestTernaryOperator(x: Smi): Smi {
+    let b: bool = x < 0 ? true : false;
+    return b ? x - 10 : x + 100;
+  }
+
+  macro TestFunctionPointerToGeneric(c: Context) {
+    let fptr1: builtin(Context, Smi) => Object = GenericBuiltinTest<Smi>;
+    let fptr2: builtin(Context, Object) => Object = GenericBuiltinTest<Object>;
+
+    check(fptr1(c, 0) == Null);
+    check(fptr1(c, 1) == Null);
+    check(fptr2(c, Undefined) == Undefined);
+    check(fptr2(c, Undefined) == Undefined);
+  }
+
+  type SmiToSmi = builtin(Smi) => Smi;
+  macro TestTypeAlias(x: SmiToSmi): Code {
+    return x;
+  }
+
+  macro TestUnsafeCast(c: Context, n: Number): Boolean {
+    if (TaggedIsSmi(n)) {
+      let m: Smi = unsafe_cast<Smi>(n);
+
+      check(TestHelperPlus1(c, m) == 11);
+      return True;
+    }
+    return False;
+  }
+
+  macro TestHexLiteral() {
+    check(convert<intptr>(0xffff) + 1 == 0x10000);
+    check(convert<intptr>(-0xffff) == -65535);
+  }
+
+  macro TestLargeIntegerLiterals(c: Context) {
+    let x: int32 = 0x40000000;
+    let y: int32 = 0x7fffffff;
+  }
+
+  macro TestMultilineAssert() {
+    let someVeryLongVariableNameThatWillCauseLineBreaks: Smi = 5;
+    check(
+        someVeryLongVariableNameThatWillCauseLineBreaks > 0 &&
+        someVeryLongVariableNameThatWillCauseLineBreaks < 10);
+  }
+
+  macro TestNewlineInString() {
+    Print('Hello, World!\n');
+  }
+
+  const kConstexprConst: constexpr int31 = 5;
+  const kIntptrConst: intptr = 4;
+  const kSmiConst: Smi = 3;
+
+  macro TestModuleConstBindings() {
+    check(kConstexprConst == Int32Constant(5));
+    check(kIntptrConst == 4);
+    check(kSmiConst == 3);
+  }
+
+  macro TestLocalConstBindings() {
+    const x : constexpr int31 = 3;
+    const x_smi : Smi = x;
+    {
+      const x : Smi = x + from_constexpr<Smi>(1);
+      check(x == x_smi + 1);
+      const x_smi : Smi = x;
+      check(x == x_smi);
+      check(x == 4);
+    }
+    check(x_smi == 3);
+    check(x == x_smi);
+  }
+
+  struct TestStructA {
+    indexes: FixedArray;
+    i: Smi;
+    k: Number;
+  }
+
+  struct TestStructB {
+    x: TestStructA;
+    y: Smi;
+  }
+
+  macro TestStruct1(i: TestStructA): Smi {
+    return i.i;
+  }
+
+  macro TestStruct2(): TestStructA {
+    return TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 27, 31};
+  }
+
+  macro TestStruct3(): TestStructA {
+    let a: TestStructA =
+    TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 13, 5};
+    let b: TestStructA = a;
+    let c: TestStructA = TestStruct2();
+    a.i = TestStruct1(c);
+    a.k = a.i;
+    let d: TestStructB;
+    d.x = a;
+    d = TestStructB{a, 7};
+    let e: TestStructA = d.x;
+    let f: Smi = TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 27, 31}.i;
+    f = TestStruct2().i;
+    return a;
+  }
+
+  struct TestStructC {
+    x : TestStructA;
+    y : TestStructA;
+  }
+
+  macro TestStruct4(): TestStructC {
+    return TestStructC{TestStruct2(), TestStruct2()};
+  }
+
+  // This macro tests different versions of the for-loop where some parts
+  // are (not) present.
+  macro TestForLoop() {
+    let sum: Smi = 0;
+    for (let i: Smi = 0; i < 5; ++i) sum += i;
+    check(sum == 10);
+
+    sum = 0;
+    let j: Smi = 0;
+    for (; j < 5; ++j) sum += j;
+    check(sum == 10);
+
+    sum = 0;
+    j = 0;
+    for (; j < 5;) sum += j++;
+    check(sum == 10);
+
+    // Check that break works. No test expression.
+    sum = 0;
+    for (let i: Smi = 0;; ++i) {
+      if (i == 5) break;
+      sum += i;
+    }
+    check(sum == 10);
+
+    sum = 0;
+    j = 0;
+    for (;;) {
+      if (j == 5) break;
+      sum += j;
+      j++;
+    }
+    check(sum == 10);
+
+    // The following tests are the same as above, but use continue to skip
+    // index 3.
+    sum = 0;
+    for (let i: Smi = 0; i < 5; ++i) {
+      if (i == 3) continue;
+      sum += i;
+    }
+    check(sum == 7);
+
+    sum = 0;
+    j = 0;
+    for (; j < 5; ++j) {
+      if (j == 3) continue;
+      sum += j;
+    }
+    check(sum == 7);
+
+    sum = 0;
+    j = 0;
+    for (; j < 5;) {
+      if (j == 3) {
+        j++;
+        continue;
+      }
+      sum += j;
+      j++;
+    }
+    check(sum == 7);
+
+    sum = 0;
+    for (let i: Smi = 0;; ++i) {
+      if (i == 3) continue;
+      if (i == 5) break;
+      sum += i;
+    }
+    check(sum == 7);
+
+    sum = 0;
+    j = 0;
+    for (;;) {
+      if (j == 3) {
+        j++;
+        continue;
+      }
+
+      if (j == 5) break;
+      sum += j;
+      j++;
+    }
+    check(sum == 7);
+  }
+
+  macro TestSubtyping(x : Smi) {
+    const foo : Object = x;
+  }
+
+  macro IncrementIfSmi<A : type>(x : A) : A {
+    typeswitch (x) {
+      case (x : Smi) {
+        return x + 1;
+      } case (o : A) {
+        return o;
+      }
+    }
+  }
+
+  macro TypeswitchExample(x : Number | FixedArray) : int32 {
+    let result : int32 = 0;
+    typeswitch (IncrementIfSmi<(Number|FixedArray)>(x)) {
+      case (x : FixedArray) {
+        result = result + 1;
+      } case (Number) {
+        result = result + 2;
+      }
+    }
+
+    result = result * 10;
+
+    typeswitch (IncrementIfSmi<(Number|FixedArray)>(x)) {
+      case (x : Smi) {
+        result = result + convert<int32>(x);
+      } case (a : FixedArray) {
+        result = result + convert<int32>(a.length);
+      } case (x : HeapNumber) {
+        result = result + 7;
+      }
+    }
+
+    return result;
+  }
+
+  macro TestTypeswitch() {
+    check(TypeswitchExample(from_constexpr<Smi>(5)) == 26);
+    const a : FixedArray = AllocateZeroedFixedArray(3);
+    check(TypeswitchExample(a) == 13);
+    check(TypeswitchExample(from_constexpr<Number>(0.5)) == 27);
+  }
+
+  macro ExampleGenericOverload<A: type>(o : Object) : A {
+    return o;
+  }
+  macro ExampleGenericOverload<A: type>(o : Smi) : A {
+    return o + 1;
+  }
+
+  macro TestGenericOverload() {
+    const x_smi : Smi = 5;
+    const x_object : Object = x_smi;
+    check(ExampleGenericOverload<Smi>(x_smi) == 6);
+    check(unsafe_cast<Smi>(ExampleGenericOverload<Object>(x_object)) == 5);
+  }
+}

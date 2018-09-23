@@ -2,73 +2,51 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
+#include "src/isolate-inl.h"
 #include "src/objects-inl.h"
+#include "src/runtime/runtime-utils.h"
+#include "src/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_CreateSymbol) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
-  Handle<Symbol> symbol = isolate->factory()->NewSymbol();
-  if (name->IsString()) symbol->set_name(*name);
-  return *symbol;
-}
-
-
 RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
-  return *isolate->factory()->NewPrivateSymbol(name);
-}
-
-
-RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  Handle<JSObject> registry = isolate->GetSymbolRegistry();
-  Handle<String> part = isolate->factory()->private_intern_string();
-  Handle<Object> privates;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, privates,
-                                     Object::GetProperty(registry, part));
-  Handle<Object> symbol;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, symbol,
-                                     Object::GetProperty(privates, name));
-  if (!symbol->IsSymbol()) {
-    DCHECK(symbol->IsUndefined());
-    symbol = isolate->factory()->NewPrivateSymbol(name);
-    JSObject::AddProperty(Handle<JSObject>::cast(privates), name, symbol, NONE);
+  DCHECK_GE(1, args.length());
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
+  if (args.length() == 1) {
+    CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
+    CHECK(name->IsString() || name->IsUndefined(isolate));
+    if (name->IsString()) symbol->set_name(*name);
   }
   return *symbol;
 }
 
-
-RUNTIME_FUNCTION(Runtime_SymbolDescription) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Symbol, symbol, 0);
-  return symbol->name();
+RUNTIME_FUNCTION(Runtime_CreatePrivateFieldSymbol) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateFieldSymbol();
+  return *symbol;
 }
 
-
-RUNTIME_FUNCTION(Runtime_SymbolRegistry) {
+RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  return *isolate->GetSymbolRegistry();
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCString("Symbol(");
+  if (symbol->name()->IsString()) {
+    builder.AppendString(handle(String::cast(symbol->name()), isolate));
+  }
+  builder.AppendCharacter(')');
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
 
 RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
   return isolate->heap()->ToBoolean(symbol->is_private());
 }

@@ -1,14 +1,30 @@
 'use strict';
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
 
-var c = net.createConnection(common.PORT, '...');
+// This tests that the error thrown from net.createConnection
+// comes with host and port properties.
+// See https://github.com/nodejs/node-v0.x-archive/issues/7005
 
-c.on('connect', common.fail);
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
+
+const { addresses } = require('../common/internet');
+const {
+  errorLookupMock,
+  mockedErrorCode
+} = require('../common/dns');
+
+// Using port 0 as hostname used is already invalid.
+const c = net.createConnection({
+  port: 0,
+  host: addresses.INVALID_HOST,
+  lookup: common.mustCall(errorLookupMock())
+});
+
+c.on('connect', common.mustNotCall());
 
 c.on('error', common.mustCall(function(e) {
-  assert.equal(e.code, 'ENOTFOUND');
-  assert.equal(e.port, common.PORT);
-  assert.equal(e.hostname, '...');
+  assert.strictEqual(e.code, mockedErrorCode);
+  assert.strictEqual(e.port, 0);
+  assert.strictEqual(e.hostname, addresses.INVALID_HOST);
 }));

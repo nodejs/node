@@ -112,8 +112,8 @@ ares_parse_soa_reply(const unsigned char *abuf, int alen,
   soa->expire = DNS__32BIT(aptr + 3 * 4);
   soa->minttl = DNS__32BIT(aptr + 4 * 4);
 
-  free(qname);
-  free(rr_name);
+  ares_free(qname);
+  ares_free(rr_name);
 
   *soa_out = soa;
 
@@ -125,9 +125,9 @@ failed:
 failed_stat:
   ares_free_data(soa);
   if (qname)
-    free(qname);
+    ares_free(qname);
   if (rr_name)
-    free(rr_name);
+    ares_free(rr_name);
   return status;
 }
 

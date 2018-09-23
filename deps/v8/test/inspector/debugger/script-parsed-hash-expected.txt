@@ -1,0 +1,46 @@
+Tests scripts hasing
+{
+    endColumn : 1
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 28e2d6c1ab1f4e4e82675bc4cd924d3481abe278
+    isLiveEdit : false
+    isModule : false
+    length : 1
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : foo1.js
+}
+{
+    endColumn : 3
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 3dce1fbe923a7e1582675bc4cd924d3481abe278
+    isLiveEdit : false
+    isModule : false
+    length : 3
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : foo2.js
+}
+{
+    endColumn : 8106
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 2a3f94401c23c4d8336963ce4656dae27a95edb4
+    isLiveEdit : false
+    isModule : false
+    length : 8106
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : foo3.js
+}

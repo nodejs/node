@@ -27,7 +27,7 @@
    grows as needed to accommodate the points.
 
    To use the index, an offset in the uncompressed data is provided, for which
-   the latest accees point at or preceding that offset is located in the index.
+   the latest access point at or preceding that offset is located in the index.
    The input file is positioned to the specified location in the index, and if
    necessary the first few bits of the compressed data is read from the file.
    inflate is initialized with those bits and the 32K of uncompressed data, and

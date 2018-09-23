@@ -8,26 +8,12 @@
 
 #include "src/assembler.h"
 #include "src/macro-assembler.h"
-#include "src/simulator.h"  // for cache flushing.
 
 namespace v8 {
 namespace internal {
 
 void CpuFeatures::FlushICache(void* buffer, size_t size) {
-  // Nothing to do flushing no instructions.
-  if (size == 0) {
-    return;
-  }
-
-#if defined(USE_SIMULATOR)
-  // Not generating PPC instructions for C-code. This means that we are
-  // building an PPC emulator based target.  We should notify the simulator
-  // that the Icache was flushed.
-  // None of this code ends up in the snapshot so there are no issues
-  // around whether or not to generate the code when building snapshots.
-  Simulator::FlushICache(Isolate::Current()->simulator_i_cache(), buffer, size);
-#else
-
+#if !defined(USE_SIMULATOR)
   if (CpuFeatures::IsSupported(INSTR_AND_DATA_CACHE_COHERENCY)) {
     __asm__ __volatile__(
         "sync \n"
@@ -39,7 +25,7 @@ void CpuFeatures::FlushICache(void* buffer, size_t size) {
     return;
   }
 
-  const int kCacheLineSize = CpuFeatures::cache_line_size();
+  const int kCacheLineSize = CpuFeatures::icache_line_size();
   intptr_t mask = kCacheLineSize - 1;
   byte *start =
       reinterpret_cast<byte *>(reinterpret_cast<intptr_t>(buffer) & ~mask);
@@ -54,7 +40,7 @@ void CpuFeatures::FlushICache(void* buffer, size_t size) {
         : "r"(pointer));
   }
 
-#endif  // USE_SIMULATOR
+#endif  // !USE_SIMULATOR
 }
 }  // namespace internal
 }  // namespace v8

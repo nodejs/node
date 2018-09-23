@@ -4,33 +4,51 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 // test creating and reading hard link
-const srcPath = path.join(common.fixturesDir, 'cycles', 'root.js');
-const dstPath = path.join(common.tmpDir, 'link1.js');
+const srcPath = path.join(tmpdir.path, 'hardlink-target.txt');
+const dstPath = path.join(tmpdir.path, 'link1.js');
+fs.writeFileSync(srcPath, 'hello world');
 
-const callback = function(err) {
-  if (err) throw err;
-  const srcContent = fs.readFileSync(srcPath, 'utf8');
+function callback(err) {
+  assert.ifError(err);
   const dstContent = fs.readFileSync(dstPath, 'utf8');
-  assert.strictEqual(srcContent, dstContent);
-};
+  assert.strictEqual('hello world', dstContent);
+}
 
 fs.link(srcPath, dstPath, common.mustCall(callback));
 
 // test error outputs
 
-assert.throws(
-  function() {
-    fs.link();
-  },
-  /src path/
-);
-
-assert.throws(
-  function() {
-    fs.link('abc');
-  },
-  /dest path/
-);
+[false, 1, [], {}, null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.link(i, '', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.link('', i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.linkSync(i, ''),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.linkSync('', i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});

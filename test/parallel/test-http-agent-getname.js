@@ -1,13 +1,16 @@
 'use strict';
 
-var assert = require('assert');
-var http = require('http');
-var common = require('../common');
+require('../common');
+const assert = require('assert');
+const http = require('http');
+const path = require('path');
 
-var agent = new http.Agent();
+const tmpdir = require('../common/tmpdir');
+
+const agent = new http.Agent();
 
 // default to localhost
-assert.equal(
+assert.strictEqual(
   agent.getName({
     port: 80,
     localAddress: '192.168.1.1'
@@ -16,13 +19,13 @@ assert.equal(
 );
 
 // empty
-assert.equal(
+assert.strictEqual(
   agent.getName({}),
   'localhost::'
 );
 
 // pass all arguments
-assert.equal(
+assert.strictEqual(
   agent.getName({
     host: '0.0.0.0',
     port: 80,
@@ -30,3 +33,18 @@ assert.equal(
   }),
   '0.0.0.0:80:192.168.1.1'
 );
+
+// unix socket
+const socketPath = path.join(tmpdir.path, 'foo', 'bar');
+assert.strictEqual(
+  agent.getName({
+    socketPath
+  }),
+  `localhost:::${socketPath}`
+);
+
+for (const family of [0, null, undefined, 'bogus'])
+  assert.strictEqual(agent.getName({ family }), 'localhost::');
+
+for (const family of [4, 6])
+  assert.strictEqual(agent.getName({ family }), `localhost:::${family}`);

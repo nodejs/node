@@ -115,7 +115,7 @@ Good:
 
 ## Whitespace
 
-Put a single space in front of ( for anything other than a function call.
+Put a single space in front of `(` for anything other than a function call.
 Also use a single space wherever it makes things more readable.
 
 Don't leave trailing whitespace at the end of lines.  Don't indent empty
@@ -184,10 +184,9 @@ When something is intentionally missing or removed, set it to `null`.
 Don't set things to `undefined`.  Reserve that value to mean "not yet
 set to anything."
 
-Boolean objects are verboten.
+Boolean objects are forbidden.
 
 ## SEE ALSO
 
 * npm-developers(7)
-* npm-faq(7)
 * npm(1)

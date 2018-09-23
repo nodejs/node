@@ -109,8 +109,10 @@ local function MakeClangCommandLine(
       .. " -Xclang -triple -Xclang " .. triple
       .. " -D" .. arch_define
       .. " -DENABLE_DEBUGGER_SUPPORT"
-      .. " -DV8_I18N_SUPPORT"
+      .. " -DV8_INTL_SUPPORT"
       .. " -I./"
+      .. " -Iinclude/"
+      .. " -Iout/Release/gen"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
       .. " " .. arch_options
@@ -180,29 +182,28 @@ function InvokeClangPluginForEachFile(filenames, cfg, func)
 end
 
 -------------------------------------------------------------------------------
--- GYP file parsing
 
-local function ParseGYPFile()
-   local gyp = ""
-   local gyp_files = { "tools/gyp/v8.gyp", "test/cctest/cctest.gyp" }
-   for i = 1, #gyp_files do
-      local f = assert(io.open(gyp_files[i]), "failed to open GYP file")
-      local t = f:read('*a')
-      gyp = gyp .. t
-      f:close()
-   end
-
+local function ParseGNFile()
    local result = {}
+   local gn_files = {
+       { "BUILD.gn",             '"([^"]-%.cc)"',      ""         },
+       { "test/cctest/BUILD.gn", '"(test-[^"]-%.cc)"', "test/cctest/" }
+   }
 
-   for condition, sources in
-      gyp:gmatch "'sources': %[.-### gcmole%((.-)%) ###(.-)%]" do
-      if result[condition] == nil then result[condition] = {} end
-      for file in sources:gmatch "'%.%./%.%./src/([^']-%.cc)'" do
-         table.insert(result[condition], "src/" .. file)
+   for i = 1, #gn_files do
+      local filename = gn_files[i][1]
+      local pattern = gn_files[i][2]
+      local prefix = gn_files[i][3]
+      local gn_file = assert(io.open(filename), "failed to open GN file")
+      local gn = gn_file:read('*a')
+      for condition, sources in
+         gn:gmatch "### gcmole%((.-)%) ###(.-)%]" do
+         if result[condition] == nil then result[condition] = {} end
+         for file in sources:gmatch(pattern) do
+            table.insert(result[condition], prefix .. file)
+         end
       end
-      for file in sources:gmatch "'(test-[^']-%.cc)'" do
-         table.insert(result[condition], "test/cctest/" .. file)
-      end
+      gn_file:close()
    end
 
    return result
@@ -229,13 +230,14 @@ local function BuildFileList(sources, props)
    return list
 end
 
-local sources = ParseGYPFile()
+
+local gn_sources = ParseGNFile()
 
 local function FilesForArch(arch)
-   return BuildFileList(sources, { os = 'linux',
-                                   arch = arch,
-                                   mode = 'debug',
-                                   simulator = ''})
+   return BuildFileList(gn_sources, { os = 'linux',
+                                      arch = arch,
+                                      mode = 'debug',
+                                      simulator = ''})
 end
 
 local mtConfig = {}
@@ -273,18 +275,17 @@ local gc, gc_caused, funcs
 
 local WHITELIST = {
    -- The following functions call CEntryStub which is always present.
-   "MacroAssembler.*CallExternalReference",
    "MacroAssembler.*CallRuntime",
    "CompileCallLoadPropertyWithInterceptor",
    "CallIC.*GenerateMiss",
 
-   -- DirectCEntryStub is a special stub used on ARM. 
+   -- DirectCEntryStub is a special stub used on ARM.
    -- It is pinned and always present.
-   "DirectCEntryStub.*GenerateCall",  
+   "DirectCEntryStub.*GenerateCall",
 
-   -- TODO GCMole currently is sensitive enough to understand that certain 
-   --      functions only cause GC and return Failure simulataneously. 
-   --      Callsites of such functions are safe as long as they are properly 
+   -- TODO GCMole currently is sensitive enough to understand that certain
+   --      functions only cause GC and return Failure simulataneously.
+   --      Callsites of such functions are safe as long as they are properly
    --      check return value and propagate the Failure to the caller.
    --      It should be possible to extend GCMole to understand this.
    "Heap.*AllocateFunctionPrototype",

@@ -1,59 +1,10 @@
-/* crypto/objects/objects.h */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #ifndef HEADER_OBJECTS_H
@@ -1041,7 +992,7 @@ const void *OBJ_bsearch_ex_(const void *key, const void *base, int num,
  * const void *a_;
  * const nid_triple const *a = a_;
  *
- * The assignement discards a const because what you really want is:
+ * The assignment discards a const because what you really want is:
  *
  * const int const * const *a = a_;
  *
@@ -1049,7 +1000,7 @@ const void *OBJ_bsearch_ex_(const void *key, const void *base, int num,
  * which breaks comparison functions.
  *
  * Thus we end up having to cast, sadly, or unpack the
- * declarations. Or, as I finally did in this case, delcare nid_triple
+ * declarations. Or, as I finally did in this case, declare nid_triple
  * to be a struct, which it should have been in the first place.
  *
  * Ben, August 2008.
@@ -1104,23 +1055,26 @@ const void *OBJ_bsearch_ex_(const void *key, const void *base, int num,
 int OBJ_new_nid(int num);
 int OBJ_add_object(const ASN1_OBJECT *obj);
 int OBJ_create(const char *oid, const char *sn, const char *ln);
-void OBJ_cleanup(void);
+#if OPENSSL_API_COMPAT < 0x10100000L
+# define OBJ_cleanup() while(0) continue
+#endif
 int OBJ_create_objects(BIO *in);
+
+size_t OBJ_length(const ASN1_OBJECT *obj);
+const unsigned char *OBJ_get0_data(const ASN1_OBJECT *obj);
 
 int OBJ_find_sigid_algs(int signid, int *pdig_nid, int *ppkey_nid);
 int OBJ_find_sigid_by_algs(int *psignid, int dig_nid, int pkey_nid);
 int OBJ_add_sigid(int signid, int dig_id, int pkey_id);
 void OBJ_sigid_free(void);
 
-extern int obj_cleanup_defer;
-void check_defer(int nid);
-
 /* BEGIN ERROR CODES */
 /*
  * The following lines are auto generated by the script mkerr.pl. Any changes
  * made after this point may be overwritten when the script is next run.
  */
-void ERR_load_OBJ_strings(void);
+
+int ERR_load_OBJ_strings(void);
 
 /* Error codes for the OBJ functions. */
 
@@ -1134,10 +1088,10 @@ void ERR_load_OBJ_strings(void);
 # define OBJ_F_OBJ_NID2SN                                 104
 
 /* Reason codes. */
-# define OBJ_R_MALLOC_FAILURE                             100
+# define OBJ_R_OID_EXISTS                                 102
 # define OBJ_R_UNKNOWN_NID                                101
 
-#ifdef  __cplusplus
+# ifdef  __cplusplus
 }
-#endif
+# endif
 #endif

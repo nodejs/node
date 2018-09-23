@@ -1,0 +1,33 @@
+Runtime.getProperties for objects with accessor
+title property with getter and setter:
+{
+    configurable : false
+    enumerable : false
+    get : {
+        className : Function
+        description : function nativeGetter() { [native code] }
+        objectId : <objectId>
+        type : function
+    }
+    isOwn : true
+    name : title
+    set : {
+        className : Function
+        description : function nativeSetter() { [native code] }
+        objectId : <objectId>
+        type : function
+    }
+}
+title property with getter only:
+{
+    configurable : false
+    enumerable : false
+    get : {
+        className : Function
+        description : function nativeGetter() { [native code] }
+        objectId : <objectId>
+        type : function
+    }
+    isOwn : true
+    name : title
+}

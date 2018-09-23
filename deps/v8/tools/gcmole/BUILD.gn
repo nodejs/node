@@ -1,0 +1,40 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+group("v8_run_gcmole") {
+  testonly = true
+
+  data = [
+    "gccause.lua",
+    "gcmole.lua",
+    "gcmole-tools/",
+    "parallel.py",
+    "run-gcmole.py",
+
+    # The following contains all relevant source and build files.
+    "../../BUILD.gn",
+    "../../base/",
+    "../../include/",
+    "../../src/",
+    "../../test/cctest/",
+    "../../test/common/",
+    "../../testing/gtest/include/gtest/gtest_prod.h",
+    "../../third_party/googletest/src/googletest/include/gtest/gtest_prod.h",
+    "../../third_party/icu/source/",
+    "$target_gen_dir/../../",
+    "$target_gen_dir/../../torque-generated/",
+  ]
+
+  deps = [
+    "../../:run_torque",
+  ]
+
+  if (v8_gcmole) {
+    # This assumes gcmole tools have been fetched by a hook
+    # into v8/tools/gcmole/gcmole_tools.
+    data += [ "gcmole-tools/" ]
+  }
+}

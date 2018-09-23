@@ -37,8 +37,8 @@ PASS testForwardSlash("^/$", "/"); is true
 PASS testForwardSlash("^\/$", "/"); is true
 PASS testForwardSlash("^\\/$", "\/"); is true
 PASS testForwardSlash("^\\\/$", "\/"); is true
-FAIL testForwardSlash("^\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("^\\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Unexpected end of input
+PASS testForwardSlash("^\\\\/$", "\\/"); is true
+PASS testForwardSlash("^\\\\\/$", "\\/"); is true
 PASS testForwardSlash("x/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x\/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x/x\/x", "x\/x\/x"); is true
@@ -57,4 +57,5 @@ PASS var o = new RegExp(); o.toString() === '/'+o.source+'/' && eval(o.toString(
 PASS successfullyParsed is true
 
 TEST COMPLETE
+
 

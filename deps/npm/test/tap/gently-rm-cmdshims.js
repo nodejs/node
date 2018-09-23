@@ -1,4 +1,5 @@
 'use strict'
+/* eslint-disable camelcase */
 var path = require('path')
 var fs = require('graceful-fs')
 var test = require('tap').test
@@ -127,30 +128,30 @@ test('remove-cmd-shims', function (t) {
 
   var gentlyRm = require('../../lib/utils/gently-rm.js')
   runAll([ [gentlyRm, doremove_example_cmd, true, doremove_module],
-           [gentlyRm, doremove_example_cygwin, true, doremove_module] ],
-           function () {
-             fs.stat(doremove_example_cmd, function (er) {
-               t.is(er && er.code, 'ENOENT', 'cmd-shim was removed')
-             })
-             fs.stat(doremove_example_cygwin, function (er) {
-               t.is(er && er.code, 'ENOENT', 'cmd-shim cygwin script was removed')
-             })
-           })
+    [gentlyRm, doremove_example_cygwin, true, doremove_module] ],
+  function () {
+    fs.stat(doremove_example_cmd, function (er) {
+      t.is(er && er.code, 'ENOENT', 'cmd-shim was removed')
+    })
+    fs.stat(doremove_example_cygwin, function (er) {
+      t.is(er && er.code, 'ENOENT', 'cmd-shim cygwin script was removed')
+    })
+  })
 })
 
 test('dont-remove-cmd-shims', function (t) {
   t.plan(2)
   var gentlyRm = require('../../lib/utils/gently-rm.js')
   runAll([ [gentlyRm, dontremove_example_cmd, true, dontremove_module],
-           [gentlyRm, dontremove_example_cygwin, true, dontremove_module] ],
-           function () {
-             fs.stat(dontremove_example_cmd, function (er) {
-               t.is(er, null, 'cmd-shim was not removed')
-             })
-             fs.stat(dontremove_example_cygwin, function (er) {
-               t.is(er, null, 'cmd-shim cygwin script was not removed')
-             })
-           })
+    [gentlyRm, dontremove_example_cygwin, true, dontremove_module] ],
+  function () {
+    fs.stat(dontremove_example_cmd, function (er) {
+      t.is(er, null, 'cmd-shim was not removed')
+    })
+    fs.stat(dontremove_example_cygwin, function (er) {
+      t.is(er, null, 'cmd-shim cygwin script was not removed')
+    })
+  })
 })
 
 test('cleanup', function (t) {

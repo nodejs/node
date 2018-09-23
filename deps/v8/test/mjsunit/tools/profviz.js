@@ -28,8 +28,10 @@
 // Load implementations from <project root>/tools.
 // Files: tools/csvparser.js tools/splaytree.js tools/codemap.js
 // Files: tools/consarray.js tools/profile.js tools/profile_view.js
-// Files: tools/logreader.js tools/tickprocessor.js
+// Files: tools/logreader.js tools/arguments.js tools/tickprocessor.js
 // Files: tools/profviz/composer.js
+// Resources: test/mjsunit/tools/profviz-test.log
+// Resources: test/mjsunit/tools/profviz-test.default
 // Env: TEST_FILE_NAME
 
 assertEquals('string', typeof TEST_FILE_NAME);
@@ -78,6 +80,5 @@ var create_baseline = false;
 if (create_baseline) {
   print(JSON.stringify(output_lines, null, 2));
 } else {
-  assertArrayEquals(output_lines,
-                    JSON.parse(read(reference_file)));
+  assertArrayEquals(JSON.parse(read(reference_file)), output_lines);
 }

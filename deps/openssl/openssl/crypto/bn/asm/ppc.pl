@@ -1,5 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 # Implemented as a Perl wrapper as we want to support several different
 # architectures with single file. We pick up the target based on the
 # file name we are asked to generate.
@@ -419,7 +425,7 @@ $data=<<EOF;
 # r9,r10, r11 are the equivalents of c1,c2, c3.
 #
 # Possible optimization of loading all 8 longs of a into registers
-# doesnt provide any speedup
+# doesn't provide any speedup
 # 
 
 	xor		r0,r0,r0		#set r0 = 0.Used in addze
@@ -1009,7 +1015,7 @@ $data=<<EOF;
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r11,r11,r8
-	addze	r12,r9			# since we didnt set r12 to zero before.
+	addze	r12,r9			# since we didn't set r12 to zero before.
 	addze	r10,r0
 					#mul_add_c(a[1],b[0],c2,c3,c1);
 	$LD	r6,`1*$BNSZ`(r4)
@@ -1556,7 +1562,7 @@ Lppcasm_sub_mainloop:
 				# if carry = 1 this is r7-r8. Else it
 				# is r7-r8 -1 as we need.
 	$STU	r6,$BNSZ(r3)
-	bdnz-	Lppcasm_sub_mainloop
+	bdnz	Lppcasm_sub_mainloop
 Lppcasm_sub_adios:	
 	subfze	r3,r0		# if carry bit is set then r3 = 0 else -1
 	andi.	r3,r3,1         # keep only last bit.
@@ -1603,7 +1609,7 @@ Lppcasm_add_mainloop:
 	$LDU	r8,$BNSZ(r5)
 	adde	r8,r7,r8
 	$STU	r8,$BNSZ(r3)
-	bdnz-	Lppcasm_add_mainloop
+	bdnz	Lppcasm_add_mainloop
 Lppcasm_add_adios:	
 	addze	r3,r0			#return carry bit.
 	blr
@@ -1762,7 +1768,7 @@ Lppcasm_sqr_mainloop:
 	$UMULH  r8,r6,r6
 	$STU	r7,$BNSZ(r3)
 	$STU	r8,$BNSZ(r3)
-	bdnz-	Lppcasm_sqr_mainloop
+	bdnz	Lppcasm_sqr_mainloop
 Lppcasm_sqr_adios:	
 	blr
 	.long	0
@@ -1827,7 +1833,7 @@ Lppcasm_mw_LOOP:
 	
 	addi	r3,r3,`4*$BNSZ`
 	addi	r4,r4,`4*$BNSZ`
-	bdnz-	Lppcasm_mw_LOOP
+	bdnz	Lppcasm_mw_LOOP
 
 Lppcasm_mw_REM:
 	andi.	r5,r5,0x3
@@ -1951,7 +1957,7 @@ Lppcasm_maw_mainloop:
 	$ST	r11,`3*$BNSZ`(r3)
 	addi	r3,r3,`4*$BNSZ`
 	addi	r4,r4,`4*$BNSZ`
-	bdnz-	Lppcasm_maw_mainloop
+	bdnz	Lppcasm_maw_mainloop
 	
 Lppcasm_maw_leftover:
 	andi.	r5,r5,0x3

@@ -1,73 +1,22 @@
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2006.
- */
-/* ====================================================================
- * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
+ * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
 #include <openssl/evp.h>
-#include <openssl/dh.h>
+#include "dh_locl.h"
 #include <openssl/bn.h>
-#ifndef OPENSSL_NO_DSA
-# include <openssl/dsa.h>
-#endif
+#include <openssl/dsa.h>
 #include <openssl/objects.h>
-#include "evp_locl.h"
+#include "internal/evp_int.h"
 
 /* DH pkey context structure */
 
@@ -98,22 +47,14 @@ typedef struct {
 static int pkey_dh_init(EVP_PKEY_CTX *ctx)
 {
     DH_PKEY_CTX *dctx;
-    dctx = OPENSSL_malloc(sizeof(DH_PKEY_CTX));
-    if (!dctx)
+
+    dctx = OPENSSL_zalloc(sizeof(*dctx));
+    if (dctx == NULL)
         return 0;
     dctx->prime_len = 1024;
     dctx->subprime_len = -1;
     dctx->generator = 2;
-    dctx->use_dsa = 0;
-    dctx->md = NULL;
-    dctx->rfc5114_param = 0;
-
     dctx->kdf_type = EVP_PKEY_DH_KDF_NONE;
-    dctx->kdf_oid = NULL;
-    dctx->kdf_md = NULL;
-    dctx->kdf_ukm = NULL;
-    dctx->kdf_ukmlen = 0;
-    dctx->kdf_outlen = 0;
 
     ctx->data = dctx;
     ctx->keygen_info = dctx->gentmp;
@@ -121,6 +62,17 @@ static int pkey_dh_init(EVP_PKEY_CTX *ctx)
 
     return 1;
 }
+
+static void pkey_dh_cleanup(EVP_PKEY_CTX *ctx)
+{
+    DH_PKEY_CTX *dctx = ctx->data;
+    if (dctx != NULL) {
+        OPENSSL_free(dctx->kdf_ukm);
+        ASN1_OBJECT_free(dctx->kdf_oid);
+        OPENSSL_free(dctx);
+    }
+}
+
 
 static int pkey_dh_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src)
 {
@@ -138,27 +90,17 @@ static int pkey_dh_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src)
 
     dctx->kdf_type = sctx->kdf_type;
     dctx->kdf_oid = OBJ_dup(sctx->kdf_oid);
-    if (!dctx->kdf_oid)
+    if (dctx->kdf_oid == NULL)
         return 0;
     dctx->kdf_md = sctx->kdf_md;
-    if (dctx->kdf_ukm) {
-        dctx->kdf_ukm = BUF_memdup(sctx->kdf_ukm, sctx->kdf_ukmlen);
+    if (sctx->kdf_ukm != NULL) {
+        dctx->kdf_ukm = OPENSSL_memdup(sctx->kdf_ukm, sctx->kdf_ukmlen);
+        if (dctx->kdf_ukm == NULL)
+          return 0;
         dctx->kdf_ukmlen = sctx->kdf_ukmlen;
     }
     dctx->kdf_outlen = sctx->kdf_outlen;
     return 1;
-}
-
-static void pkey_dh_cleanup(EVP_PKEY_CTX *ctx)
-{
-    DH_PKEY_CTX *dctx = ctx->data;
-    if (dctx) {
-        if (dctx->kdf_ukm)
-            OPENSSL_free(dctx->kdf_ukm);
-        if (dctx->kdf_oid)
-            ASN1_OBJECT_free(dctx->kdf_oid);
-        OPENSSL_free(dctx);
-    }
 }
 
 static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
@@ -207,7 +149,11 @@ static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
     case EVP_PKEY_CTRL_DH_KDF_TYPE:
         if (p1 == -2)
             return dctx->kdf_type;
+#ifdef OPENSSL_NO_CMS
+        if (p1 != EVP_PKEY_DH_KDF_NONE)
+#else
         if (p1 != EVP_PKEY_DH_KDF_NONE && p1 != EVP_PKEY_DH_KDF_X9_42)
+#endif
             return -2;
         dctx->kdf_type = p1;
         return 1;
@@ -231,8 +177,7 @@ static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         return 1;
 
     case EVP_PKEY_CTRL_DH_KDF_UKM:
-        if (dctx->kdf_ukm)
-            OPENSSL_free(dctx->kdf_ukm);
+        OPENSSL_free(dctx->kdf_ukm);
         dctx->kdf_ukm = p2;
         if (p2)
             dctx->kdf_ukmlen = p1;
@@ -245,8 +190,7 @@ static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         return dctx->kdf_ukmlen;
 
     case EVP_PKEY_CTRL_DH_KDF_OID:
-        if (dctx->kdf_oid)
-            ASN1_OBJECT_free(dctx->kdf_oid);
+        ASN1_OBJECT_free(dctx->kdf_oid);
         dctx->kdf_oid = p2;
         return 1;
 
@@ -263,12 +207,12 @@ static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 static int pkey_dh_ctrl_str(EVP_PKEY_CTX *ctx,
                             const char *type, const char *value)
 {
-    if (!strcmp(type, "dh_paramgen_prime_len")) {
+    if (strcmp(type, "dh_paramgen_prime_len") == 0) {
         int len;
         len = atoi(value);
         return EVP_PKEY_CTX_set_dh_paramgen_prime_len(ctx, len);
     }
-    if (!strcmp(type, "dh_rfc5114")) {
+    if (strcmp(type, "dh_rfc5114") == 0) {
         DH_PKEY_CTX *dctx = ctx->data;
         int len;
         len = atoi(value);
@@ -277,17 +221,17 @@ static int pkey_dh_ctrl_str(EVP_PKEY_CTX *ctx,
         dctx->rfc5114_param = len;
         return 1;
     }
-    if (!strcmp(type, "dh_paramgen_generator")) {
+    if (strcmp(type, "dh_paramgen_generator") == 0) {
         int len;
         len = atoi(value);
         return EVP_PKEY_CTX_set_dh_paramgen_generator(ctx, len);
     }
-    if (!strcmp(type, "dh_paramgen_subprime_len")) {
+    if (strcmp(type, "dh_paramgen_subprime_len") == 0) {
         int len;
         len = atoi(value);
         return EVP_PKEY_CTX_set_dh_paramgen_subprime_len(ctx, len);
     }
-    if (!strcmp(type, "dh_paramgen_type")) {
+    if (strcmp(type, "dh_paramgen_type") == 0) {
         int typ;
         typ = atoi(value);
         return EVP_PKEY_CTX_set_dh_paramgen_type(ctx, typ);
@@ -320,7 +264,7 @@ static DSA *dsa_dh_generate(DH_PKEY_CTX *dctx, BN_GENCB *pcb)
     if (dctx->use_dsa > 2)
         return NULL;
     ret = DSA_new();
-    if (!ret)
+    if (ret == NULL)
         return NULL;
     if (subprime_len == -1) {
         if (prime_len >= 2048)
@@ -353,7 +297,7 @@ static int pkey_dh_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
 {
     DH *dh = NULL;
     DH_PKEY_CTX *dctx = ctx->data;
-    BN_GENCB *pcb, cb;
+    BN_GENCB *pcb;
     int ret;
     if (dctx->rfc5114_param) {
         switch (dctx->rfc5114_param) {
@@ -377,7 +321,9 @@ static int pkey_dh_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
     }
 
     if (ctx->pkey_gencb) {
-        pcb = &cb;
+        pcb = BN_GENCB_new();
+        if (pcb == NULL)
+            return 0;
         evp_pkey_set_cb_translate(pcb, ctx);
     } else
         pcb = NULL;
@@ -385,7 +331,8 @@ static int pkey_dh_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
     if (dctx->use_dsa) {
         DSA *dsa_dh;
         dsa_dh = dsa_dh_generate(dctx, pcb);
-        if (!dsa_dh)
+        BN_GENCB_free(pcb);
+        if (dsa_dh == NULL)
             return 0;
         dh = DSA_dup_DH(dsa_dh);
         DSA_free(dsa_dh);
@@ -396,11 +343,13 @@ static int pkey_dh_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
     }
 #endif
     dh = DH_new();
-    if (!dh)
+    if (dh == NULL) {
+        BN_GENCB_free(pcb);
         return 0;
+    }
     ret = DH_generate_parameters_ex(dh,
                                     dctx->prime_len, dctx->generator, pcb);
-
+    BN_GENCB_free(pcb);
     if (ret)
         EVP_PKEY_assign_DH(pkey, dh);
     else
@@ -416,7 +365,7 @@ static int pkey_dh_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
         return 0;
     }
     dh = DH_new();
-    if (!dh)
+    if (dh == NULL)
         return 0;
     EVP_PKEY_assign(pkey, ctx->pmeth->pkey_id, dh);
     /* Note: if error return, pkey is freed by parent routine */
@@ -448,7 +397,10 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
             return ret;
         *keylen = ret;
         return 1;
-    } else if (dctx->kdf_type == EVP_PKEY_DH_KDF_X9_42) {
+    }
+#ifndef OPENSSL_NO_CMS
+    else if (dctx->kdf_type == EVP_PKEY_DH_KDF_X9_42) {
+
         unsigned char *Z = NULL;
         size_t Zlen = 0;
         if (!dctx->kdf_outlen || !dctx->kdf_oid)
@@ -462,7 +414,7 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
         ret = 0;
         Zlen = DH_size(dh);
         Z = OPENSSL_malloc(Zlen);
-        if (!Z) {
+        if (Z == NULL) {
             goto err;
         }
         if (DH_compute_key_padded(Z, dhpub, dh) <= 0)
@@ -473,13 +425,11 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
         *keylen = dctx->kdf_outlen;
         ret = 1;
  err:
-        if (Z) {
-            OPENSSL_cleanse(Z, Zlen);
-            OPENSSL_free(Z);
-        }
+        OPENSSL_clear_free(Z, Zlen);
         return ret;
     }
-    return 1;
+#endif
+    return 0;
 }
 
 const EVP_PKEY_METHOD dh_pkey_meth = {

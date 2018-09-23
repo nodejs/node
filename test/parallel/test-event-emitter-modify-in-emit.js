@@ -1,11 +1,32 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
+require('../common');
+const assert = require('assert');
+const events = require('events');
 
-var callbacks_called = [];
+let callbacks_called = [];
 
-var e = new events.EventEmitter();
+const e = new events.EventEmitter();
 
 function callback1() {
   callbacks_called.push('callback1');
@@ -25,25 +46,27 @@ function callback3() {
 }
 
 e.on('foo', callback1);
-assert.equal(1, e.listeners('foo').length);
+assert.strictEqual(e.listeners('foo').length, 1);
 
 e.emit('foo');
-assert.equal(2, e.listeners('foo').length);
-assert.deepEqual(['callback1'], callbacks_called);
+assert.strictEqual(e.listeners('foo').length, 2);
+assert.deepStrictEqual(['callback1'], callbacks_called);
 
 e.emit('foo');
-assert.equal(0, e.listeners('foo').length);
-assert.deepEqual(['callback1', 'callback2', 'callback3'], callbacks_called);
+assert.strictEqual(e.listeners('foo').length, 0);
+assert.deepStrictEqual(['callback1', 'callback2', 'callback3'],
+                       callbacks_called);
 
 e.emit('foo');
-assert.equal(0, e.listeners('foo').length);
-assert.deepEqual(['callback1', 'callback2', 'callback3'], callbacks_called);
+assert.strictEqual(e.listeners('foo').length, 0);
+assert.deepStrictEqual(['callback1', 'callback2', 'callback3'],
+                       callbacks_called);
 
 e.on('foo', callback1);
 e.on('foo', callback2);
-assert.equal(2, e.listeners('foo').length);
+assert.strictEqual(e.listeners('foo').length, 2);
 e.removeAllListeners('foo');
-assert.equal(0, e.listeners('foo').length);
+assert.strictEqual(e.listeners('foo').length, 0);
 
 // Verify that removing callbacks while in emit allows emits to propagate to
 // all listeners
@@ -51,7 +74,7 @@ callbacks_called = [];
 
 e.on('foo', callback2);
 e.on('foo', callback3);
-assert.equal(2, e.listeners('foo').length);
+assert.strictEqual(2, e.listeners('foo').length);
 e.emit('foo');
-assert.deepEqual(['callback2', 'callback3'], callbacks_called);
-assert.equal(0, e.listeners('foo').length);
+assert.deepStrictEqual(['callback2', 'callback3'], callbacks_called);
+assert.strictEqual(0, e.listeners('foo').length);

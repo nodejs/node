@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --harmony-tostring
+// Flags: --allow-natives-syntax
 
 
 var NONE = 0;
@@ -152,15 +152,11 @@ function TestArrayIteratorPrototype() {
 
   assertEquals(Object.prototype, ArrayIteratorPrototype.__proto__);
 
-  assertEquals('Array Iterator', %_ClassOf(array[Symbol.iterator]()));
-  assertEquals('Array Iterator', %_ClassOf(array.keys()));
-  assertEquals('Array Iterator', %_ClassOf(array.entries()));
-
   assertFalse(ArrayIteratorPrototype.hasOwnProperty('constructor'));
   assertArrayEquals(['next'],
       Object.getOwnPropertyNames(ArrayIteratorPrototype));
   assertHasOwnProperty(ArrayIteratorPrototype, 'next', DONT_ENUM);
-  assertHasOwnProperty(ArrayIteratorPrototype, Symbol.iterator, DONT_ENUM);
+  assertFalse(ArrayIteratorPrototype.hasOwnProperty(Symbol.iterator));
 
   assertEquals("[object Array Iterator]",
       Object.prototype.toString.call(iterator));
@@ -256,3 +252,16 @@ function TestNonOwnSlots() {
   }, TypeError);
 }
 TestNonOwnSlots();
+
+function TestForDictionaryArray() {
+  var array = [];
+  array[1024] = 'c';
+  assertTrue(%HasDictionaryElements(array));
+  var iterator = array[Symbol.iterator]();
+  for (var i = 0; i < 1024; ++i) {
+    assertIteratorResult(void 0, false, iterator.next());
+  }
+  assertIteratorResult('c', false, iterator.next());
+  assertIteratorResult(void 0, true, iterator.next());
+}
+TestForDictionaryArray();

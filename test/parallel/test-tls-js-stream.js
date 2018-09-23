@@ -1,43 +1,42 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
-if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
-  return;
-}
-var tls = require('tls');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var stream = require('stream');
-var fs = require('fs');
-var net = require('net');
+const fixtures = require('../common/fixtures');
 
-var connected = {
+const assert = require('assert');
+const net = require('net');
+const stream = require('stream');
+const tls = require('tls');
+
+const connected = {
   client: 0,
   server: 0
 };
 
-var server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const server = tls.createServer({
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 }, function(c) {
   console.log('new client');
   connected.server++;
   c.end('ohai');
-}).listen(common.PORT, function() {
-  var raw = net.connect(common.PORT);
+}).listen(0, function() {
+  const raw = net.connect(this.address().port);
 
-  var pending = false;
+  let pending = false;
   raw.on('readable', function() {
     if (pending)
       p._read();
   });
 
-  var p = new stream.Duplex({
+  const p = new stream.Duplex({
     read: function read() {
       pending = false;
 
-      var chunk = raw.read();
+      const chunk = raw.read();
       if (chunk) {
         console.log('read', chunk);
         this.push(chunk);
@@ -51,7 +50,7 @@ var server = tls.createServer({
     }
   });
 
-  var socket = tls.connect({
+  const socket = tls.connect({
     socket: p,
     rejectUnauthorized: false
   }, function() {
@@ -71,6 +70,6 @@ var server = tls.createServer({
 });
 
 process.once('exit', function() {
-  assert.equal(connected.client, 1);
-  assert.equal(connected.server, 1);
+  assert.strictEqual(connected.client, 1);
+  assert.strictEqual(connected.server, 1);
 });

@@ -1,7 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
-# su-filter.pl
-#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 use strict;
 
 my $in_su = 0;
@@ -47,7 +51,7 @@ while(<>) {
             do_output($out);
             $in_su = 0;
         }
-    } elsif($incomm <= 0 && /( *)(static )?(const )?(union|struct) ([^\s]+ )?\{/) {
+    } elsif($incomm <= 0 && /( *)(static )?(const )?(union|struct) ([a-zA-Z_\$][\$0-9a-zA-Z_]+ )?\{/) {
         $in_su = 1;
         $indent = $1;
         $out = $_;

@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const net = require('net');
 
 function check(addressType) {
-  var server = net.createServer(function(client) {
+  const server = net.createServer(function(client) {
     client.end();
     server.close();
   });
 
-  var address = addressType === 4 ? '127.0.0.1' : '::1';
-  server.listen(common.PORT, address, function() {
-    net.connect(common.PORT, address).on('lookup', common.fail);
+  const address = addressType === 4 ? '127.0.0.1' : '::1';
+  server.listen(0, address, function() {
+    net.connect(this.address().port, address)
+      .on('lookup', common.mustNotCall());
   });
 }
 

@@ -1,0 +1,10 @@
+Tests how wasm scrips report the source
+Check that inspector gets disassembled wasm code
+Paused on debugger!
+Number of frames: 5
+[0]     debugger;
+[1]   call 0
+[2]     call_indirect 2
+[3]   instance.exports.main();
+[4] testFunction(module_bytes)
+Finished.
