@@ -88,9 +88,7 @@ void TCPWrap::Initialize(Local<Object> target,
   t->InstanceTemplate()->Set(env->onread_string(), Null(env->isolate()));
   t->InstanceTemplate()->Set(env->onconnection_string(), Null(env->isolate()));
 
-  AsyncWrap::AddWrapMethods(env, t, AsyncWrap::kFlagHasReset);
-  HandleWrap::AddWrapMethods(env, t);
-  LibuvStreamWrap::AddMethods(env, t);
+  t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "open", Open);
   env->SetProtoMethod(t, "bind", Bind);
@@ -115,7 +113,7 @@ void TCPWrap::Initialize(Local<Object> target,
   // Create FunctionTemplate for TCPConnectWrap.
   Local<FunctionTemplate> cwt =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
-  AsyncWrap::AddWrapMethods(env, cwt);
+  cwt->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
   cwt->SetClassName(wrapString);

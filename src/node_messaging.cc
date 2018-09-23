@@ -722,9 +722,7 @@ MaybeLocal<Function> GetMessagePortConstructor(
     Local<FunctionTemplate> m = env->NewFunctionTemplate(MessagePort::New);
     m->SetClassName(env->message_port_constructor_string());
     m->InstanceTemplate()->SetInternalFieldCount(1);
-
-    AsyncWrap::AddWrapMethods(env, m);
-    HandleWrap::AddWrapMethods(env, m);
+    m->Inherit(HandleWrap::GetConstructorTemplate(env));
 
     env->SetProtoMethod(m, "postMessage", MessagePort::PostMessage);
     env->SetProtoMethod(m, "start", MessagePort::Start);

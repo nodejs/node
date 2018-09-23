@@ -110,8 +110,6 @@ const { kStateSymbol } = require('internal/dgram');
 {
   const timer = setTimeout(() => {}, 500);
   timer.unref();
-  strictEqual(Object.getPrototypeOf(timer._handle).hasOwnProperty('hasRef'),
-              true, 'timer_wrap: hasRef() missing');
   strictEqual(timer._handle.hasRef(),
               false, 'timer_wrap: unref() ineffective');
   timer.ref();
