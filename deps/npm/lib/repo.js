@@ -2,7 +2,8 @@ module.exports = repo
 
 repo.usage = 'npm repo [<pkg>]'
 
-var openUrl = require('./utils/open-url')
+var npm = require('./npm.js')
+var opener = require('opener')
 var hostedGitInfo = require('hosted-git-info')
 var url_ = require('url')
 var fetchPackageMetadata = require('./fetch-package-metadata.js')
@@ -15,7 +16,7 @@ repo.completion = function (opts, cb) {
 
 function repo (args, cb) {
   var n = args.length ? args[0] : '.'
-  fetchPackageMetadata(n, '.', {fullMetadata: true}, function (er, d) {
+  fetchPackageMetadata(n, '.', function (er, d) {
     if (er) return cb(er)
     getUrlAndOpen(d, cb)
   })
@@ -31,7 +32,7 @@ function getUrlAndOpen (d, cb) {
 
   if (!url) return cb(new Error('no repository: could not get url'))
 
-  openUrl(url, 'repository available at the following URL', cb)
+  opener(url, { command: npm.config.get('browser') }, cb)
 }
 
 function unknownHostedUrl (url) {
@@ -42,8 +43,8 @@ function unknownHostedUrl (url) {
     }
     url = url_.parse(url)
     var protocol = url.protocol === 'https:'
-      ? 'https:'
-      : 'http:'
+                 ? 'https:'
+                 : 'http:'
     return protocol + '//' + (url.host || '') +
       url.path.replace(/\.git$/, '')
   } catch (e) {}

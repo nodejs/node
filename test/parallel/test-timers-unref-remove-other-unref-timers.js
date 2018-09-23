@@ -7,10 +7,11 @@
  * considered public interface.
  */
 const common = require('../common');
+const assert = require('assert');
 const timers = require('timers');
 
 const foo = {
-  _onTimeout: common.mustNotCall('_onTimeout should not be called')
+  _onTimeout: common.fail
 };
 
 const bar = {
@@ -29,4 +30,4 @@ timers.enroll(foo, 50);
 timers._unrefActive(foo);
 
 // Keep the process open.
-setTimeout(() => {}, 100);
+setTimeout(function() {}, 100);

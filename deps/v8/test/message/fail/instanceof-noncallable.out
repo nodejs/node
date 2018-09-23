@@ -1,5 +1,0 @@
-*%(basename)s:30: TypeError: Right-hand side of 'instanceof' is not callable
-1 instanceof {};
-  ^
-TypeError: Right-hand side of 'instanceof' is not callable
-    at *%(basename)s:30:3

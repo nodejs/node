@@ -47,7 +47,7 @@ SPDX expressions are valid, too ...
 ```javascript
 // Simple SPDX license expression for dual licensing
 assert.deepEqual(
-  valid('(GPL-3.0-only OR BSD-2-Clause)'),
+  valid('(GPL-3.0 OR BSD-2-Clause)'),
   validSPDXExpression
 );
 ```

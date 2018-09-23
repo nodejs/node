@@ -151,7 +151,7 @@ inet_net_pton_ipv4(const char *src, unsigned char *dst, size_t size)
 
   /* If nothing was written to the destination, we found no address. */
   if (dst == odst)
-    goto enoent;  /* LCOV_EXCL_LINE: all valid paths above increment dst */
+    goto enoent;
   /* If no CIDR spec was given, infer width from net class. */
   if (bits == -1) {
     if (*odst >= 240)       /* Class E */
@@ -357,8 +357,8 @@ inet_net_pton_ipv6(const char *src, unsigned char *dst, size_t size)
      * Since some memmove()'s erroneously fail to handle
      * overlapping regions, we'll do the shift by hand.
      */
-    const ares_ssize_t n = tp - colonp;
-    ares_ssize_t i;
+    const ssize_t n = tp - colonp;
+    ssize_t i;
 
     if (tp == endp)
       goto enoent;

@@ -1,11 +1,11 @@
 /* gzlib.c -- zlib functions common to reading and writing gzip files
- * Copyright (C) 2004-2017 Mark Adler
+ * Copyright (C) 2004, 2010, 2011, 2012, 2013 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
 #include "gzguts.h"
 
-#if defined(_WIN32) && !defined(__BORLANDC__) && !defined(__MINGW32__)
+#if defined(_WIN32) && !defined(__BORLANDC__)
 #  define LSEEK _lseeki64
 #else
 #if defined(_LARGEFILE64_SOURCE) && _LFS64_LARGEFILE-0
@@ -94,7 +94,7 @@ local gzFile gz_open(path, fd, mode)
     const char *mode;
 {
     gz_statep state;
-    z_size_t len;
+    size_t len;
     int oflag;
 #ifdef O_CLOEXEC
     int cloexec = 0;
@@ -188,10 +188,10 @@ local gzFile gz_open(path, fd, mode)
     }
 
     /* save the path name for error messages */
-#ifdef WIDECHAR
+#ifdef _WIN32
     if (fd == -2) {
         len = wcstombs(NULL, path, 0);
-        if (len == (z_size_t)-1)
+        if (len == (size_t)-1)
             len = 0;
     }
     else
@@ -202,7 +202,7 @@ local gzFile gz_open(path, fd, mode)
         free(state);
         return NULL;
     }
-#ifdef WIDECHAR
+#ifdef _WIN32
     if (fd == -2)
         if (len)
             wcstombs(state->path, path, len + 1);
@@ -211,7 +211,7 @@ local gzFile gz_open(path, fd, mode)
     else
 #endif
 #if !defined(NO_snprintf) && !defined(NO_vsnprintf)
-        (void)snprintf(state->path, len + 1, "%s", (const char *)path);
+        snprintf(state->path, len + 1, "%s", (const char *)path);
 #else
         strcpy(state->path, path);
 #endif
@@ -239,7 +239,7 @@ local gzFile gz_open(path, fd, mode)
 
     /* open the file with the appropriate flags (or just use fd) */
     state->fd = fd > -1 ? fd : (
-#ifdef WIDECHAR
+#ifdef _WIN32
         fd == -2 ? _wopen(path, oflag, 0666) :
 #endif
         open((const char *)path, oflag, 0666));
@@ -248,10 +248,8 @@ local gzFile gz_open(path, fd, mode)
         free(state);
         return NULL;
     }
-    if (state->mode == GZ_APPEND) {
-        LSEEK(state->fd, 0, SEEK_END);  /* so gzoffset() is correct */
+    if (state->mode == GZ_APPEND)
         state->mode = GZ_WRITE;         /* simplify later checks */
-    }
 
     /* save the current position for rewinding (only if reading) */
     if (state->mode == GZ_READ) {
@@ -293,7 +291,7 @@ gzFile ZEXPORT gzdopen(fd, mode)
     if (fd == -1 || (path = (char *)malloc(7 + 3 * sizeof(int))) == NULL)
         return NULL;
 #if !defined(NO_snprintf) && !defined(NO_vsnprintf)
-    (void)snprintf(path, 7 + 3 * sizeof(int), "<fd:%d>", fd);
+    snprintf(path, 7 + 3 * sizeof(int), "<fd:%d>", fd); /* for debugging */
 #else
     sprintf(path, "<fd:%d>", fd);   /* for debugging */
 #endif
@@ -303,7 +301,7 @@ gzFile ZEXPORT gzdopen(fd, mode)
 }
 
 /* -- see zlib.h -- */
-#ifdef WIDECHAR
+#ifdef _WIN32
 gzFile ZEXPORT gzopen_w(path, mode)
     const wchar_t *path;
     const char *mode;
@@ -331,8 +329,6 @@ int ZEXPORT gzbuffer(file, size)
         return -1;
 
     /* check and set requested size */
-    if ((size << 1) < size)
-        return -1;              /* need to be able to double it */
     if (size < 2)
         size = 2;               /* need two bytes to check magic header */
     state->want = size;
@@ -608,13 +604,14 @@ void ZLIB_INTERNAL gz_error(state, err, msg)
         return;
     }
 #if !defined(NO_snprintf) && !defined(NO_vsnprintf)
-    (void)snprintf(state->msg, strlen(state->path) + strlen(msg) + 3,
-                   "%s%s%s", state->path, ": ", msg);
+    snprintf(state->msg, strlen(state->path) + strlen(msg) + 3,
+             "%s%s%s", state->path, ": ", msg);
 #else
     strcpy(state->msg, state->path);
     strcat(state->msg, ": ");
     strcat(state->msg, msg);
 #endif
+    return;
 }
 
 #ifndef INT_MAX

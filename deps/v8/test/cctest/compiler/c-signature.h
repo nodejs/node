@@ -5,39 +5,41 @@
 #ifndef V8_COMPILER_C_SIGNATURE_H_
 #define V8_COMPILER_C_SIGNATURE_H_
 
-#include "src/machine-type.h"
+#include "src/compiler/machine-type.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
 #define FOREACH_CTYPE_MACHINE_TYPE_MAPPING(V) \
-  V(void, MachineType::None())                \
-  V(bool, MachineType::Uint8())               \
-  V(int8_t, MachineType::Int8())              \
-  V(uint8_t, MachineType::Uint8())            \
-  V(int16_t, MachineType::Int16())            \
-  V(uint16_t, MachineType::Uint16())          \
-  V(int32_t, MachineType::Int32())            \
-  V(uint32_t, MachineType::Uint32())          \
-  V(int64_t, MachineType::Int64())            \
-  V(uint64_t, MachineType::Uint64())          \
-  V(float, MachineType::Float32())            \
-  V(double, MachineType::Float64())           \
-  V(void*, MachineType::Pointer())            \
-  V(int*, MachineType::Pointer())
+  V(void, kMachNone)                          \
+  V(bool, kMachBool)                          \
+  V(int8_t, kMachInt8)                        \
+  V(uint8_t, kMachUint8)                      \
+  V(int16_t, kMachInt16)                      \
+  V(uint16_t, kMachUint16)                    \
+  V(int32_t, kMachInt32)                      \
+  V(uint32_t, kMachUint32)                    \
+  V(int64_t, kMachInt64)                      \
+  V(uint64_t, kMachUint64)                    \
+  V(float, kMachFloat32)                      \
+  V(double, kMachFloat64)                     \
+  V(void*, kMachPtr)                          \
+  V(int*, kMachPtr)
 
 template <typename T>
-inline constexpr MachineType MachineTypeForC() {
-  static_assert(std::is_convertible<T, Object*>::value,
-                "all non-specialized types must be convertible to Object*");
-  return MachineType::AnyTagged();
+inline MachineType MachineTypeForC() {
+  while (false) {
+    // All other types T must be assignable to Object*
+    *(static_cast<Object* volatile*>(0)) = static_cast<T>(0);
+  }
+  return kMachAnyTagged;
 }
 
-#define DECLARE_TEMPLATE_SPECIALIZATION(ctype, mtype)     \
-  template <>                                             \
-  inline MachineType constexpr MachineTypeForC<ctype>() { \
-    return mtype;                                         \
+#define DECLARE_TEMPLATE_SPECIALIZATION(ctype, mtype) \
+  template <>                                         \
+  inline MachineType MachineTypeForC<ctype>() {       \
+    return mtype;                                     \
   }
 FOREACH_CTYPE_MACHINE_TYPE_MAPPING(DECLARE_TEMPLATE_SPECIALIZATION)
 #undef DECLARE_TEMPLATE_SPECIALIZATION
@@ -49,13 +51,21 @@ class CSignature : public MachineSignature {
       : MachineSignature(return_count, parameter_count, reps) {}
 
  public:
-  template <typename... Params>
-  static void VerifyParams(MachineSignature* sig) {
-    // Verifies the C signature against the machine types.
-    std::array<MachineType, sizeof...(Params)> params{
-        {MachineTypeForC<Params>()...}};
-    for (size_t p = 0; p < params.size(); ++p) {
-      CHECK_EQ(sig->GetParam(p), params[p]);
+  template <typename P1 = void, typename P2 = void, typename P3 = void,
+            typename P4 = void, typename P5 = void>
+  void VerifyParams() {
+    // Verifies the C signature against the machine types. Maximum {5} params.
+    CHECK_LT(parameter_count(), 6u);
+    const int kMax = 5;
+    MachineType params[] = {MachineTypeForC<P1>(), MachineTypeForC<P2>(),
+                            MachineTypeForC<P3>(), MachineTypeForC<P4>(),
+                            MachineTypeForC<P5>()};
+    for (int p = kMax - 1; p >= 0; p--) {
+      if (p < static_cast<int>(parameter_count())) {
+        CHECK_EQ(GetParam(p), params[p]);
+      } else {
+        CHECK_EQ(kMachNone, params[p]);
+      }
     }
   }
 
@@ -63,61 +73,94 @@ class CSignature : public MachineSignature {
     return reinterpret_cast<CSignature*>(msig);
   }
 
-  template <typename... ParamMachineTypes>
   static CSignature* New(Zone* zone, MachineType ret,
-                         ParamMachineTypes... params) {
-    constexpr size_t param_count = sizeof...(params);
-    std::array<MachineType, param_count> param_arr{{params...}};
-    const size_t buffer_size =
-        param_count + (ret == MachineType::None() ? 0 : 1);
-    MachineType* buffer = zone->NewArray<MachineType>(buffer_size);
-    size_t pos = 0;
+                         MachineType p1 = kMachNone, MachineType p2 = kMachNone,
+                         MachineType p3 = kMachNone, MachineType p4 = kMachNone,
+                         MachineType p5 = kMachNone) {
+    MachineType* buffer = zone->NewArray<MachineType>(6);
+    int pos = 0;
     size_t return_count = 0;
-    if (ret != MachineType::None()) {
+    if (ret != kMachNone) {
       buffer[pos++] = ret;
       return_count++;
     }
-    for (MachineType p : param_arr) {
-      // Check that there are no MachineType::None()'s in the parameters.
-      CHECK_NE(MachineType::None(), p);
-      buffer[pos++] = p;
+    buffer[pos++] = p1;
+    buffer[pos++] = p2;
+    buffer[pos++] = p3;
+    buffer[pos++] = p4;
+    buffer[pos++] = p5;
+    size_t param_count = 5;
+    if (p5 == kMachNone) param_count--;
+    if (p4 == kMachNone) param_count--;
+    if (p3 == kMachNone) param_count--;
+    if (p2 == kMachNone) param_count--;
+    if (p1 == kMachNone) param_count--;
+    for (size_t i = 0; i < param_count; i++) {
+      // Check that there are no kMachNone's in the middle of parameters.
+      CHECK_NE(kMachNone, buffer[return_count + i]);
     }
-    DCHECK_EQ(buffer_size, pos);
     return new (zone) CSignature(return_count, param_count, buffer);
   }
 };
 
-// Helper classes for instantiating Signature objects to be callable from C.
-template <typename Ret, typename... Params>
+
+template <typename Ret, uint16_t kParamCount>
 class CSignatureOf : public CSignature {
- public:
-  CSignatureOf() : CSignature(kReturnCount, kParamCount, storage_) {
-    constexpr std::array<MachineType, kParamCount> param_types{
-        MachineTypeForC<Params>()...};
-    if (kReturnCount == 1) storage_[0] = MachineTypeForC<Ret>();
-    static_assert(
-        std::is_same<decltype(*reps_), decltype(*param_types.data())>::value,
-        "type mismatch, cannot memcpy");
-    memcpy(storage_ + kReturnCount, param_types.data(),
-           sizeof(*storage_) * kParamCount);
+ protected:
+  MachineType storage_[1 + kParamCount];
+
+  CSignatureOf()
+      : CSignature(MachineTypeForC<Ret>() != kMachNone ? 1 : 0, kParamCount,
+                   reinterpret_cast<MachineType*>(&storage_)) {
+    if (return_count_ == 1) storage_[0] = MachineTypeForC<Ret>();
   }
-
- private:
-  static constexpr size_t kReturnCount =
-      MachineTypeForC<Ret>() == MachineType::None() ? 0 : 1;
-  static constexpr size_t kParamCount = sizeof...(Params);
-
-  MachineType storage_[kReturnCount + kParamCount];
+  void Set(int index, MachineType type) {
+    DCHECK(index >= 0 && index < kParamCount);
+    reps_[return_count_ + index] = type;
+  }
 };
 
-typedef CSignatureOf<int32_t, int32_t, int32_t> CSignature_i_ii;
-typedef CSignatureOf<uint32_t, uint32_t, uint32_t> CSignature_u_uu;
-typedef CSignatureOf<float, float, float> CSignature_f_ff;
-typedef CSignatureOf<double, double, double> CSignature_d_dd;
-typedef CSignatureOf<Object*, Object*, Object*> CSignature_o_oo;
+// Helper classes for instantiating Signature objects to be callable from C.
+template <typename Ret>
+class CSignature0 : public CSignatureOf<Ret, 0> {
+ public:
+  CSignature0() : CSignatureOf<Ret, 0>() {}
+};
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+template <typename Ret, typename P1>
+class CSignature1 : public CSignatureOf<Ret, 1> {
+ public:
+  CSignature1() : CSignatureOf<Ret, 1>() {
+    this->Set(0, MachineTypeForC<P1>());
+  }
+};
+
+template <typename Ret, typename P1, typename P2>
+class CSignature2 : public CSignatureOf<Ret, 2> {
+ public:
+  CSignature2() : CSignatureOf<Ret, 2>() {
+    this->Set(0, MachineTypeForC<P1>());
+    this->Set(1, MachineTypeForC<P2>());
+  }
+};
+
+template <typename Ret, typename P1, typename P2, typename P3>
+class CSignature3 : public CSignatureOf<Ret, 3> {
+ public:
+  CSignature3() : CSignatureOf<Ret, 3>() {
+    this->Set(0, MachineTypeForC<P1>());
+    this->Set(1, MachineTypeForC<P2>());
+    this->Set(2, MachineTypeForC<P3>());
+  }
+};
+
+typedef CSignature2<int32_t, int32_t, int32_t> CSignature_i_ii;
+typedef CSignature2<uint32_t, uint32_t, uint32_t> CSignature_u_uu;
+typedef CSignature2<float, float, float> CSignature_f_ff;
+typedef CSignature2<double, double, double> CSignature_d_dd;
+typedef CSignature2<Object*, Object*, Object*> CSignature_o_oo;
+}
+}
+}  // namespace v8::internal::compiler
 
 #endif  // V8_COMPILER_C_SIGNATURE_H_

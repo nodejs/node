@@ -39,7 +39,6 @@
 namespace v8 {
 namespace internal {
 
-const auto GetRegConfig = RegisterConfiguration::Default;
 
 //------------------------------------------------------------------------------
 
@@ -79,10 +78,8 @@ class Decoder {
 
   void DecodeExt1(Instruction* instr);
   void DecodeExt2(Instruction* instr);
-  void DecodeExt3(Instruction* instr);
   void DecodeExt4(Instruction* instr);
   void DecodeExt5(Instruction* instr);
-  void DecodeExt6(Instruction* instr);
 
   const disasm::NameConverter& converter_;
   Vector<char> out_buffer_;
@@ -119,9 +116,7 @@ void Decoder::PrintRegister(int reg) {
 
 
 // Print the double FP register name according to the active name converter.
-void Decoder::PrintDRegister(int reg) {
-  Print(GetRegConfig()->GetDoubleRegisterName(reg));
-}
+void Decoder::PrintDRegister(int reg) { Print(FPRegisters::Name(reg)); }
 
 
 // Print SoftwareInterrupt codes. Factoring this out reduces the complexity of
@@ -149,7 +144,7 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
 // Handle all register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatRegister(Instruction* instr, const char* format) {
-  DCHECK_EQ(format[0], 'r');
+  DCHECK(format[0] == 'r');
 
   if ((format[1] == 't') || (format[1] == 's')) {  // 'rt & 'rs register
     int reg = instr->RTValue();
@@ -166,13 +161,14 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
   }
 
   UNREACHABLE();
+  return -1;
 }
 
 
 // Handle all FP register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatFPRegister(Instruction* instr, const char* format) {
-  DCHECK_EQ(format[0], 'D');
+  DCHECK(format[0] == 'D');
 
   int retval = 2;
   int reg = -1;
@@ -269,9 +265,8 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
             converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
         return 8;
       }
-      break;
       case 's': {
-        DCHECK_EQ(format[1], 'h');
+        DCHECK(format[1] == 'h');
         int32_t value = 0;
         int32_t opcode = instr->OpcodeValue() << 26;
         int32_t sh = instr->Bits(15, 11);
@@ -325,6 +320,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
   }
 
   UNREACHABLE();
+  return -1;
 }
 
 
@@ -346,7 +342,7 @@ void Decoder::Format(Instruction* instr, const char* format) {
 
 
 // The disassembler may end up decoding data inlined in the code. We do not want
-// it to crash if the data does not resemble any known instruction.
+// it to crash if the data does not ressemble any known instruction.
 #define VERIFY(condition) \
   if (!(condition)) {     \
     Unknown(instr);       \
@@ -370,13 +366,13 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
 
 
 void Decoder::DecodeExt1(Instruction* instr) {
-  switch (EXT1 | (instr->BitField(10, 1))) {
+  switch (instr->Bits(10, 1) << 1) {
     case MCRF: {
       UnknownFormat(instr, "mcrf");  // not used by V8
       break;
     }
     case BCLRX: {
-      int bo = instr->BitField(25, 21);
+      int bo = instr->Bits(25, 21) << 21;
       int bi = instr->Bits(20, 16);
       CRBit cond = static_cast<CRBit>(bi & (CRWIDTH - 1));
       switch (bo) {
@@ -446,7 +442,7 @@ void Decoder::DecodeExt1(Instruction* instr) {
       break;
     }
     case BCCTRX: {
-      switch (instr->BitField(25, 21)) {
+      switch (instr->Bits(25, 21) << 21) {
         case DCBNZF: {
           UnknownFormat(instr, "bcctrx-dcbnzf");
           break;
@@ -540,7 +536,7 @@ void Decoder::DecodeExt1(Instruction* instr) {
 
 void Decoder::DecodeExt2(Instruction* instr) {
   // Some encodings are 10-1 bits, handle those first
-  switch (EXT2 | (instr->BitField(10, 1))) {
+  switch (instr->Bits(10, 1) << 1) {
     case SRWX: {
       Format(instr, "srw'.    'ra, 'rs, 'rb");
       return;
@@ -558,28 +554,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
 #if V8_TARGET_ARCH_PPC64
     case SRAD: {
       Format(instr, "srad'.   'ra, 'rs, 'rb");
-      return;
-    }
-#endif
-    case SYNC: {
-      Format(instr, "sync");
-      return;
-    }
-    case MODSW: {
-      Format(instr, "modsw  'rt, 'ra, 'rb");
-      return;
-    }
-    case MODUW: {
-      Format(instr, "moduw  'rt, 'ra, 'rb");
-      return;
-    }
-#if V8_TARGET_ARCH_PPC64
-    case MODSD: {
-      Format(instr, "modsd  'rt, 'ra, 'rb");
-      return;
-    }
-    case MODUD: {
-      Format(instr, "modud  'rt, 'ra, 'rb");
       return;
     }
 #endif
@@ -602,19 +576,19 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
     case LFSX: {
-      Format(instr, "lfsx    'Dt, 'ra, 'rb");
+      Format(instr, "lfsx    'rt, 'ra, 'rb");
       return;
     }
     case LFSUX: {
-      Format(instr, "lfsux   'Dt, 'ra, 'rb");
+      Format(instr, "lfsux   'rt, 'ra, 'rb");
       return;
     }
     case LFDX: {
-      Format(instr, "lfdx    'Dt, 'ra, 'rb");
+      Format(instr, "lfdx    'rt, 'ra, 'rb");
       return;
     }
     case LFDUX: {
-      Format(instr, "lfdux   'Dt, 'ra, 'rb");
+      Format(instr, "lfdux   'rt, 'ra, 'rb");
       return;
     }
     case STFSX: {
@@ -633,42 +607,17 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "stfdux   'rs, 'ra, 'rb");
       return;
     }
-    case POPCNTW: {
-      Format(instr, "popcntw  'ra, 'rs");
-      return;
-    }
-#if V8_TARGET_ARCH_PPC64
-    case POPCNTD: {
-      Format(instr, "popcntd  'ra, 'rs");
-      return;
-    }
-#endif
   }
 
-  switch (EXT2 | (instr->BitField(10, 2))) {
+  switch (instr->Bits(10, 2) << 2) {
     case SRADIX: {
       Format(instr, "sradi'.  'ra,'rs,'sh");
       return;
     }
   }
 
-  switch (EXT2 | (instr->BitField(10, 0))) {
-    case STBCX: {
-      Format(instr, "stbcx   'rs, 'ra, 'rb");
-      return;
-    }
-    case STHCX: {
-      Format(instr, "sthcx   'rs, 'ra, 'rb");
-      return;
-    }
-    case STWCX: {
-      Format(instr, "stwcx   'rs, 'ra, 'rb");
-      return;
-    }
-  }
-
   // ?? are all of these xo_form?
-  switch (EXT2 | (instr->BitField(9, 1))) {
+  switch (instr->Bits(9, 1) << 1) {
     case CMP: {
 #if V8_TARGET_ARCH_PPC64
       if (instr->Bit(21)) {
@@ -695,16 +644,8 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "subfc'. 'rt, 'ra, 'rb");
       return;
     }
-    case SUBFEX: {
-      Format(instr, "subfe'. 'rt, 'ra, 'rb");
-      return;
-    }
     case ADDCX: {
       Format(instr, "addc'.   'rt, 'ra, 'rb");
-      return;
-    }
-    case ADDEX: {
-      Format(instr, "adde'.   'rt, 'ra, 'rb");
       return;
     }
     case CNTLZWX: {
@@ -877,18 +818,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "lhax    'rt, 'ra, 'rb");
       return;
     }
-    case LBARX: {
-      Format(instr, "lbarx   'rt, 'ra, 'rb");
-      return;
-    }
-    case LHARX: {
-      Format(instr, "lharx   'rt, 'ra, 'rb");
-      return;
-    }
-    case LWARX: {
-      Format(instr, "lwarx   'rt, 'ra, 'rb");
-      return;
-    }
 #if V8_TARGET_ARCH_PPC64
     case LDX: {
       Format(instr, "ldx     'rt, 'ra, 'rb");
@@ -929,7 +858,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
 #endif
   }
 
-  switch (EXT2 | (instr->BitField(5, 1))) {
+  switch (instr->Bits(5, 1) << 1) {
     case ISEL: {
       Format(instr, "isel    'rt, 'ra, 'rb");
       return;
@@ -941,25 +870,8 @@ void Decoder::DecodeExt2(Instruction* instr) {
 }
 
 
-void Decoder::DecodeExt3(Instruction* instr) {
-  switch (EXT3 | (instr->BitField(10, 1))) {
-    case FCFID: {
-      Format(instr, "fcfids'. 'Dt, 'Db");
-      break;
-    }
-    case FCFIDU: {
-      Format(instr, "fcfidus'.'Dt, 'Db");
-      break;
-    }
-    default: {
-      Unknown(instr);  // not used by V8
-    }
-  }
-}
-
-
 void Decoder::DecodeExt4(Instruction* instr) {
-  switch (EXT4 | (instr->BitField(5, 1))) {
+  switch (instr->Bits(5, 1) << 1) {
     case FDIV: {
       Format(instr, "fdiv'.   'Dt, 'Da, 'Db");
       return;
@@ -994,7 +906,7 @@ void Decoder::DecodeExt4(Instruction* instr) {
     }
   }
 
-  switch (EXT4 | (instr->BitField(10, 1))) {
+  switch (instr->Bits(10, 1) << 1) {
     case FCMPU: {
       Format(instr, "fcmpu   'Da, 'Db");
       break;
@@ -1007,24 +919,12 @@ void Decoder::DecodeExt4(Instruction* instr) {
       Format(instr, "fcfid'.  'Dt, 'Db");
       break;
     }
-    case FCFIDU: {
-      Format(instr, "fcfidu'. 'Dt, 'Db");
-      break;
-    }
     case FCTID: {
       Format(instr, "fctid   'Dt, 'Db");
       break;
     }
     case FCTIDZ: {
       Format(instr, "fctidz  'Dt, 'Db");
-      break;
-    }
-    case FCTIDU: {
-      Format(instr, "fctidu  'Dt, 'Db");
-      break;
-    }
-    case FCTIDUZ: {
-      Format(instr, "fctiduz 'Dt, 'Db");
       break;
     }
     case FCTIW: {
@@ -1075,18 +975,6 @@ void Decoder::DecodeExt4(Instruction* instr) {
       Format(instr, "fneg'.   'Dt, 'Db");
       break;
     }
-    case MCRFS: {
-      Format(instr, "mcrfs   ?,?");
-      break;
-    }
-    case MTFSB0: {
-      Format(instr, "mtfsb0'. ?");
-      break;
-    }
-    case MTFSB1: {
-      Format(instr, "mtfsb1'. ?");
-      break;
-    }
     default: {
       Unknown(instr);  // not used by V8
     }
@@ -1095,7 +983,7 @@ void Decoder::DecodeExt4(Instruction* instr) {
 
 
 void Decoder::DecodeExt5(Instruction* instr) {
-  switch (EXT5 | (instr->BitField(4, 2))) {
+  switch (instr->Bits(4, 2) << 2) {
     case RLDICL: {
       Format(instr, "rldicl'. 'ra, 'rs, 'sh, 'mb");
       return;
@@ -1113,34 +1001,12 @@ void Decoder::DecodeExt5(Instruction* instr) {
       return;
     }
   }
-  switch (EXT5 | (instr->BitField(4, 1))) {
+  switch (instr->Bits(4, 1) << 1) {
     case RLDCL: {
       Format(instr, "rldcl'.  'ra, 'rs, 'sb, 'mb");
       return;
     }
   }
-  Unknown(instr);  // not used by V8
-}
-
-void Decoder::DecodeExt6(Instruction* instr) {
-  switch (EXT6 | (instr->BitField(10, 3))) {
-#define DECODE_XX3_INSTRUCTIONS(name, opcode_name, opcode_value) \
-  case opcode_name: {                                            \
-    Format(instr, #name" 'Dt, 'Da, 'Db");                        \
-    return;                                                      \
-  }
-    PPC_XX3_OPCODE_LIST(DECODE_XX3_INSTRUCTIONS)
-#undef DECODE_XX3_INSTRUCTIONS
-  }
-  switch (EXT6 | (instr->BitField(10, 2))) {
-#define DECODE_XX2_INSTRUCTIONS(name, opcode_name, opcode_value) \
-  case opcode_name: {                                            \
-    Format(instr, #name" 'Dt, 'Db");                             \
-    return;                                                      \
-  }
-    PPC_XX2_OPCODE_LIST(DECODE_XX2_INSTRUCTIONS)
-  }
-#undef DECODE_XX3_INSTRUCTIONS
   Unknown(instr);  // not used by V8
 }
 
@@ -1153,15 +1019,16 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%08x       ",
                               instr->InstructionBits());
 
-  if (ABI_USES_FUNCTION_DESCRIPTORS && instr->InstructionBits() == 0) {
-    // The first field will be identified as a jump table entry.  We
-    // emit the rest of the structure as zero, so just skip past them.
+#if ABI_USES_FUNCTION_DESCRIPTORS
+  // The first field will be identified as a jump table entry.  We emit the rest
+  // of the structure as zero, so just skip past them.
+  if (instr->InstructionBits() == 0) {
     Format(instr, "constant");
     return Instruction::kInstrSize;
   }
+#endif
 
-  uint32_t opcode = instr->OpcodeValue() << 26;
-  switch (opcode) {
+  switch (instr->OpcodeValue() << 26) {
     case TWI: {
       PrintSoftwareInterrupt(instr->SvcValue());
       break;
@@ -1420,20 +1287,13 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       Format(instr, "stfdu   'Dt, 'int16('ra)");
       break;
     }
-    case EXT3: {
-      DecodeExt3(instr);
-      break;
-    }
+    case EXT3:
     case EXT4: {
       DecodeExt4(instr);
       break;
     }
     case EXT5: {
       DecodeExt5(instr);
-      break;
-    }
-    case EXT6: {
-      DecodeExt6(instr);
       break;
     }
 #if V8_TARGET_ARCH_PPC64
@@ -1478,7 +1338,7 @@ namespace disasm {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
   return tmp_buffer_.start();
 }
 
@@ -1489,7 +1349,7 @@ const char* NameConverter::NameOfConstant(byte* addr) const {
 
 
 const char* NameConverter::NameOfCPURegister(int reg) const {
-  return v8::internal::GetRegConfig()->GetGeneralRegisterName(reg);
+  return v8::internal::Registers::Name(reg);
 }
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
@@ -1538,7 +1398,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
+    v8::internal::PrintF(f, "%p    %08x      %s\n", prev_pc,
                          *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }

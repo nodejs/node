@@ -1,4 +1,0 @@
-*%(basename)s:5: SyntaxError: Unexpected identifier
-(function* yield() {})
-           ^^^^^
-SyntaxError: Unexpected identifier

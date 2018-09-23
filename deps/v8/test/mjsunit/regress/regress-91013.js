@@ -37,7 +37,7 @@ for (var j = 0; j < i; j++) {
   a[j] = 0.5;
 }
 
-assertTrue(%HasDoubleElements(a));
+assertTrue(%HasFastDoubleElements(a));
 
 // Store some smis into it.
 for (var j = 0; j < 10; j++) {

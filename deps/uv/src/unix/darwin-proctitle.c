@@ -18,9 +18,6 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
-#include "internal.h"
-
 #include <dlfcn.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -44,14 +41,14 @@ static int uv__pthread_setname_np(const char* name) {
       dlsym(RTLD_DEFAULT, "pthread_setname_np");
 
   if (dynamic_pthread_setname_np == NULL)
-    return UV_ENOSYS;
+    return -ENOSYS;
 
   strncpy(namebuf, name, sizeof(namebuf) - 1);
   namebuf[sizeof(namebuf) - 1] = '\0';
 
   err = dynamic_pthread_setname_np(namebuf);
   if (err)
-    return UV__ERR(err);
+    return -err;
 
   return 0;
 }
@@ -87,7 +84,7 @@ int uv__set_process_title(const char* title) {
   CFTypeRef asn;
   int err;
 
-  err = UV_ENOENT;
+  err = -ENOENT;
   application_services_handle = dlopen("/System/Library/Frameworks/"
                                        "ApplicationServices.framework/"
                                        "Versions/A/ApplicationServices",
@@ -154,7 +151,7 @@ int uv__set_process_title(const char* title) {
   /* Black 10.9 magic, to remove (Not responding) mark in Activity Monitor */
   hi_services_bundle =
       pCFBundleGetBundleWithIdentifier(S("com.apple.HIServices"));
-  err = UV_ENOENT;
+  err = -ENOENT;
   if (hi_services_bundle == NULL)
     goto out;
 
@@ -185,7 +182,7 @@ int uv__set_process_title(const char* title) {
 
   asn = pLSGetCurrentApplicationASN();
 
-  err = UV_EINVAL;
+  err = -EINVAL;
   if (pLSSetApplicationInformationItem(-2,  /* Magic value. */
                                        asn,
                                        *display_name_key,

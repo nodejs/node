@@ -114,8 +114,7 @@ TEST_F(DiamondTest, DiamondPhis) {
   Node* p2 = Parameter(2);
   Diamond d(graph(), common(), p0);
 
-  MachineRepresentation types[] = {MachineRepresentation::kTagged,
-                                   MachineRepresentation::kWord32};
+  MachineType types[] = {kMachAnyTagged, kMachUint32, kMachInt32};
 
   for (size_t i = 0; i < arraysize(types); i++) {
     Node* phi = d.Phi(types[i], p1, p2);
@@ -129,15 +128,31 @@ TEST_F(DiamondTest, DiamondPhis) {
 }
 
 
+TEST_F(DiamondTest, DiamondEffectPhis) {
+  Node* p0 = Parameter(0);
+  Node* p1 = Parameter(1);
+  Node* p2 = Parameter(2);
+  Diamond d(graph(), common(), p0);
+
+  Node* phi = d.EffectPhi(p1, p2);
+
+  EXPECT_THAT(d.branch, IsBranch(p0, graph()->start()));
+  EXPECT_THAT(d.if_true, IsIfTrue(d.branch));
+  EXPECT_THAT(d.if_false, IsIfFalse(d.branch));
+  EXPECT_THAT(d.merge, IsMerge(d.if_true, d.if_false));
+  EXPECT_THAT(phi, IsEffectPhi(p1, p2, d.merge));
+}
+
+
 TEST_F(DiamondTest, BranchHint) {
   Diamond dn(graph(), common(), Parameter(0));
-  CHECK_EQ(BranchHint::kNone, BranchHintOf(dn.branch->op()));
+  CHECK(BranchHint::kNone == BranchHintOf(dn.branch->op()));
 
   Diamond dt(graph(), common(), Parameter(0), BranchHint::kTrue);
-  CHECK_EQ(BranchHint::kTrue, BranchHintOf(dt.branch->op()));
+  CHECK(BranchHint::kTrue == BranchHintOf(dt.branch->op()));
 
   Diamond df(graph(), common(), Parameter(0), BranchHint::kFalse);
-  CHECK_EQ(BranchHint::kFalse, BranchHintOf(df.branch->op()));
+  CHECK(BranchHint::kFalse == BranchHintOf(df.branch->op()));
 }
 
 

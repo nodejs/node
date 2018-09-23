@@ -7,18 +7,15 @@
 
 #include <cmath>
 
-#include "src/base/compiler-specific.h"
+// TODO(turbofan): Move ExternalReference out of assembler.h
+#include "src/assembler.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-#include "src/double.h"
-#include "src/external-reference.h"
-#include "src/globals.h"
+#include "src/unique.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-class JSHeapBroker;
 
 // A pattern matcher for nodes.
 struct NodeMatcher {
@@ -55,7 +52,7 @@ struct ValueMatcher : public NodeMatcher {
   explicit ValueMatcher(Node* node)
       : NodeMatcher(node), value_(), has_value_(opcode() == kOpcode) {
     if (has_value_) {
-      value_ = OpParameter<T>(node->op());
+      value_ = OpParameter<T>(node);
     }
   }
 
@@ -65,6 +62,14 @@ struct ValueMatcher : public NodeMatcher {
     return value_;
   }
 
+  bool Is(const T& value) const {
+    return this->HasValue() && this->Value() == value;
+  }
+
+  bool IsInRange(const T& low, const T& high) const {
+    return this->HasValue() && low <= this->Value() && this->Value() <= high;
+  }
+
  private:
   T value_;
   bool has_value_;
@@ -72,25 +77,13 @@ struct ValueMatcher : public NodeMatcher {
 
 
 template <>
-inline ValueMatcher<uint32_t, IrOpcode::kInt32Constant>::ValueMatcher(
-    Node* node)
-    : NodeMatcher(node),
-      value_(),
-      has_value_(opcode() == IrOpcode::kInt32Constant) {
-  if (has_value_) {
-    value_ = static_cast<uint32_t>(OpParameter<int32_t>(node->op()));
-  }
-}
-
-
-template <>
 inline ValueMatcher<int64_t, IrOpcode::kInt64Constant>::ValueMatcher(Node* node)
     : NodeMatcher(node), value_(), has_value_(false) {
   if (opcode() == IrOpcode::kInt32Constant) {
-    value_ = OpParameter<int32_t>(node->op());
+    value_ = OpParameter<int32_t>(node);
     has_value_ = true;
   } else if (opcode() == IrOpcode::kInt64Constant) {
-    value_ = OpParameter<int64_t>(node->op());
+    value_ = OpParameter<int64_t>(node);
     has_value_ = true;
   }
 }
@@ -101,10 +94,10 @@ inline ValueMatcher<uint64_t, IrOpcode::kInt64Constant>::ValueMatcher(
     Node* node)
     : NodeMatcher(node), value_(), has_value_(false) {
   if (opcode() == IrOpcode::kInt32Constant) {
-    value_ = static_cast<uint32_t>(OpParameter<int32_t>(node->op()));
+    value_ = OpParameter<uint32_t>(node);
     has_value_ = true;
   } else if (opcode() == IrOpcode::kInt64Constant) {
-    value_ = static_cast<uint64_t>(OpParameter<int64_t>(node->op()));
+    value_ = OpParameter<uint64_t>(node);
     has_value_ = true;
   }
 }
@@ -115,12 +108,6 @@ template <typename T, IrOpcode::Value kOpcode>
 struct IntMatcher final : public ValueMatcher<T, kOpcode> {
   explicit IntMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
-  bool Is(const T& value) const {
-    return this->HasValue() && this->Value() == value;
-  }
-  bool IsInRange(const T& low, const T& high) const {
-    return this->HasValue() && low <= this->Value() && this->Value() <= high;
-  }
   bool IsMultipleOf(T n) const {
     return this->HasValue() && (this->Value() % n) == 0;
   }
@@ -132,7 +119,6 @@ struct IntMatcher final : public ValueMatcher<T, kOpcode> {
     return this->HasValue() && this->Value() < 0 &&
            (-this->Value() & (-this->Value() - 1)) == 0;
   }
-  bool IsNegative() const { return this->HasValue() && this->Value() < 0; }
 };
 
 typedef IntMatcher<int32_t, IrOpcode::kInt32Constant> Int32Matcher;
@@ -153,31 +139,11 @@ template <typename T, IrOpcode::Value kOpcode>
 struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
   explicit FloatMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
-  bool Is(const T& value) const {
-    return this->HasValue() && this->Value() == value;
-  }
-  bool IsInRange(const T& low, const T& high) const {
-    return this->HasValue() && low <= this->Value() && this->Value() <= high;
-  }
   bool IsMinusZero() const {
     return this->Is(0.0) && std::signbit(this->Value());
   }
-  bool IsNegative() const { return this->HasValue() && this->Value() < 0.0; }
   bool IsNaN() const { return this->HasValue() && std::isnan(this->Value()); }
   bool IsZero() const { return this->Is(0.0) && !std::signbit(this->Value()); }
-  bool IsNormal() const {
-    return this->HasValue() && std::isnormal(this->Value());
-  }
-  bool IsInteger() const {
-    return this->HasValue() && std::nearbyint(this->Value()) == this->Value();
-  }
-  bool IsPositiveOrNegativePowerOf2() const {
-    if (!this->HasValue() || (this->Value() == 0.0)) {
-      return false;
-    }
-    Double value = Double(this->Value());
-    return !value.IsInfinite() && base::bits::IsPowerOfTwo(value.Significand());
-  }
 };
 
 typedef FloatMatcher<float, IrOpcode::kFloat32Constant> Float32Matcher;
@@ -187,17 +153,9 @@ typedef FloatMatcher<double, IrOpcode::kNumberConstant> NumberMatcher;
 
 // A pattern matcher for heap object constants.
 struct HeapObjectMatcher final
-    : public ValueMatcher<Handle<HeapObject>, IrOpcode::kHeapConstant> {
+    : public ValueMatcher<Unique<HeapObject>, IrOpcode::kHeapConstant> {
   explicit HeapObjectMatcher(Node* node)
-      : ValueMatcher<Handle<HeapObject>, IrOpcode::kHeapConstant>(node) {}
-
-  bool Is(Handle<HeapObject> const& value) const {
-    return this->HasValue() && this->Value().address() == value.address();
-  }
-
-  ObjectRef Ref(const JSHeapBroker* broker) const {
-    return ObjectRef(broker, this->Value());
-  }
+      : ValueMatcher<Unique<HeapObject>, IrOpcode::kHeapConstant>(node) {}
 };
 
 
@@ -206,9 +164,6 @@ struct ExternalReferenceMatcher final
     : public ValueMatcher<ExternalReference, IrOpcode::kExternalConstant> {
   explicit ExternalReferenceMatcher(Node* node)
       : ValueMatcher<ExternalReference, IrOpcode::kExternalConstant>(node) {}
-  bool Is(const ExternalReference& value) const {
-    return this->HasValue() && this->Value() == value;
-  }
 };
 
 
@@ -256,9 +211,6 @@ struct BinopMatcher : public NodeMatcher {
  protected:
   void SwapInputs() {
     std::swap(left_, right_);
-    // TODO(tebbi): This modification should notify the reducers using
-    // BinopMatcher. Alternatively, all reducers (especially value numbering)
-    // could ignore the ordering for commutative binops.
     node()->ReplaceInput(0, left().node());
     node()->ReplaceInput(1, right().node());
   }
@@ -283,8 +235,7 @@ typedef BinopMatcher<UintPtrMatcher, UintPtrMatcher> UintPtrBinopMatcher;
 typedef BinopMatcher<Float32Matcher, Float32Matcher> Float32BinopMatcher;
 typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
 typedef BinopMatcher<NumberMatcher, NumberMatcher> NumberBinopMatcher;
-typedef BinopMatcher<HeapObjectMatcher, HeapObjectMatcher>
-    HeapObjectBinopMatcher;
+
 
 template <class BinopMatcher, IrOpcode::Value kMulOpcode,
           IrOpcode::Value kShiftOpcode>
@@ -343,12 +294,11 @@ typedef ScaleMatcher<Int32BinopMatcher, IrOpcode::kInt32Mul,
 typedef ScaleMatcher<Int64BinopMatcher, IrOpcode::kInt64Mul,
                      IrOpcode::kWord64Shl> Int64ScaleMatcher;
 
-template <class BinopMatcher, IrOpcode::Value AddOpcode,
-          IrOpcode::Value SubOpcode, IrOpcode::Value kMulOpcode,
-          IrOpcode::Value kShiftOpcode>
+
+template <class BinopMatcher, IrOpcode::Value kAddOpcode,
+          IrOpcode::Value kMulOpcode, IrOpcode::Value kShiftOpcode>
 struct AddMatcher : public BinopMatcher {
-  static const IrOpcode::Value kAddOpcode = AddOpcode;
-  static const IrOpcode::Value kSubOpcode = SubOpcode;
+  static const IrOpcode::Value kOpcode = kAddOpcode;
   typedef ScaleMatcher<BinopMatcher, kMulOpcode, kShiftOpcode> Matcher;
 
   AddMatcher(Node* node, bool allow_input_swap)
@@ -396,10 +346,8 @@ struct AddMatcher : public BinopMatcher {
       return;
     }
 
-    if ((this->left().opcode() != kSubOpcode &&
-         this->left().opcode() != kAddOpcode) &&
-        (this->right().opcode() == kAddOpcode ||
-         this->right().opcode() == kSubOpcode)) {
+    if (this->right().opcode() == kAddOpcode &&
+        this->left().opcode() != kAddOpcode) {
       this->SwapInputs();
     }
   }
@@ -408,48 +356,30 @@ struct AddMatcher : public BinopMatcher {
   bool power_of_two_plus_one_;
 };
 
-typedef AddMatcher<Int32BinopMatcher, IrOpcode::kInt32Add, IrOpcode::kInt32Sub,
-                   IrOpcode::kInt32Mul, IrOpcode::kWord32Shl>
-    Int32AddMatcher;
-typedef AddMatcher<Int64BinopMatcher, IrOpcode::kInt64Add, IrOpcode::kInt64Sub,
-                   IrOpcode::kInt64Mul, IrOpcode::kWord64Shl>
-    Int64AddMatcher;
+typedef AddMatcher<Int32BinopMatcher, IrOpcode::kInt32Add, IrOpcode::kInt32Mul,
+                   IrOpcode::kWord32Shl> Int32AddMatcher;
+typedef AddMatcher<Int64BinopMatcher, IrOpcode::kInt64Add, IrOpcode::kInt64Mul,
+                   IrOpcode::kWord64Shl> Int64AddMatcher;
 
-enum DisplacementMode { kPositiveDisplacement, kNegativeDisplacement };
-
-enum class AddressOption : uint8_t {
-  kAllowNone = 0u,
-  kAllowInputSwap = 1u << 0,
-  kAllowScale = 1u << 1,
-  kAllowAll = kAllowInputSwap | kAllowScale
-};
-
-typedef base::Flags<AddressOption, uint8_t> AddressOptions;
-DEFINE_OPERATORS_FOR_FLAGS(AddressOptions);
 
 template <class AddMatcher>
 struct BaseWithIndexAndDisplacementMatcher {
-  BaseWithIndexAndDisplacementMatcher(Node* node, AddressOptions options)
+  BaseWithIndexAndDisplacementMatcher(Node* node, bool allow_input_swap)
       : matches_(false),
-        index_(nullptr),
+        index_(NULL),
         scale_(0),
-        base_(nullptr),
-        displacement_(nullptr),
-        displacement_mode_(kPositiveDisplacement) {
-    Initialize(node, options);
+        base_(NULL),
+        displacement_(NULL) {
+    Initialize(node, allow_input_swap);
   }
 
   explicit BaseWithIndexAndDisplacementMatcher(Node* node)
       : matches_(false),
-        index_(nullptr),
+        index_(NULL),
         scale_(0),
-        base_(nullptr),
-        displacement_(nullptr),
-        displacement_mode_(kPositiveDisplacement) {
-    Initialize(node, AddressOption::kAllowScale |
-                         (node->op()->HasProperty(Operator::kCommutative)
-                              ? AddressOption::kAllowInputSwap
-                              : AddressOption::kAllowNone));
+        base_(NULL),
+        displacement_(NULL) {
+    Initialize(node, node->op()->HasProperty(Operator::kCommutative));
   }
 
   bool matches() const { return matches_; }
@@ -457,7 +387,6 @@ struct BaseWithIndexAndDisplacementMatcher {
   int scale() const { return scale_; }
   Node* base() const { return base_; }
   Node* displacement() const { return displacement_; }
-  DisplacementMode displacement_mode() const { return displacement_mode_; }
 
  private:
   bool matches_;
@@ -465,9 +394,8 @@ struct BaseWithIndexAndDisplacementMatcher {
   int scale_;
   Node* base_;
   Node* displacement_;
-  DisplacementMode displacement_mode_;
 
-  void Initialize(Node* node, AddressOptions options) {
+  void Initialize(Node* node, bool allow_input_swap) {
     // The BaseWithIndexAndDisplacementMatcher canonicalizes the order of
     // displacements and scale factors that are used as inputs, so instead of
     // enumerating all possible patterns by brute force, checking for node
@@ -485,159 +413,102 @@ struct BaseWithIndexAndDisplacementMatcher {
     // (B + D)
     // (B + B)
     if (node->InputCount() < 2) return;
-    AddMatcher m(node, options & AddressOption::kAllowInputSwap);
+    AddMatcher m(node, allow_input_swap);
     Node* left = m.left().node();
     Node* right = m.right().node();
-    Node* displacement = nullptr;
-    Node* base = nullptr;
-    Node* index = nullptr;
-    Node* scale_expression = nullptr;
+    Node* displacement = NULL;
+    Node* base = NULL;
+    Node* index = NULL;
+    Node* scale_expression = NULL;
     bool power_of_two_plus_one = false;
-    DisplacementMode displacement_mode = kPositiveDisplacement;
     int scale = 0;
-    if (m.HasIndexInput() && OwnedByAddressingOperand(left)) {
+    if (m.HasIndexInput() && left->OwnedBy(node)) {
       index = m.IndexInput();
       scale = m.scale();
       scale_expression = left;
       power_of_two_plus_one = m.power_of_two_plus_one();
-      bool match_found = false;
-      if (right->opcode() == AddMatcher::kSubOpcode &&
-          OwnedByAddressingOperand(right)) {
+      if (right->opcode() == AddMatcher::kOpcode && right->OwnedBy(node)) {
         AddMatcher right_matcher(right);
         if (right_matcher.right().HasValue()) {
-          // (S + (B - D))
+          // (S + (B + D))
           base = right_matcher.left().node();
           displacement = right_matcher.right().node();
-          displacement_mode = kNegativeDisplacement;
-          match_found = true;
-        }
-      }
-      if (!match_found) {
-        if (right->opcode() == AddMatcher::kAddOpcode &&
-            OwnedByAddressingOperand(right)) {
-          AddMatcher right_matcher(right);
-          if (right_matcher.right().HasValue()) {
-            // (S + (B + D))
-            base = right_matcher.left().node();
-            displacement = right_matcher.right().node();
-          } else {
-            // (S + (B + B))
-            base = right;
-          }
-        } else if (m.right().HasValue()) {
-          // (S + D)
-          displacement = right;
         } else {
-          // (S + B)
+          // (S + (B + B))
           base = right;
         }
+      } else if (m.right().HasValue()) {
+        // (S + D)
+        displacement = right;
+      } else {
+        // (S + B)
+        base = right;
       }
     } else {
-      bool match_found = false;
-      if (left->opcode() == AddMatcher::kSubOpcode &&
-          OwnedByAddressingOperand(left)) {
+      if (left->opcode() == AddMatcher::kOpcode && left->OwnedBy(node)) {
         AddMatcher left_matcher(left);
         Node* left_left = left_matcher.left().node();
         Node* left_right = left_matcher.right().node();
-        if (left_matcher.right().HasValue()) {
-          if (left_matcher.HasIndexInput() && left_left->OwnedBy(left)) {
-            // ((S - D) + B)
+        if (left_matcher.HasIndexInput() && left_left->OwnedBy(left)) {
+          if (left_matcher.right().HasValue()) {
+            // ((S + D) + B)
             index = left_matcher.IndexInput();
             scale = left_matcher.scale();
             scale_expression = left_left;
             power_of_two_plus_one = left_matcher.power_of_two_plus_one();
             displacement = left_right;
-            displacement_mode = kNegativeDisplacement;
             base = right;
-          } else {
-            // ((B - D) + B)
-            index = left_left;
-            displacement = left_right;
-            displacement_mode = kNegativeDisplacement;
-            base = right;
-          }
-          match_found = true;
-        }
-      }
-      if (!match_found) {
-        if (left->opcode() == AddMatcher::kAddOpcode &&
-            OwnedByAddressingOperand(left)) {
-          AddMatcher left_matcher(left);
-          Node* left_left = left_matcher.left().node();
-          Node* left_right = left_matcher.right().node();
-          if (left_matcher.HasIndexInput() && left_left->OwnedBy(left)) {
-            if (left_matcher.right().HasValue()) {
-              // ((S + D) + B)
-              index = left_matcher.IndexInput();
-              scale = left_matcher.scale();
-              scale_expression = left_left;
-              power_of_two_plus_one = left_matcher.power_of_two_plus_one();
-              displacement = left_right;
-              base = right;
-            } else if (m.right().HasValue()) {
-              if (left->OwnedBy(node)) {
-                // ((S + B) + D)
-                index = left_matcher.IndexInput();
-                scale = left_matcher.scale();
-                scale_expression = left_left;
-                power_of_two_plus_one = left_matcher.power_of_two_plus_one();
-                base = left_right;
-                displacement = right;
-              } else {
-                // (B + D)
-                base = left;
-                displacement = right;
-              }
-            } else {
-              // (B + B)
-              index = left;
-              base = right;
-            }
-          } else {
-            if (left_matcher.right().HasValue()) {
-              // ((B + D) + B)
-              index = left_left;
-              displacement = left_right;
-              base = right;
-            } else if (m.right().HasValue()) {
-              if (left->OwnedBy(node)) {
-                // ((B + B) + D)
-                index = left_left;
-                base = left_right;
-                displacement = right;
-              } else {
-                // (B + D)
-                base = left;
-                displacement = right;
-              }
-            } else {
-              // (B + B)
-              index = left;
-              base = right;
-            }
-          }
-        } else {
-          if (m.right().HasValue()) {
-            // (B + D)
-            base = left;
+          } else if (m.right().HasValue()) {
+            // ((S + B) + D)
+            index = left_matcher.IndexInput();
+            scale = left_matcher.scale();
+            scale_expression = left_left;
+            power_of_two_plus_one = left_matcher.power_of_two_plus_one();
+            base = left_right;
             displacement = right;
           } else {
             // (B + B)
-            base = left;
-            index = right;
+            index = left;
+            base = right;
           }
+        } else {
+          if (left_matcher.right().HasValue()) {
+            // ((B + D) + B)
+            index = left_left;
+            displacement = left_right;
+            base = right;
+          } else if (m.right().HasValue()) {
+            // ((B + B) + D)
+            index = left_left;
+            base = left_right;
+            displacement = right;
+          } else {
+            // (B + B)
+            index = left;
+            base = right;
+          }
+        }
+      } else {
+        if (m.right().HasValue()) {
+          // (B + D)
+          base = left;
+          displacement = right;
+        } else {
+          // (B + B)
+          base = left;
+          index = right;
         }
       }
     }
     int64_t value = 0;
-    if (displacement != nullptr) {
+    if (displacement != NULL) {
       switch (displacement->opcode()) {
         case IrOpcode::kInt32Constant: {
-          value = OpParameter<int32_t>(displacement->op());
+          value = OpParameter<int32_t>(displacement);
           break;
         }
         case IrOpcode::kInt64Constant: {
-          value = OpParameter<int64_t>(displacement->op());
+          value = OpParameter<int64_t>(displacement);
           break;
         }
         default:
@@ -645,11 +516,11 @@ struct BaseWithIndexAndDisplacementMatcher {
           break;
       }
       if (value == 0) {
-        displacement = nullptr;
+        displacement = NULL;
       }
     }
     if (power_of_two_plus_one) {
-      if (base != nullptr) {
+      if (base != NULL) {
         // If the scale requires explicitly using the index as the base, but a
         // base is already part of the match, then the (1 << N + 1) scale factor
         // can't be folded into the match and the entire index * scale
@@ -660,39 +531,11 @@ struct BaseWithIndexAndDisplacementMatcher {
         base = index;
       }
     }
-    if (!(options & AddressOption::kAllowScale) && scale != 0) {
-      index = scale_expression;
-      scale = 0;
-    }
     base_ = base;
     displacement_ = displacement;
-    displacement_mode_ = displacement_mode;
     index_ = index;
     scale_ = scale;
     matches_ = true;
-  }
-
-  static bool OwnedByAddressingOperand(Node* node) {
-    for (auto use : node->use_edges()) {
-      Node* from = use.from();
-      switch (from->opcode()) {
-        case IrOpcode::kLoad:
-        case IrOpcode::kPoisonedLoad:
-        case IrOpcode::kInt32Add:
-        case IrOpcode::kInt64Add:
-          // Skip addressing uses.
-          break;
-        case IrOpcode::kStore:
-          // If the stored value is this node, it is not an addressing use.
-          if (from->InputAt(2) == node) return false;
-          // Otherwise it is used as an address and skipped.
-          break;
-        default:
-          // Non-addressing use found.
-          return false;
-      }
-    }
-    return true;
   }
 };
 
@@ -701,7 +544,7 @@ typedef BaseWithIndexAndDisplacementMatcher<Int32AddMatcher>
 typedef BaseWithIndexAndDisplacementMatcher<Int64AddMatcher>
     BaseWithIndexAndDisplacement64Matcher;
 
-struct V8_EXPORT_PRIVATE BranchMatcher : public NON_EXPORTED_BASE(NodeMatcher) {
+struct BranchMatcher : public NodeMatcher {
   explicit BranchMatcher(Node* branch);
 
   bool Matched() const { return if_true_ && if_false_; }
@@ -715,8 +558,8 @@ struct V8_EXPORT_PRIVATE BranchMatcher : public NON_EXPORTED_BASE(NodeMatcher) {
   Node* if_false_;
 };
 
-struct V8_EXPORT_PRIVATE DiamondMatcher
-    : public NON_EXPORTED_BASE(NodeMatcher) {
+
+struct DiamondMatcher : public NodeMatcher {
   explicit DiamondMatcher(Node* merge);
 
   bool Matched() const { return branch_; }
@@ -747,64 +590,6 @@ struct V8_EXPORT_PRIVATE DiamondMatcher
   Node* branch_;
   Node* if_true_;
   Node* if_false_;
-};
-
-template <class BinopMatcher, IrOpcode::Value expected_opcode>
-struct WasmStackCheckMatcher {
-  explicit WasmStackCheckMatcher(Node* compare) : compare_(compare) {}
-
-  bool Matched() {
-    if (compare_->opcode() != expected_opcode) return false;
-    BinopMatcher m(compare_);
-    return MatchedInternal(m.left(), m.right());
-  }
-
- private:
-  bool MatchedInternal(const typename BinopMatcher::LeftMatcher& l,
-                       const typename BinopMatcher::RightMatcher& r) {
-    // In wasm, the stack check is performed by loading the value given by
-    // the address of a field stored in the instance object. That object is
-    // passed as a parameter.
-    if (l.IsLoad() && r.IsLoadStackPointer()) {
-      LoadMatcher<LoadMatcher<NodeMatcher>> mleft(l.node());
-      if (mleft.object().IsLoad() && mleft.index().Is(0) &&
-          mleft.object().object().IsParameter()) {
-        return true;
-      }
-    }
-    return false;
-  }
-  Node* compare_;
-};
-
-template <class BinopMatcher, IrOpcode::Value expected_opcode>
-struct StackCheckMatcher {
-  StackCheckMatcher(Isolate* isolate, Node* compare)
-      : isolate_(isolate), compare_(compare) {}
-  bool Matched() {
-    // TODO(jgruber): Ideally, we could be more flexible here and also match the
-    // same pattern with switched operands (i.e.: left is LoadStackPointer and
-    // right is the js_stack_limit load). But to be correct in all cases, we'd
-    // then have to invert the outcome of the stack check comparison.
-    if (compare_->opcode() != expected_opcode) return false;
-    BinopMatcher m(compare_);
-    return MatchedInternal(m.left(), m.right());
-  }
-
- private:
-  bool MatchedInternal(const typename BinopMatcher::LeftMatcher& l,
-                       const typename BinopMatcher::RightMatcher& r) {
-    if (l.IsLoad() && r.IsLoadStackPointer()) {
-      LoadMatcher<ExternalReferenceMatcher> mleft(l.node());
-      ExternalReference js_stack_limit =
-          ExternalReference::address_of_stack_limit(isolate_);
-      if (mleft.object().Is(js_stack_limit) && mleft.index().Is(0)) return true;
-    }
-    return false;
-  }
-
-  Isolate* isolate_;
-  Node* compare_;
 };
 
 }  // namespace compiler

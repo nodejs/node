@@ -5,20 +5,20 @@
 function Module(stdlib, foreign, heap) {
   "use asm";
   function f1(i) {
-    i = i | 0;
-    return (i >>> 0) % 3 | 0;
+    i = i>>>0;
+    return i % 3;
   }
   function f2(i) {
-    i = i | 0;
-    return (i >>> 0) % 11 | 0;
+    i = i>>>0;
+    return i % 11;
   }
   function f3(i) {
-    i = i | 0;
-    return (i >>> 0) % 1024 | 0;
+    i = i>>>0;
+    return i % 1024;
   }
   function f4(i) {
-    i = i | 0;
-    return (i >>> 0) % 3333337 | 0;
+    i = i>>>0;
+    return i % 3333337;
   }
   return { f1: f1, f2: f2, f3: f3, f4: f4 };
 }

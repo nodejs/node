@@ -1,26 +1,23 @@
-'use strict';
-const common = require('../common.js');
-const events = require('events');
+var common = require('../common.js');
+var events = require('events');
 
-const bench = common.createBenchmark(main, { n: [1e6] });
+var bench = common.createBenchmark(main, {n: [25e4]});
 
-function main({ n }) {
-  const ee = new events.EventEmitter();
-  const listeners = [];
+function main(conf) {
+  var n = conf.n | 0;
 
-  var k;
-  for (k = 0; k < 10; k += 1)
+  var ee = new events.EventEmitter();
+  var listeners = [];
+
+  for (var k = 0; k < 10; k += 1)
     listeners.push(function() {});
 
   bench.start();
   for (var i = 0; i < n; i += 1) {
-    const dummy = (i % 2 === 0) ? 'dummy0' : 'dummy1';
-    for (k = listeners.length; --k >= 0; /* empty */) {
-      ee.on(dummy, listeners[k]);
-    }
-    for (k = listeners.length; --k >= 0; /* empty */) {
-      ee.removeListener(dummy, listeners[k]);
-    }
+    for (var k = listeners.length; --k >= 0; /* empty */)
+      ee.on('dummy', listeners[k]);
+    for (var k = listeners.length; --k >= 0; /* empty */)
+      ee.removeListener('dummy', listeners[k]);
   }
   bench.end(n);
 }

@@ -5,7 +5,7 @@
 #include "src/bit-vector.h"
 
 #include "src/base/bits.h"
-#include "src/utils.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ void BitVector::Print() {
       PrintF("%d", i);
     }
   }
-  PrintF("}\n");
+  PrintF("}");
 }
 #endif
 
@@ -32,8 +32,7 @@ void BitVector::Iterator::Advance() {
   while (val == 0) {
     current_index_++;
     if (Done()) return;
-    DCHECK(!target_->is_inline());
-    val = target_->data_.ptr_[current_index_];
+    val = target_->data_[current_index_];
     current_ = current_index_ << kDataBitShift;
   }
   val = SkipZeroBytes(val);
@@ -43,15 +42,16 @@ void BitVector::Iterator::Advance() {
 
 
 int BitVector::Count() const {
-  if (data_length_ == 0) {
-    return base::bits::CountPopulation(data_.inline_);
-  } else {
-    int count = 0;
-    for (int i = 0; i < data_length_; i++) {
-      count += base::bits::CountPopulation(data_.ptr_[i]);
+  int count = 0;
+  for (int i = 0; i < data_length_; i++) {
+    uintptr_t data = data_[i];
+    if (sizeof(data) == 8) {
+      count += base::bits::CountPopulation64(data);
+    } else {
+      count += base::bits::CountPopulation32(static_cast<uint32_t>(data));
     }
-    return count;
   }
+  return count;
 }
 
 }  // namespace internal

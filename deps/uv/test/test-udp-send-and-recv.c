@@ -72,7 +72,8 @@ static void cl_recv_cb(uv_udp_t* handle,
   }
 
   if (nread == 0) {
-    /* Returning unused buffer. Don't count towards cl_recv_cb_called */
+    /* Returning unused buffer */
+    /* Don't count towards cl_recv_cb_called */
     ASSERT(addr == NULL);
     return;
   }
@@ -127,7 +128,8 @@ static void sv_recv_cb(uv_udp_t* handle,
   }
 
   if (nread == 0) {
-    /* Returning unused buffer. Don't count towards sv_recv_cb_called */
+    /* Returning unused buffer */
+    /* Don't count towards sv_recv_cb_called */
     ASSERT(addr == NULL);
     return;
   }

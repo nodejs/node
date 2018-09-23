@@ -1,0 +1,26 @@
+SSLeay 0.8.3e 30-Sep-1997
+built on Wed Oct  1 03:01:44 EST 1997
+options:bn(64,32) md2(int) rc4(idx,int) des(ptr,risc1,16,long) idea(int) blowfish(ptr2) 
+C flags:gcc -DL_ENDIAN -DTERMIO -DX86_ASM -O3 -fomit-frame-pointer -m486 -Wall -Wuninitialized
+The 'numbers' are in 1000s of bytes per second processed.
+type              8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2                56.21k      156.57k      211.29k      231.77k      237.92k
+mdc2              170.99k      191.70k      193.90k      195.58k      195.95k
+md5               770.50k     3961.96k     7291.22k     9250.82k     9942.36k
+sha               344.93k     1520.77k     2569.81k     3108.52k     3295.91k
+sha1              326.20k     1423.74k     2385.15k     2870.95k     3041.96k
+rc4              3672.88k     4309.65k     4374.41k     4408.66k     4355.41k
+des cbc          1349.73k     1689.05k     1735.34k     1748.99k     1739.43k
+des ede3          638.70k      704.00k      711.85k      714.41k      712.70k
+idea cbc          619.55k      677.33k      683.26k      685.06k      685.40k
+rc2 cbc           521.18k      571.20k      573.46k      578.90k      578.90k
+blowfish cbc     2079.67k     2592.49k     2702.34k     2730.33k     2695.17k
+                  sign    verify
+rsa  512 bits   0.0213s   0.0026s
+rsa 1024 bits   0.1099s   0.0031s
+rsa 2048 bits   0.7007s   0.0248s
+rsa 4096 bits   5.0500s   0.0921s
+                  sign    verify
+dsa  512 bits   0.0203s   0.0389s
+dsa 1024 bits   0.0614s   0.1222s
+dsa 2048 bits   0.2149s   0.4283s

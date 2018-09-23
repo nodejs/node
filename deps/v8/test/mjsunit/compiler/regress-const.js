@@ -38,6 +38,7 @@ function f() {
 
 function g() {
   const x = 42;
+  x += 1;
   return x;
 }
 
@@ -49,7 +50,7 @@ for (var i = 0; i < 5; i++) {
 %OptimizeFunctionOnNextCall(f);
 %OptimizeFunctionOnNextCall(g);
 
-assertEquals(1, f());
+assertEquals(42, f());
 assertEquals(42, g());
 
 

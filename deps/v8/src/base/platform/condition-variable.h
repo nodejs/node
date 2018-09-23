@@ -5,7 +5,6 @@
 #ifndef V8_BASE_PLATFORM_CONDITION_VARIABLE_H_
 #define V8_BASE_PLATFORM_CONDITION_VARIABLE_H_
 
-#include "src/base/base-export.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
 
@@ -29,7 +28,7 @@ class TimeDelta;
 // the mutex and suspend the execution of the calling thread. When the condition
 // variable is notified, the thread is awakened, and the mutex is reacquired.
 
-class V8_BASE_EXPORT ConditionVariable final {
+class ConditionVariable final {
  public:
   ConditionVariable();
   ~ConditionVariable();
@@ -57,13 +56,31 @@ class V8_BASE_EXPORT ConditionVariable final {
   // spuriously. When unblocked, regardless of the reason, the lock on the mutex
   // is reacquired and |WaitFor()| exits. Returns true if the condition variable
   // was notified prior to the timeout.
-  bool WaitFor(Mutex* mutex, const TimeDelta& rel_time) V8_WARN_UNUSED_RESULT;
+  bool WaitFor(Mutex* mutex, const TimeDelta& rel_time) WARN_UNUSED_RESULT;
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
   typedef pthread_cond_t NativeHandle;
 #elif V8_OS_WIN
-  typedef CONDITION_VARIABLE NativeHandle;
+  struct Event;
+  class NativeHandle final {
+   public:
+    NativeHandle() : waitlist_(NULL), freelist_(NULL) {}
+    ~NativeHandle();
+
+    Event* Pre() WARN_UNUSED_RESULT;
+    void Post(Event* event, bool result);
+
+    Mutex* mutex() { return &mutex_; }
+    Event* waitlist() { return waitlist_; }
+
+   private:
+    Event* waitlist_;
+    Event* freelist_;
+    Mutex mutex_;
+
+    DISALLOW_COPY_AND_ASSIGN(NativeHandle);
+  };
 #endif
 
   NativeHandle& native_handle() {
@@ -96,7 +113,6 @@ typedef LazyStaticInstance<
 
 #define LAZY_CONDITION_VARIABLE_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
-}  // namespace base
-}  // namespace v8
+} }  // namespace v8::base
 
 #endif  // V8_BASE_PLATFORM_CONDITION_VARIABLE_H_

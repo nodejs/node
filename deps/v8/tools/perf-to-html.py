@@ -12,6 +12,7 @@ from standard input or via the --filename option. Examples:
   %prog -f results.json -t "ia32 results" -o results.html
 '''
 
+import commands
 import json
 import math
 from optparse import OptionParser
@@ -69,24 +70,20 @@ class Result:
     self.notable_ = 0
     self.percentage_string_ = ""
     # compute notability and significance.
-    try:
-      if hasScoreUnits:
-        compare_num = 100*self.result_/self.master_result_ - 100
-      else:
-        compare_num = 100*self.master_result_/self.result_ - 100
-      if abs(compare_num) > 0.1:
-        self.percentage_string_ = "%3.1f" % (compare_num)
-        z = ComputeZ(self.master_result_, self.master_sigma_, self.result_, count)
-        p = ComputeProbability(z)
-        if p < PROBABILITY_CONSIDERED_SIGNIFICANT:
-          self.significant_ = True
-        if compare_num >= PERCENT_CONSIDERED_SIGNIFICANT:
-          self.notable_ = 1
-        elif compare_num <= -PERCENT_CONSIDERED_SIGNIFICANT:
-          self.notable_ = -1
-    except ZeroDivisionError:
-      self.percentage_string_ = "NaN"
-      self.significant_ = True
+    if hasScoreUnits:
+      compare_num = 100*self.result_/self.master_result_ - 100
+    else:
+      compare_num = 100*self.master_result_/self.result_ - 100
+    if abs(compare_num) > 0.1:
+      self.percentage_string_ = "%3.1f" % (compare_num)
+      z = ComputeZ(self.master_result_, self.master_sigma_, self.result_, count)
+      p = ComputeProbability(z)
+      if p < PROBABILITY_CONSIDERED_SIGNIFICANT:
+        self.significant_ = True
+      if compare_num >= PERCENT_CONSIDERED_SIGNIFICANT:
+        self.notable_ = 1
+      elif compare_num <= -PERCENT_CONSIDERED_SIGNIFICANT:
+        self.notable_ = -1
 
   def result(self):
     return self.result_
@@ -118,8 +115,8 @@ class Benchmark:
     self.name_ = name
     self.tests_ = {}
     for test in data:
-      # strip off "<name>/" prefix, allowing for subsequent "/"s
-      test_name = test.split("/", 1)[1]
+      # strip off "<name>/" prefix
+      test_name = test.split("/")[1]
       self.appendResult(test_name, data[test])
 
   # tests is a dictionary of Results

@@ -1,12 +1,3 @@
-/*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
- */
-
 /**
  * The Whirlpool hashing function.
  *
@@ -59,10 +50,9 @@ typedef unsigned long long u64;
 #define ROUNDS  10
 
 #define STRICT_ALIGNMENT
-#if !defined(PEDANTIC) && (defined(__i386) || defined(__i386__) || \
-                           defined(__x86_64) || defined(__x86_64__) || \
-                           defined(_M_IX86) || defined(_M_AMD64) || \
-                           defined(_M_X64))
+#if defined(__i386) || defined(__i386__) || \
+    defined(__x86_64) || defined(__x86_64__) || \
+    defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64)
 /*
  * Well, formally there're couple of other architectures, which permit
  * unaligned loads, specifically those not crossing cache lines, IA-64 and
@@ -83,7 +73,7 @@ typedef unsigned long long u64;
 #   define OPENSSL_SMALL_FOOTPRINT
 #  endif
 #  define GO_FOR_MMX(ctx,inp,num)     do {                    \
-        extern unsigned long OPENSSL_ia32cap_P[];               \
+        extern unsigned int OPENSSL_ia32cap_P[];                \
         void whirlpool_block_mmx(void *,const void *,size_t);   \
         if (!(OPENSSL_ia32cap_P[0] & (1<<23)))  break;          \
         whirlpool_block_mmx(ctx->H.c,inp,num);  return;         \
@@ -92,18 +82,17 @@ typedef unsigned long long u64;
 #endif
 
 #undef ROTATE
-#ifndef PEDANTIC
-# if defined(_MSC_VER)
-#  if defined(_WIN64)            /* applies to both IA-64 and AMD64 */
-#   pragma intrinsic(_rotl64)
-#   define ROTATE(a,n) _rotl64((a),n)
-#  endif
-# elif defined(__GNUC__) && __GNUC__>=2
-#  if defined(__x86_64) || defined(__x86_64__)
-#   if defined(L_ENDIAN)
-#    define ROTATE(a,n)       ({ u64 ret; asm ("rolq %1,%0"   \
+#if defined(_MSC_VER)
+# if defined(_WIN64)            /* applies to both IA-64 and AMD64 */
+#  pragma intrinsic(_rotl64)
+#  define ROTATE(a,n) _rotl64((a),n)
+# endif
+#elif defined(__GNUC__) && __GNUC__>=2
+# if defined(__x86_64) || defined(__x86_64__)
+#  if defined(L_ENDIAN)
+#   define ROTATE(a,n)       ({ u64 ret; asm ("rolq %1,%0"   \
                                    : "=r"(ret) : "J"(n),"0"(a) : "cc"); ret; })
-#   elif defined(B_ENDIAN)
+#  elif defined(B_ENDIAN)
        /*
         * Most will argue that x86_64 is always little-endian. Well, yes, but
         * then we have stratus.com who has modified gcc to "emulate"
@@ -111,17 +100,16 @@ typedef unsigned long long u64;
         * won't do same for x86_64? Naturally no. And this line is waiting
         * ready for that brave soul:-)
         */
-#    define ROTATE(a,n)       ({ u64 ret; asm ("rorq %1,%0"   \
+#   define ROTATE(a,n)       ({ u64 ret; asm ("rorq %1,%0"   \
                                    : "=r"(ret) : "J"(n),"0"(a) : "cc"); ret; })
-#   endif
-#  elif defined(__ia64) || defined(__ia64__)
-#   if defined(L_ENDIAN)
-#    define ROTATE(a,n)       ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
+#  endif
+# elif defined(__ia64) || defined(__ia64__)
+#  if defined(L_ENDIAN)
+#   define ROTATE(a,n)       ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
                                    : "=r"(ret) : "r"(a),"M"(64-(n))); ret; })
-#   elif defined(B_ENDIAN)
-#    define ROTATE(a,n)       ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
+#  elif defined(B_ENDIAN)
+#   define ROTATE(a,n)       ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
                                    : "=r"(ret) : "r"(a),"M"(n)); ret; })
-#   endif
 #  endif
 # endif
 #endif
@@ -155,7 +143,7 @@ typedef unsigned long long u64;
  * one quadword load. One can argue that that many single-byte loads
  * is too excessive, as one could load a quadword and "milk" it for
  * eight 8-bit values instead. Well, yes, but in order to do so *and*
- * avoid excessive loads you have to accommodate a handful of 64-bit
+ * avoid excessive loads you have to accomodate a handful of 64-bit
  * values in the register bank and issue a bunch of shifts and mask.
  * It's a tradeoff: loads vs. shift and mask in big register bank[!].
  * On most CPUs eight single-byte loads are faster and I let other

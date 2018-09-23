@@ -7,14 +7,14 @@
  * top-level error handler, not the one from the previous error.
  */
 
-require('../common');
+const common = require('../common');
 
 const domainErrHandlerExMessage = 'exception from domain error handler';
 const internalExMessage = 'You should NOT see me';
 
 if (process.argv[2] === 'child') {
-  const domain = require('domain');
-  const d = domain.create();
+  var domain = require('domain');
+  var d = domain.create();
 
   d.on('error', function() {
     throw new Error(domainErrHandlerExMessage);
@@ -26,27 +26,25 @@ if (process.argv[2] === 'child') {
     });
   });
 } else {
-  const fork = require('child_process').fork;
-  const assert = require('assert');
+  var fork = require('child_process').fork;
+  var assert = require('assert');
 
-  const child = fork(process.argv[1], ['child'], { silent: true });
-  let stderrOutput = '';
+  var child = fork(process.argv[1], ['child'], {silent:true});
+  var stderrOutput = '';
   if (child) {
     child.stderr.on('data', function onStderrData(data) {
       stderrOutput += data.toString();
     });
 
-    child.on('close', function onChildClosed() {
-      assert(stderrOutput.includes(domainErrHandlerExMessage));
-      assert.strictEqual(stderrOutput.includes(internalExMessage), false);
-    });
-
     child.on('exit', function onChildExited(exitCode, signal) {
-      const expectedExitCode = 7;
-      const expectedSignal = null;
+      assert(stderrOutput.indexOf(domainErrHandlerExMessage) !== -1);
+      assert(stderrOutput.indexOf(internalExMessage) === -1);
 
-      assert.strictEqual(exitCode, expectedExitCode);
-      assert.strictEqual(signal, expectedSignal);
+      var expectedExitCode = 7;
+      var expectedSignal = null;
+
+      assert.equal(exitCode, expectedExitCode);
+      assert.equal(signal, expectedSignal);
     });
   }
 }

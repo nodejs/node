@@ -1,78 +1,59 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const path = require('path');
-const fs = require('fs');
+var common = require('../common');
+var assert = require('assert');
+var path = require('path');
+var fs = require('fs');
 
-const tmpdir = require('../common/tmpdir');
+var watchSeenOne = 0;
+var watchSeenTwo = 0;
+var watchSeenThree = 0;
+var watchSeenFour = 0;
 
-let watchSeenOne = 0;
-let watchSeenTwo = 0;
-let watchSeenThree = 0;
-let watchSeenFour = 0;
+var startDir = process.cwd();
+var testDir = common.tmpDir;
 
-const testDir = tmpdir.path;
+var filenameOne = 'watch.txt';
+var filepathOne = path.join(testDir, filenameOne);
 
-const filenameOne = 'watch.txt';
-const filepathOne = path.join(testDir, filenameOne);
+var filenameTwo = 'hasOwnProperty';
+var filepathTwo = filenameTwo;
+var filepathTwoAbs = path.join(testDir, filenameTwo);
 
-const filenameTwo = 'hasOwnProperty';
-const filepathTwo = filenameTwo;
-const filepathTwoAbs = path.join(testDir, filenameTwo);
+var filenameThree = 'charm'; // because the third time is
 
-const filenameThree = 'charm'; // because the third time is
-
-const filenameFour = 'get';
+var filenameFour = 'get';
 
 process.on('exit', function() {
   fs.unlinkSync(filepathOne);
   fs.unlinkSync(filepathTwoAbs);
   fs.unlinkSync(filenameThree);
   fs.unlinkSync(filenameFour);
-  assert.strictEqual(1, watchSeenOne);
-  assert.strictEqual(2, watchSeenTwo);
-  assert.strictEqual(1, watchSeenThree);
-  assert.strictEqual(1, watchSeenFour);
+  assert.equal(1, watchSeenOne);
+  assert.equal(2, watchSeenTwo);
+  assert.equal(1, watchSeenThree);
+  assert.equal(1, watchSeenFour);
 });
 
 
 fs.writeFileSync(filepathOne, 'hello');
 
 assert.throws(
-  function() {
-    fs.watchFile(filepathOne);
-  },
-  function(e) {
-    return e.message === '"watchFile()" requires a listener function';
-  }
+    function() {
+      fs.watchFile(filepathOne);
+    },
+    function(e) {
+      return e.message === 'watchFile requires a listener function';
+    }
 );
 
-// Does not throw.
-fs.watchFile(filepathOne, function() {
-  fs.unwatchFile(filepathOne);
-  ++watchSeenOne;
-});
+assert.doesNotThrow(
+    function() {
+      fs.watchFile(filepathOne, function(curr, prev) {
+        fs.unwatchFile(filepathOne);
+        ++watchSeenOne;
+      });
+    }
+);
 
 setTimeout(function() {
   fs.writeFileSync(filepathOne, 'world');
@@ -84,40 +65,47 @@ process.chdir(testDir);
 fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.throws(
-  function() {
-    fs.watchFile(filepathTwo);
-  },
-  function(e) {
-    return e.message === '"watchFile()" requires a listener function';
-  }
+    function() {
+      fs.watchFile(filepathTwo);
+    },
+    function(e) {
+      return e.message === 'watchFile requires a listener function';
+    }
 );
 
-{ // Does not throw.
-  function a() {
-    fs.unwatchFile(filepathTwo, a);
-    ++watchSeenTwo;
-  }
-  function b() {
-    fs.unwatchFile(filepathTwo, b);
-    ++watchSeenTwo;
-  }
-  fs.watchFile(filepathTwo, a);
-  fs.watchFile(filepathTwo, b);
-}
+assert.doesNotThrow(
+    function() {
+      function a(curr, prev) {
+        fs.unwatchFile(filepathTwo, a);
+        ++watchSeenTwo;
+      }
+      function b(curr, prev) {
+        fs.unwatchFile(filepathTwo, b);
+        ++watchSeenTwo;
+      }
+      fs.watchFile(filepathTwo, a);
+      fs.watchFile(filepathTwo, b);
+    }
+);
 
 setTimeout(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
 }, 1000);
 
-{ // Does not throw.
-  function b() {
-    fs.unwatchFile(filenameThree, b);
-    ++watchSeenThree;
-  }
-  fs.watchFile(filenameThree, common.mustNotCall());
-  fs.watchFile(filenameThree, b);
-  fs.unwatchFile(filenameThree, common.mustNotCall());
-}
+assert.doesNotThrow(
+    function() {
+      function a(curr, prev) {
+        assert.ok(0); // should not run
+      }
+      function b(curr, prev) {
+        fs.unwatchFile(filenameThree, b);
+        ++watchSeenThree;
+      }
+      fs.watchFile(filenameThree, a);
+      fs.watchFile(filenameThree, b);
+      fs.unwatchFile(filenameThree, a);
+    }
+);
 
 setTimeout(function() {
   fs.writeFileSync(filenameThree, 'pardner');
@@ -131,11 +119,13 @@ setTimeout(function() {
   fs.writeFileSync(filenameFour, 'hey');
 }, 500);
 
-{ // Does not throw.
-  function a() {
-    ++watchSeenFour;
-    assert.strictEqual(1, watchSeenFour);
-    fs.unwatchFile(`.${path.sep}${filenameFour}`, a);
-  }
-  fs.watchFile(filenameFour, a);
-}
+assert.doesNotThrow(
+    function() {
+      function a(curr, prev) {
+        ++watchSeenFour;
+        assert.equal(1, watchSeenFour);
+        fs.unwatchFile('.' + path.sep + filenameFour, a);
+      }
+      fs.watchFile(filenameFour, a);
+    }
+);

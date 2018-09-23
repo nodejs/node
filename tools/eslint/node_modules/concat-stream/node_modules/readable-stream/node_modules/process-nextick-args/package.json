@@ -1,0 +1,44 @@
+{
+  "name": "process-nextick-args",
+  "version": "1.0.1",
+  "description": "process.nextTick but always with args",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/calvinmetcalf/process-nextick-args.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/calvinmetcalf/process-nextick-args/issues"
+  },
+  "homepage": "https://github.com/calvinmetcalf/process-nextick-args",
+  "devDependencies": {
+    "tap": "~0.2.6"
+  },
+  "gitHead": "b7c95b21096503e76a1b7f4f60920d32d8378eeb",
+  "_id": "process-nextick-args@1.0.1",
+  "_shasum": "918a5ab4a7744340b83ff416101ba53c5c531879",
+  "_from": "process-nextick-args@>=1.0.0 <1.1.0",
+  "_npmVersion": "2.0.0",
+  "_npmUser": {
+    "name": "cwmma",
+    "email": "calvin.metcalf@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "cwmma",
+      "email": "calvin.metcalf@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "918a5ab4a7744340b83ff416101ba53c5c531879",
+    "tarball": "http://registry.npmjs.org/process-nextick-args/-/process-nextick-args-1.0.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-1.0.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

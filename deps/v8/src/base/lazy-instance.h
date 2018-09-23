@@ -35,7 +35,7 @@
 // providing your own trait:
 // Example usage:
 //   struct MyCreateTrait {
-//     static void Construct(void* allocated_ptr) {
+//     static void Construct(MyClass* allocated_ptr) {
 //       new (allocated_ptr) MyClass(/* extra parameters... */);
 //     }
 //   };
@@ -105,7 +105,7 @@ struct StaticallyAllocatedInstanceTrait {
 
   template <typename ConstructTrait>
   static void InitStorageUsingTrait(StorageType* storage) {
-    ConstructTrait::Construct(storage);
+    ConstructTrait::Construct(MutableInstance(storage));
   }
 };
 
@@ -128,7 +128,9 @@ struct DynamicallyAllocatedInstanceTrait {
 template <typename T>
 struct DefaultConstructTrait {
   // Constructs the provided object which was already allocated.
-  static void Construct(void* allocated_ptr) { new (allocated_ptr) T(); }
+  static void Construct(T* allocated_ptr) {
+    new(allocated_ptr) T();
+  }
 };
 
 
@@ -168,13 +170,17 @@ struct LazyInstanceImpl {
   typedef typename AllocationTrait::StorageType StorageType;
 
  private:
-  static void InitInstance(void* storage) {
-    AllocationTrait::template InitStorageUsingTrait<CreateTrait>(
-        static_cast<StorageType*>(storage));
+  static void InitInstance(StorageType* storage) {
+    AllocationTrait::template InitStorageUsingTrait<CreateTrait>(storage);
   }
 
   void Init() const {
-    InitOnceTrait::Init(&once_, &InitInstance, static_cast<void*>(&storage_));
+    InitOnceTrait::Init(
+        &once_,
+        // Casts to void* are needed here to avoid breaking strict aliasing
+        // rules.
+        reinterpret_cast<void(*)(void*)>(&InitInstance),  // NOLINT
+        reinterpret_cast<void*>(&storage_));
   }
 
  public:
@@ -226,7 +232,6 @@ struct LazyDynamicInstance {
       CreateTrait, InitOnceTrait, DestroyTrait> type;
 };
 
-}  // namespace base
-}  // namespace v8
+} }  // namespace v8::base
 
 #endif  // V8_BASE_LAZY_INSTANCE_H_

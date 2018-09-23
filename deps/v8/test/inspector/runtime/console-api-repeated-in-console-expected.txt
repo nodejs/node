@@ -1,5 +1,0 @@
-Check that console.log is reported through Console domain as well.
-api call: 42
-api call: abc
-console message: 42
-console message: abc

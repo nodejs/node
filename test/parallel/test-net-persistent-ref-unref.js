@@ -1,41 +1,39 @@
-// Flags: --expose-internals
 'use strict';
-require('../common');
-const assert = require('assert');
-const net = require('net');
-const { internalBinding } = require('internal/test/binding');
-const TCPWrap = internalBinding('tcp_wrap').TCP;
+var common = require('../common');
+var assert = require('assert');
+var net = require('net');
+var TCPWrap = process.binding('tcp_wrap').TCP;
 
-const echoServer = net.createServer(function(conn) {
+var echoServer = net.createServer(function(conn) {
   conn.end();
 });
 
-const ref = TCPWrap.prototype.ref;
-const unref = TCPWrap.prototype.unref;
+var ref = TCPWrap.prototype.ref;
+var unref = TCPWrap.prototype.unref;
 
-let refCount = 0;
+var refCount = 0;
 
 TCPWrap.prototype.ref = function() {
   ref.call(this);
   refCount++;
-  assert.strictEqual(refCount, 0);
+  assert.equal(refCount, 0);
 };
 
 TCPWrap.prototype.unref = function() {
   unref.call(this);
   refCount--;
-  assert.strictEqual(refCount, -1);
+  assert.equal(refCount, -1);
 };
 
-echoServer.listen(0);
+echoServer.listen(common.PORT);
 
 echoServer.on('listening', function() {
-  const sock = new net.Socket();
+  var sock = new net.Socket();
   sock.unref();
   sock.ref();
-  sock.connect(this.address().port);
+  sock.connect(common.PORT);
   sock.on('end', function() {
-    assert.strictEqual(refCount, 0);
+    assert.equal(refCount, 0);
     echoServer.close();
   });
 });

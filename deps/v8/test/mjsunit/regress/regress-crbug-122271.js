@@ -39,11 +39,11 @@ function foo(array) {
   array.foo = "bar";
 }
 
-assertTrue(%HasSmiElements(a));
-assertTrue(%HasObjectElements(b));
+assertTrue(%HasFastSmiElements(a));
+assertTrue(%HasFastObjectElements(b));
 
 foo(a);
 foo(b);
 
-assertTrue(%HasSmiElements(a));
-assertTrue(%HasObjectElements(b));
+assertTrue(%HasFastSmiElements(a));
+assertTrue(%HasFastObjectElements(b));

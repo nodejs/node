@@ -36,15 +36,10 @@ example:
     key[] = "first value"
     key[] = "second value"
 
-#### Comments
-
-Lines in `.npmrc` files are interpreted as comments when they begin with a `;` or `#` character. `.npmrc` files are parsed by [npm/ini](https://github.com/npm/ini), which specifies this comment syntax.
-
-For example:
-
-    # last modified: 01 Jan 2016
-    ; Set a new registry for a scoped package
-    @myscope:registry=https://mycustomregistry.example.org
+**NOTE:** Because local (per-project or per-user) `.npmrc` files can contain
+sensitive credentials, they must be readable and writable _only_ by your user
+account (i.e. must have a mode of `0600`), otherwise they _will be ignored by
+npm!_
 
 ### Per-project config file
 

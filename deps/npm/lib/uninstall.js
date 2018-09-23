@@ -2,39 +2,38 @@
 // remove a package.
 
 module.exports = uninstall
+module.exports.Uninstaller = Uninstaller
 
-const path = require('path')
-const validate = require('aproba')
-const readJson = require('read-package-json')
-const iferr = require('iferr')
-const npm = require('./npm.js')
-const Installer = require('./install.js').Installer
-const getSaveType = require('./install/save.js').getSaveType
-const removeDeps = require('./install/deps.js').removeDeps
-const log = require('npmlog')
-const usage = require('./utils/usage')
+uninstall.usage = 'npm uninstall [<@scope>/]<pkg>[@<version>]... [--save|--save-dev|--save-optional]' +
+                  '\n\naliases: remove, rm, r, un, unlink'
 
-uninstall.usage = usage(
-  'uninstall',
-  'npm uninstall [<@scope>/]<pkg>[@<version>]... [--save-prod|--save-dev|--save-optional] [--no-save]'
-)
+var util = require('util')
+var path = require('path')
+var validate = require('aproba')
+var chain = require('slide').chain
+var readJson = require('read-package-json')
+var npm = require('./npm.js')
+var Installer = require('./install.js').Installer
+var getSaveType = require('./install/save.js').getSaveType
+var removeDeps = require('./install/deps.js').removeDeps
+var loadExtraneous = require('./install/deps.js').loadExtraneous
+var log = require('npmlog')
 
 uninstall.completion = require('./utils/completion/installed-shallow.js')
 
 function uninstall (args, cb) {
   validate('AF', arguments)
   // the /path/to/node_modules/..
-  const dryrun = !!npm.config.get('dry-run')
+  var dryrun = !!npm.config.get('dry-run')
 
   if (args.length === 1 && args[0] === '.') args = []
-
-  const where = npm.config.get('global') || !args.length
-    ? path.resolve(npm.globalDir, '..')
-    : npm.prefix
-
   args = args.filter(function (a) {
     return path.resolve(a) !== where
   })
+
+  var where = npm.config.get('global') || !args.length
+            ? path.resolve(npm.globalDir, '..')
+            : npm.prefix
 
   if (args.length) {
     new Uninstaller(where, dryrun, args).run(cb)
@@ -48,32 +47,27 @@ function uninstall (args, cb) {
   }
 }
 
-class Uninstaller extends Installer {
-  constructor (where, dryrun, args) {
-    super(where, dryrun, args)
-    this.remove = []
-  }
+function Uninstaller (where, dryrun, args) {
+  validate('SBA', arguments)
+  Installer.call(this, where, dryrun, args)
+}
+util.inherits(Uninstaller, Installer)
 
-  loadArgMetadata (next) {
-    this.args = this.args.map(function (arg) { return {name: arg} })
-    next()
-  }
-
-  loadAllDepsIntoIdealTree (cb) {
-    validate('F', arguments)
-    this.remove = this.args
-    this.args = []
-    log.silly('uninstall', 'loadAllDepsIntoIdealTree')
-    const saveDeps = getSaveType()
-
-    super.loadAllDepsIntoIdealTree(iferr(cb, () => {
-      removeDeps(this.remove, this.idealTree, saveDeps, cb)
-    }))
-  }
-
-  // no top level lifecycles on rm
-  runPreinstallTopLevelLifecycles (cb) { cb() }
-  runPostinstallTopLevelLifecycles (cb) { cb() }
+Uninstaller.prototype.loadArgMetadata = function (next) {
+  this.args = this.args.map(function (arg) { return {name: arg} })
+  next()
 }
 
-module.exports.Uninstaller = Uninstaller
+Uninstaller.prototype.loadAllDepsIntoIdealTree = function (cb) {
+  validate('F', arguments)
+  log.silly('uninstall', 'loadAllDepsIntoIdealtree')
+  var saveDeps = getSaveType(this.args)
+
+  var cg = this.progress.loadAllDepsIntoIdealTree
+  var steps = []
+
+  steps.push(
+    [removeDeps, this.args, this.idealTree, saveDeps, cg.newGroup('removeDeps')],
+    [loadExtraneous, this.idealTree, cg.newGroup('loadExtraneous')])
+  chain(steps, cb)
+}

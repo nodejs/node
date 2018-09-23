@@ -1,4 +1,0 @@
-*%(basename)s:5: SyntaxError: Lexical declaration cannot appear in a single-statement context
-with ({}) let [a] = [42];
-          ^^^
-SyntaxError: Lexical declaration cannot appear in a single-statement context

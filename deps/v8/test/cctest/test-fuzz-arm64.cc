@@ -29,8 +29,7 @@
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/arm64/disasm-arm64.h"
 
-namespace v8 {
-namespace internal {
+using namespace v8::internal;
 
 TEST(FUZZ_decoder) {
   // Feed noise into the decoder to check that it doesn't crash.
@@ -60,7 +59,7 @@ TEST(FUZZ_disasm) {
   seed48(seed);
 
   Decoder<DispatchingDecoderVisitor> decoder;
-  DisassemblingDecoder disasm;
+  Disassembler disasm;
   Instruction buffer[kInstructionSize];
 
   decoder.AppendVisitor(&disasm);
@@ -70,6 +69,3 @@ TEST(FUZZ_disasm) {
     decoder.Decode(buffer);
   }
 }
-
-}  // namespace internal
-}  // namespace v8

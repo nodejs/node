@@ -4,9 +4,7 @@
 
 #include "src/property.h"
 
-#include "src/field-type.h"
 #include "src/handles-inl.h"
-#include "src/objects-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -22,85 +20,67 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
-                                 PropertyAttributes attributes,
-                                 Representation representation) {
-  return DataField(key, field_index, attributes, PropertyConstness::kMutable,
-                   representation,
-                   MaybeObjectHandle(FieldType::Any(key->GetIsolate())));
-}
 
-Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
-                                 PropertyAttributes attributes,
-                                 PropertyConstness constness,
-                                 Representation representation,
-                                 MaybeObjectHandle wrapped_field_type) {
-  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakHeapObject());
-  PropertyDetails details(kData, attributes, kField, constness, representation,
-                          field_index);
-  return Descriptor(key, wrapped_field_type, details);
-}
+struct FastPropertyDetails {
+  explicit FastPropertyDetails(const PropertyDetails& v) : details(v) {}
+  const PropertyDetails details;
+};
 
-Descriptor Descriptor::DataConstant(Handle<Name> key, int field_index,
-                                    Handle<Object> value,
-                                    PropertyAttributes attributes) {
-  if (FLAG_track_constant_fields) {
-    MaybeObjectHandle any_type(FieldType::Any(), key->GetIsolate());
-    return DataField(key, field_index, attributes, PropertyConstness::kConst,
-                     Representation::Tagged(), any_type);
-
-  } else {
-    return Descriptor(key, MaybeObjectHandle(value), kData, attributes,
-                      kDescriptor, PropertyConstness::kConst,
-                      value->OptimalRepresentation(), field_index);
-  }
-}
 
 // Outputs PropertyDetails as a dictionary details.
-void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
+std::ostream& operator<<(std::ostream& os, const PropertyDetails& details) {
   os << "(";
-  if (constness() == PropertyConstness::kConst) os << "const ";
-  os << (kind() == kData ? "data" : "accessor");
-  os << ", dict_index: " << dictionary_index();
-  os << ", attrs: " << attributes() << ")";
+  if (details.location() == kDescriptor) {
+    os << "immutable ";
+  }
+  os << (details.kind() == kData ? "data" : "accessor");
+  return os << ", dictionary_index: " << details.dictionary_index()
+            << ", attrs: " << details.attributes() << ")";
 }
 
+
 // Outputs PropertyDetails as a descriptor array details.
-void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
+std::ostream& operator<<(std::ostream& os,
+                         const FastPropertyDetails& details_fast) {
+  const PropertyDetails& details = details_fast.details;
   os << "(";
-  if (constness() == PropertyConstness::kConst) os << "const ";
-  os << (kind() == kData ? "data" : "accessor");
-  if (location() == kField) {
-    os << " field";
-    if (mode & kPrintFieldIndex) {
-      os << " " << field_index();
-    }
-    if (mode & kPrintRepresentation) {
-      os << ":" << representation().Mnemonic();
-    }
-  } else {
-    os << " descriptor";
+  if (details.location() == kDescriptor) {
+    os << "immutable ";
   }
-  if (mode & kPrintPointer) {
-    os << ", p: " << pointer();
+  os << (details.kind() == kData ? "data" : "accessor");
+  os << ": " << details.representation().Mnemonic();
+  if (details.location() == kField) {
+    os << ", field_index: " << details.field_index();
   }
-  if (mode & kPrintAttributes) {
-    os << ", attrs: " << attributes();
-  }
-  os << ")";
+  return os << ", p: " << details.pointer()
+            << ", attrs: " << details.attributes() << ")";
 }
+
 
 #ifdef OBJECT_PRINT
 void PropertyDetails::Print(bool dictionary_mode) {
-  StdoutStream os;
+  OFStream os(stdout);
   if (dictionary_mode) {
-    PrintAsSlowTo(os);
+    os << *this;
   } else {
-    PrintAsFastTo(os, PrintMode::kPrintFull);
+    os << FastPropertyDetails(*this);
   }
   os << "\n" << std::flush;
 }
 #endif
+
+
+std::ostream& operator<<(std::ostream& os, const Descriptor& d) {
+  Object* value = *d.GetValue();
+  os << "Descriptor " << Brief(*d.GetKey()) << " @ " << Brief(value) << " ";
+  if (value->IsAccessorPair()) {
+    AccessorPair* pair = AccessorPair::cast(value);
+    os << "(get: " << Brief(pair->getter())
+       << ", set: " << Brief(pair->setter()) << ") ";
+  }
+  os << FastPropertyDetails(d.GetDetails());
+  return os;
+}
 
 }  // namespace internal
 }  // namespace v8

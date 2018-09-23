@@ -1,0 +1,55 @@
+{
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "name": "block-stream",
+  "description": "a stream of blocks",
+  "version": "0.0.8",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/block-stream.git"
+  },
+  "engines": {
+    "node": "0.4 || >=0.5.8"
+  },
+  "main": "block-stream.js",
+  "dependencies": {
+    "inherits": "~2.0.0"
+  },
+  "devDependencies": {
+    "tap": "0.x"
+  },
+  "scripts": {
+    "test": "tap test/"
+  },
+  "license": "ISC",
+  "gitHead": "b35520314f4763af0788d65a846bb43d9c0a8f02",
+  "bugs": {
+    "url": "https://github.com/isaacs/block-stream/issues"
+  },
+  "homepage": "https://github.com/isaacs/block-stream#readme",
+  "_id": "block-stream@0.0.8",
+  "_shasum": "0688f46da2bbf9cff0c4f68225a0cb95cbe8a46b",
+  "_from": "block-stream@*",
+  "_npmVersion": "2.10.0",
+  "_nodeVersion": "2.0.1",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "isaacs@npmjs.com"
+  },
+  "dist": {
+    "shasum": "0688f46da2bbf9cff0c4f68225a0cb95cbe8a46b",
+    "tarball": "http://registry.npmjs.org/block-stream/-/block-stream-0.0.8.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/block-stream/-/block-stream-0.0.8.tgz",
+  "readme": "ERROR: No README data found!"
+}

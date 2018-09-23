@@ -1,16 +1,65 @@
+/* pcy_cache.c */
 /*
- * Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
+ * 2004.
+ */
+/* ====================================================================
+ * Copyright (c) 2004 The OpenSSL Project.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    licensing@OpenSSL.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
  */
 
-#include "internal/cryptlib.h"
+#include "cryptlib.h"
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include "internal/x509_int.h"
 
 #include "pcy_int.h"
 
@@ -34,12 +83,12 @@ static int policy_cache_create(X509 *x,
     if (sk_POLICYINFO_num(policies) == 0)
         goto bad_policy;
     cache->data = sk_X509_POLICY_DATA_new(policy_data_cmp);
-    if (cache->data == NULL)
+    if (!cache->data)
         goto bad_policy;
     for (i = 0; i < sk_POLICYINFO_num(policies); i++) {
         policy = sk_POLICYINFO_value(policies, i);
         data = policy_data_new(policy, NULL, crit);
-        if (data == NULL)
+        if (!data)
             goto bad_policy;
         /*
          * Duplicate policy OIDs are illegal: reject if matches found.
@@ -61,7 +110,8 @@ static int policy_cache_create(X509 *x,
  bad_policy:
     if (ret == -1)
         x->ex_flags |= EXFLAG_INVALID_POLICY;
-    policy_data_free(data);
+    if (data)
+        policy_data_free(data);
     sk_POLICYINFO_pop_free(policies, POLICYINFO_free);
     if (ret <= 0) {
         sk_X509_POLICY_DATA_pop_free(cache->data, policy_data_free);
@@ -78,11 +128,8 @@ static int policy_cache_new(X509 *x)
     CERTIFICATEPOLICIES *ext_cpols = NULL;
     POLICY_MAPPINGS *ext_pmaps = NULL;
     int i;
-
-    if (x->policy_cache != NULL)
-        return 1;
-    cache = OPENSSL_malloc(sizeof(*cache));
-    if (cache == NULL)
+    cache = OPENSSL_malloc(sizeof(X509_POLICY_CACHE));
+    if (!cache)
         return 0;
     cache->anyPolicy = NULL;
     cache->data = NULL;
@@ -153,14 +200,18 @@ static int policy_cache_new(X509 *x)
             goto bad_cache;
     } else if (!policy_cache_set_int(&cache->any_skip, ext_any))
         goto bad_cache;
-    goto just_cleanup;
 
+    if (0) {
  bad_cache:
-    x->ex_flags |= EXFLAG_INVALID_POLICY;
+        x->ex_flags |= EXFLAG_INVALID_POLICY;
+    }
 
- just_cleanup:
-    POLICY_CONSTRAINTS_free(ext_pcons);
-    ASN1_INTEGER_free(ext_any);
+    if (ext_pcons)
+        POLICY_CONSTRAINTS_free(ext_pcons);
+
+    if (ext_any)
+        ASN1_INTEGER_free(ext_any);
+
     return 1;
 
 }
@@ -169,8 +220,10 @@ void policy_cache_free(X509_POLICY_CACHE *cache)
 {
     if (!cache)
         return;
-    policy_data_free(cache->anyPolicy);
-    sk_X509_POLICY_DATA_pop_free(cache->data, policy_data_free);
+    if (cache->anyPolicy)
+        policy_data_free(cache->anyPolicy);
+    if (cache->data)
+        sk_X509_POLICY_DATA_pop_free(cache->data, policy_data_free);
     OPENSSL_free(cache);
 }
 
@@ -178,9 +231,9 @@ const X509_POLICY_CACHE *policy_cache_set(X509 *x)
 {
 
     if (x->policy_cache == NULL) {
-        CRYPTO_THREAD_write_lock(x->lock);
+        CRYPTO_w_lock(CRYPTO_LOCK_X509);
         policy_cache_new(x);
-        CRYPTO_THREAD_unlock(x->lock);
+        CRYPTO_w_unlock(CRYPTO_LOCK_X509);
     }
 
     return x->policy_cache;

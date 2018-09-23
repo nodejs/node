@@ -1,43 +1,15 @@
 'use strict'
-/* eslint-disable no-use-before-define */
 var test = require('tap').test
 var sortActions = require('../../lib/install/diff-trees.js').sortActions
-var top = {
-  location: '/',
-  package: {},
-  requiredBy: [],
-  requires: [a, b],
-  isTop: true
-}
+
 var a = {
-  location: '/a',
-  package: {},
-  requiredBy: [],
-  requires: [c],
-  isTop: false,
-  userRequired: false,
-  existing: false,
-  parent: top
+  package: {_location: '/a', _requiredBy: []}
 }
 var b = {
-  location: '/b',
-  package: {},
-  requiredBy: [],
-  requires: [c],
-  isTop: false,
-  userRequired: false,
-  existing: false,
-  parent: top
+  package: {_location: '/b', _requiredBy: []}
 }
 var c = {
-  location: '/c',
-  package: {},
-  requiredBy: [a, b],
-  requires: [],
-  isTop: false,
-  userRequired: false,
-  existing: false,
-  parent: top
+  package: {_location: '/c', _requiredBy: ['/a', '/b']}
 }
 
 test('install-order when installing deps', function (t) {

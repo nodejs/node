@@ -5,8 +5,6 @@
 #ifndef V8_UNITTESTS_COMPILER_INSTRUCTION_SEQUENCE_UNITTEST_H_
 #define V8_UNITTESTS_COMPILER_INSTRUCTION_SEQUENCE_UNITTEST_H_
 
-#include <memory>
-
 #include "src/compiler/instruction.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -17,22 +15,16 @@ namespace compiler {
 
 class InstructionSequenceTest : public TestWithIsolateAndZone {
  public:
-  static const int kDefaultNRegs = 8;
+  static const int kDefaultNRegs = 4;
   static const int kNoValue = kMinInt;
-  static const MachineRepresentation kNoRep = MachineRepresentation::kNone;
-  static const MachineRepresentation kFloat32 = MachineRepresentation::kFloat32;
-  static const MachineRepresentation kFloat64 = MachineRepresentation::kFloat64;
-  static const MachineRepresentation kSimd128 = MachineRepresentation::kSimd128;
 
   typedef RpoNumber Rpo;
 
   struct VReg {
     VReg() : value_(kNoValue) {}
     VReg(PhiInstruction* phi) : value_(phi->virtual_register()) {}  // NOLINT
-    explicit VReg(int value, MachineRepresentation rep = kNoRep)
-        : value_(value), rep_(rep) {}
+    explicit VReg(int value) : value_(value) {}
     int value_;
-    MachineRepresentation rep_ = kNoRep;
   };
 
   typedef std::pair<VReg, VReg> VRegPair;
@@ -44,7 +36,6 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
     kFixedRegister,
     kSlot,
     kFixedSlot,
-    kExplicit,
     kImmediate,
     kNone,
     kConstant,
@@ -53,64 +44,38 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   };
 
   struct TestOperand {
-    TestOperand() : type_(kInvalid), vreg_(), value_(kNoValue), rep_(kNoRep) {}
-    explicit TestOperand(TestOperandType type)
-        : type_(type), vreg_(), value_(kNoValue), rep_(kNoRep) {}
-    // For tests that do register allocation.
+    TestOperand() : type_(kInvalid), vreg_(), value_(kNoValue) {}
+    TestOperand(TestOperandType type, int imm)
+        : type_(type), vreg_(), value_(imm) {}
     TestOperand(TestOperandType type, VReg vreg, int value = kNoValue)
-        : type_(type), vreg_(vreg), value_(value), rep_(vreg.rep_) {}
-    // For immediates, constants, and tests that don't do register allocation.
-    TestOperand(TestOperandType type, int value,
-                MachineRepresentation rep = kNoRep)
-        : type_(type), vreg_(), value_(value), rep_(rep) {}
+        : type_(type), vreg_(vreg), value_(value) {}
 
     TestOperandType type_;
     VReg vreg_;
     int value_;
-    MachineRepresentation rep_;
   };
 
-  static TestOperand Same() { return TestOperand(kSameAsFirst); }
-
-  static TestOperand ExplicitReg(int index) {
-    TestOperandType type = kExplicit;
-    return TestOperand(type, index);
-  }
-
-  static TestOperand ExplicitFPReg(int index,
-                                   MachineRepresentation rep = kFloat64) {
-    TestOperandType type = kExplicit;
-    return TestOperand(type, index, rep);
-  }
+  static TestOperand Same() { return TestOperand(kSameAsFirst, VReg()); }
 
   static TestOperand Reg(VReg vreg, int index = kNoValue) {
-    TestOperandType type = (index == kNoValue) ? kRegister : kFixedRegister;
+    TestOperandType type = kRegister;
+    if (index != kNoValue) type = kFixedRegister;
     return TestOperand(type, vreg, index);
   }
 
-  static TestOperand Reg(int index = kNoValue,
-                         MachineRepresentation rep = kNoRep) {
-    return Reg(VReg(kNoValue, rep), index);
-  }
-
-  static TestOperand FPReg(int index = kNoValue,
-                           MachineRepresentation rep = kFloat64) {
-    return Reg(index, rep);
-  }
+  static TestOperand Reg(int index = kNoValue) { return Reg(VReg(), index); }
 
   static TestOperand Slot(VReg vreg, int index = kNoValue) {
-    TestOperandType type = (index == kNoValue) ? kSlot : kFixedSlot;
+    TestOperandType type = kSlot;
+    if (index != kNoValue) type = kFixedSlot;
     return TestOperand(type, vreg, index);
   }
 
-  static TestOperand Slot(int index = kNoValue,
-                          MachineRepresentation rep = kNoRep) {
-    return Slot(VReg(kNoValue, rep), index);
-  }
+  static TestOperand Slot(int index = kNoValue) { return Slot(VReg(), index); }
 
   static TestOperand Const(int index) {
     CHECK_NE(kNoValue, index);
-    return TestOperand(kConstant, index);
+    return TestOperand(kConstant, VReg(), index);
   }
 
   static TestOperand Use(VReg vreg) { return TestOperand(kNone, vreg); }
@@ -156,9 +121,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   InstructionSequenceTest();
 
   void SetNumRegs(int num_general_registers, int num_double_registers);
-  int GetNumRegs(MachineRepresentation rep);
-  int GetAllocatableCode(int index, MachineRepresentation rep = kNoRep);
-  const RegisterConfiguration* config();
+  RegisterConfiguration* config();
   InstructionSequence* sequence();
 
   void StartLoop(int loop_blocks);
@@ -169,14 +132,6 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   TestOperand Imm(int32_t imm = 0);
   VReg Define(TestOperand output_op);
   VReg Parameter(TestOperand output_op = Reg()) { return Define(output_op); }
-  VReg FPParameter(MachineRepresentation rep = kFloat64) {
-    return Parameter(FPReg(kNoValue, rep));
-  }
-
-  MachineRepresentation GetCanonicalRep(TestOperand op) {
-    return IsFloatingPoint(op.rep_) ? op.rep_
-                                    : sequence()->DefaultRepresentation();
-  }
 
   Instruction* Return(TestOperand input_op_0);
   Instruction* Return(VReg vreg) { return Return(Reg(vreg, 0)); }
@@ -214,21 +169,16 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
                 TestOperand input_op_3 = TestOperand());
 
   InstructionBlock* current_block() const { return current_block_; }
+  int num_general_registers() const { return num_general_registers_; }
+  int num_double_registers() const { return num_double_registers_; }
 
   // Called after all instructions have been inserted.
   void WireBlocks();
 
  private:
-  virtual bool DoesRegisterAllocation() const { return true; }
+  VReg NewReg() { return VReg(sequence()->NextVirtualRegister()); }
 
-  VReg NewReg(TestOperand op = TestOperand()) {
-    int vreg = sequence()->NextVirtualRegister();
-    if (IsFloatingPoint(op.rep_))
-      sequence()->MarkAsRepresentation(op.rep_, vreg);
-    return VReg(vreg, op.rep_);
-  }
-
-  static TestOperand Invalid() { return TestOperand(kInvalid); }
+  static TestOperand Invalid() { return TestOperand(kInvalid, VReg()); }
 
   Instruction* EmitBranch(TestOperand input_op);
   Instruction* EmitFallThrough();
@@ -273,7 +223,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   typedef std::map<int, const Instruction*> Instructions;
   typedef std::vector<BlockCompletion> Completions;
 
-  std::unique_ptr<RegisterConfiguration> config_;
+  base::SmartPointer<RegisterConfiguration> config_;
   InstructionSequence* sequence_;
   int num_general_registers_;
   int num_double_registers_;
@@ -285,8 +235,6 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   LoopBlocks loop_blocks_;
   InstructionBlock* current_block_;
   bool block_returns_;
-
-  DISALLOW_COPY_AND_ASSIGN(InstructionSequenceTest);
 };
 
 }  // namespace compiler

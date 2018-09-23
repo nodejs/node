@@ -20,6 +20,7 @@ var space = Object.defineProperty(new String, 'toString', {
 });
 
 JSON.stringify('', replacer, space);
+
 assertEquals(2, log.length);
 assertEquals('get 0', log[0]);
 assertEquals('toString', log[1]);

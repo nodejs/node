@@ -83,7 +83,7 @@
   }
 
   function bar(x, deopt) {
-    %_Call(f1, null, 'push', [x][0], ((deopt + 0), 1));
+    %_CallFunction(null, 'push', [x][0], ((deopt + 0), 1), f1);
   }
 
   function foo() { return bar(arguments[0], arguments[1]); }

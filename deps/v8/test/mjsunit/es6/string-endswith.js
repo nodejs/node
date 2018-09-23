@@ -34,7 +34,6 @@ assertFalse(testString.endsWith("world"));
 assertFalse(testString.endsWith("Hello World!"));
 assertFalse(testString.endsWith(null));
 assertFalse(testString.endsWith(undefined));
-assertFalse(testString.endsWith());
 
 assertTrue("null".endsWith(null));
 assertTrue("undefined".endsWith(undefined));
@@ -409,11 +408,3 @@ assertThrows(function() {
     "toString": function() { return "abc"; }
   }, [/./]);
 }, TypeError);
-
-// endsWith does its brand checks with Symbol.match
-var re = /./;
-assertThrows(function() {
-  "".startsWith(re);
-}, TypeError);
-re[Symbol.match] = false;
-assertEquals(false, "".startsWith(re));

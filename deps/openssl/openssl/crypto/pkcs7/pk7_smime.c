@@ -1,21 +1,68 @@
+/* pk7_smime.c */
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project.
+ */
+/* ====================================================================
+ * Copyright (c) 1999-2004 The OpenSSL Project.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    licensing@OpenSSL.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
  */
 
 /* Simple PKCS#7 processing functions */
 
 #include <stdio.h>
-#include "internal/cryptlib.h"
+#include "cryptlib.h"
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-
-
-#define BUFFERSIZE 4096
 
 static int pkcs7_copy_existing_digest(PKCS7 *p7, PKCS7_SIGNER_INFO *si);
 
@@ -25,7 +72,7 @@ PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
     PKCS7 *p7;
     int i;
 
-    if ((p7 = PKCS7_new()) == NULL) {
+    if (!(p7 = PKCS7_new())) {
         PKCS7err(PKCS7_F_PKCS7_SIGN, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
@@ -66,8 +113,7 @@ int PKCS7_final(PKCS7 *p7, BIO *data, int flags)
 {
     BIO *p7bio;
     int ret = 0;
-
-    if ((p7bio = PKCS7_dataInit(p7, NULL)) == NULL) {
+    if (!(p7bio = PKCS7_dataInit(p7, NULL))) {
         PKCS7err(PKCS7_F_PKCS7_FINAL, ERR_R_MALLOC_FAILURE);
         return 0;
     }
@@ -118,7 +164,7 @@ PKCS7_SIGNER_INFO *PKCS7_sign_add_signer(PKCS7 *p7, X509 *signcert,
         return NULL;
     }
 
-    if ((si = PKCS7_add_signature(p7, signcert, pkey, md)) == NULL) {
+    if (!(si = PKCS7_add_signature(p7, signcert, pkey, md))) {
         PKCS7err(PKCS7_F_PKCS7_SIGN_ADD_SIGNER,
                  PKCS7_R_PKCS7_ADD_SIGNATURE_ERROR);
         return NULL;
@@ -134,13 +180,11 @@ PKCS7_SIGNER_INFO *PKCS7_sign_add_signer(PKCS7 *p7, X509 *signcert,
             goto err;
         /* Add SMIMECapabilities */
         if (!(flags & PKCS7_NOSMIMECAP)) {
-            if ((smcap = sk_X509_ALGOR_new_null()) == NULL) {
+            if (!(smcap = sk_X509_ALGOR_new_null())) {
                 PKCS7err(PKCS7_F_PKCS7_SIGN_ADD_SIGNER, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
             if (!add_cipher_smcap(smcap, NID_aes_256_cbc, -1)
-                || !add_digest_smcap(smcap, NID_id_GostR3411_2012_256, -1)
-                || !add_digest_smcap(smcap, NID_id_GostR3411_2012_512, -1)
                 || !add_digest_smcap(smcap, NID_id_GostR3411_94, -1)
                 || !add_cipher_smcap(smcap, NID_id_Gost28147_89, -1)
                 || !add_cipher_smcap(smcap, NID_aes_192_cbc, -1)
@@ -164,7 +208,8 @@ PKCS7_SIGNER_INFO *PKCS7_sign_add_signer(PKCS7 *p7, X509 *signcert,
     }
     return si;
  err:
-    sk_X509_ALGOR_pop_free(smcap, X509_ALGOR_free);
+    if (smcap)
+        sk_X509_ALGOR_pop_free(smcap, X509_ALGOR_free);
     return NULL;
 }
 
@@ -208,11 +253,11 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
     X509 *signer;
     STACK_OF(PKCS7_SIGNER_INFO) *sinfos;
     PKCS7_SIGNER_INFO *si;
-    X509_STORE_CTX *cert_ctx = NULL;
-    char *buf = NULL;
+    X509_STORE_CTX cert_ctx;
+    char buf[4096];
     int i, j = 0, k, ret = 0;
-    BIO *p7bio = NULL;
-    BIO *tmpin = NULL, *tmpout = NULL;
+    BIO *p7bio;
+    BIO *tmpin, *tmpout;
 
     if (!p7) {
         PKCS7err(PKCS7_F_PKCS7_VERIFY, PKCS7_R_INVALID_NULL_POINTER);
@@ -229,20 +274,18 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
         PKCS7err(PKCS7_F_PKCS7_VERIFY, PKCS7_R_NO_CONTENT);
         return 0;
     }
+#if 0
+    /*
+     * NB: this test commented out because some versions of Netscape
+     * illegally include zero length content when signing data.
+     */
 
-    if (flags & PKCS7_NO_DUAL_CONTENT) {
-        /*
-         * This was originally "#if 0" because we thought that only old broken
-         * Netscape did this.  It turns out that Authenticode uses this kind
-         * of "extended" PKCS7 format, and things like UEFI secure boot and
-         * tools like osslsigncode need it.  In Authenticode the verification
-         * process is different, but the existing PKCs7 verification works.
-         */
-        if (!PKCS7_get_detached(p7) && indata) {
-            PKCS7err(PKCS7_F_PKCS7_VERIFY, PKCS7_R_CONTENT_AND_DATA_PRESENT);
-            return 0;
-        }
+    /* Check for data and content: two sets of data */
+    if (!PKCS7_get_detached(p7) && indata) {
+        PKCS7err(PKCS7_F_PKCS7_VERIFY, PKCS7_R_CONTENT_AND_DATA_PRESENT);
+        return 0;
     }
+#endif
 
     sinfos = PKCS7_get_signer_info(p7);
 
@@ -252,40 +295,41 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
     }
 
     signers = PKCS7_get0_signers(p7, certs, flags);
+
     if (!signers)
         return 0;
 
     /* Now verify the certificates */
 
-    cert_ctx = X509_STORE_CTX_new();
-    if (cert_ctx == NULL)
-        goto err;
     if (!(flags & PKCS7_NOVERIFY))
         for (k = 0; k < sk_X509_num(signers); k++) {
             signer = sk_X509_value(signers, k);
             if (!(flags & PKCS7_NOCHAIN)) {
-                if (!X509_STORE_CTX_init(cert_ctx, store, signer,
+                if (!X509_STORE_CTX_init(&cert_ctx, store, signer,
                                          p7->d.sign->cert)) {
                     PKCS7err(PKCS7_F_PKCS7_VERIFY, ERR_R_X509_LIB);
-                    goto err;
+                    sk_X509_free(signers);
+                    return 0;
                 }
-                X509_STORE_CTX_set_default(cert_ctx, "smime_sign");
-            } else if (!X509_STORE_CTX_init(cert_ctx, store, signer, NULL)) {
+                X509_STORE_CTX_set_default(&cert_ctx, "smime_sign");
+            } else if (!X509_STORE_CTX_init(&cert_ctx, store, signer, NULL)) {
                 PKCS7err(PKCS7_F_PKCS7_VERIFY, ERR_R_X509_LIB);
-                goto err;
+                sk_X509_free(signers);
+                return 0;
             }
             if (!(flags & PKCS7_NOCRL))
-                X509_STORE_CTX_set0_crls(cert_ctx, p7->d.sign->crl);
-            i = X509_verify_cert(cert_ctx);
+                X509_STORE_CTX_set0_crls(&cert_ctx, p7->d.sign->crl);
+            i = X509_verify_cert(&cert_ctx);
             if (i <= 0)
-                j = X509_STORE_CTX_get_error(cert_ctx);
-            X509_STORE_CTX_cleanup(cert_ctx);
+                j = X509_STORE_CTX_get_error(&cert_ctx);
+            X509_STORE_CTX_cleanup(&cert_ctx);
             if (i <= 0) {
                 PKCS7err(PKCS7_F_PKCS7_VERIFY,
                          PKCS7_R_CERTIFICATE_VERIFY_ERROR);
                 ERR_add_error_data(2, "Verify error:",
                                    X509_verify_cert_error_string(j));
-                goto err;
+                sk_X509_free(signers);
+                return 0;
             }
             /* Check for revocation status here */
         }
@@ -304,16 +348,16 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
         tmpin = BIO_new_mem_buf(ptr, len);
         if (tmpin == NULL) {
             PKCS7err(PKCS7_F_PKCS7_VERIFY, ERR_R_MALLOC_FAILURE);
-            goto err;
+            return 0;
         }
     } else
         tmpin = indata;
 
-    if ((p7bio = PKCS7_dataInit(p7, tmpin)) == NULL)
+    if (!(p7bio = PKCS7_dataInit(p7, tmpin)))
         goto err;
 
     if (flags & PKCS7_TEXT) {
-        if ((tmpout = BIO_new(BIO_s_mem())) == NULL) {
+        if (!(tmpout = BIO_new(BIO_s_mem()))) {
             PKCS7err(PKCS7_F_PKCS7_VERIFY, ERR_R_MALLOC_FAILURE);
             goto err;
         }
@@ -322,12 +366,8 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
         tmpout = out;
 
     /* We now have to 'read' from p7bio to calculate digests etc. */
-    if ((buf = OPENSSL_malloc(BUFFERSIZE)) == NULL) {
-        PKCS7err(PKCS7_F_PKCS7_VERIFY, ERR_R_MALLOC_FAILURE);
-        goto err;
-    }
     for (;;) {
-        i = BIO_read(p7bio, buf, BUFFERSIZE);
+        i = BIO_read(p7bio, buf, sizeof(buf));
         if (i <= 0)
             break;
         if (tmpout)
@@ -358,14 +398,15 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
     ret = 1;
 
  err:
-    X509_STORE_CTX_free(cert_ctx);
-    OPENSSL_free(buf);
+
     if (tmpin == indata) {
         if (indata)
             BIO_pop(p7bio);
     }
     BIO_free_all(p7bio);
+
     sk_X509_free(signers);
+
     return ret;
 }
 
@@ -398,7 +439,7 @@ STACK_OF(X509) *PKCS7_get0_signers(PKCS7 *p7, STACK_OF(X509) *certs,
         return 0;
     }
 
-    if ((signers = sk_X509_new_null()) == NULL) {
+    if (!(signers = sk_X509_new_null())) {
         PKCS7err(PKCS7_F_PKCS7_GET0_SIGNERS, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
@@ -440,7 +481,7 @@ PKCS7 *PKCS7_encrypt(STACK_OF(X509) *certs, BIO *in, const EVP_CIPHER *cipher,
     BIO *p7bio = NULL;
     int i;
     X509 *x509;
-    if ((p7 = PKCS7_new()) == NULL) {
+    if (!(p7 = PKCS7_new())) {
         PKCS7err(PKCS7_F_PKCS7_ENCRYPT, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
@@ -477,8 +518,8 @@ PKCS7 *PKCS7_encrypt(STACK_OF(X509) *certs, BIO *in, const EVP_CIPHER *cipher,
 int PKCS7_decrypt(PKCS7 *p7, EVP_PKEY *pkey, X509 *cert, BIO *data, int flags)
 {
     BIO *tmpmem;
-    int ret = 0, i;
-    char *buf = NULL;
+    int ret, i;
+    char buf[4096];
 
     if (!p7) {
         PKCS7err(PKCS7_F_PKCS7_DECRYPT, PKCS7_R_INVALID_NULL_POINTER);
@@ -496,7 +537,7 @@ int PKCS7_decrypt(PKCS7 *p7, EVP_PKEY *pkey, X509 *cert, BIO *data, int flags)
         return 0;
     }
 
-    if ((tmpmem = PKCS7_dataDecode(p7, pkey, NULL, cert)) == NULL) {
+    if (!(tmpmem = PKCS7_dataDecode(p7, pkey, NULL, cert))) {
         PKCS7err(PKCS7_F_PKCS7_DECRYPT, PKCS7_R_DECRYPT_ERROR);
         return 0;
     }
@@ -504,12 +545,12 @@ int PKCS7_decrypt(PKCS7 *p7, EVP_PKEY *pkey, X509 *cert, BIO *data, int flags)
     if (flags & PKCS7_TEXT) {
         BIO *tmpbuf, *bread;
         /* Encrypt BIOs can't do BIO_gets() so add a buffer BIO */
-        if ((tmpbuf = BIO_new(BIO_f_buffer())) == NULL) {
+        if (!(tmpbuf = BIO_new(BIO_f_buffer()))) {
             PKCS7err(PKCS7_F_PKCS7_DECRYPT, ERR_R_MALLOC_FAILURE);
             BIO_free_all(tmpmem);
             return 0;
         }
-        if ((bread = BIO_push(tmpbuf, tmpmem)) == NULL) {
+        if (!(bread = BIO_push(tmpbuf, tmpmem))) {
             PKCS7err(PKCS7_F_PKCS7_DECRYPT, ERR_R_MALLOC_FAILURE);
             BIO_free_all(tmpbuf);
             BIO_free_all(tmpmem);
@@ -522,28 +563,24 @@ int PKCS7_decrypt(PKCS7 *p7, EVP_PKEY *pkey, X509 *cert, BIO *data, int flags)
         }
         BIO_free_all(bread);
         return ret;
-    }
-    if ((buf = OPENSSL_malloc(BUFFERSIZE)) == NULL) {
-        PKCS7err(PKCS7_F_PKCS7_DECRYPT, ERR_R_MALLOC_FAILURE);
-        goto err;
-    }
-    for (;;) {
-        i = BIO_read(tmpmem, buf, BUFFERSIZE);
-        if (i <= 0) {
-            ret = 1;
-            if (BIO_method_type(tmpmem) == BIO_TYPE_CIPHER) {
-                if (!BIO_get_cipher_status(tmpmem))
-                    ret = 0;
-            }
+    } else {
+        for (;;) {
+            i = BIO_read(tmpmem, buf, sizeof(buf));
+            if (i <= 0) {
+                ret = 1;
+                if (BIO_method_type(tmpmem) == BIO_TYPE_CIPHER) {
+                    if (!BIO_get_cipher_status(tmpmem))
+                        ret = 0;
+                }
 
-            break;
+                break;
+            }
+            if (BIO_write(data, buf, i) != i) {
+                ret = 0;
+                break;
+            }
         }
-        if (BIO_write(data, buf, i) != i) {
-            break;
-        }
+        BIO_free_all(tmpmem);
+        return ret;
     }
-err:
-    OPENSSL_free(buf);
-    BIO_free_all(tmpmem);
-    return ret;
 }

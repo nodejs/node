@@ -36,4 +36,4 @@ void EventHandler(const v8::JitCodeEvent* event);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_GDB_JIT_H_
+#endif

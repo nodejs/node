@@ -35,15 +35,8 @@ function f2(x) {
   g(f2);
 }
 
-function f3(x) {
-  var a = arguments;
-  (function() { x++ })();
-  g(f3);
-}
 
 function g(f) {
-  assertEquals("object", typeof f.arguments);
-  assertFalse(f.arguments === f.arguments);
   assertEquals(3, f.arguments.length);
   assertEquals(1, f.arguments[0]);
   assertEquals(2, f.arguments[1]);
@@ -51,5 +44,4 @@ function g(f) {
 }
 
 f1(1,2,3);
-f2(1,2,3);
-f3(1,2,3);
+f2(0,2,3);

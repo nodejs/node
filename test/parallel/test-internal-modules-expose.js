@@ -1,11 +1,7 @@
 'use strict';
 // Flags: --expose_internals
 
-require('../common');
-const assert = require('assert');
-const config = process.binding('config');
+var common = require('../common');
+var assert = require('assert');
 
-console.log(config, process.argv);
-
-assert.strictEqual(typeof require('internal/freelist'), 'function');
-assert.strictEqual(config.exposeInternals, true);
+assert.equal(typeof require('internal/freelist').FreeList, 'function');

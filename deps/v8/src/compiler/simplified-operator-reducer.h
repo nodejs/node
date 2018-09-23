@@ -5,42 +5,27 @@
 #ifndef V8_COMPILER_SIMPLIFIED_OPERATOR_REDUCER_H_
 #define V8_COMPILER_SIMPLIFIED_OPERATOR_REDUCER_H_
 
-#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/globals.h"
+#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class Factory;
-class Isolate;
-
 namespace compiler {
 
 // Forward declarations.
 class JSGraph;
 class MachineOperatorBuilder;
-class SimplifiedOperatorBuilder;
 
-class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
-    : public NON_EXPORTED_BASE(AdvancedReducer) {
+
+class SimplifiedOperatorReducer final : public Reducer {
  public:
-  SimplifiedOperatorReducer(Editor* editor, JSGraph* jsgraph,
-                            const JSHeapBroker* js_heap_broker);
+  explicit SimplifiedOperatorReducer(JSGraph* jsgraph);
   ~SimplifiedOperatorReducer() final;
-
-  const char* reducer_name() const override {
-    return "SimplifiedOperatorReducer";
-  }
 
   Reduction Reduce(Node* node) final;
 
  private:
-  Reduction ReduceReferenceEqual(Node* node);
-
   Reduction Change(Node* node, const Operator* op, Node* a);
-  Reduction ReplaceBoolean(bool value);
   Reduction ReplaceFloat64(double value);
   Reduction ReplaceInt32(int32_t value);
   Reduction ReplaceUint32(uint32_t value) {
@@ -49,17 +34,13 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
   Reduction ReplaceNumber(double value);
   Reduction ReplaceNumber(int32_t value);
 
-  Factory* factory() const;
   Graph* graph() const;
-  Isolate* isolate() const;
-  MachineOperatorBuilder* machine() const;
-  SimplifiedOperatorBuilder* simplified() const;
-
   JSGraph* jsgraph() const { return jsgraph_; }
-  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  MachineOperatorBuilder* machine() const;
+  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
   JSGraph* const jsgraph_;
-  const JSHeapBroker* const js_heap_broker_;
+  SimplifiedOperatorBuilder simplified_;
 
   DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorReducer);
 };

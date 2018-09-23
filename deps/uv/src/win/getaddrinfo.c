@@ -28,8 +28,6 @@
 /* EAI_* constants. */
 #include <winsock2.h>
 
-/* Needed for ConvertInterfaceIndexToLuid and ConvertInterfaceLuidToNameA */
-#include <iphlpapi.h>
 
 int uv__getaddrinfo_translate_error(int sys_err) {
   switch (sys_err) {
@@ -71,13 +69,10 @@ int uv__getaddrinfo_translate_error(int sys_err) {
 #endif
 
 
-/* Adjust size value to be multiple of 4. Use to keep pointer aligned.
- * Do we need different versions of this for different architectures? */
+/* adjust size value to be multiple of 4. Use to keep pointer aligned */
+/* Do we need different versions of this for different architectures? */
 #define ALIGNED_SIZE(X)     ((((X) + 3) >> 2) << 2)
 
-#ifndef NDIS_IF_MAX_STRING_SIZE
-#define NDIS_IF_MAX_STRING_SIZE IF_MAX_STRING_SIZE
-#endif
 
 static void uv__getaddrinfo_work(struct uv__work* w) {
   uv_getaddrinfo_t* req;
@@ -114,8 +109,10 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   req = container_of(w, uv_getaddrinfo_t, work_req);
 
   /* release input parameter memory */
-  uv__free(req->alloc);
-  req->alloc = NULL;
+  if (req->alloc != NULL) {
+    uv__free(req->alloc);
+    req->alloc = NULL;
+  }
 
   if (status == UV_ECANCELED) {
     assert(req->retcode == 0);
@@ -124,20 +121,14 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   }
 
   if (req->retcode == 0) {
-    /* Convert addrinfoW to addrinfo. First calculate required length. */
+    /* convert addrinfoW to addrinfo */
+    /* first calculate required length */
     addrinfow_ptr = req->addrinfow;
     while (addrinfow_ptr != NULL) {
       addrinfo_len += addrinfo_struct_len +
           ALIGNED_SIZE(addrinfow_ptr->ai_addrlen);
       if (addrinfow_ptr->ai_canonname != NULL) {
-        name_len = WideCharToMultiByte(CP_UTF8,
-                                       0,
-                                       addrinfow_ptr->ai_canonname,
-                                       -1,
-                                       NULL,
-                                       0,
-                                       NULL,
-                                       NULL);
+        name_len = uv_utf16_to_utf8(addrinfow_ptr->ai_canonname, -1, NULL, 0);
         if (name_len == 0) {
           req->retcode = uv_translate_sys_error(GetLastError());
           goto complete;
@@ -181,24 +172,16 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
 
         /* convert canonical name to UTF-8 */
         if (addrinfow_ptr->ai_canonname != NULL) {
-          name_len = WideCharToMultiByte(CP_UTF8,
-                                         0,
-                                         addrinfow_ptr->ai_canonname,
-                                         -1,
-                                         NULL,
-                                         0,
-                                         NULL,
-                                         NULL);
+          name_len = uv_utf16_to_utf8(addrinfow_ptr->ai_canonname,
+                                      -1,
+                                      NULL,
+                                      0);
           assert(name_len > 0);
           assert(cur_ptr + name_len <= alloc_ptr + addrinfo_len);
-          name_len = WideCharToMultiByte(CP_UTF8,
-                                         0,
-                                         addrinfow_ptr->ai_canonname,
-                                         -1,
-                                         cur_ptr,
-                                         name_len,
-                                         NULL,
-                                         NULL);
+          name_len = uv_utf16_to_utf8(addrinfow_ptr->ai_canonname,
+                                      -1,
+                                      cur_ptr,
+                                      name_len);
           assert(name_len > 0);
           addrinfo_ptr->ai_canonname = cur_ptr;
           cur_ptr += ALIGNED_SIZE(name_len);
@@ -236,7 +219,9 @@ void uv_freeaddrinfo(struct addrinfo* ai) {
   char* alloc_ptr = (char*)ai;
 
   /* release copied result memory */
-  uv__free(alloc_ptr);
+  if (alloc_ptr != NULL) {
+    uv__free(alloc_ptr);
+  }
 }
 
 
@@ -266,19 +251,21 @@ int uv_getaddrinfo(uv_loop_t* loop,
   int err;
 
   if (req == NULL || (node == NULL && service == NULL)) {
-    return UV_EINVAL;
+    err = WSAEINVAL;
+    goto error;
   }
 
-  UV_REQ_INIT(req, UV_GETADDRINFO);
+  uv_req_init(loop, (uv_req_t*)req);
+
   req->getaddrinfo_cb = getaddrinfo_cb;
   req->addrinfo = NULL;
+  req->type = UV_GETADDRINFO;
   req->loop = loop;
   req->retcode = 0;
 
   /* calculate required memory size for all input values */
   if (node != NULL) {
-    nodesize = ALIGNED_SIZE(MultiByteToWideChar(CP_UTF8, 0, node, -1, NULL, 0) *
-                            sizeof(WCHAR));
+    nodesize = ALIGNED_SIZE(uv_utf8_to_utf16(node, NULL, 0) * sizeof(WCHAR));
     if (nodesize == 0) {
       err = GetLastError();
       goto error;
@@ -286,12 +273,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   }
 
   if (service != NULL) {
-    servicesize = ALIGNED_SIZE(MultiByteToWideChar(CP_UTF8,
-                                                   0,
-                                                   service,
-                                                   -1,
-                                                   NULL,
-                                                   0) *
+    servicesize = ALIGNED_SIZE(uv_utf8_to_utf16(service, NULL, 0) *
                                sizeof(WCHAR));
     if (servicesize == 0) {
       err = GetLastError();
@@ -312,16 +294,13 @@ int uv_getaddrinfo(uv_loop_t* loop,
   /* save alloc_ptr now so we can free if error */
   req->alloc = (void*)alloc_ptr;
 
-  /* Convert node string to UTF16 into allocated memory and save pointer in the
-   * request. */
+  /* convert node string to UTF16 into allocated memory and save pointer in */
+  /* the request. */
   if (node != NULL) {
     req->node = (WCHAR*)alloc_ptr;
-    if (MultiByteToWideChar(CP_UTF8,
-                            0,
-                            node,
-                            -1,
-                            (WCHAR*) alloc_ptr,
-                            nodesize / sizeof(WCHAR)) == 0) {
+    if (uv_utf8_to_utf16(node,
+                         (WCHAR*) alloc_ptr,
+                         nodesize / sizeof(WCHAR)) == 0) {
       err = GetLastError();
       goto error;
     }
@@ -330,16 +309,13 @@ int uv_getaddrinfo(uv_loop_t* loop,
     req->node = NULL;
   }
 
-  /* Convert service string to UTF16 into allocated memory and save pointer in
-   * the req. */
+  /* convert service string to UTF16 into allocated memory and save pointer */
+  /* in the req. */
   if (service != NULL) {
     req->service = (WCHAR*)alloc_ptr;
-    if (MultiByteToWideChar(CP_UTF8,
-                            0,
-                            service,
-                            -1,
-                            (WCHAR*) alloc_ptr,
-                            servicesize / sizeof(WCHAR)) == 0) {
+    if (uv_utf8_to_utf16(service,
+                         (WCHAR*) alloc_ptr,
+                         servicesize / sizeof(WCHAR)) == 0) {
       err = GetLastError();
       goto error;
     }
@@ -378,75 +354,8 @@ int uv_getaddrinfo(uv_loop_t* loop,
   }
 
 error:
-  if (req != NULL) {
+  if (req != NULL && req->alloc != NULL) {
     uv__free(req->alloc);
-    req->alloc = NULL;
   }
   return uv_translate_sys_error(err);
-}
-
-int uv_if_indextoname(unsigned int ifindex, char* buffer, size_t* size) {
-  NET_LUID luid;
-  wchar_t wname[NDIS_IF_MAX_STRING_SIZE + 1]; /* Add one for the NUL. */
-  DWORD bufsize;
-  int r;
-
-  if (buffer == NULL || size == NULL || *size == 0)
-    return UV_EINVAL;
-
-  r = ConvertInterfaceIndexToLuid(ifindex, &luid);
-
-  if (r != 0)
-    return uv_translate_sys_error(r);
-
-  r = ConvertInterfaceLuidToNameW(&luid, wname, ARRAY_SIZE(wname));
-
-  if (r != 0)
-    return uv_translate_sys_error(r);
-
-  /* Check how much space we need */
-  bufsize = WideCharToMultiByte(CP_UTF8, 0, wname, -1, NULL, 0, NULL, NULL);
-
-  if (bufsize == 0) {
-    return uv_translate_sys_error(GetLastError());
-  } else if (bufsize > *size) {
-    *size = bufsize;
-    return UV_ENOBUFS;
-  }
-
-  /* Convert to UTF-8 */
-  bufsize = WideCharToMultiByte(CP_UTF8,
-                                0,
-                                wname,
-                                -1,
-                                buffer,
-                                *size,
-                                NULL,
-                                NULL);
-
-  if (bufsize == 0)
-    return uv_translate_sys_error(GetLastError());
-
-  *size = bufsize - 1;
-  return 0;
-}
-
-int uv_if_indextoiid(unsigned int ifindex, char* buffer, size_t* size) {
-  int r;
-
-  if (buffer == NULL || size == NULL || *size == 0)
-    return UV_EINVAL;
-
-  r = snprintf(buffer, *size, "%d", ifindex);
-
-  if (r < 0)
-    return uv_translate_sys_error(r);
-
-  if (r >= (int) *size) {
-    *size = r + 1;
-    return UV_ENOBUFS;
-  }
-
-  *size = r;
-  return 0;
 }

@@ -1,11 +1,4 @@
-#! /usr/bin/env perl
-# Copyright 2010-2018 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
-
+#!/usr/bin/env perl
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -74,7 +67,7 @@ $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? 0x00fff000 : 0x00ff0000;
 #
 ######################################################################
 
-while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {}
+while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
 
 if ($flavour =~ /64|n32/i) {
@@ -384,13 +377,15 @@ $code.=<<___;
 	$PTR_SUB $rp,$num	# restore rp
 	not	$hi1,$hi0
 
-.Lcopy:	$LD	$nj,($tp)	# conditional move
-	$LD	$aj,($rp)
+	and	$ap,$hi0,$sp
+	and	$bp,$hi1,$rp
+	or	$ap,$ap,$bp	# ap=borrow?tp:rp
+
+.align	4
+.Lcopy:	$LD	$aj,($ap)
+	$PTR_ADD $ap,$BNSZ
 	$ST	$zero,($tp)
 	$PTR_ADD $tp,$BNSZ
-	and	$nj,$hi0
-	and	$aj,$hi1
-	or	$aj,$nj
 	sltu	$at,$tp,$tj
 	$ST	$aj,($rp)
 	bnez	$at,.Lcopy

@@ -5,8 +5,6 @@
 #ifndef V8_FIXED_DTOA_H_
 #define V8_FIXED_DTOA_H_
 
-#include "src/vector.h"
-
 namespace v8 {
 namespace internal {
 
@@ -29,7 +27,6 @@ namespace internal {
 bool FastFixedDtoa(double v, int fractional_count,
                    Vector<char> buffer, int* length, int* decimal_point);
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_FIXED_DTOA_H_

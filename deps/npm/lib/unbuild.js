@@ -12,7 +12,6 @@ var asyncMap = require('slide').asyncMap
 var chain = require('slide').chain
 var log = require('npmlog')
 var build = require('./build.js')
-var output = require('./utils/output.js')
 
 // args is a list of folders.
 // remove any bins/etc, and then delete the folder.
@@ -38,14 +37,16 @@ function unbuild_ (silent) {
       if (er) return gentlyRm(folder, false, base, cb)
       chain(
         [
-          [lifecycle, pkg, 'preuninstall', folder, { failOk: true }],
-          [lifecycle, pkg, 'uninstall', folder, { failOk: true }],
+          [lifecycle, pkg, 'preuninstall', folder, false, true],
+          [lifecycle, pkg, 'uninstall', folder, false, true],
           !silent && function (cb) {
-            output('unbuild ' + pkg._id)
+            log.clearProgress()
+            console.log('unbuild ' + pkg._id)
+            log.showProgress()
             cb()
           },
           [rmStuff, pkg, folder],
-          [lifecycle, pkg, 'postuninstall', folder, { failOk: true }],
+          [lifecycle, pkg, 'postuninstall', folder, false, true],
           [gentlyRm, folder, false, base]
         ],
         cb
@@ -58,11 +59,9 @@ function rmStuff (pkg, folder, cb) {
   // if it's global, and folder is in {prefix}/node_modules,
   // then bins are in {prefix}/bin
   // otherwise, then bins are in folder/../.bin
-  var parent = pkg.name[0] === '@' ? path.dirname(path.dirname(folder)) : path.dirname(folder)
+  var parent = path.dirname(folder)
   var gnm = npm.dir
-  // gnm might be an absolute path, parent might be relative
-  // this checks they're the same directory regardless
-  var top = path.relative(gnm, parent) === ''
+  var top = gnm === parent
 
   log.verbose('unbuild rmStuff', pkg._id, 'from', gnm)
   if (!top) log.verbose('unbuild rmStuff', 'in', parent)
@@ -77,16 +76,11 @@ function rmBins (pkg, folder, parent, top, cb) {
   asyncMap(Object.keys(pkg.bin), function (b, cb) {
     if (process.platform === 'win32') {
       chain([ [gentlyRm, path.resolve(binRoot, b) + '.cmd', true, folder],
-        [gentlyRm, path.resolve(binRoot, b), true, folder] ], cb)
+              [gentlyRm, path.resolve(binRoot, b), true, folder] ], cb)
     } else {
       gentlyRm(path.resolve(binRoot, b), true, folder, cb)
     }
-  }, gentlyRmBinRoot)
-
-  function gentlyRmBinRoot (err) {
-    if (err || top) return cb(err)
-    return gentlyRm(binRoot, true, parent, cb)
-  }
+  }, cb)
 }
 
 function rmMans (pkg, folder, parent, top, cb) {

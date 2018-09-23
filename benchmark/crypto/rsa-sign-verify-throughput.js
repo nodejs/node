@@ -1,49 +1,51 @@
-'use strict';
 // throughput benchmark in signing and verifying
-const common = require('../common.js');
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
-const fixtures_keydir = path.resolve(__dirname, '../../test/fixtures/keys/');
-const keylen_list = ['1024', '2048'];
-const RSA_PublicPem = {};
-const RSA_PrivatePem = {};
+var common = require('../common.js');
+var crypto = require('crypto');
+var fs = require('fs');
+var path = require('path');
+var fixtures_keydir = path.resolve(__dirname, '../../test/fixtures/keys/');
+var keylen_list = ['1024', '2048'];
+var RSA_PublicPem = {};
+var RSA_PrivatePem = {};
 
 keylen_list.forEach(function(key) {
-  RSA_PublicPem[key] =
-    fs.readFileSync(`${fixtures_keydir}/rsa_public_${key}.pem`);
-  RSA_PrivatePem[key] =
-    fs.readFileSync(`${fixtures_keydir}/rsa_private_${key}.pem`);
+  RSA_PublicPem[key] = fs.readFileSync(fixtures_keydir +
+                                       '/rsa_public_' + key + '.pem');
+  RSA_PrivatePem[key] = fs.readFileSync(fixtures_keydir +
+                                        '/rsa_private_' + key + '.pem');
 });
 
-const bench = common.createBenchmark(main, {
+var bench = common.createBenchmark(main, {
   writes: [500],
-  algo: ['SHA1', 'SHA224', 'SHA256', 'SHA384', 'SHA512'],
+  algo: ['RSA-SHA1', 'RSA-SHA224', 'RSA-SHA256', 'RSA-SHA384', 'RSA-SHA512'],
   keylen: keylen_list,
   len: [1024, 102400, 2 * 102400, 3 * 102400, 1024 * 1024]
 });
 
-function main({ len, algo, keylen, writes }) {
-  const message = Buffer.alloc(len, 'b');
+function main(conf) {
+  var crypto = require('crypto');
+  var message = (new Buffer(conf.len)).fill('b');
+
   bench.start();
-  StreamWrite(algo, keylen, message, writes, len);
+  StreamWrite(conf.algo, conf.keylen, message, conf.writes, conf.len);
 }
 
 function StreamWrite(algo, keylen, message, writes, len) {
-  const written = writes * len;
-  const bits = written * 8;
-  const kbits = bits / (1024);
+  var written = writes * len;
+  var bits = written * 8;
+  var kbits = bits / (1024);
 
-  const privateKey = RSA_PrivatePem[keylen];
-  const s = crypto.createSign(algo);
-  const v = crypto.createVerify(algo);
+  var privateKey = RSA_PrivatePem[keylen];
+  var publicKey = RSA_PublicPem[keylen];
+  var s = crypto.createSign(algo);
+  var v = crypto.createVerify(algo);
 
   while (writes-- > 0) {
     s.update(message);
     v.update(message);
   }
 
-  s.sign(privateKey, 'binary');
+  var sign = s.sign(privateKey, 'binary');
   s.end();
   v.end();
 

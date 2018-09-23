@@ -1,111 +1,85 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const net = require('net');
+var common = require('../common');
+var assert = require('assert');
+
+var net = require('net');
+
+var tests_run = 0;
 
 function pingPongTest(port, host) {
-  const N = 1000;
-  let count = 0;
-  let sentPongs = 0;
-  let sent_final_ping = false;
+  var N = 1000;
+  var count = 0;
+  var sentPongs = 0;
+  var sent_final_ping = false;
 
-  const server = net.createServer(
-    { allowHalfOpen: true },
-    common.mustCall(onSocket)
-  );
-
-  function onSocket(socket) {
-    assert.strictEqual(socket.server, server);
-    assert.strictEqual(
-      server,
-      server.getConnections(common.mustCall(function(err, connections) {
-        assert.ifError(err);
-        assert.strictEqual(connections, 1);
-      }))
-    );
+  var server = net.createServer({ allowHalfOpen: true }, function(socket) {
+    console.log('connection: ' + socket.remoteAddress);
+    assert.equal(server, socket.server);
+    assert.equal(1, server.connections);
 
     socket.setNoDelay();
     socket.timeout = 0;
 
     socket.setEncoding('utf8');
-    socket.on('data', common.mustCall(function(data) {
+    socket.on('data', function(data) {
       // Since we never queue data (we're always waiting for the PING
       // before sending a pong) the writeQueueSize should always be less
       // than one message.
-      assert.ok(socket.bufferSize >= 0 && socket.bufferSize <= 4);
+      assert.ok(0 <= socket.bufferSize && socket.bufferSize <= 4);
 
-      assert.strictEqual(socket.writable, true);
-      assert.strictEqual(socket.readable, true);
-      assert.ok(count <= N);
-      assert.strictEqual(data, 'PING');
+      assert.equal(true, socket.writable);
+      assert.equal(true, socket.readable);
+      assert.equal(true, count <= N);
+      assert.equal(data, 'PING');
 
-      socket.write('PONG', common.mustCall(function() {
+      socket.write('PONG', function() {
         sentPongs++;
-      }));
-    }, N + 1));
+      });
+    });
 
-    socket.on('end', common.mustCall(function() {
-      assert.strictEqual(socket.allowHalfOpen, true);
-      assert.strictEqual(socket.writable, true); // because allowHalfOpen
-      assert.strictEqual(socket.readable, false);
+    socket.on('end', function() {
+      assert.equal(true, socket.allowHalfOpen);
+      assert.equal(true, socket.writable); // because allowHalfOpen
+      assert.equal(false, socket.readable);
       socket.end();
-    }));
+    });
 
-    socket.on('error', common.mustNotCall());
+    socket.on('error', function(e) {
+      throw e;
+    });
 
-    socket.on('close', common.mustCall(function() {
-      assert.strictEqual(socket.writable, false);
-      assert.strictEqual(socket.readable, false);
+    socket.on('close', function() {
+      console.log('server socket.endd');
+      assert.equal(false, socket.writable);
+      assert.equal(false, socket.readable);
       socket.server.close();
-    }));
-  }
+    });
+  });
 
 
-  server.listen(port, host, common.mustCall(function() {
-    if (this.address().port)
-      port = this.address().port;
+  server.listen(port, host, function() {
+    console.log('server listening on ' + port + ' ' + host);
 
-    const client = net.createConnection(port, host);
+    var client = net.createConnection(port, host);
 
     client.setEncoding('ascii');
-    client.on('connect', common.mustCall(function() {
-      assert.strictEqual(client.readable, true);
-      assert.strictEqual(client.writable, true);
+    client.on('connect', function() {
+      assert.equal(true, client.readable);
+      assert.equal(true, client.writable);
       client.write('PING');
-    }));
+    });
 
-    client.on('data', common.mustCall(function(data) {
-      assert.strictEqual(data, 'PONG');
+    client.on('data', function(data) {
+      assert.equal('PONG', data);
       count += 1;
 
       if (sent_final_ping) {
-        assert.strictEqual(client.writable, false);
-        assert.strictEqual(client.readable, true);
+        assert.equal(false, client.writable);
+        assert.equal(true, client.readable);
         return;
       } else {
-        assert.strictEqual(client.writable, true);
-        assert.strictEqual(client.readable, true);
+        assert.equal(true, client.writable);
+        assert.equal(true, client.readable);
       }
 
       if (count < N) {
@@ -115,23 +89,34 @@ function pingPongTest(port, host) {
         client.write('PING');
         client.end();
       }
-    }, N + 1));
+    });
 
-    client.on('close', common.mustCall(function() {
-      assert.strictEqual(count, N + 1);
-      assert.strictEqual(sentPongs, N + 1);
-      assert.strictEqual(sent_final_ping, true);
-    }));
+    client.on('close', function() {
+      console.log('client.end');
+      assert.equal(N + 1, count);
+      assert.equal(N + 1, sentPongs);
+      assert.equal(true, sent_final_ping);
+      tests_run += 1;
+    });
 
-    client.on('error', common.mustNotCall());
-  }));
+    client.on('error', function(e) {
+      throw e;
+    });
+  });
 }
 
 /* All are run at once, so run on different ports */
-const tmpdir = require('../common/tmpdir');
-tmpdir.refresh();
+common.refreshTmpDir();
 pingPongTest(common.PIPE);
-pingPongTest(0);
-pingPongTest(0, 'localhost');
+pingPongTest(common.PORT);
+pingPongTest(common.PORT + 1, 'localhost');
 if (common.hasIPv6)
-  pingPongTest(0, '::1');
+  pingPongTest(common.PORT + 2, '::1');
+
+process.on('exit', function() {
+  if (common.hasIPv6)
+    assert.equal(4, tests_run);
+  else
+    assert.equal(3, tests_run);
+  console.log('done');
+});

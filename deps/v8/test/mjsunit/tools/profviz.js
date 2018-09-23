@@ -28,7 +28,7 @@
 // Load implementations from <project root>/tools.
 // Files: tools/csvparser.js tools/splaytree.js tools/codemap.js
 // Files: tools/consarray.js tools/profile.js tools/profile_view.js
-// Files: tools/logreader.js tools/arguments.js tools/tickprocessor.js
+// Files: tools/logreader.js tools/tickprocessor.js
 // Files: tools/profviz/composer.js
 // Env: TEST_FILE_NAME
 
@@ -78,5 +78,6 @@ var create_baseline = false;
 if (create_baseline) {
   print(JSON.stringify(output_lines, null, 2));
 } else {
-  assertArrayEquals(JSON.parse(read(reference_file)), output_lines);
+  assertArrayEquals(output_lines,
+                    JSON.parse(read(reference_file)));
 }

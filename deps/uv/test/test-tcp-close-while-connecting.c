@@ -29,7 +29,6 @@ static uv_tcp_t tcp_handle;
 static int connect_cb_called;
 static int timer1_cb_called;
 static int close_cb_called;
-static int netunreach_errors;
 
 
 static void close_cb(uv_handle_t* handle) {
@@ -38,15 +37,9 @@ static void close_cb(uv_handle_t* handle) {
 
 
 static void connect_cb(uv_connect_t* req, int status) {
-  /* The expected error is UV_ECANCELED but the test tries to connect to what
-   * is basically an arbitrary address in the expectation that no network path
-   * exists, so UV_ENETUNREACH is an equally plausible outcome.
-   */
-  ASSERT(status == UV_ECANCELED || status == UV_ENETUNREACH);
+  ASSERT(status == UV_ECANCELED);
   uv_timer_stop(&timer2_handle);
   connect_cb_called++;
-  if (status == UV_ENETUNREACH)
-    netunreach_errors++;
 }
 
 
@@ -79,7 +72,7 @@ TEST_IMPL(tcp_close_while_connecting) {
     RETURN_SKIP("Network unreachable.");
   ASSERT(r == 0);
   ASSERT(0 == uv_timer_init(loop, &timer1_handle));
-  ASSERT(0 == uv_timer_start(&timer1_handle, timer1_cb, 1, 0));
+  ASSERT(0 == uv_timer_start(&timer1_handle, timer1_cb, 50, 0));
   ASSERT(0 == uv_timer_init(loop, &timer2_handle));
   ASSERT(0 == uv_timer_start(&timer2_handle, timer2_cb, 86400 * 1000, 0));
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
@@ -89,9 +82,5 @@ TEST_IMPL(tcp_close_while_connecting) {
   ASSERT(close_cb_called == 2);
 
   MAKE_VALGRIND_HAPPY();
-
-  if (netunreach_errors > 0)
-    RETURN_SKIP("Network unreachable.");
-
   return 0;
 }

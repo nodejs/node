@@ -1,80 +1,91 @@
 'use strict';
-const common = require('../common');
+var common = require('../common');
+var assert = require('assert');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.opensslCli) {
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  return;
+}
 
-if (!common.opensslCli)
-  common.skip('node compiled without OpenSSL CLI');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
 
-const net = require('net');
-const tls = require('tls');
-const fixtures = require('../common/fixtures');
+var tls = require('tls');
+var net = require('net');
+var fs = require('fs');
 
-let clientClosed = false;
-let errorReceived = false;
-function canCloseServer() {
-  return clientClosed && errorReceived;
+var success = false;
+
+function filenamePEM(n) {
+  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
 }
 
 function loadPEM(n) {
-  return fixtures.readKey(`${n}.pem`, 'utf-8');
+  return fs.readFileSync(filenamePEM(n));
 }
 
-const opts = {
+var opts = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert')
 };
 
-const max_iter = 20;
-let iter = 0;
+var max_iter = 20;
+var iter = 0;
 
-const errorHandler = common.mustCall(() => {
-  errorReceived = true;
-  if (canCloseServer())
-    server.close();
-});
-const server = tls.createServer(opts, common.mustCall(function(s) {
+var server = tls.createServer(opts, function(s) {
   s.pipe(s);
-  s.on('error', errorHandler);
-}, 2));
+  s.on('error', function(e) {
+    // ignore error
+  });
+});
 
-server.listen(0, common.mustCall(function() {
+server.listen(common.PORT, function() {
   sendClient();
-}));
+});
 
 
 function sendClient() {
-  const client = tls.connect(server.address().port, {
+  var client = tls.connect(common.PORT, {
     rejectUnauthorized: false
   });
-  client.on('data', common.mustCall(function() {
+  client.on('data', function(chunk) {
     if (iter++ === 2) sendBADTLSRecord();
     if (iter < max_iter) {
       client.write('a');
       return;
     }
     client.end();
-  }, max_iter));
+    server.close();
+    success = true;
+  });
   client.write('a');
-  client.on('error', common.mustNotCall());
-  client.on('close', common.mustCall(function() {
-    clientClosed = true;
-    if (canCloseServer())
-      server.close();
-  }));
+  client.on('error', function(e) {
+    // ignore error
+  });
+  client.on('close', function() {
+    server.close();
+  });
 }
 
 
 function sendBADTLSRecord() {
-  const BAD_RECORD = Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
-  const socket = net.connect(server.address().port);
-  const client = tls.connect({
+  var BAD_RECORD = new Buffer([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+  var socket = net.connect(common.PORT);
+  var client = tls.connect({
     socket: socket,
     rejectUnauthorized: false
-  }, common.mustCall(function() {
+  }, function() {
     socket.write(BAD_RECORD);
     socket.end();
-  }));
-  client.on('error', common.mustCall());
+  });
+  client.on('error', function(e) {
+    // ignore error
+  });
 }
+
+process.on('exit', function() {
+  assert(iter === max_iter);
+  assert(success);
+});

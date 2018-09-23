@@ -1,0 +1,158 @@
+From ssl-lists-owner@mincom.com Mon Sep 30 02:37:40 1996
+Received: from cygnus.mincom.oz.au by orb.mincom.oz.au with SMTP id AA11782
+  (5.65c/IDA-1.4.4 for eay); Mon, 30 Sep 1996 11:46:21 +1000
+Received: (from daemon@localhost) by cygnus.mincom.oz.au (8.7.5/8.7.3) id LAA18980 for ssl-users-outgoing; Mon, 30 Sep 1996 11:44:56 +1000 (EST)
+Received: from minbne.mincom.oz.au (minbne.mincom.oz.au [192.55.196.247]) by cygnus.mincom.oz.au (8.7.5/8.7.3) with SMTP id LAA18962 for <ssl-users@listserv.mincom.oz.au>; Mon, 30 Sep 1996 11:44:51 +1000 (EST)
+Received: by minbne.mincom.oz.au id AA22230
+  (5.65c/IDA-1.4.4 for ssl-users@listserv.mincom.oz.au); Mon, 30 Sep 1996 11:38:41 +1000
+Received: from brutus.neuronio.pt (brutus.neuronio.pt [193.126.253.2]) by bunyip.cc.uq.oz.au (8.7.6/8.7.3) with SMTP id LAA15824 for <ssl-users@mincom.com>; Mon, 30 Sep 1996 11:40:07 +1000
+Received: (from sampo@localhost) by brutus.neuronio.pt (8.6.11/8.6.11) id BAA08729; Mon, 30 Sep 1996 01:37:40 +0100
+Date: Mon, 30 Sep 1996 01:37:40 +0100
+Message-Id: <199609300037.BAA08729@brutus.neuronio.pt>
+From: Sampo Kellomaki <sampo@neuronio.pt>
+To: ssl-users@mincom.com
+Cc: sampo@brutus.neuronio.pt
+Subject: Signing with envelope routines
+Sender: ssl-lists-owner@mincom.com
+Precedence: bulk
+Status: RO
+X-Status: D
+
+
+I have been trying to figure out how to produce signatures with EVP_
+routines. I seem to be able to read in private key and sign some
+data ok, but I can't figure out how I am supposed to read in
+public key so that I could verify my signature. I use self signed
+certificate.
+
+I figured I should use
+	EVP_PKEY* pkey = PEM_ASN1_read(d2i_PrivateKey, PEM_STRING_EVP_PKEY,
+	                               fp, NULL, NULL);
+to read in private key and this seems to work Ok.
+
+However when I try analogous
+	EVP_PKEY* pkey = PEM_ASN1_read(d2i_PublicKey, PEM_STRING_X509,
+	                               fp, NULL, NULL);
+the program fails with
+
+error:0D09508D:asn1 encoding routines:D2I_PUBLICKEY:unknown public key type:d2i_pu.c:93
+error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib:pem_lib.c:232
+
+I figured that the second argument to PEM_ASN1_read should match the
+name in my PEM encoded object, hence PEM_STRING_X509.
+PEM_STRING_EVP_PKEY seems to be somehow magical
+because it matches whatever private key there happens to be. I could
+not find a similar constant to use with getting the certificate, however.
+
+Is my approach of using PEM_ASN1_read correct? What should I pass in
+as name?  Can I use normal (or even self signed) X509 certificate for
+verifying the signature?
+
+When will SSLeay documentation be written ;-)? If I would contribute
+comments to the code, would Eric take time to review them and include
+them in distribution?
+
+I'm using SSLeay-0.6.4. My program is included below along with the
+key and cert that I use.
+
+--Sampo
+
+-----------------------------------
+/* sign-it.cpp  -  Simple test app using SSLeay envelopes to sign data
+   29.9.1996, Sampo Kellomaki <sampo@iki.fi> */
+
+#include <stdio.h>
+#include "rsa.h"
+#include "evp.h"
+#include "objects.h"
+#include "x509.h"
+#include "err.h"
+#include "pem.h"
+#include "ssl.h"
+
+void main ()
+{
+  int err;
+  int sig_len;
+  unsigned char sig_buf [4096];
+  const char certfile[] = "plain-cert.pem";
+  const char keyfile[]  = "plain-key.pem";
+  const char data[]     = "I owe you...";
+  EVP_MD_CTX     md_ctx;
+  EVP_PKEY*      pkey;
+  FILE*          fp;
+
+  SSL_load_error_strings();
+  
+  /* Read private key */
+  
+  fp = fopen (keyfile, "r");   if (fp == NULL) exit (1);
+  pkey = (EVP_PKEY*)PEM_ASN1_read ((char *(*)())d2i_PrivateKey,
+				   PEM_STRING_EVP_PKEY,
+				   fp,
+				   NULL, NULL);
+  if (pkey == NULL) {  ERR_print_errors_fp (stderr);    exit (1);  }
+  fclose (fp);
+  
+  /* Do the signature */
+  
+  EVP_SignInit   (&md_ctx, EVP_md5());
+  EVP_SignUpdate (&md_ctx, data, strlen(data));
+  sig_len = sizeof(sig_buf);
+  err = EVP_SignFinal (&md_ctx,
+		       sig_buf, 
+		       &sig_len,
+		       pkey);
+  if (err != 1) {  ERR_print_errors_fp (stderr);    exit (1);  }
+  EVP_PKEY_free (pkey);
+  
+  /* Read public key */
+  
+  fp = fopen (certfile, "r");   if (fp == NULL) exit (1);
+  pkey = (EVP_PKEY*)PEM_ASN1_read ((char *(*)())d2i_PublicKey,
+				   PEM_STRING_X509,
+				   fp,
+				   NULL, NULL);
+  if (pkey == NULL) {  ERR_print_errors_fp (stderr);    exit (1);  }
+  fclose (fp);
+  
+  /* Verify the signature */
+  
+  EVP_VerifyInit   (&md_ctx, EVP_md5());
+  EVP_VerifyUpdate (&md_ctx, data, strlen((char*)data));
+  err = EVP_VerifyFinal (&md_ctx,
+			 sig_buf,
+			 sig_len,
+			 pkey);
+  if (err != 1) {  ERR_print_errors_fp (stderr);    exit (1);  }
+  EVP_PKEY_free (pkey);
+  printf ("Signature Verified Ok.\n");
+}
+/* EOF */
+--------------- plain-cert.pem -----------------
+-----BEGIN CERTIFICATE-----
+MIICLDCCAdYCAQAwDQYJKoZIhvcNAQEEBQAwgaAxCzAJBgNVBAYTAlBUMRMwEQYD
+VQQIEwpRdWVlbnNsYW5kMQ8wDQYDVQQHEwZMaXNib2ExFzAVBgNVBAoTDk5ldXJv
+bmlvLCBMZGEuMRgwFgYDVQQLEw9EZXNlbnZvbHZpbWVudG8xGzAZBgNVBAMTEmJy
+dXR1cy5uZXVyb25pby5wdDEbMBkGCSqGSIb3DQEJARYMc2FtcG9AaWtpLmZpMB4X
+DTk2MDkwNTAzNDI0M1oXDTk2MTAwNTAzNDI0M1owgaAxCzAJBgNVBAYTAlBUMRMw
+EQYDVQQIEwpRdWVlbnNsYW5kMQ8wDQYDVQQHEwZMaXNib2ExFzAVBgNVBAoTDk5l
+dXJvbmlvLCBMZGEuMRgwFgYDVQQLEw9EZXNlbnZvbHZpbWVudG8xGzAZBgNVBAMT
+EmJydXR1cy5uZXVyb25pby5wdDEbMBkGCSqGSIb3DQEJARYMc2FtcG9AaWtpLmZp
+MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAL7+aty3S1iBA/+yxjxv4q1MUTd1kjNw
+L4lYKbpzzlmC5beaQXeQ2RmGMTXU+mDvuqItjVHOK3DvPK7lTcSGftUCAwEAATAN
+BgkqhkiG9w0BAQQFAANBAFqPEKFjk6T6CKTHvaQeEAsX0/8YHPHqH/9AnhSjrwuX
+9EBc0n6bVGhN7XaXd6sJ7dym9sbsWxb+pJdurnkxjx4=
+-----END CERTIFICATE-----
+---------------- plain-key.pem -----------------
+-----BEGIN RSA PRIVATE KEY-----
+MIIBPAIBAAJBAL7+aty3S1iBA/+yxjxv4q1MUTd1kjNwL4lYKbpzzlmC5beaQXeQ
+2RmGMTXU+mDvuqItjVHOK3DvPK7lTcSGftUCAwEAAQJBALjkK+jc2+iihI98riEF
+oudmkNziSRTYjnwjx8mCoAjPWviB3c742eO3FG4/soi1jD9A5alihEOXfUzloenr
+8IECIQD3B5+0l+68BA/6d76iUNqAAV8djGTzvxnCxycnxPQydQIhAMXt4trUI3nc
+a+U8YL2HPFA3gmhBsSICbq2OptOCnM7hAiEA6Xi3JIQECob8YwkRj29DU3/4WYD7
+WLPgsQpwo1GuSpECICGsnWH5oaeD9t9jbFoSfhJvv0IZmxdcLpRcpslpeWBBAiEA
+6/5B8J0GHdJq89FHwEG/H2eVVUYu5y/aD6sgcm+0Avg=
+-----END RSA PRIVATE KEY-----
+------------------------------------------------
+

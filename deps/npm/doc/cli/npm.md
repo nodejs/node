@@ -21,16 +21,6 @@ programs.
 
 Run `npm help` to get a list of available commands.
 
-## IMPORTANT
-
-npm is configured to use npm, Inc.'s public registry at
-https://registry.npmjs.org by default. Use of the npm public registry is
-subject to terms of use available at https://www.npmjs.com/policies/terms.
-
-You can configure npm to use any compatible registry you like, and even run
-your own registry. Use of someone else's registry may be governed by their
-terms of use.
-
 ## INTRODUCTION
 
 You probably got npm because you want to install stuff.
@@ -51,7 +41,7 @@ requires compiling of C++ Code, npm will use
 [node-gyp](https://github.com/TooTallNate/node-gyp) for that task.
 For a Unix system, [node-gyp](https://github.com/TooTallNate/node-gyp)
 needs Python, make and a buildchain like GCC. On Windows,
-Python and Microsoft Visual Studio C++ are needed. Python 3 is
+Python and Microsoft Visual Studio C++ is needed. Python 3 is
 not supported by [node-gyp](https://github.com/TooTallNate/node-gyp).
 For more information visit
 [the node-gyp repository](https://github.com/TooTallNate/node-gyp) and
@@ -63,10 +53,10 @@ See `npm-folders(5)` to learn about where npm puts stuff.
 
 In particular, npm has two modes of operation:
 
-* global mode:
+* global mode:  
   npm installs packages into the install prefix at
   `prefix/lib/node_modules` and bins are installed in `prefix/bin`.
-* local mode:
+* local mode:  
   npm installs packages into the current project directory, which
   defaults to the current working directory.  Packages are installed to
   `./node_modules`, and bins are installed to `./node_modules/.bin`.
@@ -100,24 +90,24 @@ following help topics:
 npm is extremely configurable.  It reads its configuration options from
 5 places.
 
-* Command line switches:
+* Command line switches:  
   Set a config with `--key val`.  All keys take a value, even if they
   are booleans (the config parser doesn't know what the options are at
-  the time of parsing).  If no value is provided, then the option is set
+  the time of parsing.)  If no value is provided, then the option is set
   to boolean `true`.
-* Environment Variables:
+* Environment Variables:  
   Set any config by prefixing the name in an environment variable with
   `npm_config_`.  For example, `export npm_config_key=val`.
-* User Configs:
+* User Configs:  
   The file at $HOME/.npmrc is an ini-formatted list of configs.  If
   present, it is parsed.  If the `userconfig` option is set in the cli
   or env, then that will be used instead.
-* Global Configs:
+* Global Configs:  
   The file found at ../etc/npmrc (from the node executable, by default
   this resolves to /usr/local/etc/npmrc) will be parsed if it is found.
   If the `globalconfig` option is set in the cli, env, or user config,
   then that file is parsed instead.
-* Defaults:
+* Defaults:  
   npm's default configuration options are defined in
   lib/utils/config-defs.js.  These must not be changed.
 
@@ -127,35 +117,48 @@ See `npm-config(7)` for much much more information.
 
 Patches welcome!
 
-If you would like to contribute, but don't know what to work on, read
-the contributing guidelines and check the issues list.
+* code:
+  Read through `npm-coding-style(7)` if you plan to submit code.
+  You don't have to agree with it, but you do have to follow it.
+* docs:
+  If you find an error in the documentation, edit the appropriate markdown
+  file in the "doc" folder.  (Don't worry about generating the man page.)
 
-* [CONTRIBUTING.md](https://github.com/npm/cli/blob/latest/CONTRIBUTING.md)
-* [Bug tracker](https://npm.community/c/bugs)
-* [Support tracker](https://npm.community/c/support)
+Contributors are listed in npm's `package.json` file.  You can view them
+easily by doing `npm view npm contributors`.
+
+If you would like to contribute, but don't know what to work on, check
+the issues list or ask on the mailing list.
+
+* <http://github.com/npm/npm/issues>
+* <npm-@googlegroups.com>
 
 ## BUGS
 
 When you find issues, please report them:
 
 * web:
-  <https://npm.community/c/bugs>
+  <http://github.com/npm/npm/issues>
+* email:
+  <npm-@googlegroups.com>
 
-Be sure to follow the template and bug reporting guidelines. You can also ask
-for help in the [support forum](https://npm.community/c/support) if you're
-unsure if it's actually a bug or are having trouble coming up with a detailed
-reproduction to report.
+Be sure to include *all* of the output from the npm command that didn't work
+as expected.  The `npm-debug.log` file is also helpful to provide.
+
+You can also look for isaacs in #node.js on irc://irc.freenode.net.  He
+will no doubt tell you to put the output in a gist or email.
 
 ## AUTHOR
 
 [Isaac Z. Schlueter](http://blog.izs.me/) ::
 [isaacs](https://github.com/isaacs/) ::
-[@izs](https://twitter.com/izs) ::
+[@izs](http://twitter.com/izs) ::
 <i@izs.me>
 
 ## SEE ALSO
 
 * npm-help(1)
+* npm-faq(7)
 * README
 * package.json(5)
 * npm-install(1)
@@ -163,3 +166,4 @@ reproduction to report.
 * npm-config(7)
 * npmrc(5)
 * npm-index(7)
+* npm(3)

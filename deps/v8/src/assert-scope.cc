@@ -6,6 +6,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
+#include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/utils.h"
 
@@ -15,8 +16,7 @@ namespace internal {
 namespace {
 
 struct PerThreadAssertKeyConstructTrait final {
-  static void Construct(void* key_arg) {
-    auto key = reinterpret_cast<base::Thread::LocalStorageKey*>(key_arg);
+  static void Construct(base::Thread::LocalStorageKey* key) {
     *key = base::Thread::CreateThreadLocalKey();
   }
 };
@@ -71,7 +71,7 @@ class PerThreadAssertData final {
 template <PerThreadAssertType kType, bool kAllow>
 PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope()
     : data_(PerThreadAssertData::GetCurrent()) {
-  if (data_ == nullptr) {
+  if (data_ == NULL) {
     data_ = new PerThreadAssertData();
     PerThreadAssertData::SetCurrent(data_);
   }
@@ -83,26 +83,20 @@ PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope()
 
 template <PerThreadAssertType kType, bool kAllow>
 PerThreadAssertScope<kType, kAllow>::~PerThreadAssertScope() {
-  if (data_ == nullptr) return;
-  Release();
-}
-
-template <PerThreadAssertType kType, bool kAllow>
-void PerThreadAssertScope<kType, kAllow>::Release() {
   DCHECK_NOT_NULL(data_);
   data_->Set(kType, old_state_);
   if (data_->DecrementLevel()) {
-    PerThreadAssertData::SetCurrent(nullptr);
+    PerThreadAssertData::SetCurrent(NULL);
     delete data_;
   }
-  data_ = nullptr;
 }
+
 
 // static
 template <PerThreadAssertType kType, bool kAllow>
 bool PerThreadAssertScope<kType, kAllow>::IsAllowed() {
   PerThreadAssertData* data = PerThreadAssertData::GetCurrent();
-  return data == nullptr || data->Get(kType);
+  return data == NULL || data->Get(kType);
 }
 
 
@@ -151,12 +145,12 @@ template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
+template class PerIsolateAssertScope<ALLOCATION_FAILURE_ASSERT, false>;
+template class PerIsolateAssertScope<ALLOCATION_FAILURE_ASSERT, true>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, true>;
-template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, false>;
-template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, true>;
 
 }  // namespace internal
 }  // namespace v8

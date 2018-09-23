@@ -27,9 +27,8 @@
 
 // Tests time zone support.
 
-// TODO(littledan): getDefaultTimeZone() is not available from JavaScript
-// var df = Intl.DateTimeFormat();
-// assertEquals(getDefaultTimeZone(), df.resolvedOptions().timeZone);
+var df = Intl.DateTimeFormat();
+assertEquals(getDefaultTimeZone(), df.resolvedOptions().timeZone);
 
 df = Intl.DateTimeFormat(undefined, {timeZone: 'UtC'});
 assertEquals('UTC', df.resolvedOptions().timeZone);

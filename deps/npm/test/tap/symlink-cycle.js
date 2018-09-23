@@ -17,7 +17,7 @@ var cycleJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo "Error: no test specified" && exit 1'
+    test: 'echo \"Error: no test specified\" && exit 1'
   },
   dependencies: {
     'cycle': '*'
@@ -57,5 +57,5 @@ function setup () {
     path.join(cycle, 'package.json'),
     JSON.stringify(cycleJSON, null, 2)
   )
-  fs.symlinkSync(cycle, path.join(cycle, 'node_modules', 'cycle'), 'junction')
+  fs.symlinkSync(cycle, path.join(cycle, 'node_modules', 'cycle'))
 }

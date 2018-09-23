@@ -29,62 +29,62 @@
 
 function test1() {
   var a = Array(8);
-  assertTrue(%HasSmiOrObjectElements(a));
-  assertTrue(%HasHoleyElements(a));
+  assertTrue(%HasFastSmiOrObjectElements(a));
+  assertTrue(%HasFastHoleyElements(a));
 }
 
 function test2() {
   var a = Array();
-  assertTrue(%HasSmiOrObjectElements(a));
-  assertFalse(%HasHoleyElements(a));
+  assertTrue(%HasFastSmiOrObjectElements(a));
+  assertFalse(%HasFastHoleyElements(a));
 }
 
 function test3() {
   var a = Array(1,2,3,4,5,6,7);
-  assertTrue(%HasSmiOrObjectElements(a));
-  assertFalse(%HasHoleyElements(a));
+  assertTrue(%HasFastSmiOrObjectElements(a));
+  assertFalse(%HasFastHoleyElements(a));
 }
 
 function test4() {
   var a = [1, 2, 3, 4];
-  assertTrue(%HasSmiElements(a));
-  assertFalse(%HasHoleyElements(a));
+  assertTrue(%HasFastSmiElements(a));
+  assertFalse(%HasFastHoleyElements(a));
   var b = [1, 2,, 4];
-  assertTrue(%HasSmiElements(b));
-  assertTrue(%HasHoleyElements(b));
+  assertTrue(%HasFastSmiElements(b));
+  assertTrue(%HasFastHoleyElements(b));
 }
 
 function test5() {
   var a = [1, 2, 3, 4.5];
-  assertTrue(%HasDoubleElements(a));
-  assertFalse(%HasHoleyElements(a));
+  assertTrue(%HasFastDoubleElements(a));
+  assertFalse(%HasFastHoleyElements(a));
   var b = [1,, 3.5, 4];
-  assertTrue(%HasDoubleElements(b));
-  assertTrue(%HasHoleyElements(b));
+  assertTrue(%HasFastDoubleElements(b));
+  assertTrue(%HasFastHoleyElements(b));
   var c = [1, 3.5,, 4];
-  assertTrue(%HasDoubleElements(c));
-  assertTrue(%HasHoleyElements(c));
+  assertTrue(%HasFastDoubleElements(c));
+  assertTrue(%HasFastHoleyElements(c));
 }
 
 function test6() {
   var x = new Object();
   var a = [1, 2, 3.5, x];
-  assertTrue(%HasObjectElements(a));
-  assertFalse(%HasHoleyElements(a));
+  assertTrue(%HasFastObjectElements(a));
+  assertFalse(%HasFastHoleyElements(a));
   assertEquals(1, a[0]);
   assertEquals(2, a[1]);
   assertEquals(3.5, a[2]);
   assertEquals(x, a[3]);
   var b = [1,, 3.5, x];
-  assertTrue(%HasObjectElements(b));
-  assertTrue(%HasHoleyElements(b));
+  assertTrue(%HasFastObjectElements(b));
+  assertTrue(%HasFastHoleyElements(b));
   assertEquals(1, b[0]);
   assertEquals(undefined, b[1]);
   assertEquals(3.5, b[2]);
   assertEquals(x, b[3]);
   var c = [1, 3.5, x,,];
-  assertTrue(%HasObjectElements(c));
-  assertTrue(%HasHoleyElements(c));
+  assertTrue(%HasFastObjectElements(c));
+  assertTrue(%HasFastHoleyElements(c));
   assertEquals(1, c[0]);
   assertEquals(3.5, c[1]);
   assertEquals(x, c[2]);

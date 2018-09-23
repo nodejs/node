@@ -1,13 +1,5 @@
 'use strict';
-require('../common');
-const assert = require('assert');
-const fixtures = require('../common/fixtures');
+var common = require('../common');
+var assert = require('assert');
 
-const fixturesRequire = require(fixtures.path('require-bin', 'bin', 'req.js'));
-
-assert.strictEqual(
-  fixturesRequire,
-  '',
-  'test-require-extensions-main failed to import fixture requirements: ' +
-    fixturesRequire
-);
+require(common.fixturesDir + '/require-bin/bin/req.js');

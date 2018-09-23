@@ -10,7 +10,6 @@ var ini = require('ini')
 var Umask = configDefs.Umask
 var mkdirp = require('mkdirp')
 var umask = require('../utils/umask')
-var isWindows = require('../utils/is-windows.js')
 
 exports.load = load
 exports.Conf = Conf
@@ -21,20 +20,18 @@ exports.defs = configDefs
 
 Object.defineProperty(exports, 'defaults', { get: function () {
   return configDefs.defaults
-},
-enumerable: true })
+}, enumerable: true })
 
 Object.defineProperty(exports, 'types', { get: function () {
   return configDefs.types
-},
-enumerable: true })
+}, enumerable: true })
 
 exports.validate = validate
 
 var myUid = process.env.SUDO_UID !== undefined
-  ? process.env.SUDO_UID : (process.getuid && process.getuid())
+          ? process.env.SUDO_UID : (process.getuid && process.getuid())
 var myGid = process.env.SUDO_GID !== undefined
-  ? process.env.SUDO_GID : (process.getgid && process.getgid())
+          ? process.env.SUDO_GID : (process.getgid && process.getgid())
 
 var loading = false
 var loadCbs = []
@@ -155,10 +152,17 @@ function load_ (builtin, rc, cli, cb) {
     // annoying humans and their expectations!
     if (conf.get('prefix')) {
       var etc = path.resolve(conf.get('prefix'), 'etc')
-      defaults.globalconfig = path.resolve(etc, 'npmrc')
-      defaults.globalignorefile = path.resolve(etc, 'npmignore')
+      mkdirp(etc, function () {
+        defaults.globalconfig = path.resolve(etc, 'npmrc')
+        defaults.globalignorefile = path.resolve(etc, 'npmignore')
+        afterUserContinuation()
+      })
+    } else {
+      afterUserContinuation()
     }
+  }
 
+  function afterUserContinuation () {
     conf.addFile(conf.get('globalconfig'), 'global')
 
     // move the builtin into the conf stack now.
@@ -203,7 +207,7 @@ inherits(Conf, CC)
 function Conf (base) {
   if (!(this instanceof Conf)) return new Conf(base)
 
-  CC.call(this)
+  CC.apply(this)
 
   if (base) {
     if (base instanceof Conf) {
@@ -220,6 +224,7 @@ Conf.prototype.loadPrefix = require('./load-prefix.js')
 Conf.prototype.loadCAFile = require('./load-cafile.js')
 Conf.prototype.loadUid = require('./load-uid.js')
 Conf.prototype.setUser = require('./set-user.js')
+Conf.prototype.findPrefix = require('./find-prefix.js')
 Conf.prototype.getCredentialsByURI = require('./get-credentials-by-uri.js')
 Conf.prototype.setCredentialsByURI = require('./set-credentials-by-uri.js')
 Conf.prototype.clearCredentialsByURI = require('./clear-credentials-by-uri.js')
@@ -269,7 +274,7 @@ Conf.prototype.save = function (where, cb) {
       if (cb) return cb(er)
       else return this.emit('error', er)
     }
-    this._saving--
+    this._saving --
     if (this._saving === 0) {
       if (cb) cb()
       this.emit('save')
@@ -278,7 +283,7 @@ Conf.prototype.save = function (where, cb) {
 
   then = then.bind(this)
   done = done.bind(this)
-  this._saving++
+  this._saving ++
 
   var mode = where === 'user' ? '0600' : '0666'
   if (!data.trim()) {
@@ -326,10 +331,7 @@ Conf.prototype.parse = function (content, file) {
 Conf.prototype.add = function (data, marker) {
   try {
     Object.keys(data).forEach(function (k) {
-      const newKey = envReplace(k)
-      const newField = parseField(data[k], newKey)
-      delete data[k]
-      data[newKey] = newField
+      data[k] = parseField(data[k], k)
     })
   } catch (e) {
     this.emit('error', e)
@@ -349,8 +351,8 @@ Conf.prototype.addEnv = function (env) {
       // leave first char untouched, even if
       // it is a '_' - convert all other to '-'
       var p = k.toLowerCase()
-        .replace(/^npm_config_/, '')
-        .replace(/(?!^)_/g, '-')
+               .replace(/^npm_config_/, '')
+               .replace(/(?!^)_/g, '-')
       conf[p] = env[k]
     })
   return CC.prototype.addEnv.call(this, '', conf, 'env')
@@ -389,7 +391,7 @@ function parseField (f, k) {
   f = envReplace(f)
 
   if (isPath) {
-    var homePattern = isWindows ? /^~(\/|\\)/ : /^~\//
+    var homePattern = process.platform === 'win32' ? /^~(\/|\\)/ : /^~\//
     if (f.match(homePattern) && process.env.HOME) {
       f = path.resolve(process.env.HOME, f.substr(2))
     }

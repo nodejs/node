@@ -27,9 +27,11 @@
 
 import test
 import os
-from os.path import join, dirname, exists, splitext
+import shutil
+from os import mkdir
+from glob import glob
+from os.path import join, dirname, exists
 import re
-import ast
 
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
@@ -44,6 +46,7 @@ class SimpleTestCase(test.TestCase):
     self.config = config
     self.arch = arch
     self.mode = mode
+    self.tmpdir = join(dirname(self.config.root), 'tmp')
     if additional is not None:
       self.additional_flags = additional
     else:
@@ -61,23 +64,7 @@ class SimpleTestCase(test.TestCase):
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      flag = flags_match.group(1).strip().split()
-      # The following block reads config.gypi to extract the v8_enable_inspector
-      # value. This is done to check if the inspector is disabled in which case
-      # the '--inspect' flag cannot be passed to the node process as it will
-      # cause node to exit and report the test as failed. The use case
-      # is currently when Node is configured --without-ssl and the tests should
-      # still be runnable but skip any tests that require ssl (which includes the
-      # inspector related tests). Also, if there is no ssl support the options
-      # '--use-bundled-ca' and '--use-openssl-ca' will also cause a similar
-      # failure so such tests are also skipped.
-      if ('--inspect' in flag[0] or \
-          '--use-bundled-ca' in flag[0] or \
-          '--use-openssl-ca' in flag[0]) and \
-          self.context.v8_enable_inspector == 0:
-        print('Skipping as node was configured --without-ssl')
-      else:
-        result += flag
+      result += flags_match.group(1).strip().split()
     files_match = FILES_PATTERN.search(source);
     additional_files = []
     if files_match:
@@ -106,17 +93,18 @@ class SimpleTestConfiguration(test.TestConfiguration):
       self.additional_flags = []
 
   def Ls(self, path):
-    return [f for f in os.listdir(path) if re.match('^test-.*\.m?js$', f)]
+    def SelectTest(name):
+      return name.startswith('test-') and name.endswith('.js')
+    return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
 
   def ListTests(self, current_path, path, arch, mode):
     all_tests = [current_path + [t] for t in self.Ls(join(self.root))]
     result = []
     for test in all_tests:
       if self.Contains(path, test):
-        file_path = join(self.root, reduce(join, test[1:], ""))
-        test_name = test[:-1] + [splitext(test[-1])[0]]
-        result.append(SimpleTestCase(test_name, file_path, arch, mode,
-                                     self.context, self, self.additional_flags))
+        file_path = join(self.root, reduce(join, test[1:], "") + ".js")
+        result.append(SimpleTestCase(test, file_path, arch, mode, self.context,
+                                     self, self.additional_flags))
     return result
 
   def GetBuildRequirements(self):
@@ -162,17 +150,5 @@ class AddonTestConfiguration(SimpleTestConfiguration):
       if self.Contains(path, test):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
         result.append(
-            SimpleTestCase(test, file_path, arch, mode, self.context, self, self.additional_flags))
-    return result
-
-class AbortTestConfiguration(SimpleTestConfiguration):
-  def __init__(self, context, root, section, additional=None):
-    super(AbortTestConfiguration, self).__init__(context, root, section,
-                                                 additional)
-
-  def ListTests(self, current_path, path, arch, mode):
-    result = super(AbortTestConfiguration, self).ListTests(
-         current_path, path, arch, mode)
-    for test in result:
-      test.disable_core_files = True
+            SimpleTestCase(test, file_path, arch, mode, self.context, self))
     return result

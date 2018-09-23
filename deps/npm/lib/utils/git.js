@@ -1,20 +1,16 @@
-'use strict'
-
-const BB = require('bluebird')
-
-const exec = require('child_process').execFile
-const spawn = require('./spawn')
-const npm = require('../npm.js')
-const which = require('which')
-const git = npm.config.get('git')
-const assert = require('assert')
-const log = require('npmlog')
-const noProgressTillDone = require('./no-progress-while-running.js').tillDone
+// handle some git configuration for windows
 
 exports.spawn = spawnGit
-exports.exec = BB.promisify(execGit)
 exports.chainableExec = chainableExec
 exports.whichAndExec = whichAndExec
+
+var exec = require('child_process').execFile
+var spawn = require('./spawn')
+var npm = require('../npm.js')
+var which = require('which')
+var git = npm.config.get('git')
+var assert = require('assert')
+var log = require('npmlog')
 
 function prefixGitArgs () {
   return process.platform === 'win32' ? ['-c', 'core.longpaths=true'] : []
@@ -22,8 +18,8 @@ function prefixGitArgs () {
 
 function execGit (args, options, cb) {
   log.info('git', args)
-  const fullArgs = prefixGitArgs().concat(args || [])
-  return exec(git, fullArgs, options, noProgressTillDone(cb))
+  var fullArgs = prefixGitArgs().concat(args || [])
+  return exec(git, fullArgs, options, cb)
 }
 
 function spawnGit (args, options) {
@@ -36,10 +32,14 @@ function chainableExec () {
   return [execGit].concat(args)
 }
 
+function whichGit (cb) {
+  return which(git, cb)
+}
+
 function whichAndExec (args, options, cb) {
   assert.equal(typeof cb, 'function', 'no callback provided')
   // check for git
-  which(git, function (err) {
+  whichGit(function (err) {
     if (err) {
       err.code = 'ENOGIT'
       return cb(err)

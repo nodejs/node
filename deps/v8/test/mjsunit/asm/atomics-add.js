@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer
+// Flags: --harmony-atomics --harmony-sharedarraybuffer
 
-function Module(stdlib, foreign, heap, offset) {
+function Module(stdlib, foreign, heap) {
   "use asm";
-  var MEM8 = new stdlib.Int8Array(heap, offset);
-  var MEM16 = new stdlib.Int16Array(heap, offset);
-  var MEM32 = new stdlib.Int32Array(heap, offset);
-  var MEMU8 = new stdlib.Uint8Array(heap, offset);
-  var MEMU16 = new stdlib.Uint16Array(heap, offset);
-  var MEMU32 = new stdlib.Uint32Array(heap, offset);
+  var MEM8 = new stdlib.Int8Array(heap);
+  var MEM16 = new stdlib.Int16Array(heap);
+  var MEM32 = new stdlib.Int32Array(heap);
+  var MEMU8 = new stdlib.Uint8Array(heap);
+  var MEMU16 = new stdlib.Uint16Array(heap);
+  var MEMU32 = new stdlib.Uint32Array(heap);
   var add = stdlib.Atomics.add;
   var fround = stdlib.Math.fround;
 
@@ -61,6 +61,9 @@ function Module(stdlib, foreign, heap, offset) {
   };
 }
 
+var sab = new SharedArrayBuffer(16);
+var m = Module(this, {}, sab);
+
 function clearArray() {
   var ui8 = new Uint8Array(sab);
   for (var i = 0; i < sab.byteLength; ++i) {
@@ -68,35 +71,23 @@ function clearArray() {
   }
 }
 
-function testElementType(taConstr, f, offset) {
+function testElementType(taConstr, f) {
   clearArray();
 
-  var ta = new taConstr(sab, offset);
+  var ta = new taConstr(sab);
   var name = Object.prototype.toString.call(ta);
   assertEquals(0, f(0, 10), name);
   assertEquals(10, ta[0]);
   assertEquals(10, f(0, 10), name);
   assertEquals(20, ta[0]);
   // out of bounds
-  assertThrows(function() { f(-1, 0); });
-  assertThrows(function() { f(ta.length, 0); });
+  assertEquals(0, f(-1, 0), name);
+  assertEquals(0, f(ta.length, 0), name);
 }
 
-function testElement(m, offset) {
-  testElementType(Int8Array, m.addi8, offset);
-  testElementType(Int16Array, m.addi16, offset);
-  testElementType(Int32Array, m.addi32, offset);
-  testElementType(Uint8Array, m.addu8, offset);
-  testElementType(Uint16Array, m.addu16, offset);
-  testElementType(Uint32Array, m.addu32, offset);
-}
-
-var offset = 0;
-var sab = new SharedArrayBuffer(16);
-var m1 = Module(this, {}, sab, offset);
-testElement(m1, offset);
-
-offset = 32;
-sab = new SharedArrayBuffer(64);
-var m2 = Module(this, {}, sab, offset);
-testElement(m2, offset);
+testElementType(Int8Array, m.addi8);
+testElementType(Int16Array, m.addi16);
+testElementType(Int32Array, m.addi32);
+testElementType(Uint8Array, m.addu8);
+testElementType(Uint16Array, m.addu16);
+testElementType(Uint32Array, m.addu32);

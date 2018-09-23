@@ -1,16 +1,12 @@
-'use strict'
-
-const clientConfig = require('../config/reg-client.js')
-const Conf = require('../config/core.js').Conf
-const log = require('npmlog')
-const npm = require('../npm.js')
-const RegClient = require('npm-registry-client')
+var Conf = require('../config/core.js').Conf
+var CachingRegClient = require('../cache/caching-client.js')
+var log = require('npmlog')
 
 module.exports = getPublishConfig
 
 function getPublishConfig (publishConfig, defaultConfig, defaultClient) {
-  let config = defaultConfig
-  let client = defaultClient
+  var config = defaultConfig
+  var client = defaultClient
   log.verbose('getPublishConfig', publishConfig)
   if (publishConfig) {
     config = new Conf(defaultConfig)
@@ -22,7 +18,7 @@ function getPublishConfig (publishConfig, defaultConfig, defaultClient) {
       s[k] = publishConfig[k]
       return s
     }, {}))
-    client = new RegClient(clientConfig(npm, log, config))
+    client = new CachingRegClient(config)
   }
 
   return { config: config, client: client }

@@ -1,40 +1,41 @@
 'use strict';
-const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+var assert = require('assert'),
+    fs = require('fs'),
+    path = require('path'),
+    tls = require('tls'),
+    stream = require('stream'),
+    net = require('net');
 
-const assert = require('assert');
-const tls = require('tls');
-const stream = require('stream');
-const net = require('net');
-const fixtures = require('../common/fixtures');
+var common = require('../common');
 
-const options = { key: fixtures.readSync('test_key.pem'),
-                  cert: fixtures.readSync('test_cert.pem'),
-                  ca: [ fixtures.readSync('test_ca.pem') ],
-                  ciphers: 'AES256-GCM-SHA384' };
-const content = 'hello world';
-const recv_bufs = [];
-let send_data = '';
-const server = tls.createServer(options, function(s) {
+var server;
+var cert_dir = path.resolve(__dirname, '../fixtures'),
+    options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
+                cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
+                ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
+                ciphers: 'AES256-GCM-SHA384' };
+var content = 'hello world';
+var recv_bufs = [];
+var send_data = '';
+server = tls.createServer(options, function(s) {
   s.on('data', function(c) {
     recv_bufs.push(c);
   });
 });
-server.listen(0, function() {
-  const raw = net.connect(this.address().port);
+server.listen(common.PORT, function() {
+  var raw = net.connect(common.PORT);
 
-  let pending = false;
+  var pending = false;
   raw.on('readable', function() {
     if (pending)
       p._read();
   });
 
-  const p = new stream.Duplex({
+  var p = new stream.Duplex({
     read: function read() {
       pending = false;
 
-      const chunk = raw.read();
+      var chunk = raw.read();
       if (chunk) {
         this.push(chunk);
       } else {
@@ -46,11 +47,11 @@ server.listen(0, function() {
     }
   });
 
-  const socket = tls.connect({
+  var socket = tls.connect({
     socket: p,
     rejectUnauthorized: false
   }, function() {
-    for (let i = 0; i < 50; ++i) {
+    for (var i = 0; i < 50; ++i) {
       socket.write(content);
       send_data += content;
     }
@@ -60,6 +61,6 @@ server.listen(0, function() {
 });
 
 process.on('exit', function() {
-  const recv_data = (Buffer.concat(recv_bufs)).toString();
+  var recv_data = (Buffer.concat(recv_bufs)).toString();
   assert.strictEqual(send_data, recv_data);
 });

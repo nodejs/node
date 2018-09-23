@@ -1,0 +1,32 @@
+Alpha EV5.6 (21164A) 533mhz, Linux 2.0.32
+
+SSLeay 0.9.0p 22-May-1998
+built on Sun May 27 14:23:38 GMT 2018
+options:bn(64,64) md2(int) rc4(ptr,int) des(idx,risc1,16,long) idea(int) blowfish(idx) 
+C flags:gcc -O3
+The 'numbers' are in 1000s of bytes per second processed.
+type              8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2                295.78k      825.34k     1116.42k     1225.10k     1262.65k
+mdc2               918.16k     1017.55k     1032.18k     1034.24k     1035.60k
+md5               3574.93k    15517.05k    25482.67k    30434.31k    32210.51k
+hmac(md5)         1261.54k     7757.15k    18025.46k    27081.21k    31653.27k
+sha1              2251.89k    10056.84k    16990.19k    20651.04k    21973.29k
+rmd160            1615.49k     7017.13k    11601.11k    13875.62k    14690.31k
+rc4              22435.16k    24476.40k    24349.95k    23042.36k    24581.53k
+des cbc           5198.38k     6559.04k     6775.43k     6827.87k     6875.82k
+des ede3          2257.73k     2602.18k     2645.60k     2657.12k     2670.59k
+idea cbc          3694.42k     4125.61k     4180.74k     4193.28k     4192.94k
+rc2 cbc           4642.47k     5323.85k     5415.42k     5435.86k     5434.03k
+rc5-32/12 cbc     9705.26k    13277.79k    13843.46k    13989.66k    13987.57k
+blowfish cbc      7861.28k    10852.34k    11447.98k    11616.97k    11667.54k
+cast cbc          6718.13k     8599.98k     8967.17k     9070.81k     9099.28k
+                  sign    verify    sign/s verify/s
+rsa  512 bits   0.0018s   0.0002s    555.9   6299.5
+rsa 1024 bits   0.0081s   0.0005s    123.3   2208.7
+rsa 2048 bits   0.0489s   0.0015s     20.4    648.5
+rsa 4096 bits   0.3402s   0.0057s      2.9    174.7
+                  sign    verify    sign/s verify/s
+dsa  512 bits   0.0019s   0.0032s    529.0    310.2
+dsa 1024 bits   0.0047s   0.0086s    214.1    115.7
+dsa 2048 bits   0.0150s   0.0289s     66.7     34.6
+

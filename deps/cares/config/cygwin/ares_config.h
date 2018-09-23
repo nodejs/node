@@ -22,9 +22,6 @@
 /* Definition to make a library symbol externally visible. */
 #define CARES_SYMBOL_SCOPE_EXTERN __attribute__ ((visibility ("default")))
 
-/* the signed version of size_t */
-#define CARES_TYPEOF_ARES_SSIZE_T ssize_t
-
 /* if a /etc/inet dir is being used */
 /* #undef ETC_INET */
 
@@ -367,7 +364,7 @@
 #define PACKAGE_NAME "c-ares"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "c-ares 1.13.0"
+#define PACKAGE_STRING "c-ares 1.7.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "c-ares"
@@ -376,7 +373,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.13.0"
+#define PACKAGE_VERSION "1.7.1"
 
 /* a suitable file/device to read random data from */
 #define RANDOM_FILE "/dev/urandom"

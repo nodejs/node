@@ -1,12 +1,3 @@
-/*
- * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
- */
-
 #include "../bn_lcl.h"
 #if !(defined(__GNUC__) && __GNUC__>=2)
 # include "../bn_asm.c"         /* kind of dirty hack for Sun Studio */
@@ -74,7 +65,7 @@
 # undef mul_add
 
 /*-
- * "m"(a), "+m"(r)      is the way to favor DirectPath Âµ-code;
+ * "m"(a), "+m"(r)      is the way to favor DirectPath µ-code;
  * "g"(0)               let the compiler to decide where does it
  *                      want to keep the value of zero;
  */
@@ -203,7 +194,7 @@ BN_ULONG bn_div_words(BN_ULONG h, BN_ULONG l, BN_ULONG d)
     BN_ULONG ret, waste;
 
  asm("divq      %4":"=a"(ret), "=d"(waste)
- :     "a"(l), "d"(h), "r"(d)
+ :     "a"(l), "d"(h), "g"(d)
  :     "cc");
 
     return ret;
@@ -225,10 +216,9 @@ BN_ULONG bn_add_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
                   "       adcq    (%5,%2,8),%0    \n"
                   "       movq    %0,(%3,%2,8)    \n"
                   "       lea     1(%2),%2        \n"
-                  "       dec     %1              \n"
-                  "       jnz     1b              \n"
-                  "       sbbq    %0,%0           \n"
-                  :"=&r" (ret), "+c"(n), "+r"(i)
+                  "       loop    1b              \n"
+                  "       sbbq    %0,%0           \n":"=&r" (ret), "+c"(n),
+                  "+r"(i)
                   :"r"(rp), "r"(ap), "r"(bp)
                   :"cc", "memory");
 
@@ -252,10 +242,9 @@ BN_ULONG bn_sub_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
                   "       sbbq    (%5,%2,8),%0    \n"
                   "       movq    %0,(%3,%2,8)    \n"
                   "       lea     1(%2),%2        \n"
-                  "       dec     %1              \n"
-                  "       jnz     1b              \n"
-                  "       sbbq    %0,%0           \n"
-                  :"=&r" (ret), "+c"(n), "+r"(i)
+                  "       loop    1b              \n"
+                  "       sbbq    %0,%0           \n":"=&r" (ret), "+c"(n),
+                  "+r"(i)
                   :"r"(rp), "r"(ap), "r"(bp)
                   :"cc", "memory");
 

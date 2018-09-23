@@ -7,24 +7,19 @@ var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var rmStuff = require('../../unbuild.js').rmStuff
 var lifecycle = require('../../utils/lifecycle.js')
-var move = require('../../utils/move.js')
+var updatePackageJson = require('../update-package-json')
 
-/*
-  Move a module from one point in the node_modules tree to another.
-  Do not disturb either the source or target location's node_modules
-  folders.
-*/
-
-module.exports = function (staging, pkg, log, next) {
+module.exports = function (top, buildpath, pkg, log, next) {
   log.silly('move', pkg.fromPath, pkg.path)
   chain([
-    [lifecycle, pkg.package, 'preuninstall', pkg.fromPath, { failOk: true }],
-    [lifecycle, pkg.package, 'uninstall', pkg.fromPath, { failOk: true }],
+    [lifecycle, pkg.package, 'preuninstall', pkg.fromPath, false, true],
+    [lifecycle, pkg.package, 'uninstall', pkg.fromPath, false, true],
     [rmStuff, pkg.package, pkg.fromPath],
-    [lifecycle, pkg.package, 'postuninstall', pkg.fromPath, { failOk: true }],
-    [moveModuleOnly, pkg.fromPath, pkg.path, log],
-    [lifecycle, pkg.package, 'preinstall', pkg.path, { failOk: true }],
-    [removeEmptyParents, path.resolve(pkg.fromPath, '..')]
+    [lifecycle, pkg.package, 'postuninstall', pkg.fromPath, false, true],
+    [moveModuleOnly, pkg.fromPath, pkg.path],
+    [lifecycle, pkg.package, 'preinstall', pkg.path, false, true],
+    [removeEmptyParents, path.resolve(pkg.fromPath, '..')],
+    [updatePackageJson, pkg, pkg.path]
   ], next)
 }
 
@@ -36,61 +31,29 @@ function removeEmptyParents (pkgdir, next) {
   })
 }
 
-function moveModuleOnly (from, to, log, done) {
-  var fromModules = path.join(from, 'node_modules')
-  var tempFromModules = from + '.node_modules'
-  var toModules = path.join(to, 'node_modules')
-  var tempToModules = to + '.node_modules'
+function moveModuleOnly (from, to, done) {
+  var from_modules = path.join(from, 'node_modules')
+  var temp_modules = from + '.node_modules'
 
-  log.silly('move', 'move existing destination node_modules away', toModules)
+  rimraf(to, iferr(done, makeDestination))
 
-  move(toModules, tempToModules).then(removeDestination(done), removeDestination(done))
-
-  function removeDestination (next) {
-    return function (er) {
-      log.silly('move', 'remove existing destination', to)
-      if (er) {
-        rimraf(to, iferr(next, makeDestination(next)))
-      } else {
-        rimraf(to, iferr(next, makeDestination(iferr(next, moveToModulesBack(next)))))
-      }
-    }
+  function makeDestination () {
+    mkdirp(path.resolve(to, '..'), iferr(done, moveNodeModules))
   }
 
-  function moveToModulesBack (next) {
-    return function () {
-      log.silly('move', 'move existing destination node_modules back', toModules)
-      move(tempToModules, toModules).then(next, done)
-    }
-  }
-
-  function makeDestination (next) {
-    return function () {
-      log.silly('move', 'make sure destination parent exists', path.resolve(to, '..'))
-      mkdirp(path.resolve(to, '..'), iferr(done, moveNodeModules(next)))
-    }
-  }
-
-  function moveNodeModules (next) {
-    return function () {
-      log.silly('move', 'move source node_modules away', fromModules)
-      move(fromModules, tempFromModules).then(doMove(moveNodeModulesBack(next)), doMove(next))
-    }
+  function moveNodeModules () {
+    fs.rename(from_modules, temp_modules, function (er) {
+      doMove(er ? done : moveNodeModulesBack)
+    })
   }
 
   function doMove (next) {
-    return function () {
-      log.silly('move', 'move module dir to final dest', from, to)
-      move(from, to).then(next, done)
-    }
+    fs.rename(from, to, iferr(done, next))
   }
 
-  function moveNodeModulesBack (next) {
-    return function () {
-      mkdirp(from, iferr(done, function () {
-        log.silly('move', 'put source node_modules back', fromModules)
-        move(tempFromModules, fromModules).then(next, done)
-      }))
-    }
+  function moveNodeModulesBack () {
+    mkdirp(from, iferr(done, function () {
+      fs.rename(temp_modules, from_modules, done)
+    }))
   }
 }

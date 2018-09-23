@@ -27,8 +27,7 @@
 
 // Flags: --allow-natives-syntax
 
-// Tests the Function.prototype.bind method.
-
+// Tests the Function.prototype.bind (ES 15.3.4.5) method.
 
 // Simple tests.
 function foo(x, y, z) {
@@ -40,34 +39,24 @@ assertEquals(3, foo.length);
 var f = foo.bind(foo);
 assertEquals([foo, 3, 1], f(1, 2, 3));
 assertEquals(3, f.length);
-assertEquals("function () { [native code] }", f.toString());
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1);
 assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
-assertEquals("function () { [native code] }", f.toString());
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1, 2);
 assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
-assertEquals("function () { [native code] }", f.toString());
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1, 2, 3);
 assertEquals([foo, 3, 1], f());
 assertEquals(0, f.length);
-assertEquals("function () { [native code] }", f.toString());
-%HeapObjectVerify(f);
 
 // Test that length works correctly even if more than the actual number
 // of arguments are given when binding.
 f = foo.bind(foo, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 assertEquals([foo, 9, 1], f());
 assertEquals(0, f.length);
-assertEquals("function () { [native code] }", f.toString());
-%HeapObjectVerify(f);
 
 // Use a different bound object.
 var obj = {x: 42, y: 43};
@@ -83,13 +72,10 @@ assertEquals(3, f_bound_this(1))
 f = f_bound_this.bind(obj);
 assertEquals(2, f(1));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 f = f_bound_this.bind(obj, 2);
 assertEquals(3, f());
 assertEquals(0, f.length);
-assertEquals('[object Function]', Object.prototype.toString.call(f));
-%HeapObjectVerify(f);
 
 // Test chained binds.
 
@@ -97,80 +83,65 @@ assertEquals('[object Function]', Object.prototype.toString.call(f));
 // the same effect.
 f = foo.bind(foo);
 assertEquals([foo, 3, 1], f(1, 2, 3));
-%HeapObjectVerify(f);
 
 var not_foo = {};
 f = foo.bind(foo).bind(not_foo).bind(not_foo).bind(not_foo);
 assertEquals([foo, 3, 1], f(1, 2, 3));
 assertEquals(3, f.length);
-%HeapObjectVerify(f);
 
 // Giving bound parameters should work at any place in the chain.
 f = foo.bind(foo, 1).bind(not_foo).bind(not_foo).bind(not_foo);
 assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo).bind(not_foo, 1).bind(not_foo).bind(not_foo);
 assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo).bind(not_foo).bind(not_foo,1 ).bind(not_foo);
 assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo).bind(not_foo).bind(not_foo).bind(not_foo, 1);
 assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
-%HeapObjectVerify(f);
 
 // Several parameters can be given, and given in different bind invocations.
 f = foo.bind(foo, 1, 2).bind(not_foo).bind(not_foo).bind(not_foo);
 assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo).bind(not_foo, 1, 2).bind(not_foo).bind(not_foo);
 assertEquals([foo, 3, 1], f(1));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo).bind(not_foo, 1, 2).bind(not_foo).bind(not_foo);
 assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo).bind(not_foo).bind(not_foo, 1, 2).bind(not_foo);
 assertEquals([foo, 3, 1], f(1));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo).bind(not_foo).bind(not_foo).bind(not_foo, 1, 2);
 assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1).bind(not_foo, 2).bind(not_foo).bind(not_foo);
 assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1).bind(not_foo).bind(not_foo, 2).bind(not_foo);
 assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1).bind(not_foo).bind(not_foo).bind(not_foo, 2);
 assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 f = foo.bind(foo).bind(not_foo, 1).bind(not_foo).bind(not_foo, 2);
 assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
-%HeapObjectVerify(f);
 
 // The wrong number of arguments can be given to bound functions too.
 f = foo.bind(foo);
@@ -180,7 +151,6 @@ assertEquals([foo, 1, 1], f(1));
 assertEquals([foo, 2, 1], f(1, 2));
 assertEquals([foo, 3, 1], f(1, 2, 3));
 assertEquals([foo, 4, 1], f(1, 2, 3, 4));
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1);
 assertEquals(2, f.length);
@@ -188,25 +158,21 @@ assertEquals([foo, 1, 1], f());
 assertEquals([foo, 2, 1], f(2));
 assertEquals([foo, 3, 1], f(2, 3));
 assertEquals([foo, 4, 1], f(2, 3, 4));
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1, 2);
 assertEquals(1, f.length);
 assertEquals([foo, 2, 1], f());
 assertEquals([foo, 3, 1], f(3));
 assertEquals([foo, 4, 1], f(3, 4));
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1, 2, 3);
 assertEquals(0, f.length);
 assertEquals([foo, 3, 1], f());
 assertEquals([foo, 4, 1], f(4));
-%HeapObjectVerify(f);
 
 f = foo.bind(foo, 1, 2, 3, 4);
 assertEquals(0, f.length);
 assertEquals([foo, 4, 1], f());
-%HeapObjectVerify(f);
 
 // Test constructor calls.
 
@@ -221,32 +187,24 @@ var obj2 = new f(1,2,3);
 assertEquals(1, obj2.x);
 assertEquals(2, obj2.y);
 assertEquals(3, obj2.z);
-%HeapObjectVerify(f);
-%HeapObjectVerify(obj2);
 
 f = bar.bind(bar, 1);
 obj2 = new f(2,3);
 assertEquals(1, obj2.x);
 assertEquals(2, obj2.y);
 assertEquals(3, obj2.z);
-%HeapObjectVerify(f);
-%HeapObjectVerify(obj2);
 
 f = bar.bind(bar, 1, 2);
 obj2 = new f(3);
 assertEquals(1, obj2.x);
 assertEquals(2, obj2.y);
 assertEquals(3, obj2.z);
-%HeapObjectVerify(f);
-%HeapObjectVerify(obj2);
 
 f = bar.bind(bar, 1, 2, 3);
 obj2 = new f();
 assertEquals(1, obj2.x);
 assertEquals(2, obj2.y);
 assertEquals(3, obj2.z);
-%HeapObjectVerify(f);
-%HeapObjectVerify(obj2);
 
 
 // Test bind chains when used as a constructor.
@@ -255,8 +213,6 @@ obj2 = new f();
 assertEquals(1, obj2.x);
 assertEquals(2, obj2.y);
 assertEquals(3, obj2.z);
-%HeapObjectVerify(f);
-%HeapObjectVerify(obj2);
 
 // Test obj2 is instanceof both bar and f.
 assertTrue(obj2 instanceof bar);
@@ -272,29 +228,22 @@ assertTrue(obj3 instanceof f);
 assertFalse(obj3 instanceof foo);
 assertFalse(obj3 instanceof Function);
 assertFalse(obj3 instanceof String);
-%HeapObjectVerify(f);
-%HeapObjectVerify(obj3);
 
 // thisArg is converted to object.
 f = foo.bind(undefined);
 assertEquals([this, 0, undefined], f());
-%HeapObjectVerify(f);
 
 f = foo.bind(null);
 assertEquals([this, 0, undefined], f());
-%HeapObjectVerify(f);
 
 f = foo.bind(42);
 assertEquals([Object(42), 0, undefined], f());
-%HeapObjectVerify(f);
 
 f = foo.bind("foo");
 assertEquals([Object("foo"), 0, undefined], f());
-%HeapObjectVerify(f);
 
 f = foo.bind(true);
 assertEquals([Object(true), 0, undefined], f());
-%HeapObjectVerify(f);
 
 // Strict functions don't convert thisArg.
 function soo(x, y, z) {
@@ -304,23 +253,18 @@ function soo(x, y, z) {
 
 var s = soo.bind(undefined);
 assertEquals([undefined, 0, undefined], s());
-%HeapObjectVerify(s);
 
 s = soo.bind(null);
 assertEquals([null, 0, undefined], s());
-%HeapObjectVerify(s);
 
 s = soo.bind(42);
 assertEquals([42, 0, undefined], s());
-%HeapObjectVerify(s);
 
 s = soo.bind("foo");
 assertEquals(["foo", 0, undefined], s());
-%HeapObjectVerify(s);
 
 s = soo.bind(true);
 assertEquals([true, 0, undefined], s());
-%HeapObjectVerify(s);
 
 // Test that .arguments and .caller are poisoned according to the ES5 spec.
 
@@ -365,14 +309,11 @@ assertThrows(function() { f.arguments = 42; }, TypeError);
   Object.setPrototypeOf(fun, proto);
   var bound = fun.bind({});
   assertEquals(proto, Object.getPrototypeOf(bound));
-  %HeapObjectVerify(bound);
 
   var bound2 = fun.bind({});
   assertTrue(%HaveSameMap(new bound, new bound2));
-  %HeapObjectVerify(bound2);
 
   Object.setPrototypeOf(fun, null);
   bound = Function.prototype.bind.call(fun, {});
   assertEquals(null, Object.getPrototypeOf(bound));
-  %HeapObjectVerify(bound);
 })();

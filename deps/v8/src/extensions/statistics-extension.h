@@ -21,7 +21,6 @@ class StatisticsExtension : public v8::Extension {
   static const char* const kSource;
 };
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_EXTENSIONS_STATISTICS_EXTENSION_H_

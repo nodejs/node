@@ -1,13 +1,12 @@
 #include <node.h>
 #include <node_buffer.h>
+#include <util.h>
 #include <v8.h>
-
-#include <assert.h>
 
 static int alive;
 
 static void FreeCallback(char* data, void* hint) {
-  assert(data == nullptr);
+  CHECK_EQ(data, nullptr);
   alive--;
 }
 
@@ -25,17 +24,17 @@ void Run(const v8::FunctionCallbackInfo<v8::Value>& args) {
           nullptr).ToLocalChecked();
 
     char* data = node::Buffer::Data(buf);
-    assert(data == nullptr);
+    CHECK_EQ(data, nullptr);
   }
 
   isolate->RequestGarbageCollectionForTesting(
       v8::Isolate::kFullGarbageCollection);
 
-  assert(alive == 0);
+  CHECK_EQ(alive, 0);
 }
 
-void init(v8::Local<v8::Object> exports) {
-  NODE_SET_METHOD(exports, "run", Run);
+void init(v8::Local<v8::Object> target) {
+  NODE_SET_METHOD(target, "run", Run);
 }
 
-NODE_MODULE(NODE_GYP_MODULE_NAME, init)
+NODE_MODULE(binding, init);

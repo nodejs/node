@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --harmony-tostring
+
 function testJSONToString() {
   assertEquals('[object JSON]', "" + JSON);
   assertEquals("JSON", JSON[Symbol.toStringTag]);
@@ -9,7 +11,5 @@ function testJSONToString() {
   assertTrue(desc.configurable);
   assertFalse(desc.writable);
   assertEquals("JSON", desc.value);
-  delete JSON[Symbol.toStringTag];
-  assertEquals('[object Object]', "" + JSON);
 }
 testJSONToString();

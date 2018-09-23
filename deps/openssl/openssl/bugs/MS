@@ -1,0 +1,7 @@
+If you use the function that does an fopen inside the DLL, it's malloc
+will be used and when the function is then written inside, more
+hassles
+....
+
+
+think about it.

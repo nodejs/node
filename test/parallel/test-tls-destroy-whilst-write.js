@@ -1,25 +1,27 @@
 'use strict';
-const common = require('../common');
+var assert = require('assert');
+var common = require('../common');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var tls = require('tls');
+var stream = require('stream');
 
-const tls = require('tls');
-const stream = require('stream');
-
-const delay = new stream.Duplex({
+var delay = new stream.Duplex({
   read: function read() {
   },
   write: function write(data, enc, cb) {
     console.log('pending');
-    setImmediate(function() {
+    setTimeout(function() {
       console.log('done');
       cb();
-    });
+    }, 200);
   }
 });
 
-const secure = tls.connect({
+var secure = tls.connect({
   socket: delay
 });
 setImmediate(function() {

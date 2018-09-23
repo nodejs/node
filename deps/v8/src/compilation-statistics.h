@@ -14,13 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class OptimizedCompilationInfo;
-class CompilationStatistics;
-
-struct AsPrintableStatistics {
-  const CompilationStatistics& s;
-  const bool machine_output;
-};
+class CompilationInfo;
 
 class CompilationStatistics final : public Malloced {
  public:
@@ -71,7 +65,7 @@ class CompilationStatistics final : public Malloced {
   };
 
   friend std::ostream& operator<<(std::ostream& os,
-                                  const AsPrintableStatistics& s);
+                                  const CompilationStatistics& s);
 
   typedef OrderedStats PhaseKindStats;
   typedef std::map<std::string, PhaseKindStats> PhaseKindMap;
@@ -80,14 +74,13 @@ class CompilationStatistics final : public Malloced {
   TotalStats total_stats_;
   PhaseKindMap phase_kind_map_;
   PhaseMap phase_map_;
-  base::Mutex record_mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationStatistics);
 };
 
-std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& s);
+std::ostream& operator<<(std::ostream& os, const CompilationStatistics& s);
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILATION_STATISTICS_H_
+#endif

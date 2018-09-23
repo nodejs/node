@@ -26,29 +26,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import os
 from os.path import exists
 from os.path import isdir
 from os.path import join
-import os
 import platform
 import re
 import subprocess
 import urllib2
-
-
-### Exit codes and their meaning.
-# Normal execution.
-EXIT_CODE_PASS = 0
-# Execution with test failures.
-EXIT_CODE_FAILURES = 1
-# Execution with no tests executed.
-EXIT_CODE_NO_TESTS = 2
-# Execution aborted with SIGINT (Ctrl-C).
-EXIT_CODE_INTERRUPTED = 3
-# Execution aborted with SIGTERM.
-EXIT_CODE_TERMINATED = 4
-# Internal error.
-EXIT_CODE_INTERNAL_ERROR = 5
 
 
 def GetSuitePaths(test_root):
@@ -117,8 +102,6 @@ def DefaultArch():
     return 'ia32'
   elif machine == 'amd64':
     return 'ia32'
-  elif machine == 's390x':
-    return 's390'
   elif machine == 'ppc64':
     return 'ppc'
   else:
@@ -151,24 +134,3 @@ def URLRetrieve(source, destination):
       pass
   with open(destination, 'w') as f:
     f.write(urllib2.urlopen(source).read())
-
-
-class FrozenDict(dict):
-  def __setitem__(self, *args, **kwargs):
-    raise Exception('Tried to mutate a frozen dict')
-
-  def update(self, *args, **kwargs):
-    raise Exception('Tried to mutate a frozen dict')
-
-
-def Freeze(obj):
-  if isinstance(obj, dict):
-    return FrozenDict((k, Freeze(v)) for k, v in obj.iteritems())
-  elif isinstance(obj, set):
-    return frozenset(obj)
-  elif isinstance(obj, list):
-    return tuple(Freeze(item) for item in obj)
-  else:
-    # Make sure object is hashable.
-    hash(obj)
-    return obj

@@ -11,7 +11,7 @@ var common = require('../common-tap.js')
 
 var pkg = path.join(__dirname, 'uninstall-package')
 
-var EXEC_OPTS = { cwd: pkg, stdio: [0, 'pipe', 2] }
+var EXEC_OPTS = { cwd: pkg }
 
 var json = {
   name: 'uninstall-package',
@@ -39,26 +39,25 @@ test('returns a list of removed items', function (t) {
     common.npm(
       [
         '--registry', common.registry,
-        '--loglevel', 'error',
+        '--loglevel', 'silent',
         'install', '.'
       ],
       EXEC_OPTS,
       function (err, code, stdout, stderr) {
-        if (err) throw err
+        t.ifError(err, 'install ran without issue')
         t.notOk(code, 'install ran without raising error code')
         common.npm(
           [
             '--registry', common.registry,
-            '--loglevel', 'error',
-            '--parseable',
+            '--loglevel', 'silent',
             'uninstall', 'underscore', 'request', 'lala'
           ],
           EXEC_OPTS,
           function (err, code, stdout, stderr) {
-            if (err) throw err
+            t.ifError(err, 'uninstall ran without issue')
             t.notOk(code, 'uninstall ran without raising error code')
-            t.has(stdout, /^remove\tunderscore\t1.3.3\t/m, 'underscore uninstalled')
-            t.has(stdout, /^remove\trequest\t0.9.5\t/m, 'request uninstalled')
+            t.has(stdout, /- underscore@1.3.3/, 'underscore uninstalled')
+            t.has(stdout, /- request@0.9.5/, 'request uninstalled')
 
             s.close()
             t.end()

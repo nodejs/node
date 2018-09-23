@@ -15,14 +15,14 @@ function Module(stdlib) {
 
   // g: unsigned -> double
   function g(a) {
-    a = a | 0;
-    return +abs(+(a >>> 0));
+    a = a>>>0;
+    return +abs(a);
   }
 
   // h: signed -> double
   function h(a) {
     a = a|0;
-    return +abs(+(a | 0));
+    return +abs(a);
   }
 
   return { f: f, g: g, h: h };

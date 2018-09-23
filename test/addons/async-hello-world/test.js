@@ -1,10 +1,17 @@
 'use strict';
-const common = require('../../common');
-const assert = require('assert');
-const { runCall } = require(`./build/${common.buildType}/binding`);
+require('../../common');
+var assert = require('assert');
+var binding = require('./build/Release/binding');
+var called = false;
 
-runCall(5, common.mustCall(function(err, val) {
-  assert.strictEqual(err, null);
-  assert.strictEqual(val, 10);
-  process.nextTick(common.mustCall());
-}));
+process.on('exit', function() {
+  assert(called);
+});
+
+binding(5, function(err, val) {
+  assert.equal(null, err);
+  assert.equal(10, val);
+  process.nextTick(function() {
+    called = true;
+  });
+});

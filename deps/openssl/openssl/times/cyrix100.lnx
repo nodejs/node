@@ -1,0 +1,22 @@
+SSLeay 0.6.6 06-Dec-1996
+built on Fri Dec  6 10:05:20 GMT 1996
+options:bn(64,32) md2(char) rc4(idx,int) des(idx,risc,16,long) idea(int)
+C flags:gcc -DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -m486 -Wall -Wuninitialized
+The 'numbers' are in 1000s of bytes per second processed.
+type           8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2             36.77k      102.48k      138.00k      151.57k      155.78k
+md5            513.59k     2577.22k     4623.51k     5768.99k     6214.53k
+sha            259.89k     1105.45k     1814.97k     2156.16k     2292.13k
+sha1           242.43k     1040.95k     1719.44k     2049.74k     2164.64k
+rc4           1984.48k     2303.41k     2109.37k     2071.47k     1985.61k
+des cfb        712.08k      758.29k      753.17k      752.06k      748.67k
+des cbc        787.37k      937.64k      956.77k      961.61k      957.54k
+des ede3       353.97k      377.28k      379.99k      379.34k      379.11k
+idea cfb       403.80k      418.50k      416.60k      415.78k      415.03k
+idea cbc       426.54k      466.40k      471.31k      472.67k      473.14k
+rc2 cfb        405.15k      420.05k      418.16k      416.72k      416.36k
+rc2 cbc        428.21k      468.43k      473.09k      472.59k      474.70k
+rsa  512 bits   0.040s
+rsa 1024 bits   0.195s
+rsa 2048 bits   1.201s
+rsa 4096 bits   8.700s

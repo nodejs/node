@@ -6,13 +6,8 @@ var semver = require('semver')
 var log = require('npmlog')
 var npm = require('./npm.js')
 var npa = require('npm-package-arg')
-var usage = require('./utils/usage')
-var output = require('./utils/output.js')
 
-rebuild.usage = usage(
-  'rebuild',
-  'npm rebuild [[<@scope>/<name>]...]'
-)
+rebuild.usage = 'npm rebuild [[<@scope>/<name>]...]'
 
 rebuild.completion = require('./utils/completion/installed-deep.js')
 
@@ -34,19 +29,21 @@ function rebuild (args, cb) {
 function cleanBuild (folders, set, cb) {
   npm.commands.build(folders, function (er) {
     if (er) return cb(er)
-    output(folders.map(function (f) {
+    log.clearProgress()
+    console.log(folders.map(function (f) {
       return set[f] + ' ' + f
     }).join('\n'))
+    log.showProgress()
     cb()
   })
 }
 
 function filter (data, args, set, seen) {
   if (!set) set = {}
-  if (!seen) seen = new Set()
+  if (!seen) seen = {}
   if (set.hasOwnProperty(data.path)) return set
-  if (seen.has(data)) return set
-  seen.add(data)
+  if (seen.hasOwnProperty(data.path)) return set
+  seen[data.path] = true
   var pass
   if (!args.length) pass = true // rebuild everything
   else if (data.name && data._id) {

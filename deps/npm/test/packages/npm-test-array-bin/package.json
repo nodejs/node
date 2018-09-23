@@ -1,0 +1,4 @@
+{ "name":"npm-test-array-bin"
+, "version":"1.2.5"
+, "bin": [ "bin/array-bin" ]
+, "scripts": { "test": "node test.js" } }

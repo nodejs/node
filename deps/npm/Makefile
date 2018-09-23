@@ -14,8 +14,7 @@ html_docdeps = html/dochead.html \
 cli_mandocs = $(shell find doc/cli -name '*.md' \
                |sed 's|.md|.1|g' \
                |sed 's|doc/cli/|man/man1/|g' ) \
-               man/man1/npm-README.1 \
-               man/man1/npx.1
+               man/man1/npm-README.1
 
 files_mandocs = $(shell find doc/files -name '*.md' \
                |sed 's|.md|.5|g' \
@@ -54,23 +53,23 @@ latest:
 	@echo "Installing latest published npm"
 	@echo "Use 'make install' or 'make link' to install the code"
 	@echo "in this folder that you're looking at right now."
-	node bin/npm-cli.js install -g -f npm ${NPMOPTS}
+	node cli.js install -g -f npm ${NPMOPTS}
 
 install: all
-	node bin/npm-cli.js install -g -f ${NPMOPTS} $(shell node bin/npm-cli.js pack | tail -1)
+	node cli.js install -g -f ${NPMOPTS}
 
 # backwards compat
 dev: install
 
 link: uninstall
-	node bin/npm-cli.js link -f
+	node cli.js link -f
 
-clean: markedclean marked-manclean doc-clean
+clean: markedclean marked-manclean doc-clean uninstall
 	rm -rf npmrc
-	node bin/npm-cli.js cache clean --force
+	node cli.js cache clean
 
 uninstall:
-	node bin/npm-cli.js rm npm -g -f
+	node cli.js rm npm -g -f
 
 doc: $(mandocs) $(htmldocs)
 
@@ -88,21 +87,14 @@ doc-clean:
     html/doc \
     man
 
-## build-time tools for the documentation
-build-doc-tools := node_modules/.bin/marked \
-                   node_modules/.bin/marked-man
-
 # use `npm install marked-man` for this to work.
-man/man1/npm-README.1: README.md scripts/doc-build.sh package.json $(build-doc-tools)
+man/man1/npm-README.1: README.md scripts/doc-build.sh package.json
 	@[ -d man/man1 ] || mkdir -p man/man1
 	scripts/doc-build.sh $< $@
 
-man/man1/%.1: doc/cli/%.md scripts/doc-build.sh package.json $(build-doc-tools)
+man/man1/%.1: doc/cli/%.md scripts/doc-build.sh package.json
 	@[ -d man/man1 ] || mkdir -p man/man1
 	scripts/doc-build.sh $< $@
-
-man/man1/npx.1: node_modules/libnpx/libnpx.1
-	cat $< | sed s/libnpx/npx/ > $@
 
 man/man5/npm-json.5: man/man5/package.json.5
 	cp $< $@
@@ -110,26 +102,26 @@ man/man5/npm-json.5: man/man5/package.json.5
 man/man5/npm-global.5: man/man5/npm-folders.5
 	cp $< $@
 
-man/man5/%.5: doc/files/%.md scripts/doc-build.sh package.json $(build-doc-tools)
+man/man5/%.5: doc/files/%.md scripts/doc-build.sh package.json
 	@[ -d man/man5 ] || mkdir -p man/man5
 	scripts/doc-build.sh $< $@
 
-doc/misc/npm-index.md: scripts/index-build.js package.json $(build-doc-tools)
+doc/misc/npm-index.md: scripts/index-build.js package.json
 	node scripts/index-build.js > $@
 
-html/doc/index.html: doc/misc/npm-index.md $(html_docdeps) $(build-doc-tools)
+html/doc/index.html: doc/misc/npm-index.md $(html_docdeps)
 	@[ -d html/doc ] || mkdir -p html/doc
 	scripts/doc-build.sh $< $@
 
-man/man7/%.7: doc/misc/%.md scripts/doc-build.sh package.json $(build-doc-tools)
+man/man7/%.7: doc/misc/%.md scripts/doc-build.sh package.json
 	@[ -d man/man7 ] || mkdir -p man/man7
 	scripts/doc-build.sh $< $@
 
-html/doc/README.html: README.md $(html_docdeps) $(build-doc-tools)
+html/doc/README.html: README.md $(html_docdeps)
 	@[ -d html/doc ] || mkdir -p html/doc
 	scripts/doc-build.sh $< $@
 
-html/doc/cli/%.html: doc/cli/%.md $(html_docdeps) $(build-doc-tools)
+html/doc/cli/%.html: doc/cli/%.md $(html_docdeps)
 	@[ -d html/doc/cli ] || mkdir -p html/doc/cli
 	scripts/doc-build.sh $< $@
 
@@ -139,11 +131,11 @@ html/doc/files/npm-json.html: html/doc/files/package.json.html
 html/doc/files/npm-global.html: html/doc/files/npm-folders.html
 	cp $< $@
 
-html/doc/files/%.html: doc/files/%.md $(html_docdeps) $(build-doc-tools)
+html/doc/files/%.html: doc/files/%.md $(html_docdeps)
 	@[ -d html/doc/files ] || mkdir -p html/doc/files
 	scripts/doc-build.sh $< $@
 
-html/doc/misc/%.html: doc/misc/%.md $(html_docdeps) $(build-doc-tools)
+html/doc/misc/%.html: doc/misc/%.md $(html_docdeps)
 	@[ -d html/doc/misc ] || mkdir -p html/doc/misc
 	scripts/doc-build.sh $< $@
 
@@ -151,40 +143,34 @@ html/doc/misc/%.html: doc/misc/%.md $(html_docdeps) $(build-doc-tools)
 marked: node_modules/.bin/marked
 
 node_modules/.bin/marked:
-	node bin/npm-cli.js install marked --no-global --no-timing --no-save
+	node cli.js install marked --no-global
 
 marked-man: node_modules/.bin/marked-man
 
 node_modules/.bin/marked-man:
-	node bin/npm-cli.js install marked-man --no-global --no-timing --no-save
+	node cli.js install marked-man --no-global
 
 doc: man
 
 man: $(cli_docs)
 
 test: doc
-	node bin/npm-cli.js test
+	node cli.js test
 
 tag:
-	node bin/npm-cli.js tag npm@$(PUBLISHTAG) latest
+	npm tag npm@$(PUBLISHTAG) latest
 
-ls-ok:
-	node . ls >/dev/null
-
-gitclean:
-	git clean -fd
-
-publish: gitclean ls-ok link doc-clean doc
-	@git push origin :v$(shell node bin/npm-cli.js --no-timing -v) 2>&1 || true
+publish: link doc
+	@git push origin :v$(shell npm -v) 2>&1 || true
+	git clean -fd &&\
 	git push origin $(BRANCH) &&\
 	git push origin --tags &&\
-	node bin/npm-cli.js publish --tag=$(PUBLISHTAG)
+	npm publish --tag=$(PUBLISHTAG)
 
-release: gitclean ls-ok markedclean marked-manclean doc-clean doc
-	node bin/npm-cli.js prune --production --no-save
+release:
 	@bash scripts/release.sh
 
 sandwich:
 	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || (echo "make it yourself" && exit 13)
 
-.PHONY: all latest install dev link doc clean uninstall test man doc-clean docclean release ls-ok realclean
+.PHONY: all latest install dev link doc clean uninstall test man doc-clean docclean release

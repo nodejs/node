@@ -1,1 +1,1 @@
-setInterval(function() {}, 9999);
+setInterval(function() {}, 500);

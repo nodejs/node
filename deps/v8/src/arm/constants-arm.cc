@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-Float64 Instruction::DoubleImmedVmov() const {
+double Instruction::DoubleImmedVmov() const {
   // Reconstruct a double from the immediate encoded in the vmov instruction.
   //
   //   instruction: [xxxxxxxx,xxxxabcd,xxxxxxxx,xxxxefgh]
@@ -20,12 +20,14 @@ Float64 Instruction::DoubleImmedVmov() const {
   // where B = ~b. Only the high 16 bits are affected.
   uint64_t high16;
   high16  = (Bits(17, 16) << 4) | Bits(3, 0);   // xxxxxxxx,xxcdefgh.
-  high16 |= (0xFF * Bit(18)) << 6;              // xxbbbbbb,bbxxxxxx.
+  high16 |= (0xff * Bit(18)) << 6;              // xxbbbbbb,bbxxxxxx.
   high16 |= (Bit(18) ^ 1) << 14;                // xBxxxxxx,xxxxxxxx.
   high16 |= Bit(19) << 15;                      // axxxxxxx,xxxxxxxx.
 
   uint64_t imm = high16 << 48;
-  return Float64::FromBits(imm);
+  double d;
+  memcpy(&d, &imm, 8);
+  return d;
 }
 
 
@@ -39,8 +41,26 @@ const char* Registers::names_[kNumRegisters] = {
 
 // List of alias names which can be used when referring to ARM registers.
 const Registers::RegisterAlias Registers::aliases_[] = {
-    {10, "sl"},  {11, "r11"}, {12, "r12"},           {13, "r13"},
-    {14, "r14"}, {15, "r15"}, {kNoRegister, nullptr}};
+  {10, "sl"},
+  {11, "r11"},
+  {12, "r12"},
+  {13, "r13"},
+  {14, "r14"},
+  {15, "r15"},
+  {kNoRegister, NULL}
+};
+
+
+const char* Registers::Name(int reg) {
+  const char* result;
+  if ((0 <= reg) && (reg < kNumRegisters)) {
+    result = names_[reg];
+  } else {
+    result = "noreg";
+  }
+  return result;
+}
+
 
 // Support for VFP registers s0 to s31 (d0 to d15) and d16-d31.
 // Note that "sN:sM" is the same as "dN/2" up to d15.

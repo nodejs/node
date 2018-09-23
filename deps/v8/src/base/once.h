@@ -53,10 +53,8 @@
 #define V8_BASE_ONCE_H_
 
 #include <stddef.h>
-#include <functional>
 
 #include "src/base/atomicops.h"
-#include "src/base/base-export.h"
 
 namespace v8 {
 namespace base {
@@ -81,12 +79,11 @@ struct OneArgFunction {
   typedef void (*type)(T);
 };
 
-V8_BASE_EXPORT void CallOnceImpl(OnceType* once,
-                                 std::function<void()> init_func);
+void CallOnceImpl(OnceType* once, PointerArgFunction init_func, void* arg);
 
 inline void CallOnce(OnceType* once, NoArgFunction init_func) {
   if (Acquire_Load(once) != ONCE_STATE_DONE) {
-    CallOnceImpl(once, init_func);
+    CallOnceImpl(once, reinterpret_cast<PointerArgFunction>(init_func), NULL);
   }
 }
 
@@ -95,11 +92,11 @@ template <typename Arg>
 inline void CallOnce(OnceType* once,
     typename OneArgFunction<Arg*>::type init_func, Arg* arg) {
   if (Acquire_Load(once) != ONCE_STATE_DONE) {
-    CallOnceImpl(once, [=]() { init_func(arg); });
+    CallOnceImpl(once, reinterpret_cast<PointerArgFunction>(init_func),
+        static_cast<void*>(arg));
   }
 }
 
-}  // namespace base
-}  // namespace v8
+} }  // namespace v8::base
 
 #endif  // V8_BASE_ONCE_H_

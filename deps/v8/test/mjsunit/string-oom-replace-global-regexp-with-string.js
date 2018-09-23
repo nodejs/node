@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
 
-var a = 'a'.repeat(32);
-var b = 'b'.repeat(%StringMaxLength() / 32 + 1);
+
+var a = 'a';
+for (var i = 0; i < 5; i++) a += a;
+var b = 'b';
+for (var i = 0; i < 23; i++) b += b;
 
 function replace1() {
   a.replace(/./g, b);
@@ -14,7 +16,8 @@ function replace1() {
 assertThrows(replace1, RangeError);
 
 
-var a = 'a'.repeat(Math.sqrt(%StringMaxLength()) + 1);
+var a = 'a';
+for (var i = 0; i < 16; i++) a += a;
 
 function replace2() {
   a.replace(/a/g, a);

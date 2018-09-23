@@ -1,18 +1,20 @@
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const repl = require('repl');
-const zlib = require('zlib');
+require('../common');
+var assert = require('assert');
+var util = require('util');
+var repl = require('repl');
+var zlib = require('zlib');
 
 // just use builtin stream inherited from Duplex
-const putIn = zlib.createGzip();
-const testMe = repl.start('', putIn, function(cmd, context, filename,
-                                              callback) {
+var putIn = zlib.createGzip();
+var testMe = repl.start('', putIn, function(cmd, context, filename, callback) {
   callback(null, cmd);
 });
 
-testMe._domain.on('error', common.mustNotCall());
+testMe._domain.on('error', function(e) {
+  assert.fail();
+});
 
 testMe.complete('', function(err, results) {
-  assert.strictEqual(err, null);
+  assert.equal(err, null);
 });

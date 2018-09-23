@@ -1,9 +1,0 @@
-Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
-
- [Summary]:
-   ticks  total  nonlib   name
-      0    0.0%    0.0%  JavaScript
-      5   38.5%   55.6%  C++
-      0    0.0%    0.0%  GC
-      4   30.8%          Shared libraries
-      2   15.4%          Unaccounted

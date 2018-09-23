@@ -15,7 +15,7 @@ function f() {
   }
   if (count < 100) {
     count++;
-    %DebugGetLoadedScriptIds();
+    %DebugGetLoadedScripts();
   }
 }
 f();

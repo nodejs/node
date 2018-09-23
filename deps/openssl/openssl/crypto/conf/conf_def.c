@@ -1,17 +1,66 @@
-/*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+/* crypto/conf/conf.c */
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
+ * All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * This package is an SSL implementation written
+ * by Eric Young (eay@cryptsoft.com).
+ * The implementation was written so as to conform with Netscapes SSL.
+ *
+ * This library is free for commercial and non-commercial use as long as
+ * the following conditions are aheared to.  The following conditions
+ * apply to all code found in this distribution, be it the RC4, RSA,
+ * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
+ * included with this distribution is covered by the same copyright terms
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
+ *
+ * Copyright remains Eric Young's, and as such any Copyright notices in
+ * the code are not to be removed.
+ * If this package is used in a product, Eric Young should be given attribution
+ * as the author of the parts of the library used.
+ * This can be in the form of a textual message at program startup or
+ * in documentation (online or textual) provided with the package.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *    "This product includes cryptographic software written by
+ *     Eric Young (eay@cryptsoft.com)"
+ *    The word 'cryptographic' can be left out if the rouines from the library
+ *    being used are not cryptographic related :-).
+ * 4. If you include any Windows specific code (or a derivative thereof) from
+ *    the apps directory (application code) you must include an acknowledgement:
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * The licence and distribution terms for any publically available version or
+ * derivative of this code cannot be changed.  i.e. this code cannot simply be
+ * copied and put under another distribution licence
+ * [including the GNU Public Licence.]
  */
 
 /* Part of the code in here was originally in conf.c, which is now removed */
 
 #include <stdio.h>
 #include <string.h>
-#include "internal/cryptlib.h"
+#include "cryptlib.h"
 #include <openssl/stack.h>
 #include <openssl/lhash.h>
 #include <openssl/conf.h>
@@ -19,12 +68,6 @@
 #include "conf_def.h"
 #include <openssl/buffer.h>
 #include <openssl/err.h>
-
-/*
- * The maximum length we can grow a value to after variable expansion. 64k
- * should be more than enough for all reasonable uses.
- */
-#define MAX_CONF_VALUE_LENGTH       65536
 
 static char *eat_ws(CONF *conf, char *p);
 static char *eat_alpha_numeric(CONF *conf, char *p);
@@ -44,6 +87,8 @@ static int def_load_bio(CONF *conf, BIO *bp, long *eline);
 static int def_dump(const CONF *conf, BIO *bp);
 static int def_is_number(const CONF *conf, char c);
 static int def_to_int(const CONF *conf, char c);
+
+const char CONF_def_version[] = "CONF_def" OPENSSL_VERSION_PTEXT;
 
 static CONF_METHOD default_method = {
     "OpenSSL default",
@@ -85,8 +130,8 @@ static CONF *def_create(CONF_METHOD *meth)
 {
     CONF *ret;
 
-    ret = OPENSSL_malloc(sizeof(*ret));
-    if (ret != NULL)
+    ret = OPENSSL_malloc(sizeof(CONF) + sizeof(unsigned short *));
+    if (ret)
         if (meth->init(ret) == 0) {
             OPENSSL_free(ret);
             ret = NULL;
@@ -100,7 +145,7 @@ static int def_init_default(CONF *conf)
         return 0;
 
     conf->meth = &default_method;
-    conf->meth_data = (void *)CONF_type_default;
+    conf->meth_data = CONF_type_default;
     conf->data = NULL;
 
     return 1;
@@ -180,11 +225,12 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
         goto err;
     }
 
-    section = OPENSSL_strdup("default");
+    section = (char *)OPENSSL_malloc(10);
     if (section == NULL) {
         CONFerr(CONF_F_DEF_LOAD_BIO, ERR_R_MALLOC_FAILURE);
         goto err;
     }
+    BUF_strlcpy(section, "default", 10);
 
     if (_CONF_new_data(conf) == 0) {
         CONFerr(CONF_F_DEF_LOAD_BIO, ERR_R_MALLOC_FAILURE);
@@ -311,19 +357,19 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
             p++;
             *p = '\0';
 
-            if ((v = OPENSSL_malloc(sizeof(*v))) == NULL) {
+            if (!(v = (CONF_VALUE *)OPENSSL_malloc(sizeof(CONF_VALUE)))) {
                 CONFerr(CONF_F_DEF_LOAD_BIO, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
             if (psection == NULL)
                 psection = section;
-            v->name = OPENSSL_malloc(strlen(pname) + 1);
+            v->name = (char *)OPENSSL_malloc(strlen(pname) + 1);
             v->value = NULL;
             if (v->name == NULL) {
                 CONFerr(CONF_F_DEF_LOAD_BIO, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
-            OPENSSL_strlcpy(v->name, pname, strlen(pname) + 1);
+            BUF_strlcpy(v->name, pname, strlen(pname) + 1);
             if (!str_copy(conf, psection, &(v->value), start))
                 goto err;
 
@@ -338,31 +384,53 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
                 }
             } else
                 tv = sv;
+#if 1
             if (_CONF_add_string(conf, tv, v) == 0) {
                 CONFerr(CONF_F_DEF_LOAD_BIO, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
+#else
+            v->section = tv->section;
+            if (!sk_CONF_VALUE_push(ts, v)) {
+                CONFerr(CONF_F_DEF_LOAD_BIO, ERR_R_MALLOC_FAILURE);
+                goto err;
+            }
+            vv = (CONF_VALUE *)lh_insert(conf->data, v);
+            if (vv != NULL) {
+                sk_CONF_VALUE_delete_ptr(ts, vv);
+                OPENSSL_free(vv->name);
+                OPENSSL_free(vv->value);
+                OPENSSL_free(vv);
+            }
+#endif
             v = NULL;
         }
     }
-    BUF_MEM_free(buff);
-    OPENSSL_free(section);
+    if (buff != NULL)
+        BUF_MEM_free(buff);
+    if (section != NULL)
+        OPENSSL_free(section);
     return (1);
  err:
-    BUF_MEM_free(buff);
-    OPENSSL_free(section);
+    if (buff != NULL)
+        BUF_MEM_free(buff);
+    if (section != NULL)
+        OPENSSL_free(section);
     if (line != NULL)
         *line = eline;
-    BIO_snprintf(btmp, sizeof(btmp), "%ld", eline);
+    BIO_snprintf(btmp, sizeof btmp, "%ld", eline);
     ERR_add_error_data(2, "line ", btmp);
-    if (h != conf->data) {
+    if ((h != conf->data) && (conf->data != NULL)) {
         CONF_free(conf->data);
         conf->data = NULL;
     }
     if (v != NULL) {
-        OPENSSL_free(v->name);
-        OPENSSL_free(v->value);
-        OPENSSL_free(v);
+        if (v->name != NULL)
+            OPENSSL_free(v->name);
+        if (v->value != NULL)
+            OPENSSL_free(v->value);
+        if (v != NULL)
+            OPENSSL_free(v);
     }
     return (0);
 }
@@ -463,8 +531,6 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
         } else if (IS_EOF(conf, *from))
             break;
         else if (*from == '$') {
-            size_t newsize;
-
             /* try to expand it */
             rrp = NULL;
             s = &(from[1]);
@@ -519,12 +585,8 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
                 CONFerr(CONF_F_STR_COPY, CONF_R_VARIABLE_HAS_NO_VALUE);
                 goto err;
             }
-            newsize = strlen(p) + buf->length - (e - from);
-            if (newsize > MAX_CONF_VALUE_LENGTH) {
-                CONFerr(CONF_F_STR_COPY, CONF_R_VARIABLE_EXPANSION_TOO_LONG);
-                goto err;
-            }
-            if (!BUF_MEM_grow_clean(buf, newsize)) {
+            if (!BUF_MEM_grow_clean(buf,
+                        (strlen(p) + buf->length - (e - from)))) {
                 CONFerr(CONF_F_STR_COPY, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
@@ -548,12 +610,14 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
             buf->data[to++] = *(from++);
     }
     buf->data[to] = '\0';
-    OPENSSL_free(*pto);
+    if (*pto != NULL)
+        OPENSSL_free(*pto);
     *pto = buf->data;
     OPENSSL_free(buf);
     return (1);
  err:
-    BUF_MEM_free(buf);
+    if (buf != NULL)
+        BUF_MEM_free(buf);
     return (0);
 }
 
@@ -615,7 +679,7 @@ static char *scan_dquote(CONF *conf, char *p)
     return (p);
 }
 
-static void dump_value_doall_arg(const CONF_VALUE *a, BIO *out)
+static void dump_value_doall_arg(CONF_VALUE *a, BIO *out)
 {
     if (a->name)
         BIO_printf(out, "[%s] %s=%s\n", a->section, a->name, a->value);
@@ -623,11 +687,12 @@ static void dump_value_doall_arg(const CONF_VALUE *a, BIO *out)
         BIO_printf(out, "[[%s]]\n", a->section);
 }
 
-IMPLEMENT_LHASH_DOALL_ARG_CONST(CONF_VALUE, BIO);
+static IMPLEMENT_LHASH_DOALL_ARG_FN(dump_value, CONF_VALUE, BIO)
 
 static int def_dump(const CONF *conf, BIO *out)
 {
-    lh_CONF_VALUE_doall_BIO(conf->data, dump_value_doall_arg, out);
+    lh_CONF_VALUE_doall_arg(conf->data, LHASH_DOALL_ARG_FN(dump_value),
+                            BIO, out);
     return 1;
 }
 

@@ -1,0 +1,930 @@
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// This files contains runtime support implemented in JavaScript.
+
+// CAUTION: Some of the functions specified in this file are called
+// directly from compiled code. These are the functions with names in
+// ALL CAPS. The compiled code passes the first argument in 'this'.
+
+
+// The following declarations are shared with other native JS files.
+// They are all declared at this one spot to avoid redeclaration errors.
+var $defaultNumber;
+var $defaultString;
+var $NaN;
+var $nonNumberToNumber;
+var $nonStringToString;
+var $sameValue;
+var $sameValueZero;
+var $toInteger;
+var $toLength;
+var $toName;
+var $toNumber;
+var $toPositiveInteger;
+var $toPrimitive;
+var $toString;
+
+(function(global, utils) {
+
+%CheckIsBootstrapping();
+
+var GlobalArray = global.Array;
+var GlobalBoolean = global.Boolean;
+var GlobalString = global.String;
+var GlobalNumber = global.Number;
+
+// ----------------------------------------------------------------------------
+
+/* -----------------------------------
+- - -   C o m p a r i s o n   - - -
+-----------------------------------
+*/
+
+// ECMA-262 Section 11.9.3.
+function EQUALS(y) {
+  if (IS_STRING(this) && IS_STRING(y)) return %StringEquals(this, y);
+  var x = this;
+
+  while (true) {
+    if (IS_NUMBER(x)) {
+      while (true) {
+        if (IS_NUMBER(y)) return %NumberEquals(x, y);
+        if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+        if (!IS_SPEC_OBJECT(y)) {
+          if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) return 1;  // not equal
+          // String or boolean.
+          return %NumberEquals(x, %$toNumber(y));
+        }
+        y = %$toPrimitive(y, NO_HINT);
+      }
+    } else if (IS_STRING(x)) {
+      while (true) {
+        if (IS_STRING(y)) return %StringEquals(x, y);
+        if (IS_NUMBER(y)) return %NumberEquals(%$toNumber(x), y);
+        if (IS_BOOLEAN(y)) return %NumberEquals(%$toNumber(x), %$toNumber(y));
+        if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+        if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) return 1;  // not equal
+        y = %$toPrimitive(y, NO_HINT);
+      }
+    } else if (IS_SYMBOL(x)) {
+      if (IS_SYMBOL(y)) return %_ObjectEquals(x, y) ? 0 : 1;
+      return 1; // not equal
+    } else if (IS_BOOLEAN(x)) {
+      if (IS_BOOLEAN(y)) return %_ObjectEquals(x, y) ? 0 : 1;
+      if (IS_NULL_OR_UNDEFINED(y)) return 1;
+      if (IS_NUMBER(y)) return %NumberEquals(%$toNumber(x), y);
+      if (IS_STRING(y)) return %NumberEquals(%$toNumber(x), %$toNumber(y));
+      if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) return 1;  // not equal
+      // y is object.
+      x = %$toNumber(x);
+      y = %$toPrimitive(y, NO_HINT);
+    } else if (IS_NULL_OR_UNDEFINED(x)) {
+      return IS_NULL_OR_UNDEFINED(y) ? 0 : 1;
+    } else if (IS_SIMD_VALUE(x)) {
+      if (!IS_SIMD_VALUE(y)) return 1;  // not equal
+       return %SimdEquals(x, y);
+    } else {
+      // x is an object.
+      if (IS_SPEC_OBJECT(y)) return %_ObjectEquals(x, y) ? 0 : 1;
+      if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+      if (IS_BOOLEAN(y)) {
+        y = %$toNumber(y);
+      } else if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) {
+        return 1;  // not equal
+      }
+      x = %$toPrimitive(x, NO_HINT);
+    }
+  }
+}
+
+
+// ECMA-262, section 11.8.5, page 53. The 'ncr' parameter is used as
+// the result when either (or both) the operands are NaN.
+function COMPARE(x, ncr) {
+  var left;
+  var right;
+  // Fast cases for string, numbers and undefined compares.
+  if (IS_STRING(this)) {
+    if (IS_STRING(x)) return %_StringCompare(this, x);
+    if (IS_UNDEFINED(x)) return ncr;
+    left = this;
+  } else if (IS_NUMBER(this)) {
+    if (IS_NUMBER(x)) return %NumberCompare(this, x, ncr);
+    if (IS_UNDEFINED(x)) return ncr;
+    left = this;
+  } else if (IS_UNDEFINED(this)) {
+    if (!IS_UNDEFINED(x)) {
+      %$toPrimitive(x, NUMBER_HINT);
+    }
+    return ncr;
+  } else if (IS_UNDEFINED(x)) {
+    %$toPrimitive(this, NUMBER_HINT);
+    return ncr;
+  } else {
+    left = %$toPrimitive(this, NUMBER_HINT);
+  }
+
+  right = %$toPrimitive(x, NUMBER_HINT);
+  if (IS_STRING(left) && IS_STRING(right)) {
+    return %_StringCompare(left, right);
+  } else {
+    var left_number = %$toNumber(left);
+    var right_number = %$toNumber(right);
+    if (NUMBER_IS_NAN(left_number) || NUMBER_IS_NAN(right_number)) return ncr;
+    return %NumberCompare(left_number, right_number, ncr);
+  }
+}
+
+// Strong mode COMPARE throws if an implicit conversion would be performed
+function COMPARE_STRONG(x, ncr) {
+  if (IS_STRING(this) && IS_STRING(x)) return %_StringCompare(this, x);
+  if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberCompare(this, x, ncr);
+
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+
+/* -----------------------------------
+   - - -   A r i t h m e t i c   - - -
+   -----------------------------------
+*/
+
+// ECMA-262, section 11.6.1, page 50.
+function ADD(x) {
+  // Fast case: Check for number operands and do the addition.
+  if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberAdd(this, x);
+  if (IS_STRING(this) && IS_STRING(x)) return %_StringAdd(this, x);
+
+  // Default implementation.
+  var a = %$toPrimitive(this, NO_HINT);
+  var b = %$toPrimitive(x, NO_HINT);
+
+  if (IS_STRING(a)) {
+    return %_StringAdd(a, %$toString(b));
+  } else if (IS_STRING(b)) {
+    return %_StringAdd(%$nonStringToString(a), b);
+  } else {
+    return %NumberAdd(%$toNumber(a), %$toNumber(b));
+  }
+}
+
+
+// Strong mode ADD throws if an implicit conversion would be performed
+function ADD_STRONG(x) {
+  if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberAdd(this, x);
+  if (IS_STRING(this) && IS_STRING(x)) return %_StringAdd(this, x);
+
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+// Left operand (this) is already a string.
+function STRING_ADD_LEFT(y) {
+  if (!IS_STRING(y)) {
+    if (IS_STRING_WRAPPER(y) && %_IsStringWrapperSafeForDefaultValueOf(y)) {
+      y = %_ValueOf(y);
+    } else {
+      y = IS_NUMBER(y)
+          ? %_NumberToString(y)
+          : %$toString(%$toPrimitive(y, NO_HINT));
+    }
+  }
+  return %_StringAdd(this, y);
+}
+
+
+// Right operand (y) is already a string.
+function STRING_ADD_RIGHT(y) {
+  var x = this;
+  if (!IS_STRING(x)) {
+    if (IS_STRING_WRAPPER(x) && %_IsStringWrapperSafeForDefaultValueOf(x)) {
+      x = %_ValueOf(x);
+    } else {
+      x = IS_NUMBER(x)
+          ? %_NumberToString(x)
+          : %$toString(%$toPrimitive(x, NO_HINT));
+    }
+  }
+  return %_StringAdd(x, y);
+}
+
+
+// ECMA-262, section 11.6.2, page 50.
+function SUB(y) {
+  var x = IS_NUMBER(this) ? this : %$nonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  return %NumberSub(x, y);
+}
+
+
+// Strong mode SUB throws if an implicit conversion would be performed
+function SUB_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberSub(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+// ECMA-262, section 11.5.1, page 48.
+function MUL(y) {
+  var x = IS_NUMBER(this) ? this : %$nonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  return %NumberMul(x, y);
+}
+
+
+// Strong mode MUL throws if an implicit conversion would be performed
+function MUL_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberMul(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+// ECMA-262, section 11.5.2, page 49.
+function DIV(y) {
+  var x = IS_NUMBER(this) ? this : %$nonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  return %NumberDiv(x, y);
+}
+
+
+// Strong mode DIV throws if an implicit conversion would be performed
+function DIV_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberDiv(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+// ECMA-262, section 11.5.3, page 49.
+function MOD(y) {
+  var x = IS_NUMBER(this) ? this : %$nonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  return %NumberMod(x, y);
+}
+
+
+// Strong mode MOD throws if an implicit conversion would be performed
+function MOD_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberMod(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+/* -------------------------------------------
+   - - -   B i t   o p e r a t i o n s   - - -
+   -------------------------------------------
+*/
+
+// ECMA-262, section 11.10, page 57.
+function BIT_OR(y) {
+  var x = IS_NUMBER(this) ? this : %$nonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  return %NumberOr(x, y);
+}
+
+
+// Strong mode BIT_OR throws if an implicit conversion would be performed
+function BIT_OR_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberOr(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+// ECMA-262, section 11.10, page 57.
+function BIT_AND(y) {
+  var x;
+  if (IS_NUMBER(this)) {
+    x = this;
+    if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  } else {
+    x = %$nonNumberToNumber(this);
+    // Make sure to convert the right operand to a number before
+    // bailing out in the fast case, but after converting the
+    // left operand. This ensures that valueOf methods on the right
+    // operand are always executed.
+    if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+    // Optimize for the case where we end up AND'ing a value
+    // that doesn't convert to a number. This is common in
+    // certain benchmarks.
+    if (NUMBER_IS_NAN(x)) return 0;
+  }
+  return %NumberAnd(x, y);
+}
+
+
+// Strong mode BIT_AND throws if an implicit conversion would be performed
+function BIT_AND_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberAnd(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+// ECMA-262, section 11.10, page 57.
+function BIT_XOR(y) {
+  var x = IS_NUMBER(this) ? this : %$nonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  return %NumberXor(x, y);
+}
+
+
+// Strong mode BIT_XOR throws if an implicit conversion would be performed
+function BIT_XOR_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberXor(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+// ECMA-262, section 11.7.1, page 51.
+function SHL(y) {
+  var x = IS_NUMBER(this) ? this : %$nonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  return %NumberShl(x, y);
+}
+
+
+// Strong mode SHL throws if an implicit conversion would be performed
+function SHL_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberShl(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+// ECMA-262, section 11.7.2, page 51.
+function SAR(y) {
+  var x;
+  if (IS_NUMBER(this)) {
+    x = this;
+    if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  } else {
+    x = %$nonNumberToNumber(this);
+    // Make sure to convert the right operand to a number before
+    // bailing out in the fast case, but after converting the
+    // left operand. This ensures that valueOf methods on the right
+    // operand are always executed.
+    if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+    // Optimize for the case where we end up shifting a value
+    // that doesn't convert to a number. This is common in
+    // certain benchmarks.
+    if (NUMBER_IS_NAN(x)) return 0;
+  }
+  return %NumberSar(x, y);
+}
+
+
+// Strong mode SAR throws if an implicit conversion would be performed
+function SAR_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberSar(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+// ECMA-262, section 11.7.3, page 52.
+function SHR(y) {
+  var x = IS_NUMBER(this) ? this : %$nonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %$nonNumberToNumber(y);
+  return %NumberShr(x, y);
+}
+
+
+// Strong mode SHR throws if an implicit conversion would be performed
+function SHR_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberShr(this, y);
+  }
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
+
+/* -----------------------------
+   - - -   H e l p e r s   - - -
+   -----------------------------
+*/
+
+// ECMA-262, section 11.8.7, page 54.
+function IN(x) {
+  if (!IS_SPEC_OBJECT(x)) {
+    throw %MakeTypeError(kInvalidInOperatorUse, this, x);
+  }
+  if (%_IsNonNegativeSmi(this)) {
+    if (IS_ARRAY(x) && %_HasFastPackedElements(x)) {
+      return this < x.length;
+    }
+    return %HasElement(x, this);
+  }
+  return %HasProperty(x, %$toName(this));
+}
+
+
+// ECMA-262, section 11.8.6, page 54. To make the implementation more
+// efficient, the return value should be zero if the 'this' is an
+// instance of F, and non-zero if not. This makes it possible to avoid
+// an expensive ToBoolean conversion in the generated code.
+function INSTANCE_OF(F) {
+  var V = this;
+  if (!IS_SPEC_FUNCTION(F)) {
+    throw %MakeTypeError(kInstanceofFunctionExpected, F);
+  }
+
+  // If V is not an object, return false.
+  if (!IS_SPEC_OBJECT(V)) {
+    return 1;
+  }
+
+  // Check if function is bound, if so, get [[BoundFunction]] from it
+  // and use that instead of F.
+  var bindings = %BoundFunctionGetBindings(F);
+  if (bindings) {
+    F = bindings[kBoundFunctionIndex];  // Always a non-bound function.
+  }
+  // Get the prototype of F; if it is not an object, throw an error.
+  var O = F.prototype;
+  if (!IS_SPEC_OBJECT(O)) {
+    throw %MakeTypeError(kInstanceofNonobjectProto, O);
+  }
+
+  // Return whether or not O is in the prototype chain of V.
+  return %IsInPrototypeChain(O, V) ? 0 : 1;
+}
+
+
+function CALL_NON_FUNCTION() {
+  var delegate = %GetFunctionDelegate(this);
+  if (!IS_FUNCTION(delegate)) {
+    var callsite = %RenderCallSite();
+    if (callsite == "") callsite = typeof this;
+    throw %MakeTypeError(kCalledNonCallable, callsite);
+  }
+  return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
+}
+
+
+function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
+  var delegate = %GetConstructorDelegate(this);
+  if (!IS_FUNCTION(delegate)) {
+    var callsite = %RenderCallSite();
+    if (callsite == "") callsite = typeof this;
+    throw %MakeTypeError(kCalledNonCallable, callsite);
+  }
+  return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
+}
+
+
+function CALL_FUNCTION_PROXY() {
+  var arity = %_ArgumentsLength() - 1;
+  var proxy = %_Arguments(arity);  // The proxy comes in as an additional arg.
+  var trap = %GetCallTrap(proxy);
+  return %Apply(trap, this, arguments, 0, arity);
+}
+
+
+function CALL_FUNCTION_PROXY_AS_CONSTRUCTOR () {
+  var proxy = this;
+  var trap = %GetConstructTrap(proxy);
+  return %Apply(trap, this, arguments, 0, %_ArgumentsLength());
+}
+
+
+function APPLY_PREPARE(args) {
+  var length;
+  // First check whether length is a positive Smi and args is an
+  // array. This is the fast case. If this fails, we do the slow case
+  // that takes care of more eventualities.
+  if (IS_ARRAY(args)) {
+    length = args.length;
+    if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength &&
+        IS_SPEC_FUNCTION(this)) {
+      return length;
+    }
+  }
+
+  length = (args == null) ? 0 : TO_UINT32(args.length);
+
+  // We can handle any number of apply arguments if the stack is
+  // big enough, but sanity check the value to avoid overflow when
+  // multiplying with pointer size.
+  if (length > kSafeArgumentsLength) throw %MakeRangeError(kStackOverflow);
+
+  if (!IS_SPEC_FUNCTION(this)) {
+    throw %MakeTypeError(kApplyNonFunction, %$toString(this), typeof this);
+  }
+
+  // Make sure the arguments list has the right type.
+  if (args != null && !IS_SPEC_OBJECT(args)) {
+    throw %MakeTypeError(kWrongArgs, "Function.prototype.apply");
+  }
+
+  // Return the length which is the number of arguments to copy to the
+  // stack. It is guaranteed to be a small integer at this point.
+  return length;
+}
+
+
+function REFLECT_APPLY_PREPARE(args) {
+  var length;
+  // First check whether length is a positive Smi and args is an
+  // array. This is the fast case. If this fails, we do the slow case
+  // that takes care of more eventualities.
+  if (IS_ARRAY(args)) {
+    length = args.length;
+    if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength &&
+        IS_SPEC_FUNCTION(this)) {
+      return length;
+    }
+  }
+
+  if (!IS_SPEC_FUNCTION(this)) {
+    throw %MakeTypeError(kCalledNonCallable, %$toString(this));
+  }
+
+  if (!IS_SPEC_OBJECT(args)) {
+    throw %MakeTypeError(kWrongArgs, "Reflect.apply");
+  }
+
+  length = %$toLength(args.length);
+
+  // We can handle any number of apply arguments if the stack is
+  // big enough, but sanity check the value to avoid overflow when
+  // multiplying with pointer size.
+  if (length > kSafeArgumentsLength) throw %MakeRangeError(kStackOverflow);
+
+  // Return the length which is the number of arguments to copy to the
+  // stack. It is guaranteed to be a small integer at this point.
+  return length;
+}
+
+
+function REFLECT_CONSTRUCT_PREPARE(
+    args, newTarget) {
+  var length;
+  var ctorOk = IS_SPEC_FUNCTION(this) && %IsConstructor(this);
+  var newTargetOk = IS_SPEC_FUNCTION(newTarget) && %IsConstructor(newTarget);
+
+  // First check whether length is a positive Smi and args is an
+  // array. This is the fast case. If this fails, we do the slow case
+  // that takes care of more eventualities.
+  if (IS_ARRAY(args)) {
+    length = args.length;
+    if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength &&
+        ctorOk && newTargetOk) {
+      return length;
+    }
+  }
+
+  if (!ctorOk) {
+    if (!IS_SPEC_FUNCTION(this)) {
+      throw %MakeTypeError(kCalledNonCallable, %$toString(this));
+    } else {
+      throw %MakeTypeError(kNotConstructor, %$toString(this));
+    }
+  }
+
+  if (!newTargetOk) {
+    if (!IS_SPEC_FUNCTION(newTarget)) {
+      throw %MakeTypeError(kCalledNonCallable, %$toString(newTarget));
+    } else {
+      throw %MakeTypeError(kNotConstructor, %$toString(newTarget));
+    }
+  }
+
+  if (!IS_SPEC_OBJECT(args)) {
+    throw %MakeTypeError(kWrongArgs, "Reflect.construct");
+  }
+
+  length = %$toLength(args.length);
+
+  // We can handle any number of apply arguments if the stack is
+  // big enough, but sanity check the value to avoid overflow when
+  // multiplying with pointer size.
+  if (length > kSafeArgumentsLength) throw %MakeRangeError(kStackOverflow);
+
+  // Return the length which is the number of arguments to copy to the
+  // stack. It is guaranteed to be a small integer at this point.
+  return length;
+}
+
+
+function CONCAT_ITERABLE_TO_ARRAY(iterable) {
+  return %$concatIterableToArray(this, iterable);
+};
+
+
+function STACK_OVERFLOW(length) {
+  throw %MakeRangeError(kStackOverflow);
+}
+
+
+// Convert the receiver to a number - forward to ToNumber.
+function TO_NUMBER() {
+  return %$toNumber(this);
+}
+
+
+// Convert the receiver to a string - forward to ToString.
+function TO_STRING() {
+  return %$toString(this);
+}
+
+
+// Convert the receiver to a string or symbol - forward to ToName.
+function TO_NAME() {
+  return %$toName(this);
+}
+
+
+/* -------------------------------------
+   - - -   C o n v e r s i o n s   - - -
+   -------------------------------------
+*/
+
+// ECMA-262, section 9.1, page 30. Use null/undefined for no hint,
+// (1) for number hint, and (2) for string hint.
+function ToPrimitive(x, hint) {
+  if (!IS_SPEC_OBJECT(x)) return x;
+  if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
+  return (hint == NUMBER_HINT) ? DefaultNumber(x) : DefaultString(x);
+}
+
+
+// ECMA-262, section 9.2, page 30
+function ToBoolean(x) {
+  if (IS_BOOLEAN(x)) return x;
+  if (IS_STRING(x)) return x.length != 0;
+  if (x == null) return false;
+  if (IS_NUMBER(x)) return !((x == 0) || NUMBER_IS_NAN(x));
+  return true;
+}
+
+
+// ECMA-262, section 9.3, page 31.
+function ToNumber(x) {
+  if (IS_NUMBER(x)) return x;
+  if (IS_STRING(x)) {
+    return %_HasCachedArrayIndex(x) ? %_GetCachedArrayIndex(x)
+                                    : %StringToNumber(x);
+  }
+  if (IS_BOOLEAN(x)) return x ? 1 : 0;
+  if (IS_UNDEFINED(x)) return NAN;
+  // Types that can't be converted to number are caught in DefaultNumber.
+  return (IS_NULL(x)) ? 0 : ToNumber(DefaultNumber(x));
+}
+
+function NonNumberToNumber(x) {
+  if (IS_STRING(x)) {
+    return %_HasCachedArrayIndex(x) ? %_GetCachedArrayIndex(x)
+                                    : %StringToNumber(x);
+  }
+  if (IS_BOOLEAN(x)) return x ? 1 : 0;
+  if (IS_UNDEFINED(x)) return NAN;
+  // Types that can't be converted to number are caught in DefaultNumber.
+  return (IS_NULL(x)) ? 0 : ToNumber(DefaultNumber(x));
+}
+
+
+// ECMA-262, section 9.8, page 35.
+function ToString(x) {
+  if (IS_STRING(x)) return x;
+  if (IS_NUMBER(x)) return %_NumberToString(x);
+  if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
+  if (IS_UNDEFINED(x)) return 'undefined';
+  // Types that can't be converted to string are caught in DefaultString.
+  return (IS_NULL(x)) ? 'null' : ToString(DefaultString(x));
+}
+
+function NonStringToString(x) {
+  if (IS_NUMBER(x)) return %_NumberToString(x);
+  if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
+  if (IS_UNDEFINED(x)) return 'undefined';
+  // Types that can't be converted to string are caught in DefaultString.
+  return (IS_NULL(x)) ? 'null' : ToString(DefaultString(x));
+}
+
+
+// ES6 symbols
+function ToName(x) {
+  return IS_SYMBOL(x) ? x : ToString(x);
+}
+
+
+// ECMA-262, section 9.4, page 34.
+function ToInteger(x) {
+  if (%_IsSmi(x)) return x;
+  return %NumberToInteger(ToNumber(x));
+}
+
+
+// ES6, draft 08-24-14, section 7.1.15
+function ToLength(arg) {
+  arg = ToInteger(arg);
+  if (arg < 0) return 0;
+  return arg < GlobalNumber.MAX_SAFE_INTEGER ? arg
+                                             : GlobalNumber.MAX_SAFE_INTEGER;
+}
+
+
+// ES5, section 9.12
+function SameValue(x, y) {
+  if (typeof x != typeof y) return false;
+  if (IS_NUMBER(x)) {
+    if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
+    // x is +0 and y is -0 or vice versa.
+    if (x === 0 && y === 0 && %_IsMinusZero(x) != %_IsMinusZero(y)) {
+      return false;
+    }
+  }
+  if (IS_SIMD_VALUE(x)) return %SimdSameValue(x, y);
+  return x === y;
+}
+
+
+// ES6, section 7.2.4
+function SameValueZero(x, y) {
+  if (typeof x != typeof y) return false;
+  if (IS_NUMBER(x)) {
+    if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
+  }
+  if (IS_SIMD_VALUE(x)) return %SimdSameValueZero(x, y);
+  return x === y;
+}
+
+
+function ConcatIterableToArray(target, iterable) {
+   var index = target.length;
+   for (var element of iterable) {
+     %AddElement(target, index++, element);
+   }
+   return target;
+}
+
+
+/* ---------------------------------
+   - - -   U t i l i t i e s   - - -
+   ---------------------------------
+*/
+
+// Returns if the given x is a primitive value - not an object or a
+// function.
+function IsPrimitive(x) {
+  // Even though the type of null is "object", null is still
+  // considered a primitive value. IS_SPEC_OBJECT handles this correctly
+  // (i.e., it will return false if x is null).
+  return !IS_SPEC_OBJECT(x);
+}
+
+
+// ES6, draft 10-14-14, section 22.1.3.1.1
+function IsConcatSpreadable(O) {
+  if (!IS_SPEC_OBJECT(O)) return false;
+  var spreadable = O[symbolIsConcatSpreadable];
+  if (IS_UNDEFINED(spreadable)) return IS_ARRAY(O);
+  return ToBoolean(spreadable);
+}
+
+
+// ECMA-262, section 8.6.2.6, page 28.
+function DefaultNumber(x) {
+  var valueOf = x.valueOf;
+  if (IS_SPEC_FUNCTION(valueOf)) {
+    var v = %_CallFunction(x, valueOf);
+    if (IS_SYMBOL(v)) throw MakeTypeError(kSymbolToNumber);
+    if (IS_SIMD_VALUE(x)) throw MakeTypeError(kSimdToNumber);
+    if (IsPrimitive(v)) return v;
+  }
+  var toString = x.toString;
+  if (IS_SPEC_FUNCTION(toString)) {
+    var s = %_CallFunction(x, toString);
+    if (IsPrimitive(s)) return s;
+  }
+  throw MakeTypeError(kCannotConvertToPrimitive);
+}
+
+// ECMA-262, section 8.6.2.6, page 28.
+function DefaultString(x) {
+  if (!IS_SYMBOL_WRAPPER(x)) {
+    if (IS_SYMBOL(x)) throw MakeTypeError(kSymbolToString);
+    var toString = x.toString;
+    if (IS_SPEC_FUNCTION(toString)) {
+      var s = %_CallFunction(x, toString);
+      if (IsPrimitive(s)) return s;
+    }
+
+    var valueOf = x.valueOf;
+    if (IS_SPEC_FUNCTION(valueOf)) {
+      var v = %_CallFunction(x, valueOf);
+      if (IsPrimitive(v)) return v;
+    }
+  }
+  throw MakeTypeError(kCannotConvertToPrimitive);
+}
+
+function ToPositiveInteger(x, rangeErrorIndex) {
+  var i = TO_INTEGER_MAP_MINUS_ZERO(x);
+  if (i < 0) throw MakeRangeError(rangeErrorIndex);
+  return i;
+}
+
+//----------------------------------------------------------------------------
+
+// NOTE: Setting the prototype for Array must take place as early as
+// possible due to code generation for array literals.  When
+// generating code for a array literal a boilerplate array is created
+// that is cloned when running the code.  It is essential that the
+// boilerplate gets the right prototype.
+%FunctionSetPrototype(GlobalArray, new GlobalArray(0));
+
+// ----------------------------------------------------------------------------
+// Exports
+
+$concatIterableToArray = ConcatIterableToArray;
+$defaultNumber = DefaultNumber;
+$defaultString = DefaultString;
+$NaN = %GetRootNaN();
+$nonNumberToNumber = NonNumberToNumber;
+$nonStringToString = NonStringToString;
+$sameValue = SameValue;
+$sameValueZero = SameValueZero;
+$toInteger = ToInteger;
+$toLength = ToLength;
+$toName = ToName;
+$toNumber = ToNumber;
+$toPositiveInteger = ToPositiveInteger;
+$toPrimitive = ToPrimitive;
+$toString = ToString;
+
+%InstallJSBuiltins({
+  EQUALS,
+  COMPARE,
+  COMPARE_STRONG,
+  ADD,
+  ADD_STRONG,
+  STRING_ADD_LEFT,
+  STRING_ADD_RIGHT,
+  SUB,
+  SUB_STRONG,
+  MUL,
+  MUL_STRONG,
+  DIV,
+  DIV_STRONG,
+  MOD,
+  MOD_STRONG,
+  BIT_OR,
+  BIT_OR_STRONG,
+  BIT_AND,
+  BIT_AND_STRONG,
+  BIT_XOR,
+  BIT_XOR_STRONG,
+  SHL,
+  SHL_STRONG,
+  SAR,
+  SAR_STRONG,
+  SHR,
+  SHR_STRONG,
+  IN,
+  INSTANCE_OF,
+  CALL_NON_FUNCTION,
+  CALL_NON_FUNCTION_AS_CONSTRUCTOR,
+  CALL_FUNCTION_PROXY,
+  CALL_FUNCTION_PROXY_AS_CONSTRUCTOR,
+  CONCAT_ITERABLE_TO_ARRAY,
+  APPLY_PREPARE,
+  REFLECT_APPLY_PREPARE,
+  REFLECT_CONSTRUCT_PREPARE,
+  STACK_OVERFLOW,
+  TO_NUMBER,
+  TO_STRING,
+  TO_NAME,
+});
+
+utils.ExportToRuntime(function(to) {
+  to.ToNumber = ToNumber;
+  to.ToString = ToString;
+  to.ToInteger = ToInteger;
+  to.ToLength = ToLength;
+});
+
+utils.Export(function(to) {
+  to.ToBoolean = ToBoolean;
+  to.ToNumber = ToNumber;
+  to.ToString = ToString;
+})
+
+})

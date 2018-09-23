@@ -47,16 +47,16 @@ struct addrinfo
 #endif
 
 #ifndef NS_IN6ADDRSZ
-#ifndef HAVE_STRUCT_IN6_ADDR
+#if SIZEOF_STRUCT_IN6_ADDR == 0
 /* We cannot have it set to zero, so we pick a fixed value here */
 #define NS_IN6ADDRSZ 16
 #else
-#define NS_IN6ADDRSZ sizeof(struct in6_addr)
+#define NS_IN6ADDRSZ SIZEOF_STRUCT_IN6_ADDR
 #endif
 #endif
 
 #ifndef NS_INADDRSZ
-#define NS_INADDRSZ sizeof(struct in_addr)
+#define NS_INADDRSZ SIZEOF_STRUCT_IN_ADDR
 #endif
 
 #ifndef NS_INT16SZ

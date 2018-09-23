@@ -1,65 +1,46 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
+var common = require('../common');
+var assert = require('assert');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var https = require('https');
 
-const fixtures = require('../common/fixtures');
-const assert = require('assert');
-const https = require('https');
+var fs = require('fs');
 
-const options = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+var options = {
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
 
-const server = https.Server(options, function(req, res) {
+var server = https.Server(options, function(req, res) {
   res.writeHead(200);
   res.end('hello world\n');
 });
 
 
-let responses = 0;
-const N = 4;
-const M = 4;
+var responses = 0;
+var N = 10;
+var M = 10;
 
-
-server.listen(0, function() {
-  for (let i = 0; i < N; i++) {
+server.listen(common.PORT, function() {
+  for (var i = 0; i < N; i++) {
     setTimeout(function() {
-      for (let j = 0; j < M; j++) {
+      for (var j = 0; j < M; j++) {
         https.get({
           path: '/',
-          port: server.address().port,
+          port: common.PORT,
           rejectUnauthorized: false
         }, function(res) {
           res.resume();
-          assert.strictEqual(res.statusCode, 200);
-          if (++responses === N * M) server.close();
+          console.log(res.statusCode);
+          if (++responses == N * M) server.close();
         }).on('error', function(e) {
-          throw e;
+          console.log(e.message);
+          process.exit(1);
         });
       }
     }, i);
@@ -68,5 +49,5 @@ server.listen(0, function() {
 
 
 process.on('exit', function() {
-  assert.strictEqual(N * M, responses);
+  assert.equal(N * M, responses);
 });

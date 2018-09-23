@@ -1,0 +1,27 @@
+Pentium 100, Windows 3.1 DLL's, 16 bit C, 32bit assember.
+
+Running under Windows NT 4.0 Beta 2
+
+SSLeay 0.6.4 20-Aug-1996
+built on Thu Aug 22 08:44:21 EST 1996
+options:bn(32,32) md2(char) rc4(idx,int) des(ptr,long) idea(short)
+C flags:cl /ALw /Gx- /Gf /G2 /f- /Ocgnotb2 /W3 /WX -DL_ENDIAN /nologo -DWIN16
+The 'numbers' are in 1000s of bytes per second processed.
+type           8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2             45.83k      128.82k      180.17k      194.90k      198.59k
+md5            224.82k     1038.19k     1801.68k     2175.47k     2330.17k
+sha            105.11k      448.11k      739.48k      884.13k      944.66k
+sha1            94.71k      402.99k      667.88k      795.58k      844.26k
+rc4           1614.19k     1956.30k     2022.72k     2022.72k     2022.72k
+des cfb        291.27k      318.14k      318.14k      318.14k      322.84k
+des cbc        326.86k      356.17k      362.08k      362.08k      367.15k
+des ede3       132.40k      139.57k      139.53k      139.37k      140.97k
+idea cfb       265.33k      280.67k      280.67k      277.69k      281.27k
+idea cbc       274.21k      302.01k      306.24k      306.24k      305.53k
+rc2 cfb        264.79k      274.21k      274.78k      274.21k      274.21k
+rc2 cbc        281.27k      306.24k      309.86k      305.53k      309.86k
+rsa  512 bits   0.058s
+rsa 1024 bits   0.280s
+rsa 2048 bits   1.430s
+rsa 4096 bits  10.600s
+

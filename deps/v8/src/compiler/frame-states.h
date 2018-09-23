@@ -5,43 +5,57 @@
 #ifndef V8_COMPILER_FRAME_STATES_H_
 #define V8_COMPILER_FRAME_STATES_H_
 
-#include "src/builtins/builtins.h"
 #include "src/handles.h"
-#include "src/objects/shared-function-info.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
-namespace compiler {
+// Forward declarations.
+class SharedFunctionInfo;
 
-class JSGraph;
-class Node;
+namespace compiler {
 
 // Flag that describes how to combine the current environment with
 // the output of a node to obtain a framestate for lazy bailout.
 class OutputFrameStateCombine {
  public:
-  static const size_t kInvalidIndex = SIZE_MAX;
+  enum Kind {
+    kPushOutput,  // Push the output on the expression stack.
+    kPokeAt       // Poke at the given environment location,
+                  // counting from the top of the stack.
+  };
 
   static OutputFrameStateCombine Ignore() {
-    return OutputFrameStateCombine(kInvalidIndex);
+    return OutputFrameStateCombine(kPushOutput, 0);
+  }
+  static OutputFrameStateCombine Push(size_t count = 1) {
+    return OutputFrameStateCombine(kPushOutput, count);
   }
   static OutputFrameStateCombine PokeAt(size_t index) {
-    return OutputFrameStateCombine(index);
+    return OutputFrameStateCombine(kPokeAt, index);
   }
 
+  Kind kind() const { return kind_; }
+  size_t GetPushCount() const {
+    DCHECK_EQ(kPushOutput, kind());
+    return parameter_;
+  }
   size_t GetOffsetToPokeAt() const {
-    DCHECK_NE(parameter_, kInvalidIndex);
+    DCHECK_EQ(kPokeAt, kind());
     return parameter_;
   }
 
-  bool IsOutputIgnored() const { return parameter_ == kInvalidIndex; }
+  bool IsOutputIgnored() const {
+    return kind_ == kPushOutput && parameter_ == 0;
+  }
 
-  size_t ConsumedOutputCount() const { return IsOutputIgnored() ? 0 : 1; }
+  size_t ConsumedOutputCount() const {
+    return kind_ == kPushOutput ? GetPushCount() : 1;
+  }
 
   bool operator==(OutputFrameStateCombine const& other) const {
-    return parameter_ == other.parameter_;
+    return kind_ == other.kind_ && parameter_ == other.parameter_;
   }
   bool operator!=(OutputFrameStateCombine const& other) const {
     return !(*this == other);
@@ -52,44 +66,45 @@ class OutputFrameStateCombine {
                                   OutputFrameStateCombine const&);
 
  private:
-  explicit OutputFrameStateCombine(size_t parameter) : parameter_(parameter) {}
+  OutputFrameStateCombine(Kind kind, size_t parameter)
+      : kind_(kind), parameter_(parameter) {}
 
+  Kind const kind_;
   size_t const parameter_;
 };
 
 
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
-  kInterpretedFunction,            // Represents an InterpretedFrame.
-  kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
-  kConstructStub,                  // Represents a ConstructStubFrame.
-  kBuiltinContinuation,            // Represents a continuation to a stub.
-  kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
-                                   // builtin.
-  kJavaScriptBuiltinContinuationWithCatch  // Represents a continuation to a
-                                           // JavaScipt builtin with a catch
-                                           // handler.
+  kJavaScriptFunction,  // Represents an unoptimized JavaScriptFrame.
+  kArgumentsAdaptor     // Represents an ArgumentsAdaptorFrame.
 };
+
+
+enum ContextCallingMode {
+  CALL_MAINTAINS_NATIVE_CONTEXT,
+  CALL_CHANGES_NATIVE_CONTEXT
+};
+
 
 class FrameStateFunctionInfo {
  public:
   FrameStateFunctionInfo(FrameStateType type, int parameter_count,
                          int local_count,
-                         Handle<SharedFunctionInfo> shared_info)
+                         Handle<SharedFunctionInfo> shared_info,
+                         ContextCallingMode context_calling_mode)
       : type_(type),
         parameter_count_(parameter_count),
         local_count_(local_count),
-        shared_info_(shared_info) {}
+        shared_info_(shared_info),
+        context_calling_mode_(context_calling_mode) {}
 
   int local_count() const { return local_count_; }
   int parameter_count() const { return parameter_count_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateType type() const { return type_; }
-
-  static bool IsJSFunctionType(FrameStateType type) {
-    return type == FrameStateType::kInterpretedFunction ||
-           type == FrameStateType::kJavaScriptBuiltinContinuation ||
-           type == FrameStateType::kJavaScriptBuiltinContinuationWithCatch;
+  ContextCallingMode context_calling_mode() const {
+    return context_calling_mode_;
   }
 
  private:
@@ -97,6 +112,7 @@ class FrameStateFunctionInfo {
   int const parameter_count_;
   int const local_count_;
   Handle<SharedFunctionInfo> const shared_info_;
+  ContextCallingMode context_calling_mode_;
 };
 
 
@@ -109,7 +125,7 @@ class FrameStateInfo final {
         info_(info) {}
 
   FrameStateType type() const {
-    return info_ == nullptr ? FrameStateType::kInterpretedFunction
+    return info_ == nullptr ? FrameStateType::kJavaScriptFunction
                             : info_->type();
   }
   BailoutId bailout_id() const { return bailout_id_; }
@@ -146,19 +162,6 @@ static const int kFrameStateContextInput = 3;
 static const int kFrameStateFunctionInput = 4;
 static const int kFrameStateOuterStateInput = 5;
 static const int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
-
-enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
-
-Node* CreateStubBuiltinContinuationFrameState(
-    JSGraph* graph, Builtins::Name name, Node* context, Node* const* parameters,
-    int parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode);
-
-Node* CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* graph, Handle<SharedFunctionInfo> shared, Builtins::Name name,
-    Node* target, Node* context, Node* const* stack_parameters,
-    int stack_parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode);
 
 }  // namespace compiler
 }  // namespace internal

@@ -1,18 +1,66 @@
-/*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+/* crypto/pkcs7/pk7_lib.c */
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
+ * All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * This package is an SSL implementation written
+ * by Eric Young (eay@cryptsoft.com).
+ * The implementation was written so as to conform with Netscapes SSL.
+ *
+ * This library is free for commercial and non-commercial use as long as
+ * the following conditions are aheared to.  The following conditions
+ * apply to all code found in this distribution, be it the RC4, RSA,
+ * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
+ * included with this distribution is covered by the same copyright terms
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
+ *
+ * Copyright remains Eric Young's, and as such any Copyright notices in
+ * the code are not to be removed.
+ * If this package is used in a product, Eric Young should be given attribution
+ * as the author of the parts of the library used.
+ * This can be in the form of a textual message at program startup or
+ * in documentation (online or textual) provided with the package.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *    "This product includes cryptographic software written by
+ *     Eric Young (eay@cryptsoft.com)"
+ *    The word 'cryptographic' can be left out if the rouines from the library
+ *    being used are not cryptographic related :-).
+ * 4. If you include any Windows specific code (or a derivative thereof) from
+ *    the apps directory (application code) you must include an acknowledgement:
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * The licence and distribution terms for any publically available version or
+ * derivative of this code cannot be changed.  i.e. this code cannot simply be
+ * copied and put under another distribution licence
+ * [including the GNU Public Licence.]
  */
 
 #include <stdio.h>
-#include "internal/cryptlib.h"
+#include "cryptlib.h"
 #include <openssl/objects.h>
 #include <openssl/x509.h>
-#include "internal/asn1_int.h"
-#include "internal/evp_int.h"
+#include "asn1_locl.h"
 
 long PKCS7_ctrl(PKCS7 *p7, int cmd, long larg, char *parg)
 {
@@ -73,7 +121,8 @@ int PKCS7_content_new(PKCS7 *p7, int type)
 
     return (1);
  err:
-    PKCS7_free(ret);
+    if (ret != NULL)
+        PKCS7_free(ret);
     return (0);
 }
 
@@ -84,11 +133,13 @@ int PKCS7_set_content(PKCS7 *p7, PKCS7 *p7_data)
     i = OBJ_obj2nid(p7->type);
     switch (i) {
     case NID_pkcs7_signed:
-        PKCS7_free(p7->d.sign->contents);
+        if (p7->d.sign->contents != NULL)
+            PKCS7_free(p7->d.sign->contents);
         p7->d.sign->contents = p7_data;
         break;
     case NID_pkcs7_digest:
-        PKCS7_free(p7->d.digest->contents);
+        if (p7->d.digest->contents != NULL)
+            PKCS7_free(p7->d.digest->contents);
         p7->d.digest->contents = p7_data;
         break;
     case NID_pkcs7_data:
@@ -126,7 +177,7 @@ int PKCS7_set_type(PKCS7 *p7, int type)
         break;
     case NID_pkcs7_data:
         p7->type = obj;
-        if ((p7->d.data = ASN1_OCTET_STRING_new()) == NULL)
+        if ((p7->d.data = M_ASN1_OCTET_STRING_new()) == NULL)
             goto err;
         break;
     case NID_pkcs7_signedAndEnveloped:
@@ -217,8 +268,8 @@ int PKCS7_add_signer(PKCS7 *p7, PKCS7_SIGNER_INFO *psi)
         }
     }
     if (!j) {                   /* we need to add another algorithm */
-        if ((alg = X509_ALGOR_new()) == NULL
-            || (alg->parameter = ASN1_TYPE_new()) == NULL) {
+        if (!(alg = X509_ALGOR_new())
+            || !(alg->parameter = ASN1_TYPE_new())) {
             X509_ALGOR_free(alg);
             PKCS7err(PKCS7_F_PKCS7_ADD_SIGNER, ERR_R_MALLOC_FAILURE);
             return (0);
@@ -260,7 +311,7 @@ int PKCS7_add_certificate(PKCS7 *p7, X509 *x509)
         PKCS7err(PKCS7_F_PKCS7_ADD_CERTIFICATE, ERR_R_MALLOC_FAILURE);
         return 0;
     }
-    X509_up_ref(x509);
+    CRYPTO_add(&x509->references, 1, CRYPTO_LOCK_X509);
     if (!sk_X509_push(*sk, x509)) {
         X509_free(x509);
         return 0;
@@ -293,7 +344,7 @@ int PKCS7_add_crl(PKCS7 *p7, X509_CRL *crl)
         return 0;
     }
 
-    X509_CRL_up_ref(crl);
+    CRYPTO_add(&crl->references, 1, CRYPTO_LOCK_X509_CRL);
     if (!sk_X509_CRL_push(*sk, crl)) {
         X509_CRL_free(crl);
         return 0;
@@ -317,13 +368,13 @@ int PKCS7_SIGNER_INFO_set(PKCS7_SIGNER_INFO *p7i, X509 *x509, EVP_PKEY *pkey,
      * because ASN1_INTEGER_set is used to set a 'long' we will do things the
      * ugly way.
      */
-    ASN1_INTEGER_free(p7i->issuer_and_serial->serial);
+    M_ASN1_INTEGER_free(p7i->issuer_and_serial->serial);
     if (!(p7i->issuer_and_serial->serial =
-          ASN1_INTEGER_dup(X509_get_serialNumber(x509))))
+          M_ASN1_INTEGER_dup(X509_get_serialNumber(x509))))
         goto err;
 
     /* lets keep the pkey around for a while */
-    EVP_PKEY_up_ref(pkey);
+    CRYPTO_add(&pkey->references, 1, CRYPTO_LOCK_EVP_PKEY);
     p7i->pkey = pkey;
 
     /* Set the algorithms */
@@ -371,14 +422,15 @@ PKCS7_SIGNER_INFO *PKCS7_add_signature(PKCS7 *p7, X509 *x509, EVP_PKEY *pkey,
         goto err;
     return (si);
  err:
-    PKCS7_SIGNER_INFO_free(si);
+    if (si)
+        PKCS7_SIGNER_INFO_free(si);
     return (NULL);
 }
 
 int PKCS7_set_digest(PKCS7 *p7, const EVP_MD *md)
 {
     if (PKCS7_type_is_digest(p7)) {
-        if ((p7->d.digest->md->parameter = ASN1_TYPE_new()) == NULL) {
+        if (!(p7->d.digest->md->parameter = ASN1_TYPE_new())) {
             PKCS7err(PKCS7_F_PKCS7_SET_DIGEST, ERR_R_MALLOC_FAILURE);
             return 0;
         }
@@ -432,7 +484,8 @@ PKCS7_RECIP_INFO *PKCS7_add_recipient(PKCS7 *p7, X509 *x509)
         goto err;
     return ri;
  err:
-    PKCS7_RECIP_INFO_free(ri);
+    if (ri)
+        PKCS7_RECIP_INFO_free(ri);
     return NULL;
 }
 
@@ -470,12 +523,12 @@ int PKCS7_RECIP_INFO_set(PKCS7_RECIP_INFO *p7i, X509 *x509)
                        X509_get_issuer_name(x509)))
         return 0;
 
-    ASN1_INTEGER_free(p7i->issuer_and_serial->serial);
+    M_ASN1_INTEGER_free(p7i->issuer_and_serial->serial);
     if (!(p7i->issuer_and_serial->serial =
-          ASN1_INTEGER_dup(X509_get_serialNumber(x509))))
+          M_ASN1_INTEGER_dup(X509_get_serialNumber(x509))))
         return 0;
 
-    pkey = X509_get0_pubkey(x509);
+    pkey = X509_get_pubkey(x509);
 
     if (!pkey || !pkey->ameth || !pkey->ameth->pkey_ctrl) {
         PKCS7err(PKCS7_F_PKCS7_RECIP_INFO_SET,
@@ -495,12 +548,16 @@ int PKCS7_RECIP_INFO_set(PKCS7_RECIP_INFO *p7i, X509 *x509)
         goto err;
     }
 
-    X509_up_ref(x509);
+    EVP_PKEY_free(pkey);
+
+    CRYPTO_add(&x509->references, 1, CRYPTO_LOCK_X509);
     p7i->cert = x509;
 
     return 1;
 
  err:
+    if (pkey)
+        EVP_PKEY_free(pkey);
     return 0;
 }
 
@@ -557,7 +614,7 @@ int PKCS7_stream(unsigned char ***boundary, PKCS7 *p7)
     case NID_pkcs7_signedAndEnveloped:
         os = p7->d.signed_and_enveloped->enc_data->enc_data;
         if (os == NULL) {
-            os = ASN1_OCTET_STRING_new();
+            os = M_ASN1_OCTET_STRING_new();
             p7->d.signed_and_enveloped->enc_data->enc_data = os;
         }
         break;
@@ -565,7 +622,7 @@ int PKCS7_stream(unsigned char ***boundary, PKCS7 *p7)
     case NID_pkcs7_enveloped:
         os = p7->d.enveloped->enc_data->enc_data;
         if (os == NULL) {
-            os = ASN1_OCTET_STRING_new();
+            os = M_ASN1_OCTET_STRING_new();
             p7->d.enveloped->enc_data->enc_data = os;
         }
         break;

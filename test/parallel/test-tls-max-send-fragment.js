@@ -1,41 +1,26 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
-const fixtures = require('../common/fixtures');
+var common = require('../common');
+var assert = require('assert');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var tls = require('tls');
 
-const assert = require('assert');
-const tls = require('tls');
+var fs = require('fs');
+var net = require('net');
 
-const buf = Buffer.allocUnsafe(10000);
-let received = 0;
-const maxChunk = 768;
+var common = require('../common');
 
-const server = tls.createServer({
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+var buf = new Buffer(10000);
+var received = 0;
+var ended = 0;
+var maxChunk = 768;
+
+var server = tls.createServer({
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 }, function(c) {
   // Lower and upper limits
   assert(!c.setMaxSendFragment(511));
@@ -45,20 +30,25 @@ const server = tls.createServer({
   assert(c.setMaxSendFragment(maxChunk));
 
   c.end(buf);
-}).listen(0, common.mustCall(function() {
-  const c = tls.connect(this.address().port, {
+}).listen(common.PORT, function() {
+  var c = tls.connect(common.PORT, {
     rejectUnauthorized: false
-  }, common.mustCall(function() {
+  }, function() {
     c.on('data', function(chunk) {
       assert(chunk.length <= maxChunk);
       received += chunk.length;
     });
 
     // Ensure that we receive 'end' event anyway
-    c.on('end', common.mustCall(function() {
+    c.on('end', function() {
+      ended++;
       c.destroy();
       server.close();
-      assert.strictEqual(received, buf.length);
-    }));
-  }));
-}));
+    });
+  });
+});
+
+process.on('exit', function() {
+  assert.equal(ended, 1);
+  assert.equal(received, buf.length);
+});

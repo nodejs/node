@@ -1,3 +1,0 @@
-LIBS=../../libcrypto
-SOURCE[../../libcrypto]=\
-        mdc2dgst.c mdc2_one.c

@@ -35,16 +35,12 @@ API
 
     Initialize the handle. A NULL callback is allowed.
 
-    :returns: 0 on success, or an error code < 0 on failure.
-
     .. note::
         Unlike other handle initialization  functions, it immediately starts the handle.
 
 .. c:function:: int uv_async_send(uv_async_t* async)
 
-    Wake up the event loop and call the async handle's callback.
-
-    :returns: 0 on success, or an error code < 0 on failure.
+    Wakeup the event loop and call the async handle's callback.
 
     .. note::
         It's safe to call this function from any thread. The callback will be called on the

@@ -141,6 +141,7 @@ function TestStringType(generator, sixteen) {
   assertEquals(116, g().charCodeAt(3.14159), 26 + t);
 }
 
+
 TestStringType(Cons, false);
 TestStringType(Deep, false);
 TestStringType(Slice, false);
@@ -154,15 +155,6 @@ TestStringType(Slice16End, true);
 TestStringType(Flat16, true);
 TestStringType(NotAString16, true);
 
-function Flat16Optimized() {
-  var str = Flat16();
-  return str.charCodeAt(2);
-}
-
-assertEquals(0x1234, Flat16Optimized());
-assertEquals(0x1234, Flat16Optimized());
-%OptimizeFunctionOnNextCall(Flat16Optimized);
-assertEquals(0x1234, Flat16Optimized());
 
 function ConsNotSmiIndex() {
   var str = Cons();
@@ -239,3 +231,6 @@ for (var i = 0; i < 5; i++) {
 }
 %OptimizeFunctionOnNextCall(directlyOnPrototype);
 directlyOnPrototype();
+
+assertTrue(isNaN(%_StringCharCodeAt("ABC", -1)));
+assertTrue(isNaN(%_StringCharCodeAt("ABC", 4)));

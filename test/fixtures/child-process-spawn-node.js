@@ -1,4 +1,4 @@
-const assert = require('assert');
+var assert = require('assert');
 
 function onmessage(m) {
   console.log('CHILD got message:', m);

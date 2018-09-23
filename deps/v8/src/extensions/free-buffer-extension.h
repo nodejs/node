@@ -19,7 +19,6 @@ class FreeBufferExtension : public v8::Extension {
   static void FreeBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_EXTENSIONS_FREE_BUFFER_EXTENSION_H_

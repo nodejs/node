@@ -5,7 +5,6 @@ stars.usage = 'npm stars [<user>]'
 var npm = require('./npm.js')
 var log = require('npmlog')
 var mapToRegistry = require('./utils/map-to-registry.js')
-var output = require('./utils/output.js')
 
 function stars (args, cb) {
   npm.commands.whoami([], true, function (er, username) {
@@ -39,7 +38,7 @@ function stars (args, cb) {
       log.warn('stars', 'user has not starred any packages.')
     } else {
       data.rows.forEach(function (a) {
-        output(a.value)
+        console.log(a.value)
       })
     }
     cb()

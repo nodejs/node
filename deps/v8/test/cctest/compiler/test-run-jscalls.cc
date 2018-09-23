@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
-#include "src/contexts.h"
-#include "src/flags.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/v8.h"
+
 #include "test/cctest/compiler/function-tester.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
+using namespace v8::internal;
+using namespace v8::internal::compiler;
 
 TEST(SimpleCall) {
   FunctionTester T("(function(foo,a) { return foo(a); })");
@@ -26,36 +22,37 @@ TEST(SimpleCall) {
 
 TEST(SimpleCall2) {
   FunctionTester T("(function(foo,a) { return foo(a); })");
-  FunctionTester U("(function(a) { return a; })");
+  Handle<JSFunction> foo = T.NewFunction("(function(a) { return a; })");
+  T.Compile(foo);
 
-  T.CheckCall(T.Val(3), U.function, T.Val(3));
-  T.CheckCall(T.Val(3.1), U.function, T.Val(3.1));
-  T.CheckCall(U.function, U.function, U.function);
-  T.CheckCall(T.Val("Abba"), U.function, T.Val("Abba"));
+  T.CheckCall(T.Val(3), foo, T.Val(3));
+  T.CheckCall(T.Val(3.1), foo, T.Val(3.1));
+  T.CheckCall(foo, foo, foo);
+  T.CheckCall(T.Val("Abba"), foo, T.Val("Abba"));
 }
 
 
 TEST(ConstCall) {
   FunctionTester T("(function(foo,a) { return foo(a,3); })");
-  FunctionTester U("(function (a,b) { return a + b; })");
+  Handle<JSFunction> foo = T.NewFunction("(function(a,b) { return a + b; })");
+  T.Compile(foo);
 
-  T.CheckCall(T.Val(6), U.function, T.Val(3));
-  T.CheckCall(T.Val(6.1), U.function, T.Val(3.1));
-  T.CheckCall(T.Val("function (a,b) { return a + b; }3"), U.function,
-              U.function);
-  T.CheckCall(T.Val("Abba3"), U.function, T.Val("Abba"));
+  T.CheckCall(T.Val(6), foo, T.Val(3));
+  T.CheckCall(T.Val(6.1), foo, T.Val(3.1));
+  T.CheckCall(T.Val("function (a,b) { return a + b; }3"), foo, foo);
+  T.CheckCall(T.Val("Abba3"), foo, T.Val("Abba"));
 }
 
 
 TEST(ConstCall2) {
   FunctionTester T("(function(foo,a) { return foo(a,\"3\"); })");
-  FunctionTester U("(function (a,b) { return a + b; })");
+  Handle<JSFunction> foo = T.NewFunction("(function(a,b) { return a + b; })");
+  T.Compile(foo);
 
-  T.CheckCall(T.Val("33"), U.function, T.Val(3));
-  T.CheckCall(T.Val("3.13"), U.function, T.Val(3.1));
-  T.CheckCall(T.Val("function (a,b) { return a + b; }3"), U.function,
-              U.function);
-  T.CheckCall(T.Val("Abba3"), U.function, T.Val("Abba"));
+  T.CheckCall(T.Val("33"), foo, T.Val(3));
+  T.CheckCall(T.Val("3.13"), foo, T.Val(3.1));
+  T.CheckCall(T.Val("function (a,b) { return a + b; }3"), foo, foo);
+  T.CheckCall(T.Val("Abba3"), foo, T.Val("Abba"));
 }
 
 
@@ -134,24 +131,33 @@ TEST(ConstructorCall) {
 }
 
 
-TEST(RuntimeCall) {
+// TODO(titzer): factor these out into test-runtime-calls.cc
+TEST(RuntimeCallCPP2) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %IsJSReceiver(a); })");
+  FunctionTester T("(function(a,b) { return %NumberAdd(a, b); })");
 
-  T.CheckCall(T.false_value(), T.Val(23), T.undefined());
-  T.CheckCall(T.false_value(), T.Val(4.2), T.undefined());
-  T.CheckCall(T.false_value(), T.Val("str"), T.undefined());
-  T.CheckCall(T.false_value(), T.true_value(), T.undefined());
-  T.CheckCall(T.false_value(), T.false_value(), T.undefined());
-  T.CheckCall(T.false_value(), T.undefined(), T.undefined());
-  T.CheckCall(T.true_value(), T.NewObject("({})"), T.undefined());
-  T.CheckCall(T.true_value(), T.NewObject("([])"), T.undefined());
+  T.CheckCall(T.Val(65), T.Val(42), T.Val(23));
+  T.CheckCall(T.Val(19), T.Val(42), T.Val(-23));
+  T.CheckCall(T.Val(6.5), T.Val(4.2), T.Val(2.3));
+}
+
+
+TEST(RuntimeCallJS) {
+  FLAG_allow_natives_syntax = true;
+  FunctionTester T("(function(a) { return %$toString(a); })");
+
+  T.CheckCall(T.Val("23"), T.Val(23), T.undefined());
+  T.CheckCall(T.Val("4.2"), T.Val(4.2), T.undefined());
+  T.CheckCall(T.Val("str"), T.Val("str"), T.undefined());
+  T.CheckCall(T.Val("true"), T.true_value(), T.undefined());
+  T.CheckCall(T.Val("false"), T.false_value(), T.undefined());
+  T.CheckCall(T.Val("undefined"), T.undefined(), T.undefined());
 }
 
 
 TEST(RuntimeCallInline) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %_IsJSReceiver(a); })");
+  FunctionTester T("(function(a) { return %_IsObject(a); })");
 
   T.CheckCall(T.false_value(), T.Val(23), T.undefined());
   T.CheckCall(T.false_value(), T.Val(4.2), T.undefined());
@@ -166,8 +172,7 @@ TEST(RuntimeCallInline) {
 
 TEST(EvalCall) {
   FunctionTester T("(function(a,b) { return eval(a); })");
-  Handle<JSObject> g(T.function->context()->global_object()->global_proxy(),
-                     T.isolate);
+  Handle<JSObject> g(T.function->context()->global_object()->global_proxy());
 
   T.CheckCall(T.Val(23), T.Val("17 + 6"), T.undefined());
   T.CheckCall(T.Val("'Y'; a"), T.Val("'Y'; a"), T.Val("b-val"));
@@ -191,8 +196,7 @@ TEST(ReceiverPatching) {
   // patches an undefined receiver to the global receiver. If this starts to
   // fail once we fix the calling protocol, just remove this test.
   FunctionTester T("(function(a) { return this; })");
-  Handle<JSObject> g(T.function->context()->global_object()->global_proxy(),
-                     T.isolate);
+  Handle<JSObject> g(T.function->context()->global_object()->global_proxy());
   T.CheckCall(g, T.undefined());
 }
 
@@ -208,6 +212,46 @@ TEST(CallEval) {
   T.CheckCall(T.Val(42), T.Val("x"), T.undefined());
 }
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+
+TEST(ContextLoadedFromActivation) {
+  const char* script =
+      "var x = 42;"
+      "(function() {"
+      "  return function () { return x };"
+      "})()";
+
+  // Disable context specialization.
+  FunctionTester T(script);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope scope(context);
+  v8::Local<v8::Value> value = CompileRun(script);
+  i::Handle<i::Object> ofun = v8::Utils::OpenHandle(*value);
+  i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
+  jsfun->set_code(T.function->code());
+  jsfun->set_shared(T.function->shared());
+  context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
+  CompileRun("var x = 24;");
+  ExpectInt32("foo();", 24);
+}
+
+
+TEST(BuiltinLoadedFromActivation) {
+  const char* script =
+      "var x = 42;"
+      "(function() {"
+      "  return function () { return this; };"
+      "})()";
+
+  // Disable context specialization.
+  FunctionTester T(script);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope scope(context);
+  v8::Local<v8::Value> value = CompileRun(script);
+  i::Handle<i::Object> ofun = v8::Utils::OpenHandle(*value);
+  i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
+  jsfun->set_code(T.function->code());
+  jsfun->set_shared(T.function->shared());
+  context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
+  CompileRun("var x = 24;");
+  ExpectObject("foo()", context->Global());
+}

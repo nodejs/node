@@ -1,27 +1,24 @@
 // test the throughput of the fs.WriteStream class.
-'use strict';
 
-const path = require('path');
-const common = require('../common.js');
-const filename = path.resolve(process.env.NODE_TMPDIR || __dirname,
-                              `.removeme-benchmark-garbage-${process.pid}`);
-const fs = require('fs');
-const assert = require('assert');
+var path = require('path');
+var common = require('../common.js');
+var filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
+var fs = require('fs');
+var filesize = 1000 * 1024 * 1024;
+var assert = require('assert');
 
-let encodingType, encoding, size, filesize;
+var type, encoding, size;
 
-const bench = common.createBenchmark(main, {
-  encodingType: ['buf', 'asc', 'utf'],
-  filesize: [1000 * 1024 * 1024],
-  size: [1024, 4096, 65535, 1024 * 1024]
+var bench = common.createBenchmark(main, {
+  type: ['buf', 'asc', 'utf'],
+  size: [1024, 4096, 65535, 1024*1024]
 });
 
 function main(conf) {
-  encodingType = conf.encodingType;
-  size = conf.size;
-  filesize = conf.filesize;
+  type = conf.type;
+  size = +conf.size;
 
-  switch (encodingType) {
+  switch (type) {
     case 'buf':
       encoding = null;
       break;
@@ -32,15 +29,15 @@ function main(conf) {
       encoding = 'utf8';
       break;
     default:
-      throw new Error(`invalid encodingType: ${encodingType}`);
+      throw new Error('invalid type');
   }
 
-  makeFile();
+  makeFile(runTest);
 }
 
 function runTest() {
   assert(fs.statSync(filename).size === filesize);
-  const rs = fs.createReadStream(filename, {
+  var rs = fs.createReadStream(filename, {
     highWaterMark: size,
     encoding: encoding
   });
@@ -62,7 +59,7 @@ function runTest() {
 }
 
 function makeFile() {
-  const buf = Buffer.allocUnsafe(filesize / 1024);
+  var buf = new Buffer(filesize / 1024);
   if (encoding === 'utf8') {
     // ü
     for (var i = 0; i < buf.length; i++) {
@@ -76,7 +73,7 @@ function makeFile() {
 
   try { fs.unlinkSync(filename); } catch (e) {}
   var w = 1024;
-  const ws = fs.createWriteStream(filename);
+  var ws = fs.createWriteStream(filename);
   ws.on('close', runTest);
   ws.on('drain', write);
   write();

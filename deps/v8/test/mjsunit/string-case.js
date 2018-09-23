@@ -59,9 +59,8 @@ function test(length) {
     strLower += String.fromCharCode(charCodeToLower(c));
     strUpper += String.fromCharCode(charCodeToUpper(c));
   }
-  str = %FlattenString(str);
-  strLower = %FlattenString(strLower);
-  strUpper = %FlattenString(strUpper);
+  %FlattenString(strLower);
+  %FlattenString(strUpper);
   // Sequential string.
   assertEquals(strLower, str.toLowerCase());
   assertEquals(strUpper, str.toUpperCase());

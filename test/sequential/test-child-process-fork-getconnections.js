@@ -1,27 +1,6 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
 const assert = require('assert');
+const common = require('../common');
 const fork = require('child_process').fork;
 const net = require('net');
 const count = 12;
@@ -31,8 +10,8 @@ if (process.argv[2] === 'child') {
 
   process.on('message', function(m, socket) {
     function sendClosed(id) {
-      process.send({ id: id, status: 'closed' });
-    }
+      process.send({ id: id, status: 'closed'});
+    };
 
     if (m.cmd === 'new') {
       assert(socket);
@@ -41,7 +20,7 @@ if (process.argv[2] === 'child') {
     }
 
     if (m.cmd === 'close') {
-      assert.strictEqual(socket, undefined);
+      assert.equal(socket, undefined);
       if (sockets[m.id].destroyed) {
         // Workaround for https://github.com/nodejs/node/issues/2610
         sendClosed(m.id);
@@ -58,8 +37,8 @@ if (process.argv[2] === 'child') {
   const child = fork(process.argv[1], ['child']);
 
   child.on('exit', function(code, signal) {
-    if (!subprocessKilled)
-      throw new Error('subprocess died unexpectedly!');
+    if (!childKilled)
+      throw new Error('child died unexpectedly!');
   });
 
   const server = net.createServer();
@@ -77,33 +56,33 @@ if (process.argv[2] === 'child') {
 
   let disconnected = 0;
   server.on('listening', function() {
-    let j = count;
+    let j = count, client;
     while (j--) {
-      const client = net.connect(common.PORT, '127.0.0.1');
+      client = net.connect(common.PORT, '127.0.0.1');
       client.on('close', function() {
         disconnected += 1;
       });
     }
   });
 
-  let subprocessKilled = false;
+  let childKilled = false;
   function closeSockets(i) {
     if (i === count) {
-      subprocessKilled = true;
+      childKilled = true;
       server.close();
       child.kill();
       return;
     }
 
     child.once('message', function(m) {
-      assert.strictEqual(m.status, 'closed');
+      assert(m.status === 'closed');
       server.getConnections(function(err, num) {
         closeSockets(i + 1);
       });
     });
     sent++;
     child.send({ id: i, cmd: 'close' });
-  }
+  };
 
   let closeEmitted = false;
   server.on('close', function() {
@@ -113,8 +92,8 @@ if (process.argv[2] === 'child') {
   server.listen(common.PORT, '127.0.0.1');
 
   process.on('exit', function() {
-    assert.strictEqual(sent, count);
-    assert.strictEqual(disconnected, count);
+    assert.equal(sent, count);
+    assert.equal(disconnected, count);
     assert.ok(closeEmitted);
     console.log('ok');
   });

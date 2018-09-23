@@ -1,0 +1,27 @@
+#!./perl
+
+BEGIN { push(@INC, qw(../../../lib ../../lib ../lib lib)); }
+
+use DES;
+
+$key='00000000';
+$ks=DES::set_key($key);
+@a=split(//,$ks);
+foreach (@a) { printf "%02x-",ord($_); }
+print "\n";
+
+
+$key=DES::random_key();
+print "($_)\n";
+@a=split(//,$key);
+foreach (@a) { printf "%02x-",ord($_); }
+print "\n";
+$str="this is and again into the breach";
+($k1,$k2)=DES::string_to_2keys($str);
+@a=split(//,$k1);
+foreach (@a) { printf "%02x-",ord($_); }
+print "\n";
+@a=split(//,$k2);
+foreach (@a) { printf "%02x-",ord($_); }
+print "\n";
+

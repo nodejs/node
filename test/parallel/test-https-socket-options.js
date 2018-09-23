@@ -1,53 +1,37 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
+var common = require('../common');
+var assert = require('assert');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var https = require('https');
 
-const fixtures = require('../common/fixtures');
-const https = require('https');
-const http = require('http');
+var fs = require('fs');
+var exec = require('child_process').exec;
 
-const options = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+var http = require('http');
+
+var options = {
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-const body = 'hello world\n';
+var body = 'hello world\n';
 
 // Try first with http server
 
-const server_http = http.createServer(function(req, res) {
+var server_http = http.createServer(function(req, res) {
   console.log('got HTTP request');
   res.writeHead(200, { 'content-type': 'text/plain' });
   res.end(body);
 });
 
 
-server_http.listen(0, function() {
-  const req = http.request({
-    port: this.address().port,
+server_http.listen(common.PORT, function() {
+  var req = http.request({
+    port: common.PORT,
     rejectUnauthorized: false
   }, function(res) {
     server_http.close();
@@ -55,23 +39,23 @@ server_http.listen(0, function() {
   });
   // These methods should exist on the request and get passed down to the socket
   req.setNoDelay(true);
-  req.setTimeout(1000, () => {});
+  req.setTimeout(1000, function() { });
   req.setSocketKeepAlive(true, 1000);
   req.end();
 });
 
 // Then try https server (requires functions to be
-// mirrored in tls.js's CryptoStream)
+// mirroed in tls.js's CryptoStream)
 
-const server_https = https.createServer(options, function(req, res) {
+var server_https = https.createServer(options, function(req, res) {
   console.log('got HTTPS request');
   res.writeHead(200, { 'content-type': 'text/plain' });
   res.end(body);
 });
 
-server_https.listen(0, function() {
-  const req = https.request({
-    port: this.address().port,
+server_https.listen(common.PORT + 1, function() {
+  var req = https.request({
+    port: common.PORT + 1,
     rejectUnauthorized: false
   }, function(res) {
     server_https.close();
@@ -79,7 +63,7 @@ server_https.listen(0, function() {
   });
   // These methods should exist on the request and get passed down to the socket
   req.setNoDelay(true);
-  req.setTimeout(1000, () => {});
+  req.setTimeout(1000, function() { });
   req.setSocketKeepAlive(true, 1000);
   req.end();
 });

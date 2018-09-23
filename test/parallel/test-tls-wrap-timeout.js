@@ -1,55 +1,42 @@
-// Flags: --expose_internals
-
 'use strict';
-const common = require('../common');
-const { kTimeout, TIMEOUT_MAX } = require('internal/timers');
+var common = require('../common');
+var assert = require('assert');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var tls = require('tls');
 
-const assert = require('assert');
-const tls = require('tls');
-const net = require('net');
-const fixtures = require('../common/fixtures');
+var net = require('net');
+var fs = require('fs');
 
-const options = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+var options = {
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-const server = tls.createServer(options, common.mustCall((c) => {
-  setImmediate(() => {
-    c.write('hello', () => {
-      setImmediate(() => {
-        c.destroy();
-        server.close();
-      });
-    });
-  });
-}));
+var server = tls.createServer(options, function(c) {
+  setTimeout(function() {
+    c.write('hello');
+    setTimeout(function() {
+      c.destroy();
+      server.close();
+    }, 150);
+  }, 150);
+});
 
-let socket;
-let lastIdleStart;
-
-server.listen(0, () => {
-  socket = net.connect(server.address().port, function() {
-    const s = socket.setTimeout(TIMEOUT_MAX, function() {
+server.listen(common.PORT, function() {
+  var socket = net.connect(common.PORT, function() {
+    var s = socket.setTimeout(common.platformTimeout(240), function() {
       throw new Error('timeout');
     });
     assert.ok(s instanceof net.Socket);
 
-    assert.notStrictEqual(socket[kTimeout]._idleTimeout, -1);
-    lastIdleStart = socket[kTimeout]._idleStart;
-
-    const tsocket = tls.connect({
+    var tsocket = tls.connect({
       socket: socket,
       rejectUnauthorized: false
     });
     tsocket.resume();
   });
-});
-
-process.on('exit', () => {
-  assert.strictEqual(socket[kTimeout]._idleTimeout, -1);
-  assert(lastIdleStart < socket[kTimeout]._idleStart);
 });

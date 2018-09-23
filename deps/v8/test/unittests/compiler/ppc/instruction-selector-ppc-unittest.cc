@@ -4,8 +4,6 @@
 
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
-#include "src/assembler-inl.h"
-
 namespace v8 {
 namespace internal {
 namespace compiler {}  // namespace compiler

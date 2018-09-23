@@ -187,7 +187,4 @@ typedef struct _IP_ADAPTER_UNICAST_ADDRESS_LH {
 
 #endif
 
-int uv__convert_to_localhost_if_unspecified(const struct sockaddr* addr,
-                                            struct sockaddr_storage* storage);
-
 #endif /* UV_WIN_WINSOCK_H_ */

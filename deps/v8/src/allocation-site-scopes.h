@@ -5,12 +5,14 @@
 #ifndef V8_ALLOCATION_SITE_SCOPES_H_
 #define V8_ALLOCATION_SITE_SCOPES_H_
 
+#include "src/ast.h"
 #include "src/handles.h"
 #include "src/objects.h"
-#include "src/objects/map.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
+
 
 // AllocationSiteContext is the base class for walking and copying a nested
 // boilerplate with AllocationSite and AllocationMemento support.
@@ -34,15 +36,25 @@ class AllocationSiteContext {
 
   void InitializeTraversal(Handle<AllocationSite> site) {
     top_ = site;
-    // {current_} is updated in place to not create unnecessary Handles, hence
-    // we initially need a separate handle.
-    current_ = Handle<AllocationSite>::New(*top_, isolate());
+    current_ = Handle<AllocationSite>(*top_, isolate());
   }
 
  private:
   Isolate* isolate_;
   Handle<AllocationSite> top_;
   Handle<AllocationSite> current_;
+};
+
+
+// AllocationSiteCreationContext aids in the creation of AllocationSites to
+// accompany object literals.
+class AllocationSiteCreationContext : public AllocationSiteContext {
+ public:
+  explicit AllocationSiteCreationContext(Isolate* isolate)
+      : AllocationSiteContext(isolate) { }
+
+  Handle<AllocationSite> EnterNewScope();
+  void ExitScope(Handle<AllocationSite> site, Handle<JSObject> object);
 };
 
 
@@ -72,26 +84,10 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
                         Handle<JSObject> object) {
     // This assert ensures that we are pointing at the right sub-object in a
     // recursive walk of a nested literal.
-    DCHECK(object.is_null() || *object == scope_site->boilerplate());
+    DCHECK(object.is_null() || *object == scope_site->transition_info());
   }
 
-  bool ShouldCreateMemento(Handle<JSObject> object) {
-    if (activated_ &&
-        AllocationSite::CanTrack(object->map()->instance_type())) {
-      if (FLAG_allocation_site_pretenuring ||
-          AllocationSite::ShouldTrack(object->GetElementsKind())) {
-        if (FLAG_trace_creation_allocation_sites) {
-          PrintF("*** Creating Memento for %s %p\n",
-                 object->IsJSArray() ? "JSArray" : "JSObject",
-                 static_cast<void*>(*object));
-        }
-        return true;
-      }
-    }
-    return false;
-  }
-
-  static const bool kCopying = true;
+  bool ShouldCreateMemento(Handle<JSObject> object);
 
  private:
   Handle<AllocationSite> top_site_;
@@ -99,7 +95,6 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
 };
 
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_ALLOCATION_SITE_SCOPES_H_

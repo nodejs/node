@@ -50,5 +50,5 @@ modules.  To track those down, you can do the following:
 ## SEE ALSO
 
 * README
-* npm-uninstall(1)
+* npm-rm(1)
 * npm-prune(1)

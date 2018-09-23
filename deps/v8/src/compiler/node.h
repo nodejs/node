@@ -7,9 +7,8 @@
 
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/types.h"
-#include "src/globals.h"
-#include "src/zone/zone-containers.h"
+#include "src/types.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -40,19 +39,20 @@ typedef uint32_t NodeId;
 // compilation, e.g. during lowering passes. Other information that needs to be
 // associated with Nodes during compilation must be stored out-of-line indexed
 // by the Node's id.
-class V8_EXPORT_PRIVATE Node final {
+class Node final {
  public:
   static Node* New(Zone* zone, NodeId id, const Operator* op, int input_count,
                    Node* const* inputs, bool has_extensible_inputs);
   static Node* Clone(Zone* zone, NodeId id, const Node* node);
 
-  inline bool IsDead() const;
+  bool IsDead() const { return InputCount() > 0 && !InputAt(0); }
   void Kill();
 
   const Operator* op() const { return op_; }
+  void set_op(const Operator* op) { op_ = op; }
 
   IrOpcode::Value opcode() const {
-    DCHECK_GE(IrOpcode::kLast, op_->opcode());
+    DCHECK(op_->opcode() <= IrOpcode::kLast);
     return static_cast<IrOpcode::Value>(op_->opcode());
   }
 
@@ -63,14 +63,14 @@ class V8_EXPORT_PRIVATE Node final {
                                : inputs_.outline_->count_;
   }
 
-#ifdef DEBUG
+#if DEBUG
   void Verify();
-#define BOUNDS_CHECK(index)                                                   \
-  do {                                                                        \
-    if (index < 0 || index >= InputCount()) {                                 \
-      FATAL("Node #%d:%s->InputAt(%d) out of bounds", id(), op()->mnemonic(), \
-            index);                                                           \
-    }                                                                         \
+#define BOUNDS_CHECK(index)                                                  \
+  do {                                                                       \
+    if (index < 0 || index >= InputCount()) {                                \
+      V8_Fatal(__FILE__, __LINE__, "Node #%d:%s->InputAt(%d) out of bounds", \
+               id(), op()->mnemonic(), index);                               \
+    }                                                                        \
   } while (false)
 #else
   // No bounds checks or verification in release mode.
@@ -101,7 +101,6 @@ class V8_EXPORT_PRIVATE Node final {
 
   void AppendInput(Zone* zone, Node* new_to);
   void InsertInput(Zone* zone, int index, Node* new_to);
-  void InsertInputs(Zone* zone, int index, int count);
   void RemoveInput(int index);
   void NullAllInputs();
   void TrimInputCount(int new_input_count);
@@ -109,11 +108,41 @@ class V8_EXPORT_PRIVATE Node final {
   int UseCount() const;
   void ReplaceUses(Node* replace_to);
 
-  class InputEdges;
-  inline InputEdges input_edges();
+  class InputEdges final {
+   public:
+    typedef Edge value_type;
 
-  class Inputs;
-  inline Inputs inputs() const;
+    class iterator;
+    inline iterator begin() const;
+    inline iterator end() const;
+
+    bool empty() const;
+
+    explicit InputEdges(Node* node) : node_(node) {}
+
+   private:
+    Node* node_;
+  };
+
+  InputEdges input_edges() { return InputEdges(this); }
+
+  class Inputs final {
+   public:
+    typedef Node* value_type;
+
+    class const_iterator;
+    inline const_iterator begin() const;
+    inline const_iterator end() const;
+
+    bool empty() const;
+
+    explicit Inputs(Node* node) : node_(node) {}
+
+   private:
+    Node* node_;
+  };
+
+  Inputs inputs() { return Inputs(this); }
 
   class UseEdges final {
    public:
@@ -133,7 +162,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   UseEdges use_edges() { return UseEdges(this); }
 
-  class V8_EXPORT_PRIVATE Uses final {
+  class Uses final {
    public:
     typedef Node* value_type;
 
@@ -158,8 +187,6 @@ class V8_EXPORT_PRIVATE Node final {
 
   // Returns true if {owner1} and {owner2} are the only users of {this} node.
   bool OwnedBy(Node const* owner1, Node const* owner2) const;
-
-  void Print() const;
 
  private:
   struct Use;
@@ -257,15 +284,12 @@ class V8_EXPORT_PRIVATE Node final {
 
   void* operator new(size_t, void* location) { return location; }
 
-  // Only NodeProperties should manipulate the op.
-  void set_op(const Operator* op) { op_ = op; }
-
-  // Only NodeProperties should manipulate the type.
-  Type type() const { return type_; }
-  void set_type(Type type) { type_ = type; }
+  // Only NodeProperties should manipulate the bounds.
+  Bounds bounds() const { return bounds_; }
+  void set_bounds(Bounds b) { bounds_ = b; }
 
   // Only NodeMarkers should manipulate the marks on nodes.
-  Mark mark() const { return mark_; }
+  Mark mark() { return mark_; }
   void set_mark(Mark mark) { mark_ = mark; }
 
   inline bool has_inline_inputs() const {
@@ -282,7 +306,7 @@ class V8_EXPORT_PRIVATE Node final {
   static const int kMaxInlineCapacity = InlineCapacityField::kMax - 1;
 
   const Operator* op_;
-  Type type_;
+  Bounds bounds_;
   Mark mark_;
   uint32_t bit_field_;
   Use* first_use_;
@@ -310,48 +334,12 @@ typedef ZoneVector<Node*> NodeVector;
 typedef ZoneVector<NodeVector> NodeVectorVector;
 
 
-class Node::InputEdges final {
- public:
-  typedef Edge value_type;
+// Helper to extract parameters from Operator1<*> nodes.
+template <typename T>
+static inline const T& OpParameter(const Node* node) {
+  return OpParameter<T>(node->op());
+}
 
-  class iterator;
-  inline iterator begin() const;
-  inline iterator end() const;
-
-  bool empty() const { return count_ == 0; }
-  int count() const { return count_; }
-
-  inline value_type operator[](int index) const;
-
-  InputEdges(Node** input_root, Use* use_root, int count)
-      : input_root_(input_root), use_root_(use_root), count_(count) {}
-
- private:
-  Node** input_root_;
-  Use* use_root_;
-  int count_;
-};
-
-class V8_EXPORT_PRIVATE Node::Inputs final {
- public:
-  typedef Node* value_type;
-
-  class const_iterator;
-  inline const_iterator begin() const;
-  inline const_iterator end() const;
-
-  bool empty() const { return count_ == 0; }
-  int count() const { return count_; }
-
-  inline value_type operator[](int index) const;
-
-  explicit Inputs(Node* const* input_root, int count)
-      : input_root_(input_root), count_(count) {}
-
- private:
-  Node* const* input_root_;
-  int count_;
-};
 
 // An encapsulation for information associated with a single use of node as a
 // input from another node, allowing access to both the defining node and
@@ -380,7 +368,6 @@ class Edge final {
 
  private:
   friend class Node::UseEdges::iterator;
-  friend class Node::InputEdges;
   friend class Node::InputEdges::iterator;
 
   Edge(Node::Use* use, Node** input_ptr) : use_(use), input_ptr_(input_ptr) {
@@ -393,37 +380,12 @@ class Edge final {
   Node** input_ptr_;
 };
 
-bool Node::IsDead() const {
-  Node::Inputs inputs = this->inputs();
-  return inputs.count() > 0 && inputs[0] == nullptr;
-}
-
-Node::InputEdges Node::input_edges() {
-  int inline_count = InlineCountField::decode(bit_field_);
-  if (inline_count != kOutlineMarker) {
-    return InputEdges(inputs_.inline_, reinterpret_cast<Use*>(this) - 1,
-                      inline_count);
-  } else {
-    return InputEdges(inputs_.outline_->inputs_,
-                      reinterpret_cast<Use*>(inputs_.outline_) - 1,
-                      inputs_.outline_->count_);
-  }
-}
-
-Node::Inputs Node::inputs() const {
-  int inline_count = InlineCountField::decode(bit_field_);
-  if (inline_count != kOutlineMarker) {
-    return Inputs(inputs_.inline_, inline_count);
-  } else {
-    return Inputs(inputs_.outline_->inputs_, inputs_.outline_->count_);
-  }
-}
 
 // A forward iterator to visit the edges for the input dependencies of a node.
 class Node::InputEdges::iterator final {
  public:
   typedef std::forward_iterator_tag iterator_category;
-  typedef std::ptrdiff_t difference_type;
+  typedef int difference_type;
   typedef Edge value_type;
   typedef Edge* pointer;
   typedef Edge& reference;
@@ -443,23 +405,12 @@ class Node::InputEdges::iterator final {
     return *this;
   }
   iterator operator++(int);
-  iterator& operator+=(difference_type offset) {
-    input_ptr_ += offset;
-    use_ -= offset;
-    return *this;
-  }
-  iterator operator+(difference_type offset) const {
-    return iterator(use_ - offset, input_ptr_ + offset);
-  }
-  difference_type operator-(const iterator& other) const {
-    return input_ptr_ - other.input_ptr_;
-  }
 
  private:
   friend class Node;
 
-  explicit iterator(Use* use, Node** input_ptr)
-      : use_(use), input_ptr_(input_ptr) {}
+  explicit iterator(Node* from, int index = 0)
+      : use_(from->GetUsePtr(index)), input_ptr_(from->GetInputPtr(index)) {}
 
   Use* use_;
   Node** input_ptr_;
@@ -467,71 +418,57 @@ class Node::InputEdges::iterator final {
 
 
 Node::InputEdges::iterator Node::InputEdges::begin() const {
-  return Node::InputEdges::iterator(use_root_, input_root_);
+  return Node::InputEdges::iterator(this->node_, 0);
 }
 
 
 Node::InputEdges::iterator Node::InputEdges::end() const {
-  return Node::InputEdges::iterator(use_root_ - count_, input_root_ + count_);
+  return Node::InputEdges::iterator(this->node_, this->node_->InputCount());
 }
 
-Edge Node::InputEdges::operator[](int index) const {
-  return Edge(use_root_ + index, input_root_ + index);
-}
 
 // A forward iterator to visit the inputs of a node.
 class Node::Inputs::const_iterator final {
  public:
   typedef std::forward_iterator_tag iterator_category;
-  typedef std::ptrdiff_t difference_type;
+  typedef int difference_type;
   typedef Node* value_type;
-  typedef const value_type* pointer;
-  typedef value_type& reference;
+  typedef Node** pointer;
+  typedef Node*& reference;
 
-  const_iterator(const const_iterator& other) : input_ptr_(other.input_ptr_) {}
+  const_iterator(const const_iterator& other) : iter_(other.iter_) {}
 
-  Node* operator*() const { return *input_ptr_; }
+  Node* operator*() const { return (*iter_).to(); }
   bool operator==(const const_iterator& other) const {
-    return input_ptr_ == other.input_ptr_;
+    return iter_ == other.iter_;
   }
   bool operator!=(const const_iterator& other) const {
     return !(*this == other);
   }
   const_iterator& operator++() {
-    ++input_ptr_;
+    ++iter_;
     return *this;
   }
   const_iterator operator++(int);
-  const_iterator& operator+=(difference_type offset) {
-    input_ptr_ += offset;
-    return *this;
-  }
-  const_iterator operator+(difference_type offset) const {
-    return const_iterator(input_ptr_ + offset);
-  }
-  difference_type operator-(const const_iterator& other) const {
-    return input_ptr_ - other.input_ptr_;
-  }
 
  private:
   friend class Node::Inputs;
 
-  explicit const_iterator(Node* const* input_ptr) : input_ptr_(input_ptr) {}
+  const_iterator(Node* node, int index) : iter_(node, index) {}
 
-  Node* const* input_ptr_;
+  Node::InputEdges::iterator iter_;
 };
 
 
 Node::Inputs::const_iterator Node::Inputs::begin() const {
-  return const_iterator(input_root_);
+  return const_iterator(this->node_, 0);
 }
 
 
 Node::Inputs::const_iterator Node::Inputs::end() const {
-  return const_iterator(input_root_ + count_);
+  return const_iterator(this->node_, this->node_->InputCount());
 }
 
-Node* Node::Inputs::operator[](int index) const { return input_root_[index]; }
 
 // A forward iterator to visit the uses edges of a node.
 class Node::UseEdges::iterator final {
@@ -584,14 +521,7 @@ class Node::Uses::const_iterator final {
   typedef Node** pointer;
   typedef Node*& reference;
 
-  const_iterator(const const_iterator& other)
-      : current_(other.current_)
-#ifdef DEBUG
-        ,
-        next_(other.next_)
-#endif
-  {
-  }
+  const_iterator(const const_iterator& other) : current_(other.current_) {}
 
   Node* operator*() const { return current_->from(); }
   bool operator==(const const_iterator& other) const {
@@ -602,13 +532,7 @@ class Node::Uses::const_iterator final {
   }
   const_iterator& operator++() {
     DCHECK_NOT_NULL(current_);
-    // Checking no use gets mutated while iterating through them, a potential
-    // very tricky cause of bug.
     current_ = current_->next;
-#ifdef DEBUG
-    DCHECK_EQ(current_, next_);
-    next_ = current_ ? current_->next : nullptr;
-#endif
     return *this;
   }
   const_iterator operator++(int);
@@ -617,19 +541,9 @@ class Node::Uses::const_iterator final {
   friend class Node::Uses;
 
   const_iterator() : current_(nullptr) {}
-  explicit const_iterator(Node* node)
-      : current_(node->first_use_)
-#ifdef DEBUG
-        ,
-        next_(current_ ? current_->next : nullptr)
-#endif
-  {
-  }
+  explicit const_iterator(Node* node) : current_(node->first_use_) {}
 
   Node::Use* current_;
-#ifdef DEBUG
-  Node::Use* next_;
-#endif
 };
 
 

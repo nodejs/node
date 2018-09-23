@@ -1,12 +1,10 @@
 'use strict'
-/* eslint-disable standard/no-callback-literal */
 
 var resolve = require('path').resolve
 
 var readPackageJson = require('read-package-json')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var npm = require('./npm.js')
-var output = require('./utils/output.js')
 
 var whoami = require('./whoami')
 
@@ -22,7 +20,7 @@ access.usage =
   'npm access edit [<package>]'
 
 access.subcommands = ['public', 'restricted', 'grant', 'revoke',
-  'ls-packages', 'ls-collaborators', 'edit']
+                      'ls-packages', 'ls-collaborators', 'edit']
 
 access.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -37,6 +35,7 @@ access.completion = function (opts, cb) {
       } else {
         return cb(null, [])
       }
+      break
     case 'public':
     case 'restricted':
     case 'ls-packages':
@@ -64,9 +63,7 @@ function access (args, cb) {
     params.auth = auth
     try {
       return npm.registry.access(cmd, uri, params, function (err, data) {
-        if (!err && data) {
-          output(JSON.stringify(data, undefined, 2))
-        }
+        !err && data && console.log(JSON.stringify(data, undefined, 2))
         cb(err, data)
       })
     } catch (e) {
@@ -76,9 +73,7 @@ function access (args, cb) {
 }
 
 function parseParams (cmd, args, cb) {
-  // mapToRegistry will complain if package is undefined,
-  // but it's not needed for ls-packages
-  var params = { 'package': '' }
+  var params = {}
   if (cmd === 'grant') {
     params.permissions = args.shift()
   }
@@ -87,25 +82,22 @@ function parseParams (cmd, args, cb) {
     params.scope = entity[0]
     params.team = entity[1]
   }
+  getPackage(args.shift(), function (err, pkg) {
+    if (err) { return cb(err) }
+    params.package = pkg
 
-  if (cmd === 'ls-packages') {
-    if (!params.scope) {
+    if (!params.scope && cmd === 'ls-packages') {
       whoami([], true, function (err, scope) {
         params.scope = scope
         cb(err, params)
       })
     } else {
+      if (cmd === 'ls-collaborators') {
+        params.user = args.shift()
+      }
       cb(null, params)
     }
-  } else {
-    getPackage(args.shift(), function (err, pkg) {
-      if (err) return cb(err)
-      params.package = pkg
-
-      if (cmd === 'ls-collaborators') params.user = args.shift()
-      cb(null, params)
-    })
-  }
+  })
 }
 
 function getPackage (name, cb) {
@@ -114,17 +106,6 @@ function getPackage (name, cb) {
   } else {
     readPackageJson(
       resolve(npm.prefix, 'package.json'),
-      function (err, data) {
-        if (err) {
-          if (err.code === 'ENOENT') {
-            cb(new Error('no package name passed to command and no package.json found'))
-          } else {
-            cb(err)
-          }
-        } else {
-          cb(null, data.name)
-        }
-      }
-    )
+      function (err, data) { cb(err, data.name) })
   }
 }

@@ -1,54 +1,99 @@
+/* p12_decr.c */
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
+ * 1999.
+ */
+/* ====================================================================
+ * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    licensing@OpenSSL.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
  */
 
 #include <stdio.h>
-#include "internal/cryptlib.h"
+#include "cryptlib.h"
 #include <openssl/pkcs12.h>
 
 /* Define this to dump decrypted output to files called DERnnn */
 /*
- * #define OPENSSL_DEBUG_DECRYPT
+ * #define DEBUG_DECRYPT
  */
 
 /*
  * Encrypt/Decrypt a buffer based on password and algor, result in a
  * OPENSSL_malloc'ed buffer
  */
-unsigned char *PKCS12_pbe_crypt(const X509_ALGOR *algor,
-                                const char *pass, int passlen,
-                                const unsigned char *in, int inlen,
+
+unsigned char *PKCS12_pbe_crypt(X509_ALGOR *algor, const char *pass,
+                                int passlen, unsigned char *in, int inlen,
                                 unsigned char **data, int *datalen, int en_de)
 {
-    unsigned char *out = NULL;
+    unsigned char *out;
     int outlen, i;
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX ctx;
 
-    if (ctx == NULL) {
-        PKCS12err(PKCS12_F_PKCS12_PBE_CRYPT, ERR_R_MALLOC_FAILURE);
-        goto err;
-    }
-
+    EVP_CIPHER_CTX_init(&ctx);
     /* Decrypt data */
     if (!EVP_PBE_CipherInit(algor->algorithm, pass, passlen,
-                            algor->parameter, ctx, en_de)) {
+                            algor->parameter, &ctx, en_de)) {
         PKCS12err(PKCS12_F_PKCS12_PBE_CRYPT,
                   PKCS12_R_PKCS12_ALGOR_CIPHERINIT_ERROR);
-        goto err;
+        return NULL;
     }
 
-    if ((out = OPENSSL_malloc(inlen + EVP_CIPHER_CTX_block_size(ctx)))
-            == NULL) {
+    if (!(out = OPENSSL_malloc(inlen + EVP_CIPHER_CTX_block_size(&ctx)))) {
         PKCS12err(PKCS12_F_PKCS12_PBE_CRYPT, ERR_R_MALLOC_FAILURE);
         goto err;
     }
 
-    if (!EVP_CipherUpdate(ctx, out, &i, in, inlen)) {
+    if (!EVP_CipherUpdate(&ctx, out, &i, in, inlen)) {
         OPENSSL_free(out);
         out = NULL;
         PKCS12err(PKCS12_F_PKCS12_PBE_CRYPT, ERR_R_EVP_LIB);
@@ -56,7 +101,7 @@ unsigned char *PKCS12_pbe_crypt(const X509_ALGOR *algor,
     }
 
     outlen = i;
-    if (!EVP_CipherFinal_ex(ctx, out + i, &i)) {
+    if (!EVP_CipherFinal_ex(&ctx, out + i, &i)) {
         OPENSSL_free(out);
         out = NULL;
         PKCS12err(PKCS12_F_PKCS12_PBE_CRYPT,
@@ -69,7 +114,7 @@ unsigned char *PKCS12_pbe_crypt(const X509_ALGOR *algor,
     if (data)
         *data = out;
  err:
-    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_CTX_cleanup(&ctx);
     return out;
 
 }
@@ -79,9 +124,9 @@ unsigned char *PKCS12_pbe_crypt(const X509_ALGOR *algor,
  * after use.
  */
 
-void *PKCS12_item_decrypt_d2i(const X509_ALGOR *algor, const ASN1_ITEM *it,
+void *PKCS12_item_decrypt_d2i(X509_ALGOR *algor, const ASN1_ITEM *it,
                               const char *pass, int passlen,
-                              const ASN1_OCTET_STRING *oct, int zbuf)
+                              ASN1_OCTET_STRING *oct, int zbuf)
 {
     unsigned char *out;
     const unsigned char *p;
@@ -95,7 +140,7 @@ void *PKCS12_item_decrypt_d2i(const X509_ALGOR *algor, const ASN1_ITEM *it,
         return NULL;
     }
     p = out;
-#ifdef OPENSSL_DEBUG_DECRYPT
+#ifdef DEBUG_DECRYPT
     {
         FILE *op;
 
@@ -129,8 +174,7 @@ ASN1_OCTET_STRING *PKCS12_item_i2d_encrypt(X509_ALGOR *algor,
     ASN1_OCTET_STRING *oct = NULL;
     unsigned char *in = NULL;
     int inlen;
-
-    if ((oct = ASN1_OCTET_STRING_new()) == NULL) {
+    if (!(oct = M_ASN1_OCTET_STRING_new())) {
         PKCS12err(PKCS12_F_PKCS12_ITEM_I2D_ENCRYPT, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -150,6 +194,9 @@ ASN1_OCTET_STRING *PKCS12_item_i2d_encrypt(X509_ALGOR *algor,
     OPENSSL_free(in);
     return oct;
  err:
-    ASN1_OCTET_STRING_free(oct);
+    if (oct)
+        ASN1_OCTET_STRING_free(oct);
     return NULL;
 }
+
+IMPLEMENT_PKCS12_STACK_OF(PKCS7)

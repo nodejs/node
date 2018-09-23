@@ -20,7 +20,7 @@ var pjParent = JSON.stringify({
   name: 'parent',
   version: '1.2.3',
   dependencies: {
-    'child': 'git://localhost:1234/child.git#master'
+    'child': 'git://localhost:1235/child.git#master'
   }
 }, null, 2) + '\n'
 
@@ -45,9 +45,8 @@ test('setup', function (t) {
 
 test('install from repo', function (t) {
   process.chdir(pkg)
-  common.npm(['install'], {cwd: pkg, stdio: [0, 1, 2]}, function (er, code) {
-    if (er) throw er
-    t.is(code, 0, 'npm installed via git')
+  npm.commands.install('.', [], function (er) {
+    t.ifError(er, 'npm installed via git')
 
     t.end()
   })
@@ -57,14 +56,22 @@ test('shrinkwrap gets correct _from and _resolved (#7121)', function (t) {
   common.npm(
     [
       'shrinkwrap',
-      '--loglevel', 'error'
+      '--loglevel', 'silent'
     ],
-    { cwd: pkg, stdio: [0, 'pipe', 2] },
-    function (er, code, stdout) {
-      if (er) throw er
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm shrinkwrapped without errors')
       t.is(code, 0, '`npm shrinkwrap` exited ok')
+      t.equal(stdout.trim(), 'wrote npm-shrinkwrap.json')
+      t.equal(stderr.trim(), '', 'no error output on successful shrinkwrap')
 
       var shrinkwrap = require(resolve(pkg, 'npm-shrinkwrap.json'))
+      t.equal(
+        shrinkwrap.dependencies.child.from,
+        'git://localhost:1235/child.git#master',
+        'npm shrinkwrapped from correctly'
+      )
+
       git.whichAndExec(
         ['rev-list', '-n1', 'master'],
         { cwd: repo, env: process.env },
@@ -73,7 +80,9 @@ test('shrinkwrap gets correct _from and _resolved (#7121)', function (t) {
           t.notOk(stderr, 'no error output')
           var treeish = stdout.trim()
 
-          t.like(shrinkwrap, {dependencies: {child: {version: 'git://localhost:1234/child.git#' + treeish}}},
+          t.equal(
+            shrinkwrap.dependencies.child.resolved,
+            'git://localhost:1235/child.git#' + treeish,
             'npm shrinkwrapped resolved correctly'
           )
 
@@ -93,7 +102,6 @@ test('clean', function (t) {
 })
 
 function bootstrap () {
-  cleanup()
   mkdirp.sync(pkg)
   fs.writeFileSync(resolve(pkg, 'package.json'), pjParent)
 }
@@ -113,8 +121,7 @@ function setup (cb) {
           '--listen=localhost',
           '--export-all',
           '--base-path=.',
-          '--reuseaddr',
-          '--port=1234'
+          '--port=1235'
         ],
         {
           cwd: pkg,

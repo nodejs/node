@@ -1,0 +1,14 @@
+This Eric Young's blowfish implementation, taken from his SSLeay library
+and made available as a separate library.
+ 
+The version number (0.7.2m) is the SSLeay version that this library was
+taken from.
+ 
+To build, just unpack and type make.
+If you are not using gcc, edit the Makefile.
+If you are compiling for an x86 box, try the assembler (it needs improving).
+There are also some compile time options that can improve performance,
+these are documented in the Makefile.
+ 
+eric 15-Apr-1997
+ 

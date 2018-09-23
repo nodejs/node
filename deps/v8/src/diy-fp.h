@@ -55,7 +55,7 @@ class DiyFp {
   }
 
   void Normalize() {
-    DCHECK_NE(f_, 0);
+    DCHECK(f_ != 0);
     uint64_t f = f_;
     int e = e_;
 
@@ -93,7 +93,6 @@ class DiyFp {
   int e_;
 };
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_DIY_FP_H_

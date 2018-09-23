@@ -1,42 +1,25 @@
-'use strict';
-const common = require('../common.js');
 
-const types = [
-  'UInt8',
-  'UInt16LE',
-  'UInt16BE',
-  'UInt32LE',
-  'UInt32BE',
-  'UIntLE',
-  'UIntBE',
-  'Int8',
-  'Int16LE',
-  'Int16BE',
-  'Int32LE',
-  'Int32BE',
-  'IntLE',
-  'IntBE',
-  'FloatLE',
-  'FloatBE',
-  'DoubleLE',
-  'DoubleBE'
-];
-
-const bench = common.createBenchmark(main, {
+var common = require('../common.js');
+var bench = common.createBenchmark(main, {
+  noAssert: [false, true],
   buffer: ['fast', 'slow'],
-  type: types,
-  n: [1e6]
+  type: ['UInt8', 'UInt16LE', 'UInt16BE',
+         'UInt32LE', 'UInt32BE',
+         'Int8', 'Int16LE', 'Int16BE',
+         'Int32LE', 'Int32BE',
+         'FloatLE', 'FloatBE',
+         'DoubleLE', 'DoubleBE'],
+  millions: [1]
 });
 
-const INT8 = 0x7f;
-const INT16 = 0x7fff;
-const INT32 = 0x7fffffff;
-const INT48 = 0x7fffffffffff;
-const UINT8 = 0xff;
-const UINT16 = 0xffff;
-const UINT32 = 0xffffffff;
+const INT8   = 0x7f;
+const INT16  = 0x7fff;
+const INT32  = 0x7fffffff;
+const UINT8  = (INT8 * 2) + 1;
+const UINT16 = (INT16 * 2) + 1;
+const UINT32 = INT32;
 
-const mod = {
+var mod = {
   writeInt8: INT8,
   writeInt16BE: INT16,
   writeInt16LE: INT16,
@@ -46,56 +29,41 @@ const mod = {
   writeUInt16BE: UINT16,
   writeUInt16LE: UINT16,
   writeUInt32BE: UINT32,
-  writeUInt32LE: UINT32,
-  writeUIntLE: INT8,
-  writeUIntBE: INT16,
-  writeIntLE: INT32,
-  writeIntBE: INT48
+  writeUInt32LE: UINT32
 };
 
-const byteLength = {
-  writeUIntLE: 1,
-  writeUIntBE: 2,
-  writeIntLE: 4,
-  writeIntBE: 6
-};
+function main(conf) {
+  var noAssert = conf.noAssert === 'true';
+  var len = +conf.millions * 1e6;
+  var clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
+  var buff = new clazz(8);
+  var fn = 'write' + conf.type;
 
-function main({ n, buf, type }) {
-  const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
-  const buff = new clazz(8);
-  const fn = `write${type || 'UInt8'}`;
-
-  if (!/\d/.test(fn))
-    benchSpecialInt(buff, fn, n);
-  else if (/Int/.test(fn))
-    benchInt(buff, fn, n);
+  if (fn.match(/Int/))
+    benchInt(buff, fn, len, noAssert);
   else
-    benchFloat(buff, fn, n);
+    benchFloat(buff, fn, len, noAssert);
 }
 
-function benchInt(buff, fn, n) {
-  const m = mod[fn];
+function benchInt(buff, fn, len, noAssert) {
+  var m = mod[fn];
+  var testFunction = new Function('buff', [
+    "for (var i = 0; i !== " + len + "; i++) {",
+    "  buff." + fn + "(i & " + m + ", 0, " + JSON.stringify(noAssert) + ");",
+    "}"
+  ].join("\n"));
   bench.start();
-  for (var i = 0; i !== n; i++) {
-    buff[fn](i & m, 0);
-  }
-  bench.end(n);
+  testFunction(buff);
+  bench.end(len / 1e6);
 }
 
-function benchSpecialInt(buff, fn, n) {
-  const m = mod[fn];
-  const byte = byteLength[fn];
+function benchFloat(buff, fn, len, noAssert) {
+  var testFunction = new Function('buff', [
+    "for (var i = 0; i !== " + len + "; i++) {",
+    "  buff." + fn + "(i, 0, " + JSON.stringify(noAssert) + ");",
+    "}"
+  ].join("\n"));
   bench.start();
-  for (var i = 0; i !== n; i++) {
-    buff[fn](i & m, 0, byte);
-  }
-  bench.end(n);
-}
-
-function benchFloat(buff, fn, n) {
-  bench.start();
-  for (var i = 0; i !== n; i++) {
-    buff[fn](i, 0);
-  }
-  bench.end(n);
+  testFunction(buff);
+  bench.end(len / 1e6);
 }

@@ -1,0 +1,47 @@
+{
+  "name": "json-stringify-safe",
+  "version": "5.0.1",
+  "description": "Like JSON.stringify, but doesn't blow up on circular refs.",
+  "keywords": [
+    "json",
+    "stringify",
+    "circular",
+    "safe"
+  ],
+  "homepage": "https://github.com/isaacs/json-stringify-safe",
+  "bugs": {
+    "url": "https://github.com/isaacs/json-stringify-safe/issues"
+  },
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me"
+  },
+  "contributors": [
+    {
+      "name": "Andri Möll",
+      "email": "andri@dot.ee",
+      "url": "http://themoll.com"
+    }
+  ],
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/json-stringify-safe.git"
+  },
+  "main": "stringify.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "devDependencies": {
+    "mocha": ">= 2.1.0 < 3",
+    "must": ">= 0.12 < 0.13",
+    "sinon": ">= 1.12.2 < 2"
+  },
+  "readme": "# json-stringify-safe\n\nLike JSON.stringify, but doesn't throw on circular references.\n\n## Usage\n\nTakes the same arguments as `JSON.stringify`.\n\n```javascript\nvar stringify = require('json-stringify-safe');\nvar circularObj = {};\ncircularObj.circularRef = circularObj;\ncircularObj.list = [ circularObj, circularObj ];\nconsole.log(stringify(circularObj, null, 2));\n```\n\nOutput:\n\n```json\n{\n  \"circularRef\": \"[Circular]\",\n  \"list\": [\n    \"[Circular]\",\n    \"[Circular]\"\n  ]\n}\n```\n\n## Details\n\n```\nstringify(obj, serializer, indent, decycler)\n```\n\nThe first three arguments are the same as to JSON.stringify.  The last\nis an argument that's only used when the object has been seen already.\n\nThe default `decycler` function returns the string `'[Circular]'`.\nIf, for example, you pass in `function(k,v){}` (return nothing) then it\nwill prune cycles.  If you pass in `function(k,v){ return {foo: 'bar'}}`,\nthen cyclical objects will always be represented as `{\"foo\":\"bar\"}` in\nthe result.\n\n```\nstringify.getSerialize(serializer, decycler)\n```\n\nReturns a serializer that can be used elsewhere.  This is the actual\nfunction that's passed to JSON.stringify.\n\n**Note** that the function returned from `getSerialize` is stateful for now, so\ndo **not** use it more than once.\n",
+  "readmeFilename": "README.md",
+  "_id": "json-stringify-safe@5.0.1",
+  "_shasum": "1296a2d58fd45f19a0f6ce01d65701e2c735b6eb",
+  "_resolved": "https://registry.npmjs.org/json-stringify-safe/-/json-stringify-safe-5.0.1.tgz",
+  "_from": "json-stringify-safe@>=5.0.1 <5.1.0"
+}

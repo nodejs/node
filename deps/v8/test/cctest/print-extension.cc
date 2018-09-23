@@ -30,8 +30,9 @@
 namespace v8 {
 namespace internal {
 
-v8::Local<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate, v8::Local<v8::String> str) {
+v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate,
+    v8::Handle<v8::String> str) {
   return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
 }
 
@@ -40,8 +41,8 @@ void PrintExtension::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     if (i != 0) printf(" ");
     v8::HandleScope scope(args.GetIsolate());
-    v8::String::Utf8Value str(args.GetIsolate(), args[i]);
-    if (*str == nullptr) return;
+    v8::String::Utf8Value str(args[i]);
+    if (*str == NULL) return;
     printf("%s", *str);
   }
   printf("\n");

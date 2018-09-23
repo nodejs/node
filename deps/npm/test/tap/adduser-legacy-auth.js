@@ -11,7 +11,7 @@ var opts = { cwd: __dirname }
 var pkg = path.resolve(__dirname, 'adduser-legacy-auth')
 var outfile = path.resolve(pkg, '_npmrc')
 
-var contents = '_auth=' + Buffer.from('u:x').toString('base64') + '\n' +
+var contents = '_auth=' + new Buffer('u:x').toString('base64') + '\n' +
                'registry=https://nonexistent.lvh.me/registry\n' +
                'email=u@p.me\n'
 
@@ -25,11 +25,8 @@ function mocks (server) {
   server.filteringRequestBody(function (r) {
     if (r.match(/"_id":"org\.couchdb\.user:u"/)) {
       return 'auth'
-    } else {
-      return 'invalid'
     }
   })
-  server.post('/-/v1/login', 'invalid').reply(404, 'not found')
   server.put('/-/user/org.couchdb.user:u', 'auth')
     .reply(409, { error: 'user exists' })
   server.get('/-/user/org.couchdb.user:u?write=true')
@@ -38,7 +35,7 @@ function mocks (server) {
     '/-/user/org.couchdb.user:u/-rev/3-deadcafebabebeef',
     'auth',
     { authorization: 'Basic dTpw' }
-  ).reply(201, { username: 'u', password: 'p', email: 'u@p.me' })
+    ).reply(201, { username: 'u', password: 'p', email: 'u@p.me' })
 }
 
 test('setup', function (t) {
@@ -59,14 +56,14 @@ test('npm login', function (t) {
       [
         'login',
         '--registry', common.registry,
-        '--loglevel', 'error',
+        '--loglevel', 'silent',
         '--userconfig', outfile
       ],
       opts,
       function (err, code, stdout, stderr) {
-        if (err) throw err
-        t.is(code, 0, 'exited OK')
-        t.is(stderr, '', 'no error output')
+        t.ifError(err, 'npm ran without issue')
+        t.notOk(code, 'exited OK')
+        t.notOk(stderr, 'no error output')
         var config = fs.readFileSync(outfile, 'utf8')
         t.like(config, /:always-auth=false/, 'always-auth is scoped and false (by default)')
         s.close()
@@ -77,20 +74,19 @@ test('npm login', function (t) {
       }
     )
 
+    var o = ''
+    var e = ''
     var remaining = Object.keys(responses).length
     runner.stdout.on('data', function (chunk) {
-      if (remaining > 0) {
-        remaining--
+      remaining--
+      o += chunk
 
-        var label = chunk.toString('utf8').split(':')[0]
-        if (responses[label]) runner.stdin.write(responses[label])
+      var label = chunk.toString('utf8').split(':')[0]
+      runner.stdin.write(responses[label])
 
-        if (remaining === 0) runner.stdin.end()
-      } else {
-        var message = chunk.toString('utf8').trim()
-        t.equal(message, 'Logged in as u on ' + common.registry + '/.')
-      }
+      if (remaining === 0) runner.stdin.end()
     })
+    runner.stderr.on('data', function (chunk) { e += chunk })
   })
 })
 

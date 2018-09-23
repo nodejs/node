@@ -13,6 +13,7 @@ exports.ucData =
     'init.author.email': 'i@izs.me',
     'init.author.url': 'http://blog.izs.me/',
     'init.version': '1.2.3',
+    'proprietary-attribs': false,
     'npm:publishtest': true,
     '_npmjs.org:couch': 'https://admin:password@localhost:5984/registry',
     'npm-www:nocache': '1',
@@ -20,7 +21,7 @@ exports.ucData =
     'sign-git-tag': true,
     message: 'v%s',
     'strict-ssl': false,
-    'tmp': path.normalize(process.env.HOME + '/.tmp'),
+    'tmp': process.env.HOME + '/.tmp',
     _auth: 'dXNlcm5hbWU6cGFzc3dvcmQ=',
     _token:
      { AuthSession: 'yabba-dabba-doodle',
@@ -37,10 +38,10 @@ Object.keys(process.env).forEach(function (k) {
   }
 })
 process.env.npm_config_userconfig = exports.userconfig
-process.env.npm_config_other_env_thing = '1000'
+process.env.npm_config_other_env_thing = 1000
 process.env.random_env_var = 'asdf'
 process.env.npm_config__underbar_env_thing = 'underful'
-process.env.NPM_CONFIG_UPPERCASE_ENV_THING = '42'
+process.env.NPM_CONFIG_UPPERCASE_ENV_THING = 42
 
 exports.envData = {
   userconfig: exports.userconfig,
@@ -60,10 +61,7 @@ try {
   fs.statSync(projectConf)
 } catch (er) {
   // project conf not found, probably working with packed npm
-  fs.writeFileSync(projectConf, function () { /*
-save-prefix = ~
-legacy-bundling = true
-  */ }.toString().split('\n').slice(1, -1).join('\n'))
+  fs.writeFileSync(projectConf, 'save-prefix = ~\nproprietary-attribs = false\n')
 }
 
 var projectRc = path.join(__dirname, '..', 'fixtures', 'config', '.npmrc')

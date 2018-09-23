@@ -318,24 +318,22 @@ const std::string DEAD_VAR_MSG("Possibly dead variable.");
 
 class Environment {
  public:
-  Environment() = default;
+  Environment() { }
 
   static Environment Unreachable() {
     Environment env;
-    env.unreachable_ = true;
+    env.live_.set();
     return env;
   }
 
   static Environment Merge(const Environment& l,
                            const Environment& r) {
-    Environment out(l);
-    out &= r;
-    return out;
+    return Environment(l, r);
   }
 
   Environment ApplyEffect(ExprEffect effect) const {
     Environment out = effect.hasGC() ? Environment() : Environment(*this);
-    if (effect.env()) out |= *effect.env();
+    if (effect.env() != NULL) out.live_ |= effect.env()->live_;
     return out;
   }
 
@@ -344,23 +342,20 @@ class Environment {
   bool IsAlive(const std::string& name) const {
     SymbolTable::iterator code = symbol_table_.find(name);
     if (code == symbol_table_.end()) return false;
-    return is_live(code->second);
+    return live_[code->second];
   }
 
   bool Equal(const Environment& env) {
-    if (unreachable_ && env.unreachable_) return true;
-    size_t size = std::max(live_.size(), env.live_.size());
-    for (size_t i = 0; i < size; ++i) {
-      if (is_live(i) != env.is_live(i)) return false;
-    }
-    return true;
+    return live_ == env.live_;
   }
 
   Environment Define(const std::string& name) const {
     return Environment(*this, SymbolToCode(name));
   }
 
-  void MDefine(const std::string& name) { set_live(SymbolToCode(name)); }
+  void MDefine(const std::string& name) {
+    live_.set(SymbolToCode(name));
+  }
 
   static int SymbolToCode(const std::string& name) {
     SymbolTable::iterator code = symbol_table_.find(name);
@@ -375,7 +370,12 @@ class Environment {
   }
 
   static void ClearSymbolTable() {
-    for (Environment* e : envs_) delete e;
+    std::vector<Environment*>::iterator end = envs_.end();
+    for (std::vector<Environment*>::iterator i = envs_.begin();
+         i != end;
+         ++i) {
+      delete *i;
+    }
     envs_.clear();
     symbol_table_.clear();
   }
@@ -383,11 +383,15 @@ class Environment {
   void Print() const {
     bool comma = false;
     std::cout << "{";
-    for (auto& e : symbol_table_) {
-      if (!is_live(e.second)) continue;
-      if (comma) std::cout << ", ";
-      std::cout << e.first;
-      comma = true;
+    SymbolTable::iterator end = symbol_table_.end();
+    for (SymbolTable::iterator i = symbol_table_.begin();
+         i != end;
+         ++i) {
+      if (live_[i->second]) {
+        if (comma) std::cout << ", ";
+        std::cout << i->first;
+        comma = true;
+      }
     }
     std::cout << "}";
   }
@@ -399,54 +403,20 @@ class Environment {
   }
 
  private:
+  Environment(const Environment& l, const Environment& r)
+      : live_(l.live_ & r.live_) {
+  }
+
   Environment(const Environment& l, int code)
       : live_(l.live_) {
-    set_live(code);
-  }
-
-  void set_live(size_t pos) {
-    if (unreachable_) return;
-    if (pos >= live_.size()) live_.resize(pos + 1);
-    live_[pos] = true;
-  }
-
-  bool is_live(size_t pos) const {
-    return unreachable_ || (live_.size() > pos && live_[pos]);
-  }
-
-  Environment& operator|=(const Environment& o) {
-    if (o.unreachable_) {
-      unreachable_ = true;
-      live_.clear();
-    } else if (!unreachable_) {
-      for (size_t i = 0, e = o.live_.size(); i < e; ++i) {
-        if (o.live_[i]) set_live(i);
-      }
-    }
-    return *this;
-  }
-
-  Environment& operator&=(const Environment& o) {
-    if (o.unreachable_) return *this;
-    if (unreachable_) return *this = o;
-
-    // Carry over false bits from the tail of o.live_, and reset all bits that
-    // are not set in o.live_.
-    size_t size = std::max(live_.size(), o.live_.size());
-    if (size > live_.size()) live_.resize(size);
-    for (size_t i = 0; i < size; ++i) {
-      if (live_[i] && (i >= o.live_.size() || !o.live_[i])) live_[i] = false;
-    }
-    return *this;
+    live_.set(code);
   }
 
   static SymbolTable symbol_table_;
-  static std::vector<Environment*> envs_;
+  static std::vector<Environment* > envs_;
 
-  std::vector<bool> live_;
-  // unreachable_ == true implies live_.empty(), but still is_live(i) returns
-  // true for all i.
-  bool unreachable_ = false;
+  static const int kMaxNumberOfLocals = 256;
+  std::bitset<kMaxNumberOfLocals> live_;
 
   friend class ExprEffect;
   friend class CallProps;
@@ -462,11 +432,8 @@ class CallProps {
     if (in.hasRawDef()) raw_def_.set(arg);
     if (in.hasRawUse()) raw_use_.set(arg);
     if (in.env() != NULL) {
-      if (env_ == NULL) {
-        env_ = in.env();
-      } else {
-        *env_ |= *in.env();
-      }
+      if (env_ == NULL) env_ = in.env();
+      env_->live_ |= in.env()->live_;
     }
   }
 
@@ -495,7 +462,8 @@ class CallProps {
 
 
 Environment::SymbolTable Environment::symbol_table_;
-std::vector<Environment*> Environment::envs_;
+std::vector<Environment* > Environment::envs_;
+
 
 ExprEffect ExprEffect::Merge(ExprEffect a, ExprEffect b) {
   Environment* a_env = a.env();
@@ -503,7 +471,7 @@ ExprEffect ExprEffect::Merge(ExprEffect a, ExprEffect b) {
   Environment* out = NULL;
   if (a_env != NULL && b_env != NULL) {
     out = Environment::Allocate(*a_env);
-    *out &= *b_env;
+    out->live_ &= b_env->live_;
   }
   return ExprEffect(a.effect_ | b.effect_, out);
 }
@@ -515,7 +483,7 @@ ExprEffect ExprEffect::MergeSeq(ExprEffect a, ExprEffect b) {
   Environment* out = (b_env == NULL) ? a_env : b_env;
   if (a_env != NULL && b_env != NULL) {
     out = Environment::Allocate(*b_env);
-    *out |= *a_env;
+    out->live_ |= a_env->live_;
   }
   return ExprEffect(a.effect_ | b.effect_, out);
 }

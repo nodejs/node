@@ -1,6 +1,5 @@
 module.exports = substack
 var npm = require('./npm.js')
-var output = require('./utils/output.js')
 
 var isms = [
   '\u001b[32mbeep \u001b[35mboop\u001b[m',
@@ -15,7 +14,7 @@ var isms = [
 
 function substack (args, cb) {
   var i = Math.floor(Math.random() * isms.length)
-  output(isms[i])
+  console.log(isms[i])
   var c = args.shift()
   if (c) npm.commands[c](args, cb)
   else cb()

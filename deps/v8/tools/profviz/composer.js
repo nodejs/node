@@ -104,13 +104,15 @@ function PlotScriptComposer(kResX, kResY, error_output) {
         new TimerEvent("recompile sync", "#CC0044",  true, 0),
       'V8.RecompileConcurrent':
         new TimerEvent("recompile async", "#CC4499", false, 1),
-      'V8.CompileEvalMicroSeconds':
+      'V8.CompileEval':
         new TimerEvent("compile eval", "#CC4400",  true, 0),
-      'V8.ParseMicroSeconds':
+      'V8.IcMiss':
+        new TimerEvent("ic miss", "#CC9900", false, 0),
+      'V8.Parse':
         new TimerEvent("parse", "#00CC00",  true, 0),
-      'V8.PreParseMicroSeconds':
+      'V8.PreParse':
         new TimerEvent("preparse", "#44CC00",  true, 0),
-      'V8.ParseLazyMicroSeconds':
+      'V8.ParseLazy':
         new TimerEvent("lazy parse", "#00CC44",  true, 0),
       'V8.GCScavenger':
         new TimerEvent("gc scavenge", "#0044CC",  true, 0),
@@ -176,9 +178,7 @@ function PlotScriptComposer(kResX, kResY, error_output) {
   }
 
   function MergeRanges(ranges) {
-    ranges.sort(function(a, b) {
-      return (a.start == b.start) ? a.end - b.end : a.start - b.start;
-    });
+    ranges.sort(function(a, b) { return a.start - b.start; });
     var result = [];
     var j = 0;
     for (var i = 0; i < ranges.length; i = j) {
@@ -308,14 +308,13 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     };
     // Collect data from log.
     var logreader = new LogReader(
-      { 'timer-event-start': { parsers: [parseString, parseTimeStamp],
+      { 'timer-event-start': { parsers: [null, parseTimeStamp],
                                processor: processTimerEventStart },
-        'timer-event-end':   { parsers: [parseString, parseTimeStamp],
+        'timer-event-end':   { parsers: [null, parseTimeStamp],
                                processor: processTimerEventEnd },
-        'shared-library': { parsers: [parseString, parseInt, parseInt],
+        'shared-library': { parsers: [null, parseInt, parseInt],
                             processor: processSharedLibrary },
-        'code-creation':  { parsers: [parseString, parseInt, parseInt,
-                                parseInt, parseString],
+        'code-creation':  { parsers: [null, parseInt, parseInt, parseInt, null],
                             processor: processCodeCreateEvent },
         'code-move':      { parsers: [parseInt, parseInt],
                             processor: processCodeMoveEvent },
@@ -325,14 +324,14 @@ function PlotScriptComposer(kResX, kResY, error_output) {
                             processor: processCodeDeoptEvent },
         'current-time':   { parsers: [parseTimeStamp],
                             processor: processCurrentTimeEvent },
-        'tick':           { parsers: [parseInt, parseTimeStamp, parseString,
-                                parseString, parseInt, parseVarArgs],
+        'tick':           { parsers: [parseInt, parseTimeStamp,
+                                      null, null, parseInt, 'var-args'],
                             processor: processTickEvent }
       });
 
     var line;
     while (line = input()) {
-      for (var s of line.split("\n")) logreader.processLogLine(s);
+      logreader.processLogLine(line);
     }
 
     // Collect execution pauses.
@@ -519,13 +518,8 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     // Label the longest pauses.
     execution_pauses =
         RestrictRangesTo(execution_pauses, range_start, range_end);
-    execution_pauses.sort(function(a, b) {
-      if (a.duration() == b.duration() && b.end == a.end)
-        return b.start - a.start;
-
-      return (a.duration() == b.duration())
-          ? b.end - a.end : b.duration() - a.duration();
-    });
+    execution_pauses.sort(
+        function(a, b) { return b.duration() - a.duration(); });
 
     var max_pause_time = execution_pauses.length > 0
         ? execution_pauses[0].duration() : 0;

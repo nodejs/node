@@ -105,10 +105,12 @@ int uv_read_stop(uv_stream_t* handle) {
   err = 0;
   if (handle->type == UV_TTY) {
     err = uv_tty_read_stop((uv_tty_t*) handle);
-  } else if (handle->type == UV_NAMED_PIPE) {
-    uv__pipe_read_stop((uv_pipe_t*) handle);
   } else {
-    handle->flags &= ~UV_HANDLE_READING;
+    if (handle->type == UV_NAMED_PIPE) {
+      uv__pipe_stop_read((uv_pipe_t*) handle);
+    } else {
+      handle->flags &= ~UV_HANDLE_READING;
+    }
     DECREASE_ACTIVE_COUNT(handle->loop, handle);
   }
 
@@ -134,8 +136,7 @@ int uv_write(uv_write_t* req,
       err = uv_tcp_write(loop, req, (uv_tcp_t*) handle, bufs, nbufs, cb);
       break;
     case UV_NAMED_PIPE:
-      err = uv__pipe_write(
-          loop, req, (uv_pipe_t*) handle, bufs, nbufs, NULL, cb);
+      err = uv_pipe_write(loop, req, (uv_pipe_t*) handle, bufs, nbufs, cb);
       break;
     case UV_TTY:
       err = uv_tty_write(loop, req, (uv_tty_t*) handle, bufs, nbufs, cb);
@@ -157,18 +158,25 @@ int uv_write2(uv_write_t* req,
   uv_loop_t* loop = handle->loop;
   int err;
 
-  if (send_handle == NULL) {
-    return uv_write(req, handle, bufs, nbufs, cb);
-  }
-
-  if (handle->type != UV_NAMED_PIPE || !((uv_pipe_t*) handle)->ipc) {
-    return UV_EINVAL;
-  } else if (!(handle->flags & UV_HANDLE_WRITABLE)) {
+  if (!(handle->flags & UV_HANDLE_WRITABLE)) {
     return UV_EPIPE;
   }
 
-  err = uv__pipe_write(
-      loop, req, (uv_pipe_t*) handle, bufs, nbufs, send_handle, cb);
+  err = ERROR_INVALID_PARAMETER;
+  switch (handle->type) {
+    case UV_NAMED_PIPE:
+      err = uv_pipe_write2(loop,
+                           req,
+                           (uv_pipe_t*) handle,
+                           bufs,
+                           nbufs,
+                           send_handle,
+                           cb);
+      break;
+    default:
+      assert(0);
+  }
+
   return uv_translate_sys_error(err);
 }
 
@@ -176,7 +184,7 @@ int uv_write2(uv_write_t* req,
 int uv_try_write(uv_stream_t* stream,
                  const uv_buf_t bufs[],
                  unsigned int nbufs) {
-  if (stream->flags & UV_HANDLE_CLOSING)
+  if (stream->flags & UV__HANDLE_CLOSING)
     return UV_EBADF;
   if (!(stream->flags & UV_HANDLE_WRITABLE))
     return UV_EPIPE;
@@ -202,7 +210,8 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
     return UV_EPIPE;
   }
 
-  UV_REQ_INIT(req, UV_SHUTDOWN);
+  uv_req_init(loop, (uv_req_t*) req);
+  req->type = UV_SHUTDOWN;
   req->handle = handle;
   req->cb = cb;
 

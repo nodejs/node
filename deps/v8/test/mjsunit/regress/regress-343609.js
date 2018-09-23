@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --block-concurrent-recompilation
-// Flags: --expose-gc
+// Flags: --no-concurrent-osr --expose-gc
 
 function Ctor() {
   this.a = 1;

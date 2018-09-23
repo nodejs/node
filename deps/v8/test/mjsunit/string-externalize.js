@@ -25,15 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-externalize-string --expose-gc --allow-natives-syntax
+// Flags: --expose-externalize-string --expose-gc
 
 var size = 1024;
-
-function dont_inline() { return "A"; }
-%NeverOptimizeFunction(dont_inline);
-
-function dont_inline2() { return "\u1234"; }
-%NeverOptimizeFunction(dont_inline2);
 
 function test() {
   var str = "";
@@ -45,12 +39,12 @@ function test() {
   assertTrue(isOneByteString(str));
 
   var twoByteExternalWithOneByteData =
-      "AA" + dont_inline();
+      "AA" + (function() { return "A"; })();
   externalizeString(twoByteExternalWithOneByteData, true /* force two-byte */);
   assertFalse(isOneByteString(twoByteExternalWithOneByteData));
 
   var realTwoByteExternalString =
-      "\u1234\u1234\u1234\u1234" + dont_inline2();
+      "\u1234\u1234\u1234\u1234" + (function() { return "\u1234"; })();
   externalizeString(realTwoByteExternalString);
   assertFalse(isOneByteString(realTwoByteExternalString));
 

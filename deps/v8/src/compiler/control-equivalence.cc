@@ -15,7 +15,7 @@ namespace internal {
 namespace compiler {
 
 void ControlEquivalence::Run(Node* exit) {
-  if (!Participates(exit) || GetClass(exit) == kInvalidClass) {
+  if (GetClass(exit) == kInvalidClass) {
     DetermineParticipation(exit);
     RunUndirectedDFS(exit);
   }
@@ -28,6 +28,10 @@ STATIC_CONST_MEMBER_DEFINITION const size_t ControlEquivalence::kInvalidClass;
 
 void ControlEquivalence::VisitPre(Node* node) {
   TRACE("CEQ: Pre-visit of #%d:%s\n", node->id(), node->op()->mnemonic());
+
+  // Dispense a new pre-order number.
+  SetNumber(node, NewDFSNumber());
+  TRACE("  Assigned DFS number is %zu\n", GetNumber(node));
 }
 
 
@@ -67,7 +71,7 @@ void ControlEquivalence::VisitPost(Node* node, Node* parent_node,
   BracketListDelete(blist, node, direction);
 
   // Propagate bracket list up the DFS tree [line:13].
-  if (parent_node != nullptr) {
+  if (parent_node != NULL) {
     BracketList& parent_blist = GetBracketList(parent_node);
     parent_blist.splice(parent_blist.end(), blist);
   }
@@ -87,7 +91,7 @@ void ControlEquivalence::VisitBackedge(Node* from, Node* to,
 
 void ControlEquivalence::RunUndirectedDFS(Node* exit) {
   ZoneStack<DFSStackEntry> stack(zone_);
-  DFSPush(stack, exit, nullptr, kInputDirection);
+  DFSPush(stack, exit, NULL, kInputDirection);
   VisitPre(exit);
 
   while (!stack.empty()) {  // Undirected depth-first backwards traversal.
@@ -101,7 +105,7 @@ void ControlEquivalence::RunUndirectedDFS(Node* exit) {
         ++(entry.input);
         if (NodeProperties::IsControlEdge(edge)) {
           // Visit next control input.
-          if (!Participates(input)) continue;
+          if (!GetData(input)->participates) continue;
           if (GetData(input)->visited) continue;
           if (GetData(input)->on_stack) {
             // Found backedge if input is on stack.
@@ -131,7 +135,7 @@ void ControlEquivalence::RunUndirectedDFS(Node* exit) {
         ++(entry.use);
         if (NodeProperties::IsControlEdge(edge)) {
           // Visit next control use.
-          if (!Participates(use)) continue;
+          if (!GetData(use)->participates) continue;
           if (GetData(use)->visited) continue;
           if (GetData(use)->on_stack) {
             // Found backedge if use is on stack.
@@ -164,8 +168,8 @@ void ControlEquivalence::RunUndirectedDFS(Node* exit) {
 
 void ControlEquivalence::DetermineParticipationEnqueue(ZoneQueue<Node*>& queue,
                                                        Node* node) {
-  if (!Participates(node)) {
-    AllocateData(node);
+  if (!GetData(node)->participates) {
+    GetData(node)->participates = true;
     queue.push(node);
   }
 }
@@ -187,7 +191,7 @@ void ControlEquivalence::DetermineParticipation(Node* exit) {
 
 void ControlEquivalence::DFSPush(DFSStack& stack, Node* node, Node* from,
                                  DFSDirection dir) {
-  DCHECK(Participates(node));
+  DCHECK(GetData(node)->participates);
   DCHECK(!GetData(node)->visited);
   GetData(node)->on_stack = true;
   Node::InputEdges::iterator input = node->input_edges().begin();
@@ -227,8 +231,6 @@ void ControlEquivalence::BracketListTRACE(BracketList& blist) {
     TRACE("\n");
   }
 }
-
-#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

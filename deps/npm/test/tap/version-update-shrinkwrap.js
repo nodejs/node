@@ -28,7 +28,6 @@ test('npm version <semver> updates git works with no shrinkwrap', function (t) {
   setup()
   rimraf.sync(path.resolve(pkg, 'npm-shrinkwrap.json'))
 
-  npm.config.set('sign-git-commit', false)
   npm.config.set('sign-git-tag', false)
 
   common.makeGitRepo({
@@ -71,7 +70,6 @@ test('npm version <semver> updates git works with no shrinkwrap', function (t) {
 test('npm version <semver> updates shrinkwrap and updates git', function (t) {
   setup()
 
-  npm.config.set('sign-git-commit', false)
   npm.config.set('sign-git-tag', false)
 
   common.makeGitRepo({
@@ -112,12 +110,15 @@ test('npm version <semver> updates shrinkwrap and updates git', function (t) {
 })
 
 test('cleanup', function (t) {
-  cleanup()
+  // windows fix for locked files
+  process.chdir(osenv.tmpdir())
+
+  rimraf.sync(pkg)
   t.end()
 })
 
 function setup () {
-  cleanup()
+  rimraf.sync(pkg)
   mkdirp.sync(pkg)
   mkdirp.sync(cache)
   var contents = {
@@ -130,11 +131,4 @@ function setup () {
   fs.writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify(contents), 'utf8')
   fs.writeFileSync(path.resolve(pkg, 'npm-shrinkwrap.json'), JSON.stringify(contents), 'utf8')
   process.chdir(pkg)
-}
-
-function cleanup () {
-  // windows fix for locked files
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(cache)
-  rimraf.sync(pkg)
 }

@@ -66,5 +66,4 @@ const byte* ReadFileAndRepeat(const char* name, int* size, int repeat) {
   return chars;
 }
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal

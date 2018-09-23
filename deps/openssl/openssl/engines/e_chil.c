@@ -1,17 +1,68 @@
+/* crypto/engine/e_chil.c -*- mode: C; c-file-style: "eay" -*- */
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Written by Richard Levitte (richard@levitte.org), Geoff Thorpe
+ * (geoff@geoffthorpe.net) and Dr Stephen N Henson (steve@openssl.org) for
+ * the OpenSSL project 2000.
+ */
+/* ====================================================================
+ * Copyright (c) 1999-2001 The OpenSSL Project.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    licensing@OpenSSL.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
  */
 
 #include <stdio.h>
 #include <string.h>
 #include <openssl/crypto.h>
 #include <openssl/pem.h>
-#include "internal/dso.h"
+#include <openssl/dso.h>
 #include <openssl/engine.h>
 #include <openssl/ui.h>
 #include <openssl/rand.h>
@@ -43,8 +94,6 @@
 
 #  define HWCRHK_LIB_NAME "CHIL engine"
 #  include "e_chil_err.c"
-
-static CRYPTO_RWLOCK *chil_lock;
 
 static int hwcrhk_destroy(ENGINE *e);
 static int hwcrhk_init(ENGINE *e);
@@ -196,7 +245,7 @@ static const char *engine_hwcrhk_id_alt = "ncipher";
  * into HWCryptoHook_Mutex
  */
 struct HWCryptoHook_MutexValue {
-    CRYPTO_RWLOCK *lock;
+    int lockid;
 };
 
 /*
@@ -307,13 +356,6 @@ static int bind_helper(ENGINE *e)
 #  ifndef OPENSSL_NO_DH
     const DH_METHOD *meth2;
 #  endif
-
-    chil_lock = CRYPTO_THREAD_lock_new();
-    if (chil_lock == NULL) {
-        HWCRHKerr(HWCRHK_F_BIND_HELPER, ERR_R_MALLOC_FAILURE);
-        return 0;
-    }
-
     if (!ENGINE_set_id(e, engine_hwcrhk_id) ||
         !ENGINE_set_name(e, engine_hwcrhk_name) ||
 #  ifndef OPENSSL_NO_RSA
@@ -334,14 +376,14 @@ static int bind_helper(ENGINE *e)
 
 #  ifndef OPENSSL_NO_RSA
     /*
-     * We know that the "PKCS1_OpenSSL()" functions hook properly to the
+     * We know that the "PKCS1_SSLeay()" functions hook properly to the
      * cswift-specific mod_exp and mod_exp_crt so we use those functions. NB:
      * We don't use ENGINE_openssl() or anything "more generic" because
      * something like the RSAref code may not hook properly, and if you own
      * one of these cards then you have the right to do RSA operations on it
      * anyway!
      */
-    meth1 = RSA_PKCS1_OpenSSL();
+    meth1 = RSA_PKCS1_SSLeay();
     hwcrhk_rsa.rsa_pub_enc = meth1->rsa_pub_enc;
     hwcrhk_rsa.rsa_pub_dec = meth1->rsa_pub_dec;
     hwcrhk_rsa.rsa_priv_enc = meth1->rsa_priv_enc;
@@ -357,7 +399,6 @@ static int bind_helper(ENGINE *e)
 
     /* Ensure the hwcrhk error handling is set up */
     ERR_load_HWCRHK_strings();
-
     return 1;
 }
 
@@ -365,7 +406,7 @@ static int bind_helper(ENGINE *e)
 static ENGINE *engine_chil(void)
 {
     ENGINE *ret = ENGINE_new();
-    if (ret == NULL)
+    if (!ret)
         return NULL;
     if (!bind_helper(ret)) {
         ENGINE_free(ret);
@@ -421,7 +462,8 @@ static HWCryptoHook_ModExpCRT_t *p_hwcrhk_ModExpCRT = NULL;
 static const char *HWCRHK_LIBNAME = NULL;
 static void free_HWCRHK_LIBNAME(void)
 {
-    OPENSSL_free(HWCRHK_LIBNAME);
+    if (HWCRHK_LIBNAME)
+        OPENSSL_free((void *)HWCRHK_LIBNAME);
     HWCRHK_LIBNAME = NULL;
 }
 
@@ -435,7 +477,7 @@ static const char *get_HWCRHK_LIBNAME(void)
 static long set_HWCRHK_LIBNAME(const char *name)
 {
     free_HWCRHK_LIBNAME();
-    return (((HWCRHK_LIBNAME = OPENSSL_strdup(name)) != NULL) ? 1 : 0);
+    return (((HWCRHK_LIBNAME = BUF_strdup(name)) != NULL) ? 1 : 0);
 }
 
 static const char *n_hwcrhk_Init = "HWCryptoHook_Init";
@@ -486,7 +528,6 @@ static int hwcrhk_destroy(ENGINE *e)
 {
     free_HWCRHK_LIBNAME();
     ERR_unload_HWCRHK_strings();
-    CRYPTO_THREAD_lock_free(chil_lock);
     return 1;
 }
 
@@ -515,19 +556,26 @@ static int hwcrhk_init(ENGINE *e)
         HWCRHKerr(HWCRHK_F_HWCRHK_INIT, HWCRHK_R_DSO_FAILURE);
         goto err;
     }
-
-#define BINDIT(t, name) (t *)DSO_bind_func(hwcrhk_dso, name)
-    if ((p1 = BINDIT(HWCryptoHook_Init_t, n_hwcrhk_Init)) == NULL
-        || (p2 = BINDIT(HWCryptoHook_Finish_t, n_hwcrhk_Finish)) == NULL
-        || (p3 = BINDIT(HWCryptoHook_ModExp_t, n_hwcrhk_ModExp)) == NULL
+    if (!(p1 = (HWCryptoHook_Init_t *)
+          DSO_bind_func(hwcrhk_dso, n_hwcrhk_Init)) ||
+        !(p2 = (HWCryptoHook_Finish_t *)
+          DSO_bind_func(hwcrhk_dso, n_hwcrhk_Finish)) ||
+        !(p3 = (HWCryptoHook_ModExp_t *)
+          DSO_bind_func(hwcrhk_dso, n_hwcrhk_ModExp)) ||
 #  ifndef OPENSSL_NO_RSA
-        || (p4 = BINDIT(HWCryptoHook_RSA_t, n_hwcrhk_RSA)) == NULL
-        || (p5 = BINDIT(HWCryptoHook_RSALoadKey_t, n_hwcrhk_RSALoadKey)) == NULL
-        || (p6 = BINDIT(HWCryptoHook_RSAGetPublicKey_t, n_hwcrhk_RSAGetPublicKey)) == NULL
-        || (p7 = BINDIT(HWCryptoHook_RSAUnloadKey_t, n_hwcrhk_RSAUnloadKey)) == NULL
+        !(p4 = (HWCryptoHook_RSA_t *)
+          DSO_bind_func(hwcrhk_dso, n_hwcrhk_RSA)) ||
+        !(p5 = (HWCryptoHook_RSALoadKey_t *)
+          DSO_bind_func(hwcrhk_dso, n_hwcrhk_RSALoadKey)) ||
+        !(p6 = (HWCryptoHook_RSAGetPublicKey_t *)
+          DSO_bind_func(hwcrhk_dso, n_hwcrhk_RSAGetPublicKey)) ||
+        !(p7 = (HWCryptoHook_RSAUnloadKey_t *)
+          DSO_bind_func(hwcrhk_dso, n_hwcrhk_RSAUnloadKey)) ||
 #  endif
-        || (p8 = BINDIT(HWCryptoHook_RandomBytes_t, n_hwcrhk_RandomBytes)) == NULL
-        || (p9 = BINDIT(HWCryptoHook_ModExpCRT_t, n_hwcrhk_ModExpCRT)) == NULL) {
+        !(p8 = (HWCryptoHook_RandomBytes_t *)
+          DSO_bind_func(hwcrhk_dso, n_hwcrhk_RandomBytes)) ||
+        !(p9 = (HWCryptoHook_ModExpCRT_t *)
+          DSO_bind_func(hwcrhk_dso, n_hwcrhk_ModExpCRT))) {
         HWCRHKerr(HWCRHK_F_HWCRHK_INIT, HWCRHK_R_DSO_FAILURE);
         goto err;
     }
@@ -549,10 +597,14 @@ static int hwcrhk_init(ENGINE *e)
      * does, use them.
      */
     if (disable_mutex_callbacks == 0) {
-        hwcrhk_globals.mutex_init = hwcrhk_mutex_init;
-        hwcrhk_globals.mutex_acquire = hwcrhk_mutex_lock;
-        hwcrhk_globals.mutex_release = hwcrhk_mutex_unlock;
-        hwcrhk_globals.mutex_destroy = hwcrhk_mutex_destroy;
+        if (CRYPTO_get_dynlock_create_callback() != NULL &&
+            CRYPTO_get_dynlock_lock_callback() != NULL &&
+            CRYPTO_get_dynlock_destroy_callback() != NULL) {
+            hwcrhk_globals.mutex_init = hwcrhk_mutex_init;
+            hwcrhk_globals.mutex_acquire = hwcrhk_mutex_lock;
+            hwcrhk_globals.mutex_release = hwcrhk_mutex_unlock;
+            hwcrhk_globals.mutex_destroy = hwcrhk_mutex_destroy;
+        }
     }
 
     /*
@@ -571,7 +623,8 @@ static int hwcrhk_init(ENGINE *e)
 #  endif
     return 1;
  err:
-    DSO_free(hwcrhk_dso);
+    if (hwcrhk_dso)
+        DSO_free(hwcrhk_dso);
     hwcrhk_dso = NULL;
     p_hwcrhk_Init = NULL;
     p_hwcrhk_Finish = NULL;
@@ -603,7 +656,8 @@ static int hwcrhk_finish(ENGINE *e)
         goto err;
     }
  err:
-    BIO_free(logstream);
+    if (logstream)
+        BIO_free(logstream);
     hwcrhk_dso = NULL;
     p_hwcrhk_Init = NULL;
     p_hwcrhk_Finish = NULL;
@@ -638,32 +692,34 @@ static int hwcrhk_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f) (void))
         {
             BIO *bio = (BIO *)p;
 
-            CRYPTO_THREAD_write_lock(chil_lock);
-            BIO_free(logstream);
-            logstream = NULL;
-            if (BIO_up_ref(bio))
+            CRYPTO_w_lock(CRYPTO_LOCK_ENGINE);
+            if (logstream) {
+                BIO_free(logstream);
+                logstream = NULL;
+            }
+            if (CRYPTO_add(&bio->references, 1, CRYPTO_LOCK_BIO) > 1)
                 logstream = bio;
             else
                 HWCRHKerr(HWCRHK_F_HWCRHK_CTRL, HWCRHK_R_BIO_WAS_FREED);
         }
-        CRYPTO_THREAD_unlock(chil_lock);
+        CRYPTO_w_unlock(CRYPTO_LOCK_ENGINE);
         break;
     case ENGINE_CTRL_SET_PASSWORD_CALLBACK:
-        CRYPTO_THREAD_write_lock(chil_lock);
+        CRYPTO_w_lock(CRYPTO_LOCK_ENGINE);
         password_context.password_callback = (pem_password_cb *)f;
-        CRYPTO_THREAD_unlock(chil_lock);
+        CRYPTO_w_unlock(CRYPTO_LOCK_ENGINE);
         break;
     case ENGINE_CTRL_SET_USER_INTERFACE:
     case HWCRHK_CMD_SET_USER_INTERFACE:
-        CRYPTO_THREAD_write_lock(chil_lock);
+        CRYPTO_w_lock(CRYPTO_LOCK_ENGINE);
         password_context.ui_method = (UI_METHOD *)p;
-        CRYPTO_THREAD_unlock(chil_lock);
+        CRYPTO_w_unlock(CRYPTO_LOCK_ENGINE);
         break;
     case ENGINE_CTRL_SET_CALLBACK_DATA:
     case HWCRHK_CMD_SET_CALLBACK_DATA:
-        CRYPTO_THREAD_write_lock(chil_lock);
+        CRYPTO_w_lock(CRYPTO_LOCK_ENGINE);
         password_context.callback_data = p;
-        CRYPTO_THREAD_unlock(chil_lock);
+        CRYPTO_w_unlock(CRYPTO_LOCK_ENGINE);
         break;
         /*
          * this enables or disables the "SimpleForkCheck" flag used in the
@@ -671,12 +727,12 @@ static int hwcrhk_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f) (void))
          */
     case ENGINE_CTRL_CHIL_SET_FORKCHECK:
     case HWCRHK_CMD_FORK_CHECK:
-        CRYPTO_THREAD_write_lock(chil_lock);
+        CRYPTO_w_lock(CRYPTO_LOCK_ENGINE);
         if (i)
             hwcrhk_globals.flags |= HWCryptoHook_InitFlags_SimpleForkCheck;
         else
             hwcrhk_globals.flags &= ~HWCryptoHook_InitFlags_SimpleForkCheck;
-        CRYPTO_THREAD_unlock(chil_lock);
+        CRYPTO_w_unlock(CRYPTO_LOCK_ENGINE);
         break;
         /*
          * This will prevent the initialisation function from "installing"
@@ -686,14 +742,14 @@ static int hwcrhk_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f) (void))
          * applications not using multithreading.
          */
     case ENGINE_CTRL_CHIL_NO_LOCKING:
-        CRYPTO_THREAD_write_lock(chil_lock);
+        CRYPTO_w_lock(CRYPTO_LOCK_ENGINE);
         disable_mutex_callbacks = 1;
-        CRYPTO_THREAD_unlock(chil_lock);
+        CRYPTO_w_unlock(CRYPTO_LOCK_ENGINE);
         break;
     case HWCRHK_CMD_THREAD_LOCKING:
-        CRYPTO_THREAD_write_lock(chil_lock);
+        CRYPTO_w_lock(CRYPTO_LOCK_ENGINE);
         disable_mutex_callbacks = ((i == 0) ? 0 : 1);
-        CRYPTO_THREAD_unlock(chil_lock);
+        CRYPTO_w_unlock(CRYPTO_LOCK_ENGINE);
         break;
 
         /* The command isn't understood by this engine */
@@ -735,8 +791,8 @@ static EVP_PKEY *hwcrhk_load_privkey(ENGINE *eng, const char *key_id,
         goto err;
     }
 #  ifndef OPENSSL_NO_RSA
-    hptr = OPENSSL_malloc(sizeof(*hptr));
-    if (hptr == NULL) {
+    hptr = OPENSSL_malloc(sizeof(HWCryptoHook_RSAKeyHandle));
+    if (!hptr) {
         HWCRHKerr(HWCRHK_F_HWCRHK_LOAD_PRIVKEY, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -783,21 +839,18 @@ static EVP_PKEY *hwcrhk_load_privkey(ENGINE *eng, const char *key_id,
     bn_fix_top(rtmp->n);
 
     res = EVP_PKEY_new();
-    if (res == NULL) {
-        HWCRHKerr(HWCRHK_F_HWCRHK_LOAD_PRIVKEY, HWCRHK_R_CHIL_ERROR);
-        goto err;
-    }
     EVP_PKEY_assign_RSA(res, rtmp);
 #  endif
 
-    if (res == NULL)
+    if (!res)
         HWCRHKerr(HWCRHK_F_HWCRHK_LOAD_PRIVKEY,
                   HWCRHK_R_PRIVATE_KEY_ALGORITHMS_DISABLED);
 
     return res;
  err:
 #  ifndef OPENSSL_NO_RSA
-    RSA_free(rtmp);
+    if (rtmp)
+        RSA_free(rtmp);
 #  endif
     return NULL;
 }
@@ -818,14 +871,14 @@ static EVP_PKEY *hwcrhk_load_pubkey(ENGINE *eng, const char *key_id,
             {
                 RSA *rsa = NULL;
 
-                CRYPTO_THREAD_write_lock(chil_lock);
+                CRYPTO_w_lock(CRYPTO_LOCK_EVP_PKEY);
                 rsa = res->pkey.rsa;
                 res->pkey.rsa = RSA_new();
                 res->pkey.rsa->n = rsa->n;
                 res->pkey.rsa->e = rsa->e;
                 rsa->n = NULL;
                 rsa->e = NULL;
-                CRYPTO_THREAD_unlock(chil_lock);
+                CRYPTO_w_unlock(CRYPTO_LOCK_EVP_PKEY);
                 RSA_free(rsa);
             }
             break;
@@ -838,7 +891,8 @@ static EVP_PKEY *hwcrhk_load_pubkey(ENGINE *eng, const char *key_id,
 
     return res;
  err:
-    EVP_PKEY_free(res);
+    if (res)
+        EVP_PKEY_free(res);
     return NULL;
 }
 
@@ -1093,28 +1147,26 @@ static int hwcrhk_rand_status(void)
 static int hwcrhk_mutex_init(HWCryptoHook_Mutex * mt,
                              HWCryptoHook_CallerContext * cactx)
 {
-    mt->lock = CRYPTO_THREAD_lock_new();
-    if (mt->lock == NULL) {
-        HWCRHKerr(HWCRHK_F_HWCRHK_MUTEX_INIT, ERR_R_MALLOC_FAILURE);
+    mt->lockid = CRYPTO_get_new_dynlockid();
+    if (mt->lockid == 0)
         return 1;               /* failure */
-    }
     return 0;                   /* success */
 }
 
 static int hwcrhk_mutex_lock(HWCryptoHook_Mutex * mt)
 {
-    CRYPTO_THREAD_write_lock(mt->lock);
+    CRYPTO_w_lock(mt->lockid);
     return 0;
 }
 
 static void hwcrhk_mutex_unlock(HWCryptoHook_Mutex * mt)
 {
-    CRYPTO_THREAD_unlock(mt->lock);
+    CRYPTO_w_unlock(mt->lockid);
 }
 
 static void hwcrhk_mutex_destroy(HWCryptoHook_Mutex * mt)
 {
-    CRYPTO_THREAD_lock_free(mt->lock);
+    CRYPTO_destroy_dynlockid(mt->lockid);
 }
 
 static int hwcrhk_get_pass(const char *prompt_info,
@@ -1216,7 +1268,7 @@ static int hwcrhk_insert_card(const char *prompt_info,
     ui = UI_new_method(ui_method);
 
     if (ui) {
-        char answer = '\0';
+        char answer;
         char buf[BUFSIZ];
         /*
          * Despite what the documentation says wrong_info can be an empty
@@ -1256,11 +1308,13 @@ static void hwcrhk_log_message(void *logstr, const char *message)
 {
     BIO *lstream = NULL;
 
+    CRYPTO_w_lock(CRYPTO_LOCK_BIO);
     if (logstr)
         lstream = *(BIO **)logstr;
     if (lstream) {
         BIO_printf(lstream, "%s\n", message);
     }
+    CRYPTO_w_unlock(CRYPTO_LOCK_BIO);
 }
 
 /*

@@ -65,11 +65,10 @@ var datePrototypeFunctions = [
     "getTimezoneOffset", "setTime", "setMilliseconds",
     "setUTCMilliseconds", "setSeconds", "setUTCSeconds", "setMinutes",
     "setUTCMinutes", "setHours", "setUTCHours", "setDate", "setUTCDate",
-    "setMonth", "setUTCMonth", "setFullYear", "setUTCFullYear",
+    "setMonth", "setUTCMonth", "setFullYear", "setUTCFullYear", "toGMTString",
     "toUTCString", "getYear", "setYear"];
 
 TestFunctionNames(Date.prototype, datePrototypeFunctions);
-assertEquals(Date.prototype.toGMTString, Date.prototype.toUTCString);
 
 
 // Function.prototype functions.

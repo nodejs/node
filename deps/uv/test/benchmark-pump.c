@@ -36,9 +36,9 @@ static int TARGET_CONNECTIONS;
 
 
 static void do_write(uv_stream_t*);
-static void maybe_connect_some(void);
+static void maybe_connect_some();
 
-static uv_req_t* req_alloc(void);
+static uv_req_t* req_alloc();
 static void req_free(uv_req_t* uv_req);
 
 static void buf_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf);

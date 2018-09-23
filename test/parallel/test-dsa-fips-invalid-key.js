@@ -1,17 +1,22 @@
 'use strict';
-const common = require('../common');
-const fixtures = require('../common/fixtures');
+var common = require('../common');
+var assert = require('assert');
 
-if (!common.hasFipsCrypto)
-  common.skip('node compiled without FIPS OpenSSL.');
+if (!common.hasFipsCrypto) {
+  console.log('1..0 # Skipped: node compiled without FIPS OpenSSL.');
+  return;
+}
 
-const assert = require('assert');
-const crypto = require('crypto');
+var crypto = require('crypto');
+var fs = require('fs');
 
-const input = 'hello';
+var input = 'hello';
 
-const dsapri = fixtures.readKey('dsa_private_1025.pem');
-const sign = crypto.createSign('SHA1');
+var dsapub = fs.readFileSync(common.fixturesDir +
+                             '/keys/dsa_public_1025.pem');
+var dsapri = fs.readFileSync(common.fixturesDir +
+                             '/keys/dsa_private_1025.pem');
+var sign = crypto.createSign('DSS1');
 sign.update(input);
 
 assert.throws(function() {

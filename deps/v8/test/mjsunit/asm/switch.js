@@ -11,12 +11,11 @@ var switch1 = (function(stdlib, foreign, heap) {
   "use asm";
   function switch1(i) {
     i = i|0;
-    switch (i | 0) {
+    switch (i) {
       case 0: return 1;
       case 1: return 2;
       default: return i|0;
     }
-    return i | 0;
   }
   return { switch1: switch1 };
 })(stdlib, foreign, heap).switch1;
@@ -33,7 +32,7 @@ var switch2 = (function(stdlib, foreign, heap) {
   function switch2(i) {
     i = i|0;
     var j = 0;
-    switch (i | 0) {
+    switch (i) {
       case 0: j = 1; break;
       case 1: j = 2; break;
       case 2: j = 3; break;
@@ -57,7 +56,7 @@ var switch3 = (function(stdlib, foreign, heap) {
   function switch3(i) {
     i = i|0;
     var j = 0;
-    switch (i | 0) {
+    switch (i) {
       case 0:
       case 1: j = 1; break;
       case 2:
@@ -86,7 +85,7 @@ var switch4 = (function(stdlib, foreign, heap) {
   "use asm";
   function switch4(i) {
     i = i|0;
-    switch (i | 0) {
+    switch (i) {
       case -1:
       case 1:
         return 0;
@@ -106,7 +105,6 @@ var switch4 = (function(stdlib, foreign, heap) {
       default:
         return 4;
     }
-    return 0;  // needed for validation
   }
   return { switch4: switch4 };
 })(stdlib, foreign, heap).switch4;

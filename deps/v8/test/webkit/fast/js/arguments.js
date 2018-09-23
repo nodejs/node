@@ -574,6 +574,13 @@ function argumentsVarUndefined()
 }
 shouldBe("argumentsVarUndefined()", "'[object Arguments]'");
 
+function argumentsConstUndefined()
+{
+    const arguments;
+    return String(arguments);
+}
+shouldBe("argumentsConstUndefined()", "'[object Arguments]'");
+
 function argumentCalleeInException() {
     try {
         throw "";

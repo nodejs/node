@@ -1,5 +1,0 @@
-*%(basename)s:5: TypeError: {(intermediate value)} is not iterable
-var [a] = {a: 1};
-          ^
-TypeError: {(intermediate value)} is not iterable
-    at *%(basename)s:5:11

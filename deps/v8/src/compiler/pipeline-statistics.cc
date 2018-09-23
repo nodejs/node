@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <memory>
-
+#include "src/compiler.h"
 #include "src/compiler/pipeline-statistics.h"
-#include "src/compiler/zone-stats.h"
-#include "src/objects/shared-function-info.h"
-#include "src/objects/string.h"
-#include "src/optimized-compilation-info.h"
+#include "src/compiler/zone-pool.h"
 
 namespace v8 {
 namespace internal {
@@ -16,21 +12,21 @@ namespace compiler {
 
 void PipelineStatistics::CommonStats::Begin(
     PipelineStatistics* pipeline_stats) {
-  DCHECK(!scope_);
-  scope_.reset(new ZoneStats::StatsScope(pipeline_stats->zone_stats_));
+  DCHECK(scope_.is_empty());
+  scope_.Reset(new ZonePool::StatsScope(pipeline_stats->zone_pool_));
   timer_.Start();
   outer_zone_initial_size_ = pipeline_stats->OuterZoneSize();
   allocated_bytes_at_start_ =
       outer_zone_initial_size_ -
       pipeline_stats->total_stats_.outer_zone_initial_size_ +
-      pipeline_stats->zone_stats_->GetCurrentAllocatedBytes();
+      pipeline_stats->zone_pool_->GetCurrentAllocatedBytes();
 }
 
 
 void PipelineStatistics::CommonStats::End(
     PipelineStatistics* pipeline_stats,
     CompilationStatistics::BasicStats* diff) {
-  DCHECK(scope_);
+  DCHECK(!scope_.is_empty());
   diff->function_name_ = pipeline_stats->function_name_;
   diff->delta_ = timer_.Elapsed();
   size_t outer_zone_diff =
@@ -40,22 +36,23 @@ void PipelineStatistics::CommonStats::End(
       diff->max_allocated_bytes_ + allocated_bytes_at_start_;
   diff->total_allocated_bytes_ =
       outer_zone_diff + scope_->GetTotalAllocatedBytes();
-  scope_.reset();
+  scope_.Reset(NULL);
   timer_.Stop();
 }
 
-PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
-                                       CompilationStatistics* compilation_stats,
-                                       ZoneStats* zone_stats)
-    : outer_zone_(info->zone()),
-      zone_stats_(zone_stats),
-      compilation_stats_(compilation_stats),
+
+PipelineStatistics::PipelineStatistics(CompilationInfo* info,
+                                       ZonePool* zone_pool)
+    : isolate_(info->isolate()),
+      outer_zone_(info->zone()),
+      zone_pool_(zone_pool),
+      compilation_stats_(isolate_->GetTurboStatistics()),
       source_size_(0),
-      phase_kind_name_(nullptr),
-      phase_name_(nullptr) {
+      phase_kind_name_(NULL),
+      phase_name_(NULL) {
   if (info->has_shared_info()) {
     source_size_ = static_cast<size_t>(info->shared_info()->SourceSize());
-    std::unique_ptr<char[]> name =
+    base::SmartArrayPointer<char> name =
         info->shared_info()->DebugName()->ToCString();
     function_name_ = name.get();
   }

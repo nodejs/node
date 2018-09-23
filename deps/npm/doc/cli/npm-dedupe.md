@@ -3,10 +3,8 @@ npm-dedupe(1) -- Reduce duplication
 
 ## SYNOPSIS
 
-    npm dedupe
-    npm ddp
-
-    aliases: find-dupes, ddp
+    npm dedupe [package names...]
+    npm ddp [package names...]
 
 ## DESCRIPTION
 

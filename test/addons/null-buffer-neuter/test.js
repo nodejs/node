@@ -1,7 +1,7 @@
 'use strict';
 // Flags: --expose-gc
 
-const common = require('../../common');
-const binding = require(`./build/${common.buildType}/binding`);
+require('../../common');
+var binding = require('./build/Release/binding');
 
 binding.run();

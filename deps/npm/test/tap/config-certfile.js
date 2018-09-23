@@ -12,8 +12,7 @@ test('cafile loads as ca', function (t) {
     if (er) throw er
 
     t.same(conf.get('cafile'), cafile)
-    var ca = fs.readFileSync(cafile, 'utf8').trim()
-    t.same(conf.get('ca').join(ca.match(/\r/g) ? '\r\n' : '\n'), ca)
+    t.same(conf.get('ca').join('\n'), fs.readFileSync(cafile, 'utf8').trim())
     t.end()
   })
 })

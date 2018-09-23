@@ -29,5 +29,5 @@
 
 a = [1,2,3];
 a.length = 1;
-assertFalse(%HasHoleyElements(a));
-assertTrue(%HasSmiElements(a));
+assertFalse(%HasFastHoleyElements(a));
+assertTrue(%HasFastSmiElements(a));

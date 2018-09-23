@@ -7,50 +7,19 @@ To resolve packages by name and version, npm talks to a registry website
 that implements the CommonJS Package Registry specification for reading
 package info.
 
-npm is configured to use npm, Inc.'s public registry at
-<https://registry.npmjs.org> by default. Use of the npm public registry is
-subject to terms of use available at <https://www.npmjs.com/policies/terms>.
-
-You can configure npm to use any compatible registry you like, and even run
-your own registry. Use of someone else's registry may be governed by their
-terms of use.
-
-npm's package registry implementation supports several
+Additionally, npm's package registry implementation supports several
 write APIs as well, to allow for publishing packages and managing user
 account information.
 
-The npm public registry is powered by a CouchDB database,
-of which there is a public mirror at
-<https://skimdb.npmjs.com/registry>.  The code for the couchapp is
-available at <https://github.com/npm/npm-registry-couchapp>.
+The official public npm registry is at <http://registry.npmjs.org/>.  It
+is powered by a CouchDB database, of which there is a public mirror at
+<http://skimdb.npmjs.com/registry>.  The code for the couchapp is
+available at <http://github.com/npm/npm-registry-couchapp>.
 
 The registry URL used is determined by the scope of the package (see
 `npm-scope(7)`). If no scope is specified, the default registry is used, which is
 supplied by the `registry` config parameter.  See `npm-config(1)`,
 `npmrc(5)`, and `npm-config(7)` for more on managing npm's configuration.
-
-## Does npm send any information about me back to the registry?
-
-Yes.
-
-When making requests of the registry npm adds two headers with information
-about your environment:
-
-* `Npm-Scope` – If your project is scoped, this header will contain its
-  scope. In the future npm hopes to build registry features that use this
-  information to allow you to customize your experience for your
-  organization.
-* `Npm-In-CI` – Set to "true" if npm believes this install is running in a
-  continous integration environment, "false" otherwise. This is detected by
-  looking for the following environment variables: `CI`, `TDDIUM`,
-  `JENKINS_URL`, `bamboo.buildKey`. If you'd like to learn more you may find
-  the [original PR](https://github.com/npm/npm-registry-client/pull/129)
-  interesting.
-  This is used to gather better metrics on how npm is used by humans, versus
-  build farms.
-
-The npm registry does not try to correlate the information in these headers
-with any authenticated accounts that may be used in the same requests.
 
 ## Can I run my own private registry?
 
@@ -62,7 +31,7 @@ similar) design doc to implement the APIs.
 If you set up continuous replication from the official CouchDB, and then
 set your internal CouchDB as the registry config, then you'll be able
 to read any published packages, in addition to your private ones, and by
-default will only publish internally. 
+default will only publish internally.
 
 If you then want to publish a package for the whole world to see, you can
 simply override the `--registry` option for that `publish` command.
@@ -89,7 +58,7 @@ effectively implement the entire CouchDB API anyway.
 
 ## Is there a website or something to see package docs and such?
 
-Yes, head over to <https://www.npmjs.com/>
+Yes, head over to <https://npmjs.com/>
 
 ## SEE ALSO
 

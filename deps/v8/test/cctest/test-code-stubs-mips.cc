@@ -31,39 +31,36 @@
 
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/heap/factory.h"
+#include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips/constants-mips.h"
-#include "src/objects-inl.h"
-#include "src/register-configuration.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
-namespace v8 {
-namespace internal {
+using namespace v8::internal;
 
 #define __ masm.
 
 ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
-                                              Register destination_reg) {
+                                              Register source_reg,
+                                              Register destination_reg,
+                                              bool inline_fastpath) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
   HandleScope handles(isolate);
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size));
+  DoubleToIStub stub(isolate, source_reg, destination_reg, 0, true,
+                     inline_fastpath);
 
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
-                      v8::internal::CodeObjectRequired::kYes);
-
-  Handle<Code> code = BUILTIN_CODE(isolate, DoubleToI);
-  Address start = code->InstructionStart();
+  byte* start = stub.GetCode()->instruction_start();
+  Label done;
 
   // Save callee save registers.
   __ MultiPush(kCalleeSaved | ra.bit());
-
-  // Save callee-saved FPU registers.
-  __ MultiPushFPU(kCalleeSavedFPU);
-  // Set up the reserved register for 0.0.
-  __ Move(kDoubleRegZero, 0.0);
 
   // For softfp, move the input value into f12.
   if (IsMipsSoftFloatABI) {
@@ -71,40 +68,45 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   }
   // Push the double argument.
   __ Subu(sp, sp, Operand(kDoubleSize));
-  __ Sdc1(f12, MemOperand(sp));
+  __ sdc1(f12, MemOperand(sp));
+  __ Move(source_reg, sp);
 
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 2;
-  for (; reg_num < Register::kNumRegisters; ++reg_num) {
-    if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
-      Register reg = Register::from_code(reg_num);
-      if (reg != destination_reg) {
-        __ push(reg);
-        source_reg_offset += kPointerSize;
-      }
+  for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
+    Register reg = Register::from_code(reg_num);
+    if (!reg.is(destination_reg)) {
+      __ push(reg);
+      source_reg_offset += kPointerSize;
     }
   }
 
   // Re-push the double argument.
   __ Subu(sp, sp, Operand(kDoubleSize));
-  __ Sdc1(f12, MemOperand(sp));
+  __ sdc1(f12, MemOperand(sp));
 
   // Call through to the actual stub
+  if (inline_fastpath) {
+    __ ldc1(f12, MemOperand(source_reg));
+    __ TryInlineTruncateDoubleToI(destination_reg, f12, &done);
+    if (destination_reg.is(source_reg) && !source_reg.is(sp)) {
+      // Restore clobbered source_reg.
+      __ Addu(source_reg, sp, Operand(source_reg_offset));
+    }
+  }
   __ Call(start, RelocInfo::EXTERNAL_REFERENCE);
-  __ lw(destination_reg, MemOperand(sp, 0));
+  __ bind(&done);
 
   __ Addu(sp, sp, Operand(kDoubleSize));
 
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 2; --reg_num) {
-    if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
-      Register reg = Register::from_code(reg_num);
-      if (reg != destination_reg) {
-        __ lw(at, MemOperand(sp, 0));
-        __ Assert(eq, AbortReason::kRegisterWasClobbered, reg, Operand(at));
-        __ Addu(sp, sp, Operand(kPointerSize));
-      }
+    Register reg = Register::from_code(reg_num);
+    if (!reg.is(destination_reg)) {
+      __ lw(at, MemOperand(sp, 0));
+      __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));
+      __ Addu(sp, sp, Operand(kPointerSize));
     }
   }
 
@@ -115,9 +117,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ Branch(&ok, eq, v0, Operand(zero_reg));
   __ bind(&ok);
 
-  // Restore callee-saved FPU registers.
-  __ MultiPopFPU(kCalleeSavedFPU);
-
   // Restore callee save registers.
   __ MultiPop(kCalleeSaved | ra.bit());
 
@@ -127,9 +126,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ Ret();
 
   CodeDesc desc;
-  masm.GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
-  Assembler::FlushICache(buffer, allocated);
+  masm.GetCode(&desc);
+  CpuFeatures::FlushICache(buffer, actual_size);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
 }
@@ -145,9 +143,8 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
                                     double from) {
 #ifdef USE_SIMULATOR
-  Simulator::current(CcTest::i_isolate())
-      ->CallFP(FUNCTION_ADDR(func), from, 0.);
-  return Simulator::current(CcTest::i_isolate())->get_register(v0.code());
+  Simulator::current(Isolate::Current())->CallFP(FUNCTION_ADDR(func), from, 0.);
+  return Simulator::current(Isolate::Current())->get_register(v0.code());
 #else
   return (*func)(from);
 #endif
@@ -167,15 +164,25 @@ TEST(ConvertDToI) {
   RunAllTruncationTests(&ConvertDToICVersion);
 #endif
 
+  Register source_registers[] = {
+      sp, v0, v1, a0, a1, a2, a3, t0, t1, t2, t3, t4, t5};
   Register dest_registers[] = {
       v0, v1, a0, a1, a2, a3, t0, t1, t2, t3, t4, t5};
 
-  for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
-    RunAllTruncationTests(
-        RunGeneratedCodeCallWrapper,
-        MakeConvertDToIFuncTrampoline(isolate, dest_registers[d]));
+  for (size_t s = 0; s < sizeof(source_registers) / sizeof(Register); s++) {
+    for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
+      RunAllTruncationTests(
+          RunGeneratedCodeCallWrapper,
+          MakeConvertDToIFuncTrampoline(isolate,
+                                        source_registers[s],
+                                        dest_registers[d],
+                                        false));
+      RunAllTruncationTests(
+          RunGeneratedCodeCallWrapper,
+          MakeConvertDToIFuncTrampoline(isolate,
+                                        source_registers[s],
+                                        dest_registers[d],
+                                        true));
+    }
   }
 }
-
-}  // namespace internal
-}  // namespace v8

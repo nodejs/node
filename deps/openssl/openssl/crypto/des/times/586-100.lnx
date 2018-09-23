@@ -1,0 +1,20 @@
+Pentium 100
+Linux 2 kernel
+gcc 2.7.0 -O3 -fomit-frame-pointer
+No X server running, just a console, it makes the top speed jump from 151,000
+to 158,000 :-).
+options    des ecb/s
+assember   281000.00 177.1%
+16 r1 p    158667.40 100.0%
+16 r1 i    148471.70  93.6%
+16 r2 p    143961.80  90.7%
+16 r2 i    141689.20  89.3%
+ 4 r1 i    140100.00  88.3%
+ 4 r2 i    134049.40  84.5%
+16  c i    124145.20  78.2%
+16  c p    121584.20  76.6%
+ 4  c i    118116.00  74.4%
+ 4 r2 p    117977.90  74.4%
+ 4  c p    114971.40  72.5%
+ 4 r1 p    114578.40  72.2%
+-DDES_UNROLL -DDES_RISC1 -DDES_PTR

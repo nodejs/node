@@ -1,11 +1,11 @@
-.TH "NPM\-VERSION" "1" "August 2018" "" ""
+.TH "NPM\-VERSION" "1" "November 2015" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [\-\-preid=<prerelease\-id>] | from\-git]
+npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]
 
 \|'npm [\-v | \-\-version]' to print npm version
 \|'npm view <pkg> version' to view a package's published version
@@ -15,13 +15,12 @@ npm version [<newversion> | major | minor | patch | premajor | preminor | prepat
 .SH DESCRIPTION
 .P
 Run this in a package directory to bump the version and write the new
-data back to \fBpackage\.json\fP, \fBpackage\-lock\.json\fP, and, if present, \fBnpm\-shrinkwrap\.json\fP\|\.
+data back to \fBpackage\.json\fP and, if present, \fBnpm\-shrinkwrap\.json\fP\|\.
 .P
-The \fBnewversion\fP argument should be a valid semver string, a
-valid second argument to semver\.inc \fIhttps://github\.com/npm/node\-semver#functions\fR (one of \fBpatch\fP, \fBminor\fP, \fBmajor\fP,
-\fBprepatch\fP, \fBpreminor\fP, \fBpremajor\fP, \fBprerelease\fP), or \fBfrom\-git\fP\|\. In the second case,
+The \fBnewversion\fP argument should be a valid semver string, \fIor\fR a
+valid second argument to semver\.inc (one of \fBpatch\fP, \fBminor\fP, \fBmajor\fP,
+\fBprepatch\fP, \fBpreminor\fP, \fBpremajor\fP, \fBprerelease\fP)\. In the second case,
 the existing version will be incremented by 1 in the specified field\.
-\fBfrom\-git\fP will try to read the latest git tag, and use that as the new npm version\.
 .P
 If run in a git repo, it will also create a version commit and tag\.
 This behavior is controlled by \fBgit\-tag\-version\fP (see below), and can
@@ -100,17 +99,6 @@ This runs all your tests, and proceeds only if they pass\. Then runs your \fBbui
 adds everything in the \fBdist\fP directory to the commit\. After the commit, it pushes the new commit
 and tag up to the server, and deletes the \fBbuild/temp\fP directory\.
 .SH CONFIGURATION
-.SS allow\-same\-version
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Prevents throwing an error when \fBnpm version\fP is used to set the new version
-to the same value as the current version\.
 .SS git\-tag\-version
 .RS 0
 .IP \(bu 2
@@ -121,28 +109,6 @@ Type: Boolean
 .RE
 .P
 Commit and tag the version change\.
-.SS commit\-hooks
-.RS 0
-.IP \(bu 2
-Default: true
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Run git commit hooks when committing the version change\.
-.SS sign\-git\-tag
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Pass the \fB\-s\fP flag to git to sign the tag\.
-.P
-Note that you must have a default GPG key set up in your git config for this to work properly\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

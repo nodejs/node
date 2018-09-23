@@ -211,14 +211,36 @@
 /* Define to the return type of signal handlers (int or void). */
 #define RETSIGTYPE void
 
-#ifdef __cplusplus
-/* Compiling headers in C++ mode means bool is available */
-#define HAVE_BOOL_T
+/* Define if ssize_t is not an available 'typedefed' type. */
+#ifndef _SSIZE_T_DEFINED
+#  if (defined(__WATCOMC__) && (__WATCOMC__ >= 1240)) || \
+      defined(__POCC__) || \
+      defined(__MINGW32__)
+#  elif defined(_WIN64)
+#    define _SSIZE_T_DEFINED
+#    define ssize_t __int64
+#  else
+#    define _SSIZE_T_DEFINED
+#    define ssize_t int
+#  endif
 #endif
 
 /* ---------------------------------------------------------------- */
 /*                            TYPE SIZES                            */
 /* ---------------------------------------------------------------- */
+
+/* Define to the size of `int', as computed by sizeof. */
+#define SIZEOF_INT 4
+
+/* Define to the size of `short', as computed by sizeof. */
+#define SIZEOF_SHORT 2
+
+/* Define to the size of `size_t', as computed by sizeof. */
+#if defined(_WIN64)
+#  define SIZEOF_SIZE_T 8
+#else
+#  define SIZEOF_SIZE_T 4
+#endif
 
 /* ---------------------------------------------------------------- */
 /*                          STRUCT RELATED                          */
@@ -245,19 +267,31 @@
 #  define _CRT_NONSTDC_NO_DEPRECATE 1
 #endif
 
-/* Set the Target to Vista. However, any symbols required above Win2000
- * should be loaded via LoadLibrary() */
+/* Officially, Microsoft's Windows SDK versions 6.X do not support Windows
+   2000 as a supported build target. VS2008 default installations provide
+   an embedded Windows SDK v6.0A along with the claim that Windows 2000 is
+   a valid build target for VS2008. Popular belief is that binaries built
+   with VS2008 using Windows SDK versions 6.X and Windows 2000 as a build
+   target are functional. */
 #if defined(_MSC_VER) && (_MSC_VER >= 1500)
-#  define VS2008_MIN_TARGET 0x0600
+#  define VS2008_MIN_TARGET 0x0500
+#endif
+
+/* When no build target is specified VS2008 default build target is Windows
+   Vista, which leaves out even Winsows XP. If no build target has been given
+   for VS2008 we will target the minimum Officially supported build target,
+   which happens to be Windows XP. */
+#if defined(_MSC_VER) && (_MSC_VER >= 1500)
+#  define VS2008_DEF_TARGET  0x0501
 #endif
 
 /* VS2008 default target settings and minimum build target check. */
 #if defined(_MSC_VER) && (_MSC_VER >= 1500)
 #  ifndef _WIN32_WINNT
-#    define _WIN32_WINNT VS2008_MIN_TARGET
+#    define _WIN32_WINNT VS2008_DEF_TARGET
 #  endif
 #  ifndef WINVER
-#    define WINVER VS2008_MIN_TARGET
+#    define WINVER VS2008_DEF_TARGET
 #  endif
 #  if (_WIN32_WINNT < VS2008_MIN_TARGET) || (WINVER < VS2008_MIN_TARGET)
 #    error VS2008 does not support Windows build targets prior to Windows 2000
@@ -265,13 +299,13 @@
 #endif
 
 /* When no build target is specified Pelles C 5.00 and later default build
-   target is Windows Vista. */
+   target is Windows Vista. We override default target to be Windows 2000. */
 #if defined(__POCC__) && (__POCC__ >= 500)
 #  ifndef _WIN32_WINNT
-#    define _WIN32_WINNT 0x0600
+#    define _WIN32_WINNT 0x0500
 #  endif
 #  ifndef WINVER
-#    define WINVER 0x0600
+#    define WINVER 0x0500
 #  endif
 #endif
 

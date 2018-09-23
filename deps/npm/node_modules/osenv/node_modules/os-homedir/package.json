@@ -1,0 +1,53 @@
+{
+  "name": "os-homedir",
+  "version": "1.0.1",
+  "description": "io.js 2.3.0 os.homedir() ponyfill",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/os-homedir.git"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "built-in",
+    "core",
+    "ponyfill",
+    "polyfill",
+    "shim",
+    "os",
+    "homedir",
+    "home",
+    "dir",
+    "directory",
+    "folder",
+    "user",
+    "path"
+  ],
+  "devDependencies": {
+    "ava": "0.0.4",
+    "path-exists": "^1.0.0"
+  },
+  "readme": "# os-homedir [![Build Status](https://travis-ci.org/sindresorhus/os-homedir.svg?branch=master)](https://travis-ci.org/sindresorhus/os-homedir)\n\n> io.js 2.3.0 [`os.homedir()`](https://iojs.org/api/os.html#os_os_homedir) ponyfill\n\n> Ponyfill: A polyfill that doesn't overwrite the native method\n\n\n## Install\n\n```\n$ npm install --save os-homedir\n```\n\n\n## Usage\n\n```js\nvar osHomedir = require('os-homedir');\n\nconsole.log(osHomedir());\n//=> /Users/sindresorhus\n```\n\n\n## Related\n\n- [user-home](https://github.com/sindresorhus/user-home) - Same as this module but caches the result\n- [home-or-tmp](https://github.com/sindresorhus/home-or-tmp) - Get the user home directory with fallback to the system temp directory\n\n\n## License\n\nMIT © [Sindre Sorhus](http://sindresorhus.com)\n",
+  "readmeFilename": "readme.md",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/os-homedir/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/os-homedir#readme",
+  "_id": "os-homedir@1.0.1",
+  "_shasum": "0d62bdf44b916fd3bbdcf2cab191948fb094f007",
+  "_resolved": "https://registry.npmjs.org/os-homedir/-/os-homedir-1.0.1.tgz",
+  "_from": "os-homedir@>=1.0.0 <2.0.0"
+}

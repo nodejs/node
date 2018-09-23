@@ -10,7 +10,6 @@ var npm = require('./npm.js')
 var path = require('path')
 var fs = require('graceful-fs')
 var editor = require('editor')
-var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
 
 function edit (args, cb) {
   var p = args[0]
@@ -22,14 +21,14 @@ function edit (args, cb) {
     ))
   }
   p = p.split('/')
-    .join('/node_modules/')
-    .replace(/(\/node_modules)+/, '/node_modules')
+       .join('/node_modules/')
+       .replace(/(\/node_modules)+/, '/node_modules')
   var f = path.resolve(npm.dir, p)
   fs.lstat(f, function (er) {
     if (er) return cb(er)
-    editor(f, { editor: e }, noProgressTillDone(function (er) {
+    editor(f, { editor: e }, function (er) {
       if (er) return cb(er)
       npm.commands.rebuild(args, cb)
-    }))
+    })
   })
 }

@@ -7,17 +7,13 @@ npm-dist-tag(1) -- Modify package distribution tags
     npm dist-tag rm <pkg> <tag>
     npm dist-tag ls [<pkg>]
 
-    aliases: dist-tags
-
 ## DESCRIPTION
 
 Add, remove, and enumerate distribution tags on a package:
 
 * add:
   Tags the specified version of the package with the specified tag, or the
-  `--tag` config if not specified. If the tag you're adding is `latest` and you
-  have two-factor authentication on auth-and-writes then you'll need to include
-  an otp on the command line with `--otp`.
+  `--tag` config if not specified.
 
 * rm:
   Clear a tag that is no longer in use from the package.
@@ -37,30 +33,17 @@ When installing dependencies, a preferred tagged version may be specified:
 
 This also applies to `npm dedupe`.
 
-Publishing a package sets the `latest` tag to the published version unless the
+Publishing a package sets the "latest" tag to the published version unless the
 `--tag` option is used. For example, `npm publish --tag=beta`.
-
-By default, `npm install <pkg>` (without any `@<version>` or `@<tag>`
-specifier) installs the `latest` tag.
 
 ## PURPOSE
 
-Tags can be used to provide an alias instead of version numbers.
+Tags can be used to provide an alias instead of version numbers.  For
+example, `npm` currently uses the tag "next" to identify the upcoming
+version, and the tag "latest" to identify the current version.
 
-For example, a project might choose to have multiple streams of development
-and use a different tag for each stream,
-e.g., `stable`, `beta`, `dev`, `canary`.
-
-By default, the `latest` tag is used by npm to identify the current version of
-a package, and `npm install <pkg>` (without any `@<version>` or `@<tag>`
-specifier) installs the `latest` tag. Typically, projects only use the `latest`
-tag for stable release versions, and use other tags for unstable versions such
-as prereleases.
-
-The `next` tag is used by some projects to identify the upcoming version.
-
-By default, other than `latest`, no tag has any special significance to npm
-itself.
+A project might choose to have multiple streams of development, e.g.,
+"stable", "canary".
 
 ## CAVEATS
 
@@ -79,10 +62,12 @@ begin with a number or the letter `v`.
 
 ## SEE ALSO
 
+* npm-tag(1)
 * npm-publish(1)
 * npm-install(1)
 * npm-dedupe(1)
 * npm-registry(7)
 * npm-config(1)
 * npm-config(7)
+* npm-tag(3)
 * npmrc(5)

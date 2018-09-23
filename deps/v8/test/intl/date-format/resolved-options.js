@@ -38,8 +38,7 @@ assertEquals('latn', resolved.numberingSystem);
 assertTrue(resolved.hasOwnProperty('calendar'));
 assertEquals('gregory', resolved.calendar);
 assertTrue(resolved.hasOwnProperty('timeZone'));
-// TODO(littledan): getDefaultTimeZone() is not available from JavaScript
-// assertEquals(getDefaultTimeZone(), resolved.timeZone);
+assertEquals(getDefaultTimeZone(), resolved.timeZone);
 // These are in by default.
 assertTrue(resolved.hasOwnProperty('year'));
 assertEquals('numeric', resolved.year);

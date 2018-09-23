@@ -1,29 +1,31 @@
 'use strict';
-const common = require('../common');
-const fixtures = require('../common/fixtures');
+var common = require('../common');
+var assert = require('assert');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var https = require('https');
 
-const assert = require('assert');
-const https = require('https');
-
-const options = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
-};
-const httpsServer = https.createServer(options, reqHandler);
+var fs = require('fs'),
+    options = {
+      key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+      cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+    },
+    httpsServer = https.createServer(options, reqHandler);
 
 function reqHandler(req, res) {
-  console.log(`Got request: ${req.headers.host} ${req.url}`);
-  if (req.url.startsWith('/setHostFalse')) {
-    assert.strictEqual(req.headers.host, undefined);
+  console.log('Got request: ' + req.headers.host + ' ' + req.url);
+  if (req.url === '/setHostFalse5') {
+    assert.equal(req.headers.host, undefined);
   } else {
-    assert.strictEqual(
-      req.headers.host, `localhost:${this.address().port}`,
-      `Wrong host header for req[${req.url}]: ${req.headers.host}`);
+    assert.equal(req.headers.host, 'localhost:' + common.PORT,
+                 'Wrong host header for req[' + req.url + ']: ' +
+                 req.headers.host);
   }
   res.writeHead(200, {});
+  //process.nextTick(function() { res.end('ok'); });
   res.end('ok');
 }
 
@@ -35,11 +37,13 @@ testHttps();
 
 function testHttps() {
 
-  let counter = 0;
+  console.log('testing https on port ' + common.PORT);
+
+  var counter = 0;
 
   function cb(res) {
     counter--;
-    console.log(`back from https request. counter = ${counter}`);
+    console.log('back from https request. counter = ' + counter);
     if (counter === 0) {
       httpsServer.close();
       console.log('ok');
@@ -47,84 +51,61 @@ function testHttps() {
     res.resume();
   }
 
-  httpsServer.listen(0, function(er) {
-    console.log(`test https server listening on port ${this.address().port}`);
-    assert.ifError(er);
+  httpsServer.listen(common.PORT, function(er) {
+    if (er) throw er;
+
     https.get({
       method: 'GET',
-      path: `/${counter++}`,
+      path: '/' + (counter++),
       host: 'localhost',
-      port: this.address().port,
+      //agent: false,
+      port: common.PORT,
       rejectUnauthorized: false
     }, cb).on('error', thrower);
 
     https.request({
       method: 'GET',
-      path: `/${counter++}`,
+      path: '/' + (counter++),
       host: 'localhost',
-      port: this.address().port,
+      //agent: false,
+      port: common.PORT,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
     https.request({
       method: 'POST',
-      path: `/${counter++}`,
+      path: '/' + (counter++),
       host: 'localhost',
-      port: this.address().port,
+      //agent: false,
+      port: common.PORT,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
     https.request({
       method: 'PUT',
-      path: `/${counter++}`,
+      path: '/' + (counter++),
       host: 'localhost',
-      port: this.address().port,
+      //agent: false,
+      port: common.PORT,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
     https.request({
       method: 'DELETE',
-      path: `/${counter++}`,
+      path: '/' + (counter++),
       host: 'localhost',
-      port: this.address().port,
+      //agent: false,
+      port: common.PORT,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
     https.get({
       method: 'GET',
-      path: `/setHostFalse${counter++}`,
+      path: '/setHostFalse' + (counter++),
       host: 'localhost',
       setHost: false,
-      port: this.address().port,
-      rejectUnauthorized: false
-    }, cb).on('error', thrower);
-
-    https.request({
-      method: 'GET',
-      path: `/${counter++}`,
-      host: 'localhost',
-      setHost: true,
-      // agent: false,
-      port: this.address().port,
+      port: common.PORT,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
-
-    https.get({
-      method: 'GET',
-      path: `/setHostFalse${counter++}`,
-      host: 'localhost',
-      setHost: 0,
-      port: this.address().port,
-      rejectUnauthorized: false
-    }, cb).on('error', thrower);
-
-    https.get({
-      method: 'GET',
-      path: `/setHostFalse${counter++}`,
-      host: 'localhost',
-      setHost: null,
-      port: this.address().port,
-      rejectUnauthorized: false
-    }, cb).on('error', thrower);
   });
 }

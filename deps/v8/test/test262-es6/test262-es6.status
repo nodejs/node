@@ -1,0 +1,814 @@
+# Copyright 2011 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+[
+[ALWAYS, {
+  ############################### BUGS ###################################
+
+  # BUG(v8:3455)
+  'intl402/11.2.3_b': [FAIL],
+  'intl402/12.2.3_b': [FAIL],
+
+  # BUG(v8:4267)
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-112': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-113': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-164': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-165': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-166': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-168': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-169': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-170': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-172': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-173': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-175': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-176': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-116': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-117': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-168': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-169': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-170': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-172': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-173': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-174': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-176': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-177': [FAIL],
+
+  # Unicode canonicalization is not available with i18n turned off.
+  'built-ins/String/prototype/localeCompare/15.5.4.9_CE': [['no_i18n', SKIP]],
+
+  ###################### NEEDS INVESTIGATION #######################
+
+  # Possibly same cause as S8.5_A2.1, below: floating-point tests.
+  'built-ins/Math/cos/S15.8.2.7_A7': [PASS, FAIL_OK],
+  'built-ins/Math/sin/S15.8.2.16_A7': [PASS, FAIL_OK],
+  'built-ins/Math/tan/S15.8.2.18_A7': [PASS, FAIL_OK],
+
+  # This is an incompatibility between ES5 and V8 on enumerating
+  # shadowed elements in a for..in loop.
+  # https://code.google.com/p/v8/issues/detail?id=705
+  'language/statements/for-in/12.6.4-2': [PASS, FAIL_OK],
+
+  ###################### MISSING ES6 FEATURES #######################
+
+  # Class, let, const in sloppy mode.
+  # https://code.google.com/p/v8/issues/detail?id=3305
+  'language/block-scope/leave/finally-block-let-declaration-only-shadows-outer-parameter-value-1': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/finally-block-let-declaration-only-shadows-outer-parameter-value-2': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/for-loop-block-let-declaration-only-shadows-outer-parameter-value-1': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/for-loop-block-let-declaration-only-shadows-outer-parameter-value-2': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/nested-block-let-declaration-only-shadows-outer-parameter-value-1': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/nested-block-let-declaration-only-shadows-outer-parameter-value-2': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/outermost-binding-updated-in-catch-block-nested-block-let-declaration-unseen-outside-of-block': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/try-block-let-declaration-only-shadows-outer-parameter-value-1': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/try-block-let-declaration-only-shadows-outer-parameter-value-2': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/verify-context-in-finally-block': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/verify-context-in-for-loop-block': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/verify-context-in-labelled-block': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/verify-context-in-try-block': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/x-after-break-to-label': [PASS, FAIL_SLOPPY],
+  'language/block-scope/leave/x-before-continue': [PASS, FAIL_SLOPPY],
+  'language/block-scope/return-from/block-let': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/catch-parameter-shadowing-let-declaration': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/const-declaration-shadowing-catch-parameter': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/const-declarations-shadowing-parameter-name-let-const-and-var-variables': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/dynamic-lookup-from-closure': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/dynamic-lookup-in-and-through-block-contexts': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/let-declaration-shadowing-catch-parameter': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/let-declarations-shadowing-parameter-name-let-const-and-var': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/lookup-from-closure': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/lookup-in-and-through-block-contexts': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/parameter-name-shadowing-parameter-name-let-const-and-var': [PASS, FAIL_SLOPPY],
+  'language/block-scope/syntax/for-in/acquire-properties-from-array': [PASS, FAIL_SLOPPY],
+  'language/block-scope/syntax/for-in/acquire-properties-from-object': [PASS, FAIL_SLOPPY],
+  'language/block-scope/syntax/for-in/mixed-values-in-iteration': [PASS, FAIL_SLOPPY],
+  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
+  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-var': [PASS, FAIL_SLOPPY],
+  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-var-with-function-declaration': [PASS, FAIL_SLOPPY],
+  'language/statements/const/block-local-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/const/block-local-use-before-initialization-in-declaration-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/block-local-use-before-initialization-in-prior-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/function-local-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/const/function-local-use-before-initialization-in-declaration-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/function-local-use-before-initialization-in-prior-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/global-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/const/global-use-before-initialization-in-declaration-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/global-use-before-initialization-in-prior-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/block-scope-syntax-const-declarations-mixed-with-without-initialiser': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/block-scope-syntax-const-declarations-mixed-without-with-initialiser': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/block-scope-syntax-const-declarations-without-initialiser': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/const': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/const-invalid-assignment-statement-body-for-in': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/const-invalid-assignment-statement-body-for-of': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/const-outer-inner-let-bindings': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/with-initializer-do-statement-while-expression': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/with-initializer-for-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/with-initializer-if-expression-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/with-initializer-if-expression-statement-else-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/with-initializer-label-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/with-initializer-while-expression-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/without-initializer-case-expression-statement-list': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/without-initializer-default-statement-list': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/without-initializer-do-statement-while-expression': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/without-initializer-for-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/without-initializer-if-expression-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/without-initializer-if-expression-statement-else-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/without-initializer-label-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/const/syntax/without-initializer-while-expression-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/continue/labeled-continue': [PASS, FAIL_SLOPPY],
+  'language/statements/continue/nested-let-bound-for-loops-inner-continue': [PASS, FAIL_SLOPPY],
+  'language/statements/continue/nested-let-bound-for-loops-labeled-continue': [PASS, FAIL_SLOPPY],
+  'language/statements/continue/nested-let-bound-for-loops-outer-continue': [PASS, FAIL_SLOPPY],
+  'language/statements/continue/no-label-continue': [PASS, FAIL_SLOPPY],
+  'language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue': [PASS, FAIL_SLOPPY],
+  'language/statements/continue/simple-and-labeled': [PASS, FAIL_SLOPPY],
+  'language/statements/for-in/const-bound-names-fordecl-tdz-for-in': [PASS, FAIL_SLOPPY],
+  'language/statements/for-in/const-fresh-binding-per-iteration-for-in': [PASS, FAIL_SLOPPY],
+  'language/statements/for-in/let-bound-names-fordecl-tdz-for-in': [PASS, FAIL_SLOPPY],
+  'language/statements/for-in/let-fresh-binding-per-iteration-for-in': [PASS, FAIL_SLOPPY],
+  'language/statements/for-of/const-bound-names-fordecl-tdz-for-of': [PASS, FAIL_SLOPPY],
+  'language/statements/for-of/const-fresh-binding-per-iteration-for-of': [PASS, FAIL_SLOPPY],
+  'language/statements/for-of/let-bound-names-fordecl-tdz-for-of': [PASS, FAIL_SLOPPY],
+  'language/statements/for-of/let-fresh-binding-per-iteration-for-of': [PASS, FAIL_SLOPPY],
+  'language/statements/for/const-fresh-binding-per-iteration-for': [PASS, FAIL_SLOPPY],
+  'language/statements/for/let-fresh-binding-per-iteration-for': [PASS, FAIL_SLOPPY],
+  'language/statements/let/block-local-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/let/block-local-closure-set-before-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/let/block-local-use-before-initialization-in-declaration-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/let/block-local-use-before-initialization-in-prior-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/let/function-local-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/let/function-local-closure-set-before-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/let/function-local-use-before-initialization-in-declaration-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/let/function-local-use-before-initialization-in-prior-statement': [PASS, FAIL_SLOPPY],
+  'language/statements/let/global-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/let/global-closure-set-before-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/let': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/let-closure-inside-condition': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/let-closure-inside-initialization': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/let-closure-inside-next-expression': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/let-iteration-variable-is-freshly-allocated-for-each-iteration-multi-let-binding': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/let-iteration-variable-is-freshly-allocated-for-each-iteration-single-let-binding': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/let-outer-inner-let-bindings': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/with-initialisers-in-statement-positions-case-expression-statement-list': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/with-initialisers-in-statement-positions-default-statement-list': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/without-initialisers-in-statement-positions-case-expression-statement-list': [PASS, FAIL_SLOPPY],
+  'language/statements/let/syntax/without-initialisers-in-statement-positions-default-statement-list': [PASS, FAIL_SLOPPY],
+
+  # https://code.google.com/p/v8/issues/detail?id=3305
+  # This times out in sloppy mode because sloppy const assignment does not throw.
+  'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [PASS, FAIL, TIMEOUT],
+
+  # Number/Boolean.prototype is a plain object in ES6
+  # https://code.google.com/p/v8/issues/detail?id=4001
+  'built-ins/Boolean/prototype/S15.6.3.1_A1': [FAIL],
+  'built-ins/Boolean/prototype/S15.6.4_A1': [FAIL],
+  'built-ins/Boolean/prototype/toString/S15.6.4.2_A1_T1': [FAIL],
+  'built-ins/Boolean/prototype/toString/S15.6.4.2_A1_T2': [FAIL],
+  'built-ins/Boolean/prototype/valueOf/S15.6.4.3_A1_T1': [FAIL],
+  'built-ins/Boolean/prototype/valueOf/S15.6.4.3_A1_T2': [FAIL],
+  'built-ins/Number/15.7.4-1': [FAIL],
+  'built-ins/Number/prototype/S15.7.3.1_A2_*': [FAIL],
+  'built-ins/Number/prototype/S15.7.3.1_A3': [FAIL],
+  'built-ins/Number/prototype/S15.7.4_A1': [FAIL],
+  'built-ins/Number/prototype/toFixed/S15.7.4.5_A1.1_T01': [FAIL],
+  'built-ins/Number/prototype/toString/S15.7.4.2_A1_*': [FAIL],
+  'built-ins/Number/prototype/toString/S15.7.4.2_A2_*': [FAIL],
+  'built-ins/Number/prototype/valueOf/S15.7.4.4_A1_*': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=3087
+  'built-ins/Array/prototype/every/15.4.4.16-3-12': [FAIL],
+  'built-ins/Array/prototype/every/15.4.4.16-3-14': [FAIL],
+  'built-ins/Array/prototype/every/15.4.4.16-3-25': [FAIL],
+  'built-ins/Array/prototype/every/15.4.4.16-3-29': [FAIL],
+  'built-ins/Array/prototype/every/15.4.4.16-3-7': [FAIL],
+  'built-ins/Array/prototype/every/15.4.4.16-3-8': [FAIL],
+  'built-ins/Array/prototype/filter/15.4.4.20-3-12': [FAIL],
+  'built-ins/Array/prototype/filter/15.4.4.20-3-25': [FAIL],
+  'built-ins/Array/prototype/filter/15.4.4.20-3-7': [FAIL],
+  'built-ins/Array/prototype/forEach/15.4.4.18-3-12': [FAIL],
+  'built-ins/Array/prototype/forEach/15.4.4.18-3-25': [FAIL],
+  'built-ins/Array/prototype/forEach/15.4.4.18-3-7': [FAIL],
+  'built-ins/Array/prototype/indexOf/15.4.4.14-3-12': [FAIL],
+  'built-ins/Array/prototype/indexOf/15.4.4.14-3-14': [FAIL],
+  'built-ins/Array/prototype/indexOf/15.4.4.14-3-25': [FAIL],
+  'built-ins/Array/prototype/indexOf/15.4.4.14-3-28': [FAIL],
+  'built-ins/Array/prototype/indexOf/15.4.4.14-3-29': [FAIL],
+  'built-ins/Array/prototype/indexOf/15.4.4.14-3-7': [FAIL],
+  'built-ins/Array/prototype/indexOf/15.4.4.14-3-8': [FAIL],
+  'built-ins/Array/prototype/join/S15.4.4.5_A4_T3': [FAIL],
+  'built-ins/Array/prototype/lastIndexOf/15.4.4.15-3-12': [FAIL],
+  'built-ins/Array/prototype/lastIndexOf/15.4.4.15-3-25': [FAIL],
+  'built-ins/Array/prototype/lastIndexOf/15.4.4.15-3-28': [FAIL],
+  'built-ins/Array/prototype/lastIndexOf/15.4.4.15-3-7': [FAIL],
+  'built-ins/Array/prototype/map/15.4.4.19-3-12': [FAIL],
+  'built-ins/Array/prototype/map/15.4.4.19-3-14': [FAIL],
+  'built-ins/Array/prototype/map/15.4.4.19-3-25': [FAIL],
+  'built-ins/Array/prototype/map/15.4.4.19-3-28': [FAIL],
+  'built-ins/Array/prototype/map/15.4.4.19-3-29': [FAIL],
+  'built-ins/Array/prototype/map/15.4.4.19-3-7': [FAIL],
+  'built-ins/Array/prototype/map/15.4.4.19-3-8': [FAIL],
+  'built-ins/Array/prototype/pop/S15.4.4.6_A2_T2': [FAIL],
+  'built-ins/Array/prototype/pop/S15.4.4.6_A3_T1': [FAIL],
+  'built-ins/Array/prototype/pop/S15.4.4.6_A3_T2': [FAIL],
+  'built-ins/Array/prototype/pop/S15.4.4.6_A3_T3': [FAIL],
+  'built-ins/Array/prototype/push/S15.4.4.7_A2_T2': [FAIL],
+  'built-ins/Array/prototype/push/S15.4.4.7_A4_T1': [FAIL],
+  'built-ins/Array/prototype/push/S15.4.4.7_A4_T3': [FAIL],
+  'built-ins/Array/prototype/reduce/15.4.4.21-3-12': [FAIL],
+  'built-ins/Array/prototype/reduce/15.4.4.21-3-25': [FAIL],
+  'built-ins/Array/prototype/reduce/15.4.4.21-3-7': [FAIL],
+  'built-ins/Array/prototype/reduceRight/15.4.4.22-3-12': [FAIL],
+  'built-ins/Array/prototype/reduceRight/15.4.4.22-3-25': [FAIL],
+  'built-ins/Array/prototype/reduceRight/15.4.4.22-3-7': [FAIL],
+  'built-ins/Array/prototype/reverse/S15.4.4.8_A3_T3': [FAIL],
+  'built-ins/Array/prototype/shift/S15.4.4.9_A3_T3': [FAIL],
+  'built-ins/Array/prototype/slice/S15.4.4.10_A3_T1': [FAIL],
+  'built-ins/Array/prototype/slice/S15.4.4.10_A3_T2': [FAIL],
+  'built-ins/Array/prototype/slice/S15.4.4.10_A3_T3': [FAIL],
+  'built-ins/Array/prototype/some/15.4.4.17-3-12': [FAIL],
+  'built-ins/Array/prototype/some/15.4.4.17-3-14': [FAIL],
+  'built-ins/Array/prototype/some/15.4.4.17-3-25': [FAIL],
+  'built-ins/Array/prototype/some/15.4.4.17-3-28': [FAIL],
+  'built-ins/Array/prototype/some/15.4.4.17-3-29': [FAIL],
+  'built-ins/Array/prototype/some/15.4.4.17-3-7': [FAIL],
+  'built-ins/Array/prototype/some/15.4.4.17-3-8': [FAIL],
+  'built-ins/Array/prototype/sort/S15.4.4.11_A4_T3': [FAIL],
+  'built-ins/Array/prototype/splice/S15.4.4.12_A3_T1': [FAIL],
+  'built-ins/Array/prototype/splice/S15.4.4.12_A3_T3': [FAIL],
+  'built-ins/Array/prototype/unshift/S15.4.4.13_A3_T2': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=1543
+  'built-ins/Proxy/*': [FAIL],
+  'built-ins/Array/prototype/find/Array.prototype.find_callable-Proxy-1': [FAIL],
+  'built-ins/Array/prototype/find/Array.prototype.find_callable-Proxy-2': [FAIL],
+  'built-ins/Object/assign/source-own-prop-desc-missing': [FAIL],
+  'built-ins/Object/assign/source-own-prop-error': [FAIL],
+  'built-ins/Object/assign/source-own-prop-keys-error': [FAIL],
+  'built-ins/Object/setPrototypeOf/set-error': [FAIL],
+  'language/expressions/object/prop-def-id-eval-error-2': [FAIL],
+  'language/statements/for-of/iterator-as-proxy': [FAIL],
+  'language/statements/for-of/iterator-next-result-type': [FAIL],
+  'built-ins/Array/of/return-abrupt-from-data-property-using-proxy': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4093
+  'built-ins/Array/symbol-species': [FAIL],
+  'built-ins/Array/symbol-species-name': [FAIL],
+  'built-ins/ArrayBuffer/symbol-species': [FAIL],
+  'built-ins/ArrayBuffer/symbol-species-name': [FAIL],
+  'built-ins/Map/symbol-species': [FAIL],
+  'built-ins/Map/symbol-species-name': [FAIL],
+  'built-ins/Promise/Symbol.species/prop-desc': [FAIL],
+  'built-ins/Promise/Symbol.species/return-value': [FAIL],
+  'built-ins/Promise/all/species-get-error': [FAIL],
+  'built-ins/Promise/prototype/then/ctor-custom': [FAIL],
+  'built-ins/Promise/race/species-get-error': [FAIL],
+  'built-ins/Promise/symbol-species': [FAIL],
+  'built-ins/Promise/symbol-species-name': [FAIL],
+  'built-ins/RegExp/symbol-species': [FAIL],
+  'built-ins/RegExp/symbol-species-name': [FAIL],
+  'built-ins/Set/symbol-species': [FAIL],
+  'built-ins/Set/symbol-species-name': [FAIL],
+  'built-ins/Symbol/species/basic': [FAIL],
+  'built-ins/Symbol/species/builtin-getter-name': [FAIL],
+  'built-ins/Symbol/species/subclassing': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4242
+  'built-ins/Date/15.9.1.15-1': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4004
+  'built-ins/Date/prototype/setFullYear/15.9.5.40_1': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4002
+  'built-ins/Error/prototype/S15.11.4_A2': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4163
+  'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=3566
+  'built-ins/Array/from/iter-map-fn-err': [FAIL],
+  'built-ins/Array/from/iter-set-elem-prop-err': [FAIL],
+  'built-ins/Map/iterator-close-after-set-failure': [FAIL],
+  'built-ins/Map/iterator-item-first-entry-returns-abrupt': [FAIL],
+  'built-ins/Map/iterator-item-second-entry-returns-abrupt': [FAIL],
+  'built-ins/Map/iterator-items-are-not-object-close-iterator': [FAIL],
+  'built-ins/Promise/all/iter-close': [FAIL],
+  'built-ins/Set/set-iterator-close-after-add-failure': [FAIL],
+  'built-ins/WeakMap/iterator-close-after-set-failure': [FAIL],
+  'built-ins/WeakMap/iterator-item-first-entry-returns-abrupt': [FAIL],
+  'built-ins/WeakMap/iterator-item-second-entry-returns-abrupt': [FAIL],
+  'built-ins/WeakMap/iterator-items-are-not-object-close-iterator': [FAIL],
+  'built-ins/WeakSet/iterator-close-after-add-failure': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=3715
+  'built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-212': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-213': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-214': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-215': [FAIL],
+  'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
+  'built-ins/RegExp/prototype/global/15.10.7.2-2': [FAIL],
+  'built-ins/RegExp/prototype/global/S15.10.7.2_A9': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-2': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/S15.10.7.3_A9': [FAIL],
+  'built-ins/RegExp/prototype/lastIndex/15.10.7.5-1': [FAIL],
+  'built-ins/RegExp/prototype/lastIndex/15.10.7.5-2': [FAIL],
+  'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
+  'built-ins/RegExp/prototype/multiline/15.10.7.4-2': [FAIL],
+  'built-ins/RegExp/prototype/multiline/S15.10.7.4_A9': [FAIL],
+  'built-ins/RegExp/prototype/source/15.10.7.1-1': [FAIL],
+  'built-ins/RegExp/prototype/source/15.10.7.1-2': [FAIL],
+  'built-ins/RegExp/prototype/source/S15.10.7.1_A9': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4243
+  'built-ins/Promise/race/S25.4.4.3_A3.1_T2': [FAIL],
+  'built-ins/Promise/reject/S25.4.4.4_A3.1_T1': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4341
+  'built-ins/Promise/resolve/arg-uniq-ctor': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4119
+  'built-ins/RegExp/15.10.4.1-1': [FAIL],
+  'built-ins/RegExp/S15.10.3.1_A2_T1': [FAIL],
+  'built-ins/RegExp/S15.10.3.1_A2_T2': [FAIL],
+  'built-ins/RegExp/S15.10.4.1_A2_T1': [FAIL],
+  'built-ins/RegExp/S15.10.4.1_A2_T2': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4003
+  'built-ins/RegExp/prototype/15.10.6': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4244
+  'built-ins/RegExp/prototype/exec/S15.10.6.2_A5_T3': [FAIL],
+  'built-ins/RegExp/prototype/test/S15.10.6.3_A1_T22': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4006
+  'built-ins/String/prototype/S15.5.4_A1': [FAIL],
+  'built-ins/String/prototype/S15.5.4_A2': [FAIL],
+  'built-ins/String/prototype/S15.5.4_A3': [FAIL],
+  'language/expressions/property-accessors/S11.2.1_A4_T5': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4245
+  'built-ins/String/prototype/split/S15.5.4.14_A2_T37': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4348
+  'built-ins/String/prototype/Symbol.iterator/this-val-non-obj-coercible': [FAIL],
+
+  # The order of adding the name property is wrong
+  # https://code.google.com/p/v8/issues/detail?id=4199
+  'language/computed-property-names/class/static/method-number': [FAIL, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
+
+  # This should work as soon as rest parameters are re-implemented via desaguring.
+  'language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-rest': [PASS, FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=2160
+  'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-1': [FAIL],
+  'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-2': [FAIL],
+  'language/expressions/object/method-definition/generator-super-prop-param': [FAIL],
+  'language/expressions/object/method-definition/name-param-init-yield': [FAIL],
+  'language/expressions/object/method-definition/name-super-prop-param': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=3673
+  'language/statements/class/definition/basics': [FAIL],
+
+  # Destructuring
+  # https://code.google.com/p/v8/issues/detail?id=811
+  'language/statements/for-of/body-dstr-assign': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=3566
+  'language/statements/for-of/body-dstr-assign-error': [FAIL],
+  'language/statements/for-of/body-put-error': [FAIL],
+  'language/statements/for-of/generator-close-via-break': [FAIL],
+  'language/statements/for-of/generator-close-via-return': [FAIL],
+  'language/statements/for-of/generator-close-via-throw': [FAIL],
+  'language/statements/for-of/iterator-close-get-method-error': [FAIL],
+  'language/statements/for-of/iterator-close-non-object': [FAIL],
+  'language/statements/for-of/iterator-close-via-break': [FAIL],
+  'language/statements/for-of/iterator-close-via-return': [FAIL],
+  'language/statements/for-of/iterator-close-via-throw': [FAIL],
+
+  # We do not expose Array.prototype.values
+  # https://code.google.com/p/v8/issues/detail?id=4247
+  'built-ins/Array/prototype/Symbol.iterator': [FAIL],
+  'built-ins/Array/prototype/values/returns-iterator': [FAIL],
+  'built-ins/Array/prototype/values/returns-iterator-from-object': [FAIL],
+  'built-ins/Array/prototype/values/prop-desc': [FAIL],
+  'built-ins/Array/prototype/values/name': [FAIL],
+  'built-ins/Array/prototype/values/length': [FAIL],
+  'built-ins/Array/prototype/values/iteration': [FAIL],
+  'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
+
+  #https://code.google.com/p/v8/issues/detail?id=3983
+  'language/expressions/generators/yield-as-function-expression-binding-identifier': [FAIL],
+  'language/expressions/generators/yield-as-generator-expression-binding-identifier': [FAIL],
+  'language/expressions/object/method-definition/generator-argSuperProperty': [FAIL],
+  'language/expressions/object/method-definition/yield-as-function-expression-binding-identifier': [FAIL],
+  'language/statements/generators/yield-as-function-expression-binding-identifier': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=3566
+  'built-ins/GeneratorPrototype/return/from-state-completed': [FAIL],
+  'built-ins/GeneratorPrototype/return/from-state-suspended-start': [FAIL],
+  'built-ins/GeneratorPrototype/return/property-descriptor': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-catch-before-try': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-catch-following-catch': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-catch-within-catch': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-catch-within-try': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-finally-before-try': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-finally-following-finally': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-catch': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-finally': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-inner-try': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-outer-try-after-nested': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-outer-try-before-nested': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-finally-within-finally': [FAIL],
+  'built-ins/GeneratorPrototype/return/try-finally-within-try': [FAIL],
+
+   # https://code.google.com/p/v8/issues/detail?id=811
+  'language/expressions/assignment/destructuring/*': [SKIP],
+
+  # https://code.google.com/p/v8/issues/detail?id=4248
+  'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.10_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.11_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.1_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.2_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.3_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.4_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.5_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.6_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.7_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.8_T4': [FAIL],
+  'language/expressions/compound-assignment/S11.13.2_A7.9_T4': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4249
+  'language/expressions/assignment/S11.13.1_A7_T1': [FAIL],
+  'language/expressions/assignment/S11.13.1_A7_T2': [FAIL],
+  'language/expressions/assignment/S11.13.1_A7_T3': [FAIL],
+  'language/expressions/postfix-increment/S11.3.1_A6_T3': [FAIL],
+  'language/expressions/postfix-decrement/S11.3.2_A6_T3': [FAIL],
+  'language/expressions/prefix-decrement/S11.4.5_A6_T3': [FAIL],
+  'language/expressions/prefix-increment/S11.4.4_A6_T3': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4250
+  'language/expressions/assignment/S11.13.1_A5*': [FAIL],
+  'language/expressions/assignment/S11.13.1_A6*': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=3699
+  'built-ins/Function/instance-name': [FAIL],
+  'built-ins/GeneratorFunction/instance-name': [FAIL],
+  'language/expressions/assignment/fn-name-arrow': [FAIL],
+  'language/expressions/assignment/fn-name-class': [FAIL],
+  'language/expressions/assignment/fn-name-cover': [FAIL],
+  'language/expressions/assignment/fn-name-fn': [FAIL],
+  'language/expressions/assignment/fn-name-gen': [FAIL],
+  'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
+  'language/expressions/assignment/fn-name-lhs-member': [FAIL],
+  'language/expressions/class/name': [FAIL],
+  'language/expressions/function/name': [FAIL],
+  'language/expressions/generators/implicit-name': [FAIL],
+  'language/expressions/generators/name': [FAIL],
+  'language/expressions/generators/name-property-descriptor': [FAIL],
+  'language/expressions/object/fn-name-accessor-get': [FAIL],
+  'language/expressions/object/fn-name-accessor-set': [FAIL],
+  'language/expressions/object/fn-name-arrow': [FAIL],
+  'language/expressions/object/fn-name-class': [FAIL],
+  'language/expressions/object/fn-name-cover': [FAIL],
+  'language/expressions/object/fn-name-fn': [FAIL],
+  'language/expressions/object/fn-name-gen': [FAIL],
+  'language/expressions/object/fn-name-lhs-cover': [FAIL],
+  'language/expressions/object/fn-name-lhs-member': [FAIL],
+  'language/expressions/object/method-definition/fn-name-accessor-get': [FAIL],
+  'language/expressions/object/method-definition/fn-name-accessor-set': [FAIL],
+  'language/expressions/object/method-definition/fn-name-arrow': [FAIL],
+  'language/expressions/object/method-definition/fn-name-class': [FAIL],
+  'language/expressions/object/method-definition/fn-name-cover': [FAIL],
+  'language/expressions/object/method-definition/fn-name-fn': [FAIL],
+  'language/expressions/object/method-definition/fn-name-gen': [FAIL],
+  'language/statements/class/definition/fn-name-accessor-get': [FAIL],
+  'language/statements/class/definition/fn-name-accessor-set': [FAIL],
+  'language/statements/class/definition/fn-name-gen-method': [FAIL],
+  'language/statements/class/definition/fn-name-method': [FAIL],
+  'language/statements/const/fn-name-arrow': [FAIL],
+  'language/statements/const/fn-name-class': [FAIL],
+  'language/statements/const/fn-name-cover': [FAIL],
+  'language/statements/const/fn-name-fn': [FAIL],
+  'language/statements/const/fn-name-gen': [FAIL],
+  'language/statements/let/fn-name-arrow': [FAIL],
+  'language/statements/let/fn-name-class': [FAIL],
+  'language/statements/let/fn-name-cover': [FAIL],
+  'language/statements/let/fn-name-fn': [FAIL],
+  'language/statements/let/fn-name-gen': [FAIL],
+  'language/statements/variable/fn-name-arrow': [FAIL],
+  'language/statements/variable/fn-name-class': [FAIL],
+  'language/statements/variable/fn-name-cover': [FAIL],
+  'language/statements/variable/fn-name-fn': [FAIL],
+  'language/statements/variable/fn-name-gen': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4251
+  'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
+  'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],
+  'language/expressions/postfix-increment/S11.3.1_A5_T3': [FAIL],
+  'language/expressions/postfix-increment/S11.3.1_A5_T4': [FAIL],
+  'language/expressions/postfix-increment/S11.3.1_A5_T5': [FAIL],
+  'language/expressions/postfix-decrement/S11.3.2_A5_*': [FAIL],
+  'language/expressions/prefix-decrement/S11.4.5_A5_*': [FAIL],
+  'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4253
+  'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
+
+  # https://code.google.com/p/v8/issues/detail?id=3761
+  'language/expressions/object/method-definition/generator-name-prop-symbol': [FAIL],
+  'language/expressions/object/method-definition/name-name-prop-symbol': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4317
+  'built-ins/Array/prototype/concat/is-concat-spreadable-val-falsey': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=2952
+  'built-ins/RegExp/prototype/exec/u-lastindex-adv': [FAIL],
+  'built-ins/RegExp/prototype/exec/u-captured-value': [FAIL],
+  'built-ins/RegExp/prototype/exec/u-lastindex-value': [FAIL],
+  'built-ins/RegExp/prototype/test/u-captured-value': [FAIL],
+  'built-ins/RegExp/prototype/test/u-lastindex-adv': [FAIL],
+  'built-ins/RegExp/prototype/test/u-lastindex-value': [FAIL],
+  'built-ins/RegExp/prototype/unicode/length': [FAIL],
+  'built-ins/RegExp/prototype/unicode/name': [FAIL],
+  'built-ins/RegExp/prototype/unicode/prop-desc': [FAIL],
+  'built-ins/RegExp/prototype/unicode/this-invald-obj': [FAIL],
+  'built-ins/RegExp/prototype/unicode/this-non-obj': [FAIL],
+  'built-ins/RegExp/prototype/unicode/this-regexp': [FAIL],
+  'built-ins/RegExp/unicode_identity_escape': [FAIL],
+  'language/literals/regexp/u-unicode-esc': [FAIL],
+  'language/literals/regexp/u-surrogate-pairs': [FAIL],
+  'language/literals/regexp/u-case-mapping': [FAIL],
+  'language/literals/regexp/u-astral': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4342
+  'built-ins/RegExp/prototype/exec/get-sticky-coerce': [FAIL],
+  'built-ins/RegExp/prototype/exec/get-sticky-err': [FAIL],
+  'built-ins/RegExp/prototype/exec/y-fail-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/exec/y-fail-lastindex-no-write': [FAIL],
+  'built-ins/RegExp/prototype/exec/y-fail-return': [FAIL],
+  'built-ins/RegExp/prototype/exec/y-fail-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/exec/y-init-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/exec/y-set-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/sticky/prop-desc': [FAIL],
+  'built-ins/RegExp/prototype/sticky/this-invalid-obj': [FAIL],
+  'built-ins/RegExp/prototype/sticky/this-non-obj': [FAIL],
+  'built-ins/RegExp/prototype/sticky/this-regexp': [FAIL],
+  'built-ins/RegExp/prototype/test/get-sticky-coerce': [FAIL],
+  'built-ins/RegExp/prototype/test/get-sticky-err': [FAIL],
+  'built-ins/RegExp/prototype/test/y-fail-lastindex-no-write': [FAIL],
+  'built-ins/RegExp/prototype/test/y-fail-return': [FAIL],
+  'built-ins/RegExp/prototype/test/y-fail-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/test/y-init-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/test/y-set-lastindex': [FAIL],
+  'built-ins/RegExp/valid-flags-y': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4305
+  'built-ins/RegExp/prototype/Symbol.match/*': [FAIL],
+  'built-ins/String/prototype/endsWith/return-abrupt-from-searchstring-regexp-test': [FAIL],
+  'built-ins/String/prototype/includes/return-abrupt-from-searchstring-regexp-test': [FAIL],
+  'built-ins/String/prototype/startsWith/return-abrupt-from-searchstring-regexp-test': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4343
+  'built-ins/RegExp/prototype/Symbol.replace/*': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4344
+  'built-ins/RegExp/prototype/Symbol.search/*': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4345
+  'built-ins/RegExp/prototype/Symbol.split/*': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4346
+  'built-ins/RegExp/prototype/flags/*': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4347
+  'built-ins/RegExp/prototype/global/name': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/name': [FAIL],
+  'built-ins/RegExp/prototype/multiline/name': [FAIL],
+  'built-ins/RegExp/prototype/source/name': [FAIL],
+  'built-ins/RegExp/prototype/sticky/name': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4360
+  'intl402/Collator/10.1.1_1': [FAIL],
+  'intl402/DateTimeFormat/12.1.1_1': [FAIL],
+  'intl402/NumberFormat/11.1.1_1': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4361
+  'intl402/Collator/10.1.1_a': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=1972
+  'language/identifiers/val-break-via-escape-hex': [FAIL],
+  'language/identifiers/val-break-via-escape-hex4': [FAIL],
+  'language/identifiers/val-case-via-escape-hex': [FAIL],
+  'language/identifiers/val-case-via-escape-hex4': [FAIL],
+  'language/identifiers/val-catch-via-escape-hex': [FAIL],
+  'language/identifiers/val-catch-via-escape-hex4': [FAIL],
+  'language/identifiers/val-class-via-escape-hex': [FAIL],
+  'language/identifiers/val-class-via-escape-hex4': [FAIL],
+  'language/identifiers/val-const-via-escape-hex': [FAIL],
+  'language/identifiers/val-const-via-escape-hex4': [FAIL],
+  'language/identifiers/val-continue-via-escape-hex': [FAIL],
+  'language/identifiers/val-continue-via-escape-hex4': [FAIL],
+  'language/identifiers/val-debugger-via-escape-hex': [FAIL],
+  'language/identifiers/val-debugger-via-escape-hex4': [FAIL],
+  'language/identifiers/val-default-via-escape-hex': [FAIL],
+  'language/identifiers/val-default-via-escape-hex4': [FAIL],
+  'language/identifiers/val-delete-via-escape-hex': [FAIL],
+  'language/identifiers/val-delete-via-escape-hex4': [FAIL],
+  'language/identifiers/val-do-via-escape-hex': [FAIL],
+  'language/identifiers/val-do-via-escape-hex4': [FAIL],
+  'language/identifiers/val-else-via-escape-hex': [FAIL],
+  'language/identifiers/val-else-via-escape-hex4': [FAIL],
+  'language/identifiers/val-enum-via-escape-hex': [FAIL],
+  'language/identifiers/val-enum-via-escape-hex4': [FAIL],
+  'language/identifiers/val-export-via-escape-hex': [FAIL],
+  'language/identifiers/val-export-via-escape-hex4': [FAIL],
+  'language/identifiers/val-extends-via-escape-hex': [FAIL],
+  'language/identifiers/val-extends-via-escape-hex4': [FAIL],
+  'language/identifiers/val-false-via-escape-hex': [FAIL],
+  'language/identifiers/val-false-via-escape-hex4': [FAIL],
+  'language/identifiers/val-finally-via-escape-hex': [FAIL],
+  'language/identifiers/val-finally-via-escape-hex4': [FAIL],
+  'language/identifiers/val-for-via-escape-hex': [FAIL],
+  'language/identifiers/val-for-via-escape-hex4': [FAIL],
+  'language/identifiers/val-function-via-escape-hex': [FAIL],
+  'language/identifiers/val-function-via-escape-hex4': [FAIL],
+  'language/identifiers/val-if-via-escape-hex': [FAIL],
+  'language/identifiers/val-if-via-escape-hex4': [FAIL],
+  'language/identifiers/val-import-via-escape-hex': [FAIL],
+  'language/identifiers/val-import-via-escape-hex4': [FAIL],
+  'language/identifiers/val-in-via-escape-hex': [FAIL],
+  'language/identifiers/val-in-via-escape-hex4': [FAIL],
+  'language/identifiers/val-instanceof-via-escape-hex': [FAIL],
+  'language/identifiers/val-instanceof-via-escape-hex4': [FAIL],
+  'language/identifiers/val-new-via-escape-hex': [FAIL],
+  'language/identifiers/val-new-via-escape-hex4': [FAIL],
+  'language/identifiers/val-null-via-escape-hex': [FAIL],
+  'language/identifiers/val-null-via-escape-hex4': [FAIL],
+  'language/identifiers/val-return-via-escape-hex': [FAIL],
+  'language/identifiers/val-return-via-escape-hex4': [FAIL],
+  'language/identifiers/val-super-via-escape-hex': [FAIL],
+  'language/identifiers/val-super-via-escape-hex4': [FAIL],
+  'language/identifiers/val-switch-via-escape-hex': [FAIL],
+  'language/identifiers/val-switch-via-escape-hex4': [FAIL],
+  'language/identifiers/val-throw-via-escape-hex': [FAIL],
+  'language/identifiers/val-throw-via-escape-hex4': [FAIL],
+  'language/identifiers/val-true-via-escape-hex': [FAIL],
+  'language/identifiers/val-true-via-escape-hex4': [FAIL],
+  'language/identifiers/val-try-via-escape-hex': [FAIL],
+  'language/identifiers/val-try-via-escape-hex4': [FAIL],
+  'language/identifiers/val-typeof-via-escape-hex': [FAIL],
+  'language/identifiers/val-typeof-via-escape-hex4': [FAIL],
+  'language/identifiers/val-var-via-escape-hex': [FAIL],
+  'language/identifiers/val-var-via-escape-hex4': [FAIL],
+  'language/identifiers/val-void-via-escape-hex': [FAIL],
+  'language/identifiers/val-void-via-escape-hex4': [FAIL],
+  'language/identifiers/val-while-via-escape-hex': [FAIL],
+  'language/identifiers/val-while-via-escape-hex4': [FAIL],
+  'language/identifiers/val-with-via-escape-hex': [FAIL],
+  'language/identifiers/val-with-via-escape-hex4': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4362
+  'built-ins/String/prototype/repeat/empty-string-returns-empty': [PASS, FAIL],
+
+  ######################## NEEDS INVESTIGATION ###########################
+
+  # These test failures are specific to the intl402 suite and need investigation
+  # to be either marked as bugs with issues filed for them or as deliberate
+  # incompatibilities if the test cases turn out to be broken or ambiguous.
+  # Some of these are related to v8:4361 in being visible side effects from Intl.
+  'intl402/6.2.3': [FAIL],
+  'intl402/9.2.1_2': [FAIL],
+  'intl402/9.2.6_2': [FAIL],
+  'intl402/Collator/10.1.2.1_4': [FAIL],
+  'intl402/Collator/10.1.2_a': [PASS, FAIL],
+  'intl402/Collator/10.2.3_b': [PASS, FAIL],
+  'intl402/Collator/prototype/10.3_a': [FAIL],
+  'intl402/Date/prototype/13.3.0_7': [FAIL],
+  'intl402/DateTimeFormat/12.1.1': [FAIL],
+  'intl402/DateTimeFormat/12.1.1_a': [FAIL],
+  'intl402/DateTimeFormat/12.1.1_1': [FAIL],
+  'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
+  'intl402/DateTimeFormat/12.1.2.1_4': [FAIL],
+  'intl402/DateTimeFormat/12.2.3_b': [FAIL],
+  'intl402/DateTimeFormat/prototype/12.3.2_FDT_7_a_iv': [FAIL],
+  'intl402/DateTimeFormat/prototype/12.3.3': [FAIL],
+  'intl402/DateTimeFormat/prototype/12.3_a': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/12.3.2_FDT_7_a_iv': [FAIL],
+  'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
+  'intl402/NumberFormat/11.1.1_20_c': [FAIL],
+  'intl402/NumberFormat/11.1.1_a': [FAIL],
+  'intl402/NumberFormat/11.1.1': [FAIL],
+  'intl402/NumberFormat/11.1.2': [PASS, FAIL],
+  'intl402/NumberFormat/11.1.2.1_4': [FAIL],
+  'intl402/NumberFormat/11.2.3_b': [FAIL],
+  'intl402/NumberFormat/prototype/11.3_a': [FAIL],
+  'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
+
+  ##################### DELIBERATE INCOMPATIBILITIES #####################
+
+  'built-ins/Math/exp/S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
+
+  # Linux for ia32 (and therefore simulators) default to extended 80 bit
+  # floating point formats, so these tests checking 64-bit FP precision fail.
+  # The other platforms/arch's pass these tests.
+  # We follow the other major JS engines by keeping this default.
+  'language/types/number/S8.5_A2.1': [PASS, FAIL_OK],
+  'language/types/number/S8.5_A2.2': [PASS, FAIL_OK],
+
+  ############################ INVALID TESTS #############################
+
+  # The reference value calculated by Test262 is incorrect if you run these
+  # tests in PST/PDT between first Sunday in March and first Sunday in April.
+  # The DST switch was moved in 2007 whereas Test262 bases the reference value
+  # on 2000. Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=293
+  'built-ins/Date/S15.9.3.1_A5_T1': [PASS, FAIL_OK],
+  'built-ins/Date/S15.9.3.1_A5_T2': [PASS, FAIL_OK],
+  'built-ins/Date/S15.9.3.1_A5_T3': [PASS, FAIL_OK],
+  'built-ins/Date/S15.9.3.1_A5_T4': [PASS, FAIL_OK],
+  'built-ins/Date/S15.9.3.1_A5_T5': [PASS, FAIL_OK],
+  'built-ins/Date/S15.9.3.1_A5_T6': [PASS, FAIL_OK],
+
+  # Test makes unjustified assumptions about the number of calls to SortCompare.
+  # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
+  'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
+
+  # Tests do not return boolean.
+  'built-ins/Object/keys/15.2.3.14-1-1': [PASS, FAIL_OK],
+  'built-ins/Object/keys/15.2.3.14-1-2': [PASS, FAIL_OK],
+  'built-ins/Object/keys/15.2.3.14-1-3': [PASS, FAIL_OK],
+
+  # Test bug https://github.com/tc39/test262/issues/405
+  'intl402/Collator/prototype/compare/10.3.2_1_c': [PASS, FAIL_OK],
+  'intl402/Collator/prototype/compare/10.3.2_CS_b_NN': [PASS, FAIL_OK],
+  'intl402/Collator/prototype/compare/10.3.2_CS_c_NN': [PASS, FAIL_OK],
+  'intl402/Collator/prototype/compare/10.3.2_CS_d_NN': [PASS, FAIL_OK],
+  'intl402/Date/prototype/13.3.0_7': [PASS, FAIL_OK],
+
+  ############################ SKIPPED TESTS #############################
+
+  # These tests take a looong time to run.
+  'built-ins/decodeURI/S15.1.3.1_A1.10_T1': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A1.11_T1': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A1.11_T2': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A1.12_T1': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A1.12_T2': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A2.5_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A1.11_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A1.12_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A2.5_T1': [SKIP],
+  'built-ins/RegExp/S15.10.2.12_A3_T1': [SKIP],
+  'intl402/9.2.6_4_b': [SKIP],
+  'language/literals/regexp/S7.8.5_A1.1_T2': [SKIP],
+  'language/literals/regexp/S7.8.5_A1.4_T2': [SKIP],
+  'language/literals/regexp/S7.8.5_A2.1_T2': [SKIP],
+  'language/literals/regexp/S7.8.5_A2.4_T2': [SKIP],
+  'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [SKIP],
+}],  # ALWAYS
+
+['system == macos', {
+  'intl402/11.3.2_TRP': [FAIL],
+  'intl402/9.2.5_11_g_ii_2': [FAIL],
+}],  # system == macos
+
+['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64el', {
+
+  # TODO(mstarzinger): Causes stack overflow on simulators due to eager
+  # compilation of parenthesized function literals. Needs investigation.
+  'language/statements/function/S13.2.1_A1_T1': [SKIP],
+
+  # BUG(3251225): Tests that timeout with --nocrankshaft.
+  'built-ins/decodeURI/S15.1.3.1_A2.4_T1': [SKIP],
+  'built-ins/decodeURI/S15.1.3.1_A2.5_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A2.4_T1': [SKIP],
+  'built-ins/decodeURIComponent/S15.1.3.2_A2.5_T1': [SKIP],
+  'built-ins/encodeURI/S15.1.3.3_A2.3_T1': [SKIP],
+  'built-ins/encodeURIComponent/S15.1.3.4_A2.3_T1': [SKIP],
+}],  # 'arch == arm or arch == mipsel or arch == mips or arch == arm64'
+]

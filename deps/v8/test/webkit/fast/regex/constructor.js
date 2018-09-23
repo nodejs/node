@@ -27,5 +27,5 @@ var re = /abc/;
 
 shouldBeTrue("re === RegExp(re)");
 shouldBeTrue("re !== new RegExp(re)");
-shouldBeFalse("re === RegExp(re,'i')");
-shouldBeTrue("re !== new RegExp(re,'i')");
+shouldThrow("re === RegExp(re,'i')");
+shouldThrow("re !== new RegExp(re,'i')");

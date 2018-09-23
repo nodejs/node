@@ -22,11 +22,10 @@
 #include "uv.h"
 #include "uv-common.h"
 
+#include <stdio.h>
 #include <assert.h>
-#include <errno.h>
 #include <stdarg.h>
 #include <stddef.h> /* NULL */
-#include <stdio.h>
 #include <stdlib.h> /* malloc */
 #include <string.h> /* memset */
 
@@ -76,14 +75,7 @@ void* uv__malloc(size_t size) {
 }
 
 void uv__free(void* ptr) {
-  int saved_errno;
-
-  /* Libuv expects that free() does not clobber errno.  The system allocator
-   * honors that assumption but custom allocators may not be so careful.
-   */
-  saved_errno = errno;
   uv__allocator.local_free(ptr);
-  errno = saved_errno;
 }
 
 void* uv__calloc(size_t count, size_t size) {
@@ -149,23 +141,15 @@ static const char* uv__unknown_err_code(int err) {
   char buf[32];
   char* copy;
 
+#ifndef _WIN32
   snprintf(buf, sizeof(buf), "Unknown system error %d", err);
+#else
+  _snprintf(buf, sizeof(buf), "Unknown system error %d", err);
+#endif
   copy = uv__strdup(buf);
 
   return copy != NULL ? copy : "Unknown system error";
 }
-
-#define UV_ERR_NAME_GEN_R(name, _) \
-case UV_## name: \
-  snprintf(buf, buflen, "%s", #name); break;
-char* uv_err_name_r(int err, char* buf, size_t buflen) {
-  switch (err) {
-    UV_ERRNO_MAP(UV_ERR_NAME_GEN_R)
-    default: snprintf(buf, buflen, "Unknown system error %d", err);
-  }
-  return buf;
-}
-#undef UV_ERR_NAME_GEN_R
 
 
 #define UV_ERR_NAME_GEN(name, _) case UV_ ## name: return #name;
@@ -176,19 +160,6 @@ const char* uv_err_name(int err) {
   return uv__unknown_err_code(err);
 }
 #undef UV_ERR_NAME_GEN
-
-
-#define UV_STRERROR_GEN_R(name, msg) \
-case UV_ ## name: \
-  snprintf(buf, buflen, "%s", msg); break;
-char* uv_strerror_r(int err, char* buf, size_t buflen) {
-  switch (err) {
-    UV_ERRNO_MAP(UV_STRERROR_GEN_R)
-    default: snprintf(buf, buflen, "Unknown system error %d", err);
-  }
-  return buf;
-}
-#undef UV_STRERROR_GEN_R
 
 
 #define UV_STRERROR_GEN(name, msg) case UV_ ## name: return msg;
@@ -370,25 +341,19 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
 
 
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
-  QUEUE queue;
   QUEUE* q;
   uv_handle_t* h;
 
-  QUEUE_MOVE(&loop->handle_queue, &queue);
-  while (!QUEUE_EMPTY(&queue)) {
-    q = QUEUE_HEAD(&queue);
+  QUEUE_FOREACH(q, &loop->handle_queue) {
     h = QUEUE_DATA(q, uv_handle_t, handle_queue);
-
-    QUEUE_REMOVE(q);
-    QUEUE_INSERT_TAIL(&loop->handle_queue, q);
-
-    if (h->flags & UV_HANDLE_INTERNAL) continue;
+    if (h->flags & UV__HANDLE_INTERNAL) continue;
     walk_cb(h, arg);
   }
 }
 
 
-static void uv__print_handles(uv_loop_t* loop, int only_active, FILE* stream) {
+#ifndef NDEBUG
+static void uv__print_handles(uv_loop_t* loop, int only_active) {
   const char* type;
   QUEUE* q;
   uv_handle_t* h;
@@ -409,25 +374,26 @@ static void uv__print_handles(uv_loop_t* loop, int only_active, FILE* stream) {
       default: type = "<unknown>";
     }
 
-    fprintf(stream,
+    fprintf(stderr,
             "[%c%c%c] %-8s %p\n",
-            "R-"[!(h->flags & UV_HANDLE_REF)],
-            "A-"[!(h->flags & UV_HANDLE_ACTIVE)],
-            "I-"[!(h->flags & UV_HANDLE_INTERNAL)],
+            "R-"[!(h->flags & UV__HANDLE_REF)],
+            "A-"[!(h->flags & UV__HANDLE_ACTIVE)],
+            "I-"[!(h->flags & UV__HANDLE_INTERNAL)],
             type,
             (void*)h);
   }
 }
 
 
-void uv_print_all_handles(uv_loop_t* loop, FILE* stream) {
-  uv__print_handles(loop, 0, stream);
+void uv_print_all_handles(uv_loop_t* loop) {
+  uv__print_handles(loop, 0);
 }
 
 
-void uv_print_active_handles(uv_loop_t* loop, FILE* stream) {
-  uv__print_handles(loop, 1, stream);
+void uv_print_active_handles(uv_loop_t* loop) {
+  uv__print_handles(loop, 1);
 }
+#endif
 
 
 void uv_ref(uv_handle_t* handle) {
@@ -484,14 +450,13 @@ int uv_fs_event_getpath(uv_fs_event_t* handle, char* buffer, size_t* size) {
   }
 
   required_len = strlen(handle->path);
-  if (required_len >= *size) {
-    *size = required_len + 1;
+  if (required_len > *size) {
+    *size = required_len;
     return UV_ENOBUFS;
   }
 
   memcpy(buffer, handle->path, required_len);
   *size = required_len;
-  buffer[required_len] = '\0';
 
   return 0;
 }
@@ -508,16 +473,6 @@ static unsigned int* uv__get_nbufs(uv_fs_t* req) {
 #endif
 }
 
-/* uv_fs_scandir() uses the system allocator to allocate memory on non-Windows
- * systems. So, the memory should be released using free(). On Windows,
- * uv__malloc() is used, so use uv__free() to free memory.
-*/
-#ifdef _WIN32
-# define uv__fs_scandir_free uv__free
-#else
-# define uv__fs_scandir_free free
-#endif
-
 void uv__fs_scandir_cleanup(uv_fs_t* req) {
   uv__dirent_t** dents;
 
@@ -527,38 +482,25 @@ void uv__fs_scandir_cleanup(uv_fs_t* req) {
   if (*nbufs > 0 && *nbufs != (unsigned int) req->result)
     (*nbufs)--;
   for (; *nbufs < (unsigned int) req->result; (*nbufs)++)
-    uv__fs_scandir_free(dents[*nbufs]);
-
-  uv__fs_scandir_free(req->ptr);
-  req->ptr = NULL;
+    uv__free(dents[*nbufs]);
 }
 
 
 int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
   uv__dirent_t** dents;
   uv__dirent_t* dent;
-  unsigned int* nbufs;
 
-  /* Check to see if req passed */
-  if (req->result < 0)
-    return req->result;
-
-  /* Ptr will be null if req was canceled or no files found */
-  if (!req->ptr)
-    return UV_EOF;
-
-  nbufs = uv__get_nbufs(req);
-  assert(nbufs);
+  unsigned int* nbufs = uv__get_nbufs(req);
 
   dents = req->ptr;
 
   /* Free previous entity */
   if (*nbufs > 0)
-    uv__fs_scandir_free(dents[*nbufs - 1]);
+    uv__free(dents[*nbufs - 1]);
 
   /* End was already reached */
   if (*nbufs == (unsigned int) req->result) {
-    uv__fs_scandir_free(dents);
+    uv__free(dents);
     req->ptr = NULL;
     return UV_EOF;
   }
@@ -648,25 +590,20 @@ uv_loop_t* uv_loop_new(void) {
 int uv_loop_close(uv_loop_t* loop) {
   QUEUE* q;
   uv_handle_t* h;
-#ifndef NDEBUG
-  void* saved_data;
-#endif
 
-  if (uv__has_active_reqs(loop))
+  if (!QUEUE_EMPTY(&(loop)->active_reqs))
     return UV_EBUSY;
 
   QUEUE_FOREACH(q, &loop->handle_queue) {
     h = QUEUE_DATA(q, uv_handle_t, handle_queue);
-    if (!(h->flags & UV_HANDLE_INTERNAL))
+    if (!(h->flags & UV__HANDLE_INTERNAL))
       return UV_EBUSY;
   }
 
   uv__loop_close(loop);
 
 #ifndef NDEBUG
-  saved_data = loop->data;
   memset(loop, -1, sizeof(*loop));
-  loop->data = saved_data;
 #endif
   if (loop == default_loop_ptr)
     default_loop_ptr = NULL;

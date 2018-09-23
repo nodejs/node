@@ -11,7 +11,7 @@ function ToHeapNumber(i) {
 }
 for (var i = 0; i < 3; i++) ToHeapNumber(i);
 %OptimizeFunctionOnNextCall(ToHeapNumber);
-ToHeapNumber(1);
+assertFalse(%IsSmi(ToHeapNumber(1)));
 
 function Fail(a, i, v) {
   a[i] = v;

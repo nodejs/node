@@ -37,7 +37,6 @@ class PowersOfTenCache {
                                                int* found_exponent);
 };
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_CACHED_POWERS_H_

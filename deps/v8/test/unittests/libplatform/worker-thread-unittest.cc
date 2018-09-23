@@ -24,25 +24,6 @@ struct MockTask : public Task {
 
 }  // namespace
 
-// Needs to be in v8::platform due to BlockUntilQueueEmptyForTesting
-// being private.
-TEST(WorkerThreadTest, PostSingleTask) {
-  TaskQueue queue;
-  WorkerThread thread1(&queue);
-  WorkerThread thread2(&queue);
-
-  InSequence s;
-  std::unique_ptr<StrictMock<MockTask>> task(new StrictMock<MockTask>);
-  EXPECT_CALL(*task.get(), Run());
-  EXPECT_CALL(*task.get(), Die());
-  queue.Append(std::move(task));
-
-  // The next call should not time out.
-  queue.BlockUntilQueueEmptyForTesting();
-  queue.Terminate();
-}
-
-namespace worker_thread_unittest {
 
 TEST(WorkerThreadTest, Basic) {
   static const size_t kNumTasks = 10;
@@ -50,10 +31,10 @@ TEST(WorkerThreadTest, Basic) {
   TaskQueue queue;
   for (size_t i = 0; i < kNumTasks; ++i) {
     InSequence s;
-    std::unique_ptr<StrictMock<MockTask>> task(new StrictMock<MockTask>);
-    EXPECT_CALL(*task.get(), Run());
-    EXPECT_CALL(*task.get(), Die());
-    queue.Append(std::move(task));
+    StrictMock<MockTask>* task = new StrictMock<MockTask>;
+    EXPECT_CALL(*task, Run());
+    EXPECT_CALL(*task, Die());
+    queue.Append(task);
   }
 
   WorkerThread thread1(&queue);
@@ -63,6 +44,5 @@ TEST(WorkerThreadTest, Basic) {
   queue.Terminate();
 }
 
-}  // namespace worker_thread_unittest
 }  // namespace platform
 }  // namespace v8

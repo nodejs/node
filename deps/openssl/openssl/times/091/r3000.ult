@@ -1,0 +1,32 @@
+MIPS R3000 64kI+64kD 25mhz, ultrix 4.3
+
+SSLeay 0.9.0b 19-Apr-1998
+built on Thu Apr 23 07:22:31 EST 1998
+options:bn(32,32) md2(int) rc4(ptr,int) des(ptr,risc2,16,long) idea(int) blowfish(idx) 
+C flags:cc -O2 -DL_ENDIAN -DNOPROTO -DNOCONST
+The 'numbers' are in 1000s of bytes per second processed.
+type              8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2                 14.63k       40.65k       54.70k       60.07k       61.78k
+mdc2                29.43k       37.27k       38.23k       38.57k       38.60k
+md5                140.04k      676.59k     1283.84k     1654.10k     1802.24k
+hmac(md5)           60.51k      378.90k      937.82k     1470.46k     1766.74k
+sha1                60.77k      296.79k      525.40k      649.90k      699.05k
+rmd160              48.82k      227.16k      417.19k      530.31k      572.05k
+rc4                904.76k      996.20k     1007.53k     1015.65k     1010.35k
+des cbc            178.87k      209.39k      213.42k      215.55k      214.53k
+des ede3            74.25k       79.30k       80.40k       80.21k       80.14k
+idea cbc           181.02k      209.37k      214.44k      214.36k      213.83k
+rc2 cbc            161.52k      184.98k      187.99k      188.76k      189.05k
+rc5-32/12 cbc      398.99k      582.91k      614.66k      626.07k      621.87k
+blowfish cbc       296.38k      387.69k      405.50k      412.57k      410.05k
+cast cbc           214.76k      260.63k      266.92k      268.63k      258.26k
+                  sign    verify    sign/s verify/s
+rsa  512 bits   0.0870s   0.0089s     11.5    112.4
+rsa 1024 bits   0.4881s   0.0295s      2.0     33.9
+rsa 2048 bits   3.2750s   0.1072s      0.3      9.3
+rsa 4096 bits  23.9833s   0.4093s      0.0      2.4
+                  sign    verify    sign/s verify/s
+dsa  512 bits   0.0898s   0.1706s     11.1      5.9
+dsa 1024 bits   0.2847s   0.5565s      3.5      1.8
+dsa 2048 bits   1.0267s   2.0433s      1.0      0.5
+

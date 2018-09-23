@@ -1,7 +1,0 @@
-Checks stepping with more then one context group.
-paused at:
-#debugger
-
-paused at:
-setTimeout(() => #42, 0)
-

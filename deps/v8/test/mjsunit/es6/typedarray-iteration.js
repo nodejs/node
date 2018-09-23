@@ -4,8 +4,6 @@
 
 // Tests for standard TypedArray array iteration functions.
 
-// Flags: --allow-natives-syntax
-
 var typedArrayConstructors = [
   Uint8Array,
   Int8Array,
@@ -79,11 +77,6 @@ for (var constructor of typedArrayConstructors) {
     assertArrayLikeEquals([2], a.filter(function(elt) {
       return elt == 2;
     }), constructor);
-
-    // Detached Operation
-    var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    %ArrayBufferNeuter(array.buffer);
-    assertThrows(() => array.filter(() => false), TypeError);
   })();
 
   (function TypedArrayMapTest() {
@@ -137,11 +130,6 @@ for (var constructor of typedArrayConstructors) {
         return NaN;
       }), constructor);
     }
-
-    // Detached Operation
-    var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    %ArrayBufferNeuter(array.buffer);
-    assertThrows(() => array.map((v) => v), TypeError);
   })();
 
   //
@@ -201,11 +189,6 @@ for (var constructor of typedArrayConstructors) {
     assertEquals(false, Array.prototype.some.call(a, function(elt) {
       return elt == 2;
     }));
-
-    // Detached Operation
-    var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    %ArrayBufferNeuter(array.buffer);
-    assertThrows(() => array.some((v) => false), TypeError);
   })();
 
 }

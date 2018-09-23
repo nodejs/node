@@ -1,7 +1,0 @@
-.buildstamp
-.docbuildstamp
-Makefile
-*.Makefile
-*.mk
-gyp-mac-tool
-/*/build

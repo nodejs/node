@@ -11,43 +11,34 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-namespace machine_operator_unittest {
 
 #if GTEST_HAS_COMBINE
 
 template <typename T>
 class MachineOperatorTestWithParam
     : public TestWithZone,
-      public ::testing::WithParamInterface<
-          ::testing::tuple<MachineRepresentation, T> > {
+      public ::testing::WithParamInterface< ::testing::tuple<MachineType, T> > {
  protected:
-  MachineRepresentation representation() const {
-    return ::testing::get<0>(B::GetParam());
-  }
+  MachineType type() const { return ::testing::get<0>(B::GetParam()); }
   const T& GetParam() const { return ::testing::get<1>(B::GetParam()); }
 
  private:
-  typedef ::testing::WithParamInterface<
-      ::testing::tuple<MachineRepresentation, T> > B;
+  typedef ::testing::WithParamInterface< ::testing::tuple<MachineType, T> > B;
 };
 
 
-const MachineRepresentation kMachineReps[] = {MachineRepresentation::kWord32,
-                                              MachineRepresentation::kWord64};
+namespace {
+
+const MachineType kMachineReps[] = {kRepWord32, kRepWord64};
 
 
-const MachineType kMachineTypesForAccess[] = {
-    MachineType::Float32(), MachineType::Float64(),  MachineType::Int8(),
-    MachineType::Uint8(),   MachineType::Int16(),    MachineType::Uint16(),
-    MachineType::Int32(),   MachineType::Uint32(),   MachineType::Int64(),
-    MachineType::Uint64(),  MachineType::AnyTagged()};
+const MachineType kMachineTypes[] = {
+    kMachFloat32, kMachFloat64,   kMachInt8,   kMachUint8,  kMachInt16,
+    kMachUint16,  kMachInt32,     kMachUint32, kMachInt64,  kMachUint64,
+    kMachPtr,     kMachAnyTagged, kRepBit,     kRepWord8,   kRepWord16,
+    kRepWord32,   kRepWord64,     kRepFloat32, kRepFloat64, kRepTagged};
 
-
-const MachineRepresentation kRepresentationsForStore[] = {
-    MachineRepresentation::kFloat32, MachineRepresentation::kFloat64,
-    MachineRepresentation::kWord8,   MachineRepresentation::kWord16,
-    MachineRepresentation::kWord32,  MachineRepresentation::kWord64,
-    MachineRepresentation::kTagged};
+}  // namespace
 
 
 // -----------------------------------------------------------------------------
@@ -59,14 +50,14 @@ typedef MachineOperatorTestWithParam<LoadRepresentation>
 
 
 TEST_P(MachineLoadOperatorTest, InstancesAreGloballyShared) {
-  MachineOperatorBuilder machine1(zone(), representation());
-  MachineOperatorBuilder machine2(zone(), representation());
+  MachineOperatorBuilder machine1(zone(), type());
+  MachineOperatorBuilder machine2(zone(), type());
   EXPECT_EQ(machine1.Load(GetParam()), machine2.Load(GetParam()));
 }
 
 
 TEST_P(MachineLoadOperatorTest, NumberOfInputsAndOutputs) {
-  MachineOperatorBuilder machine(zone(), representation());
+  MachineOperatorBuilder machine(zone(), type());
   const Operator* op = machine.Load(GetParam());
 
   EXPECT_EQ(2, op->ValueInputCount());
@@ -81,21 +72,21 @@ TEST_P(MachineLoadOperatorTest, NumberOfInputsAndOutputs) {
 
 
 TEST_P(MachineLoadOperatorTest, OpcodeIsCorrect) {
-  MachineOperatorBuilder machine(zone(), representation());
+  MachineOperatorBuilder machine(zone(), type());
   EXPECT_EQ(IrOpcode::kLoad, machine.Load(GetParam())->opcode());
 }
 
 
 TEST_P(MachineLoadOperatorTest, ParameterIsCorrect) {
-  MachineOperatorBuilder machine(zone(), representation());
-  EXPECT_EQ(GetParam(), LoadRepresentationOf(machine.Load(GetParam())));
+  MachineOperatorBuilder machine(zone(), type());
+  EXPECT_EQ(GetParam(),
+            OpParameter<LoadRepresentation>(machine.Load(GetParam())));
 }
 
 
-INSTANTIATE_TEST_CASE_P(
-    MachineOperatorTest, MachineLoadOperatorTest,
-    ::testing::Combine(::testing::ValuesIn(kMachineReps),
-                       ::testing::ValuesIn(kMachineTypesForAccess)));
+INSTANTIATE_TEST_CASE_P(MachineOperatorTest, MachineLoadOperatorTest,
+                        ::testing::Combine(::testing::ValuesIn(kMachineReps),
+                                           ::testing::ValuesIn(kMachineTypes)));
 
 
 // -----------------------------------------------------------------------------
@@ -104,29 +95,27 @@ INSTANTIATE_TEST_CASE_P(
 
 class MachineStoreOperatorTest
     : public MachineOperatorTestWithParam<
-          ::testing::tuple<MachineRepresentation, WriteBarrierKind> > {
+          ::testing::tuple<MachineType, WriteBarrierKind> > {
  protected:
   StoreRepresentation GetParam() const {
     return StoreRepresentation(
-        ::testing::get<0>(
-            MachineOperatorTestWithParam< ::testing::tuple<
-                MachineRepresentation, WriteBarrierKind> >::GetParam()),
-        ::testing::get<1>(
-            MachineOperatorTestWithParam< ::testing::tuple<
-                MachineRepresentation, WriteBarrierKind> >::GetParam()));
+        ::testing::get<0>(MachineOperatorTestWithParam<
+            ::testing::tuple<MachineType, WriteBarrierKind> >::GetParam()),
+        ::testing::get<1>(MachineOperatorTestWithParam<
+            ::testing::tuple<MachineType, WriteBarrierKind> >::GetParam()));
   }
 };
 
 
 TEST_P(MachineStoreOperatorTest, InstancesAreGloballyShared) {
-  MachineOperatorBuilder machine1(zone(), representation());
-  MachineOperatorBuilder machine2(zone(), representation());
+  MachineOperatorBuilder machine1(zone(), type());
+  MachineOperatorBuilder machine2(zone(), type());
   EXPECT_EQ(machine1.Store(GetParam()), machine2.Store(GetParam()));
 }
 
 
 TEST_P(MachineStoreOperatorTest, NumberOfInputsAndOutputs) {
-  MachineOperatorBuilder machine(zone(), representation());
+  MachineOperatorBuilder machine(zone(), type());
   const Operator* op = machine.Store(GetParam());
 
   EXPECT_EQ(3, op->ValueInputCount());
@@ -141,14 +130,15 @@ TEST_P(MachineStoreOperatorTest, NumberOfInputsAndOutputs) {
 
 
 TEST_P(MachineStoreOperatorTest, OpcodeIsCorrect) {
-  MachineOperatorBuilder machine(zone(), representation());
+  MachineOperatorBuilder machine(zone(), type());
   EXPECT_EQ(IrOpcode::kStore, machine.Store(GetParam())->opcode());
 }
 
 
 TEST_P(MachineStoreOperatorTest, ParameterIsCorrect) {
-  MachineOperatorBuilder machine(zone(), representation());
-  EXPECT_EQ(GetParam(), StoreRepresentationOf(machine.Store(GetParam())));
+  MachineOperatorBuilder machine(zone(), type());
+  EXPECT_EQ(GetParam(),
+            OpParameter<StoreRepresentation>(machine.Store(GetParam())));
 }
 
 
@@ -156,13 +146,15 @@ INSTANTIATE_TEST_CASE_P(
     MachineOperatorTest, MachineStoreOperatorTest,
     ::testing::Combine(
         ::testing::ValuesIn(kMachineReps),
-        ::testing::Combine(::testing::ValuesIn(kRepresentationsForStore),
+        ::testing::Combine(::testing::ValuesIn(kMachineTypes),
                            ::testing::Values(kNoWriteBarrier,
                                              kFullWriteBarrier))));
 #endif
 
 // -----------------------------------------------------------------------------
 // Pure operators.
+
+namespace {
 
 struct PureOperator {
   const Operator* (MachineOperatorBuilder::*constructor)();
@@ -201,7 +193,9 @@ const PureOperator kPureOperators[] = {
     PURE(Word64Ror, 2, 0, 1),                 // --
     PURE(Word64Equal, 2, 0, 1),               // --
     PURE(Int32Add, 2, 0, 1),                  // --
+    PURE(Int32AddWithOverflow, 2, 0, 2),      // --
     PURE(Int32Sub, 2, 0, 1),                  // --
+    PURE(Int32SubWithOverflow, 2, 0, 2),      // --
     PURE(Int32Mul, 2, 0, 1),                  // --
     PURE(Int32MulHigh, 2, 0, 1),              // --
     PURE(Int32Div, 2, 1, 1),                  // --
@@ -240,7 +234,6 @@ const PureOperator kPureOperators[] = {
     PURE(Float32Equal, 2, 0, 1),              // --
     PURE(Float32LessThan, 2, 0, 1),           // --
     PURE(Float32LessThanOrEqual, 2, 0, 1),    // --
-    PURE(Float32Neg, 1, 0, 1),                // --
     PURE(Float64Abs, 1, 0, 1),                // --
     PURE(Float64Add, 2, 0, 1),                // --
     PURE(Float64Sub, 2, 0, 1),                // --
@@ -248,8 +241,6 @@ const PureOperator kPureOperators[] = {
     PURE(Float64Div, 2, 0, 1),                // --
     PURE(Float64Mod, 2, 0, 1),                // --
     PURE(Float64Sqrt, 1, 0, 1),               // --
-    PURE(Float64Max, 2, 0, 1),                // --
-    PURE(Float64Min, 2, 0, 1),                // --
     PURE(Float64Equal, 2, 0, 1),              // --
     PURE(Float64LessThan, 2, 0, 1),           // --
     PURE(Float64LessThanOrEqual, 2, 0, 1),    // --
@@ -258,23 +249,21 @@ const PureOperator kPureOperators[] = {
     PURE(Float64ExtractHighWord32, 1, 0, 1),  // --
     PURE(Float64InsertLowWord32, 2, 0, 1),    // --
     PURE(Float64InsertHighWord32, 2, 0, 1),   // --
-    PURE(Float64Neg, 1, 0, 1),                // --
 #undef PURE
 };
 
+}  // namespace
 
 class MachinePureOperatorTest : public TestWithZone {
  protected:
-  MachineRepresentation word_type() {
-    return MachineType::PointerRepresentation();
-  }
+  MachineType word_type() { return kMachPtr; }
 };
 
 
 TEST_F(MachinePureOperatorTest, PureOperators) {
-  TRACED_FOREACH(MachineRepresentation, machine_rep1, kMachineReps) {
+  TRACED_FOREACH(MachineType, machine_rep1, kMachineReps) {
     MachineOperatorBuilder machine1(zone(), machine_rep1);
-    TRACED_FOREACH(MachineRepresentation, machine_rep2, kMachineReps) {
+    TRACED_FOREACH(MachineType, machine_rep2, kMachineReps) {
       MachineOperatorBuilder machine2(zone(), machine_rep2);
       TRACED_FOREACH(PureOperator, pop, kPureOperators) {
         const Operator* op1 = (machine1.*pop.constructor)();
@@ -290,6 +279,8 @@ TEST_F(MachinePureOperatorTest, PureOperators) {
 
 
 // Optional operators.
+
+namespace {
 
 struct OptionalOperatorEntry {
   const OptionalOperator (MachineOperatorBuilder::*constructor)();
@@ -312,26 +303,29 @@ const OptionalOperatorEntry kOptionalOperators[] = {
     &MachineOperatorBuilder::Name, MachineOperatorBuilder::k##Name, #Name, \
         value_input_count, control_input_count, value_output_count         \
   }
+    OPTIONAL_ENTRY(Float32Max, 2, 0, 1),            // --
+    OPTIONAL_ENTRY(Float32Min, 2, 0, 1),            // --
+    OPTIONAL_ENTRY(Float64Max, 2, 0, 1),            // --
+    OPTIONAL_ENTRY(Float64Min, 2, 0, 1),            // --
     OPTIONAL_ENTRY(Float64RoundDown, 1, 0, 1),      // --
     OPTIONAL_ENTRY(Float64RoundTruncate, 1, 0, 1),  // --
     OPTIONAL_ENTRY(Float64RoundTiesAway, 1, 0, 1),  // --
 #undef OPTIONAL_ENTRY
 };
+}  // namespace
 
 
 class MachineOptionalOperatorTest : public TestWithZone {
  protected:
-  MachineRepresentation word_rep() {
-    return MachineType::PointerRepresentation();
-  }
+  MachineType word_type() { return kMachPtr; }
 };
 
 
 TEST_F(MachineOptionalOperatorTest, OptionalOperators) {
   TRACED_FOREACH(OptionalOperatorEntry, pop, kOptionalOperators) {
-    TRACED_FOREACH(MachineRepresentation, machine_rep1, kMachineReps) {
+    TRACED_FOREACH(MachineType, machine_rep1, kMachineReps) {
       MachineOperatorBuilder machine1(zone(), machine_rep1, pop.enabling_flag);
-      TRACED_FOREACH(MachineRepresentation, machine_rep2, kMachineReps) {
+      TRACED_FOREACH(MachineType, machine_rep2, kMachineReps) {
         MachineOperatorBuilder machine2(zone(), machine_rep2,
                                         pop.enabling_flag);
         const Operator* op1 = (machine1.*pop.constructor)().op();
@@ -341,7 +335,7 @@ TEST_F(MachineOptionalOperatorTest, OptionalOperators) {
         EXPECT_EQ(pop.control_input_count, op1->ControlInputCount());
         EXPECT_EQ(pop.value_output_count, op1->ValueOutputCount());
 
-        MachineOperatorBuilder machine3(zone(), word_rep());
+        MachineOperatorBuilder machine3(zone(), word_type());
         EXPECT_TRUE((machine1.*pop.constructor)().IsSupported());
         EXPECT_FALSE((machine3.*pop.constructor)().IsSupported());
       }
@@ -354,11 +348,15 @@ TEST_F(MachineOptionalOperatorTest, OptionalOperators) {
 // Pseudo operators.
 
 
+namespace {
+
 typedef TestWithZone MachineOperatorTest;
+
+}  // namespace
 
 
 TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
-  MachineOperatorBuilder machine(zone(), MachineRepresentation::kWord32);
+  MachineOperatorBuilder machine(zone(), kRepWord32);
   EXPECT_EQ(machine.Word32And(), machine.WordAnd());
   EXPECT_EQ(machine.Word32Or(), machine.WordOr());
   EXPECT_EQ(machine.Word32Xor(), machine.WordXor());
@@ -380,7 +378,7 @@ TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
 
 
 TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs64Bit) {
-  MachineOperatorBuilder machine(zone(), MachineRepresentation::kWord64);
+  MachineOperatorBuilder machine(zone(), kRepWord64);
   EXPECT_EQ(machine.Word64And(), machine.WordAnd());
   EXPECT_EQ(machine.Word64Or(), machine.WordOr());
   EXPECT_EQ(machine.Word64Xor(), machine.WordXor());
@@ -400,7 +398,6 @@ TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs64Bit) {
   EXPECT_EQ(machine.Int64LessThanOrEqual(), machine.IntLessThanOrEqual());
 }
 
-}  // namespace machine_operator_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

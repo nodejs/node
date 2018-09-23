@@ -50,19 +50,11 @@ DAY_IN_SECONDS = 24 * 60 * 60
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
 PUSH_MSG_NEW_RE = re.compile(r"^Version \d+\.\d+\.\d+$")
 VERSION_FILE = os.path.join("include", "v8-version.h")
-WATCHLISTS_FILE = "WATCHLISTS"
-RELEASE_WORKDIR = "/tmp/v8-release-scripts-work-dir/"
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
 
 # V8 base directory.
 V8_BASE = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Add our copy of depot_tools to the PATH as many scripts use tools from there,
-# e.g. git-cl, fetch, git-new-branch etc, and we can not depend on depot_tools
-# being in the PATH on the LUCI bots.
-path_to_depot_tools = os.path.join(V8_BASE, 'third_party', 'depot_tools')
-new_path = path_to_depot_tools + os.pathsep + os.environ.get('PATH')
-os.environ['PATH'] = new_path
 
 
 def TextToFile(text, file_name):
@@ -212,30 +204,6 @@ def Command(cmd, args="", prefix="", pipe=True, cwd=None):
   finally:
     sys.stdout.flush()
     sys.stderr.flush()
-
-
-def SanitizeVersionTag(tag):
-    version_without_prefix = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
-    version_with_prefix = re.compile(r"^tags\/\d+\.\d+\.\d+(?:\.\d+)?$")
-
-    if version_without_prefix.match(tag):
-      return tag
-    elif version_with_prefix.match(tag):
-        return tag[len("tags/"):]
-    else:
-      return None
-
-
-def NormalizeVersionTags(version_tags):
-  normalized_version_tags = []
-
-  # Remove tags/ prefix because of packed refs.
-  for current_tag in version_tags:
-    version_tag = SanitizeVersionTag(current_tag)
-    if version_tag != None:
-      normalized_version_tags.append(version_tag)
-
-  return normalized_version_tags
 
 
 # Wrapper for side effects.
@@ -390,7 +358,7 @@ class GitInterface(VCInterface):
     # is the case for all automated merge and push commits - also no title is
     # the prefix of another title).
     commit = None
-    for wait_interval in [10, 30, 60, 60, 60, 60, 60]:
+    for wait_interval in [3, 7, 15, 35, 45, 60]:
       self.step.Git("fetch")
       commit = self.step.GitLog(n=1, format="%H", grep=message, branch=remote)
       if commit:
@@ -403,7 +371,7 @@ class GitInterface(VCInterface):
                     "git updater is lagging behind?")
 
     self.step.Git("tag %s %s" % (tag, commit))
-    self.step.Git("push origin refs/tags/%s:refs/tags/%s" % (tag, tag))
+    self.step.Git("push origin %s" % tag)
 
   def CLLand(self):
     self.step.GitCLLand()
@@ -557,8 +525,7 @@ class Step(GitRecipesMixin):
   def InitialEnvironmentChecks(self, cwd):
     # Cancel if this is not a git checkout.
     if not os.path.exists(os.path.join(cwd, ".git")):  # pragma: no cover
-      self.Die("%s is not a git checkout. If you know what you're doing, try "
-               "deleting it and rerunning this script." % cwd)
+      self.Die("This is not a git checkout, this script won't work for you.")
 
     # Cancel if EDITOR is unset or not executable.
     if (self._options.requires_editor and (not os.environ.get("EDITOR") or
@@ -620,7 +587,7 @@ class Step(GitRecipesMixin):
   def WaitForResolvingConflicts(self, patch_file):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
           "or resolve the conflicts, stage *all* touched files with "
-          "'git add', and type \"RESOLVED<Return>\"" % (patch_file))
+          "'git add', and type \"RESOLVED<Return>\"")
     self.DieNoManualMode()
     answer = ""
     while answer != "RESOLVED":
@@ -640,7 +607,10 @@ class Step(GitRecipesMixin):
 
   def GetVersionTag(self, revision):
     tag = self.Git("describe --tags %s" % revision).strip()
-    return SanitizeVersionTag(tag)
+    if VERSION_RE.match(tag):
+      return tag
+    else:
+      return None
 
   def GetRecentReleases(self, max_age):
     # Make sure tags are fetched.
@@ -663,11 +633,7 @@ class Step(GitRecipesMixin):
 
     # Make sure tags are fetched.
     self.Git("fetch origin +refs/tags/*:refs/tags/*")
-
-    all_tags = self.vc.GetTags()
-    only_version_tags = NormalizeVersionTags(all_tags)
-
-    version = sorted(only_version_tags,
+    version = sorted(filter(VERSION_RE.match, self.vc.GetTags()),
                      key=SortingKey, reverse=True)[0]
     self["latest_version"] = version
     return version
@@ -748,12 +714,9 @@ class Step(GitRecipesMixin):
 
 
 class BootstrapStep(Step):
-  MESSAGE = "Bootstrapping checkout and state."
+  MESSAGE = "Bootstapping v8 checkout."
 
   def RunStep(self):
-    # Reserve state entry for json output.
-    self['json_output'] = {}
-
     if os.path.realpath(self.default_cwd) == os.path.realpath(V8_BASE):
       self.Die("Can't use v8 checkout with calling script as work checkout.")
     # Directory containing the working v8 checkout.
@@ -767,24 +730,42 @@ class UploadStep(Step):
   MESSAGE = "Upload for code review."
 
   def RunStep(self):
-    reviewer = None
     if self._options.reviewer:
       print "Using account %s for review." % self._options.reviewer
       reviewer = self._options.reviewer
-
-    tbr_reviewer = None
-    if self._options.tbr_reviewer:
-      print "Using account %s for TBR review." % self._options.tbr_reviewer
-      tbr_reviewer = self._options.tbr_reviewer
-
-    if not reviewer and not tbr_reviewer:
+    else:
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-
     self.GitUpload(reviewer, self._options.author, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
-                   cc=self._options.cc, tbr_reviewer=tbr_reviewer)
+                   cc=self._options.cc)
+
+
+class DetermineV8Sheriff(Step):
+  MESSAGE = "Determine the V8 sheriff for code review."
+
+  def RunStep(self):
+    self["sheriff"] = None
+    if not self._options.sheriff:  # pragma: no cover
+      return
+
+    # The sheriff determined by the rotation on the waterfall has a
+    # @google.com account.
+    url = "https://chromium-build.appspot.com/p/chromium/sheriff_v8.js"
+    match = re.match(r"document\.write\('(\w+)'\)", self.ReadURL(url))
+
+    # If "channel is sheriff", we can't match an account.
+    if match:
+      g_name = match.group(1)
+      # Optimistically assume that google and chromium account name are the
+      # same.
+      self["sheriff"] = g_name + "@chromium.org"
+      self._options.reviewer = ("%s,%s" %
+                                (self["sheriff"], self._options.reviewer))
+      print "Found active sheriff: %s" % self["sheriff"]
+    else:
+      print "No active sheriff found."
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
@@ -830,15 +811,15 @@ class ScriptsBase(object):
   def MakeOptions(self, args=None):
     parser = argparse.ArgumentParser(description=self._Description())
     parser.add_argument("-a", "--author", default="",
-                        help="The author email used for code review.")
+                        help="The author email used for rietveld.")
     parser.add_argument("--dry-run", default=False, action="store_true",
                         help="Perform only read-only actions.")
-    parser.add_argument("--json-output",
-                        help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
-    parser.add_argument("--tbr-reviewer", "--tbr", default="",
-                        help="The account name to be used for TBR reviews.")
+    parser.add_argument("--sheriff", default=False, action="store_true",
+                        help=("Determine current sheriff to review CLs. On "
+                              "success, this will overwrite the reviewer "
+                              "option."))
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
@@ -883,11 +864,6 @@ class ScriptsBase(object):
     if not options:
       return 1
 
-    # Ensure temp dir exists for state files.
-    state_dir = os.path.dirname(self._config["PERSISTFILE_BASENAME"])
-    if not os.path.exists(state_dir):
-      os.makedirs(state_dir)
-
     state_file = "%s-state.json" % self._config["PERSISTFILE_BASENAME"]
     if options.step == 0 and os.path.exists(state_file):
       os.remove(state_file)
@@ -896,16 +872,9 @@ class ScriptsBase(object):
     for (number, step_class) in enumerate([BootstrapStep] + step_classes):
       steps.append(MakeStep(step_class, number, self._state, self._config,
                             options, self._side_effect_handler))
-
-    try:
-      for step in steps[options.step:]:
-        if step.Run():
-          return 0
-    finally:
-      if options.json_output:
-        with open(options.json_output, "w") as f:
-          json.dump(self._state['json_output'], f)
-
+    for step in steps[options.step:]:
+      if step.Run():
+        return 0
     return 0
 
   def Run(self, args=None):

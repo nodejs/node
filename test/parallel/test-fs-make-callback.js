@@ -1,27 +1,28 @@
 'use strict';
-const common = require('../common');
-const fs = require('fs');
-const callbackThrowValues = [null, true, false, 0, 1, 'foo', /foo/, [], {}];
+var common = require('../common');
+var assert = require('assert');
+var fs = require('fs');
 
-const { sep } = require('path');
-
-const tmpdir = require('../common/tmpdir');
-tmpdir.refresh();
-
-function testMakeCallback(cb) {
+function test(cb) {
   return function() {
-    // fs.mkdtemp() calls makeCallback() on its third argument
-    fs.mkdtemp(`${tmpdir.path}${sep}`, {}, cb);
+    // fs.stat() calls makeCallback() on its second argument
+    fs.stat(__filename, cb);
   };
 }
 
-function invalidCallbackThrowsTests() {
-  callbackThrowValues.forEach((value) => {
-    common.expectsError(testMakeCallback(value), {
-      code: 'ERR_INVALID_CALLBACK',
-      type: TypeError
-    });
-  });
-}
+// Verify the case where a callback function is provided
+assert.doesNotThrow(test(function() {}));
 
-invalidCallbackThrowsTests();
+// Passing undefined calls rethrow() internally, which is fine
+assert.doesNotThrow(test(undefined));
+
+// Anything else should throw
+assert.throws(test(null));
+assert.throws(test(true));
+assert.throws(test(false));
+assert.throws(test(1));
+assert.throws(test(0));
+assert.throws(test('foo'));
+assert.throws(test(/foo/));
+assert.throws(test([]));
+assert.throws(test({}));

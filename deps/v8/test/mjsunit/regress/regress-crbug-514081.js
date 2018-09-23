@@ -4,15 +4,12 @@
 
 if (this.Worker) {
   var __v_7 = new Worker('onmessage = function() {};');
-  var e;
-  var ab = new ArrayBuffer(2 * 1000 * 1000);
   try {
-    __v_7.postMessage(ab);
-    threw = false;
+    var ab = new ArrayBuffer(2147483648);
+    // If creating the ArrayBuffer succeeded, then postMessage should fail.
+    assertThrows(function() { __v_7.postMessage(ab); });
   } catch (e) {
-    // postMessage failed, should be a DataCloneError message.
-    assertContains('cloned', e.message);
-    threw = true;
+    // Creating the ArrayBuffer failed.
+    assertInstanceof(e, RangeError);
   }
-  assertTrue(threw, 'Should throw when trying to serialize large message.');
 }

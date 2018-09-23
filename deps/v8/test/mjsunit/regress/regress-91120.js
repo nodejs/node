@@ -25,26 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// With ES2015 function hoisting semantics, functions are only "hoisted" out
-// of blocks by writing their values into var-scoped declarations. Therefore,
-// they access the catch binding when it syntactically appears so.
-// This is a potentially breaking change vs the old semantics, which would
-// return 'function' from g() everywhere.
-
+// We intend that the function declaration for g inside catch is hoisted to
+// function f's scope.  Invoke it before try/catch, in the try block, in the
+// catch block, after try/catch, and outside f, and verify that it has
+// access to the proper binding of x.
 var x = 'global';
 
 function f() {
   var x = 'function';
-  assertEquals(undefined, g);
+  assertEquals('function', g());
   try {
-    assertEquals(undefined, g);
+    assertEquals('function', g());
     throw 'catch';
   } catch (x) {
     function g() { return x; }
-    assertEquals('catch', g());
+    assertEquals('function', g());
   }
-  assertEquals('catch', g());
+  assertEquals('function', g());
   return g;
 }
 
-assertEquals('catch', f()());
+assertEquals('function', f()());

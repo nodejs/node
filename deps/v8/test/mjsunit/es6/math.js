@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --harmony-tostring
+
 function testMathToString() {
   assertEquals('[object Math]', "" + Math);
   assertEquals("Math", Math[Symbol.toStringTag]);
@@ -9,7 +11,5 @@ function testMathToString() {
   assertTrue(desc.configurable);
   assertFalse(desc.writable);
   assertEquals("Math", desc.value);
-  delete Math[Symbol.toStringTag];
-  assertEquals('[object Object]', "" + Math);
 }
 testMathToString();

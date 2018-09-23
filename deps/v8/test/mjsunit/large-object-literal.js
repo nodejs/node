@@ -26,9 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Test that we can create object literals of various sizes.
-
-// Flags: --allow-natives-syntax
-
 function testLiteral(size) {
 
   // Build object-literal string.
@@ -48,25 +45,6 @@ function testLiteral(size) {
     assertEquals(i, o["a"+i]);
   }
 }
-function testElementLiteral(size) {
-
-  // Build object-literal string.
-  var literal = "var o = { ";
-
-  for (var i = 0; i < size; i++) {
-    if (i > 0) literal += ",";
-    literal += (i + ":'" + i+"'");
-  }
-  literal += "}";
-
-  // Create the object literal.
-  eval(literal);
-
-  // Check that the properties have the expected values.
-  for (var i = 0; i < size; i++) {
-    assertEquals(i+"", o[i]);
-  }
-}
 
 // The sizes to test.
 var sizes = [0, 1, 2, 100, 200, 400, 1000];
@@ -74,33 +52,4 @@ var sizes = [0, 1, 2, 100, 200, 400, 1000];
 // Run the test.
 for (var i = 0; i < sizes.length; i++) {
   testLiteral(sizes[i]);
-  testElementLiteral(sizes[i]);
 }
-
-
-// Large Object dictionary mode literal.
-
-
-function TestSlowLiteralOptimized() {
-  function f() {
-    return {__proto__:null, bar:"barValue"};
-  }
-  let obj = f();
-  assertFalse(%HasFastProperties(obj));
-  assertEquals(Object.getPrototypeOf(obj), null);
-  assertEquals(["bar"], Object.keys(obj));
-  assertEquals("barValue", obj.bar);
-  obj.bar = "barValue2";
-  assertEquals("barValue2", obj.bar);
-
-  %OptimizeFunctionOnNextCall(f);
-  obj = f();
-  assertFalse(%HasFastProperties(obj));
-  assertEquals(Object.getPrototypeOf(obj), null);
-  assertEquals(["bar"], Object.keys(obj));
-  assertEquals("barValue", obj.bar);
-  obj.bar = "barValue2";
-  assertEquals("barValue2", obj.bar);
-};
-TestSlowLiteralOptimized();
-TestSlowLiteralOptimized();

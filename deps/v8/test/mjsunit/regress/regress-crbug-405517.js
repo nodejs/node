@@ -6,7 +6,7 @@
 
 function f() {
  var e = [0];
- Object.preventExtensions(e);
+ %PreventExtensions(e);
  for (var i = 0; i < 4; i++) e.shift();
 }
 

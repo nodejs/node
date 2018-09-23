@@ -20,7 +20,7 @@ test('setup', function (t) {
 test('->optdep:a->dep:b', function (t) {
   var moduleA = {
     name: 'a',
-    path: '/a',
+    path: '/',
     package: {
       scripts: {
         postinstall: 'false'
@@ -28,12 +28,11 @@ test('->optdep:a->dep:b', function (t) {
       dependencies: {
         b: '*'
       }
-    },
-    isTop: true
+    }
   }
   var moduleB = {
     name: 'b',
-    path: '/b',
+    path: '/',
     package: {},
     requires: [],
     requiredBy: [moduleA]
@@ -48,18 +47,13 @@ test('->optdep:a->dep:b', function (t) {
       }
     },
     children: [moduleA, moduleB],
-    requires: [moduleA],
-    isTop: true
+    requires: [moduleA]
   }
   moduleA.requiredBy = [tree]
-  moduleA.parent = tree
-  moduleB.parent = tree
 
   t.plan(3)
-  return actions.postinstall('/', moduleA, mockLog).then(() => {
-    throw new Error('was not supposed to succeed')
-  }, (err) => {
-    t.is(err && err.code, 'ELIFECYCLE', 'Lifecycle failed')
+  actions.postinstall('/', '/', moduleA, mockLog, function (er) {
+    t.ok(er && er.code === 'ELIFECYCLE', 'Lifecycle failed')
     t.ok(moduleA.failed, 'moduleA (optional dep) is marked failed')
     t.ok(moduleB.failed, 'moduleB (direct dep of moduleA) is marked as failed')
     t.end()
@@ -77,16 +71,14 @@ test('->dep:b,->optdep:a->dep:b', function (t) {
       dependencies: {
         b: '*'
       }
-    },
-    isTop: false
+    }
   }
   var moduleB = {
     name: 'b',
     path: '/',
     package: {},
     requires: [],
-    requiredBy: [moduleA],
-    isTop: false
+    requiredBy: [moduleA]
   }
   moduleA.requires = [moduleB]
 
@@ -101,19 +93,14 @@ test('->dep:b,->optdep:a->dep:b', function (t) {
       }
     },
     children: [moduleA, moduleB],
-    requires: [moduleA, moduleB],
-    isTop: true
+    requires: [moduleA, moduleB]
   }
   moduleA.requiredBy = [tree]
   moduleB.requiredBy.push(tree)
-  moduleA.parent = tree
-  moduleB.parent = tree
 
   t.plan(3)
-  return actions.postinstall('/', moduleA, mockLog).then(() => {
-    throw new Error('was not supposed to succeed')
-  }, (err) => {
-    t.ok(err && err.code === 'ELIFECYCLE', 'Lifecycle failed')
+  actions.postinstall('/', '/', moduleA, mockLog, function (er) {
+    t.ok(er && er.code === 'ELIFECYCLE', 'Lifecycle failed')
     t.ok(moduleA.failed, 'moduleA (optional dep) is marked failed')
     t.ok(!moduleB.failed, 'moduleB (direct dep of moduleA) is marked as failed')
     t.end()

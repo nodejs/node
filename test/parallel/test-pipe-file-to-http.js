@@ -1,41 +1,20 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
-const http = require('http');
-const path = require('path');
-const cp = require('child_process');
+var common = require('../common');
+var assert = require('assert');
+var fs = require('fs');
+var http = require('http');
+var path = require('path');
+var cp = require('child_process');
 
-const tmpdir = require('../common/tmpdir');
-tmpdir.refresh();
+common.refreshTmpDir();
 
-const filename = path.join(tmpdir.path || '/tmp', 'big');
-let count = 0;
+var filename = path.join(common.tmpDir || '/tmp', 'big');
+var clientReqComplete = false;
+var count = 0;
 
-const server = http.createServer(function(req, res) {
-  let timeoutId;
-  assert.strictEqual('POST', req.method);
+var server = http.createServer(function(req, res) {
+  var timeoutId;
+  assert.equal('POST', req.method);
   req.pause();
 
   setTimeout(function() {
@@ -50,33 +29,34 @@ const server = http.createServer(function(req, res) {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.writeHead(200, {'Content-Type': 'text/plain'});
     res.end();
   });
 });
-server.listen(0);
+server.listen(common.PORT);
 
 server.on('listening', function() {
-  const cmd = common.ddCommand(filename, 10240);
+  var cmd = common.ddCommand(filename, 10240);
 
-  cp.exec(cmd, function(err) {
-    assert.ifError(err);
+  cp.exec(cmd, function(err, stdout, stderr) {
+    if (err) throw err;
     makeRequest();
   });
 });
 
 function makeRequest() {
-  const req = http.request({
-    port: server.address().port,
+  var req = http.request({
+    port: common.PORT,
     path: '/',
     method: 'POST'
   });
 
-  const s = fs.ReadStream(filename);
+  var s = fs.ReadStream(filename);
   s.pipe(req);
-  s.on('close', common.mustCall((err) => {
-    assert.ifError(err);
-  }));
+  s.on('close', function(err) {
+    if (err) throw err;
+    clientReqComplete = true;
+  });
 
   req.on('response', function(res) {
     res.resume();
@@ -87,5 +67,6 @@ function makeRequest() {
 }
 
 process.on('exit', function() {
-  assert.strictEqual(1024 * 10240, count);
+  assert.equal(1024 * 10240, count);
+  assert.ok(clientReqComplete);
 });

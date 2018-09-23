@@ -239,14 +239,16 @@ function assertIteratorResult(value, done, result) {
 })();
 
 
-(function TestGeneratorNotConstructable() {
+(function TestGeneratorConstructable() {
   var object = {
     *method() {
       yield 1;
     }
   };
 
-  assertThrows(()=>new object.method());
+  var g = new object.method();
+  assertIteratorResult(1, false, g.next());
+  assertIteratorResult(undefined, true, g.next());
 })();
 
 

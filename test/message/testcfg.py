@@ -27,7 +27,7 @@
 
 import test
 import os
-from os.path import join, exists, basename, isdir
+from os.path import join, dirname, exists, basename, isdir
 import re
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
@@ -114,20 +114,21 @@ class MessageTestConfiguration(test.TestConfiguration):
 
   def Ls(self, path):
     if isdir(path):
-      return [f for f in os.listdir(path)
-              if f.endswith('.js') or f.endswith('.mjs')]
+        return [f[:-3] for f in os.listdir(path) if f.endswith('.js')]
     else:
-      return []
+        return []
 
   def ListTests(self, current_path, path, arch, mode):
     all_tests = [current_path + [t] for t in self.Ls(self.root)]
     result = []
     for test in all_tests:
       if self.Contains(path, test):
-        file_path = join(self.root, reduce(join, test[1:], ''))
-        output_path = file_path[:file_path.rfind('.')] + '.out'
+        file_prefix = join(self.root, reduce(join, test[1:], ""))
+        file_path = file_prefix + ".js"
+        output_path = file_prefix + ".out"
         if not exists(output_path):
-          raise Exception("Could not find %s" % output_path)
+          print "Could not find %s" % output_path
+          continue
         result.append(MessageTestCase(test, file_path, output_path,
                                       arch, mode, self.context, self))
     return result

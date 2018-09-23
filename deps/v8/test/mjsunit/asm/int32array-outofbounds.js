@@ -8,7 +8,7 @@ function Module(stdlib, foreign, heap) {
   function load(i) {
     i = i|0;
     i = MEM32[i >> 2] | 0;
-    return i | 0;
+    return i;
   }
   function store(i, v) {
     i = i|0;

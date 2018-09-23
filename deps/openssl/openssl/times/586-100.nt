@@ -1,0 +1,23 @@
+SSLeay 0.7.3 30-Apr-1997
+built on Mon May 19 10:47:38 EST 1997
+options:bn(64,32) md2(char) rc4(idx,int) des(idx,cisc,4,long) idea(int) blowfish(ptr2)
+C flags not available
+The 'numbers' are in 1000s of bytes per second processed.
+type              8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2                89.57k      245.94k      331.59k      362.95k      373.29k
+md5               858.93k     4175.51k     7700.21k     9715.78k    10369.11k
+sha               466.18k     2103.67k     3607.69k     4399.31k     4669.16k
+sha1              449.59k     2041.02k     3496.13k     4256.45k     4512.92k
+rc4              5862.55k     7447.27k     7698.80k     7768.38k     7653.84k
+des cbc          1562.71k     1879.84k     1928.24k     1938.93k     1911.02k
+des ede3          680.27k      707.97k      728.62k      733.15k      725.98k
+idea cbc          797.46k      885.85k      895.68k      898.06k      896.45k
+rc2 cbc           609.46k      648.75k      654.01k      654.42k      653.60k
+blowfish cbc     2357.94k     3000.22k     3106.89k     3134.76k     3080.42k
+rsa  512 bits   0.022s   0.003
+rsa 1024 bits   0.112s   0.003
+rsa 2048 bits   0.726s   0.026
+rsa 4096 bits   5.268s   0.095
+dsa  512 bits   0.021s   0.039
+dsa 1024 bits   0.063s   0.127
+dsa 2048 bits   0.224s   0.451

@@ -5,67 +5,132 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
+#include "src/allocation.h"
 #include "src/base/atomicops.h"
-#include "src/globals.h"
+#include "src/handles.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
+// Forward declarations.
+class JSRegExp;
 
 class Execution final : public AllStatic {
  public:
-  // Whether to report pending messages, or keep them pending on the isolate.
-  enum class MessageHandling { kReport, kKeepPending };
-  enum class Target { kCallable, kRunMicrotasks };
-
   // Call a function, the caller supplies a receiver and an array
-  // of arguments.
+  // of arguments. Arguments are Object* type. After function returns,
+  // pointers in 'args' might be invalid.
   //
-  // When the function called is not in strict mode, receiver is
-  // converted to an object.
+  // *pending_exception tells whether the invoke resulted in
+  // a pending exception.
   //
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Call(
-      Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
-      int argc, Handle<Object> argv[]);
+  // When convert_receiver is set, and the receiver is not an object,
+  // and the function called is not in strict mode, receiver is converted to
+  // an object.
+  //
+  MUST_USE_RESULT static MaybeHandle<Object> Call(
+      Isolate* isolate,
+      Handle<Object> callable,
+      Handle<Object> receiver,
+      int argc,
+      Handle<Object> argv[],
+      bool convert_receiver = false);
 
   // Construct object from function, the caller supplies an array of
-  // arguments.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> New(
-      Isolate* isolate, Handle<Object> constructor, int argc,
-      Handle<Object> argv[]);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> New(
-      Isolate* isolate, Handle<Object> constructor, Handle<Object> new_target,
-      int argc, Handle<Object> argv[]);
+  // arguments. Arguments are Object* type. After function returns,
+  // pointers in 'args' might be invalid.
+  //
+  // *pending_exception tells whether the invoke resulted in
+  // a pending exception.
+  //
+  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> func,
+                                                 int argc,
+                                                 Handle<Object> argv[]);
 
-  // Call a function, just like Call(), but handle don't report exceptions
-  // externally.
-  // The return value is either the result of calling the function (if no
-  // exception occurred), or an empty handle.
-  // If message_handling is MessageHandling::kReport, exceptions (except for
-  // termination exceptions) will be stored in exception_out (if not a
-  // nullptr).
-  static MaybeHandle<Object> TryCall(Isolate* isolate, Handle<Object> callable,
+  // Call a function, just like Call(), but make sure to silently catch
+  // any thrown exceptions. The return value is either the result of
+  // calling the function (if caught exception is false) or the exception
+  // that occurred (if caught exception is true).
+  // In the exception case, exception_out holds the caught exceptions, unless
+  // it is a termination exception.
+  static MaybeHandle<Object> TryCall(Handle<JSFunction> func,
                                      Handle<Object> receiver, int argc,
                                      Handle<Object> argv[],
-                                     MessageHandling message_handling,
-                                     MaybeHandle<Object>* exception_out,
-                                     Target target = Target::kCallable);
-  // Convenience method for performing RunMicrotasks
-  static MaybeHandle<Object> RunMicrotasks(Isolate* isolate,
-                                           MessageHandling message_handling,
-                                           MaybeHandle<Object>* exception_out);
+                                     MaybeHandle<Object>* exception_out = NULL);
+
+  // ECMA-262 9.3
+  MUST_USE_RESULT static MaybeHandle<Object> ToNumber(
+      Isolate* isolate, Handle<Object> obj);
+
+  // ECMA-262 9.4
+  MUST_USE_RESULT static MaybeHandle<Object> ToInteger(
+      Isolate* isolate, Handle<Object> obj);
+
+  // ECMA-262 9.5
+  MUST_USE_RESULT static MaybeHandle<Object> ToInt32(
+      Isolate* isolate, Handle<Object> obj);
+
+  // ECMA-262 9.6
+  MUST_USE_RESULT static MaybeHandle<Object> ToUint32(
+      Isolate* isolate, Handle<Object> obj);
+
+
+  // ES6, draft 10-14-14, section 7.1.15
+  MUST_USE_RESULT static MaybeHandle<Object> ToLength(
+      Isolate* isolate, Handle<Object> obj);
+
+  // ECMA-262 9.8
+  MUST_USE_RESULT static MaybeHandle<Object> ToString(
+      Isolate* isolate, Handle<Object> obj);
+
+  // ECMA-262 9.8
+  MUST_USE_RESULT static MaybeHandle<Object> ToDetailString(
+      Isolate* isolate, Handle<Object> obj);
+
+  // ECMA-262 9.9
+  MUST_USE_RESULT static MaybeHandle<Object> ToObject(
+      Isolate* isolate, Handle<Object> obj);
+
+  // Create a new date object from 'time'.
+  MUST_USE_RESULT static MaybeHandle<Object> NewDate(
+      Isolate* isolate, double time);
+
+  // Create a new regular expression object from 'pattern' and 'flags'.
+  MUST_USE_RESULT static MaybeHandle<JSRegExp> NewJSRegExp(
+      Handle<String> pattern, Handle<String> flags);
+
+  static Handle<Object> GetFunctionFor();
+  static Handle<String> GetStackTraceLine(Handle<Object> recv,
+                                          Handle<JSFunction> fun,
+                                          Handle<Object> pos,
+                                          Handle<Object> is_global);
+
+  // Get a function delegate (or undefined) for the given non-function
+  // object. Used for support calling objects as functions.
+  static Handle<Object> GetFunctionDelegate(Isolate* isolate,
+                                            Handle<Object> object);
+  MUST_USE_RESULT static MaybeHandle<Object> TryGetFunctionDelegate(
+      Isolate* isolate,
+      Handle<Object> object);
+
+  // Get a function delegate (or undefined) for the given non-function
+  // object. Used for support calling objects as constructors.
+  static Handle<Object> GetConstructorDelegate(Isolate* isolate,
+                                               Handle<Object> object);
+  static MaybeHandle<Object> TryGetConstructorDelegate(Isolate* isolate,
+                                                       Handle<Object> object);
 };
 
 
 class ExecutionAccess;
-class InterruptsScope;
+class PostponeInterruptsScope;
+
 
 // StackGuard contains the handling of the limits that are used to limit the
 // number of nested invocations of JavaScript and the stack size used in each
 // invocation.
-class V8_EXPORT_PRIVATE StackGuard final {
+class StackGuard final {
  public:
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.
@@ -88,17 +153,18 @@ class V8_EXPORT_PRIVATE StackGuard final {
   // it has been set up.
   void ClearThread(const ExecutionAccess& lock);
 
-#define INTERRUPT_LIST(V)                       \
-  V(TERMINATE_EXECUTION, TerminateExecution, 0) \
-  V(GC_REQUEST, GC, 1)                          \
-  V(INSTALL_CODE, InstallCode, 2)               \
-  V(API_INTERRUPT, ApiInterrupt, 3)             \
-  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 4)
+#define INTERRUPT_LIST(V)                                          \
+  V(DEBUGBREAK, DebugBreak, 0)                                     \
+  V(DEBUGCOMMAND, DebugCommand, 1)                                 \
+  V(TERMINATE_EXECUTION, TerminateExecution, 2)                    \
+  V(GC_REQUEST, GC, 3)                                             \
+  V(INSTALL_CODE, InstallCode, 4)                                  \
+  V(API_INTERRUPT, ApiInterrupt, 5)                                \
+  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 6)
 
-#define V(NAME, Name, id)                                                    \
-  inline bool Check##Name() { return CheckInterrupt(NAME); }                 \
-  inline bool CheckAndClear##Name() { return CheckAndClearInterrupt(NAME); } \
-  inline void Request##Name() { RequestInterrupt(NAME); }                    \
+#define V(NAME, Name, id)                                          \
+  inline bool Check##Name() { return CheckInterrupt(NAME); }  \
+  inline void Request##Name() { RequestInterrupt(NAME); }     \
   inline void Clear##Name() { ClearInterrupt(NAME); }
   INTERRUPT_LIST(V)
 #undef V
@@ -135,6 +201,10 @@ class V8_EXPORT_PRIVATE StackGuard final {
   // stack overflow, then handle the interruption accordingly.
   Object* HandleInterrupts();
 
+  bool InterruptRequested() { return GetCurrentStackPosition() < climit(); }
+
+  void CheckAndHandleGCInterrupt();
+
  private:
   StackGuard();
 
@@ -160,15 +230,15 @@ class V8_EXPORT_PRIVATE StackGuard final {
   void DisableInterrupts();
 
 #if V8_TARGET_ARCH_64_BIT
-  static const uintptr_t kInterruptLimit = uintptr_t{0xfffffffffffffffe};
-  static const uintptr_t kIllegalLimit = uintptr_t{0xfffffffffffffff8};
+  static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
+  static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
 #else
   static const uintptr_t kInterruptLimit = 0xfffffffe;
   static const uintptr_t kIllegalLimit = 0xfffffff8;
 #endif
 
-  void PushInterruptsScope(InterruptsScope* scope);
-  void PopInterruptsScope();
+  void PushPostponeInterruptsScope(PostponeInterruptsScope* scope);
+  void PopPostponeInterruptsScope();
 
   class ThreadLocal final {
    public:
@@ -198,21 +268,21 @@ class V8_EXPORT_PRIVATE StackGuard final {
     base::AtomicWord climit_;
 
     uintptr_t jslimit() {
-      return bit_cast<uintptr_t>(base::Relaxed_Load(&jslimit_));
+      return bit_cast<uintptr_t>(base::NoBarrier_Load(&jslimit_));
     }
     void set_jslimit(uintptr_t limit) {
-      return base::Relaxed_Store(&jslimit_,
-                                 static_cast<base::AtomicWord>(limit));
+      return base::NoBarrier_Store(&jslimit_,
+                                   static_cast<base::AtomicWord>(limit));
     }
     uintptr_t climit() {
-      return bit_cast<uintptr_t>(base::Relaxed_Load(&climit_));
+      return bit_cast<uintptr_t>(base::NoBarrier_Load(&climit_));
     }
     void set_climit(uintptr_t limit) {
-      return base::Relaxed_Store(&climit_,
-                                 static_cast<base::AtomicWord>(limit));
+      return base::NoBarrier_Store(&climit_,
+                                   static_cast<base::AtomicWord>(limit));
     }
 
-    InterruptsScope* interrupt_scopes_;
+    PostponeInterruptsScope* postpone_interrupts_;
     int interrupt_flags_;
   };
 
@@ -223,12 +293,11 @@ class V8_EXPORT_PRIVATE StackGuard final {
 
   friend class Isolate;
   friend class StackLimitCheck;
-  friend class InterruptsScope;
+  friend class PostponeInterruptsScope;
 
   DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_EXECUTION_H_

@@ -1,7 +1,0 @@
-Tests updating call frame scopes
-Paused on 'debugger;'
-Variable value changed
-Stacktrace re-read again
-Scope variables downloaded anew
-New variable is 55, expected is 55, old was: 2
-SUCCESS

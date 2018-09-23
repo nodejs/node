@@ -11,8 +11,6 @@ var common = require('../common-tap.js')
 var pkg = resolve(__dirname, 'install-man')
 var target = resolve(__dirname, 'install-man-target')
 
-common.pendIfWindows('man pages do not get installed on Windows')
-
 var EXEC_OPTS = {
   cwd: target
 }

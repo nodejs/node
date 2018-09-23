@@ -28,6 +28,8 @@
 // Test for a broken fast-smi-loop that does not save the incremented value
 // of the loop index.  If this test fails, it loops forever, and times out.
 
+// Flags: --nofull-compiler
+
 // Calling foo() spills the virtual frame.
 function foo() {
   return;

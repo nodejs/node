@@ -1,0 +1,22 @@
+1.1 23/08/96 - eay
+	Changed RC2_set_key() so it now takes another argument.  Many
+	thanks to Peter Gutmann <pgut01@cs.auckland.ac.nz> for the
+	clarification and origional specification of RC2.  BSAFE uses
+	this last parameter, 'bits'.  It the key is 128 bits, BSAFE
+	also sets this parameter to 128.  The old behaviour can be
+	duplicated by setting this parameter to 1024.
+
+1.0 08/04/96 - eay
+	First version of SSLeay with rc2.  This has been written from the spec
+	posted sci.crypt.  It is in this directory under rrc2.doc
+	I have no test values for any mode other than ecb, my wrappers for the
+	other modes should be ok since they are basically the same as
+	the ones taken from idea and des :-).  I have implemented them as
+	little-endian operators.
+	While rc2 is included because it is used with SSL, I don't know how
+	far I trust it.  It is about the same speed as IDEA and DES.
+	So if you are paranoid, used Tripple DES, else IDEA.  If RC2
+	does get used more, perhaps more people will look for weaknesses in
+	it.
+	
+

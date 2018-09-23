@@ -28,8 +28,6 @@
 #ifndef GAY_FIXED_H_
 #define GAY_FIXED_H_
 
-#include "src/vector.h"
-
 namespace v8 {
 namespace internal {
 
@@ -44,7 +42,6 @@ struct PrecomputedFixed {
 // Gay's dtoa in mode "fixed".
 Vector<const PrecomputedFixed> PrecomputedFixedRepresentations();
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // GAY_FIXED_H_

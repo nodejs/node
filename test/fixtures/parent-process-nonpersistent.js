@@ -1,5 +1,5 @@
 
-const spawn = require('child_process').spawn,
+var spawn = require('child_process').spawn,
     path = require('path'),
     childPath = path.join(__dirname, 'child-process-persistent.js');
 

@@ -1,0 +1,15 @@
+sudo: false # http://docs.travis-ci.com/user/workers/container-based-infrastructure/
+language: node_js
+node_js:
+  - 0.10
+  - 0.12
+  - iojs
+
+before_install:
+  - mkdir node_modules; ln -s ../ node_modules/es5-ext
+
+notifications:
+  email:
+    - medikoo+es5-ext@medikoo.com
+
+script: "npm test && npm run lint"

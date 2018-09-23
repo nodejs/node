@@ -6,15 +6,9 @@ var path = require('path')
 var readJson = require('read-package-json')
 var log = require('npmlog')
 var chain = require('slide').chain
-var usage = require('./utils/usage')
-var output = require('./utils/output.js')
-var didYouMean = require('./utils/did-you-mean')
-var isWindowsShell = require('./utils/is-windows-shell.js')
 
-runScript.usage = usage(
-  'run-script',
-  'npm run-script <command> [-- <args>...]'
-)
+runScript.usage = 'npm run-script <command> [-- <args>...]' +
+                  '\n\nalias: npm run'
 
 runScript.completion = function (opts, cb) {
   // see if there's already a package specified.
@@ -34,7 +28,7 @@ runScript.completion = function (opts, cb) {
       if (scripts.indexOf(argv[2]) !== -1) return cb()
       // ok, try to find out which package it was, then
       var pref = npm.config.get('global') ? npm.config.get('prefix')
-        : npm.localPrefix
+               : npm.localPrefix
       var pkgDir = path.resolve(pref, 'node_modules', argv[2], 'package.json')
       readJson(pkgDir, function (er, d) {
         if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
@@ -94,13 +88,13 @@ function list (cb) {
     }
 
     if (npm.config.get('json')) {
-      output(JSON.stringify(d.scripts || {}, null, 2))
+      console.log(JSON.stringify(d.scripts || {}, null, 2))
       return cb(null, allScripts)
     }
 
     if (npm.config.get('parseable')) {
       allScripts.forEach(function (script) {
-        output(script + ':' + d.scripts[script])
+        console.log(script + ':' + d.scripts[script])
       })
       return cb(null, allScripts)
     }
@@ -108,18 +102,18 @@ function list (cb) {
     var s = '\n    '
     var prefix = '  '
     if (scripts.length) {
-      output('Lifecycle scripts included in %s:', d.name)
+      console.log('Lifecycle scripts included in %s:', d.name)
     }
     scripts.forEach(function (script) {
-      output(prefix + script + s + d.scripts[script])
+      console.log(prefix + script + s + d.scripts[script])
     })
     if (!scripts.length && runScripts.length) {
-      output('Scripts available in %s via `npm run-script`:', d.name)
+      console.log('Scripts available in %s via `npm run-script`:', d.name)
     } else if (runScripts.length) {
-      output('\navailable via `npm run-script`:')
+      console.log('\navailable via `npm run-script`:')
     }
     runScripts.forEach(function (script) {
-      output(prefix + script + s + d.scripts[script])
+      console.log(prefix + script + s + d.scripts[script])
     })
     return cb(null, allScripts)
   })
@@ -140,7 +134,7 @@ function run (pkg, wd, cmd, args, cb) {
       if (cmd === 'test') {
         pkg.scripts.test = 'echo \'Error: no test specified\''
       } else if (cmd === 'env') {
-        if (isWindowsShell) {
+        if (process.platform === 'win32') {
           log.verbose('run-script using default platform env: SET (Windows)')
           pkg.scripts[cmd] = 'SET'
         } else {
@@ -150,9 +144,7 @@ function run (pkg, wd, cmd, args, cb) {
       } else if (npm.config.get('if-present')) {
         return cb(null)
       } else {
-        let suggestions = didYouMean(cmd, Object.keys(pkg.scripts))
-        suggestions = suggestions ? '\n' + suggestions : ''
-        return cb(new Error('missing script: ' + cmd + suggestions))
+        return cb(new Error('missing script: ' + cmd))
       }
     }
     cmds = [cmd]
@@ -170,7 +162,7 @@ function run (pkg, wd, cmd, args, cb) {
     }
 
     // when running scripts explicitly, assume that they're trusted.
-    return [lifecycle, pkg, c, wd, { unsafePerm: true }]
+    return [lifecycle, pkg, c, wd, true]
   }), cb)
 }
 

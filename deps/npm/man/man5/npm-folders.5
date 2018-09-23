@@ -1,4 +1,4 @@
-.TH "NPM\-FOLDERS" "5" "August 2018" "" ""
+.TH "NPM\-FOLDERS" "5" "November 2015" "" ""
 .SH "NAME"
 \fBnpm-folders\fR \- Folder Structures Used by npm
 .SH DESCRIPTION
@@ -25,8 +25,11 @@ If you need both, then install it in both places, or use \fBnpm link\fP\|\.
 .SS prefix Configuration
 .P
 The \fBprefix\fP config defaults to the location where node is installed\.
-On most systems, this is \fB/usr/local\fP\|\. On Windows, it's \fB%AppData%\\npm\fP\|\.
-On Unix systems, it's one level up, since node is typically installed at
+On most systems, this is \fB/usr/local\fP, and most of the time is the same
+as node's \fBprocess\.installPrefix\fP\|\.
+.P
+On windows, this is the exact location of the node\.exe binary\.  On Unix
+systems, it's one level up, since node is typically installed at
 \fB{prefix}/bin/node\fP rather than \fB{prefix}/node\.exe\fP\|\.
 .P
 When the \fBglobal\fP flag is set, npm installs things into this prefix\.
@@ -46,7 +49,7 @@ Global installs on Windows go to \fB{prefix}/node_modules\fP (that is, no
 Scoped packages are installed the same way, except they are grouped together
 in a sub\-folder of the relevant \fBnode_modules\fP folder with the name of that
 scope prefix by the @ symbol, e\.g\. \fBnpm install @myorg/package\fP would place
-the package in \fB{prefix}/node_modules/@myorg/package\fP\|\. See npm help 7 \fBscope\fP for
+the package in \fB{prefix}/node_modules/@myorg/package\fP\|\. See npm help 7 \fBscopes\fP for
 more details\.
 .P
 If you wish to \fBrequire()\fP a package, then install it locally\.
@@ -69,7 +72,7 @@ Man pages are not installed on Windows systems\.
 .SS Cache
 .P
 See npm help \fBnpm\-cache\fP\|\.  Cache files are stored in \fB~/\.npm\fP on Posix, or
-\fB%AppData%/npm\-cache\fP on Windows\.
+\fB~/npm\-cache\fP on Windows\.
 .P
 This is controlled by the \fBcache\fP configuration param\.
 .SS Temp Files
@@ -173,17 +176,17 @@ foo
 .fi
 .RE
 .P
-Since foo depends directly on \fBand\fP\fB, those are
-installed in foo's\fPnode_modules` folder\.
+Since foo depends directly on \fBbar@1\.2\.3\fP and \fBbaz@1\.2\.3\fP, those are
+installed in foo's \fBnode_modules\fP folder\.
 .P
 Even though the latest copy of blerg is 1\.3\.7, foo has a specific
 dependency on version 1\.2\.5\.  So, that gets installed at [A]\.  Since the
-parent installation of blerg satisfies bar's dependency on `,
+parent installation of blerg satisfies bar's dependency on \fBblerg@1\.x\fP,
 it does not install another copy under [B]\.
 .P
 Bar [B] also has dependencies on baz and asdf, so those are installed in
-bar's \fBnode_modules\fP folder\.  Because it depends on \fB, it cannot
-re\-use the\fP\fBinstalled in the parent\fPnode_modules` folder [D],
+bar's \fBnode_modules\fP folder\.  Because it depends on \fBbaz@2\.x\fP, it cannot
+re\-use the \fBbaz@1\.2\.3\fP installed in the parent \fBnode_modules\fP folder [D],
 and must install its own copy [C]\.
 .P
 Underneath bar, the \fBbaz \-> quux \-> bar\fP dependency creates a cycle\.
@@ -205,6 +208,8 @@ This allows a package maintainer to install all of their dependencies
 cannot be found elsewhere\.  See npm help 5 \fBpackage\.json\fP for more information\.
 .SH SEE ALSO
 .RS 0
+.IP \(bu 2
+npm help 7 faq
 .IP \(bu 2
 npm help 5 package\.json
 .IP \(bu 2

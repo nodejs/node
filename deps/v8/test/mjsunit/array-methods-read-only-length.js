@@ -91,9 +91,9 @@ function testRemove(a, mode) {
   %OptimizeFunctionOnNextCall(splice);
   check(splice);
 
-  %ClearFunctionFeedback(pop);
-  %ClearFunctionFeedback(shift);
-  %ClearFunctionFeedback(splice);
+  %ClearFunctionTypeFeedback(pop);
+  %ClearFunctionTypeFeedback(shift);
+  %ClearFunctionTypeFeedback(splice);
 }
 
 for (var i = 0; i < 3; i++) {

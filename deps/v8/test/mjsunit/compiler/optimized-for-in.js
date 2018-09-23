@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --optimize-for-in --allow-natives-syntax
+// Flags: --no-concurrent-osr
 
 // Test for-in support in Crankshaft.  For simplicity this tests assumes certain
 // fixed iteration order for properties and will have to be adjusted if V8
@@ -35,28 +36,28 @@
 function a(t) {
   var result = [];
   for (var i in t) {
-    result.push([i, t[i]]);
+    result.push(i + t[i]);
   }
-  return result;
+  return result.join('');
 }
 
 // Check that we correctly deoptimize on map check.
 function b(t) {
   var result = [];
   for (var i in t) {
-    result.push([i, t[i]]);
+    result.push(i + t[i]);
     delete t[i];
   }
-  return result;
+  return result.join('');
 }
 
 // Check that we correctly deoptimize during preparation step.
 function c(t) {
   var result = [];
   for (var i in t) {
-    result.push([i, t[i]]);
+    result.push(i + t[i]);
   }
-  return result;
+  return result.join('');
 }
 
 // Check that we deoptimize to the place after side effect in the right state.
@@ -64,9 +65,9 @@ function d(t) {
   var result = [];
   var o;
   for (var i in (o = t())) {
-    result.push([i, o[i]]);
+    result.push(i + o[i]);
   }
-  return result;
+  return result.join('');
 }
 
 // Check that we correctly deoptimize on map check inserted for fused load.
@@ -75,9 +76,9 @@ function e(t) {
   for (var i in t) {
     delete t[i];
     t[i] = i;
-    result.push([i, t[i]]);
+    result.push(i + t[i]);
   }
-  return result;
+  return result.join('');
 }
 
 // Nested for-in loops.
@@ -85,10 +86,10 @@ function f(t) {
   var result = [];
   for (var i in t) {
     for (var j in t) {
-      result.push([i, j, t[i], t[j]]);
+      result.push(i + j + t[i] + t[j]);
     }
   }
-  return result;
+  return result.join('');
 }
 
 // Deoptimization from the inner for-in loop.
@@ -96,13 +97,13 @@ function g(t) {
   var result = [];
   for (var i in t) {
     for (var j in t) {
-      result.push([i, j, t[i], t[j]]);
+      result.push(i + j + t[i] + t[j]);
       var v = t[i];
       delete t[i];
       t[i] = v;
     }
   }
-  return result;
+  return result.join('');
 }
 
 
@@ -111,12 +112,12 @@ function h(t, deopt) {
   var result = [];
   for (var i in t) {
     for (var j in t) {
-      result.push([i, j, t[i], t[j]]);
+      result.push(i + j + t[i] + t[j]);
       break;
     }
   }
   deopt.deopt;
-  return result;
+  return result.join('');
 }
 
 // Continue in the inner loop.
@@ -124,12 +125,12 @@ function j(t, deopt) {
   var result = [];
   for (var i in t) {
     for (var j in t) {
-      result.push([i, j, t[i], t[j]]);
+      result.push(i + j + t[i] + t[j]);
       continue;
     }
   }
   deopt.deopt;
-  return result;
+  return result.join('');
 }
 
 // Continue of the outer loop.
@@ -137,12 +138,12 @@ function k(t, deopt) {
   var result = [];
   outer: for (var i in t) {
     for (var j in t) {
-      result.push([i, j, t[i], t[j]]);
+      result.push(i + j + t[i] + t[j]);
       continue outer;
     }
   }
   deopt.deopt;
-  return result;
+  return result.join('');
 }
 
 // Break of the outer loop.
@@ -150,12 +151,12 @@ function l(t, deopt) {
   var result = [];
   outer: for (var i in t) {
     for (var j in t) {
-      result.push([i, j, t[i], t[j]]);
+      result.push(i + j + t[i] + t[j]);
       break outer;
     }
   }
   deopt.deopt;
-  return result;
+  return result.join('');
 }
 
 // Test deoptimization from inlined frame (currently it is not inlined).
@@ -163,7 +164,7 @@ function m0(t, deopt) {
   for (var i in t) {
     for (var j in t) {
       deopt.deopt;
-      return [i, j,  t[i], t[j]];
+      return i + j + t[i] + t[j];
     }
   }
 }
@@ -173,53 +174,42 @@ function m(t, deopt) {
 }
 
 
-function tryFunction(result, mkT, f) {
+function tryFunction(s, mkT, f) {
   var d = {deopt: false};
-  assertEquals(result, f(mkT(), d));
-  assertEquals(result, f(mkT(), d));
-  assertEquals(result, f(mkT(), d));
+  assertEquals(s, f(mkT(), d));
+  assertEquals(s, f(mkT(), d));
+  assertEquals(s, f(mkT(), d));
   %OptimizeFunctionOnNextCall(f);
-  assertEquals(result, f(mkT(), d));
-  assertEquals(result, f(mkT(), {}));
+  assertEquals(s, f(mkT(), d));
+  assertEquals(s, f(mkT(), {}));
 }
 
-var expectedResult = [["a","1"],["b","2"],["c","3"],["d","4"]];
+var s = "a1b2c3d4";
 function mkTable() { return { a: "1", b: "2", c: "3", d: "4" }; }
 
 
-tryFunction(expectedResult, mkTable, a);
-tryFunction(expectedResult, mkTable, b);
-
-expectedResult = [["0","a"],["1","b"],["2","c"],["3","d"]];
-tryFunction(expectedResult, function () { return "abcd"; }, c);
-tryFunction(expectedResult, function () {
+tryFunction(s, mkTable, a);
+tryFunction(s, mkTable, b);
+tryFunction("0a1b2c3d", function () { return "abcd"; }, c);
+tryFunction("0a1b2c3d", function () {
   var cnt = false;
   return function () {
     cnt = true;
     return "abcd";
   }
 }, d);
-tryFunction([["a","a"],["b","b"],["c","c"],["d","d"]], mkTable, e);
+tryFunction("aabbccdd", mkTable, e);
 
 function mkSmallTable() { return { a: "1", b: "2" }; }
 
-tryFunction([
-    ["a","a","1","1"],["a","b","1","2"],
-    ["b","a","2","1"],["b","b","2","2"]],
-    mkSmallTable, f);
-tryFunction([
-    ["a","a","1","1"],["a","b","1","2"],
-    ["b","b","2","2"],["b","a","2","1"]],
-    mkSmallTable, g);
-tryFunction([["a","a","1","1"],["b","a","2","1"]], mkSmallTable, h);
-tryFunction([
-    ["a","a","1","1"],["a","b","1","2"],
-    ["b","a","2","1"],["b","b","2","2"]],
-    mkSmallTable, j);
-tryFunction([["a","a","1","1"],["b","a","2","1"]], mkSmallTable, h);
-tryFunction([["a","a","1","1"],["b","a","2","1"]], mkSmallTable, k);
-tryFunction([["a","a","1","1"]], mkSmallTable, l);
-tryFunction(["a","a","1","1"], mkSmallTable, m);
+tryFunction("aa11ab12ba21bb22", mkSmallTable, f);
+tryFunction("aa11ab12bb22ba21", mkSmallTable, g);
+tryFunction("aa11ba21", mkSmallTable, h);
+tryFunction("aa11ab12ba21bb22", mkSmallTable, j);
+tryFunction("aa11ba21", mkSmallTable, h);
+tryFunction("aa11ba21", mkSmallTable, k);
+tryFunction("aa11", mkSmallTable, l);
+tryFunction("aa11", mkSmallTable, m);
 
 // Test handling of null.
 tryFunction("", function () {
@@ -240,7 +230,7 @@ tryFunction("", function () {
 // Test LoadFieldByIndex for out of object properties.
 function O() { this.a = 1; }
 for (var i = 0; i < 10; i++) new O();
-tryFunction([["a",1],["b",2],["c",3],["d",4],["e",5],["f",6]], function () {
+tryFunction("a1b2c3d4e5f6", function () {
   var o = new O();
   o.b = 2;
   o.c = 3;
@@ -250,8 +240,8 @@ tryFunction([["a",1],["b",2],["c",3],["d",4],["e",5],["f",6]], function () {
   return o;
 }, function (t) {
   var r = [];
-  for (var i in t) r.push([i, t[i]]);
-  return r;
+  for (var i in t) r.push(i + t[i]);
+  return r.join('');
 });
 
 // Test OSR inside for-in.

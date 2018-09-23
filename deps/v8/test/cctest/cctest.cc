@@ -30,8 +30,6 @@
 
 #include "include/libplatform/libplatform.h"
 #include "src/debug/debug.h"
-#include "src/objects-inl.h"
-#include "src/trap-handler/trap-handler.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
 #include "test/cctest/trace-extension.h"
@@ -43,23 +41,21 @@
 #endif
 #endif
 
-enum InitializationState { kUnset, kUninitialized, kInitialized };
-static InitializationState initialization_state_ = kUnset;
+enum InitializationState {kUnset, kUnintialized, kInitialized};
+static InitializationState initialization_state_  = kUnset;
 static bool disable_automatic_dispose_ = false;
 
-CcTest* CcTest::last_ = nullptr;
+CcTest* CcTest::last_ = NULL;
 bool CcTest::initialize_called_ = false;
 v8::base::Atomic32 CcTest::isolate_used_ = 0;
-v8::ArrayBuffer::Allocator* CcTest::allocator_ = nullptr;
-v8::Isolate* CcTest::isolate_ = nullptr;
+v8::ArrayBuffer::Allocator* CcTest::allocator_ = NULL;
+v8::Isolate* CcTest::isolate_ = NULL;
+
 
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
-               bool enabled, bool initialize)
-    : callback_(callback),
-      name_(name),
-      enabled_(enabled),
-      initialize_(initialize),
-      prev_(last_) {
+               const char* dependency, bool enabled, bool initialize)
+    : callback_(callback), name_(name), dependency_(dependency),
+      enabled_(enabled), initialize_(initialize), prev_(last_) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
   if (!basename) {
@@ -82,30 +78,20 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
 
 void CcTest::Run() {
   if (!initialize_) {
-    CHECK_NE(initialization_state_, kInitialized);
-    initialization_state_ = kUninitialized;
-    CHECK_NULL(CcTest::isolate_);
+    CHECK(initialization_state_ != kInitialized);
+    initialization_state_ = kUnintialized;
+    CHECK(CcTest::isolate_ == NULL);
   } else {
-    CHECK_NE(initialization_state_, kUninitialized);
+    CHECK(initialization_state_ != kUnintialized);
     initialization_state_ = kInitialized;
-    if (isolate_ == nullptr) {
+    if (isolate_ == NULL) {
       v8::Isolate::CreateParams create_params;
       create_params.array_buffer_allocator = allocator_;
       isolate_ = v8::Isolate::New(create_params);
     }
     isolate_->Enter();
   }
-#ifdef DEBUG
-  const size_t active_isolates = i::Isolate::non_disposed_isolates();
-#endif  // DEBUG
   callback_();
-#ifdef DEBUG
-  // This DCHECK ensures that all Isolates are properly disposed after finishing
-  // the test. Stray Isolates lead to stray tasks in the platform which can
-  // interact weirdly when swapping in new platforms (for testing) or during
-  // shutdown.
-  DCHECK_EQ(active_isolates, i::Isolate::non_disposed_isolates());
-#endif  // DEBUG
   if (initialize_) {
     if (v8::Locker::IsActive()) {
       v8::Locker locker(isolate_);
@@ -117,43 +103,6 @@ void CcTest::Run() {
   }
 }
 
-i::Heap* CcTest::heap() { return i_isolate()->heap(); }
-
-void CcTest::CollectGarbage(i::AllocationSpace space) {
-  heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
-}
-
-void CcTest::CollectAllGarbage() {
-  CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-}
-
-void CcTest::CollectAllGarbage(int flags) {
-  heap()->CollectAllGarbage(flags, i::GarbageCollectionReason::kTesting);
-}
-
-void CcTest::CollectAllAvailableGarbage() {
-  heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
-}
-
-v8::base::RandomNumberGenerator* CcTest::random_number_generator() {
-  return InitIsolateOnce()->random_number_generator();
-}
-
-v8::Local<v8::Object> CcTest::global() {
-  return isolate()->GetCurrentContext()->Global();
-}
-
-void CcTest::InitializeVM() {
-  CHECK(!v8::base::Relaxed_Load(&isolate_used_));
-  CHECK(!initialize_called_);
-  initialize_called_ = true;
-  v8::HandleScope handle_scope(CcTest::isolate());
-  v8::Context::New(CcTest::isolate())->Enter();
-}
-
-void CcTest::TearDown() {
-  if (isolate_ != nullptr) isolate_->Dispose();
-}
 
 v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extensions,
                                           v8::Isolate* isolate) {
@@ -171,57 +120,33 @@ v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extensions,
 
 
 void CcTest::DisableAutomaticDispose() {
-  CHECK_EQ(kUninitialized, initialization_state_);
+  CHECK_EQ(kUnintialized, initialization_state_);
   disable_automatic_dispose_ = true;
 }
 
-LocalContext::~LocalContext() {
-  v8::HandleScope scope(isolate_);
-  v8::Local<v8::Context>::New(isolate_, context_)->Exit();
-  context_.Reset();
-}
-
-void LocalContext::Initialize(v8::Isolate* isolate,
-                              v8::ExtensionConfiguration* extensions,
-                              v8::Local<v8::ObjectTemplate> global_template,
-                              v8::Local<v8::Value> global_object) {
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context =
-      v8::Context::New(isolate, extensions, global_template, global_object);
-  context_.Reset(isolate, context);
-  context->Enter();
-  // We can't do this later perhaps because of a fatal error.
-  isolate_ = isolate;
-}
-
-// This indirection is needed because HandleScopes cannot be heap-allocated, and
-// we don't want any unnecessary #includes in cctest.h.
-class InitializedHandleScopeImpl {
- public:
-  explicit InitializedHandleScopeImpl(i::Isolate* isolate)
-      : handle_scope_(isolate) {}
-
- private:
-  i::HandleScope handle_scope_;
-};
-
-InitializedHandleScope::InitializedHandleScope()
-    : main_isolate_(CcTest::InitIsolateOnce()),
-      initialized_handle_scope_impl_(
-          new InitializedHandleScopeImpl(main_isolate_)) {}
-
-InitializedHandleScope::~InitializedHandleScope() {}
-
-HandleAndZoneScope::HandleAndZoneScope()
-    : main_zone_(new i::Zone(&allocator_, ZONE_NAME)) {}
-
-HandleAndZoneScope::~HandleAndZoneScope() {}
 
 static void PrintTestList(CcTest* current) {
-  if (current == nullptr) return;
+  if (current == NULL) return;
   PrintTestList(current->prev());
-  printf("%s/%s\n", current->file(), current->name());
+  if (current->dependency() != NULL) {
+    printf("%s/%s<%s\n",
+           current->file(), current->name(), current->dependency());
+  } else {
+    printf("%s/%s<\n", current->file(), current->name());
+  }
 }
+
+
+class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t length) { free(data); }
+  // TODO(dslomov): Remove when v8:2823 is fixed.
+  virtual void Free(void* data) { UNREACHABLE(); }
+};
 
 
 static void SuggestTestHarness(int tests) {
@@ -248,34 +173,15 @@ int main(int argc, char* argv[]) {
 #endif  // V8_CC_MSVC
 #endif  // V8_OS_WIN
 
-  // hack to print cctest specific flags
-  for (int i = 1; i < argc; i++) {
-    char* arg = argv[i];
-    if ((strcmp(arg, "--help") == 0) || (strcmp(arg, "-h") == 0)) {
-      printf("Usage: %s [--list] [[V8_FLAGS] CCTEST]\n", argv[0]);
-      printf("\n");
-      printf("Options:\n");
-      printf("  --list:   list all cctests\n");
-      printf("  CCTEST:   cctest identfier returned by --list\n");
-      printf("  D8_FLAGS: see d8 output below\n");
-      printf("\n\n");
-    }
-  }
-
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
-  std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
-  v8::V8::InitializePlatform(platform.get());
+  v8::V8::InitializeICU();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
 
-  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
-    constexpr bool use_default_signal_handler = true;
-    CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
-  }
-
-  CcTest::set_array_buffer_allocator(
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  CcTestArrayBufferAllocator array_buffer_allocator;
+  CcTest::set_array_buffer_allocator(&array_buffer_allocator);
 
   i::PrintExtension print_extension;
   v8::RegisterExtension(&print_extension);
@@ -302,7 +208,7 @@ int main(int argc, char* argv[]) {
         char* file = arg_copy;
         char* name = testname + 1;
         CcTest* test = CcTest::last();
-        while (test != nullptr) {
+        while (test != NULL) {
           if (test->enabled()
               && strcmp(test->file(), file) == 0
               && strcmp(test->name(), name) == 0) {
@@ -316,7 +222,7 @@ int main(int argc, char* argv[]) {
         // Run all tests with the specified file or test name.
         char* file_or_name = arg_copy;
         CcTest* test = CcTest::last();
-        while (test != nullptr) {
+        while (test != NULL) {
           if (test->enabled()
               && (strcmp(test->file(), file_or_name) == 0
                   || strcmp(test->name(), file_or_name) == 0)) {
@@ -335,8 +241,9 @@ int main(int argc, char* argv[]) {
   // TODO(svenpanne) See comment above.
   // if (!disable_automatic_dispose_) v8::V8::Dispose();
   v8::V8::ShutdownPlatform();
+  delete platform;
   return 0;
 }
 
-RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
+RegisterThreadedTest *RegisterThreadedTest::first_ = NULL;
 int RegisterThreadedTest::count_ = 0;

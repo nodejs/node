@@ -46,20 +46,13 @@ function AddProps(obj) {
 
 
 function DoProtoMagic(proto, set__proto__) {
-  var receiver;
   if (set__proto__) {
-    receiver = new Sub();
-    receiver.__proto__ = proto;
+    (new Sub()).__proto__ = proto;
   } else {
     Sub.prototype = proto;
-    // Need to instantiate Sub to mark .prototype as prototype. Make sure the
-    // instantiated object is used so that the allocation is not optimized away.
-    receiver = new Sub();
+    // Need to instantiate Sub to mark .prototype as prototype.
+    new Sub();
   }
-  // Prototypes are made fast when ICs encounter them.
-  function ic() { return typeof receiver.foo; }
-  ic();
-  ic();
 }
 
 
@@ -67,7 +60,7 @@ function test(use_new, add_first, set__proto__) {
   var proto = use_new ? new Super() : {};
 
   // New object is fast.
-  assertTrue(use_new || %HasFastProperties(proto));
+  assertTrue(%HasFastProperties(proto));
 
   if (add_first) {
     AddProps(proto);
@@ -101,12 +94,11 @@ for (var i = 0; i < 4; i++) {
 
 var x = {a: 1, b: 2, c: 3};
 var o = { __proto__: x };
-assertFalse(%HasFastProperties(x));
+assertTrue(%HasFastProperties(x));
 for (key in x) {
   assertTrue(key == 'a');
   break;
 }
-assertTrue(%HasFastProperties(x));
 delete x.b;
 for (key in x) {
   assertTrue(key == 'a');

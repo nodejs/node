@@ -1,9 +1,0 @@
-Test that Runtime.getProperties doesn't truncate set and map entries in internalProperties.
-Entries for "createSet(10)"
-Array(10)
-Entries for "createSet(1000)"
-Array(1000)
-Entries for "createMap(10)"
-Array(10)
-Entries for "createMap(1000)"
-Array(1000)

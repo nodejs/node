@@ -1,35 +1,11 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const path = require('path');
-const fs = require('fs');
-let openCount = 0;
-let mode;
-let content;
-
-if (!common.isMainThread)
-  common.skip('process.umask is not available in Workers');
+var common = require('../common');
+var assert = require('assert');
+var path = require('path');
+var fs = require('fs');
+var openCount = 0;
+var mode;
+var content;
 
 // Need to hijack fs.open/close to make sure that things
 // get closed once they're opened.
@@ -39,7 +15,7 @@ fs._closeSync = fs.closeSync;
 fs.closeSync = closeSync;
 
 // Reset the umask for testing
-process.umask(0o000);
+var mask = process.umask(0o000);
 
 // On Windows chmod is only able to manipulate read-only bit. Test if creating
 // the file in read-only mode works.
@@ -49,43 +25,42 @@ if (common.isWindows) {
   mode = 0o755;
 }
 
-const tmpdir = require('../common/tmpdir');
-tmpdir.refresh();
+common.refreshTmpDir();
 
 // Test writeFileSync
-const file1 = path.join(tmpdir.path, 'testWriteFileSync.txt');
+var file1 = path.join(common.tmpDir, 'testWriteFileSync.txt');
 
-fs.writeFileSync(file1, '123', { mode });
+fs.writeFileSync(file1, '123', {mode: mode});
 
-content = fs.readFileSync(file1, { encoding: 'utf8' });
-assert.strictEqual(content, '123');
+content = fs.readFileSync(file1, {encoding: 'utf8'});
+assert.equal('123', content);
 
-assert.strictEqual(fs.statSync(file1).mode & 0o777, mode);
+assert.equal(mode, fs.statSync(file1).mode & 0o777);
 
 // Test appendFileSync
-const file2 = path.join(tmpdir.path, 'testAppendFileSync.txt');
+var file2 = path.join(common.tmpDir, 'testAppendFileSync.txt');
 
-fs.appendFileSync(file2, 'abc', { mode });
+fs.appendFileSync(file2, 'abc', {mode: mode});
 
-content = fs.readFileSync(file2, { encoding: 'utf8' });
-assert.strictEqual(content, 'abc');
+content = fs.readFileSync(file2, {encoding: 'utf8'});
+assert.equal('abc', content);
 
-assert.strictEqual(fs.statSync(file2).mode & mode, mode);
+assert.equal(mode, fs.statSync(file2).mode & mode);
 
 // Test writeFileSync with file descriptor
-const file3 = path.join(tmpdir.path, 'testWriteFileSyncFd.txt');
+var file3 = path.join(common.tmpDir, 'testWriteFileSyncFd.txt');
 
-const fd = fs.openSync(file3, 'w+', mode);
+var fd = fs.openSync(file3, 'w+', mode);
 fs.writeFileSync(fd, '123');
 fs.closeSync(fd);
 
-content = fs.readFileSync(file3, { encoding: 'utf8' });
-assert.strictEqual(content, '123');
+content = fs.readFileSync(file3, {encoding: 'utf8'});
+assert.equal('123', content);
 
-assert.strictEqual(fs.statSync(file3).mode & 0o777, mode);
+assert.equal(mode, fs.statSync(file3).mode & 0o777);
 
 // Verify that all opened files were closed.
-assert.strictEqual(openCount, 0);
+assert.equal(0, openCount);
 
 function openSync() {
   openCount++;

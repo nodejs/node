@@ -1,16 +1,18 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
+const Buffer = require('buffer').Buffer;
+const Bp = Buffer.prototype;
 
 function FakeBuffer() { }
-Object.setPrototypeOf(FakeBuffer, Buffer);
-Object.setPrototypeOf(FakeBuffer.prototype, Buffer.prototype);
+FakeBuffer.__proto__ = Buffer;
+FakeBuffer.prototype.__proto__ = Buffer.prototype;
 
 const fb = new FakeBuffer();
 
 assert.throws(function() {
-  Buffer.from(fb);
+  new Buffer(fb);
 }, TypeError);
 
 assert.throws(function() {
@@ -18,7 +20,7 @@ assert.throws(function() {
 }, TypeError);
 
 assert.throws(function() {
-  Buffer.compare(fb, Buffer.alloc(0));
+  Buffer.compare(fb, new Buffer(0));
 }, TypeError);
 
 assert.throws(function() {
@@ -34,7 +36,7 @@ assert.throws(function() {
 }, TypeError);
 
 assert.throws(function() {
-  fb.equals(Buffer.alloc(0));
+  fb.equals(new Buffer(0));
 }, TypeError);
 
 assert.throws(function() {

@@ -24,9 +24,6 @@
 #ifndef POWER_8
 #define POWER_8 0x10000
 #endif
-#ifndef POWER_9
-#define POWER_9 0x20000
-#endif
 #endif
 #if V8_OS_POSIX
 #include <unistd.h>  // sysconf()
@@ -47,7 +44,9 @@
 namespace v8 {
 namespace base {
 
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#if defined(__pnacl__)
+// Portable host shouldn't do feature detection.
+#elif V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
 // Define __cpuid() for non-MSVC libraries.
 #if !V8_LIBC_MSVCRT
@@ -75,7 +74,8 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 
 #endif  // !V8_LIBC_MSVCRT
 
-#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 \
+    || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
 #if V8_OS_LINUX
 
@@ -115,7 +115,7 @@ static uint32_t ReadELFHWCaps() {
 #else
   // Read the ELF HWCAP flags by parsing /proc/self/auxv.
   FILE* fp = fopen("/proc/self/auxv", "r");
-  if (fp != nullptr) {
+  if (fp != NULL) {
     struct { uint32_t tag; uint32_t value; } entry;
     for (;;) {
       size_t n = fread(&entry, sizeof(entry), 1, fp);
@@ -175,7 +175,7 @@ int __detect_mips_arch_revision(void) {
   // Fall-back to the least common denominator which is mips32 revision 1.
   return result ? 1 : 6;
 }
-#endif  // V8_HOST_ARCH_MIPS
+#endif
 
 // Extract the information exposed by the kernel via /proc/cpuinfo.
 class CPUInfo final {
@@ -186,7 +186,7 @@ class CPUInfo final {
     // when using fseek(0, SEEK_END) + ftell(). Nor can the be mmap()-ed.
     static const char PATHNAME[] = "/proc/cpuinfo";
     FILE* fp = fopen(PATHNAME, "r");
-    if (fp != nullptr) {
+    if (fp != NULL) {
       for (;;) {
         char buffer[256];
         size_t n = fread(buffer, 1, sizeof(buffer), fp);
@@ -201,7 +201,7 @@ class CPUInfo final {
     // Read the contents of the cpuinfo file.
     data_ = new char[datalen_ + 1];
     fp = fopen(PATHNAME, "r");
-    if (fp != nullptr) {
+    if (fp != NULL) {
       for (size_t offset = 0; offset < datalen_; ) {
         size_t n = fread(data_ + offset, 1, datalen_ - offset, fp);
         if (n == 0) {
@@ -220,20 +220,20 @@ class CPUInfo final {
     delete[] data_;
   }
 
-  // Extract the content of a the first occurrence of a given field in
+  // Extract the content of a the first occurence of a given field in
   // the content of the cpuinfo file and return it as a heap-allocated
   // string that must be freed by the caller using delete[].
-  // Return nullptr if not found.
+  // Return NULL if not found.
   char* ExtractField(const char* field) const {
-    DCHECK_NOT_NULL(field);
+    DCHECK(field != NULL);
 
-    // Look for first field occurrence, and ensure it starts the line.
+    // Look for first field occurence, and ensure it starts the line.
     size_t fieldlen = strlen(field);
     char* p = data_;
     for (;;) {
       p = strstr(p, field);
-      if (p == nullptr) {
-        return nullptr;
+      if (p == NULL) {
+        return NULL;
       }
       if (p == data_ || p[-1] == '\n') {
         break;
@@ -243,21 +243,21 @@ class CPUInfo final {
 
     // Skip to the first colon followed by a space.
     p = strchr(p + fieldlen, ':');
-    if (p == nullptr || !isspace(p[1])) {
-      return nullptr;
+    if (p == NULL || !isspace(p[1])) {
+      return NULL;
     }
     p += 2;
 
     // Find the end of the line.
     char* q = strchr(p, '\n');
-    if (q == nullptr) {
+    if (q == NULL) {
       q = data_ + datalen_;
     }
 
     // Copy the line into a heap-allocated buffer.
     size_t len = q - p;
     char* result = new char[len + 1];
-    if (result != nullptr) {
+    if (result != NULL) {
       memcpy(result, p, len);
       result[len] = '\0';
     }
@@ -269,11 +269,13 @@ class CPUInfo final {
   size_t datalen_;
 };
 
+#if V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+
 // Checks that a space-separated list of items contains one given 'item'.
 static bool HasListItem(const char* list, const char* item) {
   ssize_t item_len = strlen(item);
   const char* p = list;
-  if (p != nullptr) {
+  if (p != NULL) {
     while (*p != '\0') {
       // Skip whitespace.
       while (isspace(*p)) ++p;
@@ -293,9 +295,11 @@ static bool HasListItem(const char* list, const char* item) {
   return false;
 }
 
+#endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+
 #endif  // V8_OS_LINUX
 
-#endif  //  V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
 CPU::CPU()
     : stepping_(0),
@@ -308,8 +312,6 @@ CPU::CPU()
       architecture_(0),
       variant_(-1),
       part_(0),
-      icache_line_size_(UNKNOWN_CACHE_LINE_SIZE),
-      dcache_line_size_(UNKNOWN_CACHE_LINE_SIZE),
       has_fpu_(false),
       has_cmov_(false),
       has_sahf_(false),
@@ -334,11 +336,13 @@ CPU::CPU()
       has_vfp_(false),
       has_vfp3_(false),
       has_vfp3_d32_(false),
-      is_fp64_mode_(false),
-      has_non_stop_time_stamp_counter_(false),
-      has_msa_(false) {
+      is_fp64_mode_(false) {
   memcpy(vendor_, "Unknown", 8);
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#if V8_OS_NACL
+// Portable host shouldn't do feature detection.
+// TODO(jfb): Remove the hardcoded ARM simulator flags in the build, and
+// hardcode them here instead.
+#elif V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   int cpu_info[4];
 
   // __cpuid with an InfoType argument of 0 returns the number of
@@ -357,12 +361,12 @@ CPU::CPU()
   // Interpret CPU feature information.
   if (num_ids > 0) {
     __cpuid(cpu_info, 1);
-    stepping_ = cpu_info[0] & 0xF;
-    model_ = ((cpu_info[0] >> 4) & 0xF) + ((cpu_info[0] >> 12) & 0xF0);
-    family_ = (cpu_info[0] >> 8) & 0xF;
+    stepping_ = cpu_info[0] & 0xf;
+    model_ = ((cpu_info[0] >> 4) & 0xf) + ((cpu_info[0] >> 12) & 0xf0);
+    family_ = (cpu_info[0] >> 8) & 0xf;
     type_ = (cpu_info[0] >> 12) & 0x3;
-    ext_model_ = (cpu_info[0] >> 16) & 0xF;
-    ext_family_ = (cpu_info[0] >> 20) & 0xFF;
+    ext_model_ = (cpu_info[0] >> 16) & 0xf;
+    ext_family_ = (cpu_info[0] >> 20) & 0xff;
     has_fpu_ = (cpu_info[3] & 0x00000001) != 0;
     has_cmov_ = (cpu_info[3] & 0x00008000) != 0;
     has_mmx_ = (cpu_info[3] & 0x00800000) != 0;
@@ -379,16 +383,16 @@ CPU::CPU()
 
     if (family_ == 0x6) {
       switch (model_) {
-        case 0x1C:  // SLT
+        case 0x1c:  // SLT
         case 0x26:
         case 0x36:
         case 0x27:
         case 0x35:
         case 0x37:  // SLM
-        case 0x4A:
-        case 0x4D:
-        case 0x4C:  // AMT
-        case 0x6E:
+        case 0x4a:
+        case 0x4d:
+        case 0x4c:  // AMT
+        case 0x6e:
           is_atom_ = true;
       }
     }
@@ -413,13 +417,6 @@ CPU::CPU()
     has_sahf_ = (cpu_info[2] & 0x00000001) != 0;
   }
 
-  // Check if CPU has non stoppable time stamp counter.
-  const unsigned parameter_containing_non_stop_time_stamp_counter = 0x80000007;
-  if (num_ext_ids >= parameter_containing_non_stop_time_stamp_counter) {
-    __cpuid(cpu_info, parameter_containing_non_stop_time_stamp_counter);
-    has_non_stop_time_stamp_counter_ = (cpu_info[3] & (1 << 8)) != 0;
-  }
-
 #elif V8_HOST_ARCH_ARM
 
 #if V8_OS_LINUX
@@ -428,7 +425,7 @@ CPU::CPU()
 
   // Extract implementor from the "CPU implementer" field.
   char* implementer = cpu_info.ExtractField("CPU implementer");
-  if (implementer != nullptr) {
+  if (implementer != NULL) {
     char* end;
     implementer_ = strtol(implementer, &end, 0);
     if (end == implementer) {
@@ -438,7 +435,7 @@ CPU::CPU()
   }
 
   char* variant = cpu_info.ExtractField("CPU variant");
-  if (variant != nullptr) {
+  if (variant != NULL) {
     char* end;
     variant_ = strtol(variant, &end, 0);
     if (end == variant) {
@@ -449,7 +446,7 @@ CPU::CPU()
 
   // Extract part number from the "CPU part" field.
   char* part = cpu_info.ExtractField("CPU part");
-  if (part != nullptr) {
+  if (part != NULL) {
     char* end;
     part_ = strtol(part, &end, 0);
     if (end == part) {
@@ -465,16 +462,11 @@ CPU::CPU()
   // $KERNEL/arch/arm/kernel/setup.c and the 'c_show' function in
   // same file.
   char* architecture = cpu_info.ExtractField("CPU architecture");
-  if (architecture != nullptr) {
+  if (architecture != NULL) {
     char* end;
     architecture_ = strtol(architecture, &end, 10);
     if (end == architecture) {
-      // Kernels older than 3.18 report "CPU architecture: AArch64" on ARMv8.
-      if (strcmp(architecture, "AArch64") == 0) {
-        architecture_ = 8;
-      } else {
-        architecture_ = 0;
-      }
+      architecture_ = 0;
     }
     delete[] architecture;
 
@@ -568,7 +560,7 @@ CPU::CPU()
     // QNX doesn't say if Thumb2 is available.
     // Assume false for the architectures older than ARMv7.
   }
-  DCHECK_GE(architecture_, 6);
+  DCHECK(architecture_ >= 6);
   has_fpu_ = (cpu_flags & CPU_FLAG_FPU) != 0;
   has_vfp_ = has_fpu_;
   if (cpu_flags & ARM_CPU_FLAG_NEON) {
@@ -592,26 +584,56 @@ CPU::CPU()
   CPUInfo cpu_info;
   char* cpu_model = cpu_info.ExtractField("cpu model");
   has_fpu_ = HasListItem(cpu_model, "FPU");
-  char* ASEs = cpu_info.ExtractField("ASEs implemented");
-  has_msa_ = HasListItem(ASEs, "msa");
   delete[] cpu_model;
-  delete[] ASEs;
 #ifdef V8_HOST_ARCH_MIPS
   is_fp64_mode_ = __detect_fp64_mode();
   architecture_ = __detect_mips_arch_revision();
 #endif
 
 #elif V8_HOST_ARCH_ARM64
-// Implementer, variant and part are currently unused under ARM64.
+
+  CPUInfo cpu_info;
+
+  // Extract implementor from the "CPU implementer" field.
+  char* implementer = cpu_info.ExtractField("CPU implementer");
+  if (implementer != NULL) {
+    char* end;
+    implementer_ = strtol(implementer, &end, 0);
+    if (end == implementer) {
+      implementer_ = 0;
+    }
+    delete[] implementer;
+  }
+
+  char* variant = cpu_info.ExtractField("CPU variant");
+  if (variant != NULL) {
+    char* end;
+    variant_ = strtol(variant, &end, 0);
+    if (end == variant) {
+      variant_ = -1;
+    }
+    delete[] variant;
+  }
+
+  // Extract part number from the "CPU part" field.
+  char* part = cpu_info.ExtractField("CPU part");
+  if (part != NULL) {
+    char* end;
+    part_ = strtol(part, &end, 0);
+    if (end == part) {
+      part_ = 0;
+    }
+    delete[] part;
+  }
 
 #elif V8_HOST_ARCH_PPC
 
 #ifndef USE_SIMULATOR
 #if V8_OS_LINUX
   // Read processor info from /proc/self/auxv.
-  char* auxv_cpu_type = nullptr;
+  char* auxv_cpu_type = NULL;
   FILE* fp = fopen("/proc/self/auxv", "r");
-  if (fp != nullptr) {
+  if (fp != NULL) {
 #if V8_TARGET_ARCH_PPC64
     Elf64_auxv_t entry;
 #else
@@ -622,16 +644,9 @@ CPU::CPU()
       if (n == 0 || entry.a_type == AT_NULL) {
         break;
       }
-      switch (entry.a_type) {
-        case AT_PLATFORM:
-          auxv_cpu_type = reinterpret_cast<char*>(entry.a_un.a_val);
-          break;
-        case AT_ICACHEBSIZE:
-          icache_line_size_ = entry.a_un.a_val;
-          break;
-        case AT_DCACHEBSIZE:
-          dcache_line_size_ = entry.a_un.a_val;
-          break;
+      if (entry.a_type == AT_PLATFORM) {
+        auxv_cpu_type = reinterpret_cast<char*>(entry.a_un.a_val);
+        break;
       }
     }
     fclose(fp);
@@ -639,9 +654,7 @@ CPU::CPU()
 
   part_ = -1;
   if (auxv_cpu_type) {
-    if (strcmp(auxv_cpu_type, "power9") == 0) {
-      part_ = PPC_POWER9;
-    } else if (strcmp(auxv_cpu_type, "power8") == 0) {
+    if (strcmp(auxv_cpu_type, "power8") == 0) {
       part_ = PPC_POWER8;
     } else if (strcmp(auxv_cpu_type, "power7") == 0) {
       part_ = PPC_POWER7;
@@ -660,9 +673,6 @@ CPU::CPU()
 
 #elif V8_OS_AIX
   switch (_system_configuration.implementation) {
-    case POWER_9:
-      part_ = PPC_POWER9;
-      break;
     case POWER_8:
       part_ = PPC_POWER8;
       break;
@@ -681,5 +691,4 @@ CPU::CPU()
 #endif  // V8_HOST_ARCH_PPC
 }
 
-}  // namespace base
-}  // namespace v8
+} }  // namespace v8::base

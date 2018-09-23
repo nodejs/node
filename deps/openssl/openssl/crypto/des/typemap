@@ -1,0 +1,34 @@
+#
+# DES SECTION
+#
+deschar *	T_DESCHARP
+des_cblock *	T_CBLOCK
+des_cblock	T_CBLOCK
+des_key_schedule	T_SCHEDULE
+des_key_schedule *	T_SCHEDULE
+
+INPUT
+T_CBLOCK
+	$var=(des_cblock *)SvPV($arg,len);
+	if (len < DES_KEY_SZ)
+		{
+		croak(\"$var needs to be at least %u bytes long\",DES_KEY_SZ);
+		}
+
+T_SCHEDULE
+	$var=(des_key_schedule *)SvPV($arg,len);
+	if (len < DES_SCHEDULE_SZ)
+		{
+		croak(\"$var needs to be at least %u bytes long\",
+			DES_SCHEDULE_SZ);
+		}
+
+OUTPUT
+T_CBLOCK
+	sv_setpvn($arg,(char *)$var,DES_KEY_SZ);
+
+T_SCHEDULE
+	sv_setpvn($arg,(char *)$var,DES_SCHEDULE_SZ);
+
+T_DESCHARP
+	sv_setpvn($arg,(char *)$var,len);

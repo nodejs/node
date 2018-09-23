@@ -44,6 +44,11 @@
 
 /* Do platform-specific initialization. */
 int platform_init(int argc, char **argv) {
+  const char* tap;
+
+  tap = getenv("UV_TAP_OUTPUT");
+  tap_output = (tap != NULL && atoi(tap) > 0);
+
   /* Disable the "application crashed" popup. */
   SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
       SEM_NOOPENFILEERRORBOX);
@@ -165,8 +170,8 @@ error:
 }
 
 
-/* Timeout is in msecs. Set timeout < 0 to never time out. Returns 0 when all
- * processes are terminated, -2 on timeout. */
+/* Timeout is is msecs. Set timeout < 0 to never time out. */
+/* Returns 0 when all processes are terminated, -2 on timeout. */
 int process_wait(process_info_t *vec, int n, int timeout) {
   int i;
   HANDLE handles[MAXIMUM_WAIT_OBJECTS];
@@ -208,31 +213,45 @@ long int process_output_size(process_info_t *p) {
 }
 
 
-int process_copy_output(process_info_t* p, FILE* stream) {
+int process_copy_output(process_info_t *p, int fd) {
+  DWORD read;
   char buf[1024];
-  int fd, r;
-  FILE* f;
+  char *line, *start;
 
-  fd = _open_osfhandle((intptr_t)p->stdio_out, _O_RDONLY | _O_TEXT);
-  if (fd == -1)
-    return -1;
-  f = _fdopen(fd, "rt");
-  if (f == NULL) {
-    _close(fd);
+  if (SetFilePointer(p->stdio_out,
+                     0,
+                     0,
+                     FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
     return -1;
   }
 
-  r = fseek(f, 0, SEEK_SET);
-  if (r < 0)
+  if (tap_output)
+    write(fd, "#", 1);
+
+  while (ReadFile(p->stdio_out, (void*)&buf, sizeof(buf), &read, NULL) &&
+         read > 0) {
+    if (tap_output) {
+      start = buf;
+
+      while ((line = strchr(start, '\n')) != NULL) {
+        write(fd, start, line - start + 1);
+        write(fd, "#", 1);
+        start = line + 1;
+      }
+
+      if (start < buf + read)
+        write(fd, start, buf + read - start);
+    } else {
+      write(fd, buf, read);
+    }
+  }
+
+  if (tap_output)
+    write(fd, "\n", 1);
+
+  if (GetLastError() != ERROR_HANDLE_EOF)
     return -1;
 
-  while (fgets(buf, sizeof(buf), f) != NULL)
-    print_lines(buf, strlen(buf), stream);
-  
-  if (ferror(f))
-    return -1;
-
-  fclose(f);
   return 0;
 }
 
@@ -300,6 +319,7 @@ int process_reap(process_info_t *p) {
 void process_cleanup(process_info_t *p) {
   CloseHandle(p->process);
   CloseHandle(p->stdio_in);
+  CloseHandle(p->stdio_out);
 }
 
 

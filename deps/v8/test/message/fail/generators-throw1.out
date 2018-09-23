@@ -1,3 +1,0 @@
-*%(basename)s:5: 42
-function* f() { yield }
-           ^

@@ -1,25 +1,12 @@
-#! /usr/bin/env perl
-# Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
+#!/usr/local/bin/perl
 
-
-# This flag makes the inner loop one cycle longer, but generates 
-# code that runs %30 faster on the pentium pro/II, 44% faster
-# of PIII, while only %7 slower on the pentium.
-# By default, this flag is on.
+# define for pentium pro friendly version
 $ppro=1;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 require "cbc.pl";
-
-$output=pop;
-open STDOUT,">$output";
 
 &asm_init($ARGV[0],"cast-586.pl",$ARGV[$#ARGV] eq "386");
 
@@ -45,8 +32,6 @@ $S4="CAST_S_table3";
 &cbc("CAST_cbc_encrypt","CAST_encrypt","CAST_decrypt",1,4,5,3,-1,-1);
 
 &asm_finish();
-
-close STDOUT;
 
 sub CAST_encrypt {
     local($name,$enc)=@_;
@@ -155,11 +140,11 @@ sub E_CAST {
     &rotl(	$tmp4,		&LB($tmp1));
 
     if ($ppro) {
+	&mov(	$tmp2,		$tmp4);		# B
 	&xor(	$tmp1,		$tmp1);
-	&mov(	$tmp2,		0xff);
 	
 	&movb(	&LB($tmp1),	&HB($tmp4));	# A
-	&and(	$tmp2,		$tmp4);
+	&and(	$tmp2,		0xff);
 
 	&shr(	$tmp4,		16); 		#
 	&xor(	$tmp3,		$tmp3);

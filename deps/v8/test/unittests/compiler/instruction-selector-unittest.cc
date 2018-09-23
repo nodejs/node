@@ -4,17 +4,20 @@
 
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
-#include "src/code-factory.h"
-#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
 #include "src/flags.h"
-#include "src/objects-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+namespace {
+
+typedef RawMachineAssembler::Label MLabel;
+
+}  // namespace
 
 
 InstructionSelectorTest::InstructionSelectorTest() : rng_(FLAG_random_seed) {}
@@ -29,9 +32,9 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     InstructionSelector::SourcePositionMode source_position_mode) {
   Schedule* schedule = Export();
   if (FLAG_trace_turbo) {
-    StdoutStream{} << "=== Schedule before instruction selection ==="
-                   << std::endl
-                   << *schedule;
+    OFStream out(stdout);
+    out << "=== Schedule before instruction selection ===" << std::endl
+        << *schedule;
   }
   size_t const node_count = graph()->NodeCount();
   EXPECT_NE(0u, node_count);
@@ -41,20 +44,16 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   InstructionSequence sequence(test_->isolate(), test_->zone(),
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
-  InstructionSelector selector(
-      test_->zone(), node_count, &linkage, &sequence, schedule,
-      &source_position_table, nullptr,
-      InstructionSelector::kEnableSwitchJumpTable, source_position_mode,
-      features, InstructionSelector::kDisableScheduling,
-      InstructionSelector::kEnableRootsRelativeAddressing,
-      PoisoningMitigationLevel::kPoisonAll);
+  InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
+                               schedule, &source_position_table,
+                               source_position_mode, features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
-    PrintableInstructionSequence printable = {RegisterConfiguration::Default(),
-                                              &sequence};
-    StdoutStream{} << "=== Code sequence after instruction selection ==="
-                   << std::endl
-                   << printable;
+    OFStream out(stdout);
+    PrintableInstructionSequence printable = {
+        RegisterConfiguration::ArchDefault(), &sequence};
+    out << "=== Code sequence after instruction selection ===" << std::endl
+        << printable;
   }
   Stream s;
   s.virtual_registers_ = selector.GetVirtualRegistersForTesting();
@@ -99,18 +98,18 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   }
   for (auto i : s.virtual_registers_) {
     int const virtual_register = i.second;
-    if (sequence.IsFP(virtual_register)) {
+    if (sequence.IsFloat(virtual_register)) {
       EXPECT_FALSE(sequence.IsReference(virtual_register));
       s.doubles_.insert(virtual_register);
     }
     if (sequence.IsReference(virtual_register)) {
-      EXPECT_FALSE(sequence.IsFP(virtual_register));
+      EXPECT_FALSE(sequence.IsFloat(virtual_register));
       s.references_.insert(virtual_register);
     }
   }
-  for (int i = 0; i < sequence.GetDeoptimizationEntryCount(); i++) {
-    s.deoptimization_entries_.push_back(
-        sequence.GetDeoptimizationEntry(i).descriptor());
+  for (int i = 0; i < sequence.GetFrameStateDescriptorCount(); i++) {
+    s.deoptimization_entries_.push_back(sequence.GetFrameStateDescriptor(
+        InstructionSequence::StateId::FromInt(i)));
   }
   return s;
 }
@@ -128,7 +127,8 @@ bool InstructionSelectorTest::Stream::IsFixed(const InstructionOperand* operand,
   if (!operand->IsUnallocated()) return false;
   const UnallocatedOperand* unallocated = UnallocatedOperand::cast(operand);
   if (!unallocated->HasFixedRegisterPolicy()) return false;
-  return unallocated->fixed_register_index() == reg.code();
+  const int index = Register::ToAllocationIndex(reg);
+  return unallocated->fixed_register_index() == index;
 }
 
 
@@ -152,8 +152,8 @@ const FrameStateFunctionInfo*
 InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
     int parameter_count, int local_count) {
   return common()->CreateFrameStateFunctionInfo(
-      FrameStateType::kInterpretedFunction, parameter_count, local_count,
-      Handle<SharedFunctionInfo>());
+      FrameStateType::kJavaScriptFunction, parameter_count, local_count,
+      Handle<SharedFunctionInfo>(), CALL_MAINTAINS_NATIVE_CONTEXT);
 }
 
 
@@ -163,7 +163,7 @@ InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
 
 TARGET_TEST_F(InstructionSelectorTest, ReturnFloat32Constant) {
   const float kValue = 4.2f;
-  StreamBuilder m(this, MachineType::Float32());
+  StreamBuilder m(this, kMachFloat32);
   m.Return(m.Float32Constant(kValue));
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(3U, s.size());
@@ -171,24 +171,24 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnFloat32Constant) {
   ASSERT_EQ(InstructionOperand::CONSTANT, s[0]->OutputAt(0)->kind());
   EXPECT_FLOAT_EQ(kValue, s.ToFloat32(s[0]->OutputAt(0)));
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
-  EXPECT_EQ(2U, s[1]->InputCount());
+  EXPECT_EQ(1U, s[1]->InputCount());
 }
 
 
 TARGET_TEST_F(InstructionSelectorTest, ReturnParameter) {
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+  StreamBuilder m(this, kMachInt32, kMachInt32);
   m.Return(m.Parameter(0));
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(3U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
-  EXPECT_EQ(2U, s[1]->InputCount());
+  EXPECT_EQ(1U, s[1]->InputCount());
 }
 
 
 TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
-  StreamBuilder m(this, MachineType::Int32());
+  StreamBuilder m(this, kMachInt32);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(3U, s.size());
@@ -197,16 +197,18 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
   EXPECT_EQ(InstructionOperand::CONSTANT, s[0]->OutputAt(0)->kind());
   EXPECT_EQ(0, s.ToInt32(s[0]->OutputAt(0)));
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
-  EXPECT_EQ(2U, s[1]->InputCount());
+  EXPECT_EQ(1U, s[1]->InputCount());
 }
 
 
 // -----------------------------------------------------------------------------
 // Conversions.
 
-TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToWord32WithParameter) {
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Float64());
-  m.Return(m.TruncateFloat64ToWord32(m.Parameter(0)));
+
+TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToInt32WithParameter) {
+  StreamBuilder m(this, kMachInt32, kMachFloat64);
+  m.Return(
+      m.TruncateFloat64ToInt32(TruncationMode::kJavaScript, m.Parameter(0)));
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(4U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
@@ -222,7 +224,7 @@ TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToWord32WithParameter) {
 
 
 TARGET_TEST_F(InstructionSelectorTest, DoubleParameter) {
-  StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
+  StreamBuilder m(this, kMachFloat64, kMachFloat64);
   Node* param = m.Parameter(0);
   m.Return(param);
   Stream s = m.Build(kAllInstructions);
@@ -231,7 +233,7 @@ TARGET_TEST_F(InstructionSelectorTest, DoubleParameter) {
 
 
 TARGET_TEST_F(InstructionSelectorTest, ReferenceParameter) {
-  StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged());
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged);
   Node* param = m.Parameter(0);
   m.Return(param);
   Stream s = m.Build(kAllInstructions);
@@ -240,23 +242,28 @@ TARGET_TEST_F(InstructionSelectorTest, ReferenceParameter) {
 
 
 // -----------------------------------------------------------------------------
-// FinishRegion.
+// Finish.
 
 
-TARGET_TEST_F(InstructionSelectorTest, FinishRegion) {
-  StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged());
+TARGET_TEST_F(InstructionSelectorTest, Finish) {
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged);
   Node* param = m.Parameter(0);
-  Node* finish =
-      m.AddNode(m.common()->FinishRegion(), param, m.graph()->start());
+  Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
   m.Return(finish);
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(3U, s.size());
+  ASSERT_EQ(4U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   ASSERT_TRUE(s[0]->Output()->IsUnallocated());
-  EXPECT_EQ(kArchRet, s[1]->arch_opcode());
   EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->Output()));
-  EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(kArchNop, s[1]->arch_opcode());
+  ASSERT_EQ(1U, s[1]->InputCount());
+  ASSERT_TRUE(s[1]->InputAt(0)->IsUnallocated());
+  EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[1]->InputAt(0)));
+  ASSERT_EQ(1U, s[1]->OutputCount());
+  ASSERT_TRUE(s[1]->Output()->IsUnallocated());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[1]->Output())->HasSameAsInputPolicy());
+  EXPECT_EQ(s.ToVreg(finish), s.ToVreg(s[1]->Output()));
   EXPECT_TRUE(s.IsReference(finish));
 }
 
@@ -274,14 +281,14 @@ TARGET_TEST_P(InstructionSelectorPhiTest, Doubleness) {
   StreamBuilder m(this, type, type, type);
   Node* param0 = m.Parameter(0);
   Node* param1 = m.Parameter(1);
-  RawMachineLabel a, b, c;
+  MLabel a, b, c;
   m.Branch(m.Int32Constant(0), &a, &b);
   m.Bind(&a);
   m.Goto(&c);
   m.Bind(&b);
   m.Goto(&c);
   m.Bind(&c);
-  Node* phi = m.Phi(type.representation(), param0, param1);
+  Node* phi = m.Phi(type, param0, param1);
   m.Return(phi);
   Stream s = m.Build(kAllInstructions);
   EXPECT_EQ(s.IsDouble(phi), s.IsDouble(param0));
@@ -294,14 +301,14 @@ TARGET_TEST_P(InstructionSelectorPhiTest, Referenceness) {
   StreamBuilder m(this, type, type, type);
   Node* param0 = m.Parameter(0);
   Node* param1 = m.Parameter(1);
-  RawMachineLabel a, b, c;
+  MLabel a, b, c;
   m.Branch(m.Int32Constant(1), &a, &b);
   m.Bind(&a);
   m.Goto(&c);
   m.Bind(&b);
   m.Goto(&c);
   m.Bind(&c);
-  Node* phi = m.Phi(type.representation(), param0, param1);
+  Node* phi = m.Phi(type, param0, param1);
   m.Return(phi);
   Stream s = m.Build(kAllInstructions);
   EXPECT_EQ(s.IsReference(phi), s.IsReference(param0));
@@ -309,14 +316,11 @@ TARGET_TEST_P(InstructionSelectorPhiTest, Referenceness) {
 }
 
 
-INSTANTIATE_TEST_CASE_P(
-    InstructionSelectorTest, InstructionSelectorPhiTest,
-    ::testing::Values(MachineType::Float64(), MachineType::Int8(),
-                      MachineType::Uint8(), MachineType::Int16(),
-                      MachineType::Uint16(), MachineType::Int32(),
-                      MachineType::Uint32(), MachineType::Int64(),
-                      MachineType::Uint64(), MachineType::Pointer(),
-                      MachineType::AnyTagged()));
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorPhiTest,
+                        ::testing::Values(kMachFloat64, kMachInt8, kMachUint8,
+                                          kMachInt16, kMachUint16, kMachInt32,
+                                          kMachUint32, kMachInt64, kMachUint64,
+                                          kMachPtr, kMachAnyTagged));
 
 
 // -----------------------------------------------------------------------------
@@ -324,16 +328,14 @@ INSTANTIATE_TEST_CASE_P(
 
 
 TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
-  StreamBuilder m1(this, MachineType::Int32(), MachineType::Pointer());
+  StreamBuilder m1(this, kMachInt32, kMachPtr);
   Node* p1 = m1.Parameter(0);
-  m1.Return(m1.Load(MachineType::Int32(), p1, m1.Int32Constant(0)));
+  m1.Return(m1.Load(kMachInt32, p1, m1.Int32Constant(0)));
   Stream s1 = m1.Build(kAllInstructions);
-  StreamBuilder m2(this, MachineType::Int32(), MachineType::Pointer());
+  StreamBuilder m2(this, kMachInt32, kMachPtr);
   Node* p2 = m2.Parameter(0);
-  m2.Return(m2.AddNode(
-      m2.machine()->Load(MachineType::Int32()), p2, m2.Int32Constant(0),
-      m2.AddNode(m2.common()->BeginRegion(RegionObservability::kObservable),
-                 m2.graph()->start())));
+  m2.Return(m2.NewNode(m2.machine()->Load(kMachInt32), p2, m2.Int32Constant(0),
+                       m2.NewNode(m2.common()->ValueEffect(1), p2)));
   Stream s2 = m2.Build(kAllInstructions);
   EXPECT_LE(3U, s1.size());
   ASSERT_EQ(s1.size(), s2.size());
@@ -352,8 +354,8 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
 
 
 TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
-  StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged(),
-                  MachineType::AnyTagged(), MachineType::AnyTagged());
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
+                  kMachAnyTagged);
 
   BailoutId bailout_id(42);
 
@@ -361,31 +363,21 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   Node* receiver = m.Parameter(1);
   Node* context = m.Parameter(2);
 
-  ZoneVector<MachineType> int32_type(1, MachineType::Int32(), zone());
+  ZoneVector<MachineType> int32_type(1, kMachInt32, zone());
   ZoneVector<MachineType> empty_types(zone());
 
-  auto call_descriptor = Linkage::GetJSCallDescriptor(
-      zone(), false, 1, CallDescriptor::kNeedsFrameState);
+  Node* parameters =
+      m.NewNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(1));
+  Node* locals = m.NewNode(m.common()->TypedStateValues(&empty_types));
+  Node* stack = m.NewNode(m.common()->TypedStateValues(&empty_types));
+  Node* context_dummy = m.Int32Constant(0);
 
-  // Build frame state for the state before the call.
-  Node* parameters = m.AddNode(
-      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
-      m.Int32Constant(1));
-  Node* locals = m.AddNode(
-      m.common()->TypedStateValues(&empty_types, SparseInputMask::Dense()));
-  Node* stack = m.AddNode(
-      m.common()->TypedStateValues(&empty_types, SparseInputMask::Dense()));
-  Node* context_sentinel = m.Int32Constant(0);
-  Node* state_node = m.AddNode(
-      m.common()->FrameState(bailout_id, OutputFrameStateCombine::PokeAt(0),
+  Node* state_node = m.NewNode(
+      m.common()->FrameState(bailout_id, OutputFrameStateCombine::Push(),
                              m.GetFrameStateFunctionInfo(1, 0)),
-      parameters, locals, stack, context_sentinel, function_node,
+      parameters, locals, stack, context_dummy, function_node,
       m.UndefinedConstant());
-
-  // Build the call.
-  Node* nodes[] = {function_node,      receiver, m.UndefinedConstant(),
-                   m.Int32Constant(1), context,  state_node};
-  Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
+  Node* call = m.CallJS0(function_node, receiver, context, state_node);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -405,9 +397,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
 }
 
 
-TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
-  StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged(),
-                  MachineType::AnyTagged(), MachineType::AnyTagged());
+TARGET_TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
+                  kMachAnyTagged);
 
   BailoutId bailout_id_before(42);
 
@@ -416,37 +408,29 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   Node* receiver = m.Parameter(1);
   Node* context = m.Int32Constant(1);  // Context is ignored.
 
-  ZoneVector<MachineType> int32_type(1, MachineType::Int32(), zone());
-  ZoneVector<MachineType> float64_type(1, MachineType::Float64(), zone());
-  ZoneVector<MachineType> tagged_type(1, MachineType::AnyTagged(), zone());
-
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      zone(), callable.descriptor(), 1, CallDescriptor::kNeedsFrameState,
-      Operator::kNoProperties);
+  ZoneVector<MachineType> int32_type(1, kMachInt32, zone());
+  ZoneVector<MachineType> float64_type(1, kMachFloat64, zone());
+  ZoneVector<MachineType> tagged_type(1, kMachAnyTagged, zone());
 
   // Build frame state for the state before the call.
-  Node* parameters = m.AddNode(
-      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
-      m.Int32Constant(43));
-  Node* locals = m.AddNode(
-      m.common()->TypedStateValues(&float64_type, SparseInputMask::Dense()),
-      m.Float64Constant(0.5));
-  Node* stack = m.AddNode(
-      m.common()->TypedStateValues(&tagged_type, SparseInputMask::Dense()),
-      m.UndefinedConstant());
+  Node* parameters =
+      m.NewNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(43));
+  Node* locals = m.NewNode(m.common()->TypedStateValues(&float64_type),
+                           m.Float64Constant(0.5));
+  Node* stack = m.NewNode(m.common()->TypedStateValues(&tagged_type),
+                          m.UndefinedConstant());
+
   Node* context_sentinel = m.Int32Constant(0);
-  Node* state_node =
-      m.AddNode(m.common()->FrameState(bailout_id_before,
-                                       OutputFrameStateCombine::PokeAt(0),
-                                       m.GetFrameStateFunctionInfo(1, 1)),
-                parameters, locals, stack, context_sentinel, function_node,
-                m.UndefinedConstant());
+  Node* frame_state_before = m.NewNode(
+      m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
+                             m.GetFrameStateFunctionInfo(1, 1)),
+      parameters, locals, stack, context_sentinel, function_node,
+      m.UndefinedConstant());
 
   // Build the call.
-  Node* stub_code = m.HeapConstant(callable.code());
-  Node* nodes[] = {stub_code, function_node, receiver, context, state_node};
-  Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
+  Node* call = m.CallFunctionStub0(function_node, receiver, context,
+                                   frame_state_before, CALL_AS_METHOD);
+
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -464,8 +448,8 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_EQ(kArchCallCodeObject, call_instr->arch_opcode());
   size_t num_operands =
       1 +  // Code object.
-      1 +  // Poison index
-      6 +  // Frame state deopt id + one input for each value in frame state.
+      1 +
+      5 +  // Frame state deopt id + one input for each value in frame state.
       1 +  // Function.
       1;   // Context.
   ASSERT_EQ(num_operands, call_instr->InputCount());
@@ -474,23 +458,32 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_TRUE(call_instr->InputAt(0)->IsImmediate());
 
   // Deoptimization id.
-  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(2));
+  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(1));
   FrameStateDescriptor* desc_before =
       s.GetFrameStateDescriptor(deopt_id_before);
   EXPECT_EQ(bailout_id_before, desc_before->bailout_id());
+  EXPECT_EQ(OutputFrameStateCombine::kPushOutput,
+            desc_before->state_combine().kind());
   EXPECT_EQ(1u, desc_before->parameters_count());
   EXPECT_EQ(1u, desc_before->locals_count());
   EXPECT_EQ(1u, desc_before->stack_count());
-  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(4)));
-  EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(5)));  // This should be a context.
+  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(3)));
+  EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(4)));  // This should be a context.
                                                     // We inserted 0 here.
-  EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(6)));
-  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(7))->IsUndefined(isolate()));
+  EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
+  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined());
+  EXPECT_EQ(kMachAnyTagged, desc_before->GetType(0));  // function is always
+                                                       // tagged/any.
+  EXPECT_EQ(kMachInt32, desc_before->GetType(1));
+  EXPECT_EQ(kMachAnyTagged, desc_before->GetType(2));  // context is always
+                                                       // tagged/any.
+  EXPECT_EQ(kMachFloat64, desc_before->GetType(3));
+  EXPECT_EQ(kMachAnyTagged, desc_before->GetType(4));
 
   // Function.
-  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(8)));
+  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(7)));
   // Context.
-  EXPECT_EQ(s.ToVreg(context), s.ToVreg(call_instr->InputAt(9)));
+  EXPECT_EQ(s.ToVreg(context), s.ToVreg(call_instr->InputAt(8)));
 
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
 
@@ -498,9 +491,10 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
 }
 
 
-TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
-  StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged(),
-                  MachineType::AnyTagged(), MachineType::AnyTagged());
+TARGET_TEST_F(InstructionSelectorTest,
+              CallFunctionStubDeoptRecursiveFrameState) {
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
+                  kMachAnyTagged);
 
   BailoutId bailout_id_before(42);
   BailoutId bailout_id_parent(62);
@@ -509,53 +503,41 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   Node* function_node = m.Parameter(0);
   Node* receiver = m.Parameter(1);
   Node* context = m.Int32Constant(66);
-  Node* context2 = m.Int32Constant(46);
 
-  ZoneVector<MachineType> int32_type(1, MachineType::Int32(), zone());
-  ZoneVector<MachineType> int32x2_type(2, MachineType::Int32(), zone());
-  ZoneVector<MachineType> float64_type(1, MachineType::Float64(), zone());
-
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      zone(), callable.descriptor(), 1, CallDescriptor::kNeedsFrameState,
-      Operator::kNoProperties);
+  ZoneVector<MachineType> int32_type(1, kMachInt32, zone());
+  ZoneVector<MachineType> int32x2_type(2, kMachInt32, zone());
+  ZoneVector<MachineType> float64_type(1, kMachFloat64, zone());
 
   // Build frame state for the state before the call.
-  Node* parameters = m.AddNode(
-      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
-      m.Int32Constant(63));
-  Node* locals = m.AddNode(
-      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
-      m.Int32Constant(64));
-  Node* stack = m.AddNode(
-      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
-      m.Int32Constant(65));
-  Node* frame_state_parent = m.AddNode(
+  Node* parameters =
+      m.NewNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(63));
+  Node* locals =
+      m.NewNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(64));
+  Node* stack =
+      m.NewNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(65));
+  Node* frame_state_parent = m.NewNode(
       m.common()->FrameState(bailout_id_parent,
                              OutputFrameStateCombine::Ignore(),
                              m.GetFrameStateFunctionInfo(1, 1)),
       parameters, locals, stack, context, function_node, m.UndefinedConstant());
 
-  Node* parameters2 = m.AddNode(
-      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
-      m.Int32Constant(43));
-  Node* locals2 = m.AddNode(
-      m.common()->TypedStateValues(&float64_type, SparseInputMask::Dense()),
-      m.Float64Constant(0.25));
-  Node* stack2 = m.AddNode(
-      m.common()->TypedStateValues(&int32x2_type, SparseInputMask::Dense()),
-      m.Int32Constant(44), m.Int32Constant(45));
-  Node* state_node =
-      m.AddNode(m.common()->FrameState(bailout_id_before,
-                                       OutputFrameStateCombine::PokeAt(0),
-                                       m.GetFrameStateFunctionInfo(1, 1)),
-                parameters2, locals2, stack2, context2, function_node,
-                frame_state_parent);
+  Node* context2 = m.Int32Constant(46);
+  Node* parameters2 =
+      m.NewNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(43));
+  Node* locals2 = m.NewNode(m.common()->TypedStateValues(&float64_type),
+                            m.Float64Constant(0.25));
+  Node* stack2 = m.NewNode(m.common()->TypedStateValues(&int32x2_type),
+                           m.Int32Constant(44), m.Int32Constant(45));
+  Node* frame_state_before = m.NewNode(
+      m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
+                             m.GetFrameStateFunctionInfo(1, 1)),
+      parameters2, locals2, stack2, context2, function_node,
+      frame_state_parent);
 
   // Build the call.
-  Node* stub_code = m.HeapConstant(callable.code());
-  Node* nodes[] = {stub_code, function_node, receiver, context2, state_node};
-  Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
+  Node* call = m.CallFunctionStub0(function_node, receiver, context2,
+                                   frame_state_before, CALL_AS_METHOD);
+
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -573,7 +555,6 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(kArchCallCodeObject, call_instr->arch_opcode());
   size_t num_operands =
       1 +  // Code object.
-      1 +  // Poison index.
       1 +  // Frame state deopt id
       6 +  // One input for each value in frame state + context.
       5 +  // One input for each value in the parent frame state + context.
@@ -584,7 +565,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_TRUE(call_instr->InputAt(0)->IsImmediate());
 
   // Deoptimization id.
-  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(2));
+  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(1));
   FrameStateDescriptor* desc_before =
       s.GetFrameStateDescriptor(deopt_id_before);
   FrameStateDescriptor* desc_before_outer = desc_before->outer_state();
@@ -593,275 +574,40 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(1u, desc_before_outer->locals_count());
   EXPECT_EQ(1u, desc_before_outer->stack_count());
   // Values from parent environment.
-  EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(4)));
+  EXPECT_EQ(kMachAnyTagged, desc_before->GetType(0));
+  EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(3)));
+  EXPECT_EQ(kMachInt32, desc_before_outer->GetType(1));
   // Context:
-  EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(5)));
-  EXPECT_EQ(64, s.ToInt32(call_instr->InputAt(6)));
-  EXPECT_EQ(65, s.ToInt32(call_instr->InputAt(7)));
+  EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(4)));
+  EXPECT_EQ(kMachAnyTagged, desc_before_outer->GetType(2));
+  EXPECT_EQ(64, s.ToInt32(call_instr->InputAt(5)));
+  EXPECT_EQ(kMachInt32, desc_before_outer->GetType(3));
+  EXPECT_EQ(65, s.ToInt32(call_instr->InputAt(6)));
+  EXPECT_EQ(kMachInt32, desc_before_outer->GetType(4));
   // Values from the nested frame.
   EXPECT_EQ(1u, desc_before->parameters_count());
   EXPECT_EQ(1u, desc_before->locals_count());
   EXPECT_EQ(2u, desc_before->stack_count());
-  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(9)));
-  EXPECT_EQ(46, s.ToInt32(call_instr->InputAt(10)));
-  EXPECT_EQ(0.25, s.ToFloat64(call_instr->InputAt(11)));
-  EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(12)));
-  EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(13)));
+  EXPECT_EQ(kMachAnyTagged, desc_before->GetType(0));
+  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(8)));
+  EXPECT_EQ(kMachInt32, desc_before->GetType(1));
+  EXPECT_EQ(46, s.ToInt32(call_instr->InputAt(9)));
+  EXPECT_EQ(kMachAnyTagged, desc_before->GetType(2));
+  EXPECT_EQ(0.25, s.ToFloat64(call_instr->InputAt(10)));
+  EXPECT_EQ(kMachFloat64, desc_before->GetType(3));
+  EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(11)));
+  EXPECT_EQ(kMachInt32, desc_before->GetType(4));
+  EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(12)));
+  EXPECT_EQ(kMachInt32, desc_before->GetType(5));
 
   // Function.
-  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(14)));
+  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(13)));
   // Context.
-  EXPECT_EQ(s.ToVreg(context2), s.ToVreg(call_instr->InputAt(15)));
+  EXPECT_EQ(s.ToVreg(context2), s.ToVreg(call_instr->InputAt(14)));
   // Continuation.
 
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
   EXPECT_EQ(index, s.size());
-}
-
-// Helper to make calls to private InstructionSelector shuffle functions.
-class InstructionSelectorShuffleTest : public ::testing::Test {
- public:
-  using Shuffle = std::array<uint8_t, kSimd128Size>;
-
-  struct TestShuffle {
-    Shuffle non_canonical;
-    Shuffle canonical;
-    bool needs_swap;
-    bool is_swizzle;
-  };
-
-  // Call testing members in InstructionSelector.
-  static void CanonicalizeShuffle(bool inputs_equal, Shuffle* shuffle,
-                                  bool* needs_swap, bool* is_swizzle) {
-    InstructionSelector::CanonicalizeShuffleForTesting(
-        inputs_equal, &(*shuffle)[0], needs_swap, is_swizzle);
-  }
-
-  static bool TryMatchIdentity(const Shuffle& shuffle) {
-    return InstructionSelector::TryMatchIdentityForTesting(&shuffle[0]);
-  }
-  template <int LANES>
-  static bool TryMatchDup(const Shuffle& shuffle, int* index) {
-    return InstructionSelector::TryMatchDupForTesting<LANES>(&shuffle[0],
-                                                             index);
-  }
-  static bool TryMatch32x4Shuffle(const Shuffle& shuffle,
-                                  uint8_t* shuffle32x4) {
-    return InstructionSelector::TryMatch32x4ShuffleForTesting(&shuffle[0],
-                                                              shuffle32x4);
-  }
-  static bool TryMatch16x8Shuffle(const Shuffle& shuffle,
-                                  uint8_t* shuffle16x8) {
-    return InstructionSelector::TryMatch16x8ShuffleForTesting(&shuffle[0],
-                                                              shuffle16x8);
-  }
-  static bool TryMatchConcat(const Shuffle& shuffle, uint8_t* offset) {
-    return InstructionSelector::TryMatchConcatForTesting(&shuffle[0], offset);
-  }
-  static bool TryMatchBlend(const Shuffle& shuffle) {
-    return InstructionSelector::TryMatchBlendForTesting(&shuffle[0]);
-  }
-};
-
-bool operator==(const InstructionSelectorShuffleTest::Shuffle& a,
-                const InstructionSelectorShuffleTest::Shuffle& b) {
-  for (int i = 0; i < kSimd128Size; ++i) {
-    if (a[i] != b[i]) return false;
-  }
-  return true;
-}
-
-TEST_F(InstructionSelectorShuffleTest, CanonicalizeShuffle) {
-  const bool kInputsEqual = true;
-  const bool kNeedsSwap = true;
-  const bool kIsSwizzle = true;
-
-  bool needs_swap;
-  bool is_swizzle;
-
-  // Test canonicalization driven by input shuffle.
-  TestShuffle test_shuffles[] = {
-      // Identity is canonical.
-      {{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
-       {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
-       !kNeedsSwap,
-       kIsSwizzle},
-      // Non-canonical identity requires a swap.
-      {{{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}},
-       {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
-       kNeedsSwap,
-       kIsSwizzle},
-      // General shuffle, canonical is unchanged.
-      {{{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}},
-       {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}},
-       !kNeedsSwap,
-       !kIsSwizzle},
-      // Non-canonical shuffle requires a swap.
-      {{{16, 0, 17, 1, 18, 2, 19, 3, 20, 4, 21, 5, 22, 6, 23, 7}},
-       {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}},
-       kNeedsSwap,
-       !kIsSwizzle},
-  };
-  for (size_t i = 0; i < arraysize(test_shuffles); ++i) {
-    Shuffle shuffle = test_shuffles[i].non_canonical;
-    CanonicalizeShuffle(!kInputsEqual, &shuffle, &needs_swap, &is_swizzle);
-    EXPECT_EQ(shuffle, test_shuffles[i].canonical);
-    EXPECT_EQ(needs_swap, test_shuffles[i].needs_swap);
-    EXPECT_EQ(is_swizzle, test_shuffles[i].is_swizzle);
-  }
-
-  // Test canonicalization when inputs are equal (explicit swizzle).
-  TestShuffle test_swizzles[] = {
-      // Identity is canonical.
-      {{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
-       {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
-       !kNeedsSwap,
-       kIsSwizzle},
-      // Non-canonical identity requires a swap.
-      {{{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}},
-       {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
-       !kNeedsSwap,
-       kIsSwizzle},
-      // Canonicalized to swizzle.
-      {{{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}},
-       {{0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7}},
-       !kNeedsSwap,
-       kIsSwizzle},
-      // Canonicalized to swizzle.
-      {{{16, 0, 17, 1, 18, 2, 19, 3, 20, 4, 21, 5, 22, 6, 23, 7}},
-       {{0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7}},
-       !kNeedsSwap,
-       kIsSwizzle},
-  };
-  for (size_t i = 0; i < arraysize(test_swizzles); ++i) {
-    Shuffle shuffle = test_swizzles[i].non_canonical;
-    CanonicalizeShuffle(kInputsEqual, &shuffle, &needs_swap, &is_swizzle);
-    EXPECT_EQ(shuffle, test_swizzles[i].canonical);
-    EXPECT_EQ(needs_swap, test_swizzles[i].needs_swap);
-    EXPECT_EQ(is_swizzle, test_swizzles[i].is_swizzle);
-  }
-}
-
-TEST_F(InstructionSelectorShuffleTest, TryMatchIdentity) {
-  // Match shuffle that returns first source operand.
-  EXPECT_TRUE(TryMatchIdentity(
-      {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}}));
-  // The non-canonicalized identity shuffle doesn't match.
-  EXPECT_FALSE(TryMatchIdentity(
-      {{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}}));
-  // Even one lane out of place is not an identity shuffle.
-  EXPECT_FALSE(TryMatchIdentity(
-      {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 31}}));
-}
-
-TEST_F(InstructionSelectorShuffleTest, TryMatchDup) {
-  int index;
-  // All lanes from the same 32 bit source lane.
-  EXPECT_TRUE(TryMatchDup<4>({{4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7}},
-                             &index));
-  EXPECT_EQ(1, index);
-  // It shouldn't match for other vector shapes.
-  EXPECT_FALSE(TryMatchDup<8>(
-      {{4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7}}, &index));
-  EXPECT_FALSE(TryMatchDup<16>(
-      {{4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7}}, &index));
-  // All lanes from the same 16 bit source lane.
-  EXPECT_TRUE(TryMatchDup<8>(
-      {{16, 17, 16, 17, 16, 17, 16, 17, 16, 17, 16, 17, 16, 17, 16, 17}},
-      &index));
-  EXPECT_EQ(8, index);
-  // It shouldn't match for other vector shapes.
-  EXPECT_FALSE(TryMatchDup<4>(
-      {{16, 17, 16, 17, 16, 17, 16, 17, 16, 17, 16, 17, 16, 17, 16, 17}},
-      &index));
-  EXPECT_FALSE(TryMatchDup<16>(
-      {{16, 17, 16, 17, 16, 17, 16, 17, 16, 17, 16, 17, 16, 17, 16, 17}},
-      &index));
-  // All lanes from the same 8 bit source lane.
-  EXPECT_TRUE(TryMatchDup<16>(
-      {{7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7}}, &index));
-  EXPECT_EQ(7, index);
-  // It shouldn't match for other vector shapes.
-  EXPECT_FALSE(TryMatchDup<4>(
-      {{7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7}}, &index));
-  EXPECT_FALSE(TryMatchDup<8>(
-      {{7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7}}, &index));
-}
-
-TEST_F(InstructionSelectorShuffleTest, TryMatchConcat) {
-  uint8_t offset;
-  // Ascending indices, jump at end to same input (concatenating swizzle).
-  EXPECT_TRUE(TryMatchConcat(
-      {{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2}}, &offset));
-  EXPECT_EQ(3, offset);
-  // Ascending indices, jump at end to other input (concatenating shuffle).
-  EXPECT_TRUE(TryMatchConcat(
-      {{4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}}, &offset));
-  EXPECT_EQ(4, offset);
-
-  // Shuffles that should not match:
-  // Ascending indices, but jump isn't at end/beginning.
-  EXPECT_FALSE(TryMatchConcat(
-      {{3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6}}, &offset));
-  // Ascending indices, but multiple jumps.
-  EXPECT_FALSE(TryMatchConcat(
-      {{0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3}}, &offset));
-}
-
-TEST_F(InstructionSelectorShuffleTest, TryMatch32x4Shuffle) {
-  uint8_t shuffle32x4[4];
-  // Match if each group of 4 bytes is from the same 32 bit lane.
-  EXPECT_TRUE(TryMatch32x4Shuffle(
-      {{12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 16, 17, 18, 19}},
-      shuffle32x4));
-  EXPECT_EQ(3, shuffle32x4[0]);
-  EXPECT_EQ(2, shuffle32x4[1]);
-  EXPECT_EQ(1, shuffle32x4[2]);
-  EXPECT_EQ(4, shuffle32x4[3]);
-  // Bytes must be in order in the 32 bit lane.
-  EXPECT_FALSE(TryMatch32x4Shuffle(
-      {{12, 13, 14, 14, 8, 9, 10, 11, 4, 5, 6, 7, 16, 17, 18, 19}},
-      shuffle32x4));
-  // Each group must start with the first byte in the 32 bit lane.
-  EXPECT_FALSE(TryMatch32x4Shuffle(
-      {{13, 14, 15, 12, 8, 9, 10, 11, 4, 5, 6, 7, 16, 17, 18, 19}},
-      shuffle32x4));
-}
-
-TEST_F(InstructionSelectorShuffleTest, TryMatch16x8Shuffle) {
-  uint8_t shuffle16x8[8];
-  // Match if each group of 2 bytes is from the same 16 bit lane.
-  EXPECT_TRUE(TryMatch16x8Shuffle(
-      {{12, 13, 30, 31, 8, 9, 26, 27, 4, 5, 22, 23, 16, 17, 2, 3}},
-      shuffle16x8));
-  EXPECT_EQ(6, shuffle16x8[0]);
-  EXPECT_EQ(15, shuffle16x8[1]);
-  EXPECT_EQ(4, shuffle16x8[2]);
-  EXPECT_EQ(13, shuffle16x8[3]);
-  EXPECT_EQ(2, shuffle16x8[4]);
-  EXPECT_EQ(11, shuffle16x8[5]);
-  EXPECT_EQ(8, shuffle16x8[6]);
-  EXPECT_EQ(1, shuffle16x8[7]);
-  // Bytes must be in order in the 16 bit lane.
-  EXPECT_FALSE(TryMatch16x8Shuffle(
-      {{12, 13, 30, 30, 8, 9, 26, 27, 4, 5, 22, 23, 16, 17, 2, 3}},
-      shuffle16x8));
-  // Each group must start with the first byte in the 16 bit lane.
-  EXPECT_FALSE(TryMatch16x8Shuffle(
-      {{12, 13, 31, 30, 8, 9, 26, 27, 4, 5, 22, 23, 16, 17, 2, 3}},
-      shuffle16x8));
-}
-
-TEST_F(InstructionSelectorShuffleTest, TryMatchBlend) {
-  // Match if each byte remains in place.
-  EXPECT_TRUE(TryMatchBlend(
-      {{0, 17, 2, 19, 4, 21, 6, 23, 8, 25, 10, 27, 12, 29, 14, 31}}));
-  // Identity is a blend.
-  EXPECT_TRUE(
-      TryMatchBlend({{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}}));
-  // Even one lane out of place is not a blend.
-  EXPECT_FALSE(TryMatchBlend(
-      {{1, 17, 2, 19, 4, 21, 6, 23, 8, 25, 10, 27, 12, 29, 14, 31}}));
 }
 
 }  // namespace compiler

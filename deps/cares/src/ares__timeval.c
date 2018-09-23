@@ -56,7 +56,7 @@ struct timeval ares__tvnow(void)
   */
 #ifdef HAVE_GETTIMEOFDAY
   else
-    (void)gettimeofday(&now, NULL);  /* LCOV_EXCL_LINE */
+    (void)gettimeofday(&now, NULL);
 #else
   else {
     now.tv_sec = (long)time(NULL);

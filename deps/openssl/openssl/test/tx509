@@ -1,0 +1,78 @@
+#!/bin/sh
+
+cmd='../util/shlib_wrap.sh ../apps/openssl x509'
+
+if [ "$1"x != "x" ]; then
+	t=$1
+else
+	t=testx509.pem
+fi
+
+echo testing X509 conversions
+cp $t x509-fff.p
+
+echo "p -> d"
+$cmd -in x509-fff.p -inform p -outform d >x509-f.d
+if [ $? != 0 ]; then exit 1; fi
+echo "p -> n"
+$cmd -in x509-fff.p -inform p -outform n >x509-f.n
+if [ $? != 0 ]; then exit 1; fi
+echo "p -> p"
+$cmd -in x509-fff.p -inform p -outform p >x509-f.p
+if [ $? != 0 ]; then exit 1; fi
+
+echo "d -> d"
+$cmd -in x509-f.d -inform d -outform d >x509-ff.d1
+if [ $? != 0 ]; then exit 1; fi
+echo "n -> d"
+$cmd -in x509-f.n -inform n -outform d >x509-ff.d2
+if [ $? != 0 ]; then exit 1; fi
+echo "p -> d"
+$cmd -in x509-f.p -inform p -outform d >x509-ff.d3
+if [ $? != 0 ]; then exit 1; fi
+
+echo "d -> n"
+$cmd -in x509-f.d -inform d -outform n >x509-ff.n1
+if [ $? != 0 ]; then exit 1; fi
+echo "n -> n"
+$cmd -in x509-f.n -inform n -outform n >x509-ff.n2
+if [ $? != 0 ]; then exit 1; fi
+echo "p -> n"
+$cmd -in x509-f.p -inform p -outform n >x509-ff.n3
+if [ $? != 0 ]; then exit 1; fi
+
+echo "d -> p"
+$cmd -in x509-f.d -inform d -outform p >x509-ff.p1
+if [ $? != 0 ]; then exit 1; fi
+echo "n -> p"
+$cmd -in x509-f.n -inform n -outform p >x509-ff.p2
+if [ $? != 0 ]; then exit 1; fi
+echo "p -> p"
+$cmd -in x509-f.p -inform p -outform p >x509-ff.p3
+if [ $? != 0 ]; then exit 1; fi
+
+cmp x509-fff.p x509-f.p
+if [ $? != 0 ]; then exit 1; fi
+cmp x509-fff.p x509-ff.p1
+if [ $? != 0 ]; then exit 1; fi
+cmp x509-fff.p x509-ff.p2
+if [ $? != 0 ]; then exit 1; fi
+cmp x509-fff.p x509-ff.p3
+if [ $? != 0 ]; then exit 1; fi
+
+cmp x509-f.n x509-ff.n1
+if [ $? != 0 ]; then exit 1; fi
+cmp x509-f.n x509-ff.n2
+if [ $? != 0 ]; then exit 1; fi
+cmp x509-f.n x509-ff.n3
+if [ $? != 0 ]; then exit 1; fi
+
+cmp x509-f.p x509-ff.p1
+if [ $? != 0 ]; then exit 1; fi
+cmp x509-f.p x509-ff.p2
+if [ $? != 0 ]; then exit 1; fi
+cmp x509-f.p x509-ff.p3
+if [ $? != 0 ]; then exit 1; fi
+
+/bin/rm -f x509-f.* x509-ff.* x509-fff.*
+exit 0

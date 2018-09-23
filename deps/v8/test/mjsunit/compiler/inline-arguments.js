@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --max-opt-count=100
 
 function A() {
 }
@@ -253,9 +253,9 @@ test_toarr(toarr2);
     %DeoptimizeFunction(outer);
     %DeoptimizeFunction(middle);
     %DeoptimizeFunction(inner);
-    %ClearFunctionFeedback(outer);
-    %ClearFunctionFeedback(middle);
-    %ClearFunctionFeedback(inner);
+    %ClearFunctionTypeFeedback(outer);
+    %ClearFunctionTypeFeedback(middle);
+    %ClearFunctionTypeFeedback(inner);
   }
 
   for (var a = 1; a <= 3; a++) {
@@ -307,5 +307,31 @@ test_toarr(toarr2);
   %OptimizeFunctionOnNextCall(outer);
   outer();
   delete forceDeopt.deopt;
+  outer();
+})();
+
+
+// Test inlining of functions with %_Arguments and %_ArgumentsLength intrinsic.
+(function () {
+  function inner(len,a,b,c) {
+    assertSame(len, %_ArgumentsLength());
+    for (var i = 1; i < len; ++i) {
+      var c = String.fromCharCode(96 + i);
+      assertSame(c, %_Arguments(i));
+    }
+  }
+
+  function outer() {
+    inner(1);
+    inner(2, 'a');
+    inner(3, 'a', 'b');
+    inner(4, 'a', 'b', 'c');
+    inner(5, 'a', 'b', 'c', 'd');
+    inner(6, 'a', 'b', 'c', 'd', 'e');
+  }
+
+  outer();
+  outer();
+  %OptimizeFunctionOnNextCall(outer);
   outer();
 })();

@@ -1,108 +1,90 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+var common = require('../common');
+var assert = require('assert');
 
-// This test ensures that the data received through tls over http tunnel
-// is same as what is sent.
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var https = require('https');
 
-const assert = require('assert');
-const https = require('https');
-const net = require('net');
-const http = require('http');
-const fixtures = require('../common/fixtures');
+var fs = require('fs');
+var net = require('net');
+var http = require('http');
 
-let gotRequest = false;
+var proxyPort = common.PORT + 1;
+var gotRequest = false;
 
-const key = fixtures.readKey('agent1-key.pem');
-const cert = fixtures.readKey('agent1-cert.pem');
+var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
+var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
 
-const options = { key, cert };
+var options = {
+  key: key,
+  cert: cert
+};
 
-const server = https.createServer(options, common.mustCall((req, res) => {
+var server = https.createServer(options, function(req, res) {
   console.log('SERVER: got request');
   res.writeHead(200, {
     'content-type': 'text/plain'
   });
   console.log('SERVER: sending response');
   res.end('hello world\n');
-}));
+});
 
-const proxy = net.createServer((clientSocket) => {
+var proxy = net.createServer(function(clientSocket) {
   console.log('PROXY: got a client connection');
 
-  let serverSocket = null;
+  var serverSocket = null;
 
-  clientSocket.on('data', (chunk) => {
+  clientSocket.on('data', function(chunk) {
     if (!serverSocket) {
       // Verify the CONNECT request
-      assert.strictEqual(`CONNECT localhost:${server.address().port} ` +
-                         'HTTP/1.1\r\n' +
-                         'Proxy-Connections: keep-alive\r\n' +
-                         `Host: localhost:${proxy.address().port}\r\n` +
-                         'Connection: close\r\n\r\n',
-                         chunk.toString());
+      assert.equal('CONNECT localhost:' + common.PORT + ' HTTP/1.1\r\n' +
+                   'Proxy-Connections: keep-alive\r\n' +
+                   'Host: localhost:' + proxyPort + '\r\n' +
+                   'Connection: close\r\n\r\n',
+                   chunk);
 
       console.log('PROXY: got CONNECT request');
       console.log('PROXY: creating a tunnel');
 
       // create the tunnel
-      serverSocket = net.connect(server.address().port, common.mustCall(() => {
+      serverSocket = net.connect(common.PORT, function() {
         console.log('PROXY: replying to client CONNECT request');
 
         // Send the response
         clientSocket.write('HTTP/1.1 200 OK\r\nProxy-Connections: keep' +
-          '-alive\r\nConnections: keep-alive\r\nVia: ' +
-          `localhost:${proxy.address().port}\r\n\r\n`);
-      }));
+                           '-alive\r\nConnections: keep-alive\r\nVia: ' +
+                           'localhost:' + proxyPort + '\r\n\r\n');
+      });
 
-      serverSocket.on('data', (chunk) => {
+      serverSocket.on('data', function(chunk) {
         clientSocket.write(chunk);
       });
 
-      serverSocket.on('end', common.mustCall(() => {
+      serverSocket.on('end', function() {
         clientSocket.destroy();
-      }));
+      });
     } else {
       serverSocket.write(chunk);
     }
   });
 
-  clientSocket.on('end', () => {
+  clientSocket.on('end', function() {
     serverSocket.destroy();
   });
 });
 
-server.listen(0);
+server.listen(common.PORT);
 
-proxy.listen(0, common.mustCall(() => {
+proxy.listen(proxyPort, function() {
   console.log('CLIENT: Making CONNECT request');
 
-  const req = http.request({
-    port: proxy.address().port,
+  var req = http.request({
+    port: proxyPort,
     method: 'CONNECT',
-    path: `localhost:${server.address().port}`,
+    path: 'localhost:' + common.PORT,
     headers: {
       'Proxy-Connections': 'keep-alive'
     }
@@ -120,13 +102,13 @@ proxy.listen(0, common.mustCall(() => {
 
   function onUpgrade(res, socket, head) {
     // Hacky.
-    process.nextTick(() => {
+    process.nextTick(function() {
       onConnect(res, socket, head);
     });
   }
 
   function onConnect(res, socket, header) {
-    assert.strictEqual(200, res.statusCode);
+    assert.equal(200, res.statusCode);
     console.log('CLIENT: got CONNECT response');
 
     // detach the socket
@@ -148,20 +130,20 @@ proxy.listen(0, common.mustCall(() => {
       socket: socket,  // reuse the socket
       agent: false,
       rejectUnauthorized: false
-    }, (res) => {
-      assert.strictEqual(200, res.statusCode);
+    }, function(res) {
+      assert.equal(200, res.statusCode);
 
-      res.on('data', common.mustCall((chunk) => {
-        assert.strictEqual('hello world\n', chunk.toString());
+      res.on('data', function(chunk) {
+        assert.equal('hello world\n', chunk);
         console.log('CLIENT: got HTTPS response');
         gotRequest = true;
-      }));
+      });
 
-      res.on('end', common.mustCall(() => {
+      res.on('end', function() {
         proxy.close();
         server.close();
-      }));
-    }).on('error', (er) => {
+      });
+    }).on('error', function(er) {
       // We're ok with getting ECONNRESET in this test, but it's
       // timing-dependent, and thus unreliable. Any other errors
       // are just failures, though.
@@ -169,8 +151,8 @@ proxy.listen(0, common.mustCall(() => {
         throw er;
     }).end();
   }
-}));
+});
 
-process.on('exit', () => {
+process.on('exit', function() {
   assert.ok(gotRequest);
 });

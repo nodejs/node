@@ -1,3 +1,0 @@
-The cert-*.pem and dsa-*.pem files are generated as manipulation of the
-ASCII text of cert.pem and dsa.pem, respectively -- they should decode to the
-same data.

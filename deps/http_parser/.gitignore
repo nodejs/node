@@ -12,8 +12,6 @@ parsertrace_g
 *.mk
 *.Makefile
 *.so.*
-*.exe.*
-*.exe
 *.a
 
 

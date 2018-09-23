@@ -1,11 +1,4 @@
-#! /usr/bin/env perl
-# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
-
+#!/usr/bin/env perl
 
 ######################################################################
 ## Constant-time SSSE3 AES core implementation.
@@ -57,10 +50,6 @@
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
-
-$output = pop;
-open OUT,">$output";
-*STDOUT=*OUT;
 
 &asm_init($ARGV[0],"vpaes-x86.pl",$x86only = $ARGV[$#ARGV] eq "386");
 
@@ -912,5 +901,3 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 &function_end("${PREFIX}_cbc_encrypt");
 
 &asm_finish();
-
-close STDOUT;

@@ -1,21 +1,22 @@
 'use strict';
-const common = require('../common');
-const dgram = require('dgram');
+var assert = require('assert');
+var common = require('../common');
+var dgram = require('dgram');
 
-const buf = Buffer.alloc(1024, 42);
+var buf = new Buffer(1024);
+buf.fill(42);
 
-const socket = dgram.createSocket('udp4');
+var socket = dgram.createSocket('udp4');
+var closeEvents = 0;
+socket.send(buf, 0, buf.length, common.PORT, 'localhost');
 
-// get a random port for send
-const portGetter = dgram.createSocket('udp4')
-  .bind(0, 'localhost', common.mustCall(() => {
-    socket.send(buf, 0, buf.length,
-                portGetter.address().port,
-                portGetter.address().address);
+// if close callback is not function, ignore the argument.
+socket.close('bad argument');
 
-    // if close callback is not function, ignore the argument.
-    socket.close('bad argument');
-    portGetter.close();
+socket.on('close', function() {
+  ++closeEvents;
+});
 
-    socket.on('close', common.mustCall());
-  }));
+process.on('exit', function() {
+  assert.equal(closeEvents, 1);
+});

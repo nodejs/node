@@ -1,13 +1,7 @@
-/*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
- */
+/* crypto/bn/knownprimes.c */
+/* Insert boilerplate */
 
-#include <openssl/bn.h>
+#include "bn.h"
 
 /*-
  * "First Oakley Default Group" from RFC2409, section 6.1.
@@ -18,7 +12,7 @@
  * RFC2412 specifies a generator of of 22.
  */
 
-BIGNUM *BN_get_rfc2409_prime_768(BIGNUM *bn)
+BIGNUM *get_rfc2409_prime_768(BIGNUM *bn)
 {
     static const unsigned char RFC2409_PRIME_768[] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -46,7 +40,7 @@ BIGNUM *BN_get_rfc2409_prime_768(BIGNUM *bn)
  * RFC2412 specifies a generator of 22.
  */
 
-BIGNUM *BN_get_rfc2409_prime_1024(BIGNUM *bn)
+BIGNUM *get_rfc2409_prime_1024(BIGNUM *bn)
 {
     static const unsigned char RFC2409_PRIME_1024[] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -78,7 +72,7 @@ BIGNUM *BN_get_rfc2409_prime_1024(BIGNUM *bn)
  * RFC2312 specifies a generator of 22.
  */
 
-BIGNUM *BN_get_rfc3526_prime_1536(BIGNUM *bn)
+BIGNUM *get_rfc3526_prime_1536(BIGNUM *bn)
 {
     static const unsigned char RFC3526_PRIME_1536[] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -117,7 +111,7 @@ BIGNUM *BN_get_rfc3526_prime_1536(BIGNUM *bn)
  * RFC3526 specifies a generator of 2.
  */
 
-BIGNUM *BN_get_rfc3526_prime_2048(BIGNUM *bn)
+BIGNUM *get_rfc3526_prime_2048(BIGNUM *bn)
 {
     static const unsigned char RFC3526_PRIME_2048[] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -164,7 +158,7 @@ BIGNUM *BN_get_rfc3526_prime_2048(BIGNUM *bn)
  * RFC3526 specifies a generator of 2.
  */
 
-BIGNUM *BN_get_rfc3526_prime_3072(BIGNUM *bn)
+BIGNUM *get_rfc3526_prime_3072(BIGNUM *bn)
 {
     static const unsigned char RFC3526_PRIME_3072[] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -227,7 +221,7 @@ BIGNUM *BN_get_rfc3526_prime_3072(BIGNUM *bn)
  * RFC3526 specifies a generator of 2.
  */
 
-BIGNUM *BN_get_rfc3526_prime_4096(BIGNUM *bn)
+BIGNUM *get_rfc3526_prime_4096(BIGNUM *bn)
 {
     static const unsigned char RFC3526_PRIME_4096[] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -306,7 +300,7 @@ BIGNUM *BN_get_rfc3526_prime_4096(BIGNUM *bn)
  * RFC3526 specifies a generator of 2.
  */
 
-BIGNUM *BN_get_rfc3526_prime_6144(BIGNUM *bn)
+BIGNUM *get_rfc3526_prime_6144(BIGNUM *bn)
 {
     static const unsigned char RFC3526_PRIME_6144[] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -417,7 +411,7 @@ BIGNUM *BN_get_rfc3526_prime_6144(BIGNUM *bn)
  * RFC3526 specifies a generator of 2.
  */
 
-BIGNUM *BN_get_rfc3526_prime_8192(BIGNUM *bn)
+BIGNUM *get_rfc3526_prime_8192(BIGNUM *bn)
 {
     static const unsigned char RFC3526_PRIME_8192[] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,

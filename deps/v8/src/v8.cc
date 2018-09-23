@@ -4,9 +4,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
 #include "src/assembler.h"
-#include "src/base/atomicops.h"
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -14,16 +12,17 @@
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/frames.h"
-#include "src/interface-descriptors.h"
+#include "src/heap-profiler.h"
+#include "src/hydrogen.h"
 #include "src/isolate.h"
-#include "src/libsampler/sampler.h"
-#include "src/objects-inl.h"
-#include "src/profiler/heap-profiler.h"
+#include "src/lithium-allocator.h"
+#include "src/objects.h"
 #include "src/runtime-profiler.h"
-#include "src/simulator.h"
+#include "src/sampler.h"
 #include "src/snapshot/natives.h"
+#include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"
-#include "src/tracing/tracing-category-observer.h"
+
 
 namespace v8 {
 namespace internal {
@@ -35,7 +34,8 @@ V8_DECLARE_ONCE(init_natives_once);
 V8_DECLARE_ONCE(init_snapshot_once);
 #endif
 
-v8::Platform* V8::platform_ = nullptr;
+v8::Platform* V8::platform_ = NULL;
+
 
 bool V8::Initialize() {
   InitializeOncePerProcess();
@@ -44,15 +44,20 @@ bool V8::Initialize() {
 
 
 void V8::TearDown() {
-#if defined(USE_SIMULATOR)
-  Simulator::GlobalTearDown();
-#endif
-  CallDescriptors::TearDown();
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
+  LOperand::TearDownCaches();
+  ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
-  sampler::Sampler::TearDown();
+  Isolate::GlobalTearDown();
+  Sampler::TearDown();
   FlagList::ResetAllFlags();  // Frees memory held by string arguments.
+}
+
+
+void V8::SetReturnAddressLocationResolver(
+      ReturnAddressLocationResolver resolver) {
+  StackFrame::SetReturnAddressLocationResolver(resolver);
 }
 
 
@@ -70,20 +75,29 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_semi_space_size = 1;
   }
 
-  base::OS::Initialize(FLAG_hard_abort, FLAG_gc_fake_mmap);
+  if (FLAG_turbo && strcmp(FLAG_turbo_filter, "~~") == 0) {
+    const char* filter_flag = "--turbo-filter=*";
+    FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
+  }
 
-  if (FLAG_random_seed) SetRandomMmapSeed(FLAG_random_seed);
+  base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
 
   Isolate::InitializeOncePerProcess();
 
-#if defined(USE_SIMULATOR)
-  Simulator::InitializeOncePerProcess();
-#endif
-  sampler::Sampler::SetUp();
+  Sampler::SetUp();
   CpuFeatures::Probe(false);
+  init_memcopy_functions();
+  // The custom exp implementation needs 16KB of lookup data; initialize it
+  // on demand.
+  init_fast_sqrt_function();
+#ifdef _WIN64
+  init_modulo_function();
+#endif
   ElementsAccessor::InitializeOncePerProcess();
+  LOperand::SetUpCaches();
+  SetUpJSCallerSavedCodeData();
+  ExternalReference::SetUp();
   Bootstrapper::InitializeOncePerProcess();
-  CallDescriptors::InitializeOncePerProcess();
 }
 
 
@@ -96,36 +110,26 @@ void V8::InitializePlatform(v8::Platform* platform) {
   CHECK(!platform_);
   CHECK(platform);
   platform_ = platform;
-  v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
-  v8::tracing::TracingCategoryObserver::SetUp();
 }
 
 
 void V8::ShutdownPlatform() {
   CHECK(platform_);
-  v8::tracing::TracingCategoryObserver::TearDown();
-  v8::base::SetPrintStackTrace(nullptr);
-  platform_ = nullptr;
+  platform_ = NULL;
 }
 
 
 v8::Platform* V8::GetCurrentPlatform() {
-  v8::Platform* platform = reinterpret_cast<v8::Platform*>(
-      base::Relaxed_Load(reinterpret_cast<base::AtomicWord*>(&platform_)));
-  DCHECK(platform);
-  return platform;
+  DCHECK(platform_);
+  return platform_;
 }
 
-void V8::SetPlatformForTesting(v8::Platform* platform) {
-  base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(&platform_),
-                      reinterpret_cast<base::AtomicWord>(platform));
-}
 
 void V8::SetNativesBlob(StartupData* natives_blob) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   base::CallOnce(&init_natives_once, &SetNativesFromFile, natives_blob);
 #else
-  UNREACHABLE();
+  CHECK(false);
 #endif
 }
 
@@ -134,13 +138,8 @@ void V8::SetSnapshotBlob(StartupData* snapshot_blob) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   base::CallOnce(&init_snapshot_once, &SetSnapshotFromFile, snapshot_blob);
 #else
-  UNREACHABLE();
+  CHECK(false);
 #endif
 }
 }  // namespace internal
-
-// static
-double Platform::SystemClockTimeMillis() {
-  return base::OS::TimeCurrentMillis();
-}
 }  // namespace v8

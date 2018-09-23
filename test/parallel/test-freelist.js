@@ -4,14 +4,15 @@
 
 require('../common');
 const assert = require('assert');
-const FreeList = require('internal/freelist');
+const freelist = require('internal/freelist');
 
-assert.strictEqual(typeof FreeList, 'function');
+assert.equal(typeof freelist, 'object');
+assert.equal(typeof freelist.FreeList, 'function');
 
-const flist1 = new FreeList('flist1', 3, String);
+const flist1 = new freelist.FreeList('flist1', 3, String);
 
 // Allocating when empty, should not change the list size
-const result = flist1.alloc('test');
+var result = flist1.alloc('test');
 assert.strictEqual(typeof result, 'string');
 assert.strictEqual(result, 'test');
 assert.strictEqual(flist1.list.length, 0);
@@ -26,6 +27,6 @@ assert.strictEqual(flist1.free('test4'), false);
 assert.strictEqual(flist1.free('test5'), false);
 
 // At this point 'alloc' should just return the stored values
-assert.strictEqual(flist1.alloc(), 'test3');
-assert.strictEqual(flist1.alloc(), 'test2');
 assert.strictEqual(flist1.alloc(), 'test1');
+assert.strictEqual(flist1.alloc(), 'test2');
+assert.strictEqual(flist1.alloc(), 'test3');

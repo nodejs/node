@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 __proto__ = /foo/gi;
-assertThrows(function() { source });
-assertThrows(function() { global });
-assertThrows(function() { ignoreCase });
-assertThrows(function() { multiline });
+assertEquals("foo", source);
+assertTrue(global);
+assertTrue(ignoreCase);
+assertFalse(multiline);
 assertEquals(0, lastIndex);

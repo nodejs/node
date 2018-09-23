@@ -27,7 +27,6 @@
 
 // Flags: --track-fields --track-double-fields --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
-// Flags: --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
@@ -42,9 +41,6 @@ function new_object() {
 }
 
 function add_field(obj) {
-  // Assign twice to make the field non-constant.
-  // TODO(ishell): update test once constant field tracking is done.
-  obj.c = 0;
   obj.c = 3;
 }
 var obj1 = new_object();
@@ -65,4 +61,4 @@ assertUnoptimized(add_field, "no sync");
 // Sync with background thread to conclude optimization that bailed out.
 assertUnoptimized(add_field, "sync");
 // Clear type info for stress runs.
-%ClearFunctionFeedback(add_field);
+%ClearFunctionTypeFeedback(add_field);

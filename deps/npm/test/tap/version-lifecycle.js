@@ -11,7 +11,7 @@ var npm = require('../../')
 var pkg = path.resolve(__dirname, 'version-lifecycle')
 var cache = path.resolve(pkg, 'cache')
 var npmrc = path.resolve(pkg, './.npmrc')
-var configContents = 'sign-git-commit=false\nsign-git-tag=false\n'
+var configContents = 'sign-git-tag=false\n'
 
 test('npm version <semver> with failing preversion lifecycle script', function (t) {
   setup()
@@ -21,16 +21,12 @@ test('npm version <semver> with failing preversion lifecycle script', function (
     version: '0.0.0',
     description: 'Test for npm version if preversion script fails',
     scripts: {
-      preversion: 'node ./fail.js'
+      preversion: './fail.sh'
     }
   }), 'utf8')
-  fs.writeFileSync(path.resolve(pkg, 'fail.js'), 'process.exit(50)', 'utf8')
-  npm.load({
-    cache: cache,
-    'sign-git-commit': false,
-    'sign-git-tag': false,
-    registry: common.registry
-  }, function () {
+  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
+  fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
+  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
       t.ok(err)
@@ -48,16 +44,12 @@ test('npm version <semver> with failing version lifecycle script', function (t) 
     version: '0.0.0',
     description: 'Test for npm version if postversion script fails',
     scripts: {
-      version: 'node ./fail.js'
+      version: './fail.sh'
     }
   }), 'utf8')
-  fs.writeFileSync(path.resolve(pkg, 'fail.js'), 'process.exit(50)', 'utf8')
-  npm.load({
-    cache: cache,
-    'sign-git-commit': false,
-    'sign-git-tag': false,
-    registry: common.registry
-  }, function () {
+  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
+  fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
+  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
       t.ok(err)
@@ -75,16 +67,12 @@ test('npm version <semver> with failing postversion lifecycle script', function 
     version: '0.0.0',
     description: 'Test for npm version if postversion script fails',
     scripts: {
-      postversion: 'node ./fail.js'
+      postversion: './fail.sh'
     }
   }), 'utf8')
-  fs.writeFileSync(path.resolve(pkg, 'fail.js'), 'process.exit(50)', 'utf8')
-  npm.load({
-    cache: cache,
-    'sign-git-commit': false,
-    'sign-git-tag': false,
-    registry: common.registry
-  }, function () {
+  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
+  fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
+  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
       t.ok(err)
@@ -102,20 +90,15 @@ test('npm version <semver> execution order', function (t) {
     version: '0.0.0',
     description: 'Test for npm version if postversion script fails',
     scripts: {
-      preversion: 'node ./preversion.js',
-      version: 'node ./version.js',
-      postversion: 'node ./postversion.js'
+      preversion: './preversion.sh',
+      version: './version.sh',
+      postversion: './postversion.sh'
     }
   }), 'utf8')
   makeScript('preversion')
   makeScript('version')
   makeScript('postversion')
-  npm.load({
-    cache: cache,
-    'sign-git-commit': false,
-    'sign-git-tag': false,
-    registry: common.registry
-  }, function () {
+  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     common.makeGitRepo({path: pkg}, function (err, git) {
       t.ifError(err, 'git bootstrap ran without error')
 
@@ -160,31 +143,14 @@ function setup () {
 }
 
 function makeScript (lifecycle) {
-  function contents (lifecycle) {
-    var fs = require('fs')
-    var exec = require('child_process').exec
-    fs.createReadStream('package.json')
-      .pipe(fs.createWriteStream(lifecycle + '-package.json'))
-      .on('close', function () {
-        exec(
-          'git add ' + lifecycle + '-package.json',
-          function () {
-            exec(
-              'git status --porcelain',
-              function (err, stdout) {
-                if (err) throw err
-                fs.writeFileSync(lifecycle + '-git.txt', stdout)
-              }
-            )
-          }
-        )
-      })
-  }
-  var scriptPath = path.join(pkg, lifecycle + '.js')
-  fs.writeFileSync(
-    scriptPath,
-    '(' + contents.toString() + ')(\'' + lifecycle + '\')',
-    'utf-8')
+  var contents = [
+    'cp package.json ' + lifecycle + '-package.json',
+    'git add ' + lifecycle + '-package.json',
+    'git status --porcelain > ' + lifecycle + '-git.txt'
+  ].join('\n')
+  var scriptPath = path.join(pkg, lifecycle + '.sh')
+  fs.writeFileSync(scriptPath, contents, 'utf-8')
+  fs.chmodSync(scriptPath, 448)
 }
 
 function readPackage (lifecycle) {

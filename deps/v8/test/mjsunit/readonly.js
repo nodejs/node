@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --harmony-proxies
 
 // Different ways to create an object.
 
@@ -120,13 +120,12 @@ function ReadonlyByProto(o, name) {
   o.__proto__ = p;
 }
 
-// TODO(neis,cbruni): Enable once the necessary traps work again.
 // Allow Proxy to be undefined, so test can run in non-Harmony mode as well.
 var global = this;
 
 function ReadonlyByProxy(o, name) {
   if (!global.Proxy) return ReadonlyByFreeze(o, name);  // Dummy.
-  var p = new global.Proxy({}, {
+  var p = global.Proxy.create({
     getPropertyDescriptor: function() {
       return {value: -46, writable: false, configurable: true};
     }
@@ -136,7 +135,7 @@ function ReadonlyByProxy(o, name) {
 
 var readonlys = [
   ReadonlyByNonwritableDataProperty, ReadonlyByAccessorPropertyWithoutSetter,
-  ReadonlyByGetter, ReadonlyByFreeze, ReadonlyByProto // ReadonlyByProxy
+  ReadonlyByGetter, ReadonlyByFreeze, ReadonlyByProto, ReadonlyByProxy
 ]
 
 function TestAllReadonlys(f) {
@@ -173,8 +172,8 @@ function TestAllScenarios(f) {
       // Make sure that the assignments are monomorphic.
       %DeoptimizeFunction(Assign);
       %DeoptimizeFunction(AssignStrict);
-      %ClearFunctionFeedback(Assign);
-      %ClearFunctionFeedback(AssignStrict);
+      %ClearFunctionTypeFeedback(Assign);
+      %ClearFunctionTypeFeedback(AssignStrict);
       for (var i = 0; i < t; ++i) {
         var o = create();
         assertFalse("a" in o && !("a" in o.__proto__));

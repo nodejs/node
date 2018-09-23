@@ -1,16 +1,64 @@
-/*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+/* crypto/bn/bn_print.c */
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
+ * All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * This package is an SSL implementation written
+ * by Eric Young (eay@cryptsoft.com).
+ * The implementation was written so as to conform with Netscapes SSL.
+ *
+ * This library is free for commercial and non-commercial use as long as
+ * the following conditions are aheared to.  The following conditions
+ * apply to all code found in this distribution, be it the RC4, RSA,
+ * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
+ * included with this distribution is covered by the same copyright terms
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
+ *
+ * Copyright remains Eric Young's, and as such any Copyright notices in
+ * the code are not to be removed.
+ * If this package is used in a product, Eric Young should be given attribution
+ * as the author of the parts of the library used.
+ * This can be in the form of a textual message at program startup or
+ * in documentation (online or textual) provided with the package.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *    "This product includes cryptographic software written by
+ *     Eric Young (eay@cryptsoft.com)"
+ *    The word 'cryptographic' can be left out if the rouines from the library
+ *    being used are not cryptographic related :-).
+ * 4. If you include any Windows specific code (or a derivative thereof) from
+ *    the apps directory (application code) you must include an acknowledgement:
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * The licence and distribution terms for any publically available version or
+ * derivative of this code cannot be changed.  i.e. this code cannot simply be
+ * copied and put under another distribution licence
+ * [including the GNU Public Licence.]
  */
 
 #include <stdio.h>
 #include <ctype.h>
-#include <limits.h>
-#include "internal/cryptlib.h"
+#include "cryptlib.h"
 #include <openssl/buffer.h>
 #include "bn_lcl.h"
 
@@ -23,9 +71,12 @@ char *BN_bn2hex(const BIGNUM *a)
     char *buf;
     char *p;
 
-    if (BN_is_zero(a))
-        return OPENSSL_strdup("0");
-    buf = OPENSSL_malloc(a->top * BN_BYTES * 2 + 2);
+    if (a->neg && BN_is_zero(a)) {
+        /* "-0" == 3 bytes including NULL terminator */
+        buf = OPENSSL_malloc(3);
+    } else {
+        buf = OPENSSL_malloc(a->top * BN_BYTES * 2 + 2);
+    }
     if (buf == NULL) {
         BNerr(BN_F_BN_BN2HEX, ERR_R_MALLOC_FAILURE);
         goto err;
@@ -33,6 +84,8 @@ char *BN_bn2hex(const BIGNUM *a)
     p = buf;
     if (a->neg)
         *(p++) = '-';
+    if (BN_is_zero(a))
+        *(p++) = '0';
     for (i = a->top - 1; i >= 0; i--) {
         for (j = BN_BITS2 - 8; j >= 0; j -= 8) {
             /* strip leading zeros */
@@ -57,19 +110,18 @@ char *BN_bn2dec(const BIGNUM *a)
     char *p;
     BIGNUM *t = NULL;
     BN_ULONG *bn_data = NULL, *lp;
-    int bn_data_num;
 
     /*-
      * get an upper bound for the length of the decimal integer
      * num <= (BN_num_bits(a) + 1) * log(2)
-     *     <= 3 * BN_num_bits(a) * 0.101 + log(2) + 1     (rounding error)
-     *     <= 3 * BN_num_bits(a) / 10 + 3 * BN_num_bits / 1000 + 1 + 1
+     *     <= 3 * BN_num_bits(a) * 0.1001 + log(2) + 1     (rounding error)
+     *     <= BN_num_bits(a)/10 + BN_num_bits/1000 + 1 + 1
      */
     i = BN_num_bits(a) * 3;
     num = (i / 10 + i / 1000 + 1) + 1;
-    bn_data_num = num / BN_DEC_NUM + 1;
-    bn_data = OPENSSL_malloc(bn_data_num * sizeof(BN_ULONG));
-    buf = OPENSSL_malloc(num + 3);
+    bn_data =
+        (BN_ULONG *)OPENSSL_malloc((num / BN_DEC_NUM + 1) * sizeof(BN_ULONG));
+    buf = (char *)OPENSSL_malloc(num + 3);
     if ((buf == NULL) || (bn_data == NULL)) {
         BNerr(BN_F_BN_BN2DEC, ERR_R_MALLOC_FAILURE);
         goto err;
@@ -87,12 +139,9 @@ char *BN_bn2dec(const BIGNUM *a)
         if (BN_is_negative(t))
             *p++ = '-';
 
+        i = 0;
         while (!BN_is_zero(t)) {
-            if (lp - bn_data >= bn_data_num)
-                goto err;
             *lp = BN_div_word(t, BN_DEC_CONV);
-            if (*lp == (BN_ULONG)-1)
-                goto err;
             lp++;
         }
         lp--;
@@ -113,12 +162,16 @@ char *BN_bn2dec(const BIGNUM *a)
     }
     ok = 1;
  err:
-    OPENSSL_free(bn_data);
-    BN_free(t);
-    if (ok)
-        return buf;
-    OPENSSL_free(buf);
-    return NULL;
+    if (bn_data != NULL)
+        OPENSSL_free(bn_data);
+    if (t != NULL)
+        BN_free(t);
+    if (!ok && buf) {
+        OPENSSL_free(buf);
+        buf = NULL;
+    }
+
+    return (buf);
 }
 
 int BN_hex2bn(BIGNUM **bn, const char *a)
@@ -136,11 +189,7 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
         a++;
     }
 
-    for (i = 0; i <= (INT_MAX/4) && isxdigit((unsigned char)a[i]); i++)
-        continue;
-
-    if (i == 0 || i > INT_MAX/4)
-        goto err;
+    for (i = 0; isxdigit((unsigned char)a[i]); i++) ;
 
     num = i + neg;
     if (bn == NULL)
@@ -155,7 +204,7 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
         BN_zero(ret);
     }
 
-    /* i is the number of hex digits */
+    /* i is the number of hex digests; */
     if (bn_expand(ret, i * 4) == NULL)
         goto err;
 
@@ -167,8 +216,13 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
         l = 0;
         for (;;) {
             c = a[j - m];
-            k = OPENSSL_hexchar2int(c);
-            if (k < 0)
+            if ((c >= '0') && (c <= '9'))
+                k = c - '0';
+            else if ((c >= 'a') && (c <= 'f'))
+                k = c - 'a' + 10;
+            else if ((c >= 'A') && (c <= 'F'))
+                k = c - 'A' + 10;
+            else
                 k = 0;          /* paranoia */
             l = (l << 4) | k;
 
@@ -181,12 +235,10 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
     }
     ret->top = h;
     bn_correct_top(ret);
+    ret->neg = neg;
 
     *bn = ret;
     bn_check_top(ret);
-    /* Don't set the negative flag if it's zero. */
-    if (ret->top != 0)
-        ret->neg = neg;
     return (num);
  err:
     if (*bn == NULL)
@@ -208,11 +260,7 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
         a++;
     }
 
-    for (i = 0; i <= (INT_MAX/4) && isdigit((unsigned char)a[i]); i++)
-        continue;
-
-    if (i == 0 || i > INT_MAX/4)
-        goto err;
+    for (i = 0; isdigit((unsigned char)a[i]); i++) ;
 
     num = i + neg;
     if (bn == NULL)
@@ -230,7 +278,7 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
         BN_zero(ret);
     }
 
-    /* i is the number of digits, a bit of an over expand */
+    /* i is the number of digests, a bit of an over expand; */
     if (bn_expand(ret, i * 4) == NULL)
         goto err;
 
@@ -238,25 +286,22 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
     if (j == BN_DEC_NUM)
         j = 0;
     l = 0;
-    while (--i >= 0) {
+    while (*a) {
         l *= 10;
         l += *a - '0';
         a++;
         if (++j == BN_DEC_NUM) {
-            if (!BN_mul_word(ret, BN_DEC_CONV)
-                || !BN_add_word(ret, l))
-                goto err;
+            BN_mul_word(ret, BN_DEC_CONV);
+            BN_add_word(ret, l);
             l = 0;
             j = 0;
         }
     }
+    ret->neg = neg;
 
     bn_correct_top(ret);
     *bn = ret;
     bn_check_top(ret);
-    /* Don't set the negative flag if it's zero. */
-    if (ret->top != 0)
-        ret->neg = neg;
     return (num);
  err:
     if (*bn == NULL)
@@ -267,7 +312,6 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
 int BN_asc2bn(BIGNUM **bn, const char *a)
 {
     const char *p = a;
-
     if (*p == '-')
         p++;
 
@@ -278,13 +322,13 @@ int BN_asc2bn(BIGNUM **bn, const char *a)
         if (!BN_dec2bn(bn, p))
             return 0;
     }
-    /* Don't set the negative flag if it's zero. */
-    if (*a == '-' && (*bn)->top != 0)
+    if (*a == '-')
         (*bn)->neg = 1;
     return 1;
 }
 
-# ifndef OPENSSL_NO_STDIO
+#ifndef OPENSSL_NO_BIO
+# ifndef OPENSSL_NO_FP_API
 int BN_print_fp(FILE *fp, const BIGNUM *a)
 {
     BIO *b;
@@ -323,6 +367,7 @@ int BN_print(BIO *bp, const BIGNUM *a)
  end:
     return (ret);
 }
+#endif
 
 char *BN_options(void)
 {
@@ -332,10 +377,10 @@ char *BN_options(void)
     if (!init) {
         init++;
 #ifdef BN_LLONG
-        BIO_snprintf(data, sizeof(data), "bn(%d,%d)",
+        BIO_snprintf(data, sizeof data, "bn(%d,%d)",
                      (int)sizeof(BN_ULLONG) * 8, (int)sizeof(BN_ULONG) * 8);
 #else
-        BIO_snprintf(data, sizeof(data), "bn(%d,%d)",
+        BIO_snprintf(data, sizeof data, "bn(%d,%d)",
                      (int)sizeof(BN_ULONG) * 8, (int)sizeof(BN_ULONG) * 8);
 #endif
     }

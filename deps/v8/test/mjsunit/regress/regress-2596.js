@@ -27,17 +27,15 @@
 
 // Flags: --allow-natives-syntax
 
-var ab = new ArrayBuffer(8);
-var i_view = new Int32Array(ab);
-i_view[0] = %GetHoleNaNUpper()
-i_view[1] = %GetHoleNaNLower();
-var doubles = new Float64Array(ab);  // kHoleNaN
+var bytes = new Uint8Array([
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f]);  // kHoleNaN
+var doubles = new Float64Array(bytes.buffer);
 assertTrue(isNaN(doubles[0]));
 
 var prototype = [2.5, 2.5];
 var array = [3.5, 3.5];
 array.__proto__ = prototype;
-assertTrue(%HasDoubleElements(array));
+assertTrue(%HasFastDoubleElements(array));
 
 function boom(index) {
   array[index] = doubles[0];

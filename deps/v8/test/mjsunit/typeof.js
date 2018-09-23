@@ -35,5 +35,3 @@ assertFalse(typeof r == 'function');
 
 function test(x, y) { return x == y; }
 assertTrue(test('object', typeof r));
-
-assertFalse(typeof null == "undefined");

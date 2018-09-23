@@ -1,4 +1,0 @@
-*%(basename)s:5: ReferenceError: Invalid left-hand side in assignment
-function f() { new.target = 5 }
-               ^^^^^^^^^^
-ReferenceError: Invalid left-hand side in assignment

@@ -1,11 +1,4 @@
-#! /usr/bin/env perl
-# Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
-
+#!/usr/bin/env perl
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -17,7 +10,7 @@
 # SHA256 block transform for x86. September 2007.
 #
 # Performance improvement over compiler generated code varies from
-# 10% to 40% [see below]. Not very impressive on some Âµ-archs, but
+# 10% to 40% [see below]. Not very impressive on some µ-archs, but
 # it's 5 times smaller and optimizies amount of writes.
 #
 # May 2012.
@@ -70,9 +63,6 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
-$output=pop;
-open STDOUT,">$output";
-
 &asm_init($ARGV[0],"sha512-586.pl",$ARGV[$#ARGV] eq "386");
 
 $xmm=$avx=0;
@@ -93,7 +83,7 @@ if ($xmm && !$avx && $ARGV[0] eq "win32" &&
 	$avx = ($1>=10) + ($1>=11);
 }
 
-if ($xmm && !$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|based on LLVM) ([3-9]\.[0-9]+)/) {
+if ($xmm && !$avx && `$ENV{CC} -v 2>&1` =~ /(^clang version|based on LLVM) ([3-9]\.[0-9]+)/) {
 	$avx = ($2>=3.0) + ($2>3.0);
 }
 
@@ -1289,5 +1279,3 @@ sub bodyx_00_15 () {			# +10%
 &function_end_B("sha256_block_data_order");
 
 &asm_finish();
-
-close STDOUT;

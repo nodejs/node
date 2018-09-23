@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --debug-code
+// Flags: --allow-natives-syntax --debug-code --fold-constants
 
 function f(a) {
   a[5000000] = 256;

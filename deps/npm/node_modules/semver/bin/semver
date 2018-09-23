@@ -12,7 +12,6 @@ var argv = process.argv.slice(2)
   , inc = null
   , version = require("../package.json").version
   , loose = false
-  , coerce = false
   , identifier = undefined
   , semver = require("../semver")
   , reverse = false
@@ -55,9 +54,6 @@ function main () {
       case "-r": case "--range":
         range.push(argv.shift())
         break
-      case "-c": case "--coerce":
-        coerce = true
-        break
       case "-h": case "--help": case "-?":
         return help()
       default:
@@ -66,10 +62,8 @@ function main () {
     }
   }
 
-  versions = versions.map(function (v) {
-    return coerce ? (semver.coerce(v) || {version: v}).version : v
-  }).filter(function (v) {
-    return semver.valid(v)
+  versions = versions.filter(function (v) {
+    return semver.valid(v, loose)
   })
   if (!versions.length) return fail()
   if (inc && (versions.length !== 1 || range.length))
@@ -127,10 +121,6 @@ function help () {
               ,""
               ,"-l --loose"
               ,"        Interpret versions and ranges loosely"
-              ,""
-              ,"-c --coerce"
-              ,"        Coerce a string into SemVer if possible"
-              ,"        (does not imply --loose)"
               ,""
               ,"Program exits successfully if any valid version satisfies"
               ,"all supplied ranges, and prints all satisfying versions."

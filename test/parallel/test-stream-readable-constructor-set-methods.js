@@ -1,11 +1,19 @@
 'use strict';
-const common = require('../common');
+var common = require('../common');
+var assert = require('assert');
 
-const Readable = require('stream').Readable;
+var Readable = require('stream').Readable;
 
-const _read = common.mustCall(function _read(n) {
+var _readCalled = false;
+function _read(n) {
+  _readCalled = true;
   this.push(null);
-});
+}
 
-const r = new Readable({ read: _read });
+var r = new Readable({ read: _read });
 r.resume();
+
+process.on('exit', function() {
+  assert.equal(r._read, _read);
+  assert(_readCalled);
+});

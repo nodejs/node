@@ -1,11 +1,11 @@
 'use strict';
 
-require('../common');
-const assert = require('assert');
+var common = require('../common');
+var assert = require('assert');
 
-const vm = require('vm');
+var vm = require('vm');
 
-const symbol = Symbol();
+var symbol = Symbol();
 
 function Document() {
   this[symbol] = 'foo';
@@ -15,9 +15,11 @@ Document.prototype.getSymbolValue = function() {
   return this[symbol];
 };
 
-const context = new Document();
+var context = new Document();
 vm.createContext(context);
 
-assert.strictEqual(context.getSymbolValue(), 'foo');
+assert.equal(context.getSymbolValue(), 'foo',
+    'should return symbol-keyed value from the outside');
 
-assert.strictEqual(vm.runInContext('this.getSymbolValue()', context), 'foo');
+assert.equal(vm.runInContext('this.getSymbolValue()', context), 'foo',
+    'should return symbol-keyed value from the inside');

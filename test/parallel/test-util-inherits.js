@@ -1,16 +1,16 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-const { inherits } = require('util');
+const inherits = require('util').inherits;
 
-// Super constructor
+// super constructor
 function A() {
   this._a = 'a';
 }
 A.prototype.a = function() { return this._a; };
 
-// One level of inheritance
+// one level of inheritance
 function B(value) {
   A.call(this);
   this._b = value;
@@ -25,7 +25,7 @@ assert.strictEqual(b.a(), 'a');
 assert.strictEqual(b.b(), 'b');
 assert.strictEqual(b.constructor, B);
 
-// Two levels of inheritance
+ // two levels of inheritance
 function C() {
   B.call(this, 'b');
   this._c = 'c';
@@ -40,7 +40,7 @@ const c = new C();
 assert.strictEqual(c.getValue(), 'abc');
 assert.strictEqual(c.constructor, C);
 
-// Inherits can be called after setting prototype properties
+// inherits can be called after setting prototype properties
 function D() {
   C.call(this);
   this._d = 'd';
@@ -74,29 +74,7 @@ assert.strictEqual(e.d(), 'd');
 assert.strictEqual(e.e(), 'e');
 assert.strictEqual(e.constructor, E);
 
-// Should throw with invalid arguments
-common.expectsError(function() {
-  inherits(A, {});
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "superCtor.prototype" property must be of type Function. ' +
-           'Received type undefined'
-});
-
-common.expectsError(function() {
-  inherits(A, null);
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "superCtor" argument must be of type Function. ' +
-           'Received type object'
-});
-
-common.expectsError(function() {
-  inherits(null, A);
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "ctor" argument must be of type Function. Received type object'
-});
+// should throw with invalid arguments
+assert.throws(function() { inherits(A, {}); }, TypeError);
+assert.throws(function() { inherits(A, null); }, TypeError);
+assert.throws(function() { inherits(null, A); }, TypeError);

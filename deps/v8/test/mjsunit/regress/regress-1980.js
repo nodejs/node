@@ -27,8 +27,6 @@
 
 // See: http://code.google.com/p/v8/issues/detail?id=1980
 
-var msg = "Method Error.prototype.toString called on incompatible receiver ";
-
 var invalid_this = [ "invalid", 23, undefined, null ];
 for (var i = 0; i < invalid_this.length; i++) {
   var exception = false;
@@ -36,7 +34,7 @@ for (var i = 0; i < invalid_this.length; i++) {
     Error.prototype.toString.call(invalid_this[i]);
   } catch (e) {
     exception = true;
-    assertEquals(msg + invalid_this[i], e.message);
+    assertEquals("Error.prototype.toString called on non-object", e.message);
   }
   assertTrue(exception);
 }

@@ -1,12 +1,12 @@
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const net = require('net');
+var common = require('../common');
+var assert = require('assert');
+var net = require('net');
 
-const server = net.createServer(common.mustNotCall());
-server.listen(1, '1.1.1.1', common.mustNotCall());
+var server = net.createServer(common.fail);
+server.listen(1, '1.1.1.1', common.fail);
 server.on('error', common.mustCall(function(e) {
-  assert.strictEqual(e.address, '1.1.1.1');
-  assert.strictEqual(e.port, 1);
-  assert.strictEqual(e.syscall, 'listen');
+  assert.equal(e.address, '1.1.1.1');
+  assert.equal(e.port, 1);
+  assert.equal(e.syscall, 'listen');
 }));

@@ -5,98 +5,50 @@
 #ifndef V8_INTERPRETER_INTERPRETER_H_
 #define V8_INTERPRETER_INTERPRETER_H_
 
-#include <memory>
-
 // Clients of this interface shouldn't depend on lots of interpreter internals.
 // Do not include anything from src/interpreter other than
 // src/interpreter/bytecodes.h here!
 #include "src/base/macros.h"
-#include "src/builtins/builtins.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
 
 class Isolate;
-class BuiltinDeserializerAllocator;
-class Callable;
-class UnoptimizedCompilationJob;
-class FunctionLiteral;
-class ParseInfo;
-class RootVisitor;
-class SetupIsolateDelegate;
-template <typename>
-class ZoneVector;
+class CompilationInfo;
+
+namespace compiler {
+class InterpreterAssembler;
+}
 
 namespace interpreter {
-
-class InterpreterAssembler;
 
 class Interpreter {
  public:
   explicit Interpreter(Isolate* isolate);
   virtual ~Interpreter() {}
 
-  // Returns the interrupt budget which should be used for the profiler counter.
-  static int InterruptBudget();
+  // Creates an uninitialized interpreter handler table, where each handler
+  // points to the Illegal builtin.
+  static Handle<FixedArray> CreateUninitializedInterpreterTable(
+      Isolate* isolate);
 
-  // Creates a compilation job which will generate bytecode for |literal|.
-  // Additionally, if |eager_inner_literals| is not null, adds any eagerly
-  // compilable inner FunctionLiterals to this list.
-  static UnoptimizedCompilationJob* NewCompilationJob(
-      ParseInfo* parse_info, FunctionLiteral* literal,
-      AccountingAllocator* allocator,
-      ZoneVector<FunctionLiteral*>* eager_inner_literals);
+  // Initializes the interpreter.
+  void Initialize();
 
-  // If the bytecode handler for |bytecode| and |operand_scale| has not yet
-  // been loaded, deserialize it. Then return the handler.
-  Code* GetAndMaybeDeserializeBytecodeHandler(Bytecode bytecode,
-                                              OperandScale operand_scale);
-
-  // Return bytecode handler for |bytecode| and |operand_scale|.
-  Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
-
-  // Set the bytecode handler for |bytecode| and |operand_scale|.
-  void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
-                          Code* handler);
-
-  // GC support.
-  void IterateDispatchTable(RootVisitor* v);
-
-  // Disassembler support (only useful with ENABLE_DISASSEMBLER defined).
-  const char* LookupNameOfBytecodeHandler(const Code* code);
-
-  V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
-
-  bool IsDispatchTableInitialized() const;
-
-  Address dispatch_table_address() {
-    return reinterpret_cast<Address>(&dispatch_table_[0]);
-  }
-
-  Address bytecode_dispatch_counters_table() {
-    return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
-  }
+  // Generate bytecode for |info|.
+  static bool MakeBytecode(CompilationInfo* info);
 
  private:
-  friend class SetupInterpreter;
-  friend class v8::internal::SetupIsolateDelegate;
-  friend class v8::internal::BuiltinDeserializerAllocator;
+// Bytecode handler generator functions.
+#define DECLARE_BYTECODE_HANDLER_GENERATOR(Name, ...) \
+  void Do##Name(compiler::InterpreterAssembler* assembler);
+  BYTECODE_LIST(DECLARE_BYTECODE_HANDLER_GENERATOR)
+#undef DECLARE_BYTECODE_HANDLER_GENERATOR
 
-  uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
-
-  // Get dispatch table index of bytecode.
-  static size_t GetDispatchTableIndex(Bytecode bytecode,
-                                      OperandScale operand_scale);
-
-  static const int kNumberOfWideVariants = BytecodeOperands::kOperandScaleCount;
-  static const int kDispatchTableSize = kNumberOfWideVariants * (kMaxUInt8 + 1);
-  static const int kNumberOfBytecodes = static_cast<int>(Bytecode::kLast) + 1;
+  bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);
 
   Isolate* isolate_;
-  Address dispatch_table_[kDispatchTableSize];
-  std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };

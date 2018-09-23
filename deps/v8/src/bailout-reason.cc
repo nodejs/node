@@ -8,24 +8,13 @@
 namespace v8 {
 namespace internal {
 
-#define ERROR_MESSAGES_TEXTS(C, T) T,
-
 const char* GetBailoutReason(BailoutReason reason) {
-  DCHECK_LT(reason, BailoutReason::kLastErrorMessage);
-  DCHECK_GE(reason, BailoutReason::kNoReason);
+  DCHECK(reason < kLastErrorMessage);
+#define ERROR_MESSAGES_TEXTS(C, T) T,
   static const char* error_messages_[] = {
-      BAILOUT_MESSAGES_LIST(ERROR_MESSAGES_TEXTS)};
-  return error_messages_[static_cast<int>(reason)];
-}
-
-const char* GetAbortReason(AbortReason reason) {
-  DCHECK_LT(reason, AbortReason::kLastErrorMessage);
-  DCHECK_GE(reason, AbortReason::kNoReason);
-  static const char* error_messages_[] = {
-      ABORT_MESSAGES_LIST(ERROR_MESSAGES_TEXTS)};
-  return error_messages_[static_cast<int>(reason)];
-}
-
+      ERROR_MESSAGES_LIST(ERROR_MESSAGES_TEXTS)};
 #undef ERROR_MESSAGES_TEXTS
+  return error_messages_[reason];
+}
 }  // namespace internal
 }  // namespace v8

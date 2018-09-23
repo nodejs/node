@@ -1,25 +1,25 @@
 'use strict';
 
-require('../common');
-const assert = require('assert');
+var common = require('../common');
+var assert = require('assert');
 
-const vm = require('vm');
+var vm = require('vm');
 
-const x = {};
+var x = {};
 Object.defineProperty(x, 'prop', {
   configurable: false,
   enumerable: false,
   writable: false,
   value: 'val'
 });
-const o = vm.createContext(x);
+var o = vm.createContext(x);
 
-const code = 'Object.getOwnPropertyDescriptor(this, "prop")';
-const res = vm.runInContext(code, o, 'test');
+var code = 'Object.getOwnPropertyDescriptor(this, "prop")';
+var res = vm.runInContext(code, o, 'test');
 
 assert(res);
-assert.strictEqual(typeof res, 'object');
-assert.strictEqual(res.value, 'val');
-assert.strictEqual(res.configurable, false);
-assert.strictEqual(res.enumerable, false);
-assert.strictEqual(res.writable, false);
+assert.equal(typeof res, 'object');
+assert.equal(res.value, 'val');
+assert.equal(res.configurable, false, 'should not be configurable');
+assert.equal(res.enumerable, false, 'should not be enumerable');
+assert.equal(res.writable, false, 'should not be writable');

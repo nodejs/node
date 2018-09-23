@@ -27,7 +27,6 @@
 
 // Flags: --allow-natives-syntax --expose-gc
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
-// Flags: --opt --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
@@ -51,13 +50,12 @@ function k(x) {
 }
 
 f(g(1));
-f(g(2));
 assertUnoptimized(f);
 assertUnoptimized(g);
 
 %OptimizeFunctionOnNextCall(f, "concurrent");
 %OptimizeFunctionOnNextCall(g, "concurrent");
-f(g(3));  // Kick off recompilation.
+f(g(2));  // Kick off recompilation.
 
 assertUnoptimized(f, "no sync");  // Not yet optimized since recompilation
 assertUnoptimized(g, "no sync");  // is still blocked.

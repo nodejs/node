@@ -8,7 +8,7 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var npm = require('../../')
+var npm = npm = require('../../')
 
 var pkg = path.resolve(__dirname, 'shrinkwrap-optional-dependency')
 
@@ -43,7 +43,7 @@ test('shrinkwrap does not fail on missing optional dependency', function (t) {
         npm.commands.shrinkwrap([], true, function (err, results) {
           if (err) return fail(err)
 
-          t.deepEqual(results.dependencies, desired.dependencies)
+          t.deepEqual(results, desired)
           s.close()
           t.end()
         })
@@ -63,8 +63,8 @@ var desired = {
   dependencies: {
     'test-package': {
       version: '0.0.0',
-      resolved: common.registry + '/test-package/-/test-package-0.0.0.tgz',
-      integrity: 'sha1-sNMrbEXCWcV4uiADdisgUTG9+9E='
+      from: 'test-package@0.0.0',
+      resolved: common.registry + '/test-package/-/test-package-0.0.0.tgz'
     }
   }
 }

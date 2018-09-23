@@ -1,0 +1,12 @@
+{
+  "name": "badbin-test",
+  "description": "my desc",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/read-package-json.git"
+  },
+  "version": "0.0.1",
+  "readme": "hello world",
+  "bin": "./bin/typo",
+  "license": "ISC"
+}

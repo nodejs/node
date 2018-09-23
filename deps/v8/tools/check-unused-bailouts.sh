@@ -4,22 +4,13 @@
 # found in the LICENSE file.
 
 v8_root=$(readlink -f $(dirname $BASH_SOURCE)/../)
-bailouts=$(
-    grep \
-        --only-matching \
-        --perl-regexp 'V\(\K(k[^,]*)' \
-        -- "$v8_root/src/bailout-reason.h")
+bailouts=$(grep -oP 'V\(\K(k[^,]*)' "$v8_root/src/bailout-reason.h")
 
-# Find bailouts which appear exactly once (in bailout-reason.h)
-grep \
-    --only-matching \
-    --no-filename \
-    --recursive \
-    --word-regexp \
-    --fixed-strings "$bailouts" \
-    -- "$v8_root/src" "$v8_root/test/cctest" \
-| sort \
-| uniq -u \
-| sed -e 's/.*/Bailout reason "&" seems to be unused./'
+for bailout in $bailouts; do
+  bailout_uses=$(grep -r $bailout "$v8_root/src" "$v8_root/test/cctest" | wc -l)
+  if [ $bailout_uses -eq "1" ]; then
+    echo "Bailout reason \"$bailout\" seems to be unused."
+  fi
+done
 
 echo "Kthxbye."

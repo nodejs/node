@@ -1,4 +1,0 @@
-Checks pause inside blackboxed optimized function call.
-bar (test.js:2:4)
-foo (framework.js:2:15)
-(anonymous) (expr.js:1:12)

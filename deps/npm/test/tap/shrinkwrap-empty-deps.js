@@ -1,19 +1,19 @@
-'use strict'
+var fs = require('fs')
+var path = require('path')
 
-const common = require('../common-tap.js')
-const fs = require('fs')
-const mkdirp = require('mkdirp')
-const mr = require('npm-registry-mock')
-const osenv = require('osenv')
-const path = require('path')
-const rimraf = require('rimraf')
-const test = require('tap').test
+var mkdirp = require('mkdirp')
+var mr = require('npm-registry-mock')
+var osenv = require('osenv')
+var rimraf = require('rimraf')
+var test = require('tap').test
 
-const pkg = path.resolve(__dirname, 'shrinkwrap-empty-deps')
+var common = require('../common-tap.js')
 
-const EXEC_OPTS = { cwd: pkg }
+var pkg = path.resolve(__dirname, 'shrinkwrap-empty-deps')
 
-const json = {
+var EXEC_OPTS = { cwd: pkg }
+
+var json = {
   author: 'Rockbert',
   name: 'shrinkwrap-empty-deps',
   version: '0.0.0',
@@ -46,11 +46,14 @@ test('returns a list of removed items', function (t) {
         t.ifError(err, 'shrinkwrap ran without issue')
         t.notOk(code, 'shrinkwrap ran without raising error code')
 
-        fs.readFile(path.resolve(pkg, 'npm-shrinkwrap.json'), function (err, found) {
+        fs.readFile(path.resolve(pkg, 'npm-shrinkwrap.json'), function (err, desired) {
           t.ifError(err, 'read npm-shrinkwrap.json without issue')
           t.same(
-            JSON.parse(found).dependencies,
-            undefined,
+            {
+              'name': 'shrinkwrap-empty-deps',
+              'version': '0.0.0'
+            },
+            JSON.parse(desired),
             'shrinkwrap handled empty deps without exploding'
           )
 

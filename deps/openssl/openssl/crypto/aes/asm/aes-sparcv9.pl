@@ -1,11 +1,4 @@
-#! /usr/bin/env perl
-# Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
-
+#!/usr/bin/env perl
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -37,11 +30,10 @@
 # optimal decrypt procedure]. Compared to GNU C generated code both
 # procedures are more than 60% faster:-)
 
-$output = pop;
-open STDOUT,">$output";
-
-$frame="STACK_FRAME";
-$bias="STACK_BIAS";
+$bits=32;
+for (@ARGV)	{ $bits=64 if (/\-m64/ || /\-xarch\=v9/); }
+if ($bits==64)	{ $bias=2047; $frame=192; }
+else		{ $bias=0;    $frame=112; }
 $locals=16;
 
 $acc0="%l0";
@@ -82,13 +74,11 @@ sub _data_word()
     while(defined($i=shift)) { $code.=sprintf"\t.long\t0x%08x,0x%08x\n",$i,$i; }
 }
 
-$code.=<<___;
-#include "sparc_arch.h"
-
-#ifdef  __arch64__
+$code.=<<___ if ($bits==64);
 .register	%g2,#scratch
 .register	%g3,#scratch
-#endif
+___
+$code.=<<___;
 .section	".text",#alloc,#execinstr
 
 .align	256

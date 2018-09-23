@@ -31,6 +31,6 @@
 
 
 var a = [0, 1, 2, 3, 4, 5];
-assertTrue(%HasSmiElements(a));
+assertTrue(%HasFastSmiElements(a));
 a.length = (1 << 30);
-assertFalse(%HasSmiElements(a));
+assertFalse(%HasFastSmiElements(a));

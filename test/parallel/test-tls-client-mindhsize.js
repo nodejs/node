@@ -1,31 +1,35 @@
 'use strict';
-const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+var common = require('../common');
+var assert = require('assert');
 
-const assert = require('assert');
-const tls = require('tls');
-const fixtures = require('../common/fixtures');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+var tls = require('tls');
 
-const key = fixtures.readKey('agent2-key.pem');
-const cert = fixtures.readKey('agent2-cert.pem');
+var fs = require('fs');
+var key =  fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
+var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
 
-let nsuccess = 0;
-let nerror = 0;
+var nsuccess = 0;
+var nerror = 0;
 
 function loadDHParam(n) {
-  return fixtures.readKey(`dh${n}.pem`);
+  var path = common.fixturesDir;
+  if (n !== 'error') path += '/keys';
+  return fs.readFileSync(path + '/dh' + n + '.pem');
 }
 
 function test(size, err, next) {
-  const options = {
+  var options = {
     key: key,
     cert: cert,
     dhparam: loadDHParam(size),
     ciphers: 'DHE-RSA-AES128-GCM-SHA256'
   };
 
-  const server = tls.createServer(options, function(conn) {
+  var server = tls.createServer(options, function(conn) {
     conn.end();
   });
 
@@ -34,13 +38,13 @@ function test(size, err, next) {
     if (next) next();
   });
 
-  server.listen(0, '127.0.0.1', function() {
+  server.listen(common.PORT, '127.0.0.1', function() {
     // client set minimum DH parameter size to 2048 bits so that
     // it fails when it make a connection to the tls server where
     // dhparams is 1024 bits
-    const client = tls.connect({
+    var client = tls.connect({
       minDHSize: 2048,
-      port: this.address().port,
+      port: common.PORT,
       rejectUnauthorized: false
     }, function() {
       nsuccess++;
@@ -49,7 +53,8 @@ function test(size, err, next) {
     if (err) {
       client.on('error', function(e) {
         nerror++;
-        assert.strictEqual(e.code, 'ERR_TLS_DH_PARAM_SIZE');
+        assert.strictEqual(e.message, 'DH parameter size 1024 is less'
+                           + ' than 2048');
         server.close();
       });
     }
@@ -70,21 +75,19 @@ function testDHE2048() {
 
 testDHE1024();
 
-assert.throws(() => test(512, true, common.mustNotCall()),
+assert.throws(() => test(512, true, assert.fail),
               /DH parameter is less than 1024 bits/);
 
-let errMessage = /minDHSize is not a positive number/;
-[0, -1, -Infinity, NaN].forEach((minDHSize) => {
+[0, -1, -Infinity, NaN].forEach(minDHSize => {
   assert.throws(() => tls.connect({ minDHSize }),
-                errMessage);
+                /minDHSize is not a positive number/);
 });
 
-errMessage = /minDHSize is not a number/;
-[true, false, null, undefined, {}, [], '', '1'].forEach((minDHSize) => {
-  assert.throws(() => tls.connect({ minDHSize }), errMessage);
+[true, false, null, undefined, {}, [], '', '1'].forEach(minDHSize => {
+  assert.throws(() => tls.connect({ minDHSize }), /minDHSize is not a number/);
 });
 
 process.on('exit', function() {
-  assert.strictEqual(nsuccess, 1);
-  assert.strictEqual(nerror, 1);
+  assert.equal(nsuccess, 1);
+  assert.equal(nerror, 1);
 });

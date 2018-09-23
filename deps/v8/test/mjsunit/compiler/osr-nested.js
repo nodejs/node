@@ -25,23 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-osr --allow-natives-syntax
+// Flags: --use-osr
 
 function f() {
   var sum = 0;
   for (var i = 0; i < 10; i++) {
-    for (var j = 0; j < 10; j++) {
+    for (var j = 0; j < 100000; j++) {
       var x = i + 2;
       var y = x + 5;
       var z = y + 3;
       sum += z;
-      if (j == 5) %OptimizeOsr();
     }
   }
   return sum;
 }
 
 
-assertEquals(1450, f());
-assertEquals(1450, f());
-assertEquals(1450, f());
+assertEquals(14500000, f());
+assertEquals(14500000, f());
+assertEquals(14500000, f());

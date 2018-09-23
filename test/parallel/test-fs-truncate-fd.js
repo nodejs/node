@@ -1,28 +1,25 @@
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const path = require('path');
-const fs = require('fs');
-const tmpdir = require('../common/tmpdir');
-const tmp = tmpdir.path;
-tmpdir.refresh();
-const filename = path.resolve(tmp, 'truncate-file.txt');
+var common = require('../common');
+var assert = require('assert');
+var path = require('path');
+var fs = require('fs');
+var tmp = common.tmpDir;
+common.refreshTmpDir();
+var filename = path.resolve(tmp, 'truncate-file.txt');
+
+var success = 0;
 
 fs.writeFileSync(filename, 'hello world', 'utf8');
-const fd = fs.openSync(filename, 'r+');
-
-const msg = 'Using fs.truncate with a file descriptor is deprecated.' +
-' Please use fs.ftruncate with a file descriptor instead.';
-
-
-common.expectWarning('DeprecationWarning', msg, 'DEP0081');
-fs.truncate(fd, 5, common.mustCall(function(err) {
+var fd = fs.openSync(filename, 'r+');
+fs.truncate(fd, 5, function(err) {
   assert.ok(!err);
-  assert.strictEqual(fs.readFileSync(filename, 'utf8'), 'hello');
-}));
+  assert.equal(fs.readFileSync(filename, 'utf8'), 'hello');
+  success++;
+});
 
 process.on('exit', function() {
   fs.closeSync(fd);
   fs.unlinkSync(filename);
+  assert.equal(success, 1);
   console.log('ok');
 });

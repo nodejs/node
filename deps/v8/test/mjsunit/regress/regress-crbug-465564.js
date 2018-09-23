@@ -4,4 +4,4 @@
 
 // Flags: --allow-natives-syntax --cache=code
 
-assertTrue(%StringLessThan("a", "b"));
+assertEquals(-1, %StringCompare("a", "b"));

@@ -1,56 +1,56 @@
 'use strict';
-require('../common');
-const assert = require('assert');
-const http = require('http');
-const Countdown = require('../common/countdown');
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
 
-const expectedHeadersMultipleWrites = {
+var expectedHeadersMultipleWrites = {
   'connection': 'close',
   'transfer-encoding': 'chunked',
 };
 
-const expectedHeadersEndWithData = {
+var expectedHeadersEndWithData = {
   'connection': 'close',
-  'content-length': String('hello world'.length)
+  'content-length': 'hello world'.length,
 };
 
-const expectedHeadersEndNoData = {
+var expectedHeadersEndNoData = {
   'connection': 'close',
   'content-length': '0',
 };
 
+var receivedRequests = 0;
+var totalRequests = 3;
 
-const countdown = new Countdown(3, () => server.close());
-
-const server = http.createServer(function(req, res) {
+var server = http.createServer(function(req, res) {
   res.removeHeader('Date');
 
   switch (req.url.substr(1)) {
     case 'multiple-writes':
-      assert.deepStrictEqual(req.headers, expectedHeadersMultipleWrites);
+      assert.deepEqual(req.headers, expectedHeadersMultipleWrites);
       res.write('hello');
       res.end('world');
       break;
     case 'end-with-data':
-      assert.deepStrictEqual(req.headers, expectedHeadersEndWithData);
+      assert.deepEqual(req.headers, expectedHeadersEndWithData);
       res.end('hello world');
       break;
     case 'empty':
-      assert.deepStrictEqual(req.headers, expectedHeadersEndNoData);
+      assert.deepEqual(req.headers, expectedHeadersEndNoData);
       res.end();
       break;
     default:
       throw new Error('Unreachable');
   }
 
-  countdown.dec();
+  receivedRequests++;
+  if (totalRequests === receivedRequests) server.close();
 });
 
-server.listen(0, function() {
-  let req;
+server.listen(common.PORT, function() {
+  var req;
 
   req = http.request({
-    port: this.address().port,
+    port: common.PORT,
     method: 'POST',
     path: '/multiple-writes'
   });
@@ -59,11 +59,11 @@ server.listen(0, function() {
   req.write('hello ');
   req.end('world');
   req.on('response', function(res) {
-    assert.deepStrictEqual(res.headers, expectedHeadersMultipleWrites);
+    assert.deepEqual(res.headers, expectedHeadersMultipleWrites);
   });
 
   req = http.request({
-    port: this.address().port,
+    port: common.PORT,
     method: 'POST',
     path: '/end-with-data'
   });
@@ -71,11 +71,11 @@ server.listen(0, function() {
   req.removeHeader('Host');
   req.end('hello world');
   req.on('response', function(res) {
-    assert.deepStrictEqual(res.headers, expectedHeadersEndWithData);
+    assert.deepEqual(res.headers, expectedHeadersEndWithData);
   });
 
   req = http.request({
-    port: this.address().port,
+    port: common.PORT,
     method: 'POST',
     path: '/empty'
   });
@@ -83,7 +83,7 @@ server.listen(0, function() {
   req.removeHeader('Host');
   req.end();
   req.on('response', function(res) {
-    assert.deepStrictEqual(res.headers, expectedHeadersEndNoData);
+    assert.deepEqual(res.headers, expectedHeadersEndNoData);
   });
 
 });

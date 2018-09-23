@@ -9,8 +9,8 @@ const domain = require('domain');
  */
 const d = domain.create();
 
-d.on('error', common.mustCall(() => {
-  process.nextTick(() => {
+d.on('error', common.mustCall(function() {
+  process.nextTick(function() {
     // Scheduling a callback with process.nextTick will enter a _new_ domain,
     // and the callback will be called after the domain that handled the error
     // was exited. So there should be only one domain on the domains stack if
@@ -23,12 +23,12 @@ d.on('error', common.mustCall(() => {
       // call to process._fatalException, and so on recursively and
       // indefinitely.
       console.error('domains stack length should be 1, but instead is:',
-                    domain._stack.length);
+        domain._stack.length);
       process.exit(1);
     }
   });
 }));
 
-d.run(() => {
+d.run(function() {
   throw new Error('Error from domain');
 });

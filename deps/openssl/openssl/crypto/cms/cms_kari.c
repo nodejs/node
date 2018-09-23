@@ -1,21 +1,72 @@
+/* crypto/cms/cms_kari.c */
 /*
- * Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project.
+ */
+/* ====================================================================
+ * Copyright (c) 2013 The OpenSSL Project.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    licensing@OpenSSL.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
  */
 
-#include "internal/cryptlib.h"
+#include "cryptlib.h"
 #include <openssl/asn1t.h>
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
 #include <openssl/cms.h>
+#include <openssl/rand.h>
 #include <openssl/aes.h>
 #include "cms_lcl.h"
-#include "internal/asn1_int.h"
+#include "asn1_locl.h"
+
+DECLARE_ASN1_ITEM(CMS_KeyAgreeRecipientInfo)
+DECLARE_ASN1_ITEM(CMS_RecipientEncryptedKey)
+DECLARE_ASN1_ITEM(CMS_OriginatorPublicKey)
+DECLARE_ASN1_ITEM(CMS_RecipientKeyIdentifier)
 
 /* Key Agreement Recipient Info (KARI) routines */
 
@@ -156,9 +207,10 @@ int CMS_RecipientInfo_kari_set0_pkey(CMS_RecipientInfo *ri, EVP_PKEY *pk)
 {
     EVP_PKEY_CTX *pctx;
     CMS_KeyAgreeRecipientInfo *kari = ri->d.kari;
-
-    EVP_PKEY_CTX_free(kari->pctx);
-    kari->pctx = NULL;
+    if (kari->pctx) {
+        EVP_PKEY_CTX_free(kari->pctx);
+        kari->pctx = NULL;
+    }
     if (!pk)
         return 1;
     pctx = EVP_PKEY_CTX_new(pk, NULL);
@@ -167,14 +219,15 @@ int CMS_RecipientInfo_kari_set0_pkey(CMS_RecipientInfo *ri, EVP_PKEY *pk)
     kari->pctx = pctx;
     return 1;
  err:
-    EVP_PKEY_CTX_free(pctx);
+    if (pctx)
+        EVP_PKEY_CTX_free(pctx);
     return 0;
 }
 
 EVP_CIPHER_CTX *CMS_RecipientInfo_kari_get0_ctx(CMS_RecipientInfo *ri)
 {
     if (ri->type == CMS_RECIPINFO_AGREE)
-        return ri->d.kari->ctx;
+        return &ri->d.kari->ctx;
     return NULL;
 }
 
@@ -193,22 +246,22 @@ static int cms_kek_cipher(unsigned char **pout, size_t *poutlen,
     int rv = 0;
     unsigned char *out = NULL;
     int outlen;
-    keklen = EVP_CIPHER_CTX_key_length(kari->ctx);
+    keklen = EVP_CIPHER_CTX_key_length(&kari->ctx);
     if (keklen > EVP_MAX_KEY_LENGTH)
         return 0;
     /* Derive KEK */
     if (EVP_PKEY_derive(kari->pctx, kek, &keklen) <= 0)
         goto err;
     /* Set KEK in context */
-    if (!EVP_CipherInit_ex(kari->ctx, NULL, NULL, kek, NULL, enc))
+    if (!EVP_CipherInit_ex(&kari->ctx, NULL, NULL, kek, NULL, enc))
         goto err;
     /* obtain output length of ciphered key */
-    if (!EVP_CipherUpdate(kari->ctx, NULL, &outlen, in, inlen))
+    if (!EVP_CipherUpdate(&kari->ctx, NULL, &outlen, in, inlen))
         goto err;
     out = OPENSSL_malloc(outlen);
-    if (out == NULL)
+    if (!out)
         goto err;
-    if (!EVP_CipherUpdate(kari->ctx, out, &outlen, in, inlen))
+    if (!EVP_CipherUpdate(&kari->ctx, out, &outlen, in, inlen))
         goto err;
     *pout = out;
     *poutlen = (size_t)outlen;
@@ -216,10 +269,9 @@ static int cms_kek_cipher(unsigned char **pout, size_t *poutlen,
 
  err:
     OPENSSL_cleanse(kek, keklen);
-    if (!rv)
+    if (!rv && out)
         OPENSSL_free(out);
-    EVP_CIPHER_CTX_reset(kari->ctx);
-    /* FIXME: WHY IS kari->pctx freed here?  /RL */
+    EVP_CIPHER_CTX_cleanup(&kari->ctx);
     EVP_PKEY_CTX_free(kari->pctx);
     kari->pctx = NULL;
     return rv;
@@ -243,13 +295,17 @@ int CMS_RecipientInfo_kari_decrypt(CMS_ContentInfo *cms,
     if (!cms_kek_cipher(&cek, &ceklen, enckey, enckeylen, ri->d.kari, 0))
         goto err;
     ec = cms->d.envelopedData->encryptedContentInfo;
-    OPENSSL_clear_free(ec->key, ec->keylen);
+    if (ec->key) {
+        OPENSSL_cleanse(ec->key, ec->keylen);
+        OPENSSL_free(ec->key);
+    }
     ec->key = cek;
     ec->keylen = ceklen;
     cek = NULL;
     rv = 1;
  err:
-    OPENSSL_free(cek);
+    if (cek)
+        OPENSSL_free(cek);
     return rv;
 }
 
@@ -276,9 +332,10 @@ static int cms_kari_create_ephemeral_key(CMS_KeyAgreeRecipientInfo *kari,
     kari->pctx = pctx;
     rv = 1;
  err:
-    if (!rv)
+    if (!rv && pctx)
         EVP_PKEY_CTX_free(pctx);
-    EVP_PKEY_free(ekey);
+    if (ekey)
+        EVP_PKEY_free(ekey);
     return rv;
 }
 
@@ -321,7 +378,7 @@ int cms_RecipientInfo_kari_init(CMS_RecipientInfo *ri, X509 *recip,
     if (!cms_kari_create_ephemeral_key(kari, pk))
         return 0;
 
-    EVP_PKEY_up_ref(pk);
+    CRYPTO_add(&pk->references, 1, CRYPTO_LOCK_EVP_PKEY);
     rek->pkey = pk;
     return 1;
 }
@@ -329,7 +386,7 @@ int cms_RecipientInfo_kari_init(CMS_RecipientInfo *ri, X509 *recip,
 static int cms_wrap_init(CMS_KeyAgreeRecipientInfo *kari,
                          const EVP_CIPHER *cipher)
 {
-    EVP_CIPHER_CTX *ctx = kari->ctx;
+    EVP_CIPHER_CTX *ctx = &kari->ctx;
     const EVP_CIPHER *kekcipher;
     int keylen = EVP_CIPHER_key_length(cipher);
     /* If a suitable wrap algorithm is already set nothing to do */
@@ -344,12 +401,9 @@ static int cms_wrap_init(CMS_KeyAgreeRecipientInfo *kari,
      * Pick a cipher based on content encryption cipher. If it is DES3 use
      * DES3 wrap otherwise use AES wrap similar to key size.
      */
-#ifndef OPENSSL_NO_DES
     if (EVP_CIPHER_type(cipher) == NID_des_ede3_cbc)
         kekcipher = EVP_des_ede3_wrap();
-    else
-#endif
-    if (keylen <= 16)
+    else if (keylen <= 16)
         kekcipher = EVP_aes_128_wrap();
     else if (keylen <= 24)
         kekcipher = EVP_aes_192_wrap();
@@ -380,7 +434,7 @@ int cms_RecipientInfo_kari_encrypt(CMS_ContentInfo *cms,
     if (!cms_wrap_init(kari, ec->cipher))
         return 0;
     /*
-     * If no originator key set up initialise for ephemeral key the public key
+     * If no orignator key set up initialise for ephemeral key the public key
      * ASN1 structure will set the actual public key value.
      */
     if (kari->originator->type == -1) {

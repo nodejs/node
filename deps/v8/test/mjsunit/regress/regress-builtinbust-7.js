@@ -24,7 +24,7 @@ if ("Intl" in this) {
   assertDoesNotThrow(function() {
     date.toLocaleDateString("de-DE", options_incomplete);
   });
-  assertFalse(options_incomplete.hasOwnProperty("year"));
+  assertTrue(options_incomplete.hasOwnProperty("year"));
 
   assertDoesNotThrow(function() { date.toLocaleDateString("de-DE", undefined); });
   assertDoesNotThrow(function() { date.toLocaleDateString("de-DE"); });

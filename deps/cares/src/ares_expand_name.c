@@ -32,9 +32,6 @@
 #include "ares_nowarn.h"
 #include "ares_private.h" /* for the memdebug */
 
-/* Maximum number of indirections allowed for a name */
-#define MAX_INDIRS 50
-
 static int name_length(const unsigned char *encoded, const unsigned char *abuf,
                        int alen);
 
@@ -69,7 +66,7 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
   char *q;
   const unsigned char *p;
   union {
-    ares_ssize_t sig;
+    ssize_t sig;
      size_t uns;
   } nlen;
 
@@ -77,7 +74,7 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
   if (nlen.sig < 0)
     return ARES_EBADNAME;
 
-  *s = ares_malloc(nlen.uns + 1);
+  *s = malloc(nlen.uns + 1);
   if (!*s)
     return ARES_ENOMEM;
   q = *s;
@@ -132,7 +129,7 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
   if (q > *s)
     *(q - 1) = 0;
   else
-    *q = 0; /* zero terminate; LCOV_EXCL_LINE: empty names exit above */
+    *q = 0; /* zero terminate */
 
   return ARES_SUCCESS;
 }
@@ -143,7 +140,7 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
 static int name_length(const unsigned char *encoded, const unsigned char *abuf,
                        int alen)
 {
-  int n = 0, offset, indir = 0, top;
+  int n = 0, offset, indir = 0;
 
   /* Allow the caller to pass us abuf + alen and have us check for it. */
   if (encoded >= abuf + alen)
@@ -151,8 +148,7 @@ static int name_length(const unsigned char *encoded, const unsigned char *abuf,
 
   while (*encoded)
     {
-      top = (*encoded & INDIR_MASK);
-      if (top == INDIR_MASK)
+      if ((*encoded & INDIR_MASK) == INDIR_MASK)
         {
           /* Check the offset and go there. */
           if (encoded + 1 >= abuf + alen)
@@ -165,11 +161,10 @@ static int name_length(const unsigned char *encoded, const unsigned char *abuf,
           /* If we've seen more indirects than the message length,
            * then there's a loop.
            */
-          ++indir;
-          if (indir > alen || indir > MAX_INDIRS)
+          if (++indir > alen)
             return -1;
         }
-      else if (top == 0x00)
+      else
         {
           offset = *encoded;
           if (encoded + offset + 1 >= abuf + alen)
@@ -181,13 +176,6 @@ static int name_length(const unsigned char *encoded, const unsigned char *abuf,
               encoded++;
             }
           n++;
-        }
-      else
-        {
-          /* RFC 1035 4.1.4 says other options (01, 10) for top 2
-           * bits are reserved.
-           */
-          return -1;
         }
     }
 

@@ -1,4 +1,4 @@
-.TH "NPM\-LS" "1" "August 2018" "" ""
+.TH "NPM\-LS" "1" "November 2015" "" ""
 .SH "NAME"
 \fBnpm-ls\fR \- List installed packages
 .SH SYNOPSIS
@@ -22,7 +22,7 @@ For example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@6.4.1 /path/to/npm
+npm@3.3.12 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -98,7 +98,7 @@ Default: false
 .RE
 .P
 Display only the dependency tree for packages in \fBdependencies\fP\|\.
-.SS dev / development
+.SS dev
 .RS 0
 .IP \(bu 2
 Type: Boolean
@@ -117,17 +117,7 @@ Type: String
 .P
 When "dev" or "development", is an alias to \fBdev\fP\|\.
 .P
-When "prod" or "production", is an alias to \fBproduction\fP\|\.
-.SS link
-.RS 0
-.IP \(bu 2
-Type: Boolean
-.IP \(bu 2
-Default: false
-
-.RE
-.P
-Display only dependencies which are linked
+When "prod" or "production", is an alias to \fBproduction\fP\|\.`
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

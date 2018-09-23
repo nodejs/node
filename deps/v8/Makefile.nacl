@@ -1,0 +1,97 @@
+#
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Those definitions should be consistent with the main Makefile
+NACL_ARCHES = nacl_ia32 nacl_x64
+MODES = release debug
+
+# Generates all combinations of NACL ARCHES and MODES,
+# e.g. "nacl_ia32.release" or "nacl_x64.release"
+NACL_BUILDS = $(foreach mode,$(MODES), \
+                   $(addsuffix .$(mode),$(NACL_ARCHES)))
+
+HOST_OS = $(shell uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')
+TOOLCHAIN_PATH = $(realpath ${NACL_SDK_ROOT}/toolchain)
+NACL_TOOLCHAIN ?= ${TOOLCHAIN_PATH}/linux_pnacl
+
+ifeq ($(wildcard $(NACL_TOOLCHAIN)),)
+  $(error Cannot find Native Client toolchain in "${NACL_TOOLCHAIN}")
+endif
+
+ifeq ($(ARCH), nacl_ia32)
+  GYPENV = nacl_target_arch=nacl_ia32 v8_target_arch=arm v8_host_arch=ia32
+  NACL_CC = "$(NACL_TOOLCHAIN)/bin/pnacl-clang"
+  NACL_CXX = "$(NACL_TOOLCHAIN)/bin/pnacl-clang++"
+  NACL_LINK = "$(NACL_TOOLCHAIN)/bin/pnacl-clang++ --pnacl-allow-native -arch x86-32"
+else
+  ifeq ($(ARCH), nacl_x64)
+    GYPENV = nacl_target_arch=nacl_x64 v8_target_arch=arm v8_host_arch=ia32
+    NACL_CC = "$(NACL_TOOLCHAIN)/bin/pnacl-clang"
+    NACL_CXX = "$(NACL_TOOLCHAIN)/bin/pnacl-clang++"
+    NACL_LINK = "$(NACL_TOOLCHAIN)/bin/pnacl-clang++ --pnacl-allow-native -arch x86-64"
+  else
+    $(error Target architecture "${ARCH}" is not supported)
+  endif
+endif
+
+# For mksnapshot host generation.
+GYPENV += host_os=${HOST_OS}
+
+# ICU doesn't support NaCl.
+GYPENV += v8_enable_i18n_support=0
+
+# Disable strict aliasing - v8 code often relies on undefined behavior of C++.
+GYPENV += v8_no_strict_aliasing=1
+
+NACL_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(NACL_BUILDS))
+.SECONDEXPANSION:
+# For some reason the $$(basename $$@) expansion didn't work here...
+$(NACL_BUILDS): $(NACL_MAKEFILES)
+	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
+	            CC=${NACL_CC} \
+	            CXX=${NACL_CXX} \
+	            AR="$(NACL_TOOLCHAIN)/bin/pnacl-ar" \
+	            RANLIB="$(NACL_TOOLCHAIN)/bin/pnacl-ranlib" \
+	            LD="$(NACL_TOOLCHAIN)/bin/pnacl-ld" \
+	            LINK=${NACL_LINK} \
+	            BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
+	                        python -c "print raw_input().capitalize()") \
+	            builddir="$(shell pwd)/$(OUTDIR)/$@"
+
+# NACL GYP file generation targets.
+$(NACL_MAKEFILES):
+	GYP_GENERATORS=make \
+	GYP_DEFINES="${GYPENV}" \
+	CC=${NACL_CC} \
+	CXX=${NACL_CXX} \
+	LINK=${NACL_LINK} \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH)" \
+	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
+	              -Ibuild/standalone.gypi --depth=. \
+	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS) \
+                      -Dwno_array_bounds=-Wno-array-bounds

@@ -1,11 +1,4 @@
-#! /usr/bin/env perl
-# Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
-
+#!/usr/bin/env perl
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -34,21 +27,11 @@
 # Apple A7	0.92		5.62
 # Cortex-A53	1.01		8.39
 # Cortex-A57	1.17		7.61
-# Denver	0.71		6.02
-# Mongoose	1.10		8.06
 #
 # (*)	presented for reference/comparison purposes;
 
 $flavour = shift;
-$output  = shift;
-
-$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
-( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
-( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
-die "can't locate arm-xlate.pl";
-
-open OUT,"| \"$^X\" $xlate $flavour $output";
-*STDOUT=*OUT;
+open STDOUT,">".shift;
 
 $Xi="x0";	# argument block
 $Htbl="x1";
@@ -64,15 +47,10 @@ my ($t0,$t1,$t2,$xC2,$H,$Hhl,$H2)=map("q$_",(8..14));
 $code=<<___;
 #include "arm_arch.h"
 
-#if __ARM_MAX_ARCH__>=7
 .text
 ___
 $code.=".arch	armv8-a+crypto\n"	if ($flavour =~ /64/);
-$code.=<<___				if ($flavour !~ /64/);
-.fpu	neon
-.code	32
-#undef	__thumb2__
-___
+$code.=".fpu	neon\n.code	32\n"	if ($flavour !~ /64/);
 
 ################################################################################
 # void gcm_init_v8(u128 Htable[16],const u64 H[2]);
@@ -157,10 +135,10 @@ gcm_gmult_v8:
 #endif
 	vext.8		$IN,$t1,$t1,#8
 
-	vpmull.p64	$Xl,$H,$IN		@ H.loÂ·Xi.lo
+	vpmull.p64	$Xl,$H,$IN		@ H.lo·Xi.lo
 	veor		$t1,$t1,$IN		@ Karatsuba pre-processing
-	vpmull2.p64	$Xh,$H,$IN		@ H.hiÂ·Xi.hi
-	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)Â·(Xi.lo+Xi.hi)
+	vpmull2.p64	$Xh,$H,$IN		@ H.hi·Xi.hi
+	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)·(Xi.lo+Xi.hi)
 
 	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
 	veor		$t2,$Xl,$Xh
@@ -248,7 +226,7 @@ $code.=<<___;
 #endif
 	vext.8		$In,$t1,$t1,#8
 	veor		$IN,$IN,$Xl		@ I[i]^=Xi
-	vpmull.p64	$Xln,$H,$In		@ HÂ·Ii+1
+	vpmull.p64	$Xln,$H,$In		@ H·Ii+1
 	veor		$t1,$t1,$In		@ Karatsuba pre-processing
 	vpmull2.p64	$Xhn,$H,$In
 	b		.Loop_mod2x_v8
@@ -257,14 +235,14 @@ $code.=<<___;
 .Loop_mod2x_v8:
 	vext.8		$t2,$IN,$IN,#8
 	subs		$len,$len,#32		@ is there more data?
-	vpmull.p64	$Xl,$H2,$IN		@ H^2.loÂ·Xi.lo
+	vpmull.p64	$Xl,$H2,$IN		@ H^2.lo·Xi.lo
 	cclr		$inc,lo			@ is it time to zero $inc?
 
 	 vpmull.p64	$Xmn,$Hhl,$t1
 	veor		$t2,$t2,$IN		@ Karatsuba pre-processing
-	vpmull2.p64	$Xh,$H2,$IN		@ H^2.hiÂ·Xi.hi
+	vpmull2.p64	$Xh,$H2,$IN		@ H^2.hi·Xi.hi
 	veor		$Xl,$Xl,$Xln		@ accumulate
-	vpmull2.p64	$Xm,$Hhl,$t2		@ (H^2.lo+H^2.hi)Â·(Xi.lo+Xi.hi)
+	vpmull2.p64	$Xm,$Hhl,$t2		@ (H^2.lo+H^2.hi)·(Xi.lo+Xi.hi)
 	 vld1.64	{$t0},[$inp],$inc	@ load [rotated] I[i+2]
 
 	veor		$Xh,$Xh,$Xhn
@@ -289,7 +267,7 @@ $code.=<<___;
 	 vext.8		$In,$t1,$t1,#8
 	 vext.8		$IN,$t0,$t0,#8
 	veor		$Xl,$Xm,$t2
-	 vpmull.p64	$Xln,$H,$In		@ HÂ·Ii+1
+	 vpmull.p64	$Xln,$H,$In		@ H·Ii+1
 	veor		$IN,$IN,$Xh		@ accumulate $IN early
 
 	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
@@ -313,10 +291,10 @@ $code.=<<___;
 	veor		$IN,$IN,$Xl		@ inp^=Xi
 	veor		$t1,$t0,$t2		@ $t1 is rotated inp^Xi
 
-	vpmull.p64	$Xl,$H,$IN		@ H.loÂ·Xi.lo
+	vpmull.p64	$Xl,$H,$IN		@ H.lo·Xi.lo
 	veor		$t1,$t1,$IN		@ Karatsuba pre-processing
-	vpmull2.p64	$Xh,$H,$IN		@ H.hiÂ·Xi.hi
-	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)Â·(Xi.lo+Xi.hi)
+	vpmull2.p64	$Xh,$H,$IN		@ H.hi·Xi.hi
+	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)·(Xi.lo+Xi.hi)
 
 	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
 	veor		$t2,$Xl,$Xh
@@ -352,7 +330,6 @@ ___
 $code.=<<___;
 .asciz  "GHASH for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align  2
-#endif
 ___
 
 if ($flavour =~ /64/) {			######## 64-bit code

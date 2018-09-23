@@ -4,23 +4,14 @@ const assert = require('assert');
 const dgram = require('dgram');
 const socket = dgram.createSocket('udp4');
 
-socket.bind(0);
-socket.on('listening', common.mustCall(() => {
-  const result = socket.setTTL(16);
+socket.bind(common.PORT);
+socket.on('listening', function() {
+  var result = socket.setTTL(16);
   assert.strictEqual(result, 16);
 
-  common.expectsError(() => {
+  assert.throws(function() {
     socket.setTTL('foo');
-  }, {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "ttl" argument must be of type number. Received type string'
-  });
-
-  // TTL must be a number from > 0 to < 256
-  assert.throws(() => {
-    socket.setTTL(1000);
-  }, /^Error: setTTL EINVAL$/);
+  }, /Argument must be a number/);
 
   socket.close();
-}));
+});

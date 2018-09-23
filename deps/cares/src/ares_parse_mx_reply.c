@@ -76,7 +76,7 @@ ares_parse_mx_reply (const unsigned char *abuf, int alen,
 
   if (aptr + len + QFIXEDSZ > abuf + alen)
     {
-      ares_free (hostname);
+      free (hostname);
       return ARES_EBADRESP;
     }
   aptr += len + QFIXEDSZ;
@@ -143,7 +143,7 @@ ares_parse_mx_reply (const unsigned char *abuf, int alen,
         }
 
       /* Don't lose memory in the next iteration */
-      ares_free (rr_name);
+      free (rr_name);
       rr_name = NULL;
 
       /* Move on to the next record */
@@ -151,9 +151,9 @@ ares_parse_mx_reply (const unsigned char *abuf, int alen,
     }
 
   if (hostname)
-    ares_free (hostname);
+    free (hostname);
   if (rr_name)
-    ares_free (rr_name);
+    free (rr_name);
 
   /* clean up on error */
   if (status != ARES_SUCCESS)

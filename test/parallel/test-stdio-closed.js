@@ -1,35 +1,26 @@
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const spawn = require('child_process').spawn;
-const fs = require('fs');
-const fixtures = require('../common/fixtures');
+var common = require('../common');
+var assert = require('assert');
+var spawn = require('child_process').spawn;
 
 if (common.isWindows) {
-  if (process.argv[2] === 'child') {
-    process.stdin;
-    process.stdout;
-    process.stderr;
-    return;
-  }
-  const python = process.env.PYTHON || 'python';
-  const script = fixtures.path('spawn_closed_stdio.py');
-  const proc = spawn(python, [script, process.execPath, __filename, 'child']);
-  proc.on('exit', common.mustCall(function(exitCode) {
-    assert.strictEqual(exitCode, 0);
-  }));
+  console.log('1..0 # Skipped: platform not supported.');
   return;
 }
 
 if (process.argv[2] === 'child') {
-  [0, 1, 2].forEach((i) => fs.fstatSync(i));
+  process.stdout.write('stdout', function() {
+    process.stderr.write('stderr', function() {
+      process.exit(42);
+    });
+  });
   return;
 }
 
 // Run the script in a shell but close stdout and stderr.
-const cmd = `"${process.execPath}" "${__filename}" child 1>&- 2>&-`;
-const proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
+var cmd = '"' + process.execPath + '" "' + __filename + '" child 1>&- 2>&-';
+var proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
 
 proc.on('exit', common.mustCall(function(exitCode) {
-  assert.strictEqual(exitCode, 0);
+  assert.equal(exitCode, 42);
 }));

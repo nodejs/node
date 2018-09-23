@@ -14,7 +14,6 @@ using testing::StrictMock;
 namespace v8 {
 namespace internal {
 namespace compiler {
-namespace dead_code_elimination_unittest {
 
 class DeadCodeEliminationTest : public GraphTest {
  public:
@@ -24,7 +23,7 @@ class DeadCodeEliminationTest : public GraphTest {
 
  protected:
   Reduction Reduce(AdvancedReducer::Editor* editor, Node* node) {
-    DeadCodeElimination reducer(editor, graph(), common(), zone());
+    DeadCodeElimination reducer(editor, graph(), common());
     return reducer.Reduce(node);
   }
 
@@ -37,11 +36,11 @@ class DeadCodeEliminationTest : public GraphTest {
 
 namespace {
 
-const MachineRepresentation kMachineRepresentations[] = {
-    MachineRepresentation::kBit,     MachineRepresentation::kWord8,
-    MachineRepresentation::kWord16,  MachineRepresentation::kWord32,
-    MachineRepresentation::kWord64,  MachineRepresentation::kFloat32,
-    MachineRepresentation::kFloat64, MachineRepresentation::kTagged};
+const MachineType kMachineTypes[] = {
+    kMachFloat32, kMachFloat64,   kMachInt8,   kMachUint8,  kMachInt16,
+    kMachUint16,  kMachInt32,     kMachUint32, kMachInt64,  kMachUint64,
+    kMachPtr,     kMachAnyTagged, kRepBit,     kRepWord8,   kRepWord16,
+    kRepWord32,   kRepWord64,     kRepFloat32, kRepFloat64, kRepTagged};
 
 
 const int kMaxInputs = 16;
@@ -125,11 +124,15 @@ TEST_F(DeadCodeEliminationTest, IfSuccessWithDeadInput) {
 
 
 TEST_F(DeadCodeEliminationTest, IfExceptionWithDeadControlInput) {
-  Reduction const r =
-      Reduce(graph()->NewNode(common()->IfException(), graph()->start(),
-                              graph()->NewNode(common()->Dead())));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsDead());
+  IfExceptionHint const kHints[] = {IfExceptionHint::kLocallyCaught,
+                                    IfExceptionHint::kLocallyUncaught};
+  TRACED_FOREACH(IfExceptionHint, hint, kHints) {
+    Reduction const r =
+        Reduce(graph()->NewNode(common()->IfException(hint), graph()->start(),
+                                graph()->NewNode(common()->Dead())));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsDead());
+  }
 }
 
 
@@ -187,8 +190,8 @@ TEST_F(DeadCodeEliminationTest, MergeWithOneLiveAndOneDeadInput) {
   Node* const e0 = graph()->NewNode(&kOp0, v0, graph()->start(), c0);
   Node* const e1 = graph()->NewNode(&kOp0, v1, graph()->start(), c1);
   Node* const merge = graph()->NewNode(common()->Merge(2), c0, c1);
-  Node* const phi = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), v0, v1, merge);
+  Node* const phi =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), v0, v1, merge);
   Node* const ephi = graph()->NewNode(common()->EffectPhi(2), e0, e1, merge);
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(phi, v0));
@@ -214,8 +217,8 @@ TEST_F(DeadCodeEliminationTest, MergeWithTwoLiveAndTwoDeadInputs) {
   Node* const e2 = graph()->NewNode(&kOp0, v2, e1, c0);
   Node* const e3 = graph()->NewNode(&kOp0, v3, graph()->start(), c3);
   Node* const merge = graph()->NewNode(common()->Merge(4), c0, c1, c2, c3);
-  Node* const phi = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 4), v0, v1, v2, v3, merge);
+  Node* const phi =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 4), v0, v1, v2, v3, merge);
   Node* const ephi =
       graph()->NewNode(common()->EffectPhi(4), e0, e1, e2, e3, merge);
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -224,8 +227,7 @@ TEST_F(DeadCodeEliminationTest, MergeWithTwoLiveAndTwoDeadInputs) {
   Reduction const r = Reduce(&editor, merge);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsMerge(c0, c3));
-  EXPECT_THAT(phi,
-              IsPhi(MachineRepresentation::kTagged, v0, v3, r.replacement()));
+  EXPECT_THAT(phi, IsPhi(kMachAnyTagged, v0, v3, r.replacement()));
   EXPECT_THAT(ephi, IsEffectPhi(e0, e3, r.replacement()));
 }
 
@@ -272,8 +274,8 @@ TEST_F(DeadCodeEliminationTest, LoopWithOneLiveAndOneDeadInput) {
   Node* const e0 = graph()->NewNode(&kOp0, v0, graph()->start(), c0);
   Node* const e1 = graph()->NewNode(&kOp0, v1, graph()->start(), c1);
   Node* const loop = graph()->NewNode(common()->Loop(2), c0, c1);
-  Node* const phi = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), v0, v1, loop);
+  Node* const phi =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), v0, v1, loop);
   Node* const ephi = graph()->NewNode(common()->EffectPhi(2), e0, e1, loop);
   Node* const terminate = graph()->NewNode(common()->Terminate(), ephi, loop);
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -301,8 +303,8 @@ TEST_F(DeadCodeEliminationTest, LoopWithTwoLiveAndTwoDeadInputs) {
   Node* const e2 = graph()->NewNode(&kOp0, v2, e1, c0);
   Node* const e3 = graph()->NewNode(&kOp0, v3, graph()->start(), c3);
   Node* const loop = graph()->NewNode(common()->Loop(4), c0, c1, c2, c3);
-  Node* const phi = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 4), v0, v1, v2, v3, loop);
+  Node* const phi =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 4), v0, v1, v2, v3, loop);
   Node* const ephi =
       graph()->NewNode(common()->EffectPhi(4), e0, e1, e2, e3, loop);
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -311,8 +313,7 @@ TEST_F(DeadCodeEliminationTest, LoopWithTwoLiveAndTwoDeadInputs) {
   Reduction const r = Reduce(&editor, loop);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsLoop(c0, c3));
-  EXPECT_THAT(phi,
-              IsPhi(MachineRepresentation::kTagged, v0, v3, r.replacement()));
+  EXPECT_THAT(phi, IsPhi(kMachAnyTagged, v0, v3, r.replacement()));
   EXPECT_THAT(ephi, IsEffectPhi(e0, e3, r.replacement()));
 }
 
@@ -323,14 +324,14 @@ TEST_F(DeadCodeEliminationTest, LoopWithTwoLiveAndTwoDeadInputs) {
 
 TEST_F(DeadCodeEliminationTest, PhiWithDeadControlInput) {
   Node* inputs[kMaxInputs + 1];
-  TRACED_FOREACH(MachineRepresentation, rep, kMachineRepresentations) {
+  TRACED_FOREACH(MachineType, type, kMachineTypes) {
     TRACED_FORRANGE(int, input_count, 1, kMaxInputs) {
       for (int i = 0; i < input_count; ++i) {
         inputs[i] = Parameter(i);
       }
       inputs[input_count] = graph()->NewNode(common()->Dead());
       Reduction const r = Reduce(graph()->NewNode(
-          common()->Phi(rep, input_count), input_count + 1, inputs));
+          common()->Phi(type, input_count), input_count + 1, inputs));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(), IsDead());
     }
@@ -369,7 +370,6 @@ TEST_F(DeadCodeEliminationTest, TerminateWithDeadControlInput) {
   EXPECT_THAT(r.replacement(), IsDead());
 }
 
-}  // namespace dead_code_elimination_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

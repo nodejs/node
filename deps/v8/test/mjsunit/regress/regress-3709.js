@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax
 
 function getobj() {
   return { bar : function() { return 0}};
@@ -25,4 +25,4 @@ foo();
 assertOptimized(foo);
 foo(10);
 assertUnoptimized(foo);
-%ClearFunctionFeedback(foo);
+%ClearFunctionTypeFeedback(foo);

@@ -1,51 +1,36 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
+var common = require('../common');
+var assert = require('assert');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var tls = require('tls');
 
-const tls = require('tls');
-const fixtures = require('../common/fixtures');
+var fs = require('fs');
+var path = require('path');
 
-const cert = fixtures.readSync('test_cert.pem');
-const key = fixtures.readSync('test_key.pem');
+var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
+var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-const server = tls.createServer({
-  cert,
-  key
+var errorEmitted = false;
+
+var server = tls.createServer({
+  cert: cert,
+  key: key
 }, function(c) {
   // Nop
   setTimeout(function() {
-    c.end();
+    c.destroy();
     server.close();
   }, 20);
-}).listen(0, common.mustCall(function() {
-  const conn = tls.connect({
+}).listen(common.PORT, function() {
+  var conn = tls.connect({
     cert: cert,
     key: key,
     rejectUnauthorized: false,
-    port: this.address().port
+    port: common.PORT
   }, function() {
     setTimeout(function() {
       conn.destroy();
@@ -56,5 +41,12 @@ const server = tls.createServer({
   // treated as error.
   conn.end('');
 
-  conn.on('error', common.mustNotCall());
-}));
+  conn.on('error', function(err) {
+    console.log(err);
+    errorEmitted = true;
+  });
+});
+
+process.on('exit', function() {
+  assert.ok(!errorEmitted);
+});

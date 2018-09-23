@@ -4,6 +4,8 @@
 
 // Used for building without snapshots.
 
+#include "src/v8.h"
+
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -15,12 +17,13 @@ namespace internal {
 // These are meant for use with snapshot-external.cc. Should this file
 // be compiled with those options we just supply these dummy implementations
 // below. This happens when compiling the mksnapshot utility.
-void SetNativesFromFile(StartupData* data) { UNREACHABLE(); }
-void SetSnapshotFromFile(StartupData* data) { UNREACHABLE(); }
+void SetNativesFromFile(StartupData* data) { CHECK(false); }
+void SetSnapshotFromFile(StartupData* data) { CHECK(false); }
 void ReadNatives() {}
 void DisposeNatives() {}
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
-const v8::StartupData* Snapshot::DefaultSnapshotBlob() { return nullptr; }
+
+const v8::StartupData* Snapshot::DefaultSnapshotBlob() { return NULL; }
 }  // namespace internal
 }  // namespace v8

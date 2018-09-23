@@ -56,7 +56,7 @@ class ElapsedTimer final {
     DCHECK(IsStarted());
     TimeTicks ticks = Now();
     TimeDelta elapsed = ticks - start_ticks_;
-    DCHECK_GE(elapsed.InMicroseconds(), 0);
+    DCHECK(elapsed.InMicroseconds() >= 0);
     start_ticks_ = ticks;
     DCHECK(IsStarted());
     return elapsed;
@@ -67,7 +67,7 @@ class ElapsedTimer final {
   TimeDelta Elapsed() const {
     DCHECK(IsStarted());
     TimeDelta elapsed = Now() - start_ticks_;
-    DCHECK_GE(elapsed.InMicroseconds(), 0);
+    DCHECK(elapsed.InMicroseconds() >= 0);
     return elapsed;
   }
 
@@ -92,7 +92,6 @@ class ElapsedTimer final {
 #endif
 };
 
-}  // namespace base
-}  // namespace v8
+} }  // namespace v8::base
 
 #endif  // V8_BASE_PLATFORM_ELAPSED_TIMER_H_

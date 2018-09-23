@@ -1,41 +1,37 @@
-'use strict';
-const common = require('../common.js');
-const PORT = common.PORT;
+var common = require('../common.js');
+var PORT = common.PORT;
 
-const cluster = require('cluster');
+var cluster = require('cluster');
 if (cluster.isMaster) {
   var bench = common.createBenchmark(main, {
     // unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
-    len: [4, 1024, 102400],
+    length: [4, 1024, 102400],
     c: [50, 500]
   });
 } else {
-  const port = parseInt(process.env.PORT || PORT);
-  require('../fixtures/simple-http-server.js').listen(port);
+  require('../http_simple.js');
 }
 
-function main({ type, len, c }) {
+function main(conf) {
   process.env.PORT = PORT;
   var workers = 0;
-  const w1 = cluster.fork();
-  const w2 = cluster.fork();
+  var w1 = cluster.fork();
+  var w2 = cluster.fork();
 
   cluster.on('listening', function() {
     workers++;
     if (workers < 2)
       return;
 
-    setImmediate(function() {
-      const path = `/${type}/${len}`;
+    setTimeout(function() {
+      var path = '/' + conf.type + '/' + conf.length;
+      var args = ['-d', '10s', '-t', 8, '-c', conf.c];
 
-      bench.http({
-        path: path,
-        connections: c
-      }, function() {
+      bench.http(path, args, function() {
         w1.destroy();
         w2.destroy();
       });
-    });
+    }, 100);
   });
 }

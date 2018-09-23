@@ -1,0 +1,4 @@
+{ "name":"npm-test-missing-bindir"
+, "version" : "0.0.0"
+, "scripts" : { "test" : "node test.js" }
+, "directories": { "bin" : "./not-found" } }

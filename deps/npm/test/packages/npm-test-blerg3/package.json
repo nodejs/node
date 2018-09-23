@@ -1,0 +1,5 @@
+{ "name":"npm-test-blerg3"
+, "homepage": "https://github.com/npm/npm/issues/2658"
+, "version" : "0.0.0"
+, "scripts" : { "test" : "node test.js" }
+}

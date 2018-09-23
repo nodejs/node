@@ -1,3 +1,0 @@
-{ foo: *[32m'bar'*[39m }
-string q
-{ foo: *[32m'bar'*[39m } with object format param

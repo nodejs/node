@@ -14,16 +14,15 @@ function test(expectation, f) {
 }
 
 /*
-(function(
-) {
+(function() {
 1 + reference_error //@ sourceURL=evaltest
 })
 */
-test("3:5", new Function(
+test("2:5", new Function(
     '1 + reference_error //@ sourceURL=evaltest'));
 /*
 (function(x
-) {
+/\**\/) {
 
  1 + reference_error //@ sourceURL=evaltest
 })
@@ -35,7 +34,7 @@ test("4:6", new Function(
 
 ,z//
 ,y
-) {
+/\**\/) {
 
  1 + reference_error //@ sourceURL=evaltest
 })
@@ -45,7 +44,7 @@ test("7:6", new Function(
 /*
 (function(x/\*,z//
 ,y*\/
-) {
+/\**\/) {
 1 + reference_error //@ sourceURL=evaltest
 })
 */

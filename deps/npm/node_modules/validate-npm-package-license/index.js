@@ -57,13 +57,11 @@ module.exports = function(argument) {
         validForNewPackages: false,
         warnings: [genericWarning]
       };
-      if (argument.trim().length !== 0) {
-        var corrected = correct(argument);
-        if (corrected) {
-          result.warnings.push(
-            'license is similar to the valid expression "' + corrected + '"'
-          );
-        }
+      var corrected = correct(argument);
+      if (corrected) {
+        result.warnings.push(
+          'license is similar to the valid expression "' + corrected + '"'
+        );
       }
       return result;
     }

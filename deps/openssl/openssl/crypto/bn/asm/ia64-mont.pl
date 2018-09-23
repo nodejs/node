@@ -1,11 +1,4 @@
-#! /usr/bin/env perl
-# Copyright 2010-2018 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
-
+#!/usr/bin/env perl
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -66,8 +59,6 @@
 # As it can be seen, RSA sign performance improves by 130-30%,
 # hereafter less for longer keys, while verify - by 74-13%.
 # DSA performance improves by 115-30%.
-
-$output=pop;
 
 if ($^O eq "hpux") {
     $ADDP="addp4";
@@ -341,19 +332,19 @@ bn_mul_mont_general:
 { .mmb;	sub	rptr=rptr,len		// rewind
 	sub	tptr=tptr,len
 	clrrrb.pr			};;
-{ .mmi;	mov	aptr=rptr
-	mov	bptr=tptr
+{ .mmi;	and	aptr=tptr,topbit
+	andcm	bptr=rptr,topbit
 	mov	pr.rot=1<<16		};;
-{ .mii;	cmp.eq	p0,p6=topbit,r0
+{ .mii;	or	nptr=aptr,bptr
 	mov	ar.lc=lc
-	mov	ar.ec=2			};;
+	mov	ar.ec=3			};;
 
 .Lcopy_ctop:
-{ .mmi;	(p16)	ld8	a[0]=[aptr],8
-	(p16)	ld8	t[0]=[bptr],8
-	(p6)	mov	a[1]=t[1]	};;	// (p17)
-{ .mmb;	(p17)	st8	[rptr]=a[1],8
-	(p17)	st8	[tptr]=r0,8
+{ .mmb;	(p16)	ld8	n[0]=[nptr],8
+	(p18)	st8	[tptr]=r0,8
+	(p16)	nop.b	0		}
+{ .mmb;	(p16)	nop.m	0
+	(p18)	st8	[rptr]=n[2],8
 	br.ctop.sptk	.Lcopy_ctop	};;
 .Lcopy_cend:
 
@@ -855,6 +846,6 @@ copyright:
 stringz	"Montgomery multiplication for IA-64, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 
-open STDOUT,">$output" if $output;
+$output=shift and open STDOUT,">$output";
 print $code;
 close STDOUT;

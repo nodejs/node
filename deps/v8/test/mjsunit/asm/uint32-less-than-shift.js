@@ -7,8 +7,7 @@ function Module(stdlib, foreign, heap) {
 
   function foo1(i1) {
     i1 = i1 | 0;
-    var i10 = 0;
-    i10 = (i1 >> 5) | 0;
+    var i10 = i1 >> 5;
     if (i10 >>> 0 < 5) {
       return 1;
     } else {
@@ -19,8 +18,7 @@ function Module(stdlib, foreign, heap) {
 
   function foo2(i1) {
     i1 = i1 | 0;
-    var i10 = 0;
-    i10 = ((i1 | 0) / 32) | 0;
+    var i10 = i1 / 32 | 0;
     if (i10 >>> 0 < 5) {
       return 1;
     } else {
@@ -31,8 +29,7 @@ function Module(stdlib, foreign, heap) {
 
   function foo3(i1) {
     i1 = i1 | 0;
-    var i10 = 0;
-    i10 = (i1 + 32 | 0) / 32 | 0;
+    var i10 = (i1 + 32 | 0) / 32 | 0;
     if (i10 >>> 0 < 5) {
       return 1;
     } else {

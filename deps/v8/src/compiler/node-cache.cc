@@ -6,9 +6,8 @@
 
 #include <cstring>
 
-#include "src/globals.h"
-#include "src/zone/zone-containers.h"
-#include "src/zone/zone.h"
+#include "src/zone.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -112,11 +111,9 @@ void NodeCache<Key, Hash, Pred>::GetCachedNodes(ZoneVector<Node*>* nodes) {
 // -----------------------------------------------------------------------------
 // Instantiations
 
-template class V8_EXPORT_PRIVATE NodeCache<int32_t>;
-template class V8_EXPORT_PRIVATE NodeCache<int64_t>;
 
-template class V8_EXPORT_PRIVATE NodeCache<RelocInt32Key>;
-template class V8_EXPORT_PRIVATE NodeCache<RelocInt64Key>;
+template class NodeCache<int32_t>;
+template class NodeCache<int64_t>;
 
 }  // namespace compiler
 }  // namespace internal

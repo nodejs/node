@@ -1,100 +1,92 @@
-'use strict';
+var fs = require('fs');
+var path = require('path');
+var marked = require('marked');
 
-// doc/api/addons.md has a bunch of code.  Extract it for verification
-// that the C++ code compiles and the js code runs.
-// Add .gyp files which will be used to compile the C++ code.
-// Modify the require paths in the js code to pull from the build tree.
-// Triggered from the build-addons target in the Makefile and vcbuild.bat.
+var doc = path.resolve(__dirname, '..', '..', 'doc', 'api', 'addons.markdown');
+var verifyDir = path.resolve(__dirname, '..', '..', 'test', 'addons');
 
-const { mkdir, writeFile } = require('fs');
-const { resolve } = require('path');
-const vfile = require('to-vfile');
-const unified = require('unified');
-const remarkParse = require('remark-parse');
+var contents = fs.readFileSync(doc).toString();
 
-const rootDir = resolve(__dirname, '..', '..');
-const doc = resolve(rootDir, 'doc', 'api', 'addons.md');
-const verifyDir = resolve(rootDir, 'test', 'addons');
+var tokens = marked.lexer(contents, {});
+var files = null;
+var id = 0;
 
-const file = vfile.readSync(doc, 'utf8');
-const tree = unified().use(remarkParse).parse(file);
-const addons = {};
-let id = 0;
-let currentHeader;
+// Just to make sure that all examples will be processed
+tokens.push({ type: 'heading' });
 
-const validNames = /^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/;
-tree.children.forEach((node) => {
-  if (node.type === 'heading') {
-    currentHeader = file.contents.slice(
-      node.children[0].position.start.offset,
-      node.position.end.offset);
-    addons[currentHeader] = { files: {} };
-  } else if (node.type === 'code') {
-    const match = node.value.match(validNames);
-    if (match !== null) {
-      addons[currentHeader].files[match[1]] = node.value;
-    }
-  }
+var oldDirs = fs.readdirSync(verifyDir);
+oldDirs = oldDirs.filter(function(dir) {
+  return /^doc-/.test(dir);
+}).map(function(dir) {
+  return path.resolve(verifyDir, dir);
 });
 
-Object.keys(addons).forEach((header) => {
-  verifyFiles(addons[header].files, header);
-});
-
-function verifyFiles(files, blockName) {
-  const fileNames = Object.keys(files);
-
-  // Must have a .cc and a .js to be a valid test.
-  if (!fileNames.some((name) => name.endsWith('.cc')) ||
-      !fileNames.some((name) => name.endsWith('.js'))) {
-    return;
-  }
-
-  blockName = blockName.toLowerCase().replace(/\s/g, '_').replace(/\W/g, '');
-  const dir = resolve(
-    verifyDir,
-    `${String(++id).padStart(2, '0')}_${blockName}`
-  );
-
-  files = fileNames.map((name) => {
-    if (name === 'test.js') {
-      files[name] = `'use strict';
-const common = require('../../common');
-${files[name].replace(
-    "'./build/Release/addon'",
-    // eslint-disable-next-line no-template-curly-in-string
-    '`./build/${common.buildType}/addon`')}
-`;
+for (var i = 0; i < tokens.length; i++) {
+  var token = tokens[i];
+  if (token.type === 'heading') {
+    if (files && Object.keys(files).length !== 0) {
+      verifyFiles(files,
+                  console.log.bind(null, 'wrote'),
+                  function(err) { if (err) throw err; });
     }
+    files = {};
+  } else if (token.type === 'code') {
+    var match = token.text.match(/^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/);
+    if (match === null)
+      continue;
+    files[match[1]] = token.text;
+  }
+}
+
+function once(fn) {
+  var once = false;
+  return function() {
+    if (once)
+      return;
+    once = true;
+    fn.apply(this, arguments);
+  };
+}
+
+function verifyFiles(files, onprogress, ondone) {
+  var dir = path.resolve(verifyDir, 'doc-' + id++);
+
+  files = Object.keys(files).map(function(name) {
     return {
-      path: resolve(dir, name),
+      path: path.resolve(dir, name),
       name: name,
       content: files[name]
     };
   });
-
   files.push({
-    path: resolve(dir, 'binding.gyp'),
+    path: path.resolve(dir, 'binding.gyp'),
     content: JSON.stringify({
       targets: [
         {
           target_name: 'addon',
-          defines: [ 'V8_DEPRECATION_WARNINGS=1' ],
-          sources: files.map(({ name }) => name)
+          sources: files.map(function(file) {
+            return file.name;
+          })
         }
       ]
     })
   });
 
-  mkdir(dir, () => {
-    // Ignore errors.
+  fs.mkdir(dir, function() {
+    // Ignore errors
 
-    files.forEach(({ path, content }) => {
-      writeFile(path, content, (err) => {
+    var done = once(ondone);
+    var waiting = files.length;
+    files.forEach(function(file) {
+      fs.writeFile(file.path, file.content, function(err) {
         if (err)
-          throw err;
+          return done(err);
 
-        console.log(`Wrote ${path}`);
+        if (onprogress)
+          onprogress(file.path);
+
+        if (--waiting === 0)
+          done();
       });
     });
   });

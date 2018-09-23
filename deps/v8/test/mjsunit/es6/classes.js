@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-do-expressions
+// Flags: --harmony-sloppy
 
 (function TestBasics() {
   var C = class C {}
@@ -22,11 +22,13 @@
   class D2 { constructor() {} }
   assertEquals('D2', D2.name);
 
+  // TODO(arv): The logic for the name of anonymous functions in ES6 requires
+  // the below to be 'E';
   var E = class {}
-  assertEquals('E', E.name);  // Should be 'E'.
+  assertEquals('', E.name);  // Should be 'E'.
 
   var F = class { constructor() {} };
-  assertEquals('F', F.name);  // Should be 'F'.
+  assertEquals('', F.name);  // Should be 'F'.
 })();
 
 
@@ -164,15 +166,14 @@
                SyntaxError);
 
   var D = class extends function() {
-    this.args = arguments;
+    arguments.caller;
   } {};
   assertThrows(function() {
     Object.getPrototypeOf(D).arguments;
   }, TypeError);
-  var e = new D();
-  assertThrows(() => e.args.callee, TypeError);
-  assertEquals(undefined, Object.getOwnPropertyDescriptor(e.args, 'caller'));
-  assertFalse('caller' in e.args);
+  assertThrows(function() {
+    new D;
+  }, TypeError);
 })();
 
 
@@ -195,7 +196,6 @@ function assertMethodDescriptor(object, name) {
   assertTrue(descr.writable);
   assertEquals('function', typeof descr.value);
   assertFalse('prototype' in descr.value);
-  assertEquals(name, descr.value.name);
 }
 
 
@@ -206,7 +206,6 @@ function assertGetterDescriptor(object, name) {
   assertEquals('function', typeof descr.get);
   assertFalse('prototype' in descr.get);
   assertEquals(undefined, descr.set);
-  assertEquals("get " + name, descr.get.name);
 }
 
 
@@ -217,7 +216,6 @@ function assertSetterDescriptor(object, name) {
   assertEquals(undefined, descr.get);
   assertEquals('function', typeof descr.set);
   assertFalse('prototype' in descr.set);
-  assertEquals("set " + name, descr.set.name);
 }
 
 
@@ -229,8 +227,6 @@ function assertAccessorDescriptor(object, name) {
   assertEquals('function', typeof descr.set);
   assertFalse('prototype' in descr.get);
   assertFalse('prototype' in descr.set);
-  assertEquals("get " + name, descr.get.name);
-  assertEquals("set " + name, descr.set.name);
 }
 
 
@@ -595,38 +591,15 @@ function assertAccessorDescriptor(object, name) {
     static 4() { return 4; }
     static get 5() { return 5; }
     static set 6(_) {}
-
-    2147483649() { return 2147483649; }
-    get 2147483650() { return 2147483650; }
-    set 2147483651(_) {}
-
-    static 2147483652() { return 2147483652; }
-    static get 2147483653() { return 2147483653; }
-    static set 2147483654(_) {}
-
-    4294967294() { return 4294967294; }
-    4294967295() { return 4294967295; }
-    static 4294967294() { return 4294967294; }
-    static 4294967295() { return 4294967295; }
   }
 
   assertMethodDescriptor(B.prototype, '1');
   assertGetterDescriptor(B.prototype, '2');
   assertSetterDescriptor(B.prototype, '3');
-  assertMethodDescriptor(B.prototype, '2147483649');
-  assertGetterDescriptor(B.prototype, '2147483650');
-  assertSetterDescriptor(B.prototype, '2147483651');
-  assertMethodDescriptor(B.prototype, '4294967294');
-  assertMethodDescriptor(B.prototype, '4294967295');
 
   assertMethodDescriptor(B, '4');
   assertGetterDescriptor(B, '5');
   assertSetterDescriptor(B, '6');
-  assertMethodDescriptor(B, '2147483652');
-  assertGetterDescriptor(B, '2147483653');
-  assertSetterDescriptor(B, '2147483654');
-  assertMethodDescriptor(B, '4294967294');
-  assertMethodDescriptor(B, '4294967295');
 
   class C extends B {
     1() { return super[1](); }
@@ -634,23 +607,12 @@ function assertAccessorDescriptor(object, name) {
 
     static 4() { return super[4](); }
     static get 5() { return super[5]; }
-
-    2147483649() { return super[2147483649](); }
-    get 2147483650() { return super[2147483650]; }
-
-    static 2147483652() { return super[2147483652](); }
-    static get 2147483653() { return super[2147483653]; }
-
   }
 
   assertEquals(1, new C()[1]());
   assertEquals(2, new C()[2]);
-  assertEquals(2147483649, new C()[2147483649]());
-  assertEquals(2147483650, new C()[2147483650]);
   assertEquals(4, C[4]());
   assertEquals(5, C[5]);
-  assertEquals(2147483652, C[2147483652]());
-  assertEquals(2147483653, C[2147483653]);
 })();
 
 
@@ -661,56 +623,6 @@ function assertAccessorDescriptor(object, name) {
   assertThrows(function () {C(1);}, TypeError);
   assertTrue(new C() instanceof C);
   assertTrue(new C(1) instanceof C);
-})();
-
-
-(function TestConstructorCall(){
-  var realmIndex = Realm.create();
-  var otherTypeError = Realm.eval(realmIndex, "TypeError");
-  var A = Realm.eval(realmIndex, '"use strict"; class A {}; A');
-  var instance = new A();
-  var constructor = instance.constructor;
-  var otherTypeError = Realm.eval(realmIndex, 'TypeError');
-  if (otherTypeError === TypeError) {
-    throw Error('Should not happen!');
-  }
-
-  // ES6 9.2.1[[Call]] throws a TypeError in the caller context/Realm when the
-  // called function is a classConstructor
-  assertThrows(function() { Realm.eval(realmIndex, "A()") }, otherTypeError);
-  assertThrows(function() { instance.constructor() }, TypeError);
-  assertThrows(function() { A() }, TypeError);
-
-  // ES6 9.3.1 call() first activates the callee context before invoking the
-  // method. The TypeError from the constructor is thus thrown in the other
-  // Realm.
-  assertThrows(function() { Realm.eval(realmIndex, "A.call()") },
-      otherTypeError);
-  assertThrows(function() { constructor.call() }, otherTypeError);
-  assertThrows(function() { A.call() }, otherTypeError);
-})();
-
-
-(function TestConstructorCallOptimized() {
-  class A { };
-
-  function invoke_constructor() { A() }
-  function call_constructor() { A.call() }
-  function apply_constructor() { A.apply() }
-
-  for (var i=0; i<3; i++) {
-    assertThrows(invoke_constructor);
-    assertThrows(call_constructor);
-    assertThrows(apply_constructor);
-  }
-  // Make sure we still check for class constructors when calling optimized
-  // code.
-  %OptimizeFunctionOnNextCall(invoke_constructor);
-  assertThrows(invoke_constructor);
-  %OptimizeFunctionOnNextCall(call_constructor);
-  assertThrows(call_constructor);
-  %OptimizeFunctionOnNextCall(apply_constructor);
-  assertThrows(apply_constructor);
 })();
 
 
@@ -1033,156 +945,4 @@ function testClassRestrictedProperties(C) {
   testClassRestrictedProperties(class extends Class { });
   testClassRestrictedProperties(
       class extends Class { constructor() { super(); } });
-})();
-
-
-(function testReturnFromClassLiteral() {
-
-  function usingDoExpressionInBody() {
-    let x = 42;
-    let dummy = function() {x};
-    try {
-      class C {
-        dummy() {C}
-        [do {return}]() {}
-      };
-    } finally {
-      return x;
-    }
-  }
-  assertEquals(42, usingDoExpressionInBody());
-
-  function usingDoExpressionInExtends() {
-    let x = 42;
-    let dummy = function() {x};
-    try {
-      class C extends (do {return}) { dummy() {C} };
-    } finally {
-      return x;
-    }
-  }
-  assertEquals(42, usingDoExpressionInExtends());
-
-  function usingYieldInBody() {
-    function* foo() {
-      class C {
-        [yield]() {}
-      }
-    }
-    var g = foo();
-    g.next();
-    return g.return(42).value;
-  }
-  assertEquals(42, usingYieldInBody());
-
-  function usingYieldInExtends() {
-    function* foo() {
-      class C extends (yield) {};
-    }
-    var g = foo();
-    g.next();
-    return g.return(42).value;
-  }
-  assertEquals(42, usingYieldInExtends());
-
-})();
-
-
-(function testLargeClassesMethods() {
-  const kLimit = 2000;
-  let evalString = "(function(i) { " +
-      "let clazz = class { " +
-      "   constructor(i) { this.value = i; } ";
-  for (let i = 0; i < 2000; i++) {
-    evalString  += "property"+i+"() { return "+i+"; }; "
-  }
-  evalString += "};" +
-      " return new clazz(i); })";
-
-  let fn = eval(evalString);
-  assertEquals(fn(1).value, 1);
-  assertEquals(fn(2).value, 2);
-  assertEquals(fn(3).value, 3);
-  %OptimizeFunctionOnNextCall(fn);
-  assertEquals(fn(4).value, 4);
-
-  let instance = fn(1);
-  assertEquals(Object.getOwnPropertyNames(instance).length, 1);
-  assertEquals(Object.getOwnPropertyNames(instance.__proto__).length,
-      kLimit + 1);
-
-  // Call all instance functions.
-  for (let i = 0; i < kLimit; i++) {
-    const key = "property" + i;
-    assertEquals(instance[key](), i);
-  }
-})();
-
-
-(function testLargeClassesStaticMethods() {
-  const kLimit = 2000;
-  let evalString = "(function(i) { " +
-      "let clazz = class { " +
-      "   constructor(i) { this.value = i; } ";
-  for (let i = 0; i < kLimit; i++) {
-    evalString  += "static property"+i+"() { return "+i+" }; "
-  }
-  evalString += "};" +
-      " return new clazz(i); })";
-
-  let fn = eval(evalString);
-
-  assertEquals(fn(1).value, 1);
-  assertEquals(fn(2).value, 2);
-  assertEquals(fn(3).value, 3);
-  %OptimizeFunctionOnNextCall(fn);
-  assertEquals(fn(4).value, 4);
-
-  let instance = fn(1);
-  assertEquals(Object.getOwnPropertyNames(instance).length, 1);
-  assertEquals(instance.value, 1);
-  instance.value = 10;
-  assertEquals(instance.value, 10);
-
-  // kLimit + nof default properties (length, prototype, name).
-  assertEquals(Object.getOwnPropertyNames(instance.constructor).length,
-      kLimit + 3);
-
-  // Call all static properties.
-  for (let i = 0; i < kLimit; i++) {
-    const key = "property" + i;
-    assertEquals(instance.constructor[key](), i);
-  }
-})();
-
-
-(function testLargeClassesProperties(){
-  const kLimit = 2000;
-  let evalString = "(function(i) { " +
-      "let clazz = class { " +
-      "   constructor(i) { this.value = i;";
-  for (let i = 0; i < kLimit ; i++) {
-    evalString  += "this.property"+i +" = "+i+"; "
-  }
-  evalString += "}};" +
-      " return (new clazz(i)); })";
-
-  let fn = eval(evalString);
-  assertEquals(fn(1).value, 1);
-  assertEquals(fn(2).value, 2);
-  assertEquals(fn(3).value, 3);
-  %OptimizeFunctionOnNextCall(fn);
-  assertEquals(fn(4).value, 4);
-
-  let instance = fn(1);
-  assertEquals(Object.getOwnPropertyNames(instance).length, kLimit+1);
-
-  // Get and set all properties.
-  for (let i = 0; i < kLimit; i++) {
-    const key = "property" + i;
-    assertEquals(instance[key], i);
-    const value = "value"+i;
-    instance[key] = value;
-    assertEquals(instance[key], value);
-  }
 })();

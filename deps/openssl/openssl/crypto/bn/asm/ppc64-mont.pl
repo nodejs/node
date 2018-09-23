@@ -1,11 +1,4 @@
-#! /usr/bin/env perl
-# Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
-
+#!/usr/bin/env perl
 
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -100,8 +93,6 @@ if ($flavour =~ /32/) {
 	$PUSH=	"std";
 	$POP=	"ld";
 } else { die "nonsense $flavour"; }
-
-$LITTLE_ENDIAN = ($flavour=~/le$/) ? 4 : 0;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}ppc-xlate.pl" and -f $xlate ) or
@@ -303,12 +294,12 @@ $code.=<<___ if ($SIZE_T==8);
 
 	extrdi	$t0,$a0,32,32		; lwz	$t0,4($ap)
 	extrdi	$t1,$a0,32,0		; lwz	$t1,0($ap)
-	lwz	$t2,`12^$LITTLE_ENDIAN`($ap)	; load a[1] as 32-bit word pair
-	lwz	$t3,`8^$LITTLE_ENDIAN`($ap)
-	lwz	$t4,`4^$LITTLE_ENDIAN`($np)	; load n[0] as 32-bit word pair
-	lwz	$t5,`0^$LITTLE_ENDIAN`($np)
-	lwz	$t6,`12^$LITTLE_ENDIAN`($np)	; load n[1] as 32-bit word pair
-	lwz	$t7,`8^$LITTLE_ENDIAN`($np)
+	lwz	$t2,12($ap)		; load a[1] as 32-bit word pair
+	lwz	$t3,8($ap)
+	lwz	$t4,4($np)		; load n[0] as 32-bit word pair
+	lwz	$t5,0($np)
+	lwz	$t6,12($np)		; load n[1] as 32-bit word pair
+	lwz	$t7,8($np)
 ___
 $code.=<<___ if ($SIZE_T==4);
 	lwz	$a0,0($ap)		; pull ap[0,1] value
@@ -472,14 +463,14 @@ $code.=<<___;
 L1st:
 ___
 $code.=<<___ if ($SIZE_T==8);
-	lwz	$t0,`4^$LITTLE_ENDIAN`($ap)	; load a[j] as 32-bit word pair
-	lwz	$t1,`0^$LITTLE_ENDIAN`($ap)
-	lwz	$t2,`12^$LITTLE_ENDIAN`($ap)	; load a[j+1] as 32-bit word pair
-	lwz	$t3,`8^$LITTLE_ENDIAN`($ap)
-	lwz	$t4,`4^$LITTLE_ENDIAN`($np)	; load n[j] as 32-bit word pair
-	lwz	$t5,`0^$LITTLE_ENDIAN`($np)
-	lwz	$t6,`12^$LITTLE_ENDIAN`($np)	; load n[j+1] as 32-bit word pair
-	lwz	$t7,`8^$LITTLE_ENDIAN`($np)
+	lwz	$t0,4($ap)		; load a[j] as 32-bit word pair
+	lwz	$t1,0($ap)
+	lwz	$t2,12($ap)		; load a[j+1] as 32-bit word pair
+	lwz	$t3,8($ap)
+	lwz	$t4,4($np)		; load n[j] as 32-bit word pair
+	lwz	$t5,0($np)
+	lwz	$t6,12($np)		; load n[j+1] as 32-bit word pair
+	lwz	$t7,8($np)
 ___
 $code.=<<___ if ($SIZE_T==4);
 	lwz	$t0,0($ap)		; load a[j..j+3] as 32-bit word pairs
@@ -514,14 +505,14 @@ $code.=<<___;
 ___
 } else {
 $code.=<<___;
-	lwz	$t1,`$FRAME+0^$LITTLE_ENDIAN`($sp)
-	lwz	$t0,`$FRAME+4^$LITTLE_ENDIAN`($sp)
-	lwz	$t3,`$FRAME+8^$LITTLE_ENDIAN`($sp)
-	lwz	$t2,`$FRAME+12^$LITTLE_ENDIAN`($sp)
-	lwz	$t5,`$FRAME+16^$LITTLE_ENDIAN`($sp)
-	lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
-	lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
-	lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
+	lwz	$t1,`$FRAME+0`($sp)
+	lwz	$t0,`$FRAME+4`($sp)
+	lwz	$t3,`$FRAME+8`($sp)
+	lwz	$t2,`$FRAME+12`($sp)
+	lwz	$t5,`$FRAME+16`($sp)
+	lwz	$t4,`$FRAME+20`($sp)
+	lwz	$t7,`$FRAME+24`($sp)
+	lwz	$t6,`$FRAME+28`($sp)
 ___
 }
 $code.=<<___;
@@ -660,8 +651,8 @@ $code.=<<___;
 
 	fmadd	$T1a,$N1,$na,$T1a
 	fmadd	$T1b,$N1,$nb,$T1b
-	 lwz	$t3,`$FRAME+32^$LITTLE_ENDIAN`($sp)	; permuted $t1
-	 lwz	$t2,`$FRAME+36^$LITTLE_ENDIAN`($sp)	; permuted $t0
+	 lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
+	 lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
 	 addc	$t4,$t4,$carry
 	 adde	$t5,$t5,$c1
 	 srwi	$carry,$t4,16
@@ -682,8 +673,8 @@ $code.=<<___;
 
 	fmadd	$T1a,$N0,$nc,$T1a
 	fmadd	$T1b,$N0,$nd,$T1b
-	 lwz	$t7,`$FRAME+40^$LITTLE_ENDIAN`($sp)	; permuted $t3
-	 lwz	$t6,`$FRAME+44^$LITTLE_ENDIAN`($sp)	; permuted $t2
+	 lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
+	 lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
 	 addc	$t2,$t2,$carry
 	 adde	$t3,$t3,$c1
 	 srwi	$carry,$t2,16
@@ -695,8 +686,8 @@ $code.=<<___;
 	 insrwi	$carry,$t3,16,0
 	fmadd	$T3a,$N2,$nc,$T3a
 	fmadd	$T3b,$N2,$nd,$T3b
-	 lwz	$t1,`$FRAME+48^$LITTLE_ENDIAN`($sp)	; permuted $t5
-	 lwz	$t0,`$FRAME+52^$LITTLE_ENDIAN`($sp)	; permuted $t4
+	 lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
+	 lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
 	 addc	$t6,$t6,$carry
 	 adde	$t7,$t7,$c1
 	 srwi	$carry,$t6,16
@@ -708,8 +699,8 @@ $code.=<<___;
 
 	fctid	$T0a,$T0a
 	fctid	$T0b,$T0b
-	 lwz	$t5,`$FRAME+56^$LITTLE_ENDIAN`($sp)	; permuted $t7
-	 lwz	$t4,`$FRAME+60^$LITTLE_ENDIAN`($sp)	; permuted $t6
+	 lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
+	 lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
 	 addc	$t0,$t0,$carry
 	 adde	$t1,$t1,$c1
 	 srwi	$carry,$t0,16
@@ -741,7 +732,7 @@ $code.=<<___;
 ___
 }
 $code.=<<___;
-	bdnz	L1st
+	bdnz-	L1st
 
 	fctid	$dota,$dota
 	fctid	$dotb,$dotb
@@ -796,14 +787,14 @@ $code.=<<___;
 ___
 } else {
 $code.=<<___;
-	lwz	$t1,`$FRAME+0^$LITTLE_ENDIAN`($sp)
-	lwz	$t0,`$FRAME+4^$LITTLE_ENDIAN`($sp)
-	lwz	$t3,`$FRAME+8^$LITTLE_ENDIAN`($sp)
-	lwz	$t2,`$FRAME+12^$LITTLE_ENDIAN`($sp)
-	lwz	$t5,`$FRAME+16^$LITTLE_ENDIAN`($sp)
-	lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
-	lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
-	lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
+	lwz	$t1,`$FRAME+0`($sp)
+	lwz	$t0,`$FRAME+4`($sp)
+	lwz	$t3,`$FRAME+8`($sp)
+	lwz	$t2,`$FRAME+12`($sp)
+	lwz	$t5,`$FRAME+16`($sp)
+	lwz	$t4,`$FRAME+20`($sp)
+	lwz	$t7,`$FRAME+24`($sp)
+	lwz	$t6,`$FRAME+28`($sp)
 	stfd	$dota,`$FRAME+64`($sp)
 	stfd	$dotb,`$FRAME+72`($sp)
 
@@ -832,14 +823,14 @@ $code.=<<___;
 	 stw	$t0,12($tp)		; tp[j-1]
 	 stw	$t4,8($tp)
 
-	lwz	$t3,`$FRAME+32^$LITTLE_ENDIAN`($sp)	; permuted $t1
-	lwz	$t2,`$FRAME+36^$LITTLE_ENDIAN`($sp)	; permuted $t0
-	lwz	$t7,`$FRAME+40^$LITTLE_ENDIAN`($sp)	; permuted $t3
-	lwz	$t6,`$FRAME+44^$LITTLE_ENDIAN`($sp)	; permuted $t2
-	lwz	$t1,`$FRAME+48^$LITTLE_ENDIAN`($sp)	; permuted $t5
-	lwz	$t0,`$FRAME+52^$LITTLE_ENDIAN`($sp)	; permuted $t4
-	lwz	$t5,`$FRAME+56^$LITTLE_ENDIAN`($sp)	; permuted $t7
-	lwz	$t4,`$FRAME+60^$LITTLE_ENDIAN`($sp)	; permuted $t6
+	lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
+	lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
+	lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
+	lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
+	lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
+	lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
+	lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
+	lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
 
 	addc	$t2,$t2,$carry
 	adde	$t3,$t3,$c1
@@ -866,10 +857,10 @@ $code.=<<___;
 	 stw	$t2,20($tp)		; tp[j]
 	 stwu	$t0,16($tp)
 
-	lwz	$t7,`$FRAME+64^$LITTLE_ENDIAN`($sp)
-	lwz	$t6,`$FRAME+68^$LITTLE_ENDIAN`($sp)
-	lwz	$t5,`$FRAME+72^$LITTLE_ENDIAN`($sp)
-	lwz	$t4,`$FRAME+76^$LITTLE_ENDIAN`($sp)
+	lwz	$t7,`$FRAME+64`($sp)
+	lwz	$t6,`$FRAME+68`($sp)
+	lwz	$t5,`$FRAME+72`($sp)
+	lwz	$t4,`$FRAME+76`($sp)
 
 	addc	$t6,$t6,$carry
 	adde	$t7,$t7,$c1
@@ -1174,23 +1165,23 @@ ___
 $code.=<<___;
 	fmadd	$T1a,$N1,$na,$T1a
 	fmadd	$T1b,$N1,$nb,$T1b
-	 lwz	$t1,`$FRAME+0^$LITTLE_ENDIAN`($sp)
-	 lwz	$t0,`$FRAME+4^$LITTLE_ENDIAN`($sp)
+	 lwz	$t1,`$FRAME+0`($sp)
+	 lwz	$t0,`$FRAME+4`($sp)
 	fmadd	$T2a,$N2,$na,$T2a
 	fmadd	$T2b,$N2,$nb,$T2b
-	 lwz	$t3,`$FRAME+8^$LITTLE_ENDIAN`($sp)
-	 lwz	$t2,`$FRAME+12^$LITTLE_ENDIAN`($sp)
+	 lwz	$t3,`$FRAME+8`($sp)
+	 lwz	$t2,`$FRAME+12`($sp)
 	fmadd	$T3a,$N3,$na,$T3a
 	fmadd	$T3b,$N3,$nb,$T3b
-	 lwz	$t5,`$FRAME+16^$LITTLE_ENDIAN`($sp)
-	 lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
+	 lwz	$t5,`$FRAME+16`($sp)
+	 lwz	$t4,`$FRAME+20`($sp)
 	 addc	$t0,$t0,$carry
 	 adde	$t1,$t1,$c1
 	 srwi	$carry,$t0,16
 	fmadd	$T0a,$N0,$na,$T0a
 	fmadd	$T0b,$N0,$nb,$T0b
-	 lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
-	 lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
+	 lwz	$t7,`$FRAME+24`($sp)
+	 lwz	$t6,`$FRAME+28`($sp)
 	 srwi	$c1,$t1,16
 	 insrwi	$carry,$t1,16,0
 
@@ -1227,8 +1218,8 @@ $code.=<<___;
 	fctid	$T1a,$T1a
 	 addc	$t0,$t0,$t2
 	 adde	$t4,$t4,$t3
-	 lwz	$t3,`$FRAME+32^$LITTLE_ENDIAN`($sp)	; permuted $t1
-	 lwz	$t2,`$FRAME+36^$LITTLE_ENDIAN`($sp)	; permuted $t0
+	 lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
+	 lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
 	fctid	$T1b,$T1b
 	 addze	$carry,$carry
 	 addze	$c1,$c1
@@ -1238,19 +1229,19 @@ $code.=<<___;
 	 addc	$t2,$t2,$carry
 	 adde	$t3,$t3,$c1
 	 srwi	$carry,$t2,16
-	 lwz	$t7,`$FRAME+40^$LITTLE_ENDIAN`($sp)	; permuted $t3
-	 lwz	$t6,`$FRAME+44^$LITTLE_ENDIAN`($sp)	; permuted $t2
+	 lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
+	 lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
 	fctid	$T2b,$T2b
 	 srwi	$c1,$t3,16
 	 insrwi	$carry,$t3,16,0
-	 lwz	$t1,`$FRAME+48^$LITTLE_ENDIAN`($sp)	; permuted $t5
-	 lwz	$t0,`$FRAME+52^$LITTLE_ENDIAN`($sp)	; permuted $t4
+	 lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
+	 lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
 	fctid	$T3a,$T3a
 	 addc	$t6,$t6,$carry
 	 adde	$t7,$t7,$c1
 	 srwi	$carry,$t6,16
-	 lwz	$t5,`$FRAME+56^$LITTLE_ENDIAN`($sp)	; permuted $t7
-	 lwz	$t4,`$FRAME+60^$LITTLE_ENDIAN`($sp)	; permuted $t6
+	 lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
+	 lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
 	fctid	$T3b,$T3b
 
 	 insrwi	$t2,$t6,16,0		; 64..95 bits
@@ -1287,7 +1278,7 @@ $code.=<<___;
 ___
 }
 $code.=<<___;
-	bdnz	Linner
+	bdnz-	Linner
 
 	fctid	$dota,$dota
 	fctid	$dotb,$dotb
@@ -1363,14 +1354,14 @@ $code.=<<___;
 ___
 } else {
 $code.=<<___;
-	lwz	$t1,`$FRAME+0^$LITTLE_ENDIAN`($sp)
-	lwz	$t0,`$FRAME+4^$LITTLE_ENDIAN`($sp)
-	lwz	$t3,`$FRAME+8^$LITTLE_ENDIAN`($sp)
-	lwz	$t2,`$FRAME+12^$LITTLE_ENDIAN`($sp)
-	lwz	$t5,`$FRAME+16^$LITTLE_ENDIAN`($sp)
-	lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
-	lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
-	lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
+	lwz	$t1,`$FRAME+0`($sp)
+	lwz	$t0,`$FRAME+4`($sp)
+	lwz	$t3,`$FRAME+8`($sp)
+	lwz	$t2,`$FRAME+12`($sp)
+	lwz	$t5,`$FRAME+16`($sp)
+	lwz	$t4,`$FRAME+20`($sp)
+	lwz	$t7,`$FRAME+24`($sp)
+	lwz	$t6,`$FRAME+28`($sp)
 	stfd	$dota,`$FRAME+64`($sp)
 	stfd	$dotb,`$FRAME+72`($sp)
 
@@ -1406,14 +1397,14 @@ $code.=<<___;
 	 stw	$t0,4($tp)		; tp[j-1]
 	 stw	$t4,0($tp)
 
-	lwz	$t3,`$FRAME+32^$LITTLE_ENDIAN`($sp)	; permuted $t1
-	lwz	$t2,`$FRAME+36^$LITTLE_ENDIAN`($sp)	; permuted $t0
-	lwz	$t7,`$FRAME+40^$LITTLE_ENDIAN`($sp)	; permuted $t3
-	lwz	$t6,`$FRAME+44^$LITTLE_ENDIAN`($sp)	; permuted $t2
-	lwz	$t1,`$FRAME+48^$LITTLE_ENDIAN`($sp)	; permuted $t5
-	lwz	$t0,`$FRAME+52^$LITTLE_ENDIAN`($sp)	; permuted $t4
-	lwz	$t5,`$FRAME+56^$LITTLE_ENDIAN`($sp)	; permuted $t7
-	lwz	$t4,`$FRAME+60^$LITTLE_ENDIAN`($sp)	; permuted $t6
+	lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
+	lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
+	lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
+	lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
+	lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
+	lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
+	lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
+	lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
 
 	addc	$t2,$t2,$carry
 	adde	$t3,$t3,$c1
@@ -1442,12 +1433,12 @@ $code.=<<___;
 
 	addc	$t2,$t2,$t6
 	adde	$t0,$t0,$t7
-	 lwz	$t7,`$FRAME+64^$LITTLE_ENDIAN`($sp)
-	 lwz	$t6,`$FRAME+68^$LITTLE_ENDIAN`($sp)
+	 lwz	$t7,`$FRAME+64`($sp)
+	 lwz	$t6,`$FRAME+68`($sp)
 	addze	$carry,$carry
 	addze	$c1,$c1
-	 lwz	$t5,`$FRAME+72^$LITTLE_ENDIAN`($sp)
-	 lwz	$t4,`$FRAME+76^$LITTLE_ENDIAN`($sp)
+	 lwz	$t5,`$FRAME+72`($sp)
+	 lwz	$t4,`$FRAME+76`($sp)
 
 	addc	$t6,$t6,$carry
 	adde	$t7,$t7,$c1
@@ -1497,18 +1488,20 @@ Lsub:	ldx	$t0,$tp,$i
 	stdx	$t0,$rp,$i
 	stdx	$t2,$t6,$i
 	addi	$i,$i,16
-	bdnz	Lsub
+	bdnz-	Lsub
 
 	li	$i,0
 	subfe	$ovf,$i,$ovf	; handle upmost overflow bit
+	and	$ap,$tp,$ovf
+	andc	$np,$rp,$ovf
+	or	$ap,$ap,$np	; ap=borrow?tp:rp
+	addi	$t7,$ap,8
 	mtctr	$j
 
 .align	4
-Lcopy:				; conditional copy
-	ldx	$t0,$tp,$i
-	ldx	$t1,$t4,$i
-	ldx	$t2,$rp,$i
-	ldx	$t3,$t6,$i
+Lcopy:				; copy or in-place refresh
+	ldx	$t0,$ap,$i
+	ldx	$t1,$t7,$i
 	std	$i,8($nap_d)	; zap nap_d
 	std	$i,16($nap_d)
 	std	$i,24($nap_d)
@@ -1517,18 +1510,12 @@ Lcopy:				; conditional copy
 	std	$i,48($nap_d)
 	std	$i,56($nap_d)
 	stdu	$i,64($nap_d)
-	and	$t0,$t0,$ovf
-	and	$t1,$t1,$ovf
-	andc	$t2,$t2,$ovf
-	andc	$t3,$t3,$ovf
-	or	$t0,$t0,$t2
-	or	$t1,$t1,$t3
 	stdx	$t0,$rp,$i
 	stdx	$t1,$t6,$i
 	stdx	$i,$tp,$i	; zap tp at once
 	stdx	$i,$t4,$i
 	addi	$i,$i,16
-	bdnz	Lcopy
+	bdnz-	Lcopy
 ___
 $code.=<<___ if ($SIZE_T==4);
 	subf	$np,$num,$np	; rewind np
@@ -1561,25 +1548,24 @@ Lsub:	lwz	$t0,12($tp)	; load tp[j..j+3] in 64-bit word order
 	stw	$t5,8($rp)
 	stw	$t6,12($rp)
 	stwu	$t7,16($rp)
-	bdnz	Lsub
+	bdnz-	Lsub
 
 	li	$i,0
 	subfe	$ovf,$i,$ovf	; handle upmost overflow bit
-	addi	$ap,$sp,`$FRAME+$TRANSFER+4`
+	addi	$tp,$sp,`$FRAME+$TRANSFER+4`
 	subf	$rp,$num,$rp	; rewind rp
+	and	$ap,$tp,$ovf
+	andc	$np,$rp,$ovf
+	or	$ap,$ap,$np	; ap=borrow?tp:rp
 	addi	$tp,$sp,`$FRAME+$TRANSFER`
 	mtctr	$j
 
 .align	4
-Lcopy:				; conditional copy
+Lcopy:				; copy or in-place refresh
 	lwz	$t0,4($ap)
 	lwz	$t1,8($ap)
 	lwz	$t2,12($ap)
 	lwzu	$t3,16($ap)
-	lwz	$t4,4($rp)
-	lwz	$t5,8($rp)
-	lwz	$t6,12($rp)
-	lwz	$t7,16($rp)
 	std	$i,8($nap_d)	; zap nap_d
 	std	$i,16($nap_d)
 	std	$i,24($nap_d)
@@ -1588,25 +1574,13 @@ Lcopy:				; conditional copy
 	std	$i,48($nap_d)
 	std	$i,56($nap_d)
 	stdu	$i,64($nap_d)
-	and	$t0,$t0,$ovf
-	and	$t1,$t1,$ovf
-	and	$t2,$t2,$ovf
-	and	$t3,$t3,$ovf
-	andc	$t4,$t4,$ovf
-	andc	$t5,$t5,$ovf
-	andc	$t6,$t6,$ovf
-	andc	$t7,$t7,$ovf
-	or	$t0,$t0,$t4
-	or	$t1,$t1,$t5
-	or	$t2,$t2,$t6
-	or	$t3,$t3,$t7
 	stw	$t0,4($rp)
 	stw	$t1,8($rp)
 	stw	$t2,12($rp)
 	stwu	$t3,16($rp)
 	std	$i,8($tp)	; zap tp at once
 	stdu	$i,16($tp)
-	bdnz	Lcopy
+	bdnz-	Lcopy
 ___
 
 $code.=<<___;

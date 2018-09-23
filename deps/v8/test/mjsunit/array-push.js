@@ -146,16 +146,3 @@
   f(a, {});
   assertEquals(10, a.f());
 })();
-
-
-(function testDoubleArrayPush() {
-  var a = [];
-  var max = 1000;
-  for (var i = 0; i < max; i++) {
-    a.push(i + 0.1);
-  }
-  assertEquals(max, a.length);
-  for (var i = 0; i < max; i++) {
-    assertEquals(i+0.1, a[i]);
-  }
-})();

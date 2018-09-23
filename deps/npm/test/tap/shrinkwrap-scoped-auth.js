@@ -1,28 +1,25 @@
-'use strict'
-
-var fs = require('fs')
-var path = require('path')
+var resolve = require('path').resolve
 var writeFileSync = require('graceful-fs').writeFileSync
 
 var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
 var osenv = require('osenv')
 var rimraf = require('rimraf')
-var ssri = require('ssri')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 var toNerfDart = require('../../lib/config/nerf-dart.js')
 
-var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
-var outfile = path.resolve(pkg, '_npmrc')
-var modules = path.resolve(pkg, 'node_modules')
+var pkg = resolve(__dirname, 'shrinkwrap-scoped-auth')
+var outfile = resolve(pkg, '_npmrc')
+var modules = resolve(pkg, 'node_modules')
 var tarballPath = '/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
 var tarballURL = common.registry + tarballPath
-var tarball = path.resolve(__dirname, '../fixtures/scoped-underscore-1.3.1.tgz')
-var tarballIntegrity = ssri.fromData(fs.readFileSync(tarball)).toString()
+var tarball = resolve(__dirname, '../fixtures/scoped-underscore-1.3.1.tgz')
 
 var server
+
+var EXEC_OPTS = { cwd: pkg }
 
 function mocks (server) {
   var auth = 'Bearer 0xabad1dea'
@@ -46,22 +43,31 @@ test('authed npm install with shrinkwrapped scoped package', function (t) {
   common.npm(
     [
       'install',
-      '--loglevel', 'error',
+      '--loglevel', 'silent',
       '--json',
       '--fetch-retries', 0,
-      '--userconfig', outfile,
-      '--registry', common.registry
+      '--userconfig', outfile
     ],
-    {cwd: pkg, stdio: [0, 'pipe', 2]},
-    function (err, code, stdout) {
-      if (err) throw err
+    EXEC_OPTS,
+    function (err, code, stdout, stderr) {
+      console.error(stderr)
+      t.ifError(err, 'test runner executed without error')
       t.equal(code, 0, 'npm install exited OK')
+      t.notOk(stderr, 'no output on stderr')
       try {
         var results = JSON.parse(stdout)
-        t.match(results, {added: [{name: '@scoped/underscore', version: '1.3.1'}]}, '@scoped/underscore installed')
       } catch (ex) {
         console.error('#', ex)
         t.ifError(ex, 'stdout was valid JSON')
+      }
+
+      if (results) {
+        var installedversion = {
+          'version': '1.3.1',
+          'from': '>=1.3.1 <2',
+          'resolved': 'http://localhost:1337/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
+        }
+        t.isDeeply(results.dependencies['@scoped/underscore'], installedversion, '@scoped/underscore installed')
       }
 
       t.end()
@@ -80,20 +86,16 @@ var contents = '@scoped:registry=' + common.registry + '\n' +
 
 var json = {
   name: 'test-package-install',
-  version: '1.0.0',
-  dependencies: {
-    '@scoped/underscore': '1.0.0'
-  }
+  version: '1.0.0'
 }
 
 var shrinkwrap = {
   name: 'test-package-install',
   version: '1.0.0',
-  lockfileVersion: 1,
   dependencies: {
     '@scoped/underscore': {
       resolved: tarballURL,
-      integrity: tarballIntegrity,
+      from: '>=1.3.1 <2',
       version: '1.3.1'
     }
   }
@@ -102,10 +104,10 @@ var shrinkwrap = {
 function setup () {
   cleanup()
   mkdirp.sync(modules)
-  writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify(json, null, 2) + '\n')
+  writeFileSync(resolve(pkg, 'package.json'), JSON.stringify(json, null, 2) + '\n')
   writeFileSync(outfile, contents)
   writeFileSync(
-    path.resolve(pkg, 'npm-shrinkwrap.json'),
+    resolve(pkg, 'npm-shrinkwrap.json'),
     JSON.stringify(shrinkwrap, null, 2) + '\n'
   )
 }

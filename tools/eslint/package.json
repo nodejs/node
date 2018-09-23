@@ -1,0 +1,127 @@
+{
+  "name": "eslint",
+  "version": "0.24.0",
+  "author": {
+    "name": "Nicholas C. Zakas",
+    "email": "nicholas+npm@nczconsulting.com"
+  },
+  "description": "An AST-based pattern checker for JavaScript.",
+  "bin": {
+    "eslint": "./bin/eslint.js"
+  },
+  "main": "./lib/api.js",
+  "scripts": {
+    "test": "node Makefile.js test",
+    "lint": "node Makefile.js lint",
+    "patch": "node Makefile.js patch",
+    "minor": "node Makefile.js minor",
+    "major": "node Makefile.js major",
+    "docs": "node Makefile.js docs",
+    "gensite": "node Makefile.js gensite",
+    "browserify": "node Makefile.js browserify",
+    "perf": "node Makefile.js perf",
+    "profile": "beefy tests/bench/bench.js --open -- -t brfs -t ./tests/bench/xform-rules.js -r espree",
+    "coveralls": "cat ./coverage/lcov.info | coveralls"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "bin",
+    "conf",
+    "lib"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eslint/eslint.git"
+  },
+  "homepage": "http://eslint.org",
+  "bugs": {
+    "url": "https://github.com/eslint/eslint/issues/"
+  },
+  "dependencies": {
+    "chalk": "^1.0.0",
+    "concat-stream": "^1.4.6",
+    "debug": "^2.1.1",
+    "doctrine": "^0.6.2",
+    "escape-string-regexp": "^1.0.2",
+    "escope": "^3.1.0",
+    "espree": "^2.0.1",
+    "estraverse": "^4.1.0",
+    "estraverse-fb": "^1.3.1",
+    "globals": "^8.0.0",
+    "inquirer": "^0.8.2",
+    "is-my-json-valid": "^2.10.0",
+    "js-yaml": "^3.2.5",
+    "minimatch": "^2.0.1",
+    "mkdirp": "^0.5.0",
+    "object-assign": "^2.0.0",
+    "optionator": "^0.5.0",
+    "path-is-absolute": "^1.0.0",
+    "strip-json-comments": "~1.0.1",
+    "text-table": "~0.2.0",
+    "user-home": "^1.0.0",
+    "xml-escape": "~1.0.0"
+  },
+  "devDependencies": {
+    "beefy": "^1.0.0",
+    "brfs": "0.0.9",
+    "browserify": "^8.1.3",
+    "chai": "^1.9.1",
+    "coveralls": "2.11.2",
+    "dateformat": "^1.0.8",
+    "eslint-tester": "^0.8.1",
+    "esprima-fb": "^10001.1.0-dev-harmony-fb",
+    "gh-got": "^1.0.3",
+    "istanbul": "^0.3.5",
+    "jsdoc": "^3.3.0-beta1",
+    "jsonlint": "^1.6.2",
+    "markdownlint": "^0.0.6",
+    "mocha": "^2.1.0",
+    "mocha-phantomjs": "^3.5.0",
+    "npm-license": "^0.2.3",
+    "phantomjs": "^1.9.9",
+    "proxyquire": "^1.0.0",
+    "semver": "^4.1.0",
+    "shelljs": "^0.3.0",
+    "shelljs-nodecli": "~0.1.0",
+    "sinon": "1.14.1",
+    "through": "^2.3.6"
+  },
+  "keywords": [
+    "ast",
+    "lint",
+    "javascript",
+    "ecmascript",
+    "espree"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=0.10"
+  },
+  "gitHead": "b09484adab0e73e41bb9be28d8423b3295e4d5ff",
+  "_id": "eslint@0.24.0",
+  "_shasum": "1fc8ce7a153e614599cfc9efdabac4d1ea9aa6b0",
+  "_from": "eslint@*",
+  "_npmVersion": "1.4.28",
+  "_npmUser": {
+    "name": "nzakas",
+    "email": "nicholas@nczconsulting.com"
+  },
+  "maintainers": [
+    {
+      "name": "nzakas",
+      "email": "nicholas@nczconsulting.com"
+    },
+    {
+      "name": "ivolodin",
+      "email": "ivolodin@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "1fc8ce7a153e614599cfc9efdabac4d1ea9aa6b0",
+    "tarball": "http://registry.npmjs.org/eslint/-/eslint-0.24.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-0.24.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

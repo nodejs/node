@@ -6,7 +6,6 @@
 load('../base.js');
 load('super.js');
 load('default-constructor.js');
-load('leaf-constructors.js');
 
 
 var success = true;

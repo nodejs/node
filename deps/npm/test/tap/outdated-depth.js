@@ -54,9 +54,7 @@ test('outdated depth zero', function (t) {
         npm.install('.', function (er) {
           if (er) throw new Error(er)
           npm.outdated(function (err, d) {
-            t.ifError(err, 'npm outdated ran without error')
-            t.is(process.exitCode, 1, 'exit code set to 1')
-            process.exitCode = 0
+            if (err) throw new Error(err)
             t.deepEqual(d[0], expected)
             s.close()
             t.end()

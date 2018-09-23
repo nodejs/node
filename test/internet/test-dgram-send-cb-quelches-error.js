@@ -1,12 +1,12 @@
 'use strict';
-const common = require('../common');
-const mustCall = common.mustCall;
-const assert = require('assert');
-const dgram = require('dgram');
-const dns = require('dns');
+var common = require('../common');
+var mustCall = common.mustCall;
+var assert = require('assert');
+var dgram = require('dgram');
+var dns = require('dns');
 
-const socket = dgram.createSocket('udp4');
-const buffer = Buffer.from('gary busey');
+var socket = dgram.createSocket('udp4');
+var buffer = new Buffer('gary busey');
 
 dns.setServers([]);
 
@@ -28,7 +28,7 @@ function callbackOnly(err) {
 }
 
 function onEvent(err) {
-  assert.fail('Error should not be emitted if there is callback');
+  assert.fail(null, null, 'Error should not be emitted if there is callback');
 }
 
 function onError(err) {

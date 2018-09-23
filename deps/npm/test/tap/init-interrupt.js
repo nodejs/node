@@ -1,4 +1,3 @@
-/* eslint-disable standard/no-callback-literal */
 // if 'npm init' is interrupted with ^C, don't report
 // 'init written successfully'
 var test = require('tap').test

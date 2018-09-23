@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Doctrine trying</title>
+<script src="../doctrine.js"></script>
+<script type="text/javascript">
+	window.onload = function() {
+		document.getElementById("doit").onclick = function() {
+			var res = doctrine.parseParamType(document.getElementById("commenttext").value,
+				{unwrap:true, recoverable:true} );
+				
+			document.getElementById("parse_tree_res").innerHTML = JSON.stringify(res, null, ' ');
+			document.getElementById("stringify_res").textContent = doctrine.stringify(res);
+		};
+	};
+</script>
+</head>
+<body>
+	<textarea id="commenttext">Add a jsdoc comment here</textarea>
+	<br/>
+	<br/>
+	<button id="doit">Click to parse</button>
+	<br/>
+	<br/>
+	<h3>Parse Tree</h3>
+	<pre id="parse_tree_res" ></pre>
+	<h3>Stringified</h3>
+	<pre id="stringify_res" ></pre>
+</body>
+</html>

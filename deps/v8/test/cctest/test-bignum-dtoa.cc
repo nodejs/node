@@ -38,9 +38,8 @@
 #include "test/cctest/gay-precision.h"
 #include "test/cctest/gay-shortest.h"
 
-namespace v8 {
-namespace internal {
-namespace test_bignum_dtoa {
+using namespace v8::internal;
+
 
 // Removes trailing '0' digits.
 // Can return the empty string if all digits are 0.
@@ -314,7 +313,3 @@ TEST(BignumDtoaGayPrecision) {
     CHECK_EQ(0, strcmp(current_test.representation, buffer.start()));
   }
 }
-
-}  // namespace test_bignum_dtoa
-}  // namespace internal
-}  // namespace v8

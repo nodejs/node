@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 function ArrayMaker(x) {
   return x;
 }
@@ -53,11 +51,4 @@ for (var constructor of arrayConstructors) {
   }
 
   assertEquals(0, a.reverse.length);
-
-  // Detached Operation
-  if (constructor != ArrayMaker) {
-    var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    %ArrayBufferNeuter(array.buffer);
-    assertThrows(() => array.reverse(), TypeError);
-  }
 }

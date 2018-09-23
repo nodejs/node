@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-
 function poly(x) {
   return x.foo;
 }
@@ -40,12 +38,8 @@ three.__proto__.__proto__.__proto__ = {};
 three.__proto__.__proto__.__proto__.__proto__ = {};
 three.__proto__.__proto__.__proto__.__proto__.__proto__ = {};
 
-poly(one);
-poly(two);
-poly(three);
-
-%OptimizeFunctionOnNextCall(poly);
-
-poly(one);
-poly(two);
-poly(three);
+for (var i = 0; i < 1e6; i++) {
+  poly(one);
+  poly(two);
+  poly(three);
+}

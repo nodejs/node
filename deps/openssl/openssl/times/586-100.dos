@@ -1,0 +1,24 @@
+ms-dos static libs, 16 bit C and 16 bit assmber 
+
+SSLeay 0.6.1 02-Jul-1996
+built on Tue Jul  9 22:52:54 EST 1996
+options:bn(32,16) md2(char) rc4(idx,int) des(ptr,long) idea(short)
+C flags:cl /ALw /Gx- /Gf /G2 /f- /Ocgnotb2 /W3 /WX -DL_ENDIAN /nologo -DMSDOS -DNO_SOCK
+The 'numbers' are in 1000s of bytes per second processed.
+type           8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2             45.99k      130.75k      176.53k      199.35k      203.21k
+md5            236.17k     1072.16k     1839.61k     2221.56k     2383.13k
+sha            107.97k      459.10k      757.64k      908.64k      954.99k
+sha1            96.95k      409.92k      672.16k      788.40k      844.26k
+rc4           1659.14k     1956.30k     2022.72k     2022.72k     2022.72k
+des cfb        313.57k      326.86k      326.86k      331.83k      326.86k
+des cbc        345.84k      378.82k      378.82k      384.38k      378.82k
+des ede3       139.59k      144.66k      144.61k      144.45k      143.29k
+idea cfb       262.67k      274.21k      274.21k      274.21k      274.21k
+idea cbc       284.32k      318.14k      318.14k      318.14k      318.14k
+rc2 cfb        265.33k      274.21k      277.69k      277.11k      277.69k
+rc2 cbc        283.71k      310.60k      309.86k      313.57k      314.32k
+rsa  512 bits   0.104s
+rsa 1024 bits   0.566s
+rsa 2048 bits   3.680s
+rsa 4096 bits  26.740s

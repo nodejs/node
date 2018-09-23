@@ -1,15 +1,7 @@
 'use strict';
-const common = require('../common');
-const v8 = require('v8');
+var common = require('../common');
+var assert = require('assert');
+var v8 = require('v8');
 
-[1, undefined].forEach((value) => {
-  common.expectsError(
-    () => v8.setFlagsFromString(value),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "flags" argument must be of type string. ' +
-               `Received type ${typeof value}`
-    }
-  );
-});
+assert.throws(function() {v8.setFlagsFromString(1);}, TypeError);
+assert.throws(function() {v8.setFlagsFromString();}, TypeError);

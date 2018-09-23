@@ -29,4 +29,4 @@
 
 var nf = Intl.NumberFormat(['xx']);
 
-assertLanguageTag(%GetDefaultICULocale(), nf.resolvedOptions().locale);
+assertEquals(nf.resolvedOptions().locale, %GetDefaultICULocale());

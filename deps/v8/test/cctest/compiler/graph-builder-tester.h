@@ -5,15 +5,15 @@
 #ifndef V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 #define V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
+
 #include "src/compiler/common-operator.h"
-#include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/optimized-compilation-info.h"
-#include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 
 namespace v8 {
@@ -25,9 +25,7 @@ class GraphAndBuilders {
   explicit GraphAndBuilders(Zone* zone)
       : main_graph_(new (zone) Graph(zone)),
         main_common_(zone),
-        main_machine_(zone, MachineType::PointerRepresentation(),
-                      InstructionSelector::SupportedMachineOperatorFlags(),
-                      InstructionSelector::AlignmentRequirements()),
+        main_machine_(zone),
         main_simplified_(zone) {}
 
   Graph* graph() const { return main_graph_; }
@@ -50,14 +48,18 @@ class GraphBuilderTester : public HandleAndZoneScope,
                            public GraphAndBuilders,
                            public CallHelper<ReturnType> {
  public:
-  template <typename... ParamMachTypes>
-  explicit GraphBuilderTester(ParamMachTypes... p)
+  explicit GraphBuilderTester(MachineType p0 = kMachNone,
+                              MachineType p1 = kMachNone,
+                              MachineType p2 = kMachNone,
+                              MachineType p3 = kMachNone,
+                              MachineType p4 = kMachNone)
       : GraphAndBuilders(main_zone()),
         CallHelper<ReturnType>(
             main_isolate(),
-            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
-        effect_(nullptr),
-        return_(nullptr),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
+                            p2, p3, p4)),
+        effect_(NULL),
+        return_(NULL),
         parameters_(main_zone()->template NewArray<Node*>(parameter_count())) {
     Begin(static_cast<int>(parameter_count()));
     InitParameters();
@@ -66,7 +68,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
 
   void GenerateCode() { Generate(); }
   Node* Parameter(size_t index) {
-    CHECK_LT(index, parameter_count());
+    DCHECK(index < parameter_count());
     return parameters_[index];
   }
 
@@ -75,17 +77,16 @@ class GraphBuilderTester : public HandleAndZoneScope,
 
   // Initialize graph and builder.
   void Begin(int num_parameters) {
-    CHECK_NULL(graph()->start());
+    DCHECK(graph()->start() == NULL);
     Node* start = graph()->NewNode(common()->Start(num_parameters + 3));
     graph()->SetStart(start);
     effect_ = start;
   }
 
   void Return(Node* value) {
-    Node* zero = graph()->NewNode(common()->Int32Constant(0));
-    return_ = graph()->NewNode(common()->Return(), zero, value, effect_,
-                               graph()->start());
-    effect_ = nullptr;
+    return_ =
+        graph()->NewNode(common()->Return(), value, effect_, graph()->start());
+    effect_ = NULL;
   }
 
   // Close the graph.
@@ -103,7 +104,8 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return NewNode(common()->Int32Constant(value));
   }
   Node* HeapConstant(Handle<HeapObject> object) {
-    return NewNode(common()->HeapConstant(object));
+    Unique<HeapObject> val = Unique<HeapObject>::CreateUninitialized(object);
+    return NewNode(common()->HeapConstant(val));
   }
 
   Node* BooleanNot(Node* a) { return NewNode(simplified()->BooleanNot(), a); }
@@ -164,11 +166,14 @@ class GraphBuilderTester : public HandleAndZoneScope,
   Node* ChangeUint32ToTagged(Node* a) {
     return NewNode(simplified()->ChangeUint32ToTagged(), a);
   }
-  Node* ChangeTaggedToBit(Node* a) {
-    return NewNode(simplified()->ChangeTaggedToBit(), a);
+  Node* ChangeFloat64ToTagged(Node* a) {
+    return NewNode(simplified()->ChangeFloat64ToTagged(), a);
   }
-  Node* ChangeBitToTagged(Node* a) {
-    return NewNode(simplified()->ChangeBitToTagged(), a);
+  Node* ChangeBoolToBit(Node* a) {
+    return NewNode(simplified()->ChangeBoolToBit(), a);
+  }
+  Node* ChangeBitToBool(Node* a) {
+    return NewNode(simplified()->ChangeBitToBool(), a);
   }
 
   Node* LoadField(const FieldAccess& access, Node* object) {
@@ -185,10 +190,37 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return NewNode(simplified()->StoreElement(access), object, index, value);
   }
 
-  template <typename... NodePtrs>
-  Node* NewNode(const Operator* op, NodePtrs... n) {
-    std::array<Node*, sizeof...(n)> inputs{{n...}};
-    return MakeNode(op, inputs.size(), inputs.data());
+  Node* NewNode(const Operator* op) {
+    return MakeNode(op, 0, static_cast<Node**>(NULL));
+  }
+
+  Node* NewNode(const Operator* op, Node* n1) { return MakeNode(op, 1, &n1); }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
+    Node* buffer[] = {n1, n2};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
+    Node* buffer[] = {n1, n2, n3};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
+    Node* buffer[] = {n1, n2, n3, n4};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5) {
+    Node* buffer[] = {n1, n2, n3, n4, n5};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
+    return MakeNode(op, arraysize(nodes), nodes);
   }
 
   Node* NewNode(const Operator* op, int value_input_count,
@@ -196,25 +228,20 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return MakeNode(op, value_input_count, value_inputs);
   }
 
-  Handle<Code> GetCode() {
-    Generate();
-    return code_.ToHandleChecked();
-  }
-
  protected:
   Node* MakeNode(const Operator* op, int value_input_count,
                  Node** value_inputs) {
-    CHECK_EQ(op->ValueInputCount(), value_input_count);
+    DCHECK(op->ValueInputCount() == value_input_count);
 
-    CHECK(!OperatorProperties::HasContextInput(op));
-    CHECK(!OperatorProperties::HasFrameStateInput(op));
+    DCHECK(!OperatorProperties::HasContextInput(op));
+    DCHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(op));
     bool has_control = op->ControlInputCount() == 1;
     bool has_effect = op->EffectInputCount() == 1;
 
-    CHECK_LT(op->ControlInputCount(), 2);
-    CHECK_LT(op->EffectInputCount(), 2);
+    DCHECK(op->ControlInputCount() < 2);
+    DCHECK(op->EffectInputCount() < 2);
 
-    Node* result = nullptr;
+    Node* result = NULL;
     if (!has_control && !has_effect) {
       result = graph()->NewNode(op, value_input_count, value_inputs);
     } else {
@@ -241,19 +268,15 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return result;
   }
 
-  Address Generate() override {
+  virtual byte* Generate() {
     if (code_.is_null()) {
       Zone* zone = graph()->zone();
-      auto call_descriptor =
+      CallDescriptor* desc =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
-      OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(),
-                                    Code::STUB);
-      code_ = Pipeline::GenerateCodeForTesting(
-          &info, main_isolate(), call_descriptor, graph(),
-          AssemblerOptions::Default(main_isolate()));
+      code_ = Pipeline::GenerateCodeForTesting(main_isolate(), desc, graph());
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {
-        StdoutStream os;
+        OFStream os(stdout);
         code_.ToHandleChecked()->Disassemble("test code", os);
       }
 #endif

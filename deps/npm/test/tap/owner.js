@@ -1,22 +1,11 @@
 var mr = require('npm-registry-mock')
 var test = require('tap').test
-var path = require('path')
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 
 var common = require('../common-tap.js')
-var basedir = path.join(__dirname, path.basename(__filename, '.js'))
-var cachedir = path.join(basedir, 'cache')
 
 var server
 
-var EXEC_OPTS = {
-  cwd: basedir,
-  stdio: [0, 'pipe', 2],
-  env: common.newEnv().extend({
-    npm_config_cache: cachedir
-  })
-}
+var EXEC_OPTS = {}
 
 var jashkenas = {
   name: 'jashkenas',
@@ -74,18 +63,28 @@ function mocks (server) {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(cachedir)
-  mr({ port: common.port, plugin: mocks }, function (er, s) {
-    server = s
-    t.end()
-  })
+  common.npm(
+    [
+      '--loglevel', 'silent',
+      'cache', 'clean'
+    ],
+    EXEC_OPTS,
+    function (err, code) {
+      t.ifError(err, 'npm cache clean ran without error')
+      t.notOk(code, 'npm cache clean exited cleanly')
+
+      mr({ port: common.port, plugin: mocks }, function (er, s) {
+        server = s
+        t.end()
+      })
+    }
+  )
 })
 
 test('npm owner add', function (t) {
   common.npm(
     [
-      '--loglevel', 'warn',
+      '--loglevel', 'silent',
       '--registry', common.registry,
       'owner', 'add', 'othiym23', 'underscore'
     ],
@@ -160,10 +159,5 @@ test('npm owner rm', function (t) {
 
 test('cleanup', function (t) {
   server.close()
-  cleanup()
   t.end()
 })
-
-function cleanup () {
-  rimraf.sync(basedir)
-}

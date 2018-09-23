@@ -1,0 +1,9 @@
+{ "name" : "fast"
+, "description" : "does nothing, and not very fast"
+, "version" : "1.2.3"
+, "scripts" :
+{   "preinstall" : "sleep 1 && echo fast 1 $(date +%s) && echo fast 2"
+,      "install" : "sleep 1 && echo fast 2 $(date +%s) && echo fast 3"
+,  "postinstall" : "sleep 1 && echo fast 3 $(date +%s) && echo fast 4"
+}
+}

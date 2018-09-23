@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+  <title>npm-tag</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-tag.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../cli/npm-tag.html">npm-tag</a></h1> <p>Tag a published version</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>[DEPRECATED] npm tag &lt;name&gt;@&lt;version&gt; [&lt;tag&gt;]
+See `dist-tag`
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>THIS COMMAND IS DEPRECATED. See <a href="../cli/npm-dist-tag.html">npm-dist-tag(1)</a> for details.</p>
+<p>Tags the specified version of the package with the specified tag, or the
+<code>--tag</code> config if not specified.</p>
+<p>A tag can be used when installing packages as a reference to a version instead
+of using a specific version number:</p>
+<pre><code>npm install &lt;name&gt;@&lt;tag&gt;
+</code></pre><p>When installing dependencies, a preferred tagged version may be specified:</p>
+<pre><code>npm install --tag &lt;tag&gt;
+</code></pre><p>This also applies to <code>npm dedupe</code>.</p>
+<p>Publishing a package always sets the &quot;latest&quot; tag to the published version.</p>
+<h2 id="purpose">PURPOSE</h2>
+<p>Tags can be used to provide an alias instead of version numbers.  For
+example, <code>npm</code> currently uses the tag &quot;next&quot; to identify the upcoming
+version, and the tag &quot;latest&quot; to identify the current version.</p>
+<p>A project might choose to have multiple streams of development, e.g.,
+&quot;stable&quot;, &quot;canary&quot;.</p>
+<h2 id="caveats">CAVEATS</h2>
+<p>Tags must share a namespace with version numbers, because they are
+specified in the same slot: <code>npm install &lt;pkg&gt;@&lt;version&gt;</code> vs <code>npm
+install &lt;pkg&gt;@&lt;tag&gt;</code>.</p>
+<p>Tags that can be interpreted as valid semver ranges will be
+rejected. For example, <code>v1.4</code> cannot be used as a tag, because it is
+interpreted by semver as <code>&gt;=1.4.0 &lt;1.5.0</code>.  See
+<a href="https://github.com/npm/npm/issues/6082">https://github.com/npm/npm/issues/6082</a>.</p>
+<p>The simplest way to avoid semver problems with tags is to use tags
+that do not begin with a number or the letter <code>v</code>.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm-publish.html">npm-publish(1)</a></li>
+<li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+<li><a href="../cli/npm-dedupe.html">npm-dedupe(1)</a></li>
+<li><a href="../misc/npm-registry.html">npm-registry(7)</a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../api/npm-tag.html">npm-tag(3)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-tag &mdash; npm@3.3.12</p>
+

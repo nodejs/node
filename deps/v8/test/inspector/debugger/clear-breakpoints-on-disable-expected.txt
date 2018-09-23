@@ -1,5 +1,0 @@
-Tests that we clear breakpoints on agent disabled
-function foo() {#}
-
-foo();#debugger;
-

@@ -15,12 +15,12 @@
  * all 10 timeouts had the time to expire.
  */
 
-require('../common');
+const common = require('../common');
 const timers = require('timers');
 const assert = require('assert');
 
-const someObject = {};
-let nbTimeouts = 0;
+var someObject = {};
+var nbTimeouts = 0;
 
 /*
  * libuv 0.10.x uses GetTickCount on Windows to implement timers, which uses
@@ -31,7 +31,7 @@ let nbTimeouts = 0;
  * and thus expect 5 timers to be able to fire in under 100 ms.
  */
 const N = 5;
-const TEST_DURATION = 1000;
+const TEST_DURATION = 100;
 
 timers.unenroll(someObject);
 timers.enroll(someObject, 1);
@@ -47,5 +47,5 @@ someObject._onTimeout = function _onTimeout() {
 timers._unrefActive(someObject);
 
 setTimeout(function() {
-  assert.strictEqual(nbTimeouts, N);
+  assert.equal(nbTimeouts, N);
 }, TEST_DURATION);

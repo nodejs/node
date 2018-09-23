@@ -50,19 +50,14 @@ import re
 import sys
 
 #
-# Miscellaneous constants such as tags and masks used for object identification,
-# enumeration values used as indexes in internal tables, etc..
+# Miscellaneous constants, tags, and masks used for object identification.
 #
 consts_misc = [
     { 'name': 'FirstNonstringType',     'value': 'FIRST_NONSTRING_TYPE' },
-    { 'name': 'APIObjectType',          'value': 'JS_API_OBJECT_TYPE' },
-    { 'name': 'SpecialAPIObjectType',   'value': 'JS_SPECIAL_API_OBJECT_TYPE' },
-
-    { 'name': 'FirstContextType',     'value': 'FIRST_CONTEXT_TYPE' },
-    { 'name': 'LastContextType',     'value': 'LAST_CONTEXT_TYPE' },
 
     { 'name': 'IsNotStringMask',        'value': 'kIsNotStringMask' },
     { 'name': 'StringTag',              'value': 'kStringTag' },
+    { 'name': 'NotStringTag',           'value': 'kNotStringTag' },
 
     { 'name': 'StringEncodingMask',     'value': 'kStringEncodingMask' },
     { 'name': 'TwoByteStringTag',       'value': 'kTwoByteStringTag' },
@@ -74,7 +69,6 @@ consts_misc = [
     { 'name': 'ConsStringTag',          'value': 'kConsStringTag' },
     { 'name': 'ExternalStringTag',      'value': 'kExternalStringTag' },
     { 'name': 'SlicedStringTag',        'value': 'kSlicedStringTag' },
-    { 'name': 'ThinStringTag',          'value': 'kThinStringTag' },
 
     { 'name': 'HeapObjectTag',          'value': 'kHeapObjectTag' },
     { 'name': 'HeapObjectTagMask',      'value': 'kHeapObjectTagMask' },
@@ -88,7 +82,7 @@ consts_misc = [
     { 'name': 'OddballTrue',            'value': 'Oddball::kTrue' },
     { 'name': 'OddballTheHole',         'value': 'Oddball::kTheHole' },
     { 'name': 'OddballNull',            'value': 'Oddball::kNull' },
-    { 'name': 'OddballArgumentsMarker', 'value': 'Oddball::kArgumentsMarker' },
+    { 'name': 'OddballArgumentMarker',  'value': 'Oddball::kArgumentMarker' },
     { 'name': 'OddballUndefined',       'value': 'Oddball::kUndefined' },
     { 'name': 'OddballUninitialized',   'value': 'Oddball::kUninitialized' },
     { 'name': 'OddballOther',           'value': 'Oddball::kOther' },
@@ -96,28 +90,10 @@ consts_misc = [
 
     { 'name': 'prop_idx_first',
         'value': 'DescriptorArray::kFirstIndex' },
-    { 'name': 'prop_kind_Data',
-        'value': 'kData' },
-    { 'name': 'prop_kind_Accessor',
-        'value': 'kAccessor' },
-    { 'name': 'prop_kind_mask',
-        'value': 'PropertyDetails::KindField::kMask' },
-    { 'name': 'prop_location_Descriptor',
-        'value': 'kDescriptor' },
-    { 'name': 'prop_location_Field',
-        'value': 'kField' },
-    { 'name': 'prop_location_mask',
-        'value': 'PropertyDetails::LocationField::kMask' },
-    { 'name': 'prop_location_shift',
-        'value': 'PropertyDetails::LocationField::kShift' },
-    { 'name': 'prop_attributes_NONE', 'value': 'NONE' },
-    { 'name': 'prop_attributes_READ_ONLY', 'value': 'READ_ONLY' },
-    { 'name': 'prop_attributes_DONT_ENUM', 'value': 'DONT_ENUM' },
-    { 'name': 'prop_attributes_DONT_DELETE', 'value': 'DONT_DELETE' },
-    { 'name': 'prop_attributes_mask',
-        'value': 'PropertyDetails::AttributesField::kMask' },
-    { 'name': 'prop_attributes_shift',
-        'value': 'PropertyDetails::AttributesField::kShift' },
+    { 'name': 'prop_type_field',
+        'value': 'DATA' },
+    { 'name': 'prop_type_mask',
+        'value': 'PropertyDetails::TypeField::kMask' },
     { 'name': 'prop_index_mask',
         'value': 'PropertyDetails::FieldIndexField::kMask' },
     { 'name': 'prop_index_shift',
@@ -148,18 +124,18 @@ consts_misc = [
         'value': 'Representation::Kind::kExternal' },
 
     { 'name': 'prop_desc_key',
-        'value': 'DescriptorArray::kEntryKeyIndex' },
+        'value': 'DescriptorArray::kDescriptorKey' },
     { 'name': 'prop_desc_details',
-        'value': 'DescriptorArray::kEntryDetailsIndex' },
+        'value': 'DescriptorArray::kDescriptorDetails' },
     { 'name': 'prop_desc_value',
-        'value': 'DescriptorArray::kEntryValueIndex' },
+        'value': 'DescriptorArray::kDescriptorValue' },
     { 'name': 'prop_desc_size',
-        'value': 'DescriptorArray::kEntrySize' },
+        'value': 'DescriptorArray::kDescriptorSize' },
 
     { 'name': 'elements_fast_holey_elements',
-        'value': 'HOLEY_ELEMENTS' },
+        'value': 'FAST_HOLEY_ELEMENTS' },
     { 'name': 'elements_fast_elements',
-        'value': 'PACKED_ELEMENTS' },
+        'value': 'FAST_ELEMENTS' },
     { 'name': 'elements_dictionary_elements',
         'value': 'DICTIONARY_ELEMENTS' },
 
@@ -167,19 +143,19 @@ consts_misc = [
         'value': 'Map::ElementsKindBits::kMask' },
     { 'name': 'bit_field2_elements_kind_shift',
         'value': 'Map::ElementsKindBits::kShift' },
-    { 'name': 'bit_field3_is_dictionary_map_shift',
-        'value': 'Map::IsDictionaryMapBit::kShift' },
+    { 'name': 'bit_field3_dictionary_map_shift',
+        'value': 'Map::DictionaryMap::kShift' },
     { 'name': 'bit_field3_number_of_own_descriptors_mask',
         'value': 'Map::NumberOfOwnDescriptorsBits::kMask' },
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
 
-    { 'name': 'off_fp_context_or_frame_type',
-        'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
     { 'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset' },
     { 'name': 'off_fp_constant_pool',
         'value': 'StandardFrameConstants::kConstantPoolOffset' },
+    { 'name': 'off_fp_marker',
+        'value': 'StandardFrameConstants::kMarkerOffset' },
     { 'name': 'off_fp_function',
         'value': 'JavaScriptFrameConstants::kFunctionOffset' },
     { 'name': 'off_fp_args',
@@ -187,78 +163,54 @@ consts_misc = [
 
     { 'name': 'scopeinfo_idx_nparams',
         'value': 'ScopeInfo::kParameterCount' },
+    { 'name': 'scopeinfo_idx_nstacklocals',
+        'value': 'ScopeInfo::kStackLocalCount' },
     { 'name': 'scopeinfo_idx_ncontextlocals',
         'value': 'ScopeInfo::kContextLocalCount' },
+    { 'name': 'scopeinfo_idx_ncontextglobals',
+        'value': 'ScopeInfo::kContextGlobalCount' },
     { 'name': 'scopeinfo_idx_first_vars',
         'value': 'ScopeInfo::kVariablePartIndex' },
+
+    { 'name': 'sharedfunctioninfo_start_position_mask',
+        'value': 'SharedFunctionInfo::kStartPositionMask' },
+    { 'name': 'sharedfunctioninfo_start_position_shift',
+        'value': 'SharedFunctionInfo::kStartPositionShift' },
 
     { 'name': 'jsarray_buffer_was_neutered_mask',
         'value': 'JSArrayBuffer::WasNeutered::kMask' },
     { 'name': 'jsarray_buffer_was_neutered_shift',
         'value': 'JSArrayBuffer::WasNeutered::kShift' },
-
-    { 'name': 'context_idx_scope_info',
-        'value': 'Context::SCOPE_INFO_INDEX' },
-    { 'name': 'context_idx_native',
-        'value': 'Context::NATIVE_CONTEXT_INDEX' },
-    { 'name': 'context_idx_prev',
-        'value': 'Context::PREVIOUS_INDEX' },
-    { 'name': 'context_idx_ext',
-        'value': 'Context::EXTENSION_INDEX' },
-    { 'name': 'context_min_slots',
-        'value': 'Context::MIN_CONTEXT_SLOTS' },
-    { 'name': 'context_idx_embedder_data',
-        'value': 'Internals::kContextEmbedderDataIndex' },
-
-
-    { 'name': 'namedictionaryshape_prefix_size',
-        'value': 'NameDictionaryShape::kPrefixSize' },
-    { 'name': 'namedictionaryshape_entry_size',
-        'value': 'NameDictionaryShape::kEntrySize' },
-    { 'name': 'globaldictionaryshape_entry_size',
-        'value': 'GlobalDictionaryShape::kEntrySize' },
-
-    { 'name': 'namedictionary_prefix_start_index',
-        'value': 'NameDictionary::kPrefixStartIndex' },
-
-    { 'name': 'numberdictionaryshape_prefix_size',
-        'value': 'NumberDictionaryShape::kPrefixSize' },
-    { 'name': 'numberdictionaryshape_entry_size',
-        'value': 'NumberDictionaryShape::kEntrySize' },
-
-    { 'name': 'simplenumberdictionaryshape_prefix_size',
-        'value': 'SimpleNumberDictionaryShape::kPrefixSize' },
-    { 'name': 'simplenumberdictionaryshape_entry_size',
-        'value': 'SimpleNumberDictionaryShape::kEntrySize' },
-
-    { 'name': 'type_JSError__JS_ERROR_TYPE', 'value': 'JS_ERROR_TYPE' },
 ];
 
 #
 # The following useful fields are missing accessors, so we define fake ones.
-# Please note that extra accessors should _only_ be added to expose offsets that
-# can be used to access actual V8 objects' properties. They should not be added
-# for exposing other values. For instance, enumeration values or class'
-# constants should be exposed by adding an entry in the "consts_misc" table, not
-# in this "extras_accessors" table.
 #
 extras_accessors = [
     'JSFunction, context, Context, kContextOffset',
+    'Context, closure_index, int, CLOSURE_INDEX',
+    'Context, global_object_index, int, GLOBAL_OBJECT_INDEX',
+    'Context, previous_index, int, PREVIOUS_INDEX',
+    'Context, min_context_slots, int, MIN_CONTEXT_SLOTS',
     'HeapObject, map, Map, kMapOffset',
     'JSObject, elements, Object, kElementsOffset',
-    'JSObject, internal_fields, uintptr_t, kHeaderSize',
     'FixedArray, data, uintptr_t, kHeaderSize',
-    'FixedTypedArrayBase, external_pointer, Object, kExternalPointerOffset',
+    'JSTypedArray, length, Object, kLengthOffset',
     'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
     'JSArrayBufferView, byte_offset, Object, kByteOffsetOffset',
-    'JSTypedArray, length, Object, kLengthOffset',
-    'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
-    'Map, inobject_properties_start_or_constructor_function_index, char, kInObjectPropertiesStartOrConstructorFunctionIndexOffset',
-    'Map, instance_type, uint16_t, kInstanceTypeOffset',
+    'Map, instance_attributes, int, kInstanceAttributesOffset',
+    'Map, inobject_properties_or_constructor_function_index, int, kInObjectPropertiesOrConstructorFunctionIndexOffset',
+    'Map, instance_size, int, kInstanceSizeOffset',
     'Map, bit_field, char, kBitFieldOffset',
     'Map, bit_field2, char, kBitField2Offset',
     'Map, bit_field3, int, kBitField3Offset',
     'Map, prototype, Object, kPrototypeOffset',
+    'NameDictionaryShape, prefix_size, int, kPrefixSize',
+    'NameDictionaryShape, entry_size, int, kEntrySize',
+    'NameDictionary, prefix_start_index, int, kPrefixStartIndex',
+    'SeededNumberDictionaryShape, prefix_size, int, kPrefixSize',
+    'UnseededNumberDictionaryShape, prefix_size, int, kPrefixSize',
+    'NumberDictionaryShape, entry_size, int, kEntrySize',
     'Oddball, kind_offset, int, kKindOffset',
     'HeapNumber, value, double, kValueOffset',
     'ConsString, first, String, kFirstOffset',
@@ -266,12 +218,8 @@ extras_accessors = [
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
-    'UncompiledData, start_position, int32_t, kStartPositionOffset',
-    'UncompiledData, end_position, int32_t, kEndPositionOffset',
-    'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
-    'SharedFunctionInfo, internal_formal_parameter_count, uint16_t, kFormalParameterCountOffset',
-    'SharedFunctionInfo, flags, int, kFlagsOffset',
-    'SharedFunctionInfo, length, uint16_t, kLengthOffset',
+    'SharedFunctionInfo, code, Code, kCodeOffset',
+    'SharedFunctionInfo, scope_info, ScopeInfo, kScopeInfoOffset',
     'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
@@ -285,7 +233,7 @@ extras_accessors = [
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
-    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo'
+    'SeqOneByteString', 'SharedFunctionInfo'
 ];
 
 
@@ -306,9 +254,6 @@ header = '''
 #include "src/v8.h"
 #include "src/frames.h"
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
-#include "src/contexts.h"
-#include "src/objects.h"
-#include "src/objects/js-regexp-string-iterator.h"
 
 using namespace v8::internal;
 
@@ -343,9 +288,15 @@ def get_base_class(klass):
         return get_base_class(k['parent']);
 
 #
-# Loads class hierarchy and type information from "objects.h" etc.
+# Loads class hierarchy and type information from "objects.h".
 #
 def load_objects():
+        objfilename = sys.argv[2];
+        objfile = open(objfilename, 'r');
+        in_insttype = False;
+
+        typestr = '';
+
         #
         # Construct a dictionary for the classes we're sure should be present.
         #
@@ -353,32 +304,14 @@ def load_objects():
         for klass in expected_classes:
                 checktypes[klass] = True;
 
-
-        for filename in sys.argv[2:]:
-                if not filename.endswith("-inl.h"):
-                        load_objects_from_file(filename, checktypes)
-
-        if (len(checktypes) > 0):
-                for klass in checktypes:
-                        print('error: expected class \"%s\" not found' % klass);
-
-                sys.exit(1);
-
-
-def load_objects_from_file(objfilename, checktypes):
-        objfile = open(objfilename, 'r');
-        in_insttype = False;
-
-        typestr = '';
-
         #
-        # Iterate the header file line-by-line to collect type and class
-        # information. For types, we accumulate a string representing the entire
-        # InstanceType enum definition and parse it later because it's easier to
-        # do so without the embedded newlines.
+        # Iterate objects.h line-by-line to collect type and class information.
+        # For types, we accumulate a string representing the entire InstanceType
+        # enum definition and parse it later because it's easier to do so
+        # without the embedded newlines.
         #
         for line in objfile:
-                if (line.startswith('enum InstanceType : uint16_t {')):
+                if (line.startswith('enum InstanceType {')):
                         in_insttype = True;
                         continue;
 
@@ -386,7 +319,7 @@ def load_objects_from_file(objfilename, checktypes):
                         in_insttype = False;
                         continue;
 
-                line = re.sub('//.*', '', line.strip());
+                line = re.sub('//.*', '', line.rstrip().lstrip());
 
                 if (in_insttype):
                         typestr += line;
@@ -396,10 +329,10 @@ def load_objects_from_file(objfilename, checktypes):
                     line);
 
                 if (match):
-                        klass = match.group(1).strip();
+                        klass = match.group(1).rstrip().lstrip();
                         pklass = match.group(3);
                         if (pklass):
-                                pklass = pklass.strip();
+                                pklass = pklass.rstrip().lstrip();
                         klasses[klass] = { 'parent': pklass };
 
         #
@@ -502,6 +435,13 @@ def load_objects_from_file(objfilename, checktypes):
                         if (cctype in checktypes):
                                 del checktypes[cctype];
 
+        if (len(checktypes) > 0):
+                for klass in checktypes:
+                        print('error: expected class \"%s\" not found' % klass);
+
+                sys.exit(1);
+
+
 #
 # For a given macro call, pick apart the arguments and return an object
 # describing the corresponding output constant.  See load_fields().
@@ -522,7 +462,7 @@ def parse_field(call):
         if (kind == 'ACCESSORS' or kind == 'ACCESSORS_GCSAFE'):
                 klass = args[0];
                 field = args[1];
-                dtype = args[2].replace('<', '_').replace('>', '_')
+                dtype = args[2];
                 offset = args[3];
 
                 return ({
@@ -541,19 +481,11 @@ def parse_field(call):
         });
 
 #
-# Load field offset information from objects-inl.h etc.
+# Load field offset information from objects-inl.h.
 #
 def load_fields():
-        for filename in sys.argv[2:]:
-                if filename.endswith("-inl.h"):
-                        load_fields_from_file(filename)
-
-        for body in extras_accessors:
-                fields.append(parse_field('ACCESSORS(%s)' % body));
-
-
-def load_fields_from_file(filename):
-        inlfile = open(filename, 'r');
+        inlfilename = sys.argv[3];
+        inlfile = open(inlfilename, 'r');
 
         #
         # Each class's fields and the corresponding offsets are described in the
@@ -604,6 +536,9 @@ def load_fields_from_file(filename):
         if (len(current) > 0):
                 fields.append(parse_field(current));
                 current = '';
+
+        for body in extras_accessors:
+                fields.append(parse_field('ACCESSORS(%s)' % body));
 
 #
 # Emit a block of constants.

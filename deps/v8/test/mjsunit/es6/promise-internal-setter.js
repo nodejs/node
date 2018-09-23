@@ -14,3 +14,4 @@ class P extends Promise {}
 
 P.all([Promise.resolve('ok')]);
 P.race([Promise.resolve('ok')]);
+P.defer();

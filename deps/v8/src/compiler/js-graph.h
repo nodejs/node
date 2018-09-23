@@ -5,46 +5,49 @@
 #ifndef V8_COMPILER_JS_GRAPH_H_
 #define V8_COMPILER_JS_GRAPH_H_
 
+#include "src/compiler/common-node-cache.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
-#include "src/compiler/machine-graph.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
-#include "src/globals.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SimplifiedOperatorBuilder;
 class Typer;
 
 // Implements a facade on a Graph, enhancing the graph with JS-specific
-// notions, including various builders for operators, canonicalized global
+// notions, including a builder for for JS* operators, canonicalized global
 // constants, and various helper methods.
-class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
+class JSGraph : public ZoneObject {
  public:
   JSGraph(Isolate* isolate, Graph* graph, CommonOperatorBuilder* common,
-          JSOperatorBuilder* javascript, SimplifiedOperatorBuilder* simplified,
-          MachineOperatorBuilder* machine)
-      : MachineGraph(graph, common, machine),
-        isolate_(isolate),
+          JSOperatorBuilder* javascript, MachineOperatorBuilder* machine)
+      : isolate_(isolate),
+        graph_(graph),
+        common_(common),
         javascript_(javascript),
-        simplified_(simplified) {
+        machine_(machine),
+        cache_(zone()) {
+    for (int i = 0; i < kNumCachedNodes; i++) cached_nodes_[i] = nullptr;
   }
 
-  // CEntryStubs are cached depending on the result size and other flags.
-  Node* CEntryStubConstant(int result_size,
-                           SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                           ArgvMode argv_mode = kArgvOnStack,
-                           bool builtin_exit_frame = false);
+  // Canonicalized global constants.
+  Node* CEntryStubConstant(int result_size);
+  Node* UndefinedConstant();
+  Node* TheHoleConstant();
+  Node* TrueConstant();
+  Node* FalseConstant();
+  Node* NullConstant();
+  Node* ZeroConstant();
+  Node* OneConstant();
+  Node* NaNConstant();
 
-  // Used for padding frames. (alias: the hole)
-  Node* PaddingConstant() { return TheHoleConstant(); }
-
-  // Used for stubs and runtime functions with no context. (alias: SMI zero)
-  Node* NoContextConstant() { return ZeroConstant(); }
+  // Creates a HeapConstant node, possibly canonicalized, without inspecting the
+  // object.
+  Node* HeapConstant(Unique<HeapObject> value);
 
   // Creates a HeapConstant node, possibly canonicalized, and may access the
   // heap to inspect the object.
@@ -55,85 +58,103 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   // canonicalized globals or a number constant should be returned.
   Node* Constant(Handle<Object> value);
 
-  // Like above, but doesn't access the heap directly.
-  Node* Constant(const ObjectRef& value);
-
   // Creates a NumberConstant node, usually canonicalized.
   Node* Constant(double value);
 
   // Creates a NumberConstant node, usually canonicalized.
   Node* Constant(int32_t value);
 
-  // Creates a NumberConstant node, usually canonicalized.
-  Node* Constant(uint32_t value);
+  // Creates a Int32Constant node, usually canonicalized.
+  Node* Int32Constant(int32_t value);
+  Node* Uint32Constant(uint32_t value) {
+    return Int32Constant(bit_cast<int32_t>(value));
+  }
 
   // Creates a HeapConstant node for either true or false.
   Node* BooleanConstant(bool is_true) {
     return is_true ? TrueConstant() : FalseConstant();
   }
 
+  // Creates a Int64Constant node, usually canonicalized.
+  Node* Int64Constant(int64_t value);
+  Node* Uint64Constant(uint64_t value) {
+    return Int64Constant(bit_cast<int64_t>(value));
+  }
+
+  // Creates a Int32Constant/Int64Constant node, depending on the word size of
+  // the target machine.
+  // TODO(turbofan): Code using Int32Constant/Int64Constant to store pointer
+  // constants is probably not serializable.
+  Node* IntPtrConstant(intptr_t value) {
+    return machine()->Is32() ? Int32Constant(static_cast<int32_t>(value))
+                             : Int64Constant(static_cast<int64_t>(value));
+  }
+  template <typename T>
+  Node* PointerConstant(T* value) {
+    return IntPtrConstant(bit_cast<intptr_t>(value));
+  }
+
+  // Creates a Float32Constant node, usually canonicalized.
+  Node* Float32Constant(float value);
+
+  // Creates a Float64Constant node, usually canonicalized.
+  Node* Float64Constant(double value);
+
+  // Creates an ExternalConstant node, usually canonicalized.
+  Node* ExternalConstant(ExternalReference ref);
+  Node* ExternalConstant(Runtime::FunctionId function_id);
+
   Node* SmiConstant(int32_t immediate) {
     DCHECK(Smi::IsValid(immediate));
     return Constant(immediate);
   }
 
+  // Creates a dummy Constant node, used to satisfy calling conventions of
+  // stubs and runtime functions that do not require a context.
+  Node* NoContextConstant() { return ZeroConstant(); }
+
+  // Creates an empty frame states for cases where we know that a function
+  // cannot deopt.
+  Node* EmptyFrameState();
+
+  // Create a control node that serves as dependency for dead nodes.
+  Node* Dead();
+
   JSOperatorBuilder* javascript() const { return javascript_; }
-  SimplifiedOperatorBuilder* simplified() const { return simplified_; }
+  CommonOperatorBuilder* common() const { return common_; }
+  MachineOperatorBuilder* machine() const { return machine_; }
+  Graph* graph() const { return graph_; }
+  Zone* zone() const { return graph()->zone(); }
   Isolate* isolate() const { return isolate_; }
   Factory* factory() const { return isolate()->factory(); }
 
-  // Adds all the cached nodes to the given list.
   void GetCachedNodes(NodeVector* nodes);
 
-// Cached global nodes.
-#define CACHED_GLOBAL_LIST(V)       \
-  V(AllocateInNewSpaceStubConstant) \
-  V(AllocateInOldSpaceStubConstant) \
-  V(ArrayConstructorStubConstant)   \
-  V(ToNumberBuiltinConstant)        \
-  V(EmptyFixedArrayConstant)        \
-  V(EmptyStringConstant)            \
-  V(FixedArrayMapConstant)          \
-  V(PropertyArrayMapConstant)       \
-  V(FixedDoubleArrayMapConstant)    \
-  V(HeapNumberMapConstant)          \
-  V(OptimizedOutConstant)           \
-  V(StaleRegisterConstant)          \
-  V(UndefinedConstant)              \
-  V(TheHoleConstant)                \
-  V(TrueConstant)                   \
-  V(FalseConstant)                  \
-  V(NullConstant)                   \
-  V(ZeroConstant)                   \
-  V(OneConstant)                    \
-  V(NaNConstant)                    \
-  V(MinusOneConstant)               \
-  V(EmptyStateValues)               \
-  V(SingleDeadTypedStateValues)
-
-// Cached global node accessor methods.
-#define DECLARE_GETTER(name) Node* name();
-  CACHED_GLOBAL_LIST(DECLARE_GETTER)
-#undef DECLARE_FIELD
-
  private:
+  enum CachedNode {
+    kCEntryStubConstant,
+    kUndefinedConstant,
+    kTheHoleConstant,
+    kTrueConstant,
+    kFalseConstant,
+    kNullConstant,
+    kZeroConstant,
+    kOneConstant,
+    kNaNConstant,
+    kEmptyFrameState,
+    kDead,
+    kNumCachedNodes  // Must remain last.
+  };
+
   Isolate* isolate_;
+  Graph* graph_;
+  CommonOperatorBuilder* common_;
   JSOperatorBuilder* javascript_;
-  SimplifiedOperatorBuilder* simplified_;
+  MachineOperatorBuilder* machine_;
+  CommonNodeCache cache_;
+  Node* cached_nodes_[kNumCachedNodes];
 
-#define CACHED_CENTRY_LIST(V) \
-  V(CEntryStub1Constant)      \
-  V(CEntryStub2Constant)      \
-  V(CEntryStub3Constant)      \
-  V(CEntryStub1WithBuiltinExitFrameConstant)
-
-// Canonicalized global node fields.
-#define DECLARE_FIELD(name) Node* name##_ = nullptr;
-  CACHED_GLOBAL_LIST(DECLARE_FIELD)
-  CACHED_CENTRY_LIST(DECLARE_FIELD)
-#undef DECLARE_FIELD
-
-  // Internal helper to canonicalize a number constant.
+  Node* ImmovableHeapConstant(Handle<HeapObject> value);
   Node* NumberConstant(double value);
 
   DISALLOW_COPY_AND_ASSIGN(JSGraph);
@@ -143,4 +164,4 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_JS_GRAPH_H_
+#endif

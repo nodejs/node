@@ -1,21 +1,18 @@
 'use strict'
+var fs = require('graceful-fs')
+var path = require('path')
 
-const BB = require('bluebird')
+var mkdirp = require('mkdirp')
+var osenv = require('osenv')
+var requireInject = require('require-inject')
+var rimraf = require('rimraf')
+var test = require('tap').test
 
-const fs = require('graceful-fs')
-const path = require('path')
+var common = require('../common-tap.js')
 
-const mkdirp = require('mkdirp')
-const osenv = require('osenv')
-const requireInject = require('require-inject')
-const rimraf = require('rimraf')
-const test = require('tap').test
+var pkg = path.resolve(__dirname, 'github-shortcut')
 
-const common = require('../common-tap.js')
-
-const pkg = path.resolve(__dirname, 'github-shortcut')
-
-const json = {
+var json = {
   name: 'github-shortcut',
   version: '0.0.0'
 }
@@ -26,38 +23,38 @@ test('setup', function (t) {
 })
 
 test('github-shortcut', function (t) {
-  const cloneUrls = [
+  var cloneUrls = [
     ['git://github.com/foo/private.git', 'GitHub shortcuts try git URLs first'],
     ['https://github.com/foo/private.git', 'GitHub shortcuts try HTTPS URLs second'],
-    ['ssh://git@github.com/foo/private.git', 'GitHub shortcuts try SSH third']
+    ['git@github.com:foo/private.git', 'GitHub shortcuts try SSH third']
   ]
-  const npm = requireInject.installGlobally('../../lib/npm.js', {
-    'pacote/lib/util/git': {
-      'revs': (repo, opts) => {
-        return BB.resolve().then(() => {
-          const cloneUrl = cloneUrls.shift()
+  var npm = requireInject.installGlobally('../../lib/npm.js', {
+    'child_process': {
+      'execFile': function (cmd, args, options, cb) {
+        process.nextTick(function () {
+          if (args[0] !== 'clone') return cb(null, '', '')
+          var cloneUrl = cloneUrls.shift()
           if (cloneUrl) {
-            t.is(repo, cloneUrl[0], cloneUrl[1])
+            t.is(args[3], cloneUrl[0], cloneUrl[1])
           } else {
             t.fail('too many attempts to clone')
           }
-          throw new Error('git.revs mock fails on purpose')
+          cb(new Error('execFile mock fails on purpose'))
         })
       }
     }
   })
 
-  const opts = {
+  var opts = {
     cache: path.resolve(pkg, 'cache'),
     prefix: pkg,
     registry: common.registry,
     loglevel: 'silent'
   }
-  t.plan(2 + cloneUrls.length)
-  npm.load(opts, function (err) {
-    t.ifError(err, 'npm loaded without error')
-    npm.commands.install(['foo/private'], function (err, result) {
-      t.match(err.message, /mock fails on purpose/, 'mocked install failed as expected')
+  t.plan(1 + cloneUrls.length)
+  npm.load(opts, function (er) {
+    t.ifError(er, 'npm loaded without error')
+    npm.commands.install(['foo/private'], function (er, result) {
       t.end()
     })
   })

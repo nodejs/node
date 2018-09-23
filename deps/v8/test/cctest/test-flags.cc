@@ -27,12 +27,10 @@
 
 #include <stdlib.h>
 
-#include "src/flags.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-namespace v8 {
-namespace internal {
+using namespace v8::internal;
 
 // This test must be executed first!
 TEST(Default) {
@@ -41,6 +39,7 @@ TEST(Default) {
   CHECK_EQ(2.5, FLAG_testing_float_flag);
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "Hello, world!"));
 }
+
 
 static void SetFlagsToDefault() {
   FlagList::ResetAllFlags();
@@ -252,13 +251,10 @@ TEST(FlagsRemoveIncomplete) {
   // if the list of arguments ends unexpectedly.
   SetFlagsToDefault();
   int argc = 3;
-  const char* argv[] = {"", "--opt", "--expose-natives-as"};
+  const char* argv[] = { "", "--crankshaft", "--expose-debug-as" };
   CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc,
                                                 const_cast<char **>(argv),
                                                 true));
   CHECK(argv[1]);
-  CHECK_EQ(2, argc);
+  CHECK_EQ(argc, 2);
 }
-
-}  // namespace internal
-}  // namespace v8

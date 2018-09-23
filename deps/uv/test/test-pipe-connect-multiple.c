@@ -70,9 +70,6 @@ static void connect_cb(uv_connect_t* connect_req, int status) {
 
 
 TEST_IMPL(pipe_connect_multiple) {
-#if defined(NO_SELF_CONNECT)
-  RETURN_SKIP(NO_SELF_CONNECT);
-#endif
   int i;
   int r;
   uv_loop_t* loop;

@@ -1,58 +1,40 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+var common = require('../common');
+var assert = require('assert');
 
-const assert = require('assert');
-const tls = require('tls');
-const fixtures = require('../common/fixtures');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var tls = require('tls');
 
-const options = {
-  key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+var fs = require('fs');
+
+
+var options = {
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-// Contains a UTF8 only character
-const messageUtf8 = 'x√ab c';
-
-// The same string above represented with ASCII
-const messageAscii = 'xb\b\u001aab c';
-
-const server = tls.Server(options, common.mustCall(function(socket) {
-  socket.end(messageUtf8);
-}));
+var connections = 0;
+var message = 'hello world\n';
 
 
-server.listen(0, function() {
-  const client = tls.connect({
-    port: this.address().port,
+var server = tls.Server(options, function(socket) {
+  socket.end(message);
+  connections++;
+});
+
+
+server.listen(common.PORT, function() {
+  var client = tls.connect({
+    port: common.PORT,
     rejectUnauthorized: false
   });
 
-  let buffer = '';
+  var buffer = '';
 
-  client.setEncoding('ascii');
+  client.setEncoding('utf8');
 
   client.on('data', function(d) {
     assert.ok(typeof d === 'string');
@@ -63,17 +45,16 @@ server.listen(0, function() {
   client.on('close', function() {
     // readyState is deprecated but we want to make
     // sure this isn't triggering an assert in lib/net.js
-    // See https://github.com/nodejs/node-v0.x-archive/issues/1069.
-    assert.strictEqual('closed', client.readyState);
+    // See issue #1069.
+    assert.equal('closed', client.readyState);
 
-    // Confirming the buffer string is encoded in ASCII
-    // and thus does NOT match the UTF8 string
-    assert.notStrictEqual(buffer, messageUtf8);
-
-    // Confirming the buffer string is encoded in ASCII
-    // and thus does equal the ASCII string representation
-    assert.strictEqual(buffer, messageAscii);
-
+    assert.equal(buffer, message);
+    console.log(message);
     server.close();
   });
+});
+
+
+process.on('exit', function() {
+  assert.equal(1, connections);
 });

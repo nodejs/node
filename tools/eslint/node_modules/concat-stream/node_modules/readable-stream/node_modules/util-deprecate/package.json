@@ -1,0 +1,53 @@
+{
+  "name": "util-deprecate",
+  "version": "1.0.1",
+  "description": "The Node.js `util.deprecate()` function with browser support",
+  "main": "node.js",
+  "browser": "browser.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/TooTallNate/util-deprecate.git"
+  },
+  "keywords": [
+    "util",
+    "deprecate",
+    "browserify",
+    "browser",
+    "node"
+  ],
+  "author": {
+    "name": "Nathan Rajlich",
+    "email": "nathan@tootallnate.net",
+    "url": "http://n8.io/"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/TooTallNate/util-deprecate/issues"
+  },
+  "homepage": "https://github.com/TooTallNate/util-deprecate",
+  "gitHead": "6e923f7d98a0afbe5b9c7db9d0f0029c1936746c",
+  "_id": "util-deprecate@1.0.1",
+  "_shasum": "3556a3d13c4c6aa7983d7e2425478197199b7881",
+  "_from": "util-deprecate@>=1.0.1 <1.1.0",
+  "_npmVersion": "1.4.28",
+  "_npmUser": {
+    "name": "tootallnate",
+    "email": "nathan@tootallnate.net"
+  },
+  "maintainers": [
+    {
+      "name": "tootallnate",
+      "email": "nathan@tootallnate.net"
+    }
+  ],
+  "dist": {
+    "shasum": "3556a3d13c4c6aa7983d7e2425478197199b7881",
+    "tarball": "http://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

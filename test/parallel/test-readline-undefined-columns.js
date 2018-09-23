@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const PassThrough = require('stream').PassThrough;
 const readline = require('readline');
@@ -11,7 +11,7 @@ const readline = require('readline');
 const iStream = new PassThrough();
 const oStream = new PassThrough();
 
-readline.createInterface({
+const rli = readline.createInterface({
   terminal: true,
   input: iStream,
   output: oStream,
@@ -20,23 +20,18 @@ readline.createInterface({
   }
 });
 
-let output = '';
+var output = '';
 
 oStream.on('data', function(data) {
   output += data;
 });
 
-oStream.on('end', common.mustCall(() => {
+oStream.on('end', function() {
   const expect = 'process.stdout\r\n' +
-                 'process.stdin\r\n' +
-                 'process.stderr';
+    'process.stdin\r\n' +
+    'process.stderr';
   assert(new RegExp(expect).test(output));
-}));
+});
 
-iStream.write('process.s\t');
-
-assert(/process\.std\b/.test(output));  // Completion works.
-assert(!/stdout/.test(output));  // Completion doesn’t show all results yet.
-
-iStream.write('\t');
+iStream.write('process.std\t');
 oStream.end();

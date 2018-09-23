@@ -1,24 +1,76 @@
+/* crypto/cms/cms_env.c */
 /*
- * Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project.
+ */
+/* ====================================================================
+ * Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    licensing@OpenSSL.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
  */
 
-#include "internal/cryptlib.h"
+#include "cryptlib.h"
 #include <openssl/asn1t.h>
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
 #include <openssl/cms.h>
+#include <openssl/rand.h>
 #include <openssl/aes.h>
 #include "cms_lcl.h"
-#include "internal/asn1_int.h"
-#include "internal/evp_int.h"
+#include "asn1_locl.h"
 
 /* CMS EnvelopedData Utilities */
+
+DECLARE_ASN1_ITEM(CMS_EnvelopedData)
+DECLARE_ASN1_ITEM(CMS_KeyTransRecipientInfo)
+DECLARE_ASN1_ITEM(CMS_KEKRecipientInfo)
+DECLARE_ASN1_ITEM(CMS_OtherKeyAttribute)
+
+DECLARE_STACK_OF(CMS_RecipientInfo)
 
 CMS_EnvelopedData *cms_get0_enveloped(CMS_ContentInfo *cms)
 {
@@ -106,17 +158,18 @@ CMS_ContentInfo *CMS_EnvelopedData_create(const EVP_CIPHER *cipher)
     CMS_ContentInfo *cms;
     CMS_EnvelopedData *env;
     cms = CMS_ContentInfo_new();
-    if (cms == NULL)
+    if (!cms)
         goto merr;
     env = cms_enveloped_data_init(cms);
-    if (env == NULL)
+    if (!env)
         goto merr;
     if (!cms_EncryptedContent_init(env->encryptedContentInfo,
                                    cipher, NULL, 0))
         goto merr;
     return cms;
  merr:
-    CMS_ContentInfo_free(cms);
+    if (cms)
+        CMS_ContentInfo_free(cms);
     CMSerr(CMS_F_CMS_ENVELOPEDDATA_CREATE, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
@@ -154,15 +207,14 @@ static int cms_RecipientInfo_ktri_init(CMS_RecipientInfo *ri, X509 *recip,
     if (!cms_set1_SignerIdentifier(ktri->rid, recip, idtype))
         return 0;
 
-    X509_up_ref(recip);
-    EVP_PKEY_up_ref(pk);
-
+    CRYPTO_add(&recip->references, 1, CRYPTO_LOCK_X509);
+    CRYPTO_add(&pk->references, 1, CRYPTO_LOCK_EVP_PKEY);
     ktri->pkey = pk;
     ktri->recip = recip;
 
     if (flags & CMS_KEY_PARAM) {
         ktri->pctx = EVP_PKEY_CTX_new(ktri->pkey, NULL);
-        if (ktri->pctx == NULL)
+        if (!ktri->pctx)
             return 0;
         if (EVP_PKEY_encrypt_init(ktri->pctx) <= 0)
             return 0;
@@ -190,7 +242,7 @@ CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
     if (!ri)
         goto merr;
 
-    pk = X509_get0_pubkey(recip);
+    pk = X509_get_pubkey(recip);
     if (!pk) {
         CMSerr(CMS_F_CMS_ADD1_RECIPIENT_CERT, CMS_R_ERROR_GETTING_PUBLIC_KEY);
         goto err;
@@ -218,12 +270,17 @@ CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
     if (!sk_CMS_RecipientInfo_push(env->recipientInfos, ri))
         goto merr;
 
+    EVP_PKEY_free(pk);
+
     return ri;
 
  merr:
     CMSerr(CMS_F_CMS_ADD1_RECIPIENT_CERT, ERR_R_MALLOC_FAILURE);
  err:
-    M_ASN1_free_of(ri, CMS_RecipientInfo);
+    if (ri)
+        M_ASN1_free_of(ri, CMS_RecipientInfo);
+    if (pk)
+        EVP_PKEY_free(pk);
     return NULL;
 
 }
@@ -282,7 +339,6 @@ int CMS_RecipientInfo_set0_pkey(CMS_RecipientInfo *ri, EVP_PKEY *pkey)
         CMSerr(CMS_F_CMS_RECIPIENTINFO_SET0_PKEY, CMS_R_NOT_KEY_TRANSPORT);
         return 0;
     }
-    EVP_PKEY_free(ri->d.ktri->pkey);
     ri->d.ktri->pkey = pkey;
     return 1;
 }
@@ -314,7 +370,7 @@ static int cms_RecipientInfo_ktri_encrypt(CMS_ContentInfo *cms,
             goto err;
     } else {
         pctx = EVP_PKEY_CTX_new(ktri->pkey, NULL);
-        if (pctx == NULL)
+        if (!pctx)
             return 0;
 
         if (EVP_PKEY_encrypt_init(pctx) <= 0)
@@ -346,9 +402,12 @@ static int cms_RecipientInfo_ktri_encrypt(CMS_ContentInfo *cms,
     ret = 1;
 
  err:
-    EVP_PKEY_CTX_free(pctx);
-    ktri->pctx = NULL;
-    OPENSSL_free(ek);
+    if (pctx) {
+        EVP_PKEY_CTX_free(pctx);
+        ktri->pctx = NULL;
+    }
+    if (ek)
+        OPENSSL_free(ek);
     return ret;
 
 }
@@ -372,7 +431,7 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
     }
 
     ktri->pctx = EVP_PKEY_CTX_new(pkey, NULL);
-    if (ktri->pctx == NULL)
+    if (!ktri->pctx)
         return 0;
 
     if (EVP_PKEY_decrypt_init(ktri->pctx) <= 0)
@@ -408,14 +467,20 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
 
     ret = 1;
 
-    OPENSSL_clear_free(ec->key, ec->keylen);
+    if (ec->key) {
+        OPENSSL_cleanse(ec->key, ec->keylen);
+        OPENSSL_free(ec->key);
+    }
+
     ec->key = ek;
     ec->keylen = eklen;
 
  err:
-    EVP_PKEY_CTX_free(ktri->pctx);
-    ktri->pctx = NULL;
-    if (!ret)
+    if (ktri->pctx) {
+        EVP_PKEY_CTX_free(ktri->pctx);
+        ktri->pctx = NULL;
+    }
+    if (!ret && ek)
         OPENSSL_free(ek);
 
     return ret;
@@ -554,7 +619,8 @@ CMS_RecipientInfo *CMS_add0_recipient_key(CMS_ContentInfo *cms, int nid,
  merr:
     CMSerr(CMS_F_CMS_ADD0_RECIPIENT_KEY, ERR_R_MALLOC_FAILURE);
  err:
-    M_ASN1_free_of(ri, CMS_RecipientInfo);
+    if (ri)
+        M_ASN1_free_of(ri, CMS_RecipientInfo);
     return NULL;
 
 }
@@ -637,7 +703,7 @@ static int cms_RecipientInfo_kekri_encrypt(CMS_ContentInfo *cms,
 
     wkey = OPENSSL_malloc(ec->keylen + 8);
 
-    if (wkey == NULL) {
+    if (!wkey) {
         CMSerr(CMS_F_CMS_RECIPIENTINFO_KEKRI_ENCRYPT, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -655,7 +721,7 @@ static int cms_RecipientInfo_kekri_encrypt(CMS_ContentInfo *cms,
 
  err:
 
-    if (!r)
+    if (!r && wkey)
         OPENSSL_free(wkey);
     OPENSSL_cleanse(&actx, sizeof(actx));
 
@@ -707,7 +773,7 @@ static int cms_RecipientInfo_kekri_decrypt(CMS_ContentInfo *cms,
 
     ukey = OPENSSL_malloc(kekri->encryptedKey->length - 8);
 
-    if (ukey == NULL) {
+    if (!ukey) {
         CMSerr(CMS_F_CMS_RECIPIENTINFO_KEKRI_DECRYPT, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -728,7 +794,7 @@ static int cms_RecipientInfo_kekri_decrypt(CMS_ContentInfo *cms,
 
  err:
 
-    if (!r)
+    if (!r && ukey)
         OPENSSL_free(ukey);
     OPENSSL_cleanse(&actx, sizeof(actx));
 
@@ -766,9 +832,11 @@ int CMS_RecipientInfo_encrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri)
 
     case CMS_RECIPINFO_KEK:
         return cms_RecipientInfo_kekri_encrypt(cms, ri);
+        break;
 
     case CMS_RECIPINFO_PASS:
         return cms_RecipientInfo_pwri_crypt(cms, ri, 1);
+        break;
 
     default:
         CMSerr(CMS_F_CMS_RECIPIENTINFO_ENCRYPT,
@@ -833,10 +901,10 @@ static void cms_env_set_version(CMS_EnvelopedData *env)
             env->version = 2;
         }
     }
-    if (env->originatorInfo || env->unprotectedAttrs)
-        env->version = 2;
     if (env->version == 2)
         return;
+    if (env->originatorInfo || env->unprotectedAttrs)
+        env->version = 2;
     env->version = 0;
 }
 
@@ -876,9 +944,12 @@ BIO *cms_EnvelopedData_init_bio(CMS_ContentInfo *cms)
 
  err:
     ec->cipher = NULL;
-    OPENSSL_clear_free(ec->key, ec->keylen);
-    ec->key = NULL;
-    ec->keylen = 0;
+    if (ec->key) {
+        OPENSSL_cleanse(ec->key, ec->keylen);
+        OPENSSL_free(ec->key);
+        ec->key = NULL;
+        ec->keylen = 0;
+    }
     if (ok)
         return ret;
     BIO_free(ret);

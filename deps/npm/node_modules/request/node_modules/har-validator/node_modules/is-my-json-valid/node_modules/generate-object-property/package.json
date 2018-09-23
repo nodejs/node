@@ -1,0 +1,34 @@
+{
+  "name": "generate-object-property",
+  "version": "1.2.0",
+  "description": "Generate safe JS code that can used to reference a object property",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mafintosh/generate-object-property.git"
+  },
+  "devDependencies": {
+    "tape": "^2.13.0"
+  },
+  "scripts": {
+    "test": "tape test.js"
+  },
+  "dependencies": {
+    "is-property": "^1.0.0"
+  },
+  "bugs": {
+    "url": "https://github.com/mafintosh/generate-object-property/issues"
+  },
+  "homepage": "https://github.com/mafintosh/generate-object-property",
+  "main": "index.js",
+  "author": {
+    "name": "Mathias Buus",
+    "url": "@mafintosh"
+  },
+  "license": "MIT",
+  "readme": "# generate-object-property\n\nGenerate safe JS code that can used to reference a object property\n\n\tnpm install generate-object-property\n\n[![build status](http://img.shields.io/travis/mafintosh/generate-object-property.svg?style=flat)](http://travis-ci.org/mafintosh/generate-object-property)\n\n## Usage\n\n``` js\nvar gen = require('generate-object-property');\nconsole.log(gen('a','b')); // prints a.b\nconsole.log(gen('a', 'foo-bar')); // prints a[\"foo-bar\"]\n```\n\n## License\n\nMIT",
+  "readmeFilename": "README.md",
+  "_id": "generate-object-property@1.2.0",
+  "_shasum": "9c0e1c40308ce804f4783618b937fa88f99d50d0",
+  "_resolved": "https://registry.npmjs.org/generate-object-property/-/generate-object-property-1.2.0.tgz",
+  "_from": "generate-object-property@>=1.1.0 <2.0.0"
+}

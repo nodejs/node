@@ -2,39 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-new BenchmarkSuite('StringRepeat', [10], [
+new BenchmarkSuite('StringFunctions', [1000], [
   new Benchmark('StringRepeat', false, false, 0,
-    Repeat, RepeatSetup, RepeatTearDown),
-]);
-
-new BenchmarkSuite('StringStartsWith', [10], [
+                Repeat, RepeatSetup, RepeatTearDown),
   new Benchmark('StringStartsWith', false, false, 0,
-    StartsWith, WithSetup, WithTearDown),
-]);
-
-new BenchmarkSuite('StringEndsWith', [10], [
+                StartsWith, WithSetup, WithTearDown),
   new Benchmark('StringEndsWith', false, false, 0,
-    EndsWith, WithSetup, WithTearDown),
-]);
-
-new BenchmarkSuite('StringIncludes', [10], [
+                EndsWith, WithSetup, WithTearDown),
   new Benchmark('StringIncludes', false, false, 0,
-    Includes, IncludesSetup, WithTearDown),
-]);
-
-new BenchmarkSuite('StringFromCodePoint', [10000], [
+                Includes, IncludesSetup, WithTearDown),
   new Benchmark('StringFromCodePoint', false, false, 0,
-    FromCodePoint, FromCodePointSetup, FromCodePointTearDown),
-]);
-
-new BenchmarkSuite('StringCodePointAt', [1000], [
+                FromCodePoint, FromCodePointSetup, FromCodePointTearDown),
   new Benchmark('StringCodePointAt', false, false, 0,
-    CodePointAt, CodePointAtSetup, CodePointAtTearDown),
-]);
-
-new BenchmarkSuite('StringCodePointAtSum', [100000], [
-  new Benchmark('StringCodePointAtSum', false, true, 3,
-    CodePointAtSum, CodePointAtSumSetup),
+                CodePointAt, CodePointAtSetup, CodePointAtTearDown),
 ]);
 
 
@@ -52,7 +32,7 @@ function Repeat() {
 
 function RepeatTearDown() {
   var expected = "";
-  for (var i = 0; i < 1000; i++) {
+  for(var i = 0; i < 1000; i++) {
     expected += stringRepeatSource;
   }
   return result === expected;
@@ -90,20 +70,19 @@ function Includes() {
 }
 
 var MAX_CODE_POINT = 0xFFFFF;
-const K = 1024;
 
 function FromCodePointSetup() {
-  result = new Array((MAX_CODE_POINT + 1) / K);
+  result = new Array(MAX_CODE_POINT + 1);
 }
 
 function FromCodePoint() {
-  for (var i = 0; i <= MAX_CODE_POINT; i += K) {
+  for (var i = 0; i <= MAX_CODE_POINT; i++) {
     result[i] = String.fromCodePoint(i);
   }
 }
 
 function FromCodePointTearDown() {
-  for (var i = 0; i <= MAX_CODE_POINT; i += K) {
+  for (var i = 0; i <= MAX_CODE_POINT; i++) {
     if (i !== result[i].codePointAt(0)) return false;
   }
   return true;
@@ -113,8 +92,8 @@ function FromCodePointTearDown() {
 var allCodePoints;
 
 function CodePointAtSetup() {
-  allCodePoints = new Array((MAX_CODE_POINT + 1) / K);
-  for (var i = 0; i <= MAX_CODE_POINT; i += K) {
+  allCodePoints = new Array(MAX_CODE_POINT + 1);
+  for (var i = 0; i <= MAX_CODE_POINT; i++) {
     allCodePoints = String.fromCodePoint(i);
   }
   result = undefined;
@@ -122,24 +101,11 @@ function CodePointAtSetup() {
 
 function CodePointAt() {
   result = 0;
-  for (var i = 0; i <= MAX_CODE_POINT; i += K) {
+  for (var i = 0; i <= MAX_CODE_POINT; i++) {
     result += allCodePoints.codePointAt(i);
   }
 }
 
 function CodePointAtTearDown() {
-  return result === (MAX_CODE_POINT / K) * ((MAX_CODE_POINT / K) + 1) / 2;
-}
-
-var payload;
-
-function CodePointAtSumSetup() {
-  payload = "abcdefghijklmnopqrstuvwxyz";
-  for(var j = 0; j < 16; ++j) payload += payload;
-}
-
-function CodePointAtSum() {
-  var c = 0;
-  for(j=payload.length-1; j >=0; --j) c+=payload.charCodeAt(j);
-  return c;
+  return result === MAX_CODE_POINT * (MAX_CODE_POINT + 1) / 2;
 }

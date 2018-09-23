@@ -1,5 +1,4 @@
 var npm = require('./npm.js')
-var output = require('./utils/output.js')
 
 module.exports = whoami
 
@@ -18,7 +17,7 @@ function whoami (args, silent, cb) {
   var auth = npm.config.getCredentialsByURI(registry)
   if (auth) {
     if (auth.username) {
-      if (!silent) output(auth.username)
+      if (!silent) console.log(auth.username)
       return process.nextTick(cb.bind(this, null, auth.username))
     } else if (auth.token) {
       return npm.registry.whoami(registry, { auth: auth }, function (er, username) {
@@ -31,7 +30,7 @@ function whoami (args, silent, cb) {
           return cb(needNewSession)
         }
 
-        if (!silent) output(username)
+        if (!silent) console.log(username)
         cb(null, username)
       })
     }

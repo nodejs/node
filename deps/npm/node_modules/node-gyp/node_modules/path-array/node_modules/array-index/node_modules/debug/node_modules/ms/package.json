@@ -1,0 +1,30 @@
+{
+  "name": "ms",
+  "version": "0.7.1",
+  "description": "Tiny ms conversion utility",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/guille/ms.js.git"
+  },
+  "main": "./index",
+  "devDependencies": {
+    "mocha": "*",
+    "expect.js": "*",
+    "serve": "*"
+  },
+  "component": {
+    "scripts": {
+      "ms/index.js": "index.js"
+    }
+  },
+  "readme": "# ms.js: miliseconds conversion utility\n\n```js\nms('2 days')  // 172800000\nms('1d')      // 86400000\nms('10h')     // 36000000\nms('2.5 hrs') // 9000000\nms('2h')      // 7200000\nms('1m')      // 60000\nms('5s')      // 5000\nms('100')     // 100\n```\n\n```js\nms(60000)             // \"1m\"\nms(2 * 60000)         // \"2m\"\nms(ms('10 hours'))    // \"10h\"\n```\n\n```js\nms(60000, { long: true })             // \"1 minute\"\nms(2 * 60000, { long: true })         // \"2 minutes\"\nms(ms('10 hours'), { long: true })    // \"10 hours\"\n```\n\n- Node/Browser compatible. Published as [`ms`](https://www.npmjs.org/package/ms) in [NPM](http://nodejs.org/download).\n- If a number is supplied to `ms`, a string with a unit is returned.\n- If a string that contains the number is supplied, it returns it as\na number (e.g: it returns `100` for `'100'`).\n- If you pass a string with a number and a valid unit, the number of\nequivalent ms is returned.\n\n## License\n\nMIT\n",
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/guille/ms.js/issues"
+  },
+  "homepage": "https://github.com/guille/ms.js#readme",
+  "_id": "ms@0.7.1",
+  "_shasum": "9cd13c03adbff25b65effde7ce864ee952017098",
+  "_resolved": "https://registry.npmjs.org/ms/-/ms-0.7.1.tgz",
+  "_from": "ms@0.7.1"
+}

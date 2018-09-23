@@ -1,10 +1,50 @@
-/*
- * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+/* ====================================================================
+ * Copyright (c) 2011 The OpenSSL Project.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    licensing@OpenSSL.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
  */
 
 #include <openssl/opensslconf.h>
@@ -19,7 +59,15 @@
 # include <openssl/objects.h>
 # include <openssl/rc4.h>
 # include <openssl/md5.h>
-# include "internal/evp_int.h"
+
+# ifndef EVP_CIPH_FLAG_AEAD_CIPHER
+#  define EVP_CIPH_FLAG_AEAD_CIPHER       0x200000
+#  define EVP_CTRL_AEAD_TLS1_AAD          0x16
+#  define EVP_CTRL_AEAD_SET_MAC_KEY       0x17
+# endif
+
+/* FIXME: surely this is available elsewhere? */
+# define EVP_RC4_KEY_SIZE                16
 
 typedef struct {
     RC4_KEY ks;
@@ -32,7 +80,7 @@ typedef struct {
 void rc4_md5_enc(RC4_KEY *key, const void *in0, void *out,
                  MD5_CTX *ctx, const void *inp, size_t blocks);
 
-# define data(ctx) ((EVP_RC4_HMAC_MD5 *)EVP_CIPHER_CTX_get_cipher_data(ctx))
+# define data(ctx) ((EVP_RC4_HMAC_MD5 *)(ctx)->cipher_data)
 
 static int rc4_hmac_md5_init_key(EVP_CIPHER_CTX *ctx,
                                  const unsigned char *inkey,
@@ -51,9 +99,11 @@ static int rc4_hmac_md5_init_key(EVP_CIPHER_CTX *ctx,
     return 1;
 }
 
-# if     defined(RC4_ASM) && defined(MD5_ASM) &&     (	   \
+# if     !defined(OPENSSL_NO_ASM) &&     ( \
         defined(__x86_64)       || defined(__x86_64__)  || \
-        defined(_M_AMD64)       || defined(_M_X64)      )
+        defined(_M_AMD64)       || defined(_M_X64)      || \
+        defined(__INTEL__)              ) && \
+        !(defined(__APPLE__) && defined(__MACH__))
 #  define STITCHED_CALL
 # endif
 
@@ -78,7 +128,7 @@ static int rc4_hmac_md5_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     if (plen != NO_PAYLOAD_LENGTH && len != (plen + MD5_DIGEST_LENGTH))
         return 0;
 
-    if (EVP_CIPHER_CTX_encrypting(ctx)) {
+    if (ctx->encrypt) {
         if (plen == NO_PAYLOAD_LENGTH)
             plen = len;
 # if defined(STITCHED_CALL)
@@ -204,8 +254,6 @@ static int rc4_hmac_md5_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
             MD5_Init(&key->tail);
             MD5_Update(&key->tail, hmac_key, sizeof(hmac_key));
 
-            OPENSSL_cleanse(hmac_key, sizeof(hmac_key));
-
             return 1;
         }
     case EVP_CTRL_AEAD_TLS1_AAD:
@@ -218,9 +266,7 @@ static int rc4_hmac_md5_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
 
             len = p[arg - 2] << 8 | p[arg - 1];
 
-            if (!EVP_CIPHER_CTX_encrypting(ctx)) {
-                if (len < MD5_DIGEST_LENGTH)
-                    return -1;
+            if (!ctx->encrypt) {
                 len -= MD5_DIGEST_LENGTH;
                 p[arg - 2] = len >> 8;
                 p[arg - 1] = len;

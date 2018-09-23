@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/instruction-codes.h"
-#include "src/compiler/instruction.h"
-#include "src/compiler/jump-threading.h"
-#include "src/source-position.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
+
+#include "src/compiler/instruction.h"
+#include "src/compiler/instruction-codes.h"
+#include "src/compiler/jump-threading.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +20,7 @@ class TestCode : public HandleAndZoneScope {
         blocks_(main_zone()),
         sequence_(main_isolate(), main_zone(), &blocks_),
         rpo_number_(RpoNumber::FromInt(0)),
-        current_(nullptr) {}
+        current_(NULL) {}
 
   ZoneVector<InstructionBlock*> blocks_;
   InstructionSequence sequence_;
@@ -29,8 +30,8 @@ class TestCode : public HandleAndZoneScope {
   int Jump(int target) {
     Start();
     InstructionOperand ops[] = {UseRpo(target)};
-    sequence_.AddInstruction(Instruction::New(main_zone(), kArchJmp, 0, nullptr,
-                                              1, ops, 0, nullptr));
+    sequence_.AddInstruction(
+        Instruction::New(main_zone(), kArchJmp, 0, NULL, 1, ops, 0, NULL));
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
     End();
     return pos;
@@ -45,7 +46,7 @@ class TestCode : public HandleAndZoneScope {
     InstructionCode code = 119 | FlagsModeField::encode(kFlags_branch) |
                            FlagsConditionField::encode(kEqual);
     sequence_.AddInstruction(
-        Instruction::New(main_zone(), code, 0, nullptr, 2, ops, 0, nullptr));
+        Instruction::New(main_zone(), code, 0, NULL, 2, ops, 0, NULL));
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
     End();
     return pos;
@@ -58,18 +59,14 @@ class TestCode : public HandleAndZoneScope {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
     int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    AddGapMove(index, AllocatedOperand(LocationOperand::REGISTER,
-                                       MachineRepresentation::kWord32, 13),
-               AllocatedOperand(LocationOperand::REGISTER,
-                                MachineRepresentation::kWord32, 13));
+    AddGapMove(index, RegisterOperand(kRepWord32, 13),
+               RegisterOperand(kRepWord32, 13));
   }
   void NonRedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
     int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    AddGapMove(index, ConstantOperand(11),
-               AllocatedOperand(LocationOperand::REGISTER,
-                                MachineRepresentation::kWord32, 11));
+    AddGapMove(index, ConstantOperand(11), RegisterOperand(kRepWord32, 11));
   }
   void Other() {
     Start();
@@ -77,19 +74,15 @@ class TestCode : public HandleAndZoneScope {
   }
   void End() {
     Start();
-    int end = static_cast<int>(sequence_.instructions().size());
-    if (current_->code_start() == end) {  // Empty block.  Insert a nop.
-      sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
-    }
     sequence_.EndBlock(current_->rpo_number());
-    current_ = nullptr;
+    current_ = NULL;
     rpo_number_ = RpoNumber::FromInt(rpo_number_.ToInt() + 1);
   }
   InstructionOperand UseRpo(int num) {
     return sequence_.AddImmediate(Constant(RpoNumber::FromInt(num)));
   }
   void Start(bool deferred = false) {
-    if (current_ == nullptr) {
+    if (current_ == NULL) {
       current_ = new (main_zone())
           InstructionBlock(main_zone(), rpo_number_, RpoNumber::Invalid(),
                            RpoNumber::Invalid(), deferred, false);
@@ -98,7 +91,7 @@ class TestCode : public HandleAndZoneScope {
     }
   }
   void Defer() {
-    CHECK_NULL(current_);
+    CHECK(current_ == NULL);
     Start(true);
   }
   void AddGapMove(int index, const InstructionOperand& from,
@@ -111,10 +104,9 @@ class TestCode : public HandleAndZoneScope {
 
 
 void VerifyForwarding(TestCode& code, int count, int* expected) {
-  v8::internal::AccountingAllocator allocator;
-  Zone local_zone(&allocator, ZONE_NAME);
+  Zone local_zone;
   ZoneVector<RpoNumber> result(&local_zone);
-  JumpThreading::ComputeForwarding(&local_zone, result, &code.sequence_, true);
+  JumpThreading::ComputeForwarding(&local_zone, result, &code.sequence_);
 
   CHECK(count == static_cast<int>(result.size()));
   for (int i = 0; i < count; i++) {
@@ -617,7 +609,7 @@ void ApplyForwarding(TestCode& code, int size, int* forward) {
   for (int i = 0; i < size; i++) {
     vector.push_back(RpoNumber::FromInt(forward[i]));
   }
-  JumpThreading::ApplyForwarding(code.main_zone(), vector, &code.sequence_);
+  JumpThreading::ApplyForwarding(vector, &code.sequence_);
 }
 
 

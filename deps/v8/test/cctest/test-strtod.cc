@@ -36,9 +36,7 @@
 #include "src/strtod.h"
 #include "test/cctest/cctest.h"
 
-namespace v8 {
-namespace internal {
-namespace test_strtod {
+using namespace v8::internal;
 
 static Vector<const char> StringToVector(const char* str) {
   return Vector<const char>(str, StrLength(str));
@@ -436,8 +434,8 @@ static uint32_t DeterministicRandom() {
 
   // Initialization values don't have any special meaning. (They are the result
   // of two calls to rand().)
-  if (hi == 0) hi = 0xBFE166E7;
-  if (lo == 0) lo = 0x64D1C3C9;
+  if (hi == 0) hi = 0xbfe166e7;
+  if (lo == 0) lo = 0x64d1c3c9;
 
   // Mix the bits.
   hi = 36969 * (hi & 0xFFFF) + (hi >> 16);
@@ -480,7 +478,3 @@ TEST(RandomStrtod) {
     }
   }
 }
-
-}  // namespace test_strtod
-}  // namespace internal
-}  // namespace v8

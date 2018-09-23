@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --harmony-tostring
 
 // ArrayBuffer
 
@@ -231,37 +231,12 @@ function TestTypedArray(constr, elementSize, typicalElement) {
                  RangeError);
   }
 
-  var aFromUndef = new constr();
-  assertSame(elementSize, aFromUndef.BYTES_PER_ELEMENT);
-  assertSame(0, aFromUndef.length);
-  assertSame(0*elementSize, aFromUndef.byteLength);
-  assertSame(0, aFromUndef.byteOffset);
-  assertSame(0*elementSize, aFromUndef.buffer.byteLength);
-
-  var aFromNull = new constr(null);
-  assertSame(elementSize, aFromNull.BYTES_PER_ELEMENT);
-  assertSame(0, aFromNull.length);
-  assertSame(0*elementSize, aFromNull.byteLength);
-  assertSame(0, aFromNull.byteOffset);
-  assertSame(0*elementSize, aFromNull.buffer.byteLength);
-
-  var aFromBool = new constr(true);
-  assertSame(elementSize, aFromBool.BYTES_PER_ELEMENT);
-  assertSame(1, aFromBool.length);
-  assertSame(1*elementSize, aFromBool.byteLength);
-  assertSame(0, aFromBool.byteOffset);
-  assertSame(1*elementSize, aFromBool.buffer.byteLength);
-
   var aFromString = new constr("30");
   assertSame(elementSize, aFromString.BYTES_PER_ELEMENT);
   assertSame(30, aFromString.length);
   assertSame(30*elementSize, aFromString.byteLength);
   assertSame(0, aFromString.byteOffset);
   assertSame(30*elementSize, aFromString.buffer.byteLength);
-
-  assertThrows(function() { new constr(Symbol()); }, TypeError);
-
-  assertThrows(function() { new constr(-1); }, RangeError);
 
   var jsArray = [];
   for (i = 0; i < 30; i++) {
@@ -295,7 +270,7 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertEquals("[object " + constr.name + "]",
       Object.prototype.toString.call(a));
   var desc = Object.getOwnPropertyDescriptor(
-      constr.prototype.__proto__, Symbol.toStringTag);
+      constr.prototype, Symbol.toStringTag);
   assertTrue(desc.configurable);
   assertFalse(desc.enumerable);
   assertFalse(!!desc.writable);
@@ -338,49 +313,6 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertEquals(0, genArr[0]);
   assertEquals(9, genArr[9]);
   assertEquals(1, iteratorReadCount);
-
-  // Modified %ArrayIteratorPrototype%.next() method is honoured (v8:5699)
-  const ArrayIteratorPrototype = Object.getPrototypeOf([][Symbol.iterator]());
-  const ArrayIteratorPrototypeNextDescriptor =
-      Object.getOwnPropertyDescriptor(ArrayIteratorPrototype, 'next');
-  const ArrayIteratorPrototypeNext = ArrayIteratorPrototype.next;
-  ArrayIteratorPrototype.next = function() {
-    return { done: true };
-  };
-  genArr = new constr([1, 2, 3]);
-  assertEquals(0, genArr.length);
-
-  ArrayIteratorPrototype.next = ArrayIteratorPrototypeNext;
-
-  // Modified %ArrayIteratorPrototype%.next() is only loaded during the iterator
-  // prologue.
-  let nextMethod = ArrayIteratorPrototypeNext;
-  let getNextCount = 0;
-  Object.defineProperty(ArrayIteratorPrototype, 'next', {
-    get() {
-      getNextCount++;
-      return nextMethod;
-    },
-    set(v) { nextMethod = v; },
-    configurable: true
-  });
-
-  genArr = new constr(Object.defineProperty([1, , 3], 1, {
-    get() {
-      ArrayIteratorPrototype.next = function() {
-        return { done: true };
-      }
-      return 2;
-    }
-  }));
-  Object.defineProperty(ArrayIteratorPrototype, 'next',
-                        ArrayIteratorPrototypeNextDescriptor);
-  assertEquals(1, getNextCount);
-  assertEquals(3, genArr.length);
-  assertEquals(1, genArr[0]);
-  assertEquals(2, genArr[1]);
-  assertEquals(3, genArr[2]);
-  ArrayIteratorPrototype.next = ArrayIteratorPrototypeNext;
 }
 
 TestTypedArray(Uint8Array, 1, 0xFF);
@@ -486,13 +418,17 @@ var typedArrayConstructors = [
 function TestPropertyTypeChecks(constructor) {
   function CheckProperty(name) {
     assertThrows(function() { 'use strict'; new constructor(10)[name] = 0; })
-    var d = Object.getOwnPropertyDescriptor(constructor.prototype.__proto__, name);
+    var d = Object.getOwnPropertyDescriptor(constructor.prototype, name);
     var o = {};
     assertThrows(function() {d.get.call(o);}, TypeError);
     for (var i = 0; i < typedArrayConstructors.length; i++) {
       var ctor = typedArrayConstructors[i];
       var a = new ctor(10);
-      d.get.call(a); // shouldn't throw
+      if (ctor === constructor) {
+        d.get.call(a); // shouldn't throw
+      } else {
+        assertThrows(function() {d.get.call(a);}, TypeError);
+      }
     }
   }
 
@@ -515,16 +451,6 @@ function TestTypedArraySet() {
       assertEquals(expected[i], array[i]);
     }
   }
-
-  a = new Uint32Array();
-  a.set('');
-  assertEquals(0, a.length);
-
-  assertThrows(() => a.set('abc'), RangeError);
-
-  a = new Uint8Array(3);
-  a.set('123');
-  assertArrayEquals([1, 2, 3], a);
 
   var a11 = new Int16Array([1, 2, 3, 4, 0, -1])
   var a12 = new Uint16Array(15)
@@ -554,7 +480,6 @@ function TestTypedArraySet() {
   var a51 = new Int8Array(b, 0, 2)
   var a52 = new Int8Array(b, 1, 2)
   var a53 = new Int8Array(b, 2, 2)
-  var a54 = new Int8Array(b, 0, 0)
 
   a5.set([0x5050, 0x0a0a])
   assertArrayPrefix([0x50, 0x50, 0x0a, 0x0a], a50)
@@ -586,10 +511,6 @@ function TestTypedArraySet() {
   a5.set(a53)
   assertArrayPrefix([0x000a, 0x000b], a5)
 
-  a50.set([0x50, 0x51, 0x0a, 0x0b])
-  a5.set(a54, 0)
-  assertArrayPrefix([0x50, 0x51, 0x0a, 0x0b], a50)
-
   // Mixed types of same size.
   var a61 = new Float32Array([1.2, 12.3])
   var a62 = new Int32Array(2)
@@ -612,131 +533,6 @@ function TestTypedArraySet() {
 
   assertThrows(function() { a.set(0); }, TypeError);
   assertThrows(function() { a.set(0, 1); }, TypeError);
-
-  assertEquals(1, a.set.length);
-
-  // Shared buffer that does not overlap.
-  var buf = new ArrayBuffer(32);
-  var a101 = new Int8Array(buf, 0, 16);
-  var b101 = new Uint8Array(buf, 16);
-  b101[0] = 42;
-  a101.set(b101);
-  assertArrayPrefix([42], a101);
-
-  buf = new ArrayBuffer(32);
-  var a101 = new Int8Array(buf, 0, 16);
-  var b101 = new Uint8Array(buf, 16);
-  a101[0] = 42;
-  b101.set(a101);
-  assertArrayPrefix([42], b101);
-
-  // Detached array buffer when accessing a source element
-  var a111 = new Int8Array(100);
-  var evilarr = new Array(100);
-  var detached = false;
-  evilarr[1] = {
-    [Symbol.toPrimitive]() {
-      %ArrayBufferNeuter(a111.buffer);
-      detached = true;
-      return 1;
-    }
-  };
-  assertThrows(() => a111.set(evilarr), TypeError);
-  assertEquals(true, detached);
-
-  // Check if the target is a typed array before converting offset to integer
-  var tmp = {
-    [Symbol.toPrimitive]() {
-      assertUnreachable("Parameter should not be processed when " +
-                        "array.[[ViewedArrayBuffer]] is neutered.");
-      return 1;
-    }
-  };
-  assertThrows(() => Int8Array.prototype.set.call(1, tmp), TypeError);
-  assertThrows(() => Int8Array.prototype.set.call([], tmp), TypeError);
-
-  // Detached array buffer when converting offset.
-  {
-    for (const klass of typedArrayConstructors) {
-      const xs = new klass(10);
-      let detached = false;
-      const offset = {
-        [Symbol.toPrimitive]() {
-          %ArrayBufferNeuter(xs.buffer);
-          detached = true;
-          return 0;
-        }
-      };
-      assertThrows(() => xs.set(xs, offset), TypeError);
-      assertEquals(true, detached);
-    }
-  }
-
-  // Detached JSTypedArray source argument.
-  {
-    for (const klass of typedArrayConstructors) {
-      const a = new klass(2);
-      for (let i = 0; i < a.length; i++) a[i] = i;
-      %ArrayBufferNeuter(a.buffer);
-
-      const b = new klass(2);
-      assertThrows(() => b.set(a), TypeError);
-    }
-  }
-
-  // Various offset edge cases.
-  {
-    for (const klass of typedArrayConstructors) {
-      const xs = new klass(10);
-      assertThrows(() => xs.set(xs, -1), RangeError);
-      assertThrows(() => xs.set(xs, -1 * 2**64), RangeError);
-      xs.set(xs, -0.0);
-      xs.set(xs, 0.0);
-      xs.set(xs, 0.5);
-      assertThrows(() => xs.set(xs, 2**64), RangeError);
-    }
-  }
-
-  // Exhaustively test elements kind combinations with JSArray source arg.
-  {
-    const kSize = 3;
-    const targets = typedArrayConstructors.map(klass => new klass(kSize));
-    const sources = [ [0,1,2]        // PACKED_SMI
-                    , [0,,2]         // HOLEY_SMI
-                    , [0.1,0.2,0.3]  // PACKED_DOUBLE
-                    , [0.1,,0.3]     // HOLEY_DOUBLE
-                    , [{},{},{}]     // PACKED
-                    , [{},,{}]       // HOLEY
-                    , []             // DICTIONARY (patched later)
-                    ];
-
-    // Migrate to DICTIONARY_ELEMENTS.
-    Object.defineProperty(sources[6], 0, {});
-
-    assertTrue(%HasSmiElements(sources[0]));
-    assertTrue(%HasFastElements(sources[0]) && !%HasHoleyElements(sources[0]));
-    assertTrue(%HasSmiElements(sources[1]));
-    assertTrue(%HasFastElements(sources[1]) && %HasHoleyElements(sources[1]));
-    assertTrue(%HasDoubleElements(sources[2]));
-    assertTrue(%HasFastElements(sources[2]) && !%HasHoleyElements(sources[2]));
-    assertTrue(%HasDoubleElements(sources[3]));
-    assertTrue(%HasFastElements(sources[3]) && %HasHoleyElements(sources[3]));
-    assertTrue(%HasObjectElements(sources[4]));
-    assertTrue(%HasFastElements(sources[4]) && !%HasHoleyElements(sources[4]));
-    assertTrue(%HasObjectElements(sources[4]));
-    assertTrue(%HasFastElements(sources[4]) && !%HasHoleyElements(sources[4]));
-    assertTrue(%HasObjectElements(sources[5]));
-    assertTrue(%HasFastElements(sources[5]) && %HasHoleyElements(sources[5]));
-    assertTrue(%HasDictionaryElements(sources[6]));
-
-    for (const target of targets) {
-      for (const source of sources) {
-        target.set(source);
-        %HeapObjectVerify(target);
-        %HeapObjectVerify(source);
-      }
-    }
-  }
 }
 
 TestTypedArraySet();
@@ -767,9 +563,10 @@ function TestTypedArraysWithIllegalIndices() {
   assertEquals(255, a[s2]);
   assertEquals(0, a[-0]);
 
-  a[-Infinity] = 50;
-  assertEquals(undefined, a[-Infinity]);
-
+  /* Chromium bug: 424619
+   * a[-Infinity] = 50;
+   * assertEquals(undefined, a[-Infinity]);
+   */
   a[1.5] = 10;
   assertEquals(undefined, a[1.5]);
   var nan = Math.sqrt(-1);
@@ -880,6 +677,7 @@ function TestDataViewConstructor() {
 
   // error cases
   assertThrows(function() { new DataView(ab, -1); }, RangeError);
+  assertThrows(function() { new DataView(ab, 1, -1); }, RangeError);
   assertThrows(function() { new DataView(); }, TypeError);
   assertThrows(function() { new DataView([]); }, TypeError);
   assertThrows(function() { new DataView(ab, 257); }, RangeError);
@@ -900,19 +698,6 @@ function TestDataViewPropertyTypeChecks() {
   CheckProperty("buffer");
   CheckProperty("byteOffset");
   CheckProperty("byteLength");
-
-  function CheckGetSetLength(name) {
-    assertEquals(1, DataView.prototype["get" + name].length);
-    assertEquals(2, DataView.prototype["set" + name].length);
-  }
-  CheckGetSetLength("Int8");
-  CheckGetSetLength("Uint8");
-  CheckGetSetLength("Int16");
-  CheckGetSetLength("Uint16");
-  CheckGetSetLength("Int32");
-  CheckGetSetLength("Uint32");
-  CheckGetSetLength("Float32");
-  CheckGetSetLength("Float64");
 }
 
 
@@ -982,43 +767,3 @@ function TestNonConfigurableProperties(constructor) {
 for(i = 0; i < typedArrayConstructors.length; i++) {
   TestNonConfigurableProperties(typedArrayConstructors[i]);
 }
-
-(function TestInitialization() {
-  for (var i = 0; i <= 128; i++) {
-    var arr = new Uint8Array(i);
-    for (var j = 0; j < i; j++) {
-      assertEquals(0, arr[j]);
-    }
-  }
-})();
-
-(function TestBufferLengthTooLong() {
-  try {
-    var buf = new ArrayBuffer(2147483648);
-  } catch (e) {
-    // The ArrayBuffer allocation fails on 32-bit archs, so no need to try to
-    // construct the typed array.
-    return;
-  }
-  assertThrows(function() {
-    new Int8Array(buf);
-  }, RangeError);
-})();
-
-(function TestByteLengthErrorMessage() {
-  try {
-    new Uint32Array(new ArrayBuffer(17));
-  } catch (e) {
-    assertEquals("byte length of Uint32Array should be a multiple of 4",
-                 e.message);
-  }
-})();
-
-// Regression test 761654
-assertThrows(function LargeSourceArray() {
-  let v0 = {};
-  v0.length =  2 ** 32; // too large for uint32
-  let a = new Int8Array();
-
-  a.set(v0);
-});

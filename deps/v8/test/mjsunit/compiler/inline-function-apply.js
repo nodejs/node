@@ -76,11 +76,11 @@
     assertEquals("ABC", A(1,2));
 
     %DeoptimizeFunction(A);
-    %ClearFunctionFeedback(A);
+    %ClearFunctionTypeFeedback(A);
     %DeoptimizeFunction(B);
-    %ClearFunctionFeedback(B);
+    %ClearFunctionTypeFeedback(B);
     %DeoptimizeFunction(C);
-    %ClearFunctionFeedback(C);
+    %ClearFunctionTypeFeedback(C);
   }
 
   for (var a = 1; a <= 3; a++) {

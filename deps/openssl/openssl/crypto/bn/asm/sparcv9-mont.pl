@@ -1,11 +1,4 @@
-#! /usr/bin/env perl
-# Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
-
+#!/usr/bin/env perl
 
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -20,7 +13,7 @@
 # for undertaken effort are multiple. First of all, UltraSPARC is not
 # the whole SPARCv9 universe and other VIS-free implementations deserve
 # optimized code as much. Secondly, newly introduced UltraSPARC T1,
-# a.k.a. Niagara, has shared FPU and concurrent FPU-intensive paths,
+# a.k.a. Niagara, has shared FPU and concurrent FPU-intensive pathes,
 # such as sparcv9a-mont, will simply sink it. Yes, T1 is equipped with
 # several integrated RSA/DSA accelerator circuits accessible through
 # kernel driver [only(*)], but having decent user-land software
@@ -30,7 +23,7 @@
 # instructions...
 
 # (*)	Engine accessing the driver in question is on my TODO list.
-#	For reference, accelerator is estimated to give 6 to 10 times
+#	For reference, acceleator is estimated to give 6 to 10 times
 #	improvement on single-threaded RSA sign. It should be noted
 #	that 6-10x improvement coefficient does not actually mean
 #	something extraordinary in terms of absolute [single-threaded]
@@ -49,9 +42,6 @@
 # module still have hidden potential [see TODO list there], which is
 # estimated to be larger than 20%...
 
-$output = pop;
-open STDOUT,">$output";
-
 # int bn_mul_mont(
 $rp="%i0";	# BN_ULONG *rp,
 $ap="%i1";	# const BN_ULONG *ap,
@@ -60,8 +50,10 @@ $np="%i3";	# const BN_ULONG *np,
 $n0="%i4";	# const BN_ULONG *n0,
 $num="%i5";	# int num);
 
-$frame="STACK_FRAME";
-$bias="STACK_BIAS";
+$bits=32;
+for (@ARGV)	{ $bits=64 if (/\-m64/ || /\-xarch\=v9/); }
+if ($bits==64)	{ $bias=2047; $frame=192; }
+else		{ $bias=0;    $frame=128; }
 
 $car0="%o0";
 $car1="%o1";
@@ -84,8 +76,6 @@ $tpj="%l7";
 $fname="bn_mul_mont_int";
 
 $code=<<___;
-#include "sparc_arch.h"
-
 .section	".text",#alloc,#execinstr
 
 .global	$fname
@@ -115,7 +105,7 @@ $fname:
 	ld	[$np],$car1		! np[0]
 	sub	%o7,$bias,%sp		! alloca
 	ld	[$np+4],$npj		! np[1]
-	be,pt	SIZE_T_CC,.Lbn_sqr_mont
+	be,pt	`$bits==32?"%icc":"%xcc"`,.Lbn_sqr_mont
 	mov	12,$j
 
 	mulx	$car0,$mul0,$car0	! ap[0]*bp[0]
@@ -265,6 +255,7 @@ $fname:
 .Ltail:
 	add	$np,$num,$np
 	add	$rp,$num,$rp
+	mov	$tp,$ap
 	sub	%g0,$num,%o7		! k=-num
 	ba	.Lsub
 	subcc	%g0,%g0,%g0		! clear %icc.c
@@ -277,14 +268,15 @@ $fname:
 	add	%o7,4,%o7
 	brnz	%o7,.Lsub
 	st	%o1,[$i]
-	subccc	$car2,0,$car2		! handle upmost overflow bit
+	subc	$car2,0,$car2		! handle upmost overflow bit
+	and	$tp,$car2,$ap
+	andn	$rp,$car2,$np
+	or	$ap,$np,$ap
 	sub	%g0,$num,%o7
 
 .Lcopy:
-	ld	[$tp+%o7],%o1		! conditional copy
-	ld	[$rp+%o7],%o0
+	ld	[$ap+%o7],%o0		! copy or in-place refresh
 	st	%g0,[$tp+%o7]		! zap tp
-	movcs	%icc,%o1,%o0
 	st	%o0,[$rp+%o7]
 	add	%o7,4,%o7
 	brnz	%o7,.Lcopy
@@ -298,7 +290,7 @@ ___
 ######## .Lbn_sqr_mont gives up to 20% *overall* improvement over
 ######## code without following dedicated squaring procedure.
 ########
-$sbit="%o5";
+$sbit="%i2";		# re-use $bp!
 
 $code.=<<___;
 .align	32
@@ -411,7 +403,7 @@ $code.=<<___;
 	mulx	$apj,$mul0,$acc0
 	mulx	$npj,$mul1,$acc1
 	add	$acc0,$car0,$car0
-	add	$tpj,$sbit,$sbit
+	add	$tpj,$car1,$car1
 	ld	[$ap+$j],$apj			! ap[j]
 	and	$car0,$mask,$acc0
 	ld	[$np+$j],$npj			! np[j]
@@ -420,7 +412,7 @@ $code.=<<___;
 	ld	[$tp+8],$tpj			! tp[j]
 	add	$acc0,$acc0,$acc0
 	add	$j,4,$j				! j++
-	add	$sbit,$acc0,$acc0
+	or	$sbit,$acc0,$acc0
 	srlx	$acc0,32,$sbit
 	and	$acc0,$mask,$acc0
 	cmp	$j,$num
@@ -434,12 +426,12 @@ $code.=<<___;
 	mulx	$apj,$mul0,$acc0
 	mulx	$npj,$mul1,$acc1
 	add	$acc0,$car0,$car0
-	add	$tpj,$sbit,$sbit
+	add	$tpj,$car1,$car1
 	and	$car0,$mask,$acc0
 	srlx	$car0,32,$car0
 	add	$acc1,$car1,$car1
 	add	$acc0,$acc0,$acc0
-	add	$sbit,$acc0,$acc0
+	or	$sbit,$acc0,$acc0
 	srlx	$acc0,32,$sbit
 	and	$acc0,$mask,$acc0
 	add	$acc0,$car1,$car1
@@ -447,7 +439,7 @@ $code.=<<___;
 	srlx	$car1,32,$car1
 
 	add	$car0,$car0,$car0
-	add	$sbit,$car0,$car0
+	or	$sbit,$car0,$car0
 	add	$car0,$car1,$car1
 	add	$car2,$car1,$car1
 	st	$car1,[$tp+4]
@@ -493,9 +485,6 @@ $code.=<<___;
 	mulx	$npj,$mul1,$acc1
 	add	$tpj,$car1,$car1
 	ld	[$np+$j],$npj			! np[j]
-	srlx	$car1,32,$tmp0
-	and	$car1,$mask,$car1
-	add	$tmp0,$sbit,$sbit
 	add	$acc0,$car1,$car1
 	ld	[$tp+8],$tpj			! tp[j]
 	add	$acc1,$car1,$car1
@@ -510,7 +499,7 @@ $code.=<<___;
 .Lsqr_inner2:
 	mulx	$apj,$mul0,$acc0
 	mulx	$npj,$mul1,$acc1
-	add	$tpj,$sbit,$sbit
+	add	$tpj,$car1,$car1
 	add	$acc0,$car0,$car0
 	ld	[$ap+$j],$apj			! ap[j]
 	and	$car0,$mask,$acc0
@@ -518,7 +507,7 @@ $code.=<<___;
 	srlx	$car0,32,$car0
 	add	$acc0,$acc0,$acc0
 	ld	[$tp+8],$tpj			! tp[j]
-	add	$sbit,$acc0,$acc0
+	or	$sbit,$acc0,$acc0
 	add	$j,4,$j				! j++
 	srlx	$acc0,32,$sbit
 	and	$acc0,$mask,$acc0
@@ -533,12 +522,12 @@ $code.=<<___;
 .Lsqr_no_inner2:
 	mulx	$apj,$mul0,$acc0
 	mulx	$npj,$mul1,$acc1
-	add	$tpj,$sbit,$sbit
+	add	$tpj,$car1,$car1
 	add	$acc0,$car0,$car0
 	and	$car0,$mask,$acc0
 	srlx	$car0,32,$car0
 	add	$acc0,$acc0,$acc0
-	add	$sbit,$acc0,$acc0
+	or	$sbit,$acc0,$acc0
 	srlx	$acc0,32,$sbit
 	and	$acc0,$mask,$acc0
 	add	$acc0,$car1,$car1
@@ -547,7 +536,7 @@ $code.=<<___;
 	srlx	$car1,32,$car1
 
 	add	$car0,$car0,$car0
-	add	$sbit,$car0,$car0
+	or	$sbit,$car0,$car0
 	add	$car0,$car1,$car1
 	add	$car2,$car1,$car1
 	st	$car1,[$tp+4]
@@ -592,17 +581,14 @@ $code.=<<___;
 !.Lsqr_last
 
 	mulx	$npj,$mul1,$acc1
-	add	$tpj,$acc0,$acc0
-	srlx	$acc0,32,$tmp0
-	and	$acc0,$mask,$acc0
-	add	$tmp0,$sbit,$sbit
+	add	$tpj,$car1,$car1
 	add	$acc0,$car1,$car1
 	add	$acc1,$car1,$car1
 	st	$car1,[$tp]
 	srlx	$car1,32,$car1
 
 	add	$car0,$car0,$car0		! recover $car0
-	add	$sbit,$car0,$car0
+	or	$sbit,$car0,$car0
 	add	$car0,$car1,$car1
 	add	$car2,$car1,$car1
 	st	$car1,[$tp+4]

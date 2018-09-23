@@ -1,26 +1,28 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
 
 const assert = require('assert');
 const spawn = require('child_process').spawn;
-const defaultCoreList = require('crypto').constants.defaultCoreCipherList;
+const defaultCoreList = require('constants').defaultCoreCipherList;
 
 function doCheck(arg, check) {
-  let out = '';
-  arg = arg.concat([
+  var out = '';
+  var arg = arg.concat([
     '-pe',
-    'require("crypto").constants.defaultCipherList'
+    'require("constants").defaultCipherList'
   ]);
-  spawn(process.execPath, arg, {})
-    .on('error', common.mustNotCall())
-    .stdout.on('data', function(chunk) {
+  spawn(process.execPath, arg, {}).
+    on('error', common.fail).
+    stdout.on('data', function(chunk) {
       out += chunk;
     }).on('end', function() {
-      assert.strictEqual(out.trim(), check);
-    }).on('error', common.mustNotCall());
+      assert.equal(out.trim(), check);
+    }).on('error', common.fail);
 }
 
 // test the default unmodified version

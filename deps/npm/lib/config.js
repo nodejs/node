@@ -1,5 +1,13 @@
-/* eslint-disable standard/no-callback-literal */
+
 module.exports = config
+
+config.usage = 'npm config set <key> <value>' +
+               '\nnpm config get [<key>]' +
+               '\nnpm config delete <key>' +
+               '\nnpm config list' +
+               '\nnpm config edit' +
+               '\nnpm set <key> <value>' +
+               '\nnpm get [<key>]'
 
 var log = require('npmlog')
 var npm = require('./npm.js')
@@ -10,23 +18,8 @@ var types = npmconf.defs.types
 var ini = require('ini')
 var editor = require('editor')
 var os = require('os')
-var path = require('path')
-var mkdirp = require('mkdirp')
 var umask = require('./utils/umask')
-var usage = require('./utils/usage')
-var output = require('./utils/output')
-var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
 
-config.usage = usage(
-  'config',
-  'npm config set <key> <value>' +
-  '\nnpm config get [<key>]' +
-  '\nnpm config delete <key>' +
-  '\nnpm config list [--json]' +
-  '\nnpm config edit' +
-  '\nnpm set <key> <value>' +
-  '\nnpm get [<key>]'
-)
 config.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
   if (argv[1] !== 'config') argv.unshift('config')
@@ -42,17 +35,15 @@ config.completion = function (opts, cb) {
       // todo: complete with valid values, if possible.
       if (argv.length > 3) return cb(null, [])
       // fallthrough
-      /* eslint no-fallthrough:0 */
+      /*eslint no-fallthrough:0*/
     case 'get':
     case 'delete':
     case 'rm':
       return cb(null, Object.keys(types))
     case 'edit':
-    case 'list':
-    case 'ls':
+    case 'list': case 'ls':
       return cb(null, [])
-    default:
-      return cb(null, [])
+    default: return cb(null, [])
   }
 }
 
@@ -62,21 +53,12 @@ config.completion = function (opts, cb) {
 function config (args, cb) {
   var action = args.shift()
   switch (action) {
-    case 'set':
-      return set(args[0], args[1], cb)
-    case 'get':
-      return get(args[0], cb)
-    case 'delete':
-    case 'rm':
-    case 'del':
-      return del(args[0], cb)
-    case 'list':
-    case 'ls':
-      return npm.config.get('json') ? listJson(cb) : list(cb)
-    case 'edit':
-      return edit(cb)
-    default:
-      return unknown(action, cb)
+    case 'set': return set(args[0], args[1], cb)
+    case 'get': return get(args[0], cb)
+    case 'delete': case 'rm': case 'del': return del(args[0], cb)
+    case 'list': case 'ls': return list(cb)
+    case 'edit': return edit(cb)
+    default: return unknown(action, cb)
   }
 }
 
@@ -92,7 +74,7 @@ function edit (cb) {
       data = [
         ';;;;',
         '; npm ' + (npm.config.get('global')
-          ? 'globalconfig' : 'userconfig') + ' file',
+                  ? 'globalconfig' : 'userconfig') + ' file',
         '; this is a simple ini-formatted file',
         '; lines that start with semi-colons are comments.',
         '; read `npm help config` for help on the various options',
@@ -114,19 +96,16 @@ function edit (cb) {
             .replace(/\n/g, '\n; ')
             .split('\n'))
       }, []))
-        .concat([''])
-        .join(os.EOL)
-      mkdirp(path.dirname(f), function (er) {
-        if (er) return cb(er)
-        writeFileAtomic(
-          f,
-          data,
-          function (er) {
-            if (er) return cb(er)
-            editor(f, { editor: e }, noProgressTillDone(cb))
-          }
-        )
-      })
+      .concat([''])
+      .join(os.EOL)
+      writeFileAtomic(
+        f,
+        data,
+        function (er) {
+          if (er) return cb(er)
+          editor(f, { editor: e }, cb)
+        }
+      )
     })
   })
 }
@@ -167,7 +146,7 @@ function get (key, cb) {
   }
   var val = npm.config.get(key)
   if (key.match(/umask/)) val = umask.toString(val)
-  output(val)
+  console.log(val)
   cb()
 }
 
@@ -176,47 +155,13 @@ function sort (a, b) {
 }
 
 function publicVar (k) {
-  return !(k.charAt(0) === '_' || k.indexOf(':_') !== -1)
+  return !(k.charAt(0) === '_' ||
+           k.indexOf(':_') !== -1 ||
+           types[k] !== types[k])
 }
 
 function getKeys (data) {
   return Object.keys(data).filter(publicVar).sort(sort)
-}
-
-function listJson (cb) {
-  const publicConf = npm.config.keys.reduce((publicConf, k) => {
-    var value = npm.config.get(k)
-
-    if (publicVar(k) &&
-        // argv is not really config, it's command config
-        k !== 'argv' &&
-        // logstream is a Stream, and would otherwise produce circular refs
-        k !== 'logstream') publicConf[k] = value
-
-    return publicConf
-  }, {})
-
-  output(JSON.stringify(publicConf, null, 2))
-  return cb()
-}
-
-function listFromSource (title, conf, long) {
-  var confKeys = getKeys(conf)
-  var msg = ''
-
-  if (confKeys.length) {
-    msg += '; ' + title + '\n'
-    confKeys.forEach(function (k) {
-      var val = JSON.stringify(conf[k])
-      if (conf[k] !== npm.config.get(k)) {
-        if (!long) return
-        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-      } else msg += k + ' = ' + val + '\n'
-    })
-    msg += '\n'
-  }
-
-  return msg
 }
 
 function list (cb) {
@@ -236,22 +181,73 @@ function list (cb) {
   }
 
   // env configs
-  msg += listFromSource('environment configs', npm.config.sources.env.data, long)
-
-  // project config file
-  var project = npm.config.sources.project
-  msg += listFromSource('project config ' + project.path, project.data, long)
+  var env = npm.config.sources.env.data
+  var envKeys = getKeys(env)
+  if (envKeys.length) {
+    msg += '; environment configs\n'
+    envKeys.forEach(function (k) {
+      if (env[k] !== npm.config.get(k)) {
+        if (!long) return
+        msg += '; ' + k + ' = ' +
+          JSON.stringify(env[k]) + ' (overridden)\n'
+      } else msg += k + ' = ' + JSON.stringify(env[k]) + '\n'
+    })
+    msg += '\n'
+  }
 
   // user config file
-  msg += listFromSource('userconfig ' + npm.config.get('userconfig'), npm.config.sources.user.data, long)
+  var uconf = npm.config.sources.user.data
+  var uconfKeys = getKeys(uconf)
+  if (uconfKeys.length) {
+    msg += '; userconfig ' + npm.config.get('userconfig') + '\n'
+    uconfKeys.forEach(function (k) {
+      var val = (k.charAt(0) === '_')
+              ? '---sekretz---'
+              : JSON.stringify(uconf[k])
+      if (uconf[k] !== npm.config.get(k)) {
+        if (!long) return
+        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
+      } else msg += k + ' = ' + val + '\n'
+    })
+    msg += '\n'
+  }
 
   // global config file
-  msg += listFromSource('globalconfig ' + npm.config.get('globalconfig'), npm.config.sources.global.data, long)
+  var gconf = npm.config.sources.global.data
+  var gconfKeys = getKeys(gconf)
+  if (gconfKeys.length) {
+    msg += '; globalconfig ' + npm.config.get('globalconfig') + '\n'
+    gconfKeys.forEach(function (k) {
+      var val = (k.charAt(0) === '_')
+              ? '---sekretz---'
+              : JSON.stringify(gconf[k])
+      if (gconf[k] !== npm.config.get(k)) {
+        if (!long) return
+        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
+      } else msg += k + ' = ' + val + '\n'
+    })
+    msg += '\n'
+  }
 
   // builtin config file
   var builtin = npm.config.sources.builtin || {}
   if (builtin && builtin.data) {
-    msg += listFromSource('builtin config ' + builtin.path, builtin.data, long)
+    var bconf = builtin.data
+    var bpath = builtin.path
+    var bconfKeys = getKeys(bconf)
+    if (bconfKeys.length) {
+      msg += '; builtin config ' + bpath + '\n'
+      bconfKeys.forEach(function (k) {
+        var val = (k.charAt(0) === '_')
+                ? '---sekretz---'
+                : JSON.stringify(bconf[k])
+        if (bconf[k] !== npm.config.get(k)) {
+          if (!long) return
+          msg += '; ' + k + ' = ' + val + ' (overridden)\n'
+        } else msg += k + ' = ' + val + '\n'
+      })
+      msg += '\n'
+    }
   }
 
   // only show defaults if --long
@@ -261,7 +257,7 @@ function list (cb) {
            '; HOME = ' + process.env.HOME + '\n' +
            '; "npm config ls -l" to show all defaults.\n'
 
-    output(msg)
+    console.log(msg)
     return cb()
   }
 
@@ -277,7 +273,7 @@ function list (cb) {
   })
   msg += '\n'
 
-  output(msg)
+  console.log(msg)
   return cb()
 }
 

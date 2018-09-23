@@ -10,13 +10,8 @@ var path = require('path')
 var spawn = require('./utils/spawn')
 var npm = require('./npm.js')
 var log = require('npmlog')
-var openUrl = require('./utils/open-url')
+var opener = require('opener')
 var glob = require('glob')
-var didYouMean = require('./utils/did-you-mean')
-var cmdList = require('./config/cmd-list').cmdList
-var shorthands = require('./config/cmd-list').shorthands
-var commands = cmdList.concat(Object.keys(shorthands))
-var output = require('./utils/output.js')
 
 function help (args, cb) {
   var argv = npm.config.get('argv').cooked
@@ -39,13 +34,13 @@ function help (args, cb) {
     return npmUsage(valid, cb)
   }
 
-  // npm <command> -h: show command usage
+  // npm <cmd> -h: show command usage
   if (npm.config.get('usage') &&
       npm.commands[section] &&
       npm.commands[section].usage) {
     npm.config.set('loglevel', 'silent')
     log.level = 'silent'
-    output(npm.commands[section].usage)
+    console.log(npm.commands[section].usage)
     return cb()
   }
 
@@ -97,8 +92,8 @@ function pickMan (mans, pref_) {
     var an = a.match(nre)[1]
     var bn = b.match(nre)[1]
     return an === bn ? (a > b ? -1 : 1)
-      : pref[an] < pref[bn] ? -1
-        : 1
+         : pref[an] < pref[bn] ? -1
+         : 1
   })
   return mans[0]
 }
@@ -127,7 +122,7 @@ function viewMan (man, cb) {
       break
 
     case 'browser':
-      openUrl(htmlMan(man), 'help available at the following URL', cb)
+      opener(htmlMan(man), { command: npm.config.get('browser') }, cb)
       break
 
     default:
@@ -163,17 +158,18 @@ function htmlMan (man) {
 function npmUsage (valid, cb) {
   npm.config.set('loglevel', 'silent')
   log.level = 'silent'
-  output([
+  console.log([
     '\nUsage: npm <command>',
     '',
     'where <command> is one of:',
     npm.config.get('long') ? usages()
-      : '    ' + wrap(commands),
+        : '    ' + wrap(Object.keys(npm.commands)),
     '',
-    'npm <command> -h  quick help on <command>',
-    'npm -l            display full usage info',
-    'npm help <term>   search for help on <term>',
-    'npm help npm      involved overview',
+    'npm <cmd> -h     quick help on <cmd>',
+    'npm -l           display full usage info',
+    'npm faq          commonly asked questions',
+    'npm help <term>  search for help on <term>',
+    'npm help npm     involved overview',
     '',
     'Specify configs in the ini-formatted file:',
     '    ' + npm.config.get('userconfig'),
@@ -182,16 +178,11 @@ function npmUsage (valid, cb) {
     '',
     'npm@' + npm.version + ' ' + path.dirname(__dirname)
   ].join('\n'))
-
-  if (npm.argv.length > 1) {
-    output(didYouMean(npm.argv[1], commands))
-  }
-
   cb(valid)
 }
 
 function usages () {
-  // return a string of <command>: <usage>
+  // return a string of <cmd>: <usage>
   var maxLen = 0
   return Object.keys(npm.commands).filter(function (c) {
     return c === npm.deref(c)

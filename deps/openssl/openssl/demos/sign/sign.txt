@@ -1,0 +1,170 @@
+From ssl-lists-owner@mincom.com Mon Sep 30 22:43:15 1996
+Received: from cygnus.mincom.oz.au by orb.mincom.oz.au with SMTP id AA12802
+  (5.65c/IDA-1.4.4 for eay); Mon, 30 Sep 1996 12:45:43 +1000
+Received: (from daemon@localhost) by cygnus.mincom.oz.au (8.7.5/8.7.3) id MAA25922 for ssl-users-outgoing; Mon, 30 Sep 1996 12:43:43 +1000 (EST)
+Received: from orb.mincom.oz.au (eay@orb.mincom.oz.au [192.55.197.1]) by cygnus.mincom.oz.au (8.7.5/8.7.3) with SMTP id MAA25900 for <ssl-users@listserv.mincom.oz.au>; Mon, 30 Sep 1996 12:43:39 +1000 (EST)
+Received: by orb.mincom.oz.au id AA12688
+  (5.65c/IDA-1.4.4 for ssl-users@listserv.mincom.oz.au); Mon, 30 Sep 1996 12:43:16 +1000
+Date: Mon, 30 Sep 1996 12:43:15 +1000 (EST)
+From: Eric Young <eay@mincom.com>
+X-Sender: eay@orb
+To: Sampo Kellomaki <sampo@neuronio.pt>
+Cc: ssl-users@mincom.com, sampo@brutus.neuronio.pt
+Subject: Re: Signing with envelope routines
+In-Reply-To: <199609300037.BAA08729@brutus.neuronio.pt>
+Message-Id: <Pine.SOL.3.91.960930121504.11800Y-100000@orb>
+Mime-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: ssl-lists-owner@mincom.com
+Precedence: bulk
+Status: O
+X-Status: 
+
+
+On Mon, 30 Sep 1996, Sampo Kellomaki wrote:
+> I have been trying to figure out how to produce signatures with EVP_
+> routines. I seem to be able to read in private key and sign some
+> data ok, but I can't figure out how I am supposed to read in
+> public key so that I could verify my signature. I use self signed
+> certificate.
+
+hmm... a rather poorly documented are of the library at this point in time.
+
+> I figured I should use
+> 	EVP_PKEY* pkey = PEM_ASN1_read(d2i_PrivateKey, PEM_STRING_EVP_PKEY,
+> 	                               fp, NULL, NULL);
+> to read in private key and this seems to work Ok.
+> 
+> However when I try analogous
+> 	EVP_PKEY* pkey = PEM_ASN1_read(d2i_PublicKey, PEM_STRING_X509,
+> 	                               fp, NULL, NULL);
+
+What you should do is 
+	X509 *x509=PEM_read_X509(fp,NULL,NULL);
+	/* which is the same as PEM_ASN1_read(d2i_X509,PEM_STRING_X509,fp,
+	 * NULL,NULL); */
+Then
+	EVP_PKEY *pkey=X509_extract_key(x509);
+
+There is also a X509_REQ_extract_key(req);
+which gets the public key from a certificate request.
+
+I re-worked quite a bit of this when I cleaned up the dependancy on
+RSA as the private key.
+
+> I figured that the second argument to PEM_ASN1_read should match the
+> name in my PEM encoded object, hence PEM_STRING_X509.
+> PEM_STRING_EVP_PKEY seems to be somehow magical
+> because it matches whatever private key there happens to be. I could
+> not find a similar constant to use with getting the certificate, however.
+
+:-), PEM_STRING_EVP_PKEY is 'magical' :-).  In theory I should be using a
+standard such as PKCS#8 to store the private key so that the type is 
+encoded in the asn.1 encoding of the object.
+
+> Is my approach of using PEM_ASN1_read correct? What should I pass in
+> as name?  Can I use normal (or even self signed) X509 certificate for
+> verifying the signature?
+
+The actual public key is kept in the certificate, so basically you have 
+to load the certificate and then 'unpack' the public key from the 
+certificate.
+
+> When will SSLeay documentation be written ;-)? If I would contribute
+> comments to the code, would Eric take time to review them and include
+> them in distribution?
+
+:-) After SSLv3 and PKCS#7 :-).  I actually started doing a function list 
+but what I really need to do is do quite a few 'this is how you do xyz' 
+type documents.  I suppose the current method is to post to ssl-users and 
+I'll respond :-).
+
+I'll add a 'demo' directory for the next release, I've appended a 
+modified version of your program that works, you were very close :-).
+
+eric
+
+/* sign-it.cpp  -  Simple test app using SSLeay envelopes to sign data
+   29.9.1996, Sampo Kellomaki <sampo@iki.fi> */
+
+/* converted to C - eay :-) */
+
+#include <stdio.h>
+#include "rsa.h"
+#include "evp.h"
+#include "objects.h"
+#include "x509.h"
+#include "err.h"
+#include "pem.h"
+#include "ssl.h"
+
+void main ()
+{
+  int err;
+  int sig_len;
+  unsigned char sig_buf [4096];
+  static char certfile[] = "plain-cert.pem";
+  static char keyfile[]  = "plain-key.pem";
+  static char data[]     = "I owe you...";
+  EVP_MD_CTX     md_ctx;
+  EVP_PKEY *      pkey;
+  FILE *          fp;
+  X509 *	x509;
+
+  /* Just load the crypto library error strings,
+   * SSL_load_error_strings() loads the crypto AND the SSL ones */
+  /* SSL_load_error_strings();*/
+  ERR_load_crypto_strings();
+  
+  /* Read private key */
+  
+  fp = fopen (keyfile, "r");   if (fp == NULL) exit (1);
+  pkey = (EVP_PKEY*)PEM_ASN1_read ((char *(*)())d2i_PrivateKey,
+				   PEM_STRING_EVP_PKEY,
+				   fp,
+				   NULL, NULL);
+  if (pkey == NULL) {  ERR_print_errors_fp (stderr);    exit (1);  }
+  fclose (fp);
+  
+  /* Do the signature */
+  
+  EVP_SignInit   (&md_ctx, EVP_md5());
+  EVP_SignUpdate (&md_ctx, data, strlen(data));
+  sig_len = sizeof(sig_buf);
+  err = EVP_SignFinal (&md_ctx,
+		       sig_buf, 
+		       &sig_len,
+		       pkey);
+  if (err != 1) {  ERR_print_errors_fp (stderr);    exit (1);  }
+  EVP_PKEY_free (pkey);
+  
+  /* Read public key */
+  
+  fp = fopen (certfile, "r");   if (fp == NULL) exit (1);
+  x509 = (X509 *)PEM_ASN1_read ((char *(*)())d2i_X509,
+				   PEM_STRING_X509,
+				   fp, NULL, NULL);
+  if (x509 == NULL) {  ERR_print_errors_fp (stderr);    exit (1);  }
+  fclose (fp);
+  
+  /* Get public key - eay */
+  pkey=X509_extract_key(x509);
+  if (pkey == NULL) {  ERR_print_errors_fp (stderr);    exit (1);  }
+
+  /* Verify the signature */
+  
+  EVP_VerifyInit   (&md_ctx, EVP_md5());
+  EVP_VerifyUpdate (&md_ctx, data, strlen((char*)data));
+  err = EVP_VerifyFinal (&md_ctx,
+			 sig_buf,
+			 sig_len,
+			 pkey);
+  if (err != 1) {  ERR_print_errors_fp (stderr);    exit (1);  }
+  EVP_PKEY_free (pkey);
+  printf ("Signature Verified Ok.\n");
+}
+
+
+
+
+

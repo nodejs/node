@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --inline-construct
 
 // Test inlining of constructor calls.
 
@@ -53,8 +53,8 @@ function TestInlinedConstructor(constructor, closure) {
   assertEquals(4, counter.value);
 
   %DeoptimizeFunction(closure);
-  %ClearFunctionFeedback(closure);
-  %ClearFunctionFeedback(constructor);
+  %ClearFunctionTypeFeedback(closure);
+  %ClearFunctionTypeFeedback(constructor);
 }
 
 function value_context(constructor, val, deopt, counter) {

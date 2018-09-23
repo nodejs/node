@@ -1,3 +1,0 @@
-If you change the heap layout, expect this test to fail (in CQ). You will then
-need to build x64 release and run `<outdir>/mkgrokdump > tools/v8heapconst.py`
-to rebaseline.

@@ -1,0 +1,53 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_get_ex_new_index, SSL_CTX_set_ex_data, SSL_CTX_get_ex_data - internal application specific data functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_CTX_get_ex_new_index(long argl, void *argp,
+                CRYPTO_EX_new *new_func,
+                CRYPTO_EX_dup *dup_func,
+                CRYPTO_EX_free *free_func);
+
+ int SSL_CTX_set_ex_data(SSL_CTX *ctx, int idx, void *arg);
+
+ void *SSL_CTX_get_ex_data(const SSL_CTX *ctx, int idx);
+
+ typedef int new_func(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
+                int idx, long argl, void *argp);
+ typedef void free_func(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
+                int idx, long argl, void *argp);
+ typedef int dup_func(CRYPTO_EX_DATA *to, CRYPTO_EX_DATA *from, void *from_d,
+                int idx, long argl, void *argp);
+
+=head1 DESCRIPTION
+
+Several OpenSSL structures can have application specific data attached to them.
+These functions are used internally by OpenSSL to manipulate application
+specific data attached to a specific structure.
+
+SSL_CTX_get_ex_new_index() is used to register a new index for application
+specific data.
+
+SSL_CTX_set_ex_data() is used to store application data at B<arg> for B<idx>
+into the B<ctx> object.
+
+SSL_CTX_get_ex_data() is used to retrieve the information for B<idx> from
+B<ctx>.
+
+A detailed description for the B<*_get_ex_new_index()> functionality
+can be found in L<RSA_get_ex_new_index(3)|RSA_get_ex_new_index(3)>.
+The B<*_get_ex_data()> and B<*_set_ex_data()> functionality is described in
+L<CRYPTO_set_ex_data(3)|CRYPTO_set_ex_data(3)>.
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>,
+L<RSA_get_ex_new_index(3)|RSA_get_ex_new_index(3)>,
+L<CRYPTO_set_ex_data(3)|CRYPTO_set_ex_data(3)>
+
+=cut

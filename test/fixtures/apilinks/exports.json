@@ -1,6 +1,0 @@
-{
-  "exports.Buffer": "exports.js#L5",
-  "exports.fn1": "exports.js#L8",
-  "exports.fn2": "exports.js#L10",
-  "exports.fn3": "exports.js#L12"
-}

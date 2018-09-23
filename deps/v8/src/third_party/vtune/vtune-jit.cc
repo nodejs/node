@@ -55,12 +55,26 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
-#include <stdlib.h>
 #include <string.h>
 
+#ifdef WIN32
+#include <hash_map>
+using namespace std;
+#else
+// To avoid GCC 4.4 compilation warning about hash_map being deprecated.
+#define OLD_DEPRECATED __DEPRECATED
+#undef __DEPRECATED
+#if defined (ANDROID)
+#include <hash_map>
+using namespace std;
+#else
+#include <ext/hash_map>
+using namespace __gnu_cxx;
+#endif
+#define __DEPRECATED OLD_DEPRECATED
+#endif
+
 #include <list>
-#include <unordered_map>
 
 #include "v8-vtune.h"
 #include "vtune-jit.h"
@@ -112,8 +126,11 @@ struct HashForCodeObject {
   }
 };
 
-typedef std::unordered_map<void*, void*, HashForCodeObject, SameCodeObjects>
-    JitInfoMap;
+#ifdef WIN32
+typedef hash_map<void*, void*> JitInfoMap;
+#else
+typedef hash_map<void*, void*, HashForCodeObject, SameCodeObjects> JitInfoMap;
+#endif
 
 static JitInfoMap* GetEntries() {
   static JitInfoMap* entries;
@@ -134,7 +151,7 @@ static JITCodeLineInfo* UntagLineInfo(void* ptr) {
 
 // The parameter str is a mixed pattern which contains the
 // function name and some other info. It comes from all the
-// Logger::CodeCreateEvent(...) function. This function get the
+// Logger::CodeCreateEvent(...) function. This funtion get the
 // pure function name from the input parameter.
 static char* GetFunctionNameFromMixedName(const char* str, int length) {
   int index = 0;
@@ -182,8 +199,7 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
           if ((*script->GetScriptName())->IsString()) {
             Local<String> script_name =
                 Local<String>::Cast(script->GetScriptName());
-            temp_file_name =
-                new char[script_name->Utf8Length(event->isolate) + 1];
+            temp_file_name = new char[script_name->Utf8Length() + 1];
             script_name->WriteUtf8(temp_file_name);
             jmethod.source_file_name = temp_file_name;
           }

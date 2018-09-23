@@ -67,7 +67,6 @@ TEST_IMPL(shutdown_twice) {
   loop = uv_default_loop();
 
   r = uv_tcp_init(loop, &h);
-  ASSERT(r == 0);
 
   r = uv_tcp_connect(&connect_req,
                      &h,

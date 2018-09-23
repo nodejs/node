@@ -1,34 +1,37 @@
 // Measure the time it takes for the HTTP client to send a request body.
-'use strict';
 
-const common = require('../common.js');
-const http = require('http');
+var common = require('../common.js');
+var http = require('http');
 
-const bench = common.createBenchmark(main, {
+var bench = common.createBenchmark(main, {
   dur: [5],
   type: ['asc', 'utf', 'buf'],
-  len: [32, 256, 1024],
+  bytes: [32, 256, 1024],
   method: ['write', 'end']
 });
 
-function main({ dur, len, type, method }) {
+function main(conf) {
+  var dur = +conf.dur;
+  var len = +conf.bytes;
+
   var encoding;
   var chunk;
-  switch (type) {
+  switch (conf.type) {
     case 'buf':
-      chunk = Buffer.alloc(len, 'x');
+      chunk = new Buffer(len);
+      chunk.fill('x');
       break;
     case 'utf':
       encoding = 'utf8';
-      chunk = 'ü'.repeat(len / 2);
+      chunk = new Array(len / 2 + 1).join('ü');
       break;
     case 'asc':
-      chunk = 'a'.repeat(len);
+      chunk = new Array(len + 1).join('a');
       break;
   }
 
   var nreqs = 0;
-  const options = {
+  var options = {
     headers: { 'Connection': 'keep-alive', 'Transfer-Encoding': 'chunked' },
     agent: new http.Agent({ maxSockets: 1 }),
     host: '127.0.0.1',
@@ -37,7 +40,7 @@ function main({ dur, len, type, method }) {
     method: 'POST'
   };
 
-  const server = http.createServer(function(req, res) {
+  var server = http.createServer(function(req, res) {
     res.end();
   });
   server.listen(options.port, options.host, function() {
@@ -47,12 +50,12 @@ function main({ dur, len, type, method }) {
   });
 
   function pummel() {
-    const req = http.request(options, function(res) {
+    var req = http.request(options, function(res) {
       nreqs++;
       pummel();  // Line up next request.
       res.resume();
     });
-    if (method === 'write') {
+    if (conf.method === 'write') {
       req.write(chunk, encoding);
       req.end();
     } else {
@@ -62,6 +65,5 @@ function main({ dur, len, type, method }) {
 
   function done() {
     bench.end(nreqs);
-    process.exit(0);
   }
 }

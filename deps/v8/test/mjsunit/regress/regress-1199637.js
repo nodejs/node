@@ -25,12 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --es52-globals
 
-// Make sure that we can introduce global variables that shadow even
-// READ_ONLY variables in the prototype chain.
-var NONE = 0;
-var READ_ONLY = 1;
+// Make sure that we can introduce global variables (using
+// both var and const) that shadow even READ_ONLY variables
+// in the prototype chain.
+const NONE = 0;
+const READ_ONLY = 1;
 
 // Use DeclareGlobal...
 %AddNamedProperty(this.__proto__, "a", 1234, NONE);
@@ -40,7 +41,7 @@ assertEquals(5678, a);
 
 %AddNamedProperty(this.__proto__, "b", 1234, NONE);
 assertEquals(1234, b);
-eval("var b = 5678;");
+eval("const b = 5678;");
 assertEquals(5678, b);
 
 %AddNamedProperty(this.__proto__, "c", 1234, READ_ONLY);
@@ -50,7 +51,7 @@ assertEquals(5678, c);
 
 %AddNamedProperty(this.__proto__, "d", 1234, READ_ONLY);
 assertEquals(1234, d);
-eval("var d = 5678;");
+eval("const d = 5678;");
 assertEquals(5678, d);
 
 // Use DeclareContextSlot...
@@ -61,7 +62,7 @@ assertEquals(5678, x);
 
 %AddNamedProperty(this.__proto__, "y", 1234, NONE);
 assertEquals(1234, y);
-eval("with({}) { var y = 5678; }");
+eval("with({}) { const y = 5678; }");
 assertEquals(5678, y);
 
 %AddNamedProperty(this.__proto__, "z", 1234, READ_ONLY);
@@ -71,5 +72,5 @@ assertEquals(5678, z);
 
 %AddNamedProperty(this.__proto__, "w", 1234, READ_ONLY);
 assertEquals(1234, w);
-eval("with({}) { var w = 5678; }");
+eval("with({}) { const w = 5678; }");
 assertEquals(5678, w);

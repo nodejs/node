@@ -1,29 +1,8 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-const common = require('../common');
-const assert = require('assert');
-const EventEmitter = require('events').EventEmitter;
-const util = require('util');
+var common = require('../common');
+var assert = require('assert');
+var EventEmitter = require('events').EventEmitter;
+var util = require('util');
 
 util.inherits(MyEE, EventEmitter);
 
@@ -34,9 +13,11 @@ function MyEE(cb) {
   EventEmitter.call(this);
 }
 
-const myee = new MyEE(common.mustCall());
+var called = false;
+var myee = new MyEE(function() {
+  called = true;
+});
 
-myee.hasOwnProperty('usingDomains');
 
 util.inherits(ErrorEE, EventEmitter);
 function ErrorEE() {
@@ -48,8 +29,8 @@ assert.throws(function() {
 }, /blerg/);
 
 process.on('exit', function() {
-  assert(!(myee._events instanceof Object));
-  assert.deepStrictEqual(Object.keys(myee._events), []);
+  assert(called);
+  assert.deepEqual(myee._events, {});
   console.log('ok');
 });
 
@@ -60,9 +41,9 @@ function MyEE2() {
 
 MyEE2.prototype = new EventEmitter();
 
-const ee1 = new MyEE2();
-const ee2 = new MyEE2();
+var ee1 = new MyEE2();
+var ee2 = new MyEE2();
 
-ee1.on('x', () => {});
+ee1.on('x', function() {});
 
-assert.strictEqual(ee2.listenerCount('x'), 0);
+assert.equal(ee2.listenerCount('x'), 0);

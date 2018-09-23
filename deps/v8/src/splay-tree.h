@@ -36,16 +36,18 @@ class SplayTree {
   class Locator;
 
   explicit SplayTree(AllocationPolicy allocator = AllocationPolicy())
-      : root_(nullptr), allocator_(allocator) {}
+      : root_(NULL), allocator_(allocator) {}
   ~SplayTree();
 
-  V8_INLINE void* operator new(
-      size_t size, AllocationPolicy allocator = AllocationPolicy()) {
+  INLINE(void* operator new(size_t size,
+                            AllocationPolicy allocator = AllocationPolicy())) {
     return allocator.New(static_cast<int>(size));
   }
-  V8_INLINE void operator delete(void* p) { AllocationPolicy::Delete(p); }
+  INLINE(void operator delete(void* p)) {
+    AllocationPolicy::Delete(p);
+  }
   // Please the MSVC compiler.  We should never have to execute this.
-  V8_INLINE void operator delete(void* p, AllocationPolicy policy) {
+  INLINE(void operator delete(void* p, AllocationPolicy policy)) {
     UNREACHABLE();
   }
 
@@ -87,7 +89,7 @@ class SplayTree {
   // Remove all keys from the tree.
   void Clear() { ResetRoot(); }
 
-  bool is_empty() { return root_ == nullptr; }
+  bool is_empty() { return root_ == NULL; }
 
   // Perform the splay operation for the given key. Moves the node with
   // the given key to the top of the tree.  If no node has the given
@@ -98,17 +100,20 @@ class SplayTree {
   class Node {
    public:
     Node(const Key& key, const Value& value)
-        : key_(key), value_(value), left_(nullptr), right_(nullptr) {}
+        : key_(key),
+          value_(value),
+          left_(NULL),
+          right_(NULL) { }
 
-    V8_INLINE void* operator new(size_t size, AllocationPolicy allocator) {
+    INLINE(void* operator new(size_t size, AllocationPolicy allocator)) {
       return allocator.New(static_cast<int>(size));
     }
-    V8_INLINE void operator delete(void* p) {
+    INLINE(void operator delete(void* p)) {
       return AllocationPolicy::Delete(p);
     }
     // Please the MSVC compiler.  We should never have to execute
     // this.
-    V8_INLINE void operator delete(void* p, AllocationPolicy allocator) {
+    INLINE(void operator delete(void* p, AllocationPolicy allocator)) {
       UNREACHABLE();
     }
 
@@ -131,7 +136,7 @@ class SplayTree {
   class Locator BASE_EMBEDDED {
    public:
     explicit Locator(Node* node) : node_(node) { }
-    Locator() : node_(nullptr) {}
+    Locator() : node_(NULL) { }
     const Key& key() { return node_->key_; }
     Value& value() { return node_->value_; }
     void set_value(const Value& value) { node_->value_ = value; }
@@ -146,7 +151,7 @@ class SplayTree {
 
  protected:
   // Resets tree root. Existing nodes become unreachable.
-  void ResetRoot() { root_ = nullptr; }
+  void ResetRoot() { root_ = NULL; }
 
  private:
   // Search for a node with a given key. If found, root_ points
@@ -193,7 +198,6 @@ class SplayTree {
 };
 
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_SPLAY_TREE_H_

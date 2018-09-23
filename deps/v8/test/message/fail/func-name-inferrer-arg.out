@@ -1,7 +1,0 @@
-*%(basename)s:7: Error: boom
-    throw new Error('boom');
-    ^
-Error: boom
-    at *%(basename)s:7:11
-    at *%(basename)s:8:5
-    at *%(basename)s:10:3

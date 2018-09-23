@@ -6,9 +6,8 @@ function Module(stdlib, foreign, heap) {
   "use asm";
   var MEM32 = new stdlib.Float32Array(heap);
   function foo(i) {
-    i = i | 0;
-    MEM32[0] = +(i >>> 0) / 2.;
-    return +MEM32[0];
+    MEM32[0] = (i >>> 0) / 2;
+    return MEM32[0];
   }
   return { foo: foo };
 }

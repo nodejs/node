@@ -1,9 +1,6 @@
-/* eslint-disable standard/no-callback-literal */
 module.exports = test
 
-const testCmd = require('./utils/lifecycle-cmd.js')('test')
-
-test.usage = testCmd.usage
+var testCmd = require('./utils/lifecycle.js').cmd('test')
 
 function test (args, cb) {
   testCmd(args, function (er) {

@@ -7,11 +7,9 @@
 
 #include <queue>
 
-#include "include/libplatform/libplatform-export.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 
@@ -19,36 +17,31 @@ class Task;
 
 namespace platform {
 
-class V8_PLATFORM_EXPORT TaskQueue {
+class TaskQueue {
  public:
   TaskQueue();
   ~TaskQueue();
 
   // Appends a task to the queue. The queue takes ownership of |task|.
-  void Append(std::unique_ptr<Task> task);
+  void Append(Task* task);
 
   // Returns the next task to process. Blocks if no task is available. Returns
-  // nullptr if the queue is terminated.
-  std::unique_ptr<Task> GetNext();
+  // NULL if the queue is terminated.
+  Task* GetNext();
 
   // Terminate the queue.
   void Terminate();
 
  private:
-  FRIEND_TEST(WorkerThreadTest, PostSingleTask);
-
-  void BlockUntilQueueEmptyForTesting();
-
-  base::Semaphore process_queue_semaphore_;
   base::Mutex lock_;
-  std::queue<std::unique_ptr<Task>> task_queue_;
+  base::Semaphore process_queue_semaphore_;
+  std::queue<Task*> task_queue_;
   bool terminated_;
 
   DISALLOW_COPY_AND_ASSIGN(TaskQueue);
 };
 
-}  // namespace platform
-}  // namespace v8
+} }  // namespace v8::platform
 
 
 #endif  // V8_LIBPLATFORM_TASK_QUEUE_H_

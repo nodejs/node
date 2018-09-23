@@ -1,33 +1,34 @@
 'use strict';
 const common = require('../common');
-
 const assert = require('assert');
 const EventEmitter = require('events');
 const http = require('http');
 
 const ee = new EventEmitter();
-let count = 3;
+var count = 3;
 
 const server = http.createServer(function(req, res) {
-  res.setHeader('testing_123', 123);
+  assert.doesNotThrow(function() {
+    res.setHeader('testing_123', 123);
+  });
   assert.throws(function() {
     res.setHeader('testing 123', 123);
   }, TypeError);
   res.end('');
 });
-server.listen(0, function() {
+server.listen(common.PORT, function() {
 
-  http.get({ port: this.address().port }, function() {
+  http.get({port: common.PORT}, function() {
     ee.emit('done');
   });
 
   assert.throws(
     function() {
-      const options = {
-        port: server.address().port,
-        headers: { 'testing 123': 123 }
+      var options = {
+        port: common.PORT,
+        headers: {'testing 123': 123}
       };
-      http.get(options, common.mustNotCall());
+      http.get(options, function() {});
     },
     function(err) {
       ee.emit('done');
@@ -35,14 +36,17 @@ server.listen(0, function() {
     }
   );
 
-  // Should not throw.
-  const options = {
-    port: server.address().port,
-    headers: { 'testing_123': 123 }
-  };
-  http.get(options, function() {
-    ee.emit('done');
-  });
+  assert.doesNotThrow(
+    function() {
+      var options = {
+        port: common.PORT,
+        headers: {'testing_123': 123}
+      };
+      http.get(options, function() {
+        ee.emit('done');
+      });
+    }, TypeError
+  );
 });
 
 ee.on('done', function() {

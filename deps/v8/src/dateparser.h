@@ -7,7 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/char-predicates.h"
-#include "src/unicode-cache.h"
+#include "src/scanner.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +26,7 @@ class DateParser : public AllStatic {
   // [7]: UTC offset in seconds, or null value if no timezone specified
   // If parsing fails, return false (content of output array is not defined).
   template <typename Char>
-  static bool Parse(Isolate* isolate, Vector<Char> str, FixedArray* output);
+  static bool Parse(Vector<Char> str, FixedArray* output, UnicodeCache* cache);
 
   enum {
     YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, MILLISECOND, UTC_OFFSET, OUTPUT_SIZE
@@ -99,8 +99,24 @@ class DateParser : public AllStatic {
       return false;
     }
 
-    inline bool SkipWhiteSpace();
-    inline bool SkipParentheses();
+    bool SkipWhiteSpace() {
+      if (unicode_cache_->IsWhiteSpaceOrLineTerminator(ch_)) {
+        Next();
+        return true;
+      }
+      return false;
+    }
+
+    bool SkipParentheses() {
+      if (ch_ != '(') return false;
+      int balance = 0;
+      do {
+        if (ch_ == ')') --balance;
+        else if (ch_ == '(') ++balance;
+        Next();
+      } while (balance > 0 && ch_);
+      return true;
+    }
 
     // Character testing/classification. Non-ASCII digits are not supported.
     bool Is(uint32_t c) const { return ch_ == c; }
@@ -359,12 +375,13 @@ class DateParser : public AllStatic {
   // legacy parser.
   template <typename Char>
   static DateParser::DateToken ParseES5DateTime(
-      DateStringTokenizer<Char>* scanner, DayComposer* day, TimeComposer* time,
+      DateStringTokenizer<Char>* scanner,
+      DayComposer* day,
+      TimeComposer* time,
       TimeZoneComposer* tz);
 };
 
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_DATEPARSER_H_

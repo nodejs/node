@@ -1,12 +1,12 @@
 'use strict';
-require('../common');
-const assert = require('assert');
-const http = require('http');
-const net = require('net');
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
+var net = require('net');
 
-let received = '';
+var received = '';
 
-const server = http.createServer(function(req, res) {
+var server = http.createServer(function(req, res) {
   res.writeHead(200);
   res.end();
 
@@ -15,8 +15,8 @@ const server = http.createServer(function(req, res) {
   });
 
   server.close();
-}).listen(0, function() {
-  const socket = net.connect(this.address().port, function() {
+}).listen(common.PORT, function() {
+  var socket = net.connect(common.PORT, function() {
     socket.write('PUT / HTTP/1.1\r\n\r\n');
 
     socket.once('data', function() {
@@ -26,5 +26,5 @@ const server = http.createServer(function(req, res) {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(received, 'hello world');
+  assert.equal(received, 'hello world');
 });

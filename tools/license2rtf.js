@@ -1,106 +1,114 @@
-'use strict';
 
-const assert = require('assert');
-const Stream = require('stream');
+var assert = require('assert'),
+    Stream = require('stream'),
+    inherits = require('util').inherits;
 
 
 /*
  * This filter consumes a stream of characters and emits one string per line.
  */
-class LineSplitter extends Stream {
-  constructor() {
-    super();
-    this.buffer = '';
-    this.writable = true;
-  }
+function LineSplitter() {
+  var self = this,
+      buffer = "";
 
-  write(data) {
-    const lines = (this.buffer + data).split(/\r\n|\n\r|\n|\r/);
-    for (let i = 0; i < lines.length - 1; i++) {
-      this.emit('data', lines[i]);
+  Stream.call(this);
+  this.writable = true;
+
+  this.write = function(data) {
+    var lines = (buffer + data).split(/\r\n|\n\r|\n|\r/);
+    for (var i = 0; i < lines.length - 1; i++) {
+      self.emit('data', lines[i]);
     }
-    this.buffer = lines[lines.length - 1];
+    buffer = lines[lines.length - 1];
     return true;
-  }
+  };
 
-  end(data) {
+  this.end = function(data) {
     this.write(data || '');
-    if (this.buffer) {
-      this.emit('data', this.buffer);
+    if (buffer) {
+      self.emit('data', buffer);
     }
-    this.emit('end');
-  }
+    self.emit('end');
+  };
 }
+inherits(LineSplitter, Stream);
 
 
 /*
  * This filter consumes lines and emits paragraph objects.
  */
-class ParagraphParser extends Stream {
-  constructor() {
-    super();
-    this.blockIsLicenseBlock = false;
-    this.writable = true;
-    this.resetBlock(false);
-  }
+function ParagraphParser() {
+  var self = this,
+      block_is_license_block = false,
+      block_has_c_style_comment,
+      is_first_line_in_paragraph,
+      paragraph_line_indent,
+      paragraph;
 
-  write(data) {
-    this.parseLine(data + '');
-    return true;
-  }
+   Stream.call(this);
+   this.writable = true;
 
-  end(data) {
-    if (data)
-      this.parseLine(data + '');
-    this.flushParagraph();
-    this.emit('end');
-  }
+   resetBlock(false);
 
-  resetParagraph() {
-    this.paragraphLineIndent = -1;
+   this.write = function(data) {
+     parseLine(data + '');
+     return true;
+   };
 
-    this.paragraph = {
+   this.end = function(data) {
+     if (data) {
+       parseLine(data + '');
+     }
+     flushParagraph();
+     self.emit('end');
+   };
+
+  function resetParagraph() {
+    is_first_line_in_paragraph = true;
+    paragraph_line_indent = -1;
+
+    paragraph = {
       li: '',
-      inLicenseBlock: this.blockIsLicenseBlock,
+      in_license_block: block_is_license_block,
       lines: []
     };
   }
 
-  resetBlock(isLicenseBlock) {
-    this.blockIsLicenseBlock = isLicenseBlock;
-    this.blockHasCStyleComment = false;
-    this.resetParagraph();
+  function resetBlock(is_license_block) {
+    block_is_license_block = is_license_block;
+    block_has_c_style_comment = false;
+    resetParagraph();
   }
 
-  flushParagraph() {
-    if (this.paragraph.lines.length || this.paragraph.li) {
-      this.emit('data', this.paragraph);
+  function flushParagraph() {
+    if (paragraph.lines.length || paragraph.li) {
+      self.emit('data', paragraph);
     }
-    this.resetParagraph();
+    resetParagraph();
   }
 
-  parseLine(line) {
+  function parseLine(line) {
     // Strip trailing whitespace
-    line = line.trimRight();
+    line = line.replace(/\s*$/, '');
 
     // Detect block separator
     if (/^\s*(=|"){3,}\s*$/.test(line)) {
-      this.flushParagraph();
-      this.resetBlock(!this.blockIsLicenseBlock);
+      flushParagraph();
+      resetBlock(!block_is_license_block);
       return;
     }
 
     // Strip comments around block
-    if (this.blockIsLicenseBlock) {
-      if (!this.blockHasCStyleComment)
-        this.blockHasCStyleComment = /^\s*(\/\*)/.test(line);
-      if (this.blockHasCStyleComment) {
-        const prev = line;
+    if (block_is_license_block) {
+      if (!block_has_c_style_comment)
+        block_has_c_style_comment = /^\s*(\/\*)/.test(line);
+      if (block_has_c_style_comment) {
+        var prev = line;
         line = line.replace(/^(\s*?)(?:\s?\*\/|\/\*\s|\s\*\s?)/, '$1');
-        if (prev === line)
+        if (prev == line)
           line = line.replace(/^\s{2}/, '');
         if (/\*\//.test(prev))
-          this.blockHasCStyleComment = false;
+          block_has_c_style_comment = false;
       } else {
         // Strip C++ and perl style comments.
         line = line.replace(/^(\s*)(?:\/\/\s?|#\s?)/, '$1');
@@ -109,56 +117,59 @@ class ParagraphParser extends Stream {
 
     // Detect blank line (paragraph separator)
     if (!/\S/.test(line)) {
-      this.flushParagraph();
+      flushParagraph();
       return;
     }
 
     // Detect separator "lines" within a block. These mark a paragraph break
     // and are stripped from the output.
-    if (/^\s*[=*-]{5,}\s*$/.test(line)) {
-      this.flushParagraph();
+    if (/^\s*[=*\-]{5,}\s*$/.test(line)) {
+      flushParagraph();
       return;
     }
 
     // Find out indentation level and the start of a lied or numbered list;
-    const result = /^(\s*)(\d+\.|\*|-)?\s*/.exec(line);
+    var result = /^(\s*)(\d+\.|\*|-)?\s*/.exec(line);
     assert.ok(result);
     // The number of characters that will be stripped from the beginning of
     // the line.
-    const lineStripLength = result[0].length;
+    var line_strip_length = result[0].length;
     // The indentation size that will be used to detect indentation jumps.
     // Fudge by 1 space.
-    const lineIndent = Math.floor(lineStripLength / 2) * 2;
+    var line_indent = Math.floor(result[0].length / 2) * 2;
     // The indentation level that will be exported
-    const level = Math.floor(result[1].length / 2);
+    var level = Math.floor(result[1].length / 2);
     // The list indicator that precedes the actual content, if any.
-    const lineLi = result[2];
+    var line_li = result[2];
 
     // Flush the paragraph when there is a li or an indentation jump
-    if (lineLi || (lineIndent !== this.paragraphLineIndent &&
-                   this.paragraphLineIndent !== -1)) {
-      this.flushParagraph();
-      this.paragraph.li = lineLi;
+    if (line_li || (line_indent != paragraph_line_indent &&
+                    paragraph_line_indent != -1)) {
+      flushParagraph();
+      paragraph.li = line_li;
     }
 
     // Set the paragraph indent that we use to detect indentation jumps. When
     // we just detected a list indicator, wait
     // for the next line to arrive before setting this.
-    if (!lineLi && this.paragraphLineIndent !== -1) {
-      this.paragraphLineIndent = lineIndent;
+    if (!line_li && paragraph_line_indent != -1) {
+      paragraph_line_indent = line_indent;
     }
 
     // Set the output indent level if it has not been set yet.
-    if (this.paragraph.level === undefined)
-      this.paragraph.level = level;
+    if (paragraph.level === undefined)
+      paragraph.level = level;
 
     // Strip leading whitespace and li.
-    line = line.slice(lineStripLength);
+    line = line.slice(line_strip_length);
 
     if (line)
-      this.paragraph.lines.push(line);
+      paragraph.lines.push(line);
+
+    is_first_line_in_paragraph = false;
   }
 }
+inherits(ParagraphParser, Stream);
 
 
 /*
@@ -166,35 +177,35 @@ class ParagraphParser extends Stream {
  * The lines within the paragraph are unwrapped where appropriate. It also
  * replaces multiple consecutive whitespace characters by a single one.
  */
-class Unwrapper extends Stream {
-  constructor() {
-    super();
-    this.writable = true;
-  }
+function Unwrapper() {
+  var self = this;
 
-  write(paragraph) {
-    const lines = paragraph.lines;
-    const breakAfter = [];
-    let i;
+  Stream.call(this);
+  this.writable = true;
+
+  this.write = function(paragraph) {
+    var lines = paragraph.lines,
+        break_after = [],
+        i;
 
     for (i = 0; i < lines.length - 1; i++) {
-      const line = lines[i];
+      var line = lines[i];
 
       // When a line is really short, the line was probably kept separate for a
       // reason.
-      if (line.length < 50) {
+      if (line.length < 50)  {
         // If the first word on the next line really didn't fit after the line,
         // it probably was just ordinary wrapping after all.
-        const nextFirstWordLength = lines[i + 1].replace(/\s.*$/, '').length;
-        if (line.length + nextFirstWordLength < 60) {
-          breakAfter[i] = true;
+        var next_first_word_length = lines[i + 1].replace(/\s.*$/, '').length;
+        if (line.length + next_first_word_length < 60) {
+          break_after[i] = true;
         }
       }
     }
 
-    for (i = 0; i < lines.length - 1;) {
-      if (!breakAfter[i]) {
-        lines[i] += ` ${lines.splice(i + 1, 1)[0]}`;
+    for (i = 0; i < lines.length - 1; ) {
+      if (!break_after[i]) {
+        lines[i] += ' ' + lines.splice(i + 1, 1)[0];
       } else {
         i++;
       }
@@ -206,108 +217,118 @@ class Unwrapper extends Stream {
       lines[i] = lines[i].replace(/\s+/g, ' ').replace(/\s+$/, '');
     }
 
-    this.emit('data', paragraph);
-  }
+    self.emit('data', paragraph);
+  };
 
-  end(data) {
+  this.end = function(data) {
     if (data)
-      this.write(data);
-    this.emit('end');
-  }
+      self.write(data);
+    self.emit('end');
+  };
 }
+inherits(Unwrapper, Stream);
 
-function rtfEscape(string) {
-  function toHex(number, length) {
-    return (~~number).toString(16).padStart(length, '0');
-  }
-
-  return string
-    .replace(/[\\{}]/g, function(m) {
-      return `\\${m}`;
-    })
-    .replace(/\t/g, function() {
-      return '\\tab ';
-    })
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1f\x7f-\xff]/g, function(m) {
-      return `\\'${toHex(m.charCodeAt(0), 2)}`;
-    })
-    .replace(/\ufeff/g, '')
-    .replace(/[\u0100-\uffff]/g, function(m) {
-      return `\\u${toHex(m.charCodeAt(0), 4)}?`;
-    });
-}
 
 /*
  * This filter generates an rtf document from a stream of paragraph objects.
  */
-class RtfGenerator extends Stream {
-  constructor() {
-    super();
-    this.didWriteAnything = false;
-    this.writable = true;
-  }
+function RtfGenerator() {
+  var self = this,
+      did_write_anything = false;
 
-  write({ li, level, lines, inLicenseBlock: lic }) {
-    if (!this.didWriteAnything) {
-      this.emitHeader();
-      this.didWriteAnything = true;
+  Stream.call(this);
+  this.writable = true;
+
+  this.write = function(paragraph) {
+    if (!did_write_anything) {
+      emitHeader();
+      did_write_anything = true;
     }
 
-    if (li)
-      level++;
+    var li = paragraph.li,
+        level = paragraph.level + (li ? 1 : 0),
+        lic = paragraph.in_license_block;
 
-    let rtf = '\\pard\\sa150\\sl300\\slmult1';
+    var rtf = "\\pard";
+    rtf += '\\sa150\\sl300\\slmult1';
     if (level > 0)
-      rtf += `\\li${level * 240}`;
-    if (li)
-      rtf += `\\tx${level * 240}\\fi-240`;
+      rtf += '\\li' + (level * 240);
+    if (li) {
+      rtf += '\\tx' + (level) * 240;
+      rtf += '\\fi-240';
+    }
     if (lic)
       rtf += '\\ri240';
     if (!lic)
       rtf += '\\b';
     if (li)
-      rtf += ` ${li}\\tab`;
-    rtf += ` ${lines.map(rtfEscape).join('\\line ')}`;
+      rtf += ' ' + li + '\\tab';
+    rtf += ' ';
+    rtf += paragraph.lines.map(rtfEscape).join('\\line ');
     if (!lic)
       rtf += '\\b0';
     rtf += '\\par\n';
 
-    this.emit('data', rtf);
-  }
+    self.emit('data', rtf);
+  };
 
-  end(data) {
+  this.end = function(data) {
     if (data)
-      this.write(data);
-    if (this.didWriteAnything)
-      this.emitFooter();
-    this.emit('end');
+      self.write(data);
+    if (did_write_anything)
+      emitFooter();
+    self.emit('end');
+  };
+
+  function toHex(number, length) {
+    var hex = (~~number).toString(16);
+    while (hex.length < length)
+      hex = '0' + hex;
+    return hex;
   }
 
-  emitHeader() {
-    this.emit('data', '{\\rtf1\\ansi\\ansicpg1252\\uc1\\deff0\\deflang1033' +
+  function rtfEscape(string) {
+    return string
+      .replace(/[\\\{\}]/g, function(m) {
+       return '\\' + m;
+      })
+      .replace(/\t/g, function() {
+        return '\\tab ';
+      })
+      .replace(/[\x00-\x1f\x7f-\xff]/g, function(m) {
+        return '\\\'' + toHex(m.charCodeAt(0), 2);
+      })
+      .replace(/\ufeff/g, '')
+      .replace(/[\u0100-\uffff]/g, function(m) {
+        return '\\u' + toHex(m.charCodeAt(0), 4) + '?';
+     });
+  }
+
+  function emitHeader() {
+    self.emit('data', '{\\rtf1\\ansi\\ansicpg1252\\uc1\\deff0\\deflang1033' +
                       '{\\fonttbl{\\f0\\fswiss\\fcharset0 Tahoma;}}\\fs20\n' +
                       '{\\*\\generator txt2rtf 0.0.1;}\n');
   }
 
-  emitFooter() {
-    this.emit('data', '}');
+  function emitFooter() {
+    self.emit('data', '}');
   }
 }
+inherits(RtfGenerator, Stream);
 
 
-const stdin = process.stdin;
-const stdout = process.stdout;
-const lineSplitter = new LineSplitter();
-const paragraphParser = new ParagraphParser();
-const unwrapper = new Unwrapper();
-const rtfGenerator = new RtfGenerator();
+var stdin = process.stdin,
+    stdout = process.stdout,
+    line_splitter = new LineSplitter(),
+    paragraph_parser = new ParagraphParser(),
+    unwrapper = new Unwrapper(),
+    rtf_generator = new RtfGenerator();
 
 stdin.setEncoding('utf-8');
 stdin.resume();
 
-stdin.pipe(lineSplitter);
-lineSplitter.pipe(paragraphParser);
-paragraphParser.pipe(unwrapper);
-unwrapper.pipe(rtfGenerator);
-rtfGenerator.pipe(stdout);
+stdin.pipe(line_splitter);
+line_splitter.pipe(paragraph_parser);
+paragraph_parser.pipe(unwrapper);
+unwrapper.pipe(rtf_generator);
+rtf_generator.pipe(stdout);

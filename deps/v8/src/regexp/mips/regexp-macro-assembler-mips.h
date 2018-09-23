@@ -33,11 +33,9 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
-  virtual void CheckNotBackReference(int start_reg, bool read_backward,
-                                     Label* on_no_match);
+  virtual void CheckNotAtStart(Label* on_not_at_start);
+  virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward, bool unicode,
                                                Label* on_no_match);
   virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(uint32_t c,
@@ -103,8 +101,9 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   static const int kStoredRegisters = kFramePointer;
   // Return address (stored from link register, read into pc on return).
   static const int kReturnAddress = kStoredRegisters + 9 * kPointerSize;
+  static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
   // Stack frame header.
-  static const int kStackFrameHeader = kReturnAddress;
+  static const int kStackFrameHeader = kReturnAddress + kPointerSize;
   // Stack parameters placed by caller.
   static const int kRegisterOutput = kStackFrameHeader + 20;
   static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
@@ -121,9 +120,9 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
   static const int kSuccessfulCaptures = kInputString - kPointerSize;
-  static const int kStringStartMinusOne = kSuccessfulCaptures - kPointerSize;
+  static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
+  static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
@@ -170,7 +169,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
-  // is nullptr, in which case it is a conditional Backtrack.
+  // is NULL, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Label* to,
                          Condition condition,
                          Register rs,
@@ -221,7 +220,6 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
 #endif  // V8_INTERPRETED_REGEXP
 
 
-}  // namespace internal
-}  // namespace v8
+}}  // namespace v8::internal
 
 #endif  // V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_

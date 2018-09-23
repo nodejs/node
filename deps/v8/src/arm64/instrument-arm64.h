@@ -52,9 +52,8 @@ class Counter {
 
 class Instrument: public DecoderVisitor {
  public:
-  explicit Instrument(
-      const char* datafile = nullptr,
-      uint64_t sample_period = kDefaultInstrumentationSamplingPeriod);
+  explicit Instrument(const char* datafile = NULL,
+    uint64_t sample_period = kDefaultInstrumentationSamplingPeriod);
   ~Instrument();
 
   // Declare all Visitor functions.
@@ -81,7 +80,6 @@ class Instrument: public DecoderVisitor {
   uint64_t sample_period_;
 };
 
-}  // namespace internal
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_ARM64_INSTRUMENT_ARM64_H_

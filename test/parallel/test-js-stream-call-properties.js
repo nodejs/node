@@ -1,11 +1,8 @@
-// Flags: --expose-internals
-
 'use strict';
 
-require('../common');
+const common = require('../common');
 const util = require('util');
-const { internalBinding } = require('internal/test/binding');
-const { JSStream } = internalBinding('js_stream');
+const JSStream = process.binding('js_stream').JSStream;
 
 // Testing if will abort when properties are printed.
 util.inspect(new JSStream());

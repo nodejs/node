@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --harmony-tostring
+
 var global = this;
 
 var funs = {
@@ -39,7 +41,7 @@ function testToStringTag(className) {
   Object.defineProperty(obj, Symbol.toStringTag, {
     get: function() { throw className; }
   });
-  assertThrowsEquals(function() {
+  assertThrows(function() {
     Array.prototype.toString.call(obj);
   }, className);
 

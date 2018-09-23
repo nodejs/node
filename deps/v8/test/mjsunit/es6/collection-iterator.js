@@ -2,18 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --harmony-tostring
 
-function test(f) {
-  f();
-  f();
-  %OptimizeFunctionOnNextCall(f);
-  f();
-}
 
-test(function TestSetIterator() {
+(function TestSetIterator() {
   var s = new Set;
   var iter = s.values();
+  assertEquals('Set Iterator', %_ClassOf(iter));
 
   var SetIteratorPrototype = iter.__proto__;
   assertFalse(SetIteratorPrototype.hasOwnProperty('constructor'));
@@ -33,10 +28,10 @@ test(function TestSetIterator() {
   assertTrue(desc.configurable);
   assertFalse(desc.writable);
   assertEquals("Set Iterator", desc.value);
-});
+})();
 
 
-test(function TestSetIteratorValues() {
+(function TestSetIteratorValues() {
   var s = new Set;
   s.add(1);
   s.add(2);
@@ -48,15 +43,15 @@ test(function TestSetIteratorValues() {
   assertEquals({value: 3, done: false}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
-});
+})();
 
 
-test(function TestSetIteratorKeys() {
+(function TestSetIteratorKeys() {
   assertEquals(Set.prototype.keys, Set.prototype.values);
-});
+})();
 
 
-test(function TestSetIteratorEntries() {
+(function TestSetIteratorEntries() {
   var s = new Set;
   s.add(1);
   s.add(2);
@@ -68,10 +63,10 @@ test(function TestSetIteratorEntries() {
   assertEquals({value: [3, 3], done: false}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
-});
+})();
 
 
-test(function TestSetIteratorMutations() {
+(function TestSetIteratorMutations() {
   var s = new Set;
   s.add(1);
   var iter = s.values();
@@ -87,65 +82,28 @@ test(function TestSetIteratorMutations() {
   assertEquals({value: undefined, done: true}, iter.next());
   s.add(4);
   assertEquals({value: undefined, done: true}, iter.next());
-});
+})();
 
 
-test(function TestSetIteratorMutations2() {
-  var s = new Set;
-  s.add(1);
-  s.add(2);
-  var i = s.values();
-  assertEquals({value: 1, done: false}, i.next());
-  s.delete(2);
-  s.delete(1);
-  s.add(2);
-  assertEquals({value: 2, done: false}, i.next());
-  assertEquals({value: undefined, done: true}, i.next());
-});
-
-
-test(function TestSetIteratorMutations3() {
-  var s = new Set;
-  s.add(1);
-  s.add(2);
-  var i = s.values();
-  assertEquals({value: 1, done: false}, i.next());
-  s.delete(2);
-  s.delete(1);
-  for (var x = 2; x < 500; ++x) s.add(x);
-  for (var x = 2; x < 500; ++x) s.delete(x);
-  for (var x = 2; x < 1000; ++x) s.add(x);
-  assertEquals({value: 2, done: false}, i.next());
-  for (var x = 1001; x < 2000; ++x) s.add(x);
-  s.delete(3);
-  for (var x = 6; x < 2000; ++x) s.delete(x);
-  assertEquals({value: 4, done: false}, i.next());
-  s.delete(5);
-  assertEquals({value: undefined, done: true}, i.next());
-  s.add(4);
-  assertEquals({value: undefined, done: true}, i.next());
-});
-
-
-test(function TestSetInvalidReceiver() {
+(function TestSetInvalidReceiver() {
   assertThrows(function() {
     Set.prototype.values.call({});
   }, TypeError);
   assertThrows(function() {
     Set.prototype.entries.call({});
   }, TypeError);
-});
+})();
 
 
-test(function TestSetIteratorInvalidReceiver() {
+(function TestSetIteratorInvalidReceiver() {
   var iter = new Set().values();
   assertThrows(function() {
     iter.next.call({});
   });
-});
+})();
 
 
-test(function TestSetIteratorSymbol() {
+(function TestSetIteratorSymbol() {
   assertEquals(Set.prototype[Symbol.iterator], Set.prototype.values);
   assertTrue(Set.prototype.hasOwnProperty(Symbol.iterator));
   assertFalse(Set.prototype.propertyIsEnumerable(Symbol.iterator));
@@ -153,12 +111,13 @@ test(function TestSetIteratorSymbol() {
   var iter = new Set().values();
   assertEquals(iter, iter[Symbol.iterator]());
   assertEquals(iter[Symbol.iterator].name, '[Symbol.iterator]');
-});
+})();
 
 
-test(function TestMapIterator() {
+(function TestMapIterator() {
   var m = new Map;
   var iter = m.values();
+  assertEquals('Map Iterator', %_ClassOf(iter));
 
   var MapIteratorPrototype = iter.__proto__;
   assertFalse(MapIteratorPrototype.hasOwnProperty('constructor'));
@@ -179,10 +138,10 @@ test(function TestMapIterator() {
   assertTrue(desc.configurable);
   assertFalse(desc.writable);
   assertEquals("Map Iterator", desc.value);
-});
+})();
 
 
-test(function TestMapIteratorValues() {
+(function TestMapIteratorValues() {
   var m = new Map;
   m.set(1, 11);
   m.set(2, 22);
@@ -194,10 +153,10 @@ test(function TestMapIteratorValues() {
   assertEquals({value: 33, done: false}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
-});
+})();
 
 
-test(function TestMapIteratorKeys() {
+(function TestMapIteratorKeys() {
   var m = new Map;
   m.set(1, 11);
   m.set(2, 22);
@@ -209,10 +168,10 @@ test(function TestMapIteratorKeys() {
   assertEquals({value: 3, done: false}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
-});
+})();
 
 
-test(function TestMapIteratorEntries() {
+(function TestMapIteratorEntries() {
   var m = new Map;
   m.set(1, 11);
   m.set(2, 22);
@@ -224,10 +183,10 @@ test(function TestMapIteratorEntries() {
   assertEquals({value: [3, 33], done: false}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
   assertEquals({value: undefined, done: true}, iter.next());
-});
+})();
 
 
-test(function TestMapInvalidReceiver() {
+(function TestMapInvalidReceiver() {
   assertThrows(function() {
     Map.prototype.values.call({});
   }, TypeError);
@@ -237,18 +196,18 @@ test(function TestMapInvalidReceiver() {
   assertThrows(function() {
     Map.prototype.entries.call({});
   }, TypeError);
-});
+})();
 
 
-test(function TestMapIteratorInvalidReceiver() {
+(function TestMapIteratorInvalidReceiver() {
   var iter = new Map().values();
   assertThrows(function() {
     iter.next.call({});
   }, TypeError);
-});
+})();
 
 
-test(function TestMapIteratorSymbol() {
+(function TestMapIteratorSymbol() {
   assertEquals(Map.prototype[Symbol.iterator], Map.prototype.entries);
   assertTrue(Map.prototype.hasOwnProperty(Symbol.iterator));
   assertFalse(Map.prototype.propertyIsEnumerable(Symbol.iterator));
@@ -256,4 +215,4 @@ test(function TestMapIteratorSymbol() {
   var iter = new Map().values();
   assertEquals(iter, iter[Symbol.iterator]());
   assertEquals(iter[Symbol.iterator].name, '[Symbol.iterator]');
-});
+})();

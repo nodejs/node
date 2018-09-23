@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --track-field-types
+// Flags: --allow-natives-syntax --track-field-types --use-gvn
 
 function A(id) {
   this.id = id;

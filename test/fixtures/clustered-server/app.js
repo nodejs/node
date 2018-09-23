@@ -1,13 +1,12 @@
-'use strict';
-
-const http = require('http');
-const cluster = require('cluster');
+var http = require('http');
+var cluster = require('cluster');
+var common = require('../../common');
 
 function handleRequest(request, response) {
   response.end('hello world\n');
 }
 
-const NUMBER_OF_WORKERS = 2;
+var NUMBER_OF_WORKERS = 2;
 var workersOnline = 0;
 
 if (cluster.isMaster) {
@@ -19,7 +18,7 @@ if (cluster.isMaster) {
 
   process.on('message', function(msg) {
     if (msg.type === 'getpids') {
-      const pids = [];
+      var pids = [];
       pids.push(process.pid);
       for (var key in cluster.workers)
         pids.push(cluster.workers[key].process.pid);
@@ -31,6 +30,6 @@ if (cluster.isMaster) {
     cluster.fork();
   }
 } else {
-  const server = http.createServer(handleRequest);
-  server.listen(0);
+  var server = http.createServer(handleRequest);
+  server.listen(common.PORT+1000);
 }

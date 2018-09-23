@@ -1,5 +1,0 @@
-*%(basename)s:8: SyntaxError: Identifier 'x' has already been declared
-export let x = 42;
-           ^
-SyntaxError: Identifier 'x' has already been declared
-

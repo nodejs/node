@@ -1,16 +1,20 @@
-'use strict';
-const common = require('../common.js');
-const spawn = require('child_process').spawn;
-const path = require('path');
-const emptyJsFile = path.resolve(__dirname, '../../test/fixtures/semicolon.js');
+var common = require('../common.js');
+var spawn = require('child_process').spawn;
+var path = require('path');
+var emptyJsFile = path.resolve(__dirname, '../../test/fixtures/semicolon.js');
+var starts = 100;
+var i = 0;
+var start;
 
-const bench = common.createBenchmark(startNode, {
+var bench = common.createBenchmark(startNode, {
   dur: [1]
 });
 
-function startNode({ dur }) {
+function startNode(conf) {
+  var dur = +conf.dur;
   var go = true;
   var starts = 0;
+  var open = 0;
 
   setTimeout(function() {
     go = false;
@@ -20,7 +24,7 @@ function startNode({ dur }) {
   start();
 
   function start() {
-    const node = spawn(process.execPath || process.argv[0], [emptyJsFile]);
+    var node = spawn(process.execPath || process.argv[0], [emptyJsFile]);
     node.on('exit', function(exitCode) {
       if (exitCode !== 0) {
         throw new Error('Error during node startup');

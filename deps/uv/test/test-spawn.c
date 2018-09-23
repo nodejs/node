@@ -1,4 +1,3 @@
-
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -47,10 +46,9 @@ static uv_timer_t timer;
 static uv_process_options_t options;
 static char exepath[1024];
 static size_t exepath_size = 1024;
-static char* args[5];
+static char* args[3];
 static int no_term_signal;
 static int timer_counter;
-static uv_tcp_t tcp_server;
 
 #define OUTPUT_SIZE 1024
 static char output[OUTPUT_SIZE];
@@ -92,16 +90,7 @@ static void kill_cb(uv_process_t* process,
 #else
   ASSERT(exit_status == 0);
 #endif
-#if defined(__APPLE__) || defined(__MVS__)
-  /*
-   * At least starting with Darwin Kernel Version 16.4.0, sending a SIGTERM to a
-   * process that is still starting up kills it with SIGKILL instead of SIGTERM.
-   * See: https://github.com/libuv/libuv/issues/1226
-   */
-  ASSERT(no_term_signal || term_signal == SIGTERM || term_signal == SIGKILL);
-#else
-  ASSERT(no_term_signal || term_signal == SIGTERM);
-#endif
+  ASSERT(no_term_signal || term_signal == 15);
   uv_close((uv_handle_t*)process, close_cb);
 
   /*
@@ -158,8 +147,6 @@ static void init_process_options(char* test, uv_exit_cb exit_cb) {
   args[0] = exepath;
   args[1] = test;
   args[2] = NULL;
-  args[3] = NULL;
-  args[4] = NULL;
   options.file = exepath;
   options.args = args;
   options.exit_cb = exit_cb;
@@ -623,84 +610,6 @@ TEST_IMPL(spawn_stdio_greater_than_3) {
 }
 
 
-int spawn_tcp_server_helper(void) {
-  uv_tcp_t tcp;
-  uv_os_sock_t handle;
-  int r;
-
-  r = uv_tcp_init(uv_default_loop(), &tcp);
-  ASSERT(r == 0);
-
-#ifdef _WIN32
-  handle = _get_osfhandle(3);
-#else
-  handle = 3;
-#endif
-  r = uv_tcp_open(&tcp, handle);
-  ASSERT(r == 0);
-
-  /* Make sure that we can listen on a socket that was
-   * passed down from the parent process
-   */
-  r = uv_listen((uv_stream_t*)&tcp, SOMAXCONN, NULL);
-  ASSERT(r == 0);
-
-  return 1;
-}
-
-
-TEST_IMPL(spawn_tcp_server) {
-  uv_stdio_container_t stdio[4];
-  struct sockaddr_in addr;
-  int fd;
-  int r;
-#ifdef _WIN32
-  uv_os_fd_t handle;
-#endif
-
-  init_process_options("spawn_tcp_server_helper", exit_cb);
-
-  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-
-  fd = -1;
-  r = uv_tcp_init_ex(uv_default_loop(), &tcp_server, AF_INET);
-  ASSERT(r == 0);
-  r = uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr, 0);
-  ASSERT(r == 0);
-#ifdef _WIN32
-  r = uv_fileno((uv_handle_t*)&tcp_server, &handle);
-  fd = _open_osfhandle((intptr_t) handle, 0);
-#else
-  r = uv_fileno((uv_handle_t*)&tcp_server, &fd);
- #endif
-  ASSERT(r == 0);
-  ASSERT(fd > 0);
-
-  options.stdio = stdio;
-  options.stdio[0].flags = UV_INHERIT_FD;
-  options.stdio[0].data.fd = 0;
-  options.stdio[1].flags = UV_INHERIT_FD;
-  options.stdio[1].data.fd = 1;
-  options.stdio[2].flags = UV_INHERIT_FD;
-  options.stdio[2].data.fd = 2;
-  options.stdio[3].flags = UV_INHERIT_FD;
-  options.stdio[3].data.fd = fd;
-  options.stdio_count = 4;
-
-  r = uv_spawn(uv_default_loop(), &process, &options);
-  ASSERT(r == 0);
-
-  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-  ASSERT(r == 0);
-
-  ASSERT(exit_cb_called == 1);
-  ASSERT(close_cb_called == 1);
-
-  MAKE_VALGRIND_HAPPY();
-  return 0;
-}
-
-
 TEST_IMPL(spawn_ignored_stdio) {
   int r;
 
@@ -804,8 +713,6 @@ TEST_IMPL(spawn_detached) {
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 0);
-
-  ASSERT(process.pid == uv_process_get_pid(&process));
 
   r = uv_kill(process.pid, 0);
   ASSERT(r == 0);
@@ -1011,29 +918,8 @@ TEST_IMPL(kill) {
 
   init_process_options("spawn_helper4", kill_cb);
 
-  /* Verify that uv_spawn() resets the signal disposition. */
-#ifndef _WIN32
-  {
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIGTERM);
-    ASSERT(0 == pthread_sigmask(SIG_BLOCK, &set, NULL));
-  }
-  ASSERT(SIG_ERR != signal(SIGTERM, SIG_IGN));
-#endif
-
   r = uv_spawn(uv_default_loop(), &process, &options);
   ASSERT(r == 0);
-
-#ifndef _WIN32
-  {
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIGTERM);
-    ASSERT(0 == pthread_sigmask(SIG_UNBLOCK, &set, NULL));
-  }
-  ASSERT(SIG_ERR != signal(SIGTERM, SIG_DFL));
-#endif
 
   /* Sending signum == 0 should check if the
    * child process is still alive, not kill it.
@@ -1074,11 +960,11 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   options.stdio_count = 2;
 
   /* Create a pipe that'll cause a collision. */
-  snprintf(name,
-           sizeof(name),
-           "\\\\.\\pipe\\uv\\%p-%d",
-           &out,
-           GetCurrentProcessId());
+  _snprintf(name,
+            sizeof(name),
+            "\\\\.\\pipe\\uv\\%p-%d",
+            &out,
+            GetCurrentProcessId());
   pipe_handle = CreateNamedPipeA(name,
                                 PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
                                 PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
@@ -1340,26 +1226,21 @@ TEST_IMPL(spawn_with_an_odd_path) {
 TEST_IMPL(spawn_setuid_setgid) {
   int r;
   struct passwd* pw;
-  char uidstr[10];
-  char gidstr[10];
 
   /* if not root, then this will fail. */
   uv_uid_t uid = getuid();
   if (uid != 0) {
-    RETURN_SKIP("It should be run as root user");
+    fprintf(stderr, "spawn_setuid_setgid skipped: not root\n");
+    return 0;
   }
 
-  init_process_options("spawn_helper_setuid_setgid", exit_cb);
+  init_process_options("spawn_helper1", exit_cb);
 
   /* become the "nobody" user. */
   pw = getpwnam("nobody");
   ASSERT(pw != NULL);
   options.uid = pw->pw_uid;
   options.gid = pw->pw_gid;
-  snprintf(uidstr, sizeof(uidstr), "%d", pw->pw_uid);
-  snprintf(gidstr, sizeof(gidstr), "%d", pw->pw_gid);
-  options.args[2] = uidstr;
-  options.args[3] = gidstr;
   options.flags = UV_PROCESS_SETUID | UV_PROCESS_SETGID;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
@@ -1400,11 +1281,7 @@ TEST_IMPL(spawn_setuid_fails) {
   options.uid = 0;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
-#if defined(__CYGWIN__)
-  ASSERT(r == UV_EINVAL);
-#else
   ASSERT(r == UV_EPERM);
-#endif
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
@@ -1432,18 +1309,10 @@ TEST_IMPL(spawn_setgid_fails) {
   init_process_options("spawn_helper1", fail_cb);
 
   options.flags |= UV_PROCESS_SETGID;
-#if defined(__MVS__)
-  options.gid = -1;
-#else
   options.gid = 0;
-#endif
 
   r = uv_spawn(uv_default_loop(), &process, &options);
-#if defined(__CYGWIN__) || defined(__MVS__)
-  ASSERT(r == UV_EINVAL);
-#else
   ASSERT(r == UV_EPERM);
-#endif
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
@@ -1631,14 +1500,12 @@ TEST_IMPL(spawn_reads_child_path) {
    */
 #if defined(__APPLE__)
   static const char dyld_path_var[] = "DYLD_LIBRARY_PATH";
-#elif defined __MVS__
-  static const char dyld_path_var[] = "LIBPATH";
 #else
   static const char dyld_path_var[] = "LD_LIBRARY_PATH";
 #endif
 
-  /* Set up the process, but make sure that the file to run is relative and
-   * requires a lookup into PATH. */
+  /* Set up the process, but make sure that the file to run is relative and */
+  /* requires a lookup into PATH */
   init_process_options("spawn_helper1", exit_cb);
 
   /* Set up the PATH env variable */
@@ -1649,17 +1516,6 @@ TEST_IMPL(spawn_reads_child_path) {
   exepath[len] = 0;
   strcpy(path, "PATH=");
   strcpy(path + 5, exepath);
-#if defined(__CYGWIN__) || defined(__MSYS__)
-  /* Carry over the dynamic linker path in case the test runner
-     is linked against cyguv-1.dll or msys-uv-1.dll, see above.  */
-  {
-    char* syspath = getenv("PATH");
-    if (syspath != NULL) {
-      strcat(path, ":");
-      strcat(path, syspath);
-    }
-  }
-#endif
 
   env[0] = path;
   env[1] = getenv(dyld_path_var);
@@ -1792,31 +1648,6 @@ TEST_IMPL(spawn_inherit_streams) {
 
   MAKE_VALGRIND_HAPPY();
   return 0;
-}
-
-TEST_IMPL(spawn_quoted_path) {
-#ifndef _WIN32
-  RETURN_SKIP("Test for Windows");
-#else
-  char* quoted_path_env[2];
-  args[0] = "not_existing";
-  args[1] = NULL;
-  options.file = args[0];
-  options.args = args;
-  options.exit_cb = exit_cb;
-  options.flags = 0;
-  /* We test if search_path works correctly with semicolons in quoted path. We
-   * will use an invalid drive, so we are sure no executable is spawned. */
-  quoted_path_env[0] = "PATH=\"xyz:\\test;\";xyz:\\other";
-  quoted_path_env[1] = NULL;
-  options.env = quoted_path_env;
-
-  /* We test if libuv will not segfault. */
-  uv_spawn(uv_default_loop(), &process, &options);
-
-  MAKE_VALGRIND_HAPPY();
-  return 0;
-#endif
 }
 
 /* Helper for child process of spawn_inherit_streams */

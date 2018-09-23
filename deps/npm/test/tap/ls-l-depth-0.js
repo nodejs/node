@@ -2,8 +2,7 @@ var cat = require('graceful-fs').writeFileSync
 var resolve = require('path').resolve
 
 var mkdirp = require('mkdirp')
-var Bluebird = require('bluebird')
-var mr = Bluebird.promisify(require('npm-registry-mock'))
+var mr = require('npm-registry-mock')
 var rimraf = require('rimraf')
 var test = require('tap').test
 var tmpdir = require('osenv').tmpdir
@@ -22,7 +21,6 @@ var expected =
   '    an inexplicably hostile sample package\n' +
   '    git+https://github.com/npm/glo.ck.git\n' +
   '    https://glo.ck\n' +
-  '    file:glock-1.8.7.tgz\n' +
   '\n'
 
 var server
@@ -41,16 +39,12 @@ var fixture = {
   }
 }
 
-var deppack
-
 test('setup', function (t) {
   setup()
-  return mr({ port: common.port }).then((s) => {
+  mr({ port: common.port }, function (er, s) {
     server = s
-    return common.npm(['pack', dep], EXEC_OPTS)
-  }).spread((code, stdout) => {
-    t.is(code, 0, 'pack')
-    deppack = stdout.trim()
+
+    t.end()
   })
 })
 
@@ -59,18 +53,18 @@ test('#6311: npm ll --depth=0 duplicates listing', function (t) {
     [
       '--loglevel', 'silent',
       '--registry', common.registry,
-      '--parseable',
-      'install', deppack
+      'install', dep
     ],
     EXEC_OPTS,
     function (err, code, stdout, stderr) {
-      if (err) throw err
+      t.ifError(err, 'npm install ran without error')
       t.notOk(code, 'npm install exited cleanly')
-      t.is(stderr, '', 'npm install ran silently')
+      t.notOk(stderr, 'npm install ran silently')
       t.equal(
         stdout.trim(),
-        'add\tunderscore\t1.5.1\tnode_modules/underscore\t\t\n' +
-        'add\tglock\t1.8.7\tnode_modules/glock',
+        resolve(__dirname, 'ls-l-depth-0') +
+          '\n└─┬ glock@1.8.7 ' +
+          '\n  └── underscore@1.5.1',
         'got expected install output'
       )
 
@@ -78,14 +72,13 @@ test('#6311: npm ll --depth=0 duplicates listing', function (t) {
         [
           '--loglevel', 'silent',
           'ls', '--long',
-          '--unicode=true',
           '--depth', '0'
         ],
         EXEC_OPTS,
         function (err, code, stdout, stderr) {
-          if (err) throw err
+          t.ifError(err, 'npm ll ran without error')
           t.is(code, 0, 'npm ll exited cleanly')
-          t.is(stderr, '', 'npm ll ran silently')
+          t.notOk(stderr, 'npm ll ran silently')
           t.equal(
             stdout,
             expected,

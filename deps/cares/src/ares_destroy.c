@@ -27,15 +27,15 @@ void ares_destroy_options(struct ares_options *options)
   int i;
 
   if(options->servers)
-    ares_free(options->servers);
+    free(options->servers);
   for (i = 0; i < options->ndomains; i++)
-    ares_free(options->domains[i]);
+    free(options->domains[i]);
   if(options->domains)
-    ares_free(options->domains);
+    free(options->domains);
   if(options->sortlist)
-    ares_free(options->sortlist);
+    free(options->sortlist);
   if(options->lookups)
-    ares_free(options->lookups);
+    free(options->lookups);
 }
 
 void ares_destroy(ares_channel channel)
@@ -75,17 +75,17 @@ void ares_destroy(ares_channel channel)
 
   if (channel->domains) {
     for (i = 0; i < channel->ndomains; i++)
-      ares_free(channel->domains[i]);
-    ares_free(channel->domains);
+      free(channel->domains[i]);
+    free(channel->domains);
   }
 
   if(channel->sortlist)
-    ares_free(channel->sortlist);
+    free(channel->sortlist);
 
   if (channel->lookups)
-    ares_free(channel->lookups);
+    free(channel->lookups);
 
-  ares_free(channel);
+  free(channel);
 }
 
 void ares__destroy_servers_state(ares_channel channel)
@@ -101,7 +101,7 @@ void ares__destroy_servers_state(ares_channel channel)
           ares__close_sockets(channel, server);
           assert(ares__is_list_empty(&server->queries_to_server));
         }
-      ares_free(channel->servers);
+      free(channel->servers);
       channel->servers = NULL;
     }
   channel->nservers = -1;

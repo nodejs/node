@@ -31,28 +31,9 @@ TEST(FunctionalTest, HashDoubleZero) {
   EXPECT_EQ(h(0.0), h(-0.0));
 }
 
-namespace {
-
-inline int64_t GetRandomSeedFromFlag(int random_seed) {
-  return random_seed ? random_seed : TimeTicks::Now().ToInternalValue();
-}
-
-}  // namespace
 
 template <typename T>
-class FunctionalTest : public ::testing::Test {
- public:
-  FunctionalTest()
-      : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
-  virtual ~FunctionalTest() {}
-
-  RandomNumberGenerator* rng() { return &rng_; }
-
- private:
-  RandomNumberGenerator rng_;
-
-  DISALLOW_COPY_AND_ASSIGN(FunctionalTest);
-};
+class FunctionalTest : public TestWithRandomNumberGenerator {};
 
 typedef ::testing::Types<signed char, unsigned char,
                          short,                    // NOLINT(runtime/int)

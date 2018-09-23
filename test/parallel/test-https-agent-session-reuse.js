@@ -1,36 +1,39 @@
 'use strict';
-const common = require('../common');
-const assert = require('assert');
+var common = require('../common');
+var assert = require('assert');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
 
-const https = require('https');
-const crypto = require('crypto');
-const fixtures = require('../common/fixtures');
+var https = require('https');
+var crypto = require('crypto');
 
-const options = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+var fs = require('fs');
+
+var options = {
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-const ca = fixtures.readKey('ca1-cert.pem');
+var ca = fs.readFileSync(common.fixturesDir + '/keys/ca1-cert.pem');
 
-const clientSessions = {};
-let serverRequests = 0;
+var clientSessions = {};
+var serverRequests = 0;
 
-const agent = new https.Agent({
+var agent = new https.Agent({
   maxCachedSessions: 1
 });
 
-const server = https.createServer(options, function(req, res) {
+var server = https.createServer(options, function(req, res) {
   if (req.url === '/drop-key')
     server.setTicketKeys(crypto.randomBytes(48));
 
   serverRequests++;
   res.end('ok');
-}).listen(0, function() {
-  const queue = [
+}).listen(common.PORT, function() {
+  var queue = [
     {
       name: 'first',
 
@@ -38,7 +41,7 @@ const server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
+      port: common.PORT
     },
     {
       name: 'first-reuse',
@@ -47,7 +50,7 @@ const server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
+      port: common.PORT
     },
     {
       name: 'cipher-change',
@@ -59,7 +62,7 @@ const server = https.createServer(options, function(req, res) {
       // Choose different cipher to use different cache entry
       ciphers: 'AES256-SHA',
       ca: ca,
-      port: this.address().port
+      port: common.PORT
     },
     // Change the ticket key to ensure session is updated in cache
     {
@@ -69,7 +72,7 @@ const server = https.createServer(options, function(req, res) {
       path: '/drop-key',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
+      port: common.PORT
     },
 
     // Ticket will be updated starting from this
@@ -80,7 +83,7 @@ const server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
+      port: common.PORT
     },
     {
       name: 'after-drop-reuse',
@@ -89,12 +92,12 @@ const server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
+      port: common.PORT
     }
   ];
 
   function request() {
-    const options = queue.shift();
+    var options = queue.shift();
     options.agent = agent;
     https.request(options, function(res) {
       clientSessions[options.name] = res.socket.getSession();
@@ -111,17 +114,17 @@ const server = https.createServer(options, function(req, res) {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(serverRequests, 6);
-  assert.strictEqual(clientSessions.first.toString('hex'),
-                     clientSessions['first-reuse'].toString('hex'));
-  assert.notStrictEqual(clientSessions.first.toString('hex'),
-                        clientSessions['cipher-change'].toString('hex'));
-  assert.notStrictEqual(clientSessions.first.toString('hex'),
-                        clientSessions['before-drop'].toString('hex'));
-  assert.notStrictEqual(clientSessions['cipher-change'].toString('hex'),
-                        clientSessions['before-drop'].toString('hex'));
-  assert.notStrictEqual(clientSessions['before-drop'].toString('hex'),
-                        clientSessions['after-drop'].toString('hex'));
-  assert.strictEqual(clientSessions['after-drop'].toString('hex'),
-                     clientSessions['after-drop-reuse'].toString('hex'));
+  assert.equal(serverRequests, 6);
+  assert.equal(clientSessions['first'].toString('hex'),
+               clientSessions['first-reuse'].toString('hex'));
+  assert.notEqual(clientSessions['first'].toString('hex'),
+                  clientSessions['cipher-change'].toString('hex'));
+  assert.notEqual(clientSessions['first'].toString('hex'),
+                  clientSessions['before-drop'].toString('hex'));
+  assert.notEqual(clientSessions['cipher-change'].toString('hex'),
+                  clientSessions['before-drop'].toString('hex'));
+  assert.notEqual(clientSessions['before-drop'].toString('hex'),
+                  clientSessions['after-drop'].toString('hex'));
+  assert.equal(clientSessions['after-drop'].toString('hex'),
+               clientSessions['after-drop-reuse'].toString('hex'));
 });

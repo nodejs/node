@@ -4,12 +4,14 @@ npm-test(1) -- Test a package
 ## SYNOPSIS
 
       npm test [-- <args>]
-
-      aliases: t, tst
+      npm tst [-- <args>]
 
 ## DESCRIPTION
 
 This runs a package's "test" script, if one was provided.
+
+To run tests as a condition of installation, set the `npat` config to
+true.
 
 ## SEE ALSO
 

@@ -47,7 +47,7 @@ test('npm ping', function (t) {
       t.ifError(err, 'no error output')
       t.notOk(code, 'exited OK')
 
-      t.same(stdout, 'Ping success: ' + JSON.stringify(pingResponse) + '\n')
+      t.same(JSON.parse(stdout), pingResponse)
       t.end()
     })
   })

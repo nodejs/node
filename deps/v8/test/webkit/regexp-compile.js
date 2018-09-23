@@ -55,7 +55,7 @@ shouldBe("re.toString()", "'/c/i'");
 shouldThrow("re.compile(new RegExp('+'));");
 
 re.compile(undefined);
-shouldBe("re.toString()", "'/(?:)/'");
+shouldBe("re.toString()", "'/undefined/'");
 
 re.compile(null);
 shouldBe("re.toString()", "'/null/'");

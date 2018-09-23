@@ -112,7 +112,7 @@ LogReader.prototype.processLogChunk = function(chunk) {
  */
 LogReader.prototype.processLogLine = function(line) {
   if (!this.timedRange_) {
-    this.processLogLine_(line);
+    this.processLog_([line]);
     return;
   }
   if (line.startsWith("current-time")) {
@@ -130,7 +130,7 @@ LogReader.prototype.processLogLine = function(line) {
     if (this.hasSeenTimerMarker_) {
       this.logLinesSinceLastTimerMarker_.push(line);
     } else if (!line.startsWith("tick")) {
-      this.processLogLine_(line);
+      this.processLog_([line]);
     }
   }
 };
@@ -158,7 +158,7 @@ LogReader.prototype.processStack = function(pc, func, stack) {
     } else if (firstChar != 'o') {
       fullStack.push(parseInt(frame, 16));
     } else {
-      this.printError("dropping: " + frame);
+      print("dropping: " + frame);
     }
   }
   return fullStack;
@@ -175,9 +175,6 @@ LogReader.prototype.skipDispatch = function(dispatch) {
   return false;
 };
 
-// Parses dummy variable for readability;
-const parseString = 'parse-string';
-const parseVarArgs = 'parse-var-args';
 
 /**
  * Does a dispatch of a log record.
@@ -188,8 +185,9 @@ const parseVarArgs = 'parse-var-args';
 LogReader.prototype.dispatchLogRow_ = function(fields) {
   // Obtain the dispatch.
   var command = fields[0];
+  if (!(command in this.dispatchTable_)) return;
+
   var dispatch = this.dispatchTable_[command];
-  if (dispatch === undefined) return;
 
   if (dispatch === null || this.skipDispatch(dispatch)) {
     return;
@@ -199,16 +197,14 @@ LogReader.prototype.dispatchLogRow_ = function(fields) {
   var parsedFields = [];
   for (var i = 0; i < dispatch.parsers.length; ++i) {
     var parser = dispatch.parsers[i];
-    if (parser === parseString) {
+    if (parser === null) {
       parsedFields.push(fields[1 + i]);
     } else if (typeof parser == 'function') {
       parsedFields.push(parser(fields[1 + i]));
-    } else if (parser === parseVarArgs) {
+    } else {
       // var-args
       parsedFields.push(fields.slice(1 + i));
       break;
-    } else {
-      throw new Error("Invalid log field parser: " + parser);
     }
   }
 
@@ -224,19 +220,11 @@ LogReader.prototype.dispatchLogRow_ = function(fields) {
  * @private
  */
 LogReader.prototype.processLog_ = function(lines) {
-  for (var i = 0, n = lines.length; i < n; ++i) {
-    this.processLogLine_(lines[i]);
-  }
-}
-
-/**
- * Processes a single log line.
- *
- * @param {String} a log line
- * @private
- */
-LogReader.prototype.processLogLine_ = function(line) {
-  if (line.length > 0) {
+  for (var i = 0, n = lines.length; i < n; ++i, ++this.lineNum_) {
+    var line = lines[i];
+    if (!line) {
+      continue;
+    }
     try {
       var fields = this.csvParser_.parseLine(line);
       this.dispatchLogRow_(fields);
@@ -244,5 +232,4 @@ LogReader.prototype.processLogLine_ = function(line) {
       this.printError('line ' + (this.lineNum_ + 1) + ': ' + (e.message || e));
     }
   }
-  this.lineNum_++;
 };

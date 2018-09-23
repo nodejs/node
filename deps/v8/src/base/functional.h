@@ -13,7 +13,6 @@
 #include <functional>
 #include <utility>
 
-#include "src/base/base-export.h"
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -25,7 +24,7 @@ namespace base {
 // the Draft Technical Report on C++ Library Extensions (TR1)).
 //
 // base::hash is implemented by calling the hash_value function. The namespace
-// isn't specified so that it can detect overloads via argument dependent
+// isn't specified so that it can detect overloads via argument dependant
 // lookup. So if there is a free function hash_value in the same namespace as a
 // custom type, it will get called.
 //
@@ -68,7 +67,7 @@ struct hash;
 
 V8_INLINE size_t hash_combine() { return 0u; }
 V8_INLINE size_t hash_combine(size_t seed) { return seed; }
-V8_BASE_EXPORT size_t hash_combine(size_t seed, size_t value);
+size_t hash_combine(size_t seed, size_t value);
 template <typename T, typename... Ts>
 V8_INLINE size_t hash_combine(T const& v, Ts const&... vs) {
   return hash_combine(hash_combine(vs...), hash<T>()(v));
@@ -92,9 +91,9 @@ V8_BASE_HASH_VALUE_TRIVIAL(unsigned char)
 V8_BASE_HASH_VALUE_TRIVIAL(unsigned short)  // NOLINT(runtime/int)
 #undef V8_BASE_HASH_VALUE_TRIVIAL
 
-V8_BASE_EXPORT size_t hash_value(unsigned int);
-V8_BASE_EXPORT size_t hash_value(unsigned long);       // NOLINT(runtime/int)
-V8_BASE_EXPORT size_t hash_value(unsigned long long);  // NOLINT(runtime/int)
+size_t hash_value(unsigned int);
+size_t hash_value(unsigned long);       // NOLINT(runtime/int)
+size_t hash_value(unsigned long long);  // NOLINT(runtime/int)
 
 #define V8_BASE_HASH_VALUE_SIGNED(type)            \
   V8_INLINE size_t hash_value(signed type v) {     \
@@ -171,6 +170,7 @@ struct hash<T*> : public std::unary_function<T*, size_t> {
     return ::v8::base::hash_value(v);
   }
 };
+
 
 // base::bit_equal_to is a function object class for bitwise equality
 // comparison, similar to std::equal_to, except that the comparison is performed

@@ -1,15 +1,20 @@
-/*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+/* ====================================================================
+ * Copyright (c) 2008 The OpenSSL Project. All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * Rights for redistribution and usage in source and binary
+ * forms are granted according to the OpenSSL license.
  */
 
 #include <openssl/crypto.h>
 #include "modes_lcl.h"
 #include <string.h>
+
+#ifndef MODES_DEBUG
+# ifndef NDEBUG
+#  define NDEBUG
+# endif
+#endif
+#include <assert.h>
 
 /*
  * Trouble with Ciphertext Stealing, CTS, mode is that there is no
@@ -30,6 +35,8 @@ size_t CRYPTO_cts128_encrypt_block(const unsigned char *in,
                                    block128_f block)
 {
     size_t residue, n;
+
+    assert(in && out && key && ivec);
 
     if (len <= 16)
         return 0;
@@ -60,6 +67,8 @@ size_t CRYPTO_nistcts128_encrypt_block(const unsigned char *in,
                                        block128_f block)
 {
     size_t residue, n;
+
+    assert(in && out && key && ivec);
 
     if (len < 16)
         return 0;
@@ -93,6 +102,8 @@ size_t CRYPTO_cts128_encrypt(const unsigned char *in, unsigned char *out,
         size_t align;
         unsigned char c[16];
     } tmp;
+
+    assert(in && out && key && ivec);
 
     if (len <= 16)
         return 0;
@@ -130,6 +141,8 @@ size_t CRYPTO_nistcts128_encrypt(const unsigned char *in, unsigned char *out,
         unsigned char c[16];
     } tmp;
 
+    assert(in && out && key && ivec);
+
     if (len < 16)
         return 0;
 
@@ -165,6 +178,8 @@ size_t CRYPTO_cts128_decrypt_block(const unsigned char *in,
         size_t align;
         unsigned char c[32];
     } tmp;
+
+    assert(in && out && key && ivec);
 
     if (len <= 16)
         return 0;
@@ -208,6 +223,8 @@ size_t CRYPTO_nistcts128_decrypt_block(const unsigned char *in,
         size_t align;
         unsigned char c[32];
     } tmp;
+
+    assert(in && out && key && ivec);
 
     if (len < 16)
         return 0;
@@ -255,6 +272,8 @@ size_t CRYPTO_cts128_decrypt(const unsigned char *in, unsigned char *out,
         unsigned char c[32];
     } tmp;
 
+    assert(in && out && key && ivec);
+
     if (len <= 16)
         return 0;
 
@@ -294,6 +313,8 @@ size_t CRYPTO_nistcts128_decrypt(const unsigned char *in, unsigned char *out,
         size_t align;
         unsigned char c[32];
     } tmp;
+
+    assert(in && out && key && ivec);
 
     if (len < 16)
         return 0;

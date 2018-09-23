@@ -1,5 +1,0 @@
-Tests Runtime.terminateExecution on pause
-
-Running test: testTerminateOnDebugger
-
-Running test: testTerminateAtBreakpoint

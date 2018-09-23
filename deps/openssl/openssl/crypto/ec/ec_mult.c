@@ -1,12 +1,60 @@
+/* crypto/ec/ec_mult.c */
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
+ * Originally written by Bodo Moeller and Nils Larsch for the OpenSSL project.
  */
-
+/* ====================================================================
+ * Copyright (c) 1998-2007 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  * Portions of this software developed by SUN MICROSYSTEMS, INC.,
@@ -14,25 +62,20 @@
  */
 
 #include <string.h>
+
 #include <openssl/err.h>
 
-#include "internal/cryptlib.h"
-#include "internal/bn_int.h"
 #include "ec_lcl.h"
 
 /*
- * This file implements the wNAF-based interleaving multi-exponentiation method
- * Formerly at:
- *   http://www.informatik.tu-darmstadt.de/TI/Mitarbeiter/moeller.html#multiexp
- * You might now find it here:
- *   http://link.springer.com/chapter/10.1007%2F3-540-45537-X_13
- *   http://www.bmoeller.de/pdf/TI-01-08.multiexp.pdf
- * For multiplication with precomputation, we use wNAF splitting, formerly at:
- *   http://www.informatik.tu-darmstadt.de/TI/Mitarbeiter/moeller.html#fastexp
+ * This file implements the wNAF-based interleaving multi-exponentation method
+ * (<URL:http://www.informatik.tu-darmstadt.de/TI/Mitarbeiter/moeller.html#multiexp>);
+ * for multiplication with precomputation, we use wNAF splitting
+ * (<URL:http://www.informatik.tu-darmstadt.de/TI/Mitarbeiter/moeller.html#fastexp>).
  */
 
 /* structure for precomputed multiples of the generator */
-struct ec_pre_comp_st {
+typedef struct ec_pre_comp_st {
     const EC_GROUP *group;      /* parent EC_GROUP object */
     size_t blocksize;           /* block size for wNAF splitting */
     size_t numblocks;           /* max. number of blocks for which we have
@@ -43,8 +86,12 @@ struct ec_pre_comp_st {
                                  * objects followed by a NULL */
     size_t num;                 /* numblocks * 2^(w-1) */
     int references;
-    CRYPTO_RWLOCK *lock;
-};
+} EC_PRE_COMP;
+
+/* functions to manage EC_PRE_COMP within the EC_GROUP extra_data framework */
+static void *ec_pre_comp_dup(void *);
+static void ec_pre_comp_free(void *);
+static void ec_pre_comp_clear_free(void *);
 
 static EC_PRE_COMP *ec_pre_comp_new(const EC_GROUP *group)
 {
@@ -53,275 +100,211 @@ static EC_PRE_COMP *ec_pre_comp_new(const EC_GROUP *group)
     if (!group)
         return NULL;
 
-    ret = OPENSSL_zalloc(sizeof(*ret));
-    if (ret == NULL) {
+    ret = (EC_PRE_COMP *)OPENSSL_malloc(sizeof(EC_PRE_COMP));
+    if (!ret) {
         ECerr(EC_F_EC_PRE_COMP_NEW, ERR_R_MALLOC_FAILURE);
         return ret;
     }
-
     ret->group = group;
     ret->blocksize = 8;         /* default */
+    ret->numblocks = 0;
     ret->w = 4;                 /* default */
+    ret->points = NULL;
+    ret->num = 0;
     ret->references = 1;
-
-    ret->lock = CRYPTO_THREAD_lock_new();
-    if (ret->lock == NULL) {
-        ECerr(EC_F_EC_PRE_COMP_NEW, ERR_R_MALLOC_FAILURE);
-        OPENSSL_free(ret);
-        return NULL;
-    }
     return ret;
 }
 
-EC_PRE_COMP *EC_ec_pre_comp_dup(EC_PRE_COMP *pre)
+static void *ec_pre_comp_dup(void *src_)
 {
-    int i;
-    if (pre != NULL)
-        CRYPTO_atomic_add(&pre->references, 1, &i, pre->lock);
-    return pre;
+    EC_PRE_COMP *src = src_;
+
+    /* no need to actually copy, these objects never change! */
+
+    CRYPTO_add(&src->references, 1, CRYPTO_LOCK_EC_PRE_COMP);
+
+    return src_;
 }
 
-void EC_ec_pre_comp_free(EC_PRE_COMP *pre)
+static void ec_pre_comp_free(void *pre_)
 {
     int i;
+    EC_PRE_COMP *pre = pre_;
 
-    if (pre == NULL)
+    if (!pre)
         return;
 
-    CRYPTO_atomic_add(&pre->references, -1, &i, pre->lock);
-    REF_PRINT_COUNT("EC_ec", pre);
+    i = CRYPTO_add(&pre->references, -1, CRYPTO_LOCK_EC_PRE_COMP);
     if (i > 0)
         return;
-    REF_ASSERT_ISNT(i < 0);
 
-    if (pre->points != NULL) {
-        EC_POINT **pts;
+    if (pre->points) {
+        EC_POINT **p;
 
-        for (pts = pre->points; *pts != NULL; pts++)
-            EC_POINT_free(*pts);
+        for (p = pre->points; *p != NULL; p++)
+            EC_POINT_free(*p);
         OPENSSL_free(pre->points);
     }
-    CRYPTO_THREAD_lock_free(pre->lock);
     OPENSSL_free(pre);
 }
 
-#define EC_POINT_BN_set_flags(P, flags) do { \
-    BN_set_flags((P)->X, (flags)); \
-    BN_set_flags((P)->Y, (flags)); \
-    BN_set_flags((P)->Z, (flags)); \
-} while(0)
-
-/*-
- * This functions computes (in constant time) a point multiplication over the
- * EC group.
- *
- * At a high level, it is Montgomery ladder with conditional swaps.
- *
- * It performs either a fixed scalar point multiplication
- *          (scalar * generator)
- * when point is NULL, or a generic scalar point multiplication
- *          (scalar * point)
- * when point is not NULL.
- *
- * scalar should be in the range [0,n) otherwise all constant time bets are off.
- *
- * NB: This says nothing about EC_POINT_add and EC_POINT_dbl,
- * which of course are not constant time themselves.
- *
- * The product is stored in r.
- *
- * Returns 1 on success, 0 otherwise.
- */
-static int ec_mul_consttime(const EC_GROUP *group, EC_POINT *r,
-                            const BIGNUM *scalar, const EC_POINT *point,
-                            BN_CTX *ctx)
+static void ec_pre_comp_clear_free(void *pre_)
 {
-    int i, cardinality_bits, group_top, kbit, pbit, Z_is_one;
-    EC_POINT *s = NULL;
-    BIGNUM *k = NULL;
-    BIGNUM *lambda = NULL;
-    BIGNUM *cardinality = NULL;
-    BN_CTX *new_ctx = NULL;
-    int ret = 0;
+    int i;
+    EC_PRE_COMP *pre = pre_;
 
-    if (ctx == NULL && (ctx = new_ctx = BN_CTX_secure_new()) == NULL)
-        return 0;
+    if (!pre)
+        return;
 
-    BN_CTX_start(ctx);
+    i = CRYPTO_add(&pre->references, -1, CRYPTO_LOCK_EC_PRE_COMP);
+    if (i > 0)
+        return;
 
-    s = EC_POINT_new(group);
-    if (s == NULL)
-        goto err;
+    if (pre->points) {
+        EC_POINT **p;
 
-    if (point == NULL) {
-        if (!EC_POINT_copy(s, group->generator))
-            goto err;
-    } else {
-        if (!EC_POINT_copy(s, point))
-            goto err;
+        for (p = pre->points; *p != NULL; p++) {
+            EC_POINT_clear_free(*p);
+            OPENSSL_cleanse(p, sizeof *p);
+        }
+        OPENSSL_free(pre->points);
     }
-
-    EC_POINT_BN_set_flags(s, BN_FLG_CONSTTIME);
-
-    cardinality = BN_CTX_get(ctx);
-    lambda = BN_CTX_get(ctx);
-    k = BN_CTX_get(ctx);
-    if (k == NULL || !BN_mul(cardinality, group->order, group->cofactor, ctx))
-        goto err;
-
-    /*
-     * Group cardinalities are often on a word boundary.
-     * So when we pad the scalar, some timing diff might
-     * pop if it needs to be expanded due to carries.
-     * So expand ahead of time.
-     */
-    cardinality_bits = BN_num_bits(cardinality);
-    group_top = bn_get_top(cardinality);
-    if ((bn_wexpand(k, group_top + 1) == NULL)
-        || (bn_wexpand(lambda, group_top + 1) == NULL))
-        goto err;
-
-    if (!BN_copy(k, scalar))
-        goto err;
-
-    BN_set_flags(k, BN_FLG_CONSTTIME);
-
-    if ((BN_num_bits(k) > cardinality_bits) || (BN_is_negative(k))) {
-        /*-
-         * this is an unusual input, and we don't guarantee
-         * constant-timeness
-         */
-        if (!BN_nnmod(k, k, cardinality, ctx))
-            goto err;
-    }
-
-    if (!BN_add(lambda, k, cardinality))
-        goto err;
-    BN_set_flags(lambda, BN_FLG_CONSTTIME);
-    if (!BN_add(k, lambda, cardinality))
-        goto err;
-    /*
-     * lambda := scalar + cardinality
-     * k := scalar + 2*cardinality
-     */
-    kbit = BN_is_bit_set(lambda, cardinality_bits);
-    BN_consttime_swap(kbit, k, lambda, group_top + 1);
-
-    group_top = bn_get_top(group->field);
-    if ((bn_wexpand(s->X, group_top) == NULL)
-        || (bn_wexpand(s->Y, group_top) == NULL)
-        || (bn_wexpand(s->Z, group_top) == NULL)
-        || (bn_wexpand(r->X, group_top) == NULL)
-        || (bn_wexpand(r->Y, group_top) == NULL)
-        || (bn_wexpand(r->Z, group_top) == NULL))
-        goto err;
-
-    /* top bit is a 1, in a fixed pos */
-    if (!EC_POINT_copy(r, s))
-        goto err;
-
-    EC_POINT_BN_set_flags(r, BN_FLG_CONSTTIME);
-
-    if (!EC_POINT_dbl(group, s, s, ctx))
-        goto err;
-
-    pbit = 0;
-
-#define EC_POINT_CSWAP(c, a, b, w, t) do {         \
-        BN_consttime_swap(c, (a)->X, (b)->X, w);   \
-        BN_consttime_swap(c, (a)->Y, (b)->Y, w);   \
-        BN_consttime_swap(c, (a)->Z, (b)->Z, w);   \
-        t = ((a)->Z_is_one ^ (b)->Z_is_one) & (c); \
-        (a)->Z_is_one ^= (t);                      \
-        (b)->Z_is_one ^= (t);                      \
-} while(0)
-
-    /*-
-     * The ladder step, with branches, is
-     *
-     * k[i] == 0: S = add(R, S), R = dbl(R)
-     * k[i] == 1: R = add(S, R), S = dbl(S)
-     *
-     * Swapping R, S conditionally on k[i] leaves you with state
-     *
-     * k[i] == 0: T, U = R, S
-     * k[i] == 1: T, U = S, R
-     *
-     * Then perform the ECC ops.
-     *
-     * U = add(T, U)
-     * T = dbl(T)
-     *
-     * Which leaves you with state
-     *
-     * k[i] == 0: U = add(R, S), T = dbl(R)
-     * k[i] == 1: U = add(S, R), T = dbl(S)
-     *
-     * Swapping T, U conditionally on k[i] leaves you with state
-     *
-     * k[i] == 0: R, S = T, U
-     * k[i] == 1: R, S = U, T
-     *
-     * Which leaves you with state
-     *
-     * k[i] == 0: S = add(R, S), R = dbl(R)
-     * k[i] == 1: R = add(S, R), S = dbl(S)
-     *
-     * So we get the same logic, but instead of a branch it's a
-     * conditional swap, followed by ECC ops, then another conditional swap.
-     *
-     * Optimization: The end of iteration i and start of i-1 looks like
-     *
-     * ...
-     * CSWAP(k[i], R, S)
-     * ECC
-     * CSWAP(k[i], R, S)
-     * (next iteration)
-     * CSWAP(k[i-1], R, S)
-     * ECC
-     * CSWAP(k[i-1], R, S)
-     * ...
-     *
-     * So instead of two contiguous swaps, you can merge the condition
-     * bits and do a single swap.
-     *
-     * k[i]   k[i-1]    Outcome
-     * 0      0         No Swap
-     * 0      1         Swap
-     * 1      0         Swap
-     * 1      1         No Swap
-     *
-     * This is XOR. pbit tracks the previous bit of k.
-     */
-
-    for (i = cardinality_bits - 1; i >= 0; i--) {
-        kbit = BN_is_bit_set(k, i) ^ pbit;
-        EC_POINT_CSWAP(kbit, r, s, group_top, Z_is_one);
-        if (!EC_POINT_add(group, s, r, s, ctx))
-            goto err;
-        if (!EC_POINT_dbl(group, r, r, ctx))
-            goto err;
-        /*
-         * pbit logic merges this cswap with that of the
-         * next iteration
-         */
-        pbit ^= kbit;
-    }
-    /* one final cswap to move the right value into r */
-    EC_POINT_CSWAP(pbit, r, s, group_top, Z_is_one);
-#undef EC_POINT_CSWAP
-
-    ret = 1;
-
- err:
-    EC_POINT_free(s);
-    BN_CTX_end(ctx);
-    BN_CTX_free(new_ctx);
-
-    return ret;
+    OPENSSL_cleanse(pre, sizeof *pre);
+    OPENSSL_free(pre);
 }
 
-#undef EC_POINT_BN_set_flags
+/*-
+ * Determine the modified width-(w+1) Non-Adjacent Form (wNAF) of 'scalar'.
+ * This is an array  r[]  of values that are either zero or odd with an
+ * absolute value less than  2^w  satisfying
+ *     scalar = \sum_j r[j]*2^j
+ * where at most one of any  w+1  consecutive digits is non-zero
+ * with the exception that the most significant digit may be only
+ * w-1 zeros away from that next non-zero digit.
+ */
+static signed char *compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
+{
+    int window_val;
+    int ok = 0;
+    signed char *r = NULL;
+    int sign = 1;
+    int bit, next_bit, mask;
+    size_t len = 0, j;
+
+    if (BN_is_zero(scalar)) {
+        r = OPENSSL_malloc(1);
+        if (!r) {
+            ECerr(EC_F_COMPUTE_WNAF, ERR_R_MALLOC_FAILURE);
+            goto err;
+        }
+        r[0] = 0;
+        *ret_len = 1;
+        return r;
+    }
+
+    if (w <= 0 || w > 7) {      /* 'signed char' can represent integers with
+                                 * absolute values less than 2^7 */
+        ECerr(EC_F_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+    bit = 1 << w;               /* at most 128 */
+    next_bit = bit << 1;        /* at most 256 */
+    mask = next_bit - 1;        /* at most 255 */
+
+    if (BN_is_negative(scalar)) {
+        sign = -1;
+    }
+
+    if (scalar->d == NULL || scalar->top == 0) {
+        ECerr(EC_F_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+
+    len = BN_num_bits(scalar);
+    r = OPENSSL_malloc(len + 1); /* modified wNAF may be one digit longer
+                                  * than binary representation (*ret_len will
+                                  * be set to the actual length, i.e. at most
+                                  * BN_num_bits(scalar) + 1) */
+    if (r == NULL) {
+        ECerr(EC_F_COMPUTE_WNAF, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
+    window_val = scalar->d[0] & mask;
+    j = 0;
+    while ((window_val != 0) || (j + w + 1 < len)) { /* if j+w+1 >= len,
+                                                      * window_val will not
+                                                      * increase */
+        int digit = 0;
+
+        /* 0 <= window_val <= 2^(w+1) */
+
+        if (window_val & 1) {
+            /* 0 < window_val < 2^(w+1) */
+
+            if (window_val & bit) {
+                digit = window_val - next_bit; /* -2^w < digit < 0 */
+
+#if 1                           /* modified wNAF */
+                if (j + w + 1 >= len) {
+                    /*
+                     * special case for generating modified wNAFs: no new
+                     * bits will be added into window_val, so using a
+                     * positive digit here will decrease the total length of
+                     * the representation
+                     */
+
+                    digit = window_val & (mask >> 1); /* 0 < digit < 2^w */
+                }
+#endif
+            } else {
+                digit = window_val; /* 0 < digit < 2^w */
+            }
+
+            if (digit <= -bit || digit >= bit || !(digit & 1)) {
+                ECerr(EC_F_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+                goto err;
+            }
+
+            window_val -= digit;
+
+            /*
+             * now window_val is 0 or 2^(w+1) in standard wNAF generation;
+             * for modified window NAFs, it may also be 2^w
+             */
+            if (window_val != 0 && window_val != next_bit
+                && window_val != bit) {
+                ECerr(EC_F_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+                goto err;
+            }
+        }
+
+        r[j++] = sign * digit;
+
+        window_val >>= 1;
+        window_val += bit * BN_is_bit_set(scalar, j + w);
+
+        if (window_val > next_bit) {
+            ECerr(EC_F_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+            goto err;
+        }
+    }
+
+    if (j > len + 1) {
+        ECerr(EC_F_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+    len = j;
+    ok = 1;
+
+ err:
+    if (!ok) {
+        OPENSSL_free(r);
+        r = NULL;
+    }
+    if (ok)
+        *ret_len = len;
+    return r;
+}
 
 /*
  * TODO: table should be optimised for the wNAF-based implementation,
@@ -373,7 +356,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
                                  * precomputation is not available */
     int ret = 0;
 
-    if (!ec_point_is_compat(r, group)) {
+    if (group->meth != r->meth) {
         ECerr(EC_F_EC_WNAF_MUL, EC_R_INCOMPATIBLE_OBJECTS);
         return 0;
     }
@@ -382,34 +365,8 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
         return EC_POINT_set_to_infinity(group, r);
     }
 
-    /*-
-     * Handle the common cases where the scalar is secret, enforcing a constant
-     * time scalar multiplication algorithm.
-     */
-    if ((scalar != NULL) && (num == 0)) {
-        /*-
-         * In this case we want to compute scalar * GeneratorPoint: this
-         * codepath is reached most prominently by (ephemeral) key generation
-         * of EC cryptosystems (i.e. ECDSA keygen and sign setup, ECDH
-         * keygen/first half), where the scalar is always secret. This is why
-         * we ignore if BN_FLG_CONSTTIME is actually set and we always call the
-         * constant time version.
-         */
-        return ec_mul_consttime(group, r, scalar, NULL, ctx);
-    }
-    if ((scalar == NULL) && (num == 1)) {
-        /*-
-         * In this case we want to compute scalar * GenericPoint: this codepath
-         * is reached most prominently by the second half of ECDH, where the
-         * secret scalar is multiplied by the peer's public point. To protect
-         * the secret scalar, we ignore if BN_FLG_CONSTTIME is actually set and
-         * we always call the constant time version.
-         */
-        return ec_mul_consttime(group, r, scalars[0], points[0], ctx);
-    }
-
     for (i = 0; i < num; i++) {
-        if (!ec_point_is_compat(points[i], group)) {
+        if (group->meth != points[i]->meth) {
             ECerr(EC_F_EC_WNAF_MUL, EC_R_INCOMPATIBLE_OBJECTS);
             return 0;
         }
@@ -430,7 +387,10 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 
         /* look if we can use precomputed multiples of generator */
 
-        pre_comp = group->pre_comp.ec;
+        pre_comp =
+            EC_EX_DATA_get_data(group->extra_data, ec_pre_comp_dup,
+                                ec_pre_comp_free, ec_pre_comp_clear_free);
+
         if (pre_comp && pre_comp->numblocks
             && (EC_POINT_cmp(group, generator, pre_comp->points[0], ctx) ==
                 0)) {
@@ -466,17 +426,17 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 
     totalnum = num + numblocks;
 
-    wsize = OPENSSL_malloc(totalnum * sizeof(wsize[0]));
-    wNAF_len = OPENSSL_malloc(totalnum * sizeof(wNAF_len[0]));
-    /* include space for pivot */
-    wNAF = OPENSSL_malloc((totalnum + 1) * sizeof(wNAF[0]));
-    val_sub = OPENSSL_malloc(totalnum * sizeof(val_sub[0]));
+    wsize = OPENSSL_malloc(totalnum * sizeof wsize[0]);
+    wNAF_len = OPENSSL_malloc(totalnum * sizeof wNAF_len[0]);
+    wNAF = OPENSSL_malloc((totalnum + 1) * sizeof wNAF[0]); /* includes space
+                                                             * for pivot */
+    val_sub = OPENSSL_malloc(totalnum * sizeof val_sub[0]);
 
     /* Ensure wNAF is initialised in case we end up going to err */
-    if (wNAF != NULL)
+    if (wNAF)
         wNAF[0] = NULL;         /* preliminary pivot */
 
-    if (wsize == NULL || wNAF_len == NULL || wNAF == NULL || val_sub == NULL) {
+    if (!wsize || !wNAF_len || !wNAF || !val_sub) {
         ECerr(EC_F_EC_WNAF_MUL, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -494,8 +454,8 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
         num_val += (size_t)1 << (wsize[i] - 1);
         wNAF[i + 1] = NULL;     /* make sure we always have a pivot */
         wNAF[i] =
-            bn_compute_wNAF((i < num ? scalars[i] : scalar), wsize[i],
-                            &wNAF_len[i]);
+            compute_wNAF((i < num ? scalars[i] : scalar), wsize[i],
+                         &wNAF_len[i]);
         if (wNAF[i] == NULL)
             goto err;
         if (wNAF_len[i] > max_len)
@@ -524,7 +484,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
              * use the window size for which we have precomputation
              */
             wsize[num] = pre_comp->w;
-            tmp_wNAF = bn_compute_wNAF(scalar, wsize[num], &tmp_len);
+            tmp_wNAF = compute_wNAF(scalar, wsize[num], &tmp_len);
             if (!tmp_wNAF)
                 goto err;
 
@@ -540,6 +500,8 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
                 wNAF[num] = tmp_wNAF;
                 wNAF[num + 1] = NULL;
                 wNAF_len[num] = tmp_len;
+                if (tmp_len > max_len)
+                    max_len = tmp_len;
                 /*
                  * pre_comp->points starts with the points that we need here:
                  */
@@ -560,7 +522,6 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
                     numblocks = (tmp_len + blocksize - 1) / blocksize;
                     if (numblocks > pre_comp->numblocks) {
                         ECerr(EC_F_EC_WNAF_MUL, ERR_R_INTERNAL_ERROR);
-                        OPENSSL_free(tmp_wNAF);
                         goto err;
                     }
                     totalnum = num + numblocks;
@@ -575,7 +536,6 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
                         wNAF_len[i] = blocksize;
                         if (tmp_len < blocksize) {
                             ECerr(EC_F_EC_WNAF_MUL, ERR_R_INTERNAL_ERROR);
-                            OPENSSL_free(tmp_wNAF);
                             goto err;
                         }
                         tmp_len -= blocksize;
@@ -616,7 +576,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
      * 'val_sub[i]' is a pointer to the subarray for the i-th point, or to a
      * subarray of 'pre_comp->points' if we already have precomputation.
      */
-    val = OPENSSL_malloc((num_val + 1) * sizeof(val[0]));
+    val = OPENSSL_malloc((num_val + 1) * sizeof val[0]);
     if (val == NULL) {
         ECerr(EC_F_EC_WNAF_MUL, ERR_R_MALLOC_FAILURE);
         goto err;
@@ -639,7 +599,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
         goto err;
     }
 
-    if ((tmp = EC_POINT_new(group)) == NULL)
+    if (!(tmp = EC_POINT_new(group)))
         goto err;
 
     /*-
@@ -669,8 +629,11 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
         }
     }
 
+#if 1                           /* optional; EC_window_bits_for_scalar_size
+                                 * assumes we do this step */
     if (!EC_POINTs_make_affine(group, num_val, val, ctx))
         goto err;
+#endif
 
     r_is_at_infinity = 1;
 
@@ -727,10 +690,14 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
     ret = 1;
 
  err:
-    BN_CTX_free(new_ctx);
-    EC_POINT_free(tmp);
-    OPENSSL_free(wsize);
-    OPENSSL_free(wNAF_len);
+    if (new_ctx != NULL)
+        BN_CTX_free(new_ctx);
+    if (tmp != NULL)
+        EC_POINT_free(tmp);
+    if (wsize != NULL)
+        OPENSSL_free(wsize);
+    if (wNAF_len != NULL)
+        OPENSSL_free(wNAF_len);
     if (wNAF != NULL) {
         signed char **w;
 
@@ -745,7 +712,9 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 
         OPENSSL_free(val);
     }
-    OPENSSL_free(val_sub);
+    if (val_sub != NULL) {
+        OPENSSL_free(val_sub);
+    }
     return ret;
 }
 
@@ -774,14 +743,16 @@ int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     const EC_POINT *generator;
     EC_POINT *tmp_point = NULL, *base = NULL, **var;
     BN_CTX *new_ctx = NULL;
-    const BIGNUM *order;
+    BIGNUM *order;
     size_t i, bits, w, pre_points_per_block, blocksize, numblocks, num;
     EC_POINT **points = NULL;
     EC_PRE_COMP *pre_comp;
     int ret = 0;
 
     /* if there is an old EC_PRE_COMP object, throw it away */
-    EC_pre_comp_free(group);
+    EC_EX_DATA_free_data(&group->extra_data, ec_pre_comp_dup,
+                         ec_pre_comp_free, ec_pre_comp_clear_free);
+
     if ((pre_comp = ec_pre_comp_new(group)) == NULL)
         return 0;
 
@@ -798,9 +769,11 @@ int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     }
 
     BN_CTX_start(ctx);
-
-    order = EC_GROUP_get0_order(group);
+    order = BN_CTX_get(ctx);
     if (order == NULL)
+        goto err;
+
+    if (!EC_GROUP_get_order(group, order, ctx))
         goto err;
     if (BN_is_zero(order)) {
         ECerr(EC_F_EC_WNAF_PRECOMPUTE_MULT, EC_R_UNKNOWN_ORDER);
@@ -829,8 +802,8 @@ int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     num = pre_points_per_block * numblocks; /* number of points to compute
                                              * and store */
 
-    points = OPENSSL_malloc(sizeof(*points) * (num + 1));
-    if (points == NULL) {
+    points = OPENSSL_malloc(sizeof(EC_POINT *) * (num + 1));
+    if (!points) {
         ECerr(EC_F_EC_WNAF_PRECOMPUTE_MULT, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -844,8 +817,7 @@ int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
         }
     }
 
-    if ((tmp_point = EC_POINT_new(group)) == NULL
-        || (base = EC_POINT_new(group)) == NULL) {
+    if (!(tmp_point = EC_POINT_new(group)) || !(base = EC_POINT_new(group))) {
         ECerr(EC_F_EC_WNAF_PRECOMPUTE_MULT, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -901,15 +873,21 @@ int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     pre_comp->points = points;
     points = NULL;
     pre_comp->num = num;
-    SETPRECOMP(group, ec, pre_comp);
-    pre_comp = NULL;
-    ret = 1;
 
+    if (!EC_EX_DATA_set_data(&group->extra_data, pre_comp,
+                             ec_pre_comp_dup, ec_pre_comp_free,
+                             ec_pre_comp_clear_free))
+        goto err;
+    pre_comp = NULL;
+
+    ret = 1;
  err:
     if (ctx != NULL)
         BN_CTX_end(ctx);
-    BN_CTX_free(new_ctx);
-    EC_ec_pre_comp_free(pre_comp);
+    if (new_ctx != NULL)
+        BN_CTX_free(new_ctx);
+    if (pre_comp)
+        ec_pre_comp_free(pre_comp);
     if (points) {
         EC_POINT **p;
 
@@ -917,12 +895,19 @@ int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
             EC_POINT_free(*p);
         OPENSSL_free(points);
     }
-    EC_POINT_free(tmp_point);
-    EC_POINT_free(base);
+    if (tmp_point)
+        EC_POINT_free(tmp_point);
+    if (base)
+        EC_POINT_free(base);
     return ret;
 }
 
 int ec_wNAF_have_precompute_mult(const EC_GROUP *group)
 {
-    return HAVEPRECOMP(group, ec);
+    if (EC_EX_DATA_get_data
+        (group->extra_data, ec_pre_comp_dup, ec_pre_comp_free,
+         ec_pre_comp_clear_free) != NULL)
+        return 1;
+    else
+        return 0;
 }

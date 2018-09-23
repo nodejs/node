@@ -1,19 +1,10 @@
-#! /usr/bin/env perl
-# Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
+#!/usr/bin/env perl
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC, "${dir}.", "${dir}../crypto/perlasm");
 require "x86asm.pl";
 
 require "uplink-common.pl";
-
-$output = pop;
-open STDOUT,">$output";
 
 &asm_init($ARGV[0],"uplink-x86");
 
@@ -23,11 +14,11 @@ open STDOUT,">$output";
 for ($i=1;$i<=$N;$i++) {
 &function_begin_B("_\$lazy${i}");
 	&lea	("eax",&DWP(&label("OPENSSL_UplinkTable")));
-	&push	($i);
 	&push	("eax");
+	&push	($i);
 	&call	(&label("OPENSSL_Uplink"));
+	&add	("esp",8);
 	&pop	("eax");
-	&add	("esp",4);
 	&jmp_ptr(&DWP(4*$i,"eax"));
 &function_end_B("_\$lazy${i}");
 }
@@ -40,5 +31,3 @@ for ($i=1;$i<=$N;$i++) {
 &data_word(&label("_\$lazy${i}"));
 }
 &asm_finish();
-
-close STDOUT;

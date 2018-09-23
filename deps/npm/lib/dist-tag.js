@@ -1,4 +1,3 @@
-/* eslint-disable standard/no-callback-literal */
 module.exports = distTag
 
 var log = require('npmlog')
@@ -8,15 +7,10 @@ var semver = require('semver')
 var npm = require('./npm.js')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var readLocalPkg = require('./utils/read-local-package.js')
-var usage = require('./utils/usage')
-var output = require('./utils/output.js')
 
-distTag.usage = usage(
-  'dist-tag',
-  'npm dist-tag add <pkg>@<version> [<tag>]' +
-  '\nnpm dist-tag rm <pkg> <tag>' +
-  '\nnpm dist-tag ls [<pkg>]'
-)
+distTag.usage = 'npm dist-tag add <pkg>@<version> [<tag>]' +
+                '\nnpm dist-tag rm <pkg> <tag>' +
+                '\nnpm dist-tag ls [<pkg>]'
 
 distTag.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -79,7 +73,7 @@ function add (spec, tag, cb) {
       npm.registry.distTags.add(base, params, function (er) {
         if (er) return cb(er)
 
-        output('+' + t + ': ' + pkg + '@' + version)
+        console.log('+' + t + ': ' + pkg + '@' + version)
         cb()
       })
     })
@@ -110,7 +104,7 @@ function remove (tag, pkg, cb) {
       npm.registry.distTags.rm(base, params, function (er) {
         if (er) return cb(er)
 
-        output('-' + tag + ': ' + pkg + '@' + version)
+        console.log('-' + tag + ': ' + pkg + '@' + version)
         cb()
       })
     })
@@ -134,7 +128,7 @@ function list (pkg, cb) {
     var msg = Object.keys(tags).map(function (k) {
       return k + ': ' + tags[k]
     }).sort().join('\n')
-    output(msg)
+    console.log(msg)
     cb(er, tags)
   })
 }

@@ -1,34 +1,40 @@
 // In this benchmark, we connect a client to the server, and write
 // as many bytes as we can in the specified time (default = 10s)
-'use strict';
 
-const common = require('../common.js');
-const util = require('util');
+var common = require('../common.js');
+var util = require('util');
 
 // if there are --dur=N and --len=N args, then
 // run the function with those settings.
 // if not, then queue up a bunch of child processes.
-const bench = common.createBenchmark(main, {
+var bench = common.createBenchmark(main, {
   len: [102400, 1024 * 1024 * 16],
   type: ['utf', 'asc', 'buf'],
   dur: [5]
-}, {
-  flags: [ '--expose-internals', '--no-warnings' ]
 });
 
-function main({ dur, len, type }) {
-  const { internalBinding } = require('internal/test/binding');
-  const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
-  const { TCPConnectWrap } = process.binding('tcp_wrap');
-  const { WriteWrap } = internalBinding('stream_wrap');
-  const PORT = common.PORT;
+var TCP = process.binding('tcp_wrap').TCP;
+var TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
+var WriteWrap = process.binding('stream_wrap').WriteWrap;
+var PORT = common.PORT;
 
-  function fail(err, syscall) {
-    throw util._errnoException(err, syscall);
-  }
+var dur;
+var len;
+var type;
 
-  // Server
-  const serverHandle = new TCP(TCPConstants.SERVER);
+function main(conf) {
+  dur = +conf.dur;
+  len = +conf.len;
+  type = conf.type;
+  server();
+}
+
+function fail(err, syscall) {
+  throw util._errnoException(err, syscall);
+}
+
+function server() {
+  var serverHandle = new TCP();
   var err = serverHandle.bind('127.0.0.1', PORT);
   if (err)
     fail(err, 'bind');
@@ -47,14 +53,14 @@ function main({ dur, len, type }) {
       if (nread < 0)
         fail(nread, 'read');
 
-      const writeReq = new WriteWrap();
+      var writeReq = new WriteWrap();
       writeReq.async = false;
       err = clientHandle.writeBuffer(writeReq, buffer);
 
       if (err)
         fail(err, 'write');
 
-      writeReq.oncomplete = function(status, handle, err) {
+      writeReq.oncomplete = function(status, handle, req, err) {
         if (err)
           fail(err, 'write');
       };
@@ -63,29 +69,36 @@ function main({ dur, len, type }) {
     clientHandle.readStart();
   };
 
-  // Client
+  client();
+}
+
+function client() {
   var chunk;
   switch (type) {
     case 'buf':
-      chunk = Buffer.alloc(len, 'x');
+      chunk = new Buffer(len);
+      chunk.fill('x');
       break;
     case 'utf':
-      chunk = 'ü'.repeat(len / 2);
+      chunk = new Array(len / 2 + 1).join('ü');
       break;
     case 'asc':
-      chunk = 'x'.repeat(len);
+      chunk = new Array(len + 1).join('x');
       break;
     default:
-      throw new Error(`invalid type: ${type}`);
+      throw new Error('invalid type: ' + type);
+      break;
   }
 
-  const clientHandle = new TCP(TCPConstants.SOCKET);
-  const connectReq = new TCPConnectWrap();
+  var clientHandle = new TCP();
+  var connectReq = new TCPConnectWrap();
+  var err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
   var bytes = 0;
 
-  err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
   if (err)
     fail(err, 'connect');
+
+  clientHandle.readStart();
 
   clientHandle.onread = function(nread, buffer) {
     if (nread < 0)
@@ -100,13 +113,10 @@ function main({ dur, len, type }) {
 
     bench.start();
 
-    clientHandle.readStart();
-
     setTimeout(function() {
       // multiply by 2 since we're sending it first one way
       // then then back again.
       bench.end(2 * (bytes * 8) / (1024 * 1024 * 1024));
-      process.exit(0);
     }, dur * 1000);
 
     while (clientHandle.writeQueueSize === 0)
@@ -114,7 +124,7 @@ function main({ dur, len, type }) {
   };
 
   function write() {
-    const writeReq = new WriteWrap();
+    var writeReq = new WriteWrap();
     writeReq.oncomplete = afterWrite;
     var err;
     switch (type) {
@@ -133,7 +143,7 @@ function main({ dur, len, type }) {
       fail(err, 'write');
   }
 
-  function afterWrite(err, handle) {
+  function afterWrite(err, handle, req) {
     if (err)
       fail(err, 'write');
 
