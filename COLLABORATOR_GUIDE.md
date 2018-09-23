@@ -705,7 +705,7 @@ usually used for pull requests that weren't merged.
 Time to push it:
 
 ```text
-$ git push upstream master
+ git push upstream master
 ```
 
 Close the pull request with a "Landed in `<commit hash>`" comment. If
@@ -878,7 +878,8 @@ LTS working group and the Release team.
 | GYP                                      | @nodejs/gyp                                                           |
 | performance                              | @nodejs/performance                                                   |
 | platform specific                        | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
-| python code                              | @nodejs/python                                                        |
+| python code                              | @nodejs/python                                       
+                 |
 | upgrading c-ares                         | @rvagg                                                                |
 | upgrading http-parser                    | @nodejs/http, @nodejs/http2                                           |
 | upgrading libuv                          | @nodejs/libuv                                                         |

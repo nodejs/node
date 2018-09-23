@@ -68,17 +68,15 @@ Fork the project [on GitHub](https://github.com/nodejs/node) and clone your fork
 locally.
 
 ```text
-$ git clone git@github.com:username/node.git
-$ cd node
-$ git remote add upstream https://github.com/nodejs/node.git
-$ git fetch upstream
+ git clone git@github.com:username/node.git
+ cd node
+ git remote add upstream https://github.com/nodejs/node.git
+ git fetch upstream
 ```
-
 It is recommended to configure `git` so that it knows who you are:
-
 ```text
-$ git config user.name "J. Random User"
-$ git config user.email "j.random.user@example.com"
+ git config user.name "J. Random User"
+ git config user.email "j.random.user@example.com"
 ```
 
 You can use any name/email address you prefer here. We only use the
@@ -97,11 +95,9 @@ possible, create local branches to work within. These should also be created
 directly off of the `master` branch.
 
 ```text
-$ git checkout -b my-branch -t upstream/master
+git checkout -b my-branch -t upstream/master
 ```
-
 ## The Process of Making Changes
-
 ### Step 3: Code
 
 The vast majority of Pull Requests opened against the `nodejs/node`
@@ -130,8 +126,8 @@ commits any single Pull Request may have, and many contributors find it easier
 to review changes that are split across multiple commits.
 
 ```text
-$ git add my/changed/files
-$ git commit
+git add my/changed/files
+git commit
 ```
 
 Note that multiple commits often get squashed when they are landed (see the
@@ -205,8 +201,8 @@ to use `git rebase` (not `git merge`) to synchronize your work with the main
 repository.
 
 ```text
-$ git fetch upstream
-$ git rebase upstream/master
+git fetch upstream
+git rebase upstream/master
 ```
 
 This ensures that your working branch has the latest changes from `nodejs/node`
@@ -228,7 +224,7 @@ Before submitting your changes in a Pull Request, always run the full Node.js
 test suite. To run the tests (including code linting) on Unix / macOS:
 
 ```text
-$ ./configure && make -j4 test
+ ./configure && make -j4 test
 ```
 
 And on Windows:
