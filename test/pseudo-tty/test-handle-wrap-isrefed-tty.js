@@ -8,8 +8,6 @@ const ReadStream = require('tty').ReadStream;
 const tty = new ReadStream(0);
 const isTTY = process.binding('tty_wrap').isTTY;
 strictEqual(isTTY(0), true, 'tty_wrap: stdin is not a TTY');
-strictEqual(Object.getPrototypeOf(tty._handle).hasOwnProperty('hasRef'),
-            true, 'tty_wrap: hasRef() missing');
 strictEqual(tty._handle.hasRef(),
             true, 'tty_wrap: not initially refed');
 tty.unref();
