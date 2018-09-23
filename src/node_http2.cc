@@ -2893,7 +2893,6 @@ void Http2Session::Http2Ping::Done(bool ack, const uint8_t* payload) {
 
 
 void nghttp2_stream_write::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackThis(this);
   if (req_wrap != nullptr)
     tracker->TrackField("req_wrap", req_wrap->GetAsyncWrap());
   tracker->TrackField("buf", buf);
@@ -2901,7 +2900,6 @@ void nghttp2_stream_write::MemoryInfo(MemoryTracker* tracker) const {
 
 
 void nghttp2_header::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackThis(this);
   tracker->TrackFieldWithSize("name", nghttp2_rcbuf_get_buf(name).len);
   tracker->TrackFieldWithSize("value", nghttp2_rcbuf_get_buf(value).len);
 }

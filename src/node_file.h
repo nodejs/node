@@ -53,9 +53,11 @@ class FSContinuationData : public MemoryRetainer {
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("paths", paths);
   }
+
+  SET_MEMORY_INFO_NAME(FSContinuationData)
+  SET_SELF_SIZE(FSContinuationData)
 
  private:
   uv_fs_cb done_cb;
@@ -136,11 +138,11 @@ class FSReqCallback : public FSReqBase {
   void SetReturnValue(const FunctionCallbackInfo<Value>& args) override;
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("continuation_data", continuation_data);
   }
 
-  ADD_MEMORY_INFO_NAME(FSReqCallback)
+  SET_MEMORY_INFO_NAME(FSReqCallback)
+  SET_SELF_SIZE(FSReqCallback)
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FSReqCallback);
@@ -201,12 +203,12 @@ class FSReqPromise : public FSReqBase {
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("stats_field_array", stats_field_array_);
     tracker->TrackField("continuation_data", continuation_data);
   }
 
-  ADD_MEMORY_INFO_NAME(FSReqPromise)
+  SET_MEMORY_INFO_NAME(FSReqPromise)
+  SET_SELF_SIZE(FSReqPromise)
 
  private:
   bool finished_ = false;
@@ -242,12 +244,9 @@ class FileHandleReadWrap : public ReqWrap<uv_fs_t> {
     return static_cast<FileHandleReadWrap*>(ReqWrap::from_req(req));
   }
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-    tracker->TrackField("buffer", buffer_);
-  }
-
-  ADD_MEMORY_INFO_NAME(FileHandleReadWrap)
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(FileHandleReadWrap)
+  SET_SELF_SIZE(FileHandleReadWrap)
 
  private:
   FileHandle* file_handle_;
@@ -296,11 +295,11 @@ class FileHandle : public AsyncWrap, public StreamBase {
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("current_read", current_read_);
   }
 
-  ADD_MEMORY_INFO_NAME(FileHandle)
+  SET_MEMORY_INFO_NAME(FileHandle)
+  SET_SELF_SIZE(FileHandle)
 
  private:
   // Synchronous close that emits a warning
@@ -329,12 +328,12 @@ class FileHandle : public AsyncWrap, public StreamBase {
     FileHandle* file_handle();
 
     void MemoryInfo(MemoryTracker* tracker) const override {
-      tracker->TrackThis(this);
       tracker->TrackField("promise", promise_);
       tracker->TrackField("ref", ref_);
     }
 
-    ADD_MEMORY_INFO_NAME(CloseReq)
+    SET_MEMORY_INFO_NAME(CloseReq)
+    SET_SELF_SIZE(CloseReq)
 
     void Resolve();
 

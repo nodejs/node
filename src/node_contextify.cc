@@ -590,13 +590,11 @@ class ContextifyScript : public BaseObject {
  private:
   Persistent<UnboundScript> script_;
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
-
-  ADD_MEMORY_INFO_NAME(ContextifyScript)
-
  public:
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(ContextifyScript)
+  SET_SELF_SIZE(ContextifyScript)
+
   static void Init(Environment* env, Local<Object> target) {
     HandleScope scope(env->isolate());
     Local<String> class_name =

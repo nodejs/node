@@ -657,14 +657,13 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("dictionary", dictionary_);
-    tracker->TrackFieldWithSize("zlib memory",
-        zlib_memory_ + unreported_allocations_);
+    tracker->TrackFieldWithSize("zlib_memory",
+                                zlib_memory_ + unreported_allocations_);
   }
 
-
-  ADD_MEMORY_INFO_NAME(ZCtx)
+  SET_MEMORY_INFO_NAME(ZCtx)
+  SET_SELF_SIZE(ZCtx)
 
  private:
   void Ref() {

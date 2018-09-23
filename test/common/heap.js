@@ -12,74 +12,106 @@ try {
 }
 const { createJSHeapDump, buildEmbedderGraph } = internalTestHeap;
 
+function inspectNode(snapshot) {
+  return util.inspect(snapshot, { depth: 4 });
+}
+
+function isEdge(edge, { node_name, edge_name }) {
+  if (edge.name !== edge_name) {
+    return false;
+  }
+  // From our internal embedded graph
+  if (edge.to.value) {
+    if (edge.to.value.constructor.name !== node_name) {
+      return false;
+    }
+  } else if (edge.to.name !== node_name) {
+    return false;
+  }
+  return true;
+}
+
 class State {
   constructor() {
     this.snapshot = createJSHeapDump();
     this.embedderGraph = buildEmbedderGraph();
   }
 
-  validateSnapshotNodes(name, expected, { loose = false } = {}) {
-    const snapshot = this.snapshot.filter(
-      (node) => node.name === 'Node / ' + name && node.type !== 'string');
-    if (loose)
-      assert(snapshot.length >= expected.length);
-    else
-      assert.strictEqual(snapshot.length, expected.length);
-    for (const expectedNode of expected) {
-      if (expectedNode.children) {
-        for (const expectedChild of expectedNode.children) {
-          const check = typeof expectedChild === 'function' ?
-            expectedChild :
-            (node) => [expectedChild.name, 'Node / ' + expectedChild.name]
-              .includes(node.name);
+  // Validate the v8 heap snapshot
+  validateSnapshot(rootName, expected, { loose = false } = {}) {
+    const rootNodes = this.snapshot.filter(
+      (node) => node.name === rootName && node.type !== 'string');
+    if (loose) {
+      assert(rootNodes.length >= expected.length,
+             `Expect to find at least ${expected.length} '${rootName}', ` +
+             `found ${rootNodes.length}`);
+    } else {
+      assert.strictEqual(
+        rootNodes.length, expected.length,
+        `Expect to find ${expected.length} '${rootName}', ` +
+        `found ${rootNodes.length}`);
+    }
 
-          const hasChild = snapshot.some((node) => {
-            return node.outgoingEdges.map((edge) => edge.toNode).some(check);
-          });
+    for (const expectation of expected) {
+      if (expectation.children) {
+        for (const expectedEdge of expectation.children) {
+          const check = typeof expectedEdge === 'function' ? expectedEdge :
+            (edge) => (isEdge(edge, expectedEdge));
+          const hasChild = rootNodes.some(
+            (node) => node.outgoingEdges.some(check)
+          );
           // Don't use assert with a custom message here. Otherwise the
           // inspection in the message is done eagerly and wastes a lot of CPU
           // time.
           if (!hasChild) {
             throw new Error(
               'expected to find child ' +
-              `${util.inspect(expectedChild)} in ${util.inspect(snapshot)}`);
+              `${util.inspect(expectedEdge)} in ${inspectNode(rootNodes)}`);
           }
         }
       }
     }
+  }
 
-    const graph = this.embedderGraph.filter((node) => node.name === name);
-    if (loose)
-      assert(graph.length >= expected.length);
-    else
-      assert.strictEqual(graph.length, expected.length);
-    for (const expectedNode of expected) {
-      if (expectedNode.children) {
-        for (const expectedChild of expectedNode.children) {
-          const check = (edge) => {
-            // TODO(joyeecheung): check the edge names
-            const node = edge.to;
-            if (typeof expectedChild === 'function') {
-              return expectedChild(node);
-            }
-            return node.name === expectedChild.name ||
-              (node.value &&
-                node.value.constructor &&
-                node.value.constructor.name === expectedChild.name);
-          };
-
+  // Validate our internal embedded graph representation
+  validateGraph(rootName, expected, { loose = false } = {}) {
+    const rootNodes = this.embedderGraph.filter(
+      (node) => node.name === rootName
+    );
+    if (loose) {
+      assert(rootNodes.length >= expected.length,
+             `Expect to find at least ${expected.length} '${rootName}', ` +
+             `found ${rootNodes.length}`);
+    } else {
+      assert.strictEqual(
+        rootNodes.length, expected.length,
+        `Expect to find ${expected.length} '${rootName}', ` +
+        `found ${rootNodes.length}`);
+    }
+    for (const expectation of expected) {
+      if (expectation.children) {
+        for (const expectedEdge of expectation.children) {
+          const check = typeof expectedEdge === 'function' ? expectedEdge :
+            (edge) => (isEdge(edge, expectedEdge));
           // Don't use assert with a custom message here. Otherwise the
           // inspection in the message is done eagerly and wastes a lot of CPU
           // time.
-          const hasChild = graph.some((node) => node.edges.some(check));
+          const hasChild = rootNodes.some(
+            (node) => node.edges.some(check)
+          );
           if (!hasChild) {
             throw new Error(
               'expected to find child ' +
-              `${util.inspect(expectedChild)} in ${util.inspect(snapshot)}`);
+              `${util.inspect(expectedEdge)} in ${inspectNode(rootNodes)}`);
           }
         }
       }
     }
+  }
+
+  validateSnapshotNodes(rootName, expected, { loose = false } = {}) {
+    this.validateSnapshot(rootName, expected, { loose });
+    this.validateGraph(rootName, expected, { loose });
   }
 }
 

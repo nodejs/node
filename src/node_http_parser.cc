@@ -157,11 +157,11 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("current_buffer", current_buffer_);
   }
 
-  ADD_MEMORY_INFO_NAME(Parser)
+  SET_MEMORY_INFO_NAME(Parser)
+  SET_SELF_SIZE(Parser)
 
   int on_message_begin() {
     num_fields_ = num_values_ = 0;

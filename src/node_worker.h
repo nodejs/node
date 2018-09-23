@@ -26,15 +26,15 @@ class Worker : public AsyncWrap {
   void JoinThread();
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-    tracker->TrackFieldWithSize("isolate_data", sizeof(IsolateData));
-    tracker->TrackFieldWithSize("env", sizeof(Environment));
-    tracker->TrackFieldWithSize("thread_exit_async", sizeof(uv_async_t));
+    tracker->TrackFieldWithSize(
+        "isolate_data", sizeof(IsolateData), "IsolateData");
+    tracker->TrackFieldWithSize("env", sizeof(Environment), "Environment");
+    tracker->TrackField("thread_exit_async", *thread_exit_async_);
     tracker->TrackField("parent_port", parent_port_);
   }
 
-
-  ADD_MEMORY_INFO_NAME(Worker)
+  SET_MEMORY_INFO_NAME(Worker)
+  SET_SELF_SIZE(Worker)
 
   bool is_stopped() const;
 
