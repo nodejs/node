@@ -2266,6 +2266,12 @@ static int GetDebugSignalHandlerMappingName(DWORD pid, wchar_t* buf,
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
+
+  if (args.Length() != 1) {
+    env->ThrowError("Invalid number of arguments.");
+    return;
+  }
+
   HANDLE process = nullptr;
   HANDLE thread = nullptr;
   HANDLE mapping = nullptr;
@@ -2273,10 +2279,16 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   LPTHREAD_START_ROUTINE* handler = nullptr;
   DWORD pid = 0;
 
-  if (args.Length() != 1) {
-    env->ThrowError("Invalid number of arguments.");
-    goto out;
-  }
+  OnScopeLeave cleanup([&]() {
+    if (process != nullptr)
+      CloseHandle(process);
+    if (thread != nullptr)
+      CloseHandle(thread);
+    if (handler != nullptr)
+      UnmapViewOfFile(handler);
+    if (mapping != nullptr)
+      CloseHandle(mapping);
+  });
 
   CHECK(args[0]->IsNumber());
   pid = args[0].As<Integer>()->Value();
@@ -2289,14 +2301,14 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   if (process == nullptr) {
     isolate->ThrowException(
         WinapiErrnoException(isolate, GetLastError(), "OpenProcess"));
-    goto out;
+    return;
   }
 
   if (GetDebugSignalHandlerMappingName(pid,
                                        mapping_name,
                                        arraysize(mapping_name)) < 0) {
     env->ThrowErrnoException(errno, "sprintf");
-    goto out;
+    return;
   }
 
   mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, mapping_name);
@@ -2304,7 +2316,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     isolate->ThrowException(WinapiErrnoException(isolate,
                                              GetLastError(),
                                              "OpenFileMappingW"));
-    goto out;
+    return;
   }
 
   handler = reinterpret_cast<LPTHREAD_START_ROUTINE*>(
@@ -2316,7 +2328,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   if (handler == nullptr || *handler == nullptr) {
     isolate->ThrowException(
         WinapiErrnoException(isolate, GetLastError(), "MapViewOfFile"));
-    goto out;
+    return;
   }
 
   thread = CreateRemoteThread(process,
@@ -2330,7 +2342,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     isolate->ThrowException(WinapiErrnoException(isolate,
                                                  GetLastError(),
                                                  "CreateRemoteThread"));
-    goto out;
+    return;
   }
 
   // Wait for the thread to terminate
@@ -2338,18 +2350,8 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     isolate->ThrowException(WinapiErrnoException(isolate,
                                                  GetLastError(),
                                                  "WaitForSingleObject"));
-    goto out;
+    return;
   }
-
- out:
-  if (process != nullptr)
-    CloseHandle(process);
-  if (thread != nullptr)
-    CloseHandle(thread);
-  if (handler != nullptr)
-    UnmapViewOfFile(handler);
-  if (mapping != nullptr)
-    CloseHandle(mapping);
 }
 #endif  // _WIN32
 
