@@ -42,7 +42,8 @@ gatherStderr.on('data', common.mustCallAtLeast((chunk) => {
   if (accumulated.includes('Error:') && !finished) {
     assert(
       accumulated.includes('ENOSPC: System limit for number ' +
-                           'of file watchers reached'),
+                           'of file watchers reached') ||
+      accumulated.includes('EMFILE: '),
       accumulated);
     console.log(`done after ${processes.length} processes, cleaning up`);
     finished = true;
