@@ -108,11 +108,11 @@ class NodeBIO : public MemoryRetainer {
   static NodeBIO* FromBIO(BIO* bio);
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-    tracker->TrackFieldWithSize("buffer", length_);
+    tracker->TrackFieldWithSize("buffer", length_, "NodeBIO::Buffer");
   }
 
-  ADD_MEMORY_INFO_NAME(NodeBIO)
+  SET_MEMORY_INFO_NAME(NodeBIO)
+  SET_SELF_SIZE(NodeBIO)
 
  private:
   static int New(BIO* bio);

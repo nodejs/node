@@ -4,13 +4,13 @@ require('../common');
 const { validateSnapshotNodes } = require('../common/heap');
 const fs = require('fs').promises;
 
-validateSnapshotNodes('FSReqPromise', []);
+validateSnapshotNodes('Node / FSReqPromise', []);
 fs.stat(__filename);
-validateSnapshotNodes('FSReqPromise', [
+validateSnapshotNodes('Node / FSReqPromise', [
   {
     children: [
-      { name: 'FSReqPromise' },
-      { name: 'Float64Array' }  // Stat array
+      { node_name: 'FSReqPromise', edge_name: 'wrapped' },
+      { node_name: 'Float64Array', edge_name: 'stats_field_array' }
     ]
   }
 ]);

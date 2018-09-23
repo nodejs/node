@@ -57,7 +57,8 @@ class Message : public MemoryRetainer {
 
   void MemoryInfo(MemoryTracker* tracker) const override;
 
-  ADD_MEMORY_INFO_NAME(Message)
+  SET_MEMORY_INFO_NAME(Message)
+  SET_SELF_SIZE(Message)
 
  private:
   MallocedBuffer<char> main_message_buf_;
@@ -100,7 +101,8 @@ class MessagePortData : public MemoryRetainer {
 
   void MemoryInfo(MemoryTracker* tracker) const override;
 
-  ADD_MEMORY_INFO_NAME(MessagePortData)
+  SET_MEMORY_INFO_NAME(MessagePortData)
+  SET_SELF_SIZE(MessagePortData)
 
  private:
   // After disentangling this message port, the owner handle (if any)
@@ -187,11 +189,11 @@ class MessagePort : public HandleWrap {
   inline bool IsDetached() const;
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("data", data_);
   }
 
-  ADD_MEMORY_INFO_NAME(MessagePort)
+  SET_MEMORY_INFO_NAME(MessagePort)
+  SET_SELF_SIZE(MessagePort)
 
  private:
   void OnClose() override;

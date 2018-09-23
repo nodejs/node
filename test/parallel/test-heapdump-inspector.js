@@ -8,14 +8,16 @@ const { validateSnapshotNodes } = require('../common/heap');
 const inspector = require('inspector');
 
 const session = new inspector.Session();
-validateSnapshotNodes('JSBindingsConnection', []);
+validateSnapshotNodes('Node / JSBindingsConnection', []);
 session.connect();
-validateSnapshotNodes('JSBindingsConnection', [
+validateSnapshotNodes('Node / JSBindingsConnection', [
   {
     children: [
-      { name: 'session' },
-      { name: 'Connection' },
-      (node) => node.type === 'closure' || typeof node.value === 'function'
+      { node_name: 'Node / InspectorSession', edge_name: 'session' },
+      { node_name: 'Connection', edge_name: 'wrapped' },
+      (edge) => edge.name === 'callback' &&
+        (edge.to.type === undefined || // embedded graph
+         edge.to.type === 'closure') // snapshot
     ]
   }
 ]);

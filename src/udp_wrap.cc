@@ -56,11 +56,9 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
   inline bool have_callback() const;
   size_t msg_size;
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
-
-  ADD_MEMORY_INFO_NAME(SendWrap)
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(SendWrap)
+  SET_SELF_SIZE(SendWrap)
 
  private:
   const bool have_callback_;

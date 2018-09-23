@@ -33,11 +33,6 @@ namespace node {
 
 class Environment;
 
-#define ADD_MEMORY_INFO_NAME(name)                                          \
-  std::string MemoryInfoName() const override {                             \
-    return #name;                                                           \
-  }
-
 class BaseObject : public MemoryRetainer {
  public:
   // Associates this object with `object`. It uses the 0th internal field for

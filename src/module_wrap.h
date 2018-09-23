@@ -34,12 +34,12 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Object> meta);
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("url", url_);
     tracker->TrackField("resolve_cache", resolve_cache_);
   }
 
-  ADD_MEMORY_INFO_NAME(ModuleWrap)
+  SET_MEMORY_INFO_NAME(ModuleWrap)
+  SET_SELF_SIZE(ModuleWrap)
 
  private:
   ModuleWrap(Environment* env,
