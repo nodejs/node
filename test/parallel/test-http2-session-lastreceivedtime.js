@@ -15,7 +15,7 @@ const assert = require('assert');
 
 const server = createServer();
 server.on('stream', mustCall((stream) => {
-  assert(stream.session.lastReceivedTime > 0);
+  assert(stream.session.getLastReceivedTime() > 0);
   stream.respond();
   stream.end('ok');
 }));
@@ -25,7 +25,7 @@ server.listen(0, mustCall(() => {
 
   const req = client.request();
   req.on('response', mustCall(() => {
-    assert(client.lastReceivedTime > 0);
+    assert(client.getLastReceivedTime() > 0);
   }));
   req.resume();
   req.on('close', mustCall(() => {
