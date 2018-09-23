@@ -257,7 +257,7 @@ void InitializeStreamPipe(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "StreamPipe");
   env->SetProtoMethod(pipe, "unpipe", StreamPipe::Unpipe);
   env->SetProtoMethod(pipe, "start", StreamPipe::Start);
-  AsyncWrap::AddWrapMethods(env, pipe);
+  pipe->Inherit(AsyncWrap::GetConstructorTemplate(env));
   pipe->SetClassName(stream_pipe_string);
   pipe->InstanceTemplate()->SetInternalFieldCount(1);
   target
