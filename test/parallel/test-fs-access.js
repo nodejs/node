@@ -14,12 +14,9 @@ const { UV_ENOENT } = internalBinding('uv');
 
 const tmpdir = require('../common/tmpdir');
 
-const { doesNotExist, readOnlyFile, readWriteFile } = Object.assign(
-  ...Object.entries({
-    doesNotExist: '__this_should_not_exist',
-    readOnlyFile: 'read_only_file',
-    readWriteFile: 'read_write_file'
-  }).map(([k, v]) => ({ [k]: path.join(tmpdir.path, v) })));
+const doesNotExist = path.join(tmpdir.path, '__this_should_not_exist');
+const readOnlyFile = path.join(tmpdir.path, 'read_only_file');
+const readWriteFile = path.join(tmpdir.path, 'read_write_file');
 
 
 function createFileWithPerms(file, mode) {

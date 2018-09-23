@@ -39,16 +39,14 @@ const data = '南越国是前203年至前111年存在于岭南地区的一个国
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// test that empty file will be created and have content added
-const { filename, filename2, filename3, filename4, filename5 } =
-  Object.assign(...Object.entries({
-    filename: 'append-sync.txt',
-    filename2: 'append-sync2.txt',
-    filename3: 'append-sync3.txt',
-    filename4: 'append-sync4.txt',
-    filename5: 'append-sync5.txt'
-  }).map(([k, v]) => ({ [k]: join(tmpdir.path, v) })));
+// the used files
+const filename = join(tmpdir.path, 'append-sync.txt');
+const filename2 = join(tmpdir.path, 'append-sync2.txt');
+const filename3 = join(tmpdir.path, 'append-sync3.txt');
+const filename4 = join(tmpdir.path, 'append-sync4.txt');
+const filename5 = join(tmpdir.path, 'append-sync5.txt');
 
+// test that empty file will be created and have content added
 fs.appendFileSync(filename, data);
 
 const fileData = fs.readFileSync(filename);
