@@ -421,7 +421,7 @@ MessagePort::MessagePort(Environment* env,
   async()->data = static_cast<void*>(this);
 
   Local<Value> fn;
-  if (!wrap->Get(context, env->oninit_string()).ToLocal(&fn))
+  if (!wrap->Get(context, env->oninit_symbol()).ToLocal(&fn))
     return;
 
   if (fn->IsFunction()) {
