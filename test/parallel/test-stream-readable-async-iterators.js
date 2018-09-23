@@ -5,6 +5,28 @@ const { Readable } = require('stream');
 const assert = require('assert');
 
 async function tests() {
+  {
+    const AsyncIteratorPrototype = Object.getPrototypeOf(
+      Object.getPrototypeOf(async function* () {}).prototype);
+    const rs = new Readable({});
+    assert.strictEqual(
+      Object.getPrototypeOf(Object.getPrototypeOf(rs[Symbol.asyncIterator]())),
+      AsyncIteratorPrototype);
+  }
+
+  await (async function() {
+    const readable = new Readable({ objectMode: true, read() {} });
+    readable.push(0);
+    readable.push(1);
+    readable.push(null);
+
+    const iter = readable[Symbol.asyncIterator]();
+    assert.strictEqual((await iter.next()).value, 0);
+    for await (const d of iter) {
+      assert.strictEqual(d, 1);
+    }
+  })();
+
   await (async function() {
     console.log('read without for..await');
     const max = 5;
