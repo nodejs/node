@@ -73,8 +73,8 @@ class HandleWrap : public AsyncWrap {
   virtual void Close(
       v8::Local<v8::Value> close_callback = v8::Local<v8::Value>());
 
-  static void AddWrapMethods(Environment* env,
-                             v8::Local<v8::FunctionTemplate> constructor);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
 
  protected:
   HandleWrap(Environment* env,

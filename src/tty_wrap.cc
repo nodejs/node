@@ -24,7 +24,6 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
-#include "node_wrap.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
@@ -52,10 +51,7 @@ void TTYWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(ttyString);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-
-  AsyncWrap::AddWrapMethods(env, t);
-  HandleWrap::AddWrapMethods(env, t);
-  LibuvStreamWrap::AddMethods(env, t);
+  t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethodNoSideEffect(t, "getWindowSize", TTYWrap::GetWindowSize);
   env->SetProtoMethod(t, "setRawMode", SetRawMode);

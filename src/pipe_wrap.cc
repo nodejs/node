@@ -28,7 +28,6 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "node_internals.h"
-#include "node_wrap.h"
 #include "connect_wrap.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
@@ -78,9 +77,7 @@ void PipeWrap::Initialize(Local<Object> target,
   t->SetClassName(pipeString);
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  AsyncWrap::AddWrapMethods(env, t);
-  HandleWrap::AddWrapMethods(env, t);
-  LibuvStreamWrap::AddMethods(env, t);
+  t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "listen", Listen);
@@ -98,7 +95,7 @@ void PipeWrap::Initialize(Local<Object> target,
 
   // Create FunctionTemplate for PipeConnectWrap.
   auto cwt = BaseObject::MakeLazilyInitializedJSTemplate(env);
-  AsyncWrap::AddWrapMethods(env, cwt);
+  cwt->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap");
   cwt->SetClassName(wrapString);
