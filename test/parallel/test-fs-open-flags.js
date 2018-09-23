@@ -30,8 +30,16 @@ const fs = require('fs');
 const path = require('path');
 
 // 0 if not found in fs.constants
-const { O_APPEND = 0, O_CREAT = 0, O_EXCL = 0, O_RDONLY = 0, O_RDWR = 0,
-        O_SYNC = 0, O_DSYNC = 0, O_TRUNC = 0, O_WRONLY = 0 } = fs.constants;
+const { O_APPEND = 0,
+        O_CREAT = 0,
+        O_EXCL = 0,
+        O_RDONLY = 0,
+        O_RDWR = 0,
+        O_SYNC = 0,
+        O_DSYNC = 0,
+        O_TRUNC = 0,
+        O_WRONLY = 0
+} = fs.constants;
 
 const { stringToFlags } = require('internal/fs/utils');
 
