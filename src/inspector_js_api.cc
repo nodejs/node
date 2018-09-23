@@ -307,7 +307,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
       env->NewFunctionTemplate(JSBindingsConnection::New);
   tmpl->InstanceTemplate()->SetInternalFieldCount(1);
   tmpl->SetClassName(conn_str);
-  AsyncWrap::AddWrapMethods(env, tmpl);
+  tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(tmpl, "dispatch", JSBindingsConnection::Dispatch);
   env->SetProtoMethod(tmpl, "disconnect", JSBindingsConnection::Disconnect);
   target

@@ -20,10 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "env-inl.h"
-#include "handle_wrap.h"
 #include "node_internals.h"
-#include "node_wrap.h"
 #include "stream_base-inl.h"
+#include "stream_wrap.h"
 #include "util-inl.h"
 
 #include <string.h>
@@ -58,8 +57,7 @@ class ProcessWrap : public HandleWrap {
         FIXED_ONE_BYTE_STRING(env->isolate(), "Process");
     constructor->SetClassName(processString);
 
-    AsyncWrap::AddWrapMethods(env, constructor);
-    HandleWrap::AddWrapMethods(env, constructor);
+    constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
     env->SetProtoMethod(constructor, "spawn", Spawn);
     env->SetProtoMethod(constructor, "kill", Kill);
@@ -92,6 +90,17 @@ class ProcessWrap : public HandleWrap {
     MarkAsUninitialized();
   }
 
+  static uv_stream_t* StreamForWrap(Environment* env, Local<Object> stdio) {
+    Local<String> handle_key = env->handle_string();
+    // This property has always been set by JS land if we are in this code path.
+    Local<Object> handle =
+        stdio->Get(env->context(), handle_key).ToLocalChecked().As<Object>();
+
+    uv_stream_t* stream = LibuvStreamWrap::From(env, handle)->stream();
+    CHECK_NOT_NULL(stream);
+    return stream;
+  }
+
   static void ParseStdioOptions(Environment* env,
                                 Local<Object> js_options,
                                 uv_process_options_t* options) {
@@ -115,22 +124,10 @@ class ProcessWrap : public HandleWrap {
       } else if (type->StrictEquals(env->pipe_string())) {
         options->stdio[i].flags = static_cast<uv_stdio_flags>(
             UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE);
-        Local<String> handle_key = env->handle_string();
-        Local<Object> handle =
-            stdio->Get(context, handle_key).ToLocalChecked().As<Object>();
-        CHECK(!handle.IsEmpty());
-        options->stdio[i].data.stream =
-            reinterpret_cast<uv_stream_t*>(
-                Unwrap<PipeWrap>(handle)->UVHandle());
+        options->stdio[i].data.stream = StreamForWrap(env, stdio);
       } else if (type->StrictEquals(env->wrap_string())) {
-        Local<String> handle_key = env->handle_string();
-        Local<Object> handle =
-            stdio->Get(context, handle_key).ToLocalChecked().As<Object>();
-        uv_stream_t* stream = HandleToStream(env, handle);
-        CHECK_NOT_NULL(stream);
-
         options->stdio[i].flags = UV_INHERIT_STREAM;
-        options->stdio[i].data.stream = stream;
+        options->stdio[i].data.stream = StreamForWrap(env, stdio);
       } else {
         Local<String> fd_key = env->fd_string();
         Local<Value> fd_value = stdio->Get(context, fd_key).ToLocalChecked();

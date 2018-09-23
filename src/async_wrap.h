@@ -104,11 +104,6 @@ class AsyncWrap : public BaseObject {
     PROVIDERS_LENGTH,
   };
 
-  enum Flags {
-    kFlagNone = 0x0,
-    kFlagHasReset = 0x1
-  };
-
   AsyncWrap(Environment* env,
             v8::Local<v8::Object> object,
             ProviderType provider,
@@ -116,9 +111,8 @@ class AsyncWrap : public BaseObject {
 
   virtual ~AsyncWrap();
 
-  static void AddWrapMethods(Environment* env,
-                             v8::Local<v8::FunctionTemplate> constructor,
-                             int flags = kFlagNone);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
 
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
