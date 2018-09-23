@@ -3,16 +3,16 @@
 require('../common');
 const { validateSnapshotNodes } = require('../common/heap');
 
-validateSnapshotNodes('ChannelWrap', []);
+validateSnapshotNodes('Node / ChannelWrap', []);
 const dns = require('dns');
-validateSnapshotNodes('ChannelWrap', [{}]);
+validateSnapshotNodes('Node / ChannelWrap', [{}]);
 dns.resolve('localhost', () => {});
-validateSnapshotNodes('ChannelWrap', [
+validateSnapshotNodes('Node / ChannelWrap', [
   {
     children: [
-      { name: 'node_ares_task_list' },
+      { node_name: 'Node / node_ares_task_list', edge_name: 'task_list' },
       // `Node / ChannelWrap` (C++) -> `ChannelWrap` (JS)
-      { name: 'ChannelWrap' }
+      { node_name: 'ChannelWrap', edge_name: 'wrapped' }
     ]
   }
 ]);

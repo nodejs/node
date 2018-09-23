@@ -34,9 +34,9 @@ class DebugSymbolsTest : public EnvironmentTestFixture {};
 
 class TestHandleWrap : public node::HandleWrap {
  public:
-  void MemoryInfo(node::MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(TestHandleWrap)
+  SET_SELF_SIZE(TestHandleWrap)
 
   TestHandleWrap(node::Environment* env,
                  v8::Local<v8::Object> object,
@@ -50,9 +50,9 @@ class TestHandleWrap : public node::HandleWrap {
 
 class TestReqWrap : public node::ReqWrap<uv_req_t> {
  public:
-  void MemoryInfo(node::MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(TestReqWrap)
+  SET_SELF_SIZE(TestReqWrap)
 
   TestReqWrap(node::Environment* env, v8::Local<v8::Object> object)
       : node::ReqWrap<uv_req_t>(env,
@@ -76,9 +76,9 @@ class DummyBaseObject : public node::BaseObject {
   DummyBaseObject(node::Environment* env, v8::Local<v8::Object> obj) :
     BaseObject(env, obj) {}
 
-  void MemoryInfo(node::MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DummyBaseObject)
+  SET_SELF_SIZE(DummyBaseObject)
 };
 
 TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {

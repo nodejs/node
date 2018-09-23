@@ -103,15 +103,28 @@ class JSGraph : public EmbedderGraph {
       for (const std::unique_ptr<Node>& n : nodes_) {
         Local<Object> obj = info_objects[n.get()];
         Local<Value> value;
-        if (!String::NewFromUtf8(isolate_, n->Name(),
-                                 v8::NewStringType::kNormal).ToLocal(&value) ||
+        std::string name_str;
+        const char* prefix = n->NamePrefix();
+        if (prefix == nullptr) {
+          name_str = n->Name();
+        } else {
+          name_str = n->NamePrefix();
+          name_str += " ";
+          name_str += n->Name();
+        }
+        if (!String::NewFromUtf8(
+                 isolate_, name_str.c_str(), v8::NewStringType::kNormal)
+                 .ToLocal(&value) ||
             obj->Set(context, name_string, value).IsNothing() ||
-            obj->Set(context, is_root_string,
-                     Boolean::New(isolate_, n->IsRootNode())).IsNothing() ||
-            obj->Set(context, size_string,
-                     Number::New(isolate_, n->SizeInBytes())).IsNothing() ||
-            obj->Set(context, edges_string,
-                     Array::New(isolate_)).IsNothing()) {
+            obj->Set(context,
+                     is_root_string,
+                     Boolean::New(isolate_, n->IsRootNode()))
+                .IsNothing() ||
+            obj->Set(context,
+                     size_string,
+                     Number::New(isolate_, n->SizeInBytes()))
+                .IsNothing() ||
+            obj->Set(context, edges_string, Array::New(isolate_)).IsNothing()) {
           return MaybeLocal<Array>();
         }
         if (nodes->Set(context, i++, obj).IsNothing())
@@ -145,20 +158,21 @@ class JSGraph : public EmbedderGraph {
       size_t j = 0;
       for (const auto& edge : edge_info.second) {
         Local<Object> to_object = info_objects[edge.second];
-        Local<Object> edge_info = Object::New(isolate_);
+        Local<Object> edge_obj = Object::New(isolate_);
         Local<Value> edge_name_value;
         const char* edge_name = edge.first;
-        if (edge_name != nullptr &&
-            !String::NewFromUtf8(
-                 isolate_, edge_name, v8::NewStringType::kNormal)
-                 .ToLocal(&edge_name_value)) {
-          return MaybeLocal<Array>();
+        if (edge_name != nullptr) {
+          if (!String::NewFromUtf8(
+                  isolate_, edge_name, v8::NewStringType::kNormal)
+                  .ToLocal(&edge_name_value)) {
+            return MaybeLocal<Array>();
+          }
         } else {
           edge_name_value = Number::New(isolate_, j++);
         }
-        if (edge_info->Set(context, name_string, edge_name_value).IsNothing() ||
-            edge_info->Set(context, to_string, to_object).IsNothing() ||
-            edges.As<Array>()->Set(context, i++, edge_info).IsNothing()) {
+        if (edge_obj->Set(context, name_string, edge_name_value).IsNothing() ||
+            edge_obj->Set(context, to_string, to_object).IsNothing() ||
+            edges.As<Array>()->Set(context, i++, edge_obj).IsNothing()) {
           return MaybeLocal<Array>();
         }
       }
