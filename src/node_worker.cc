@@ -501,6 +501,10 @@ void InitWorker(Local<Object> target,
               thread_id_string,
               Number::New(env->isolate(),
                           static_cast<double>(env->thread_id()))).FromJust();
+  Local<String> oninit_string = FIXED_ONE_BYTE_STRING(env->isolate(), "oninit");
+  target->Set(env->context(),
+              oninit_string,
+              env->oninit_symbol()).FromJust();
 }
 
 }  // anonymous namespace
