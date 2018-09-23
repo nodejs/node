@@ -2250,7 +2250,7 @@ void Initialize(Local<Object> target,
   // Create FunctionTemplate for FSReqCallback
   Local<FunctionTemplate> fst = env->NewFunctionTemplate(NewFSReqCallback);
   fst->InstanceTemplate()->SetInternalFieldCount(1);
-  AsyncWrap::AddWrapMethods(env, fst);
+  fst->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(isolate, "FSReqCallback");
   fst->SetClassName(wrapString);
@@ -2263,7 +2263,7 @@ void Initialize(Local<Object> target,
   // to do anything in the constructor, so we only store the instance template.
   Local<FunctionTemplate> fh_rw = FunctionTemplate::New(isolate);
   fh_rw->InstanceTemplate()->SetInternalFieldCount(1);
-  AsyncWrap::AddWrapMethods(env, fh_rw);
+  fh_rw->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<String> fhWrapString =
       FIXED_ONE_BYTE_STRING(isolate, "FileHandleReqWrap");
   fh_rw->SetClassName(fhWrapString);
@@ -2272,7 +2272,7 @@ void Initialize(Local<Object> target,
 
   // Create Function Template for FSReqPromise
   Local<FunctionTemplate> fpt = FunctionTemplate::New(isolate);
-  AsyncWrap::AddWrapMethods(env, fpt);
+  fpt->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<String> promiseString =
       FIXED_ONE_BYTE_STRING(isolate, "FSReqPromise");
   fpt->SetClassName(promiseString);
@@ -2282,7 +2282,7 @@ void Initialize(Local<Object> target,
 
   // Create FunctionTemplate for FileHandle
   Local<FunctionTemplate> fd = env->NewFunctionTemplate(FileHandle::New);
-  AsyncWrap::AddWrapMethods(env, fd);
+  fd->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(fd, "close", FileHandle::Close);
   env->SetProtoMethod(fd, "releaseFD", FileHandle::ReleaseFD);
   Local<ObjectTemplate> fdt = fd->InstanceTemplate();
@@ -2301,7 +2301,7 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> fdclose = FunctionTemplate::New(isolate);
   fdclose->SetClassName(FIXED_ONE_BYTE_STRING(isolate,
                         "FileHandleCloseReq"));
-  AsyncWrap::AddWrapMethods(env, fdclose);
+  fdclose->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<ObjectTemplate> fdcloset = fdclose->InstanceTemplate();
   fdcloset->SetInternalFieldCount(1);
   env->set_fdclose_constructor_template(fdcloset);
