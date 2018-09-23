@@ -39,14 +39,9 @@ const data = '南越国是前203年至前111年存在于岭南地区的一个国
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// the used files
-const filename = join(tmpdir.path, 'append-sync.txt');
-const filename2 = join(tmpdir.path, 'append-sync2.txt');
-const filename3 = join(tmpdir.path, 'append-sync3.txt');
-const filename4 = join(tmpdir.path, 'append-sync4.txt');
-const filename5 = join(tmpdir.path, 'append-sync5.txt');
-
 // test that empty file will be created and have content added
+const filename = join(tmpdir.path, 'append-sync.txt');
+
 fs.appendFileSync(filename, data);
 
 const fileData = fs.readFileSync(filename);
@@ -54,6 +49,7 @@ const fileData = fs.readFileSync(filename);
 assert.strictEqual(Buffer.byteLength(data), fileData.length);
 
 // test that appends data to a non empty file
+const filename2 = join(tmpdir.path, 'append-sync2.txt');
 fs.writeFileSync(filename2, currentFileData);
 
 fs.appendFileSync(filename2, data);
@@ -64,6 +60,7 @@ assert.strictEqual(Buffer.byteLength(data) + currentFileData.length,
                    fileData2.length);
 
 // test that appendFileSync accepts buffers
+const filename3 = join(tmpdir.path, 'append-sync3.txt');
 fs.writeFileSync(filename3, currentFileData);
 
 const buf = Buffer.from(data, 'utf8');
@@ -74,6 +71,7 @@ const fileData3 = fs.readFileSync(filename3);
 assert.strictEqual(buf.length + currentFileData.length, fileData3.length);
 
 // test that appendFile accepts numbers.
+const filename4 = join(tmpdir.path, 'append-sync4.txt');
 fs.writeFileSync(filename4, currentFileData, { mode: m });
 
 fs.appendFileSync(filename4, num, { mode: m });
@@ -90,6 +88,7 @@ assert.strictEqual(Buffer.byteLength(String(num)) + currentFileData.length,
                    fileData4.length);
 
 // test that appendFile accepts file descriptors
+const filename5 = join(tmpdir.path, 'append-sync5.txt');
 fs.writeFileSync(filename5, currentFileData);
 
 const filename5fd = fs.openSync(filename5, 'a+', 0o600);
