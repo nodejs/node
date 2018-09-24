@@ -610,7 +610,7 @@ fail:
 
 
 void* ArrayBufferAllocator::Allocate(size_t size) {
-  if (zero_fill_field_ || zero_fill_all_buffers)
+  if (zero_fill_field_ || per_process_opts->zero_fill_all_buffers)
     return UncheckedCalloc(size);
   else
     return UncheckedMalloc(size);
@@ -1920,8 +1920,7 @@ void SetupProcessObject(Environment* env,
   }
 
   // --no-deprecation
-  // TODO(addaleax): Uncomment the commented part.
-  if (/*env->options()->*/no_deprecation) {
+  if (env->options()->no_deprecation) {
     READONLY_PROPERTY(process, "noDeprecation", True(env->isolate()));
   }
 
@@ -2442,16 +2441,6 @@ inline void PlatformInit() {
 #endif  // _WIN32
 }
 
-// TODO(addaleax): Remove, both from the public API and in implementation.
-bool no_deprecation = false;
-#if HAVE_OPENSSL
-bool ssl_openssl_cert_store = false;
-#if NODE_FIPS_MODE
-bool enable_fips_crypto = false;
-bool force_fips_crypto = false;
-#endif
-#endif
-
 void ProcessArgv(std::vector<std::string>* args,
                  std::vector<std::string>* exec_args,
                  bool is_env) {
@@ -2535,17 +2524,6 @@ void ProcessArgv(std::vector<std::string>* args,
   if (v8_args_as_char_ptr.size() > 1) {
     exit(9);
   }
-
-  // TODO(addaleax): Remove.
-  zero_fill_all_buffers = per_process_opts->zero_fill_all_buffers;
-  no_deprecation = per_process_opts->per_isolate->per_env->no_deprecation;
-#if HAVE_OPENSSL
-  ssl_openssl_cert_store = per_process_opts->ssl_openssl_cert_store;
-#if NODE_FIPS_MODE
-  enable_fips_crypto = per_process_opts->enable_fips_crypto;
-  force_fips_crypto = per_process_opts->force_fips_crypto;
-#endif
-#endif
 }
 
 
