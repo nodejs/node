@@ -245,21 +245,21 @@ C++ linting.
 If you are updating tests and just want to run a single test to check it:
 
 ```text
-$ python tools/test.py -J --mode=release parallel/test-stream2-transform
+python tools/test.py -J --mode=release parallel/test-stream2-transform
 ```
 
 You can execute the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
 ```text
-$ python tools/test.py -J --mode=release child-process
+ python tools/test.py -J --mode=release child-process
 ```
 
 If you want to check the other options, please refer to the help by using
 the `--help` option
 
 ```text
-$ python tools/test.py --help
+ python tools/test.py --help
 ```
 
 You can usually run tests directly with node:
@@ -277,7 +277,7 @@ It's good practice to ensure any code you add or change is covered by tests.
 You can do so by running the test suite with coverage enabled:
 
 ```text
-$ ./configure --coverage && make coverage
+ ./configure --coverage && make coverage
 ```
 
 A detailed coverage report will be written to `coverage/index.html` for
@@ -289,7 +289,7 @@ To collect coverage for a subset of tests you can set the `CI_JS_SUITES` and
 `CI_NATIVE_SUITES` variables:
 
 ```text
-$ CI_JS_SUITES=child-process CI_NATIVE_SUITES= make coverage
+ CI_JS_SUITES=child-process CI_NATIVE_SUITES= make coverage
 ```
 
 The above command executes tests for the `child-process` subsystem and
@@ -310,7 +310,7 @@ begin the process of opening a Pull Request by pushing your working branch to
 your fork on GitHub.
 
 ```text
-$ git push origin my-branch
+ git push origin my-branch
 ```
 
 ### Step 8: Opening the Pull Request
@@ -355,18 +355,18 @@ branch, add a new commit with those changes, and push those to your fork.
 GitHub will automatically update the Pull Request.
 
 ```text
-$ git add my/changed/files
-$ git commit
-$ git push origin my-branch
+ git add my/changed/files
+ git commit
+ git push origin my-branch
 ```
 
 It is also frequently necessary to synchronize your Pull Request with other
 changes that have landed in `master` by using `git rebase`:
 
 ```text
-$ git fetch --all
-$ git rebase origin/master
-$ git push --force-with-lease origin my-branch
+ git fetch --all
+ git rebase origin/master
+ git push --force-with-lease origin my-branch
 ```
 
 **Important:** The `git push --force-with-lease` command is one of the few ways
@@ -378,9 +378,9 @@ If you happen to make a mistake in any of your commits, do not worry. You can
 amend the last commit (for example if you want to change the commit log).
 
 ```text
-$ git add any/changed/files
-$ git commit --amend
-$ git push --force-with-lease origin my-branch
+ git add any/changed/files
+ git commit --amend
+ git push --force-with-lease origin my-branch
 ```
 
 There are a number of more advanced mechanisms for managing commits using
