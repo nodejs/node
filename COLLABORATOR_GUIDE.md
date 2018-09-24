@@ -40,19 +40,15 @@ All pull requests must be reviewed and accepted by a Collaborator with
 sufficient expertise who is able to take full responsibility for the
 change. In the case of pull requests proposed by an existing
 Collaborator, an additional Collaborator is required for sign-off.
-
 In some cases, it may be necessary to summon a qualified Collaborator
 to a pull request for review by @-mention.
-
 If you are unsure about the modification and are not prepared to take
 full responsibility for the change, defer to another Collaborator.
-
 Before landing pull requests, sufficient time should be left for input
 from other Collaborators. In general, leave at least 48 hours during the
 week and 72 hours over weekends to account for international time
 differences and work schedules. However, certain types of pull requests
 can be fast-tracked and may be landed after a shorter delay. For example:
-
 * Focused changes that affect only documentation and/or the test suite:
   * `code-and-learn` tasks typically fall into this category.
   * `good-first-issue` pull requests may also be suitable.
@@ -75,13 +71,10 @@ test should *fail* before the change, and *pass* after the change.
 All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
-
 ### Involving the TC
-
 Collaborators may opt to elevate pull requests or issues to the TC for
 discussion by assigning the ***tc-agenda*** tag. This should be done
 where a pull request:
-
 - has a significant impact on the codebase,
 - is inherently controversial; or
 - has failed to reach consensus amongst the Collaborators who are
@@ -90,10 +83,8 @@ where a pull request:
 The TC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
-
 Always modify the original commit message to include additional meta
 information regarding the change process:
-
 - A `Reviewed-By: Name <email>` line for yourself and any
   other Collaborators who have reviewed the change.
 - A `PR-URL:` line that references the full GitHub URL of the original
@@ -107,9 +98,7 @@ information regarding the change process:
 See the commit log for examples such as
 [this one](https://github.com/nodejs/node/commit/b636ba8186) if unsure
 exactly how to format your commit messages.
-
 Additionally:
-
 - Double check PRs to make sure the person's _full name_ and email
   address are correct before merging.
 - Except when updating dependencies, all commits should be self
@@ -117,7 +106,6 @@ Additionally:
   it much easier when bisecting to find a breaking change.
 
 ### Technical HOWTO
-
 _Optional:_ ensure that you are not in a borked `am`/`rebase` state
 
 ```text
