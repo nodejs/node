@@ -35,10 +35,11 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 class TTYTestCase(test.TestCase):
 
-  def __init__(self, path, file, expected, arch, mode, context, config):
+  def __init__(self, path, file, expected, input, arch, mode, context, config):
     super(TTYTestCase, self).__init__(context, path, arch, mode)
     self.file = file
     self.expected = expected
+    self.input = input
     self.config = config
     self.arch = arch
     self.mode = mode
@@ -104,12 +105,16 @@ class TTYTestCase(test.TestCase):
           + open(self.expected).read())
 
   def RunCommand(self, command, env):
+    input = None
+    if self.input is not None and exists(self.input):
+      input = open(self.input).read()
     full_command = self.context.processor(command)
     output = test.Execute(full_command,
                      self.context,
                      self.context.GetTimeout(self.mode),
                      env,
-                     True)
+                     faketty=True,
+                     input=input)
     return test.TestOutput(self,
                       full_command,
                       output,
@@ -139,11 +144,12 @@ class TTYTestConfiguration(test.TestConfiguration):
       if self.Contains(path, test):
         file_prefix = join(self.root, reduce(join, test[1:], ""))
         file_path = file_prefix + ".js"
+        input_path = file_prefix + ".in"
         output_path = file_prefix + ".out"
         if not exists(output_path):
           raise Exception("Could not find %s" % output_path)
         result.append(TTYTestCase(test, file_path, output_path,
-                                      arch, mode, self.context, self))
+                                  input_path, arch, mode, self.context, self))
     return result
 
   def GetBuildRequirements(self):
