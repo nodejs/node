@@ -2079,7 +2079,7 @@ An attempt has been made to create a string larger than the maximum allowed
 size.
 
 <a id="ERR_TTY_WRITABLE_NOT_READABLE"></a>
-### ERR_TTY_WRITABLE_NOT_READABLE
+#### ERR_TTY_WRITABLE_NOT_READABLE
 
 This `Error` is thrown when a read is attempted on a TTY `WriteStream`,
 such as `process.stdout.on('data')`.
