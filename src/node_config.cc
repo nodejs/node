@@ -56,7 +56,7 @@ static void Initialize(Local<Object> target,
 #ifdef NODE_FIPS_MODE
   READONLY_BOOLEAN_PROPERTY("fipsMode");
   // TODO(addaleax): Use options parser variable instead.
-  if (force_fips_crypto)
+  if (per_process_opts->force_fips_crypto)
     READONLY_BOOLEAN_PROPERTY("fipsForced");
 #endif
 

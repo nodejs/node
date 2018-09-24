@@ -27,10 +27,6 @@
 
 namespace node {
 
-// TODO(addaleax): Remove this.
-NODE_DEPRECATED("use command-line flags",
-                extern bool zero_fill_all_buffers);
-
 namespace Buffer {
 
 static const unsigned int kMaxLength = v8::TypedArray::kMaxLength;
