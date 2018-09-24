@@ -705,12 +705,23 @@ def CheckedUnlink(name):
       PrintError("os.unlink() " + str(e))
     break
 
-def Execute(args, context, timeout=None, env={}, faketty=False, disable_core_files=False):
+def Execute(args, context, timeout=None, env={}, faketty=False, disable_core_files=False, input=None):
   if faketty:
     import pty
     (out_master, fd_out) = pty.openpty()
     fd_in = fd_err = fd_out
     pty_out = out_master
+
+    if input is not None:
+      # Before writing input data, disable echo so the input doesn't show
+      # up as part of the output.
+      import termios
+      attr = termios.tcgetattr(fd_in)
+      attr[3] = attr[3] & ~termios.ECHO
+      termios.tcsetattr(fd_in, termios.TCSADRAIN, attr)
+
+      os.write(pty_out, input)
+      os.write(pty_out, '\x04') # End-of-file marker (Ctrl+D)
   else:
     (fd_out, outname) = tempfile.mkstemp()
     (fd_err, errname) = tempfile.mkstemp()
