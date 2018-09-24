@@ -703,7 +703,7 @@ push it upstream, and will mark it with the purple merged status rather than the
 red closed status. If you close the PR before GitHub adjusts its status, it will
 show up as a 0 commit PR and the changed file history will be empty. Also if you
 push upstream before you push to your branch, GitHub will close the issue with
-red status so the order of operations important.
+red status so the order of operations is important.
 
 Time to push it:
 
