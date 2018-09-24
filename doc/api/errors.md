@@ -2059,6 +2059,13 @@ instance.setEncoding('utf8');
 An attempt has been made to create a string larger than the maximum allowed
 size.
 
+<a id="ERR_TTY_WRITABLE_NOT_READABLE"></a>
+#### ERR_TTY_WRITABLE_NOT_READABLE
+
+This `Error` is thrown when a read is attempted on a TTY `WriteStream`,
+such as `process.stdout.on('data')`.
+
+
 [`--force-fips`]: cli.html#cli_force_fips
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`child_process`]: child_process.html
