@@ -22,8 +22,8 @@
 #include "node_stat_watcher.h"
 #include "node_internals.h"
 #include "async_wrap-inl.h"
-#include "env-inl.h"
-#include "util-inl.h"
+#include "env.h"
+#include "node_file.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -80,15 +80,10 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  Local<Value> arr = node::FillGlobalStatsArray(env, curr,
-                                                wrap->use_bigint_);
-  node::FillGlobalStatsArray(env, prev, wrap->use_bigint_,
-                             env->kFsStatsFieldsLength);
+  Local<Value> arr = fs::FillGlobalStatsArray(env, wrap->use_bigint_, curr);
+  USE(fs::FillGlobalStatsArray(env, wrap->use_bigint_, prev, true));
 
-  Local<Value> argv[2] {
-    Integer::New(env->isolate(), status),
-    arr
-  };
+  Local<Value> argv[2] = { Integer::New(env->isolate(), status), arr };
   wrap->MakeCallback(env->onchange_string(), arraysize(argv), argv);
 }
 

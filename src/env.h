@@ -84,9 +84,12 @@ struct PackageConfig {
 
 // The number of items passed to push_values_to_array_function has diminishing
 // returns around 8. This should be used at all call sites using said function.
-#ifndef NODE_PUSH_VAL_TO_ARRAY_MAX
-#define NODE_PUSH_VAL_TO_ARRAY_MAX 8
-#endif
+constexpr size_t NODE_PUSH_VAL_TO_ARRAY_MAX = 8;
+
+// Stat fields buffers contain twice the number of entries in an uv_stat_t
+// because `fs.StatWatcher` needs room to store 2 `fs.Stats` instances.
+constexpr size_t kFsStatsFieldsNumber = 14;
+constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
 
 // PER_ISOLATE_* macros: We have a lot of per-isolate properties
 // and adding and maintaining their getters and setters by hand would be
@@ -709,10 +712,6 @@ class Environment {
   inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
   inline AliasedBuffer<uint64_t, v8::BigUint64Array>*
       fs_stats_field_bigint_array();
-
-  // stat fields contains twice the number of entries because `fs.StatWatcher`
-  // needs room to store data for *two* `fs.Stats` instances.
-  static const int kFsStatsFieldsLength = 14;
 
   inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
       file_handle_read_wrap_freelist();
