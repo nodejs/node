@@ -282,8 +282,31 @@ Make sure that you specify the architecture you wish to build for in the
 
 Run:
 
+For arm
+
 ```bash
-$ source ./android-configure NDK_PATH gyp [API_LEVEL]
+$ source ./android-configure-arm NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+or for arm64
+
+```bash
+$ source ./android-configure-arm64 NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+or for x86
+
+```bash
+$ source ./android-configure-x86 NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+or for x86_64
+
+```bash
+$ source ./android-configure-x86_64 NDK_PATH gyp [API_LEVEL]
 $ make -C out
 ```
 
@@ -310,13 +333,65 @@ $ ninja -C out/Release
 
 ### Running tests
 
-Run:
+#### Build
+
+Build (includes tests):
 
 ```bash
 $ ./gyp_uv.py -f make
 $ make -C out
+```
+
+#### Run all tests
+
+```bash
 $ ./out/Debug/run-tests
 ```
+
+#### Run one test
+
+The list of all tests is in `test/test-list.h`.
+
+This invocation will cause the `run-tests` driver to fork and execute `TEST_NAME` in a child process:
+
+```bash
+$ ./out/Debug/run-tests TEST_NAME
+```
+
+This invocation will cause the `run-tests` driver to execute the test within the `run-tests` process:
+
+```bash
+$ ./out/Debug/run-tests TEST_NAME TEST_NAME
+```
+
+#### Debugging tools
+
+When running the test from within the `run-tests` process (`run-tests TEST_NAME TEST_NAME`), tools like gdb and valgrind work normally.
+When running the test from a child of the `run-tests` process (`run-tests TEST_NAME`), use these tools in a fork-aware manner.
+
+##### Fork-aware gdb
+
+Use the [follow-fork-mode](https://sourceware.org/gdb/onlinedocs/gdb/Forks.html) setting:
+
+```
+$ gdb --args out/Debug/run-tests TEST_NAME
+
+(gdb) set follow-fork-mode child
+...
+```
+
+##### Fork-aware valgrind
+
+Use the `--trace-children=yes` parameter:
+
+```bash
+$ valgrind --trace-children=yes -v --tool=memcheck --leak-check=full --track-origins=yes --leak-resolution=high --show-reachable=yes --log-file=memcheck.log out/Debug/run-tests TEST_NAME
+```
+
+### Running benchmarks
+
+See the section on running tests.
+The benchmark driver is `out/Debug/run-benchmarks` and the benchmarks are listed in `test/benchmark-list.h`.
 
 ## Supported Platforms
 
