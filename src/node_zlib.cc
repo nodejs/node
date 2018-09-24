@@ -773,7 +773,7 @@ void Initialize(Local<Object> target,
 
   Local<String> zlibString = FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib");
   z->SetClassName(zlibString);
-  target->Set(zlibString, z->GetFunction());
+  target->Set(zlibString, z->GetFunction(env->context()).ToLocalChecked());
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
