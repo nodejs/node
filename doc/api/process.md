@@ -1797,8 +1797,6 @@ a [Writable][] stream.
 `process.stderr` differs from other Node.js streams in important ways, see
 [note on process I/O][] for more information.
 
-This feature is not available in [`Worker`][] threads.
-
 ## process.stdin
 
 * {Stream}
@@ -1831,8 +1829,6 @@ In "old" streams mode the `stdin` stream is paused by default, so one
 must call `process.stdin.resume()` to read from it. Note also that calling
 `process.stdin.resume()` itself would switch stream to "old" mode.
 
-This feature is not available in [`Worker`][] threads.
-
 ## process.stdout
 
 * {Stream}
@@ -1850,8 +1846,6 @@ process.stdin.pipe(process.stdout);
 
 `process.stdout` differs from other Node.js streams in important ways, see
 [note on process I/O][] for more information.
-
-This feature is not available in [`Worker`][] threads.
 
 ### A note on process I/O
 
