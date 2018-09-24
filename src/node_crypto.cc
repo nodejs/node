@@ -5725,6 +5725,16 @@ void Initialize(Local<Object> target,
 #endif  // OPENSSL_NO_SCRYPT
 }
 
+std::string GetOpenSSLVersion() {
+  // sample openssl version string format
+  // for reference: "OpenSSL 1.1.0i  14 Aug 2018"
+  std::string ssl(OPENSSL_VERSION_TEXT);
+  size_t first = ssl.find(" ");
+  size_t second = ssl.find(" ", first + 1);
+  CHECK_GT(second, first);
+  return ssl.substr(first + 1, second - first - 1);
+}
+
 }  // namespace crypto
 }  // namespace node
 
