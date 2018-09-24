@@ -65,9 +65,13 @@ assert.deepEqual(arr, buf);
     () => assert.deepStrictEqual(buf2, buf),
     {
       code: 'ERR_ASSERTION',
-      message: `${defaultMsgStartFull}\n\n` +
-               '  Buffer [Uint8Array] [\n    120,\n    121,\n    122,\n' +
-               '+   10,\n+   prop: 1\n-   10\n  ]'
+      message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
+               '  Buffer [Uint8Array] [\n' +
+               '    120,\n' +
+               '...\n' +
+               '    10,\n' +
+               '+   prop: 1\n' +
+               '  ]'
     }
   );
   assert.deepEqual(buf2, buf);
@@ -80,9 +84,13 @@ assert.deepEqual(arr, buf);
     () => assert.deepStrictEqual(arr, arr2),
     {
       code: 'ERR_ASSERTION',
-      message: `${defaultMsgStartFull}\n\n` +
-               '  Uint8Array [\n    120,\n    121,\n    122,\n' +
-               '+   10\n-   10,\n-   prop: 5\n  ]'
+      message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
+               '  Uint8Array [\n' +
+               '    120,\n' +
+               '...\n' +
+               '    10,\n' +
+               '-   prop: 5\n' +
+               '  ]'
     }
   );
   assert.deepEqual(arr, arr2);
@@ -822,7 +830,7 @@ assert.throws(
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
     message: `${defaultMsgStartFull}\n\n  ` +
-             '{\n+   a: 4\n-   a: 4,\n-   b: true\n  }'
+             '{\n    a: 4,\n-   b: true\n  }'
   });
 assert.throws(
   () => assert.deepStrictEqual(['a'], { 0: 'a' }),
@@ -891,7 +899,7 @@ assert.deepStrictEqual(obj1, obj2);
   assert.throws(
     () => assert.deepStrictEqual(arrProxy, [1, 2, 3]),
     { message: `${defaultMsgStartFull}\n\n` +
-               '  [\n    1,\n+   2\n-   2,\n-   3\n  ]' }
+               '  [\n    1,\n    2,\n-   3\n  ]' }
   );
   util.inspect.defaultOptions = tmp;
 
