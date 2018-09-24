@@ -4447,8 +4447,8 @@ by the `async_hooks` API.
 - `[in] max_queue_size`: Maximum size of the queue. `0` for no limit.
 - `[in] initial_thread_count`: The initial number of threads, including the main
 thread, which will be making use of this function.
-- `[in] thread_finalize_data`: Data to be passed to `thread_finalize_cb`.
-- `[in] thread_finalize_cb`: Function to call when the
+- `[in] thread_finalize_data`: Optional data to be passed to `thread_finalize_cb`.
+- `[in] thread_finalize_cb`: Optional function to call when the
 `napi_threadsafe_function` is being destroyed.
 - `[in] context`: Optional data to attach to the resulting
 `napi_threadsafe_function`.
