@@ -1555,18 +1555,6 @@ An attempt was made to operate on an already closed socket.
 
 A call was made and the UDP subsystem was not running.
 
-<a id="ERR_STDERR_CLOSE"></a>
-### ERR_STDERR_CLOSE
-
-An attempt was made to close the `process.stderr` stream. By design, Node.js
-does not allow `stdout` or `stderr` streams to be closed by user code.
-
-<a id="ERR_STDOUT_CLOSE"></a>
-### ERR_STDOUT_CLOSE
-
-An attempt was made to close the `process.stdout` stream. By design, Node.js
-does not allow `stdout` or `stderr` streams to be closed by user code.
-
 <a id="ERR_STREAM_CANNOT_PIPE"></a>
 ### ERR_STREAM_CANNOT_PIPE
 
@@ -1951,6 +1939,37 @@ removed: v10.0.0
 -->
 
 The `repl` module was unable to parse data from the REPL history file.
+
+
+<a id="ERR_STDERR_CLOSE"></a>
+### ERR_STDERR_CLOSE
+<!-- YAML
+removed: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23053
+    description: Rather than emitting an error, `process.stderr.end()` now
+                 only closes the stream side but not the underlying resource,
+                 making this error obsolete.
+-->
+
+An attempt was made to close the `process.stderr` stream. By design, Node.js
+does not allow `stdout` or `stderr` streams to be closed by user code.
+
+<a id="ERR_STDOUT_CLOSE"></a>
+### ERR_STDOUT_CLOSE
+<!-- YAML
+removed: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23053
+    description: Rather than emitting an error, `process.stderr.end()` now
+                 only closes the stream side but not the underlying resource,
+                 making this error obsolete.
+-->
+
+An attempt was made to close the `process.stdout` stream. By design, Node.js
+does not allow `stdout` or `stderr` streams to be closed by user code.
 
 <a id="ERR_STREAM_READ_NOT_IMPLEMENTED"></a>
 ### ERR_STREAM_READ_NOT_IMPLEMENTED
