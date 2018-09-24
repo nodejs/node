@@ -1,7 +1,5 @@
 # Node.js Collaborator Guide
 
-## Contents
-
 * [Issues and Pull Requests](#issues-and-pull-requests)
   - [Managing Issues and Pull Requests](#managing-issues-and-pull-requests)
   - [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
@@ -50,6 +48,13 @@ understand the project governance model as outlined in
 
 ### Managing Issues and Pull Requests
 
+
+Collaborators should feel free to take full responsibility for
+managing issues and pull requests they feel qualified to handle, as
+long as this is done while being mindful of these guidelines, the
+opinions of other Collaborators and guidance of the TC.
+Collaborators may **close** any issue or pull request they believe is
+=======
 Collaborators should take full responsibility for managing issues and pull
 requests they feel qualified to handle. Make sure this is done while being
 mindful of these guidelines, the opinions of other Collaborators, and guidance
@@ -80,6 +85,11 @@ Collaborators or additional evidence that the issue has relevance, the
 issue may be closed. Remember that issues can always be re-opened if
 necessary.
 
+
+All modifications to the Node.js code and documentation should be
+performed via GitHub pull requests, including modifications by
+Collaborators and TC members.
+=======
 ### Author ready pull requests
 
 A pull request that is still awaiting the minimum review time is considered
@@ -112,6 +122,7 @@ comment that explains why the PR does not require a CI run.
 
 ### Code Reviews
 
+
 All pull requests must be reviewed and accepted by a Collaborator with
 sufficient expertise who is able to take full responsibility for the
 change. In the case of pull requests proposed by an existing
@@ -130,37 +141,6 @@ on how to do that) and post the link to the CI in the PR. Please also start a
 new CI in case the PR creator pushed new code since the last CI run (due to
 e.g., an addressed review comment or a rebase).
 
-In case there are already enough approvals (`LGTM`), a CI run, and the PR is
-open longer than the minimum waiting time without any open comments, please do
-not (only) add another approval. Instead go ahead and land the PR after checking
-the CI outcome.
-
-### Consensus Seeking
-
-If there is no disagreement amongst Collaborators, a pull request should be
-landed given appropriate review, a green CI, and the minimum
-[waiting time](#waiting-for-approvals) for a PR. If it is still awaiting the
-[minimum time to land](#waiting-for-approvals), please add the `author ready`
-label to it so it is obvious that the PR can land as soon as the time ends.
-
-Where there is discussion amongst Collaborators, consensus should be sought if
-possible. The lack of consensus may indicate the need to elevate discussion to
-the TSC for resolution.
-
-If any Collaborator objects to a change *without giving any additional
-explanation or context*, and the objecting Collaborator fails to respond to
-explicit requests for explanation or context within a reasonable period of
-time, the objection may be dismissed. Note that this does not apply to
-objections that are explained.
-
-Note that breaking changes (that is, pull requests that require an increase in
-the major version number, known as `semver-major` changes) must be [elevated for
-review by the TSC](#involving-the-tsc). This does not necessarily mean that the
-PR must be put onto the TSC meeting agenda. If multiple TSC members approve
-(`LGTM`) the PR and no Collaborators oppose the PR, it should be landed. Where
-there is disagreement among TSC members or objections from one or more
-Collaborators, `semver-major` pull requests may be put on the TSC meeting
-agenda.
 
 #### Helpful resources
 
@@ -565,36 +545,14 @@ Checkout proper target branch:
 ```text
 $ git checkout master
 ```
-
-Update the tree (assumes your repo is set up as detailed in
-[CONTRIBUTING.md](./doc/guides/contributing/pull-requests.md#step-1-fork)):
-
 ```text
 $ git fetch upstream
 $ git merge --ff-only upstream/master
 ```
-
-Apply external patches:
-
-```text
-$ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
-```
-
-If the merge fails even though recent CI runs were successful, then a 3-way
-merge may be required.  In this case try:
-
 ```text
 $ git am --abort
 $ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix
 ```
-If the 3-way merge succeeds you can proceed, but make sure to check the changes
-against the original PR carefully and build/test on at least one platform
-before landing. If the 3-way merge fails, then it is most likely that a
-conflicting PR has landed since the CI run and you will have to ask the author
-to rebase.
-
-Check and re-review the changes:
-
 ```text
 $ git diff upstream/master
 ```
@@ -610,7 +568,6 @@ Squash commits and add metadata:
 ```text
 $ git rebase -i upstream/master
 ```
-
 This will open a screen like this (in the default shell editor):
 
 ```text
@@ -661,49 +618,7 @@ Save the file and close the editor. You'll be asked to enter a new
 commit message for that commit. This is a good moment to fix incorrect
 commit logs, ensure that they are properly formatted, and add
 `Reviewed-By` lines.
-
-* The commit message text must conform to the
-[commit message guidelines](./doc/guides/contributing/pull-requests.md#commit-message-guidelines).
-
-<a name="metadata"></a>
-* Modify the original commit message to include additional metadata regarding
-  the change process. (The [`git node metadata`][git-node-metadata] command
-  can generate the metadata for you.)
-
-  * Required: A `PR-URL:` line that references the *full* GitHub URL of the
-    original pull request being merged so it's easy to trace a commit back to
-    the conversation that led up to that change.
-  * Optional: A `Fixes: X` line, where _X_ either includes the *full* GitHub URL
-    for an issue, and/or the hash and commit message if the commit fixes
-    a bug in a previous commit. Multiple `Fixes:` lines may be added if
-    appropriate.
-  * Optional: One or more `Refs:` lines referencing a URL for any relevant
-    background.
-  * Required: A `Reviewed-By: Name <email>` line for yourself and any
-    other Collaborators who have reviewed the change.
-    * Useful for @mentions / contact list if something goes wrong in the PR.
-    * Protects against the assumption that GitHub will be around forever.
-
-Run tests (`make -j4 test` or `vcbuild test`). Even though there was a
-successful continuous integration run, other changes may have landed on master
-since then, so running the tests one last time locally is a good practice.
-
-Validate that the commit message is properly formatted using
-[core-validate-commit](https://github.com/evanlucas/core-validate-commit).
-
-```text
-$ git rev-list upstream/master...HEAD | xargs core-validate-commit
-```
-
-Optional: When landing your own commits, force push the amended commit to the
-branch you used to open the pull request. If your branch is called `bugfix`,
-then the command would be `git push --force-with-lease origin master:bugfix`.
-When the pull request is closed, this will cause the pull request to
-show the purple merged status rather than the red closed status that is
-usually used for pull requests that weren't merged.
-
 Time to push it:
-
 ```text
 $ git push upstream master
 ```
@@ -739,12 +654,8 @@ git pull upstream master --rebase
 make -j4 test
 git push upstream master
 ```
-
 ### I Just Made a Mistake
 
-* Ping a TSC member.
-* `#node-dev` on freenode
-* With `git`, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
 you're rewriting history on a repository other people are working
 against) but is allowed for simpler slip-ups such as typos in commit
@@ -752,12 +663,8 @@ messages. However, you are only allowed to force push to any Node.js
 branch within 10 minutes from your original push. If someone else
 pushes to the branch or the 10 minute period passes, consider the
 commit final.
-  * Use `--force-with-lease` to minimize the chance of overwriting
-  someone else's change.
-  * Post to `#node-dev` (IRC) if you force push.
 
 ### Long Term Support
-
 #### What is LTS?
 
 Long Term Support (often referred to as *LTS*) guarantees application developers
