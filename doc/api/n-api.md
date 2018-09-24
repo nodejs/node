@@ -111,10 +111,10 @@ The use of badges is recommended to indicate the minimum version of N-API
 required for the module. This helps to determine which Node.js major versions 
 are supported. The following badges are available:
 
-![N-API v1 Badge](../api_assets/N-API%20v1%20Badge.svg)
-![N-API v2 Badge](../api_assets/N-API%20v2%20Badge.svg)
-![N-API v3 Badge](../api_assets/N-API%20v3%20Badge.svg)
-![N-API Experimental Version Badge](../api_assets/N-API%20Experimental%20Version%20Badge.svg)
+![N-API v1 Badge](/doc/api_assets/N-API%20v1%20Badge.svg)
+![N-API v2 Badge](/doc/api_assets/N-API%20v2%20Badge.svg)
+![N-API v3 Badge](/doc/api_assets/N-API%20v3%20Badge.svg)
+![N-API Experimental Version Badge](/doc/api_assets/N-API%20Experimental%20Version%20Badge.svg)
 
 ## N-API Version Matrix
 
