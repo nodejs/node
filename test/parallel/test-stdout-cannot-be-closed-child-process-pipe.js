@@ -24,9 +24,9 @@ function parent() {
   });
 
   child.on('close', function(code, signal) {
-    assert(code);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(err, '');
     assert.strictEqual(out, 'foo');
-    assert(/process\.stdout cannot be closed/.test(err));
     console.log('ok');
   });
 }
