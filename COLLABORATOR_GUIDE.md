@@ -48,17 +48,27 @@ If you are unsure about the modification and are not prepared to take
 full responsibility for the change, defer to another Collaborator.
 
 Before landing pull requests, sufficient time should be left for input
-from other Collaborators. Leave at least 48 hours during the week and
-72 hours over weekends to account for international time differences
-and work schedules. Trivial changes (e.g. those which fix minor bugs
-or improve performance without affecting API or causing other
-wide-reaching impact) may be landed after a shorter delay.
+from other Collaborators. In general, leave at least 48 hours during the
+week and 72 hours over weekends to account for international time
+differences and work schedules. However, certain types of pull requests
+can be fast-tracked and may be landed after a shorter delay. For example:
 
-Where there is no disagreement amongst Collaborators, a pull request
-may be landed given appropriate review. Where there is discussion
-amongst Collaborators, consensus should be sought if possible. The
-lack of consensus may indicate the need to elevate discussion to the
-TC for resolution (see below).
+* Focused changes that affect only documentation and/or the test suite:
+  * `code-and-learn` tasks typically fall into this category.
+  * `good-first-issue` pull requests may also be suitable.
+* Changes that fix regressions:
+  * Regressions that break the workflow (red CI or broken compilation).
+  * Regressions that happen right before a release, or reported soon after.
+
+When a pull request is deemed suitable to be fast-tracked, label it with
+`fast-track` and add a comment that collaborators may upvote. Please mention the
+collaborators that gave an approval before in that comment. If someone disagrees
+with the fast-tracking request, remove the label and leave a comment why it
+should not be fast-tracked. The pull request can be landed once 2 or more
+Collaborators approve both the pull request and the fast-tracking request, and
+the necessary CI testing is done.
+
+### Testing and CI
 
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
@@ -300,10 +310,8 @@ Any collaborator can attach these labels to any PR/issue. As commits are
 landed into the staging branches, the `lts-watch-` label will be removed.
 Likewise, as commits are landed in a LTS release, the `land-on-` label will
 be removed.
-
 Collaborators are encouraged to help the LTS WG by attaching the appropriate
 `lts-watch-` label to any PR that may impact an LTS release.
-
 #### How is an LTS release cut?
 
 When the LTS working group determines that a new LTS release is required,
