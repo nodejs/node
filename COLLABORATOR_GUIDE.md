@@ -171,7 +171,7 @@ agenda.
 ### Waiting for Approvals
 
 Before landing pull requests, sufficient time should be left for input
-from other Collaborators. In general, leave at least 72 hours to account for
+from other Collaborators. In general, leave at least 48 hours to account for
 international time differences and work schedules. However, certain types of
 pull requests can be fast-tracked and may be landed after a shorter delay. For
 example:
