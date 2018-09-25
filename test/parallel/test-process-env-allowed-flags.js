@@ -19,10 +19,10 @@ require('../common');
   ].concat(process.config.variables.v8_enable_inspector ? [
     '--inspect-brk',
     'inspect-brk',
+    '--inspect_brk',
   ] : []);
 
   const badFlags = [
-    '--inspect_brk',
     'INSPECT-BRK',
     '--INSPECT-BRK',
     '--r',

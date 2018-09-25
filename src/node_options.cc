@@ -102,8 +102,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_worker,
             kAllowedInEnvironment);
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
-  // TODO(addaleax): Remove this when adding -/_ canonicalization to the parser.
-  AddAlias("--expose_internals", "--expose-internals");
   AddOption("--loader",
             "(with --experimental-modules) use the specified file as a "
             "custom loader",
@@ -204,15 +202,15 @@ PerIsolateOptionsParser::PerIsolateOptionsParser() {
             kAllowedInEnvironment);
 
   // Explicitly add some V8 flags to mark them as allowed in NODE_OPTIONS.
-  AddOption("--abort_on_uncaught_exception",
+  AddOption("--abort-on-uncaught-exception",
             "aborting instead of exiting causes a core file to be generated "
             "for analysis",
             V8Option{},
             kAllowedInEnvironment);
-  AddOption("--max_old_space_size", "", V8Option{}, kAllowedInEnvironment);
-  AddOption("--perf_basic_prof", "", V8Option{}, kAllowedInEnvironment);
-  AddOption("--perf_prof", "", V8Option{}, kAllowedInEnvironment);
-  AddOption("--stack_trace_limit", "", V8Option{}, kAllowedInEnvironment);
+  AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvironment);
+  AddOption("--perf-basic-prof", "", V8Option{}, kAllowedInEnvironment);
+  AddOption("--perf-prof", "", V8Option{}, kAllowedInEnvironment);
+  AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvironment);
 
   Insert(&EnvironmentOptionsParser::instance,
          &PerIsolateOptions::get_per_env_options);
