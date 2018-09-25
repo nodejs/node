@@ -6429,11 +6429,10 @@ def ParseArguments(args):
       except ValueError:
         PrintUsage('Extensions must be comma seperated list.')
     elif opt == '--recursive':
-          PrintUsage('Extensions must be comma separated list.')
-    elif opt == '--logfile':
       recursive = True
-    elif opt == '--quiet':
+    elif opt == '--logfile':
       logger.addHandler(logging.FileHandler(val, mode='wb'))
+    elif opt == '--quiet':
       global _quiet
       _quiet = True
 
