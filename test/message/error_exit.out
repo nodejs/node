@@ -3,7 +3,7 @@ assert.js:*
   throw new AssertionError(obj);
   ^
 
-AssertionError [ERR_ASSERTION]: Expected inputs to be strictly equal:
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
 
 1 !== 2
 

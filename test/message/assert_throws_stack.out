@@ -2,7 +2,7 @@ assert.js:*
       throw err;
       ^
 
-AssertionError [ERR_ASSERTION]: Expected inputs to be strictly deep-equal:
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
 + actual - expected
 
 + Comparison {}

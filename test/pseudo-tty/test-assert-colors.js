@@ -7,7 +7,7 @@ try {
   process.env.COLORTERM = '1';
   assert.deepStrictEqual([1, 2, 2, 2], [2, 2, 2, 2]);
 } catch (err) {
-  const expected = 'Expected inputs to be strictly deep-equal:\n' +
+  const expected = 'Expected values to be strictly deep-equal:\n' +
     '\u001b[32m+ actual\u001b[39m \u001b[31m- expected\u001b[39m' +
       ' \u001b[34m...\u001b[39m Lines skipped\n\n' +
     '  [\n' +
