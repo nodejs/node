@@ -597,11 +597,6 @@ test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 		"$ git clone https://github.com/nodejs/node.git"
 endif
 
-# Google Analytics ID used for tracking API docs page views, empty
-# DOCS_ANALYTICS means no tracking scripts will be included in the
-# generated .html files
-DOCS_ANALYTICS ?=
-
 apidoc_dirs = out/doc out/doc/api out/doc/api/assets
 apidoc_sources = $(wildcard doc/api/*.md)
 apidocs_html = $(addprefix out/,$(apidoc_sources:.md=.html))
@@ -646,8 +641,7 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 run-npm-ci = $(PWD)/$(NPM) ci
 
 gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
-		--apilinks=out/apilinks.json \
-		--analytics=$(DOCS_ANALYTICS) $< --output-directory=out/doc/api
+		--apilinks=out/apilinks.json $< --output-directory=out/doc/api
 gen-apilink = tools/doc/apilinks.js $(wildcard lib/*.js) > $@
 
 out/apilinks.json: $(wildcard lib/*.js) tools/doc/apilinks.js
