@@ -33,8 +33,6 @@
 #include <string.h>
 #include <limits.h>
 
-#define BUFFER_ID 0xB0E4
-
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
@@ -144,7 +142,6 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
     CHECK_NOT_NULL(data_);
 
   persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
-  persistent_.SetWrapperClassId(BUFFER_ID);
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
 }
 

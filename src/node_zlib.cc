@@ -78,8 +78,6 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
         ThreadPoolWork(env),
-        dictionary_(nullptr),
-        dictionary_len_(0),
         err_(0),
         flush_(0),
         init_done_(false),
@@ -126,10 +124,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     CHECK(status == Z_OK || status == Z_DATA_ERROR);
     mode_ = NONE;
 
-    if (dictionary_ != nullptr) {
-      delete[] dictionary_;
-      dictionary_ = nullptr;
-    }
+    dictionary_.clear();
   }
 
 
@@ -294,9 +289,11 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
         // SetDictionary, don't repeat that here)
         if (mode_ != INFLATERAW &&
             err_ == Z_NEED_DICT &&
-            dictionary_ != nullptr) {
+            !dictionary_.empty()) {
           // Load it
-          err_ = inflateSetDictionary(&strm_, dictionary_, dictionary_len_);
+          err_ = inflateSetDictionary(&strm_,
+                                      dictionary_.data(),
+                                      dictionary_.size());
           if (err_ == Z_OK) {
             // And try to decode again
             err_ = inflate(&strm_, flush_);
@@ -346,7 +343,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
       // normal statuses, not fatal
       break;
     case Z_NEED_DICT:
-      if (dictionary_ == nullptr)
+      if (dictionary_.empty())
         Error("Missing dictionary");
       else
         Error("Bad dictionary");
@@ -483,23 +480,20 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
     Local<Function> write_js_callback = args[5].As<Function>();
 
-    char* dictionary = nullptr;
-    size_t dictionary_len = 0;
+    std::vector<unsigned char> dictionary;
     if (Buffer::HasInstance(args[6])) {
-      const char* dictionary_ = Buffer::Data(args[6]);
-      dictionary_len = Buffer::Length(args[6]);
-
-      dictionary = new char[dictionary_len];
-      memcpy(dictionary, dictionary_, dictionary_len);
+      unsigned char* data =
+          reinterpret_cast<unsigned char*>(Buffer::Data(args[6]));
+      dictionary = std::vector<unsigned char>(
+          data,
+          data + Buffer::Length(args[6]));
     }
 
-    bool ret = Init(ctx, level, windowBits, memLevel, strategy, write_result,
-                    write_js_callback, dictionary, dictionary_len);
-    if (!ret) goto end;
+    bool ret = ctx->Init(level, windowBits, memLevel, strategy, write_result,
+                         write_js_callback, std::move(dictionary));
+    if (ret)
+      ctx->SetDictionary();
 
-    ctx->SetDictionary();
-
-   end:
     return args.GetReturnValue().Set(ret);
   }
 
@@ -522,79 +516,75 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     ctx->SetDictionary();
   }
 
-  static bool Init(ZCtx* ctx, int level, int windowBits, int memLevel,
-                   int strategy, uint32_t* write_result,
-                   Local<Function> write_js_callback, char* dictionary,
-                   size_t dictionary_len) {
-    AllocScope alloc_scope(ctx);
-    ctx->level_ = level;
-    ctx->windowBits_ = windowBits;
-    ctx->memLevel_ = memLevel;
-    ctx->strategy_ = strategy;
+  bool Init(int level, int windowBits, int memLevel,
+            int strategy, uint32_t* write_result,
+            Local<Function> write_js_callback,
+            std::vector<unsigned char>&& dictionary) {
+    AllocScope alloc_scope(this);
+    level_ = level;
+    windowBits_ = windowBits;
+    memLevel_ = memLevel;
+    strategy_ = strategy;
 
-    ctx->strm_.zalloc = AllocForZlib;
-    ctx->strm_.zfree = FreeForZlib;
-    ctx->strm_.opaque = static_cast<void*>(ctx);
+    strm_.zalloc = AllocForZlib;
+    strm_.zfree = FreeForZlib;
+    strm_.opaque = static_cast<void*>(this);
 
-    ctx->flush_ = Z_NO_FLUSH;
+    flush_ = Z_NO_FLUSH;
 
-    ctx->err_ = Z_OK;
+    err_ = Z_OK;
 
-    if (ctx->mode_ == GZIP || ctx->mode_ == GUNZIP) {
-      ctx->windowBits_ += 16;
+    if (mode_ == GZIP || mode_ == GUNZIP) {
+      windowBits_ += 16;
     }
 
-    if (ctx->mode_ == UNZIP) {
-      ctx->windowBits_ += 32;
+    if (mode_ == UNZIP) {
+      windowBits_ += 32;
     }
 
-    if (ctx->mode_ == DEFLATERAW || ctx->mode_ == INFLATERAW) {
-      ctx->windowBits_ *= -1;
+    if (mode_ == DEFLATERAW || mode_ == INFLATERAW) {
+      windowBits_ *= -1;
     }
 
-    switch (ctx->mode_) {
+    switch (mode_) {
       case DEFLATE:
       case GZIP:
       case DEFLATERAW:
-        ctx->err_ = deflateInit2(&ctx->strm_,
-                                 ctx->level_,
-                                 Z_DEFLATED,
-                                 ctx->windowBits_,
-                                 ctx->memLevel_,
-                                 ctx->strategy_);
+        err_ = deflateInit2(&strm_,
+                            level_,
+                            Z_DEFLATED,
+                            windowBits_,
+                            memLevel_,
+                            strategy_);
         break;
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
       case UNZIP:
-        ctx->err_ = inflateInit2(&ctx->strm_, ctx->windowBits_);
+        err_ = inflateInit2(&strm_, windowBits_);
         break;
       default:
         UNREACHABLE();
     }
 
-    ctx->dictionary_ = reinterpret_cast<Bytef *>(dictionary);
-    ctx->dictionary_len_ = dictionary_len;
+    dictionary_ = std::move(dictionary);
 
-    ctx->write_in_progress_ = false;
-    ctx->init_done_ = true;
+    write_in_progress_ = false;
+    init_done_ = true;
 
-    if (ctx->err_ != Z_OK) {
-      if (dictionary != nullptr) {
-        delete[] dictionary;
-        ctx->dictionary_ = nullptr;
-      }
-      ctx->mode_ = NONE;
+    if (err_ != Z_OK) {
+      dictionary_.clear();
+      mode_ = NONE;
       return false;
     }
 
-    ctx->write_result_ = write_result;
-    ctx->write_js_callback_.Reset(ctx->env()->isolate(), write_js_callback);
+    write_result_ = write_result;
+    write_js_callback_.Reset(env()->isolate(), write_js_callback);
     return true;
   }
 
   void SetDictionary() {
-    if (dictionary_ == nullptr)
+    if (dictionary_.empty())
       return;
 
     err_ = Z_OK;
@@ -602,12 +592,16 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     switch (mode_) {
       case DEFLATE:
       case DEFLATERAW:
-        err_ = deflateSetDictionary(&strm_, dictionary_, dictionary_len_);
+        err_ = deflateSetDictionary(&strm_,
+                                    dictionary_.data(),
+                                    dictionary_.size());
         break;
       case INFLATERAW:
         // The other inflate cases will have the dictionary set when inflate()
         // returns Z_NEED_DICT in Process()
-        err_ = inflateSetDictionary(&strm_, dictionary_, dictionary_len_);
+        err_ = inflateSetDictionary(&strm_,
+                                    dictionary_.data(),
+                                    dictionary_.size());
         break;
       default:
         break;
@@ -664,7 +658,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
-    tracker->TrackFieldWithSize("dictionary", dictionary_len_);
+    tracker->TrackField("dictionary", dictionary_);
     tracker->TrackFieldWithSize("zlib memory",
         zlib_memory_ + unreported_allocations_);
   }
@@ -732,8 +726,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     ZCtx* ctx;
   };
 
-  Bytef* dictionary_;
-  size_t dictionary_len_;
+  std::vector<unsigned char> dictionary_;
   int err_;
   int flush_;
   bool init_done_;
@@ -773,13 +766,66 @@ void Initialize(Local<Object> target,
 
   Local<String> zlibString = FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib");
   z->SetClassName(zlibString);
-  target->Set(zlibString, z->GetFunction());
+  target->Set(zlibString, z->GetFunction(env->context()).ToLocalChecked());
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
 }
 
 }  // anonymous namespace
+
+void DefineZlibConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_PARTIAL_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_SYNC_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_FULL_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_FINISH);
+  NODE_DEFINE_CONSTANT(target, Z_BLOCK);
+
+  // return/error codes
+  NODE_DEFINE_CONSTANT(target, Z_OK);
+  NODE_DEFINE_CONSTANT(target, Z_STREAM_END);
+  NODE_DEFINE_CONSTANT(target, Z_NEED_DICT);
+  NODE_DEFINE_CONSTANT(target, Z_ERRNO);
+  NODE_DEFINE_CONSTANT(target, Z_STREAM_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_DATA_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_MEM_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_BUF_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_VERSION_ERROR);
+
+  NODE_DEFINE_CONSTANT(target, Z_NO_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_BEST_SPEED);
+  NODE_DEFINE_CONSTANT(target, Z_BEST_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_FILTERED);
+  NODE_DEFINE_CONSTANT(target, Z_HUFFMAN_ONLY);
+  NODE_DEFINE_CONSTANT(target, Z_RLE);
+  NODE_DEFINE_CONSTANT(target, Z_FIXED);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_STRATEGY);
+  NODE_DEFINE_CONSTANT(target, ZLIB_VERNUM);
+
+  NODE_DEFINE_CONSTANT(target, DEFLATE);
+  NODE_DEFINE_CONSTANT(target, INFLATE);
+  NODE_DEFINE_CONSTANT(target, GZIP);
+  NODE_DEFINE_CONSTANT(target, GUNZIP);
+  NODE_DEFINE_CONSTANT(target, DEFLATERAW);
+  NODE_DEFINE_CONSTANT(target, INFLATERAW);
+  NODE_DEFINE_CONSTANT(target, UNZIP);
+
+  NODE_DEFINE_CONSTANT(target, Z_MIN_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_LEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_LEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
+}
+
 }  // namespace node
 
 NODE_BUILTIN_MODULE_CONTEXT_AWARE(zlib, node::Initialize)

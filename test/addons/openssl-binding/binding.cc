@@ -23,7 +23,9 @@ inline void Initialize(v8::Local<v8::Object> exports,
                        v8::Local<v8::Context> context) {
   auto isolate = context->GetIsolate();
   auto key = v8::String::NewFromUtf8(isolate, "randomBytes");
-  auto value = v8::FunctionTemplate::New(isolate, RandomBytes)->GetFunction();
+  auto value = v8::FunctionTemplate::New(isolate, RandomBytes)
+                   ->GetFunction(context)
+                   .ToLocalChecked();
   assert(exports->Set(context, key, value).IsJust());
 }
 

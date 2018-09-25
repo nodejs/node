@@ -1457,6 +1457,11 @@ void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
 
 // Called by OnFrameReceived when a complete PING frame has been received.
 void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env()->context();
+  Context::Scope context_scope(context);
+  Local<Value> arg;
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
   if (ack) {
     Http2Ping* ping = PopPing();
@@ -1468,13 +1473,15 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
       // receive an unsolicited PING ack on a connection. Either the peer
       // is buggy or malicious, and we're not going to tolerate such
       // nonsense.
-      Isolate* isolate = env()->isolate();
-      HandleScope scope(isolate);
-      Local<Context> context = env()->context();
-      Context::Scope context_scope(context);
-      Local<Value> arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
+      arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
       MakeCallback(env()->error_string(), 1, &arg);
     }
+  } else {
+    // Notify the session that a ping occurred
+    arg = Buffer::Copy(env(),
+                       reinterpret_cast<const char*>(frame->ping.opaque_data),
+                       8).ToLocalChecked();
+    MakeCallback(env()->onping_string(), 1, &arg);
   }
 }
 
@@ -2980,7 +2987,7 @@ void Initialize(Local<Object> target,
   env->set_http2stream_constructor_template(streamt);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Stream"),
-              stream->GetFunction()).FromJust();
+              stream->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
   Local<FunctionTemplate> session =
       env->NewFunctionTemplate(Http2Session::New);
@@ -3008,7 +3015,7 @@ void Initialize(Local<Object> target,
       Http2Session::RefreshSettings<nghttp2_session_get_remote_settings>);
   target->Set(context,
               http2SessionClassName,
-              session->GetFunction()).FromJust();
+              session->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
   Local<Object> constants = Object::New(isolate);
   Local<Array> name_for_error_code = Array::New(isolate);

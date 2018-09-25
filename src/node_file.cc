@@ -191,24 +191,27 @@ inline void FileHandle::Close() {
 }
 
 void FileHandle::CloseReq::Resolve() {
-  HandleScope scope(env()->isolate());
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
   InternalCallbackScope callback_scope(this);
-  Local<Promise> promise = promise_.Get(env()->isolate());
+  Local<Promise> promise = promise_.Get(isolate);
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
-  resolver->Resolve(env()->context(), Undefined(env()->isolate())).FromJust();
+  resolver->Resolve(env()->context(), Undefined(isolate)).FromJust();
 }
 
 void FileHandle::CloseReq::Reject(Local<Value> reason) {
-  HandleScope scope(env()->isolate());
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
   InternalCallbackScope callback_scope(this);
-  Local<Promise> promise = promise_.Get(env()->isolate());
+  Local<Promise> promise = promise_.Get(isolate);
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
   resolver->Reject(env()->context(), reason).FromJust();
 }
 
 FileHandle* FileHandle::CloseReq::file_handle() {
-  HandleScope scope(env()->isolate());
-  Local<Value> val = ref_.Get(env()->isolate());
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Local<Value> val = ref_.Get(isolate);
   Local<Object> obj = val.As<Object>();
   return Unwrap<FileHandle>(obj);
 }
@@ -621,13 +624,14 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
   }
 
   Environment* env = req_wrap->env();
+  Isolate* isolate = env->isolate();
   Local<Value> error;
   int r;
-  Local<Array> names = Array::New(env->isolate(), 0);
+  Local<Array> names = Array::New(isolate, 0);
   Local<Function> fn = env->push_values_to_array_function();
   Local<Value> name_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
   size_t name_idx = 0;
-  Local<Value> types = Array::New(env->isolate(), 0);
+  Local<Value> types = Array::New(isolate, 0);
   Local<Value> type_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
   size_t type_idx = 0;
 
@@ -644,7 +648,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
     }
 
     MaybeLocal<Value> filename =
-      StringBytes::Encode(env->isolate(),
+      StringBytes::Encode(isolate,
           ent.name,
           req_wrap->encoding(),
           &error);
@@ -662,7 +666,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
       name_idx = 0;
     }
 
-    type_argv[type_idx++] = Integer::New(env->isolate(), ent.type);
+    type_argv[type_idx++] = Integer::New(isolate, ent.type);
 
     if (type_idx >= arraysize(type_argv)) {
       MaybeLocal<Value> ret = fn->Call(env->context(), types, type_idx,
@@ -690,7 +694,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
     }
   }
 
-  Local<Array> result = Array::New(env->isolate(), 2);
+  Local<Array> result = Array::New(isolate, 2);
   result->Set(0, names);
   result->Set(1, types);
   req_wrap->Resolve(result);
@@ -783,7 +787,8 @@ inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value,
 
 void Access(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  HandleScope scope(env->isolate());
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -791,7 +796,7 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   int mode = args[1].As<Int32>()->Value();
 
-  BufferValue path(env->isolate(), args[0]);
+  BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
@@ -836,10 +841,11 @@ void Close(const FunctionCallbackInfo<Value>& args) {
 // in the file.
 static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
   uv_loop_t* loop = env->event_loop();
 
   CHECK(args[0]->IsString());
-  node::Utf8Value path(env->isolate(), args[0]);
+  node::Utf8Value path(isolate, args[0]);
 
   if (strlen(*path) != path.length())
     return;  // Contains a nul byte.
@@ -890,7 +896,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     return;
   } else {
     Local<String> chars_string =
-        String::NewFromUtf8(env->isolate(),
+        String::NewFromUtf8(isolate,
                             &chars[start],
                             v8::NewStringType::kNormal,
                             size).ToLocalChecked();
@@ -1011,13 +1017,14 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 
 static void Symlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   int argc = args.Length();
   CHECK_GE(argc, 4);
 
-  BufferValue target(env->isolate(), args[0]);
+  BufferValue target(isolate, args[0]);
   CHECK_NOT_NULL(*target);
-  BufferValue path(env->isolate(), args[1]);
+  BufferValue path(isolate, args[1]);
   CHECK_NOT_NULL(*path);
 
   CHECK(args[2]->IsInt32());
@@ -1039,14 +1046,15 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
 
 static void Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  BufferValue src(env->isolate(), args[0]);
+  BufferValue src(isolate, args[0]);
   CHECK_NOT_NULL(*src);
 
-  BufferValue dest(env->isolate(), args[1]);
+  BufferValue dest(isolate, args[1]);
   CHECK_NOT_NULL(*dest);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
@@ -1065,14 +1073,15 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
 
 static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  BufferValue path(env->isolate(), args[0]);
+  BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
 
-  const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {  // readlink(path, encoding, req)
@@ -1091,7 +1100,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
     const char* link_path = static_cast<const char*>(req_wrap_sync.req.ptr);
 
     Local<Value> error;
-    MaybeLocal<Value> rc = StringBytes::Encode(env->isolate(),
+    MaybeLocal<Value> rc = StringBytes::Encode(isolate,
                                                link_path,
                                                encoding,
                                                &error);
@@ -1107,13 +1116,14 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
 
 static void Rename(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  BufferValue old_path(env->isolate(), args[0]);
+  BufferValue old_path(isolate, args[0]);
   CHECK_NOT_NULL(*old_path);
-  BufferValue new_path(env->isolate(), args[1]);
+  BufferValue new_path(isolate, args[1]);
   CHECK_NOT_NULL(*new_path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
@@ -1408,14 +1418,15 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
 
 static void RealPath(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  BufferValue path(env->isolate(), args[0]);
+  BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
 
-  const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {  // realpath(path, encoding, req)
@@ -1435,7 +1446,7 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
     const char* link_path = static_cast<const char*>(req_wrap_sync.req.ptr);
 
     Local<Value> error;
-    MaybeLocal<Value> rc = StringBytes::Encode(env->isolate(),
+    MaybeLocal<Value> rc = StringBytes::Encode(isolate,
                                                link_path,
                                                encoding,
                                                &error);
@@ -1451,14 +1462,15 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
 
 static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  BufferValue path(env->isolate(), args[0]);
+  BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
 
-  const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
   bool with_types = args[2]->IsTrue();
 
@@ -1484,7 +1496,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
     CHECK_GE(req_wrap_sync.req.result, 0);
     int r;
-    Local<Array> names = Array::New(env->isolate(), 0);
+    Local<Array> names = Array::New(isolate, 0);
     Local<Function> fn = env->push_values_to_array_function();
     Local<Value> name_v[NODE_PUSH_VAL_TO_ARRAY_MAX];
     size_t name_idx = 0;
@@ -1493,7 +1505,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     Local<Value> type_v[NODE_PUSH_VAL_TO_ARRAY_MAX];
     size_t type_idx;
     if (with_types) {
-      types = Array::New(env->isolate(), 0);
+      types = Array::New(isolate, 0);
       type_idx = 0;
     }
 
@@ -1506,14 +1518,14 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       if (r != 0) {
         Local<Object> ctx = args[4].As<Object>();
         ctx->Set(env->context(), env->errno_string(),
-                 Integer::New(env->isolate(), r)).FromJust();
+                 Integer::New(isolate, r)).FromJust();
         ctx->Set(env->context(), env->syscall_string(),
-                 OneByteString(env->isolate(), "readdir")).FromJust();
+                 OneByteString(isolate, "readdir")).FromJust();
         return;
       }
 
       Local<Value> error;
-      MaybeLocal<Value> filename = StringBytes::Encode(env->isolate(),
+      MaybeLocal<Value> filename = StringBytes::Encode(isolate,
                                                        ent.name,
                                                        encoding,
                                                        &error);
@@ -1536,7 +1548,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       }
 
       if (with_types) {
-        type_v[type_idx++] = Integer::New(env->isolate(), ent.type);
+        type_v[type_idx++] = Integer::New(isolate, ent.type);
 
         if (type_idx >= arraysize(type_v)) {
           MaybeLocal<Value> ret = fn->Call(env->context(), types, type_idx,
@@ -1564,7 +1576,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     }
 
     if (with_types) {
-      Local<Array> result = Array::New(env->isolate(), 2);
+      Local<Array> result = Array::New(isolate, 2);
       result->Set(0, names);
       result->Set(1, types);
       args.GetReturnValue().Set(result);
@@ -1606,11 +1618,12 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 
 static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  BufferValue path(env->isolate(), args[0]);
+  BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
@@ -1633,7 +1646,7 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
     if (result < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
-    HandleScope scope(env->isolate());
+    HandleScope scope(isolate);
     FileHandle* fd = new FileHandle(env, result);
     args.GetReturnValue().Set(fd->object());
   }
@@ -1641,14 +1654,15 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
 
 static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  BufferValue src(env->isolate(), args[0]);
+  BufferValue src(isolate, args[0]);
   CHECK_NOT_NULL(*src);
 
-  BufferValue dest(env->isolate(), args[1]);
+  BufferValue dest(isolate, args[1]);
   CHECK_NOT_NULL(*dest);
 
   CHECK(args[2]->IsInt32());
@@ -1779,6 +1793,7 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
 // 3 enc       encoding of string
 static void WriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
   CHECK_GE(argc, 4);
@@ -1788,7 +1803,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   const int64_t pos = GET_OFFSET(args[2]);
 
-  const auto enc = ParseEncoding(env->isolate(), args[3], UTF8);
+  const auto enc = ParseEncoding(isolate, args[3], UTF8);
 
   Local<Value> value = args[1];
   char* buf = nullptr;
@@ -1819,12 +1834,12 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   if (is_async) {  // write(fd, string, pos, enc, req)
     CHECK_NOT_NULL(req_wrap_async);
-    if (!StringBytes::StorageSize(env->isolate(), value, enc).To(&len)) return;
+    if (!StringBytes::StorageSize(isolate, value, enc).To(&len)) return;
     FSReqBase::FSReqBuffer& stack_buffer =
         req_wrap_async->Init("write", len, enc);
     // StorageSize may return too large a char, so correct the actual length
     // by the write size
-    len = StringBytes::Write(env->isolate(), *stack_buffer, len, args[1], enc);
+    len = StringBytes::Write(isolate, *stack_buffer, len, args[1], enc);
     stack_buffer.SetLengthAndZeroTerminate(len);
     uv_buf_t uvbuf = uv_buf_init(*stack_buffer, len);
     int err = req_wrap_async->Dispatch(uv_fs_write,
@@ -1847,12 +1862,12 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     FSReqBase::FSReqBuffer stack_buffer;
     if (buf == nullptr) {
-      if (!StringBytes::StorageSize(env->isolate(), value, enc).To(&len))
+      if (!StringBytes::StorageSize(isolate, value, enc).To(&len))
         return;
       stack_buffer.AllocateSufficientStorage(len + 1);
       // StorageSize may return too large a char, so correct the actual length
       // by the write size
-      len = StringBytes::Write(env->isolate(), *stack_buffer,
+      len = StringBytes::Write(isolate, *stack_buffer,
                                len, args[1], enc);
       stack_buffer.SetLengthAndZeroTerminate(len);
       buf = *stack_buffer;
@@ -2138,14 +2153,15 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
 
 static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
 
-  BufferValue tmpl(env->isolate(), args[0]);
+  BufferValue tmpl(isolate, args[0]);
   CHECK_NOT_NULL(*tmpl);
 
-  const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {  // mkdtemp(tmpl, encoding, req)
@@ -2162,7 +2178,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
 
     Local<Value> error;
     MaybeLocal<Value> rc =
-        StringBytes::Encode(env->isolate(), path, encoding, &error);
+        StringBytes::Encode(isolate, path, encoding, &error);
     if (rc.IsEmpty()) {
       Local<Object> ctx = args[3].As<Object>();
       ctx->Set(env->context(), env->error_string(), error).FromJust();
@@ -2177,6 +2193,7 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   env->SetMethod(target, "access", Access);
   env->SetMethod(target, "close", Close);
@@ -2218,17 +2235,17 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "mkdtemp", Mkdtemp);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kFsStatsFieldsLength"),
-              Integer::New(env->isolate(), env->kFsStatsFieldsLength))
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "kFsStatsFieldsLength"),
+              Integer::New(isolate, env->kFsStatsFieldsLength))
         .FromJust();
 
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "statValues"),
+              FIXED_ONE_BYTE_STRING(isolate, "statValues"),
               env->fs_stats_field_array()->GetJSArray()).FromJust();
 
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "bigintStatValues"),
+              FIXED_ONE_BYTE_STRING(isolate, "bigintStatValues"),
               env->fs_stats_field_bigint_array()->GetJSArray()).FromJust();
 
   StatWatcher::Initialize(env, target);
@@ -2238,26 +2255,29 @@ void Initialize(Local<Object> target,
   fst->InstanceTemplate()->SetInternalFieldCount(1);
   AsyncWrap::AddWrapMethods(env, fst);
   Local<String> wrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqCallback");
+      FIXED_ONE_BYTE_STRING(isolate, "FSReqCallback");
   fst->SetClassName(wrapString);
-  target->Set(context, wrapString, fst->GetFunction()).FromJust();
+  target
+      ->Set(context, wrapString,
+            fst->GetFunction(env->context()).ToLocalChecked())
+      .FromJust();
 
   // Create FunctionTemplate for FileHandleReadWrap. There’s no need
   // to do anything in the constructor, so we only store the instance template.
-  Local<FunctionTemplate> fh_rw = FunctionTemplate::New(env->isolate());
+  Local<FunctionTemplate> fh_rw = FunctionTemplate::New(isolate);
   fh_rw->InstanceTemplate()->SetInternalFieldCount(1);
   AsyncWrap::AddWrapMethods(env, fh_rw);
   Local<String> fhWrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "FileHandleReqWrap");
+      FIXED_ONE_BYTE_STRING(isolate, "FileHandleReqWrap");
   fh_rw->SetClassName(fhWrapString);
   env->set_filehandlereadwrap_template(
       fst->InstanceTemplate());
 
   // Create Function Template for FSReqPromise
-  Local<FunctionTemplate> fpt = FunctionTemplate::New(env->isolate());
+  Local<FunctionTemplate> fpt = FunctionTemplate::New(isolate);
   AsyncWrap::AddWrapMethods(env, fpt);
   Local<String> promiseString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqPromise");
+      FIXED_ONE_BYTE_STRING(isolate, "FSReqPromise");
   fpt->SetClassName(promiseString);
   Local<ObjectTemplate> fpo = fpt->InstanceTemplate();
   fpo->SetInternalFieldCount(1);
@@ -2271,15 +2291,18 @@ void Initialize(Local<Object> target,
   Local<ObjectTemplate> fdt = fd->InstanceTemplate();
   fdt->SetInternalFieldCount(1);
   Local<String> handleString =
-       FIXED_ONE_BYTE_STRING(env->isolate(), "FileHandle");
+       FIXED_ONE_BYTE_STRING(isolate, "FileHandle");
   fd->SetClassName(handleString);
   StreamBase::AddMethods<FileHandle>(env, fd);
-  target->Set(context, handleString, fd->GetFunction()).FromJust();
+  target
+      ->Set(context, handleString,
+            fd->GetFunction(env->context()).ToLocalChecked())
+      .FromJust();
   env->set_fd_constructor_template(fdt);
 
   // Create FunctionTemplate for FileHandle::CloseReq
-  Local<FunctionTemplate> fdclose = FunctionTemplate::New(env->isolate());
-  fdclose->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(),
+  Local<FunctionTemplate> fdclose = FunctionTemplate::New(isolate);
+  fdclose->SetClassName(FIXED_ONE_BYTE_STRING(isolate,
                         "FileHandleCloseReq"));
   AsyncWrap::AddWrapMethods(env, fdclose);
   Local<ObjectTemplate> fdcloset = fdclose->InstanceTemplate();
@@ -2287,11 +2310,11 @@ void Initialize(Local<Object> target,
   env->set_fdclose_constructor_template(fdcloset);
 
   Local<Symbol> use_promises_symbol =
-    Symbol::New(env->isolate(),
-                FIXED_ONE_BYTE_STRING(env->isolate(), "use promises"));
+    Symbol::New(isolate,
+                FIXED_ONE_BYTE_STRING(isolate, "use promises"));
   env->set_fs_use_promises_symbol(use_promises_symbol);
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kUsePromises"),
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "kUsePromises"),
               use_promises_symbol).FromJust();
 }
 

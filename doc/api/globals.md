@@ -107,6 +107,46 @@ added: v0.1.7
 
 The process object. See the [`process` object][] section.
 
+## queueMicrotask(callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+> Stability: 1 - Experimental
+
+* `callback` {Function} Function to be queued.
+
+The `queueMicrotask()` method queues a microtask to invoke `callback`. If
+`callback` throws an exception, the [`process` object][] `'error'` event will
+be emitted.
+
+In general, `queueMicrotask` is the idiomatic choice over `process.nextTick()`.
+`process.nextTick()` will always run before microtasks, and so unexpected
+execution order may be observed.
+
+```js
+// Here, `queueMicrotask()` is used to ensure the 'load' event is always
+// emitted asynchronously, and therefore consistently. Using
+// `process.nextTick()` here would result in the 'load' event always emitting
+// before any other promise jobs.
+
+DataHandler.prototype.load = async function load(key) {
+  const hit = this._cache.get(url);
+  if (hit !== undefined) {
+    queueMicrotask(() => {
+      this.emit('load', hit);
+    });
+    return;
+  }
+
+  const data = await fetchData(key);
+  this._cache.set(url, data);
+  this.emit('load', data);
+};
+```
+
 ## require()
 
 This variable may appear to be global but is not. See [`require()`].

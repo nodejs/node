@@ -276,7 +276,9 @@ void InitDTrace(Environment* env, Local<Object> target) {
 
   for (size_t i = 0; i < arraysize(tab); i++) {
     Local<String> key = OneByteString(env->isolate(), tab[i].name);
-    Local<Value> val = env->NewFunctionTemplate(tab[i].func)->GetFunction();
+    Local<Value> val = env->NewFunctionTemplate(tab[i].func)
+                           ->GetFunction(env->context())
+                           .ToLocalChecked();
     target->Set(key, val);
   }
 

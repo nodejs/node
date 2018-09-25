@@ -556,9 +556,6 @@ AsyncWrap::AsyncWrap(Environment* env,
   CHECK_NE(provider, PROVIDER_NONE);
   CHECK_GE(object->InternalFieldCount(), 1);
 
-  // Shift provider value over to prevent id collision.
-  persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider_type_);
-
   // Use AsyncReset() call to execute the init() callbacks.
   AsyncReset(execution_async_id, silent);
 }

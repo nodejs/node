@@ -32,11 +32,11 @@ these rules:
 
 ## Formatting
 
-## Left-leaning (C++ style) asterisks for pointer declarations
+### Left-leaning (C++ style) asterisks for pointer declarations
 
 `char* buffer;` instead of `char *buffer;`
 
-## C++ style comments
+### C++ style comments
 
 Use C++ style comments (`//`) for both single-line and multi-line comments.
 Comments should also start with uppercase and finish with a dot.
@@ -56,7 +56,7 @@ preferred style. Feel free to update old comments to the preferred style when
 working on code in the immediate vicinity or when changing/improving those
 comments.
 
-## 2 spaces of indentation for blocks or bodies of conditionals
+### 2 spaces of indentation for blocks or bodies of conditionals
 
 ```c++
 if (foo)
@@ -76,7 +76,7 @@ Braces are optional if the statement body only has one line.
 
 `namespace`s receive no indentation on their own.
 
-## 4 spaces of indentation for statement continuations
+### 4 spaces of indentation for statement continuations
 
 ```c++
 VeryLongTypeName very_long_result = SomeValueWithAVeryLongName +
@@ -85,7 +85,7 @@ VeryLongTypeName very_long_result = SomeValueWithAVeryLongName +
 
 Operators are before the line break in these cases.
 
-## Align function arguments vertically
+### Align function arguments vertically
 
 ```c++
 void FunctionWithAVeryLongName(int parameter_with_a_very_long_name,
@@ -101,7 +101,7 @@ void FunctionWithAReallyReallyReallyLongNameSeriouslyStopIt(
     ...);
 ```
 
-## Initialization lists
+### Initialization lists
 
 Long initialization lists are formatted like this:
 
@@ -115,7 +115,7 @@ HandleWrap::HandleWrap(Environment* env,
       handle_(handle) {
 ```
 
-## CamelCase for methods, functions, and classes
+### CamelCase for methods, functions, and classes
 
 Exceptions are simple getters/setters, which are named `property_name()` and
 `set_property_name()`, respectively.
@@ -131,7 +131,7 @@ class FooBar {
 };
 ```
 
-## snake\_case for local variables and parameters
+### snake\_case for local variables and parameters
 
 ```c++
 int FunctionThatDoesSomething(const char* important_string) {
@@ -139,7 +139,7 @@ int FunctionThatDoesSomething(const char* important_string) {
 }
 ```
 
-## snake\_case\_ for private class fields
+### snake\_case\_ for private class fields
 
 ```c++
 class Foo {
@@ -148,7 +148,7 @@ class Foo {
 };
 ```
 
-## snake\_case\_ for C-like structs
+### snake\_case\_ for C-like structs
 For plain C-like structs snake_case can be used.
 
 ```c++
@@ -157,7 +157,7 @@ struct foo_bar {
 }
 ```
 
-## Space after `template`
+### Space after `template`
 
 ```c++
 template <typename T>
@@ -167,16 +167,16 @@ class FancyContainer {
 ```
 ## Memory Management
 
-## Memory allocation
+### Memory allocation
 
 - `Malloc()`, `Calloc()`, etc. from `util.h` abort in Out-of-Memory situations
 - `UncheckedMalloc()`, etc. return `nullptr` in OOM situations
 
-## Use `nullptr` instead of `NULL` or `0`
+### Use `nullptr` instead of `NULL` or `0`
 
 What it says in the title.
 
-## Ownership and Smart Pointers
+### Ownership and Smart Pointers
 
 "Smart" pointers are classes that act like pointers, e.g.
 by overloading the `*` and `->` operators. Some smart pointer types can be
@@ -202,14 +202,14 @@ Never use `std::auto_ptr`. Instead, use `std::unique_ptr`.
 
 ## Others
 
-## Type casting
+### Type casting
 
 - Always avoid C-style casts (`(type)value`)
 - `dynamic_cast` does not work because RTTI is not enabled
 - Use `static_cast` for casting whenever it works
 - `reinterpret_cast` is okay if `static_cast` is not appropriate
 
-## Do not include `*.h` if `*-inl.h` has already been included
+### Do not include `*.h` if `*-inl.h` has already been included
 
 Do
 
@@ -224,7 +224,7 @@ instead of
 #include "util-inl.h"
 ```
 
-## Avoid throwing JavaScript errors in C++
+### Avoid throwing JavaScript errors in C++
 
 When there is a need to throw errors from a C++ binding method, try to
 return the data necessary for constructing the errors to JavaScript,
@@ -278,7 +278,7 @@ exports.foo = function(str) {
 };
 ```
 
-### Avoid throwing JavaScript errors in nested C++ methods
+#### Avoid throwing JavaScript errors in nested C++ methods
 
 When you have to throw the errors from C++, try to do it at the top level and
 not inside of nested calls.

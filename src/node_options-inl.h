@@ -307,6 +307,12 @@ void OptionsParser<Options>::Parse(
     if (equals_index != std::string::npos)
       original_name += '=';
 
+    // Normalize by replacing `_` with `-` in options.
+    for (std::string::size_type i = 2; i < name.size(); ++i) {
+      if (name[i] == '_')
+        name[i] = '-';
+    }
+
     {
       auto it = aliases_.end();
       // Expand aliases:
@@ -340,19 +346,6 @@ void OptionsParser<Options>::Parse(
     }
 
     auto it = options_.find(name);
-
-    if (it == options_.end()) {
-      // We would assume that this is a V8 option if neither we nor any child
-      // parser knows about it, so we convert - to _ for
-      // canonicalization (since V8 accepts both) and look up again in order
-      // to find a match.
-      // TODO(addaleax): Make the canonicalization unconditional, i.e. allow
-      // both - and _ in Node's own options as well.
-      std::string::size_type index = 2;  // Start after initial '--'.
-      while ((index = name.find('-', index + 1)) != std::string::npos)
-        name[index] = '_';
-      it = options_.find(name);
-    }
 
     if ((it == options_.end() ||
          it->second.env_setting == kDisallowedInEnvironment) &&

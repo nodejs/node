@@ -36,12 +36,25 @@ All modifications to the Node.js code and documentation should be
 performed via GitHub pull requests, including modifications by
 Collaborators and TC members.
 
+<<<<<<< HEAD
 All pull requests must be reviewed and accepted by a Collaborator with
 sufficient expertise who is able to take full responsibility for the
 change. In the case of pull requests proposed by an existing
 Collaborator, an additional Collaborator is required for sign-off.
 In some cases, it may be necessary to summon a qualified Collaborator
 to a pull request for review by @-mention.
+=======
+At least two Collaborators must approve a pull request before the pull request
+lands. (One Collaborator approval is enough if the pull request has been open
+for more than 7 days.) Approving a pull request indicates that the Collaborator
+accepts responsibility for the change. Approval must be from Collaborators who
+are not authors of the change.
+
+In some cases, it may be necessary to summon a GitHub team to a pull request for
+review by @-mention.
+See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
+
+>>>>>>> 0227635315c3aa1c31e6814325822a1e4306372e
 If you are unsure about the modification and are not prepared to take
 full responsibility for the change, defer to another Collaborator.
 Before landing pull requests, sufficient time should be left for input

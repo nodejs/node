@@ -57,7 +57,9 @@ Local<Object> PipeWrap::Instantiate(Environment* env,
   EscapableHandleScope handle_scope(env->isolate());
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
   CHECK_EQ(false, env->pipe_constructor_template().IsEmpty());
-  Local<Function> constructor = env->pipe_constructor_template()->GetFunction();
+  Local<Function> constructor = env->pipe_constructor_template()
+                                    ->GetFunction(env->context())
+                                    .ToLocalChecked();
   CHECK_EQ(false, constructor.IsEmpty());
   Local<Value> type_value = Int32::New(env->isolate(), type);
   Local<Object> instance =
@@ -91,7 +93,7 @@ void PipeWrap::Initialize(Local<Object> target,
 
   env->SetProtoMethod(t, "fchmod", Fchmod);
 
-  target->Set(pipeString, t->GetFunction());
+  target->Set(pipeString, t->GetFunction(env->context()).ToLocalChecked());
   env->set_pipe_constructor_template(t);
 
   // Create FunctionTemplate for PipeConnectWrap.
@@ -100,7 +102,7 @@ void PipeWrap::Initialize(Local<Object> target,
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap");
   cwt->SetClassName(wrapString);
-  target->Set(wrapString, cwt->GetFunction());
+  target->Set(wrapString, cwt->GetFunction(env->context()).ToLocalChecked());
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());

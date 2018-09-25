@@ -427,6 +427,8 @@ added: v10.5.0
 -->
 
 * `callback` {Function}
+  * `err` {Error}
+  * `exitCode` {integer}
 
 Stop all JavaScript execution in the worker thread as soon as possible.
 `callback` is an optional function that is invoked once this operation is known

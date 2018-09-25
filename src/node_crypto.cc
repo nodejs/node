@@ -366,7 +366,8 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyIVIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
 
-  target->Set(secureContextString, t->GetFunction());
+  target->Set(secureContextString,
+              t->GetFunction(env->context()).ToLocalChecked());
   env->set_secure_context_constructor_template(t);
 }
 
@@ -590,7 +591,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       if (!r) {
         ret = 0;
         issuer = nullptr;
-        goto end;
+        break;
       }
       // Note that we must not free r if it was successfully
       // added to the chain (while we must free the main
@@ -617,12 +618,10 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       issuer = X509_dup(issuer);
       if (issuer == nullptr) {
         ret = 0;
-        goto end;
       }
     }
   }
 
- end:
   issuer_->reset(issuer);
 
   if (ret && x != nullptr) {
@@ -2561,7 +2560,7 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setAAD", SetAAD);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "CipherBase"),
-              t->GetFunction());
+              t->GetFunction(env->context()).ToLocalChecked());
 }
 
 
@@ -3195,7 +3194,8 @@ void Hmac::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", HmacUpdate);
   env->SetProtoMethod(t, "digest", HmacDigest);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hmac"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hmac"),
+              t->GetFunction(env->context()).ToLocalChecked());
 }
 
 
@@ -3314,7 +3314,8 @@ void Hash::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", HashUpdate);
   env->SetProtoMethod(t, "digest", HashDigest);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hash"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hash"),
+              t->GetFunction(env->context()).ToLocalChecked());
 }
 
 
@@ -3508,7 +3509,8 @@ void Sign::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", SignUpdate);
   env->SetProtoMethod(t, "sign", SignFinal);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"), t->GetFunction());
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"),
+              t->GetFunction(env->context()).ToLocalChecked());
 }
 
 
@@ -3710,7 +3712,7 @@ void Verify::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "verify", VerifyFinal);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Verify"),
-              t->GetFunction());
+              t->GetFunction(env->context()).ToLocalChecked());
 }
 
 
@@ -3948,7 +3950,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
       attributes);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"),
-              t->GetFunction());
+              t->GetFunction(env->context()).ToLocalChecked());
 
   Local<FunctionTemplate> t2 = env->NewFunctionTemplate(DiffieHellmanGroup);
   t2->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3977,7 +3979,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
       attributes);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),
-              t2->GetFunction());
+              t2->GetFunction(env->context()).ToLocalChecked());
 }
 
 
@@ -4326,7 +4328,7 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
-              t->GetFunction());
+              t->GetFunction(env->context()).ToLocalChecked());
 }
 
 
