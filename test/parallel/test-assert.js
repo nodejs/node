@@ -415,7 +415,7 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: 'Expected reference equal inputs but got:\n' +
+    message: 'Expected "actual" to be reference-equal to "expected":\n' +
              '+ actual - expected\n\n' +
              '+ [Error: foo]\n- [Error: foobar]'
   }
@@ -1022,7 +1022,7 @@ assert.throws(
   assert.throws(
     () => assert.strictEqual(args, { 0: 'a' }),
     {
-      message: 'Expected reference equal inputs but got:\n' +
+      message: 'Expected "actual" to be reference-equal to "expected":\n' +
                '+ actual - expected\n\n' +
                "+ [Arguments] {\n- {\n    '0': 'a'\n  }"
     }
@@ -1116,7 +1116,7 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: 'Expected "actual" not to be reference equal to "expected": {}'
+    message: 'Expected "actual" not to be reference-equal to "expected": {}'
   }
 );
 
@@ -1128,7 +1128,7 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: 'Expected "actual" not to be reference equal to "expected":\n\n' +
+    message: 'Expected "actual" not to be reference-equal to "expected":\n\n' +
              '{\n  a: true\n}\n'
   }
 );
