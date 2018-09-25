@@ -62,7 +62,7 @@ const gtocHTML = unified()
 const templatePath = path.join(docPath, 'template.html');
 const template = fs.readFileSync(templatePath, 'utf8');
 
-function toHTML({ input, content, filename, nodeVersion, analytics }, cb) {
+function toHTML({ input, content, filename, nodeVersion }, cb) {
   filename = path.basename(filename, '.md');
 
   const id = filename.replace(/\W+/g, '-');
@@ -76,30 +76,6 @@ function toHTML({ input, content, filename, nodeVersion, analytics }, cb) {
                        `class="nav-${id}`, `class="nav-${id} active`))
                      .replace('__EDIT_ON_GITHUB__', editOnGitHub(filename))
                      .replace('__CONTENT__', content.toString());
-
-  if (analytics) {
-    HTML = HTML.replace('<!-- __TRACKING__ -->', `
-    <script type="text/javascript">
-      // In all the browsers we'll get '1' or 'yes' (FF 32 or above) as a string
-      // value when enabling 'DO NOT TRACK'.
-      // For more:
-      // https://developer.mozilla.org/en-US/docs/Web/API/navigator/doNotTrack
-      function isDoNotTrack() {
-        var isDoNotTrackEnabled = navigator.doNotTrack || window.doNotTrack ||
-               navigator.msDoNotTrack;
-        return isDoNotTrackEnabled === '1' || isDoNotTrackEnabled === 'yes';
-      }
-      if (!isDoNotTrack()) {
-        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;
-        i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},
-        i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];
-        a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,
-        'script','//www.google-analytics.com/analytics.js','ga');
-        ga('create', '${analytics}', 'auto');
-        ga('send', 'pageview');
-      }
-    </script>`);
-  }
 
   const docCreated = input.match(
     /<!--\s*introduced_in\s*=\s*v([0-9]+)\.([0-9]+)\.[0-9]+\s*-->/);
