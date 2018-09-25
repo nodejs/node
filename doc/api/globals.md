@@ -123,8 +123,8 @@ The `queueMicrotask()` method queues a microtask to invoke `callback`. If
 be emitted.
 
 In general, `queueMicrotask` is the idiomatic choice over `process.nextTick()`.
-`process.nextTick()` will always run before microtasks, and so unexpected
-execution order may be observed.
+`process.nextTick()` will always run before the microtask queue, and so
+unexpected execution order may be observed.
 
 ```js
 // Here, `queueMicrotask()` is used to ensure the 'load' event is always
