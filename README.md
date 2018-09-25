@@ -11,8 +11,9 @@
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. For
 more information on using Node.js, see the [Node.js Website][].
 
-The Node.js project uses an [open governance model](./GOVERNANCE.md). The
-[Node.js Foundation][] provides support for the project.
+Node.js contributions, policies, and releases are managed under an
+[open governance model](./GOVERNANCE.md). The [Node.js Foundation][] provides
+support for the project.
 
 **This project is bound by a [Code of Conduct][].**
 
