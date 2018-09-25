@@ -22,7 +22,7 @@ const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
 
-function toHTML({ input, filename, nodeVersion, analytics }, cb) {
+function toHTML({ input, filename, nodeVersion }, cb) {
   const content = unified()
     .use(markdown)
     .use(html.firstHeader)
@@ -35,7 +35,7 @@ function toHTML({ input, filename, nodeVersion, analytics }, cb) {
     .processSync(input);
 
   html.toHTML(
-    { input, content, filename, nodeVersion, analytics },
+    { input, content, filename, nodeVersion },
     cb
   );
 }
@@ -94,16 +94,14 @@ const testData = [
     file: fixtures.path('sample_document.md'),
     html: '<ol><li>fish</li><li>fish</li></ol>' +
       '<ul><li>Red fish</li><li>Blue fish</li></ul>',
-    analyticsId: 'UA-67020396-1'
   },
 ];
 
 const spaces = /\s/g;
 
-testData.forEach(({ file, html, analyticsId }) => {
+testData.forEach(({ file, html }) => {
   // Normalize expected data by stripping whitespace.
   const expected = html.replace(spaces, '');
-  const includeAnalytics = typeof analyticsId !== 'undefined';
 
   readFile(file, 'utf8', common.mustCall((err, input) => {
     assert.ifError(err);
@@ -112,7 +110,6 @@ testData.forEach(({ file, html, analyticsId }) => {
         input: input,
         filename: 'foo',
         nodeVersion: process.version,
-        analytics: analyticsId,
       },
       common.mustCall((err, output) => {
         assert.ifError(err);
@@ -121,18 +118,6 @@ testData.forEach(({ file, html, analyticsId }) => {
         // Assert that the input stripped of all whitespace contains the
         // expected markup.
         assert(actual.includes(expected));
-
-        // Testing the insertion of Google Analytics script when
-        // an analytics id is provided. Should not be present by default.
-        const scriptDomain = 'google-analytics.com';
-        if (includeAnalytics) {
-          assert(actual.includes(scriptDomain),
-                 `Google Analytics script was not present in "${actual}"`);
-        } else {
-          assert.strictEqual(actual.includes(scriptDomain), false,
-                             'Google Analytics script was present in ' +
-                             `"${actual}"`);
-        }
       })
     );
   }));
