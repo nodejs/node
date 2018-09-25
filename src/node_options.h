@@ -288,7 +288,7 @@ class OptionsParser {
     }
   };
 
-  // Represents a field of type T withing `Options` that can be looked up
+  // Represents a field of type T within `Options` that can be looked up
   // as a C++ member field.
   template <typename T>
   class SimpleOptionField : public OptionField<T> {
