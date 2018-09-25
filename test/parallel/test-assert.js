@@ -34,8 +34,8 @@ const a = assert;
 if (process.stdout.isTTY)
   process.env.NODE_DISABLE_COLORS = '1';
 
-const strictEqualMessageStart = 'Expected inputs to be strictly equal:\n';
-const start = 'Expected inputs to be strictly deep-equal:';
+const strictEqualMessageStart = 'Expected values to be strictly equal:\n';
+const start = 'Expected values to be strictly deep-equal:';
 const actExp = '+ actual - expected';
 
 assert.ok(a.AssertionError.prototype instanceof Error,
@@ -1013,7 +1013,7 @@ assert.throws(() => { throw null; }, 'foo');
 assert.throws(
   () => assert.strictEqual([], []),
   {
-    message: 'Inputs identical but not reference equal:\n\n[]\n'
+    message: 'Values identical but not reference-equal:\n\n[]\n'
   }
 );
 
@@ -1107,7 +1107,7 @@ assert.throws(
   }
 );
 
-// Check for reference equal objects in `notStrictEqual()`
+// Check for reference-equal objects in `notStrictEqual()`
 assert.throws(
   () => {
     const obj = {};

@@ -4,7 +4,7 @@ require('../common');
 const assert = require('assert');
 const util = require('util');
 const { AssertionError } = assert;
-const defaultMsgStart = 'Expected inputs to be strictly deep-equal:\n';
+const defaultMsgStart = 'Expected values to be strictly deep-equal:\n';
 const defaultMsgStartFull = `${defaultMsgStart}+ actual - expected`;
 
 // Disable colored output to prevent color codes from breaking assertion
@@ -16,7 +16,7 @@ if (process.stdout.isTTY)
 // Template tag function turning an error message into a RegExp
 // for assert.throws()
 function re(literals, ...values) {
-  let result = 'Expected inputs to be loosely deep-equal:\n\n';
+  let result = 'Expected values to be loosely deep-equal:\n\n';
   for (const [i, value] of values.entries()) {
     const str = util.inspect(value, {
       compact: false,
