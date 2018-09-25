@@ -97,7 +97,7 @@ More information can be found in the [LTS README](https://github.com/nodejs/LTS/
 ### Download
 
 Binaries, installers, and source tarballs are available at
-<https://nodejs.org>.
+<https://nodejs.org/en/download/>.
 
 #### Current and LTS Releases
 **Current** and **LTS** releases are available at
