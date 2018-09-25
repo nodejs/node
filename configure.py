@@ -1208,7 +1208,6 @@ def configure_static(o):
 
 
 def write(filename, data):
-  filename = filename
   print_verbose('creating %s' % filename)
   with open(filename, 'w+') as f:
     f.write(data)
