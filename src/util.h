@@ -90,10 +90,8 @@ NO_RETURN void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
 
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \
-  void operator=(const TypeName&) = delete;                                   \
-  void operator=(TypeName&&) = delete;                                        \
   TypeName(const TypeName&) = delete;                                         \
-  TypeName(TypeName&&) = delete
+  TypeName& operator=(const TypeName&) = delete
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
