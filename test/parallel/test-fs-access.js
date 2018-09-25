@@ -59,9 +59,10 @@ if (!common.isWindows && process.getuid() === 0) {
   }
 }
 
-[fs.F_OK, fs.R_OK, fs.W_OK, fs.X_OK].forEach(
-  (cons) => assert.strictEqual(typeof cons, 'number')
-);
+assert.strictEqual(typeof fs.F_OK, 'number');
+assert.strictEqual(typeof fs.R_OK, 'number');
+assert.strictEqual(typeof fs.W_OK, 'number');
+assert.strictEqual(typeof fs.X_OK, 'number');
 
 const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 

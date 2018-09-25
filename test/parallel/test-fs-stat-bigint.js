@@ -35,13 +35,11 @@ function verifyStats(bigintStats, numStats) {
        'isDirectory',
        'isFIFO',
        'isFile',
-       'isFile',
        'isSocket',
        'isSymbolicLink'
       ].forEach(
         (fct) => assert.strictEqual(bigintStats[fct](), numStats[fct]())
       );
-
     } else if (common.isWindows && (key === 'blksize' || key === 'blocks')) {
       assert.strictEqual(bigintStats[key], undefined);
       assert.strictEqual(numStats[key], undefined);
