@@ -1199,7 +1199,7 @@ lint-cpp: tools/.cpplintstamp
 
 tools/.cpplintstamp: $(LINT_CPP_FILES)
 	@echo "Running C++ linter..."
-	@$(PYTHON) tools/cpplint.py $?
+	@$(PYTHON) tools/cpplint.py --quiet $?
 	@$(PYTHON) tools/check-imports.py
 	@touch $@
 
