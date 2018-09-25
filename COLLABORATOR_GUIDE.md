@@ -850,7 +850,7 @@ LTS working group and the Release team.
 | ---                                      | ---                                                                   |
 | `benchmark/*`                            | @nodejs/benchmarking, @mscdex                                         |
 | `doc/*`, `*.md`                          | @nodejs/documentation                                                 |
-| `lib/assert`                             | @nodejs/testing                                                       |
+| `lib/assert`                             | @nodejs/assert                                                        |
 | `lib/async_hooks`                        | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
 | `lib/buffer`                             | @nodejs/buffer                                                        |
 | `lib/child_process`                      | @nodejs/child\_process                                                |
