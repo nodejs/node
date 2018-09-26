@@ -5,10 +5,19 @@
 
 #include "memory_tracker.h"
 
-#define DEFAULT_NODE_NAME                                                      \
-  (node_name == nullptr ? (edge_name == nullptr ? "" : edge_name) : node_name)
-
 namespace node {
+
+// Fallback edge_name if node_name is not available, or "" if edge_name
+// is not available either.
+inline const char* GetNodeName(const char* node_name, const char* edge_name) {
+  if (node_name != nullptr) {
+    return node_name;
+  }
+  if (edge_name != nullptr) {
+    return edge_name;
+  }
+  return "";
+}
 
 class MemoryRetainerNode : public v8::EmbedderGraph::Node {
  public:
@@ -69,8 +78,7 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
 void MemoryTracker::TrackFieldWithSize(const char* edge_name,
                                        size_t size,
                                        const char* node_name) {
-  if (size > 0)
-    AddNode(DEFAULT_NODE_NAME, size, edge_name);
+  if (size > 0) AddNode(GetNodeName(node_name, edge_name), size, edge_name);
 }
 
 void MemoryTracker::TrackField(const char* edge_name,
@@ -105,16 +113,17 @@ template <typename T, typename Iterator>
 void MemoryTracker::TrackField(const char* edge_name,
                                const T& value,
                                const char* node_name,
-                               const char* element_name) {
+                               const char* element_name,
+                               bool subtract_from_self) {
   // If the container is empty, the size has been accounted into the parent's
   // self size
   if (value.begin() == value.end()) return;
   // Fall back to edge name if node names are not provided
-  if (CurrentNode() != nullptr) {
+  if (CurrentNode() != nullptr && subtract_from_self) {
     // Shift the self size of this container out to a separate node
     CurrentNode()->size_ -= sizeof(T);
   }
-  PushNode(DEFAULT_NODE_NAME, sizeof(T), edge_name);
+  PushNode(GetNodeName(node_name, edge_name), sizeof(T), edge_name);
   for (Iterator it = value.begin(); it != value.end(); ++it) {
     // Use nullptr as edge names so the elements appear as indexed properties
     TrackField(nullptr, *it, element_name);
@@ -239,14 +248,12 @@ MemoryRetainerNode* MemoryTracker::CurrentNode() const {
 
 MemoryRetainerNode* MemoryTracker::AddNode(const MemoryRetainer* retainer,
                                            const char* edge_name) {
-  MemoryRetainerNode* n;
   auto it = seen_.find(retainer);
   if (it != seen_.end()) {
-    n = it->second;
-    return n;
+    return it->second;
   }
 
-  n = new MemoryRetainerNode(this, retainer);
+  MemoryRetainerNode* n = new MemoryRetainerNode(this, retainer);
   graph_->AddNode(std::unique_ptr<v8::EmbedderGraph::Node>(n));
   seen_[retainer] = n;
   if (CurrentNode() != nullptr) graph_->AddEdge(CurrentNode(), n, edge_name);

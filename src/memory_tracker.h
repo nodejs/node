@@ -12,6 +12,8 @@
 #include "aliased_buffer.h"
 #include "v8-profiler.h"
 
+namespace node {
+
 // Set the node name of a MemoryRetainer to klass
 #define SET_MEMORY_INFO_NAME(Klass)                                            \
   inline std::string MemoryInfoName() const override { return #Klass; }
@@ -24,8 +26,6 @@
 // Used when there is no additional fields to track
 #define SET_NO_MEMORY_INFO()                                                   \
   inline void MemoryInfo(node::MemoryTracker* tracker) const override {}
-
-namespace node {
 
 class MemoryTracker;
 class MemoryRetainerNode;
@@ -43,16 +43,16 @@ class NodeBIO;
  *     void MemoryInfo(MemoryTracker* tracker) const override {
  *       // Node name and size comes from the MemoryInfoName and SelfSize of
  *       // AnotherRetainerClass
- *       tracker->TrackField("another_retainer", this->another_retainer);
+ *       tracker->TrackField("another_retainer", another_retainer);
  *       // Specify node name and size explicitly
  *       tracker->TrackFieldWithSize("internal_member",
- *                                   this->internal_member.size(),
+ *                                   internal_member.size(),
  *                                   "InternalClass");
  *       // Node name falls back to the edge name,
  *       // elements in the container appear as grandchildren nodes
- *       tracker->TrackField("vector", this->vector_field);
+ *       tracker->TrackField("vector", vector);
  *       // Node name and size come from the JS object
- *       tracker->TrackField("target", this->target);
+ *       tracker->TrackField("target", target);
  *     }
  *
  *     // Or use SET_MEMORY_INFO_NAME(ExampleRetainer)
@@ -69,12 +69,12 @@ class NodeBIO;
  *     // a BaseObject or an AsyncWrap class
  *     bool IsRootNode() const override { return !wrapped.IsWeak(); }
  *     v8::Local<v8::Object> WrappedObject() const override {
- *       return node::PersistentToLocal(this->wrapped);
+ *       return node::PersistentToLocal(wrapped);
  *     }
  *   private:
  *     AnotherRetainerClass another_retainer;
  *     InternalClass internal_member;
- *     std::vector<int> vector;
+ *     std::vector<uv_async_t> vector;
  *     node::Persistent<Object> target;
  *
  *     node::Persistent<Object> wrapped;
@@ -84,7 +84,10 @@ class NodeBIO;
  *   Node / ExampleRetainer
  *    |> another_retainer :: Node / AnotherRetainerClass
  *    |> internal_member :: Node / InternalClass
- *    |> vector :: Node / vector
+ *    |> vector :: Node / vector (elements will be grandchildren)
+ *        |> [1] :: Node / uv_async_t (uv_async_t has predefined names)
+ *        |> [2] :: Node / uv_async_t
+ *        |> ...
  *    |> target :: TargetClass (JS class name of the target object)
  *    |> wrapped :: WrappedClass (JS class name of the wrapped object)
  *        |> wrapper :: Node / ExampleRetainer (back reference)
@@ -123,12 +126,16 @@ class MemoryTracker {
 
   // For containers, the elements will be graphed as grandchildren nodes
   // if the container is not empty.
+  // By default, we assume the parent count the stack size of the container
+  // into its SelfSize so that will be subtracted from the parent size when we
+  // spin off a new node for the container.
   // TODO(joyeecheung): use RTTI to retrieve the class name at runtime?
   template <typename T, typename Iterator = typename T::const_iterator>
   inline void TrackField(const char* edge_name,
                          const T& value,
                          const char* node_name = nullptr,
-                         const char* element_name = nullptr);
+                         const char* element_name = nullptr,
+                         bool subtract_from_self = true);
   template <typename T>
   inline void TrackField(const char* edge_name,
                          const std::queue<T>& value,

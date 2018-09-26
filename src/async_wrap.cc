@@ -182,8 +182,8 @@ class PromiseWrap : public AsyncWrap {
   }
 
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(AsyncWrapObject);
-  SET_SELF_SIZE(AsyncWrapObject)
+  SET_MEMORY_INFO_NAME(PromiseWrap)
+  SET_SELF_SIZE(PromiseWrap)
 
   static constexpr int kPromiseField = 1;
   static constexpr int kIsChainedPromiseField = 2;

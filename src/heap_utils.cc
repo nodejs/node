@@ -193,8 +193,9 @@ void BuildEmbedderGraph(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   JSGraph graph(env->isolate());
   Environment::BuildEmbedderGraph(env->isolate(), &graph, env);
-  // Crash if we cannot build a proper graph
-  args.GetReturnValue().Set(graph.CreateObject().ToLocalChecked());
+  Local<Array> ret;
+  if (graph.CreateObject().ToLocal(&ret))
+    args.GetReturnValue().Set(ret);
 }
 
 
