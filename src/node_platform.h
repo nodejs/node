@@ -110,6 +110,7 @@ class BackgroundTaskRunner : public v8::TaskRunner {
   void Shutdown();
 
   size_t NumberOfAvailableBackgroundThreads() const;
+
  private:
   TaskQueue<v8::Task> background_tasks_;
 
@@ -117,6 +118,10 @@ class BackgroundTaskRunner : public v8::TaskRunner {
   std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
 
   std::vector<std::unique_ptr<uv_thread_t>> threads_;
+
+  Mutex platform_workers_mutex_;
+  ConditionVariable platform_workers_ready_;
+  int pending_platform_workers_;
 };
 
 class NodePlatform : public MultiIsolatePlatform {
