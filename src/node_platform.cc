@@ -18,10 +18,23 @@ using v8::TracingController;
 
 namespace {
 
+struct PlatformWorkerData {
+  TaskQueue<Task>* task_queue;
+  uv_barrier_t* barrier;
+  int id;
+};
+
 static void PlatformWorkerThread(void* data) {
+  PlatformWorkerData* worker_data = static_cast<PlatformWorkerData*>(data);
+  TaskQueue<Task>* pending_worker_tasks = worker_data->task_queue;
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                         "PlatformWorkerThread");
-  TaskQueue<Task>* pending_worker_tasks = static_cast<TaskQueue<Task>*>(data);
+
+  if (uv_barrier_wait(worker_data->barrier) > 0) {
+    uv_barrier_destroy(worker_data->barrier);
+    delete worker_data->barrier;
+    worker_data->barrier = nullptr;
+  }
   while (std::unique_ptr<Task> task = pending_worker_tasks->BlockingPop()) {
     task->Run();
     pending_worker_tasks->NotifyOfCompletion();
@@ -148,16 +161,30 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 };
 
 WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(int thread_pool_size) {
+  uv_barrier_t* barrier = new uv_barrier_t;
+  uv_barrier_init(barrier, thread_pool_size + 1);
+
   delayed_task_scheduler_.reset(
       new DelayedTaskScheduler(&pending_worker_tasks_));
   threads_.push_back(delayed_task_scheduler_->Start());
+
   for (int i = 0; i < thread_pool_size; i++) {
+    // FIXME(ofrobots): need to delete upon shutdown.
+    PlatformWorkerData* worker_data = new PlatformWorkerData{
+      &pending_worker_tasks_, barrier, i
+    };
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
     if (uv_thread_create(t.get(), PlatformWorkerThread,
-                         &pending_worker_tasks_) != 0) {
+                         worker_data) != 0) {
       break;
     }
     threads_.push_back(std::move(t));
+  }
+
+  // Wait for all the worker threads to be initialized.
+  if (uv_barrier_wait(barrier) > 0) {
+    uv_barrier_destroy(barrier);
+    delete barrier;
   }
 }
 
