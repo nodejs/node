@@ -25,6 +25,7 @@ require('../common');
 const assert = require('assert');
 const fromList = require('_stream_readable')._fromList;
 const BufferList = require('internal/streams/buffer_list');
+const util = require('util');
 
 function bufferListFromArray(arr) {
   const bl = new BufferList();
@@ -40,6 +41,16 @@ function bufferListFromArray(arr) {
                Buffer.from('bazy'),
                Buffer.from('kuel') ];
   list = bufferListFromArray(list);
+
+  assert.strictEqual(
+    util.inspect([ list ], { compact: false }),
+    `[
+  BufferList {
+    head: [Object],
+    tail: [Object],
+    length: 4
+  }
+]`);
 
   // read more than the first element.
   let ret = fromList(6, { buffer: list, length: 16 });
