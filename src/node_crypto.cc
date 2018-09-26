@@ -647,50 +647,39 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   if (!x)
     return 0;
 
-  // TODO(addaleax): Turn this into smart pointer as well.
-  X509* extra = nullptr;
-  int ret = 0;
   unsigned long err = 0;  // NOLINT(runtime/int)
 
   StackOfX509 extra_certs(sk_X509_new_null());
   if (!extra_certs)
-    goto done;
+    return 0;
 
-  while ((extra = PEM_read_bio_X509(in.get(),
+  while (X509Pointer extra {PEM_read_bio_X509(in.get(),
                                     nullptr,
                                     NoPasswordCallback,
-                                    nullptr))) {
-    if (sk_X509_push(extra_certs.get(), extra))
+                                    nullptr)}) {
+    if (sk_X509_push(extra_certs.get(), extra.get())) {
+      extra.release();
       continue;
+    }
 
-    // Failure, free all certs
-    goto done;
+    return 0;
   }
-  extra = nullptr;
 
   // When the while loop ends, it's usually just EOF.
   err = ERR_peek_last_error();
   if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
       ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
     ERR_clear_error();
-  } else  {
+  } else {
     // some real error
-    goto done;
+    return 0;
   }
 
-  ret = SSL_CTX_use_certificate_chain(ctx,
-                                      std::move(x),
-                                      extra_certs.get(),
-                                      cert,
-                                      issuer);
-  if (!ret)
-    goto done;
-
- done:
-  if (extra != nullptr)
-    X509_free(extra);
-
-  return ret;
+  return SSL_CTX_use_certificate_chain(ctx,
+                                       std::move(x),
+                                       extra_certs.get(),
+                                       cert,
+                                       issuer);
 }
 
 
