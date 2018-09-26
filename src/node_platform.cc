@@ -18,10 +18,30 @@ using v8::TracingController;
 
 namespace {
 
+static Mutex platform_workers_mutex;
+static ConditionVariable platform_workers_ready;
+static int pending_platform_workers;
+
+struct PlatformWorkerData {
+  TaskQueue<Task>* task_queue;
+  int id;
+};
+
 static void PlatformWorkerThread(void* data) {
+  std::unique_ptr<PlatformWorkerData>
+      worker_data(static_cast<PlatformWorkerData*>(data));
+
+  TaskQueue<Task>* pending_worker_tasks = worker_data->task_queue;
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                         "PlatformWorkerThread");
-  TaskQueue<Task>* pending_worker_tasks = static_cast<TaskQueue<Task>*>(data);
+
+  // Notify the main thread that the platform worker is ready.
+  {
+    Mutex::ScopedLock lock(platform_workers_mutex);
+    pending_platform_workers--;
+    platform_workers_ready.Signal(lock);
+  }
+
   while (std::unique_ptr<Task> task = pending_worker_tasks->BlockingPop()) {
     task->Run();
     pending_worker_tasks->NotifyOfCompletion();
@@ -148,16 +168,29 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 };
 
 WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(int thread_pool_size) {
+  Mutex::ScopedLock lock(platform_workers_mutex);
+  pending_platform_workers = thread_pool_size;
+
   delayed_task_scheduler_.reset(
       new DelayedTaskScheduler(&pending_worker_tasks_));
   threads_.push_back(delayed_task_scheduler_->Start());
+
   for (int i = 0; i < thread_pool_size; i++) {
+    PlatformWorkerData* worker_data = new PlatformWorkerData{
+      &pending_worker_tasks_, i
+    };
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
     if (uv_thread_create(t.get(), PlatformWorkerThread,
-                         &pending_worker_tasks_) != 0) {
+                         worker_data) != 0) {
       break;
     }
     threads_.push_back(std::move(t));
+  }
+
+  // Wait for platform workers to initialize before continuing with the
+  // bootstrap.
+  while (pending_platform_workers > 0) {
+    platform_workers_ready.Wait(lock);
   }
 }
 
