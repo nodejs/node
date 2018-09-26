@@ -3433,7 +3433,8 @@ If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `bytesWritten` and `buffer` properties.
 
 It is unsafe to use `fs.write()` multiple times on the same file without waiting
-for the callback. For this scenario, [`fs.createWriteStream()`] is recommended.
+for the callback. For this scenario, [`fs.createWriteStream()`][] is
+recommended.
 
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
