@@ -1,7 +1,7 @@
 @echo off
 
-rem Ensure this Node.js and npm are first in the PATH
-set "PATH=%APPDATA%\npm;%~dp0;%PATH%"
+rem Ensure this Node.js and npm are last in the PATH
+set "PATH=%PATH%;%APPDATA%\npm;%~dp0"
 
 setlocal enabledelayedexpansion
 pushd "%~dp0"
