@@ -278,9 +278,9 @@ jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
 test: all ## Runs default tests, linters, and builds docs.
+	$(MAKE) -s test-doc
 	@echo "Build the addons before running the tests so the test results"
 	@echo "can be displayed together"
-	$(MAKE) -s test-doc
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
 	$(MAKE) -s cctest
