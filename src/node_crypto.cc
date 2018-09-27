@@ -463,6 +463,11 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv2);
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv3);
 
+  // Enable automatic cert chaining. This is enabled by default in OpenSSL, but
+  // disabled by default in BoringSSL. Enable it explicitly to make the
+  // behavior match when Node is built with BoringSSL.
+  SSL_CTX_clear_mode(sc->ctx_.get(), SSL_MODE_NO_AUTO_CHAIN);
+
   // SSL session cache configuration
   SSL_CTX_set_session_cache_mode(sc->ctx_.get(),
                                  SSL_SESS_CACHE_SERVER |
