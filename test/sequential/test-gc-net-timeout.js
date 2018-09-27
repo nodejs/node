@@ -41,7 +41,6 @@ function getall() {
   req.setTimeout(10, function() {
     req.destroy();
     done++;
-    global.gc();
   });
 
   count++;
