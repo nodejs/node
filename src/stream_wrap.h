@@ -76,6 +76,8 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
   WriteWrap* CreateWriteWrap(v8::Local<v8::Object> object) override;
 
+  static LibuvStreamWrap* From(Environment* env, v8::Local<v8::Object> object);
+
  protected:
   LibuvStreamWrap(Environment* env,
                   v8::Local<v8::Object> object,

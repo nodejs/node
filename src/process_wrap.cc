@@ -95,9 +95,7 @@ class ProcessWrap : public HandleWrap {
     Local<Object> handle =
         stdio->Get(env->context(), handle_key).ToLocalChecked().As<Object>();
 
-    Local<FunctionTemplate> sw = env->libuv_stream_wrap_ctor_template();
-    CHECK(!sw.IsEmpty() && sw->HasInstance(handle));
-    uv_stream_t* stream = Unwrap<LibuvStreamWrap>(handle)->stream();
+    uv_stream_t* stream = LibuvStreamWrap::From(env, handle)->stream();
     CHECK_NOT_NULL(stream);
     return stream;
   }

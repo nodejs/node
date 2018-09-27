@@ -64,8 +64,7 @@ struct AsyncWrapObject : public AsyncWrap {
   static inline void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK(args.IsConstructCall());
-    CHECK(env->async_wrap_object_constructor_template()->HasInstance(
-        args.This()));
+    CHECK(env->async_wrap_object_ctor_template()->HasInstance(args.This()));
     CHECK(args[0]->IsUint32());
     auto type = static_cast<ProviderType>(args[0].As<Uint32>()->Value());
     new AsyncWrapObject(env, args.This(), type);
@@ -530,6 +529,9 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->set_async_hooks_promise_resolve_function(Local<Function>());
   env->set_async_hooks_binding(target);
 
+  // TODO(addaleax): This block might better work as a
+  // AsyncWrapObject::Initialize() or AsyncWrapObject::GetConstructorTemplate()
+  // function.
   {
     auto class_name = FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap");
     auto function_template = env->NewFunctionTemplate(AsyncWrapObject::New);
@@ -540,7 +542,7 @@ void AsyncWrap::Initialize(Local<Object> target,
     auto function =
         function_template->GetFunction(env->context()).ToLocalChecked();
     target->Set(env->context(), class_name, function).FromJust();
-    env->set_async_wrap_object_constructor_template(function_template);
+    env->set_async_wrap_object_ctor_template(function_template);
   }
 }
 

@@ -122,6 +122,13 @@ Local<FunctionTemplate> LibuvStreamWrap::GetConstructorTemplate(
 }
 
 
+LibuvStreamWrap* LibuvStreamWrap::From(Environment* env, Local<Object> object) {
+  Local<FunctionTemplate> sw = env->libuv_stream_wrap_ctor_template();
+  CHECK(!sw.IsEmpty() && sw->HasInstance(object));
+  return Unwrap<LibuvStreamWrap>(object);
+}
+
+
 int LibuvStreamWrap::GetFD() {
 #ifdef _WIN32
   return fd_;
