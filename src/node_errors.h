@@ -26,7 +26,6 @@ namespace node {
   V(ERR_CANNOT_TRANSFER_OBJECT, TypeError)                                   \
   V(ERR_CLOSED_MESSAGE_PORT, Error)                                          \
   V(ERR_CONSTRUCT_CALL_REQUIRED, Error)                                      \
-  V(ERR_INDEX_OUT_OF_RANGE, RangeError)                                      \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
   V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                  \
@@ -35,6 +34,7 @@ namespace node {
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                    \
   V(ERR_MISSING_MODULE, Error)                                               \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                  \
+  V(ERR_OUT_OF_RANGE, RangeError)                                            \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
   V(ERR_STRING_TOO_LONG, Error)                                              \
@@ -64,7 +64,6 @@ namespace node {
   V(ERR_CANNOT_TRANSFER_OBJECT, "Cannot transfer object of unsupported type")\
   V(ERR_CLOSED_MESSAGE_PORT, "Cannot send data on closed MessagePort")       \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")    \
-  V(ERR_INDEX_OUT_OF_RANGE, "Index out of range")                            \
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")     \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")               \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                               \
@@ -94,6 +93,13 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
   message << "Script execution timed out after ";
   message << timeout << "ms";
   THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
+}
+
+inline void THROW_ERR_OUT_OF_RANGE_WITH_TEXT(Environment* env,
+                                             const char* messageText) {
+  std::ostringstream message;
+  message << messageText;
+  THROW_ERR_OUT_OF_RANGE(env, message.str().c_str());
 }
 
 inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {

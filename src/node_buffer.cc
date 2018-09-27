@@ -36,12 +36,14 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
-  THROW_AND_RETURN_IF_NOT_BUFFER(env, obj, "argument")
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, obj, "argument")                      \
 
 #define THROW_AND_RETURN_IF_OOB(r)                                          \
   do {                                                                      \
-    if (!(r)) return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);               \
-  } while (0)
+    if (!(r))                                                               \
+      return node::THROW_ERR_OUT_OF_RANGE_WITH_TEXT(env,                    \
+                                                    "Index out of range");  \
+  } while (0)                                                               \
 
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
   size_t start;                                                             \
@@ -494,7 +496,8 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
     return args.GetReturnValue().Set(0);
 
   if (source_start > ts_obj_length)
-    return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);
+    return node::THROW_ERR_OUT_OF_RANGE_WITH_TEXT(
+        env, "The value of \"sourceStart\" is out of range.");
 
   if (source_end - source_start > target_length - target_start)
     source_end = source_start + target_length - target_start;
@@ -684,9 +687,11 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
 
   if (source_start > ts_obj_length)
-    return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);
+    return node::THROW_ERR_OUT_OF_RANGE_WITH_TEXT(
+        env, "The value of \"sourceStart\" is out of range.");
   if (target_start > target_length)
-    return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);
+    return node::THROW_ERR_OUT_OF_RANGE_WITH_TEXT(
+        env, "The value of \"targetStart\" is out of range.");
 
   CHECK_LE(source_start, source_end);
   CHECK_LE(target_start, target_end);
