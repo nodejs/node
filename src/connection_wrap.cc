@@ -77,7 +77,8 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
 template <typename WrapType, typename UVType>
 void ConnectionWrap<WrapType, UVType>::AfterConnect(uv_connect_t* req,
                                                     int status) {
-  ConnectWrap* req_wrap = static_cast<ConnectWrap*>(req->data);
+  std::unique_ptr<ConnectWrap> req_wrap
+    (static_cast<ConnectWrap*>(req->data));
   CHECK_NOT_NULL(req_wrap);
   WrapType* wrap = static_cast<WrapType*>(req->handle->data);
   CHECK_EQ(req_wrap->env(), wrap->env());
@@ -108,8 +109,6 @@ void ConnectionWrap<WrapType, UVType>::AfterConnect(uv_connect_t* req,
   };
 
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
-
-  delete req_wrap;
 }
 
 template ConnectionWrap<PipeWrap, uv_pipe_t>::ConnectionWrap(
