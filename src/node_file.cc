@@ -163,7 +163,7 @@ inline void FileHandle::Close() {
     // Do not unref this
     env()->SetImmediate([](Environment* env, void* data) {
       char msg[70];
-      err_detail* detail = static_cast<err_detail*>(data);
+      std::unique_ptr<err_detail> detail(static_cast<err_detail*>(data));
       snprintf(msg, arraysize(msg),
               "Closing file descriptor %d on garbage collection failed",
               detail->fd);
@@ -173,7 +173,6 @@ inline void FileHandle::Close() {
       // down the process is the only reasonable thing we can do here.
       HandleScope handle_scope(env->isolate());
       env->ThrowUVException(detail->ret, "close", msg);
-      delete detail;
     }, detail);
     return;
   }
@@ -182,11 +181,10 @@ inline void FileHandle::Close() {
   // to notify that the file descriptor was gc'd. We want to be noisy about
   // this because not explicitly closing the FileHandle is a bug.
   env()->SetUnrefImmediate([](Environment* env, void* data) {
-    err_detail* detail = static_cast<err_detail*>(data);
+    std::unique_ptr<err_detail> detail(static_cast<err_detail*>(data));
     ProcessEmitWarning(env,
                        "Closing file descriptor %d on garbage collection",
                        detail->fd);
-    delete detail;
   }, detail);
 }
 
@@ -234,7 +232,7 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
     closing_ = true;
     CloseReq* req = new CloseReq(env(), promise, object());
     auto AfterClose = uv_fs_callback_t{[](uv_fs_t* req) {
-      CloseReq* close = CloseReq::from_req(req);
+      std::unique_ptr<CloseReq> close(CloseReq::from_req(req));
       CHECK_NOT_NULL(close);
       close->file_handle()->AfterClose();
       Isolate* isolate = close->env()->isolate();
@@ -243,7 +241,6 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
       } else {
         close->Resolve();
       }
-      delete close;
     }};
     int ret = req->Dispatch(uv_fs_close, fd_, AfterClose);
     if (ret < 0) {
