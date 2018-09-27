@@ -95,13 +95,12 @@ void BaseObject::MakeWeak() {
   persistent_handle_.SetWeak(
       this,
       [](const v8::WeakCallbackInfo<BaseObject>& data) {
-        BaseObject* obj = data.GetParameter();
+        std::unique_ptr<BaseObject> obj(data.GetParameter());
         // Clear the persistent handle so that ~BaseObject() doesn't attempt
         // to mess with internal fields, since the JS object may have
         // transitioned into an invalid state.
         // Refs: https://github.com/nodejs/node/issues/18897
         obj->persistent_handle_.Reset();
-        delete obj;
       }, v8::WeakCallbackType::kParameter);
 }
 
