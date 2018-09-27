@@ -98,6 +98,8 @@ Http2Scope::~Http2Scope() {
 Http2Options::Http2Options(Environment* env, nghttp2_session_type type) {
   nghttp2_option_new(&options_);
 
+  nghttp2_option_set_no_closed_streams(options_, 1);
+
   // We manually handle flow control within a session in order to
   // implement backpressure -- that is, we only send WINDOW_UPDATE
   // frames to the remote peer as data is actually consumed by user
