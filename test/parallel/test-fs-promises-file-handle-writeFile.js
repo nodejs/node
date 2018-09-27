@@ -24,5 +24,23 @@ async function validateWriteFile() {
   assert.deepStrictEqual(buffer, readFileData);
 }
 
+async function validateLargeWriteFile() {
+  const fileName = path.resolve(tmpDir, 'large.txt');
+  const handle = await open(fileName, 'w');
+  // 16385 is written as (16384 + 1) because, 16384 is the max chunk size used
+  // in the writeFile, the max chunk size is searchable, and the boundary
+  // testing is also done.
+  const buffer = Buffer.from(
+    Array.apply(null, { length: (16384 + 1) * 3 })
+      .map(Math.random)
+      .map((number) => (number * (1 << 8)))
+  );
+
+  await handle.writeFile(buffer);
+  await handle.close();
+  assert.deepStrictEqual(fs.readFileSync(fileName), buffer);
+}
+
 validateWriteFile()
+  .then(validateLargeWriteFile)
   .then(common.mustCall());

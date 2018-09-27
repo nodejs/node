@@ -20,6 +20,22 @@ async function doWrite() {
   assert.deepStrictEqual(data, buffer);
 }
 
+async function doLargeWrite() {
+  // 16385 is written as (16384 + 1) because, 16384 is the max chunk size used
+  // in the writeFile, the max chunk size is searchable, and the boundary
+  // testing is also done.
+  const buffer = Buffer.from(
+    Array.apply(null, { length: (16384 + 1) * 3 })
+      .map(Math.random)
+      .map((number) => (number * (1 << 8)))
+  );
+  const dest = path.resolve(tmpDir, 'large.txt');
+
+  await fsPromises.writeFile(dest, buffer);
+  const data = fs.readFileSync(dest);
+  assert.deepStrictEqual(data, buffer);
+}
+
 async function doAppend() {
   await fsPromises.appendFile(dest, buffer2);
   const data = fs.readFileSync(dest);
@@ -41,6 +57,7 @@ async function doReadWithEncoding() {
 }
 
 doWrite()
+  .then(doLargeWrite)
   .then(doAppend)
   .then(doRead)
   .then(doReadWithEncoding)
