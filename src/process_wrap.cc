@@ -92,6 +92,7 @@ class ProcessWrap : public HandleWrap {
 
   static uv_stream_t* StreamForWrap(Environment* env, Local<Object> stdio) {
     Local<String> handle_key = env->handle_string();
+    // This property has always been set by JS land if we are in this code path.
     Local<Object> handle =
         stdio->Get(env->context(), handle_key).ToLocalChecked().As<Object>();
 
