@@ -43,7 +43,6 @@ function getall() {
 function cb(res) {
   res.resume();
   done += 1;
-  res.on('end', global.gc);
 }
 
 function ongc() {
