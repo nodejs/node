@@ -11,6 +11,13 @@ small and all contributions are valued.
 This guide explains the process for contributing to the Node.js project's core
 `nodejs/node` GitHub Repository and describes what to expect at each step.
 
+## Contents
+
+* [Code of Conduct](#code-of-conduct)
+* [Issues](#issues)
+* [Pull Requests](#pull-requests)
+* [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
+
 ## [Code of Conduct](./doc/guides/contributing/coc.md)
 
 The Node.js project has a
