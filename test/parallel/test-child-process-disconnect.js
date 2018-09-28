@@ -96,8 +96,7 @@ if (process.argv[2] === 'child') {
           assert.throws(
             child.disconnect.bind(child),
             {
-              code: 'ERR_IPC_DISCONNECTED',
-              type: Error
+              code: 'ERR_IPC_DISCONNECTED'
             });
           return;
         }
