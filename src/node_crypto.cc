@@ -5066,20 +5066,24 @@ class GenerateKeyPairJob : public CryptoJob {
 
     // Now do the same for the private key (which is a bit more difficult).
     if (private_key_encoding_.type_ == PK_ENCODING_PKCS1) {
-      // PKCS#1 is only permitted for RSA keys and without encryption.
+      // PKCS#1 is only permitted for RSA keys.
       CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_RSA);
-      CHECK_NULL(private_key_encoding_.cipher_);
 
       RSAPointer rsa(EVP_PKEY_get1_RSA(pkey));
       if (private_key_encoding_.format_ == PK_FORMAT_PEM) {
         // Encode PKCS#1 as PEM.
-        if (PEM_write_bio_RSAPrivateKey(bio.get(), rsa.get(),
-                                        nullptr, nullptr, 0,
-                                        nullptr, nullptr) != 1)
+        char* pass = private_key_encoding_.passphrase_.get();
+        if (PEM_write_bio_RSAPrivateKey(
+                bio.get(), rsa.get(),
+                private_key_encoding_.cipher_,
+                reinterpret_cast<unsigned char*>(pass),
+                private_key_encoding_.passphrase_length_,
+                nullptr, nullptr) != 1)
           return false;
       } else {
-        // Encode PKCS#1 as DER.
+        // Encode PKCS#1 as DER. This does not permit encryption.
         CHECK_EQ(private_key_encoding_.format_, PK_FORMAT_DER);
+        CHECK_NULL(private_key_encoding_.cipher_);
         if (i2d_RSAPrivateKey_bio(bio.get(), rsa.get()) != 1)
           return false;
       }
@@ -5107,20 +5111,24 @@ class GenerateKeyPairJob : public CryptoJob {
     } else {
       CHECK_EQ(private_key_encoding_.type_, PK_ENCODING_SEC1);
 
-      // SEC1 is only permitted for EC keys and without encryption.
+      // SEC1 is only permitted for EC keys.
       CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_EC);
-      CHECK_NULL(private_key_encoding_.cipher_);
 
       ECKeyPointer ec_key(EVP_PKEY_get1_EC_KEY(pkey));
       if (private_key_encoding_.format_ == PK_FORMAT_PEM) {
         // Encode SEC1 as PEM.
-        if (PEM_write_bio_ECPrivateKey(bio.get(), ec_key.get(),
-                                       nullptr, nullptr, 0,
-                                       nullptr, nullptr) != 1)
+        char* pass = private_key_encoding_.passphrase_.get();
+        if (PEM_write_bio_ECPrivateKey(
+                bio.get(), ec_key.get(),
+                private_key_encoding_.cipher_,
+                reinterpret_cast<unsigned char*>(pass),
+                private_key_encoding_.passphrase_length_,
+                nullptr, nullptr) != 1)
           return false;
       } else {
-        // Encode SEC1 as DER.
+        // Encode SEC1 as DER. This does not permit encryption.
         CHECK_EQ(private_key_encoding_.format_, PK_FORMAT_DER);
+        CHECK_NULL(private_key_encoding_.cipher_);
         if (i2d_ECPrivateKey_bio(bio.get(), ec_key.get()) != 1)
           return false;
       }
