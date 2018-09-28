@@ -19,7 +19,7 @@ const http2 = require('http2');
 const assert = require('assert');
 const { Writable } = require('stream');
 
-const server = http2.createServer();
+const server = http2.createServer({ maxSessionMemory: 1 });
 
 server.on('session', function(session) {
   session.on('stream', function(stream) {
@@ -42,7 +42,7 @@ server.listen(0, function() {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
   function next(i) {
-    if (i === 100000) {
+    if (i === 10000) {
       client.close();
       return server.close();
     }
