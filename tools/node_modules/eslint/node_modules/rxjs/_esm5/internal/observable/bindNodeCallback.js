@@ -1,7 +1,8 @@
-/** PURE_IMPORTS_START _Observable,_AsyncSubject,_operators_map,_util_isScheduler,_util_isArray PURE_IMPORTS_END */
+/** PURE_IMPORTS_START _Observable,_AsyncSubject,_operators_map,_util_canReportError,_util_isScheduler,_util_isArray PURE_IMPORTS_END */
 import { Observable } from '../Observable';
 import { AsyncSubject } from '../AsyncSubject';
 import { map } from '../operators/map';
+import { canReportError } from '../util/canReportError';
 import { isScheduler } from '../util/isScheduler';
 import { isArray } from '../util/isArray';
 export function bindNodeCallback(callbackFunc, resultSelector, scheduler) {
@@ -54,7 +55,12 @@ export function bindNodeCallback(callbackFunc, resultSelector, scheduler) {
                         callbackFunc.apply(context, args.concat([handler]));
                     }
                     catch (err) {
-                        subject.error(err);
+                        if (canReportError(subject)) {
+                            subject.error(err);
+                        }
+                        else {
+                            console.warn(err);
+                        }
                     }
                 }
                 return subject.subscribe(subscriber);

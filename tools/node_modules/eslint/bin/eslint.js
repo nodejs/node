@@ -48,7 +48,6 @@ process.once("uncaughtException", err => {
         console.error(`\nESLint: ${pkg.version}.\n${template(err.messageData || {})}`);
     } else {
 
-        console.error(err.message);
         console.error(err.stack);
     }
 

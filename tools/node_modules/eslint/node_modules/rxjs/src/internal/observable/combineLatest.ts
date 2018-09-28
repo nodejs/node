@@ -69,8 +69,8 @@ export function combineLatest<R>(...observables: Array<ObservableInput<any> | ((
  * To ensure output array has always the same length, `combineLatest` will
  * actually wait for all input Observables to emit at least once,
  * before it starts emitting results. This means if some Observable emits
- * values before other Observables started emitting, all that values but last
- * will be lost. On the other hand, if some Observable does not emit value but
+ * values before other Observables started emitting, all these values but the last
+ * will be lost. On the other hand, if some Observable does not emit a value but
  * completes, resulting Observable will complete at the same moment without
  * emitting anything, since it will be now impossible to include value from
  * completed Observable in resulting array. Also, if some input Observable does

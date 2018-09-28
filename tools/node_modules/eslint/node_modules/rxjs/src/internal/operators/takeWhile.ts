@@ -1,7 +1,10 @@
 import { Operator } from '../Operator';
 import { Observable } from '../Observable';
 import { Subscriber } from '../Subscriber';
-import { MonoTypeOperatorFunction, TeardownLogic } from '../types';
+import { OperatorFunction, MonoTypeOperatorFunction, TeardownLogic } from '../types';
+
+export function takeWhile<T, S extends T>(predicate: (value: T, index: number) => value is S): OperatorFunction<T, S>;
+export function takeWhile<T>(predicate: (value: T, index: number) => boolean): MonoTypeOperatorFunction<T>;
 
 /**
  * Emits values emitted by the source Observable so long as each value satisfies

@@ -42,6 +42,7 @@ export class ZipSubscriber extends Subscriber {
     _complete() {
         const iterators = this.iterators;
         const len = iterators.length;
+        this.unsubscribe();
         if (len === 0) {
             this.destination.complete();
             return;
@@ -50,7 +51,8 @@ export class ZipSubscriber extends Subscriber {
         for (let i = 0; i < len; i++) {
             let iterator = iterators[i];
             if (iterator.stillUnsubscribed) {
-                this.add(iterator.subscribe(iterator, i));
+                const destination = this.destination;
+                destination.add(iterator.subscribe(iterator, i));
             }
             else {
                 this.active--;

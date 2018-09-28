@@ -1,6 +1,7 @@
 import { Observable } from '../Observable';
 import { AsyncSubject } from '../AsyncSubject';
 import { map } from '../operators/map';
+import { canReportError } from '../util/canReportError';
 import { isScheduler } from '../util/isScheduler';
 import { isArray } from '../util/isArray';
 export function bindNodeCallback(callbackFunc, resultSelector, scheduler) {
@@ -39,7 +40,12 @@ export function bindNodeCallback(callbackFunc, resultSelector, scheduler) {
                         callbackFunc.apply(context, [...args, handler]);
                     }
                     catch (err) {
-                        subject.error(err);
+                        if (canReportError(subject)) {
+                            subject.error(err);
+                        }
+                        else {
+                            console.warn(err);
+                        }
                     }
                 }
                 return subject.subscribe(subscriber);

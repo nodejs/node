@@ -41,16 +41,19 @@ var ObserveOnSubscriber = /*@__PURE__*/ (function (_super) {
         this.unsubscribe();
     };
     ObserveOnSubscriber.prototype.scheduleMessage = function (notification) {
-        this.add(this.scheduler.schedule(ObserveOnSubscriber.dispatch, this.delay, new ObserveOnMessage(notification, this.destination)));
+        var destination = this.destination;
+        destination.add(this.scheduler.schedule(ObserveOnSubscriber.dispatch, this.delay, new ObserveOnMessage(notification, this.destination)));
     };
     ObserveOnSubscriber.prototype._next = function (value) {
         this.scheduleMessage(Notification.createNext(value));
     };
     ObserveOnSubscriber.prototype._error = function (err) {
         this.scheduleMessage(Notification.createError(err));
+        this.unsubscribe();
     };
     ObserveOnSubscriber.prototype._complete = function () {
         this.scheduleMessage(Notification.createComplete());
+        this.unsubscribe();
     };
     return ObserveOnSubscriber;
 }(Subscriber));

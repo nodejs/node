@@ -17,6 +17,12 @@ export class SubjectSubscriber<T> extends Subscriber<T> {
 }
 
 /**
+ * A Subject is a special type of Observable that allows values to be
+ * multicasted to many Observables. Subjects are like EventEmitters.
+ *
+ * Every Subject is an Observable and an Observer. You can subscribe to a
+ * Subject, and you can call next to feed values as well as error and complete.
+ *
  * @class Subject<T>
  */
 export class Subject<T> extends Observable<T> implements SubscriptionLike {
@@ -125,6 +131,12 @@ export class Subject<T> extends Observable<T> implements SubscriptionLike {
     }
   }
 
+  /**
+   * Creates a new Observable with this Subject as the source. You can do this
+   * to create customize Observer-side logic of the Subject and conceal it from
+   * code that uses the Observable.
+   * @return {Observable} Observable that the Subject casts to
+   */
   asObservable(): Observable<T> {
     const observable = new Observable<T>();
     (<any>observable).source = this;

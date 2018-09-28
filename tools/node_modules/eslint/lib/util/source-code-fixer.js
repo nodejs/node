@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const debug = require("debug")("eslint:text-fixer");
+const debug = require("debug")("eslint:source-code-fixer");
 
 //------------------------------------------------------------------------------
 // Helpers
