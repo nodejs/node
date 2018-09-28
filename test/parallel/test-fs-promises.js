@@ -65,7 +65,6 @@ function verifyStatObject(stat) {
 }
 
 async function getHandle(dest) {
-  // const dest = path.resolve(tmpDir, filename);
   await copyFile(fixtures.path('baz.js'), dest);
   await access(dest, 'r');
 
