@@ -26,7 +26,7 @@ var SequenceEqualSubscriber = /*@__PURE__*/ (function (_super) {
         _this._a = [];
         _this._b = [];
         _this._oneComplete = false;
-        _this.add(compareTo.subscribe(new SequenceEqualCompareToSubscriber(destination, _this)));
+        _this.destination.add(compareTo.subscribe(new SequenceEqualCompareToSubscriber(destination, _this)));
         return _this;
     }
     SequenceEqualSubscriber.prototype._next = function (value) {
@@ -45,6 +45,7 @@ var SequenceEqualSubscriber = /*@__PURE__*/ (function (_super) {
         else {
             this._oneComplete = true;
         }
+        this.unsubscribe();
     };
     SequenceEqualSubscriber.prototype.checkValues = function () {
         var _c = this, _a = _c._a, _b = _c._b, comparor = _c.comparor;
@@ -80,6 +81,14 @@ var SequenceEqualSubscriber = /*@__PURE__*/ (function (_super) {
             this.checkValues();
         }
     };
+    SequenceEqualSubscriber.prototype.completeB = function () {
+        if (this._oneComplete) {
+            this.emit(this._a.length === 0 && this._b.length === 0);
+        }
+        else {
+            this._oneComplete = true;
+        }
+    };
     return SequenceEqualSubscriber;
 }(Subscriber));
 export { SequenceEqualSubscriber };
@@ -95,9 +104,11 @@ var SequenceEqualCompareToSubscriber = /*@__PURE__*/ (function (_super) {
     };
     SequenceEqualCompareToSubscriber.prototype._error = function (err) {
         this.parent.error(err);
+        this.unsubscribe();
     };
     SequenceEqualCompareToSubscriber.prototype._complete = function () {
-        this.parent._complete();
+        this.parent.completeB();
+        this.unsubscribe();
     };
     return SequenceEqualCompareToSubscriber;
 }(Subscriber));

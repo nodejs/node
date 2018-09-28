@@ -52,7 +52,8 @@ var DelaySubscriber = /*@__PURE__*/ (function (_super) {
     };
     DelaySubscriber.prototype._schedule = function (scheduler) {
         this.active = true;
-        this.add(scheduler.schedule(DelaySubscriber.dispatch, this.delay, {
+        var destination = this.destination;
+        destination.add(scheduler.schedule(DelaySubscriber.dispatch, this.delay, {
             source: this, destination: this.destination, scheduler: scheduler
         }));
     };
@@ -74,9 +75,11 @@ var DelaySubscriber = /*@__PURE__*/ (function (_super) {
         this.errored = true;
         this.queue = [];
         this.destination.error(err);
+        this.unsubscribe();
     };
     DelaySubscriber.prototype._complete = function () {
         this.scheduleNotification(Notification.createComplete());
+        this.unsubscribe();
     };
     return DelaySubscriber;
 }(Subscriber));
