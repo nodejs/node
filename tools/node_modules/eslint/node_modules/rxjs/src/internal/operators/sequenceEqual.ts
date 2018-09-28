@@ -1,6 +1,7 @@
 import { Operator } from '../Operator';
 import { Observable } from '../Observable';
 import { Subscriber } from '../Subscriber';
+import { Subscription } from '../Subscription';
 import { tryCatch } from '../util/tryCatch';
 import { errorObject } from '../util/errorObject';
 
@@ -89,7 +90,7 @@ export class SequenceEqualSubscriber<T, R> extends Subscriber<T> {
               private compareTo: Observable<T>,
               private comparor: (a: T, b: T) => boolean) {
     super(destination);
-    this.add(compareTo.subscribe(new SequenceEqualCompareToSubscriber(destination, this)));
+    (this.destination as Subscription).add(compareTo.subscribe(new SequenceEqualCompareToSubscriber(destination, this)));
   }
 
   protected _next(value: T): void {
@@ -107,6 +108,7 @@ export class SequenceEqualSubscriber<T, R> extends Subscriber<T> {
     } else {
       this._oneComplete = true;
     }
+    this.unsubscribe();
   }
 
   checkValues() {
@@ -143,6 +145,14 @@ export class SequenceEqualSubscriber<T, R> extends Subscriber<T> {
       this.checkValues();
     }
   }
+
+  completeB() {
+    if (this._oneComplete) {
+      this.emit(this._a.length === 0 && this._b.length === 0);
+    } else {
+      this._oneComplete = true;
+    }
+  }
 }
 
 class SequenceEqualCompareToSubscriber<T, R> extends Subscriber<T> {
@@ -156,9 +166,11 @@ class SequenceEqualCompareToSubscriber<T, R> extends Subscriber<T> {
 
   protected _error(err: any): void {
     this.parent.error(err);
+    this.unsubscribe();
   }
 
   protected _complete(): void {
-    this.parent._complete();
+    this.parent.completeB();
+    this.unsubscribe();
   }
 }

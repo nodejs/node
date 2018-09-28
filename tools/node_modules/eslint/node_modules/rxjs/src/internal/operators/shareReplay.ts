@@ -38,7 +38,7 @@ import { Subscriber } from '../Subscriber';
  * @see {@link publishReplay}
  *
  * @param {Number} [bufferSize=Number.POSITIVE_INFINITY] Maximum element count of the replay buffer.
- * @param {Number} [windowTime=Number.MAX_VALUE] Maximum time length of the replay buffer in milliseconds.
+ * @param {Number} [windowTime=Number.POSITIVE_INFINITY] Maximum time length of the replay buffer in milliseconds.
  * @param {Scheduler} [scheduler] Scheduler where connected observers within the selector function
  * will be invoked on.
  * @return {Observable} An observable sequence that contains the elements of a sequence produced
@@ -48,7 +48,7 @@ import { Subscriber } from '../Subscriber';
  */
 export function shareReplay<T>(
   bufferSize: number = Number.POSITIVE_INFINITY,
-  windowTime: number = Number.MAX_VALUE,
+  windowTime: number = Number.POSITIVE_INFINITY,
   scheduler?: SchedulerLike
 ): MonoTypeOperatorFunction<T> {
   return (source: Observable<T>) => source.lift(shareReplayOperator(bufferSize, windowTime, scheduler));

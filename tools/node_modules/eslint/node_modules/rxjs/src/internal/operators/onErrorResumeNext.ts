@@ -2,6 +2,7 @@ import { Observable } from '../Observable';
 import { from } from '../observable/from';
 import { Operator } from '../Operator';
 import { Subscriber } from '../Subscriber';
+import { Subscription } from '../Subscription';
 import { isArray } from '../util/isArray';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
@@ -143,17 +144,20 @@ class OnErrorResumeNextSubscriber<T, R> extends OuterSubscriber<T, R> {
 
   protected _error(err: any): void {
     this.subscribeToNextSource();
+    this.unsubscribe();
   }
 
   protected _complete(): void {
     this.subscribeToNextSource();
+    this.unsubscribe();
   }
 
   private subscribeToNextSource(): void {
     const next = this.nextSources.shift();
     if (next) {
       const innerSubscriber = new InnerSubscriber(this, undefined, undefined);
-      this.add(innerSubscriber);
+      const destination = this.destination as Subscription;
+      destination.add(innerSubscriber);
       subscribeToResult(this, next, undefined, undefined, innerSubscriber);
     } else {
       this.destination.complete();

@@ -55,6 +55,7 @@ var ZipSubscriber = /*@__PURE__*/ (function (_super) {
     ZipSubscriber.prototype._complete = function () {
         var iterators = this.iterators;
         var len = iterators.length;
+        this.unsubscribe();
         if (len === 0) {
             this.destination.complete();
             return;
@@ -63,7 +64,8 @@ var ZipSubscriber = /*@__PURE__*/ (function (_super) {
         for (var i = 0; i < len; i++) {
             var iterator = iterators[i];
             if (iterator.stillUnsubscribed) {
-                this.add(iterator.subscribe(iterator, i));
+                var destination = this.destination;
+                destination.add(iterator.subscribe(iterator, i));
             }
             else {
                 this.active--;

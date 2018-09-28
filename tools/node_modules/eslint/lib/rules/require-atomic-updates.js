@@ -119,6 +119,66 @@ module.exports = {
             });
         }
 
+        const alreadyReportedAssignments = new WeakSet();
+
+        class AssignmentTrackerState {
+            constructor({ openAssignmentsWithoutReads = new Set(), openAssignmentsWithReads = new Set() } = {}) {
+                this.openAssignmentsWithoutReads = openAssignmentsWithoutReads;
+                this.openAssignmentsWithReads = openAssignmentsWithReads;
+            }
+
+            copy() {
+                return new AssignmentTrackerState({
+                    openAssignmentsWithoutReads: new Set(this.openAssignmentsWithoutReads),
+                    openAssignmentsWithReads: new Set(this.openAssignmentsWithReads)
+                });
+            }
+
+            merge(other) {
+                const initialAssignmentsWithoutReadsCount = this.openAssignmentsWithoutReads.size;
+                const initialAssignmentsWithReadsCount = this.openAssignmentsWithReads.size;
+
+                other.openAssignmentsWithoutReads.forEach(assignment => this.openAssignmentsWithoutReads.add(assignment));
+                other.openAssignmentsWithReads.forEach(assignment => this.openAssignmentsWithReads.add(assignment));
+
+                return this.openAssignmentsWithoutReads.size > initialAssignmentsWithoutReadsCount ||
+                    this.openAssignmentsWithReads.size > initialAssignmentsWithReadsCount;
+            }
+
+            enterAssignment(assignmentExpression) {
+                (assignmentExpression.operator === "=" ? this.openAssignmentsWithoutReads : this.openAssignmentsWithReads).add(assignmentExpression);
+            }
+
+            exitAssignment(assignmentExpression) {
+                this.openAssignmentsWithoutReads.delete(assignmentExpression);
+                this.openAssignmentsWithReads.delete(assignmentExpression);
+            }
+
+            exitAwaitOrYield(node, surroundingFunction) {
+                return [...this.openAssignmentsWithReads]
+                    .filter(assignment => !isLocalVariableWithoutEscape(assignment.left, surroundingFunction))
+                    .forEach(assignment => {
+                        if (!alreadyReportedAssignments.has(assignment)) {
+                            reportAssignment(assignment);
+                            alreadyReportedAssignments.add(assignment);
+                        }
+                    });
+            }
+
+            exitIdentifierOrMemberExpression(node) {
+                [...this.openAssignmentsWithoutReads]
+                    .filter(assignment => (
+                        assignment.left !== node &&
+                        assignment.left.type === node.type &&
+                        astUtils.equalTokens(assignment.left, node, sourceCode)
+                    ))
+                    .forEach(assignment => {
+                        this.openAssignmentsWithoutReads.delete(assignment);
+                        this.openAssignmentsWithReads.add(assignment);
+                    });
+            }
+        }
+
         /**
          * If the control flow graph of a function enters an assignment expression, then does the
          * both of the following steps in order (possibly with other steps in between) before exiting the
@@ -135,54 +195,51 @@ module.exports = {
             codePathSegment,
             surroundingFunction,
             {
-                seenSegments = new Set(),
-                openAssignmentsWithoutReads = new Set(),
-                openAssignmentsWithReads = new Set()
+                stateBySegmentStart = new WeakMap(),
+                stateBySegmentEnd = new WeakMap()
             } = {}
         ) {
-            if (seenSegments.has(codePathSegment)) {
-
-                // An AssignmentExpression can't contain loops, so it's not necessary to reenter them with new state.
-                return;
+            if (!stateBySegmentStart.has(codePathSegment)) {
+                stateBySegmentStart.set(codePathSegment, new AssignmentTrackerState());
             }
+
+            const currentState = stateBySegmentStart.get(codePathSegment).copy();
 
             expressionsByCodePathSegment.get(codePathSegment).forEach(({ entering, node }) => {
                 if (node.type === "AssignmentExpression") {
                     if (entering) {
-                        (node.operator === "=" ? openAssignmentsWithoutReads : openAssignmentsWithReads).add(node);
+                        currentState.enterAssignment(node);
                     } else {
-                        openAssignmentsWithoutReads.delete(node);
-                        openAssignmentsWithReads.delete(node);
+                        currentState.exitAssignment(node);
                     }
                 } else if (!entering && (node.type === "AwaitExpression" || node.type === "YieldExpression")) {
-                    [...openAssignmentsWithReads]
-                        .filter(assignment => !isLocalVariableWithoutEscape(assignment.left, surroundingFunction))
-                        .forEach(reportAssignment);
-
-                    openAssignmentsWithReads.clear();
+                    currentState.exitAwaitOrYield(node, surroundingFunction);
                 } else if (!entering && (node.type === "Identifier" || node.type === "MemberExpression")) {
-                    [...openAssignmentsWithoutReads]
-                        .filter(assignment => (
-                            assignment.left !== node &&
-                            assignment.left.type === node.type &&
-                            astUtils.equalTokens(assignment.left, node, sourceCode)
-                        ))
-                        .forEach(assignment => {
-                            openAssignmentsWithoutReads.delete(assignment);
-                            openAssignmentsWithReads.add(assignment);
-                        });
+                    currentState.exitIdentifierOrMemberExpression(node);
                 }
             });
 
+            stateBySegmentEnd.set(codePathSegment, currentState);
+
             codePathSegment.nextSegments.forEach(nextSegment => {
+                if (stateBySegmentStart.has(nextSegment)) {
+                    if (!stateBySegmentStart.get(nextSegment).merge(currentState)) {
+
+                        /*
+                         * This segment has already been processed with the given set of inputs;
+                         * no need to do it again. After no new state is available to process
+                         * for any control flow segment in the graph, the analysis reaches a fixpoint and
+                         * traversal stops.
+                         */
+                        return;
+                    }
+                } else {
+                    stateBySegmentStart.set(nextSegment, currentState.copy());
+                }
                 findOutdatedReads(
                     nextSegment,
                     surroundingFunction,
-                    {
-                        seenSegments: new Set(seenSegments).add(codePathSegment),
-                        openAssignmentsWithoutReads: new Set(openAssignmentsWithoutReads),
-                        openAssignmentsWithReads: new Set(openAssignmentsWithReads)
-                    }
+                    { stateBySegmentStart, stateBySegmentEnd }
                 );
             });
         }

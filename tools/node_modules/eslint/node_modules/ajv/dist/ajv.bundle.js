@@ -1573,7 +1573,7 @@ module.exports = function generate__limitItems(it, $keyword, $ruleType) {
       if ($keyword == 'maxItems') {
         out += 'more';
       } else {
-        out += 'less';
+        out += 'fewer';
       }
       out += ' than ';
       if ($isData) {
@@ -1734,7 +1734,7 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
       if ($keyword == 'maxProperties') {
         out += 'more';
       } else {
-        out += 'less';
+        out += 'fewer';
       }
       out += ' than ';
       if ($isData) {
@@ -3607,6 +3607,7 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
   var $closingBraces = '';
   $it.level++;
   var $nextValid = 'valid' + $it.level;
+  out += 'var ' + ($errs) + ' = errors;';
   if (it.util.schemaHasRules($schema, it.RULES.all)) {
     $it.schema = $schema;
     $it.schemaPath = $schemaPath;
@@ -3620,7 +3621,6 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
       $dataProperties = 'dataProperties' + $lvl,
       $ownProperties = it.opts.ownProperties,
       $currentBaseId = it.baseId;
-    out += ' var ' + ($errs) + ' = errors; ';
     if ($ownProperties) {
       out += ' var ' + ($dataProperties) + ' = undefined; ';
     }

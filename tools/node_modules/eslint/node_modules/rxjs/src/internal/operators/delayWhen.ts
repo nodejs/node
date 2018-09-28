@@ -132,6 +132,7 @@ class DelayWhenSubscriber<T, R> extends OuterSubscriber<T, R> {
   protected _complete(): void {
     this.completed = true;
     this.tryComplete();
+    this.unsubscribe();
   }
 
   private removeSubscription(subscription: InnerSubscriber<T, R>): T {
@@ -149,7 +150,8 @@ class DelayWhenSubscriber<T, R> extends OuterSubscriber<T, R> {
     const notifierSubscription = subscribeToResult(this, delayNotifier, value);
 
     if (notifierSubscription && !notifierSubscription.closed) {
-      this.add(notifierSubscription);
+      const destination = this.destination as Subscription;
+      destination.add(notifierSubscription);
       this.delayNotifierSubscriptions.push(notifierSubscription);
     }
   }
@@ -199,6 +201,7 @@ class SubscriptionDelaySubscriber<T> extends Subscriber<T> {
   }
 
   protected _complete() {
+    this.unsubscribe();
     this.subscribeToSource();
   }
 

@@ -21,7 +21,7 @@ export class SequenceEqualSubscriber extends Subscriber {
         this._a = [];
         this._b = [];
         this._oneComplete = false;
-        this.add(compareTo.subscribe(new SequenceEqualCompareToSubscriber(destination, this)));
+        this.destination.add(compareTo.subscribe(new SequenceEqualCompareToSubscriber(destination, this)));
     }
     _next(value) {
         if (this._oneComplete && this._b.length === 0) {
@@ -39,6 +39,7 @@ export class SequenceEqualSubscriber extends Subscriber {
         else {
             this._oneComplete = true;
         }
+        this.unsubscribe();
     }
     checkValues() {
         const { _a, _b, comparor } = this;
@@ -74,6 +75,14 @@ export class SequenceEqualSubscriber extends Subscriber {
             this.checkValues();
         }
     }
+    completeB() {
+        if (this._oneComplete) {
+            this.emit(this._a.length === 0 && this._b.length === 0);
+        }
+        else {
+            this._oneComplete = true;
+        }
+    }
 }
 class SequenceEqualCompareToSubscriber extends Subscriber {
     constructor(destination, parent) {
@@ -85,9 +94,11 @@ class SequenceEqualCompareToSubscriber extends Subscriber {
     }
     _error(err) {
         this.parent.error(err);
+        this.unsubscribe();
     }
     _complete() {
-        this.parent._complete();
+        this.parent.completeB();
+        this.unsubscribe();
     }
 }
 //# sourceMappingURL=sequenceEqual.js.map

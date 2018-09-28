@@ -101,7 +101,8 @@ export class MergeScanSubscriber<T, R> extends OuterSubscriber<T, R> {
 
   private _innerSub(ish: any, value: T, index: number): void {
     const innerSubscriber = new InnerSubscriber(this, undefined, undefined);
-    this.add(innerSubscriber);
+    const destination = this.destination as Subscription;
+    destination.add(innerSubscriber);
     subscribeToResult<T, R>(this, ish, value, index, innerSubscriber);
   }
 
@@ -113,6 +114,7 @@ export class MergeScanSubscriber<T, R> extends OuterSubscriber<T, R> {
       }
       this.destination.complete();
     }
+    this.unsubscribe();
   }
 
   notifyNext(outerValue: T, innerValue: R,
@@ -126,7 +128,8 @@ export class MergeScanSubscriber<T, R> extends OuterSubscriber<T, R> {
 
   notifyComplete(innerSub: Subscription): void {
     const buffer = this.buffer;
-    this.remove(innerSub);
+    const destination = this.destination as Subscription;
+    destination.remove(innerSub);
     this.active--;
     if (buffer.length > 0) {
       this._next(buffer.shift());

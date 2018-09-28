@@ -9,9 +9,7 @@ export function reduce(accumulator, seed) {
         };
     }
     return function reduceOperatorFunction(source) {
-        return pipe(scan((acc, value, index) => {
-            return accumulator(acc, value, index + 1);
-        }), takeLast(1))(source);
+        return pipe(scan((acc, value, index) => accumulator(acc, value, index + 1)), takeLast(1))(source);
     };
 }
 //# sourceMappingURL=reduce.js.map

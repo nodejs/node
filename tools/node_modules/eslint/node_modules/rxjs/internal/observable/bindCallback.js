@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var Observable_1 = require("../Observable");
 var AsyncSubject_1 = require("../AsyncSubject");
 var map_1 = require("../operators/map");
+var canReportError_1 = require("../util/canReportError");
 var isArray_1 = require("../util/isArray");
 var isScheduler_1 = require("../util/isScheduler");
 function bindCallback(callbackFunc, resultSelector, scheduler) {
@@ -49,7 +50,12 @@ function bindCallback(callbackFunc, resultSelector, scheduler) {
                         callbackFunc.apply(context, args.concat([handler]));
                     }
                     catch (err) {
-                        subject.error(err);
+                        if (canReportError_1.canReportError(subject)) {
+                            subject.error(err);
+                        }
+                        else {
+                            console.warn(err);
+                        }
                     }
                 }
                 return subject.subscribe(subscriber);

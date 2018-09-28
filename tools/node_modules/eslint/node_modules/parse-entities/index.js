@@ -1,11 +1,11 @@
 'use strict'
 
-var characterEntities = require('character-entities')
 var legacy = require('character-entities-legacy')
 var invalid = require('character-reference-invalid')
 var decimal = require('is-decimal')
 var hexadecimal = require('is-hexadecimal')
 var alphanumerical = require('is-alphanumerical')
+var decodeEntity = require('./decode-entity')
 
 module.exports = parseEntities
 
@@ -115,6 +115,7 @@ function parse(value, settings) {
   var queue = ''
   var result = []
   var entityCharacters
+  var namedEntity
   var terminated
   var characters
   var character
@@ -246,9 +247,11 @@ function parse(value, settings) {
       if (terminated) {
         end++
 
-        if (type === NAMED && own.call(characterEntities, characters)) {
+        namedEntity = type === NAMED ? decodeEntity(characters) : false
+
+        if (namedEntity) {
           entityCharacters = characters
-          entity = characterEntities[characters]
+          entity = namedEntity
         }
       }
 

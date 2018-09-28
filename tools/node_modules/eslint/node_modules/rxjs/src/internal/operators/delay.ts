@@ -2,6 +2,7 @@ import { async } from '../scheduler/async';
 import { isDate } from '../util/isDate';
 import { Operator } from '../Operator';
 import { Subscriber } from '../Subscriber';
+import { Subscription } from '../Subscription';
 import { Notification } from '../Notification';
 import { Observable } from '../Observable';
 import { MonoTypeOperatorFunction, PartialObserver, SchedulerAction, SchedulerLike, TeardownLogic } from '../types';
@@ -110,7 +111,8 @@ class DelaySubscriber<T> extends Subscriber<T> {
 
   private _schedule(scheduler: SchedulerLike): void {
     this.active = true;
-    this.add(scheduler.schedule<DelayState<T>>(DelaySubscriber.dispatch, this.delay, {
+    const destination = this.destination as Subscription;
+    destination.add(scheduler.schedule<DelayState<T>>(DelaySubscriber.dispatch, this.delay, {
       source: this, destination: this.destination, scheduler: scheduler
     }));
   }
@@ -137,10 +139,12 @@ class DelaySubscriber<T> extends Subscriber<T> {
     this.errored = true;
     this.queue = [];
     this.destination.error(err);
+    this.unsubscribe();
   }
 
   protected _complete() {
     this.scheduleNotification(Notification.createComplete());
+    this.unsubscribe();
   }
 }
 

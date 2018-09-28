@@ -51,7 +51,8 @@ export class ExpandSubscriber extends OuterSubscriber {
             }
             else {
                 const state = { subscriber: this, result, value, index };
-                this.add(this.scheduler.schedule(ExpandSubscriber.dispatch, 0, state));
+                const destination = this.destination;
+                destination.add(this.scheduler.schedule(ExpandSubscriber.dispatch, 0, state));
             }
         }
         else {
@@ -60,20 +61,23 @@ export class ExpandSubscriber extends OuterSubscriber {
     }
     subscribeToProjection(result, value, index) {
         this.active++;
-        this.add(subscribeToResult(this, result, value, index));
+        const destination = this.destination;
+        destination.add(subscribeToResult(this, result, value, index));
     }
     _complete() {
         this.hasCompleted = true;
         if (this.hasCompleted && this.active === 0) {
             this.destination.complete();
         }
+        this.unsubscribe();
     }
     notifyNext(outerValue, innerValue, outerIndex, innerIndex, innerSub) {
         this._next(innerValue);
     }
     notifyComplete(innerSub) {
         const buffer = this.buffer;
-        this.remove(innerSub);
+        const destination = this.destination;
+        destination.remove(innerSub);
         this.active--;
         if (buffer && buffer.length > 0) {
             this._next(buffer.shift());
