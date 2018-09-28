@@ -327,4 +327,3 @@ async function getHandle(dest) {
 
   doTest().then(common.mustCall());
 }
-
