@@ -159,9 +159,8 @@ class URL {
 
   std::string path() const {
     std::string ret;
-    for (const auto& i : context_.path) {
-      ret += '/';
-      ret += i;
+    for (const std::string& i : context_.path) {
+      ret += '/' + i;
     }
     return ret;
   }
