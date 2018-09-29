@@ -956,6 +956,11 @@
         [ 'OS=="win" and node_shared=="true"', {
           'type': 'none',
         }],
+        [ 'node_shared=="true"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
+          },
+        }],
       ],
     }
   ], # end targets
