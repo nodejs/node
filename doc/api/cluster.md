@@ -394,6 +394,11 @@ This function will kill the worker. In the master, it does this by disconnecting
 the `worker.process`, and once disconnected, killing with `signal`. In the
 worker, it does it by disconnecting the channel, and then exiting with code `0`.
 
+Because `kill()` attempts to gracefully disconnect the worker process, it is
+susceptible to waiting indefinitely for the disconnect to complete. For example,
+if the worker enters an infinite loop, a graceful disconnect will never occur.
+If the graceful disconnect behavior is not needed, use `worker.process.kill()`.
+
 Causes `.exitedAfterDisconnect` to be set.
 
 This method is aliased as `worker.destroy()` for backwards compatibility.
