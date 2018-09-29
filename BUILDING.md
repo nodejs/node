@@ -13,7 +13,7 @@ file a new issue.
 * [Supported platforms](#supported-platforms)
   * [Input](#input)
   * [Strategy](#strategy)
-  * [Supported platforms](#supported-platforms)
+  * [Supported platforms](#supported-platforms-1)
   * [Supported toolchains](#supported-toolchains)
     * [Unix](#unix)
     * [AIX](#aix)
