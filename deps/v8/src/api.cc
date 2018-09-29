@@ -2227,6 +2227,10 @@ int PrimitiveArray::Length() const {
   return array->length();
 }
 
+void PrimitiveArray::Set(Isolate* isolate, int index, Local<Primitive> item) {
+  return Set(index, item);
+}
+
 void PrimitiveArray::Set(int index, Local<Primitive> item) {
   i::Handle<i::FixedArray> array = Utils::OpenHandle(this);
   i::Isolate* isolate = array->GetIsolate();
@@ -2237,6 +2241,10 @@ void PrimitiveArray::Set(int index, Local<Primitive> item) {
                   "array length");
   i::Handle<i::Object> i_item = Utils::OpenHandle(*item);
   array->set(index, *i_item);
+}
+
+Local<Primitive> PrimitiveArray::Get(Isolate* isolate, int index) {
+  return Get(index);
 }
 
 Local<Primitive> PrimitiveArray::Get(int index) {
@@ -6877,6 +6885,11 @@ bool v8::BooleanObject::ValueOf() const {
   i::Isolate* isolate = jsvalue->GetIsolate();
   LOG_API(isolate, BooleanObject, BooleanValue);
   return jsvalue->value()->IsTrue(isolate);
+}
+
+
+Local<v8::Value> v8::StringObject::New(Isolate* isolate, Local<String> value) {
+  return New(value);
 }
 
 
