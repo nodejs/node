@@ -742,7 +742,7 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
       ExternalReference::Create(IsolateAddressId::kCFunctionAddress, isolate());
   mov(StaticVariable(c_entry_fp_address), ebp);
   mov(StaticVariable(context_address), esi);
-  mov(StaticVariable(c_function_address), ebx);
+  mov(StaticVariable(c_function_address), edx);
 }
 
 
