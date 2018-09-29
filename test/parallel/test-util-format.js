@@ -273,6 +273,10 @@ assert.strictEqual(util.format('percent: %d%, fraction: %d', 10, 0.1),
                    'percent: 10%, fraction: 0.1');
 assert.strictEqual(util.format('abc%', 1), 'abc% 1');
 
+// Additional arguments after format specifiers
+assert.strictEqual(util.format('%i', 1, 'number'), '1 number');
+assert.strictEqual(util.format('%i', 1, () => {}), '1 [Function]');
+
 {
   const o = {};
   o.o = o;
@@ -315,3 +319,15 @@ function BadCustomError(msg) {
 util.inherits(BadCustomError, Error);
 assert.strictEqual(util.format(new BadCustomError('foo')),
                    '[BadCustomError: foo]');
+
+// The format of arguments should not depend on type of the first argument
+assert.strictEqual(util.format('1', '1'), '1 1');
+assert.strictEqual(util.format(1, '1'), '1 1');
+assert.strictEqual(util.format('1', 1), '1 1');
+assert.strictEqual(util.format(1, 1), '1 1');
+assert.strictEqual(util.format('1', () => {}), '1 [Function]');
+assert.strictEqual(util.format(1, () => {}), '1 [Function]');
+assert.strictEqual(util.format('1', "'"), "1 '");
+assert.strictEqual(util.format(1, "'"), "1 '");
+assert.strictEqual(util.format('1', 'number'), '1 number');
+assert.strictEqual(util.format(1, 'number'), '1 number');
