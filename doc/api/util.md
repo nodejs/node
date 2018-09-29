@@ -184,6 +184,17 @@ property take precedence over `--trace-deprecation` and
 added: v0.5.3
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23162
+    description: The `format` argument is now only taken as such if it actually
+                 contains format specifiers.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23162
+    description: If the `format` argument is not a format string, the output
+                 string's formatting is no longer dependent on the type of the
+                 first argument. This change removes previously present quotes
+                 from strings that were being output when the first argument
+                 was not a string.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/17907
     description: The `%o` specifier's `depth` option will now fall back to the
                  default depth.
@@ -195,11 +206,9 @@ changes:
 * `format` {string} A `printf`-like format string.
 
 The `util.format()` method returns a formatted string using the first argument
-as a `printf`-like format.
-
-The first argument is a string containing zero or more *placeholder* tokens.
-Each placeholder token is replaced with the converted value from the
-corresponding argument. Supported placeholders are:
+as a `printf`-like format string which can contain zero or more format
+specifiers. Each specifier is replaced with the converted value from the
+corresponding argument. Supported specifiers are:
 
 * `%s` - `String`.
 * `%d` - `Number` (integer or floating point value) or `BigInt`.
@@ -218,37 +227,40 @@ contains circular references.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 * Returns: {string} The formatted string
 
-If the placeholder does not have a corresponding argument, the placeholder is
-not replaced.
+If a specifier does not have a corresponding argument, it is not replaced:
 
 ```js
 util.format('%s:%s', 'foo');
 // Returns: 'foo:%s'
 ```
 
-If there are more arguments passed to the `util.format()` method than the number
-of placeholders, the extra arguments are coerced into strings then concatenated
-to the returned string, each delimited by a space. Excessive arguments whose
-`typeof` is `'object'` or `'symbol'` (except `null`) will be transformed by
-`util.inspect()`.
+Values that are not part of the format string are formatted using
+`util.inspect()` if their type is either `'object'`, `'symbol'`, `'function'`
+or `'number'` and using `String()` in all other cases.
+
+If there are more arguments passed to the `util.format()` method than the
+number of specifiers, the extra arguments are concatenated to the returned
+string, separated by spaces:
 
 ```js
-util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
+util.format('%s:%s', 'foo', 'bar', 'baz');
+// Returns: 'foo:bar baz'
 ```
 
-If the first argument is not a string then `util.format()` returns
-a string that is the concatenation of all arguments separated by spaces.
-Each argument is converted to a string using `util.inspect()`.
+If the first argument does not contain a valid format specifier, `util.format()`
+returns a string that is the concatenation of all arguments separated by spaces.
 
 ```js
-util.format(1, 2, 3); // '1 2 3'
+util.format(1, 2, 3);
+// Returns: '1 2 3'
 ```
 
 If only one argument is passed to `util.format()`, it is returned as it is
 without any formatting.
 
 ```js
-util.format('%% %s'); // '%% %s'
+util.format('%% %s');
+// Returns: '%% %s'
 ```
 
 Please note that `util.format()` is a synchronous method that is mainly
