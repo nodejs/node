@@ -72,7 +72,8 @@ void uv_loadavg(double avg[3]) {
 
 
 int uv_resident_set_memory(size_t* rss) {
-  return UV_ENOSYS;
+  *rss = 0;
+  return 0;
 }
 
 

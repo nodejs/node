@@ -34,6 +34,9 @@ sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
 sNtQueryDirectoryFile pNtQueryDirectoryFile;
 sNtQuerySystemInformation pNtQuerySystemInformation;
 
+/* Kernel32 function pointers */
+sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
+
 /* Powrprof.dll function pointer */
 sPowerRegisterSuspendResumeNotification pPowerRegisterSuspendResumeNotification;
 
@@ -45,6 +48,7 @@ void uv_winapi_init(void) {
   HMODULE ntdll_module;
   HMODULE powrprof_module;
   HMODULE user32_module;
+  HMODULE kernel32_module;
 
   ntdll_module = GetModuleHandleA("ntdll.dll");
   if (ntdll_module == NULL) {
@@ -97,6 +101,15 @@ void uv_winapi_init(void) {
   if (pNtQuerySystemInformation == NULL) {
     uv_fatal_error(GetLastError(), "GetProcAddress");
   }
+
+  kernel32_module = GetModuleHandleA("kernel32.dll");
+  if (kernel32_module == NULL) {
+    uv_fatal_error(GetLastError(), "GetModuleHandleA");
+  }
+
+  pGetQueuedCompletionStatusEx = (sGetQueuedCompletionStatusEx) GetProcAddress(
+      kernel32_module,
+      "GetQueuedCompletionStatusEx");
 
   powrprof_module = LoadLibraryA("powrprof.dll");
   if (powrprof_module != NULL) {
