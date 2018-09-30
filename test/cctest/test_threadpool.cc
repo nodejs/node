@@ -67,7 +67,8 @@ class SlowTestTask : public node::threadpool::Task {
 
   void Run() {
     testTaskRunCount++;
-    for (int i = 0; i < 10000000; i++);
+    for (int i = 0; i < 10000000; i++)
+      continue;
   }
 };
 
@@ -168,7 +169,7 @@ TEST_F(ThreadpoolTest, WorkerGroupWorksWithTaskQueue) {
     // Once we create the WorkerGroup, it should empty tq.
     WorkerGroup wg(4, tq);
     tq->Stop();
-  } // wg leaves scope
+  }  // wg leaves scope
   // wg destructor should drain tq
   EXPECT_EQ(tq->Length(), 0);
 

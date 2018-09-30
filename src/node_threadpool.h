@@ -51,7 +51,7 @@ class WorkerGroup {
 //   - cancellation (a la Davis et al. 2018's Manager-Worker-Hangman approach)
 class Worker {
  public:
-  Worker(std::shared_ptr<TaskQueue> tq);
+  explicit Worker(std::shared_ptr<TaskQueue> tq);
 
   // Starts a thread and returns control to the caller.
   void Start();
@@ -70,12 +70,14 @@ class Worker {
 // At what level does the user want to monitor TP performance?
 // Presumably they want this info via APIs in NodeThreadpool.
 // Tracking it on a per-Task basis might be overkill. But on the other hand
-// this would permit users to dynamically identify slower and faster tasks for us.
-// Which would be cool.
-// If we track this in TaskState, then Task knows about it, and can tell TaskQueue about it,
+// this would permit users to dynamically identify slower and faster tasks
+// for us. Which would be cool.
+// If we track this in TaskState, then Task knows about it, and
+// can tell TaskQueue about it,
 // which can propagate to Threadpool, which can propagate to NodeThreadpool.
 
-// TODO(davisjam): I don't like all of the 'friend class XXX' I introduced to make the time APIs compile.
+// TODO(davisjam): I don't like all of the 'friend class XXX'
+// I introduced to make the time APIs compile.
 
 // This is basically a struct
 class TaskDetails {
@@ -169,18 +171,18 @@ class TaskDetails {
 //      - try to Cancel it
 //      - monitor how long it spends in the QUEUED and ASSIGNED states.
 class TaskState {
- // My friends may TryUpdateState, update my time, etc.
- friend class Task;
- friend class TaskQueue;
- friend class Worker;
- friend class TaskSummary;
+  // My friends may TryUpdateState, update my time, etc.
+  friend class Task;
+  friend class TaskQueue;
+  friend class Worker;
+  friend class TaskSummary;
 
  public:
   enum State {
       INITIAL
     , QUEUED
     , ASSIGNED
-    , COMPLETED // Terminal state
+    , COMPLETED  // Terminal state
     , CANCELLED
   };
 
@@ -235,9 +237,9 @@ class TaskState {
 //  - User work from the N-API
 class Task {
   // For access to task_state_'s time tracking.
- friend class TaskQueue;   
- friend class Worker;
- friend class TaskSummary;
+  friend class TaskQueue;
+  friend class Worker;
+  friend class TaskSummary;
 
  public:
   // Subclasses should set details_ in their constructor.
@@ -260,7 +262,7 @@ class Task {
 
 class TaskSummary {
  public:
-  TaskSummary(Task* completed_task);
+  explicit TaskSummary(Task* completed_task);
 
   TaskDetails details_;
   uint64_t time_in_queue_;
@@ -298,8 +300,8 @@ class LibuvExecutor {
 class QueueLengthSample {
  public:
   QueueLengthSample(int n_cpu, int n_io, uint64_t time)
-   : time_(time), length_(n_cpu + n_io), n_cpu_(n_cpu), n_io_(n_io) { }
- 
+    : time_(time), length_(n_cpu + n_io), n_cpu_(n_cpu), n_io_(n_io) { }
+
   uint64_t time_;
 
   int length_;
@@ -319,7 +321,7 @@ class QueueLengthSample {
 // Users should check the state of Tasks they Pop.
 class TaskQueue {
  public:
-  TaskQueue(int id =-1);
+  explicit TaskQueue(int id =-1);
 
   // Return true if Push succeeds, else false.
   // Thread-safe.
@@ -342,8 +344,10 @@ class TaskQueue {
 
   int Length() const;
 
-  std::vector<std::unique_ptr<TaskSummary>> const& GetTaskSummaries() const;
-  std::vector<std::unique_ptr<QueueLengthSample>> const& GetQueueLengths() const;
+  std::vector<std::unique_ptr<TaskSummary>> const&
+    GetTaskSummaries() const;
+  std::vector<std::unique_ptr<QueueLengthSample>> const&
+    GetQueueLengths() const;
 
  private:
   // Caller must hold lock_.
@@ -394,7 +398,8 @@ class Threadpool {
   // Returns nullptr on failure.
   // TODO(davisjam): It should not return nullptr on failure.
   // Then the task would be destroyed!
-  // Since the underlying queues should not be Stop'd until the Threadpool d'tor,
+  // Since the underlying queues should not be Stop'd
+  // until the Threadpool d'tor,
   // I think it's reasonable that Post will *never* fail.
   std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task);
   // Block until there are no tasks pending or scheduled in the TP.
@@ -407,7 +412,8 @@ class Threadpool {
   int NWorkers() const;
 
   std::vector<std::unique_ptr<TaskSummary>> const& GetTaskSummaries() const;
-  std::vector<std::unique_ptr<QueueLengthSample>> const& GetQueueLengths() const;
+  std::vector<std::unique_ptr<QueueLengthSample>> const& GetQueueLengths()
+    const;
 
  protected:
   void Initialize();
@@ -424,8 +430,8 @@ class Threadpool {
 class NodeThreadpool {
  public:
   // TODO(davisjam): Is this OK? It permits sub-classing.
-  // But maybe we should take an interface approach and have all of these virtual
-  // methods be pure virtual?
+  // But maybe we should take an interface approach and
+  // have all of these virtual methods be pure virtual?
   NodeThreadpool();
   // If threadpool_size <= 0:
   //   - checks UV_THREADPOOL_SIZE to determine threadpool_size
@@ -471,14 +477,14 @@ class PartitionedNodeThreadpool : public NodeThreadpool {
 
   virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task);
   // Sub-class can use our Post, but needs to tell us which TP to use.
-  virtual int ChooseThreadpool(Task* task) const =0;
-  virtual void BlockingDrain() override;
+  virtual int ChooseThreadpool(Task* task) const = 0;
+  void BlockingDrain() override;
 
-  virtual int QueueLength() const override;
+  int QueueLength() const override;
 
-  virtual int NWorkers() const override;
+  int NWorkers() const override;
 
-  virtual void PrintStats() const override;
+  void PrintStats() const override;
 
  protected:
   // Sub-classes should call this after computing tp_sizes in their c'tors.
@@ -491,9 +497,11 @@ class PartitionedNodeThreadpool : public NodeThreadpool {
   std::map<int, int> tp_sizes_;
 };
 
-// This is the same as a NodeThreadpool, but by inheriting from PartitionedNodeThreadpool
+// This is the same as a NodeThreadpool,
+// but by inheriting from PartitionedNodeThreadpool
 // we get to benefit from its built-in monitoring.
-class UnpartitionedPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
+class UnpartitionedPartitionedNodeThreadpool
+: public PartitionedNodeThreadpool {
  public:
   // tp_sizes[0] defines the only pool. Reads UV_THREADPOOL_SIZE, defaults to 4.
   explicit UnpartitionedPartitionedNodeThreadpool(std::vector<int> tp_sizes);
@@ -501,7 +509,7 @@ class UnpartitionedPartitionedNodeThreadpool : public PartitionedNodeThreadpool 
   ~UnpartitionedPartitionedNodeThreadpool();
 
   int ChooseThreadpool(Task* task) const;
- 
+
  private:
   int ONLY_TP_IX;
 };
@@ -510,8 +518,11 @@ class UnpartitionedPartitionedNodeThreadpool : public PartitionedNodeThreadpool 
 class ByTaskOriginPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
  public:
   // tp_sizes[0] is V8, tp_sizes[1] is libuv
-  // tp_sizes[0] -1: reads NODE_THREADPOOL_V8_TP_SIZE, or guesses based on # cores
-  // tp_sizes[1] -1: reads UV_THREADPOOL_SIZE or NODE_THREADPOOL_UV_THREADPOOL_SIZE defaults to 4
+  // tp_sizes[0] -1: reads NODE_THREADPOOL_V8_TP_SIZE,
+  //   or guesses based on # cores
+  // tp_sizes[1] -1: reads UV_THREADPOOL_SIZE or
+  //   NODE_THREADPOOL_UV_THREADPOOL_SIZE
+  //   defaults to 4
   explicit ByTaskOriginPartitionedNodeThreadpool(std::vector<int> tp_sizes);
   // Waits for queue to drain.
   ~ByTaskOriginPartitionedNodeThreadpool();
@@ -527,8 +538,10 @@ class ByTaskOriginPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
 class ByTaskTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
  public:
   // tp_sizes[0] is CPU, tp_sizes[1] is I/O
-  // tp_sizes[0] -1: reads NODE_THREADPOOL_CPU_TP_SIZE, or guesses based on # cores
-  // tp_sizes[1] -1: reads NODE_THREADPOOL_IO_TP_SIZE, or guesses based on # cores
+  // tp_sizes[0] -1: reads NODE_THREADPOOL_CPU_TP_SIZE,
+  //   or guesses based on # cores
+  // tp_sizes[1] -1: reads NODE_THREADPOOL_IO_TP_SIZE,
+  //   or guesses based on # cores
   explicit ByTaskTypePartitionedNodeThreadpool(std::vector<int> tp_sizes);
   // Waits for queue to drain.
   ~ByTaskTypePartitionedNodeThreadpool();
@@ -541,13 +554,18 @@ class ByTaskTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
 };
 
 // Splits based on task origin and type: V8 or libuv-{CPU or I/O}
-class ByTaskOriginAndTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
+class ByTaskOriginAndTypePartitionedNodeThreadpool
+: public PartitionedNodeThreadpool {
  public:
   // tp_sizes[0] is V8, tp_sizes[1] is libuv-CPU, tp_sizes[2] is libuv-I/O
-  // tp_sizes[0] -1: reads NODE_THREADPOOL_V8_TP_SIZE, or guesses based on # cores
-  // tp_sizes[1] -1: reads NODE_THREADPOOL_UV_CPU_TP_SIZE, or guesses based on # cores
-  // tp_sizes[2] -1: reads NODE_THREADPOOL_UV_IO_TP_SIZE, or guesses based on # cores
-  explicit ByTaskOriginAndTypePartitionedNodeThreadpool(std::vector<int> tp_sizes);
+  // tp_sizes[0] -1: reads NODE_THREADPOOL_V8_TP_SIZE, or
+  //   guesses based on # cores
+  // tp_sizes[1] -1: reads NODE_THREADPOOL_UV_CPU_TP_SIZE, or
+  //   guesses based on # cores
+  // tp_sizes[2] -1: reads NODE_THREADPOOL_UV_IO_TP_SIZE, or
+  //   guesses based on # cores
+  explicit ByTaskOriginAndTypePartitionedNodeThreadpool(
+    std::vector<int> tp_sizes);
   // Waits for queue to drain.
   ~ByTaskOriginAndTypePartitionedNodeThreadpool();
 

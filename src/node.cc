@@ -287,19 +287,23 @@ class NodeTraceStateObserver :
 static struct {
   void Initialize(void) {
     // What kind of threadpool is desired?
-    char *tp_type = getenv("NODE_THREADPOOL_TYPE");
+    char* tp_type = getenv("NODE_THREADPOOL_TYPE");
     if (!tp_type || strcmp(tp_type, "SHARED") == 0) {
       std::vector<int> sizes{-1};
-      tp_ = std::make_shared<threadpool::UnpartitionedPartitionedNodeThreadpool>(sizes);
+      tp_ = std::make_shared<
+        threadpool::UnpartitionedPartitionedNodeThreadpool>(sizes);
     } else if (strcmp(tp_type, "SPLIT_BY_ORIGIN") == 0) {
       std::vector<int> sizes{-1, -1};
-      tp_ = std::make_shared<threadpool::ByTaskOriginPartitionedNodeThreadpool>(sizes);
+      tp_ = std::make_shared<
+        threadpool::ByTaskOriginPartitionedNodeThreadpool>(sizes);
     } else if (strcmp(tp_type, "SPLIT_BY_TYPE") == 0) {
       std::vector<int> sizes{-1, -1};
-      tp_ = std::make_shared<threadpool::ByTaskTypePartitionedNodeThreadpool>(sizes);
+      tp_ = std::make_shared<
+        threadpool::ByTaskTypePartitionedNodeThreadpool>(sizes);
     } else if (strcmp(tp_type, "SPLIT_BY_ORIGIN_AND_TYPE") == 0) {
       std::vector<int> sizes{-1, -1, -1};
-      tp_ = std::make_shared<threadpool::ByTaskOriginAndTypePartitionedNodeThreadpool>(sizes);
+      tp_ = std::make_shared<
+        threadpool::ByTaskOriginAndTypePartitionedNodeThreadpool>(sizes);
     } else {
       CHECK(0);
     }

@@ -100,7 +100,8 @@ class PerIsolatePlatformData :
 // API is modeled on v8::TaskRunner.
 class WorkerThreadsTaskRunner {
  public:
-  explicit WorkerThreadsTaskRunner(std::shared_ptr<threadpool::NodeThreadpool> tp);
+  explicit WorkerThreadsTaskRunner(
+    std::shared_ptr<threadpool::NodeThreadpool> tp);
 
   // Add task to queue for eventual Run()
   void PostTask(std::unique_ptr<v8::Task> task);
