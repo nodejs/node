@@ -88,15 +88,6 @@ Local<Value> UVException(Isolate* isolate,
                          int errorno,
                          const char* syscall,
                          const char* msg,
-                         const char* path) {
-  return UVException(isolate, errorno, syscall, msg, path, nullptr);
-}
-
-
-Local<Value> UVException(Isolate* isolate,
-                         int errorno,
-                         const char* syscall,
-                         const char* msg,
                          const char* path,
                          const char* dest) {
   Environment* env = Environment::GetCurrent(isolate);
