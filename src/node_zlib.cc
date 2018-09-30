@@ -143,8 +143,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     CHECK_EQ(args.Length(), 7);
 
     uint32_t in_off, in_len, out_off, out_len, flush;
-    Bytef* in;
-    Bytef* out;
+    char* in;
+    char* out;
 
     CHECK_EQ(false, args[0]->IsUndefined() && "must provide flush value");
     if (!args[0]->Uint32Value(context).To(&flush)) return;
@@ -170,7 +170,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
       if (!args[3]->Uint32Value(context).To(&in_len)) return;
 
       CHECK(Buffer::IsWithinBounds(in_off, in_len, Buffer::Length(in_buf)));
-      in = reinterpret_cast<Bytef*>(Buffer::Data(in_buf) + in_off);
+      in = Buffer::Data(in_buf) + in_off;
     }
 
     CHECK(Buffer::HasInstance(args[4]));
@@ -178,7 +178,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     if (!args[5]->Uint32Value(context).To(&out_off)) return;
     if (!args[6]->Uint32Value(context).To(&out_len)) return;
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
-    out = reinterpret_cast<Bytef*>(Buffer::Data(out_buf) + out_off);
+    out = Buffer::Data(out_buf) + out_off;
 
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
@@ -188,8 +188,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
   template <bool async>
   void Write(uint32_t flush,
-             Bytef* in, uint32_t in_len,
-             Bytef* out, uint32_t out_len) {
+             char* in, uint32_t in_len,
+             char* out, uint32_t out_len) {
     AllocScope alloc_scope(this);
 
     CHECK(init_done_ && "write before init");
@@ -201,9 +201,9 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     Ref();
 
     strm_.avail_in = in_len;
-    strm_.next_in = in;
+    strm_.next_in = reinterpret_cast<Bytef*>(in);
     strm_.avail_out = out_len;
-    strm_.next_out = out;
+    strm_.next_out = reinterpret_cast<Bytef*>(out);
     flush_ = flush;
 
     if (!async) {
