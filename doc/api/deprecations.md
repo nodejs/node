@@ -2214,6 +2214,22 @@ the `_handle` property of the `Cipher`, `Decipher`, `DiffieHellman`,
 Using the `_handle` property to access the native object is deprecated because
 improper use of the native object can lead to crashing the application.
 
+<a id="DEP0118"></a>
+### DEP0118: dns.lookup supports for falsy hostname
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23173
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Previous versions of Node.js support `dns.lookup` a falsy hostname like
+`dns.lookup(false)` for the reason of backward compatibility long before.
+This behavior is undocumented and seems useless in real world apps. We
+might make invalid hostname throw in the future.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
