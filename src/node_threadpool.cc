@@ -701,7 +701,7 @@ class LibuvTask : public Task {
     req_->reserved[0] = nullptr;
 
     // Inform libuv.
-    libuv_executor_->GetExecutor()->done(req_);
+    uv_executor_return_work(req_);
   }
 
   void Run() {
@@ -717,8 +717,6 @@ class LibuvTask : public Task {
 
 LibuvExecutor::LibuvExecutor(std::shared_ptr<NodeThreadpool> tp)
   : tp_(tp) {
-  executor_.init = uv_executor_init;
-  executor_.destroy = nullptr;
   executor_.submit = uv_executor_submit;
   executor_.cancel = uv_executor_cancel;
   executor_.data = this;
@@ -730,11 +728,6 @@ uv_executor_t* LibuvExecutor::GetExecutor() {
 
 bool LibuvExecutor::Cancel(std::shared_ptr<TaskState> task_state) {
   return task_state->Cancel();
-}
-
-void LibuvExecutor::uv_executor_init(uv_executor_t* executor) {
-  // Already initialized.
-  // TODO(davisjam): I don't think we need this API in libuv. Nor destroy.
 }
 
 void LibuvExecutor::uv_executor_submit(uv_executor_t* executor,
