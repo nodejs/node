@@ -22,6 +22,8 @@
     'node_tag%': '',
     'uv_library%': 'static_library',
 
+    'clang%': 0,
+    
     'openssl_fips%': '',
 
     # Default to -O0 for debug builds.
@@ -91,8 +93,6 @@
       }],
       ['OS=="mac"', {
         'clang%': 1,
-      }, {
-        'clang%': 0,
       }],
     ],
   },
