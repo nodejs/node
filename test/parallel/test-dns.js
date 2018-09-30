@@ -166,7 +166,7 @@ assert.deepStrictEqual(dns.getServers(), []);
   const errorReg = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "hostname" argument must be one of type string or falsy/
+    message: /^The "hostname" argument must be of type string\. Received type .*/
   }, 10);
 
   assert.throws(() => dns.lookup({}, common.mustNotCall()), errorReg);
