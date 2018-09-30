@@ -74,9 +74,9 @@ available-node = \
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
 ifeq ($(BUILDTYPE),Release)
-all: out/Makefile $(NODE_EXE) ## Default target, builds node in out/Release/node.
+all: $(NODE_EXE) ## Default target, builds node in out/Release/node.
 else
-all: out/Makefile $(NODE_EXE) $(NODE_G_EXE)
+all: $(NODE_EXE) $(NODE_G_EXE)
 endif
 
 .PHONY: help

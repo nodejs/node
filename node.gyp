@@ -291,7 +291,7 @@
                   'sources': [
                     'tools/msvs/genfiles/node_perfctr_provider.rc',
                    ],
-                }]
+                }],
               ],
             }],
           ],
@@ -308,16 +308,11 @@
           'product_name': '<(node_core_target_name)-win',
         }],
       ],
-    },
+    }, # node_core_target_name
     {
       'target_name': '<(node_lib_target_name)',
       'type': '<(node_intermediate_lib_type)',
       'product_name': '<(node_core_target_name)',
-
-      'dependencies': [
-        'node_js2c#host',
-      ],
-
       'includes': [
         'node.gypi'
       ],
@@ -463,7 +458,6 @@
         '<@(library_files)',
         # node.gyp is added to the project by default.
         'common.gypi',
-        '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
       ],
 
       'variables': {
@@ -610,15 +604,9 @@
             'src/tls_wrap.h'
           ],
         }],
-      ],
-    },
-    {
-      'target_name': 'mkssldef',
-      'type': 'none',
-      # TODO(bnoordhuis) Make all platforms export the same list of symbols.
-      # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
-      'conditions': [
         [ 'use_openssl_def==1', {
+          # TODO(bnoordhuis) Make all platforms export the same list of symbols.
+          # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
           'variables': {
             'mkssldef_flags': [
               # Categories to export.
@@ -648,6 +636,7 @@
                 'deps/openssl/openssl/util/libssl.num',
               ],
               'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
+              'process_outputs_as_sources': 1,
               'action': [
                 'python',
                 'tools/mkssldef.py',
@@ -660,9 +649,41 @@
           ],
         }],
       ],
-    },
-    # generate ETW header and resource files
+      'actions': [
+        {
+          'action_name': 'node_js2c',
+          'process_outputs_as_sources': 1,
+          'inputs': [
+            '<@(library_files)',
+            'tools/check_macros.py'
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
+          ],
+          'conditions': [
+            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
+              'inputs': [ 'src/notrace_macros.py' ]
+            }],
+            [ 'node_use_perfctr=="false"', {
+              'inputs': [ 'src/noperfctr_macros.py' ]
+            }],
+            [ 'node_debug_lib=="false"', {
+              'inputs': [ 'tools/nodcheck_macros.py' ]
+            }],
+            [ 'node_debug_lib=="true"', {
+              'inputs': [ 'tools/dcheck_macros.py' ]
+            }]
+          ],
+          'action': [
+            'python', 'tools/js2c.py',
+            '<@(_outputs)',
+            '<@(_inputs)', 'config.gypi',
+          ],
+        },
+      ],
+    }, # node_lib_target_name
     {
+       # generate ETW header and resource files
       'target_name': 'node_etw',
       'type': 'none',
       'conditions': [
@@ -681,9 +702,9 @@
           ]
         } ]
       ]
-    },
-    # generate perf counter header and resource files
+    }, # node_etw
     {
+       # generate perf counter header and resource files
       'target_name': 'node_perfctr',
       'type': 'none',
       'conditions': [
@@ -705,46 +726,7 @@
           ],
         } ]
       ]
-    },
-    {
-      'target_name': 'node_js2c',
-      'type': 'none',
-      'toolsets': ['host'],
-      'actions': [
-        {
-          'action_name': 'node_js2c',
-          'process_outputs_as_sources': 1,
-          'inputs': [
-            '<@(library_files)',
-            './config.gypi',
-            'tools/check_macros.py'
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
-          ],
-          'conditions': [
-            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
-              'inputs': [ 'src/notrace_macros.py' ]
-            }],
-            [ 'node_use_perfctr=="false"', {
-              'inputs': [ 'src/noperfctr_macros.py' ]
-            }],
-            [ 'node_debug_lib=="false"', {
-              'inputs': [ 'tools/nodcheck_macros.py' ]
-            }],
-            [ 'node_debug_lib=="true"', {
-              'inputs': [ 'tools/dcheck_macros.py' ]
-            }]
-          ],
-          'action': [
-            'python',
-            'tools/js2c.py',
-            '<@(_outputs)',
-            '<@(_inputs)',
-          ],
-        },
-      ],
-    }, # end node_js2c
+    }, # node_perfctr
     {
       'target_name': 'node_dtrace_header',
       'type': 'none',
@@ -772,7 +754,7 @@
           ]
         } ],
       ]
-    },
+    }, # node_dtrace_header
     {
       'target_name': 'node_dtrace_provider',
       'type': 'none',
@@ -807,7 +789,7 @@
           ],
         }],
       ]
-    },
+    }, # node_dtrace_provider
     {
       'target_name': 'node_dtrace_ustack',
       'type': 'none',
@@ -855,7 +837,7 @@
           ]
         } ],
       ]
-    },
+    }, # node_dtrace_ustack
     {
       'target_name': 'specialize_node_d',
       'type': 'none',
@@ -881,7 +863,7 @@
           ],
         } ],
       ]
-    },
+    }, # specialize_node_d
     {
       # When using shared lib to build executable in Windows, in order to avoid
       # filename collision, the executable name is node-win.exe. Need to rename
@@ -909,7 +891,7 @@
           ],
         } ],
       ]
-    },
+    }, # rename_node_bin_win
     {
       'target_name': 'cctest',
       'type': 'executable',
@@ -918,7 +900,6 @@
         '<(node_lib_target_name)',
         'rename_node_bin_win',
         'deps/gtest/gtest.gyp:gtest',
-        'node_js2c#host',
         'node_dtrace_header',
         'node_dtrace_ustack',
         'node_dtrace_provider',
@@ -979,7 +960,7 @@
           'type': 'none',
         }],
       ],
-    }
+    }, # cctest
   ], # end targets
 
   'conditions': [

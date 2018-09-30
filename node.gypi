@@ -24,6 +24,16 @@
     },
     'force_load%': '<(force_load)',
   },
+  # Putting these explicitly here so not to be dependant on common.gypi.
+  'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
+  'xcode_settings': {
+    'WARNING_CFLAGS': [
+      '-Wall',
+      '-Wendif-labels',
+      '-W',
+      '-Wno-unused-parameter',
+    ],
+  },
   'conditions': [
     [ 'node_shared=="false"', {
       'msvs_settings': {
