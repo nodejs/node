@@ -139,7 +139,8 @@ NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
                         path);
 })
 
-inline v8::Local<v8::Value> UVException(int errorno,
+NODE_DEPRECATED("Use UVException(isolate, ...)",
+                inline v8::Local<v8::Value> UVException(int errorno,
                                         const char* syscall = nullptr,
                                         const char* message = nullptr,
                                         const char* path = nullptr) {
@@ -148,7 +149,7 @@ inline v8::Local<v8::Value> UVException(int errorno,
                      syscall,
                      message,
                      path);
-}
+})
 
 /*
  * These methods need to be called in a HandleScope.
