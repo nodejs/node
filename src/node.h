@@ -401,20 +401,9 @@ NODE_EXTERN enum encoding ParseEncoding(
     v8::Isolate* isolate,
     v8::Local<v8::Value> encoding_v,
     enum encoding default_encoding = LATIN1);
-NODE_DEPRECATED("Use ParseEncoding(isolate, ...)",
-                inline enum encoding ParseEncoding(
-      v8::Local<v8::Value> encoding_v,
-      enum encoding default_encoding = LATIN1) {
-  return ParseEncoding(v8::Isolate::GetCurrent(), encoding_v, default_encoding);
-})
 
 NODE_EXTERN void FatalException(v8::Isolate* isolate,
                                 const v8::TryCatch& try_catch);
-
-NODE_DEPRECATED("Use FatalException(isolate, ...)",
-                inline void FatalException(const v8::TryCatch& try_catch) {
-  return FatalException(v8::Isolate::GetCurrent(), try_catch);
-})
 
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                         const char* buf,
@@ -427,46 +416,16 @@ NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                         const uint16_t* buf,
                                         size_t len);
 
-NODE_DEPRECATED("Use Encode(isolate, ...)",
-                inline v8::Local<v8::Value> Encode(
-    const void* buf,
-    size_t len,
-    enum encoding encoding = LATIN1) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  if (encoding == UCS2) {
-    assert(reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t) == 0 &&
-           "UCS2 buffer must be aligned on two-byte boundary.");
-    const uint16_t* that = static_cast<const uint16_t*>(buf);
-    return Encode(isolate, that, len / sizeof(*that));
-  }
-  return Encode(isolate, static_cast<const char*>(buf), len, encoding);
-})
-
 // Returns -1 if the handle was not valid for decoding
 NODE_EXTERN ssize_t DecodeBytes(v8::Isolate* isolate,
                                 v8::Local<v8::Value>,
                                 enum encoding encoding = LATIN1);
-NODE_DEPRECATED("Use DecodeBytes(isolate, ...)",
-                inline ssize_t DecodeBytes(
-    v8::Local<v8::Value> val,
-    enum encoding encoding = LATIN1) {
-  return DecodeBytes(v8::Isolate::GetCurrent(), val, encoding);
-})
-
 // returns bytes written.
 NODE_EXTERN ssize_t DecodeWrite(v8::Isolate* isolate,
                                 char* buf,
                                 size_t buflen,
                                 v8::Local<v8::Value>,
                                 enum encoding encoding = LATIN1);
-NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
-                inline ssize_t DecodeWrite(char* buf,
-                                           size_t buflen,
-                                           v8::Local<v8::Value> val,
-                                           enum encoding encoding = LATIN1) {
-  return DecodeWrite(v8::Isolate::GetCurrent(), buf, buflen, val, encoding);
-})
-
 #ifdef _WIN32
 NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
     v8::Isolate* isolate,
@@ -474,17 +433,6 @@ NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
     const char* syscall = nullptr,
     const char* msg = "",
     const char* path = nullptr);
-
-NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
-                inline v8::Local<v8::Value> WinapiErrnoException(int errorno,
-    const char* syscall = nullptr,  const char* msg = "",
-    const char* path = nullptr) {
-  return WinapiErrnoException(v8::Isolate::GetCurrent(),
-                              errorno,
-                              syscall,
-                              msg,
-                              path);
-})
 #endif
 
 const char* signo_string(int errorno);
