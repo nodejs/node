@@ -289,9 +289,16 @@ NODE_EXTERN void RunAtExit(Environment* env);
 NODE_EXTERN struct uv_loop_s* GetCurrentEventLoop(v8::Isolate* isolate);
 
 /* Converts a unixtime to V8 Date */
-#define NODE_UNIXTIME_V8(t) v8::Date::New(v8::Isolate::GetCurrent(),          \
-    1000 * static_cast<double>(t))
-#define NODE_V8_UNIXTIME(v) (static_cast<double>((v)->NumberValue())/1000.0);
+NODE_DEPRECATED("Use v8::Date::New() directly",
+                inline v8::Local<v8::Value> NODE_UNIXTIME_V8(double time) {
+  return v8::Date::New(v8::Isolate::GetCurrent(), 1000 * time);
+})
+#define NODE_UNIXTIME_V8 node::NODE_UNIXTIME_V8
+NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
+                inline double NODE_V8_UNIXTIME(v8::Local<v8::Date> date) {
+  return date->ValueOf() / 1000;
+})
+#define NODE_V8_UNIXTIME node::NODE_V8_UNIXTIME
 
 #define NODE_DEFINE_CONSTANT(target, constant)                                \
   do {                                                                        \
