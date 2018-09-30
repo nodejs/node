@@ -31,18 +31,11 @@ common.expectWarning({
   'ExperimentalWarning': [
     'The dns.promises API is experimental'
   ],
-  // For call `dns.lookup` with falsy `hostname`, twice.
+  // For calling `dns.lookup` with falsy `hostname`.
   'DeprecationWarning': [
-    [
-      'The provided hostname "false" is not a valid ' +
-      'hostname, and is supported in the dns module solely for compatibility.',
-      'DEP0XXX',
-    ],
-    [
-      'The provided hostname "false" is not a valid ' +
-      'hostname, and is supported in the dns module solely for compatibility.',
-      'DEP0XXX',
-    ]
+    'The provided hostname "false" is not a valid ' +
+    'hostname, and is supported in the dns module solely for compatibility.',
+    'DEP0XXX',
   ],
 });
 
