@@ -183,13 +183,13 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
-    ctx->Write<async>(flush, in, in_off, in_len, out, out_off, out_len);
+    ctx->Write<async>(flush, in, in_len, out, out_len);
   }
 
   template <bool async>
   void Write(uint32_t flush,
-             Bytef* in, uint32_t in_off, uint32_t in_len,
-             Bytef* out, uint32_t out_off, uint32_t out_len) {
+             Bytef* in, uint32_t in_len,
+             Bytef* out, uint32_t out_len) {
     AllocScope alloc_scope(this);
 
     CHECK(init_done_ && "write before init");
