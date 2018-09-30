@@ -29,290 +29,281 @@
 
 #define MAX_THREADPOOL_SIZE 128
 
-static uv_once_t once = UV_ONCE_INIT;
-static uv_cond_t cond;
-static uv_mutex_t mutex;
-static unsigned int idle_threads;
-static unsigned int nthreads;
-static uv_thread_t* threads;
-static uv_thread_t default_threads[4];
-static QUEUE exit_message;
-static QUEUE wq;
+/* executor */
+uv_once_t init_default_executor_once = UV_ONCE_INIT;
+static uv_executor_t default_executor;
 
+/* default_executor.data */
+uv_once_t start_workers_once = UV_ONCE_INIT;
+static struct default_executor_fields {
+  uv_once_t init;
+  uv_cond_t cond;
+  uv_mutex_t mutex;
+  unsigned int idle_workers;
+  unsigned int nworkers;
+  uv_thread_t* workers;
+  uv_thread_t default_workers[4];
+  QUEUE exit_message;
+  QUEUE wq;
+  int used;
+} _fields;
 
-static void uv__cancelled(struct uv__work* w) {
-  abort();
+/* For worker initialization. */
+static struct worker_arg {
+  uv_executor_t* executor;
+  uv_sem_t* ready;
+} worker_arg;
+
+/* Helpers for the default executor implementation. */
+
+/* Post item q to the TP queue.
+ * Caller must hold fields->lock. */
+static void post(struct default_executor_fields* fields, QUEUE* q) {
+  QUEUE_INSERT_TAIL(&fields->wq, q);
+  if (0 < fields->idle_workers)
+    uv_cond_signal(&fields->cond);
 }
 
-
-/* To avoid deadlock with uv_cancel() it's crucial that the worker
- * never holds the global mutex and the loop-local mutex at the same time.
- */
+/* This is the entry point for each worker in the threadpool.
+ * arg is a worker_arg*. */
 static void worker(void* arg) {
+  struct worker_arg* warg;
+  uv_executor_t* executor;
   struct uv__work* w;
+  uv_work_t* req;
   QUEUE* q;
+  struct default_executor_fields* fields;
 
-  uv_sem_post((uv_sem_t*) arg);
+  /* Extract fields from warg. */
+  warg = arg;
+  executor = warg->executor;
+  assert(executor != NULL);
+  fields = executor->data;
+  assert(fields != NULL);
+
+  /* Signal we're ready. */
+  uv_sem_post(warg->ready);
   arg = NULL;
+  warg = NULL;
 
   for (;;) {
-    uv_mutex_lock(&mutex);
+    /* Get the next work. */
+    uv_mutex_lock(&fields->mutex);
 
-    while (QUEUE_EMPTY(&wq)) {
-      idle_threads += 1;
-      uv_cond_wait(&cond, &mutex);
-      idle_threads -= 1;
+    while (QUEUE_EMPTY(&fields->wq)) {
+      fields->idle_workers += 1;
+      uv_cond_wait(&fields->cond, &fields->mutex);
+      fields->idle_workers -= 1;
     }
 
-    q = QUEUE_HEAD(&wq);
+    q = QUEUE_HEAD(&fields->wq);
 
-    if (q == &exit_message)
-      uv_cond_signal(&cond);
+    if (q == &fields->exit_message) {
+      /* Wake up another thread. */
+      uv_cond_signal(&fields->cond);
+    }
     else {
       QUEUE_REMOVE(q);
       QUEUE_INIT(q);  /* Signal uv_cancel() that the work req is
                              executing. */
     }
 
-    uv_mutex_unlock(&mutex);
+    uv_mutex_unlock(&fields->mutex);
 
-    if (q == &exit_message)
+    /* Are we done? */
+    if (q == &fields->exit_message)
       break;
 
     w = QUEUE_DATA(q, struct uv__work, wq);
-    w->work(w);
+    req = container_of(w, uv_work_t, work_req);
 
-    uv_mutex_lock(&w->loop->wq_mutex);
-    w->work = NULL;  /* Signal uv_cancel() that the work req is done
-                        executing. */
-    QUEUE_INSERT_TAIL(&w->loop->wq, &w->wq);
-    uv_async_send(&w->loop->wq_async);
-    uv_mutex_unlock(&w->loop->wq_mutex);
+    /* Do the work. */
+    LOG_1("Worker: running work_cb for req %p\n", req);
+    req->work_cb(req);
+    LOG_1("Worker: Done with req %p\n", req);
+
+    /* Signal uv_cancel() that the work req is done executing. */
+    uv_mutex_lock(&fields->mutex);
+    w->work = NULL;
+    uv_mutex_unlock(&fields->mutex);
+
+    /* Tell event loop we finished with this request. */
+    uv_executor_return_work(req);
   }
 }
 
-
-static void post(QUEUE* q) {
-  uv_mutex_lock(&mutex);
-  QUEUE_INSERT_TAIL(&wq, q);
-  if (idle_threads > 0)
-    uv_cond_signal(&cond);
-  uv_mutex_unlock(&mutex);
-}
-
-
-#ifndef _WIN32
-UV_DESTRUCTOR(static void cleanup(void)) {
-  unsigned int i;
-
-  if (nthreads == 0)
-    return;
-
-  post(&exit_message);
-
-  for (i = 0; i < nthreads; i++)
-    if (uv_thread_join(threads + i))
-      abort();
-
-  if (threads != default_threads)
-    uv__free(threads);
-
-  uv_mutex_destroy(&mutex);
-  uv_cond_destroy(&cond);
-
-  threads = NULL;
-  nthreads = 0;
-}
-#endif
-
-
-static void init_threads(void) {
+/* (Initialize _fields and) start the workers. */
+static void start_workers(void) {
   unsigned int i;
   const char* val;
   uv_sem_t sem;
+  unsigned int n_default_workers;
 
-  nthreads = ARRAY_SIZE(default_threads);
+  /* Initialize various fields members. */
+  _fields.used = 1;
+
+  /* How many workers? */
+  n_default_workers = ARRAY_SIZE(_fields.default_workers);
+  _fields.nworkers = n_default_workers;
   val = getenv("UV_THREADPOOL_SIZE");
   if (val != NULL)
-    nthreads = atoi(val);
-  if (nthreads == 0)
-    nthreads = 1;
-  if (nthreads > MAX_THREADPOOL_SIZE)
-    nthreads = MAX_THREADPOOL_SIZE;
+    _fields.nworkers = atoi(val);
+  if (_fields.nworkers == 0)
+    _fields.nworkers = 1;
+  if (_fields.nworkers > MAX_THREADPOOL_SIZE)
+    _fields.nworkers = MAX_THREADPOOL_SIZE;
 
-  threads = default_threads;
-  if (nthreads > ARRAY_SIZE(default_threads)) {
-    threads = uv__malloc(nthreads * sizeof(threads[0]));
-    if (threads == NULL) {
-      nthreads = ARRAY_SIZE(default_threads);
-      threads = default_threads;
+  /* Try to use the statically declared workers instead of malloc. */
+  _fields.workers = _fields.default_workers;
+  if (_fields.nworkers > n_default_workers) {
+    _fields.workers = uv__malloc(_fields.nworkers * sizeof(_fields.workers[0]));
+    if (_fields.workers == NULL) {
+      _fields.nworkers = n_default_workers;
+      _fields.workers = _fields.default_workers;
     }
   }
 
-  if (uv_cond_init(&cond))
+  if (uv_cond_init(&_fields.cond))
     abort();
 
-  if (uv_mutex_init(&mutex))
+  if (uv_mutex_init(&_fields.mutex))
     abort();
 
-  QUEUE_INIT(&wq);
+  QUEUE_INIT(&_fields.wq);
 
   if (uv_sem_init(&sem, 0))
     abort();
 
-  for (i = 0; i < nthreads; i++)
-    if (uv_thread_create(threads + i, worker, &sem))
+  /* Start the workers. */
+  worker_arg.executor = &default_executor;
+  worker_arg.ready = &sem;
+  for (i = 0; i < _fields.nworkers; i++)
+    if (uv_thread_create(_fields.workers + i, worker, &worker_arg))
       abort();
 
-  for (i = 0; i < nthreads; i++)
+  /* Wait for workers to start. */
+  for (i = 0; i < _fields.nworkers; i++)
     uv_sem_wait(&sem);
-
   uv_sem_destroy(&sem);
 }
 
-
 #ifndef _WIN32
-static void reset_once(void) {
-  uv_once_t child_once = UV_ONCE_INIT;
-  memcpy(&once, &child_once, sizeof(child_once));
-}
-#endif
+/* cleanup of the default_executor if necessary. */
+UV_DESTRUCTOR(static void cleanup(void)) {
+  unsigned int i;
 
-
-static void init_once(void) {
-#ifndef _WIN32
-  /* Re-initialize the threadpool after fork.
-   * Note that this discards the global mutex and condition as well
-   * as the work queue.
-   */
-  if (pthread_atfork(NULL, NULL, &reset_once))
-    abort();
-#endif
-  init_threads();
-}
-
-
-void uv__work_submit(uv_loop_t* loop,
-                     struct uv__work* w,
-                     void (*work)(struct uv__work* w),
-                     void (*done)(struct uv__work* w, int status)) {
-  uv_once(&once, init_once);
-  w->loop = loop;
-  w->work = work;
-  w->done = done;
-  post(&w->wq);
-}
-
-
-static int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
-  int cancelled;
-
-  uv_mutex_lock(&mutex);
-  uv_mutex_lock(&w->loop->wq_mutex);
-
-  cancelled = !QUEUE_EMPTY(&w->wq) && w->work != NULL;
-  if (cancelled)
-    QUEUE_REMOVE(&w->wq);
-
-  uv_mutex_unlock(&w->loop->wq_mutex);
-  uv_mutex_unlock(&mutex);
-
-  if (!cancelled)
-    return UV_EBUSY;
-
-  w->work = uv__cancelled;
-  uv_mutex_lock(&loop->wq_mutex);
-  QUEUE_INSERT_TAIL(&loop->wq, &w->wq);
-  uv_async_send(&loop->wq_async);
-  uv_mutex_unlock(&loop->wq_mutex);
-
-  return 0;
-}
-
-
-void uv__work_done(uv_async_t* handle) {
-  struct uv__work* w;
-  uv_loop_t* loop;
-  QUEUE* q;
-  QUEUE wq;
-  int err;
-
-  loop = container_of(handle, uv_loop_t, wq_async);
-  uv_mutex_lock(&loop->wq_mutex);
-  QUEUE_MOVE(&loop->wq, &wq);
-  uv_mutex_unlock(&loop->wq_mutex);
-
-  while (!QUEUE_EMPTY(&wq)) {
-    q = QUEUE_HEAD(&wq);
-    QUEUE_REMOVE(q);
-
-    w = container_of(q, struct uv__work, wq);
-    err = (w->work == uv__cancelled) ? UV_ECANCELED : 0;
-    w->done(w, err);
-  }
-}
-
-
-static void uv__queue_work(struct uv__work* w) {
-  uv_work_t* req = container_of(w, uv_work_t, work_req);
-
-  req->work_cb(req);
-}
-
-
-static void uv__queue_done(struct uv__work* w, int err) {
-  uv_work_t* req;
-
-  req = container_of(w, uv_work_t, work_req);
-  uv__req_unregister(req->loop, req);
-
-  if (req->after_work_cb == NULL)
+  if (!_fields.used)
     return;
 
-  req->after_work_cb(req, err);
+  if (_fields.nworkers == 0)
+    return;
+
+  uv_mutex_lock(&_fields.mutex);
+  post(&_fields, &_fields.exit_message);
+  uv_mutex_unlock(&_fields.mutex);
+
+  for (i = 0; i < _fields.nworkers; i++)
+    if (uv_thread_join(_fields.workers + i))
+      abort();
+
+  if (_fields.workers != _fields.default_workers)
+    uv__free(_fields.workers);
+
+  uv_mutex_destroy(&_fields.mutex);
+  uv_cond_destroy(&_fields.cond);
+
+  _fields.workers = NULL;
+  _fields.nworkers = 0;
 }
+#endif
 
+/******************************
+ * Default libuv threadpool, implemented using the executor API.
+*******************************/
 
-int uv_queue_work(uv_loop_t* loop,
-                  uv_work_t* req,
-                  uv_work_cb work_cb,
-                  uv_after_work_cb after_work_cb) {
-  if (work_cb == NULL)
-    return UV_EINVAL;
-
-  uv__req_init(loop, req, UV_WORK);
-  req->loop = loop;
-  req->work_cb = work_cb;
-  req->after_work_cb = after_work_cb;
-  uv__work_submit(loop, &req->work_req, uv__queue_work, uv__queue_done);
-  return 0;
-}
-
-
-int uv_cancel(uv_req_t* req) {
+static void uv__default_executor_submit(uv_executor_t* executor,
+                                        uv_work_t* req,
+                                        const uv_work_options_t* opts) {
+  struct default_executor_fields* fields;
   struct uv__work* wreq;
-  uv_loop_t* loop;
 
-  switch (req->type) {
-  case UV_FS:
-    loop =  ((uv_fs_t*) req)->loop;
-    wreq = &((uv_fs_t*) req)->work_req;
-    break;
-  case UV_GETADDRINFO:
-    loop =  ((uv_getaddrinfo_t*) req)->loop;
-    wreq = &((uv_getaddrinfo_t*) req)->work_req;
-    break;
-  case UV_GETNAMEINFO:
-    loop = ((uv_getnameinfo_t*) req)->loop;
-    wreq = &((uv_getnameinfo_t*) req)->work_req;
-    break;
-  case UV_WORK:
-    loop =  ((uv_work_t*) req)->loop;
-    wreq = &((uv_work_t*) req)->work_req;
-    break;
-  default:
-    return UV_EINVAL;
+  assert(executor == &default_executor);
+  /* Make sure we are initialized internally. */
+  uv_once(&start_workers_once, start_workers);
+
+  fields = executor->data;
+  assert(fields != NULL);
+
+  /* Put executor-specific data into req->executor_data. */
+  wreq = &req->work_req;
+  req->executor_data = wreq;
+  /* TODO Don't do this. */
+  wreq->work = 0xdeadbeef; /* Non-NULL: "Not yet completed". */
+
+  uv_mutex_lock(&fields->mutex);
+
+  /* Add to our queue. */
+  post(fields, &wreq->wq);
+
+  uv_mutex_unlock(&fields->mutex);
+}
+
+static int uv__default_executor_cancel(uv_executor_t* executor, uv_work_t* req) {
+  struct default_executor_fields* fields;
+  struct uv__work* wreq;
+  int assigned;
+  int already_completed;
+  int still_on_queue;
+  int can_cancel;
+
+  assert(executor == &default_executor);
+  /* Make sure we are initialized internally. */
+  uv_once(&start_workers_once, start_workers);
+
+  fields = executor->data;
+  assert(fields != NULL);
+  wreq = req->executor_data;
+  assert(wreq != NULL);
+
+  uv_mutex_lock(&fields->mutex);
+
+  /* Check if we can cancel it. Determine what state req is in. */
+  assigned = QUEUE_EMPTY(&wreq->wq);
+  already_completed = (wreq->work == NULL);
+  still_on_queue = !assigned && !already_completed;
+  
+  LOG_3("assigned %d already_completed %d still_on_queue\n", assigned, already_completed, still_on_queue); 
+
+  can_cancel = still_on_queue;
+  if (can_cancel)
+    QUEUE_REMOVE(&wreq->wq);
+
+  uv_mutex_unlock(&fields->mutex);
+
+  LOG_1("uv__default_executor_cancel: can_cancel %d\n", can_cancel);
+  if (can_cancel) {
+    /* We are now done with req. Notify libuv.
+     * The cancellation is not yet complete, but that's OK because
+     * this API must be called by the event loop (single-threaded). */
+    uv_executor_return_work(req);
+    return 0;
+  } else {
+    /* Failed to cancel.
+     * Work is either already done or is still to be executed.
+     * Either way we need not call done here. */
+    return UV_EBUSY;
   }
+}
 
-  return uv__work_cancel(loop, req, wreq);
+void uv__default_executor_init(void) {
+  /* TODO Behavior on fork? */
+  bzero(&default_executor, sizeof(default_executor));
+  default_executor.data = &_fields;
+  default_executor.submit = uv__default_executor_submit;
+  default_executor.cancel = uv__default_executor_cancel;
+}
+
+uv_executor_t* uv__default_executor(void) {
+  uv_once(&init_default_executor_once, uv__default_executor_init);
+  return &default_executor;
 }

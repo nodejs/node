@@ -130,17 +130,27 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
     req->retcode = UV_EAI_CANCELED;
   }
 
-  if (req->cb)
+  if (req->cb != NULL)
     req->cb(req, req->retcode, req->addrinfo);
 }
 
+static void uv__getaddrinfo_executor_work(uv_work_t* req) {
+  uv__getaddrinfo_work(&((uv_getaddrinfo_t*) req->data)->work_req);
+}
+
+static void uv__getaddrinfo_executor_done(uv_work_t* req, int status) {
+  uv__getaddrinfo_done(&((uv_getaddrinfo_t*) req->data)->work_req, status);
+  uv__free(req);
+}
 
 int uv_getaddrinfo(uv_loop_t* loop,
                    uv_getaddrinfo_t* req,
-                   uv_getaddrinfo_cb cb,
+                   uv_getaddrinfo_cb getaddrinfo_cb,
                    const char* hostname,
                    const char* service,
                    const struct addrinfo* hints) {
+  uv_work_t* work;
+  uv_work_options_t options;
   size_t hostname_len;
   size_t service_len;
   size_t hints_len;
@@ -153,14 +163,23 @@ int uv_getaddrinfo(uv_loop_t* loop,
   hostname_len = hostname ? strlen(hostname) + 1 : 0;
   service_len = service ? strlen(service) + 1 : 0;
   hints_len = hints ? sizeof(*hints) : 0;
-  buf = uv__malloc(hostname_len + service_len + hints_len);
 
+  buf = uv__malloc(hostname_len + service_len + hints_len);
   if (buf == NULL)
     return UV_ENOMEM;
 
+  work = NULL;
+  if (getaddrinfo_cb != NULL) {
+    work = uv__malloc(sizeof(*work));
+    if (work == NULL) {
+      uv__free(buf);
+      return UV_ENOMEM;
+    }
+  }
+
   uv__req_init(loop, req, UV_GETADDRINFO);
   req->loop = loop;
-  req->cb = cb;
+  req->cb = getaddrinfo_cb;
   req->addrinfo = NULL;
   req->hints = NULL;
   req->service = NULL;
@@ -183,13 +202,22 @@ int uv_getaddrinfo(uv_loop_t* loop,
   if (hostname)
     req->hostname = memcpy(buf + len, hostname, hostname_len);
 
-  if (cb) {
-    uv__work_submit(loop,
-                    &req->work_req,
-                    uv__getaddrinfo_work,
-                    uv__getaddrinfo_done);
+  if (getaddrinfo_cb != NULL) {
+    work->data = req;
+    req->executor_data = work; /* For uv_cancel. */
+    options.type = UV_WORK_DNS;
+    options.priority = -1;
+    options.cancelable = 0;
+    options.data = NULL;
+    LOG_2("getaddrinfo: req %p work %p\n", req, work);
+    uv_executor_queue_work(loop,
+                           work,
+                           &options,
+                           uv__getaddrinfo_executor_work,
+                           uv__getaddrinfo_executor_done);
     return 0;
   } else {
+    /* TODO uv__getaddrinfo_work and done APIs should take req directly. Windows too. */
     uv__getaddrinfo_work(&req->work_req);
     uv__getaddrinfo_done(&req->work_req, 0);
     return req->retcode;

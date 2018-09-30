@@ -227,7 +227,7 @@ complete:
   uv__req_unregister(req->loop, req);
 
   /* finally do callback with converted result */
-  if (req->getaddrinfo_cb)
+  if (req->getaddrinfo_cb != NULL)
     req->getaddrinfo_cb(req, req->retcode, req->addrinfo);
 }
 
@@ -239,6 +239,14 @@ void uv_freeaddrinfo(struct addrinfo* ai) {
   uv__free(alloc_ptr);
 }
 
+static void uv__getaddrinfo_executor_work(uv_work_t* req) {
+  uv__getaddrinfo_work(&((uv_getaddrinfo_t*) req->data)->work_req);
+}
+
+static void uv__getaddrinfo_executor_done(uv_work_t* req, int status) {
+  uv__getaddrinfo_done(&((uv_getaddrinfo_t*) req->data)->work_req, status);
+  uv__free(req);
+}
 
 /*
  * Entry point for getaddrinfo
@@ -259,6 +267,8 @@ int uv_getaddrinfo(uv_loop_t* loop,
                    const char* node,
                    const char* service,
                    const struct addrinfo* hints) {
+  uv_work_t* work;
+  uv_work_options_t options;
   int nodesize = 0;
   int servicesize = 0;
   int hintssize = 0;
@@ -274,6 +284,8 @@ int uv_getaddrinfo(uv_loop_t* loop,
   req->addrinfo = NULL;
   req->loop = loop;
   req->retcode = 0;
+
+  work = NULL;
 
   /* calculate required memory size for all input values */
   if (node != NULL) {
@@ -311,6 +323,13 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
   /* save alloc_ptr now so we can free if error */
   req->alloc = (void*)alloc_ptr;
+  if (getaddrinfo_cb != NULL) {
+    work = uv__malloc(sizeof(*work));
+    if (work == NULL) {
+      err = WSAENOBUFS;
+      goto error;
+    }
+  }
 
   /* Convert node string to UTF16 into allocated memory and save pointer in the
    * request. */
@@ -365,11 +384,19 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
   uv__req_register(loop, req);
 
-  if (getaddrinfo_cb) {
-    uv__work_submit(loop,
-                    &req->work_req,
-                    uv__getaddrinfo_work,
-                    uv__getaddrinfo_done);
+  if (getaddrinfo_cb != NULL) {
+    /* TODO options should indicate type. */
+    work->data = req;
+    req->executor_data = work; /* For uv_cancel. */
+    options.type = UV_WORK_DNS;
+    options.priority = -1;
+    options.cancelable = 0;
+    options.data = NULL;
+    uv_executor_queue_work(loop,
+                           work,
+                           &options,
+                           uv__getaddrinfo_executor_work,
+                           uv__getaddrinfo_executor_done);
     return 0;
   } else {
     uv__getaddrinfo_work(&req->work_req);
@@ -382,6 +409,10 @@ error:
     uv__free(req->alloc);
     req->alloc = NULL;
   }
+
+  if (work != NULL)
+    uv__free(work);
+
   return uv_translate_sys_error(err);
 }
 

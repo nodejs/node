@@ -31,7 +31,8 @@ struct uv__work {
   void (*work)(struct uv__work *w);
   void (*done)(struct uv__work *w, int status);
   struct uv_loop_s* loop;
-  void* wq[2];
+  void* wq[2]; /* This is used by the executor API
+                * to queue completed work on the event loop. */
 };
 
 #endif /* UV_THREADPOOL_H_ */

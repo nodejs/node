@@ -55,7 +55,7 @@ static void done_cb(uv_work_t* req, int status) {
 }
 
 
-static void saturate_threadpool(void) {
+static void saturate_executor(void) {
   uv_loop_t* loop;
   char buf[64];
   size_t i;
@@ -74,7 +74,7 @@ static void saturate_threadpool(void) {
 }
 
 
-static void unblock_threadpool(void) {
+static void unblock_executor(void) {
   size_t i;
 
   for (i = 0; i < ARRAY_SIZE(pause_reqs); i += 1)
@@ -132,7 +132,7 @@ static void timer_cb(uv_timer_t* handle) {
   }
 
   uv_close((uv_handle_t*) &ci->timer_handle, NULL);
-  unblock_threadpool();
+  unblock_executor();
   timer_cb_called++;
 }
 
@@ -143,7 +143,7 @@ static void nop_done_cb(uv_work_t* req, int status) {
 }
 
 
-TEST_IMPL(threadpool_cancel_getaddrinfo) {
+TEST_IMPL(executor_cancel_getaddrinfo) {
   uv_getaddrinfo_t reqs[4];
   struct cancel_info ci;
   struct addrinfo hints;
@@ -152,7 +152,7 @@ TEST_IMPL(threadpool_cancel_getaddrinfo) {
 
   INIT_CANCEL_INFO(&ci, reqs);
   loop = uv_default_loop();
-  saturate_threadpool();
+  saturate_executor();
 
   r = uv_getaddrinfo(loop, reqs + 0, getaddrinfo_cb, "fail", NULL, NULL);
   ASSERT(r == 0);
@@ -176,7 +176,7 @@ TEST_IMPL(threadpool_cancel_getaddrinfo) {
 }
 
 
-TEST_IMPL(threadpool_cancel_getnameinfo) {
+TEST_IMPL(executor_cancel_getnameinfo) {
   uv_getnameinfo_t reqs[4];
   struct sockaddr_in addr4;
   struct cancel_info ci;
@@ -188,7 +188,7 @@ TEST_IMPL(threadpool_cancel_getnameinfo) {
 
   INIT_CANCEL_INFO(&ci, reqs);
   loop = uv_default_loop();
-  saturate_threadpool();
+  saturate_executor();
 
   r = uv_getnameinfo(loop, reqs + 0, getnameinfo_cb, (const struct sockaddr*)&addr4, 0);
   ASSERT(r == 0);
@@ -212,7 +212,7 @@ TEST_IMPL(threadpool_cancel_getnameinfo) {
 }
 
 
-TEST_IMPL(threadpool_cancel_work) {
+TEST_IMPL(executor_cancel_work) {
   struct cancel_info ci;
   uv_work_t reqs[16];
   uv_loop_t* loop;
@@ -220,7 +220,7 @@ TEST_IMPL(threadpool_cancel_work) {
 
   INIT_CANCEL_INFO(&ci, reqs);
   loop = uv_default_loop();
-  saturate_threadpool();
+  saturate_executor();
 
   for (i = 0; i < ARRAY_SIZE(reqs); i++)
     ASSERT(0 == uv_queue_work(loop, reqs + i, work2_cb, done2_cb));
@@ -236,7 +236,7 @@ TEST_IMPL(threadpool_cancel_work) {
 }
 
 
-TEST_IMPL(threadpool_cancel_fs) {
+TEST_IMPL(executor_cancel_fs) {
   struct cancel_info ci;
   uv_fs_t reqs[26];
   uv_loop_t* loop;
@@ -245,7 +245,7 @@ TEST_IMPL(threadpool_cancel_fs) {
 
   INIT_CANCEL_INFO(&ci, reqs);
   loop = uv_default_loop();
-  saturate_threadpool();
+  saturate_executor();
   iov = uv_buf_init(NULL, 0);
 
   /* Needs to match ARRAY_SIZE(fs_reqs). */
@@ -290,16 +290,16 @@ TEST_IMPL(threadpool_cancel_fs) {
 }
 
 
-TEST_IMPL(threadpool_cancel_single) {
+TEST_IMPL(executor_cancel_single) {
   uv_loop_t* loop;
   uv_work_t req;
 
-  saturate_threadpool();
+  saturate_executor();
   loop = uv_default_loop();
   ASSERT(0 == uv_queue_work(loop, &req, (uv_work_cb) abort, nop_done_cb));
   ASSERT(0 == uv_cancel((uv_req_t*) &req));
   ASSERT(0 == done_cb_called);
-  unblock_threadpool();
+  unblock_executor();
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == done_cb_called);
 

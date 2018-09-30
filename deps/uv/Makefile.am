@@ -31,6 +31,7 @@ libuv_la_SOURCES = src/fs-poll.c \
                    src/heap-inl.h \
                    src/inet.c \
                    src/queue.h \
+                   src/executor.c \
                    src/threadpool.c \
                    src/timer.c \
                    src/uv-data-getter-setters.c \
@@ -265,8 +266,8 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-write-queue-order.c \
                          test/test-thread-equal.c \
                          test/test-thread.c \
-                         test/test-threadpool-cancel.c \
-                         test/test-threadpool.c \
+                         test/test-executor-cancel.c \
+                         test/test-executor.c \
                          test/test-timer-again.c \
                          test/test-timer-from-check.c \
                          test/test-timer.c \

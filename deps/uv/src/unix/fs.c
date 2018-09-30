@@ -71,6 +71,13 @@
   do {                                                                        \
     if (req == NULL)                                                          \
       return UV_EINVAL;                                                       \
+    work = NULL;                                                              \
+    if (cb != NULL) {                                                         \
+      work = uv__malloc(sizeof(*work));                                       \
+      if (work == NULL)                                                       \
+        return UV_ENOMEM;                                                     \
+      work->data = req;                                                       \
+    }                                                                         \
     UV_REQ_INIT(req, UV_FS);                                                  \
     req->fs_type = UV_FS_ ## subtype;                                         \
     req->result = 0;                                                          \
@@ -90,8 +97,11 @@
       req->path = path;                                                       \
     } else {                                                                  \
       req->path = uv__strdup(path);                                           \
-      if (req->path == NULL)                                                  \
+      if (req->path == NULL) {                                                \
+        if (work != NULL)                                                     \
+          uv__free(work);                                                     \
         return UV_ENOMEM;                                                     \
+      }                                                                       \
     }                                                                         \
   }                                                                           \
   while (0)
@@ -107,8 +117,11 @@
       path_len = strlen(path) + 1;                                            \
       new_path_len = strlen(new_path) + 1;                                    \
       req->path = uv__malloc(path_len + new_path_len);                        \
-      if (req->path == NULL)                                                  \
+      if (req->path == NULL) {                                                \
+        if (work != NULL)                                                     \
+          uv__free(work);                                                     \
         return UV_ENOMEM;                                                     \
+      }                                                                       \
       req->new_path = req->path + path_len;                                   \
       memcpy((void*) req->path, path, path_len);                              \
       memcpy((void*) req->new_path, new_path, new_path_len);                  \
@@ -119,8 +132,18 @@
 #define POST                                                                  \
   do {                                                                        \
     if (cb != NULL) {                                                         \
-      uv__req_register(loop, req);                                            \
-      uv__work_submit(loop, &req->work_req, uv__fs_work, uv__fs_done);        \
+      LOG_2("fs POST: req %p work %p\n", (void *) req, (void *) work);        \
+      uv__req_init(loop, req, UV_FS);                                         \
+      req->executor_data = work; /* For uv_cancel. */                         \
+      options.type = UV_WORK_FS;                                              \
+      options.priority = -1;                                                  \
+      options.cancelable = 0;                                                 \
+      options.data = NULL;                                                    \
+      uv_executor_queue_work(loop,                                            \
+                             work,                                            \
+                             &options,                                        \
+                             uv__fs_executor_work,                            \
+                             uv__fs_executor_done);                           \
       return 0;                                                               \
     }                                                                         \
     else {                                                                    \
@@ -1095,7 +1118,7 @@ static ssize_t uv__fs_buf_iter(uv_fs_t* req, uv__fs_buf_iter_processor process) 
   return total;
 }
 
-
+/* TODO uv__fs_work and done APIs should take req directly. Windows too. */
 static void uv__fs_work(struct uv__work* w) {
   int retry_on_eintr;
   uv_fs_t* req;
@@ -1160,7 +1183,6 @@ static void uv__fs_work(struct uv__work* w) {
   }
 }
 
-
 static void uv__fs_done(struct uv__work* w, int status) {
   uv_fs_t* req;
 
@@ -1175,12 +1197,23 @@ static void uv__fs_done(struct uv__work* w, int status) {
   req->cb(req);
 }
 
+static void uv__fs_executor_work(uv_work_t* req) {
+  uv__fs_work(&((uv_fs_t*) req->data)->work_req);
+}
+
+static void uv__fs_executor_done(uv_work_t* req, int status) {
+  uv__fs_done(&((uv_fs_t*) req->data)->work_req, status);
+  uv__free(req);
+}
 
 int uv_fs_access(uv_loop_t* loop,
                  uv_fs_t* req,
                  const char* path,
                  int flags,
                  uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(ACCESS);
   PATH;
   req->flags = flags;
@@ -1193,6 +1226,9 @@ int uv_fs_chmod(uv_loop_t* loop,
                 const char* path,
                 int mode,
                 uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(CHMOD);
   PATH;
   req->mode = mode;
@@ -1206,6 +1242,9 @@ int uv_fs_chown(uv_loop_t* loop,
                 uv_uid_t uid,
                 uv_gid_t gid,
                 uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(CHOWN);
   PATH;
   req->uid = uid;
@@ -1215,6 +1254,9 @@ int uv_fs_chown(uv_loop_t* loop,
 
 
 int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(CLOSE);
   req->file = file;
   POST;
@@ -1226,6 +1268,9 @@ int uv_fs_fchmod(uv_loop_t* loop,
                  uv_file file,
                  int mode,
                  uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(FCHMOD);
   req->file = file;
   req->mode = mode;
@@ -1239,6 +1284,9 @@ int uv_fs_fchown(uv_loop_t* loop,
                  uv_uid_t uid,
                  uv_gid_t gid,
                  uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(FCHOWN);
   req->file = file;
   req->uid = uid;
@@ -1253,6 +1301,9 @@ int uv_fs_lchown(uv_loop_t* loop,
                  uv_uid_t uid,
                  uv_gid_t gid,
                  uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(LCHOWN);
   PATH;
   req->uid = uid;
@@ -1262,6 +1313,9 @@ int uv_fs_lchown(uv_loop_t* loop,
 
 
 int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(FDATASYNC);
   req->file = file;
   POST;
@@ -1269,6 +1323,9 @@ int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
 
 
 int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(FSTAT);
   req->file = file;
   POST;
@@ -1276,6 +1333,9 @@ int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
 
 
 int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(FSYNC);
   req->file = file;
   POST;
@@ -1287,6 +1347,9 @@ int uv_fs_ftruncate(uv_loop_t* loop,
                     uv_file file,
                     int64_t off,
                     uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(FTRUNCATE);
   req->file = file;
   req->off = off;
@@ -1300,6 +1363,9 @@ int uv_fs_futime(uv_loop_t* loop,
                  double atime,
                  double mtime,
                  uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(FUTIME);
   req->file = file;
   req->atime = atime;
@@ -1309,6 +1375,9 @@ int uv_fs_futime(uv_loop_t* loop,
 
 
 int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(LSTAT);
   PATH;
   POST;
@@ -1320,6 +1389,9 @@ int uv_fs_link(uv_loop_t* loop,
                const char* path,
                const char* new_path,
                uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(LINK);
   PATH2;
   POST;
@@ -1331,6 +1403,9 @@ int uv_fs_mkdir(uv_loop_t* loop,
                 const char* path,
                 int mode,
                 uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(MKDIR);
   PATH;
   req->mode = mode;
@@ -1342,10 +1417,16 @@ int uv_fs_mkdtemp(uv_loop_t* loop,
                   uv_fs_t* req,
                   const char* tpl,
                   uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(MKDTEMP);
   req->path = uv__strdup(tpl);
-  if (req->path == NULL)
+  if (req->path == NULL) {
+    if (work != NULL)
+      uv__free(work);
     return UV_ENOMEM;
+  }
   POST;
 }
 
@@ -1356,6 +1437,9 @@ int uv_fs_open(uv_loop_t* loop,
                int flags,
                int mode,
                uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(OPEN);
   PATH;
   req->flags = flags;
@@ -1370,10 +1454,16 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
                unsigned int nbufs,
                int64_t off,
                uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(READ);
 
-  if (bufs == NULL || nbufs == 0)
+  if (bufs == NULL || nbufs == 0) {
+    if (work != NULL)
+      uv__free(work);
     return UV_EINVAL;
+  }
 
   req->file = file;
 
@@ -1382,8 +1472,11 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
   if (nbufs > ARRAY_SIZE(req->bufsml))
     req->bufs = uv__malloc(nbufs * sizeof(*bufs));
 
-  if (req->bufs == NULL)
+  if (req->bufs == NULL) {
+    if (work != NULL)
+      uv__free(work);
     return UV_ENOMEM;
+  }
 
   memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
 
@@ -1397,6 +1490,9 @@ int uv_fs_scandir(uv_loop_t* loop,
                   const char* path,
                   int flags,
                   uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(SCANDIR);
   PATH;
   req->flags = flags;
@@ -1408,6 +1504,9 @@ int uv_fs_readlink(uv_loop_t* loop,
                    uv_fs_t* req,
                    const char* path,
                    uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(READLINK);
   PATH;
   POST;
@@ -1418,6 +1517,9 @@ int uv_fs_realpath(uv_loop_t* loop,
                   uv_fs_t* req,
                   const char * path,
                   uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(REALPATH);
   PATH;
   POST;
@@ -1429,6 +1531,9 @@ int uv_fs_rename(uv_loop_t* loop,
                  const char* path,
                  const char* new_path,
                  uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(RENAME);
   PATH2;
   POST;
@@ -1436,6 +1541,9 @@ int uv_fs_rename(uv_loop_t* loop,
 
 
 int uv_fs_rmdir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(RMDIR);
   PATH;
   POST;
@@ -1449,6 +1557,9 @@ int uv_fs_sendfile(uv_loop_t* loop,
                    int64_t off,
                    size_t len,
                    uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(SENDFILE);
   req->flags = in_fd; /* hack */
   req->file = out_fd;
@@ -1459,6 +1570,9 @@ int uv_fs_sendfile(uv_loop_t* loop,
 
 
 int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(STAT);
   PATH;
   POST;
@@ -1471,6 +1585,9 @@ int uv_fs_symlink(uv_loop_t* loop,
                   const char* new_path,
                   int flags,
                   uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(SYMLINK);
   PATH2;
   req->flags = flags;
@@ -1479,6 +1596,9 @@ int uv_fs_symlink(uv_loop_t* loop,
 
 
 int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(UNLINK);
   PATH;
   POST;
@@ -1491,6 +1611,9 @@ int uv_fs_utime(uv_loop_t* loop,
                 double atime,
                 double mtime,
                 uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(UTIME);
   PATH;
   req->atime = atime;
@@ -1506,11 +1629,16 @@ int uv_fs_write(uv_loop_t* loop,
                 unsigned int nbufs,
                 int64_t off,
                 uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(WRITE);
 
-  if (bufs == NULL || nbufs == 0)
+  if (bufs == NULL || nbufs == 0) {
+    if (work != NULL)
+      uv__free(work);
     return UV_EINVAL;
-
+  }
   req->file = file;
 
   req->nbufs = nbufs;
@@ -1518,8 +1646,11 @@ int uv_fs_write(uv_loop_t* loop,
   if (nbufs > ARRAY_SIZE(req->bufsml))
     req->bufs = uv__malloc(nbufs * sizeof(*bufs));
 
-  if (req->bufs == NULL)
+  if (req->bufs == NULL) {
+    if (work != NULL)
+      uv__free(work);
     return UV_ENOMEM;
+  }
 
   memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
 
@@ -1562,11 +1693,16 @@ int uv_fs_copyfile(uv_loop_t* loop,
                    const char* new_path,
                    int flags,
                    uv_fs_cb cb) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   INIT(COPYFILE);
 
   if (flags & ~(UV_FS_COPYFILE_EXCL |
                 UV_FS_COPYFILE_FICLONE |
                 UV_FS_COPYFILE_FICLONE_FORCE)) {
+    if (work != NULL)
+      uv__free(work);
     return UV_EINVAL;
   }
 

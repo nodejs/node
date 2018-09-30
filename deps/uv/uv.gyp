@@ -72,6 +72,7 @@
         'src/heap-inl.h',
         'src/inet.c',
         'src/queue.h',
+        'src/executor.c',
         'src/threadpool.c',
         'src/timer.c',
         'src/uv-data-getter-setters.c',

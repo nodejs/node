@@ -276,7 +276,7 @@ int uv_loop_init(uv_loop_t* loop) {
   if (err)
     goto fail_mutex_init;
 
-  err = uv_async_init(loop, &loop->wq_async, uv__work_done);
+  err = uv_async_init(loop, &loop->wq_async, uv__executor_work_done);
   if (err)
     goto fail_async_init;
 

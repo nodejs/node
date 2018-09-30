@@ -104,10 +104,18 @@ static void uv__getnameinfo_done(struct uv__work* w, int status) {
     service = req->service;
   }
 
-  if (req->getnameinfo_cb)
+  if (req->getnameinfo_cb != NULL)
     req->getnameinfo_cb(req, req->retcode, host, service);
 }
 
+static void uv__getnameinfo_executor_work(uv_work_t* req) {
+  uv__getnameinfo_work(&((uv_getnameinfo_t*) req->data)->work_req);
+}
+
+static void uv__getnameinfo_executor_done(uv_work_t* req, int status) {
+  uv__getnameinfo_done(&((uv_getnameinfo_t*) req->data)->work_req, status);
+  uv__free(req);
+}
 
 /*
 * Entry point for getnameinfo
@@ -119,6 +127,9 @@ int uv_getnameinfo(uv_loop_t* loop,
                    uv_getnameinfo_cb getnameinfo_cb,
                    const struct sockaddr* addr,
                    int flags) {
+  uv_work_t* work;
+  uv_work_options_t options;
+
   if (req == NULL || addr == NULL)
     return UV_EINVAL;
 
@@ -134,6 +145,13 @@ int uv_getnameinfo(uv_loop_t* loop,
     return UV_EINVAL;
   }
 
+  work = NULL;
+  if (getnameinfo_cb != NULL) {
+    work = uv__malloc(sizeof(*work));
+    if (work == NULL)
+      return UV_ENOMEM;
+  }
+
   UV_REQ_INIT(req, UV_GETNAMEINFO);
   uv__req_register(loop, req);
 
@@ -142,11 +160,18 @@ int uv_getnameinfo(uv_loop_t* loop,
   req->loop = loop;
   req->retcode = 0;
 
-  if (getnameinfo_cb) {
-    uv__work_submit(loop,
-                    &req->work_req,
-                    uv__getnameinfo_work,
-                    uv__getnameinfo_done);
+  if (getnameinfo_cb != NULL) {
+    work->data = req;
+    req->executor_data = work; /* For uv_cancel. */
+    options.type = UV_WORK_DNS;
+    options.priority = -1;
+    options.cancelable = 0;
+    options.data = NULL;
+    uv_executor_queue_work(loop,
+                           work,
+                           &options,
+                           uv__getnameinfo_executor_work,
+                           uv__getnameinfo_executor_done);
     return 0;
   } else {
     uv__getnameinfo_work(&req->work_req);

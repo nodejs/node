@@ -31,6 +31,30 @@
 #include <stdarg.h>
 #include <stddef.h>
 
+#ifdef _DEBUG
+#  define DEBUG_ONLY(x) x
+#else
+#  define DEBUG_ONLY(x) (void) 0
+#endif
+
+#undef DEBUG_LOG
+#ifdef DEBUG_LOG
+#include <stdio.h> /* UV_LOG */
+#define LOG_0(fmt) DEBUG_ONLY(fprintf(stderr, fmt))
+#define LOG_1(fmt, a1) DEBUG_ONLY(fprintf(stderr, fmt, a1))
+#define LOG_2(fmt, a1, a2) DEBUG_ONLY(fprintf(stderr, fmt, a1, a2))
+#define LOG_3(fmt, a1, a2, a3) DEBUG_ONLY(fprintf(stderr, fmt, a1, a2, a3))
+#define LOG_4(fmt, a1, a2, a3, a4) DEBUG_ONLY(fprintf(stderr, fmt, a1, a2, a3, a4))
+#define LOG_5(fmt, a1, a2, a3, a4, a5) DEBUG_ONLY(fprintf(stderr, fmt, a1, a2, a3, a4, a5))
+#else
+#define LOG_0(fmt) (void) 0
+#define LOG_1(fmt, a1) (void) 0
+#define LOG_2(fmt, a1, a2) (void) 0
+#define LOG_3(fmt, a1, a2, a3) (void) 0
+#define LOG_4(fmt, a1, a2, a3, a4) (void) 0
+#define LOG_5(fmt, a1, a2, a3, a4, a5) (void) 0
+#endif
+
 #if defined(_MSC_VER) && _MSC_VER < 1600
 # include "uv/stdint-msvc2008.h"
 #else
@@ -164,12 +188,24 @@ void uv__fs_poll_close(uv_fs_poll_t* handle);
 
 int uv__getaddrinfo_translate_error(int sys_err);    /* EAI_* error. */
 
-void uv__work_submit(uv_loop_t* loop,
-                     struct uv__work *w,
-                     void (*work)(struct uv__work *w),
-                     void (*done)(struct uv__work *w, int status));
+enum uv__work_kind {
+  UV__WORK_CPU,
+  UV__WORK_FAST_IO,
+  UV__WORK_SLOW_IO
+};
 
-void uv__work_done(uv_async_t* handle);
+/* Get the default executor. */
+uv_executor_t* uv__default_executor(void);
+
+/* Get current executor. */
+uv_executor_t* uv__executor(void);
+
+/* Called from event loop when executor has completed work. */
+void uv__executor_work_done(uv_async_t* handle);
+
+/* If a uv_work_t is successfully uv_cancel'd, its work CB is set
+ * to this magic value. */
+void uv__executor_work_cancelled(uv_work_t* work);
 
 size_t uv__count_bufs(const uv_buf_t bufs[], unsigned int nbufs);
 

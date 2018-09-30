@@ -158,7 +158,7 @@ TEST_IMPL(thread_create) {
 /* Hilariously bad test name. Run a lot of tasks in the thread pool and verify
  * that each "finished" callback is run in its originating thread.
  */
-TEST_IMPL(threadpool_multiple_event_loops) {
+TEST_IMPL(executor_multiple_event_loops) {
   struct test_thread threads[8];
   size_t i;
   int r;

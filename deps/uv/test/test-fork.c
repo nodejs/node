@@ -638,8 +638,8 @@ static void assert_run_work(uv_loop_t* const loop) {
 
 
 #ifndef __MVS__
-TEST_IMPL(fork_threadpool_queue_work_simple) {
-  /* The threadpool works in a child process. */
+TEST_IMPL(fork_executor_queue_work_simple) {
+  /* The executor works in a child process. */
 
   pid_t child_pid;
   uv_loop_t loop;

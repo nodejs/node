@@ -32,9 +32,9 @@
 
 #define UV_VERSION_MAJOR 1
 #define UV_VERSION_MINOR 23
-#define UV_VERSION_PATCH 0
-#define UV_VERSION_IS_RELEASE 1
-#define UV_VERSION_SUFFIX ""
+#define UV_VERSION_PATCH 1
+#define UV_VERSION_IS_RELEASE 0
+#define UV_VERSION_SUFFIX "dev"
 
 #define UV_VERSION_HEX  ((UV_VERSION_MAJOR << 16) | \
                          (UV_VERSION_MINOR <<  8) | \

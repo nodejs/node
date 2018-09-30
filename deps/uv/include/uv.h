@@ -198,6 +198,16 @@ typedef enum {
   UV_REQ_TYPE_MAX
 } uv_req_type;
 
+/* TODO Use a UV_WORK_TYPE_MAP? Not sure it's worthwhile. */
+typedef enum {
+  UV_WORK_UNKNOWN = 0,
+  UV_WORK_FS,
+  UV_WORK_DNS,
+  UV_WORK_USER_IO,
+  UV_WORK_USER_CPU,
+  UV_WORK_PRIVATE,
+  UV_WORK_MAX = 255
+} uv_work_type;
 
 /* Handle types. */
 typedef struct uv_loop_s uv_loop_t;
@@ -228,6 +238,10 @@ typedef struct uv_connect_s uv_connect_t;
 typedef struct uv_udp_send_s uv_udp_send_t;
 typedef struct uv_fs_s uv_fs_t;
 typedef struct uv_work_s uv_work_t;
+
+/* Executor. */
+typedef struct uv_work_options_s uv_work_options_t;
+typedef struct uv_executor_s uv_executor_t;
 
 /* None of the above. */
 typedef struct uv_cpu_info_s uv_cpu_info_t;
@@ -321,6 +335,11 @@ typedef void (*uv_getnameinfo_cb)(uv_getnameinfo_t* req,
                                   int status,
                                   const char* hostname,
                                   const char* service);
+typedef void (*uv_executor_submit_func)(uv_executor_t* executor,
+                                        uv_work_t* req,
+                                        const uv_work_options_t* opts);
+typedef int (*uv_executor_cancel_func)(uv_executor_t* executor,
+                                       uv_work_t* req);
 
 typedef struct {
   long tv_sec;
@@ -381,8 +400,8 @@ UV_EXTERN char* uv_err_name_r(int err, char* buf, size_t buflen);
   void* data;                                                                 \
   /* read-only */                                                             \
   uv_req_type type;                                                           \
-  /* private */                                                               \
-  void* reserved[6];                                                          \
+  void* executor_data;                                                        \
+  void* reserved[5];                                                          \
   UV_REQ_PRIVATE_FIELDS                                                       \
 
 /* Abstract base class of all requests. */
@@ -999,13 +1018,45 @@ struct uv_work_s {
   UV_WORK_PRIVATE_FIELDS
 };
 
+/*
+ * Executor.
+ */
+
+struct uv_work_options_s {
+  /* public */
+  uv_work_type type;
+  int priority;
+  int cancelable;
+  void* data;
+};
+
+struct uv_executor_s {
+  /* public */
+  /* Defined by embedder. */
+  uv_executor_submit_func submit;
+  uv_executor_cancel_func cancel;
+  void* data;
+
+  void* reserved[4];
+};
+
+UV_EXTERN int uv_replace_executor(uv_executor_t* executor);
+
+/* Deprecated. */
 UV_EXTERN int uv_queue_work(uv_loop_t* loop,
                             uv_work_t* req,
                             uv_work_cb work_cb,
                             uv_after_work_cb after_work_cb);
 
+UV_EXTERN int uv_executor_queue_work(uv_loop_t* loop,
+                                     uv_work_t* req,
+                                     uv_work_options_t* opts,
+                                     uv_work_cb work_cb,
+                                     uv_after_work_cb after_work_cb);
+
 UV_EXTERN int uv_cancel(uv_req_t* req);
 
+UV_EXTERN void uv_executor_return_work(uv_work_t* req);
 
 struct uv_cpu_times_s {
   uint64_t user;
@@ -1603,6 +1654,8 @@ UV_EXTERN void uv_loop_set_data(uv_loop_t*, void* data);
 #undef UV_SIGNAL_PRIVATE_FIELDS
 #undef UV_LOOP_PRIVATE_FIELDS
 #undef UV_LOOP_PRIVATE_PLATFORM_FIELDS
+#undef UV_WORK_OPTIONS_PRIVATE_FIELDS
+#undef UV_EXECUTOR_PRIVATE_FIELDS
 #undef UV__ERR
 
 #ifdef __cplusplus
