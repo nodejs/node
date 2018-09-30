@@ -122,21 +122,12 @@
     [ 'node_no_browser_globals=="true"', {
       'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
     } ],
-    [ 'node_use_bundled_v8=="true" and v8_postmortem_support=="true"', {
-      'conditions': [
-        # -force_load is not applicable for the static library
-        [ 'force_load=="true"', {
-          'xcode_settings': {
-            'OTHER_LDFLAGS': [
-              '-Wl,-force_load,<(v8_base)',
-            ],
-          },
-        }],
-        # when building with GN, the v8_monolith target already includes postmortem metadata
-        [ 'build_v8_with_gn=="false"', {
-          'dependencies': [ 'deps/v8/gypfiles/v8.gyp:postmortem-metadata' ],
-        }],
-      ],
+    [ 'node_use_bundled_v8=="true" and v8_postmortem_support=="true" and force_load=="true"', {
+      'xcode_settings': {
+        'OTHER_LDFLAGS': [
+          '-Wl,-force_load,<(v8_base)',
+        ],
+      },
     }],
     [ 'node_shared_zlib=="false"', {
       'dependencies': [ 'deps/zlib/zlib.gyp:zlib' ],
