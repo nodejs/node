@@ -44,5 +44,5 @@ process.once('exit', function() {
   assert.strictEqual(
     drainCount, 1);
   assert.strictEqual(
-    flushCount, 2);
+    flushCount, 1);
 });
