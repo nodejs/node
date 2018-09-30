@@ -36,12 +36,12 @@ common.expectWarning({
     [
       'The provided hostname "false" is not a valid ' +
       'hostname, and is supported in the dns module solely for compatibility.',
-      'DEP0118',
+      'DEP0XXX',
     ],
     [
       'The provided hostname "false" is not a valid ' +
       'hostname, and is supported in the dns module solely for compatibility.',
-      'DEP0118',
+      'DEP0XXX',
     ]
   ],
 });
