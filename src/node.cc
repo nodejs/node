@@ -72,7 +72,6 @@
 #include <errno.h>
 #include <fcntl.h>  // _O_RDWR
 #include <limits.h>  // PATH_MAX
-#include <locale.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -125,7 +124,6 @@ namespace node {
 using options_parser::kAllowedInEnvironment;
 using options_parser::kDisallowedInEnvironment;
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::DEFAULT;
@@ -145,16 +143,13 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
 using v8::MicrotasksPolicy;
-using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
 using v8::NewStringType;
 using v8::None;
 using v8::Nothing;
 using v8::Null;
-using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::Promise;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Script;
