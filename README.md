@@ -65,10 +65,7 @@ Remember, libre != gratis; the open source license grants you the freedom to use
 and modify, but not commitments of other people's time. Please be respectful,
 and set your expectations accordingly.
 
-## Release Types
-
-All releases follow [Semantic Versioning](https://semver.org). A member of the
-[Release Team](#release-team) signs each release. 
+## Release Types 
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
@@ -86,6 +83,8 @@ All releases follow [Semantic Versioning](https://semver.org). A member of the
 * **Nightly**: Code from the Current branch built every 24-hours when there are
   changes. Use with caution.
 
+Current and LTS releases follow [Semantic Versioning](https://semver.org). A
+member of the [Release Team](#release-team) signs each Current and LTS release.
 For more information, see the
 [Release README](https://github.com/nodejs/Release).
 
