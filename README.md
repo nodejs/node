@@ -65,34 +65,28 @@ The open source license grants you the freedom to use Node.js. It does not
 guarantee commitments of other people's time. Please be respectful and manage
 your expectations.
 
-## Release Types
+## Release Types 
 
-The Node.js project maintains multiple types of releases:
-
-* **Current**: Released from active development branches of this repository,
-  versioned by [SemVer](https://semver.org) and signed by a member of the
-  [Release Team](#release-team).
-  Code for Current releases is organized in this repository by major version
-  number. For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
-  The major version number of Current releases will increment every 6 months
-  allowing for breaking changes to be introduced. This happens in April and
-  October every year. Current release lines beginning in October each year have
-  a maximum support life of 8 months. Current release lines beginning in April
-  each year will convert to LTS (see below) after 6 months and receive further
-  support for 30 months.
+* **Current**: Under active development. Code for the Current release is in the
+  branch for its major version number (for example,
+  [v10.x](https://github.com/nodejs/node/tree/v10.x)). Node.js releases a new
+  major version every 6 months, allowing for breaking changes. This happens in
+  April and October every year. Releases appearing each October have a support
+  life of 8 months. Releases appearing each April convert to LTS (see below)
+  each October.
 * **LTS**: Releases that receive Long-term Support, with a focus on stability
-  and security. Every second Current release line (major version) will become an
-  LTS line and receive 18 months of _Active LTS_ support and a further 12
-  months of _Maintenance_. LTS release lines are given alphabetically
-  ordered codenames, beginning with v4 Argon. LTS releases are less frequent
-  and will attempt to maintain consistent major and minor version numbers,
-  only incrementing patch version numbers. There are no breaking changes or
-  feature additions, except in some special circumstances.
-* **Nightly**: Versions of code in this repository on the current Current
-  branch, automatically built every 24-hours where changes exist. Use with
-  caution.
+  and security. Every even-numbered major version will become an LTS release.
+  LTS releases receive 18 months of _Active LTS_ support and a further 12 months
+  of _Maintenance_. LTS release lines have alphabetically-ordered codenames,
+  beginning with v4 Argon. There are no breaking changes or feature additions,
+  except in some special circumstances.
+* **Nightly**: Code from the Current branch built every 24-hours when there are
+  changes. Use with caution.
 
-More information can be found in the [LTS README](https://github.com/nodejs/LTS/).
+Current and LTS releases follow [Semantic Versioning](https://semver.org). A
+member of the [Release Team](#release-team) signs each Current and LTS release.
+For more information, see the
+[Release README](https://github.com/nodejs/Release).
 
 ### Download
 
