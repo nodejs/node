@@ -755,84 +755,84 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
  * `AsyncResource::MakeCallback()` is used, then all four callbacks will be
  * called automatically. */
 class AsyncResource {
-  public:
-    AsyncResource(v8::Isolate* isolate,
-                  v8::Local<v8::Object> resource,
-                  const char* name,
-                  async_id trigger_async_id = -1)
-        : isolate_(isolate),
-          resource_(isolate, resource) {
-      async_context_ = EmitAsyncInit(isolate, resource, name,
-                                     trigger_async_id);
-    }
+ public:
+  AsyncResource(v8::Isolate* isolate,
+                v8::Local<v8::Object> resource,
+                const char* name,
+                async_id trigger_async_id = -1)
+      : isolate_(isolate),
+        resource_(isolate, resource) {
+    async_context_ = EmitAsyncInit(isolate, resource, name,
+                                   trigger_async_id);
+  }
 
-    AsyncResource(v8::Isolate* isolate,
-                  v8::Local<v8::Object> resource,
-                  v8::Local<v8::String> name,
-                  async_id trigger_async_id = -1)
-        : isolate_(isolate),
-          resource_(isolate, resource) {
-      async_context_ = EmitAsyncInit(isolate, resource, name,
-                                     trigger_async_id);
-    }
+  AsyncResource(v8::Isolate* isolate,
+                v8::Local<v8::Object> resource,
+                v8::Local<v8::String> name,
+                async_id trigger_async_id = -1)
+      : isolate_(isolate),
+        resource_(isolate, resource) {
+    async_context_ = EmitAsyncInit(isolate, resource, name,
+                                   trigger_async_id);
+  }
 
-    virtual ~AsyncResource() {
-      EmitAsyncDestroy(isolate_, async_context_);
-      resource_.Reset();
-    }
+  virtual ~AsyncResource() {
+    EmitAsyncDestroy(isolate_, async_context_);
+    resource_.Reset();
+  }
 
-    v8::MaybeLocal<v8::Value> MakeCallback(
-        v8::Local<v8::Function> callback,
-        int argc,
-        v8::Local<v8::Value>* argv) {
-      return node::MakeCallback(isolate_, get_resource(),
-                                callback, argc, argv,
-                                async_context_);
-    }
+  v8::MaybeLocal<v8::Value> MakeCallback(
+      v8::Local<v8::Function> callback,
+      int argc,
+      v8::Local<v8::Value>* argv) {
+    return node::MakeCallback(isolate_, get_resource(),
+                              callback, argc, argv,
+                              async_context_);
+  }
 
-    v8::MaybeLocal<v8::Value> MakeCallback(
-        const char* method,
-        int argc,
-        v8::Local<v8::Value>* argv) {
-      return node::MakeCallback(isolate_, get_resource(),
-                                method, argc, argv,
-                                async_context_);
-    }
+  v8::MaybeLocal<v8::Value> MakeCallback(
+      const char* method,
+      int argc,
+      v8::Local<v8::Value>* argv) {
+    return node::MakeCallback(isolate_, get_resource(),
+                              method, argc, argv,
+                              async_context_);
+  }
 
-    v8::MaybeLocal<v8::Value> MakeCallback(
-        v8::Local<v8::String> symbol,
-        int argc,
-        v8::Local<v8::Value>* argv) {
-      return node::MakeCallback(isolate_, get_resource(),
-                                symbol, argc, argv,
-                                async_context_);
-    }
+  v8::MaybeLocal<v8::Value> MakeCallback(
+      v8::Local<v8::String> symbol,
+      int argc,
+      v8::Local<v8::Value>* argv) {
+    return node::MakeCallback(isolate_, get_resource(),
+                              symbol, argc, argv,
+                              async_context_);
+  }
 
-    v8::Local<v8::Object> get_resource() {
-      return resource_.Get(isolate_);
-    }
+  v8::Local<v8::Object> get_resource() {
+    return resource_.Get(isolate_);
+  }
 
-    async_id get_async_id() const {
-      return async_context_.async_id;
-    }
+  async_id get_async_id() const {
+    return async_context_.async_id;
+  }
 
-    async_id get_trigger_async_id() const {
-      return async_context_.trigger_async_id;
-    }
+  async_id get_trigger_async_id() const {
+    return async_context_.trigger_async_id;
+  }
 
-  protected:
-    class CallbackScope : public node::CallbackScope {
-     public:
-      explicit CallbackScope(AsyncResource* res)
-        : node::CallbackScope(res->isolate_,
-                              res->resource_.Get(res->isolate_),
-                              res->async_context_) {}
-    };
+ protected:
+  class CallbackScope : public node::CallbackScope {
+   public:
+    explicit CallbackScope(AsyncResource* res)
+      : node::CallbackScope(res->isolate_,
+                            res->resource_.Get(res->isolate_),
+                            res->async_context_) {}
+  };
 
-  private:
-    v8::Isolate* isolate_;
-    v8::Persistent<v8::Object> resource_;
-    async_context async_context_;
+ private:
+  v8::Isolate* isolate_;
+  v8::Persistent<v8::Object> resource_;
+  async_context async_context_;
 };
 
 }  // namespace node
