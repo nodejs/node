@@ -209,7 +209,7 @@ assignment. A pointer is almost always a better choice.
 ```c++
 class ExampleClass {
  public:
-  explicit ExampleClass(int* int_ptr) : pointer_to_integer_(int_ptr) {}
+  explicit ExampleClass(OtherClass* other_ptr) : pointer_to_other_(other_ptr) {}
 
   void SomeMethod(const std::string& input_param,
                   std::string* in_out_param);  // Pointer instead of reference
@@ -230,7 +230,10 @@ class ExampleClass {
 
  private:
   std::string foo_string_;
-  int* pointer_to_integer_;  // Pointer instead of reference.
+  // Pointer instead of reference. If this objects 'owns' the other object,
+  // this should be be a `std::unique_ptr<OtherClass>`; a
+  // `std::shared_ptr<OtherClass>` can also be a better choice.
+  OtherClass* pointer_to_other_;
 };
 ```
 
