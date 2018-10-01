@@ -2228,7 +2228,7 @@ Type: Runtime
 Previous versions of Node.js supported `dns.lookup()` with a falsy hostname
 like `dns.lookup(false)` due to backward compatibility long before.
 This behavior is undocumented and seems useless in real world apps. We
-might make invalid hostname throw in the future.
+might make passing invalid hostname throw in the future.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
