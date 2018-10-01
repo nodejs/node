@@ -3646,7 +3646,7 @@ enum ParsePublicKeyResult {
 static ParsePublicKeyResult TryParsePublicKey(
     EVPKeyPointer* pkey,
     const BIOPointer& bp,
-    char* name,
+    const char* name,
     // NOLINTNEXTLINE(runtime/int)
     std::function<EVP_PKEY*(const unsigned char** p, long l)> parse) {
   unsigned char* der_data;
