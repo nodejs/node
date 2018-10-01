@@ -68,7 +68,7 @@ and set your expectations accordingly.
 ## Release Types
 
 All releases follow [Semantic Versioning](https://semver.org). A member of the
-Release Team](#release-team) signs each release. 
+[Release Team](#release-team) signs each release. 
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
