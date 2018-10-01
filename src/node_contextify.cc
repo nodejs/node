@@ -1053,7 +1053,7 @@ void ContextifyContext::CompileFunction(
   }
 
   MaybeLocal<Function> maybe_fun = ScriptCompiler::CompileFunctionInContext(
-      context, &source, params.size(), params.data(),
+      parsing_context, &source, params.size(), params.data(),
       context_extensions.size(), context_extensions.data(), options);
 
   Local<Function> fun;

@@ -267,6 +267,46 @@ const vm = require('vm');
     stack: 'Error: Sample Error\n    at <anonymous>:1:10'
   });
 
+  assert.strictEqual(
+    vm.compileFunction(
+      'return varInContext',
+      [],
+      {
+        parsingContext: vm.createContext({ varInContext: 'abc' })
+      }
+    )(),
+    'abc'
+  );
+
+  common.expectsError(() => {
+    vm.compileFunction(
+      'return varInContext',
+      []
+    )();
+  }, {
+    message: 'varInContext is not defined',
+    stack: 'ReferenceError: varInContext is not defined\n    at <anonymous>:1:1'
+  });
+
+  assert.notDeepStrictEqual(
+    vm.compileFunction(
+      'return global',
+      [],
+      {
+        parsingContext: vm.createContext({ global: {} })
+      }
+    )(),
+    global
+  );
+
+  assert.deepStrictEqual(
+    vm.compileFunction(
+      'return global',
+      []
+    )(),
+    global
+  );
+
   // Resetting value
   Error.stackTraceLimit = oldLimit;
 }
