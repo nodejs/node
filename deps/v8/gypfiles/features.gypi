@@ -95,6 +95,14 @@
 
     # Enable mitigations for executing untrusted code.
     'v8_untrusted_code_mitigations%': 'true',
+
+    'v8_dynamic%': "false",
+
+    'conditions': [
+      [ 'v8_dynamic=="true"', {
+        'component': 'shared_library',
+      }],
+    ],
   },
   'target_defaults': {
     'conditions': [
@@ -154,6 +162,9 @@
       }],
       ['v8_untrusted_code_mitigations=="false"', {
         'defines': ['DISABLE_UNTRUSTED_CODE_MITIGATIONS',],
+      }],
+      [ 'v8_dynamic=="true"', {
+        'cflags': [ '-fPIC', ],
       }],
     ],  # conditions
     'configurations': {

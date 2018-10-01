@@ -23,6 +23,7 @@
     'node_core_target_name%': 'node',
     'node_lib_target_name%': 'node_lib',
     'node_intermediate_lib_type%': 'static_library',
+    'v8_dynamic%': "false",
     'library_files': [
       'lib/internal/per_context.js',
       'lib/internal/bootstrap/cache.js',

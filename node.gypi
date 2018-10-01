@@ -259,7 +259,7 @@
       ],
     }],
     [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"'
-        ' and force_load=="true"', {
+        ' and force_load=="true" and v8_dynamic!="true"', {
       'ldflags': [ '-Wl,-z,noexecstack',
                    '-Wl,--whole-archive <(v8_base)',
                    '-Wl,--no-whole-archive' ]
