@@ -12,9 +12,9 @@ let cntr = 0;
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = b.copy(c, 0, 0, 512);
-  assert.strictEqual(512, copied);
+  assert.strictEqual(copied, 512);
   for (let i = 0; i < c.length; i++) {
-    assert.strictEqual(b[i], c[i]);
+    assert.strictEqual(c[i], b[i]);
   }
 }
 
@@ -23,9 +23,9 @@ let cntr = 0;
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = c.copy(b, 0, 0);
-  assert.strictEqual(c.length, copied);
+  assert.strictEqual(copied, c.length);
   for (let i = 0; i < c.length; i++) {
-    assert.strictEqual(c[i], b[i]);
+    assert.strictEqual(b[i], c[i]);
   }
 }
 
@@ -34,9 +34,9 @@ let cntr = 0;
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = c.copy(b, 0);
-  assert.strictEqual(c.length, copied);
+  assert.strictEqual(copied, c.length);
   for (let i = 0; i < c.length; i++) {
-    assert.strictEqual(c[i], b[i]);
+    assert.strictEqual(b[i], c[i]);
   }
 }
 
@@ -45,9 +45,9 @@ let cntr = 0;
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = b.copy(c);
-  assert.strictEqual(c.length, copied);
+  assert.strictEqual(copied, c.length);
   for (let i = 0; i < c.length; i++) {
-    assert.strictEqual(b[i], c[i]);
+    assert.strictEqual(c[i], b[i]);
   }
 }
 
@@ -56,9 +56,9 @@ let cntr = 0;
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = b.copy(c, 0, b.length - Math.floor(c.length / 2));
-  assert.strictEqual(Math.floor(c.length / 2), copied);
+  assert.strictEqual(copied, Math.floor(c.length / 2));
   for (let i = 0; i < Math.floor(c.length / 2); i++) {
-    assert.strictEqual(b[b.length - Math.floor(c.length / 2) + i], c[i]);
+    assert.strictEqual(c[i], b[b.length - Math.floor(c.length / 2) + i]);
   }
   for (let i = Math.floor(c.length / 2) + 1; i < c.length; i++) {
     assert.strictEqual(c[c.length - 1], c[i]);
@@ -70,9 +70,9 @@ let cntr = 0;
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = b.copy(c, 0, 0, 513);
-  assert.strictEqual(c.length, copied);
+  assert.strictEqual(copied, c.length);
   for (let i = 0; i < c.length; i++) {
-    assert.strictEqual(b[i], c[i]);
+    assert.strictEqual(c[i], b[i]);
   }
 }
 
@@ -81,9 +81,9 @@ let cntr = 0;
   b.fill(++cntr);
   b.fill(++cntr, 256);
   const copied = b.copy(b, 0, 256, 1024);
-  assert.strictEqual(768, copied);
+  assert.strictEqual(copied, 768);
   for (let i = 0; i < b.length; i++) {
-    assert.strictEqual(cntr, b[i]);
+    assert.strictEqual(b[i], cntr);
   }
 }
 
@@ -106,7 +106,7 @@ assert.throws(function() {
   c.fill(++cntr);
   b.copy(c, 0, 0, 1025);
   for (let i = 0; i < c.length; i++) {
-    assert.strictEqual(b[i], c[i]);
+    assert.strictEqual(c[i], b[i]);
   }
 }
 
@@ -126,9 +126,9 @@ assert.strictEqual(b.copy(c, 512, 0, 10), 0);
   b.fill(++cntr);
   d.fill(++cntr);
   const copied = b.copy(d, 0, 0, 512);
-  assert.strictEqual(512, copied);
+  assert.strictEqual(copied, 512);
   for (let i = 0; i < d.length; i++) {
-    assert.strictEqual(b[i], d[i]);
+    assert.strictEqual(d[i], b[i]);
   }
 }
 
@@ -139,8 +139,8 @@ assert.strictEqual(b.copy(c, 512, 0, 10), 0);
   e.fill(++cntr);
   c.fill(++cntr);
   const copied = Buffer.prototype.copy.call(e, c, 0, 0, 512);
-  assert.strictEqual(512, copied);
+  assert.strictEqual(copied, 512);
   for (let i = 0; i < c.length; i++) {
-    assert.strictEqual(e[i], c[i]);
+    assert.strictEqual(c[i], e[i]);
   }
 }
