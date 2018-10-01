@@ -673,8 +673,8 @@ added: v10.10.0
     data for the supplied source.
   * `produceCachedData` {boolean} Specifies whether to produce new cache data.
     **Default:** `false`.
-  * `parsingContext` {Object} The sandbox/context in which the said function
-    should be compiled in.
+  * `parsingContext` {Object} The [contextified][] sandbox in which the said
+    function should be compiled in.
   * `contextExtensions` {Object[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
