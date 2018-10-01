@@ -279,8 +279,6 @@ jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
 # This does not run tests of third-party libraries inside deps.
 test: all ## Runs default tests, linters, and builds docs.
 	$(MAKE) -s test-doc
-	@echo "Build the addons before running the tests so the test results"
-	@echo "can be displayed together"
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
 	$(MAKE) -s cctest
@@ -288,8 +286,6 @@ test: all ## Runs default tests, linters, and builds docs.
 
 .PHONY: test-only
 test-only: all  ## For a quick test, does not run linter or build docs.
-	@echo "Build the addons before running the tests so the test results"
-	@echo "can be displayed together"
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
@@ -297,8 +293,6 @@ test-only: all  ## For a quick test, does not run linter or build docs.
 
 # Used by `make coverage-test`
 test-cov: all
-	@echo "Build the addons before running the tests so the test results"
-	@echo "can be displayed together"
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	# $(MAKE) cctest
