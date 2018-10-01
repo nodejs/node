@@ -206,6 +206,34 @@ Never use `std::auto_ptr`. Instead, use `std::unique_ptr`.
 Using non-const references often obscures which values are changed by an
 assignment. A pointer is almost always a better choice.
 
+```c++
+class ExampleClass {
+ public:
+  explicit ExampleClass(int* int_ptr) : pointer_to_integer_(int_ptr) {}
+
+  void SomeMethod(const std::string& input_param,
+                  std::string* in_out_param);  // Pointer instead of reference
+
+  const std::string& get_foo() const { return foo_string_; }
+  void set_foo(const std::string& new_value) { foo_string_ = new_value; }
+
+  void ReplaceCharacterInFoo(char from, char to) {
+    // A non-const reference is okay here, because the method name already tells
+    // users that this modifies 'foo_string_' -- if that is not the case,
+    // it can still be better to use an indexed for loop, or leave appropriate
+    // comments.
+    for (char& character : foo_string_) {
+      if (character == from)
+        character = to;
+    }
+  }
+
+ private:
+  std::string foo_string_;
+  int* pointer_to_integer_;  // Pointer instead of reference.
+};
+```
+
 ## Others
 
 ### Type casting
