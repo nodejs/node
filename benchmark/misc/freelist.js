@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  const FreeList = require('internal/freelist');
+  const { FreeList } = require('internal/freelist');
   const n = conf.n;
   const poolSize = 1000;
   const list = new FreeList('test', poolSize, Object);

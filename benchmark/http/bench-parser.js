@@ -35,7 +35,7 @@ function processHeader(header, n) {
   bench.start();
   for (var i = 0; i < n; i++) {
     parser.execute(header, 0, header.length);
-    parser.reinitialize(REQUEST);
+    parser.reinitialize(REQUEST, i > 0);
   }
   bench.end(n);
 }

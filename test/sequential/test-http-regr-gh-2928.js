@@ -1,10 +1,12 @@
 // This test is designed to fail with a segmentation fault in Node.js 4.1.0 and
 // execute without issues in Node.js 4.1.1 and up.
 
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const httpCommon = require('_http_common');
+const is_reused_symbol = require('internal/freelist').symbols.is_reused_symbol;
 const HTTPParser = process.binding('http_parser').HTTPParser;
 const net = require('net');
 
@@ -23,7 +25,7 @@ function execAndClose() {
   process.stdout.write('.');
 
   const parser = parsers.pop();
-  parser.reinitialize(HTTPParser.RESPONSE);
+  parser.reinitialize(HTTPParser.RESPONSE, parser[is_reused_symbol]);
 
   const socket = net.connect(common.PORT);
   socket.on('error', (e) => {
