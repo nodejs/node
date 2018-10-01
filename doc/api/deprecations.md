@@ -2215,7 +2215,7 @@ Using the `_handle` property to access the native object is deprecated because
 improper use of the native object can lead to crashing the application.
 
 <a id="DEP0XXX"></a>
-### DEP0XXX: dns.lookup() supports for falsy hostname
+### DEP0XXX: dns.lookup() supports for a falsy hostname
 <!-- YAML
 changes:
   - version: REPLACEME
@@ -2225,8 +2225,8 @@ changes:
 
 Type: Runtime
 
-Previous versions of Node.js support `dns.lookup()` a falsy hostname like
-`dns.lookup(false)` for the reason of backward compatibility long before.
+Previous versions of Node.js supported `dns.lookup()` with a falsy hostname
+like `dns.lookup(false)` due to backward compatibility long before.
 This behavior is undocumented and seems useless in real world apps. We
 might make invalid hostname throw in the future.
 
