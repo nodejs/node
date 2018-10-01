@@ -97,13 +97,14 @@
     'v8_untrusted_code_mitigations%': 'true',
 
     'v8_dynamic%': "false",
-
-    'conditions': [
-      [ 'v8_dynamic=="true"', {
-        'component': 'shared_library',
-      }],
-    ],
   },
+  'conditions': [
+    [ 'v8_dynamic=="true"', {
+      'variables': {
+        'component': 'shared_library',
+      },
+    }],
+  ],
   'target_defaults': {
     'conditions': [
       ['v8_embedder_string!=""', {
