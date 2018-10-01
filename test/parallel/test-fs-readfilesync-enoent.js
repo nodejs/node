@@ -11,6 +11,7 @@ if (!common.isWindows)
 
 const assert = require('assert');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 function test(p) {
@@ -23,10 +24,10 @@ function test(p) {
   }));
 }
 
-test('//localhost/c$/Windows/System32');
-test('//localhost/c$/Windows');
-test('//localhost/c$/');
-test('\\\\localhost\\c$\\');
+test(`//${os.hostname()}/c$/Windows/System32`);
+test(`//${os.hostname()}/c$/Windows`);
+test(`//${os.hostname()}/c$/`);
+test(`\\\\${os.hostname()}\\c$\\`);
 test('C:\\');
 test('C:');
 test(process.env.windir);
