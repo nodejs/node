@@ -44,7 +44,8 @@ class DelaySubscriber extends Subscriber {
     }
     _schedule(scheduler) {
         this.active = true;
-        this.add(scheduler.schedule(DelaySubscriber.dispatch, this.delay, {
+        const destination = this.destination;
+        destination.add(scheduler.schedule(DelaySubscriber.dispatch, this.delay, {
             source: this, destination: this.destination, scheduler: scheduler
         }));
     }
@@ -66,9 +67,11 @@ class DelaySubscriber extends Subscriber {
         this.errored = true;
         this.queue = [];
         this.destination.error(err);
+        this.unsubscribe();
     }
     _complete() {
         this.scheduleNotification(Notification.createComplete());
+        this.unsubscribe();
     }
 }
 class DelayMessage {

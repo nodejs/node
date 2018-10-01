@@ -133,7 +133,8 @@ export class ExpandSubscriber<T, R> extends OuterSubscriber<T, R> {
         this.subscribeToProjection(result, value, index);
       } else {
         const state: DispatchArg<T, R> = { subscriber: this, result, value, index };
-        this.add(this.scheduler.schedule<DispatchArg<T, R>>(ExpandSubscriber.dispatch, 0, state));
+        const destination = this.destination as Subscription;
+        destination.add(this.scheduler.schedule<DispatchArg<T, R>>(ExpandSubscriber.dispatch, 0, state));
       }
     } else {
       this.buffer.push(value);
@@ -142,7 +143,8 @@ export class ExpandSubscriber<T, R> extends OuterSubscriber<T, R> {
 
   private subscribeToProjection(result: any, value: T, index: number): void {
     this.active++;
-    this.add(subscribeToResult<T, R>(this, result, value, index));
+    const destination = this.destination as Subscription;
+    destination.add(subscribeToResult<T, R>(this, result, value, index));
   }
 
   protected _complete(): void {
@@ -150,6 +152,7 @@ export class ExpandSubscriber<T, R> extends OuterSubscriber<T, R> {
     if (this.hasCompleted && this.active === 0) {
       this.destination.complete();
     }
+    this.unsubscribe();
   }
 
   notifyNext(outerValue: T, innerValue: R,
@@ -160,7 +163,8 @@ export class ExpandSubscriber<T, R> extends OuterSubscriber<T, R> {
 
   notifyComplete(innerSub: Subscription): void {
     const buffer = this.buffer;
-    this.remove(innerSub);
+    const destination = this.destination as Subscription;
+    destination.remove(innerSub);
     this.active--;
     if (buffer && buffer.length > 0) {
       this._next(buffer.shift());

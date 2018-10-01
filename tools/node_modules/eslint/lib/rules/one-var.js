@@ -384,8 +384,13 @@ module.exports = {
             if (nodeIndex > 0) {
                 const previousNode = parent.body[nodeIndex - 1];
                 const isPreviousNodeDeclaration = previousNode.type === "VariableDeclaration";
+                const declarationsWithPrevious = declarations.concat(previousNode.declarations || []);
 
-                if (isPreviousNodeDeclaration && previousNode.kind === type) {
+                if (
+                    isPreviousNodeDeclaration &&
+                    previousNode.kind === type &&
+                    !(declarationsWithPrevious.some(isRequire) && !declarationsWithPrevious.every(isRequire))
+                ) {
                     const previousDeclCounts = countDeclarations(previousNode.declarations);
 
                     if (options[type].initialized === MODE_CONSECUTIVE && options[type].uninitialized === MODE_CONSECUTIVE) {

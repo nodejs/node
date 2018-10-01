@@ -1,6 +1,7 @@
 import { Observable } from '../Observable';
 import { Operator } from '../Operator';
 import { Subscriber } from '../Subscriber';
+import { Subscription } from '../Subscription';
 import { Notification } from '../Notification';
 import { MonoTypeOperatorFunction, PartialObserver, SchedulerAction, SchedulerLike, TeardownLogic } from '../types';
 
@@ -88,7 +89,8 @@ export class ObserveOnSubscriber<T> extends Subscriber<T> {
   }
 
   private scheduleMessage(notification: Notification<any>): void {
-    this.add(this.scheduler.schedule(
+    const destination = this.destination as Subscription;
+    destination.add(this.scheduler.schedule(
       ObserveOnSubscriber.dispatch,
       this.delay,
       new ObserveOnMessage(notification, this.destination)
@@ -101,10 +103,12 @@ export class ObserveOnSubscriber<T> extends Subscriber<T> {
 
   protected _error(err: any): void {
     this.scheduleMessage(Notification.createError(err));
+    this.unsubscribe();
   }
 
   protected _complete(): void {
     this.scheduleMessage(Notification.createComplete());
+    this.unsubscribe();
   }
 }
 

@@ -3,6 +3,7 @@ import { AsyncSubject } from '../AsyncSubject';
 import { Subscriber } from '../Subscriber';
 import { SchedulerAction, SchedulerLike } from '../types';
 import { map } from '../operators/map';
+import { canReportError } from '../util/canReportError';
 import { isScheduler } from '../util/isScheduler';
 import { isArray } from '../util/isArray';
 
@@ -198,7 +199,11 @@ export function bindNodeCallback<T>(
           try {
             callbackFunc.apply(context, [...args, handler]);
           } catch (err) {
-            subject.error(err);
+            if (canReportError(subject)) {
+              subject.error(err);
+            } else {
+              console.warn(err);
+            }
           }
         }
         return subject.subscribe(subscriber);

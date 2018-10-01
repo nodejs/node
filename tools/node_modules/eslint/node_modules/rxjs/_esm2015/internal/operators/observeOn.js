@@ -26,16 +26,19 @@ export class ObserveOnSubscriber extends Subscriber {
         this.unsubscribe();
     }
     scheduleMessage(notification) {
-        this.add(this.scheduler.schedule(ObserveOnSubscriber.dispatch, this.delay, new ObserveOnMessage(notification, this.destination)));
+        const destination = this.destination;
+        destination.add(this.scheduler.schedule(ObserveOnSubscriber.dispatch, this.delay, new ObserveOnMessage(notification, this.destination)));
     }
     _next(value) {
         this.scheduleMessage(Notification.createNext(value));
     }
     _error(err) {
         this.scheduleMessage(Notification.createError(err));
+        this.unsubscribe();
     }
     _complete() {
         this.scheduleMessage(Notification.createComplete());
+        this.unsubscribe();
     }
 }
 export class ObserveOnMessage {

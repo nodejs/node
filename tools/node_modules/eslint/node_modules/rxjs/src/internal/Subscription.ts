@@ -45,7 +45,6 @@ export class Subscription implements SubscriptionLike {
   constructor(unsubscribe?: () => void) {
     if (unsubscribe) {
       (<any> this)._unsubscribe = unsubscribe;
-
     }
   }
 

@@ -63,7 +63,8 @@ var ExpandSubscriber = /*@__PURE__*/ (function (_super) {
             }
             else {
                 var state = { subscriber: this, result: result, value: value, index: index };
-                this.add(this.scheduler.schedule(ExpandSubscriber.dispatch, 0, state));
+                var destination_1 = this.destination;
+                destination_1.add(this.scheduler.schedule(ExpandSubscriber.dispatch, 0, state));
             }
         }
         else {
@@ -72,20 +73,23 @@ var ExpandSubscriber = /*@__PURE__*/ (function (_super) {
     };
     ExpandSubscriber.prototype.subscribeToProjection = function (result, value, index) {
         this.active++;
-        this.add(subscribeToResult(this, result, value, index));
+        var destination = this.destination;
+        destination.add(subscribeToResult(this, result, value, index));
     };
     ExpandSubscriber.prototype._complete = function () {
         this.hasCompleted = true;
         if (this.hasCompleted && this.active === 0) {
             this.destination.complete();
         }
+        this.unsubscribe();
     };
     ExpandSubscriber.prototype.notifyNext = function (outerValue, innerValue, outerIndex, innerIndex, innerSub) {
         this._next(innerValue);
     };
     ExpandSubscriber.prototype.notifyComplete = function (innerSub) {
         var buffer = this.buffer;
-        this.remove(innerSub);
+        var destination = this.destination;
+        destination.remove(innerSub);
         this.active--;
         if (buffer && buffer.length > 0) {
             this._next(buffer.shift());

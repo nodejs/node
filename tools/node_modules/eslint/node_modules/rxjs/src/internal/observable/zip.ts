@@ -4,6 +4,7 @@ import { isArray } from '../util/isArray';
 import { Operator } from '../Operator';
 import { ObservableInput, PartialObserver } from '../types';
 import { Subscriber } from '../Subscriber';
+import { Subscription } from '../Subscription';
 import { OuterSubscriber } from '../OuterSubscriber';
 import { InnerSubscriber } from '../InnerSubscriber';
 import { subscribeToResult } from '../util/subscribeToResult';
@@ -126,6 +127,8 @@ export class ZipSubscriber<T, R> extends Subscriber<T> {
     const iterators = this.iterators;
     const len = iterators.length;
 
+    this.unsubscribe();
+
     if (len === 0) {
       this.destination.complete();
       return;
@@ -135,7 +138,8 @@ export class ZipSubscriber<T, R> extends Subscriber<T> {
     for (let i = 0; i < len; i++) {
       let iterator: ZipBufferIterator<any, any> = <any>iterators[i];
       if (iterator.stillUnsubscribed) {
-        this.add(iterator.subscribe(iterator, i));
+        const destination = this.destination as Subscription;
+        destination.add(iterator.subscribe(iterator, i));
       } else {
         this.active--; // not an observable
       }

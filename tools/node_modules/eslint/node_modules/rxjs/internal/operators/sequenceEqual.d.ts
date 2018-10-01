@@ -80,4 +80,5 @@ export declare class SequenceEqualSubscriber<T, R> extends Subscriber<T> {
     checkValues(): void;
     emit(value: boolean): void;
     nextB(value: T): void;
+    completeB(): void;
 }
