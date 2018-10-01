@@ -95,7 +95,7 @@ function expectBody(expected) {
     throw new Error('hello world');
   };
 
-  parser.reinitialize(HTTPParser.REQUEST);
+  parser.reinitialize(HTTPParser.REQUEST, true);
 
   assert.throws(
     () => { parser.execute(request, 0, request.length); },
@@ -555,7 +555,7 @@ function expectBody(expected) {
   parser[kOnBody] = expectBody('ping');
   parser.execute(req1, 0, req1.length);
 
-  parser.reinitialize(REQUEST);
+  parser.reinitialize(REQUEST, true);
   parser[kOnBody] = expectBody('pong');
   parser[kOnHeadersComplete] = onHeadersComplete2;
   parser.execute(req2, 0, req2.length);
