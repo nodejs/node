@@ -18,7 +18,15 @@ function B(value) {
 inherits(B, A);
 B.prototype.b = function() { return this._b; };
 
-assert.strictEqual(B.super_, A);
+assert.deepStrictEqual(
+  Object.getOwnPropertyDescriptor(B, 'super_'),
+  {
+    value: A,
+    enumerable: false,
+    configurable: true,
+    writable: true
+  }
+);
 
 const b = new B('b');
 assert.strictEqual(b.a(), 'a');
