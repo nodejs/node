@@ -412,10 +412,6 @@ Pull requests introducing new core modules:
 New core modules must be landed with a [Stability Index][] of Experimental,
 and must remain Experimental until a semver-major release.
 
-For new modules that involve significant effort, non-trivial additions to
-Node.js or significant new capabilities, an [Enhancement Proposal][] is
-recommended but not required.
-
 ### Additions to N-API
 
 N-API provides an ABI stable API that we will have to support in future
@@ -896,7 +892,6 @@ When things need extra attention, are controversial, or `semver-major`:
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
-[Enhancement Proposal]: https://github.com/nodejs/node-eps
 [Stability Index]: doc/api/documentation.md#stability-index
 [TSC]: https://github.com/nodejs/TSC
 [_Deprecation_]: https://en.wikipedia.org/wiki/Deprecation
