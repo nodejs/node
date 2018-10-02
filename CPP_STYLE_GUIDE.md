@@ -230,8 +230,8 @@ class ExampleClass {
 
  private:
   std::string foo_string_;
-  // Pointer instead of reference. If this objects 'owns' the other object,
-  // this should be be a `std::unique_ptr<OtherClass>`; a
+  // Pointer instead of reference. If this object 'owns' the other object,
+  // this should be a `std::unique_ptr<OtherClass>`; a
   // `std::shared_ptr<OtherClass>` can also be a better choice.
   OtherClass* pointer_to_other_;
 };
