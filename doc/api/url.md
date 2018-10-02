@@ -969,7 +969,7 @@ pathToFileURL('/some/path%.js');    // Correct:   file:///some/path%25 (POSIX)
 ### Legacy `urlObject`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
 -->
@@ -1078,7 +1078,7 @@ forward-slash characters (`/`) are required following the colon in the
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
   - version: v7.0.0
@@ -1169,7 +1169,7 @@ The formatting process operates as follows:
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
   - version: v9.0.0
@@ -1200,7 +1200,7 @@ A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
   - version: v6.6.0

@@ -131,7 +131,7 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
@@ -235,7 +235,7 @@ lsExample();
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
@@ -381,7 +381,7 @@ The `shell` option available in [`child_process.spawn()`][] is not supported by
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
@@ -690,7 +690,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
@@ -760,7 +760,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
@@ -822,7 +822,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0

@@ -426,7 +426,7 @@ The `decipher.setAAD()` method must be called before [`decipher.update()`][].
 <!-- YAML
 added: v1.0.0
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/17825
     description: This method now throws if the GCM tag length is invalid.
   - version: v7.2.0
