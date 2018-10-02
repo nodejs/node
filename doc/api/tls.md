@@ -856,7 +856,8 @@ changes:
     description: The `lookup` option is supported now.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
-    description: The `ALPNProtocols` option can be a `Uint8Array` now.
+    description: The `ALPNProtocols` option can be a `TypedArray` or
+     `DataView` now.
   - version: v5.3.0, v4.7.0
     pr-url: https://github.com/nodejs/node/pull/4246
     description: The `secureContext` option is supported now.
@@ -884,12 +885,14 @@ changes:
     verified against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
-  * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
-    `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
-    the format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
-    first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
+  * `ALPNProtocols`: {string[]|Buffer[]|TypedArray[]|DataView[]|Buffer|
+    TypedArray|DataView}
+    An array of strings, `Buffer`s or `TypedArray`s or `DataView`s, or a
+    single `Buffer` or `TypedArray` or `DataView` containing the supported ALPN
+    protocols. `Buffer`s should have the format `[len][name][len][name]...`
+    e.g. `0x05hello0x05world`, where the first byte is the length of the next
+    protocol name. Passing an array is usually much simpler, e.g.
+    `['hello', 'world']`.
   * `servername`: {string} Server name for the SNI (Server Name Indication) TLS
     extension.
   * `checkServerIdentity(servername, cert)` {Function} A callback function
@@ -1134,20 +1137,22 @@ changes:
     description: The `options` parameter can now include `clientCertEngine`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
-    description: The `ALPNProtocols` option can be a `Uint8Array` now.
+    description: The `ALPNProtocols` option can be a `TypedArray` or
+     `DataView` now.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/2564
     description: ALPN options are supported now.
 -->
 
 * `options` {Object}
-  * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
-    `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
-    the format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
-    first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
-    (Protocols should be ordered by their priority.)
+  * `ALPNProtocols`: {string[]|Buffer[]|TypedArray[]|DataView[]|Buffer|
+    TypedArray|DataView}
+    An array of strings, `Buffer`s or `TypedArray`s or `DataView`s, or a single
+    `Buffer` or `TypedArray` or `DataView` containing the supported ALPN
+    protocols. `Buffer`s should have the format `[len][name][len][name]...`
+    e.g. `0x05hello0x05world`, where the first byte is the length of the next
+    protocol name. Passing an array is usually much simpler, e.g.
+    `['hello', 'world']`. (Protocols should be ordered by their priority.)
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
     client certificate.
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
