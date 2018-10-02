@@ -21,6 +21,7 @@ class WorkerDelegate {
                              const std::string& url,
                              bool waiting,
                              std::shared_ptr<MainThreadHandle> worker) = 0;
+  virtual ~WorkerDelegate() {}
 };
 
 class WorkerManagerEventHandle {
