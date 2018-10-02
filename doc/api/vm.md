@@ -85,18 +85,6 @@ changes:
     depending on whether code cache data is produced successfully.
     This option is **deprecated** in favor of `script.createCachedData()`.
     **Default:** `false`.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental API for the `--experimental-modules`
-    flag, and should not be considered stable.
-     * `specifier` {string} specifier passed to `import()`
-     * `module` {vm.SourceTextModule}
-     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-       `vm.SourceTextModule` is recommended in order to take advantage of error
-       tracking, and to avoid issues with namespaces that contain `then`
-       function exports.
-
 If `options` is a string, then it specifies the filename.
 
 Creating a new `vm.Script` object compiles `code` but does not run it. The
@@ -527,6 +515,8 @@ evaluated, in which case it will do one of the following two things:
 
 This method cannot be called while the module is being evaluated
 (`module.status` is `'evaluating'`) to prevent infinite recursion.
+=======
+>>>>>>> esm: Remove --experimental-vm-modules.
 
 Corresponds to the [Evaluate() concrete method][] field of [Source Text Module
 Record][]s in the ECMAScript specification.
@@ -811,17 +801,6 @@ changes:
     depending on whether code cache data is produced successfully.
     This option is **deprecated** in favor of `script.createCachedData()`.
     **Default:** `false`.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental API for the `--experimental-modules`
-    flag, and should not be considered stable.
-     * `specifier` {string} specifier passed to `import()`
-     * `module` {vm.SourceTextModule}
-     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-       `vm.SourceTextModule` is recommended in order to take advantage of error
-       tracking, and to avoid issues with namespaces that contain `then`
-       function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
@@ -909,17 +888,6 @@ changes:
     depending on whether code cache data is produced successfully.
     This option is **deprecated** in favor of `script.createCachedData()`.
     **Default:** `false`.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental API for the `--experimental-modules`
-    flag, and should not be considered stable.
-     * `specifier` {string} specifier passed to `import()`
-     * `module` {vm.SourceTextModule}
-     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-       `vm.SourceTextModule` is recommended in order to take advantage of error
-       tracking, and to avoid issues with namespaces that contain `then`
-       function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
@@ -987,17 +955,6 @@ changes:
     depending on whether code cache data is produced successfully.
     This option is **deprecated** in favor of `script.createCachedData()`.
     **Default:** `false`.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental API for the `--experimental-modules`
-    flag, and should not be considered stable.
-     * `specifier` {string} specifier passed to `import()`
-     * `module` {vm.SourceTextModule}
-     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-       `vm.SourceTextModule` is recommended in order to take advantage of error
-       tracking, and to avoid issues with namespaces that contain `then`
-       function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
 `vm.runInThisContext()` compiles `code`, runs it within the context of the
@@ -1114,7 +1071,6 @@ the `process.nextTick()` and `queueMicrotask()` functions.
 This issue occurs because all contexts share the same microtask and nextTick
 queues.
 
-[`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.html#ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING
 [`Error`]: errors.html#errors_class_error
 [`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
@@ -1124,12 +1080,6 @@ queues.
 [`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
-[ECMAScript Module Loader]: esm.html#esm_ecmascript_modules
-[Evaluate() concrete method]: https://tc39.github.io/ecma262/#sec-moduleevaluation
-[GetModuleNamespace]: https://tc39.github.io/ecma262/#sec-getmodulenamespace
-[HostResolveImportedModule]: https://tc39.github.io/ecma262/#sec-hostresolveimportedmodule
-[Instantiate() concrete method]: https://tc39.github.io/ecma262/#sec-moduledeclarationinstantiation
-[Source Text Module Record]: https://tc39.github.io/ecma262/#sec-source-text-module-records
 [V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [global object]: https://es5.github.io/#x15.1
