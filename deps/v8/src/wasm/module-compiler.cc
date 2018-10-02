@@ -2203,6 +2203,11 @@ std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
 AsyncCompileJob::~AsyncCompileJob() {
   background_task_manager_.CancelAndWait();
   if (native_module_) native_module_->compilation_state()->Abort();
+  // Tell the streaming decoder that the AsyncCompileJob is not available
+  // anymore.
+  // TODO(ahaas): Is this notification really necessary? Check
+  // https://crbug.com/888170.
+  if (stream_) stream_->NotifyCompilationEnded();
   CancelPendingForegroundTask();
   for (auto d : deferred_handles_) delete d;
 }
@@ -2228,7 +2233,6 @@ void AsyncCompileJob::FinishCompile() {
 }
 
 void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
-  if (stream_) stream_->NotifyError();
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
       isolate_->wasm_engine()->RemoveCompileJob(this);
