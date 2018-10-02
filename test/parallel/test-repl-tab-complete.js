@@ -158,7 +158,6 @@ testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
-
 putIn.run(['.clear']);
 
 // currently does not work, but should not break, not the {
