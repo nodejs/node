@@ -4845,6 +4845,7 @@ class KeyPairGenerationConfig {
   virtual bool Configure(const EVPKeyCtxPointer& ctx) {
     return true;
   }
+  virtual ~KeyPairGenerationConfig() {}
 };
 
 class RSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
