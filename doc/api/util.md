@@ -356,7 +356,7 @@ stream.on('data', (data) => {
 stream.write('With ES6');
 ```
 
-## util.inspect(object[, options])
+## util.inspect(object, [showHidden], [depth], [colors])
 <!-- YAML
 added: v0.3.0
 changes:
