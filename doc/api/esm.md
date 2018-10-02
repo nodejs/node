@@ -8,10 +8,11 @@
 <!--name=esm-->
 
 Node.js contains support for ES Modules based upon the
-[Node.js EP for ES Modules][].
+[Node.js EP for ES Modules][] and the [ESM Minimal Kernel][].
 
-Not all features of the EP are complete and will be landing as both VM support
-and implementation is ready. Error messages are still being polished.
+The minimal feature set is designed to be compatible with all potential
+future implementations. Expect major changes in the implementation including
+interoperability support, specifier resolution, and default behavior.
 
 ## Enabling
 
@@ -96,9 +97,9 @@ import './foo.mjs?query=2'; // loads ./foo.mjs with query of "?query=2"
 
 For now, only modules using the `file:` protocol can be loaded.
 
-## CommonJS,  JSON, and Native Modules
+## CommonJS, JSON, and Native Modules
 
-CommonJS, JSON, and Native modules can be used with [`module.createRequireFromPath()`][`module.createRequireFromPath()`].
+CommonJS, JSON, and Native modules can be used with [`module.createRequireFromPath()`][].
 
 ```js
 // cjs.js
@@ -266,3 +267,4 @@ in the import tree.
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
 [`module.createRequireFromPath()`]: modules.html#modules_module_createrequirefrompath_filename
+[ESM Minimal Kernel]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
