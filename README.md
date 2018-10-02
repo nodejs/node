@@ -100,23 +100,27 @@ Binaries, installers, and source tarballs are available at
 <https://nodejs.org/en/download/>.
 
 #### Current and LTS Releases
-**Current** and **LTS** releases are available at
-<https://nodejs.org/download/release/>.
+<https://nodejs.org/download/release/>
+
 The [latest](https://nodejs.org/download/release/latest/) directory is an
 alias for the latest Current release. The latest-_codename_ directory is an
 alias for the latest release from an LTS line. For example,
 <https://nodejs.org/download/release/latest-carbon> is the latest Carbon
-release.
+(Node.js version 8) release.
 
 #### Nightly Releases
-**Nightly** builds are available at <https://nodejs.org/download/nightly/>. The
-version string includes the date (in UTC time) and the commit SHA at the HEAD of
-the release.
+<https://nodejs.org/download/nightly/>
+
+Release names are appeded a version string that includes the date (in UTC time)
+and the 10 first characters of the commit SHA at the HEAD of the release.
 
 #### API Documentation
-**API documentation** is available in each release and nightly
-directory under _docs_. <https://nodejs.org/api/> points to the API
-documentation of the latest stable version.
+<https://nodejs.org/api/>
+
+Points to the API documentation of the latest LTS release.
+Version specific documentation are avalible in each release and nightly
+directory under _docs_.
+
 
 ### Verifying Binaries
 
