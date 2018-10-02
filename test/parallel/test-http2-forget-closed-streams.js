@@ -17,7 +17,6 @@ if (!common.hasCrypto) {
 
 const http2 = require('http2');
 const assert = require('assert');
-const { Writable } = require('stream');
 
 const server = http2.createServer({ maxSessionMemory: 1 });
 
@@ -30,11 +29,7 @@ server.on('session', function(session) {
         endStream: true
       });
     }));
-    stream.pipe(new Writable({
-      write(chunk, encoding, cb) {
-        cb();
-      }
-    }));
+    stream.resume();
   });
 });
 
