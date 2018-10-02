@@ -1,11 +1,11 @@
-'use strict';
-
 // Flags: --experimental-modules
+
+'use strict';
 
 require('../common');
 const assert = require('assert');
 
-const file = '../fixtures/syntax/bad_syntax.js';
+const file = '../fixtures/syntax/bad_syntax.mjs';
 
 let error;
 (async () => {

@@ -54,6 +54,10 @@ property:
 
 ## Notable differences between `import` and `require`
 
+### Only Support for .mjs
+
+ESM must have the `.mjs` extension.
+
 ### No NODE_PATH
 
 `NODE_PATH` is not part of resolving `import` specifiers. Please use symlinks
@@ -95,12 +99,17 @@ When loaded via `import` these modules will provide a single `default` export
 representing the value of `module.exports` at the time they finished evaluating.
 
 ```js
-// foo.js
-module.exports = { one: 1 };
+// cjs.js
+module.exports = 'cjs';
 
-// bar.js
-import foo from './foo.js';
-foo.one === 1; // true
+// esm.mjs
+import { createRequireFromPath as createRequire } from 'module';
+import { fileURLToPath as fromPath } from 'url';
+
+const require = createRequire(fromPath(import.meta.url));
+
+const cjs = require('./cjs');
+cjs === 'cjs'; // true
 ```
 
 Builtin modules will provide named exports of their public API, as well as a
@@ -174,7 +183,6 @@ module. This can be one of the following:
 | `format` | Description |
 | --- | --- |
 | `'esm'` | Load a standard JavaScript module |
-| `'cjs'` | Load a node-style CommonJS module |
 | `'builtin'` | Load a node builtin CommonJS module |
 | `'dynamic'` | Use a [dynamic instantiate hook][] |
 
