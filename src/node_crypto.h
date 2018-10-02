@@ -88,11 +88,6 @@ using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using DHPointer = DeleteFnPtr<DH, DH_free>;
 
-enum CheckResult {
-  CHECK_CERT_REVOKED = 0,
-  CHECK_OK = 1
-};
-
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
 extern void UseExtraCaCerts(const std::string& file);
