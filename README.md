@@ -101,17 +101,17 @@ Binaries, installers, and source tarballs are available at
 
 #### Current and LTS Releases
 **Current** and **LTS** releases are available at
-<https://nodejs.org/download/release/>, listed under their version strings.
+<https://nodejs.org/download/release/>.
 The [latest](https://nodejs.org/download/release/latest/) directory is an
-alias for the latest Current release. The latest LTS release from an LTS
-line is available in the form: latest-_codename_. For example:
-<https://nodejs.org/download/release/latest-argon>.
+alias for the latest Current release. The latest-_codename_ directory is an
+alias for the latest release from an LTS line. For example,
+<https://nodejs.org/download/release/latest-carbon> is the latest Carbon
+release.
 
 #### Nightly Releases
-**Nightly** builds are available at
-<https://nodejs.org/download/nightly/>, listed under their version
-string which includes their date (in UTC time) and the commit SHA at
-the HEAD of the release.
+**Nightly** builds are available at <https://nodejs.org/download/nightly/>. The
+version string includes the date (in UTC time) and the commit SHA at the HEAD of
+the release.
 
 #### API Documentation
 **API documentation** is available in each release and nightly
