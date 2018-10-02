@@ -117,9 +117,9 @@ and the 10 first characters of the commit SHA at the HEAD of the release.
 #### API Documentation
 <https://nodejs.org/api/>
 
-Points to the API documentation of the latest LTS release.
+Points to the API documentation of the latest Current release.
 Version specific documentation are avalible in each release and nightly
-directory under _docs_.
+directory under _docs_ or at <https://nodejs.org/download/docs/>.
 
 
 ### Verifying Binaries
