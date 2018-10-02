@@ -1,3 +1,4 @@
+
 # Util
 
 <!--introduced_in=v0.10.0-->
@@ -358,6 +359,7 @@ stream.write('With ES6');
 
 
 ## util.inspect(object[,options]
+## util.inspect(object, [showHidden], [depth], [colors])
 <!-- YAML
 added: v0.3.0
 changes:
@@ -436,18 +438,6 @@ changes:
     function, it is used as a [compare function][].
 * Returns: {string} The representation of passed object
 
-## util.inspect(object, [showHidden], [depth], [colors])
-
-* `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
-    properties will be included in the formatted result as well as [`WeakMap`][]
-    and [`WeakSet`][] entries. **Default:** `false`.
-* `depth` {number} Specifies the number of times to recurse while formatting
-    the `object`. This is useful for inspecting large complicated objects. To
-    make it recurse up to the maximum call stack size pass `Infinity` or `null`.
-    **Default:** `2`.
-* `colors` {boolean} If `true`, the output will be styled with ANSI color
-    codes. Colors are customizable, see [Customizing `util.inspect` colors][].
-    **Default:** `false`.
 
 The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
