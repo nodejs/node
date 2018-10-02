@@ -143,6 +143,6 @@ The tools are currently assigned to Tiers as follows:
  | Profiling | DTrace                    | No                            | Partial                 |     3       |
  | Profiling | Windows Xperf             | No                            | ?                       |     ?       |
  | Profiling | 0x                        | No                            | No                      |     4       |
- | Profiling | node-clinic               | No                            | No                      | to early    |
+ | Profiling | node-clinic               | No                            | No                      | too early   |
  | F/P/T     | appmetrics                | No                            | No                      |     ?       |
  | M/T       | eBPF tracing tool         | No                            | No                      |     ?       |
