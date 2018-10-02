@@ -24,6 +24,7 @@ struct HostPort {
 class Options {
  public:
   virtual void CheckOptions(std::vector<std::string>* errors) {}
+  virtual ~Options() {}
 };
 
 // These options are currently essentially per-Environment, but it can be nice
