@@ -1,1 +1,1 @@
-export default 'main';
+export const main = 'main'

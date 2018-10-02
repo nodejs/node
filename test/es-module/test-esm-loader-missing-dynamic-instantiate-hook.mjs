@@ -1,6 +1,7 @@
 // Flags: --experimental-modules --loader ./test/fixtures/es-module-loaders/missing-dynamic-instantiate-hook.mjs
+/* eslint-disable node-core/required-modules */
 
-import { expectsError } from '../common';
+import { expectsError } from '../common/index.mjs';
 
 import('test').catch(expectsError({
   code: 'ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK',

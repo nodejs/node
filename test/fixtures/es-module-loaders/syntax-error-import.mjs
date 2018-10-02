@@ -1,1 +1,1 @@
-import { foo, notfound } from './module-named-exports';
+import { foo, notfound } from './module-named-exports.mjs';

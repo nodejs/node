@@ -1,4 +1,4 @@
-import { message } from './message';
+import { message } from './message.mjs';
 
 var t = 1;
 var k = 1;

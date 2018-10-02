@@ -1,5 +1,6 @@
 // Flags: --experimental-modules
-import { createRequire } from '../common';
+/* eslint-disable node-core/required-modules */
+import { createRequire } from '../common/index.mjs';
 import assert from 'assert';
 //
 const require = createRequire(import.meta.url);

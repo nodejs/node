@@ -1,5 +1,6 @@
 // Flags: --experimental-modules
-import '../common';
+/* eslint-disable node-core/required-modules */
+import '../common/index.mjs';
 
 // Assert we can import files with `%` in their pathname.
 
