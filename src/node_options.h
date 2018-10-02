@@ -110,7 +110,6 @@ class EnvironmentOptions : public Options {
   bool trace_deprecation = false;
   bool trace_sync_io = false;
   bool trace_warnings = false;
-  std::string userland_loader;
 
   bool syntax_check_only = false;
   bool has_eval_string = false;
