@@ -183,7 +183,7 @@ property take precedence over `--trace-deprecation` and
 <!-- YAML
 added: v0.5.3
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/17907
     description: The `%o` specifier's `depth` option will now fall back to the
                  default depth.
@@ -365,13 +365,13 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22846
     description: The `depth` default changed to `20`.
   - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/22788
     description: The `sorted` option is supported now.
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22756
     description: The inspection output is now limited to about 128 MB. Data
                  above that size will not be fully inspected.
@@ -935,8 +935,8 @@ is not supported.
 <!-- YAML
 added: v8.3.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v11.0.0
+    pr-url: v11.0.0
     description: The class is now available on the global object.
 -->
 
@@ -996,8 +996,8 @@ mark.
 <!-- YAML
 added: v8.3.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v11.0.0
+    pr-url: v11.0.0
     description: The class is now available on the global object.
 -->
 

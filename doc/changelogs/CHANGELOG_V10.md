@@ -29,6 +29,7 @@
 </table>
 
 * Other Versions
+  * [11.x](CHANGELOG_V11.md)
   * [9.x](CHANGELOG_V9.md)
   * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
@@ -1413,7 +1414,7 @@ Fixes for the following CVEs are included in this release:
 * [[`6aade4a765`](https://github.com/nodejs/node/commit/6aade4a765)] - **http**: remove a pair of outdated comments (Mark S. Everitt) [#21214](https://github.com/nodejs/node/pull/21214)
 * [[`bcaf59c739`](https://github.com/nodejs/node/commit/bcaf59c739)] - **http2**: fix memory leak for uncommon headers (Anna Henningsen) [#21336](https://github.com/nodejs/node/pull/21336)
 * [[`dee250fd77`](https://github.com/nodejs/node/commit/dee250fd77)] - **http2**: safer Http2Session destructor (Anatoli Papirovski) [#21194](https://github.com/nodejs/node/pull/21194)
-* [[`296fd57324`](https://github.com/nodejs/node/commit/296fd57324)] - **inspector**: stop dragging platform pointer (Eugene Ostroukhov) 
+* [[`296fd57324`](https://github.com/nodejs/node/commit/296fd57324)] - **inspector**: stop dragging platform pointer (Eugene Ostroukhov)
 * [[`fb71337bdf`](https://github.com/nodejs/node/commit/fb71337bdf)] - **(SEMVER-MINOR)** **lib**: rename checkIsArrayBufferView() (Ben Noordhuis) [#20816](https://github.com/nodejs/node/pull/20816)
 * [[`f3570f201b`](https://github.com/nodejs/node/commit/f3570f201b)] - **(SEMVER-MINOR)** **lib**: replace checkUint() with validateInt32() (Ben Noordhuis) [#20816](https://github.com/nodejs/node/pull/20816)
 * [[`b4b7d368be`](https://github.com/nodejs/node/commit/b4b7d368be)] - **lib**: unmask mode\_t values with 0o777 (Joyee Cheung) [#20975](https://github.com/nodejs/node/pull/20975)

@@ -703,7 +703,7 @@ values are `'rr'` and `'none'`.
 <!-- YAML
 added: v0.7.1
 changes:
-  - version: REPLACEME
+  - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v9.5.0

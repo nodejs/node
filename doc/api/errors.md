@@ -1916,7 +1916,7 @@ Used when an invalid character is found in an HTTP response status message
 ### ERR_INDEX_OUT_OF_RANGE
 <!-- YAML
   added: v10.0.0
-  removed: REPLACEME
+  removed: v11.0.0
 -->
 A given index was out of the accepted range (e.g. negative offsets).
 

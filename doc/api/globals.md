@@ -109,7 +109,7 @@ The process object. See the [`process` object][] section.
 
 ## queueMicrotask(callback)
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 <!-- type=global -->
@@ -180,7 +180,7 @@ added: v0.0.1
 
 ## TextDecoder
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 <!-- type=global -->
@@ -189,7 +189,7 @@ The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 
 ## TextEncoder
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 <!-- type=global -->

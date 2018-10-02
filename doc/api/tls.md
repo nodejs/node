@@ -413,7 +413,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### server.setSecureContext(options)
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 * `options` {Object} An object containing any of the possible properties from
