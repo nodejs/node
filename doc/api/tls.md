@@ -886,7 +886,7 @@ changes:
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
   * `ALPNProtocols`: {string[]|Buffer[]|TypedArray[]|DataView[]|Buffer|
-  TypedArray|DataView}
+    TypedArray|DataView}
     An array of strings, `Buffer`s or `TypedArray`s or `DataView`s, or a 
     single `Buffer` or `TypedArray` or `DataView` containing the supported ALPN 
     protocols. `Buffer`s should have the format `[len][name][len][name]...` 
@@ -1141,7 +1141,7 @@ changes:
 
 * `options` {Object}
   * `ALPNProtocols`: {string[]|Buffer[]|TypedArray[]|DataView[]|Buffer| 
-  TypedArray|DataView}
+    TypedArray|DataView}
     An array of strings, `Buffer`s or `TypedArray`s or `DataView`s, or a single 
     `Buffer` or `TypedArray` or `DataView` containing the supported ALPN 
     protocols. `Buffer`s should have the format `[len][name][len][name]...` 
