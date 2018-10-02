@@ -94,8 +94,11 @@ common.expectsError(
 }
 
 {
-  const buffer = new Uint8Array(Buffer.from('abcd'));
-  const out = {};
-  tls.convertALPNProtocols(buffer, out);
-  assert(out.ALPNProtocols.equals(Buffer.from('abcd')));
+  const arrayBufferViewStr = 'abcd';
+  const inputBuffer = Buffer.from(arrayBufferViewStr.repeat(8), 'utf8');
+  for (const expectView of common.getArrayBufferViews(inputBuffer)) {
+    const out = {};
+    tls.convertALPNProtocols(expectView, out);
+    assert(out.ALPNProtocols.equals(Buffer.from(expectView)));
+  }
 }
