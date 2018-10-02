@@ -111,8 +111,8 @@ alias for the latest release from an LTS line. For example,
 #### Nightly Releases
 <https://nodejs.org/download/nightly/>
 
-Release names are appeded a version string that includes the date (in UTC time)
-and the 10 first characters of the commit SHA at the HEAD of the release.
+Listed under their version string which includes their date (in UTC time) and
+the commit SHA at the HEAD of the release.
 
 #### API Documentation
 <https://nodejs.org/api/>
