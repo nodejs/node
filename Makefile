@@ -481,7 +481,7 @@ build-ci:
 # - node-test-commit-linux-coverage: where the build and the tests need
 #   to be instrumented, see `coverage`.
 run-ci: build-ci
-	$(MAKE) test-ci
+	$(MAKE) test-ci -j1
 
 test-release: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
