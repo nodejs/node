@@ -131,7 +131,7 @@ class ProgressIndicator(object):
           test = self.sequential_queue.get_nowait()
         except Empty:
           return
-      case = test.case
+      case = test
       case.thread_id = thread_id
       self.lock.acquire()
       self.AboutToRun(case)
@@ -780,10 +780,10 @@ def CarCdr(path):
 
 
 class TestConfiguration(object):
-
-  def __init__(self, context, root):
+  def __init__(self, context, root, section):
     self.context = context
     self.root = root
+    self.section = section
 
   def Contains(self, path, file):
     if len(path) > len(file):
@@ -794,7 +794,9 @@ class TestConfiguration(object):
     return True
 
   def GetTestStatus(self, sections, defs):
-    pass
+    status_file = join(self.root, '%s.status' % self.section)
+    if exists(status_file):
+      ReadConfigurationInto(status_file, sections, defs)
 
 
 class TestSuite(object):
@@ -934,6 +936,7 @@ def RunTestCases(cases_to_run, progress, tasks, flaky_tests_mode):
 # -------------------------------------------
 
 
+RUN = 'run'
 SKIP = 'skip'
 FAIL = 'fail'
 PASS = 'pass'
@@ -963,8 +966,8 @@ class Variable(Expression):
     self.name = name
 
   def GetOutcomes(self, env, defs):
-    if self.name in env: return ListSet([env[self.name]])
-    else: return Nothing()
+    if self.name in env: return set([env[self.name]])
+    else: return set()
 
 
 class Outcome(Expression):
@@ -976,45 +979,7 @@ class Outcome(Expression):
     if self.name in defs:
       return defs[self.name].GetOutcomes(env, defs)
     else:
-      return ListSet([self.name])
-
-
-class Set(object):
-  pass
-
-
-class ListSet(Set):
-
-  def __init__(self, elms):
-    self.elms = elms
-
-  def __str__(self):
-    return "ListSet%s" % str(self.elms)
-
-  def Intersect(self, that):
-    if not isinstance(that, ListSet):
-      return that.Intersect(self)
-    return ListSet([ x for x in self.elms if x in that.elms ])
-
-  def Union(self, that):
-    if not isinstance(that, ListSet):
-      return that.Union(self)
-    return ListSet(self.elms + [ x for x in that.elms if x not in self.elms ])
-
-  def IsEmpty(self):
-    return len(self.elms) == 0
-
-
-class Nothing(Set):
-
-  def Intersect(self, that):
-    return self
-
-  def Union(self, that):
-    return that
-
-  def IsEmpty(self):
-    return True
+      return set([self.name])
 
 
 class Operation(Expression):
@@ -1030,21 +995,23 @@ class Operation(Expression):
     elif self.op == 'if':
       return False
     elif self.op == '==':
-      inter = self.left.GetOutcomes(env, defs).Intersect(self.right.GetOutcomes(env, defs))
-      return not inter.IsEmpty()
+      inter = self.left.GetOutcomes(env, defs) & self.right.GetOutcomes(env, defs)
+      return bool(inter)
     else:
       assert self.op == '&&'
       return self.left.Evaluate(env, defs) and self.right.Evaluate(env, defs)
 
   def GetOutcomes(self, env, defs):
     if self.op == '||' or self.op == ',':
-      return self.left.GetOutcomes(env, defs).Union(self.right.GetOutcomes(env, defs))
+      return self.left.GetOutcomes(env, defs) | self.right.GetOutcomes(env, defs)
     elif self.op == 'if':
-      if self.right.Evaluate(env, defs): return self.left.GetOutcomes(env, defs)
-      else: return Nothing()
+      if self.right.Evaluate(env, defs):
+        return self.left.GetOutcomes(env, defs)
+      else:
+        return set()
     else:
       assert self.op == '&&'
-      return self.left.GetOutcomes(env, defs).Intersect(self.right.GetOutcomes(env, defs))
+      return self.left.GetOutcomes(env, defs) & self.right.GetOutcomes(env, defs)
 
 
 def IsAlpha(str):
@@ -1223,15 +1190,6 @@ def ParseCondition(expr):
   return ast
 
 
-class ClassifiedTest(object):
-
-  def __init__(self, case, outcomes):
-    self.case = case
-    self.outcomes = outcomes
-    self.parallel = self.case.parallel
-    self.disable_core_files = self.case.disable_core_files
-
-
 class Configuration(object):
   """The parsed contents of a configuration file"""
 
@@ -1281,9 +1239,7 @@ class Rule(object):
     self.value = value
 
   def GetOutcomes(self, env, defs):
-    set = self.value.GetOutcomes(env, defs)
-    assert isinstance(set, ListSet)
-    return set.elms
+    return self.value.GetOutcomes(env, defs)
 
   def Contains(self, path):
     if len(self.path) > len(path):
@@ -1428,6 +1384,7 @@ def ProcessOptions(options):
   options.mode = options.mode.split(',')
   options.run = options.run.split(',')
   options.skip_tests = options.skip_tests.split(',')
+  options.skip_tests.remove("")
   if options.run == [""]:
     options.run = None
   elif len(options.run) != 2:
@@ -1450,7 +1407,7 @@ def ProcessOptions(options):
     # tends to exaggerate the number of available cpus/cores.
     cores = os.environ.get('JOBS')
     options.j = int(cores) if cores is not None else multiprocessing.cpu_count()
-  if options.flaky_tests not in ["run", "skip", "dontcare"]:
+  if options.flaky_tests not in [RUN, SKIP, DONTCARE]:
     print "Unknown flaky-tests mode %s" % options.flaky_tests
     return False
   return True
@@ -1463,18 +1420,6 @@ Total: %(total)i tests
  * %(fail_ok)4d tests are expected to fail that we won't fix
  * %(fail)4d tests are expected to fail that we should fix\
 """
-
-def PrintReport(cases):
-  def IsFailOk(o):
-    return (len(o) == 2) and (FAIL in o) and (OKAY in o)
-  unskipped = [c for c in cases if not SKIP in c.outcomes]
-  print REPORT_TEMPLATE % {
-    'total': len(cases),
-    'skipped': len(cases) - len(unskipped),
-    'pass': len([t for t in unskipped if list(t.outcomes) == [PASS]]),
-    'fail_ok': len([t for t in unskipped if IsFailOk(t.outcomes)]),
-    'fail': len([t for t in unskipped if list(t.outcomes) == [FAIL]])
-  }
 
 
 class Pattern(object):
@@ -1532,6 +1477,14 @@ def GetSuites(test_root):
 def FormatTime(d):
   millis = round(d * 1000) % 1000
   return time.strftime("%M:%S.", time.gmtime(d)) + ("%03i" % millis)
+
+
+def FormatTimedelta(td):
+  if hasattr(td.total, 'total_seconds'):
+    d = td.total_seconds()
+  else: # python2.6 compat
+    d =  td.seconds + (td.microseconds / 10.0**6)
+  return FormatTime(d)
 
 
 def PrintCrashed(code):
@@ -1713,25 +1666,32 @@ def Main():
         print "Could not create the temporary directory", options.temp_dir
         sys.exit(1)
 
-  if options.report:
-    PrintReport(all_cases)
-
-  result = None
-  def DoSkip(case):
-    # A list of tests that should be skipped can be provided. This is
-    # useful for tests that fail in some environments, e.g., under coverage.
-    if options.skip_tests != [""]:
-        if [ st for st in options.skip_tests if st in case.case.file ]:
-            return True
-    if SKIP in case.outcomes or SLOW in case.outcomes:
+  def should_keep(case):
+    if any((s in case.file) for s in options.skip_tests):
+      return False
+    elif SKIP in case.outcomes:
+      return False
+    elif (options.flaky_tests == SKIP) and (set([FLAKY]) & case.outcomes):
+      return False
+    else:
       return True
-    return FLAKY in case.outcomes and options.flaky_tests == SKIP
-  cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
+
+  cases_to_run = filter(should_keep, all_cases)
+
+  if options.report:
+    print(REPORT_TEMPLATE % {
+      'total': len(all_cases),
+      'skipped': len(all_cases) - len(cases_to_run),
+      'pass': len([t for t in cases_to_run if PASS in t.outcomes]),
+      'fail_ok': len([t for t in cases_to_run if t.outcomes == set([FAIL, OKAY])]),
+      'fail': len([t for t in cases_to_run if t.outcomes == set([FAIL])])
+    })
+
   if options.run is not None:
     # Must ensure the list of tests is sorted before selecting, to avoid
     # silent errors if this file is changed to list the tests in a way that
     # can be different in different machines
-    cases_to_run.sort(key=lambda c: (c.case.arch, c.case.mode, c.case.file))
+    cases_to_run.sort(key=lambda c: (c.arch, c.mode, c.file))
     cases_to_run = [ cases_to_run[i] for i
                      in xrange(options.run[0],
                                len(cases_to_run),
@@ -1756,13 +1716,11 @@ def Main():
     # test output.
     print
     sys.stderr.write("--- Total time: %s ---\n" % FormatTime(duration))
-    timed_tests = [ t.case for t in cases_to_run if not t.case.duration is None ]
+    timed_tests = [ t for t in cases_to_run if not t.duration is None ]
     timed_tests.sort(lambda a, b: a.CompareTime(b))
-    index = 1
-    for entry in timed_tests[:20]:
-      t = FormatTime(entry.duration.total_seconds())
-      sys.stderr.write("%4i (%s) %s\n" % (index, t, entry.GetLabel()))
-      index += 1
+    for i, entry in enumerate(timed_tests[:20], start=1):
+      t = FormatTimedelta(entry.duration)
+      sys.stderr.write("%4i (%s) %s\n" % (i, t, entry.GetLabel()))
 
   return result
 

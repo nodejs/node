@@ -122,10 +122,6 @@ class TTYTestCase(test.TestCase):
 
 
 class TTYTestConfiguration(test.TestConfiguration):
-
-  def __init__(self, context, root):
-    super(TTYTestConfiguration, self).__init__(context, root)
-
   def Ls(self, path):
     if isdir(path):
         return [f[:-3] for f in os.listdir(path) if f.endswith('.js')]
@@ -155,11 +151,6 @@ class TTYTestConfiguration(test.TestConfiguration):
   def GetBuildRequirements(self):
     return ['sample', 'sample=shell']
 
-  def GetTestStatus(self, sections, defs):
-    status_file = join(self.root, 'pseudo-tty.status')
-    if exists(status_file):
-      test.ReadConfigurationInto(status_file, sections, defs)
-
 
 def GetConfiguration(context, root):
-  return TTYTestConfiguration(context, root)
+  return TTYTestConfiguration(context, root, 'pseudo-tty')

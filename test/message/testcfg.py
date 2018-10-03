@@ -108,10 +108,6 @@ class MessageTestCase(test.TestCase):
 
 
 class MessageTestConfiguration(test.TestConfiguration):
-
-  def __init__(self, context, root):
-    super(MessageTestConfiguration, self).__init__(context, root)
-
   def Ls(self, path):
     if isdir(path):
       return [f for f in os.listdir(path)
@@ -135,11 +131,6 @@ class MessageTestConfiguration(test.TestConfiguration):
   def GetBuildRequirements(self):
     return ['sample', 'sample=shell']
 
-  def GetTestStatus(self, sections, defs):
-    status_file = join(self.root, 'message.status')
-    if exists(status_file):
-      test.ReadConfigurationInto(status_file, sections, defs)
-
 
 def GetConfiguration(context, root):
-  return MessageTestConfiguration(context, root)
+  return MessageTestConfiguration(context, root, 'message')
