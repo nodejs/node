@@ -434,10 +434,10 @@ changes:
     in stack traces produced by this script.
   * `columnOffset` {number} Specifies the column number offset that is displayed
     in stack traces produced by this script.
-  * `cachedData` {Buffer} Provides an optional `Buffer` with V8's code cache
-    data for the supplied source. When supplied, the `cachedDataRejected` value
-    will be set to either `true` or `false` depending on acceptance of the data
-    by V8.
+  * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
+    `TypedArray`, or `DataView` with V8's code cache data for the supplied
+     source. When supplied, the `cachedDataRejected` value will be set to
+     either `true` or `false` depending on acceptance of the data by V8.
   * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
     will attempt to produce code cache data for `code`. Upon success, a
     `Buffer` with V8's code cache data will be produced and stored in the
@@ -669,8 +669,9 @@ added: v10.10.0
     in stack traces produced by this script. **Default:** `0`.
   * `columnOffset` {number} Specifies the column number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `cachedData` {Buffer} Provides an optional `Buffer` with V8's code cache
-    data for the supplied source.
+  * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
+    `TypedArray`, or `DataView` with V8's code cache data for the supplied
+     source.
   * `produceCachedData` {boolean} Specifies whether to produce new cache data.
     **Default:** `false`.
   * `parsingContext` {Object} The [contextified][] sandbox in which the said
