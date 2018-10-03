@@ -18,12 +18,11 @@ using v8::TracingController;
 
 namespace {
 
-static Mutex platform_workers_mutex;
-static ConditionVariable platform_workers_ready;
-static int pending_platform_workers;
-
 struct PlatformWorkerData {
   TaskQueue<Task>* task_queue;
+  Mutex* platform_workers_mutex;
+  ConditionVariable* platform_workers_ready;
+  int* pending_platform_workers;
   int id;
 };
 
@@ -37,9 +36,9 @@ static void PlatformWorkerThread(void* data) {
 
   // Notify the main thread that the platform worker is ready.
   {
-    Mutex::ScopedLock lock(platform_workers_mutex);
-    pending_platform_workers--;
-    platform_workers_ready.Signal(lock);
+    Mutex::ScopedLock lock(*worker_data->platform_workers_mutex);
+    *worker_data->pending_platform_workers--;
+    worker_data->platform_workers_ready->Signal(lock);
   }
 
   while (std::unique_ptr<Task> task = pending_worker_tasks->BlockingPop()) {
@@ -168,8 +167,8 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 };
 
 WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(int thread_pool_size) {
-  Mutex::ScopedLock lock(platform_workers_mutex);
-  pending_platform_workers = thread_pool_size;
+  Mutex::ScopedLock lock(platform_workers_mutex_);
+  pending_platform_workers_ = thread_pool_size;
 
   delayed_task_scheduler_.reset(
       new DelayedTaskScheduler(&pending_worker_tasks_));
@@ -177,7 +176,8 @@ WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(int thread_pool_size) {
 
   for (int i = 0; i < thread_pool_size; i++) {
     PlatformWorkerData* worker_data = new PlatformWorkerData{
-      &pending_worker_tasks_, i
+      &pending_worker_tasks_, &platform_workers_mutex_,
+      &platform_workers_ready_, &pending_platform_workers_, i
     };
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
     if (uv_thread_create(t.get(), PlatformWorkerThread,
@@ -189,8 +189,8 @@ WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(int thread_pool_size) {
 
   // Wait for platform workers to initialize before continuing with the
   // bootstrap.
-  while (pending_platform_workers > 0) {
-    platform_workers_ready.Wait(lock);
+  while (pending_platform_workers_ > 0) {
+    platform_workers_ready_.Wait(lock);
   }
 }
 
