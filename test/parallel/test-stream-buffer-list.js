@@ -36,5 +36,6 @@ const tmp = util.inspect.defaultOptions.colors;
 util.inspect.defaultOptions = { colors: true };
 assert.strictEqual(
   util.inspect(list),
-  'BufferList { length: \u001b[33m0\u001b[39m }');
+  'BufferList { head: \u001b[1mnull\u001b[22m, tail: \u001b[1mnull\u001b[22m,' +
+  ' length: \u001b[33m0\u001b[39m }');
 util.inspect.defaultOptions = { colors: tmp };
