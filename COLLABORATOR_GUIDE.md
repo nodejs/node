@@ -83,10 +83,11 @@ necessary.
 ### Author ready pull requests
 
 A pull request that is still awaiting the minimum review time is considered
-_author ready_ as soon as the CI has been started, it has at least one approval,
-and it has no outstanding review comments. Please always make sure to add the
-`author ready` label to the PR in that case and remove it again as soon as that
-condition is not met anymore.
+_author ready_ as soon as the CI has been started, it has at least two approvals
+(one Collaborator approval is enough if the pull request has been open for more
+than 7 days), and it has no outstanding review comments. Please always make sure
+to add the `author ready` label to the PR in that case and remove it again as
+soon as that condition is not met anymore.
 
 ### Handling own pull requests
 

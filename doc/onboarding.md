@@ -99,7 +99,8 @@ onboarding session.
   * Please add the `author-ready` label for PRs where:
     * the CI has been started (not necessarily finished),
     * no outstanding review comments exist and
-    * at least one collaborator approved the PR.
+    * at least two Collaborators approved the PR (one Collaborator approval is
+      enough if the pull request has been open for more than 7 days).
 
 * See [Who to CC in the issue tracker][who-to-cc].
   * This will come more naturally over time
