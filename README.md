@@ -245,8 +245,6 @@ For more information about the governance of the Node.js project, see
 **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt;
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
 **Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
-* [gibfahn](https://github.com/gibfahn) -
-**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [jasnell](https://github.com/jasnell) -
 **James M Snell** &lt;jasnell@gmail.com&gt; (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
@@ -278,6 +276,8 @@ For more information about the governance of the Node.js project, see
 **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 * [evanlucas](https://github.com/evanlucas) -
 **Evan Lucas** &lt;evanlucas@me.com&gt; (he/him)
+* [gibfahn](https://github.com/gibfahn) -
+**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [indutny](https://github.com/indutny) -
 **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
 * [isaacs](https://github.com/isaacs) -
