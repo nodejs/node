@@ -43,16 +43,16 @@ class NodeBIO;
  *     void MemoryInfo(MemoryTracker* tracker) const override {
  *       // Node name and size comes from the MemoryInfoName and SelfSize of
  *       // AnotherRetainerClass
- *       tracker->TrackField("another_retainer", another_retainer);
+ *       tracker->TrackField("another_retainer", another_retainer_);
  *       // Specify node name and size explicitly
  *       tracker->TrackFieldWithSize("internal_member",
- *                                   internal_member.size(),
+ *                                   internal_member_.size(),
  *                                   "InternalClass");
  *       // Node name falls back to the edge name,
  *       // elements in the container appear as grandchildren nodes
- *       tracker->TrackField("vector", vector);
+ *       tracker->TrackField("vector", vector_);
  *       // Node name and size come from the JS object
- *       tracker->TrackField("target", target);
+ *       tracker->TrackField("target", target_);
  *     }
  *
  *     // Or use SET_MEMORY_INFO_NAME(ExampleRetainer)
@@ -67,17 +67,17 @@ class NodeBIO;
  *
  *     // Note: no need to implement these two methods when implementing
  *     // a BaseObject or an AsyncWrap class
- *     bool IsRootNode() const override { return !wrapped.IsWeak(); }
+ *     bool IsRootNode() const override { return !wrapped_.IsWeak(); }
  *     v8::Local<v8::Object> WrappedObject() const override {
- *       return node::PersistentToLocal(wrapped);
+ *       return node::PersistentToLocal(wrapped_);
  *     }
  *   private:
- *     AnotherRetainerClass another_retainer;
- *     InternalClass internal_member;
- *     std::vector<uv_async_t> vector;
- *     node::Persistent<Object> target;
+ *     AnotherRetainerClass another_retainer_;
+ *     InternalClass internal_member_;
+ *     std::vector<uv_async_t> vector_;
+ *     node::Persistent<Object> target_;
  *
- *     node::Persistent<Object> wrapped;
+ *     node::Persistent<Object> wrapped_;
  * }
  *
  * This creates the following graph:
