@@ -882,6 +882,6 @@ void Initialize(Local<Object> target,
 }  // namespace i18n
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(icu, node::i18n::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(icu, node::i18n::Initialize)
 
 #endif  // NODE_HAVE_I18N_SUPPORT

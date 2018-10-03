@@ -1,10 +1,12 @@
 'use strict';
+// Flags: --expose-internals
 const common = require('../common');
 
 if (!common.hasIntl)
   common.skip('missing Intl');
 
-const icu = process.binding('icu');
+const { internalBinding } = require('internal/test/binding');
+const icu = internalBinding('icu');
 const assert = require('assert');
 
 const tests = require('../fixtures/url-idna.js');
