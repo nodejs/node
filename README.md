@@ -116,10 +116,10 @@ _docs_ subdirectory. Version-specific documentation is also at
 
 ### Verifying Binaries
 
-Download directories contain a `SHASUMS256.txt` file with SHA checksums for the
+Download directories contain a SHASUMS256.txt file with SHA checksums for the
 files.
 
-To download `SHASUMS256.txt` using `curl`:
+To download SHASUMS256.txt using `curl`:
 
 ```console
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
@@ -132,9 +132,15 @@ it through `sha256sum` with a command such as:
 $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 ```
 
+<<<<<<< HEAD
 For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
 `SHASUMS256.txt.sig`. You can use it with `gpg` to verify the integrity of
 `SHASUM256.txt`. You will first need to import all the GPG keys of individuals
+=======
+For Current and LTS, the GPG detached signature of SHASUMS256.txt is in
+SHASUMS256.txt.sig. You can use it with `gpg` to verify the integrity of
+SHASUM256.txt. You will first need to import all the GPG keys of individuals
+>>>>>>> doc: improve instructions for verifying binaries
 authorized to create releases. They are at the bottom of this README under
 [Release Team](#release-team). To import the keys:
 
