@@ -83,7 +83,7 @@ error2:
 }
 
 int pthread_barrier_wait(pthread_barrier_t* barrier) {
-  int rc;
+  int rc, last;
   _uv_barrier* b;
 
   if (barrier == NULL || barrier->b == NULL)
@@ -95,29 +95,29 @@ int pthread_barrier_wait(pthread_barrier_t* barrier) {
     return rc;
 
   /* Increment the count. If this is the first thread to reach the threshold,
-     wake up waiters, unlock the mutex, then return
-     PTHREAD_BARRIER_SERIAL_THREAD. */
+     wake up waiters, unlock the mutex. */
   if (++b->in == b->threshold) {
     b->in = 0;
-    b->out = b->threshold - 1;
+    b->out = b->threshold;
     rc = pthread_cond_signal(&b->cond);
     assert(rc == 0);
-
-    pthread_mutex_unlock(&b->mutex);
-    return PTHREAD_BARRIER_SERIAL_THREAD;
+  } else {
+    /* Otherwise, wait for other threads until in is set to 0. */
+    do {
+      if (pthread_cond_wait(&b->cond, &b->mutex) != 0)
+        abort();
+    } while (b->in != 0);
   }
-  /* Otherwise, wait for other threads until in is set to 0,
-     then return 0 to indicate this is not the first thread. */
-  do {
-    if ((rc = pthread_cond_wait(&b->cond, &b->mutex)) != 0)
-      break;
-  } while (b->in != 0);
 
-  /* mark thread exit */
-  b->out--;
-  pthread_cond_signal(&b->cond);
+  /* Mark thread exit. */
+  last = (--b->out == 0);
+  if (!last)
+    pthread_cond_signal(&b->cond); /* not needed on the last thread */
+
   pthread_mutex_unlock(&b->mutex);
-  return rc;
+
+  /* If this the last thread to exit, return PTHREAD_BARRIER_SERIAL_THREAD. */
+  return last ? PTHREAD_BARRIER_SERIAL_THREAD : 0;
 }
 
 int pthread_barrier_destroy(pthread_barrier_t* barrier) {
