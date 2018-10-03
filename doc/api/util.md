@@ -358,8 +358,8 @@ stream.write('With ES6');
 ```
 
 
-## util.inspect(object[,options]
-## util.inspect(object, [showHidden], [depth], [colors])
+##  util.inspect(object[, options])
+## util.inspect(object[, showHidden][, depth][, colors])
 <!-- YAML
 added: v0.3.0
 changes:
@@ -437,7 +437,6 @@ changes:
     If set to `true` the [default sort][] is going to be used. If set to a
     function, it is used as a [compare function][].
 * Returns: {string} The representation of passed object
-
 
 The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
