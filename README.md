@@ -644,3 +644,6 @@ Previous releases may also have been signed with one of the following GPG keys:
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
 [Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
 [#node.js channel on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
+
+Second commit so that it needs to be squashed
+Page ends here
