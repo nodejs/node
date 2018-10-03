@@ -22,7 +22,7 @@ parser.add_option('--icu-src',
 parser.add_option('--icutmp',
     action='store',
     dest='icutmp',
-    default='out/Release/gen/icutmp',
+    default='out/Release/obj/gen/icutmp',
     help='path to icutmp dir.')
 
 
