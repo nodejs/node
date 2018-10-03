@@ -135,8 +135,7 @@ void UDPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setTTL", SetTTL);
   env->SetProtoMethod(t, "bufferSize", BufferSize);
 
-  AsyncWrap::AddWrapMethods(env, t);
-  HandleWrap::AddWrapMethods(env, t);
+  t->Inherit(HandleWrap::GetConstructorTemplate(env));
 
   target->Set(udpString, t->GetFunction(env->context()).ToLocalChecked());
   env->set_udp_constructor_function(
@@ -145,7 +144,7 @@ void UDPWrap::Initialize(Local<Object> target,
   // Create FunctionTemplate for SendWrap
   Local<FunctionTemplate> swt =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
-  AsyncWrap::AddWrapMethods(env, swt);
+  swt->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<String> sendWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap");
   swt->SetClassName(sendWrapString);

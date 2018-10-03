@@ -64,7 +64,7 @@ struct AsyncWrapObject : public AsyncWrap {
   static inline void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK(args.IsConstructCall());
-    CHECK(env->async_wrap_constructor_template()->HasInstance(args.This()));
+    CHECK(env->async_wrap_object_ctor_template()->HasInstance(args.This()));
     CHECK(args[0]->IsUint32());
     auto type = static_cast<ProviderType>(args[0].As<Uint32>()->Value());
     new AsyncWrapObject(env, args.This(), type);
@@ -424,12 +424,16 @@ void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
       args[0].As<Number>()->Value());
 }
 
-void AsyncWrap::AddWrapMethods(Environment* env,
-                               Local<FunctionTemplate> constructor,
-                               int flag) {
-  env->SetProtoMethod(constructor, "getAsyncId", AsyncWrap::GetAsyncId);
-  if (flag & kFlagHasReset)
-    env->SetProtoMethod(constructor, "asyncReset", AsyncWrap::AsyncReset);
+Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->async_wrap_ctor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(nullptr);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
+    env->SetProtoMethod(tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
+    env->SetProtoMethod(tmpl, "asyncReset", AsyncWrap::AsyncReset);
+    env->set_async_wrap_ctor_template(tmpl);
+  }
+  return tmpl;
 }
 
 void AsyncWrap::Initialize(Local<Object> target,
@@ -525,17 +529,20 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->set_async_hooks_promise_resolve_function(Local<Function>());
   env->set_async_hooks_binding(target);
 
+  // TODO(addaleax): This block might better work as a
+  // AsyncWrapObject::Initialize() or AsyncWrapObject::GetConstructorTemplate()
+  // function.
   {
     auto class_name = FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap");
     auto function_template = env->NewFunctionTemplate(AsyncWrapObject::New);
     function_template->SetClassName(class_name);
-    AsyncWrap::AddWrapMethods(env, function_template);
+    function_template->Inherit(AsyncWrap::GetConstructorTemplate(env));
     auto instance_template = function_template->InstanceTemplate();
     instance_template->SetInternalFieldCount(1);
     auto function =
         function_template->GetFunction(env->context()).ToLocalChecked();
     target->Set(env->context(), class_name, function).FromJust();
-    env->set_async_wrap_constructor_template(function_template);
+    env->set_async_wrap_object_ctor_template(function_template);
   }
 }
 
