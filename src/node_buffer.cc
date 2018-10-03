@@ -56,14 +56,12 @@
 
 namespace node {
 
-// if true, all Buffer and SlowBuffer instances will automatically zero-fill
-bool zero_fill_all_buffers = false;
-
 namespace {
 
 inline void* BufferMalloc(size_t length) {
-  return zero_fill_all_buffers ? node::UncheckedCalloc(length) :
-                                 node::UncheckedMalloc(length);
+  return per_process_opts->zero_fill_all_buffers ?
+      node::UncheckedCalloc(length) :
+      node::UncheckedMalloc(length);
 }
 
 }  // namespace

@@ -751,9 +751,7 @@ static X509_STORE* NewRootCertStore() {
   if (*system_cert_path != '\0') {
     X509_STORE_load_locations(store, system_cert_path, nullptr);
   }
-  // TODO(addaleax): Replace `ssl_openssl_cert_store` with
-  // `per_process_opts->ssl_openssl_cert_store`.
-  if (ssl_openssl_cert_store) {
+  if (per_process_opts->ssl_openssl_cert_store) {
     X509_STORE_set_default_paths(store);
   } else {
     for (X509* cert : root_certs_vector) {
@@ -5585,10 +5583,8 @@ void InitCryptoOnce() {
 #ifdef NODE_FIPS_MODE
   /* Override FIPS settings in cnf file, if needed. */
   unsigned long err = 0;  // NOLINT(runtime/int)
-  // TODO(addaleax): Use commented part instead.
-  /*if (per_process_opts->enable_fips_crypto ||
-      per_process_opts->force_fips_crypto) {*/
-  if (enable_fips_crypto || force_fips_crypto) {
+  if (per_process_opts->enable_fips_crypto ||
+      per_process_opts->force_fips_crypto) {
     if (0 == FIPS_mode() && !FIPS_mode_set(1)) {
       err = ERR_get_error();
     }
@@ -5651,8 +5647,7 @@ void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
-  // TODO(addaleax): Use options parser variables instead.
-  CHECK(!force_fips_crypto);
+  CHECK(!per_process_opts->force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
   const bool enabled = FIPS_mode();
   bool enable;
