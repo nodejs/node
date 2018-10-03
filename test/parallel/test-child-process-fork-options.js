@@ -15,3 +15,7 @@ const cp = fork(fixtures.path('child-process-echo-options.js'), undefined,
 cp.on('message', common.mustCall(({ env }) => {
   assert.strictEqual(env.foo, expectedEnv.foo);
 }));
+
+cp.on('exit', common.mustCall((code) => {
+  assert.strictEqual(code, 0);
+}));
