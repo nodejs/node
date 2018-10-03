@@ -1500,9 +1500,13 @@ changes:
   * `highWaterMark` {number} Buffer level when
     [`stream.write()`][stream-write] starts returning `false`. **Default:**
     `16384` (16kb), or `16` for `objectMode` streams.
-  * `decodeStrings` {boolean} Whether or not to decode strings into
-    `Buffer`s before passing them to [`stream._write()`][stream-_write].
+  * `decodeStrings` {boolean} Whether or not to encode strings as
+    `Buffer`s before passing them to [`stream._write()`][stream-_write],
+    using the encoding specified in the [`stream.write()`][stream-write] call.
     **Default:** `true`.
+  * `defaultEncoding` {string} The default encoding that is used when no
+    encoding is specified as an argument to [`stream.write()`][stream-write].
+    **Default:** `'utf8'`.
   * `objectMode` {boolean} Whether or not the
     [`stream.write(anyObj)`][stream-write] is a valid operation. When set,
     it becomes possible to write JavaScript values other than string,
