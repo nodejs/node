@@ -116,11 +116,10 @@ directory under _docs_ or at <https://nodejs.org/download/docs/>.
 
 ### Verifying Binaries
 
-Current, LTS, and Nightly download directories all contain a SHASUMS256.txt
-file that lists the SHA checksums for each file available for
-download.
+Download directories contain a SHASUMS256.txt file with SHA checksums for the
+files.
 
-The SHASUMS256.txt can be downloaded using `curl`.
+To download SHASUMS256.txt using `curl`:
 
 ```console
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
@@ -133,14 +132,11 @@ it through `sha256sum` with a command such as:
 $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 ```
 
-Current and LTS releases (but not Nightlies) also have the GPG detached
-signature of SHASUMS256.txt available as SHASUMS256.txt.sig. You can use `gpg`
-to verify that SHASUMS256.txt has not been tampered with.
-
-To verify SHASUMS256.txt has not been altered, you will first need to import
-all of the GPG keys of individuals authorized to create releases. They are
-listed at the bottom of this README under [Release Team](#release-team).
-Use a command such as this to import the keys:
+For Current and LTS, the GPG detached signature of SHASUMS256.txt is in
+SHASUMS256.txt.sig. You can use it with `gpg` to verify the integrity of
+SHASUM256.txt. You will first need to import all the GPG keys of individuals
+authorized to create releases. They are at the bottom of this README under
+[Release Team](#release-team). To import the keys:
 
 ```console
 $ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
@@ -154,12 +150,8 @@ Next, download the SHASUMS256.txt.sig for the release:
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt.sig
 ```
 
-After downloading the appropriate SHASUMS256.txt and SHASUMS256.txt.sig files,
-you can then use `gpg --verify SHASUMS256.txt.sig SHASUMS256.txt` to verify
-that the file has been signed by an authorized member of the Node.js team.
-
-Once verified, use the SHASUMS256.txt file to get the checksum for
-the binary verification command above.
+Then use `gpg --verify SHASUMS256.txt.sig SHASUMS256.txt` to verify
+the file's signature.
 
 ## Building Node.js
 
