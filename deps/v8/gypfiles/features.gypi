@@ -104,7 +104,25 @@
     'v8_untrusted_code_mitigations%': 'true',
 
     'v8_enable_handle_zapping%': 1,
+
+    'v8_enable_pointer_compression%': 'false',
+
+    'v8_enable_embedded_builtins%': 'true',
+
+    'v8_perf_prof_unwinding_info%': 0,
+
+    'v8_enable_fast_mksnapshot%': 0,
   },
+
+  'conditions': [
+    # V8's predicate inverted since we default to 'true' and set 'false' for unsupported cases.
+    #      v8_use_snapshot         &&  v8_current_cpu != "x86" &&    !is_aix &&  (  !is_win || is_clang)
+    ['not (v8_use_snapshot=="true" and v8_target_arch !="ia32" and OS!="aix" and (OS!="win" or clang==1))', {
+      'variables': {
+        'v8_enable_embedded_builtins': 'false',
+      }
+    }],
+  ],
   'target_defaults': {
     'conditions': [
       ['v8_embedder_string!=""', {
@@ -166,6 +184,15 @@
       }],
       ['v8_enable_handle_zapping==1', {
         'defines': ['ENABLE_HANDLE_ZAPPING',],
+      }],
+      ['v8_enable_pointer_compression=="true"', {
+        'defines': ['V8_COMPRESS_POINTERS',],
+      }],
+      ['v8_enable_embedded_builtins=="true"', {
+        'defines': [
+          'V8_EMBEDDED_BUILTINS',
+          'V8_EMBEDDED_BYTECODE_HANDLERS',
+        ],
       }],
     ],  # conditions
     'defines': [
