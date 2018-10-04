@@ -21,7 +21,7 @@ inline const char* GetNodeName(const char* node_name, const char* edge_name) {
 
 class MemoryRetainerNode : public v8::EmbedderGraph::Node {
  public:
-  explicit inline MemoryRetainerNode(MemoryTracker* tracker,
+  inline MemoryRetainerNode(MemoryTracker* tracker,
                                      const MemoryRetainer* retainer)
       : retainer_(retainer) {
     CHECK_NOT_NULL(retainer_);
@@ -33,7 +33,7 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
     size_ = retainer_->SelfSize();
   }
 
-  explicit inline MemoryRetainerNode(MemoryTracker* tracker,
+  inline MemoryRetainerNode(MemoryTracker* tracker,
                                      const char* name,
                                      size_t size,
                                      bool is_root_node = false)
