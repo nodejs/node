@@ -144,7 +144,7 @@ class OrderedHashTable : public OrderedHashTableBase {
     // This special cases for Smi, so that we avoid the HandleScope
     // creation below.
     if (key->IsSmi()) {
-      uint32_t hash = ComputeIntegerHash(Smi::ToInt(key));
+      uint32_t hash = ComputeUnseededHash(Smi::ToInt(key));
       return HashToEntry(hash & Smi::kMaxValue);
     }
     HandleScope scope(isolate);

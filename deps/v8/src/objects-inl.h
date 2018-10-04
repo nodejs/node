@@ -2980,14 +2980,14 @@ bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Object* other) {
 }
 
 uint32_t NumberDictionaryBaseShape::Hash(Isolate* isolate, uint32_t key) {
-  return ComputeIntegerHash(key, isolate->heap()->HashSeed());
+  return ComputeSeededHash(key, isolate->heap()->HashSeed());
 }
 
 uint32_t NumberDictionaryBaseShape::HashForObject(Isolate* isolate,
                                                   Object* other) {
   DCHECK(other->IsNumber());
-  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()),
-                            isolate->heap()->HashSeed());
+  return ComputeSeededHash(static_cast<uint32_t>(other->Number()),
+                           isolate->heap()->HashSeed());
 }
 
 Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
@@ -3067,18 +3067,18 @@ uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
 Object* Object::GetSimpleHash(Object* object) {
   DisallowHeapAllocation no_gc;
   if (object->IsSmi()) {
-    uint32_t hash = ComputeIntegerHash(Smi::ToInt(object));
+    uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (object->IsHeapNumber()) {
     double num = HeapNumber::cast(object)->value();
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
-    // Use ComputeIntegerHash for all values in Signed32 range, including -0,
+    // Use ComputeUnseededHash for all values in Signed32 range, including -0,
     // which is considered equal to 0 because collections use SameValueZero.
     uint32_t hash;
     // Check range before conversion to avoid undefined behavior.
     if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
-      hash = ComputeIntegerHash(FastD2I(num));
+      hash = ComputeUnseededHash(FastD2I(num));
     } else {
       hash = ComputeLongHash(double_to_uint64(num));
     }

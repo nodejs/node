@@ -450,10 +450,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
-  TNode<Int64T> HashSeed();
-  TNode<Int32T> HashSeedHigh();
-  TNode<Int32T> HashSeedLow();
-
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
   TNode<Smi> LanguageModeConstant(LanguageMode mode) {
     return SmiConstant(static_cast<int>(mode));
@@ -2288,8 +2284,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                             int inlined_probes = kInlinedDictionaryProbes,
                             LookupMode mode = kFindExisting);
 
-  Node* ComputeIntegerHash(Node* key);
-  Node* ComputeIntegerHash(Node* key, Node* seed);
+  Node* ComputeUnseededHash(Node* key);
+  Node* ComputeSeededHash(Node* key);
 
   void NumberDictionaryLookup(TNode<NumberDictionary> dictionary,
                               TNode<IntPtrT> intptr_index, Label* if_found,

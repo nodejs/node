@@ -764,6 +764,15 @@ ExternalReference ExternalReference::jsreceiver_create_identity_hash(
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
+static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
+  DisallowHeapAllocation no_gc;
+  return ComputeSeededHash(key, isolate->heap()->HashSeed());
+}
+
+ExternalReference ExternalReference::compute_integer_hash() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(ComputeSeededIntegerHash)));
+}
+
 ExternalReference
 ExternalReference::copy_fast_number_jsarray_elements_to_typed_array() {
   return ExternalReference(
