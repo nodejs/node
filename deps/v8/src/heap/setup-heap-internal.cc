@@ -591,6 +591,9 @@ void Heap::CreateInitialObjects() {
   set_minus_infinity_value(
       *factory->NewHeapNumber(-V8_INFINITY, IMMUTABLE, TENURED_READ_ONLY));
 
+  set_hash_seed(*factory->NewByteArray(kInt64Size, TENURED));
+  InitializeHashSeed();
+
   // Allocate cache for single character one byte strings.
   set_single_character_string_cache(
       *factory->NewFixedArray(String::kMaxOneByteCharCode + 1, TENURED));

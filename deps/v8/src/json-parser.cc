@@ -831,7 +831,8 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
 
     int position = position_;
     uc32 c0 = c0_;
-    uint32_t running_hash = isolate()->heap()->HashSeed();
+    uint32_t running_hash =
+        static_cast<uint32_t>(isolate()->heap()->HashSeed());
     uint32_t index = 0;
     bool is_array_index = true;
 
