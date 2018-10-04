@@ -20,7 +20,7 @@ class Name;
 // forever, even if they disappear from JS heap or external storage.
 class V8_EXPORT_PRIVATE StringsStorage {
  public:
-  explicit StringsStorage(uint32_t hash_seed);
+  StringsStorage();
   ~StringsStorage();
 
   // Copies the given c-string and stores it, returning the stored copy, or just
@@ -49,7 +49,6 @@ class V8_EXPORT_PRIVATE StringsStorage {
   PRINTF_FORMAT(2, 0)
   const char* GetVFormatted(const char* format, va_list args);
 
-  uint32_t hash_seed_;
   base::CustomMatcherHashMap names_;
 
   DISALLOW_COPY_AND_ASSIGN(StringsStorage);

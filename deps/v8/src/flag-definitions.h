@@ -162,6 +162,7 @@ struct MaybeBoolFlag {
   FLAG(MAYBE_BOOL, MaybeBoolFlag, nam, {false COMMA false}, cmt)
 #define DEFINE_INT(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
 #define DEFINE_UINT(nam, def, cmt) FLAG(UINT, unsigned int, nam, def, cmt)
+#define DEFINE_UINT64(nam, def, cmt) FLAG(UINT64, uint64_t, nam, def, cmt)
 #define DEFINE_FLOAT(nam, def, cmt) FLAG(FLOAT, double, nam, def, cmt)
 #define DEFINE_SIZE_T(nam, def, cmt) FLAG(SIZE_T, size_t, nam, def, cmt)
 #define DEFINE_STRING(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
@@ -1019,9 +1020,9 @@ DEFINE_BOOL(randomize_hashes, true,
             "(with snapshots this option cannot override the baked-in seed)")
 DEFINE_BOOL(rehash_snapshot, true,
             "rehash strings from the snapshot to override the baked-in seed")
-DEFINE_INT(hash_seed, 0,
-           "Fixed seed to use to hash property keys (0 means random)"
-           "(with snapshots this option cannot override the baked-in seed)")
+DEFINE_UINT64(hash_seed, 0,
+              "Fixed seed to use to hash property keys (0 means random)"
+              "(with snapshots this option cannot override the baked-in seed)")
 DEFINE_INT(random_seed, 0,
            "Default seed for initializing random generator "
            "(0, the default, means to use system random).")

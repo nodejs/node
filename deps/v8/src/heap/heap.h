@@ -280,6 +280,8 @@ using v8::MemoryPressureLevel;
   V(Object, deserialize_lazy_handler_wide, DeserializeLazyHandlerWide)         \
   V(Object, deserialize_lazy_handler_extra_wide,                               \
     DeserializeLazyHandlerExtraWide)                                           \
+  /* Hash seed */                                                              \
+  V(ByteArray, hash_seed, HashSeed)                                            \
   /* JS Entries */                                                             \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
@@ -291,7 +293,6 @@ using v8::MemoryPressureLevel;
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(Smi, last_script_id, LastScriptId)                                         \
   V(Smi, last_debugging_id, LastDebuggingId)                                   \
-  V(Smi, hash_seed, HashSeed)                                                  \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
   V(Smi, next_template_serial_number, NextTemplateSerialNumber)                \
@@ -917,7 +918,7 @@ class Heap {
 
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
 
-  inline uint32_t HashSeed();
+  inline uint64_t HashSeed();
 
   inline int NextScriptId();
   inline int NextDebuggingId();

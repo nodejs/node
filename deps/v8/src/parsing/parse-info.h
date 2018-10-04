@@ -139,8 +139,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   uintptr_t stack_limit() const { return stack_limit_; }
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
 
-  uint32_t hash_seed() const { return hash_seed_; }
-  void set_hash_seed(uint32_t hash_seed) { hash_seed_ = hash_seed; }
+  uint64_t hash_seed() const { return hash_seed_; }
+  void set_hash_seed(uint64_t hash_seed) { hash_seed_ = hash_seed; }
 
   int function_flags() const { return function_flags_; }
   void set_function_flags(int function_flags) {
@@ -264,7 +264,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   DeclarationScope* script_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
-  uint32_t hash_seed_;
+  uint64_t hash_seed_;
   // TODO(leszeks): Move any remaining flags used here either to the flags_
   // field or to other fields.
   int function_flags_;

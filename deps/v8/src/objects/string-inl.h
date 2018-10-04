@@ -195,7 +195,7 @@ Char FlatStringReader::Get(int index) {
 template <typename Char>
 class SequentialStringKey : public StringTableKey {
  public:
-  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
+  explicit SequentialStringKey(Vector<const Char> string, uint64_t seed)
       : StringTableKey(StringHasher::HashSequentialString<Char>(
             string.start(), string.length(), seed)),
         string_(string) {}
@@ -205,7 +205,7 @@ class SequentialStringKey : public StringTableKey {
 
 class OneByteStringKey : public SequentialStringKey<uint8_t> {
  public:
-  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
+  OneByteStringKey(Vector<const uint8_t> str, uint64_t seed)
       : SequentialStringKey<uint8_t>(str, seed) {}
 
   bool IsMatch(Object* string) override {
@@ -250,7 +250,7 @@ class SeqOneByteSubStringKey : public StringTableKey {
 
 class TwoByteStringKey : public SequentialStringKey<uc16> {
  public:
-  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
+  explicit TwoByteStringKey(Vector<const uc16> str, uint64_t seed)
       : SequentialStringKey<uc16>(str, seed) {}
 
   bool IsMatch(Object* string) override {
@@ -263,7 +263,7 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
 // Utf8StringKey carries a vector of chars as key.
 class Utf8StringKey : public StringTableKey {
  public:
-  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
+  explicit Utf8StringKey(Vector<const char> string, uint64_t seed)
       : StringTableKey(StringHasher::ComputeUtf8Hash(string, seed, &chars_)),
         string_(string) {}
 

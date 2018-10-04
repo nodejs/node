@@ -3370,7 +3370,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     // Check that no rehashing has been performed.
-    CHECK_EQ(42, reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
+    CHECK_EQ(static_cast<uint64_t>(42),
+             reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
@@ -3432,7 +3433,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     // Check that rehashing has been performed.
-    CHECK_EQ(1337, reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
+    CHECK_EQ(static_cast<uint64_t>(1337),
+             reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);

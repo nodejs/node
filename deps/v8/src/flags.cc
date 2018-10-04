@@ -39,6 +39,7 @@ struct Flag {
     TYPE_MAYBE_BOOL,
     TYPE_INT,
     TYPE_UINT,
+    TYPE_UINT64,
     TYPE_FLOAT,
     TYPE_SIZE_T,
     TYPE_STRING,
@@ -76,6 +77,11 @@ struct Flag {
   unsigned int* uint_variable() const {
     DCHECK(type_ == TYPE_UINT);
     return reinterpret_cast<unsigned int*>(valptr_);
+  }
+
+  uint64_t* uint64_variable() const {
+    DCHECK(type_ == TYPE_UINT64);
+    return reinterpret_cast<uint64_t*>(valptr_);
   }
 
   double* float_variable() const {
@@ -121,6 +127,11 @@ struct Flag {
     return *reinterpret_cast<const unsigned int*>(defptr_);
   }
 
+  uint64_t uint64_default() const {
+    DCHECK(type_ == TYPE_UINT64);
+    return *reinterpret_cast<const uint64_t*>(defptr_);
+  }
+
   double float_default() const {
     DCHECK(type_ == TYPE_FLOAT);
     return *reinterpret_cast<const double*>(defptr_);
@@ -152,6 +163,8 @@ struct Flag {
         return *int_variable() == int_default();
       case TYPE_UINT:
         return *uint_variable() == uint_default();
+      case TYPE_UINT64:
+        return *uint64_variable() == uint64_default();
       case TYPE_FLOAT:
         return *float_variable() == float_default();
       case TYPE_SIZE_T:
@@ -183,6 +196,9 @@ struct Flag {
         break;
       case TYPE_UINT:
         *uint_variable() = uint_default();
+        break;
+      case TYPE_UINT64:
+        *uint64_variable() = uint64_default();
         break;
       case TYPE_FLOAT:
         *float_variable() = float_default();
@@ -217,6 +233,8 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_INT: return "int";
     case Flag::TYPE_UINT:
       return "uint";
+    case Flag::TYPE_UINT64:
+      return "uint64";
     case Flag::TYPE_FLOAT: return "float";
     case Flag::TYPE_SIZE_T:
       return "size_t";
@@ -242,6 +260,9 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
       break;
     case Flag::TYPE_UINT:
       os << *flag.uint_variable();
+      break;
+    case Flag::TYPE_UINT64:
+      os << *flag.uint64_variable();
       break;
     case Flag::TYPE_FLOAT:
       os << *flag.float_variable();
@@ -461,6 +482,12 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         case Flag::TYPE_UINT:
           if (!TryParseUnsigned(flag, arg, value, &endp,
                                 flag->uint_variable())) {
+            return_code = j;
+          }
+          break;
+        case Flag::TYPE_UINT64:
+          if (!TryParseUnsigned(flag, arg, value, &endp,
+                                flag->uint64_variable())) {
             return_code = j;
           }
           break;
