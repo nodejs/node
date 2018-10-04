@@ -25,7 +25,7 @@ function execAndClose() {
   process.stdout.write('.');
 
   const parser = parsers.pop();
-  parser.reinitialize(HTTPParser.RESPONSE);
+  parser.reinitialize(HTTPParser.RESPONSE, parser.needsAsyncReset);
 
   const socket = net.connect(common.PORT);
   socket.on('error', (e) => {

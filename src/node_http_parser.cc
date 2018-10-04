@@ -465,6 +465,8 @@ class Parser : public AsyncWrap, public StreamListener {
     Environment* env = Environment::GetCurrent(args);
 
     CHECK(args[0]->IsInt32());
+    CHECK(args[1]->IsBoolean());
+    bool needsAsyncReset = args[1]->IsTrue();
     http_parser_type type =
         static_cast<http_parser_type>(args[0].As<Int32>()->Value());
 
@@ -473,8 +475,12 @@ class Parser : public AsyncWrap, public StreamListener {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
-    // The parser is being reused. Reset the async id and call init() callbacks.
-    parser->AsyncReset();
+    // This parser has either just been created or it is being reused.
+    // We must only call AsyncReset for the latter case, because AsyncReset has
+    // already been called via the constructor for the former case.
+    if (needsAsyncReset) {
+      parser->AsyncReset();
+    }
     parser->Init(type);
   }
 
