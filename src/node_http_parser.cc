@@ -466,7 +466,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     CHECK(args[0]->IsInt32());
     CHECK(args[1]->IsBoolean());
-    bool needsAsyncReset = args[1]->IsTrue();
+    bool isReused = args[1]->IsTrue();
     http_parser_type type =
         static_cast<http_parser_type>(args[0].As<Int32>()->Value());
 
@@ -478,7 +478,7 @@ class Parser : public AsyncWrap, public StreamListener {
     // This parser has either just been created or it is being reused.
     // We must only call AsyncReset for the latter case, because AsyncReset has
     // already been called via the constructor for the former case.
-    if (needsAsyncReset) {
+    if (isReused) {
       parser->AsyncReset();
     }
     parser->Init(type);
