@@ -1,2 +1,1 @@
-test/fixtures/* -text
-vcbuild.bat text eol=crlf
+* text=auto

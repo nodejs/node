@@ -1,24 +1,3 @@
-language: cpp
-compiler:
-  - clang
-sudo: false
-cache: ccache
-os: linux
-matrix:
-  include:
-    - name: "Linter"
-      node_js: "latest"
-      env:
-        - NODE=$(which node)
-      script:
-        - make lint
-    - name: "Test Suite"
-      install:
-        - ./configure
-        - make -j2 V=
-      script:
-        - make -j2 test
-      before_install:
-        - export CXX="ccache clang++ -Qunused-arguments"
-        - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
-        - export JOBS=2
+language: node_js
+node_js:
+  - 'stable'
