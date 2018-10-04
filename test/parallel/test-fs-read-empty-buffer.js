@@ -28,7 +28,8 @@ assert.throws(
   }
 );
 
-fsPromises.open(filepath, 'r').then((filehandle) => {
+(async () => {
+  const filehandle = await fsPromises.open(filepath, 'r');
   assert.rejects(
     () => filehandle.read(buffer, 0, 1, 0),
     {
@@ -37,4 +38,4 @@ fsPromises.open(filepath, 'r').then((filehandle) => {
         'Received Uint8Array []'
     }
   );
-});
+})();
