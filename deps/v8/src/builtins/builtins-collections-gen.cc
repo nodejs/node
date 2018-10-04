@@ -689,7 +689,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                              Node* key_tagged, Variable* result,
                                              Label* entry_found,
                                              Label* not_found);
-  Node* ComputeIntegerHashForString(Node* context, Node* string_key);
+  Node* ComputeStringHash(Node* context, Node* string_key);
   void SameValueZeroString(Node* context, Node* key_string, Node* candidate_key,
                            Label* if_same, Label* if_not_same);
 
@@ -846,8 +846,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForSmiKey(
     Node* table, Node* smi_key, Variable* result, Label* entry_found,
     Label* not_found) {
   Node* const key_untagged = SmiUntag(smi_key);
-  Node* const hash =
-      ChangeInt32ToIntPtr(ComputeIntegerHash(key_untagged, Int32Constant(0)));
+  Node* const hash = ChangeInt32ToIntPtr(ComputeUnseededHash(key_untagged));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
   result->Bind(hash);
   FindOrderedHashTableEntry<CollectionType>(
@@ -862,7 +861,7 @@ template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForStringKey(
     Node* context, Node* table, Node* key_tagged, Variable* result,
     Label* entry_found, Label* not_found) {
-  Node* const hash = ComputeIntegerHashForString(context, key_tagged);
+  Node* const hash = ComputeStringHash(context, key_tagged);
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
   result->Bind(hash);
   FindOrderedHashTableEntry<CollectionType>(
@@ -920,8 +919,8 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForOtherKey(
       result, entry_found, not_found);
 }
 
-Node* CollectionsBuiltinsAssembler::ComputeIntegerHashForString(
-    Node* context, Node* string_key) {
+Node* CollectionsBuiltinsAssembler::ComputeStringHash(Node* context,
+                                                      Node* string_key) {
   VARIABLE(var_result, MachineType::PointerRepresentation());
 
   Label hash_not_computed(this), done(this, &var_result);

@@ -4768,8 +4768,8 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
   }
 }
 
-Node* EffectControlLinearizer::ComputeIntegerHash(Node* value) {
-  // See v8::internal::ComputeIntegerHash()
+Node* EffectControlLinearizer::ComputeUnseededHash(Node* value) {
+  // See v8::internal::ComputeUnseededHash()
   value = __ Int32Add(__ Word32Xor(value, __ Int32Constant(0xFFFFFFFF)),
                       __ Word32Shl(value, __ Int32Constant(15)));
   value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(12)));
@@ -4787,7 +4787,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
   Node* key = NodeProperties::GetValueInput(node, 1);
 
   // Compute the integer hash code.
-  Node* hash = ChangeUint32ToUintPtr(ComputeIntegerHash(key));
+  Node* hash = ChangeUint32ToUintPtr(ComputeUnseededHash(key));
 
   Node* number_of_buckets = ChangeSmiToIntPtr(__ LoadField(
       AccessBuilder::ForOrderedHashTableBaseNumberOfBuckets(), table));

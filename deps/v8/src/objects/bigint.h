@@ -137,7 +137,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   bool ToBoolean() { return !is_zero(); }
   uint32_t Hash() {
     // TODO(jkummerow): Improve this. At least use length and sign.
-    return is_zero() ? 0 : ComputeIntegerHash(static_cast<uint32_t>(digit(0)));
+    return is_zero() ? 0 : ComputeLongHash(static_cast<uint64_t>(digit(0)));
   }
 
   static bool EqualToString(Isolate* isolate, Handle<BigInt> x,

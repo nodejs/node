@@ -253,40 +253,6 @@ HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR);
 HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST);
 #undef HEAP_CONSTANT_TEST
 
-TNode<Int64T> CodeStubAssembler::HashSeed() {
-  DCHECK(Is64());
-  TNode<HeapObject> hash_seed_root =
-      TNode<HeapObject>::UncheckedCast(LoadRoot(Heap::kHashSeedRootIndex));
-  return TNode<Int64T>::UncheckedCast(LoadObjectField(
-      hash_seed_root, ByteArray::kHeaderSize, MachineType::Int64()));
-}
-
-TNode<Int32T> CodeStubAssembler::HashSeedHigh() {
-  DCHECK(!Is64());
-#ifdef V8_TARGET_BIG_ENDIAN
-  static int kOffset = 0;
-#else
-  static int kOffset = kInt32Size;
-#endif
-  TNode<HeapObject> hash_seed_root =
-      TNode<HeapObject>::UncheckedCast(LoadRoot(Heap::kHashSeedRootIndex));
-  return TNode<Int32T>::UncheckedCast(LoadObjectField(
-      hash_seed_root, ByteArray::kHeaderSize + kOffset, MachineType::Int32()));
-}
-
-TNode<Int32T> CodeStubAssembler::HashSeedLow() {
-  DCHECK(!Is64());
-#ifdef V8_TARGET_BIG_ENDIAN
-  static int kOffset = kInt32Size;
-#else
-  static int kOffset = 0;
-#endif
-  TNode<HeapObject> hash_seed_root =
-      TNode<HeapObject>::UncheckedCast(LoadRoot(Heap::kHashSeedRootIndex));
-  return TNode<Int32T>::UncheckedCast(LoadObjectField(
-      hash_seed_root, ByteArray::kHeaderSize + kOffset, MachineType::Int32()));
-}
-
 Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
   if (mode == SMI_PARAMETERS) {
     return SmiConstant(value);
@@ -7709,14 +7675,9 @@ template void CodeStubAssembler::NameDictionaryLookup<GlobalDictionary>(
     TNode<GlobalDictionary>, TNode<Name>, Label*, TVariable<IntPtrT>*, Label*,
     int, LookupMode);
 
-Node* CodeStubAssembler::ComputeIntegerHash(Node* key) {
-  return ComputeIntegerHash(key, IntPtrConstant(kZeroHashSeed));
-}
-
-Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
-  // See v8::internal::ComputeIntegerHash()
+Node* CodeStubAssembler::ComputeUnseededHash(Node* key) {
+  // See v8::internal::ComputeUnseededHash()
   Node* hash = TruncateIntPtrToInt32(key);
-  hash = Word32Xor(hash, seed);
   hash = Int32Add(Word32Xor(hash, Int32Constant(0xFFFFFFFF)),
                   Word32Shl(hash, Int32Constant(15)));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(12)));
@@ -7725,6 +7686,21 @@ Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
   hash = Int32Mul(hash, Int32Constant(2057));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(16)));
   return Word32And(hash, Int32Constant(0x3FFFFFFF));
+}
+
+Node* CodeStubAssembler::ComputeSeededHash(Node* key) {
+  Node* const function_addr =
+      ExternalConstant(ExternalReference::compute_integer_hash());
+  Node* const isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+
+  MachineType type_ptr = MachineType::Pointer();
+  MachineType type_uint32 = MachineType::Uint32();
+
+  Node* const result =
+      CallCFunction2(type_uint32, type_ptr, type_uint32, function_addr,
+                     isolate_ptr, TruncateIntPtrToInt32(key));
+  return result;
 }
 
 void CodeStubAssembler::NumberDictionaryLookup(
@@ -7737,16 +7713,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
   TNode<IntPtrT> capacity = SmiUntag(GetCapacity<NumberDictionary>(dictionary));
   TNode<WordT> mask = IntPtrSub(capacity, IntPtrConstant(1));
 
-  TNode<Int32T> int32_seed;
-
-  if (Is64()) {
-    int32_seed = TruncateInt64ToInt32(HashSeed());
-  } else {
-    int32_seed = HashSeedLow();
-  }
-
-  TNode<WordT> hash =
-      ChangeUint32ToWord(ComputeIntegerHash(intptr_index, int32_seed));
+  TNode<WordT> hash = ChangeUint32ToWord(ComputeSeededHash(intptr_index));
   Node* key_as_float64 = RoundIntPtrToFloat64(intptr_index);
 
   // See Dictionary::FirstProbe().
