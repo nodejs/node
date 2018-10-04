@@ -1,3 +1,4 @@
+import json
 import sys
 import errno
 import optparse
@@ -1234,13 +1235,9 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
   return list
 
 def configure_intl(o):
-  icus = [
-    {
-      'url': 'https://sourceforge.net/projects/icu/files/ICU4C/62.1/icu4c-62_1-src.zip',
-      'md5': '408854f7b9b58311b68fab4b4dfc80be',
-    },
-  ]
   def icu_download(path):
+    with open('tools/icu/current_ver.dep') as f:
+      icus = json.load(f)
     # download ICU, if needed
     if not os.access(options.download_path, os.W_OK):
       error('''Cannot write to desired download path.
