@@ -37,7 +37,7 @@ static void PlatformWorkerThread(void* data) {
   // Notify the main thread that the platform worker is ready.
   {
     Mutex::ScopedLock lock(*worker_data->platform_workers_mutex);
-    *worker_data->pending_platform_workers--;
+    (*worker_data->pending_platform_workers)--;
     worker_data->platform_workers_ready->Signal(lock);
   }
 
