@@ -107,11 +107,11 @@ Listed under their version string which includes their date (in UTC time) and
 the commit SHA at the HEAD of the release.
 
 #### API Documentation
-<https://nodejs.org/api/>
 
-Points to the API documentation of the latest Current release.
-Version specific documentation are avalible in each release and nightly
-directory under _docs_ or at <https://nodejs.org/download/docs/>.
+Documentation for the latest Current release is at <https://nodejs.org/api/>.
+Version-specific documentation is available in each release directory in the
+_docs_ subdirectory. Version-specific documentation is also at
+<https://nodejs.org/download/docs/>.
 
 
 ### Verifying Binaries
