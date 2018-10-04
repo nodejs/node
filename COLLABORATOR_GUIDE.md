@@ -541,8 +541,8 @@ using this tool, please file an issue
 Quick example:
 
 ```text
-$ npm install -g node-core-utils
-$ git node land $PRID
+npm install -g node-core-utils
+ git node land $PRID
 ```
 
 If it's the first time you have used `node-core-utils`, you will be prompted
@@ -557,22 +557,22 @@ to set up your credentials manually.
 Clear any `am`/`rebase` that may already be underway:
 
 ```text
-$ git am --abort
-$ git rebase --abort
-```
+ git am --abort
+ git rebase --abort
+``
 
 Checkout proper target branch:
 
 ```text
-$ git checkout master
+ git checkout master
 ```
 
 Update the tree (assumes your repo is set up as detailed in
 [CONTRIBUTING.md](./doc/guides/contributing/pull-requests.md#step-1-fork)):
 
 ```text
-$ git fetch upstream
-$ git merge --ff-only upstream/master
+ git fetch upstream
+ git merge --ff-only upstream/master
 ```
 
 Apply external patches:
@@ -597,7 +597,7 @@ to rebase.
 Check and re-review the changes:
 
 ```text
-$ git diff upstream/master
+ git diff upstream/master
 ```
 
 Check the number of commits and commit messages:
@@ -709,7 +709,7 @@ red status so the order of operations is important.
 Time to push it:
 
 ```text
-$ git push upstream master
+ git push upstream master
 ```
 
 Close the pull request with a "Landed in `<commit hash>`" comment. If
@@ -882,7 +882,8 @@ LTS working group and the Release team.
 | GYP                                      | @nodejs/gyp                                                           |
 | performance                              | @nodejs/performance                                                   |
 | platform specific                        | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
-| python code                              | @nodejs/python                                                        |
+| python code                              | @nodejs/python                                       
+                 |
 | upgrading c-ares                         | @rvagg                                                                |
 | upgrading http-parser                    | @nodejs/http, @nodejs/http2                                           |
 | upgrading libuv                          | @nodejs/libuv                                                         |
