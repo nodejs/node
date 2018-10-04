@@ -309,7 +309,7 @@ class HeapEntriesMap {
 
  private:
   static uint32_t Hash(HeapThing thing) {
-    return ComputeIntegerHash(
+    return ComputeUnseededHash(
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)));
   }
 
@@ -520,7 +520,7 @@ class NativeObjectsExplorer {
 
   struct RetainedInfoHasher {
     std::size_t operator()(v8::RetainedObjectInfo* info) const {
-      return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
+      return ComputeUnseededHash(static_cast<uint32_t>(info->GetHash()));
     }
   };
   struct RetainedInfoEquals {

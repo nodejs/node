@@ -83,6 +83,7 @@ class StatsCounter;
   V(address_of_uint32_bias, "uint32_bias")                                    \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")    \
   V(check_object_type, "check_object_type")                                   \
+  V(compute_integer_hash, "ComputeSeededHash")                                \
   V(compute_output_frames_function, "Deoptimizer::ComputeOutputFrames()")     \
   V(copy_fast_number_jsarray_elements_to_typed_array,                         \
     "copy_fast_number_jsarray_elements_to_typed_array")                       \

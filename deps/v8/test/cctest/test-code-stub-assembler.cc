@@ -332,15 +332,7 @@ TEST(ComputeIntegerHash) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
 
-  TNode<Int32T> int32_seed;
-  if (m.Is64()) {
-    int32_seed = m.TruncateInt64ToInt32(m.HashSeed());
-  } else {
-    int32_seed = m.HashSeedLow();
-  }
-
-  m.Return(m.SmiFromInt32(
-      m.ComputeIntegerHash(m.SmiUntag(m.Parameter(0)), int32_seed)));
+  m.Return(m.SmiFromInt32(m.ComputeSeededHash(m.SmiUntag(m.Parameter(0)))));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -352,7 +344,7 @@ TEST(ComputeIntegerHash) {
     Handle<Smi> key(Smi::FromInt(k), isolate);
     Handle<Object> result = ft.Call(key).ToHandleChecked();
 
-    uint32_t hash = ComputeIntegerHash(k, isolate->heap()->HashSeed());
+    uint32_t hash = ComputeSeededHash(k, isolate->heap()->HashSeed());
     Smi* expected = Smi::FromInt(hash & Smi::kMaxValue);
     CHECK_EQ(expected, Smi::cast(*result));
   }

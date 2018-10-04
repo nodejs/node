@@ -476,10 +476,9 @@ class BitSetComputer {
 static const uint64_t kZeroHashSeed = 0;
 
 // Thomas Wang, Integer Hash Functions.
-// http://www.concentric.net/~Ttwang/tech/inthash.htm
-inline uint32_t ComputeIntegerHash(uint32_t key, uint64_t seed) {
+// http://www.concentric.net/~Ttwang/tech/inthash.htm`
+inline uint32_t ComputeUnseededHash(uint32_t key) {
   uint32_t hash = key;
-  hash = hash ^ static_cast<uint32_t>(seed);
   hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
   hash = hash ^ (hash >> 12);
   hash = hash + (hash << 2);
@@ -487,10 +486,6 @@ inline uint32_t ComputeIntegerHash(uint32_t key, uint64_t seed) {
   hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
   hash = hash ^ (hash >> 16);
   return hash & 0x3fffffff;
-}
-
-inline uint32_t ComputeIntegerHash(uint32_t key) {
-  return ComputeIntegerHash(key, kZeroHashSeed);
 }
 
 inline uint32_t ComputeLongHash(uint64_t key) {
@@ -501,17 +496,20 @@ inline uint32_t ComputeLongHash(uint64_t key) {
   hash = hash ^ (hash >> 11);
   hash = hash + (hash << 6);
   hash = hash ^ (hash >> 22);
-  return static_cast<uint32_t>(hash);
+  return static_cast<uint32_t>(hash & 0x3fffffff);
 }
 
+inline uint32_t ComputeSeededHash(uint32_t key, uint64_t seed) {
+  return ComputeLongHash(static_cast<uint64_t>(key) ^ seed);
+}
 
 inline uint32_t ComputePointerHash(void* ptr) {
-  return ComputeIntegerHash(
+  return ComputeUnseededHash(
       static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));
 }
 
 inline uint32_t ComputeAddressHash(Address address) {
-  return ComputeIntegerHash(static_cast<uint32_t>(address & 0xFFFFFFFFul));
+  return ComputeUnseededHash(static_cast<uint32_t>(address & 0xFFFFFFFFul));
 }
 
 // ----------------------------------------------------------------------------

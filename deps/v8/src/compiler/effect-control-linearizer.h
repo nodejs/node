@@ -182,7 +182,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* BuildFloat64RoundDown(Node* value);
   Node* BuildFloat64RoundTruncate(Node* input);
   Node* BuildUint32Mod(Node* lhs, Node* rhs);
-  Node* ComputeIntegerHash(Node* value);
+  Node* ComputeUnseededHash(Node* value);
   Node* LowerStringComparison(Callable const& callable, Node* node);
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
