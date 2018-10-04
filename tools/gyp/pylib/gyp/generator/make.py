@@ -1758,10 +1758,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       self.WriteLn('%s: %s' % (' '.join(outputs), intermediate))
       self.WriteLn('\t%s' % '@:')
       self.WriteLn('%s: %s' % ('.INTERMEDIATE', intermediate))
-      # Don't add `force_append` (FORCE_DO_CMD) to the intermediate sentinal.
-      # Adding it makes the action run alway, even when there are no changes.
-      # (refack): AFAICT because `*.intermediate` files don't have build rules.
-      self.WriteLn('%s: %s' % (intermediate, ' '.join(inputs)))
+      self.WriteLn('%s: %s%s' %
+                   (intermediate, ' '.join(inputs), force_append))
       actions.insert(0, '$(call do_cmd,touch)')
 
     if actions:
