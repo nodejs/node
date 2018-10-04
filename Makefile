@@ -1187,19 +1187,25 @@ else
 	@echo "To install (requires internet access) run: $ make format-cpp-build"
 endif
 
+ifeq ($(V),1)
+  CPPLINT_QUIET =
+else
+  CPPLINT_QUIET = --quiet
+endif
 .PHONY: lint-cpp
 # Lints the C++ code with cpplint.py and check-imports.py.
 lint-cpp: tools/.cpplintstamp
 
 tools/.cpplintstamp: $(LINT_CPP_FILES)
 	@echo "Running C++ linter..."
-	@$(PYTHON) tools/cpplint.py --quiet $?
+	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) $?
 	@$(PYTHON) tools/check-imports.py
 	@touch $@
 
 lint-addon-docs: test/addons/.docbuildstamp
 	@echo "Running C++ linter on addon docs..."
-	@$(PYTHON) tools/cpplint.py --quiet --filter=$(ADDON_DOC_LINT_FLAGS) $(LINT_CPP_ADDON_DOC_FILES_GLOB)
+	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) --filter=$(ADDON_DOC_LINT_FLAGS) \
+		$(LINT_CPP_ADDON_DOC_FILES_GLOB)
 
 cpplint: lint-cpp
 	@echo "Please use lint-cpp instead of cpplint"
