@@ -19,7 +19,7 @@ bool StringEq(const char* left, const char* right) {
 }
 
 TEST_F(StringsStorageWithIsolate, GetNameFromString) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
+  StringsStorage storage;
 
   // One char strings are canonical on the v8 heap so use a 2 char string here.
   Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("xy");
@@ -40,7 +40,7 @@ TEST_F(StringsStorageWithIsolate, GetNameFromString) {
 }
 
 TEST_F(StringsStorageWithIsolate, GetNameFromSymbol) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
+  StringsStorage storage;
 
   Handle<Symbol> symbol = isolate()->factory()->NewSymbol();
   const char* stored_symbol = storage.GetName(*symbol);
@@ -53,7 +53,7 @@ TEST_F(StringsStorageWithIsolate, GetNameFromSymbol) {
 }
 
 TEST_F(StringsStorageWithIsolate, GetConsName) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
+  StringsStorage storage;
 
   Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("xy");
 
@@ -65,7 +65,7 @@ TEST_F(StringsStorageWithIsolate, GetConsName) {
 }
 
 TEST_F(StringsStorageWithIsolate, GetNameFromInt) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
+  StringsStorage storage;
 
   const char* stored_str = storage.GetName(0);
   CHECK(StringEq("0", stored_str));
@@ -81,7 +81,7 @@ TEST_F(StringsStorageWithIsolate, GetNameFromInt) {
 }
 
 TEST_F(StringsStorageWithIsolate, GetFunctionNameFromString) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
+  StringsStorage storage;
 
   Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("xy");
   const char* stored_str = storage.GetFunctionName(*str);
@@ -93,7 +93,7 @@ TEST_F(StringsStorageWithIsolate, GetFunctionNameFromString) {
 }
 
 TEST_F(StringsStorageWithIsolate, GetFunctionNameFromCString) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
+  StringsStorage storage;
 
   const char* xy = "xy";
   const char* stored_str = storage.GetFunctionName("xy");
@@ -103,7 +103,7 @@ TEST_F(StringsStorageWithIsolate, GetFunctionNameFromCString) {
 }
 
 TEST_F(StringsStorageWithIsolate, Format) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
+  StringsStorage storage;
 
   const char* xy = "xy";
   const char* stored_str = storage.GetFormatted("%s", xy);
@@ -121,7 +121,7 @@ TEST_F(StringsStorageWithIsolate, Format) {
 }
 
 TEST_F(StringsStorageWithIsolate, FormatAndGetShareStorage) {
-  StringsStorage storage(isolate()->heap()->HashSeed());
+  StringsStorage storage;
 
   Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("xy");
   const char* stored_str = storage.GetName(*str);

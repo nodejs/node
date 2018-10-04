@@ -221,8 +221,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
-  TNode<Int32T> HashSeed();
-
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
   TNode<BoolT> BoolConstant(bool value) {
     return value ? Int32TrueConstant() : Int32FalseConstant();
@@ -1883,8 +1881,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                             int inlined_probes = kInlinedDictionaryProbes,
                             LookupMode mode = kFindExisting);
 
-  Node* ComputeIntegerHash(Node* key);
-  Node* ComputeIntegerHash(Node* key, Node* seed);
+  Node* ComputeUnseededHash(Node* key);
+  Node* ComputeSeededHash(Node* key);
 
   void NumberDictionaryLookup(TNode<NumberDictionary> dictionary,
                               TNode<IntPtrT> intptr_index, Label* if_found,
