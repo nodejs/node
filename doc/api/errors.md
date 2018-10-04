@@ -1545,18 +1545,6 @@ An attempt was made to operate on an already closed socket.
 
 A call was made and the UDP subsystem was not running.
 
-<a id="ERR_STDERR_CLOSE"></a>
-### ERR_STDERR_CLOSE
-
-An attempt was made to close the `process.stderr` stream. By design, Node.js
-does not allow `stdout` or `stderr` streams to be closed by user code.
-
-<a id="ERR_STDOUT_CLOSE"></a>
-### ERR_STDOUT_CLOSE
-
-An attempt was made to close the `process.stdout` stream. By design, Node.js
-does not allow `stdout` or `stderr` streams to be closed by user code.
-
 <a id="ERR_STREAM_CANNOT_PIPE"></a>
 ### ERR_STREAM_CANNOT_PIPE
 
@@ -1707,12 +1695,6 @@ A `Transform` stream finished with data still in the write buffer.
 ### ERR_TTY_INIT_FAILED
 
 The initialization of a TTY failed due to a system error.
-
-<a id="ERR_TTY_WRITABLE_NOT_READABLE"></a>
-### ERR_TTY_WRITABLE_NOT_READABLE
-
-This `Error` is thrown when a read is attempted on a TTY `WriteStream`,
-such as `process.stdout.on('data')`.
 
 <a id="ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET"></a>
 ### ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET
@@ -1961,6 +1943,37 @@ removed: v10.0.0
 
 The `repl` module was unable to parse data from the REPL history file.
 
+
+<a id="ERR_STDERR_CLOSE"></a>
+### ERR_STDERR_CLOSE
+<!-- YAML
+removed: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23053
+    description: Rather than emitting an error, `process.stderr.end()` now
+                 only closes the stream side but not the underlying resource,
+                 making this error obsolete.
+-->
+
+An attempt was made to close the `process.stderr` stream. By design, Node.js
+does not allow `stdout` or `stderr` streams to be closed by user code.
+
+<a id="ERR_STDOUT_CLOSE"></a>
+### ERR_STDOUT_CLOSE
+<!-- YAML
+removed: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23053
+    description: Rather than emitting an error, `process.stderr.end()` now
+                 only closes the stream side but not the underlying resource,
+                 making this error obsolete.
+-->
+
+An attempt was made to close the `process.stdout` stream. By design, Node.js
+does not allow `stdout` or `stderr` streams to be closed by user code.
+
 <a id="ERR_STREAM_READ_NOT_IMPLEMENTED"></a>
 ### ERR_STREAM_READ_NOT_IMPLEMENTED
 <!-- YAML
@@ -2067,6 +2080,13 @@ instance.setEncoding('utf8');
 
 An attempt has been made to create a string larger than the maximum allowed
 size.
+
+<a id="ERR_TTY_WRITABLE_NOT_READABLE"></a>
+#### ERR_TTY_WRITABLE_NOT_READABLE
+
+This `Error` is thrown when a read is attempted on a TTY `WriteStream`,
+such as `process.stdout.on('data')`.
+
 
 [`--force-fips`]: cli.html#cli_force_fips
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
