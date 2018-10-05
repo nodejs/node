@@ -104,6 +104,15 @@ const d2 = require('../fixtures/b/d');
 assert.strictEqual(require('../fixtures/packages/index').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main-index').ok, 'ok');
+assert.strictEqual(require('../fixtures/packages/missing-main').ok, 'ok');
+
+let unparseableErrorThrown = false;
+try {
+  require('../fixtures/packages/unparseable');
+} catch (e) {
+  unparseableErrorThrown = true;
+  assert.strictEqual(/^Error parsing .*/.test(e.message), true);
+}
 
 {
   console.error('test cycles containing a .. path');
@@ -267,6 +276,7 @@ try {
     'fixtures/packages/index/index.js': {},
     'fixtures/packages/main/package-main-module.js': {},
     'fixtures/packages/main-index/package-main-module/index.js': {},
+    'fixtures/packages/missing-main/index.js': {},
     'fixtures/cycles/root.js': {
       'fixtures/cycles/folder/foo.js': {}
     },
@@ -317,6 +327,7 @@ process.on('exit', function() {
   assert.strictEqual(d2.D(), 'D done');
 
   assert.strictEqual(errorThrown, true);
+  assert.strictEqual(unparseableErrorThrown, true);
 
   console.log('exit');
 });
