@@ -202,7 +202,6 @@ bool AstValue::BooleanValue() const {
   UNREACHABLE();
 }
 
-
 void AstValue::Internalize(Isolate* isolate) {
   switch (type_) {
     case STRING:

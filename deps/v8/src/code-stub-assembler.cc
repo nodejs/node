@@ -200,10 +200,6 @@ HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR);
 HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST);
 #undef HEAP_CONSTANT_TEST
 
-Node* CodeStubAssembler::HashSeed() {
-  return LoadAndUntagToWord32Root(Heap::kHashSeedRootIndex);
-}
-
 Node* CodeStubAssembler::StaleRegisterConstant() {
   return LoadRoot(Heap::kStaleRegisterRootIndex);
 }
@@ -5389,22 +5385,32 @@ template void CodeStubAssembler::NameDictionaryLookup<NameDictionary>(
 template void CodeStubAssembler::NameDictionaryLookup<GlobalDictionary>(
     Node*, Node*, Label*, Variable*, Label*, int, LookupMode);
 
-Node* CodeStubAssembler::ComputeIntegerHash(Node* key) {
-  return ComputeIntegerHash(key, IntPtrConstant(kZeroHashSeed));
-}
-
-Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
-  // See v8::internal::ComputeIntegerHash()
+Node* CodeStubAssembler::ComputeUnseededHash(Node* key) {
+  // See v8::internal::ComputeUnseededHash()
   Node* hash = TruncateWordToWord32(key);
-  hash = Word32Xor(hash, seed);
-  hash = Int32Add(Word32Xor(hash, Int32Constant(0xffffffff)),
+  hash = Int32Add(Word32Xor(hash, Int32Constant(0xFFFFFFFF)),
                   Word32Shl(hash, Int32Constant(15)));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(12)));
   hash = Int32Add(hash, Word32Shl(hash, Int32Constant(2)));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(4)));
   hash = Int32Mul(hash, Int32Constant(2057));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(16)));
-  return Word32And(hash, Int32Constant(0x3fffffff));
+  return Word32And(hash, Int32Constant(0x3FFFFFFF));
+}
+
+Node* CodeStubAssembler::ComputeSeededHash(Node* key) {
+  Node* const function_addr =
+      ExternalConstant(ExternalReference::compute_integer_hash(isolate()));
+  Node* const isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+
+  MachineType type_ptr = MachineType::Pointer();
+  MachineType type_uint32 = MachineType::Uint32();
+
+  Node* const result =
+      CallCFunction2(type_uint32, type_ptr, type_uint32, function_addr,
+                     isolate_ptr, TruncateWordToWord32(key));
+  return result;
 }
 
 template <typename Dictionary>
@@ -5420,10 +5426,14 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
   Node* capacity = SmiUntag(GetCapacity<Dictionary>(dictionary));
   Node* mask = IntPtrSub(capacity, IntPtrConstant(1));
 
-  Node* int32_seed = std::is_same<Dictionary, SeededNumberDictionary>::value
-                         ? HashSeed()
-                         : Int32Constant(kZeroHashSeed);
-  Node* hash = ChangeUint32ToWord(ComputeIntegerHash(intptr_index, int32_seed));
+  Node* hash;
+
+  if (std::is_same<Dictionary, SeededNumberDictionary>::value) {
+    hash = ChangeUint32ToWord(ComputeSeededHash(intptr_index));
+  } else {
+    hash = ChangeUint32ToWord(ComputeUnseededHash(intptr_index));
+  }
+
   Node* key_as_float64 = RoundIntPtrToFloat64(intptr_index);
 
   // See Dictionary::FirstProbe().

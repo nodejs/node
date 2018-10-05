@@ -262,15 +262,13 @@ TEST(JSFunction) {
 
 TEST(ComputeIntegerHash) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 2;
+  const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
-  m.Return(m.SmiFromWord32(m.ComputeIntegerHash(
-      m.SmiUntag(m.Parameter(0)), m.SmiToWord32(m.Parameter(1)))));
+
+  m.Return(m.SmiFromWord32(m.ComputeSeededHash(m.SmiUntag(m.Parameter(0)))));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-
-  Handle<Smi> hash_seed = isolate->factory()->hash_seed();
 
   base::RandomNumberGenerator rand_gen(FLAG_random_seed);
 
@@ -278,9 +276,9 @@ TEST(ComputeIntegerHash) {
     int k = rand_gen.NextInt(Smi::kMaxValue);
 
     Handle<Smi> key(Smi::FromInt(k), isolate);
-    Handle<Object> result = ft.Call(key, hash_seed).ToHandleChecked();
+    Handle<Object> result = ft.Call(key).ToHandleChecked();
 
-    uint32_t hash = ComputeIntegerHash(k, hash_seed->value());
+    uint32_t hash = ComputeSeededHash(k, isolate->heap()->HashSeed());
     Smi* expected = Smi::FromInt(hash & Smi::kMaxValue);
     CHECK_EQ(expected, Smi::cast(*result));
   }

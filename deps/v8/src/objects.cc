@@ -2305,7 +2305,7 @@ Object* GetSimpleHash(Object* object) {
   // The object is either a Smi, a HeapNumber, a name, an odd-ball, a real JS
   // object, or a Harmony proxy.
   if (object->IsSmi()) {
-    uint32_t hash = ComputeIntegerHash(Smi::ToInt(object));
+    uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (object->IsHeapNumber()) {
@@ -2313,7 +2313,7 @@ Object* GetSimpleHash(Object* object) {
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
     if (i::IsMinusZero(num)) num = 0;
     if (IsSmiDouble(num)) {
-      return Smi::FromInt(FastD2I(num))->GetHash();
+      return Smi::FromInt(ComputeUnseededHash(FastD2I(num)));
     }
     uint32_t hash = ComputeLongHash(double_to_uint64(num));
     return Smi::FromInt(hash & Smi::kMaxValue);
@@ -12152,9 +12152,7 @@ uint32_t StringHasher::GetHashField() {
   }
 }
 
-
-uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars,
-                                       uint32_t seed,
+uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars, uint64_t seed,
                                        int* utf16_length_out) {
   int vector_length = chars.length();
   // Handle some edge cases
@@ -16838,7 +16836,7 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
 // algorithm.
 class TwoCharHashTableKey : public StringTableKey {
  public:
-  TwoCharHashTableKey(uint16_t c1, uint16_t c2, uint32_t seed)
+  TwoCharHashTableKey(uint16_t c1, uint16_t c2, uint64_t seed)
       : StringTableKey(ComputeHashField(c1, c2, seed)), c1_(c1), c2_(c2) {}
 
   bool IsMatch(Object* o) override {
@@ -16855,9 +16853,9 @@ class TwoCharHashTableKey : public StringTableKey {
   }
 
  private:
-  uint32_t ComputeHashField(uint16_t c1, uint16_t c2, uint32_t seed) {
+  uint32_t ComputeHashField(uint16_t c1, uint16_t c2, uint64_t seed) {
     // Char 1.
-    uint32_t hash = seed;
+    uint32_t hash = static_cast<uint32_t>(seed);
     hash += c1;
     hash += hash << 10;
     hash ^= hash >> 6;
@@ -17030,7 +17028,7 @@ namespace {
 
 class StringTableNoAllocateKey : public StringTableKey {
  public:
-  StringTableNoAllocateKey(String* string, uint32_t seed)
+  StringTableNoAllocateKey(String* string, uint64_t seed)
       : StringTableKey(0), string_(string) {
     StringShape shape(string);
     one_byte_ = shape.HasOnlyOneByteChars();

@@ -228,6 +228,8 @@ using v8::MemoryPressureLevel;
   V(FixedArray, serialized_templates, SerializedTemplates)                     \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)     \
   V(TemplateList, message_listeners, MessageListeners)                         \
+  /* Hash seed */                                                              \
+  V(ByteArray, hash_seed, HashSeed)                                            \
   /* per-Isolate map for JSPromiseCapability. */                               \
   /* TODO(caitp): Make this a Struct */                                        \
   V(Map, js_promise_capability_map, JSPromiseCapabilityMap)                    \
@@ -240,7 +242,6 @@ using v8::MemoryPressureLevel;
   V(Smi, stack_limit, StackLimit)                                              \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(Smi, last_script_id, LastScriptId)                                         \
-  V(Smi, hash_seed, HashSeed)                                                  \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
   V(Smi, next_template_serial_number, NextTemplateSerialNumber)                \
@@ -814,7 +815,7 @@ class Heap {
 
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
 
-  inline uint32_t HashSeed();
+  inline uint64_t HashSeed();
 
   inline int NextScriptId();
 

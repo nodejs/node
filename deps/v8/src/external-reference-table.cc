@@ -232,6 +232,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "try_internalize_string_function");
   Add(ExternalReference::check_object_type(isolate).address(),
       "check_object_type");
+  Add(ExternalReference::compute_integer_hash(isolate).address(),
+      "ComputeSeededHash");
 #ifdef V8_INTL_SUPPORT
   Add(ExternalReference::intl_convert_one_byte_to_lower(isolate).address(),
       "intl_convert_one_byte_to_lower");

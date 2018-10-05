@@ -793,9 +793,11 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     // We intentionally use local variables instead of fields, compute hash
     // while we are iterating a string and manually inline StringTable lookup
     // here.
-    uint32_t running_hash = isolate()->heap()->HashSeed();
+    uint32_t running_hash =
+        static_cast<uint32_t>(isolate()->heap()->HashSeed());
     int position = position_;
     uc32 c0 = c0_;
+
     do {
       if (c0 == '\\') {
         c0_ = c0;
