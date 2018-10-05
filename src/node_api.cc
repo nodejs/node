@@ -3640,7 +3640,7 @@ napi_status napi_get_sharedarraybuffer_info(napi_env env,
   CHECK_ARG(env, arraybuffer);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
-  RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
+  RETURN_STATUS_IF_FALSE(env, value->IsSharedArrayBuffer(), napi_invalid_arg);
 
   v8::ArrayBuffer::Contents contents =
       value.As<v8::SharedArrayBuffer>()->GetContents();
