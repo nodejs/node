@@ -5914,7 +5914,7 @@ UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
-      CHECK_EQ(1337 * i,
+      CHECK_EQ(static_cast<uint64_t>(1337 * i),
                reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
