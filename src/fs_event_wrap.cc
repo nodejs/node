@@ -57,11 +57,9 @@ class FSEventWrap: public HandleWrap {
   static void Start(const FunctionCallbackInfo<Value>& args);
   static void GetInitialized(const FunctionCallbackInfo<Value>& args);
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
-
-  ADD_MEMORY_INFO_NAME(FSEventWrap)
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(FSEventWrap)
+  SET_SELF_SIZE(FSEventWrap)
 
  private:
   static const encoding kDefaultEncoding = UTF8;

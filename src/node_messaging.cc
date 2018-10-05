@@ -326,7 +326,6 @@ Maybe<bool> Message::Serialize(Environment* env,
 }
 
 void Message::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackThis(this);
   tracker->TrackField("array_buffer_contents", array_buffer_contents_);
   tracker->TrackFieldWithSize("shared_array_buffers",
       shared_array_buffers_.size() * sizeof(shared_array_buffers_[0]));
@@ -342,7 +341,6 @@ MessagePortData::~MessagePortData() {
 
 void MessagePortData::MemoryInfo(MemoryTracker* tracker) const {
   Mutex::ScopedLock lock(mutex_);
-  tracker->TrackThis(this);
   tracker->TrackField("incoming_messages", incoming_messages_);
 }
 

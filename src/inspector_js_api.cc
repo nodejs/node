@@ -105,12 +105,13 @@ class JSBindingsConnection : public AsyncWrap {
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("callback", callback_);
-    tracker->TrackFieldWithSize("session", sizeof(*session_));
+    tracker->TrackFieldWithSize(
+        "session", sizeof(*session_), "InspectorSession");
   }
 
-  ADD_MEMORY_INFO_NAME(JSBindingsConnection)
+  SET_MEMORY_INFO_NAME(JSBindingsConnection)
+  SET_SELF_SIZE(JSBindingsConnection)
 
  private:
   std::unique_ptr<InspectorSession> session_;

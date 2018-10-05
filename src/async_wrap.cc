@@ -72,9 +72,9 @@ struct AsyncWrapObject : public AsyncWrap {
   inline AsyncWrapObject(Environment* env, Local<Object> object,
                          ProviderType type) : AsyncWrap(env, object, type) {}
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(AsyncWrapObject)
+  SET_SELF_SIZE(AsyncWrapObject)
 };
 
 
@@ -180,9 +180,9 @@ class PromiseWrap : public AsyncWrap {
     MakeWeak();
   }
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(PromiseWrap)
+  SET_SELF_SIZE(PromiseWrap)
 
   static constexpr int kPromiseField = 1;
   static constexpr int kIsChainedPromiseField = 2;
