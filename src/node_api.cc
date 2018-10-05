@@ -3571,6 +3571,91 @@ napi_status napi_get_arraybuffer_info(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_is_sharedarraybuffer(napi_env env, napi_value value, bool* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+  *result = val->IsSharedArrayBuffer();
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_create_sharedarraybuffer(napi_env env,
+                                    size_t byte_length,
+                                    void** data,
+                                    napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::SharedArrayBuffer> buffer =
+      v8::SharedArrayBuffer::New(isolate, byte_length);
+
+  // Optionally return a pointer to the buffer's data, to avoid another call to
+  // retrieve it.
+  if (data != nullptr) {
+    *data = buffer->GetContents().Data();
+  }
+
+  *result = v8impl::JsValueFromV8LocalValue(buffer);
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status napi_create_external_sharedarraybuffer(napi_env env,
+                                             void* external_data,
+                                             size_t byte_length,
+                                             napi_finalize finalize_cb,
+                                             void* finalize_hint,
+                                             napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::SharedArrayBuffer> buffer =
+      v8::SharedArrayBuffer::New(isolate, external_data, byte_length);
+
+  if (finalize_cb != nullptr) {
+    // Create a self-deleting weak reference that invokes the finalizer
+    // callback.
+    v8impl::Reference::New(env,
+        buffer,
+        0,
+        true,
+        finalize_cb,
+        external_data,
+        finalize_hint);
+  }
+
+  *result = v8impl::JsValueFromV8LocalValue(buffer);
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status napi_get_sharedarraybuffer_info(napi_env env,
+                                      napi_value arraybuffer,
+                                      void** data,
+                                      size_t* byte_length) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, arraybuffer);
+
+  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
+  RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
+
+  v8::ArrayBuffer::Contents contents =
+      value.As<v8::SharedArrayBuffer>()->GetContents();
+
+  if (data != nullptr) {
+    *data = contents.Data();
+  }
+
+  if (byte_length != nullptr) {
+    *byte_length = contents.ByteLength();
+  }
+
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_is_typedarray(napi_env env, napi_value value, bool* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, value);
