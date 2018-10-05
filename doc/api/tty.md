@@ -164,18 +164,7 @@ to pass in an object with different settings.
 Use the `NODE_DISABLE_COLORS` environment variable to enforce this function to
 always return 1.
 
-## writeStream.getWindowSize()
-<!-- YAML
-added: v0.7.7
--->
-* Returns: {number[]}
-
-`writeStream.getWindowSize()` returns the size of the [TTY](tty.html) corresponding
-to this `WriteStream`. The array is of the type `[numColumns, numRows]`
-where `numColumns` and `numRows` represent the number of columns and rows
-in the corresponding [TTY](tty.html).
-
-## tty.isatty(fd)
+### tty.isatty(fd)
 <!-- YAML
 added: v0.5.8
 -->
@@ -185,6 +174,17 @@ added: v0.5.8
 The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
+
+### writeStream.getWindowSize()
+<!-- YAML
+added: v0.7.7
+-->
+* Returns: {number[]}
+
+`writeStream.getWindowSize()` returns the size of the [TTY](tty.html)
+corresponding to this `WriteStream`. The array is of the type
+`[numColumns, numRows]` where `numColumns` and `numRows` represent the number
+of columns and rows in the corresponding [TTY](tty.html).
 
 ### writeStream.isTTY
 <!-- YAML
