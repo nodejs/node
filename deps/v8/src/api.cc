@@ -3890,13 +3890,13 @@ void v8::RegExp::CheckCast(v8::Value* that) {
 
 bool Value::BooleanValue() const {
   return BooleanValue(Isolate::GetCurrent()->GetCurrentContext())
-      .FromMaybe(false);
+      .FromJust();
 }
 
 
 double Value::NumberValue() const {
   return NumberValue(Isolate::GetCurrent()->GetCurrentContext())
-      .FromMaybe(0.0);
+      .FromMaybe(std::numeric_limits<double>::quiet_NaN());
 }
 
 
