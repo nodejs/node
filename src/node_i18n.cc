@@ -251,11 +251,9 @@ class ConverterObject : public BaseObject, Converter {
     args.GetReturnValue().Set(status);
   }
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
-
-  ADD_MEMORY_INFO_NAME(ConverterObject)
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(ConverterObject)
+  SET_SELF_SIZE(ConverterObject)
 
  protected:
   ConverterObject(Environment* env,

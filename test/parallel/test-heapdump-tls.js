@@ -9,7 +9,7 @@ const { validateSnapshotNodes } = require('../common/heap');
 const net = require('net');
 const tls = require('tls');
 
-validateSnapshotNodes('TLSWrap', []);
+validateSnapshotNodes('Node / TLSWrap', []);
 
 const server = net.createServer(common.mustCall((c) => {
   c.end();
@@ -21,13 +21,14 @@ const server = net.createServer(common.mustCall((c) => {
   }));
   c.write('hello');
 
-  validateSnapshotNodes('TLSWrap', [
+  validateSnapshotNodes('Node / TLSWrap', [
     {
       children: [
-        { name: 'NodeBIO' },
-        { name: 'NodeBIO' },
+        { node_name: 'Node / NodeBIO', edge_name: 'enc_out' },
+        { node_name: 'Node / NodeBIO', edge_name: 'enc_in' },
         // `Node / TLSWrap` (C++) -> `TLSWrap` (JS)
-        { name: 'TLSWrap' }
+        { node_name: 'TLSWrap', edge_name: 'wrapped' }
+        // pending_cleartext_input could be empty
       ]
     }
   ]);

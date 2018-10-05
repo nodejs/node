@@ -66,9 +66,9 @@ class TimerWrap : public HandleWrap {
                    ->GetFunction(env->context()).ToLocalChecked()).FromJust();
   }
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(TimerWrap)
+  SET_SELF_SIZE(TimerWrap)
 
  private:
   static void SetupTimers(const FunctionCallbackInfo<Value>& args) {

@@ -53,11 +53,9 @@ class SerializerContext : public BaseObject,
   static void WriteDouble(const FunctionCallbackInfo<Value>& args);
   static void WriteRawBytes(const FunctionCallbackInfo<Value>& args);
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
-
-  ADD_MEMORY_INFO_NAME(SerializerContext)
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(SerializerContext)
+  SET_SELF_SIZE(SerializerContext)
 
  private:
   ValueSerializer serializer_;
@@ -84,11 +82,9 @@ class DeserializerContext : public BaseObject,
   static void ReadDouble(const FunctionCallbackInfo<Value>& args);
   static void ReadRawBytes(const FunctionCallbackInfo<Value>& args);
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
-
-  ADD_MEMORY_INFO_NAME(DeserializerContext)
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DeserializerContext)
+  SET_SELF_SIZE(DeserializerContext)
 
  private:
   const uint8_t* data_;

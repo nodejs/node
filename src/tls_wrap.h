@@ -78,7 +78,8 @@ class TLSWrap : public AsyncWrap,
 
   void MemoryInfo(MemoryTracker* tracker) const override;
 
-  ADD_MEMORY_INFO_NAME(TLSWrap)
+  SET_MEMORY_INFO_NAME(TLSWrap)
+  SET_SELF_SIZE(TLSWrap)
 
  protected:
   inline StreamBase* underlying_stream() {
