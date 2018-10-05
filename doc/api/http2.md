@@ -2278,7 +2278,7 @@ not work.
 For incoming headers:
 * The `:status` header is converted to `number`.
 * Duplicates of `:status`, `:method`, `:authority`, `:scheme`, `:path`,
-`age`, `authorization`, `access-control-allow-credentials`,
+`:protocol`, `age`, `authorization`, `access-control-allow-credentials`,
 `access-control-max-age`, `access-control-request-method`, `content-encoding`,
 `content-language`, `content-length`, `content-location`, `content-md5`,
 `content-range`, `content-type`, `date`, `dnt`, `etag`, `expires`, `from`,
@@ -2335,6 +2335,10 @@ properties.
 * `maxHeaderListSize` {number} Specifies the maximum size (uncompressed octets)
   of header list that will be accepted. The minimum allowed value is 0. The
   maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
+* `enableConnectProtocol`{boolean} Specifies `true` if the "Extended Connect
+  Protocol" defined by [RFC 8441][] is to be enabled. This setting is only
+  meaningful if sent by the server. Once the `enableConnectProtocol` setting
+  has been enabled for a given `Http2Session`, it cannot be disabled.
 
 All additional properties on the settings object are ignored.
 
@@ -2499,6 +2503,36 @@ req.on('end', () => {
   client.close();
 });
 req.end('Jane');
+```
+
+### The Extended CONNECT Protocol
+
+[RFC 8441][] defines an "Extended CONNECT Protocol" extension to HTTP/2 that
+may be used to bootstrap the use of an `Http2Stream` using the `CONNECT`
+method as a tunnel for other communication protocols (such as WebSockets).
+
+The use of the Extended CONNECT Protocol is enabled by HTTP/2 servers by using
+the `enableConnectProtocol` setting:
+
+```js
+const http2 = require('http2');
+const settings = { enableConnectProtocol: true };
+const server = http2.createServer({ settings });
+```
+
+Once the client receives the `SETTINGS` frame from the server indicating that
+the extended CONNECT may be used, it may send `CONNECT` requests that use the
+`':protocol'`  HTTP/2 pseudo-header:
+
+```js
+const http2 = require('http2');
+const client = http2.connect('http://localhost:8080');
+client.on('remoteSettings', (settings) => {
+  if (settings.enableConnectProtocol) {
+    const req = client.request({ ':method': 'CONNECT', ':protocol': 'foo' });
+    // ...
+  }
+});
 ```
 
 ## Compatibility API
@@ -3361,6 +3395,7 @@ following additional properties:
 [Readable Stream]: stream.html#stream_class_stream_readable
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
+[RFC 8441]: https://tools.ietf.org/html/rfc8441
 [Using `options.selectPadding()`]: #http2_using_options_selectpadding
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'request'`]: #http2_event_request

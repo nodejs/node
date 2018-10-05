@@ -160,6 +160,7 @@ struct nghttp2_header : public MemoryRetainer {
   V(AUTHORITY, ":authority")                                                  \
   V(SCHEME, ":scheme")                                                        \
   V(PATH, ":path")                                                            \
+  V(PROTOCOL, ":protocol")                                                    \
   V(ACCEPT_CHARSET, "accept-charset")                                         \
   V(ACCEPT_ENCODING, "accept-encoding")                                       \
   V(ACCEPT_LANGUAGE, "accept-language")                                       \
