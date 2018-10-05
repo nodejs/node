@@ -844,14 +844,14 @@ socket.on('data', (id) => {
 });
 ```
 
-[`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
-[`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
-[`child_process` event: `'exit'`]: child_process.html#child_process_event_exit
-[`child_process` event: `'message'`]: child_process.html#child_process_event_message
-[`cluster.settings`]: #cluster_cluster_settings
-[`disconnect`]: child_process.html#child_process_subprocess_disconnect
-[`kill`]: process.html#process_process_kill_pid_signal
-[`process` event: `'message'`]: process.html#process_event_message
-[`server.close()`]: net.html#net_event_close
-[`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
-[Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
+[`ChildProcess.send()`]: child_process.md#subprocesssendmessage-sendhandle-options-caxllback
+[`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
+[`child_process` event: `'exit'`]: child_process.md#event-exit
+[`child_process` event: `'message'`]: child_process.md#event-message
+[`cluster.settings`]: #clustersettings
+[`disconnect`]: child_process.md#event-disconnect
+[`kill`]: child_process.md#subprocesskillsignal
+[`process` event: `'message'`]: process.md#event-message
+[`server.close()`]: net.md#event-close
+[`worker.exitedAfterDisconnect`]: #workerexitedafterdisconnect
+[Child Process module]: child_process.md#child_processforkmodulepath-args-options
