@@ -1050,6 +1050,11 @@ int nghttp2_iv_check(const nghttp2_settings_entry *iv, size_t niv) {
       break;
     case NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
       break;
+    case NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL:
+      if (iv[i].value != 0 && iv[i].value != 1) {
+        return 0;
+      }
+      break;
     }
   }
   return 1;
