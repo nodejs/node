@@ -130,7 +130,8 @@ typedef enum {
   /* "http" or "https" scheme */
   NGHTTP2_HTTP_FLAG_SCHEME_HTTP = 1 << 13,
   /* set if final response is expected */
-  NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE = 1 << 14
+  NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE = 1 << 14,
+  NGHTTP2_HTTP_FLAG__PROTOCOL = 1 << 15,
 } nghttp2_http_flag;
 
 struct nghttp2_stream {

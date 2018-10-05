@@ -4361,6 +4361,9 @@ int nghttp2_session_update_local_settings(nghttp2_session *session,
     case NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
       session->local_settings.max_header_list_size = iv[i].value;
       break;
+    case NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL:
+      session->local_settings.enable_connect_protocol = iv[i].value;
+      break;
     }
   }
 
@@ -4498,6 +4501,26 @@ int nghttp2_session_on_settings_received(nghttp2_session *session,
     case NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
 
       session->remote_settings.max_header_list_size = entry->value;
+
+      break;
+    case NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL:
+
+      if (entry->value != 0 && entry->value != 1) {
+        return session_handle_invalid_connection(
+            session, frame, NGHTTP2_ERR_PROTO,
+            "SETTINGS: invalid SETTINGS_ENABLE_CONNECT_PROTOCOL");
+      }
+
+      if (!session->server &&
+          session->remote_settings.enable_connect_protocol &&
+          entry->value == 0) {
+        return session_handle_invalid_connection(
+            session, frame, NGHTTP2_ERR_PROTO,
+            "SETTINGS: server attempted to disable "
+            "SETTINGS_ENABLE_CONNECT_PROTOCOL");
+      }
+
+      session->remote_settings.enable_connect_protocol = entry->value;
 
       break;
     }
@@ -5250,6 +5273,7 @@ static void inbound_frame_set_settings_entry(nghttp2_inbound_frame *iframe) {
   case NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE:
   case NGHTTP2_SETTINGS_MAX_FRAME_SIZE:
   case NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
+  case NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL:
     break;
   default:
     DEBUGF("recv: unknown settings id=0x%02x\n", iv.settings_id);
@@ -7052,6 +7076,13 @@ int nghttp2_session_add_settings(nghttp2_session *session, uint8_t flags,
     }
   }
 
+  for (i = niv; i > 0; --i) {
+    if (iv[i - 1].settings_id == NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL) {
+      session->pending_enable_connect_protocol = (uint8_t)iv[i - 1].value;
+      break;
+    }
+  }
+
   return 0;
 }
 
@@ -7360,6 +7391,8 @@ uint32_t nghttp2_session_get_remote_settings(nghttp2_session *session,
     return session->remote_settings.max_frame_size;
   case NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
     return session->remote_settings.max_header_list_size;
+  case NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL:
+    return session->remote_settings.enable_connect_protocol;
   }
 
   assert(0);
@@ -7381,6 +7414,8 @@ uint32_t nghttp2_session_get_local_settings(nghttp2_session *session,
     return session->local_settings.max_frame_size;
   case NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
     return session->local_settings.max_header_list_size;
+  case NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL:
+    return session->local_settings.enable_connect_protocol;
   }
 
   assert(0);
