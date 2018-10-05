@@ -44,10 +44,8 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
-
+  SET_NO_MEMORY_INFO()
+  SET_SELF_SIZE(TCPWrap)
   std::string MemoryInfoName() const override {
     switch (provider_type()) {
       case ProviderType::PROVIDER_TCPWRAP:

@@ -68,11 +68,9 @@ class ProcessWrap : public HandleWrap {
                 constructor->GetFunction(context).ToLocalChecked());
   }
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
-  }
-
-  ADD_MEMORY_INFO_NAME(ProcessWrap)
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(ProcessWrap)
+  SET_SELF_SIZE(ProcessWrap)
 
  private:
   static void New(const FunctionCallbackInfo<Value>& args) {

@@ -92,6 +92,8 @@ struct nghttp2_stream_write : public MemoryRetainer {
       req_wrap(req), buf(buf_) {}
 
   void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(nghttp2_stream_write)
+  SET_SELF_SIZE(nghttp2_stream_write)
 };
 
 struct nghttp2_header : public MemoryRetainer {
@@ -100,6 +102,8 @@ struct nghttp2_header : public MemoryRetainer {
   uint8_t flags = 0;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(nghttp2_header)
+  SET_SELF_SIZE(nghttp2_header)
 };
 
 
@@ -570,12 +574,12 @@ class Http2Stream : public AsyncWrap,
               uv_stream_t* send_handle) override;
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("current_headers", current_headers_);
     tracker->TrackField("queue", queue_);
   }
 
-  ADD_MEMORY_INFO_NAME(Http2Stream)
+  SET_MEMORY_INFO_NAME(Http2Stream)
+  SET_SELF_SIZE(Http2Stream)
 
   std::string diagnostic_name() const override;
 
@@ -755,7 +759,6 @@ class Http2Session : public AsyncWrap, public StreamListener {
   ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("streams", streams_);
     tracker->TrackField("outstanding_pings", outstanding_pings_);
     tracker->TrackField("outstanding_settings", outstanding_settings_);
@@ -765,7 +768,8 @@ class Http2Session : public AsyncWrap, public StreamListener {
                                 pending_rst_streams_.size() * sizeof(int32_t));
   }
 
-  ADD_MEMORY_INFO_NAME(Http2Session)
+  SET_MEMORY_INFO_NAME(Http2Session)
+  SET_SELF_SIZE(Http2Session)
 
   std::string diagnostic_name() const override;
 
@@ -1085,11 +1089,11 @@ class Http2Session::Http2Ping : public AsyncWrap {
   explicit Http2Ping(Http2Session* session);
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("session", session_);
   }
 
-  ADD_MEMORY_INFO_NAME(Http2Ping)
+  SET_MEMORY_INFO_NAME(Http2Ping)
+  SET_SELF_SIZE(Http2Ping)
 
   void Send(uint8_t* payload);
   void Done(bool ack, const uint8_t* payload = nullptr);
@@ -1110,11 +1114,11 @@ class Http2Session::Http2Settings : public AsyncWrap {
   explicit Http2Settings(Http2Session* session);
 
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackThis(this);
     tracker->TrackField("session", session_);
   }
 
-  ADD_MEMORY_INFO_NAME(Http2Settings)
+  SET_MEMORY_INFO_NAME(Http2Settings)
+  SET_SELF_SIZE(Http2Settings)
 
   void Send();
   void Done(bool ack);

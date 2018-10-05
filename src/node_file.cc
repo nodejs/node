@@ -277,6 +277,10 @@ void FileHandle::AfterClose() {
     EmitRead(UV_EOF);
 }
 
+void FileHandleReadWrap::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("buffer", buffer_);
+  tracker->TrackField("file_handle", this->file_handle_);
+}
 
 FileHandleReadWrap::FileHandleReadWrap(FileHandle* handle, Local<Object> obj)
   : ReqWrap(handle->env(), obj, AsyncWrap::PROVIDER_FSREQWRAP),
