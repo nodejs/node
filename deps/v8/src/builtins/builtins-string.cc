@@ -195,6 +195,9 @@ BUILTIN(StringPrototypeLastIndexOf) {
 // do anything locale specific.
 BUILTIN(StringPrototypeLocaleCompare) {
   HandleScope handle_scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringLocaleCompare);
+
 #ifdef V8_INTL_SUPPORT
   TO_THIS_STRING(str1, "String.prototype.localeCompare");
   Handle<String> str2;

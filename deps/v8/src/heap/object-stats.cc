@@ -547,7 +547,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
 
 static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     MaybeObject* maybe_obj, FeedbackSlotKind kind, Isolate* isolate) {
-  if (maybe_obj->IsClearedWeakHeapObject())
+  if (maybe_obj->IsCleared())
     return ObjectStats::FEEDBACK_VECTOR_SLOT_OTHER_TYPE;
   Object* obj = maybe_obj->GetHeapObjectOrSmi();
   switch (kind) {
@@ -623,11 +623,12 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
       // Log the monomorphic/polymorphic helper objects that this slot owns.
       for (int i = 0; i < it.entry_size(); i++) {
         MaybeObject* raw_object = vector->get(slot.ToInt() + i);
-        if (!raw_object->IsStrongOrWeakHeapObject()) continue;
-        HeapObject* object = raw_object->GetHeapObject();
-        if (object->IsCell() || object->IsWeakFixedArray()) {
-          RecordSimpleVirtualObjectStats(
-              vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
+        HeapObject* object;
+        if (raw_object->GetHeapObject(&object)) {
+          if (object->IsCell() || object->IsWeakFixedArray()) {
+            RecordSimpleVirtualObjectStats(
+                vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
+          }
         }
       }
     }
@@ -677,8 +678,6 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualContext(Context::cast(obj));
       } else if (obj->IsScript()) {
         RecordVirtualScriptDetails(Script::cast(obj));
-      } else if (obj->IsExternalString()) {
-        RecordVirtualExternalStringDetails(ExternalString::cast(obj));
       } else if (obj->IsArrayBoilerplateDescription()) {
         RecordVirtualArrayBoilerplateDescription(
             ArrayBoilerplateDescription::cast(obj));
@@ -688,6 +687,11 @@ void ObjectStatsCollectorImpl::CollectStatistics(
       }
       break;
     case kPhase2:
+      if (obj->IsExternalString()) {
+        // This has to be in Phase2 to avoid conflicting with recording Script
+        // sources. We still want to run RecordObjectStats after though.
+        RecordVirtualExternalStringDetails(ExternalString::cast(obj));
+      }
       RecordObjectStats(obj, map->instance_type(), obj->Size());
       if (collect_field_stats == CollectFieldStats::kYes) {
         field_stats_collector_.RecordStats(obj);
@@ -808,7 +812,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
   } else if (raw_source->IsString()) {
     String* source = String::cast(raw_source);
     RecordSimpleVirtualObjectStats(
-        script, HeapObject::cast(raw_source),
+        script, source,
         source->IsOneByteRepresentation()
             ? ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_ONE_BYTE_TYPE
             : ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_TWO_BYTE_TYPE);

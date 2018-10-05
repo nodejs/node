@@ -73,7 +73,7 @@ class ExternalReferenceTable {
     return OffsetOfEntry(size()) + 2 * kUInt32Size;
   }
 
-  ExternalReferenceTable() {}
+  ExternalReferenceTable() = default;
   void Init(Isolate* isolate);
 
  private:

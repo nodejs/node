@@ -23,24 +23,27 @@ class ArrayBufferCollector {
  public:
   explicit ArrayBufferCollector(Heap* heap) : heap_(heap) {}
 
-  ~ArrayBufferCollector() { FreeAllocations(); }
+  ~ArrayBufferCollector() { PerformFreeAllocations(); }
 
-  // These allocations will begin to be freed once FreeAllocations() is called,
-  // or on TearDown.
-  void AddGarbageAllocations(
+  // These allocations will be either
+  // - freed immediately when under memory pressure, or
+  // - queued for freeing in FreeAllocations() or during tear down.
+  //
+  // FreeAllocations() potentially triggers a background task for processing.
+  void QueueOrFreeGarbageAllocations(
       std::vector<JSArrayBuffer::Allocation> allocations);
 
   // Calls FreeAllocations() on a background thread.
-  void FreeAllocationsOnBackgroundThread();
+  void FreeAllocations();
 
  private:
   class FreeingTask;
 
-  // Begin freeing the allocations added through AddGarbageAllocations. Also
-  // called by TearDown.
-  void FreeAllocations();
+  // Begin freeing the allocations added through QueueOrFreeGarbageAllocations.
+  // Also called by TearDown.
+  void PerformFreeAllocations();
 
-  Heap* heap_;
+  Heap* const heap_;
   base::Mutex allocations_mutex_;
   std::vector<std::vector<JSArrayBuffer::Allocation>> allocations_;
 };

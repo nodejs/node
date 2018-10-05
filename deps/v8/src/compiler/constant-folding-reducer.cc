@@ -17,7 +17,7 @@ ConstantFoldingReducer::ConstantFoldingReducer(Editor* editor, JSGraph* jsgraph,
       jsgraph_(jsgraph),
       js_heap_broker_(js_heap_broker) {}
 
-ConstantFoldingReducer::~ConstantFoldingReducer() {}
+ConstantFoldingReducer::~ConstantFoldingReducer() = default;
 
 Reduction ConstantFoldingReducer::Reduce(Node* node) {
   DisallowHeapAccess no_heap_access;

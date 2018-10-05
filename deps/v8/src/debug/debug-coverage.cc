@@ -81,6 +81,11 @@ std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo* shared) {
   std::vector<CoverageBlock> result;
   if (coverage_info->SlotCount() == 0) return result;
 
+  if (FLAG_trace_block_coverage) {
+    PrintF("Collecting coverage data\n");
+    coverage_info->Print(shared->DebugName()->ToCString());
+  }
+
   for (int i = 0; i < coverage_info->SlotCount(); i++) {
     const int start_pos = coverage_info->StartSourcePosition(i);
     const int until_pos = coverage_info->EndSourcePosition(i);

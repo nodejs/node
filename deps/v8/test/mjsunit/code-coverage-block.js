@@ -471,7 +471,7 @@ TestCoverage(
  {"start":472,"end":503,"count":0},
  {"start":626,"end":653,"count":0},
  {"start":768,"end":803,"count":0},
- {"start":867,"end":869,"count":0}]
+ {"start":867,"end":868,"count":0}]
 );
 
 TestCoverage(
@@ -847,7 +847,7 @@ Util.escape("foo.bar");                   // 0400
 [{"start":0,"end":449,"count":1},
  {"start":64,"end":351,"count":1},
  {"start":112,"end":203,"count":0},
- {"start":303,"end":350,"count":0}]
+ {"start":268,"end":350,"count":0}]
 );
 
 %DebugToggleBlockCoverage(false);

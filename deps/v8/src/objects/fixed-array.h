@@ -188,8 +188,6 @@ class FixedArray : public FixedArrayBase {
 #endif
 
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  protected:
   // Set operation on FixedArray without using write barriers. Can
@@ -256,8 +254,6 @@ class FixedDoubleArray : public FixedArrayBase {
   DECL_VERIFIER(FixedDoubleArray)
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
@@ -298,7 +294,6 @@ class WeakFixedArray : public HeapObject {
   DECL_VERIFIER(WeakFixedArray)
 
   typedef WeakArrayBodyDescriptor BodyDescriptor;
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   static const int kLengthOffset = HeapObject::kHeaderSize;
   static const int kHeaderSize = kLengthOffset + kPointerSize;
@@ -334,7 +329,7 @@ class WeakArrayList : public HeapObject {
 
   static Handle<WeakArrayList> AddToEnd(Isolate* isolate,
                                         Handle<WeakArrayList> array,
-                                        MaybeObjectHandle value);
+                                        const MaybeObjectHandle& value);
 
   inline MaybeObject* Get(int index) const;
 
@@ -361,7 +356,6 @@ class WeakArrayList : public HeapObject {
   inline void synchronized_set_capacity(int value);
 
   typedef WeakArrayBodyDescriptor BodyDescriptor;
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   static const int kCapacityOffset = HeapObject::kHeaderSize;
   static const int kLengthOffset = kCapacityOffset + kPointerSize;
@@ -381,7 +375,7 @@ class WeakArrayList : public HeapObject {
   // around in the array - this method can only be used in cases where the user
   // doesn't care about the indices! Users should make sure there are no
   // duplicates.
-  bool RemoveOne(MaybeObjectHandle value);
+  bool RemoveOne(const MaybeObjectHandle& value);
 
   class Iterator {
    public:
@@ -442,7 +436,6 @@ class ArrayList : public FixedArray {
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
   static Handle<FixedArray> Elements(Isolate* isolate, Handle<ArrayList> array);
-  bool IsFull();
   DECL_CAST(ArrayList)
 
  private:
@@ -521,8 +514,6 @@ class ByteArray : public FixedArrayBase {
                 "ByteArray maxLength not a Smi");
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
@@ -587,8 +578,6 @@ class FixedTypedArrayBase : public FixedArrayBase {
   static const size_t kMaxLength = Smi::kMaxValue;
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   inline int size() const;
 

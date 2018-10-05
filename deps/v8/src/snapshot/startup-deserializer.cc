@@ -37,7 +37,8 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   {
     DisallowHeapAllocation no_gc;
     isolate->heap()->IterateSmiRoots(this);
-    isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
+    isolate->heap()->IterateStrongRoots(this,
+                                        VISIT_ONLY_STRONG_FOR_SERIALIZATION);
     isolate->heap()->RepairFreeListsAfterDeserialization();
     isolate->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
     DeserializeDeferredObjects();
@@ -46,7 +47,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
 
     // Deserialize eager builtins from the builtin snapshot. Note that deferred
     // objects must have been deserialized prior to this.
-    builtin_deserializer.DeserializeEagerBuiltinsAndHandlers();
+    builtin_deserializer.DeserializeEagerBuiltins();
 
     // Flush the instruction cache for the entire code-space. Must happen after
     // builtins deserialization.
@@ -64,7 +65,6 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
 
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate, LogCodeObjects());
-  LOG_CODE_EVENT(isolate, LogBytecodeHandlers());
   LOG_CODE_EVENT(isolate, LogCompiledFunctions());
 
   isolate->builtins()->MarkInitialized();

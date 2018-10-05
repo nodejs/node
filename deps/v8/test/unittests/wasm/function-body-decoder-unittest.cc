@@ -2403,34 +2403,29 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
   WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
-
-  builder.AddException(sigs.v_v());
-  builder.AddException(sigs.v_i());
-  AddLocals(kWasmI32, 1);
-
-  EXPECT_VERIFIES(v_v, kExprThrow, 0);
-
-  // exception index out of range.
-  EXPECT_FAILURE(v_v, kExprThrow, 2);
-
-  EXPECT_VERIFIES(v_v, WASM_I32V(0), kExprThrow, 1);
-
-  // TODO(kschimpf): Add more tests.
+  byte ex1 = builder.AddException(sigs.v_v());
+  byte ex2 = builder.AddException(sigs.v_i());
+  byte ex3 = builder.AddException(sigs.v_ii());
+  EXPECT_VERIFIES(v_v, kExprThrow, ex1);
+  EXPECT_VERIFIES(v_v, WASM_I32V(0), kExprThrow, ex2);
+  EXPECT_FAILURE(v_v, WASM_F32(0.0), kExprThrow, ex2);
+  EXPECT_VERIFIES(v_v, WASM_I32V(0), WASM_I32V(0), kExprThrow, ex3);
+  EXPECT_FAILURE(v_v, WASM_F32(0.0), WASM_I32V(0), kExprThrow, ex3);
+  EXPECT_FAILURE(v_v, kExprThrow, 99);
 }
 
 TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
-  // TODO(titzer): unreachable code after throw should validate.
   WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
-
-  builder.AddException(sigs.v_v());
-  builder.AddException(sigs.v_i());
-  AddLocals(kWasmI32, 1);
-  EXPECT_VERIFIES(i_i, kExprThrow, 0, WASM_GET_LOCAL(0));
-
-  // TODO(kschimpf): Add more (block-level) tests of unreachable to see
-  // if they validate.
+  byte ex1 = builder.AddException(sigs.v_v());
+  byte ex2 = builder.AddException(sigs.v_i());
+  EXPECT_VERIFIES(i_i, WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_NOP);
+  EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_NOP);
+  EXPECT_VERIFIES(i_i, WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_ZERO);
+  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_ZERO);
+  EXPECT_FAILURE(i_i, WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_F32(0.0));
+  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_F32(0.0));
 }
 
 #define WASM_TRY_OP kExprTry, kLocalVoid
@@ -3130,6 +3125,20 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   pos = ExpectRun(map, pos, kWasmF32, 5);
   pos = ExpectRun(map, pos, kWasmI32, 1337);
   pos = ExpectRun(map, pos, kWasmI64, 212);
+}
+
+TEST_F(LocalDeclDecoderTest, ExceptRef) {
+  WASM_FEATURE_SCOPE(eh);
+  ValueType type = kWasmExceptRef;
+  const byte data[] = {1, 1,
+                       static_cast<byte>(ValueTypes::ValueTypeCodeFor(type))};
+  BodyLocalDecls decls(zone());
+  bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
+  EXPECT_TRUE(result);
+  EXPECT_EQ(1u, decls.type_list.size());
+
+  TypesOfLocals map = decls.type_list;
+  EXPECT_EQ(type, map[0]);
 }
 
 class BytecodeIteratorTest : public TestWithZone {};

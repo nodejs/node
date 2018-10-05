@@ -25,8 +25,7 @@ class V8_EXPORT_PRIVATE Typer {
   };
   typedef base::Flags<Flag> Flags;
 
-  Typer(Isolate* isolate, JSHeapBroker* js_heap_broker, Flags flags,
-        Graph* graph);
+  Typer(JSHeapBroker* js_heap_broker, Flags flags, Graph* graph);
   ~Typer();
 
   void Run();

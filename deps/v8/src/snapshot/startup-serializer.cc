@@ -34,10 +34,10 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  int root_index = root_index_map()->Lookup(obj);
+  RootIndex root_index;
   // We can only encode roots as such if it has already been serialized.
   // That applies to root indices below the wave front.
-  if (root_index != RootIndexMap::kInvalidRootIndex) {
+  if (root_index_map()->Lookup(obj, &root_index)) {
     if (root_has_been_serialized(root_index)) {
       PutRoot(root_index, obj, how_to_code, where_to_point, skip);
       return;
@@ -136,7 +136,7 @@ void StartupSerializer::VisitRootPointers(Root root, const char* description,
     //   referenced using kRootArray bytecodes.
     for (Object** current = start; current < end; current++) {
       SerializeRootObject(*current);
-      int root_index = static_cast<int>(current - start);
+      size_t root_index = static_cast<size_t>(current - start);
       root_has_been_serialized_.set(root_index);
     }
   } else {
@@ -152,9 +152,9 @@ void StartupSerializer::CheckRehashability(HeapObject* obj) {
 }
 
 bool StartupSerializer::MustBeDeferred(HeapObject* object) {
-  if (root_has_been_serialized_.test(Heap::kFreeSpaceMapRootIndex) &&
-      root_has_been_serialized_.test(Heap::kOnePointerFillerMapRootIndex) &&
-      root_has_been_serialized_.test(Heap::kTwoPointerFillerMapRootIndex)) {
+  if (root_has_been_serialized(RootIndex::kFreeSpaceMap) &&
+      root_has_been_serialized(RootIndex::kOnePointerFillerMap) &&
+      root_has_been_serialized(RootIndex::kTwoPointerFillerMap)) {
     // All required root objects are serialized, so any aligned objects can
     // be saved without problems.
     return false;

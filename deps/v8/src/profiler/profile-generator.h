@@ -243,7 +243,7 @@ class ProfileNode {
   };
   struct Hasher {
     std::size_t operator()(CodeEntryAndLineNumber pair) const {
-      return pair.code_entry->GetHash() ^ ComputeIntegerHash(pair.line_number);
+      return pair.code_entry->GetHash() ^ ComputeUnseededHash(pair.line_number);
     }
   };
 

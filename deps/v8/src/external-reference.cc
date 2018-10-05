@@ -16,6 +16,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/math-random.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator-base.h"
@@ -132,11 +133,6 @@ ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
 ExternalReference ExternalReference::handle_scope_implementer_address(
     Isolate* isolate) {
   return ExternalReference(isolate->handle_scope_implementer_address());
-}
-
-ExternalReference ExternalReference::pending_microtask_count_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->pending_microtask_count_address());
 }
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
@@ -724,6 +720,10 @@ ExternalReference ExternalReference::printf_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));
 }
 
+ExternalReference ExternalReference::refill_math_random() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(MathRandom::RefillCache)));
+}
+
 template <typename SubjectChar, typename PatternChar>
 ExternalReference ExternalReference::search_string_raw() {
   auto f = SearchStringRaw<SubjectChar, PatternChar>;
@@ -751,17 +751,25 @@ ExternalReference ExternalReference::orderedhashmap_gethash_raw() {
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
-ExternalReference ExternalReference::get_or_create_hash_raw(Isolate* isolate) {
+ExternalReference ExternalReference::get_or_create_hash_raw() {
   typedef Smi* (*GetOrCreateHash)(Isolate * isolate, Object * key);
   GetOrCreateHash f = Object::GetOrCreateHash;
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
-ExternalReference ExternalReference::jsreceiver_create_identity_hash(
-    Isolate* isolate) {
+ExternalReference ExternalReference::jsreceiver_create_identity_hash() {
   typedef Smi* (*CreateIdentityHash)(Isolate * isolate, JSReceiver * key);
   CreateIdentityHash f = JSReceiver::CreateIdentityHash;
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
+}
+
+static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
+  DisallowHeapAllocation no_gc;
+  return ComputeSeededHash(key, isolate->heap()->HashSeed());
+}
+
+ExternalReference ExternalReference::compute_integer_hash() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(ComputeSeededIntegerHash)));
 }
 
 ExternalReference
@@ -784,6 +792,10 @@ ExternalReference ExternalReference::copy_typed_array_elements_slice() {
 ExternalReference ExternalReference::try_internalize_string_function() {
   return ExternalReference(
       Redirect(FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
+}
+
+ExternalReference ExternalReference::smi_lexicographic_compare_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(Smi::LexicographicCompare)));
 }
 
 ExternalReference ExternalReference::check_object_type() {
@@ -816,8 +828,8 @@ ExternalReference ExternalReference::page_flags(Page* page) {
                            MemoryChunk::kFlagsOffset);
 }
 
-ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
-  return ExternalReference(entry);
+ExternalReference ExternalReference::FromRawAddress(Address address) {
+  return ExternalReference(address);
 }
 
 ExternalReference ExternalReference::cpu_features() {
@@ -841,6 +853,11 @@ ExternalReference::promise_hook_or_async_event_delegate_address(
       isolate->promise_hook_or_async_event_delegate_address());
 }
 
+ExternalReference ExternalReference::debug_execution_mode_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug_execution_mode_address());
+}
+
 ExternalReference ExternalReference::debug_is_active_address(Isolate* isolate) {
   return ExternalReference(isolate->debug()->is_active_address());
 }
@@ -861,21 +878,19 @@ ExternalReference ExternalReference::invalidate_prototype_chains_function() {
       Redirect(FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
 }
 
-double power_helper(Isolate* isolate, double x, double y) {
+double power_helper(double x, double y) {
   int y_int = static_cast<int>(y);
   if (y == y_int) {
     return power_double_int(x, y_int);  // Returns 1 if exponent is 0.
   }
   if (y == 0.5) {
-    lazily_initialize_fast_sqrt(isolate);
+    lazily_initialize_fast_sqrt();
     return (std::isinf(x)) ? V8_INFINITY
-                           : fast_sqrt(x + 0.0, isolate);  // Convert -0 to +0.
+                           : fast_sqrt(x + 0.0);  // Convert -0 to +0.
   }
   if (y == -0.5) {
-    lazily_initialize_fast_sqrt(isolate);
-    return (std::isinf(x)) ? 0
-                           : 1.0 / fast_sqrt(x + 0.0,
-                                             isolate);  // Convert -0 to +0.
+    lazily_initialize_fast_sqrt();
+    return (std::isinf(x)) ? 0 : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
   }
   return power_double_double(x, y);
 }

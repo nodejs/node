@@ -28,7 +28,7 @@ class TypedOptimizationTest : public TypedGraphTest {
  public:
   TypedOptimizationTest()
       : TypedGraphTest(3), simplified_(zone()), deps_(isolate(), zone()) {}
-  ~TypedOptimizationTest() override {}
+  ~TypedOptimizationTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {

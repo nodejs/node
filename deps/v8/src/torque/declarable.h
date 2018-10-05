@@ -18,13 +18,14 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+class Block;
+class Generic;
 class Scope;
 class ScopeChain;
-class Generic;
 
 class Declarable {
  public:
-  virtual ~Declarable() {}
+  virtual ~Declarable() = default;
   enum Kind {
     kVariable,
     kParameter,
@@ -88,12 +89,16 @@ class Declarable {
 
 class Value : public Declarable {
  public:
+  DECLARE_DECLARABLE_BOILERPLATE(Value, value);
   const std::string& name() const { return name_; }
   virtual bool IsConst() const { return true; }
-  virtual std::string value() const = 0;
-  virtual std::string RValue() const { return value(); }
-  DECLARE_DECLARABLE_BOILERPLATE(Value, value);
+  VisitResult value() const { return *value_; }
   const Type* type() const { return type_; }
+
+  void set_value(VisitResult value) {
+    DCHECK(!value_);
+    value_ = value;
+  }
 
  protected:
   Value(Kind kind, const Type* type, const std::string& name)
@@ -102,40 +107,44 @@ class Value : public Declarable {
  private:
   const Type* type_;
   std::string name_;
+  base::Optional<VisitResult> value_;
 };
 
 class Parameter : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Parameter, parameter);
-  std::string value() const override { return var_name_; }
+
+  const std::string& external_name() const { return external_name_; }
 
  private:
   friend class Declarations;
-  Parameter(const std::string& name, const Type* type,
-            const std::string& var_name)
-      : Value(Declarable::kParameter, type, name), var_name_(var_name) {}
+  Parameter(const std::string& name, std::string external_name,
+            const Type* type)
+      : Value(Declarable::kParameter, type, name),
+        external_name_(external_name) {}
 
-  std::string var_name_;
+  std::string external_name_;
 };
 
 class ModuleConstant : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(ModuleConstant, constant);
-  std::string value() const override { UNREACHABLE(); }
-  std::string RValue() const override { return name() + "()"; }
+
+  const std::string& constant_name() const { return constant_name_; }
 
  private:
   friend class Declarations;
-  explicit ModuleConstant(const std::string& name, const Type* type)
-      : Value(Declarable::kModuleConstant, type, name) {}
+  explicit ModuleConstant(std::string constant_name, const Type* type)
+      : Value(Declarable::kModuleConstant, type, constant_name),
+        constant_name_(std::move(constant_name)) {}
+
+  std::string constant_name_;
 };
 
 class Variable : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Variable, variable);
   bool IsConst() const override { return const_; }
-  std::string value() const override { return value_; }
-  std::string RValue() const override;
   void Define() {
     if (defined_ && IsConst()) {
       ReportError("Cannot re-define a const-bound variable.");
@@ -146,10 +155,8 @@ class Variable : public Value {
 
  private:
   friend class Declarations;
-  Variable(const std::string& name, const std::string& value, const Type* type,
-           bool is_const)
+  Variable(std::string name, const Type* type, bool is_const)
       : Value(Declarable::kVariable, type, name),
-        value_(value),
         defined_(false),
         const_(is_const) {
     DCHECK_IMPLIES(type->IsConstexpr(), IsConst());
@@ -163,8 +170,20 @@ class Variable : public Value {
 class Label : public Declarable {
  public:
   void AddVariable(Variable* var) { parameters_.push_back(var); }
-  std::string name() const { return name_; }
-  std::string generated() const { return generated_; }
+  Block* block() const { return *block_; }
+  void set_block(Block* block) {
+    DCHECK(!block_);
+    block_ = block;
+  }
+  const std::string& external_label_name() const {
+    return *external_label_name_;
+  }
+  const std::string& name() const { return name_; }
+  void set_external_label_name(std::string external_label_name) {
+    DCHECK(!block_);
+    DCHECK(!external_label_name_);
+    external_label_name_ = std::move(external_label_name);
+  }
   Variable* GetParameter(size_t i) const { return parameters_[i]; }
   size_t GetParameterCount() const { return parameters_.size(); }
   const std::vector<Variable*>& GetParameters() const { return parameters_; }
@@ -172,34 +191,35 @@ class Label : public Declarable {
   DECLARE_DECLARABLE_BOILERPLATE(Label, label);
   void MarkUsed() { used_ = true; }
   bool IsUsed() const { return used_; }
+  bool IsDeferred() const { return deferred_; }
 
  private:
   friend class Declarations;
-  explicit Label(const std::string& name)
+  explicit Label(std::string name, bool deferred = false)
       : Declarable(Declarable::kLabel),
-        name_(name),
-        generated_("label_" + name + "_" + std::to_string(next_id_++)),
-        used_(false) {}
+        name_(std::move(name)),
+        used_(false),
+        deferred_(deferred) {}
 
   std::string name_;
-  std::string generated_;
+  base::Optional<Block*> block_;
+  base::Optional<std::string> external_label_name_;
   std::vector<Variable*> parameters_;
   static size_t next_id_;
   bool used_;
+  bool deferred_;
 };
 
 class ExternConstant : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(ExternConstant, constant);
-  std::string value() const override { return value_; }
 
  private:
   friend class Declarations;
-  explicit ExternConstant(const std::string& name, const Type* type,
-                          const std::string& value)
-      : Value(Declarable::kExternConstant, type, name), value_(value) {}
-
-  std::string value_;
+  explicit ExternConstant(std::string name, const Type* type, std::string value)
+      : Value(Declarable::kExternConstant, type, std::move(name)) {
+    set_value(VisitResult(type, std::move(value)));
+  }
 };
 
 class Callable : public Declarable {

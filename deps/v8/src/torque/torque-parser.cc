@@ -183,6 +183,24 @@ T* MakeNode(Args... args) {
       new T(CurrentSourcePosition::Get(), std::move(args)...)));
 }
 
+void LintGenericParameters(const GenericParameters& parameters) {
+  for (const std::string& parameter : parameters) {
+    if (!IsUpperCamelCase(parameter)) {
+      NamingConventionError("Generic parameter", parameter, "UpperCamelCase");
+    }
+  }
+}
+
+void CheckNotDeferredStatement(Statement* statement) {
+  if (BlockStatement* block = BlockStatement::DynamicCast(statement)) {
+    if (block->deferred) {
+      LintError(
+          "cannot use deferred with a statement block here, it will have no "
+          "effect");
+    }
+  }
+}
+
 base::Optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto callee = child_results->NextAs<std::string>();
   auto generic_args = child_results->NextAs<TypeList>();
@@ -233,6 +251,10 @@ base::Optional<ParseResult> MakeParameterListFromNameAndTypeList(
   }
   ParameterList result;
   for (NameAndTypeExpression& pair : params) {
+    if (!IsLowerCamelCase(pair.name)) {
+      NamingConventionError("Parameter", pair.name, "lowerCamelCase");
+    }
+
     result.names.push_back(std::move(pair.name));
     result.types.push_back(pair.type);
   }
@@ -269,6 +291,8 @@ base::Optional<ParseResult> MakeExternalMacro(
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
+
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
@@ -287,7 +311,13 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
     ParseResultIterator* child_results) {
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
+  if (!IsUpperCamelCase(name)) {
+    NamingConventionError("Macro", name, "UpperCamelCase");
+  }
+
   auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
+
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
@@ -308,7 +338,13 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
     ParseResultIterator* child_results) {
   auto javascript_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
+  if (!IsUpperCamelCase(name)) {
+    NamingConventionError("Builtin", name, "UpperCamelCase");
+  }
+
   auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
+
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto body = child_results->NextAs<base::Optional<Statement*>>();
@@ -327,6 +363,10 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
 base::Optional<ParseResult> MakeConstDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
+  if (!IsValidModuleConstName(name)) {
+    NamingConventionError("Constant", name, "kUpperCamelCase");
+  }
+
   auto type = child_results->NextAs<TypeExpression*>();
   auto expression = child_results->NextAs<Expression*>();
   Declaration* result =
@@ -355,6 +395,9 @@ base::Optional<ParseResult> MakeTypeAliasDeclaration(
 base::Optional<ParseResult> MakeTypeDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
+  if (!IsValidTypeName(name)) {
+    NamingConventionError("Type", name, "UpperCamelCase");
+  }
   auto extends = child_results->NextAs<base::Optional<std::string>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto constexpr_generates =
@@ -368,6 +411,9 @@ base::Optional<ParseResult> MakeTypeDeclaration(
 base::Optional<ParseResult> MakeExplicitModuleDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
+  if (!IsSnakeCase(name)) {
+    NamingConventionError("Module", name, "snake_case");
+  }
   auto declarations = child_results->NextAs<std::vector<Declaration*>>();
   Declaration* result = MakeNode<ExplicitModuleDeclaration>(
       std::move(name), std::move(declarations));
@@ -383,6 +429,7 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(body);
   Declaration* result = MakeNode<SpecializationDeclaration>(
       std::move(name), std::move(generic_parameters), std::move(parameters),
       return_type, std::move(labels), body);
@@ -403,6 +450,8 @@ base::Optional<ParseResult> MakeExternalBuiltin(
   auto js_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
+
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   BuiltinDeclaration* builtin =
@@ -536,7 +585,7 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
     BlockStatement* case_block;
     if (i < cases.size() - 1) {
       value = MakeNode<CallExpression>(
-          "cast", false, std::vector<TypeExpression*>{cases[i].type},
+          "Cast", false, std::vector<TypeExpression*>{cases[i].type},
           std::vector<Expression*>{value},
           std::vector<std::string>{"_NextCase"});
       case_block = MakeNode<BlockStatement>();
@@ -567,6 +616,7 @@ base::Optional<ParseResult> MakeTypeswitchCase(
   auto name = child_results->NextAs<base::Optional<std::string>>();
   auto type = child_results->NextAs<TypeExpression*>();
   auto block = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(block);
   return ParseResult{TypeswitchCase{child_results->matched_input().pos,
                                     std::move(name), type, block}};
 }
@@ -576,6 +626,7 @@ base::Optional<ParseResult> MakeWhileStatement(
   auto condition = child_results->NextAs<Expression*>();
   auto body = child_results->NextAs<Statement*>();
   Statement* result = MakeNode<WhileStatement>(condition, body);
+  CheckNotDeferredStatement(result);
   return ParseResult{result};
 }
 
@@ -599,6 +650,10 @@ base::Optional<ParseResult> MakeVarDeclarationStatement(
   bool const_qualified = kind == "const";
   if (!const_qualified) DCHECK_EQ("let", kind);
   auto name = child_results->NextAs<std::string>();
+  if (!IsLowerCamelCase(name)) {
+    NamingConventionError("Variable", name, "lowerCamelCase");
+  }
+
   auto type = child_results->NextAs<TypeExpression*>();
   base::Optional<Expression*> initializer;
   if (child_results->HasNext())
@@ -640,6 +695,7 @@ base::Optional<ParseResult> MakeBlockStatement(
 base::Optional<ParseResult> MakeTryLabelStatement(
     ParseResultIterator* child_results) {
   auto try_block = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(try_block);
   auto label_blocks = child_results->NextAs<std::vector<LabelBlock*>>();
   Statement* result =
       MakeNode<TryLabelStatement>(try_block, std::move(label_blocks));
@@ -649,9 +705,11 @@ base::Optional<ParseResult> MakeTryLabelStatement(
 base::Optional<ParseResult> MakeForOfLoopStatement(
     ParseResultIterator* child_results) {
   auto var_decl = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(var_decl);
   auto iterable = child_results->NextAs<Expression*>();
   auto range = child_results->NextAs<base::Optional<RangeExpression>>();
   auto body = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(body);
   Statement* result =
       MakeNode<ForOfLoopStatement>(var_decl, iterable, range, body);
   return ParseResult{result};
@@ -663,12 +721,16 @@ base::Optional<ParseResult> MakeForLoopStatement(
   auto test = child_results->NextAs<base::Optional<Expression*>>();
   auto action = child_results->NextAs<base::Optional<Expression*>>();
   auto body = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(body);
   Statement* result = MakeNode<ForLoopStatement>(var_decl, test, action, body);
   return ParseResult{result};
 }
 
 base::Optional<ParseResult> MakeLabelBlock(ParseResultIterator* child_results) {
   auto label = child_results->NextAs<std::string>();
+  if (!IsUpperCamelCase(label)) {
+    NamingConventionError("Label", label, "UpperCamelCase");
+  }
   auto parameters = child_results->NextAs<ParameterList>();
   auto body = child_results->NextAs<Statement*>();
   LabelBlock* result =
@@ -798,6 +860,9 @@ base::Optional<ParseResult> MakeConditionalExpression(
 base::Optional<ParseResult> MakeLabelAndTypes(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
+  if (!IsUpperCamelCase(name)) {
+    NamingConventionError("Label", name, "UpperCamelCase");
+  }
   auto types = child_results->NextAs<std::vector<TypeExpression*>>();
   return ParseResult{LabelAndTypes{std::move(name), std::move(types)}};
 }
@@ -987,7 +1052,7 @@ struct TorqueGrammar : Grammar {
            MakeParameterListFromNameAndTypeList<true>)};
 
   // Result: std::string
-  Symbol* OneOf(std::vector<std::string> alternatives) {
+  Symbol* OneOf(const std::vector<std::string>& alternatives) {
     Symbol* result = NewSymbol();
     for (const std::string& s : alternatives) {
       result->AddRule(Rule({Token(s)}, YieldMatchedInput));
@@ -1200,7 +1265,7 @@ struct TorqueGrammar : Grammar {
   Symbol typeswitchCase = {
       Rule({Token("case"), Token("("),
             Optional<std::string>(Sequence({&identifier, Token(":")})), &type,
-            Token(")"), &block},
+            Token(")"), Token(":"), &block},
            MakeTypeswitchCase)};
 
   // Result: base::Optional<Statement*>

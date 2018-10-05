@@ -114,7 +114,9 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(LogicalOrExpression* expr);
   void Visit(LogicalAndExpression* expr);
-  void DeclareExpressionForBranch(Expression* node);
+  void DeclareExpressionForBranch(
+      Expression* node, base::Optional<Statement*> true_statement = {},
+      base::Optional<Statement*> false_statement = {});
 
   void Visit(ConditionalExpression* expr);
   void Visit(IfStatement* stmt);
@@ -122,7 +124,6 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(ForOfLoopStatement* stmt);
 
   void Visit(AssignmentExpression* expr) {
-    MarkLocationModified(expr->location);
     Visit(expr->location);
     Visit(expr->value);
   }
@@ -133,7 +134,6 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(ForLoopStatement* stmt);
 
   void Visit(IncrementDecrementExpression* expr) {
-    MarkLocationModified(expr->location);
     Visit(expr->location);
   }
 
@@ -143,29 +143,10 @@ class DeclarationVisitor : public FileVisitor {
   void GenerateHeader(std::string& file_name);
 
  private:
-  struct LiveAndChanged {
-    std::set<const Variable*> live;
-    std::set<const Variable*> changed;
-  };
-
-  void PushControlSplit() {
-    LiveAndChanged live_and_changed;
-    live_and_changed.live = declarations()->GetLiveVariables();
-    live_and_changed_variables_.push_back(live_and_changed);
-  }
-
   Variable* DeclareVariable(const std::string& name, const Type* type,
                             bool is_const);
   Parameter* DeclareParameter(const std::string& name, const Type* type);
 
-  std::set<const Variable*> PopControlSplit() {
-    auto result = live_and_changed_variables_.back().changed;
-    live_and_changed_variables_.pop_back();
-    return result;
-  }
-
-  void MarkLocationModified(Expression* location);
-  bool MarkVariableModified(const Variable* variable);
   void DeclareSignature(const Signature& signature);
   void DeclareSpecializedTypes(const SpecializationKey& key);
 
@@ -175,7 +156,6 @@ class DeclarationVisitor : public FileVisitor {
 
   Declarations::ModuleScopeActivator scope_;
   std::vector<Builtin*> torque_builtins_;
-  std::vector<LiveAndChanged> live_and_changed_variables_;
 };
 
 }  // namespace torque

@@ -15,4 +15,9 @@
   'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
   'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
 }],  # 'system == macos and asan'
+
+['(arch == arm or arch == mips) and not simulator_run', {
+  # Uses too much memory.
+  'Parameterized/WasmCodeManagerTest.GrowingVsFixedModule/Fixed': [SKIP]
+}],  # '(arch == arm or arch == mips) and not simulator_run'
 ]

@@ -27,7 +27,7 @@ class SnapshotByteSource final {
   explicit SnapshotByteSource(Vector<const byte> payload)
       : data_(payload.start()), length_(payload.length()), position_(0) {}
 
-  ~SnapshotByteSource() {}
+  ~SnapshotByteSource() = default;
 
   bool HasMore() { return position_ < length_; }
 
@@ -82,10 +82,10 @@ class SnapshotByteSource final {
  */
 class SnapshotByteSink {
  public:
-  SnapshotByteSink() {}
+  SnapshotByteSink() = default;
   explicit SnapshotByteSink(int initial_size) : data_(initial_size) {}
 
-  ~SnapshotByteSink() {}
+  ~SnapshotByteSink() = default;
 
   void Put(byte b, const char* description) { data_.push_back(b); }
 

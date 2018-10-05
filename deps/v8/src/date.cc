@@ -27,7 +27,7 @@ static const char kDaysInMonths[] =
     {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 DateCache::DateCache()
-    : stamp_(0),
+    : stamp_(nullptr),
       tz_cache_(
 #ifdef V8_INTL_SUPPORT
           FLAG_icu_timezone_data ? new ICUTimezoneCache()

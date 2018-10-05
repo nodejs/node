@@ -1369,6 +1369,7 @@ void Simulator::EvalTableInit() {
   EvalTable[SRLG] = &Simulator::Evaluate_SRLG;
   EvalTable[SLLG] = &Simulator::Evaluate_SLLG;
   EvalTable[CSY] = &Simulator::Evaluate_CSY;
+  EvalTable[CSG] = &Simulator::Evaluate_CSG;
   EvalTable[RLLG] = &Simulator::Evaluate_RLLG;
   EvalTable[RLL] = &Simulator::Evaluate_RLL;
   EvalTable[STMG] = &Simulator::Evaluate_STMG;
@@ -8778,9 +8779,26 @@ EVALUATE(CSY) {
 }
 
 EVALUATE(CSG) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(CSG);
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  int32_t offset = d2;
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t target_addr = static_cast<intptr_t>(b2_val) + offset;
+
+  int64_t r1_val = get_register(r1);
+  int64_t r3_val = get_register(r3);
+
+  DCHECK_EQ(target_addr & 0x3, 0);
+  bool is_success = __atomic_compare_exchange_n(
+      reinterpret_cast<int64_t*>(target_addr), &r1_val, r3_val, true,
+      __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+  if (!is_success) {
+    set_register(r1, r1_val);
+    condition_reg_ = 0x4;
+  } else {
+    condition_reg_ = 0x8;
+  }
+  return length;
 }
 
 EVALUATE(RLLG) {
@@ -9153,28 +9171,38 @@ EVALUATE(STOCG) {
   return 0;
 }
 
+#define ATOMIC_LOAD_AND_UPDATE_WORD64(op)                             \
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);                           \
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);                  \
+  intptr_t addr = static_cast<intptr_t>(b2_val) + d2;                 \
+  int64_t r3_val = get_register(r3);                                  \
+  DCHECK_EQ(addr & 0x3, 0);                                           \
+  int64_t r1_val =                                                    \
+      op(reinterpret_cast<int64_t*>(addr), r3_val, __ATOMIC_SEQ_CST); \
+  set_register(r1, r1_val);
+
 EVALUATE(LANG) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LANG);
+  ATOMIC_LOAD_AND_UPDATE_WORD64(__atomic_fetch_and);
+  return length;
 }
 
 EVALUATE(LAOG) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAOG);
+  ATOMIC_LOAD_AND_UPDATE_WORD64(__atomic_fetch_or);
+  return length;
 }
 
 EVALUATE(LAXG) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAXG);
+  ATOMIC_LOAD_AND_UPDATE_WORD64(__atomic_fetch_xor);
+  return length;
 }
 
 EVALUATE(LAAG) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAAG);
+  ATOMIC_LOAD_AND_UPDATE_WORD64(__atomic_fetch_add);
+  return length;
 }
 
 EVALUATE(LAALG) {
@@ -9182,6 +9210,8 @@ EVALUATE(LAALG) {
   USE(instr);
   return 0;
 }
+
+#undef ATOMIC_LOAD_AND_UPDATE_WORD64
 
 EVALUATE(LOC) {
   UNIMPLEMENTED();

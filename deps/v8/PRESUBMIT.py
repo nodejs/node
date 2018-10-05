@@ -74,6 +74,7 @@ def _V8PresubmitChecks(input_api, output_api):
   sys.path.append(input_api.os_path.join(
         input_api.PresubmitLocalPath(), 'tools'))
   from presubmit import CppLintProcessor
+  from presubmit import TorqueFormatProcessor
   from presubmit import SourceProcessor
   from presubmit import StatusFilesProcessor
 
@@ -83,10 +84,19 @@ def _V8PresubmitChecks(input_api, output_api):
       white_list=None,
       black_list=_NO_LINT_PATHS)
 
+  def FilterTorqueFile(affected_file):
+    return input_api.FilterSourceFile(
+      affected_file,
+      white_list=(r'.+\.tq'))
+
   results = []
   if not CppLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterFile, include_deletes=False)):
     results.append(output_api.PresubmitError("C++ lint check failed"))
+  if not TorqueFormatProcessor().RunOnFiles(
+      input_api.AffectedFiles(file_filter=FilterTorqueFile,
+                              include_deletes=False)):
+    results.append(output_api.PresubmitError("Torque format check failed"))
   if not SourceProcessor().RunOnFiles(
       input_api.AffectedFiles(include_deletes=False)):
     results.append(output_api.PresubmitError(

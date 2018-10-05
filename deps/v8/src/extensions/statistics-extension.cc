@@ -63,10 +63,7 @@ void StatisticsExtension::GetCounters(
   Heap* heap = isolate->heap();
 
   if (args.Length() > 0) {  // GC if first argument evaluates to true.
-    if (args[0]->IsBoolean() &&
-        args[0]
-            ->BooleanValue(args.GetIsolate()->GetCurrentContext())
-            .FromMaybe(false)) {
+    if (args[0]->IsBoolean() && args[0]->BooleanValue(args.GetIsolate())) {
       heap->CollectAllGarbage(Heap::kNoGCFlags,
                               GarbageCollectionReason::kCountersExtension);
     }

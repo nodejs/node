@@ -10,4 +10,6 @@ assertDoesNotThrow(() => Intl.getCanonicalLocales("en-a-ca-Chinese-u-ca-Chinese"
 
 // Check duplicate subtags (after the first tag) are detected.
 assertThrows(() => Intl.getCanonicalLocales("en-foobar-foobar"), RangeError);
-assertThrows(() => Intl.getCanonicalLocales("en-u-ca-gregory-ca-chinese"), RangeError);
+
+// Duplicate subtags are valid as per the ECMA262 spec.
+assertDoesNotThrow(() => Intl.getCanonicalLocales("en-u-ca-gregory-ca-chinese"));

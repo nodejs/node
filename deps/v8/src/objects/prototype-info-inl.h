@@ -20,7 +20,7 @@ namespace internal {
 CAST_ACCESSOR(PrototypeInfo)
 
 Map* PrototypeInfo::ObjectCreateMap() {
-  return Map::cast(object_create_map()->ToWeakHeapObject());
+  return Map::cast(object_create_map()->GetHeapObjectAssumeWeak());
 }
 
 // static
@@ -31,7 +31,7 @@ void PrototypeInfo::SetObjectCreateMap(Handle<PrototypeInfo> info,
 
 bool PrototypeInfo::HasObjectCreateMap() {
   MaybeObject* cache = object_create_map();
-  return cache->IsWeakHeapObject();
+  return cache->IsWeak();
 }
 
 ACCESSORS(PrototypeInfo, module_namespace, Object, kJSModuleNamespaceOffset)
@@ -51,7 +51,7 @@ void PrototypeUsers::MarkSlotEmpty(WeakArrayList* array, int index) {
 }
 
 Smi* PrototypeUsers::empty_slot_index(WeakArrayList* array) {
-  return array->Get(kEmptySlotIndex)->ToSmi();
+  return array->Get(kEmptySlotIndex)->cast<Smi>();
 }
 
 void PrototypeUsers::set_empty_slot_index(WeakArrayList* array, int index) {

@@ -61,10 +61,11 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        int32_t builtin_index)
     : CodeAssemblerState(
           isolate, zone,
-          Linkage::GetJSCallDescriptor(zone, false, parameter_count,
-                                       kind == Code::BUILTIN
-                                           ? CallDescriptor::kPushArgumentCount
-                                           : CallDescriptor::kNoFlags),
+          Linkage::GetJSCallDescriptor(
+              zone, false, parameter_count,
+              (kind == Code::BUILTIN ? CallDescriptor::kPushArgumentCount
+                                     : CallDescriptor::kNoFlags) |
+                  CallDescriptor::kCanUseRoots),
           kind, name, poisoning_level, 0, builtin_index) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
@@ -84,13 +85,13 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
       code_generated_(false),
       variables_(zone) {}
 
-CodeAssemblerState::~CodeAssemblerState() {}
+CodeAssemblerState::~CodeAssemblerState() = default;
 
 int CodeAssemblerState::parameter_count() const {
   return static_cast<int>(raw_assembler_->call_descriptor()->ParameterCount());
 }
 
-CodeAssembler::~CodeAssembler() {}
+CodeAssembler::~CodeAssembler() = default;
 
 #if DEBUG
 void CodeAssemblerState::PrintCurrentBlock(std::ostream& os) {
@@ -309,7 +310,7 @@ TNode<Float64T> CodeAssembler::Float64Constant(double value) {
 }
 
 TNode<HeapNumber> CodeAssembler::NaNConstant() {
-  return UncheckedCast<HeapNumber>(LoadRoot(Heap::kNanValueRootIndex));
+  return UncheckedCast<HeapNumber>(LoadRoot(RootIndex::kNanValue));
 }
 
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t& out_value) {
@@ -924,6 +925,17 @@ TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(
       raw_assembler()->ChangeFloat64ToUint32(value));
 }
 
+TNode<Float64T> CodeAssembler::ChangeUintPtrToFloat64(TNode<UintPtrT> value) {
+  if (raw_assembler()->machine()->Is64()) {
+    // TODO(turbofan): Maybe we should introduce a ChangeUint64ToFloat64
+    // machine operator to TurboFan here?
+    return ReinterpretCast<Float64T>(
+        raw_assembler()->RoundUint64ToFloat64(value));
+  }
+  return ReinterpretCast<Float64T>(
+      raw_assembler()->ChangeUint32ToFloat64(value));
+}
+
 Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
   if (raw_assembler()->machine()->Is64()) {
     return raw_assembler()->RoundInt64ToFloat64(value);
@@ -952,7 +964,7 @@ Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
   return raw_assembler()->AtomicLoad(rep, base, offset);
 }
 
-TNode<Object> CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
+TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(root_index)) {
     Handle<Object> root = isolate()->heap()->root_handle(root_index);
     if (root->IsSmi()) {
@@ -967,8 +979,9 @@ TNode<Object> CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
   // cases, it would boil down to loading from a fixed kRootRegister offset.
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
+  size_t offset = static_cast<size_t>(root_index) * kPointerSize;
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), roots_array_start,
-                                    IntPtrConstant(root_index * kPointerSize)));
+                                    IntPtrConstant(offset)));
 }
 
 Node* CodeAssembler::Store(Node* base, Node* value) {
@@ -998,14 +1011,16 @@ Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
 }
 
 Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
-                                 Node* offset, Node* value) {
-  return raw_assembler()->AtomicStore(rep, base, offset, value);
+                                 Node* offset, Node* value, Node* value_high) {
+  return raw_assembler()->AtomicStore(rep, base, offset, value, value_high);
 }
 
-#define ATOMIC_FUNCTION(name)                                        \
-  Node* CodeAssembler::Atomic##name(MachineType type, Node* base,    \
-                                    Node* offset, Node* value) {     \
-    return raw_assembler()->Atomic##name(type, base, offset, value); \
+#define ATOMIC_FUNCTION(name)                                       \
+  Node* CodeAssembler::Atomic##name(MachineType type, Node* base,   \
+                                    Node* offset, Node* value,      \
+                                    Node* value_high) {             \
+    return raw_assembler()->Atomic##name(type, base, offset, value, \
+                                         value_high);               \
   }
 ATOMIC_FUNCTION(Exchange);
 ATOMIC_FUNCTION(Add);
@@ -1017,17 +1032,20 @@ ATOMIC_FUNCTION(Xor);
 
 Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
                                            Node* offset, Node* old_value,
-                                           Node* new_value) {
-  return raw_assembler()->AtomicCompareExchange(type, base, offset, old_value,
-                                                new_value);
+                                           Node* new_value,
+                                           Node* old_value_high,
+                                           Node* new_value_high) {
+  return raw_assembler()->AtomicCompareExchange(
+      type, base, offset, old_value, old_value_high, new_value, new_value_high);
 }
 
-Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
+Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
   DCHECK(Heap::RootCanBeWrittenAfterInitialization(root_index));
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
+  size_t offset = static_cast<size_t>(root_index) * kPointerSize;
   return StoreNoWriteBarrier(MachineRepresentation::kTagged, roots_array_start,
-                             IntPtrConstant(root_index * kPointerSize), value);
+                             IntPtrConstant(offset), value);
 }
 
 Node* CodeAssembler::Retain(Node* value) {
@@ -1035,6 +1053,7 @@ Node* CodeAssembler::Retain(Node* value) {
 }
 
 Node* CodeAssembler::Projection(int index, Node* value) {
+  DCHECK(index < value->op()->ValueOutputCount());
   return raw_assembler()->Projection(index, value);
 }
 
@@ -1392,8 +1411,8 @@ void CodeAssembler::Branch(SloppyTNode<IntegralT> condition, Label* true_label,
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition,
-                           std::function<void()> true_body,
-                           std::function<void()> false_body) {
+                           const std::function<void()>& true_body,
+                           const std::function<void()>& false_body) {
   int32_t constant;
   if (ToInt32Constant(condition, constant)) {
     return constant ? true_body() : false_body();
@@ -1410,7 +1429,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition,
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition, Label* true_label,
-                           std::function<void()> false_body) {
+                           const std::function<void()>& false_body) {
   int32_t constant;
   if (ToInt32Constant(condition, constant)) {
     return constant ? Goto(true_label) : false_body();
@@ -1423,7 +1442,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition, Label* true_label,
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition,
-                           std::function<void()> true_body,
+                           const std::function<void()>& true_body,
                            Label* false_label) {
   int32_t constant;
   if (ToInt32Constant(condition, constant)) {
@@ -1733,6 +1752,43 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
   }
 
   bound_ = true;
+}
+
+void CodeAssemblerParameterizedLabelBase::AddInputs(std::vector<Node*> inputs) {
+  if (!phi_nodes_.empty()) {
+    DCHECK_EQ(inputs.size(), phi_nodes_.size());
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      state_->raw_assembler_->AppendPhiInput(phi_nodes_[i], inputs[i]);
+    }
+  } else {
+    DCHECK_EQ(inputs.size(), phi_inputs_.size());
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      phi_inputs_[i].push_back(inputs[i]);
+    }
+  }
+}
+
+Node* CodeAssemblerParameterizedLabelBase::CreatePhi(
+    MachineRepresentation rep, const std::vector<Node*>& inputs) {
+  for (Node* input : inputs) {
+    // We use {nullptr} as a sentinel for an uninitialized value. We must not
+    // create phi nodes for these.
+    if (input == nullptr) return nullptr;
+  }
+  return state_->raw_assembler_->Phi(rep, static_cast<int>(inputs.size()),
+                                     &inputs.front());
+}
+
+const std::vector<Node*>& CodeAssemblerParameterizedLabelBase::CreatePhis(
+    std::vector<MachineRepresentation> representations) {
+  DCHECK(is_used());
+  DCHECK(phi_nodes_.empty());
+  phi_nodes_.reserve(phi_inputs_.size());
+  DCHECK_EQ(representations.size(), phi_inputs_.size());
+  for (size_t i = 0; i < phi_inputs_.size(); ++i) {
+    phi_nodes_.push_back(CreatePhi(representations[i], phi_inputs_[i]));
+  }
+  return phi_nodes_;
 }
 
 }  // namespace compiler

@@ -50,21 +50,6 @@ TEST(IsArray) {
 }
 
 
-TEST(IsDate) {
-  FunctionTester T("(function(a) { return %_IsDate(a); })", flags);
-
-  T.CheckTrue(T.NewObject("new Date()"));
-  T.CheckFalse(T.NewObject("(function() {})"));
-  T.CheckFalse(T.NewObject("([1])"));
-  T.CheckFalse(T.NewObject("({})"));
-  T.CheckFalse(T.NewObject("(/x/)"));
-  T.CheckFalse(T.undefined());
-  T.CheckFalse(T.null());
-  T.CheckFalse(T.Val("x"));
-  T.CheckFalse(T.Val(1));
-}
-
-
 TEST(IsFunction) {
   FunctionTester T("(function(a) { return %_IsFunction(a); })", flags);
 

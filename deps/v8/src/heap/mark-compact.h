@@ -63,21 +63,9 @@ class MarkingStateBase {
     return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
   }
 
-  V8_INLINE bool WhiteToGrey(HeapObject* obj) {
-    return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool WhiteToBlack(HeapObject* obj) {
-    return WhiteToGrey(obj) && GreyToBlack(obj);
-  }
-
-  V8_INLINE bool GreyToBlack(HeapObject* obj) {
-    MemoryChunk* p = MemoryChunk::FromAddress(obj->address());
-    MarkBit markbit = MarkBitFrom(p, obj->address());
-    if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
-    static_cast<ConcreteState*>(this)->IncrementLiveBytes(p, obj->Size());
-    return true;
-  }
+  V8_INLINE bool WhiteToGrey(HeapObject* obj);
+  V8_INLINE bool WhiteToBlack(HeapObject* obj);
+  V8_INLINE bool GreyToBlack(HeapObject* obj);
 
   void ClearLiveness(MemoryChunk* chunk) {
     static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
@@ -250,7 +238,7 @@ enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 // Base class for minor and full MC collectors.
 class MarkCompactCollectorBase {
  public:
-  virtual ~MarkCompactCollectorBase() {}
+  virtual ~MarkCompactCollectorBase() = default;
 
   virtual void SetUp() = 0;
   virtual void TearDown() = 0;
@@ -464,11 +452,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 #else
   using MarkingState = MajorNonAtomicMarkingState;
 #endif  // V8_CONCURRENT_MARKING
+
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
+
   // Wrapper for the shared and bailout worklists.
   class MarkingWorklist {
    public:
     using ConcurrentMarkingWorklist = Worklist<HeapObject*, 64>;
+    using EmbedderTracingWorklist = Worklist<HeapObject*, 16>;
 
     // The heap parameter is not used but needed to match the sequential case.
     explicit MarkingWorklist(Heap* heap) {}
@@ -500,8 +491,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     }
 
     HeapObject* PopBailout() {
-      HeapObject* result;
 #ifdef V8_CONCURRENT_MARKING
+      HeapObject* result;
       if (bailout_.Pop(kMainThread, &result)) return result;
 #endif
       return nullptr;
@@ -511,6 +502,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       bailout_.Clear();
       shared_.Clear();
       on_hold_.Clear();
+      embedder_.Clear();
     }
 
     bool IsBailoutEmpty() { return bailout_.IsLocalEmpty(kMainThread); }
@@ -521,6 +513,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
              on_hold_.IsLocalEmpty(kMainThread) &&
              bailout_.IsGlobalPoolEmpty() && shared_.IsGlobalPoolEmpty() &&
              on_hold_.IsGlobalPoolEmpty();
+    }
+
+    bool IsEmbedderEmpty() {
+      return embedder_.IsLocalEmpty(kMainThread) &&
+             embedder_.IsGlobalPoolEmpty();
     }
 
     int Size() {
@@ -538,11 +535,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       bailout_.Update(callback);
       shared_.Update(callback);
       on_hold_.Update(callback);
+      embedder_.Update(callback);
     }
 
     ConcurrentMarkingWorklist* shared() { return &shared_; }
     ConcurrentMarkingWorklist* bailout() { return &bailout_; }
     ConcurrentMarkingWorklist* on_hold() { return &on_hold_; }
+    EmbedderTracingWorklist* embedder() { return &embedder_; }
 
     void Print() {
       PrintWorklist("shared", &shared_);
@@ -568,6 +567,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     // for new space. This allow the compiler to remove write barriers
     // for freshly allocatd objects.
     ConcurrentMarkingWorklist on_hold_;
+
+    // Worklist for objects that potentially require embedder tracing, i.e.,
+    // these objects need to be handed over to the embedder to find the full
+    // transitive closure.
+    EmbedderTracingWorklist embedder_;
   };
 
   class RootMarkingVisitor;
@@ -625,8 +629,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void UpdateSlots(SlotsBuffer* buffer);
   void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
-
-  void ClearMarkbits();
 
   bool is_compacting() const { return compacting_; }
 
@@ -703,7 +705,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
  private:
   explicit MarkCompactCollector(Heap* heap);
-  ~MarkCompactCollector();
+  ~MarkCompactCollector() override;
 
   bool WillBeDeoptimized(Code* code);
 
@@ -835,9 +837,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void PostProcessEvacuationCandidates();
   void ReportAbortedEvacuationCandidate(HeapObject* failed_object, Page* page);
 
-  void ClearMarkbitsInPagedSpace(PagedSpace* space);
-  void ClearMarkbitsInNewSpace(NewSpace* space);
-
   static const int kEphemeronChunkSize = 8 * KB;
 
   int NumberOfParallelEphemeronVisitingTasks(size_t elements);
@@ -910,15 +909,14 @@ class MarkingVisitor final
 
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 
-  V8_INLINE int VisitAllocationSite(Map* map, AllocationSite* object);
   V8_INLINE int VisitBytecodeArray(Map* map, BytecodeArray* object);
-  V8_INLINE int VisitCodeDataContainer(Map* map, CodeDataContainer* object);
   V8_INLINE int VisitEphemeronHashTable(Map* map, EphemeronHashTable* object);
   V8_INLINE int VisitFixedArray(Map* map, FixedArray* object);
   V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
-  V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
+  V8_INLINE int VisitJSArrayBuffer(Map* map, JSArrayBuffer* object);
+  V8_INLINE int VisitJSDataView(Map* map, JSDataView* object);
+  V8_INLINE int VisitJSTypedArray(Map* map, JSTypedArray* object);
   V8_INLINE int VisitMap(Map* map, Map* object);
-  V8_INLINE int VisitNativeContext(Map* map, Context* object);
   V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);
 
   // ObjectVisitor implementation.
@@ -931,12 +929,20 @@ class MarkingVisitor final
   V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
 
+  // Weak list pointers should be ignored during marking. The lists are
+  // reconstructed after GC.
+  void VisitCustomWeakPointers(HeapObject* host, Object** start,
+                               Object** end) final {}
+
  private:
   // Granularity in which FixedArrays are scanned if |fixed_array_mode|
   // is true.
   static const int kProgressBarScanningChunk = 32 * 1024;
 
   V8_INLINE int VisitFixedArrayIncremental(Map* map, FixedArray* object);
+
+  template <typename T>
+  V8_INLINE int VisitEmbedderTracingSubclass(Map* map, T* object);
 
   V8_INLINE void MarkMapContents(Map* map);
 
@@ -980,7 +986,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   using NonAtomicMarkingState = MinorNonAtomicMarkingState;
 
   explicit MinorMarkCompactCollector(Heap* heap);
-  ~MinorMarkCompactCollector();
+  ~MinorMarkCompactCollector() override;
 
   MarkingState* marking_state() { return &marking_state_; }
 

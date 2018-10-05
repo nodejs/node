@@ -46,9 +46,9 @@ class Writer {
     DCHECK_GE(current_size(), sizeof(T));
     WriteUnalignedValue(reinterpret_cast<Address>(current_location()), value);
     pos_ += sizeof(T);
-    if (FLAG_wasm_trace_serialization) {
-      StdoutStream{} << "wrote: " << (size_t)value << " sized: " << sizeof(T)
-                     << std::endl;
+    if (FLAG_trace_wasm_serialization) {
+      StdoutStream{} << "wrote: " << static_cast<size_t>(value)
+                     << " sized: " << sizeof(T) << std::endl;
     }
   }
 
@@ -58,7 +58,7 @@ class Writer {
       memcpy(current_location(), v.start(), v.size());
       pos_ += v.size();
     }
-    if (FLAG_wasm_trace_serialization) {
+    if (FLAG_trace_wasm_serialization) {
       StdoutStream{} << "wrote vector of " << v.size() << " elements"
                      << std::endl;
     }
@@ -90,9 +90,9 @@ class Reader {
     T value =
         ReadUnalignedValue<T>(reinterpret_cast<Address>(current_location()));
     pos_ += sizeof(T);
-    if (FLAG_wasm_trace_serialization) {
-      StdoutStream{} << "read: " << (size_t)value << " sized: " << sizeof(T)
-                     << std::endl;
+    if (FLAG_trace_wasm_serialization) {
+      StdoutStream{} << "read: " << static_cast<size_t>(value)
+                     << " sized: " << sizeof(T) << std::endl;
     }
     return value;
   }
@@ -103,7 +103,7 @@ class Reader {
       memcpy(v.start(), current_location(), v.size());
       pos_ += v.size();
     }
-    if (FLAG_wasm_trace_serialization) {
+    if (FLAG_trace_wasm_serialization) {
       StdoutStream{} << "read vector of " << v.size() << " elements"
                      << std::endl;
     }
@@ -553,7 +553,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   if (!decode_result.ok()) return {};
   CHECK_NOT_NULL(decode_result.val);
   WasmModule* module = decode_result.val.get();
-  Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
+  Handle<Script> script =
+      CreateWasmScript(isolate, wire_bytes, module->source_map_url);
 
   // TODO(eholk): We need to properly preserve the flag whether the trap
   // handler was used or not when serializing.

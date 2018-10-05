@@ -22,12 +22,12 @@ MaybeObjectHandle::MaybeObjectHandle()
 
 MaybeObjectHandle::MaybeObjectHandle(MaybeObject* object, Isolate* isolate) {
   HeapObject* heap_object;
-  DCHECK(!object->IsClearedWeakHeapObject());
-  if (object->ToWeakHeapObject(&heap_object)) {
+  DCHECK(!object->IsCleared());
+  if (object->GetHeapObjectIfWeak(&heap_object)) {
     handle_ = handle(heap_object, isolate);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {
-    handle_ = handle(object->ToObject(), isolate);
+    handle_ = handle(object->cast<Object>(), isolate);
     reference_type_ = HeapObjectReferenceType::STRONG;
   }
 }

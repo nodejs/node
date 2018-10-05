@@ -98,7 +98,7 @@ class StatsCounterBase {
   const char* name_;
   int* ptr_;
 
-  StatsCounterBase() {}
+  StatsCounterBase() = default;
   StatsCounterBase(Counters* counters, const char* name)
       : counters_(counters), name_(name), ptr_(nullptr) {}
 
@@ -161,7 +161,7 @@ class StatsCounter : public StatsCounterBase {
  private:
   friend class Counters;
 
-  StatsCounter() {}
+  StatsCounter() = default;
   StatsCounter(Counters* counters, const char* name)
       : StatsCounterBase(counters, name), lookup_done_(false) {}
 
@@ -227,7 +227,7 @@ class Histogram {
   }
 
  protected:
-  Histogram() {}
+  Histogram() = default;
   Histogram(const char* name, int min, int max, int num_buckets,
             Counters* counters)
       : name_(name),
@@ -277,7 +277,7 @@ class TimedHistogram : public Histogram {
   friend class Counters;
   HistogramTimerResolution resolution_;
 
-  TimedHistogram() {}
+  TimedHistogram() = default;
   TimedHistogram(const char* name, int min, int max,
                  HistogramTimerResolution resolution, int num_buckets,
                  Counters* counters)
@@ -393,7 +393,7 @@ class HistogramTimer : public TimedHistogram {
 
   base::ElapsedTimer timer_;
 
-  HistogramTimer() {}
+  HistogramTimer() = default;
 };
 
 // Helper class for scoping a HistogramTimer.
@@ -401,7 +401,7 @@ class HistogramTimer : public TimedHistogram {
 // Parser is currently reentrant (when it throws an error, we call back
 // into JavaScript and all bets are off), but ElapsedTimer is not
 // reentry-safe. Fix this properly and remove |allow_nesting|.
-class HistogramTimerScope BASE_EMBEDDED {
+class HistogramTimerScope {
  public:
   explicit HistogramTimerScope(HistogramTimer* timer,
                                bool allow_nesting = false)
@@ -439,7 +439,7 @@ enum class OptionalHistogramTimerScopeMode { TAKE_TIME, DONT_TAKE_TIME };
 
 // Helper class for scoping a HistogramTimer.
 // It will not take time if take_time is set to false.
-class OptionalHistogramTimerScope BASE_EMBEDDED {
+class OptionalHistogramTimerScope {
  public:
   OptionalHistogramTimerScope(HistogramTimer* timer,
                               OptionalHistogramTimerScopeMode mode)
@@ -487,7 +487,7 @@ class AggregatableHistogramTimer : public Histogram {
  private:
   friend class Counters;
 
-  AggregatableHistogramTimer() {}
+  AggregatableHistogramTimer() = default;
   AggregatableHistogramTimer(const char* name, int min, int max,
                              int num_buckets, Counters* counters)
       : Histogram(name, min, max, num_buckets, counters) {}
@@ -750,6 +750,9 @@ class RuntimeCallTimer final {
   V(Map_Has)                                               \
   V(Map_New)                                               \
   V(Map_Set)                                               \
+  V(WeakMap_Get)                                           \
+  V(WeakMap_Set)                                           \
+  V(WeakMap_New)                                           \
   V(Message_GetEndColumn)                                  \
   V(Message_GetLineNumber)                                 \
   V(Message_GetSourceLine)                                 \
@@ -867,7 +870,9 @@ class RuntimeCallTimer final {
   V(BoundFunctionNameGetter)                   \
   V(BoundFunctionLengthGetter)                 \
   V(CompileBackgroundAnalyse)                  \
+  V(CompileBackgroundCompileTask)              \
   V(CompileBackgroundEval)                     \
+  V(CompileBackgroundFunction)                 \
   V(CompileBackgroundIgnition)                 \
   V(CompileBackgroundScript)                   \
   V(CompileBackgroundRewriteReturnResult)      \
@@ -875,6 +880,9 @@ class RuntimeCallTimer final {
   V(CompileDeserialize)                        \
   V(CompileEval)                               \
   V(CompileAnalyse)                            \
+  V(CompileEnqueueOnDispatcher)                \
+  V(CompileFinalizeBackgroundCompileTask)      \
+  V(CompileFinishNowOnDispatcher)              \
   V(CompileFunction)                           \
   V(CompileGetFromOptimizedCodeMap)            \
   V(CompileIgnition)                           \
@@ -1023,7 +1031,7 @@ enum RuntimeCallCounterId {
                           kNumberOfCounters
 };
 
-class RuntimeCallStats final : public ZoneObject {
+class RuntimeCallStats final {
  public:
   V8_EXPORT_PRIVATE RuntimeCallStats();
 
@@ -1073,6 +1081,42 @@ class RuntimeCallStats final : public ZoneObject {
   bool in_use_;
   ThreadId thread_id_;
   RuntimeCallCounter counters_[kNumberOfCounters];
+};
+
+class WorkerThreadRuntimeCallStats final {
+ public:
+  WorkerThreadRuntimeCallStats();
+  ~WorkerThreadRuntimeCallStats();
+
+  // Returns the TLS key associated with this WorkerThreadRuntimeCallStats.
+  base::Thread::LocalStorageKey GetKey() const { return tls_key_; }
+
+  // Returns a new worker thread runtime call stats table managed by this
+  // WorkerThreadRuntimeCallStats.
+  RuntimeCallStats* NewTable();
+
+  // Adds the counters from the worker thread tables to |main_call_stats|.
+  void AddToMainTable(RuntimeCallStats* main_call_stats);
+
+ private:
+  base::Mutex mutex_;
+  std::vector<std::unique_ptr<RuntimeCallStats>> tables_;
+  base::Thread::LocalStorageKey tls_key_;
+};
+
+// Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local
+// runtime call stats table, and will dump the table to an immediate trace event
+// when it is destroyed.
+class WorkerThreadRuntimeCallStatsScope final {
+ public:
+  WorkerThreadRuntimeCallStatsScope(
+      WorkerThreadRuntimeCallStats* off_thread_stats);
+  ~WorkerThreadRuntimeCallStatsScope();
+
+  RuntimeCallStats* Get() const { return table_; }
+
+ private:
+  RuntimeCallStats* table_;
 };
 
 #define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_id) \
@@ -1136,6 +1180,8 @@ class RuntimeCallTimerScope {
   HR(gc_finalize_mark, V8.GCFinalizeMC.Mark, 0, 10000, 101)                    \
   HR(gc_finalize_prologue, V8.GCFinalizeMC.Prologue, 0, 10000, 101)            \
   HR(gc_finalize_sweep, V8.GCFinalizeMC.Sweep, 0, 10000, 101)                  \
+  HR(gc_scavenger_scavenge_main, V8.GCScavenger.ScavengeMain, 0, 10000, 101)   \
+  HR(gc_scavenger_scavenge_roots, V8.GCScavenger.ScavengeRoots, 0, 10000, 101) \
   HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                          \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
@@ -1176,7 +1222,7 @@ class RuntimeCallTimerScope {
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
   HR(wasm_address_space_usage_mb, V8.WasmAddressSpaceUsageMiB, 0, 1 << 20,     \
      128)                                                                      \
-  HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 256, 64)
+  HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
@@ -1267,6 +1313,8 @@ class RuntimeCallTimerScope {
      V8.CompileScriptMicroSeconds.NoCache.CacheTooCold, 1000000, MICROSECOND)  \
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
+  HT(compile_function_on_background,                                           \
+     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
   HT(gc_parallel_task_latency, V8.GC.ParallelTaskLatencyMicroSeconds, 1000000, \
      MICROSECOND)
 
@@ -1518,6 +1566,10 @@ class Counters : public std::enable_shared_from_this<Counters> {
 
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
+  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats() {
+    return &worker_thread_runtime_call_stats_;
+  }
+
  private:
   friend class StatsTable;
   friend class StatsCounterBase;
@@ -1597,6 +1649,7 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #undef SC
 
   RuntimeCallStats runtime_call_stats_;
+  WorkerThreadRuntimeCallStats worker_thread_runtime_call_stats_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };

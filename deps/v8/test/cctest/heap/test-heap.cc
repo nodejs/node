@@ -898,14 +898,14 @@ static const char* not_so_random_string_table[] = {
   "volatile",
   "while",
   "with",
-  0
+  nullptr
 };
-
 
 static void CheckInternalizedStrings(const char** strings) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  for (const char* string = *strings; *strings != 0; string = *strings++) {
+  for (const char* string = *strings; *strings != nullptr;
+       string = *strings++) {
     HandleScope scope(isolate);
     Handle<String> a =
         isolate->factory()->InternalizeUtf8String(CStrVector(string));
@@ -2192,9 +2192,9 @@ HEAP_TEST(GCFlags) {
   heap->set_current_gc_flags(Heap::kNoGCFlags);
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 
-  // Set the flags to check whether we appropriately resets them after the GC.
-  heap->set_current_gc_flags(Heap::kAbortIncrementalMarkingMask);
-  CcTest::CollectAllGarbage(Heap::kReduceMemoryFootprintMask);
+  // Check whether we appropriately reset flags after GC.
+  CcTest::heap()->CollectAllGarbage(Heap::kReduceMemoryFootprintMask,
+                                    GarbageCollectionReason::kTesting);
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 
   MarkCompactCollector* collector = heap->mark_compact_collector();
@@ -2212,7 +2212,7 @@ HEAP_TEST(GCFlags) {
   // NewSpace scavenges should not overwrite the flags.
   CHECK_NE(0, heap->current_gc_flags_ & Heap::kReduceMemoryFootprintMask);
 
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 }
 
@@ -3097,14 +3097,14 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   CHECK_EQ(expected_slots, feedback_helper.slot_count());
   int slot1 = 0;
   int slot2 = 1;
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeakHeapObject());
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeakHeapObject());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeak());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeak());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage();
 
-  feedback_vector->Get(feedback_helper.slot(slot1))->IsWeakHeapObject();
-  feedback_vector->Get(feedback_helper.slot(slot2))->IsWeakHeapObject();
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeak());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeak());
 }
 
 
@@ -3134,12 +3134,12 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
   Handle<FeedbackVector> vector(f->feedback_vector(), f->GetIsolate());
-  CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrClearedHeapObject());
+  CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrCleared());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage();
 
-  CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrClearedHeapObject());
+  CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrCleared());
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
@@ -3247,14 +3247,14 @@ class SourceResource : public v8::String::ExternalOneByteStringResource {
   explicit SourceResource(const char* data)
     : data_(data), length_(strlen(data)) { }
 
-  virtual void Dispose() {
+  void Dispose() override {
     i::DeleteArray(data_);
     data_ = nullptr;
   }
 
-  const char* data() const { return data_; }
+  const char* data() const override { return data_; }
 
-  size_t length() const { return length_; }
+  size_t length() const override { return length_; }
 
   bool IsDisposed() { return data_ == nullptr; }
 
@@ -3636,9 +3636,9 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
             dependency->group() ==
                 DependentCode::kAllocationSiteTenuringChangedGroup);
       CHECK_EQ(1, dependency->count());
-      CHECK(dependency->object_at(0)->IsWeakHeapObject());
+      CHECK(dependency->object_at(0)->IsWeak());
       Code* function_bar =
-          Code::cast(dependency->object_at(0)->ToWeakHeapObject());
+          Code::cast(dependency->object_at(0)->GetHeapObjectAssumeWeak());
       CHECK_EQ(bar_handle->code(), function_bar);
       dependency = dependency->next_link();
       dependency_group_count++;
@@ -3655,7 +3655,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
   // The site still exists because of our global handle, but the code is no
   // longer referred to by dependent_code().
-  CHECK(site->dependent_code()->object_at(0)->IsClearedWeakHeapObject());
+  CHECK(site->dependent_code()->object_at(0)->IsCleared());
 }
 
 void CheckNumberOfAllocations(Heap* heap, const char* source,
@@ -4133,18 +4133,18 @@ TEST(WeakFunctionInConstructor) {
       Handle<FeedbackVector>(createObj->feedback_vector(), CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
     MaybeObject* slot_value = feedback_vector->Get(FeedbackSlot(0));
-    CHECK(slot_value->IsWeakOrClearedHeapObject());
-    if (slot_value->IsClearedWeakHeapObject()) break;
+    CHECK(slot_value->IsWeakOrCleared());
+    if (slot_value->IsCleared()) break;
     CcTest::CollectAllGarbage();
   }
 
   MaybeObject* slot_value = feedback_vector->Get(FeedbackSlot(0));
-  CHECK(slot_value->IsClearedWeakHeapObject());
+  CHECK(slot_value->IsCleared());
   CompileRun(
       "function coat() { this.x = 6; }"
       "createObj(coat);");
   slot_value = feedback_vector->Get(FeedbackSlot(0));
-  CHECK(slot_value->IsWeakHeapObject());
+  CHECK(slot_value->IsWeak());
 }
 
 
@@ -4511,8 +4511,7 @@ HEAP_TEST(Regress538257) {
       heap::ForceEvacuationCandidate(Page::FromAddress(objects[i]->address()));
     }
     heap::SimulateFullSpace(old_space);
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
+    CcTest::CollectAllGarbage();
     // If we get this far, we've successfully aborted compaction. Any further
     // allocations might trigger OOM.
   }
@@ -4704,7 +4703,7 @@ TEST(Regress3877) {
         v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
     weak_prototype_holder->Set(0, HeapObjectReference::Weak(*proto));
   }
-  CHECK(!weak_prototype_holder->Get(0)->IsClearedWeakHeapObject());
+  CHECK(!weak_prototype_holder->Get(0)->IsCleared());
   CompileRun(
       "var a = { };"
       "a.x = new cls();"
@@ -4713,13 +4712,13 @@ TEST(Regress3877) {
     CcTest::CollectAllGarbage();
   }
   // The map of a.x keeps prototype alive
-  CHECK(!weak_prototype_holder->Get(0)->IsClearedWeakHeapObject());
+  CHECK(!weak_prototype_holder->Get(0)->IsCleared());
   // Change the map of a.x and make the previous map garbage collectable.
   CompileRun("a.x.__proto__ = {};");
   for (int i = 0; i < 4; i++) {
     CcTest::CollectAllGarbage();
   }
-  CHECK(weak_prototype_holder->Get(0)->IsClearedWeakHeapObject());
+  CHECK(weak_prototype_holder->Get(0)->IsCleared());
 }
 
 Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
@@ -4742,15 +4741,15 @@ void CheckMapRetainingFor(int n) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   Handle<WeakFixedArray> array_with_map = AddRetainedMap(isolate, heap);
-  CHECK(array_with_map->Get(0)->IsWeakHeapObject());
+  CHECK(array_with_map->Get(0)->IsWeak());
   for (int i = 0; i < n; i++) {
     heap::SimulateIncrementalMarking(heap);
     CcTest::CollectGarbage(OLD_SPACE);
   }
-  CHECK(array_with_map->Get(0)->IsWeakHeapObject());
+  CHECK(array_with_map->Get(0)->IsWeak());
   heap::SimulateIncrementalMarking(heap);
   CcTest::CollectGarbage(OLD_SPACE);
-  CHECK(array_with_map->Get(0)->IsClearedWeakHeapObject());
+  CHECK(array_with_map->Get(0)->IsCleared());
 }
 
 
@@ -4766,8 +4765,8 @@ TEST(MapRetaining) {
 }
 
 TEST(WritableVsImmortalRoots) {
-  for (int i = 0; i < Heap::kStrongRootListLength; ++i) {
-    Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
+  for (RootIndex root_index = RootIndex::kFirstRoot;
+       root_index <= RootIndex::kLastRoot; ++root_index) {
     bool writable = Heap::RootCanBeWrittenAfterInitialization(root_index);
     bool immortal = Heap::RootIsImmortalImmovable(root_index);
     // A root value can be writable, immortal, or neither, but not both.
@@ -5427,11 +5426,11 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit StaticOneByteResource(const char* data) : data_(data) {}
 
-  ~StaticOneByteResource() {}
+  ~StaticOneByteResource() override = default;
 
-  const char* data() const { return data_; }
+  const char* data() const override { return data_; }
 
-  size_t length() const { return strlen(data_); }
+  size_t length() const override { return strlen(data_); }
 
  private:
   const char* data_;
@@ -5676,6 +5675,7 @@ TEST(Regress618958) {
 }
 
 TEST(YoungGenerationLargeObjectAllocation) {
+  if (FLAG_minor_mc) return;
   FLAG_young_generation_large_objects = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -5684,13 +5684,26 @@ TEST(YoungGenerationLargeObjectAllocation) {
 
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
-  CHECK(chunk->owner()->identity() == LO_SPACE);
+  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
   CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
 
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
   chunk = MemoryChunk::FromAddress(array_small->address());
-  CHECK(chunk->owner()->identity() == NEW_LO_SPACE);
+  CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+
+  Handle<Object> number = isolate->factory()->NewHeapNumber(123.456);
+  array_small->set(0, *number);
+
+  CcTest::CollectGarbage(NEW_SPACE);
+
+  // After the first young generation GC array_small will be in the old
+  // generation large object space.
+  chunk = MemoryChunk::FromAddress(array_small->address());
+  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
+  CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+
+  CcTest::CollectAllAvailableGarbage();
 }
 
 TEST(UncommitUnusedLargeObjectMemory) {

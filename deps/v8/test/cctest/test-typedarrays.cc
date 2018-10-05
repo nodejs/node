@@ -86,8 +86,6 @@ TEST(AllocateNotExternal) {
 
 void TestSpeciesProtector(char* code,
                           bool invalidates_species_protector = true) {
-  // Make BigInt64Array/BigUint64Array available for testing.
-  FLAG_harmony_bigint = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   std::string typed_array_constructors[] = {

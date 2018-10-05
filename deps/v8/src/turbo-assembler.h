@@ -16,7 +16,10 @@ namespace internal {
 // platform-independent bits.
 class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
  public:
-  Isolate* isolate() const { return isolate_; }
+  Isolate* isolate() const {
+    DCHECK(!options().v8_agnostic_code);
+    return isolate_;
+  }
 
   Handle<HeapObject> CodeObject() const {
     DCHECK(!code_object_.is_null());
@@ -49,9 +52,9 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
                                       intptr_t offset) = 0;
   virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
 
-  virtual void LoadRoot(Register destination, Heap::RootListIndex index) = 0;
+  virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
-  static int32_t RootRegisterOffset(Heap::RootListIndex root_index);
+  static int32_t RootRegisterOffset(RootIndex root_index);
   static int32_t RootRegisterOffsetForExternalReferenceIndex(
       int reference_index);
 
@@ -61,11 +64,16 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
       Isolate* isolate, const ExternalReference& reference);
 
   // An address is addressable through kRootRegister if it is located within
-  // [isolate, roots_ + root_register_addressable_end_offset[.
+  // isolate->root_register_addressable_region().
   static bool IsAddressableThroughRootRegister(
       Isolate* isolate, const ExternalReference& reference);
 
  protected:
+  TurboAssemblerBase(const AssemblerOptions& options, void* buffer,
+                     int buffer_size)
+      : TurboAssemblerBase(nullptr, options.EnableV8AgnosticCode(), buffer,
+                           buffer_size, CodeObjectRequired::kNo) {}
+
   TurboAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
                      void* buffer, int buffer_size,
                      CodeObjectRequired create_code_object);
@@ -97,7 +105,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
 // Avoids emitting calls to the {Builtins::kAbort} builtin when emitting debug
 // code during the lifetime of this scope object. For disabling debug code
 // entirely use the {DontEmitDebugCodeScope} instead.
-class HardAbortScope BASE_EMBEDDED {
+class HardAbortScope {
  public:
   explicit HardAbortScope(TurboAssemblerBase* assembler)
       : assembler_(assembler), old_value_(assembler->should_abort_hard()) {

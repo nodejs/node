@@ -33,8 +33,9 @@ class JSCreateLoweringTest : public TypedGraphTest {
       : TypedGraphTest(3),
         javascript_(zone()),
         deps_(isolate(), zone()),
-        handle_scope_(isolate()) {}
-  ~JSCreateLoweringTest() override {}
+        handle_scope_(isolate()) {
+  }
+  ~JSCreateLoweringTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {
@@ -45,7 +46,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
     JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph, js_heap_broker(),
-                             native_context(), zone());
+                             zone());
     return reducer.Reduce(node);
   }
 
@@ -172,7 +173,7 @@ TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
 // JSCreateWithContext
 
 TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
-  Handle<ScopeInfo> scope_info(factory()->NewScopeInfo(1));
+  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForEmptyFunction(isolate());
   Node* const object = Parameter(Type::Receiver());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
@@ -192,7 +193,7 @@ TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
 // JSCreateCatchContext
 
 TEST_F(JSCreateLoweringTest, JSCreateCatchContext) {
-  Handle<ScopeInfo> scope_info(factory()->NewScopeInfo(1));
+  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForEmptyFunction(isolate());
   Node* const exception = Parameter(Type::Receiver());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();

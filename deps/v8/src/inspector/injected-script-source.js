@@ -661,16 +661,15 @@ InjectedScript.prototype = {
 
         if (InjectedScriptHost.subtype(obj) === "error") {
             try {
-                var stack = obj.stack;
-                var message = obj.message && obj.message.length ? ": " + obj.message : "";
-                var firstCallFrame = /^\s+at\s/m.exec(stack);
-                var stackMessageEnd = firstCallFrame ? firstCallFrame.index : -1;
-                if (stackMessageEnd !== -1) {
-                    var stackTrace = stack.substr(stackMessageEnd);
-                    return className + message + "\n" + stackTrace;
-                }
-                return className + message;
+                const stack = obj.stack;
+                if (stack.substr(0, className.length) === className)
+                    return stack;
+                const message = obj.message;
+                const index = /* suppressBlacklist */ stack.indexOf(message);
+                const messageWithStack = index !== -1 ? stack.substr(index) : message;
+                return className + ': ' + messageWithStack;
             } catch(e) {
+                return className;
             }
         }
 

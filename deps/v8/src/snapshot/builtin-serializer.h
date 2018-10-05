@@ -5,9 +5,9 @@
 #ifndef V8_SNAPSHOT_BUILTIN_SERIALIZER_H_
 #define V8_SNAPSHOT_BUILTIN_SERIALIZER_H_
 
+#include "src/builtins/builtins.h"
 #include "src/interpreter/interpreter.h"
 #include "src/snapshot/builtin-serializer-allocator.h"
-#include "src/snapshot/builtin-snapshot-utils.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {
@@ -15,12 +15,10 @@ namespace internal {
 
 class StartupSerializer;
 
-// Responsible for serializing builtin and bytecode handler objects during
-// startup snapshot creation into a dedicated area of the snapshot.
+// Responsible for serializing builtin objects during startup snapshot creation
+// into a dedicated area of the snapshot.
 // See snapshot.h for documentation of the snapshot layout.
 class BuiltinSerializer : public Serializer<BuiltinSerializerAllocator> {
-  using BSU = BuiltinSnapshotUtils;
-
  public:
   BuiltinSerializer(Isolate* isolate, StartupSerializer* startup_serializer);
   ~BuiltinSerializer() override;
@@ -32,7 +30,6 @@ class BuiltinSerializer : public Serializer<BuiltinSerializerAllocator> {
                          Object** end) override;
 
   void SerializeBuiltin(Code* code);
-  void SerializeHandler(Code* code);
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
@@ -47,14 +44,11 @@ class BuiltinSerializer : public Serializer<BuiltinSerializerAllocator> {
 
   // Stores the starting offset, within the serialized data, of each code
   // object. This is later packed into the builtin snapshot, and used by the
-  // builtin deserializer to deserialize individual builtins and bytecode
-  // handlers.
+  // builtin deserializer to deserialize individual builtins.
   //
   // Indices [kFirstBuiltinIndex, kFirstBuiltinIndex + kNumberOfBuiltins[:
   //     Builtin offsets.
-  // Indices [kFirstHandlerIndex, kFirstHandlerIndex + kNumberOfHandlers[:
-  //     Bytecode handler offsets.
-  uint32_t code_offsets_[BuiltinSnapshotUtils::kNumberOfCodeObjects];
+  uint32_t code_offsets_[Builtins::builtin_count];
 
   DISALLOW_COPY_AND_ASSIGN(BuiltinSerializer);
 };

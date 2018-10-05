@@ -12,6 +12,7 @@
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/handles.h"
+#include "src/objects/script.h"
 #include "src/parsing/preparsed-scope-data.h"
 #include "src/pending-compilation-error-handler.h"
 
@@ -37,10 +38,17 @@ class Zone;
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  ParseInfo(Isolate*);
+  explicit ParseInfo(AccountingAllocator* zone_allocator);
+  explicit ParseInfo(Isolate*);
   ParseInfo(Isolate*, AccountingAllocator* zone_allocator);
   ParseInfo(Isolate* isolate, Handle<Script> script);
   ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared);
+
+  // Creates a new parse info based on parent top-level |outer_parse_info| for
+  // function |literal|.
+  static std::unique_ptr<ParseInfo> FromParent(
+      const ParseInfo* outer_parse_info, AccountingAllocator* zone_allocator,
+      const FunctionLiteral* literal, const AstRawString* function_name);
 
   ~ParseInfo();
 
@@ -105,9 +113,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
   v8::Extension* extension() const { return extension_; }
   void set_extension(v8::Extension* extension) { extension_ = extension; }
 
-
+  void set_consumed_preparsed_scope_data(
+      std::unique_ptr<ConsumedPreParsedScopeData> data) {
+    consumed_preparsed_scope_data_.swap(data);
+  }
   ConsumedPreParsedScopeData* consumed_preparsed_scope_data() {
-    return &consumed_preparsed_scope_data_;
+    return consumed_preparsed_scope_data_.get();
   }
 
   DeclarationScope* script_scope() const { return script_scope_; }
@@ -198,6 +209,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
   Handle<Script> script() const { return script_; }
+  void set_script(Handle<Script> script);
+
   MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
     return maybe_outer_scope_info_;
   }
@@ -216,12 +229,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
     set_strict_mode(is_strict(language_mode));
   }
 
-  void EmitBackgroundParseStatisticsOnBackgroundThread();
-  void UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate);
-
  private:
   void SetScriptForToplevelCompile(Isolate* isolate, Handle<Script> script);
-  void set_script(Handle<Script> script);
+
+  // Set function info flags based on those in either FunctionLiteral or
+  // SharedFunctionInfo |function|
+  template <typename T>
+  void SetFunctionInfo(T function);
 
   // Various configuration flags for parsing.
   enum Flag {
@@ -268,7 +282,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;
-  ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
+  std::unique_ptr<ConsumedPreParsedScopeData> consumed_preparsed_scope_data_;
   std::unique_ptr<AstValueFactory> ast_value_factory_;
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;

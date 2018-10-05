@@ -81,8 +81,7 @@ StackSlotRepresentation const& StackSlotRepresentationOf(Operator const* op) {
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kWord32AtomicStore == op->opcode() ||
-         IrOpcode::kWord64AtomicStore == op->opcode() ||
-         IrOpcode::kWord32AtomicPairStore == op->opcode());
+         IrOpcode::kWord64AtomicStore == op->opcode());
   return OpParameter<MachineRepresentation>(op);
 }
 
@@ -145,6 +144,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)            \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)             \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)               \
+  V(ChangeFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)              \
   V(ChangeFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)              \
   V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)            \
@@ -155,6 +155,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)         \
   V(TryTruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 2)         \
   V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
+  V(ChangeInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
   V(Float64SilenceNaN, Operator::kNoProperties, 1, 0, 1)                  \
   V(RoundFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                \
   V(RoundInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                \
@@ -342,8 +343,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Word32ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Word64ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
-  V(Int32AbsWithOverflow, Operator::kNoProperties, 1, 0, 1) \
-  V(Int64AbsWithOverflow, Operator::kNoProperties, 1, 0, 1) \
+  V(Int32AbsWithOverflow, Operator::kNoProperties, 1, 0, 2) \
+  V(Int64AbsWithOverflow, Operator::kNoProperties, 1, 0, 2) \
   V(Word32Popcnt, Operator::kNoProperties, 1, 0, 1)         \
   V(Word64Popcnt, Operator::kNoProperties, 1, 0, 1)         \
   V(Float32RoundDown, Operator::kNoProperties, 1, 0, 1)     \
@@ -718,25 +719,6 @@ struct MachineOperatorGlobalCache {
 #undef ATOMIC_PAIR_OP
 #undef ATOMIC_PAIR_BINOP_LIST
 
-#define ATOMIC64_NARROW_OP(op, type)                                           \
-  struct op##type##Operator : public Operator1<MachineType> {                  \
-    op##type##Operator()                                                       \
-        : Operator1<MachineType>(                                              \
-              IrOpcode::k##op, Operator::kNoDeopt | Operator::kNoThrow, "#op", \
-              3, 1, 1, 2, 1, 0, MachineType::type()) {}                        \
-  };                                                                           \
-  op##type##Operator k##op##type;
-#define ATOMIC_OP_LIST(type)                      \
-  ATOMIC64_NARROW_OP(Word64AtomicNarrowAdd, type) \
-  ATOMIC64_NARROW_OP(Word64AtomicNarrowSub, type) \
-  ATOMIC64_NARROW_OP(Word64AtomicNarrowAnd, type) \
-  ATOMIC64_NARROW_OP(Word64AtomicNarrowOr, type)  \
-  ATOMIC64_NARROW_OP(Word64AtomicNarrowXor, type) \
-  ATOMIC64_NARROW_OP(Word64AtomicNarrowExchange, type)
-  ATOMIC_U32_TYPE_LIST(ATOMIC_OP_LIST)
-#undef ATOMIC_OP_LIST
-#undef ATOMIC64_NARROW_OP
-
   struct Word32AtomicPairCompareExchangeOperator : public Operator {
     Word32AtomicPairCompareExchangeOperator()
         : Operator(IrOpcode::kWord32AtomicPairCompareExchange,
@@ -744,20 +726,6 @@ struct MachineOperatorGlobalCache {
                    "Word32AtomicPairCompareExchange", 6, 1, 1, 2, 1, 0) {}
   };
   Word32AtomicPairCompareExchangeOperator kWord32AtomicPairCompareExchange;
-
-#define ATOMIC_COMPARE_EXCHANGE(Type)                                          \
-  struct Word64AtomicNarrowCompareExchange##Type##Operator                     \
-      : public Operator1<MachineType> {                                        \
-    Word64AtomicNarrowCompareExchange##Type##Operator()                        \
-        : Operator1<MachineType>(IrOpcode::kWord64AtomicNarrowCompareExchange, \
-                                 Operator::kNoDeopt | Operator::kNoThrow,      \
-                                 "Word64AtomicNarrowCompareExchange", 4, 1, 1, \
-                                 2, 1, 0, MachineType::Type()) {}              \
-  };                                                                           \
-  Word64AtomicNarrowCompareExchange##Type##Operator                            \
-      kWord64AtomicNarrowCompareExchange##Type;
-  ATOMIC_TYPE_LIST(ATOMIC_COMPARE_EXCHANGE)
-#undef ATOMIC_COMPARE_EXCHANGE
 
   // The {BitcastWordToTagged} operator must not be marked as pure (especially
   // not idempotent), because otherwise the splitting logic in the Scheduler
@@ -1243,82 +1211,6 @@ const Operator* MachineOperatorBuilder::Word32AtomicPairExchange() {
 
 const Operator* MachineOperatorBuilder::Word32AtomicPairCompareExchange() {
   return &cache_.kWord32AtomicPairCompareExchange;
-}
-
-const Operator* MachineOperatorBuilder::Word64AtomicNarrowAdd(
-    MachineType type) {
-#define ADD(kType)                                \
-  if (type == MachineType::kType()) {             \
-    return &cache_.kWord64AtomicNarrowAdd##kType; \
-  }
-  ATOMIC_U32_TYPE_LIST(ADD)
-#undef ADD
-  UNREACHABLE();
-}
-
-const Operator* MachineOperatorBuilder::Word64AtomicNarrowSub(
-    MachineType type) {
-#define SUB(kType)                                \
-  if (type == MachineType::kType()) {             \
-    return &cache_.kWord64AtomicNarrowSub##kType; \
-  }
-  ATOMIC_U32_TYPE_LIST(SUB)
-#undef SUB
-  UNREACHABLE();
-}
-
-const Operator* MachineOperatorBuilder::Word64AtomicNarrowAnd(
-    MachineType type) {
-#define AND(kType)                                \
-  if (type == MachineType::kType()) {             \
-    return &cache_.kWord64AtomicNarrowAnd##kType; \
-  }
-  ATOMIC_U32_TYPE_LIST(AND)
-#undef AND
-  UNREACHABLE();
-}
-
-const Operator* MachineOperatorBuilder::Word64AtomicNarrowOr(MachineType type) {
-#define OR(kType)                                \
-  if (type == MachineType::kType()) {            \
-    return &cache_.kWord64AtomicNarrowOr##kType; \
-  }
-  ATOMIC_U32_TYPE_LIST(OR)
-#undef OR
-  UNREACHABLE();
-}
-
-const Operator* MachineOperatorBuilder::Word64AtomicNarrowXor(
-    MachineType type) {
-#define XOR(kType)                                \
-  if (type == MachineType::kType()) {             \
-    return &cache_.kWord64AtomicNarrowXor##kType; \
-  }
-  ATOMIC_U32_TYPE_LIST(XOR)
-#undef XOR
-  UNREACHABLE();
-}
-
-const Operator* MachineOperatorBuilder::Word64AtomicNarrowExchange(
-    MachineType type) {
-#define EXCHANGE(kType)                                \
-  if (type == MachineType::kType()) {                  \
-    return &cache_.kWord64AtomicNarrowExchange##kType; \
-  }
-  ATOMIC_U32_TYPE_LIST(EXCHANGE)
-#undef EXCHANGE
-  UNREACHABLE();
-}
-
-const Operator* MachineOperatorBuilder::Word64AtomicNarrowCompareExchange(
-    MachineType type) {
-#define CMP_EXCHANGE(kType)                                   \
-  if (type == MachineType::kType()) {                         \
-    return &cache_.kWord64AtomicNarrowCompareExchange##kType; \
-  }
-  ATOMIC_U32_TYPE_LIST(CMP_EXCHANGE)
-#undef CMP_EXCHANGE
-  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::TaggedPoisonOnSpeculation() {

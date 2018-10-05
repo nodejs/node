@@ -46,6 +46,12 @@ TurboJsonFile::TurboJsonFile(OptimizedCompilationInfo* info,
 
 TurboJsonFile::~TurboJsonFile() { flush(); }
 
+TurboCfgFile::TurboCfgFile(Isolate* isolate)
+    : std::ofstream(Isolate::GetTurboCfgFileName(isolate).c_str(),
+                    std::ios_base::app) {}
+
+TurboCfgFile::~TurboCfgFile() { flush(); }
+
 std::ostream& operator<<(std::ostream& out,
                          const SourcePositionAsJSON& asJSON) {
   asJSON.sp.PrintJson(out);
@@ -302,9 +308,11 @@ class JSONGraphNodeWriter {
     if (opcode == IrOpcode::kBranch) {
       os_ << ",\"rankInputs\":[0]";
     }
-    SourcePosition position = positions_->GetSourcePosition(node);
-    if (position.IsKnown()) {
-      os_ << ", \"sourcePosition\" : " << AsJSON(position);
+    if (positions_ != nullptr) {
+      SourcePosition position = positions_->GetSourcePosition(node);
+      if (position.IsKnown()) {
+        os_ << ", \"sourcePosition\" : " << AsJSON(position);
+      }
     }
     if (origins_) {
       NodeOrigin origin = origins_->GetNodeOrigin(node);
@@ -432,7 +440,7 @@ class GraphC1Visualizer {
   void PrintLiveRange(const LiveRange* range, const char* type, int vreg);
   void PrintLiveRangeChain(const TopLevelLiveRange* range, const char* type);
 
-  class Tag final BASE_EMBEDDED {
+  class Tag final {
    public:
     Tag(GraphC1Visualizer* visualizer, const char* name) {
       name_ = name;
@@ -766,7 +774,12 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
       }
     }
 
-    os_ << " " << vreg;
+    // The toplevel range is always suffixed with :0. Use that as parent.
+    os_ << " " << vreg << ":0";
+
+    // TODO(herhut) Find something useful to print for the hint field
+    os_ << " unknown";
+
     for (const UseInterval* interval = range->first_interval();
          interval != nullptr; interval = interval->next()) {
       os_ << " [" << interval->start().value() << ", "

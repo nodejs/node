@@ -23,7 +23,6 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_InterpreterDeserializeLazy) {
   HandleScope scope(isolate);
 
-  DCHECK(FLAG_lazy_handler_deserialization);
   DCHECK(FLAG_lazy_deserialization);
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(bytecode_int, 0);

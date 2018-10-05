@@ -22,7 +22,7 @@ namespace internal {
 // Each descriptor has a key, property attributes, property type,
 // property index (in the actual instance-descriptor array) and
 // optionally a piece of data.
-class Descriptor final BASE_EMBEDDED {
+class Descriptor final {
  public:
   Descriptor();
 
@@ -40,7 +40,7 @@ class Descriptor final BASE_EMBEDDED {
                               PropertyAttributes attributes,
                               PropertyConstness constness,
                               Representation representation,
-                              MaybeObjectHandle wrapped_field_type);
+                              const MaybeObjectHandle& wrapped_field_type);
 
   static Descriptor DataConstant(Handle<Name> key, Handle<Object> value,
                                  PropertyAttributes attributes);
@@ -58,13 +58,13 @@ class Descriptor final BASE_EMBEDDED {
   PropertyDetails details_;
 
  protected:
-  Descriptor(Handle<Name> key, MaybeObjectHandle value,
+  Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
              PropertyDetails details);
 
-  Descriptor(Handle<Name> key, MaybeObjectHandle value, PropertyKind kind,
-             PropertyAttributes attributes, PropertyLocation location,
-             PropertyConstness constness, Representation representation,
-             int field_index);
+  Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
+             PropertyKind kind, PropertyAttributes attributes,
+             PropertyLocation location, PropertyConstness constness,
+             Representation representation, int field_index);
 
   friend class MapUpdater;
 };

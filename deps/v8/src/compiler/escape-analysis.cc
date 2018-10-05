@@ -9,6 +9,8 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/handles-inl.h"
+#include "src/objects/map-inl.h"
 
 #ifdef DEBUG
 #define TRACE(...)                                    \
@@ -282,7 +284,7 @@ EffectGraphReducer::EffectGraphReducer(
       state_(graph, kNumStates),
       revisit_(zone),
       stack_(zone),
-      reduce_(reduce) {}
+      reduce_(std::move(reduce)) {}
 
 void EffectGraphReducer::ReduceFrom(Node* node) {
   // Perform DFS and eagerly trigger revisitation as soon as possible.
@@ -669,9 +671,10 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           current->Get(map_field).To(&map)) {
         if (map) {
           Type const map_type = NodeProperties::GetType(map);
+          AllowHandleDereference handle_dereference;
           if (map_type.IsHeapConstant() &&
               params.maps().contains(
-                  bit_cast<Handle<Map>>(map_type.AsHeapConstant()->Value()))) {
+                  Handle<Map>::cast(map_type.AsHeapConstant()->Value()))) {
             current->MarkForDeletion();
             break;
           }

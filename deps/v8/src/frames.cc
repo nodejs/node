@@ -29,7 +29,7 @@ ReturnAddressLocationResolver StackFrame::return_address_location_resolver_ =
 
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
-class StackHandlerIterator BASE_EMBEDDED {
+class StackHandlerIterator {
  public:
   StackHandlerIterator(const StackFrame* frame, StackHandler* handler)
       : limit_(frame->fp()), handler_(handler) {
@@ -2133,7 +2133,7 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
     InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   isolate_->counters()->pc_to_code()->Increment();
   DCHECK(base::bits::IsPowerOfTwo(kInnerPointerToCodeCacheSize));
-  uint32_t hash = ComputeIntegerHash(
+  uint32_t hash = ComputeUnseededHash(
       ObjectAddressForHashing(reinterpret_cast<void*>(inner_pointer)));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   InnerPointerToCodeCacheEntry* entry = cache(index);

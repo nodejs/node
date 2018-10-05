@@ -17,13 +17,6 @@ using compiler::Node;
 
 namespace {
 
-// Describe fields of Context associated with AsyncGeneratorAwait resume
-// closures.
-class AwaitContext {
- public:
-  enum Fields { kGeneratorSlot = Context::MIN_CONTEXT_SLOTS, kLength };
-};
-
 class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
  public:
   explicit AsyncGeneratorBuiltinsAssembler(CodeAssemblerState* state)
@@ -207,7 +200,7 @@ Node* AsyncGeneratorBuiltinsAssembler::AllocateAsyncGeneratorRequest(
     Node* promise) {
   CSA_SLOW_ASSERT(this, HasInstanceType(promise, JS_PROMISE_TYPE));
   Node* request = Allocate(AsyncGeneratorRequest::kSize);
-  StoreMapNoWriteBarrier(request, Heap::kAsyncGeneratorRequestMapRootIndex);
+  StoreMapNoWriteBarrier(request, RootIndex::kAsyncGeneratorRequestMap);
   StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kNextOffset,
                                  UndefinedConstant());
   StoreObjectFieldNoWriteBarrier(request,
@@ -218,15 +211,14 @@ Node* AsyncGeneratorBuiltinsAssembler::AllocateAsyncGeneratorRequest(
   StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kPromiseOffset,
                                  promise);
   StoreObjectFieldRoot(request, AsyncGeneratorRequest::kNextOffset,
-                       Heap::kUndefinedValueRootIndex);
+                       RootIndex::kUndefinedValue);
   return request;
 }
 
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
     Node* context, Node* value,
     JSAsyncGeneratorObject::ResumeMode resume_mode) {
-  Node* const generator =
-      LoadContextElement(context, AwaitContext::kGeneratorSlot);
+  Node* const generator = LoadContextElement(context, Context::EXTENSION_INDEX);
   CSA_SLOW_ASSERT(this, TaggedIsAsyncGenerator(generator));
 
   SetGeneratorNotAwaiting(generator);
@@ -254,11 +246,6 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
   Node* const request = LoadFirstAsyncGeneratorRequestFromQueue(generator);
   CSA_ASSERT(this, IsNotUndefined(request));
 
-  ContextInitializer init_closure_context = [&](Node* context) {
-    StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
-                                      generator);
-  };
-
   Node* outer_promise =
       LoadObjectField(request, AsyncGeneratorRequest::kPromiseOffset);
 
@@ -266,8 +253,8 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
   const int reject_index = Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN;
 
   SetGeneratorAwaiting(generator);
-  Await(context, generator, value, outer_promise, AwaitContext::kLength,
-        init_closure_context, resolve_index, reject_index, is_catchable);
+  Await(context, generator, value, outer_promise, resolve_index, reject_index,
+        is_catchable);
   Return(UndefinedConstant());
 }
 
@@ -519,9 +506,9 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
                                    Context::ITERATOR_RESULT_MAP_INDEX);
     StoreMapNoWriteBarrier(iter_result, map);
     StoreObjectFieldRoot(iter_result, JSIteratorResult::kPropertiesOrHashOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
+                         RootIndex::kEmptyFixedArray);
     StoreObjectFieldRoot(iter_result, JSIteratorResult::kElementsOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
+                         RootIndex::kEmptyFixedArray);
     StoreObjectFieldNoWriteBarrier(iter_result, JSIteratorResult::kValueOffset,
                                    value);
     StoreObjectFieldNoWriteBarrier(iter_result, JSIteratorResult::kDoneOffset,
@@ -585,25 +572,19 @@ TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
   Node* const request = LoadFirstAsyncGeneratorRequestFromQueue(generator);
   Node* const outer_promise = LoadPromiseFromAsyncGeneratorRequest(request);
 
-  ContextInitializer init_closure_context = [&](Node* context) {
-    StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
-                                      generator);
-  };
-
   const int on_resolve = Context::ASYNC_GENERATOR_YIELD_RESOLVE_SHARED_FUN;
   const int on_reject = Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN;
 
   SetGeneratorAwaiting(generator);
-  Await(context, generator, value, outer_promise, AwaitContext::kLength,
-        init_closure_context, on_resolve, on_reject, is_caught);
+  Await(context, generator, value, outer_promise, on_resolve, on_reject,
+        is_caught);
   Return(UndefinedConstant());
 }
 
 TF_BUILTIN(AsyncGeneratorYieldResolveClosure, AsyncGeneratorBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const value = Parameter(Descriptor::kValue);
-  Node* const generator =
-      LoadContextElement(context, AwaitContext::kGeneratorSlot);
+  Node* const generator = LoadContextElement(context, Context::EXTENSION_INDEX);
 
   SetGeneratorNotAwaiting(generator);
 
@@ -656,17 +637,11 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
 
   BIND(&perform_await);
 
-  ContextInitializer init_closure_context = [&](Node* context) {
-    StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
-                                      generator);
-  };
-
   SetGeneratorAwaiting(generator);
   Node* const context = Parameter(Descriptor::kContext);
   Node* const outer_promise = LoadPromiseFromAsyncGeneratorRequest(req);
-  Await(context, generator, value, outer_promise, AwaitContext::kLength,
-        init_closure_context, var_on_resolve.value(), var_on_reject.value(),
-        is_caught);
+  Await(context, generator, value, outer_promise, var_on_resolve.value(),
+        var_on_reject.value(), is_caught);
 
   Return(UndefinedConstant());
 }
@@ -689,8 +664,7 @@ TF_BUILTIN(AsyncGeneratorReturnClosedResolveClosure,
            AsyncGeneratorBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const value = Parameter(Descriptor::kValue);
-  Node* const generator =
-      LoadContextElement(context, AwaitContext::kGeneratorSlot);
+  Node* const generator = LoadContextElement(context, Context::EXTENSION_INDEX);
 
   SetGeneratorNotAwaiting(generator);
 
@@ -707,8 +681,7 @@ TF_BUILTIN(AsyncGeneratorReturnClosedRejectClosure,
            AsyncGeneratorBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const value = Parameter(Descriptor::kValue);
-  Node* const generator =
-      LoadContextElement(context, AwaitContext::kGeneratorSlot);
+  Node* const generator = LoadContextElement(context, Context::EXTENSION_INDEX);
 
   SetGeneratorNotAwaiting(generator);
 

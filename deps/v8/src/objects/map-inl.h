@@ -136,10 +136,10 @@ bool Map::IsUnboxedDoubleField(FieldIndex index) const {
   return !layout_descriptor()->IsTagged(index.property_index());
 }
 
-bool Map::TooManyFastProperties(StoreFromKeyed store_mode) const {
+bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   if (UnusedPropertyFields() != 0) return false;
   if (is_prototype_map()) return false;
-  int minimum = store_mode == CERTAINLY_NOT_STORE_FROM_KEYED ? 128 : 12;
+  int minimum = store_origin == StoreOrigin::kNamed ? 128 : 12;
   int limit = Max(minimum, GetInObjectProperties());
   int external = NumberOfFields() - GetInObjectProperties();
   return external > limit;
@@ -511,56 +511,29 @@ void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
   }
 }
 
-bool Map::IsJSObject(InstanceType type) {
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
-  return type >= FIRST_JS_OBJECT_TYPE;
-}
-
 bool Map::CanTransition() const {
   // Only JSObject and subtypes have map transitions and back pointers.
-  return IsJSObject(instance_type());
+  return InstanceTypeChecker::IsJSObject(instance_type());
 }
+
+#define DEF_TESTER(Type, ...)                              \
+  bool Map::Is##Type##Map() const {                        \
+    return InstanceTypeChecker::Is##Type(instance_type()); \
+  }
+INSTANCE_TYPE_CHECKERS(DEF_TESTER)
+#undef DEF_TESTER
 
 bool Map::IsBooleanMap() const {
   return this == GetReadOnlyRoots().boolean_map();
 }
 
-bool Map::IsNullMap() const { return this == GetReadOnlyRoots().null_map(); }
-
-bool Map::IsUndefinedMap() const {
-  return this == GetReadOnlyRoots().undefined_map();
-}
-
 bool Map::IsNullOrUndefinedMap() const {
-  return IsNullMap() || IsUndefinedMap();
+  return this == GetReadOnlyRoots().null_map() ||
+         this == GetReadOnlyRoots().undefined_map();
 }
 
 bool Map::IsPrimitiveMap() const {
   return instance_type() <= LAST_PRIMITIVE_TYPE;
-}
-bool Map::IsJSReceiverMap() const {
-  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  return instance_type() >= FIRST_JS_RECEIVER_TYPE;
-}
-bool Map::IsJSObjectMap() const { return IsJSObject(instance_type()); }
-bool Map::IsJSPromiseMap() const { return instance_type() == JS_PROMISE_TYPE; }
-bool Map::IsJSArrayMap() const { return instance_type() == JS_ARRAY_TYPE; }
-bool Map::IsJSFunctionMap() const {
-  return instance_type() == JS_FUNCTION_TYPE;
-}
-bool Map::IsStringMap() const { return instance_type() < FIRST_NONSTRING_TYPE; }
-bool Map::IsJSProxyMap() const { return instance_type() == JS_PROXY_TYPE; }
-bool Map::IsJSGlobalProxyMap() const {
-  return instance_type() == JS_GLOBAL_PROXY_TYPE;
-}
-bool Map::IsJSGlobalObjectMap() const {
-  return instance_type() == JS_GLOBAL_OBJECT_TYPE;
-}
-bool Map::IsJSTypedArrayMap() const {
-  return instance_type() == JS_TYPED_ARRAY_TYPE;
-}
-bool Map::IsJSDataViewMap() const {
-  return instance_type() == JS_DATA_VIEW_TYPE;
 }
 
 Object* Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }

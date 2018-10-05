@@ -266,7 +266,7 @@ NamedAccess const& NamedAccessOf(const Operator* op) {
 
 
 std::ostream& operator<<(std::ostream& os, PropertyAccess const& p) {
-  return os << p.language_mode();
+  return os << p.language_mode() << ", " << p.feedback();
 }
 
 
@@ -609,7 +609,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(Decrement, Operator::kNoProperties, 1, 1)                          \
   V(Increment, Operator::kNoProperties, 1, 1)                          \
   V(Negate, Operator::kNoProperties, 1, 1)                             \
-  V(ToInteger, Operator::kNoProperties, 1, 1)                          \
   V(ToLength, Operator::kNoProperties, 1, 1)                           \
   V(ToName, Operator::kNoProperties, 1, 1)                             \
   V(ToNumber, Operator::kNoProperties, 1, 1)                           \
@@ -623,7 +622,7 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)                \
   V(CreatePromise, Operator::kEliminatable, 0, 1)                      \
   V(CreateTypedArray, Operator::kNoProperties, 5, 1)                   \
-  V(CreateObject, Operator::kNoWrite, 1, 1)                            \
+  V(CreateObject, Operator::kNoProperties, 1, 1)                       \
   V(ObjectIsArray, Operator::kNoProperties, 1, 1)                      \
   V(HasProperty, Operator::kNoProperties, 2, 1)                        \
   V(HasInPrototypeChain, Operator::kNoProperties, 2, 1)                \
@@ -820,7 +819,8 @@ const Operator* JSOperatorBuilder::CallForwardVarargs(size_t arity,
       parameters);                                               // parameter
 }
 
-const Operator* JSOperatorBuilder::Call(size_t arity, CallFrequency frequency,
+const Operator* JSOperatorBuilder::Call(size_t arity,
+                                        CallFrequency const& frequency,
                                         VectorSlotPair const& feedback,
                                         ConvertReceiverMode convert_mode,
                                         SpeculationMode speculation_mode) {
@@ -844,8 +844,8 @@ const Operator* JSOperatorBuilder::CallWithArrayLike(CallFrequency frequency) {
 }
 
 const Operator* JSOperatorBuilder::CallWithSpread(
-    uint32_t arity, CallFrequency frequency, VectorSlotPair const& feedback,
-    SpeculationMode speculation_mode) {
+    uint32_t arity, CallFrequency const& frequency,
+    VectorSlotPair const& feedback, SpeculationMode speculation_mode) {
   DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
                  feedback.IsValid());
   CallParameters parameters(arity, frequency, feedback,
@@ -1188,6 +1188,14 @@ const Operator* JSOperatorBuilder::CreateEmptyLiteralArray(
       "JSCreateEmptyLiteralArray",                   // name
       0, 1, 1, 1, 1, 0,                              // counts
       parameters);                                   // parameter
+}
+
+const Operator* JSOperatorBuilder::CreateArrayFromIterable() {
+  return new (zone()) Operator(              // --
+      IrOpcode::kJSCreateArrayFromIterable,  // opcode
+      Operator::kNoProperties,               // properties
+      "JSCreateArrayFromIterable",           // name
+      1, 1, 1, 1, 1, 2);                     // counts
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralObject(

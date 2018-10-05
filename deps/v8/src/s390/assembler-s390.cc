@@ -51,6 +51,7 @@
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/s390/assembler-s390-inl.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -180,13 +181,14 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     //   Bit 45 - Distinct Operands for instructions like ARK, SRK, etc.
     // As such, we require only 1 double word
     int64_t facilities[3] = {0L};
+    int16_t reg0;
     // LHI sets up GPR0
     // STFLE is specified as .insn, as opcode is not recognized.
     // We register the instructions kill r0 (LHI) and the CC (STFLE).
     asm volatile(
-        "lhi   0,2\n"
+        "lhi   %%r0,2\n"
         ".insn s,0xb2b00000,%0\n"
-        : "=Q"(facilities)
+        : "=Q"(facilities), "=r"(reg0)
         :
         : "cc", "r0");
 
@@ -315,6 +317,13 @@ Operand Operand::EmbeddedNumber(double value) {
   return result;
 }
 
+Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(str);
+  return result;
+}
+
 MemOperand::MemOperand(Register rn, int32_t offset)
     : baseRegister(rn), indexRegister(r0), offset_(offset) {}
 
@@ -322,24 +331,33 @@ MemOperand::MemOperand(Register rx, Register rb, int32_t offset)
     : baseRegister(rb), indexRegister(rx), offset_(offset) {}
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
     Address pc = reinterpret_cast<Address>(buffer_ + request.offset());
     switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber:
+      case HeapObjectRequest::kHeapNumber: {
         object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
-        set_target_address_at(pc, kNullAddress,
-                              reinterpret_cast<Address>(object.location()),
+        set_target_address_at(pc, kNullAddress, object.address(),
                               SKIP_ICACHE_FLUSH);
         break;
-      case HeapObjectRequest::kCodeStub:
+      }
+      case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
         SixByteInstr instr =
             Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
         int index = instr & 0xFFFFFFFF;
         UpdateCodeTarget(index, request.code_stub()->GetCode());
         break;
+      }
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        set_target_address_at(pc, kNullAddress,
+                              str->AllocateStringConstant(isolate).address());
+        break;
+      }
     }
   }
 }
@@ -794,13 +812,7 @@ void Assembler::dp(uintptr_t data) {
 }
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  if (options().disable_reloc_info_for_patching) return;
-  if (RelocInfo::IsNone(rmode) ||
-      // Don't record external references unless the heap will be serialized.
-      (RelocInfo::IsOnlyForSerializer(rmode) &&
-       !options().record_reloc_info_for_serialization && !emit_debug_code())) {
-    return;
-  }
+  if (!ShouldRecordRelocInfo(rmode)) return;
   DeferredRelocInfo rinfo(pc_offset(), rmode, data);
   relocations_.push_back(rinfo);
 }

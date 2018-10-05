@@ -36,7 +36,7 @@ class IC {
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot);
-  virtual ~IC() {}
+  virtual ~IC() = default;
 
   State state() const { return state_; }
   inline Address address() const;
@@ -88,7 +88,7 @@ class IC {
   bool vector_needs_update() {
     return (!vector_set_ &&
             (state() != MEGAMORPHIC ||
-             Smi::ToInt(nexus()->GetFeedbackExtra()->ToSmi()) != ELEMENT));
+             Smi::ToInt(nexus()->GetFeedbackExtra()->cast<Smi>()) != ELEMENT));
   }
 
   // Configure for most states.
@@ -296,11 +296,10 @@ class StoreIC : public IC {
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
-      JSReceiver::StoreFromKeyed store_mode =
-          JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
+      StoreOrigin store_origin = StoreOrigin::kNamed);
 
   bool LookupForWrite(LookupIterator* it, Handle<Object> value,
-                      JSReceiver::StoreFromKeyed store_mode);
+                      StoreOrigin store_origin);
 
  protected:
   // Stub accessors.
@@ -312,7 +311,7 @@ class StoreIC : public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
-                    JSReceiver::StoreFromKeyed store_mode);
+                    StoreOrigin store_origin);
 
  private:
   MaybeObjectHandle ComputeHandler(LookupIterator* lookup);

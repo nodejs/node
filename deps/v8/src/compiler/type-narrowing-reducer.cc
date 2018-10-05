@@ -15,9 +15,9 @@ TypeNarrowingReducer::TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph,
                                            JSHeapBroker* js_heap_broker)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
-      op_typer_(jsgraph->isolate(), js_heap_broker, zone()) {}
+      op_typer_(js_heap_broker, zone()) {}
 
-TypeNarrowingReducer::~TypeNarrowingReducer() {}
+TypeNarrowingReducer::~TypeNarrowingReducer() = default;
 
 Reduction TypeNarrowingReducer::Reduce(Node* node) {
   DisallowHeapAccess no_heap_access;

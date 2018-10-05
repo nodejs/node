@@ -153,7 +153,7 @@ V8HeapProfilerAgentImpl::V8HeapProfilerAgentImpl(
       m_state(state),
       m_hasTimer(false) {}
 
-V8HeapProfilerAgentImpl::~V8HeapProfilerAgentImpl() {}
+V8HeapProfilerAgentImpl::~V8HeapProfilerAgentImpl() = default;
 
 void V8HeapProfilerAgentImpl::restore() {
   if (m_state->booleanProperty(HeapProfilerAgentState::heapProfilerEnabled,

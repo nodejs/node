@@ -233,9 +233,15 @@ void Declarations::DeclareStruct(Module* module, const std::string& name,
   DeclareType(name, new_type);
 }
 
-Label* Declarations::DeclareLabel(const std::string& name) {
+Label* Declarations::DeclareLabel(const std::string& name,
+                                  base::Optional<Statement*> statement) {
   CheckAlreadyDeclared(name, "label");
-  Label* result = new Label(name);
+  bool deferred = false;
+  if (statement) {
+    BlockStatement* block = BlockStatement::DynamicCast(*statement);
+    deferred = block && block->deferred;
+  }
+  Label* result = new Label(name, deferred);
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }
@@ -298,38 +304,31 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
   return result;
 }
 
+Variable* Declarations::CreateVariable(const std::string& var, const Type* type,
+                                       bool is_const) {
+  return RegisterDeclarable(
+      std::unique_ptr<Variable>(new Variable(var, type, is_const)));
+}
+
 Variable* Declarations::DeclareVariable(const std::string& var,
                                         const Type* type, bool is_const) {
-  std::string name(var + "_" +
-                   std::to_string(GetNextUniqueDeclarationNumber()));
-  std::replace(name.begin(), name.end(), '.', '_');
   CheckAlreadyDeclared(var, "variable");
-  Variable* result = new Variable(var, name, type, is_const);
+  Variable* result = new Variable(var, type, is_const);
   Declare(var, std::unique_ptr<Declarable>(result));
   return result;
 }
 
 Parameter* Declarations::DeclareParameter(const std::string& name,
-                                          const std::string& var_name,
+                                          std::string external_name,
                                           const Type* type) {
   CheckAlreadyDeclared(name, "parameter");
-  Parameter* result = new Parameter(name, type, var_name);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Label* Declarations::DeclarePrivateLabel(const std::string& raw_name) {
-  std::string name =
-      raw_name + "_" + std::to_string(GetNextUniqueDeclarationNumber());
-  CheckAlreadyDeclared(name, "label");
-  Label* result = new Label(name);
+  Parameter* result = new Parameter(name, std::move(external_name), type);
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }
 
 void Declarations::DeclareExternConstant(const std::string& name,
-                                         const Type* type,
-                                         const std::string& value) {
+                                         const Type* type, std::string value) {
   CheckAlreadyDeclared(name, "constant, parameter or arguments");
   ExternConstant* result = new ExternConstant(name, type, value);
   Declare(name, std::unique_ptr<Declarable>(result));

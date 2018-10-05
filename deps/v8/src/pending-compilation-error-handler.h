@@ -62,6 +62,12 @@ class PendingCompilationErrorHandler {
 
   Handle<String> FormatErrorMessageForTest(Isolate* isolate) const;
 
+  bool SetUnidentifiableError() { return unidentifiable_error_ = true; }
+
+  bool ResetUnidentifiableError() { return unidentifiable_error_ = false; }
+
+  bool ErrorUnidentifiableByPreParser() { return unidentifiable_error_; }
+
  private:
   class MessageDetails {
    public:
@@ -97,6 +103,7 @@ class PendingCompilationErrorHandler {
 
   bool has_pending_error_;
   bool stack_overflow_;
+  bool unidentifiable_error_ = false;
 
   MessageDetails error_details_;
   ParseErrorType error_type_;

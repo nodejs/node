@@ -17,45 +17,75 @@ namespace internal {
 
 void Builtins::Generate_CallFunction_ReceiverIsNullOrUndefined(
     MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallFunction(masm, ConvertReceiverMode::kNullOrUndefined);
 }
 
 void Builtins::Generate_CallFunction_ReceiverIsNotNullOrUndefined(
     MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallFunction(masm, ConvertReceiverMode::kNotNullOrUndefined);
 }
 
 void Builtins::Generate_CallFunction_ReceiverIsAny(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallFunction(masm, ConvertReceiverMode::kAny);
 }
 
 void Builtins::Generate_CallBoundFunction(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallBoundFunctionImpl(masm);
 }
 
 void Builtins::Generate_Call_ReceiverIsNullOrUndefined(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_Call(masm, ConvertReceiverMode::kNullOrUndefined);
 }
 
 void Builtins::Generate_Call_ReceiverIsNotNullOrUndefined(
     MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_Call(masm, ConvertReceiverMode::kNotNullOrUndefined);
 }
 
 void Builtins::Generate_Call_ReceiverIsAny(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_Call(masm, ConvertReceiverMode::kAny);
 }
 
 void Builtins::Generate_CallVarargs(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallOrConstructVarargs(masm, masm->isolate()->builtins()->Call());
 }
 
 void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallOrConstructForwardVarargs(masm, CallOrConstructMode::kCall,
                                          masm->isolate()->builtins()->Call());
 }
 
 void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallOrConstructForwardVarargs(
       masm, CallOrConstructMode::kCall,
       masm->isolate()->builtins()->CallFunction());
@@ -163,9 +193,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   BIND(&if_arguments);
   {
     TNode<JSArgumentsObject> js_arguments = CAST(arguments_list);
-    // Try to extract the elements from an JSArgumentsObject.
-    TNode<Object> length =
-        LoadObjectField(js_arguments, JSArgumentsObject::kLengthOffset);
+    // Try to extract the elements from an JSArgumentsObjectWithLength.
+    TNode<Object> length = LoadObjectField(
+        js_arguments, JSArgumentsObjectWithLength::kLengthOffset);
     TNode<FixedArrayBase> elements = LoadElements(js_arguments);
     TNode<Smi> elements_length = LoadFixedArrayBaseLength(elements);
     GotoIfNot(WordEqual(length, elements_length), &if_runtime);
@@ -211,11 +241,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     {
       if (new_target == nullptr) {
         Callable callable = CodeFactory::CallVarargs(isolate());
-        TailCallStub(callable, context, target, args_count, elements, length);
+        TailCallStub(callable, context, target, args_count, length, elements);
       } else {
         Callable callable = CodeFactory::ConstructVarargs(isolate());
-        TailCallStub(callable, context, target, new_target, args_count,
-                     elements, length);
+        TailCallStub(callable, context, target, new_target, args_count, length,
+                     elements);
       }
     }
 
@@ -266,11 +296,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
   {
     if (new_target == nullptr) {
       Callable callable = CodeFactory::CallVarargs(isolate());
-      TailCallStub(callable, context, target, args_count, new_elements, length);
+      TailCallStub(callable, context, target, args_count, length, new_elements);
     } else {
       Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, args_count,
-                   new_elements, length);
+      TailCallStub(callable, context, target, new_target, args_count, length,
+                   new_elements);
     }
   }
 }
@@ -299,7 +329,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   // Check that the Array.prototype hasn't been modified in a way that would
   // affect iteration.
   TNode<PropertyCell> protector_cell =
-      CAST(LoadRoot(Heap::kArrayIteratorProtectorRootIndex));
+      CAST(LoadRoot(RootIndex::kArrayIteratorProtector));
   GotoIf(WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                    SmiConstant(Isolate::kProtectorInvalid)),
          &if_generic);
@@ -325,8 +355,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<Object> iterator_fn =
         GetProperty(context, spread, IteratorSymbolConstant());
     GotoIfNot(TaggedIsCallable(iterator_fn), &if_iterator_fn_not_callable);
-    TNode<JSArray> list = CAST(
-        CallBuiltin(Builtins::kIterableToList, context, spread, iterator_fn));
+    TNode<JSArray> list =
+        CAST(CallBuiltin(Builtins::kIterableToListMayPreserveHoles, context,
+                         spread, iterator_fn));
     var_length = LoadAndUntagToWord32ObjectField(list, JSArray::kLengthOffset);
 
     var_elements = LoadElements(list);
@@ -346,11 +377,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
     if (new_target == nullptr) {
       Callable callable = CodeFactory::CallVarargs(isolate());
-      TailCallStub(callable, context, target, args_count, elements, length);
+      TailCallStub(callable, context, target, args_count, length, elements);
     } else {
       Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, args_count, elements,
-                   length);
+      TailCallStub(callable, context, target, new_target, args_count, length,
+                   elements);
     }
   }
 

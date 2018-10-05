@@ -665,6 +665,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "stwcx   'rs, 'ra, 'rb");
       return;
     }
+    case STDCX: {
+      Format(instr, "stdcx   'rs, 'ra, 'rb");
+      return;
+    }
   }
 
   // ?? are all of these xo_form?
@@ -896,6 +900,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
     }
     case LDUX: {
       Format(instr, "ldux    'rt, 'ra, 'rb");
+      return;
+    }
+    case LDARX: {
+      Format(instr, "ldarx   'rt, 'ra, 'rb");
       return;
     }
     case STDX: {

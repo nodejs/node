@@ -387,6 +387,7 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(imported_function_callables, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_instances, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
+  DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
   DECL_ACCESSORS(undefined_value, Oddball)
   DECL_ACCESSORS(null_value, Oddball)
   DECL_ACCESSORS(centry_stub, Code)
@@ -422,6 +423,7 @@ class WasmInstanceObject : public JSObject {
   V(kImportedFunctionCallablesOffset, kPointerSize)                     \
   V(kIndirectFunctionTableInstancesOffset, kPointerSize)                \
   V(kManagedNativeAllocationsOffset, kPointerSize)                      \
+  V(kExceptionsTableOffset, kPointerSize)                               \
   V(kUndefinedValueOffset, kPointerSize)                                \
   V(kNullValueOffset, kPointerSize)                                     \
   V(kCEntryStubOffset, kPointerSize)                                    \
@@ -461,15 +463,37 @@ class WasmInstanceObject : public JSObject {
 
   static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>);
 
-  static void InstallFinalizer(Isolate* isolate,
-                               Handle<WasmInstanceObject> instance);
-
   Address GetCallTarget(uint32_t func_index);
 
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
+};
+
+// Representation of WebAssembly.Exception JavaScript-level object.
+class WasmExceptionObject : public JSObject {
+ public:
+  DECL_CAST(WasmExceptionObject)
+
+  DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
+  DECL_ACCESSORS(exception_tag, HeapObject)
+
+// Layout description.
+#define WASM_EXCEPTION_OBJECT_FIELDS(V)       \
+  V(kSerializedSignatureOffset, kPointerSize) \
+  V(kExceptionTagOffset, kPointerSize)        \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                WASM_EXCEPTION_OBJECT_FIELDS)
+#undef WASM_EXCEPTION_OBJECT_FIELDS
+
+  // Checks whether the given {sig} has the same parameter types as the
+  // serialized signature stored within this exception object.
+  bool IsSignatureEqual(const wasm::FunctionSig* sig);
+
+  static Handle<WasmExceptionObject> New(Isolate* isolate,
+                                         const wasm::FunctionSig* sig,
+                                         Handle<HeapObject> exception_tag);
 };
 
 // A WASM function that is wrapped and exported to JavaScript.
@@ -521,12 +545,9 @@ class WasmExportedFunctionData : public Struct {
 
 class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
-  DECL_ACCESSORS(interpreter_handle, Object);
-  DECL_ACCESSORS(interpreted_functions, Object);
+  DECL_ACCESSORS(interpreter_handle, Object);  // Foreign or undefined
+  DECL_ACCESSORS(interpreted_functions, FixedArray);
   DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)

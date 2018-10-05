@@ -15,9 +15,6 @@ function bytes() {
   return buffer;
 }
 
-// V8 internal constants
-var kV8MaxPages = 32767;
-
 // Header declaration constants
 var kWasmH0 = 0;
 var kWasmH1 = 0x61;
@@ -94,11 +91,13 @@ let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128  = 0x7b;
 let kWasmAnyRef = 0x6f;
+let kWasmExceptRef = 0x68;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
 let kExternalMemory = 2;
 let kExternalGlobal = 3;
+let kExternalException = 4;
 
 let kTableZero = 0;
 let kMemoryZero = 0;
@@ -373,6 +372,43 @@ let kExprI32AtomicCompareExchange = 0x48
 let kExprI32AtomicCompareExchange8U = 0x4a
 let kExprI32AtomicCompareExchange16U = 0x4b
 
+let kExprI64AtomicLoad = 0x11;
+let kExprI64AtomicLoad8U = 0x14;
+let kExprI64AtomicLoad16U = 0x15;
+let kExprI64AtomicLoad32U = 0x16;
+let kExprI64AtomicStore = 0x18;
+let kExprI64AtomicStore8U = 0x1b;
+let kExprI64AtomicStore16U = 0x1c;
+let kExprI64AtomicStore32U = 0x1d;
+let kExprI64AtomicAdd = 0x1f;
+let kExprI64AtomicAdd8U = 0x22;
+let kExprI64AtomicAdd16U = 0x23;
+let kExprI64AtomicAdd32U = 0x24;
+let kExprI64AtomicSub = 0x26;
+let kExprI64AtomicSub8U = 0x29;
+let kExprI64AtomicSub16U = 0x2a;
+let kExprI64AtomicSub32U = 0x2b;
+let kExprI64AtomicAnd = 0x2d;
+let kExprI64AtomicAnd8U = 0x30;
+let kExprI64AtomicAnd16U = 0x31;
+let kExprI64AtomicAnd32U = 0x32;
+let kExprI64AtomicOr = 0x34;
+let kExprI64AtomicOr8U = 0x37;
+let kExprI64AtomicOr16U = 0x38;
+let kExprI64AtomicOr32U = 0x39;
+let kExprI64AtomicXor = 0x3b;
+let kExprI64AtomicXor8U = 0x3e;
+let kExprI64AtomicXor16U = 0x3f;
+let kExprI64AtomicXor32U = 0x40;
+let kExprI64AtomicExchange = 0x42;
+let kExprI64AtomicExchange8U = 0x45;
+let kExprI64AtomicExchange16U = 0x46;
+let kExprI64AtomicExchange32U = 0x47;
+let kExprI64AtomicCompareExchange = 0x49
+let kExprI64AtomicCompareExchange8U = 0x4c;
+let kExprI64AtomicCompareExchange16U = 0x4d;
+let kExprI64AtomicCompareExchange32U = 0x4e;
+
 let kTrapUnreachable          = 0;
 let kTrapMemOutOfBounds       = 1;
 let kTrapDivByZero            = 2;
@@ -411,29 +447,6 @@ function assertTraps(trap, code) {
     return;
   }
   throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
-}
-
-function assertWasmThrows(runtime_id, values, code) {
-  try {
-    if (typeof code === 'function') {
-      code();
-    } else {
-      eval(code);
-    }
-  } catch (e) {
-    assertTrue(e instanceof WebAssembly.RuntimeError);
-    var e_runtime_id = e['WasmExceptionRuntimeId'];
-    assertEquals(e_runtime_id, runtime_id);
-    assertTrue(Number.isInteger(e_runtime_id));
-    var e_values = e['WasmExceptionValues'];
-    assertEquals(values.length, e_values.length);
-    for (i = 0; i < values.length; ++i) {
-      assertEquals(values[i], e_values[i]);
-    }
-    // Success.
-    return;
-  }
-  throw new MjsUnitAssertionError('Did not throw expected: ' + runtime_id + values);
 }
 
 function wasmI32Const(val) {

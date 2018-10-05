@@ -22,6 +22,11 @@ namespace internal {
 
 namespace {
 
+enum class Usage {
+  SORT,
+  SEARCH,
+};
+
 // TODO(gsathya): Consider internalizing the value strings.
 void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
                                   Handle<String> key, const char* value) {
@@ -47,6 +52,13 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
             .FromJust());
 }
 
+void toLanguageTag(const icu::Locale& locale, char* tag) {
+  UErrorCode status = U_ZERO_ERROR;
+  uloc_toLanguageTag(locale.getName(), tag, ULOC_FULLNAME_CAPACITY, FALSE,
+                     &status);
+  CHECK(U_SUCCESS(status));
+}
+
 }  // anonymous namespace
 
 // static
@@ -54,11 +66,6 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
                                              Handle<JSCollator> collator) {
   Handle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
-
-  JSCollator::Usage usage = collator->usage();
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->usage_string(),
-                               JSCollator::UsageToString(usage));
 
   icu::Collator* icu_collator = collator->icu_collator()->raw();
   CHECK_NOT_NULL(icu_collator);
@@ -128,96 +135,70 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
                                ignore_punctuation);
 
   status = U_ZERO_ERROR;
-  const char* collation;
-  std::unique_ptr<icu::StringEnumeration> collation_values(
-      icu_collator->getKeywordValues("co", status));
-  // Collation wasn't provided as a keyword to icu, use default.
-  if (status == U_ILLEGAL_ARGUMENT_ERROR) {
-    CreateDataPropertyForOptions(
-        isolate, options, isolate->factory()->collation_string(), "default");
+
+  icu::Locale icu_locale(icu_collator->getLocale(ULOC_VALID_LOCALE, status));
+  CHECK(U_SUCCESS(status));
+
+  const char* collation = "default";
+  const char* usage = "sort";
+  const char* collation_key = "co";
+  const char* legacy_collation_key = uloc_toLegacyKey(collation_key);
+  DCHECK_NOT_NULL(legacy_collation_key);
+
+  char bcp47_locale_tag[ULOC_FULLNAME_CAPACITY];
+  char legacy_collation_value[ULOC_FULLNAME_CAPACITY];
+  status = U_ZERO_ERROR;
+  int32_t length =
+      icu_locale.getKeywordValue(legacy_collation_key, legacy_collation_value,
+                                 ULOC_FULLNAME_CAPACITY, status);
+
+  if (length > 0 && U_SUCCESS(status)) {
+    const char* collation_value =
+        uloc_toUnicodeLocaleType(collation_key, legacy_collation_value);
+    CHECK_NOT_NULL(collation_value);
+
+    if (strcmp(collation_value, "search") == 0) {
+      usage = "search";
+
+      // Search is disallowed as a collation value per spec. Let's
+      // use `default`, instead.
+      //
+      // https://tc39.github.io/ecma402/#sec-properties-of-intl-collator-instances
+      collation = "default";
+
+      // We clone the icu::Locale because we don't want the
+      // icu_collator to be affected when we remove the collation key
+      // below.
+      icu::Locale new_icu_locale = icu_locale;
+
+      // The spec forbids the search as a collation value in the
+      // locale tag, so let's filter it out.
+      status = U_ZERO_ERROR;
+      new_icu_locale.setKeywordValue(legacy_collation_key, nullptr, status);
+      CHECK(U_SUCCESS(status));
+
+      toLanguageTag(new_icu_locale, bcp47_locale_tag);
+    } else {
+      collation = collation_value;
+      toLanguageTag(icu_locale, bcp47_locale_tag);
+    }
   } else {
-    CHECK(U_SUCCESS(status));
-    CHECK_NOT_NULL(collation_values.get());
-
-    int32_t length;
-    status = U_ZERO_ERROR;
-    collation = collation_values->next(&length, status);
-    CHECK(U_SUCCESS(status));
-
-    // There has to be at least one value.
-    CHECK_NOT_NULL(collation);
-    CreateDataPropertyForOptions(
-        isolate, options, isolate->factory()->collation_string(), collation);
-
-    status = U_ZERO_ERROR;
-    collation_values->reset(status);
-    CHECK(U_SUCCESS(status));
+    toLanguageTag(icu_locale, bcp47_locale_tag);
   }
 
-  status = U_ZERO_ERROR;
-  icu::Locale icu_locale = icu_collator->getLocale(ULOC_VALID_LOCALE, status);
-  CHECK(U_SUCCESS(status));
-
-  char result[ULOC_FULLNAME_CAPACITY];
-  status = U_ZERO_ERROR;
-  uloc_toLanguageTag(icu_locale.getName(), result, ULOC_FULLNAME_CAPACITY,
-                     FALSE, &status);
-  CHECK(U_SUCCESS(status));
+  CreateDataPropertyForOptions(
+      isolate, options, isolate->factory()->collation_string(), collation);
 
   CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->locale_string(), result);
+                               isolate->factory()->usage_string(), usage);
+
+  CreateDataPropertyForOptions(
+      isolate, options, isolate->factory()->locale_string(), bcp47_locale_tag);
 
   return options;
 }
 
 namespace {
-
-std::map<std::string, std::string> LookupUnicodeExtensions(
-    const icu::Locale& icu_locale, const std::set<std::string>& relevant_keys) {
-  std::map<std::string, std::string> extensions;
-
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::StringEnumeration> keywords(
-      icu_locale.createKeywords(status));
-  if (U_FAILURE(status)) return extensions;
-
-  if (!keywords) return extensions;
-  char value[ULOC_FULLNAME_CAPACITY];
-
-  int32_t length;
-  status = U_ZERO_ERROR;
-  for (const char* keyword = keywords->next(&length, status);
-       keyword != nullptr; keyword = keywords->next(&length, status)) {
-    // Ignore failures in ICU and skip to the next keyword.
-    //
-    // This is fine.™
-    if (U_FAILURE(status)) {
-      status = U_ZERO_ERROR;
-      continue;
-    }
-
-    icu_locale.getKeywordValue(keyword, value, ULOC_FULLNAME_CAPACITY, status);
-
-    // Ignore failures in ICU and skip to the next keyword.
-    //
-    // This is fine.™
-    if (U_FAILURE(status)) {
-      status = U_ZERO_ERROR;
-      continue;
-    }
-
-    const char* bcp47_key = uloc_toUnicodeLocaleKey(keyword);
-
-    // Ignore keywords that we don't recognize - spec allows that.
-    if (bcp47_key && (relevant_keys.find(bcp47_key) != relevant_keys.end())) {
-      const char* bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
-      extensions.insert(
-          std::pair<std::string, std::string>(bcp47_key, bcp47_value));
-    }
-  }
-
-  return extensions;
-}
 
 void SetCaseFirstOption(icu::Collator* icu_collator, const char* value) {
   CHECK_NOT_NULL(icu_collator);
@@ -236,9 +217,10 @@ void SetCaseFirstOption(icu::Collator* icu_collator, const char* value) {
 }  // anonymous namespace
 
 // static
-MaybeHandle<JSCollator> JSCollator::InitializeCollator(
-    Isolate* isolate, Handle<JSCollator> collator, Handle<Object> locales,
-    Handle<Object> options_obj) {
+MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
+                                               Handle<JSCollator> collator,
+                                               Handle<Object> locales,
+                                               Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Handle<JSObject> requested_locales;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locales,
@@ -264,7 +246,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   // "search" », "sort").
   std::vector<const char*> values = {"sort", "search"};
   std::unique_ptr<char[]> usage_str = nullptr;
-  JSCollator::Usage usage = JSCollator::Usage::SORT;
+  Usage usage = Usage::SORT;
   Maybe<bool> found_usage = Intl::GetStringOption(
       isolate, options, "usage", values, "Intl.Collator", &usage_str);
   MAYBE_RETURN(found_usage, MaybeHandle<JSCollator>());
@@ -272,20 +254,9 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   if (found_usage.FromJust()) {
     DCHECK_NOT_NULL(usage_str.get());
     if (strcmp(usage_str.get(), "search") == 0) {
-      usage = JSCollator::Usage::SEARCH;
+      usage = Usage::SEARCH;
     }
   }
-
-  // 5. Set collator.[[Usage]] to usage.
-  collator->set_usage(usage);
-
-  // 6. If usage is "sort", then
-  //    a. Let localeData be %Collator%.[[SortLocaleData]].
-  // 7. Else,
-  //    a. Let localeData be %Collator%.[[SearchLocaleData]].
-  //
-  // The above two spec operations aren't required, the Intl spec is
-  // crazy. See https://github.com/tc39/ecma402/issues/256
 
   // TODO(gsathya): This is currently done as part of the
   // Intl::ResolveLocale call below. Fix this once resolveLocale is
@@ -368,7 +339,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   DCHECK(!icu_locale.isBogus());
 
   std::map<std::string, std::string> extensions =
-      LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
+      Intl::LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
 
   // 19. Let collation be r.[[co]].
   //
@@ -386,9 +357,36 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
     const std::string& value = co_extension_it->second;
     if ((value == "search") || (value == "standard")) {
       UErrorCode status = U_ZERO_ERROR;
-      icu_locale.setKeywordValue("co", NULL, status);
+      const char* key = uloc_toLegacyKey("co");
+      icu_locale.setKeywordValue(key, nullptr, status);
       CHECK(U_SUCCESS(status));
     }
+  }
+
+  // 5. Set collator.[[Usage]] to usage.
+  //
+  // 6. If usage is "sort", then
+  //    a. Let localeData be %Collator%.[[SortLocaleData]].
+  // 7. Else,
+  //    a. Let localeData be %Collator%.[[SearchLocaleData]].
+  //
+  // The Intl spec doesn't allow us to use "search" as an extension
+  // value for collation as per:
+  // https://tc39.github.io/ecma402/#sec-intl-collator-internal-slots
+  //
+  // But the only way to pass the value "search" for collation from
+  // the options object to ICU is to use the 'co' extension keyword.
+  //
+  // This will need to be filtered out when creating the
+  // resolvedOptions object.
+  if (usage == Usage::SEARCH) {
+    const char* key = uloc_toLegacyKey("co");
+    CHECK_NOT_NULL(key);
+    const char* value = uloc_toLegacyType(key, "search");
+    CHECK_NOT_NULL(value);
+    UErrorCode status = U_ZERO_ERROR;
+    icu_locale.setKeywordValue(key, value, status);
+    CHECK(U_SUCCESS(status));
   }
 
   // 20. If collation is null, let collation be "default".
@@ -523,18 +521,6 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
 
   // 29. Return collator.
   return collator;
-}
-
-// static
-const char* JSCollator::UsageToString(Usage usage) {
-  switch (usage) {
-    case Usage::SORT:
-      return "sort";
-    case Usage::SEARCH:
-      return "search";
-    case Usage::COUNT:
-      UNREACHABLE();
-  }
 }
 
 }  // namespace internal

@@ -27,7 +27,7 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
                      SourcePositionTable* source_position,
                      NodeOriginTable* node_origins,
                      PoisoningMitigationLevel poisoning_level);
-  ~SimplifiedLowering() {}
+  ~SimplifiedLowering() = default;
 
   void LowerAllNodes();
 

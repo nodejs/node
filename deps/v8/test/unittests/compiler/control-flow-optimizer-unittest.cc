@@ -21,7 +21,7 @@ class ControlFlowOptimizerTest : public GraphTest {
  public:
   explicit ControlFlowOptimizerTest(int num_parameters = 3)
       : GraphTest(num_parameters), machine_(zone()), javascript_(zone()) {}
-  ~ControlFlowOptimizerTest() override {}
+  ~ControlFlowOptimizerTest() override = default;
 
  protected:
   void Optimize() {

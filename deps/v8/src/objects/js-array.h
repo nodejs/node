@@ -5,8 +5,9 @@
 #ifndef V8_OBJECTS_JS_ARRAY_H_
 #define V8_OBJECTS_JS_ARRAY_H_
 
-#include "src/objects.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

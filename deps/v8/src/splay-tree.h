@@ -128,7 +128,7 @@ class SplayTree {
 
   // A locator provides access to a node in the tree without actually
   // exposing the node.
-  class Locator BASE_EMBEDDED {
+  class Locator {
    public:
     explicit Locator(Node* node) : node_(node) { }
     Locator() : node_(nullptr) {}
@@ -159,8 +159,8 @@ class SplayTree {
   // Removes root_ node.
   void RemoveRootNode(const Key& key);
 
-  template<class Callback>
-  class NodeToPairAdaptor BASE_EMBEDDED {
+  template <class Callback>
+  class NodeToPairAdaptor {
    public:
     explicit NodeToPairAdaptor(Callback* callback)
         : callback_(callback) { }
@@ -174,9 +174,9 @@ class SplayTree {
     DISALLOW_COPY_AND_ASSIGN(NodeToPairAdaptor);
   };
 
-  class NodeDeleter BASE_EMBEDDED {
+  class NodeDeleter {
    public:
-    NodeDeleter() { }
+    NodeDeleter() = default;
     void Call(Node* node) { AllocationPolicy::Delete(node); }
 
    private:

@@ -105,9 +105,7 @@ class SourceGroup {
    public:
     explicit IsolateThread(SourceGroup* group);
 
-    virtual void Run() {
-      group_->ExecuteInThread();
-    }
+    void Run() override { group_->ExecuteInThread(); }
 
    private:
     SourceGroup* group_;
@@ -257,7 +255,7 @@ class Worker {
         : base::Thread(base::Thread::Options("WorkerThread")),
           worker_(worker) {}
 
-    virtual void Run() { worker_->ExecuteInThread(); }
+    void Run() override { worker_->ExecuteInThread(); }
 
    private:
     Worker* worker_;
@@ -369,6 +367,7 @@ class ShellOptions {
   bool test_shell;
   bool expected_to_throw;
   bool mock_arraybuffer_allocator;
+  size_t mock_arraybuffer_allocator_limit = 0;
   bool enable_inspector;
   int num_isolates;
   v8::ScriptCompiler::CompileOptions compile_options;

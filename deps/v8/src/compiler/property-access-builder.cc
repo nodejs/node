@@ -89,6 +89,7 @@ bool NeedsCheckHeapObject(Node* receiver) {
     case IrOpcode::kJSCreateIterResultObject:
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateEmptyLiteralArray:
+    case IrOpcode::kJSCreateArrayFromIterable:
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateEmptyLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
@@ -208,6 +209,7 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
           DCHECK(!it.is_dictionary_holder());
           MapRef map(js_heap_broker(),
                      handle(it.GetHolder<HeapObject>()->map(), isolate()));
+          map.SerializeOwnDescriptors();  // TODO(neis): Remove later.
           dependencies()->DependOnFieldType(map, it.GetFieldDescriptorIndex());
         }
         return value;

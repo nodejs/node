@@ -37,7 +37,7 @@ struct SsaEnv {
   compiler::WasmInstanceCacheNodes instance_cache;
   TFNode** locals;
 
-  bool go() { return state >= kReached; }
+  bool reached() const { return state >= kReached; }
   void Kill(State new_state = kControlEnd) {
     state = new_state;
     locals = nullptr;
@@ -52,7 +52,7 @@ struct SsaEnv {
 
 #define BUILD(func, ...)                                            \
   ([&] {                                                            \
-    DCHECK(ssa_env_->go());                                         \
+    DCHECK(ssa_env_->reached());                                    \
     DCHECK(decoder->ok());                                          \
     return CheckForException(decoder, builder_->func(__VA_ARGS__)); \
   })()
@@ -99,6 +99,12 @@ class WasmGraphBuildingInterface {
     // instance parameter.
     TFNode* start = builder_->Start(
         static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
+    ssa_env->effect = start;
+    ssa_env->control = start;
+    // Initialize effect and control before initializing the locals default
+    // values (which might require instance loads) or loading the context.
+    builder_->set_effect_ptr(&ssa_env->effect);
+    builder_->set_control_ptr(&ssa_env->control);
     // Initialize the instance parameter (index 0).
     builder_->set_instance_node(builder_->Param(kWasmInstanceParameterIndex));
     // Initialize local variables. Parameters are shifted by 1 because of the
@@ -115,18 +121,13 @@ class WasmGraphBuildingInterface {
         ssa_env->locals[index++] = node;
       }
     }
-    ssa_env->effect = start;
-    ssa_env->control = start;
-    // Initialize effect and control before loading the context.
-    builder_->set_effect_ptr(&ssa_env->effect);
-    builder_->set_control_ptr(&ssa_env->control);
     LoadContextIntoSsa(ssa_env);
     SetEnv(ssa_env);
   }
 
   // Reload the instance cache entries into the Ssa Environment.
   void LoadContextIntoSsa(SsaEnv* ssa_env) {
-    if (!ssa_env || !ssa_env->go()) return;
+    if (!ssa_env || !ssa_env->reached()) return;
     builder_->InitInstanceCache(&ssa_env->instance_cache);
   }
 
@@ -180,7 +181,9 @@ class WasmGraphBuildingInterface {
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     TFNode* if_true = nullptr;
     TFNode* if_false = nullptr;
-    if (ssa_env_->go()) BUILD(BranchNoHint, cond.node, &if_true, &if_false);
+    if (ssa_env_->reached()) {
+      BUILD(BranchNoHint, cond.node, &if_true, &if_false);
+    }
     SsaEnv* end_env = ssa_env_;
     SsaEnv* false_env = Split(decoder, ssa_env_);
     false_env->control = if_false;
@@ -427,55 +430,46 @@ class WasmGraphBuildingInterface {
                       const ExceptionIndexImmediate<validate>& imm,
                       Control* block, Vector<Value> values) {
     DCHECK(block->is_try_catch());
+    TFNode* exception = block->try_info->exception;
     current_catch_ = block->previous_catch;
     SsaEnv* catch_env = block->try_info->catch_env;
     SetEnv(catch_env);
 
-    TFNode* compare_i32 = nullptr;
-    if (block->try_info->exception == nullptr) {
-      // Catch not applicable, no possible throws in the try
-      // block. Create dummy code so that body of catch still
-      // compiles. Note: This only happens because the current
-      // implementation only builds a landing pad if some node in the
-      // try block can (possibly) throw.
-      //
-      // TODO(kschimpf): Always generate a landing pad for a try block.
-      compare_i32 = BUILD(Int32Constant, 0);
-    } else {
-      // Get the exception and see if wanted exception.
-      TFNode* caught_tag = BUILD(GetExceptionRuntimeId);
-      TFNode* exception_tag = BUILD(ConvertExceptionTagToRuntimeId, imm.index);
-      compare_i32 = BUILD(Binop, kExprI32Eq, caught_tag, exception_tag);
-    }
+    // The catch block is unreachable if no possible throws in the try block
+    // exist. We only build a landing pad if some node in the try block can
+    // (possibly) throw. Otherwise the below catch environments remain empty.
+    DCHECK_EQ(exception != nullptr, ssa_env_->reached());
 
     TFNode* if_catch = nullptr;
     TFNode* if_no_catch = nullptr;
-    BUILD(BranchNoHint, compare_i32, &if_catch, &if_no_catch);
+    if (exception != nullptr) {
+      // Get the exception tag and see if it matches the expected one.
+      TFNode* caught_tag = BUILD(GetExceptionTag, exception);
+      TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
+      TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
+      BUILD(BranchNoHint, compare, &if_catch, &if_no_catch);
+    }
 
     SsaEnv* if_no_catch_env = Split(decoder, ssa_env_);
     if_no_catch_env->control = if_no_catch;
     SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
     if_catch_env->control = if_catch;
 
-    // TODO(kschimpf): Generalize to allow more catches. Will force
-    // moving no_catch code to END opcode.
     SetEnv(if_no_catch_env);
-    BUILD(Rethrow);
-    Unreachable(decoder);
-    EndControl(decoder, block);
+    if (exception != nullptr) {
+      // TODO(kschimpf): Generalize to allow more catches. Will force
+      // moving no_catch code to END opcode.
+      BUILD(Rethrow, exception);
+      Unreachable(decoder);
+      EndControl(decoder, block);
+    }
 
     SetEnv(if_catch_env);
-
-    if (block->try_info->exception == nullptr) {
-      // No caught value, make up filler nodes so that catch block still
-      // compiles.
-      for (Value& value : values) {
-        value.node = DefaultValue(value.type);
-      }
-    } else {
+    if (exception != nullptr) {
       // TODO(kschimpf): Can't use BUILD() here, GetExceptionValues() returns
       // TFNode** rather than TFNode*. Fix to add landing pads.
-      TFNode** caught_values = builder_->GetExceptionValues(imm.exception);
+      TFNode** caught_values =
+          builder_->GetExceptionValues(exception, imm.exception);
       for (size_t i = 0, e = values.size(); i < e; ++i) {
         values[i].node = caught_values[i];
       }
@@ -594,6 +588,9 @@ class WasmGraphBuildingInterface {
         return builder_->Float64Constant(0);
       case kWasmS128:
         return builder_->S128Zero();
+      case kWasmAnyRef:
+      case kWasmExceptRef:
+        return builder_->RefNull();
       default:
         UNREACHABLE();
     }
@@ -601,7 +598,7 @@ class WasmGraphBuildingInterface {
 
   void MergeValuesInto(FullDecoder* decoder, Control* c, Merge<Value>* merge) {
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
-    if (!ssa_env_->go()) return;
+    if (!ssa_env_->reached()) return;
 
     SsaEnv* target = c->end_env;
     const bool first = target->state == SsaEnv::kUnreachable;
@@ -624,7 +621,7 @@ class WasmGraphBuildingInterface {
 
   void Goto(FullDecoder* decoder, SsaEnv* from, SsaEnv* to) {
     DCHECK_NOT_NULL(to);
-    if (!from->go()) return;
+    if (!from->reached()) return;
     switch (to->state) {
       case SsaEnv::kUnreachable: {  // Overwrite destination.
         to->state = SsaEnv::kReached;
@@ -685,7 +682,7 @@ class WasmGraphBuildingInterface {
   }
 
   SsaEnv* PrepareForLoop(FullDecoder* decoder, SsaEnv* env) {
-    if (!env->go()) return Split(decoder, env);
+    if (!env->reached()) return Split(decoder, env);
     env->state = SsaEnv::kMerged;
 
     env->control = builder_->Loop(env->control);
@@ -739,7 +736,7 @@ class WasmGraphBuildingInterface {
     result->control = from->control;
     result->effect = from->effect;
 
-    if (from->go()) {
+    if (from->reached()) {
       result->state = SsaEnv::kReached;
       result->locals =
           size > 0 ? reinterpret_cast<TFNode**>(decoder->zone()->New(size))
@@ -759,7 +756,7 @@ class WasmGraphBuildingInterface {
   // unreachable.
   SsaEnv* Steal(Zone* zone, SsaEnv* from) {
     DCHECK_NOT_NULL(from);
-    if (!from->go()) return UnreachableEnv(zone);
+    if (!from->reached()) return UnreachableEnv(zone);
     SsaEnv* result = reinterpret_cast<SsaEnv*>(zone->New(sizeof(SsaEnv)));
     result->state = SsaEnv::kReached;
     result->locals = from->locals;
@@ -791,11 +788,9 @@ class WasmGraphBuildingInterface {
       arg_nodes[i + 1] = args[i].node;
     }
     if (index_node) {
-      builder_->CallIndirect(index, arg_nodes, &return_nodes,
-                             decoder->position());
+      BUILD(CallIndirect, index, arg_nodes, &return_nodes, decoder->position());
     } else {
-      builder_->CallDirect(index, arg_nodes, &return_nodes,
-                           decoder->position());
+      BUILD(CallDirect, index, arg_nodes, &return_nodes, decoder->position());
     }
     int return_count = static_cast<int>(sig->return_count());
     for (int i = 0; i < return_count; ++i) {

@@ -39,7 +39,10 @@
       'os': 'Android',
     },
     'tests': [
-      {'name': 'mjsunit', 'variant': 'default', 'shards': 2},
+      {'name': 'benchmarks', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+      {'name': 'mozilla', 'variant': 'default'},
+      {'name': 'test262_variants', 'variant': 'default', 'shards': 6},
     ],
   },
   ##############################################################################
@@ -82,7 +85,7 @@
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'test262_variants', 'shards': 2},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
@@ -120,14 +123,69 @@
       {'name': 'optimize_for_size'},
       {'name': 'test262_variants', 'shards': 4},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'suffix': 'isolates', 'test_args': ['--isolates'], 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
+  'v8_linux_optional_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+    },
+    'tests': [
+      # Code serializer.
+      {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
+      {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
+      {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
+      {'name': 'test262_variants', 'variant': 'code_serializer', 'shards': 1},
+      # No SSE3.
+      {
+        'name': 'mozilla',
+        'suffix': 'nosse3',
+        'test_args': [
+          '--extra-flags',
+          '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx',
+        ],
+      },
+      {
+        'name': 'test262',
+        'suffix': 'nosse3',
+        'test_args': [
+          '--extra-flags',
+          '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx',
+        ],
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'nosse3',
+        'test_args': [
+          '--extra-flags',
+          '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx',
+        ],
+        'shards': 3,
+      },
+      # No SSE4.
+      {
+        'name': 'mozilla',
+        'suffix': 'nosse4',
+        'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
+      },
+      {
+        'name': 'test262',
+        'suffix': 'nosse4',
+        'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'nosse4',
+        'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
+        'shards': 3,
+      },
+    ],
+  },
   'v8_linux_verify_csa_rel_ng_triggered': {
     'tests': [
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -144,9 +202,9 @@
   'v8_linux_arm_rel_ng_triggered': {
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla'},
-      {'name': 'test262'},
-      {'name': 'v8testing', 'shards': 7},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'shards': 2},
+      {'name': 'v8testing', 'shards': 8},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
     ],
   },
@@ -214,10 +272,21 @@
       {'name': 'test262_variants', 'shards': 4},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
       {'name': 'v8initializers'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'minor_mc'},
       {'name': 'v8testing', 'variant': 'slow_path'},
+    ],
+  },
+  # TODO(machenbach): Experimental builder with incomplete configs. Should be
+  # similar to v8_linux64_rel_ng_triggered after testing.
+  'v8_linux64_rel_xg': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+    },
+    'tests': [
+      {'name': 'v8initializers'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'v8_linux64_tsan_rel': {
@@ -242,7 +311,7 @@
   },
   'v8_linux64_verify_csa_rel_ng_triggered': {
     'tests': [
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -264,10 +333,28 @@
   'v8_linux_arm64_rel_ng_triggered': {
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 9},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
+    ],
+  },
+  ##############################################################################
+  # Odroids with native arm
+  'v8_odroid_arm_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cores': '8',
+      'cpu': 'armv7l-32-ODROID-XU4',
+      'os': 'Ubuntu-16.04',
+    },
+    'swarming_task_attrs': {
+      # Use same prio as CI due to limited resources.
+      'priority': 25,
+    },
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'optimize_for_size'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -298,7 +385,7 @@
     },
     'tests': [
       {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -331,7 +418,7 @@
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'v8_win64_rel_ng_triggered': {
@@ -341,7 +428,7 @@
     },
     'tests': [
       {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
@@ -385,7 +472,7 @@
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },

@@ -32,7 +32,7 @@ TypedOptimization::TypedOptimization(Editor* editor,
                                      graph()->zone())),
       type_cache_(TypeCache::Get()) {}
 
-TypedOptimization::~TypedOptimization() {}
+TypedOptimization::~TypedOptimization() = default;
 
 Reduction TypedOptimization::Reduce(Node* node) {
   DisallowHeapAccess no_heap_access;
@@ -61,6 +61,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceNumberRoundop(node);
     case IrOpcode::kNumberFloor:
       return ReduceNumberFloor(node);
+    case IrOpcode::kNumberSilenceNaN:
+      return ReduceNumberSilenceNaN(node);
     case IrOpcode::kNumberToUint8Clamped:
       return ReduceNumberToUint8Clamped(node);
     case IrOpcode::kPhi:
@@ -71,6 +73,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
     case IrOpcode::kStringLessThan:
     case IrOpcode::kStringLessThanOrEqual:
       return ReduceStringComparison(node);
+    case IrOpcode::kStringLength:
+      return ReduceStringLength(node);
     case IrOpcode::kSameValue:
       return ReduceSameValue(node);
     case IrOpcode::kSelect:
@@ -272,6 +276,15 @@ Reduction TypedOptimization::ReduceNumberRoundop(Node* node) {
   return NoChange();
 }
 
+Reduction TypedOptimization::ReduceNumberSilenceNaN(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (input_type.Is(Type::OrderedNumber())) {
+    return Replace(input);
+  }
+  return NoChange();
+}
+
 Reduction TypedOptimization::ReduceNumberToUint8Clamped(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type const input_type = NodeProperties::GetType(input);
@@ -454,6 +467,30 @@ Reduction TypedOptimization::ReduceStringComparison(Node* node) {
   return NoChange();
 }
 
+Reduction TypedOptimization::ReduceStringLength(Node* node) {
+  DCHECK_EQ(IrOpcode::kStringLength, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  switch (input->opcode()) {
+    case IrOpcode::kHeapConstant: {
+      // Constant-fold the String::length of the {input}.
+      HeapObjectMatcher m(input);
+      if (m.Ref(js_heap_broker()).IsString()) {
+        uint32_t const length = m.Ref(js_heap_broker()).AsString().length();
+        Node* value = jsgraph()->Constant(length);
+        return Replace(value);
+      }
+      break;
+    }
+    case IrOpcode::kStringConcat: {
+      // The first value input to the {input} is the resulting length.
+      return Replace(input->InputAt(0));
+    }
+    default:
+      break;
+  }
+  return NoChange();
+}
+
 Reduction TypedOptimization::ReduceSameValue(Node* node) {
   DCHECK_EQ(IrOpcode::kSameValue, node->opcode());
   Node* const lhs = NodeProperties::GetValueInput(node, 0);
@@ -578,8 +615,6 @@ Reduction TypedOptimization::ReduceTypeOf(Node* node) {
   } else if (type.Is(Type::Function())) {
     return Replace(
         jsgraph()->Constant(ObjectRef(js_heap_broker(), f->function_string())));
-  } else if (type.IsHeapConstant()) {
-    return Replace(jsgraph()->Constant(type.AsHeapConstant()->Ref().TypeOf()));
   }
   return NoChange();
 }

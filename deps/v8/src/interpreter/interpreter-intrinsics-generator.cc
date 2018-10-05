@@ -159,12 +159,6 @@ Node* IntrinsicsGenerator::IsArray(
   return IsInstanceType(input, JS_ARRAY_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSProxy(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_PROXY_TYPE);
-}
-
 Node* IntrinsicsGenerator::IsTypedArray(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* input = __ LoadRegisterFromRegisterList(args, 0);
@@ -212,12 +206,6 @@ Node* IntrinsicsGenerator::HasProperty(
       args, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
 }
 
-Node* IntrinsicsGenerator::GetProperty(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kGetProperty));
-}
-
 Node* IntrinsicsGenerator::RejectPromise(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
@@ -242,18 +230,6 @@ Node* IntrinsicsGenerator::ToLength(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
       args, context, Builtins::CallableFor(isolate(), Builtins::kToLength));
-}
-
-Node* IntrinsicsGenerator::ToInteger(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kToInteger));
-}
-
-Node* IntrinsicsGenerator::ToNumber(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kToNumber));
 }
 
 Node* IntrinsicsGenerator::ToObject(
@@ -334,15 +310,6 @@ Node* IntrinsicsGenerator::CreateJSGeneratorObject(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsBuiltinCall(args, context,
                                 Builtins::kCreateGeneratorObject);
-}
-
-Node* IntrinsicsGenerator::GeneratorGetInputOrDebugPos(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* generator = __ LoadRegisterFromRegisterList(args, 0);
-  Node* const value =
-      __ LoadObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset);
-
-  return value;
 }
 
 Node* IntrinsicsGenerator::GeneratorGetResumeMode(

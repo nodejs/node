@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+class JSPromise;
+
 // Struct to hold state required for PromiseReactionJob. See the comment on the
 // PromiseReaction below for details on how this is being managed to reduce the
 // memory and allocation overhead. This is the base class for the concrete

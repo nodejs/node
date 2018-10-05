@@ -282,60 +282,6 @@ void SharedFunctionInfo::DontAdaptArguments() {
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
-int SharedFunctionInfo::StartPosition() const {
-  Object* maybe_scope_info = name_or_scope_info();
-  if (maybe_scope_info->IsScopeInfo()) {
-    ScopeInfo* info = ScopeInfo::cast(maybe_scope_info);
-    if (info->HasPositionInfo()) {
-      return info->StartPosition();
-    }
-  } else if (HasUncompiledData()) {
-    // Works with or without scope.
-    return uncompiled_data()->start_position();
-  } else if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
-    return 0;
-  }
-  return kNoSourcePosition;
-}
-
-int SharedFunctionInfo::EndPosition() const {
-  Object* maybe_scope_info = name_or_scope_info();
-  if (maybe_scope_info->IsScopeInfo()) {
-    ScopeInfo* info = ScopeInfo::cast(maybe_scope_info);
-    if (info->HasPositionInfo()) {
-      return info->EndPosition();
-    }
-  } else if (HasUncompiledData()) {
-    // Works with or without scope.
-    return uncompiled_data()->end_position();
-  } else if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
-    return 0;
-  }
-  return kNoSourcePosition;
-}
-
-void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
-  Object* maybe_scope_info = name_or_scope_info();
-  if (maybe_scope_info->IsScopeInfo()) {
-    ScopeInfo* info = ScopeInfo::cast(maybe_scope_info);
-    if (info->HasPositionInfo()) {
-      info->SetPositionInfo(start_position, end_position);
-    }
-  } else if (HasUncompiledData()) {
-    if (HasUncompiledDataWithPreParsedScope()) {
-      // Clear out preparsed scope data, since the position setter invalidates
-      // any scope data.
-      ClearPreParsedScopeData();
-    }
-    uncompiled_data()->set_start_position(start_position);
-    uncompiled_data()->set_end_position(end_position);
-  } else {
-    UNREACHABLE();
-  }
-}
-
 bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
 
 ScopeInfo* SharedFunctionInfo::scope_info() const {
@@ -611,21 +557,6 @@ void SharedFunctionInfo::ClearPreParsedScopeData() {
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
   return function_data()->IsWasmExportedFunctionData();
-}
-
-int SharedFunctionInfo::FunctionLiteralId(Isolate* isolate) const {
-  // Fast path for the common case when the SFI is uncompiled and so the
-  // function literal id is already in the uncompiled data.
-  if (HasUncompiledData()) {
-    int id = uncompiled_data()->function_literal_id();
-    // Make sure the id is what we should have found with the slow path.
-    DCHECK_EQ(id, FindIndexInScript(isolate));
-    return id;
-  }
-
-  // Otherwise, search for the function in the SFI's script's function list,
-  // and return its index in that list.e
-  return FindIndexInScript(isolate);
 }
 
 Object* SharedFunctionInfo::script() const {

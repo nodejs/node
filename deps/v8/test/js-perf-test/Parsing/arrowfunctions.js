@@ -27,29 +27,29 @@ new BenchmarkSuite("FakeArrowFunction", [1000], [
 ]);
 
 function ArrowFunctionShortSetup() {
-  code = "let a;\n" + "a = (a,b) => { return a+b; }\n".repeat(100)
+  code = "let a;\n" + "a = (a,b) => { return a+b; }\n".repeat(50)
 }
 
 function ArrowFunctionLongSetup() {
-  code = "let a;\n" + "a = (a,b,c,d,e,f,g,h,i,j) => { return a+b; }\n".repeat(100)
+  code = "let a;\n" + "a = (a,b,c,d,e,f,g,h,i,j) => { return a+b; }\n".repeat(50)
 }
 
 function CommaSepExpressionListShortSetup() {
-  code = "let a;\n" + "a = (a,1)\n".repeat(100)
+  code = "let a;\n" + "a = (a,1)\n".repeat(50)
 }
 
 function CommaSepExpressionListLongSetup() {
-  code = "let a; let b; let c;\n" + "a = (a,2,3,4,5,b,c,1,7,1)\n".repeat(100)
+  code = "let a; let b; let c;\n" + "a = (a,2,3,4,5,b,c,1,7,1)\n".repeat(50)
 }
 
 function CommaSepExpressionListLateSetup() {
   code = "let a; let b; let c; let d; let e; let f; let g; let h; let i;\n"
-    + "a = (a,b,c,d,e,f,g,h,i,1)\n".repeat(100)
+    + "a = (a,b,c,d,e,f,g,h,i,1)\n".repeat(50)
 }
 
 function FakeArrowFunctionSetup() {
   code = "let a; let b; let c; let d; let e; let f; let g; let h; let i; let j;\n"
-    + "a = (a,b,c,d,e,f,g,h,i,j)\n".repeat(100)
+    + "a = (a,b,c,d,e,f,g,h,i,j)\n".repeat(50)
 }
 
 function Run() {

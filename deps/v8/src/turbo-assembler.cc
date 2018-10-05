@@ -32,7 +32,7 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
   // check if any of the fast paths can be applied.
 
   int builtin_index;
-  Heap::RootListIndex root_index;
+  RootIndex root_index;
   if (isolate()->heap()->IsRootHandle(object, &root_index)) {
     // Roots are loaded relative to the root register.
     LoadRoot(destination, root_index);
@@ -84,8 +84,9 @@ void TurboAssemblerBase::IndirectLoadExternalReference(
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffset(Heap::RootListIndex root_index) {
-  return (root_index << kPointerSizeLog2) - kRootRegisterBias;
+int32_t TurboAssemblerBase::RootRegisterOffset(RootIndex root_index) {
+  return (static_cast<int32_t>(root_index) << kPointerSizeLog2) -
+         kRootRegisterBias;
 }
 
 // static
@@ -105,10 +106,8 @@ intptr_t TurboAssemblerBase::RootRegisterOffsetForExternalReference(
 // static
 bool TurboAssemblerBase::IsAddressableThroughRootRegister(
     Isolate* isolate, const ExternalReference& reference) {
-  Address start = reinterpret_cast<Address>(isolate);
-  Address end = isolate->heap()->root_register_addressable_end();
   Address address = reference.address();
-  return start <= address && address < end;
+  return isolate->root_register_addressable_region().contains(address);
 }
 
 // static

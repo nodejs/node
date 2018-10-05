@@ -286,7 +286,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
       auto& dst = stack_state[dst_idx];
       auto& src = source.stack_state[src_idx];
       // Just initialize to any register; will be overwritten before use.
-      LiftoffRegister reg(Register::from_code<0>());
+      LiftoffRegister reg = kGpCacheRegList.GetFirstRegSet();
       RegClass rc = src.is_reg() ? src.reg_class() : reg_class_for(src.type());
       if (src.is_reg() && is_free(src.reg())) {
         reg = src.reg();

@@ -4,10 +4,10 @@
 
 #ifdef V8_INTL_SUPPORT
 
-#include "src/builtins/builtins-intl.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-number-format.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -125,8 +125,7 @@ TEST(GetStringOption) {
   Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
   v8::internal::LookupIterator it(isolate, options, key);
   CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), isolate),
-                            LanguageMode::kStrict,
-                            AllocationMemento::MAY_BE_STORE_FROM_KEYED)
+                            LanguageMode::kStrict, StoreOrigin::kMaybeKeyed)
             .FromJust());
 
   {

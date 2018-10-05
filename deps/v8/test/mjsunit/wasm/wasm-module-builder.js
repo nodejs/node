@@ -179,6 +179,7 @@ class WasmModuleBuilder {
     this.explicit = [];
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
+    this.num_imported_exceptions = 0;
     return this;
   }
 
@@ -228,10 +229,12 @@ class WasmModuleBuilder {
   }
 
   addException(type) {
-    if (type.results.length != 0)
-      throw new Error('Invalid exception signature: ' + type);
+    if (type.results.length != 0) {
+      throw new Error('Exception signature must have void result: ' + type);
+    }
+    let except_index = this.exceptions.length + this.num_imported_exceptions;
     this.exceptions.push(type);
-    return this.exceptions.length - 1;
+    return except_index;
   }
 
   addFunction(name, type) {
@@ -243,6 +246,9 @@ class WasmModuleBuilder {
   }
 
   addImport(module = "", name, type) {
+    if (this.functions.length != 0) {
+      throw new Error('Imported functions must be declared before local ones');
+    }
     let type_index = (typeof type) == "number" ? type : this.addType(type);
     this.imports.push({module: module, name: name, kind: kExternalFunction,
                        type: type_index});
@@ -250,6 +256,9 @@ class WasmModuleBuilder {
   }
 
   addImportedGlobal(module = "", name, type, mutable = false) {
+    if (this.globals.length != 0) {
+      throw new Error('Imported globals must be declared before local ones');
+    }
     let o = {module: module, name: name, kind: kExternalGlobal, type: type,
              mutable: mutable};
     this.imports.push(o);
@@ -267,6 +276,18 @@ class WasmModuleBuilder {
     let o = {module: module, name: name, kind: kExternalTable, initial: initial,
              maximum: maximum};
     this.imports.push(o);
+  }
+
+  addImportedException(module = "", name, type) {
+    if (type.results.length != 0) {
+      throw new Error('Exception signature must have void result: ' + type);
+    }
+    if (this.exceptions.length != 0) {
+      throw new Error('Imported exceptions must be declared before local ones');
+    }
+    let o = {module: module, name: name, kind: kExternalException, type: type};
+    this.imports.push(o);
+    return this.num_imported_exceptions++;
   }
 
   addExport(name, index) {
@@ -378,6 +399,11 @@ class WasmModuleBuilder {
             section.emit_u8(has_max ? 1 : 0); // flags
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
+          } else if (imp.kind == kExternalException) {
+            section.emit_u32v(imp.type.params.length);
+            for (let param of imp.type.params) {
+              section.emit_u8(param);
+            }
           } else {
             throw new Error("unknown/unsupported import kind " + imp.kind);
           }
@@ -478,6 +504,20 @@ class WasmModuleBuilder {
       });
     }
 
+    // Add exceptions.
+    if (wasm.exceptions.length > 0) {
+      if (debug) print("emitting exceptions @ " + binary.length);
+      binary.emit_section(kExceptionSectionCode, section => {
+        section.emit_u32v(wasm.exceptions.length);
+        for (let type of wasm.exceptions) {
+          section.emit_u32v(type.params.length);
+          for (let param of type.params) {
+            section.emit_u8(param);
+          }
+        }
+      });
+    }
+
     // Add export table.
     var mem_export = (wasm.memory !== undefined && wasm.memory.exp);
     var exports_count = wasm.exports.length + (mem_export ? 1 : 0);
@@ -530,20 +570,6 @@ class WasmModuleBuilder {
       });
     }
 
-    // Add exceptions.
-    if (wasm.exceptions.length > 0) {
-      if (debug) print("emitting exceptions @ " + binary.length);
-      binary.emit_section(kExceptionSectionCode, section => {
-        section.emit_u32v(wasm.exceptions.length);
-        for (let type of wasm.exceptions) {
-          section.emit_u32v(type.params.length);
-          for (let param of type.params) {
-            section.emit_u8(param);
-          }
-        }
-      });
-    }
-
     // Add function bodies.
     if (wasm.functions.length > 0) {
       // emit function bodies
@@ -568,6 +594,12 @@ class WasmModuleBuilder {
             }
             if (l.s128_count > 0) {
               local_decls.push({count: l.s128_count, type: kWasmS128});
+            }
+            if (l.anyref_count > 0) {
+              local_decls.push({count: l.anyref_count, type: kWasmAnyRef});
+            }
+            if (l.except_count > 0) {
+              local_decls.push({count: l.except_count, type: kWasmExceptRef});
             }
           }
 

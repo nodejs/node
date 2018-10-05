@@ -357,9 +357,9 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewByteLength() {
                         JSArrayBufferView::kByteLengthOffset,
                         MaybeHandle<Name>(),
                         MaybeHandle<Map>(),
-                        TypeCache::Get().kPositiveInteger,
-                        MachineType::AnyTagged(),
-                        kFullWriteBarrier};
+                        TypeCache::Get().kJSArrayBufferViewByteLengthType,
+                        MachineType::UintPtr(),
+                        kNoWriteBarrier};
   return access;
 }
 
@@ -369,9 +369,9 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewByteOffset() {
                         JSArrayBufferView::kByteOffsetOffset,
                         MaybeHandle<Name>(),
                         MaybeHandle<Map>(),
-                        TypeCache::Get().kPositiveInteger,
-                        MachineType::AnyTagged(),
-                        kFullWriteBarrier};
+                        TypeCache::Get().kJSArrayBufferViewByteOffsetType,
+                        MachineType::UintPtr(),
+                        kNoWriteBarrier};
   return access;
 }
 
@@ -611,7 +611,7 @@ FieldAccess AccessBuilder::ForStringLength() {
                         Handle<Name>(),
                         MaybeHandle<Map>(),
                         TypeCache::Get().kStringLengthType,
-                        MachineType::TaggedSigned(),
+                        MachineType::Uint32(),
                         kNoWriteBarrier};
   return access;
 }
@@ -801,10 +801,11 @@ FieldAccess AccessBuilder::ForValue() {
 
 // static
 FieldAccess AccessBuilder::ForArgumentsLength() {
-  FieldAccess access = {kTaggedBase,         JSArgumentsObject::kLengthOffset,
-                        Handle<Name>(),      MaybeHandle<Map>(),
-                        Type::NonInternal(), MachineType::AnyTagged(),
-                        kFullWriteBarrier};
+  FieldAccess access = {
+      kTaggedBase,         JSArgumentsObjectWithLength::kLengthOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::NonInternal(), MachineType::AnyTagged(),
+      kFullWriteBarrier};
   return access;
 }
 

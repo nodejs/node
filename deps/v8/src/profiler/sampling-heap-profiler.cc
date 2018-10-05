@@ -6,8 +6,10 @@
 
 #include <stdint.h>
 #include <memory>
+
 #include "src/api-inl.h"
 #include "src/base/ieee754.h"
+#include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap.h"
@@ -61,7 +63,6 @@ SamplingHeapProfiler::SamplingHeapProfiler(
           heap->isolate()->random_number_generator())),
       names_(names),
       profile_root_(nullptr, "(root)", v8::UnboundScript::kNoScriptId, 0),
-      samples_(),
       stack_depth_(stack_depth),
       rate_(rate),
       flags_(flags) {
@@ -75,8 +76,6 @@ SamplingHeapProfiler::SamplingHeapProfiler(
 SamplingHeapProfiler::~SamplingHeapProfiler() {
   heap_->RemoveAllocationObserversFromAllSpaces(other_spaces_observer_.get(),
                                                 new_space_observer_.get());
-
-  samples_.clear();
 }
 
 
@@ -96,9 +95,9 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 
   AllocationNode* node = AddStack();
   node->allocations_[size]++;
-  Sample* sample = new Sample(size, node, loc, this);
-  samples_.emplace(sample);
-  sample->global.SetWeak(sample, OnWeakCallback, WeakCallbackType::kParameter);
+  auto sample = base::make_unique<Sample>(size, node, loc, this);
+  sample->global.SetWeak(sample.get(), OnWeakCallback,
+                         WeakCallbackType::kParameter);
 #if __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated"
@@ -109,6 +108,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 #if __clang__
 #pragma clang diagnostic pop
 #endif
+  samples_.emplace(sample.get(), std::move(sample));
 }
 
 void SamplingHeapProfiler::OnWeakCallback(
@@ -129,13 +129,7 @@ void SamplingHeapProfiler::OnWeakCallback(
       node = parent;
     }
   }
-  auto it = std::find_if(sample->profiler->samples_.begin(),
-                         sample->profiler->samples_.end(),
-                         [&sample](const std::unique_ptr<Sample>& s) {
-                           return s.get() == sample;
-                         });
-
-  sample->profiler->samples_.erase(it);
+  sample->profiler->samples_.erase(sample);
   // sample is deleted because its unique ptr was erased from samples_.
 }
 
