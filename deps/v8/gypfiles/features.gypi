@@ -31,6 +31,8 @@
   'variables': {
     'v8_target_arch%': '<(target_arch)',
 
+    'v8_current_cpu%': '<(target_arch)',
+
     # Emulate GN variables
     'conditions': [
       ['OS=="android"', { # GYP reverts OS to linux so use `-D OS=android`

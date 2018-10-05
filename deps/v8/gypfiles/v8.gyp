@@ -361,6 +361,18 @@
             '../src/builtins/builtins-intl-gen.cc',
           ],
         }],
+        # Platforms that don't have Compare-And-Swap support need to link atomic
+        # library to implement atomic memory access
+        [ 'v8_current_cpu == "mips" or v8_current_cpu == "mipsel" or '
+          'v8_current_cpu == "mips64" or v8_current_cpu == "mips64el" or '
+          'v8_current_cpu == "ppc" or v8_current_cpu == "ppc64" or '
+          'v8_current_cpu == "s390" or v8_current_cpu == "s390x"',
+          {
+            'link_settings': {
+              'libraries': [ '-latomic', ],
+            },
+          },
+        ],
       ],
     }, # v8_initializers
     {
