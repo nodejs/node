@@ -17,8 +17,7 @@ bool StringsStorage::StringsMatch(void* key1, void* key2) {
          0;
 }
 
-StringsStorage::StringsStorage(uint32_t hash_seed)
-    : hash_seed_(hash_seed), names_(StringsMatch) {}
+StringsStorage::StringsStorage() : names_(StringsMatch) {}
 
 StringsStorage::~StringsStorage() {
   for (base::HashMap::Entry* p = names_.Start(); p != NULL;
@@ -116,7 +115,7 @@ const char* StringsStorage::GetFunctionName(const char* name) {
 }
 
 base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
-  uint32_t hash = StringHasher::HashSequentialString(str, len, hash_seed_);
+  uint32_t hash = StringHasher::HashSequentialString(str, len, kZeroHashSeed);
   return names_.LookupOrInsert(const_cast<char*>(str), hash);
 }
 

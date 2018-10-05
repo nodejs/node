@@ -148,8 +148,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   uintptr_t stack_limit() const { return stack_limit_; }
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
 
-  uint32_t hash_seed() const { return hash_seed_; }
-  void set_hash_seed(uint32_t hash_seed) { hash_seed_ = hash_seed; }
+  uint64_t hash_seed() const { return hash_seed_; }
+  void set_hash_seed(uint64_t hash_seed) { hash_seed_ = hash_seed; }
 
   int compiler_hints() const { return compiler_hints_; }
   void set_compiler_hints(int compiler_hints) {
@@ -266,7 +266,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   DeclarationScope* asm_function_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
-  uint32_t hash_seed_;
+  uint64_t hash_seed_;
   int compiler_hints_;
   int start_position_;
   int end_position_;

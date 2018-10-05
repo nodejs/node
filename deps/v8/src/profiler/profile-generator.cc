@@ -83,16 +83,16 @@ CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
 }
 
 uint32_t CodeEntry::GetHash() const {
-  uint32_t hash = ComputeIntegerHash(tag());
+  uint32_t hash = ComputeUnseededHash(tag());
   if (script_id_ != v8::UnboundScript::kNoScriptId) {
-    hash ^= ComputeIntegerHash(static_cast<uint32_t>(script_id_));
-    hash ^= ComputeIntegerHash(static_cast<uint32_t>(position_));
+    hash ^= ComputeUnseededHash(static_cast<uint32_t>(script_id_));
+    hash ^= ComputeUnseededHash(static_cast<uint32_t>(position_));
   } else {
-    hash ^= ComputeIntegerHash(
+    hash ^= ComputeUnseededHash(
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
-    hash ^= ComputeIntegerHash(
+    hash ^= ComputeUnseededHash(
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
-    hash ^= ComputeIntegerHash(line_number_);
+    hash ^= ComputeUnseededHash(line_number_);
   }
   return hash;
 }
@@ -533,7 +533,7 @@ void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
   ClearCodesInRange(addr, addr + size);
   unsigned index = AddCodeEntry(addr, entry);
   code_map_.emplace(addr, CodeEntryMapInfo{index, size});
-  DCHECK(entry->instruction_start() == kNullAddress ||
+  DCHECK(entry->instruction_start() == 0 ||
          addr == entry->instruction_start());
 }
 
@@ -605,9 +605,7 @@ void CodeMap::Print() {
 }
 
 CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
-    : resource_names_(isolate->heap()->HashSeed()),
-      profiler_(nullptr),
-      current_profiles_semaphore_(1) {}
+    : profiler_(nullptr), current_profiles_semaphore_(1) {}
 
 static void DeleteCpuProfile(CpuProfile** profile_ptr) {
   delete *profile_ptr;

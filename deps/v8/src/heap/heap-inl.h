@@ -614,12 +614,12 @@ Oddball* Heap::ToBoolean(bool condition) {
   return condition ? true_value() : false_value();
 }
 
-uint32_t Heap::HashSeed() {
-  uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
+uint64_t Heap::HashSeed() {
+  uint64_t seed;
+  hash_seed()->copy_out(0, reinterpret_cast<byte*>(&seed), kInt64Size);
   DCHECK(FLAG_randomize_hashes || seed == 0);
   return seed;
 }
-
 
 int Heap::NextScriptId() {
   int last_id = last_script_id()->value();

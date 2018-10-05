@@ -1432,6 +1432,16 @@ ExternalReference ExternalReference::check_object_type(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(CheckObjectType)));
 }
 
+static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
+  DisallowHeapAllocation no_gc;
+  return ComputeSeededHash(key, isolate->heap()->HashSeed());
+}
+
+ExternalReference ExternalReference::compute_integer_hash(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(ComputeSeededIntegerHash)));
+}
+
 #ifdef V8_INTL_SUPPORT
 ExternalReference ExternalReference::intl_convert_one_byte_to_lower(
     Isolate* isolate) {

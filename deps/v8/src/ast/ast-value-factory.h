@@ -361,7 +361,7 @@ class AstValue : public ZoneObject {
 
 class AstStringConstants final {
  public:
-  AstStringConstants(Isolate* isolate, uint32_t hash_seed)
+  AstStringConstants(Isolate* isolate, uint64_t hash_seed)
       : zone_(isolate->allocator(), ZONE_NAME),
         string_table_(AstRawString::Compare),
         hash_seed_(hash_seed) {
@@ -391,7 +391,7 @@ class AstStringConstants final {
   STRING_CONSTANTS(F)
 #undef F
 
-  uint32_t hash_seed() const { return hash_seed_; }
+  uint64_t hash_seed() const { return hash_seed_; }
   const base::CustomMatcherHashMap* string_table() const {
     return &string_table_;
   }
@@ -399,7 +399,7 @@ class AstStringConstants final {
  private:
   Zone zone_;
   base::CustomMatcherHashMap string_table_;
-  uint32_t hash_seed_;
+  uint64_t hash_seed_;
 
 #define F(name, str) AstRawString* name##_string_;
   STRING_CONSTANTS(F)
@@ -418,7 +418,7 @@ class AstStringConstants final {
 class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, const AstStringConstants* string_constants,
-                  uint32_t hash_seed)
+                  uint64_t hash_seed)
       : string_table_(string_constants->string_table()),
         values_(nullptr),
         strings_(nullptr),
@@ -535,7 +535,7 @@ class AstValueFactory {
 
   Zone* zone_;
 
-  uint32_t hash_seed_;
+  uint64_t hash_seed_;
 
 #define F(name) AstValue* name##_;
   OTHER_CONSTANTS(F)

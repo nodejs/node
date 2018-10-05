@@ -19,7 +19,7 @@ class Name;
 // forever, even if they disappear from JS heap or external storage.
 class StringsStorage {
  public:
-  explicit StringsStorage(uint32_t hash_seed);
+  StringsStorage();
   ~StringsStorage();
 
   const char* GetCopy(const char* src);
@@ -39,7 +39,6 @@ class StringsStorage {
   const char* AddOrDisposeString(char* str, int len);
   base::CustomMatcherHashMap::Entry* GetEntry(const char* str, int len);
 
-  uint32_t hash_seed_;
   base::CustomMatcherHashMap names_;
 
   DISALLOW_COPY_AND_ASSIGN(StringsStorage);

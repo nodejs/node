@@ -5844,13 +5844,13 @@ bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
 }
 
 uint32_t UnseededNumberDictionaryShape::Hash(Isolate* isolate, uint32_t key) {
-  return ComputeIntegerHash(key);
+  return ComputeUnseededHash(key);
 }
 
 uint32_t UnseededNumberDictionaryShape::HashForObject(Isolate* isolate,
                                                       Object* other) {
   DCHECK(other->IsNumber());
-  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()));
+  return ComputeUnseededHash(static_cast<uint32_t>(other->Number()));
 }
 
 Map* UnseededNumberDictionaryShape::GetMap(Isolate* isolate) {
@@ -5858,14 +5858,14 @@ Map* UnseededNumberDictionaryShape::GetMap(Isolate* isolate) {
 }
 
 uint32_t SeededNumberDictionaryShape::Hash(Isolate* isolate, uint32_t key) {
-  return ComputeIntegerHash(key, isolate->heap()->HashSeed());
+  return ComputeSeededHash(key, isolate->heap()->HashSeed());
 }
 
 uint32_t SeededNumberDictionaryShape::HashForObject(Isolate* isolate,
                                                     Object* other) {
   DCHECK(other->IsNumber());
-  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()),
-                            isolate->heap()->HashSeed());
+  return ComputeSeededHash(static_cast<uint32_t>(other->Number()),
+                           isolate->heap()->HashSeed());
 }
 
 
@@ -5935,7 +5935,6 @@ uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
 uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
   return Smi::ToInt(other->GetHash());
 }
-
 
 Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
                                               Handle<Object> key) {

@@ -2825,6 +2825,9 @@ void Heap::CreateInitialObjects() {
   set_minus_infinity_value(
       *factory->NewHeapNumber(-V8_INFINITY, IMMUTABLE, TENURED));
 
+  set_hash_seed(*factory->NewByteArray(kInt64Size, TENURED));
+  InitializeHashSeed();
+
   // Allocate initial string table.
   set_string_table(*StringTable::New(isolate(), kInitialStringTableSize));
 
@@ -5929,10 +5932,6 @@ bool Heap::SetUp() {
   space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this, LO_SPACE);
   if (!lo_space_->SetUp()) return false;
 
-  // Set up the seed that is used to randomize the string hash function.
-  DCHECK(hash_seed() == 0);
-  if (FLAG_randomize_hashes) InitializeHashSeed();
-
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
        i++) {
     deferred_counters_[i] = 0;
@@ -5970,12 +5969,14 @@ bool Heap::SetUp() {
 }
 
 void Heap::InitializeHashSeed() {
+  uint64_t new_hash_seed;
   if (FLAG_hash_seed == 0) {
-    int rnd = isolate()->random_number_generator()->NextInt();
-    set_hash_seed(Smi::FromInt(rnd & Name::kHashBitMask));
+    int64_t rnd = isolate()->random_number_generator()->NextInt64();
+    new_hash_seed = static_cast<uint64_t>(rnd);
   } else {
-    set_hash_seed(Smi::FromInt(FLAG_hash_seed));
+    new_hash_seed = static_cast<uint64_t>(FLAG_hash_seed);
   }
+  hash_seed()->copy_in(0, reinterpret_cast<byte*>(&new_hash_seed), kInt64Size);
 }
 
 bool Heap::CreateHeapObjects() {
