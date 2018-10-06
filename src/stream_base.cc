@@ -209,8 +209,6 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   if (args[2]->IsObject())
     send_handle_obj = args[2].As<Object>();
 
-  int err;
-
   // Compute the size of the storage that the string will be flattened into.
   // For UTF8 strings that are very long, go ahead and take the hit for
   // computing their actual size, rather than tripling the storage.
@@ -243,7 +241,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
     uv_buf_t* bufs = &buf;
     size_t count = 1;
-    err = DoTryWrite(&bufs, &count);
+    const int err = DoTryWrite(&bufs, &count);
     // Keep track of the bytes written here, because we're taking a shortcut
     // by using `DoTryWrite()` directly instead of using the utilities
     // provided by `Write()`.
