@@ -9,13 +9,11 @@
 </p>
 
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. For
-more information on using Node.js, see the
-[Node.js Website][].
+more information on using Node.js, see the [Node.js Website][].
 
-The Node.js project is supported by the
-[Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
-policies, and releases are managed under an
-[open governance model](./GOVERNANCE.md).
+Node.js contributions, policies, and releases are managed under an
+[open governance model](./GOVERNANCE.md). The [Node.js Foundation][] provides
+support for the project.
 
 **This project is bound by a [Code of Conduct][].**
 
@@ -643,6 +641,7 @@ Previous releases may also have been signed with one of the following GPG keys:
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Help]: https://github.com/nodejs/help
+[Node.js Foundation]: https://nodejs.org/en/foundation/
 [Node.js Website]: https://nodejs.org/en/
 [Questions tagged 'node.js' on StackOverflow]: https://stackoverflow.com/questions/tagged/node.js
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
