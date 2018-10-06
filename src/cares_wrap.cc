@@ -429,7 +429,6 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
 
   /* copy `h_aliases` */
   size_t alias_count;
-  size_t cur_alias_length;
   for (alias_count = 0;
       src->h_aliases[alias_count] != nullptr;
       alias_count++) {
@@ -437,9 +436,9 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
 
   dest->h_aliases = node::Malloc<char*>(alias_count + 1);
   for (size_t i = 0; i < alias_count; i++) {
-    cur_alias_length = strlen(src->h_aliases[i]);
-    dest->h_aliases[i] = node::Malloc(cur_alias_length + 1);
-    memcpy(dest->h_aliases[i], src->h_aliases[i], cur_alias_length + 1);
+    const size_t cur_alias_size = strlen(src->h_aliases[i]) + 1;
+    dest->h_aliases[i] = node::Malloc(cur_alias_size);
+    memcpy(dest->h_aliases[i], src->h_aliases[i], cur_alias_size);
   }
   dest->h_aliases[alias_count] = nullptr;
 
@@ -1065,7 +1064,6 @@ int ParseSoaReply(Environment* env,
   /* Can't use ares_parse_soa_reply() here which can only parse single record */
   unsigned int ancount = cares_get_16bit(buf + 6);
   unsigned char* ptr = buf + NS_HFIXEDSZ;
-  int rr_type, rr_len;
   char* name;
   char* rr_name;
   long temp_len;  // NOLINT(runtime/int)
@@ -1094,8 +1092,8 @@ int ParseSoaReply(Environment* env,
       break;
     }
 
-    rr_type = cares_get_16bit(ptr);
-    rr_len = cares_get_16bit(ptr + 8);
+    const int rr_type = cares_get_16bit(ptr);
+    const int rr_len = cares_get_16bit(ptr + 8);
     ptr += NS_RRFIXEDSZ;
 
     /* only need SOA */
