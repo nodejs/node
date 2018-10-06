@@ -49,10 +49,8 @@ void NodeTraceWriter::WriteSuffix() {
 NodeTraceWriter::~NodeTraceWriter() {
   WriteSuffix();
   uv_fs_t req;
-  int err;
   if (fd_ != -1) {
-    err = uv_fs_close(nullptr, &req, fd_, nullptr);
-    CHECK_EQ(err, 0);
+    CHECK_EQ(0, uv_fs_close(nullptr, &req, fd_, nullptr));
     uv_fs_req_cleanup(&req);
   }
   uv_async_send(&exit_signal_);
