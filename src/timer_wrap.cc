@@ -50,14 +50,11 @@ class TimerWrap : public HandleWrap {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     Local<String> timerString = FIXED_ONE_BYTE_STRING(env->isolate(), "Timer");
+    constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(timerString);
 
     env->SetTemplateMethod(constructor, "now", Now);
-
-    AsyncWrap::AddWrapMethods(env, constructor);
-    HandleWrap::AddWrapMethods(env, constructor);
-
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
