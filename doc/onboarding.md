@@ -210,11 +210,12 @@ needs to be pointed out separately during the onboarding.
     -1`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
-* Label your pull request with the `doc` and `notable-change` labels.
+* Label your pull request with the `doc`, `notable-change`, and `fast-track`
+  labels.
 * Run CI on the PR. Because the PR does not affect any code, use the
   `node-test-pull-request-lite-pipeline` CI task.
-* After one or two approvals, land the PR (PRs of this type do not need to wait
-  for 48 hours to land).
+* After two Collaborator approvals for the change and two Collaborator approvals
+  for fast-tracking, land the PR.
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
     metadata.
   * [`node-core-utils`][] automates the generation of metadata and the landing
