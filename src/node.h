@@ -287,8 +287,11 @@ NODE_EXTERN struct uv_loop_s* GetCurrentEventLoop(v8::Isolate* isolate);
 /* Converts a unixtime to V8 Date */
 NODE_DEPRECATED("Use v8::Date::New() directly",
                 inline v8::Local<v8::Value> NODE_UNIXTIME_V8(double time) {
-  return v8::Date::New(v8::Isolate::GetCurrent(), 1000 * time);
-})
+                  return v8::Date::New(
+                             v8::Isolate::GetCurrent()->GetCurrentContext(),
+                             1000 * time)
+                      .ToLocalChecked();
+                })
 #define NODE_UNIXTIME_V8 node::NODE_UNIXTIME_V8
 NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
                 inline double NODE_V8_UNIXTIME(v8::Local<v8::Date> date) {
