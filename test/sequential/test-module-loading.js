@@ -106,13 +106,10 @@ assert.strictEqual(require('../fixtures/packages/main').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main-index').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/missing-main').ok, 'ok');
 
-let unparseableErrorThrown = false;
-try {
-  require('../fixtures/packages/unparseable');
-} catch (e) {
-  unparseableErrorThrown = true;
-  assert.strictEqual(/^Error parsing .*/.test(e.message), true);
-}
+assert.throws(
+  function() { require('../fixtures/packages/unparseable'); },
+  /^SyntaxError: Error parsing/
+);
 
 {
   console.error('test cycles containing a .. path');
@@ -327,7 +324,6 @@ process.on('exit', function() {
   assert.strictEqual(d2.D(), 'D done');
 
   assert.strictEqual(errorThrown, true);
-  assert.strictEqual(unparseableErrorThrown, true);
 
   console.log('exit');
 });
