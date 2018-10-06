@@ -150,13 +150,13 @@ void Worker::Run() {
       TRACE_STR_COPY(name.c_str()));
   MultiIsolatePlatform* platform = isolate_data_->platform();
   CHECK_NE(platform, nullptr);
-  bool inspector_started = false;
 
   Debug(this, "Starting worker with id %llu", thread_id_);
   {
     Locker locker(isolate_);
     Isolate::Scope isolate_scope(isolate_);
     SealHandleScope outer_seal(isolate_);
+    bool inspector_started = false;
 
     {
       Context::Scope context_scope(env_->context());
