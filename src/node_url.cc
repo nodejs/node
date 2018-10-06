@@ -792,7 +792,7 @@ void URLHost::ParseIPv6Host(const char* input, size_t length) {
   uint16_t* compress_pointer = nullptr;
   const char* pointer = input;
   const char* end = pointer + length;
-  unsigned value, len, swaps, numbers_seen;
+  unsigned value, len, numbers_seen;
   char ch = pointer < end ? pointer[0] : kEOL;
   if (ch == ':') {
     if (length < 2 || pointer[1] != ':')
@@ -881,7 +881,7 @@ void URLHost::ParseIPv6Host(const char* input, size_t length) {
   }
 
   if (compress_pointer != nullptr) {
-    swaps = piece_pointer - compress_pointer;
+    unsigned swaps = piece_pointer - compress_pointer;
     piece_pointer = buffer_end - 1;
     while (piece_pointer != &value_.ipv6[0] && swaps > 0) {
       uint16_t temp = *piece_pointer;
