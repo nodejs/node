@@ -158,7 +158,7 @@ class NodePlatform : public MultiIsolatePlatform {
   std::unordered_map<v8::Isolate*,
                      std::shared_ptr<PerIsolatePlatformData>> per_isolate_;
 
-  std::unique_ptr<v8::TracingController> tracing_controller_;
+  v8::TracingController* tracing_controller_;
   std::shared_ptr<WorkerThreadsTaskRunner> worker_thread_task_runner_;
 };
 
