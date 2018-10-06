@@ -100,7 +100,8 @@ As soon as the PR is ready to land, please do so. Landing your own pull requests
 allows other Collaborators to focus on other pull requests. If your pull request
 is still awaiting the [minimum time to land](#waiting-for-approvals), add the
 `author ready` label so other Collaborators know it can land as soon as the time
-ends.
+ends. If instead you wish to land the PR yourself, indicate this intent by using
+the "assign yourself" button, to self-assign the PR.
 
 ## Accepting Modifications
 
@@ -501,6 +502,9 @@ The TSC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
+1. Avoid landing PRs that are assigned to someone else. Authors who wish to land
+   their own PRs will self-assign them, or delegate to someone else. If in
+   doubt, ask the assignee whether it is okay to land.
 1. Never use GitHub's green ["Merge Pull Request"][] button. Reasons for not
    using the web interface button:
    * The "Create a merge commit" method will add an unnecessary merge commit.
