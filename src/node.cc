@@ -1166,8 +1166,8 @@ class DLib : public std::enable_shared_from_this<DLib> {
   inline void* GetSymbolAddress(const char* name);
   inline void AddEnvironment(Environment* env);
 
-  std::string filename_;
-  int flags_;
+  const std::string filename_;
+  const int flags_ = 0;
   std::string errmsg_;
   void* handle_ = nullptr;
   std::unordered_set<Environment*> users_;
@@ -1334,9 +1334,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
       break;
     }
 
-    dlib = std::make_shared<DLib>();
-    dlib->filename_ = *filename;
-    dlib->flags_ = flags;
+    dlib = std::make_shared<DLib>(*filename, flags);
     bool is_opened = dlib->Open();
 
     if (is_opened && handle_to_dlib.count(dlib->handle_) > 0) {
