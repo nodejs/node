@@ -496,12 +496,11 @@ There is a minimum waiting time which we try to respect for non-trivial
 changes, so that people who may have important input in such a distributed
 project are able to respond.
 
-For non-trivial changes, Pull Requests must be left open for *at least* 48
-hours during the week, and 72 hours on a weekend. In most cases, when the
-PR is relatively small and focused on a narrow set of changes, these periods
-provide more than enough time to adequately review. Sometimes changes take far
-longer to review, or need more specialized review from subject matter experts.
-When in doubt, do not rush.
+For non-trivial changes, Pull Requests must be left open for at least 48 hours.
+In most cases, when the PR is relatively small and focused on a narrow set of
+changes, that will provide more than enough time to adequately review. Sometimes
+changes take far longer to review, or need more specialized review from subject
+matter experts. When in doubt, do not rush.
 
 Trivial changes, typically limited to small formatting changes or fixes to
 documentation, may be landed within the minimum 48 hour window.
@@ -643,12 +642,11 @@ If not, you can ask a Collaborator to start a CI run.
 
 ### Waiting Until the Pull Request Gets Landed
 
-A Pull Request needs to stay open for at least 48 hours (72 hours on a
-weekend) from when it is submitted, even after it gets approved and
-passes the CI. This is to make sure that everyone has a chance to
-weigh in. If the changes are trivial, collaborators may decide it
-doesn't need to wait. A Pull Request may well take longer to be
-merged in. All these precautions are important because Node.js is
+A Pull Request needs to stay open for at least 48 hours from when it is
+submitted, even after it gets approved and passes the CI. This is to make sure
+that everyone has a chance to weigh in. If the changes are trivial,
+collaborators may decide it doesn't need to wait. A Pull Request may well take
+longer to be merged in. All these precautions are important because Node.js is
 widely used, so don't be discouraged!
 
 ### Check Out the Collaborator Guide
