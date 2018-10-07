@@ -19,13 +19,13 @@ if (process.argv[2] !== 'child') {
     e.emit('hello', false);
   } catch (err) {
     const frames = err.stack.split('\n');
-    const [, filename, , ] = frames[1].match(/\((.+):(\d+):(\d+)\)/);
+    const [, filename, line, column] = frames[1].match(/\((.+):(\d+):(\d+)\)/);
     // Spawn a child process to avoid the error having been cached in the assert
     // module's `errorCache` Map.
 
     const { output, status, error } =
       spawnSync(process.execPath,
-                [process.argv[1], 'child', filename],
+                [process.argv[1], 'child', filename, line, column],
                 { cwd: tmpdir.path, env: process.env });
     assert.ifError(error);
     assert.strictEqual(status, 0, `Exit code: ${status}\n${output}`);
