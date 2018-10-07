@@ -57,15 +57,15 @@ assert.throws(
   }
 );
 
-// Number format specifier
+// Integer format specifier
 assert.strictEqual(util.format('%d'), '%d');
 assert.strictEqual(util.format('%d', 42.0), '42');
 assert.strictEqual(util.format('%d', 42), '42');
 assert.strictEqual(util.format('%d', '42'), '42');
 assert.strictEqual(util.format('%d', '42.0'), '42');
-assert.strictEqual(util.format('%d', 1.5), '1.5');
-assert.strictEqual(util.format('%d', -0.5), '-0.5');
-assert.strictEqual(util.format('%d', ''), '0');
+assert.strictEqual(util.format('%d', 1.5), '1');
+assert.strictEqual(util.format('%d', -0.5), '0');
+assert.strictEqual(util.format('%d', ''), 'NaN');
 assert.strictEqual(util.format('%d %d', 42, 43), '42 43');
 assert.strictEqual(util.format('%d %d', 42), '42 %d');
 assert.strictEqual(
@@ -270,7 +270,7 @@ assert.strictEqual(util.format('o: %O, a: %O'), 'o: %O, a: %O');
 // Invalid format specifiers
 assert.strictEqual(util.format('a% b', 'x'), 'a% b x');
 assert.strictEqual(util.format('percent: %d%, fraction: %d', 10, 0.1),
-                   'percent: 10%, fraction: 0.1');
+                   'percent: 10%, fraction: 0');
 assert.strictEqual(util.format('abc%', 1), 'abc% 1');
 
 // Additional arguments after format specifiers

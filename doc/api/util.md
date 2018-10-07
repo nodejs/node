@@ -211,7 +211,7 @@ specifiers. Each specifier is replaced with the converted value from the
 corresponding argument. Supported specifiers are:
 
 * `%s` - `String`.
-* `%d` - `Number` (integer or floating point value) or `BigInt`.
+* `%d` - Integer or `BigInt`.
 * `%i` - Integer or `BigInt`.
 * `%f` - Floating point value.
 * `%j` - JSON. Replaced with the string `'[Circular]'` if the argument
