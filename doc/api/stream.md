@@ -2327,7 +2327,7 @@ primarily for examples and testing, but there are some use cases where
 Prior to Node.js 0.10, the `Readable` stream interface was simpler, but also
 less powerful and less useful.
 
-* Rather than waiting for calls the [`stream.read()`][stream-read] method,
+* Rather than waiting for calls to the [`stream.read()`][stream-read] method,
   [`'data'`][] events would begin emitting immediately. Applications that
   would need to perform some amount of work to decide how to handle data
   were required to store read data into buffers so the data would not be lost.
