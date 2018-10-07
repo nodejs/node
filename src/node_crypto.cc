@@ -2533,7 +2533,7 @@ int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   //
   // Since we cannot perform I/O quickly enough in this callback, we ignore
   // all preverify_ok errors and let the handshake continue. It is
-  // imparative that the user use Connection::VerifyError after the
+  // imperative that the user use Connection::VerifyError after the
   // 'secure' callback has been made.
   return 1;
 }

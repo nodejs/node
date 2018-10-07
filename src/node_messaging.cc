@@ -98,7 +98,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   message_ports_.clear();
 
   std::vector<Local<SharedArrayBuffer>> shared_array_buffers;
-  // Attach all transfered SharedArrayBuffers to their new Isolate.
+  // Attach all transferred SharedArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < shared_array_buffers_.size(); ++i) {
     Local<SharedArrayBuffer> sab;
     if (!shared_array_buffers_[i]->GetSharedArrayBuffer(env, context)
@@ -116,7 +116,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
       &delegate);
   delegate.deserializer = &deserializer;
 
-  // Attach all transfered ArrayBuffers to their new Isolate.
+  // Attach all transferred ArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < array_buffer_contents_.size(); ++i) {
     Local<ArrayBuffer> ab =
         ArrayBuffer::New(env->isolate(),
@@ -234,7 +234,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   friend class worker::Message;
 };
 
-}  // anynomous namespace
+}  // anonymous namespace
 
 Maybe<bool> Message::Serialize(Environment* env,
                                Local<Context> context,
