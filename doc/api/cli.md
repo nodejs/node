@@ -23,7 +23,7 @@ _For more info about `node inspect`, please see the [debugger][] documentation._
 ## Options
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/23020
     description: Underscores instead of dashes are now allowed for
                  Node.js options as well, in addition to V8 options.
@@ -66,7 +66,7 @@ If this flag is passed, the behavior can still be set to not abort through
 
 ### `--completion-bash`
 <!-- YAML
-added: REPLACEME
+added: v10.12.0
 -->
 
 Print source-able bash completion script for Node.js.

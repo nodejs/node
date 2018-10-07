@@ -891,7 +891,7 @@ const builtin = require('module').builtinModules;
 
 ### module.createRequireFromPath(filename)
 <!-- YAML
-added: REPLACEME
+added: v10.12.0
 -->
 
 * `filename` {string} Filename to be used to construct the relative require
