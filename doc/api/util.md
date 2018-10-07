@@ -368,7 +368,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22846
     description: The `depth` default changed to `20`.
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/22788
     description: The `sorted` option is supported now.
   - version: REPLACEME
@@ -684,7 +684,7 @@ util.inspect(obj);
 <!-- YAML
 added: v6.6.0
 changes:
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/20857
     description: This is now defined as a shared symbol.
 -->

@@ -99,7 +99,7 @@ not be the same as what is originally sent.
 
 ### Event: 'multipleResolves'
 <!-- YAML
-added: REPLACEME
+added: v10.12.0
 -->
 
 * `type` {string} The error type. One of `'resolve'` or `'reject'`.

@@ -2148,7 +2148,7 @@ Synchronous lstat(2).
 <!-- YAML
 added: v0.1.8
 changes:
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/21875
     description: The second argument can now be an `options` object with
                  `recursive` and `mode` properties.
@@ -2193,7 +2193,7 @@ See also: mkdir(2).
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/21875
     description: The second argument can now be an `options` object with
                  `recursive` and `mode` properties.
