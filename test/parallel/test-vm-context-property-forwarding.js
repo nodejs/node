@@ -33,12 +33,12 @@ vm.runInContext('y = 4;', ctx);
 assert.strictEqual(sandbox.y, 4);
 assert.strictEqual(ctx.y, 4);
 
-const x = { get a() { return 5; } };
-const pd_expected = Object.getOwnPropertyDescriptor(x, 'a');
+const x = { get 1() { return 5; } };
+const pd_expected = Object.getOwnPropertyDescriptor(x, 1);
 const ctx2 = vm.createContext(x);
-const pd_actual = Object.getOwnPropertyDescriptor(ctx2, 'a');
+const pd_actual = Object.getOwnPropertyDescriptor(ctx2, 1);
 
 assert.deepStrictEqual(pd_actual, pd_expected);
-assert.strictEqual(ctx2.a, 5);
-delete ctx2.a;
-assert.strictEqual(ctx2.a, undefined);
+assert.strictEqual(ctx2[1], 5);
+delete ctx2[1];
+assert.strictEqual(ctx2[1], undefined);
