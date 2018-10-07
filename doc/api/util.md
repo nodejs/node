@@ -361,7 +361,7 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/22788
     description: The `sorted` option is supported now.
   - version: v10.6.0
@@ -663,7 +663,7 @@ util.inspect(obj);
 <!-- YAML
 added: v6.6.0
 changes:
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/20857
     description: This is now defined as a shared symbol.
 -->

@@ -1944,9 +1944,9 @@ The `repl` module was unable to parse data from the REPL history file.
 <a id="ERR_STDERR_CLOSE"></a>
 ### ERR_STDERR_CLOSE
 <!-- YAML
-removed: REPLACEME
+removed: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/23053
     description: Rather than emitting an error, `process.stderr.end()` now
                  only closes the stream side but not the underlying resource,
@@ -1959,9 +1959,9 @@ does not allow `stdout` or `stderr` streams to be closed by user code.
 <a id="ERR_STDOUT_CLOSE"></a>
 ### ERR_STDOUT_CLOSE
 <!-- YAML
-removed: REPLACEME
+removed: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/23053
     description: Rather than emitting an error, `process.stderr.end()` now
                  only closes the stream side but not the underlying resource,

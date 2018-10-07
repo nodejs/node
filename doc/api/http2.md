@@ -224,7 +224,7 @@ session.on('localSettings', (settings) => {
 
 #### Event: 'ping'
 <!-- YAML
-added: REPLACEME
+added: v10.12.0
 -->
 
 * `payload` {Buffer} The `PING` frame 8-byte payload
@@ -684,7 +684,7 @@ are passed through as provided by the user or received from the peer.
 
 #### serverhttp2session.origin(...origins)
 <!-- YAML
-added: REPLACEME
+added: v10.12.0
 -->
 
 * `origins` { string | URL | Object } One or more URL Strings passed as
@@ -764,7 +764,7 @@ client.on('altsvc', (alt, origin, streamId) => {
 
 #### Event: 'origin'
 <!-- YAML
-added: REPLACEME
+added: v10.12.0
 -->
 
 * `origins` {string[]}
@@ -2000,7 +2000,7 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/22956
     description: Added the `origins` option to automatically send an `ORIGIN`
                  frame on `Http2Session` startup.
