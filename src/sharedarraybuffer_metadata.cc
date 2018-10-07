@@ -21,7 +21,7 @@ namespace {
 
 // Yield a JS constructor for SABLifetimePartner objects in the form of a
 // standard API object, that has a single field for containing the raw
-// SABLiftimePartner* pointer.
+// SABLifetimePartner* pointer.
 Local<Function> GetSABLifetimePartnerConstructor(
     Environment* env, Local<Context> context) {
   Local<FunctionTemplate> templ;

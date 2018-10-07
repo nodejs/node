@@ -14,7 +14,7 @@ namespace node {
  * going through JS, and the data is then available to user's via the exposed
  * JS object.
  *
- * While this technique is computationaly efficient, it is effectively a
+ * While this technique is computationally efficient, it is effectively a
  * write to JS program state w/out going through the standard
  * (monitored) API. Thus any VM capabilities to detect the modification are
  * circumvented.

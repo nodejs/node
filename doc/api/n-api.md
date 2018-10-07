@@ -1757,7 +1757,7 @@ added: v10.7.0
 
 ```C
 napi_status napi_create_bigint_uint64(napi_env env,
-                                      uint64_t vaue,
+                                      uint64_t value,
                                       napi_value* result);
 ```
 
