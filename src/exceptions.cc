@@ -128,7 +128,9 @@ Local<Value> UVException(Isolate* isolate,
         String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, "'"));
   }
 
-  Local<Object> e = Exception::Error(js_msg)->ToObject(isolate);
+  Local<Object> e =
+    Exception::Error(js_msg)->ToObject(isolate->GetCurrentContext())
+      .ToLocalChecked();
 
   e->Set(env->errno_string(), Integer::New(isolate, errorno));
   e->Set(env->code_string(), js_code);
