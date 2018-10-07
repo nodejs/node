@@ -40,7 +40,7 @@ console.log('ok sets defaults');
 
 cluster.setupMaster({ exec: 'overridden' });
 assert.strictEqual(cluster.settings.exec, 'overridden');
-console.log('ok overrids defaults');
+console.log('ok overrides defaults');
 
 cluster.setupMaster({ args: ['foo', 'bar'] });
 assert.strictEqual(cluster.settings.exec, 'overridden');

@@ -146,7 +146,7 @@ if (process.argv[2] !== 'child') {
                 }
               });
 
-              console.error('[PARENT] %d received %d matching messges.',
+              console.error('[PARENT] %d received %d matching messages.',
                             worker.pid,
                             count);
 

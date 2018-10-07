@@ -231,7 +231,7 @@ class OptionsParser {
   void AddAlias(const std::string& from,
                 const std::initializer_list<std::string>& to);
 
-  // Add implications from some arbitary option to a boolean one, either
+  // Add implications from some arbitrary option to a boolean one, either
   // in a way that makes `from` set `to` to true or to false.
   void Implies(const std::string& from, const std::string& to);
   void ImpliesNot(const std::string& from, const std::string& to);

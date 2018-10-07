@@ -130,11 +130,11 @@ class WorkerSession extends EventEmitter {
 
 async function testBasicWorkerDebug(session, post) {
   /*
-    1. Do 'enble' with waitForDebuggerOnStart = true
+    1. Do 'enable' with waitForDebuggerOnStart = true
     2. Run worker. It should break on start.
     3. Enable Runtime (to get console message) and Debugger. Resume.
     4. Breaks on the 'debugger' statement. Resume.
-    5. Console message recieved, worker runs to a completion.
+    5. Console message received, worker runs to a completion.
     6. contextCreated/contextDestroyed had been properly dispatched
   */
   console.log('Test basic debug scenario');
