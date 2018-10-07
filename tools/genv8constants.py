@@ -78,7 +78,7 @@ for line in pipe:
     # format, but this is the most obvious robust approach.  We could almost
     # rely on looking at numbered fields, but some instructions look very
     # much like hex numbers (e.g., "adc"), and we don't want to risk picking
-    # those up by mistake, so we look at character-based columns intead.
+    # those up by mistake, so we look at character-based columns instead.
     #
     for i in range (0, 3):
       # 6-character margin, 2-characters + 1 space for each field

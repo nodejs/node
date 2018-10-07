@@ -57,7 +57,7 @@ class Agent {
 
   bool IsListening() { return io_ != nullptr; }
   // Returns true if the Node inspector is actually in use. It will be true
-  // if either the user explicitely opted into inspector (e.g. with the
+  // if either the user explicitly opted into inspector (e.g. with the
   // --inspect command line flag) or if inspector JS API had been used.
   bool IsActive();
 

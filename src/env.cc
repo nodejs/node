@@ -576,10 +576,10 @@ void Environment::RunTimers(uv_timer_t* handle) {
     ret = cb->Call(env->context(), process, 1, &arg);
   } while (ret.IsEmpty() && env->can_call_into_js());
 
-  // NOTE(apapirovski): If it ever becomes possibble that `call_into_js` above
+  // NOTE(apapirovski): If it ever becomes possible that `call_into_js` above
   // is reset back to `true` after being previously set to `false` then this
   // code becomes invalid and needs to be rewritten. Otherwise catastrophic
-  // timers corruption will occurr and all timers behaviour will become
+  // timers corruption will occur and all timers behaviour will become
   // entirely unpredictable.
   if (ret.IsEmpty())
     return;
