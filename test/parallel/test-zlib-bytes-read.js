@@ -21,6 +21,12 @@ function createWriter(target, buffer) {
   return writer;
 }
 
+common.expectWarning(
+  'DeprecationWarning',
+  'zlib.bytesRead is deprecated and will change its meaning in the ' +
+  'future. Use zlib.bytesWritten instead.',
+  'DEP0108');
+
 for (const method of [
   ['createGzip', 'createGunzip', false],
   ['createGzip', 'createUnzip', false],
