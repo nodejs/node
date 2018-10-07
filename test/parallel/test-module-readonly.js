@@ -38,7 +38,7 @@ try {
   except = err;
 }
 
-// Remove the expliclty granted rights, and reenable inheritance
+// Remove the explicitly granted rights, and re-enable inheritance
 cp.execSync(
   `icacls.exe "${readOnlyModFullPath}" /remove "%USERNAME%" /inheritance:e`);
 

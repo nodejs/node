@@ -24,7 +24,7 @@ function getBaseOptions(port) {
     path: '/',
     port: port,
     ca: options.ca,
-    rejectUnautorized: true,
+    rejectUnauthorized: true,
     servername: 'agent1',
   };
 }

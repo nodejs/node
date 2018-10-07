@@ -174,7 +174,7 @@ const stream = require('stream');
   };
   w.on('error', common.mustCall());
   w.on('finish', () => {
-    w.write("should't write in finish listener");
+    w.write("shouldn't write in finish listener");
   });
   w.end();
 }
