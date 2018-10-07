@@ -129,7 +129,7 @@ Syntax: cpplint.py [--verbose=#] [--output=emacs|eclipse|vs7|junit]
       likely to be false positives.
 
     quiet
-      Supress output other than linting errors, such as information about
+      Suppress output other than linting errors, such as information about
       which files have been processed and excluded.
 
     filter=-x,+y,...
@@ -650,7 +650,7 @@ _repository = None
 # Files to exclude from linting. This is set by the --exclude flag.
 _excludes = None
 
-# Whether to supress PrintInfo messages
+# Whether to suppress PrintInfo messages
 _quiet = False
 
 # The allowed line length of files.

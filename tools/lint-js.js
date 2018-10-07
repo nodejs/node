@@ -192,7 +192,7 @@ if (cluster.isMaster) {
     const sliceLen = Math.min(maxWorkload, Math.ceil(files.length / numCPUs));
     var slice;
     if (sliceLen === files.length) {
-      // Micro-ptimization to avoid splicing to an empty array
+      // Micro-optimization to avoid splicing to an empty array
       slice = files;
       files = null;
     } else {

@@ -35,7 +35,7 @@ function execSync(command) {
   }
 }
 
-// Determine orign repo and tag (or hash) of the most recent commit.
+// Determine origin repo and tag (or hash) of the most recent commit.
 const local_branch = execSync('git name-rev --name-only HEAD');
 const tracking_remote = execSync(`git config branch.${local_branch}.remote`);
 const remote_url = execSync(`git config remote.${tracking_remote}.url`);
