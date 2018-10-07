@@ -2057,7 +2057,7 @@ core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23308
     description: Runtime deprecation.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19414
