@@ -32,3 +32,9 @@ assert.strictEqual(vm.runInContext('x;', ctx), 3);
 vm.runInContext('y = 4;', ctx);
 assert.strictEqual(sandbox.y, 4);
 assert.strictEqual(ctx.y, 4);
+
+const x = vm.createContext({ get a() { return 5; } });
+
+assert.strictEqual(x.a, 5);
+delete x.a;
+assert.strictEqual(x.a, undefined);
