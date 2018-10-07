@@ -253,11 +253,9 @@ Notable differences inside a Worker environment are:
 - Execution may stop at any point as a result of [`worker.terminate()`][]
   being invoked.
 - IPC channels from parent processes are not accessible.
-
-Currently, the following differences also exist until they are addressed:
-
-- The [`inspector`][] module is not available yet.
-- Native addons are not supported yet.
+- Native add-ons are unloaded if they are only used inside `Worker` instances
+  when those workers shut down.
+  See the [addons documentation][] for more detials.
 
 Creating `Worker` instances inside of other `Worker`s is possible.
 
@@ -484,7 +482,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`require('worker_threads').parentPort`]: #worker_threads_worker_parentport
 [`require('worker_threads').threadId`]: #worker_threads_worker_threadid
 [`cluster` module]: cluster.html
-[`inspector`]: inspector.html
+[addons documentation]: addons.html#addons_worker_support
 [v8.serdes]: v8.html#v8_serialization_api
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [Signals events]: process.html#process_signal_events
