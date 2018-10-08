@@ -33,6 +33,7 @@ vm.runInContext('y = 4;', ctx);
 assert.strictEqual(sandbox.y, 4);
 assert.strictEqual(ctx.y, 4);
 
+// Test `IndexedPropertyGetterCallback` and `IndexedPropertyDeleterCallback`
 const x = { get 1() { return 5; } };
 const pd_expected = Object.getOwnPropertyDescriptor(x, 1);
 const ctx2 = vm.createContext(x);
