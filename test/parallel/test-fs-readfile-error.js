@@ -24,9 +24,9 @@ const common = require('../common');
 
 // Test that fs.readFile fails correctly on a non-existent file.
 
-// `fs.readFile('/')` does not fail on FreeBSD, because you can open and read
-// the directory there.
-if (common.isFreeBSD)
+// `fs.readFile('/')` does not fail on AIX and FreeBSD because you can open
+// and read the directory there.
+if (common.isAIX || common.isFreeBSD)
   common.skip('platform not supported.');
 
 const assert = require('assert');
