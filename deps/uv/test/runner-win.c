@@ -228,7 +228,7 @@ int process_copy_output(process_info_t* p, FILE* stream) {
 
   while (fgets(buf, sizeof(buf), f) != NULL)
     print_lines(buf, strlen(buf), stream);
-  
+
   if (ferror(f))
     return -1;
 

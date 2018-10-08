@@ -310,6 +310,41 @@ TEST_IMPL(tty_large_write) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+TEST_IMPL(tty_raw_cancel) {
+  int r;
+  int ttyin_fd;
+  uv_tty_t tty_in;
+  uv_loop_t* loop;
+  HANDLE handle;
+
+  loop = uv_default_loop();
+  /* Make sure we have an FD that refers to a tty */
+  handle = CreateFileA("conin$",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+  ASSERT(handle != INVALID_HANDLE_VALUE);
+  ttyin_fd = _open_osfhandle((intptr_t) handle, 0);
+  ASSERT(ttyin_fd >= 0);
+  ASSERT(UV_TTY == uv_guess_handle(ttyin_fd));
+
+  r = uv_tty_init(uv_default_loop(), &tty_in, ttyin_fd, 1);  /* Readable. */
+  ASSERT(r == 0);
+  r = uv_tty_set_mode(&tty_in, UV_TTY_MODE_RAW);
+  ASSERT(r == 0);
+  r = uv_read_start((uv_stream_t*)&tty_in, tty_raw_alloc, tty_raw_read);
+  ASSERT(r == 0);
+
+  r = uv_read_stop((uv_stream_t*) &tty_in);
+  ASSERT(r == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
 #endif
 
 
