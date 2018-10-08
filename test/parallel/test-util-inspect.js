@@ -1565,15 +1565,9 @@ util.inspect(process);
     head = head.next = {};
   }
 
-  const res = Array(15)
-    .fill(0)
-    .map((_, i) => `{ next:\n${'   '.repeat(i + 1)}`)
-    .join('') +
-    '{ next: { next: { next: { next: { next: { next:' +
-    ' [Object] } } } } } } } } } } } } } } } } } } } } }';
   assert.strictEqual(
     util.inspect(list),
-    res
+    '{ next: { next: { next: { next: { next: { next: [Object] } } } } } }'
   );
   const longList = util.inspect(list, { depth: Infinity });
   const match = longList.match(/next/g);
