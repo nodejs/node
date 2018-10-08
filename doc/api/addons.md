@@ -587,6 +587,7 @@ property `msg` that echoes the string passed to `createObject()`:
 
 namespace demo {
 
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
@@ -596,9 +597,11 @@ using v8::Value;
 
 void CreateObject(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
 
   Local<Object> obj = Object::New(isolate);
-  obj->Set(String::NewFromUtf8(isolate, "msg"), args[0]->ToString(isolate));
+  obj->Set(String::NewFromUtf8(isolate, "msg"),
+                               args[0]->ToString(context).ToLocalChecked());
 
   args.GetReturnValue().Set(obj);
 }
