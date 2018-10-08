@@ -1,3 +1,41 @@
+2018.10.09, Version 1.23.2 (Stable), 34c12788d2e7308f3ac506c0abcbf74c0d6abd20
+
+Changes since version 1.23.1:
+
+* unix: return 0 retrieving rss on cygwin (cjihrig)
+
+* unix: initialize uv_interface_address_t.phys_addr (cjihrig)
+
+* test: handle uv_os_setpriority() windows edge case (cjihrig)
+
+* tty, win: fix read stop for raw mode (Bartosz Sosnowski)
+
+* Revert "Revert "unix,fs: fix for potential partial reads/writes"" (Jameson
+  Nash)
+
+* unix,readv: always permit partial reads to return (Jameson Nash)
+
+* win,tty: fix uv_tty_close() (Bartosz Sosnowski)
+
+* doc: remove extraneous "on" (Ben Noordhuis)
+
+* unix,win: fix threadpool race condition (Anna Henningsen)
+
+* unix: rework thread barrier implementation (Ben Noordhuis)
+
+* aix: switch to libuv's own thread barrier impl (Ben Noordhuis)
+
+* unix: signal done to last thread barrier waiter (Ben Noordhuis)
+
+* test: add uv_barrier_wait serial thread test (Ali Ijaz Sheikh)
+
+* unix: optimize uv_fs_readlink() memory allocation (Ben Noordhuis)
+
+* win: remove req.c and other cleanup (Carlo Marcelo Arenas Belón)
+
+* aix: don't EISDIR on read from directory fd (Ben Noordhuis)
+
+
 2018.09.22, Version 1.23.1 (Stable), d2282b3d67821dc53c907c2155fa8c5c6ce25180
 
 Changes since version 1.23.0:

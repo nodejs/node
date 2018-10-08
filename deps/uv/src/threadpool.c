@@ -62,10 +62,10 @@ static void worker(void* arg) {
   uv_sem_post((uv_sem_t*) arg);
   arg = NULL;
 
+  uv_mutex_lock(&mutex);
   for (;;) {
-    uv_mutex_lock(&mutex);
+    /* `mutex` should always be locked at this point. */
 
-  wait_for_work:
     /* Keep waiting while either no work is present or only slow I/O
        and we're at the threshold for that. */
     while (QUEUE_EMPTY(&wq) ||
@@ -93,13 +93,13 @@ static void worker(void* arg) {
          other work in the queue is done. */
       if (slow_io_work_running >= slow_work_thread_threshold()) {
         QUEUE_INSERT_TAIL(&wq, q);
-        goto wait_for_work;
+        continue;
       }
 
       /* If we encountered a request to run slow I/O work but there is none
          to run, that means it's cancelled => Start over. */
       if (QUEUE_EMPTY(&slow_io_pending_wq))
-        goto wait_for_work;
+        continue;
 
       is_slow_work = 1;
       slow_io_work_running++;
@@ -122,13 +122,19 @@ static void worker(void* arg) {
     w->work(w);
 
     uv_mutex_lock(&w->loop->wq_mutex);
-    if (is_slow_work)
-      slow_io_work_running--;
     w->work = NULL;  /* Signal uv_cancel() that the work req is done
                         executing. */
     QUEUE_INSERT_TAIL(&w->loop->wq, &w->wq);
     uv_async_send(&w->loop->wq_async);
     uv_mutex_unlock(&w->loop->wq_mutex);
+
+    /* Lock `mutex` since that is expected at the start of the next
+     * iteration. */
+    uv_mutex_lock(&mutex);
+    if (is_slow_work) {
+      /* `slow_io_work_running` is protected by `mutex`. */
+      slow_io_work_running--;
+    }
   }
 }
 

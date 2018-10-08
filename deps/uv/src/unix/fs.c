@@ -262,17 +262,13 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
 #if defined(__linux__)
   static int no_preadv;
 #endif
+  unsigned int iovmax;
   ssize_t result;
 
-#if defined(_AIX)
-  struct stat buf;
-  if(fstat(req->file, &buf))
-    return -1;
-  if(S_ISDIR(buf.st_mode)) {
-    errno = EISDIR;
-    return -1;
-  }
-#endif /* defined(_AIX) */
+  iovmax = uv__getiovmax();
+  if (req->nbufs > iovmax)
+    req->nbufs = iovmax;
+
   if (req->off < 0) {
     if (req->nbufs == 1)
       result = read(req->file, req->bufs[0].base, req->bufs[0].len);
@@ -291,25 +287,7 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
     if (no_preadv) retry:
 # endif
     {
-      off_t nread;
-      size_t index;
-
-      nread = 0;
-      index = 0;
-      result = 1;
-      do {
-        if (req->bufs[index].len > 0) {
-          result = pread(req->file,
-                         req->bufs[index].base,
-                         req->bufs[index].len,
-                         req->off + nread);
-          if (result > 0)
-            nread += result;
-        }
-        index++;
-      } while (index < req->nbufs && result > 0);
-      if (nread > 0)
-        result = nread;
+      result = pread(req->file, req->bufs[0].base, req->bufs[0].len, req->off);
     }
 # if defined(__linux__)
     else {
@@ -327,6 +305,13 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
   }
 
 done:
+  /* Early cleanup of bufs allocation, since we're done with it. */
+  if (req->bufs != req->bufsml)
+    uv__free(req->bufs);
+
+  req->bufs = NULL;
+  req->nbufs = 0;
+
   return result;
 }
 
@@ -391,11 +376,13 @@ static ssize_t uv__fs_pathmax_size(const char* path) {
 }
 
 static ssize_t uv__fs_readlink(uv_fs_t* req) {
+  ssize_t maxlen;
   ssize_t len;
   char* buf;
+  char* newbuf;
 
-  len = uv__fs_pathmax_size(req->path);
-  buf = uv__malloc(len + 1);
+  maxlen = uv__fs_pathmax_size(req->path);
+  buf = uv__malloc(maxlen);
 
   if (buf == NULL) {
     errno = ENOMEM;
@@ -403,15 +390,26 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
   }
 
 #if defined(__MVS__)
-  len = os390_readlink(req->path, buf, len);
+  len = os390_readlink(req->path, buf, maxlen);
 #else
-  len = readlink(req->path, buf, len);
+  len = readlink(req->path, buf, maxlen);
 #endif
-
 
   if (len == -1) {
     uv__free(buf);
     return -1;
+  }
+
+  /* Uncommon case: resize to make room for the trailing nul byte. */
+  if (len == maxlen) {
+    newbuf = uv__realloc(buf, len + 1);
+
+    if (newbuf == NULL) {
+      uv__free(buf);
+      return -1;
+    }
+
+    buf = newbuf;
   }
 
   buf[len] = '\0';
@@ -735,25 +733,7 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
     if (no_pwritev) retry:
 # endif
     {
-      off_t written;
-      size_t index;
-
-      written = 0;
-      index = 0;
-      r = 0;
-      do {
-        if (req->bufs[index].len > 0) {
-          r = pwrite(req->file,
-                     req->bufs[index].base,
-                     req->bufs[index].len,
-                     req->off + written);
-          if (r > 0)
-            written += r;
-        }
-        index++;
-      } while (index < req->nbufs && r >= 0);
-      if (written > 0)
-        r = written;
+      r = pwrite(req->file, req->bufs[0].base, req->bufs[0].len, req->off);
     }
 # if defined(__linux__)
     else {
@@ -1045,9 +1025,21 @@ static int uv__fs_fstat(int fd, uv_stat_t *buf) {
   return ret;
 }
 
+static size_t uv__fs_buf_offset(uv_buf_t* bufs, size_t size) {
+  size_t offset;
+  /* Figure out which bufs are done */
+  for (offset = 0; size > 0 && bufs[offset].len <= size; ++offset)
+    size -= bufs[offset].len;
 
-typedef ssize_t (*uv__fs_buf_iter_processor)(uv_fs_t* req);
-static ssize_t uv__fs_buf_iter(uv_fs_t* req, uv__fs_buf_iter_processor process) {
+  /* Fix a partial read/write */
+  if (size > 0) {
+    bufs[offset].base += size;
+    bufs[offset].len -= size;
+  }
+  return offset;
+}
+
+static ssize_t uv__fs_write_all(uv_fs_t* req) {
   unsigned int iovmax;
   unsigned int nbufs;
   uv_buf_t* bufs;
@@ -1064,7 +1056,10 @@ static ssize_t uv__fs_buf_iter(uv_fs_t* req, uv__fs_buf_iter_processor process) 
     if (req->nbufs > iovmax)
       req->nbufs = iovmax;
 
-    result = process(req);
+    do
+      result = uv__fs_write(req);
+    while (result < 0 && errno == EINTR);
+
     if (result <= 0) {
       if (total == 0)
         total = result;
@@ -1074,13 +1069,11 @@ static ssize_t uv__fs_buf_iter(uv_fs_t* req, uv__fs_buf_iter_processor process) 
     if (req->off >= 0)
       req->off += result;
 
+    req->nbufs = uv__fs_buf_offset(req->bufs, result);
     req->bufs += req->nbufs;
     nbufs -= req->nbufs;
     total += result;
   }
-
-  if (errno == EINTR && total == -1)
-    return total;
 
   if (bufs != req->bufsml)
     uv__free(bufs);
@@ -1098,7 +1091,8 @@ static void uv__fs_work(struct uv__work* w) {
   ssize_t r;
 
   req = container_of(w, uv_fs_t, work_req);
-  retry_on_eintr = !(req->fs_type == UV_FS_CLOSE);
+  retry_on_eintr = !(req->fs_type == UV_FS_CLOSE ||
+                     req->fs_type == UV_FS_READ);
 
   do {
     errno = 0;
@@ -1127,7 +1121,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(MKDIR, mkdir(req->path, req->mode));
     X(MKDTEMP, uv__fs_mkdtemp(req));
     X(OPEN, uv__fs_open(req));
-    X(READ, uv__fs_buf_iter(req, uv__fs_read));
+    X(READ, uv__fs_read(req));
     X(SCANDIR, uv__fs_scandir(req));
     X(READLINK, uv__fs_readlink(req));
     X(REALPATH, uv__fs_realpath(req));
@@ -1138,7 +1132,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(SYMLINK, symlink(req->path, req->new_path));
     X(UNLINK, unlink(req->path));
     X(UTIME, uv__fs_utime(req));
-    X(WRITE, uv__fs_buf_iter(req, uv__fs_write));
+    X(WRITE, uv__fs_write_all(req));
     default: abort();
     }
 #undef X
