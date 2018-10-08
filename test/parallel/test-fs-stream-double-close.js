@@ -20,35 +20,17 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 test1(fs.createReadStream(__filename));
-test2(fs.createReadStream(__filename));
-test3(fs.createReadStream(__filename));
 
 test1(fs.createWriteStream(`${tmpdir.path}/dummy1`));
-test2(fs.createWriteStream(`${tmpdir.path}/dummy2`));
-test3(fs.createWriteStream(`${tmpdir.path}/dummy3`));
 
 function test1(stream) {
   stream.destroy();
   stream.destroy();
-}
-
-function test2(stream) {
-  stream.destroy();
-  stream.on('open', common.mustCall(function(fd) {
-    stream.destroy();
-  }));
-}
-
-function test3(stream) {
-  stream.on('open', common.mustCall(function(fd) {
-    stream.destroy();
-    stream.destroy();
-  }));
 }
