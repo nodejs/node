@@ -155,9 +155,8 @@ the file's signature.
 
 ## Building Node.js
 
-See [BUILDING.md](BUILDING.md) for instructions on how to build
-Node.js from source. The document also contains a list of
-officially supported platforms.
+See [BUILDING.md](BUILDING.md) for instructions on how to build Node.js from
+source and a list of supported platforms.
 
 ## Security
 
