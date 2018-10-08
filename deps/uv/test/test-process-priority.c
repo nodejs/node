@@ -54,8 +54,10 @@ TEST_IMPL(process_priority) {
 #ifndef _WIN32
     ASSERT(priority == i);
 #else
+    /* On Windows, only elevated users can set UV_PRIORITY_HIGHEST. Other
+       users will silently be set to UV_PRIORITY_HIGH. */
     if (i < UV_PRIORITY_HIGH)
-      ASSERT(priority == UV_PRIORITY_HIGHEST);
+      ASSERT(priority == UV_PRIORITY_HIGHEST || priority == UV_PRIORITY_HIGH);
     else if (i < UV_PRIORITY_ABOVE_NORMAL)
       ASSERT(priority == UV_PRIORITY_HIGH);
     else if (i < UV_PRIORITY_NORMAL)

@@ -118,7 +118,7 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   ctx->arg = arg;
 
   /* Create the thread in suspended state so we have a chance to pass
-   * its own creation handle to it */   
+   * its own creation handle to it */
   thread = (HANDLE) _beginthreadex(NULL,
                                    0,
                                    uv__thread_start,

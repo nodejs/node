@@ -512,7 +512,7 @@ static int uv__interface_addresses_v6(uv_interface_address_t** addresses,
     /* TODO: Retrieve netmask using SIOCGIFNETMASK ioctl */
 
     address->is_internal = flg.__nif6e_flags & _NIF6E_FLAGS_LOOPBACK ? 1 : 0;
-
+    memset(address->phys_addr, 0, sizeof(address->phys_addr));
     address++;
   }
 
@@ -624,6 +624,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     }
 
     address->is_internal = flg.ifr_flags & IFF_LOOPBACK ? 1 : 0;
+    memset(address->phys_addr, 0, sizeof(address->phys_addr));
     address++;
   }
 

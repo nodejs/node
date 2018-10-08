@@ -193,7 +193,6 @@ if(WIN32)
        src/win/poll.c
        src/win/process.c
        src/win/process-stdio.c
-       src/win/req.c
        src/win/signal.c
        src/win/snprintf.c
        src/win/stream.c
