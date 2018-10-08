@@ -215,6 +215,19 @@ added: v10.0.0
 
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 
+## WebAssembly
+<!-- YAML
+added: v8.0.0
+-->
+
+<!-- type=global -->
+
+* {Object}
+
+The object that acts as the namespace for all W3C
+[WebAssembly][webassembly-org] related functionality. See the
+[Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
+
 [`__dirname`]: modules.html#modules_dirname
 [`__filename`]: modules.html#modules_filename
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediate
@@ -236,3 +249,5 @@ The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.html
 [timers]: timers.html
+[webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
+[webassembly-org]: https://webassembly.org
