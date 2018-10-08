@@ -3,7 +3,8 @@
 
 require('../common');
 const assert = require('assert');
-const config = process.binding('config');
+const { internalBinding } = require('internal/test/binding');
+const config = internalBinding('config');
 
 console.log(config, process.argv);
 
