@@ -28,6 +28,18 @@ added: v0.1.103
 
 Used to handle binary data. See the [buffer section][].
 
+## Class: WebAssembly
+<!-- YAML
+added: v8.0.0
+-->
+
+<!-- type=global -->
+
+* {Function}
+
+The object that acts as the namespace for all W3C [Web Assembly][webassembly-org] related functionality. See the [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
+
+
 ## \_\_dirname
 
 This variable may appear to be global but is not. See [`__dirname`].
@@ -235,4 +247,6 @@ The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 [buffer section]: buffer.html
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.html
+[webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
+[webassembly-org]: https://webassembly.org
 [timers]: timers.html
