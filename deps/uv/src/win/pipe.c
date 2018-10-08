@@ -2347,7 +2347,7 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
     error = GetLastError();
     goto clean_sid;
   }
- 
+
   memset(&ea, 0, sizeof(EXPLICIT_ACCESS));
   if (mode & UV_READABLE)
     ea.grfAccessPermissions |= GENERIC_READ | FILE_WRITE_ATTRIBUTES;

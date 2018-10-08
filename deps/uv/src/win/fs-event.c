@@ -83,7 +83,7 @@ static void uv_relative_path(const WCHAR* filename,
 static int uv_split_path(const WCHAR* filename, WCHAR** dir,
     WCHAR** file) {
   size_t len, i;
- 
+
   if (filename == NULL) {
     if (dir != NULL)
       *dir = NULL;

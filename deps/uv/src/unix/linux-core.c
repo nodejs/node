@@ -890,6 +890,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
       continue;
 
     address = *addresses;
+    memset(address->phys_addr, 0, sizeof(address->phys_addr));
 
     for (i = 0; i < (*count); i++) {
       if (strcmp(address->name, ent->ifa_name) == 0) {
