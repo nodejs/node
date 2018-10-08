@@ -112,4 +112,4 @@ static void Initialize(Local<Object> target,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(config, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(config, node::Initialize)
