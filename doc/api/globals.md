@@ -37,8 +37,9 @@ added: v8.0.0
 
 * {Function}
 
-The object that acts as the namespace for all W3C [Web Assembly][webassembly-org] related functionality. See the [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
-
+The object that acts as the namespace for all W3C
+[Web Assembly][webassembly-org] related functionality. See the
+[Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
 ## \_\_dirname
 
