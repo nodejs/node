@@ -77,16 +77,10 @@ inline T MultiplyWithOverflowCheck(T a, T b);
 // whether V8 is initialized.
 void LowMemoryNotification();
 
-#ifdef __GNUC__
-#define NO_RETURN __attribute__((noreturn))
-#else
-#define NO_RETURN
-#endif
-
 // The slightly odd function signature for Assert() is to ease
 // instruction cache pressure in calls from CHECK.
-NO_RETURN void Abort();
-NO_RETURN void Assert(const char* const (*args)[4]);
+[[noreturn]] void Abort();
+[[noreturn]] void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
 
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \

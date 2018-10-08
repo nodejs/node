@@ -1039,14 +1039,14 @@ static MaybeLocal<Value> ExecuteString(Environment* env,
 }
 
 
-NO_RETURN void Abort() {
+[[noreturn]] void Abort() {
   DumpBacktrace(stderr);
   fflush(stderr);
   ABORT_NO_BACKTRACE();
 }
 
 
-NO_RETURN void Assert(const char* const (*args)[4]) {
+[[noreturn]] void Assert(const char* const (*args)[4]) {
   auto filename = (*args)[0];
   auto linenum = (*args)[1];
   auto message = (*args)[2];
@@ -1354,7 +1354,7 @@ static void OnFatalError(const char* location, const char* message) {
 }
 
 
-NO_RETURN void FatalError(const char* location, const char* message) {
+[[noreturn]] void FatalError(const char* location, const char* message) {
   OnFatalError(location, message);
   // to suppress compiler warning
   ABORT();
