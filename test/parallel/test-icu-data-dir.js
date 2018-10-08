@@ -1,8 +1,10 @@
+// Flags: --expose-internals
 'use strict';
+const { internalBinding } = require('internal/test/binding');
 const common = require('../common');
 const os = require('os');
 
-const { hasSmallICU } = process.binding('config');
+const { hasSmallICU } = internalBinding('config');
 if (!(common.hasIntl && hasSmallICU))
   common.skip('missing Intl');
 
