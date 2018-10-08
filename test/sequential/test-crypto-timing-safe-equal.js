@@ -18,12 +18,26 @@ assert.strictEqual(
   false
 );
 
+{
+  // Test TypedArrays with different lengths but equal byteLengths.
+  const buf = crypto.randomBytes(16).buffer;
+  const a1 = new Uint8Array(buf);
+  const a2 = new Uint16Array(buf);
+  const a3 = new Uint32Array(buf);
+
+  for (const left of [a1, a2, a3]) {
+    for (const right of [a1, a2, a3]) {
+      assert.strictEqual(crypto.timingSafeEqual(left, right), true);
+    }
+  }
+}
+
 common.expectsError(
   () => crypto.timingSafeEqual(Buffer.from([1, 2, 3]), Buffer.from([1, 2])),
   {
     code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
     type: RangeError,
-    message: 'Input buffers must have the same length'
+    message: 'Input buffers must have the same byte length'
   }
 );
 
