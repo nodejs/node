@@ -104,6 +104,12 @@ const d2 = require('../fixtures/b/d');
 assert.strictEqual(require('../fixtures/packages/index').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main-index').ok, 'ok');
+assert.strictEqual(require('../fixtures/packages/missing-main').ok, 'ok');
+
+assert.throws(
+  function() { require('../fixtures/packages/unparseable'); },
+  /^SyntaxError: Error parsing/
+);
 
 {
   console.error('test cycles containing a .. path');
@@ -267,6 +273,7 @@ try {
     'fixtures/packages/index/index.js': {},
     'fixtures/packages/main/package-main-module.js': {},
     'fixtures/packages/main-index/package-main-module/index.js': {},
+    'fixtures/packages/missing-main/index.js': {},
     'fixtures/cycles/root.js': {
       'fixtures/cycles/folder/foo.js': {}
     },
