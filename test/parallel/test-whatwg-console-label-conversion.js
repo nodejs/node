@@ -10,7 +10,7 @@ const { test, assert_true, assert_throws } =
 /* The following tests should not be modified as they are copied */
 /* WPT Refs:
    https://github.com/web-platform-tests/wpt/blob/6f0a96ed650935b17b6e5d277889cfbe0ccc103e/console/console-label-conversion.any.js
-   License: hhttps://github.com/web-platform-tests/wpt/blob/6f0a96ed650935b17b6e5d277889cfbe0ccc103e/LICENSE.md
+   License: https://github.com/web-platform-tests/wpt/blob/6f0a96ed650935b17b6e5d277889cfbe0ccc103e/LICENSE.md
 */
 
 // https://console.spec.whatwg/org/#counting
