@@ -1,10 +1,10 @@
 # Building Node.js
 
-Depending on what platform or features you require, the build process may
-differ slightly. After you've successfully built a binary, running the
-test suite to validate that the binary works as intended is a good next step.
+Depending on what platform or features you need, the build process may
+differ. After you've built a binary, running the
+test suite to confirm that the binary works as intended is a good next step.
 
-If you can reproduce a test failure consistently, search for it in the
+If you can reproduce a test failure, search for it in the
 [Node.js issue tracker](https://github.com/nodejs/node/issues) or
 file a new issue.
 
