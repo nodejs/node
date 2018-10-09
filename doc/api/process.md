@@ -114,7 +114,7 @@ The `'multipleResolves'` event is emitted whenever a `Promise` has been either:
 * Rejected after resolve.
 * Resolved after reject.
 
-This is useful for tracking errors in your application while using the promise
+This is useful for tracking errors in an application while using the promise
 constructor. Otherwise such mistakes are silently swallowed due to being in a
 dead zone.
 
@@ -207,9 +207,9 @@ exception bubbles all the way back to the event loop. By default, Node.js
 handles such exceptions by printing the stack trace to `stderr` and exiting
 with code 1, overriding any previously set [`process.exitCode`][].
 Adding a handler for the `'uncaughtException'` event overrides this default
-behavior. You may also change the [`process.exitCode`][] in
-`'uncaughtException'` handler which will result in process exiting with
-provided exit code, otherwise in the presence of such handler the process will
+behavior. Alternatively, change the [`process.exitCode`][] in the
+`'uncaughtException'` handler which will result in the process exiting with the
+provided exit code. Otherwise, in the presence of such handler the process will
 exit with 0.
 
 The listener function is called with the `Error` object passed as the only
