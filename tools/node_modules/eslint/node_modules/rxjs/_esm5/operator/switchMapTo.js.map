@@ -1,1 +1,0 @@
-{"version":3,"file":"switchMapTo.js","sourceRoot":"","sources":["../../src/operator/switchMapTo.ts"],"names":[],"mappings":"OACO,EAAE,WAAW,IAAI,WAAW,EAAE,MAAM,0BAA0B;AAKrE,mCAAmC;AAEnC;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAyCG;AACH,4BAA0D,eAA8B,EACnD,cAG0C;IAC7E,MAAM,CAAC,WAAW,CAAC,eAAe,EAAE,cAAc,CAAC,CAAC,IAAI,CAAC,CAAC;AAC5D,CAAC"}

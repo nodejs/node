@@ -65,34 +65,53 @@ null <Buffer 23 20 74 72 6f 75 67 68 20 5b 21 5b 42 75 69 6c 64 20 53 74 61 74 7
 
 Create a new [`Trough`][trough].
 
+#### `trough.wrap(middleware, callback[, ...input])`
+
+Call `middleware` with all input.
+If `middleware` accepts more arguments than given in input, and extra `done`
+function is passed in after the input when calling it.
+It must be called.
+
+The first value in `input` is called the main input value.
+All other input values are called the rest input values.
+The values given to `callback` are the input values, merged with every
+non-nully output value.
+
+*   If `middleware` throws an error, returns a promise that is rejected, or
+    calls the given `done` function with an error, `callback` is invoked with
+    that error
+*   If `middleware` returns a value or returns a promise that is resolved, that
+    value is the main output value
+*   If `middleware` calls `done`, all non-nully values except for the first one
+    (the error) overwrite the output values
+
 ### `Trough`
 
 A pipeline.
 
-### `Trough#run([input..., ]done)`
+#### `Trough#run([input..., ]done)`
 
 Run the pipeline (all [`use()`][use]d middleware).  Invokes [`done`][done]
 on completion with either an error or the output of the last middleware
 
-> Note! as the length of input defines whether [async][] function
-> get a `next` function, it’s recommended to keep `input` at one
-> value normally.
+> Note! as the length of input defines whether [async][] functions get a `next`
+> function, it’s recommended to keep `input` at one value normally.
 
-#### `function done(err?, [output...])`
+##### `function done(err?, [output...])`
 
 The final handler passed to [`run()`][run], invoked with an error
 if a [middleware function][fn] rejected, passed, or threw one, or
 the output of the last middleware function.
 
-### `Trough#use(fn)`
+#### `Trough#use(fn)`
 
 Add `fn`, a [middleware function][fn], to the pipeline.
 
-#### `function fn([input..., ][next])`
+##### `function fn([input..., ][next])`
 
 A middleware function invoked with the output of its predecessor.
 
-##### Synchronous
+###### Synchronous
 
 If `fn` returns or throws an error, the pipeline fails and `done` is
 invoked with that error.
@@ -100,8 +119,6 @@ invoked with that error.
 If `fn` returns a value (neither `null` nor `undefined`), the first
 `input` of the next function is set to that value (all other `input`
 is passed through).
-
-###### Example
 
 The following example shows how returning an error stops the pipeline:
 
@@ -161,7 +178,7 @@ Yields:
 null 'even more value' 'untouched'
 ```
 
-##### Promise
+###### Promise
 
 If `fn` returns a promise, and that promise rejects, the pipeline fails
 and `done` is invoked with the rejected value.
@@ -169,8 +186,6 @@ and `done` is invoked with the rejected value.
 If `fn` returns a promise, and that promise resolves with a value
 (neither `null` nor `undefined`), the first `input` of the next function
 is set to that value (all other `input` is passed through).
-
-###### Example
 
 The following example shows how rejecting a promise stops the pipeline:
 
@@ -215,7 +230,7 @@ Yields:
 null 'Input'
 ```
 
-##### Asynchronous
+###### Asynchronous
 
 If `fn` accepts one more argument than the given `input`, a `next`
 function is given (after the input).  `next` must be called, but doesn’t
@@ -227,8 +242,6 @@ argument, the pipeline fails and `done` is invoked with that value.
 If `next` is given no value (either `null` or `undefined`) as the first
 argument, all following non-nully values change the input of the following
 function, and all nully values default to the `input`.
-
-###### Example
 
 The following example shows how passing a first argument stops the
 pipeline:

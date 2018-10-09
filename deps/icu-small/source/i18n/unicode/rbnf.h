@@ -884,7 +884,7 @@ protected:
      * @return          Reference to 'appendTo' parameter.
      * @internal
      */
-    virtual UnicodeString& format(const DigitList &number,
+    virtual UnicodeString& format(const number::impl::DecimalQuantity &number,
                                   UnicodeString& appendTo,
                                   FieldPositionIterator* posIter,
                                   UErrorCode& status) const;
@@ -906,7 +906,7 @@ protected:
      * @return          Reference to 'appendTo' parameter.
      * @internal
      */
-    virtual UnicodeString& format(const DigitList &number,
+    virtual UnicodeString& format(const number::impl::DecimalQuantity &number,
                                   UnicodeString& appendTo,
                                   FieldPosition& pos,
                                   UErrorCode& status) const;

@@ -48,6 +48,21 @@ size_t hash_value(FieldAccess const& access) {
                             access.machine_type);
 }
 
+size_t hash_value(LoadSensitivity load_sensitivity) {
+  return static_cast<size_t>(load_sensitivity);
+}
+
+std::ostream& operator<<(std::ostream& os, LoadSensitivity load_sensitivity) {
+  switch (load_sensitivity) {
+    case LoadSensitivity::kCritical:
+      return os << "Critical";
+    case LoadSensitivity::kSafe:
+      return os << "Safe";
+    case LoadSensitivity::kUnsafe:
+      return os << "Unsafe";
+  }
+  UNREACHABLE();
+}
 
 std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   os << "[" << access.base_is_tagged << ", " << access.offset << ", ";
@@ -62,8 +77,12 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
     os << Brief(*map) << ", ";
   }
 #endif
-  access.type->PrintTo(os);
-  os << ", " << access.machine_type << ", " << access.write_barrier_kind << "]";
+  os << access.type << ", " << access.machine_type << ", "
+     << access.write_barrier_kind;
+  if (FLAG_untrusted_code_mitigations || FLAG_branch_load_poisoning) {
+    os << ", " << access.load_sensitivity;
+  }
+  os << "]";
   return os;
 }
 
@@ -96,9 +115,12 @@ size_t hash_value(ElementAccess const& access) {
 
 
 std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
-  os << access.base_is_tagged << ", " << access.header_size << ", ";
-  access.type->PrintTo(os);
-  os << ", " << access.machine_type << ", " << access.write_barrier_kind;
+  os << access.base_is_tagged << ", " << access.header_size << ", "
+     << access.type << ", " << access.machine_type << ", "
+     << access.write_barrier_kind;
+  if (FLAG_untrusted_code_mitigations || FLAG_branch_load_poisoning) {
+    os << ", " << access.load_sensitivity;
+  }
   return os;
 }
 
@@ -119,7 +141,9 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kLoadTypedElement ||
-         op->opcode() == IrOpcode::kStoreTypedElement);
+         op->opcode() == IrOpcode::kLoadDataViewElement ||
+         op->opcode() == IrOpcode::kStoreTypedElement ||
+         op->opcode() == IrOpcode::kStoreDataViewElement);
   return OpParameter<ExternalArrayType>(op);
 }
 
@@ -142,9 +166,31 @@ std::ostream& operator<<(std::ostream& os, CheckFloat64HoleMode mode) {
   UNREACHABLE();
 }
 
-CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator* op) {
+CheckFloat64HoleParameters const& CheckFloat64HoleParametersOf(
+    Operator const* op) {
   DCHECK_EQ(IrOpcode::kCheckFloat64Hole, op->opcode());
-  return OpParameter<CheckFloat64HoleMode>(op);
+  return OpParameter<CheckFloat64HoleParameters>(op);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CheckFloat64HoleParameters const& params) {
+  os << params.mode();
+  if (params.feedback().IsValid()) os << "; " << params.feedback();
+  return os;
+}
+
+size_t hash_value(const CheckFloat64HoleParameters& params) {
+  return base::hash_combine(params.mode(), params.feedback());
+}
+
+bool operator==(CheckFloat64HoleParameters const& lhs,
+                CheckFloat64HoleParameters const& rhs) {
+  return lhs.mode() == rhs.mode() && lhs.feedback() == rhs.feedback();
+}
+
+bool operator!=(CheckFloat64HoleParameters const& lhs,
+                CheckFloat64HoleParameters const& rhs) {
+  return !(lhs == rhs);
 }
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
@@ -366,19 +412,19 @@ namespace {
 class TransitionAndStoreNonNumberElementParameters final {
  public:
   TransitionAndStoreNonNumberElementParameters(Handle<Map> fast_map,
-                                               Type* value_type);
+                                               Type value_type);
 
   Handle<Map> fast_map() const { return fast_map_; }
-  Type* value_type() const { return value_type_; }
+  Type value_type() const { return value_type_; }
 
  private:
   Handle<Map> const fast_map_;
-  Type* value_type_;
+  Type value_type_;
 };
 
 TransitionAndStoreNonNumberElementParameters::
     TransitionAndStoreNonNumberElementParameters(Handle<Map> fast_map,
-                                                 Type* value_type)
+                                                 Type value_type)
     : fast_map_(fast_map), value_type_(value_type) {}
 
 bool operator==(TransitionAndStoreNonNumberElementParameters const& lhs,
@@ -394,8 +440,8 @@ size_t hash_value(TransitionAndStoreNonNumberElementParameters parameters) {
 
 std::ostream& operator<<(
     std::ostream& os, TransitionAndStoreNonNumberElementParameters parameters) {
-  parameters.value_type()->PrintTo(os);
-  return os << ", fast-map" << Brief(*parameters.fast_map());
+  return os << parameters.value_type() << ", fast-map"
+            << Brief(*parameters.fast_map());
 }
 
 }  // namespace
@@ -444,7 +490,7 @@ Handle<Map> DoubleMapParameterOf(const Operator* op) {
   return Handle<Map>::null();
 }
 
-Type* ValueTypeParameterOf(const Operator* op) {
+Type ValueTypeParameterOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kTransitionAndStoreNonNumberElement, op->opcode());
   return OpParameter<TransitionAndStoreNonNumberElementParameters>(op)
       .value_type();
@@ -526,8 +572,7 @@ size_t hash_value(AllocateParameters info) {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            AllocateParameters info) {
-  info.type()->PrintTo(os);
-  return os << ", " << info.pretenure();
+  return os << info.type() << ", " << info.pretenure();
 }
 
 bool operator==(AllocateParameters const& lhs, AllocateParameters const& rhs) {
@@ -544,7 +589,7 @@ PretenureFlag PretenureFlagOf(const Operator* op) {
   return OpParameter<AllocateParameters>(op).pretenure();
 }
 
-Type* AllocateTypeOf(const Operator* op) {
+Type AllocateTypeOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
   return OpParameter<AllocateParameters>(op).type();
 }
@@ -558,11 +603,6 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
 AbortReason AbortReasonOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kRuntimeAbort, op->opcode());
   return static_cast<AbortReason>(OpParameter<int>(op));
-}
-
-DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kCheckIf, op->opcode());
-  return OpParameter<DeoptimizeReason>(op);
 }
 
 const CheckTaggedInputParameters& CheckTaggedInputParametersOf(
@@ -701,6 +741,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(ObjectIsDetectableCallable, Operator::kNoProperties, 1, 0)   \
   V(ObjectIsMinusZero, Operator::kNoProperties, 1, 0)            \
   V(ObjectIsNaN, Operator::kNoProperties, 1, 0)                  \
+  V(NumberIsNaN, Operator::kNoProperties, 1, 0)                  \
   V(ObjectIsNonCallable, Operator::kNoProperties, 1, 0)          \
   V(ObjectIsNumber, Operator::kNoProperties, 1, 0)               \
   V(ObjectIsReceiver, Operator::kNoProperties, 1, 0)             \
@@ -723,11 +764,12 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)        \
   V(ToBoolean, Operator::kNoProperties, 1, 0)                    \
   V(NewConsString, Operator::kNoProperties, 3, 0)                \
-  V(MaskIndexWithBound, Operator::kNoProperties, 2, 0)
+  V(PoisonIndex, Operator::kNoProperties, 1, 0)
 
-#define EFFECT_DEPENDENT_OP_LIST(V)                     \
-  V(StringCharCodeAt, Operator::kNoProperties, 2, 1)    \
-  V(StringSubstring, Operator::kNoProperties, 3, 1)
+#define EFFECT_DEPENDENT_OP_LIST(V)                  \
+  V(StringCharCodeAt, Operator::kNoProperties, 2, 1) \
+  V(StringSubstring, Operator::kNoProperties, 3, 1)  \
+  V(DateNow, Operator::kNoProperties, 0, 1)
 
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
@@ -811,11 +853,12 @@ struct SimplifiedOperatorGlobalCache final {
 #undef CHECKED_WITH_FEEDBACK
 
   template <DeoptimizeReason kDeoptimizeReason>
-  struct CheckIfOperator final : public Operator1<DeoptimizeReason> {
+  struct CheckIfOperator final : public Operator1<CheckIfParameters> {
     CheckIfOperator()
-        : Operator1<DeoptimizeReason>(
+        : Operator1<CheckIfParameters>(
               IrOpcode::kCheckIf, Operator::kFoldable | Operator::kNoThrow,
-              "CheckIf", 1, 1, 1, 0, 1, 0, kDeoptimizeReason) {}
+              "CheckIf", 1, 1, 1, 0, 1, 0,
+              CheckIfParameters(kDeoptimizeReason, VectorSlotPair())) {}
   };
 #define CHECK_IF(Name, message) \
   CheckIfOperator<DeoptimizeReason::k##Name> kCheckIf##Name;
@@ -984,12 +1027,13 @@ struct SimplifiedOperatorGlobalCache final {
 
   template <CheckFloat64HoleMode kMode>
   struct CheckFloat64HoleNaNOperator final
-      : public Operator1<CheckFloat64HoleMode> {
+      : public Operator1<CheckFloat64HoleParameters> {
     CheckFloat64HoleNaNOperator()
-        : Operator1<CheckFloat64HoleMode>(
+        : Operator1<CheckFloat64HoleParameters>(
               IrOpcode::kCheckFloat64Hole,
               Operator::kFoldable | Operator::kNoThrow, "CheckFloat64Hole", 1,
-              1, 1, 1, 1, 0, kMode) {}
+              1, 1, 1, 1, 0,
+              CheckFloat64HoleParameters(kMode, VectorSlotPair())) {}
   };
   CheckFloat64HoleNaNOperator<CheckFloat64HoleMode::kAllowReturnHole>
       kCheckFloat64HoleAllowReturnHoleOperator;
@@ -1121,15 +1165,20 @@ const Operator* SimplifiedOperatorBuilder::RuntimeAbort(AbortReason reason) {
       static_cast<int>(reason));                // parameter
 }
 
-const Operator* SimplifiedOperatorBuilder::CheckIf(DeoptimizeReason reason) {
-  switch (reason) {
+const Operator* SimplifiedOperatorBuilder::CheckIf(
+    DeoptimizeReason reason, const VectorSlotPair& feedback) {
+  if (!feedback.IsValid()) {
+    switch (reason) {
 #define CHECK_IF(Name, message)   \
   case DeoptimizeReason::k##Name: \
     return &cache_.kCheckIf##Name;
     DEOPTIMIZE_REASON_LIST(CHECK_IF)
 #undef CHECK_IF
+    }
   }
-  UNREACHABLE();
+  return new (zone()) Operator1<CheckIfParameters>(
+      IrOpcode::kCheckIf, Operator::kFoldable | Operator::kNoThrow, "CheckIf",
+      1, 1, 1, 0, 1, 0, CheckIfParameters(reason, feedback));
 }
 
 const Operator* SimplifiedOperatorBuilder::ChangeFloat64ToTagged(
@@ -1263,14 +1312,20 @@ const Operator* SimplifiedOperatorBuilder::ConvertReceiver(
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
-    CheckFloat64HoleMode mode) {
-  switch (mode) {
-    case CheckFloat64HoleMode::kAllowReturnHole:
-      return &cache_.kCheckFloat64HoleAllowReturnHoleOperator;
-    case CheckFloat64HoleMode::kNeverReturnHole:
-      return &cache_.kCheckFloat64HoleNeverReturnHoleOperator;
+    CheckFloat64HoleMode mode, VectorSlotPair const& feedback) {
+  if (!feedback.IsValid()) {
+    switch (mode) {
+      case CheckFloat64HoleMode::kAllowReturnHole:
+        return &cache_.kCheckFloat64HoleAllowReturnHoleOperator;
+      case CheckFloat64HoleMode::kNeverReturnHole:
+        return &cache_.kCheckFloat64HoleNeverReturnHoleOperator;
+    }
+    UNREACHABLE();
   }
-  UNREACHABLE();
+  return new (zone()) Operator1<CheckFloat64HoleParameters>(
+      IrOpcode::kCheckFloat64Hole, Operator::kFoldable | Operator::kNoThrow,
+      "CheckFloat64Hole", 1, 1, 1, 1, 1, 0,
+      CheckFloat64HoleParameters(mode, feedback));
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
@@ -1389,6 +1444,23 @@ CheckParameters const& CheckParametersOf(Operator const* op) {
   return OpParameter<CheckParameters>(op);
 }
 
+bool operator==(CheckIfParameters const& lhs, CheckIfParameters const& rhs) {
+  return lhs.reason() == rhs.reason() && lhs.feedback() == rhs.feedback();
+}
+
+size_t hash_value(CheckIfParameters const& p) {
+  return base::hash_combine(p.reason(), p.feedback());
+}
+
+std::ostream& operator<<(std::ostream& os, CheckIfParameters const& p) {
+  return os << p.reason() << p.feedback();
+}
+
+CheckIfParameters const& CheckIfParametersOf(Operator const* op) {
+  CHECK(op->opcode() == IrOpcode::kCheckIf);
+  return OpParameter<CheckIfParameters>(op);
+}
+
 const Operator* SimplifiedOperatorBuilder::NewDoubleElements(
     PretenureFlag pretenure) {
   return new (zone()) Operator1<PretenureFlag>(  // --
@@ -1424,7 +1496,7 @@ int NewArgumentsElementsMappedCountOf(const Operator* op) {
   return OpParameter<int>(op);
 }
 
-const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,
+const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
                                                     PretenureFlag pretenure) {
   return new (zone()) Operator1<AllocateParameters>(
       IrOpcode::kAllocate,
@@ -1433,7 +1505,7 @@ const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,
 }
 
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
-    Type* type, PretenureFlag pretenure) {
+    Type type, PretenureFlag pretenure) {
   return new (zone()) Operator1<AllocateParameters>(
       IrOpcode::kAllocateRaw,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
@@ -1482,13 +1554,15 @@ const Operator* SimplifiedOperatorBuilder::StringFromSingleCodePoint(
 SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
 #undef SPECULATIVE_NUMBER_BINOP
 
-#define ACCESS_OP_LIST(V)                                             \
-  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)              \
-  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)              \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)          \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)          \
-  V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
-  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)
+#define ACCESS_OP_LIST(V)                                                \
+  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)                 \
+  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)                 \
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)             \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)             \
+  V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)    \
+  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)    \
+  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
+  V(StoreDataViewElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)
 
 #define ACCESS(Name, Type, properties, value_input_count, control_input_count, \
                output_count)                                                   \
@@ -1527,7 +1601,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNumberElement(
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
-    Handle<Map> fast_map, Type* value_type) {
+    Handle<Map> fast_map, Type value_type) {
   TransitionAndStoreNonNumberElementParameters parameters(fast_map, value_type);
   return new (zone()) Operator1<TransitionAndStoreNonNumberElementParameters>(
       IrOpcode::kTransitionAndStoreNonNumberElement,

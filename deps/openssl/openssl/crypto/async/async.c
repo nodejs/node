@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,11 +30,12 @@
 static CRYPTO_THREAD_LOCAL ctxkey;
 static CRYPTO_THREAD_LOCAL poolkey;
 
-static void async_free_pool_internal(async_pool *pool);
-
 static async_ctx *async_ctx_new(void)
 {
-    async_ctx *nctx = NULL;
+    async_ctx *nctx;
+
+    if (!ossl_init_thread_start(OPENSSL_INIT_THREAD_ASYNC))
+        return NULL;
 
     nctx = OPENSSL_malloc(sizeof(async_ctx));
     if (nctx == NULL) {
@@ -57,9 +58,6 @@ err:
 
 async_ctx *async_get_ctx(void)
 {
-    if (!OPENSSL_init_crypto(OPENSSL_INIT_ASYNC, NULL))
-        return NULL;
-
     return (async_ctx *)CRYPTO_THREAD_get_local(&ctxkey);
 }
 
@@ -169,16 +167,19 @@ void async_start_func(void)
 int ASYNC_start_job(ASYNC_JOB **job, ASYNC_WAIT_CTX *wctx, int *ret,
                     int (*func)(void *), void *args, size_t size)
 {
-    async_ctx *ctx = async_get_ctx();
+    async_ctx *ctx;
+
+    if (!OPENSSL_init_crypto(OPENSSL_INIT_ASYNC, NULL))
+        return ASYNC_ERR;
+
+    ctx = async_get_ctx();
     if (ctx == NULL)
         ctx = async_ctx_new();
-    if (ctx == NULL) {
+    if (ctx == NULL)
         return ASYNC_ERR;
-    }
 
-    if (*job) {
+    if (*job)
         ctx->currjob = *job;
-    }
 
     for (;;) {
         if (ctx->currjob != NULL) {
@@ -219,9 +220,8 @@ int ASYNC_start_job(ASYNC_JOB **job, ASYNC_WAIT_CTX *wctx, int *ret,
         }
 
         /* Start a new job */
-        if ((ctx->currjob = async_get_pool_job()) == NULL) {
+        if ((ctx->currjob = async_get_pool_job()) == NULL)
             return ASYNC_NO_JOBS;
-        }
 
         if (args != NULL) {
             ctx->currjob->funcargs = OPENSSL_malloc(size);
@@ -323,12 +323,11 @@ int ASYNC_init_thread(size_t max_size, size_t init_size)
         return 0;
     }
 
-    if (!OPENSSL_init_crypto(OPENSSL_INIT_ASYNC, NULL)) {
+    if (!OPENSSL_init_crypto(OPENSSL_INIT_ASYNC, NULL))
         return 0;
-    }
-    if (!ossl_init_thread_start(OPENSSL_INIT_THREAD_ASYNC)) {
+
+    if (!ossl_init_thread_start(OPENSSL_INIT_THREAD_ASYNC))
         return 0;
-    }
 
     pool = OPENSSL_zalloc(sizeof(*pool));
     if (pool == NULL) {
@@ -369,31 +368,40 @@ int ASYNC_init_thread(size_t max_size, size_t init_size)
 
     return 1;
 err:
-    async_free_pool_internal(pool);
-    return 0;
-}
-
-static void async_free_pool_internal(async_pool *pool)
-{
-    if (pool == NULL)
-        return;
-
     async_empty_pool(pool);
     sk_ASYNC_JOB_free(pool->jobs);
     OPENSSL_free(pool);
-    CRYPTO_THREAD_set_local(&poolkey, NULL);
+    return 0;
+}
+
+void async_delete_thread_state(void)
+{
+    async_pool *pool = (async_pool *)CRYPTO_THREAD_get_local(&poolkey);
+
+    if (pool != NULL) {
+        async_empty_pool(pool);
+        sk_ASYNC_JOB_free(pool->jobs);
+        OPENSSL_free(pool);
+        CRYPTO_THREAD_set_local(&poolkey, NULL);
+    }
     async_local_cleanup();
     async_ctx_free();
 }
 
 void ASYNC_cleanup_thread(void)
 {
-    async_free_pool_internal((async_pool *)CRYPTO_THREAD_get_local(&poolkey));
+    if (!OPENSSL_init_crypto(OPENSSL_INIT_ASYNC, NULL))
+        return;
+
+    async_delete_thread_state();
 }
 
 ASYNC_JOB *ASYNC_get_current_job(void)
 {
     async_ctx *ctx;
+
+    if (!OPENSSL_init_crypto(OPENSSL_INIT_ASYNC, NULL))
+        return NULL;
 
     ctx = async_get_ctx();
     if (ctx == NULL)
@@ -409,7 +417,12 @@ ASYNC_WAIT_CTX *ASYNC_get_wait_ctx(ASYNC_JOB *job)
 
 void ASYNC_block_pause(void)
 {
-    async_ctx *ctx = async_get_ctx();
+    async_ctx *ctx;
+
+    if (!OPENSSL_init_crypto(OPENSSL_INIT_ASYNC, NULL))
+        return;
+
+    ctx = async_get_ctx();
     if (ctx == NULL || ctx->currjob == NULL) {
         /*
          * We're not in a job anyway so ignore this
@@ -421,7 +434,12 @@ void ASYNC_block_pause(void)
 
 void ASYNC_unblock_pause(void)
 {
-    async_ctx *ctx = async_get_ctx();
+    async_ctx *ctx;
+
+    if (!OPENSSL_init_crypto(OPENSSL_INIT_ASYNC, NULL))
+        return;
+
+    ctx = async_get_ctx();
     if (ctx == NULL || ctx->currjob == NULL) {
         /*
          * We're not in a job anyway so ignore this

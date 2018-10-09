@@ -5,7 +5,7 @@ default_ca      = CA_default
 dir = .
 name_opt = CA_default
 cert_opt = CA_default
-default_crl_days = 999
+default_crl_days = 9999
 default_md = sha256
 database = fake-startcom-root-database.txt
 serial = fake-startcom-root-serial
@@ -26,7 +26,7 @@ emailAddress            = optional
 
 [ req ]
 default_bits           = 2048
-days                   = 999
+days                   = 9999
 distinguished_name     = req_distinguished_name
 attributes             = req_attributes
 prompt                 = no

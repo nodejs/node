@@ -16,15 +16,17 @@ namespace internal {
 
 class ClassLiteral;
 
-// BoilerplateDescription is a list of properties consisting of name value
+// ObjectBoilerplateDescription is a list of properties consisting of name value
 // pairs. In addition to the properties, it provides the projected number
 // of properties in the backing store. This number includes properties with
 // computed names that are not
 // in the list.
-class BoilerplateDescription : public FixedArray {
+class ObjectBoilerplateDescription : public FixedArray {
  public:
   Object* name(int index) const;
   Object* value(int index) const;
+
+  void set_key_value(int index, Object* key, Object* value);
 
   // The number of boilerplate properties.
   int size() const;
@@ -34,30 +36,48 @@ class BoilerplateDescription : public FixedArray {
 
   void set_backing_store_size(Isolate* isolate, int backing_store_size);
 
-  DECL_CAST(BoilerplateDescription)
-  DECL_PRINTER(BoilerplateDescription)
+  // Used to encode ObjectLiteral::Flags for nested object literals
+  // Stored as the first element of the fixed array
+  DECL_INT_ACCESSORS(flags)
+  static const int kLiteralTypeOffset = 0;
+  static const int kDescriptionStartIndex = 1;
+
+  DECL_CAST(ObjectBoilerplateDescription)
+  DECL_VERIFIER(ObjectBoilerplateDescription)
+  DECL_PRINTER(ObjectBoilerplateDescription)
 
  private:
   bool has_number_of_properties() const;
 };
 
-// Pair of {ElementsKind} and an array of constant values for {ArrayLiteral}
-// expressions. Used to communicate with the runtime for literal boilerplate
-// creation within the {Runtime_CreateArrayLiteral} method.
-class ConstantElementsPair : public Tuple2 {
+class ArrayBoilerplateDescription : public Struct {
  public:
-  DECL_INT_ACCESSORS(elements_kind)
-  DECL_ACCESSORS(constant_values, FixedArrayBase)
+  // store constant_elements of a fixed array
+  DECL_ACCESSORS(constant_elements, FixedArrayBase)
+
+  inline ElementsKind elements_kind() const;
+  inline void set_elements_kind(ElementsKind kind);
 
   inline bool is_empty() const;
 
-  DECL_CAST(ConstantElementsPair)
+  DECL_CAST(ArrayBoilerplateDescription)
+  // Dispatched behavior.
+  DECL_PRINTER(ArrayBoilerplateDescription)
+  DECL_VERIFIER(ArrayBoilerplateDescription)
+  void BriefPrintDetails(std::ostream& os);
 
-  static const int kElementsKindOffset = kValue1Offset;
-  static const int kConstantValuesOffset = kValue2Offset;
+#define ARRAY_BOILERPLATE_DESCRIPTION_FIELDS(V) \
+  V(kFlagsOffset, kPointerSize)                 \
+  V(kConstantElementsOffset, kPointerSize)      \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                ARRAY_BOILERPLATE_DESCRIPTION_FIELDS)
+#undef ARRAY_BOILERPLATE_DESCRIPTION_FIELDS
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantElementsPair);
+  DECL_INT_ACCESSORS(flags)
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayBoilerplateDescription);
 };
 
 class ClassBoilerplate : public FixedArray {

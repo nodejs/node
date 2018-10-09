@@ -38,7 +38,9 @@ class TTYWrap : public LibuvStreamWrap {
 
   uv_tty_t* UVHandle();
 
-  size_t self_size() const override { return sizeof(*this); }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(TTYWrap)
+  SET_SELF_SIZE(TTYWrap)
 
  private:
   TTYWrap(Environment* env,

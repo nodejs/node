@@ -66,6 +66,17 @@ class PPCOperandGenerator final : public OperandGenerator {
     }
     return false;
   }
+
+  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
+  // register.
+  InstructionOperand UseRegisterOrStackPointer(Node* node) {
+    if (node->opcode() == IrOpcode::kLoadStackPointer) {
+      return LocationOperand(LocationOperand::EXPLICIT,
+                             LocationOperand::REGISTER,
+                             MachineRepresentation::kWord32, sp.code());
+    }
+    return UseRegister(node);
+  }
 };
 
 
@@ -219,7 +230,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
 
   if (node->opcode() == IrOpcode::kPoisonedLoad &&
-      poisoning_enabled_ == PoisoningMitigationLevel::kOn) {
+      poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
     opcode |= MiscField::encode(kMemoryAccessPoisoned);
   }
 
@@ -926,9 +937,18 @@ void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
 #endif
 
-void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
+  PPCOperandGenerator g(this);
+  InstructionOperand temp[] = {g.TempRegister()};
+  Emit(kPPC_ByteRev64, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), 1, temp);
+}
 
-void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_ByteRev32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
 
 void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
 
@@ -1483,15 +1503,15 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, immediate_mode)) {
-    VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
-                 cont);
+    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(left),
+                 g.UseImmediate(right), cont);
   } else if (g.CanBeImmediate(left, immediate_mode)) {
     if (!commutative) cont->Commute();
-    VisitCompare(selector, opcode, g.UseRegister(right), g.UseImmediate(left),
-                 cont);
+    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(right),
+                 g.UseImmediate(left), cont);
   } else {
-    VisitCompare(selector, opcode, g.UseRegister(left), g.UseRegister(right),
-                 cont);
+    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(left),
+                 g.UseRegisterOrStackPointer(right), cont);
   }
 }
 
@@ -1708,8 +1728,8 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
     }
   }
 
-  // Generate a sequence of conditional jumps.
-  return EmitLookupSwitch(sw, value_operand);
+  // Generate a tree of conditional jumps.
+  return EmitBinarySearchSwitch(sw, value_operand);
 }
 
 
@@ -1966,7 +1986,7 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   ArchOpcode opcode = kArchNop;
-  MachineType type = AtomicOpRepresentationOf(node->op());
+  MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
     opcode = kWord32AtomicExchangeInt8;
   } else if (type == MachineType::Uint8()) {
@@ -1995,18 +2015,100 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
 }
 
 void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
-  UNIMPLEMENTED();
+  PPCOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* old_value = node->InputAt(2);
+  Node* new_value = node->InputAt(3);
+
+  MachineType type = AtomicOpType(node->op());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Int8()) {
+    opcode = kWord32AtomicCompareExchangeInt8;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kWord32AtomicCompareExchangeUint8;
+  } else if (type == MachineType::Int16()) {
+    opcode = kWord32AtomicCompareExchangeInt16;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kWord32AtomicCompareExchangeUint16;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = kWord32AtomicCompareExchangeWord32;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  AddressingMode addressing_mode = kMode_MRR;
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(old_value);
+  inputs[input_count++] = g.UseUniqueRegister(new_value);
+
+  InstructionOperand outputs[1];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Emit(code, output_count, outputs, input_count, inputs);
 }
 
-void InstructionSelector::VisitWord32AtomicAdd(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitWord32AtomicBinaryOperation(
+    Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
+    ArchOpcode uint16_op, ArchOpcode word32_op) {
+  PPCOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
 
-void InstructionSelector::VisitWord32AtomicSub(Node* node) { UNIMPLEMENTED(); }
+  MachineType type = AtomicOpType(node->op());
+  ArchOpcode opcode = kArchNop;
 
-void InstructionSelector::VisitWord32AtomicAnd(Node* node) { UNIMPLEMENTED(); }
+  if (type == MachineType::Int8()) {
+    opcode = int8_op;
+  } else if (type == MachineType::Uint8()) {
+    opcode = uint8_op;
+  } else if (type == MachineType::Int16()) {
+    opcode = int16_op;
+  } else if (type == MachineType::Uint16()) {
+    opcode = uint16_op;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = word32_op;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  AddressingMode addressing_mode = kMode_MRR;
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  InstructionOperand inputs[3];
 
-void InstructionSelector::VisitWord32AtomicOr(Node* node) { UNIMPLEMENTED(); }
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
 
-void InstructionSelector::VisitWord32AtomicXor(Node* node) { UNIMPLEMENTED(); }
+  InstructionOperand outputs[1];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Emit(code, output_count, outputs, input_count, inputs);
+}
+
+#define VISIT_ATOMIC_BINOP(op)                                   \
+  void InstructionSelector::VisitWord32Atomic##op(Node* node) {  \
+    VisitWord32AtomicBinaryOperation(                            \
+        node, kWord32Atomic##op##Int8, kWord32Atomic##op##Uint8, \
+        kWord32Atomic##op##Int16, kWord32Atomic##op##Uint16,     \
+        kWord32Atomic##op##Word32);                              \
+  }
+VISIT_ATOMIC_BINOP(Add)
+VISIT_ATOMIC_BINOP(Sub)
+VISIT_ATOMIC_BINOP(And)
+VISIT_ATOMIC_BINOP(Or)
+VISIT_ATOMIC_BINOP(Xor)
+#undef VISIT_ATOMIC_BINOP
+
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();

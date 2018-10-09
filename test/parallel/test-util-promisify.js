@@ -7,8 +7,6 @@ const vm = require('vm');
 const { promisify } = require('util');
 const { customPromisifyArgs } = require('internal/util');
 
-common.crashOnUnhandledRejection();
-
 const stat = promisify(fs.stat);
 
 {

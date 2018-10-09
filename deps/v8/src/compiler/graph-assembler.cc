@@ -155,6 +155,28 @@ Node* GraphAssembler::Load(MachineType rep, Node* object, Node* offset) {
                               current_effect_, current_control_);
 }
 
+Node* GraphAssembler::StoreUnaligned(MachineRepresentation rep, Node* object,
+                                     Node* offset, Node* value) {
+  Operator const* const op =
+      (rep == MachineRepresentation::kWord8 ||
+       machine()->UnalignedStoreSupported(rep))
+          ? machine()->Store(StoreRepresentation(rep, kNoWriteBarrier))
+          : machine()->UnalignedStore(rep);
+  return current_effect_ = graph()->NewNode(op, object, offset, value,
+                                            current_effect_, current_control_);
+}
+
+Node* GraphAssembler::LoadUnaligned(MachineType rep, Node* object,
+                                    Node* offset) {
+  Operator const* const op =
+      (rep.representation() == MachineRepresentation::kWord8 ||
+       machine()->UnalignedLoadSupported(rep.representation()))
+          ? machine()->Load(rep)
+          : machine()->UnalignedLoad(rep);
+  return current_effect_ = graph()->NewNode(op, object, offset, current_effect_,
+                                            current_control_);
+}
+
 Node* GraphAssembler::Retain(Node* buffer) {
   return current_effect_ =
              graph()->NewNode(common()->Retain(), buffer, current_effect_);
@@ -178,6 +200,12 @@ Node* GraphAssembler::BitcastWordToTagged(Node* value) {
                               current_effect_, current_control_);
 }
 
+Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
+  return current_effect_ =
+             graph()->NewNode(machine()->Word32PoisonOnSpeculation(), value,
+                              current_effect_, current_control_);
+}
+
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
                                    VectorSlotPair const& feedback,
                                    Node* condition, Node* frame_state) {
@@ -186,20 +214,14 @@ Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
              condition, frame_state, current_effect_, current_control_);
 }
 
-Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeKind kind,
-                                      DeoptimizeReason reason,
-                                      VectorSlotPair const& feedback,
-                                      Node* condition, Node* frame_state) {
-  return current_control_ = current_effect_ = graph()->NewNode(
-             common()->DeoptimizeUnless(kind, reason, feedback), condition,
-             frame_state, current_effect_, current_control_);
-}
-
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
                                       VectorSlotPair const& feedback,
-                                      Node* condition, Node* frame_state) {
-  return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, feedback, condition,
-                         frame_state);
+                                      Node* condition, Node* frame_state,
+                                      IsSafetyCheck is_safety_check) {
+  return current_control_ = current_effect_ = graph()->NewNode(
+             common()->DeoptimizeUnless(DeoptimizeKind::kEager, reason,
+                                        feedback, is_safety_check),
+             condition, frame_state, current_effect_, current_control_);
 }
 
 void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
@@ -247,9 +269,9 @@ Operator const* GraphAssembler::ToNumberOperator() {
     Callable callable =
         Builtins::CallableFor(jsgraph()->isolate(), Builtins::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        jsgraph()->isolate(), graph()->zone(), callable.descriptor(), 0, flags,
-        Operator::kEliminatable);
+    auto call_descriptor =
+        Linkage::GetStubCallDescriptor(graph()->zone(), callable.descriptor(),
+                                       0, flags, Operator::kEliminatable);
     to_number_operator_.set(common()->Call(call_descriptor));
   }
   return to_number_operator_.get();

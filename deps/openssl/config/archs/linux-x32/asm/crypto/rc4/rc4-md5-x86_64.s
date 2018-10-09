@@ -1,4 +1,4 @@
-.text
+.text	
 .align	16
 
 .globl	rc4_md5_enc

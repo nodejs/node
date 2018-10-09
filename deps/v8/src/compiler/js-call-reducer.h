@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationDependencies;
 class Factory;
 class VectorSlotPair;
 
@@ -23,8 +22,10 @@ namespace compiler {
 // Forward declarations.
 class CallFrequency;
 class CommonOperatorBuilder;
+class CompilationDependencies;
 struct FieldAccess;
 class JSGraph;
+class JSHeapBroker;
 class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
 
@@ -36,11 +37,12 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   enum Flag { kNoFlags = 0u, kBailoutOnUninitialized = 1u << 0 };
   typedef base::Flags<Flag> Flags;
 
-  JSCallReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
-                Handle<Context> native_context,
+  JSCallReducer(Editor* editor, JSGraph* jsgraph, JSHeapBroker* js_heap_broker,
+                Flags flags, Handle<Context> native_context,
                 CompilationDependencies* dependencies)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
+        js_heap_broker_(js_heap_broker),
         flags_(flags),
         native_context_(native_context),
         dependencies_(dependencies) {}
@@ -69,6 +71,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceObjectPrototypeGetProto(Node* node);
   Reduction ReduceObjectPrototypeHasOwnProperty(Node* node);
   Reduction ReduceObjectPrototypeIsPrototypeOf(Node* node);
+  Reduction ReduceObjectCreate(Node* node);
   Reduction ReduceReflectApply(Node* node);
   Reduction ReduceReflectConstruct(Node* node);
   Reduction ReduceReflectGet(Node* node);
@@ -91,6 +94,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypePop(Node* node);
   Reduction ReduceArrayPrototypeShift(Node* node);
+  Reduction ReduceArrayPrototypeSlice(Node* node);
+  Reduction ReduceArrayIsArray(Node* node);
   enum class ArrayIteratorKind { kArray, kTypedArray };
   Reduction ReduceArrayIterator(Node* node, IterationKind kind);
   Reduction ReduceArrayIteratorPrototypeNext(Node* node);
@@ -107,6 +112,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSCall(Node* node, Handle<SharedFunctionInfo> shared);
   Reduction ReduceJSCallWithArrayLike(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
+  Reduction ReduceRegExpPrototypeTest(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
   Reduction ReduceStringPrototypeIndexOf(Node* node);
   Reduction ReduceStringPrototypeSubstring(Node* node);
@@ -130,8 +136,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceAsyncFunctionPromiseCreate(Node* node);
   Reduction ReduceAsyncFunctionPromiseRelease(Node* node);
-  Reduction ReducePromiseCapabilityDefaultReject(Node* node);
-  Reduction ReducePromiseCapabilityDefaultResolve(Node* node);
   Reduction ReducePromiseConstructor(Node* node);
   Reduction ReducePromiseInternalConstructor(Node* node);
   Reduction ReducePromiseInternalReject(Node* node);
@@ -158,6 +162,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberIsSafeInteger(Node* node);
   Reduction ReduceNumberIsNaN(Node* node);
 
+  Reduction ReduceGlobalIsFinite(Node* node);
+  Reduction ReduceGlobalIsNaN(Node* node);
+
   Reduction ReduceMapPrototypeHas(Node* node);
   Reduction ReduceMapPrototypeGet(Node* node);
   Reduction ReduceCollectionIteration(Node* node,
@@ -174,6 +181,17 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayBufferViewAccessor(Node* node,
                                           InstanceType instance_type,
                                           FieldAccess const& access);
+
+  Reduction ReduceDataViewPrototypeGet(Node* node,
+                                       ExternalArrayType element_type);
+  Reduction ReduceDataViewPrototypeSet(Node* node,
+                                       ExternalArrayType element_type);
+
+  Reduction ReduceDatePrototypeGetTime(Node* node);
+  Reduction ReduceDateNow(Node* node);
+  Reduction ReduceNumberParseInt(Node* node);
+
+  Reduction ReduceNumberConstructor(Node* node);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.
@@ -216,6 +234,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Isolate* isolate() const;
   Factory* factory() const;
   Handle<Context> native_context() const { return native_context_; }
@@ -227,6 +246,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* const jsgraph_;
+  JSHeapBroker* const js_heap_broker_;
   Flags const flags_;
   Handle<Context> const native_context_;
   CompilationDependencies* const dependencies_;

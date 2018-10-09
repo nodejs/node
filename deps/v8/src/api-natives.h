@@ -8,6 +8,7 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/handles.h"
+#include "src/maybe-handles.h"
 #include "src/property-details.h"
 
 namespace v8 {
@@ -26,7 +27,7 @@ class ApiNatives {
       MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> InstantiateObject(
-      Handle<ObjectTemplateInfo> data,
+      Isolate* isolate, Handle<ObjectTemplateInfo> data,
       Handle<JSReceiver> new_target = Handle<JSReceiver>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> InstantiateRemoteObject(

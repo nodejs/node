@@ -1,2 +1,1 @@
-import { Observable } from '../Observable';
-export declare const toPromise: typeof Observable.prototype.toPromise;
+export * from 'rxjs-compat/operator/toPromise';

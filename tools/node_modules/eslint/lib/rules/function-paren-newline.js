@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -41,7 +41,13 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+        messages: {
+            expectedBefore: "Expected newline before ')'.",
+            expectedAfter: "Expected newline after '('.",
+            unexpectedBefore: "Unexpected newline before '('.",
+            unexpectedAfter: "Unexpected newline after ')'."
+        }
     },
 
     create(context) {
@@ -99,7 +105,7 @@ module.exports = {
             if (hasLeftNewline && !needsNewlines) {
                 context.report({
                     node: leftParen,
-                    message: "Unexpected newline after '('.",
+                    messageId: "unexpectedAfter",
                     fix(fixer) {
                         return sourceCode.getText().slice(leftParen.range[1], tokenAfterLeftParen.range[0]).trim()
 
@@ -111,7 +117,7 @@ module.exports = {
             } else if (!hasLeftNewline && needsNewlines) {
                 context.report({
                     node: leftParen,
-                    message: "Expected a newline after '('.",
+                    messageId: "expectedAfter",
                     fix: fixer => fixer.insertTextAfter(leftParen, "\n")
                 });
             }
@@ -119,7 +125,7 @@ module.exports = {
             if (hasRightNewline && !needsNewlines) {
                 context.report({
                     node: rightParen,
-                    message: "Unexpected newline before ')'.",
+                    messageId: "unexpectedBefore",
                     fix(fixer) {
                         return sourceCode.getText().slice(tokenBeforeRightParen.range[1], rightParen.range[0]).trim()
 
@@ -131,7 +137,7 @@ module.exports = {
             } else if (!hasRightNewline && needsNewlines) {
                 context.report({
                     node: rightParen,
-                    message: "Expected a newline before ')'.",
+                    messageId: "expectedBefore",
                     fix: fixer => fixer.insertTextBefore(rightParen, "\n")
                 });
             }

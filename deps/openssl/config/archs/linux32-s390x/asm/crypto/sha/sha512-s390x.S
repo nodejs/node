@@ -1258,7 +1258,7 @@ sha512_block_data_order:
 	cl	%r3,240(%r15)
 	jne	.Lloop
 
-	lm	%r6,%r15,248(%r15)
+	lm	%r6,%r15,248(%r15)	
 	br	%r14
 .size	sha512_block_data_order,.-sha512_block_data_order
 .string	"SHA512 block transform for s390x, CRYPTOGAMS by <appro@openssl.org>"

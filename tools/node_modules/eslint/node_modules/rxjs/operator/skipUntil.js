@@ -1,19 +1,7 @@
 "use strict";
-var skipUntil_1 = require('../operators/skipUntil');
-/**
- * Returns an Observable that skips items emitted by the source Observable until a second Observable emits an item.
- *
- * <img src="./img/skipUntil.png" width="100%">
- *
- * @param {Observable} notifier - The second Observable that has to emit an item before the source Observable's elements begin to
- * be mirrored by the resulting Observable.
- * @return {Observable<T>} An Observable that skips items from the source Observable until the second Observable emits
- * an item, then emits the remaining items.
- * @method skipUntil
- * @owner Observable
- */
-function skipUntil(notifier) {
-    return skipUntil_1.skipUntil(notifier)(this);
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.skipUntil = skipUntil;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/operator/skipUntil"));
 //# sourceMappingURL=skipUntil.js.map

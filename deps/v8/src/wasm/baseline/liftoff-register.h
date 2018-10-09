@@ -289,12 +289,13 @@ class LiftoffRegList {
 
   template <typename... Regs>
   static LiftoffRegList ForRegs(Regs... regs) {
-    std::array<LiftoffRegister, sizeof...(regs)> regs_arr{
-        {LiftoffRegister(regs)...}};
     LiftoffRegList list;
-    for (LiftoffRegister reg : regs_arr) list.set(reg);
+    for (LiftoffRegister reg : {LiftoffRegister(regs)...}) list.set(reg);
     return list;
   }
+
+  RegList GetGpList() { return regs_ & kGpMask; }
+  RegList GetFpList() { return (regs_ & kFpMask) >> kAfterMaxLiftoffGpRegCode; }
 
  private:
   storage_t regs_ = 0;
@@ -311,6 +312,16 @@ static constexpr LiftoffRegList kFpCacheRegList =
 
 static constexpr LiftoffRegList GetCacheRegList(RegClass rc) {
   return rc == kGpReg ? kGpCacheRegList : kFpCacheRegList;
+}
+
+inline std::ostream& operator<<(std::ostream& os, LiftoffRegList reglist) {
+  os << "{";
+  for (bool first = true; !reglist.is_empty(); first = false) {
+    LiftoffRegister reg = reglist.GetFirstRegSet();
+    reglist.clear(reg);
+    os << (first ? "" : ", ") << reg;
+  }
+  return os << "}";
 }
 
 }  // namespace wasm

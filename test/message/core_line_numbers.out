@@ -3,7 +3,7 @@ punycode.js:42
 	^
 
 RangeError: Invalid input
-    at error (punycode.js:42:*)
+    at error (punycode.js:42:8)
     at Object.decode (punycode.js:*:*)
     at Object.<anonymous> (*test*message*core_line_numbers.js:*:*)
     at Module._compile (internal/modules/cjs/loader.js:*:*)

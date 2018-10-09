@@ -55,7 +55,11 @@
   do {                                                                        \
     if (cb != NULL) {                                                         \
       uv__req_register(loop, req);                                            \
-      uv__work_submit(loop, &req->work_req, uv__fs_work, uv__fs_done);        \
+      uv__work_submit(loop,                                                   \
+                      &req->work_req,                                         \
+                      UV__WORK_FAST_IO,                                       \
+                      uv__fs_work,                                            \
+                      uv__fs_done);                                           \
       return 0;                                                               \
     } else {                                                                  \
       uv__fs_work(&req->work_req);                                            \
@@ -1513,10 +1517,10 @@ static void fs__fchmod(uv_fs_t* req) {
     SET_REQ_WIN32_ERROR(req, pRtlNtStatusToDosError(nt_status));
     goto fchmod_cleanup;
   }
- 
+
   /* Test if the Archive attribute is cleared */
   if ((file_info.FileAttributes & FILE_ATTRIBUTE_ARCHIVE) == 0) {
-      /* Set Archive flag, otherwise setting or clearing the read-only 
+      /* Set Archive flag, otherwise setting or clearing the read-only
          flag will not work */
       file_info.FileAttributes |= FILE_ATTRIBUTE_ARCHIVE;
       nt_status = pNtSetInformationFile(handle,

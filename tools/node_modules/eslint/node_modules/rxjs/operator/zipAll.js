@@ -1,13 +1,7 @@
 "use strict";
-var zipAll_1 = require('../operators/zipAll');
-/**
- * @param project
- * @return {Observable<R>|WebSocketSubject<T>|Observable<T>}
- * @method zipAll
- * @owner Observable
- */
-function zipAll(project) {
-    return zipAll_1.zipAll(project)(this);
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.zipAll = zipAll;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/operator/zipAll"));
 //# sourceMappingURL=zipAll.js.map

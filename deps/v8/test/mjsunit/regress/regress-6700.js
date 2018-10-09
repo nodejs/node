@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
+let kMinHeapSize = 4096;
+
 (function TestLeftRight() {
   function Module(stdlib, foreign, heap) {
     "use asm";
@@ -14,7 +16,7 @@
     }
     return { f:f }
   }
-  var buffer = new ArrayBuffer(1024);
+  var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer);
   assertTrue(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42] = 23;
@@ -31,7 +33,7 @@
     }
     return { f:f }
   }
-  var buffer = new ArrayBuffer(1024);
+  var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer)
   assertTrue(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42 >> 4] = 23;
@@ -48,7 +50,7 @@
     }
     return { f:f }
   }
-  var buffer = new ArrayBuffer(1024);
+  var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer)
   assertFalse(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42 & 0xfc] = 23;
@@ -65,7 +67,7 @@
     }
     return { f:f }
   }
-  var buffer = new ArrayBuffer(1024);
+  var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer)
   assertFalse(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42 >> 3] = 23;
@@ -82,7 +84,7 @@
     }
     return { f:f }
   }
-  var buffer = new ArrayBuffer(1024);
+  var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer)
   assertFalse(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42 << 2] = 23;

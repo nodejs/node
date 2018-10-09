@@ -81,8 +81,6 @@ void RBBIDataWrapper::init0() {
     fHeader = NULL;
     fForwardTable = NULL;
     fReverseTable = NULL;
-    fSafeFwdTable = NULL;
-    fSafeRevTable = NULL;
     fRuleSource   = NULL;
     fRuleStatusTable = NULL;
     fTrie         = NULL;
@@ -110,21 +108,6 @@ void RBBIDataWrapper::init(const RBBIDataHeader *data, UErrorCode &status) {
     }
     if (data->fRTableLen != 0) {
         fReverseTable = (RBBIStateTable *)((char *)data + fHeader->fRTable);
-    }
-    if (data->fSFTableLen != 0) {
-        fSafeFwdTable = (RBBIStateTable *)((char *)data + fHeader->fSFTable);
-    }
-    if (data->fSRTableLen != 0) {
-        fSafeRevTable = (RBBIStateTable *)((char *)data + fHeader->fSRTable);
-    }
-
-    // Rule Compatibility Hacks
-    //    If a rule set includes reverse rules but does not explicitly include safe reverse rules,
-    //    the reverse rules are to be treated as safe reverse rules.
-
-    if (fSafeRevTable == NULL && fReverseTable != NULL) {
-        fSafeRevTable = fReverseTable;
-        fReverseTable = NULL;
     }
 
     fTrie = utrie2_openFromSerialized(UTRIE2_16_VALUE_BITS,
@@ -277,8 +260,6 @@ void  RBBIDataWrapper::printData() {
 
     printTable("Forward State Transition Table", fForwardTable);
     printTable("Reverse State Transition Table", fReverseTable);
-    printTable("Safe Forward State Transition Table", fSafeFwdTable);
-    printTable("Safe Reverse State Transition Table", fSafeRevTable);
 
     RBBIDebugPrintf("\nOrignal Rules source:\n");
     for (int32_t c=0; fRuleSource[c] != 0; c++) {
@@ -410,28 +391,6 @@ ubrk_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *outD
     // Reverse state table.  Same layout as forward table, above.
     tableStartOffset = ds->readUInt32(rbbiDH->fRTable);
     tableLength      = ds->readUInt32(rbbiDH->fRTableLen);
-
-    if (tableLength > 0) {
-        ds->swapArray32(ds, inBytes+tableStartOffset, topSize,
-                            outBytes+tableStartOffset, status);
-        ds->swapArray16(ds, inBytes+tableStartOffset+topSize, tableLength-topSize,
-                            outBytes+tableStartOffset+topSize, status);
-    }
-
-    // Safe Forward state table.  Same layout as forward table, above.
-    tableStartOffset = ds->readUInt32(rbbiDH->fSFTable);
-    tableLength      = ds->readUInt32(rbbiDH->fSFTableLen);
-
-    if (tableLength > 0) {
-        ds->swapArray32(ds, inBytes+tableStartOffset, topSize,
-                            outBytes+tableStartOffset, status);
-        ds->swapArray16(ds, inBytes+tableStartOffset+topSize, tableLength-topSize,
-                            outBytes+tableStartOffset+topSize, status);
-    }
-
-    // Safe Reverse state table.  Same layout as forward table, above.
-    tableStartOffset = ds->readUInt32(rbbiDH->fSRTable);
-    tableLength      = ds->readUInt32(rbbiDH->fSRTableLen);
 
     if (tableLength > 0) {
         ds->swapArray32(ds, inBytes+tableStartOffset, topSize,

@@ -120,7 +120,6 @@ class MachineRepresentationInferrer {
           case IrOpcode::kLoadStackPointer:
           case IrOpcode::kLoadFramePointer:
           case IrOpcode::kLoadParentFramePointer:
-          case IrOpcode::kLoadRootsPointer:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -156,7 +155,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kWord32AtomicOr:
           case IrOpcode::kWord32AtomicXor:
             representation_vector_[node->id()] = PromoteRepresentation(
-                AtomicOpRepresentationOf(node->op()).representation());
+                AtomicOpType(node->op()).representation());
             break;
           case IrOpcode::kStore:
           case IrOpcode::kProtectedStore:
@@ -175,15 +174,20 @@ class MachineRepresentationInferrer {
           case IrOpcode::kChangeInt32ToTagged:
           case IrOpcode::kChangeUint32ToTagged:
           case IrOpcode::kBitcastWordToTagged:
-          case IrOpcode::kPoisonOnSpeculationTagged:
+          case IrOpcode::kTaggedPoisonOnSpeculation:
             representation_vector_[node->id()] = MachineRepresentation::kTagged;
+            break;
+          case IrOpcode::kWord32PoisonOnSpeculation:
+            representation_vector_[node->id()] = MachineRepresentation::kWord32;
+            break;
+          case IrOpcode::kWord64PoisonOnSpeculation:
+            representation_vector_[node->id()] = MachineRepresentation::kWord64;
             break;
           case IrOpcode::kExternalConstant:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
           case IrOpcode::kBitcastTaggedToWord:
-          case IrOpcode::kPoisonOnSpeculationWord:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -248,6 +252,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kRoundUint32ToFloat32:
           case IrOpcode::kRoundInt64ToFloat32:
           case IrOpcode::kRoundUint64ToFloat32:
+          case IrOpcode::kBitcastInt32ToFloat32:
           case IrOpcode::kFloat32Constant:
           case IrOpcode::kTruncateFloat64ToFloat32:
             MACHINE_FLOAT32_BINOP_LIST(LABEL)
@@ -261,6 +266,8 @@ class MachineRepresentationInferrer {
           case IrOpcode::kChangeFloat32ToFloat64:
           case IrOpcode::kChangeInt32ToFloat64:
           case IrOpcode::kChangeUint32ToFloat64:
+          case IrOpcode::kFloat64InsertLowWord32:
+          case IrOpcode::kFloat64InsertHighWord32:
           case IrOpcode::kFloat64Constant:
           case IrOpcode::kFloat64SilenceNaN:
             MACHINE_FLOAT64_BINOP_LIST(LABEL)
@@ -334,12 +341,19 @@ class MachineRepresentationChecker {
             break;
           case IrOpcode::kBitcastWordToTagged:
           case IrOpcode::kBitcastWordToTaggedSigned:
-          case IrOpcode::kPoisonOnSpeculationWord:
             CheckValueInputRepresentationIs(
                 node, 0, MachineType::PointerRepresentation());
             break;
+          case IrOpcode::kWord32PoisonOnSpeculation:
+            CheckValueInputRepresentationIs(node, 0,
+                                            MachineRepresentation::kWord32);
+            break;
+          case IrOpcode::kWord64PoisonOnSpeculation:
+            CheckValueInputRepresentationIs(node, 0,
+                                            MachineRepresentation::kWord64);
+            break;
           case IrOpcode::kBitcastTaggedToWord:
-          case IrOpcode::kPoisonOnSpeculationTagged:
+          case IrOpcode::kTaggedPoisonOnSpeculation:
             CheckValueInputIsTagged(node, 0);
             break;
           case IrOpcode::kTruncateFloat64ToWord32:
@@ -395,6 +409,7 @@ class MachineRepresentationChecker {
           case IrOpcode::kChangeUint32ToFloat64:
           case IrOpcode::kRoundInt32ToFloat32:
           case IrOpcode::kRoundUint32ToFloat32:
+          case IrOpcode::kBitcastInt32ToFloat32:
           case IrOpcode::kChangeInt32ToInt64:
           case IrOpcode::kChangeUint32ToUint64:
             MACHINE_UNOP_32_LIST(LABEL) { CheckValueInputForInt32Op(node, 0); }
@@ -458,6 +473,11 @@ class MachineRepresentationChecker {
             }
             break;
 #undef LABEL
+          case IrOpcode::kFloat64InsertLowWord32:
+          case IrOpcode::kFloat64InsertHighWord32:
+            CheckValueInputForFloat64Op(node, 0);
+            CheckValueInputForInt32Op(node, 1);
+            break;
           case IrOpcode::kParameter:
           case IrOpcode::kProjection:
             break;
@@ -762,7 +782,8 @@ class MachineRepresentationChecker {
           str << std::endl;
         }
         str << " * input " << i << " (" << input->id() << ":" << *input->op()
-            << ") doesn't have a " << expected_input_type << " representation.";
+            << ") has a " << input_type
+            << " representation (expected: " << expected_input_type << ").";
       }
     }
     if (should_log_error) {

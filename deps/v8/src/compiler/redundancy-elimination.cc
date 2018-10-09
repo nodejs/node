@@ -255,7 +255,7 @@ Reduction RedundancyElimination::TryReuseBoundsCheckForFirstInput(Node* node) {
     if (Node* bounds_check = checks->LookupBoundsCheckFor(left)) {
       // Only use the bounds checked type if it is better.
       if (NodeProperties::GetType(bounds_check)
-              ->Is(NodeProperties::GetType(left))) {
+              .Is(NodeProperties::GetType(left))) {
         node->ReplaceInput(0, bounds_check);
       }
     }

@@ -5,6 +5,7 @@
 #ifndef V8_PROFILER_PROFILER_LISTENER_H_
 #define V8_PROFILER_PROFILER_LISTENER_H_
 
+#include <memory>
 #include <vector>
 
 #include "src/code-events.h"
@@ -14,16 +15,17 @@ namespace v8 {
 namespace internal {
 
 class CodeEventsContainer;
+class CodeDeoptEventRecord;
 
 class CodeEventObserver {
  public:
   virtual void CodeEventHandler(const CodeEventsContainer& evt_rec) = 0;
-  virtual ~CodeEventObserver() {}
+  virtual ~CodeEventObserver() = default;
 };
 
 class ProfilerListener : public CodeEventListener {
  public:
-  explicit ProfilerListener(Isolate* isolate);
+  ProfilerListener(Isolate*, CodeEventObserver*);
   ~ProfilerListener() override;
 
   void CallbackEvent(Name* name, Address entry_point) override;
@@ -42,10 +44,10 @@ class ProfilerListener : public CodeEventListener {
                        wasm::WasmName name) override;
 
   void CodeMovingGCEvent() override {}
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override;
-  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
   void GetterCallbackEvent(Name* name, Address entry_point) override;
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
@@ -54,16 +56,11 @@ class ProfilerListener : public CodeEventListener {
 
   CodeEntry* NewCodeEntry(
       CodeEventListener::LogEventsAndTags tag, const char* name,
-      const char* name_prefix = CodeEntry::kEmptyNamePrefix,
       const char* resource_name = CodeEntry::kEmptyResourceName,
       int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
       int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
-      std::unique_ptr<JITLineInfoTable> line_info = nullptr,
-      Address instruction_start = nullptr);
-
-  void AddObserver(CodeEventObserver* observer);
-  void RemoveObserver(CodeEventObserver* observer);
-  V8_INLINE bool HasObservers() { return !observers_.empty(); }
+      std::unique_ptr<SourcePositionTable> line_info = nullptr,
+      Address instruction_start = kNullAddress);
 
   const char* GetName(Name* name) {
     return function_and_resource_names_.GetName(name);
@@ -71,29 +68,24 @@ class ProfilerListener : public CodeEventListener {
   const char* GetName(int args_count) {
     return function_and_resource_names_.GetName(args_count);
   }
-  const char* GetFunctionName(Name* name) {
-    return function_and_resource_names_.GetFunctionName(name);
+  const char* GetName(const char* name) {
+    return function_and_resource_names_.GetCopy(name);
   }
-  const char* GetFunctionName(const char* name) {
-    return function_and_resource_names_.GetFunctionName(name);
+  const char* GetConsName(const char* prefix, Name* name) {
+    return function_and_resource_names_.GetConsName(prefix, name);
   }
-  size_t entries_count_for_test() const { return code_entries_.size(); }
 
  private:
   void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
-  void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
+  void AttachDeoptInlinedFrames(Code* code, CodeDeoptEventRecord* rec);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
-    base::LockGuard<base::Mutex> guard(&mutex_);
-    for (auto observer : observers_) {
-      observer->CodeEventHandler(evt_rec);
-    }
+    observer_->CodeEventHandler(evt_rec);
   }
 
+  Isolate* isolate_;
+  CodeEventObserver* observer_;
   StringsStorage function_and_resource_names_;
-  std::vector<std::unique_ptr<CodeEntry>> code_entries_;
-  std::vector<CodeEventObserver*> observers_;
-  base::Mutex mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfilerListener);
 };

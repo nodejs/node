@@ -535,7 +535,7 @@ $code.=<<___				if ($PADLOCK_PREFETCH{$mode});
 	sub	$len,%rsp
 	shr	\$3,$len
 	lea	(%rsp),$out
-	.byte	0xf3,0x48,0xa5		# rep movsq
+	.byte	0xf3,0x48,0xa5		# rep movsq	
 	lea	(%r8),$out
 	lea	(%rsp),$inp
 	mov	$chunk,$len

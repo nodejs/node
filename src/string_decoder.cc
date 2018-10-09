@@ -30,16 +30,6 @@ MaybeLocal<String> MakeString(Isolate* isolate,
         data,
         v8::NewStringType::kNormal,
         length);
-  } else if (encoding == UCS2) {
-#ifdef DEBUG
-    CHECK_EQ(reinterpret_cast<uintptr_t>(data) % 2, 0);
-    CHECK_EQ(length % 2, 0);
-#endif
-    ret = StringBytes::Encode(
-        isolate,
-        reinterpret_cast<const uint16_t*>(data),
-        length / 2,
-        &error);
   } else {
     ret = StringBytes::Encode(
         isolate,
@@ -81,16 +71,17 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
                kIncompleteCharactersEnd);
       if (Encoding() == UTF8) {
         // For UTF-8, we need special treatment to align with the V8 decoder:
-        // If an incomplete character is found at a chunk boundary, we turn
-        // that character into a single invalid one.
+        // If an incomplete character is found at a chunk boundary, we use
+        // its remainder and pass it to V8 as-is.
         for (size_t i = 0; i < nread && i < MissingBytes(); ++i) {
           if ((data[i] & 0xC0) != 0x80) {
             // This byte is not a continuation byte even though it should have
-            // been one.
-            // Act as if there was a 1-byte incomplete character, which does
-            // not make sense but works here because we know it's invalid.
+            // been one. We stop decoding of the incomplete character at this
+            // point (but still use the rest of the incomplete bytes from this
+            // chunk) and assume that the new, unexpected byte starts a new one.
             state_[kMissingBytes] = 0;
-            state_[kBufferedBytes] = 1;
+            memcpy(IncompleteCharacterBuffer() + BufferedBytes(), data, i);
+            state_[kBufferedBytes] += i;
             data += i;
             nread -= i;
             break;
@@ -226,7 +217,7 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
     if (prepend.IsEmpty()) {
       return body;
     } else {
-      return String::Concat(prepend, body);
+      return String::Concat(isolate, prepend, body);
     }
   } else {
     CHECK(Encoding() == ASCII || Encoding() == HEX || Encoding() == LATIN1);

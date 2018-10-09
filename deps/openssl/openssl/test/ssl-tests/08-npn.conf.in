@@ -237,7 +237,7 @@ our @tests = (
         test => {
             "ExpectedALPNProtocol" => undef,
             "ExpectedNPNProtocol" => "bar",
-            "ExpectedServerName" => "server2",
+            "ExpectedServerName" => "server2",  
         },
     },
     {

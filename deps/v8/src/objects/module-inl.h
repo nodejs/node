@@ -7,6 +7,9 @@
 
 #include "src/objects/module.h"
 
+#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/scope-info.h"
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -29,19 +32,11 @@ SMI_ACCESSORS(Module, dfs_ancestor_index, kDfsAncestorIndexOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
 ModuleInfo* Module::info() const {
-  if (status() >= kEvaluating) {
-    return ModuleInfo::cast(code());
-  }
-  ScopeInfo* scope_info =
-      status() == kInstantiated
-          ? JSGeneratorObject::cast(code())->function()->shared()->scope_info()
-          : status() == kInstantiating
-                ? JSFunction::cast(code())->shared()->scope_info()
-                : SharedFunctionInfo::cast(code())->scope_info();
-  return scope_info->ModuleDescriptorInfo();
+  return (status() >= kEvaluating)
+             ? ModuleInfo::cast(code())
+             : GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
 }
 
-TYPE_CHECKER(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)
 CAST_ACCESSOR(JSModuleNamespace)
 ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
 
@@ -56,9 +51,40 @@ SMI_ACCESSORS(ModuleInfoEntry, end_pos, kEndPosOffset)
 
 CAST_ACCESSOR(ModuleInfo)
 
-bool HeapObject::IsModuleInfo() const {
-  return map() == GetHeap()->module_info_map();
+FixedArray* ModuleInfo::module_requests() const {
+  return FixedArray::cast(get(kModuleRequestsIndex));
 }
+
+FixedArray* ModuleInfo::special_exports() const {
+  return FixedArray::cast(get(kSpecialExportsIndex));
+}
+
+FixedArray* ModuleInfo::regular_exports() const {
+  return FixedArray::cast(get(kRegularExportsIndex));
+}
+
+FixedArray* ModuleInfo::regular_imports() const {
+  return FixedArray::cast(get(kRegularImportsIndex));
+}
+
+FixedArray* ModuleInfo::namespace_imports() const {
+  return FixedArray::cast(get(kNamespaceImportsIndex));
+}
+
+FixedArray* ModuleInfo::module_request_positions() const {
+  return FixedArray::cast(get(kModuleRequestPositionsIndex));
+}
+
+#ifdef DEBUG
+bool ModuleInfo::Equals(ModuleInfo* other) const {
+  return regular_exports() == other->regular_exports() &&
+         regular_imports() == other->regular_imports() &&
+         special_exports() == other->special_exports() &&
+         namespace_imports() == other->namespace_imports() &&
+         module_requests() == other->module_requests() &&
+         module_request_positions() == other->module_request_positions();
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8

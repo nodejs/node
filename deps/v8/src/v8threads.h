@@ -67,6 +67,7 @@ class ThreadManager {
   void Lock();
   void Unlock();
 
+  void InitThread(const ExecutionAccess&);
   void ArchiveThread();
   bool RestoreThread();
   void FreeThreadResources();

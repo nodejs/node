@@ -1,3 +1,142 @@
+2018.10.09, Version 1.23.2 (Stable), 34c12788d2e7308f3ac506c0abcbf74c0d6abd20
+
+Changes since version 1.23.1:
+
+* unix: return 0 retrieving rss on cygwin (cjihrig)
+
+* unix: initialize uv_interface_address_t.phys_addr (cjihrig)
+
+* test: handle uv_os_setpriority() windows edge case (cjihrig)
+
+* tty, win: fix read stop for raw mode (Bartosz Sosnowski)
+
+* Revert "Revert "unix,fs: fix for potential partial reads/writes"" (Jameson
+  Nash)
+
+* unix,readv: always permit partial reads to return (Jameson Nash)
+
+* win,tty: fix uv_tty_close() (Bartosz Sosnowski)
+
+* doc: remove extraneous "on" (Ben Noordhuis)
+
+* unix,win: fix threadpool race condition (Anna Henningsen)
+
+* unix: rework thread barrier implementation (Ben Noordhuis)
+
+* aix: switch to libuv's own thread barrier impl (Ben Noordhuis)
+
+* unix: signal done to last thread barrier waiter (Ben Noordhuis)
+
+* test: add uv_barrier_wait serial thread test (Ali Ijaz Sheikh)
+
+* unix: optimize uv_fs_readlink() memory allocation (Ben Noordhuis)
+
+* win: remove req.c and other cleanup (Carlo Marcelo Arenas Belón)
+
+* aix: don't EISDIR on read from directory fd (Ben Noordhuis)
+
+
+2018.09.22, Version 1.23.1 (Stable), d2282b3d67821dc53c907c2155fa8c5c6ce25180
+
+Changes since version 1.23.0:
+
+* unix,win: limit concurrent DNS calls to nthreads/2 (Anna Henningsen)
+
+* doc: add addaleax to maintainers (Anna Henningsen)
+
+* doc: add missing slash in stream.rst (Emil Bay)
+
+* unix,fs: use utimes & friends for uv_fs_utime (Jeremiah Senkpiel)
+
+* unix,fs: remove linux fallback from utimesat() (Jeremiah Senkpiel)
+
+* unix,fs: remove uv__utimesat() syscall fallback (Jeremiah Senkpiel)
+
+* doc: fix argument name in tcp.rts (Emil Bay)
+
+* doc: notes on running tests, benchmarks, tools (Jamie Davis)
+
+* linux: remove epoll syscall wrappers (Ben Noordhuis)
+
+* linux: drop code path for epoll_pwait-less kernels (Ben Noordhuis)
+
+* Partially revert "win,code: remove GetQueuedCompletionStatus-based poller"
+  (Jameson Nash)
+
+* build: add compile for android arm64/x86/x86-64 (Andy Zhang)
+
+* doc: clarify that some remarks apply to windows (Bert Belder)
+
+* test: fix compiler warnings (Jamie Davis)
+
+* ibmi: return 0 from uv_resident_set_memory() (dmabupt)
+
+* win: fix uv_udp_recv_start() error translation (Ryan Liptak)
+
+* win,doc: improve uv_os_setpriority() documentation (Bartosz Sosnowski)
+
+* test: increase upper bound in condvar_5 (Jamie Davis)
+
+* win,tty: remove deadcode (Jameson Nash)
+
+* stream: autodetect direction (Jameson Nash)
+
+
+2018.08.18, Version 1.23.0 (Stable), 7ebb26225f2eaae6db22f4ef34ce76fa16ff89ec
+
+Changes since version 1.22.0:
+
+* win,pipe: restore compatibility with the old IPC framing protocol (Bert
+  Belder)
+
+* fs: add uv_open_osfhandle (Bartosz Sosnowski)
+
+* doc: update Visual C++ Build Tools URL (Michał Kozakiewicz)
+
+* unix: loop starvation on successful write complete (jBarz)
+
+* win: add uv__getnameinfo_work() error handling (A. Hauptmann)
+
+* win: return UV_ENOMEM from uv_loop_init() (cjihrig)
+
+* unix,win: add uv_os_{get,set}priority() (cjihrig)
+
+* test: fix warning in test-tcp-open (Santiago Gimeno)
+
+
+2018.07.11, Version 1.22.0 (Stable), 8568f78a777d79d35eb7d6994617267b9fb33967
+
+Changes since version 1.21.0:
+
+* unix: remove checksparse.sh (Ben Noordhuis)
+
+* win: fix mingw build error (Ben Noordhuis)
+
+* win: fix -Wunused-function warnings in thread.c (Ben Noordhuis)
+
+* unix,win: merge timers implementation (Ben Noordhuis)
+
+* win: fix pointer type in pipe.c (Ben Noordhuis)
+
+* win: fixing build for older MSVC compilers (Michael Fero)
+
+* zos: clear poll events on every iteration (jBarz)
+
+* zos: write-protect message queue (jBarz)
+
+* zos: use correct pointer type in strnlen (jBarz)
+
+* unix,win: merge handle flags (Ben Noordhuis)
+
+* doc: update Imran Iqbal's GitHub handle (cjihrig)
+
+* src: add new error apis to prevent memory leaks (Shelley Vohr)
+
+* test: make test-condvar call uv_cond_wait (Jamie Davis)
+
+* fs: change position of uv_fs_lchown (Ujjwal Sharma)
+
+
 2018.06.23, Version 1.21.0 (Stable), e4983a9b0c152932f7553ff4a9ff189d2314cdcb
 
 Changes since version 1.20.3:

@@ -13,17 +13,16 @@ namespace internal {
 
 // static
 bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
-#ifdef V8_EMBEDDED_BUILTINS
-  const uint8_t* start = isolate->embedded_blob();
-  return start <= pc && pc < start + isolate->embedded_blob_size();
-#else
-  return false;
-#endif
+  if (FLAG_embedded_builtins) {
+    const Address start = reinterpret_cast<Address>(isolate->embedded_blob());
+    return start <= pc && pc < start + isolate->embedded_blob_size();
+  } else {
+    return false;
+  }
 }
 
 // static
 Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
-#ifdef V8_EMBEDDED_BUILTINS
   if (!PcIsOffHeap(isolate, address)) return nullptr;
 
   EmbeddedData d = EmbeddedData::FromBlob();
@@ -31,8 +30,8 @@ Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
   int l = 0, r = Builtins::builtin_count;
   while (l < r) {
     const int mid = (l + r) / 2;
-    const uint8_t* start = d.InstructionStartOfBuiltin(mid);
-    const uint8_t* end = start + d.InstructionSizeOfBuiltin(mid);
+    Address start = d.InstructionStartOfBuiltin(mid);
+    Address end = start + d.InstructionSizeOfBuiltin(mid);
 
     if (address < start) {
       r = mid;
@@ -44,12 +43,8 @@ Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
   }
 
   UNREACHABLE();
-#else
-  return nullptr;
-#endif
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 // static
 void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
                                                        uint8_t** data,
@@ -69,7 +64,7 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
                        PageAllocator::kReadExecute));
 
   *data = allocated_bytes;
-  *size = allocated_size;
+  *size = d.size();
 
   d.Dispose();
 }
@@ -77,9 +72,9 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
 // static
 void InstructionStream::FreeOffHeapInstructionStream(uint8_t* data,
                                                      uint32_t size) {
-  CHECK(FreePages(data, size));
+  const uint32_t page_size = static_cast<uint32_t>(AllocatePageSize());
+  CHECK(FreePages(data, RoundUp(size, page_size)));
 }
-#endif  // V8_EMBEDDED_BUILTINS
 
 }  // namespace internal
 }  // namespace v8

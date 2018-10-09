@@ -60,6 +60,7 @@ const server = tls.createServer(options, function(c) {
   }));
 
   client.on('close', common.mustCall(function(hadError) {
-    assert.strictEqual(hadError, true, 'Client never errored');
+    // Confirm that client errored
+    assert.strictEqual(hadError, true);
   }));
 }));

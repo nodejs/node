@@ -3,9 +3,10 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
-common.crashOnUnhandledRejection();
 const { NodeInstance } = require('../common/inspector-helper.js');
 const assert = require('assert');
+
+common.skipIfWorker(); // Signal starts a server for a main thread inspector
 
 const script = `
 process._rawDebug('Waiting until a signal enables the inspector...');

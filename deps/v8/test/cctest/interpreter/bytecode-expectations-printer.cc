@@ -10,18 +10,18 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
-
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/base/logging.h"
-#include "src/objects-inl.h"
-#include "src/runtime/runtime.h"
-
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects-inl.h"
+#include "src/objects/module-inl.h"
+#include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -81,7 +81,8 @@ v8::Local<v8::Module> BytecodeExpectationsPrinter::CompileModule(
 }
 
 void BytecodeExpectationsPrinter::Run(v8::Local<v8::Script> script) const {
-  (void)script->Run(isolate_->GetCurrentContext());
+  MaybeLocal<Value> result = script->Run(isolate_->GetCurrentContext());
+  USE(result);
 }
 
 i::Handle<v8::internal::BytecodeArray>
@@ -113,6 +114,17 @@ i::Handle<i::BytecodeArray>
 BytecodeExpectationsPrinter::GetBytecodeArrayForScript(
     v8::Local<v8::Script> script) const {
   i::Handle<i::JSFunction> js_function = v8::Utils::OpenHandle(*script);
+  return i::handle(js_function->shared()->GetBytecodeArray(), i_isolate());
+}
+
+i::Handle<i::BytecodeArray>
+BytecodeExpectationsPrinter::GetBytecodeArrayOfCallee(
+    const char* source_code) const {
+  i::Handle<i::Object> i_object =
+      v8::Utils::OpenHandle(*CompileRun(source_code));
+  i::Handle<i::JSFunction> js_function =
+      i::Handle<i::JSFunction>::cast(i_object);
+  CHECK(js_function->shared()->HasBytecodeArray());
   return i::handle(js_function->shared()->GetBytecodeArray(), i_isolate());
 }
 
@@ -372,11 +384,15 @@ void BytecodeExpectationsPrinter::PrintExpectation(
       wrap_ ? WrapCodeInFunction(test_function_name_.c_str(), snippet)
             : snippet;
 
+  i::FLAG_enable_one_shot_optimization = oneshot_opt_;
+  i::FLAG_compilation_cache = false;
   i::Handle<i::BytecodeArray> bytecode_array;
   if (module_) {
     CHECK(top_level_ && !wrap_);
     v8::Local<v8::Module> module = CompileModule(source_code.c_str());
     bytecode_array = GetBytecodeArrayForModule(module);
+  } else if (print_callee_) {
+    bytecode_array = GetBytecodeArrayOfCallee(source_code.c_str());
   } else {
     v8::Local<v8::Script> script = CompileScript(source_code.c_str());
     if (top_level_) {

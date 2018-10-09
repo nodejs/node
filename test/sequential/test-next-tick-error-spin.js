@@ -39,7 +39,6 @@ if (process.argv[2] !== 'child') {
 
   const domain = require('domain');
   const d = domain.create();
-  process.maxTickDepth = 10;
 
   // in the error handler, we trigger several MakeCallback events
   d.on('error', function() {

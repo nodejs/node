@@ -15,9 +15,14 @@ napi_value CreateObject(napi_env env, napi_callback_info info) {
 napi_value Init(napi_env env, napi_value exports) {
   NAPI_CALL(env, MyObject::Init(env));
 
-  NAPI_CALL(env,
-      // NOLINTNEXTLINE (readability/null_usage)
-      napi_create_function(env, "exports", -1, CreateObject, NULL, &exports));
+  napi_property_descriptor descriptors[] = {
+    DECLARE_NAPI_GETTER("finalizeCount", MyObject::GetFinalizeCount),
+    DECLARE_NAPI_PROPERTY("createObject", CreateObject),
+  };
+
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+
   return exports;
 }
 

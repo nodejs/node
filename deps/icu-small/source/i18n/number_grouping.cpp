@@ -3,7 +3,7 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
 #include "unicode/numberformatter.h"
 #include "number_patternstring.h"
@@ -37,18 +37,31 @@ int16_t getMinGroupingForLocale(const Locale& locale) {
 Grouper Grouper::forStrategy(UGroupingStrategy grouping) {
     switch (grouping) {
     case UNUM_GROUPING_OFF:
-        return {-1, -1, -2};
+        return {-1, -1, -2, grouping};
     case UNUM_GROUPING_AUTO:
-        return {-2, -2, -2};
+        return {-2, -2, -2, grouping};
     case UNUM_GROUPING_MIN2:
-        return {-2, -2, -3};
+        return {-2, -2, -3, grouping};
     case UNUM_GROUPING_ON_ALIGNED:
-        return {-4, -4, 1};
+        return {-4, -4, 1, grouping};
     case UNUM_GROUPING_THOUSANDS:
-        return {3, 3, 1};
+        return {3, 3, 1, grouping};
     default:
         U_ASSERT(FALSE);
+        return {}; // return a value: silence compiler warning
     }
+}
+
+Grouper Grouper::forProperties(const DecimalFormatProperties& properties) {
+    if (!properties.groupingUsed) {
+        return forStrategy(UNUM_GROUPING_OFF);
+    }
+    auto grouping1 = static_cast<int16_t>(properties.groupingSize);
+    auto grouping2 = static_cast<int16_t>(properties.secondaryGroupingSize);
+    auto minGrouping = static_cast<int16_t>(properties.minimumGroupingDigits);
+    grouping1 = grouping1 > 0 ? grouping1 : grouping2 > 0 ? grouping2 : grouping1;
+    grouping2 = grouping2 > 0 ? grouping2 : grouping1;
+    return {grouping1, grouping2, minGrouping, UNUM_GROUPING_COUNT};
 }
 
 void Grouper::setLocaleData(const impl::ParsedPatternInfo &patternInfo, const Locale& locale) {
@@ -84,6 +97,14 @@ bool Grouper::groupAtPosition(int32_t position, const impl::DecimalQuantity &val
     position -= fGrouping1;
     return position >= 0 && (position % fGrouping2) == 0
            && value.getUpperDisplayMagnitude() - fGrouping1 + 1 >= fMinGrouping;
+}
+
+int16_t Grouper::getPrimary() const {
+    return fGrouping1;
+}
+
+int16_t Grouper::getSecondary() const {
+    return fGrouping2;
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

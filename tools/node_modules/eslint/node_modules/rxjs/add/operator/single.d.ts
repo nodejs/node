@@ -1,6 +1,1 @@
-import { single } from '../../operator/single';
-declare module '../../Observable' {
-    interface Observable<T> {
-        single: typeof single;
-    }
-}
+import 'rxjs-compat/add/operator/single';

@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "May 2018" "" ""
+.TH "NPM\-CONFIG" "7" "August 2018" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -223,6 +223,17 @@ Type: Boolean
 When "true" submit audit reports alongside \fBnpm install\fP runs to the default
 registry and all registries configured for scopes\.  See the documentation
 for npm help audit for details on what is submitted\.
+.SS audit\-level
+.RS 0
+.IP \(bu 2
+Default: \fB"low"\fP
+.IP \(bu 2
+Type: \fB\|'low'\fP, \fB\|'moderate'\fP, \fB\|'high'\fP, \fB\|'critical'\fP
+
+.RE
+.P
+The minimum level of vulnerability for \fBnpm audit\fP to exit with
+a non\-zero exit code\.
 .SS auth\-type
 .RS 0
 .IP \(bu 2
@@ -457,8 +468,8 @@ Type: Boolean
 Indicates that you don't want npm to make any changes and that it should
 only report what it would have done\.  This can be passed into any of the
 commands that modify your local installation, eg, \fBinstall\fP, \fBupdate\fP,
-\fBdedupe\fP, \fBuninstall\fP\|\.  This is NOT currently honored by network related
-commands, eg \fBdist\-tags\fP, \fBowner\fP, \fBpublish\fP, etc\.
+\fBdedupe\fP, \fBuninstall\fP\|\.  This is NOT currently honored by some network related
+commands, eg \fBdist\-tags\fP, \fBowner\fP, etc\.
 .SS editor
 .RS 0
 .IP \(bu 2
@@ -946,7 +957,7 @@ Type: semver or false
 .RE
 .P
 The node version to use when checking a package's \fBengines\fP map\.
-.SS no\-proxy
+.SS noproxy
 .RS 0
 .IP \(bu 2
 Default: null
@@ -1096,6 +1107,17 @@ Type: path
 .P
 The location to install global items\.  If set on the command line, then
 it forces non\-global commands to run in the specified folder\.
+.SS preid
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The "prerelease identifier" to use as a prefix for the "prerelease" part of a
+semver\. Like the \fBrc\fP in \fB1\.2\.0\-rc\.8\fP\|\.
 .SS production
 .RS 0
 .IP \(bu 2
@@ -1408,6 +1430,20 @@ If set to false, then ignore \fBnpm\-shrinkwrap\.json\fP files when installing\.
 will also prevent \fIwriting\fR \fBnpm\-shrinkwrap\.json\fP if \fBsave\fP is true\.
 .P
 This option is an alias for \fB\-\-package\-lock\fP\|\.
+.SS sign\-git\-commit
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to true, then the \fBnpm version\fP command will commit the new package
+version using \fB\-S\fP to add a signature\.
+.P
+Note that git requires you to have set up GPG keys in your git configs
+for this to work properly\.
 .SS sign\-git\-tag
 .RS 0
 .IP \(bu 2
@@ -1534,6 +1570,17 @@ Type: Boolean
 Set to true to suppress the UID/GID switching when running package
 scripts\.  If set explicitly to false, then installing as a non\-root user
 will fail\.
+.SS update\-notifier
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Set to false to suppress the update notification when using an older
+version of npm than the latest\.
 .SS usage
 .RS 0
 .IP \(bu 2

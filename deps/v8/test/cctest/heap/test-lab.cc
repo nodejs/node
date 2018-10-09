@@ -25,7 +25,7 @@ static Address AllocateLabBackingStore(Heap* heap, intptr_t size_in_bytes) {
 static void VerifyIterable(v8::internal::Address base,
                            v8::internal::Address limit,
                            std::vector<intptr_t> expected_size) {
-  CHECK_LE(reinterpret_cast<intptr_t>(base), reinterpret_cast<intptr_t>(limit));
+  CHECK_LE(base, limit);
   HeapObject* object = nullptr;
   size_t counter = 0;
   while (base < limit) {

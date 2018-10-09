@@ -1,11 +1,7 @@
 "use strict";
-function not(pred, thisArg) {
-    function notPred() {
-        return !(notPred.pred.apply(notPred.thisArg, arguments));
-    }
-    notPred.pred = pred;
-    notPred.thisArg = thisArg;
-    return notPred;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.not = not;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/util/not"));
 //# sourceMappingURL=not.js.map

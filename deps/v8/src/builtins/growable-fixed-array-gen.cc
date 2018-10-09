@@ -90,8 +90,8 @@ TNode<FixedArray> GrowableFixedArray::ResizeFixedArray(
 
   CodeStubAssembler::ExtractFixedArrayFlags flags;
   flags |= CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays;
-  TNode<FixedArray> to_array = ExtractFixedArray(
-      from_array, nullptr, element_count, new_capacity, flags);
+  TNode<FixedArray> to_array = CAST(ExtractFixedArray(
+      from_array, nullptr, element_count, new_capacity, flags));
 
   return to_array;
 }

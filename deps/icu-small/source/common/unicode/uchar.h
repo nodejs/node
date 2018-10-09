@@ -42,7 +42,7 @@ U_CDECL_BEGIN
  * @see u_getUnicodeVersion
  * @stable ICU 2.0
  */
-#define U_UNICODE_VERSION "10.0"
+#define U_UNICODE_VERSION "11.0"
 
 /**
  * \file
@@ -446,6 +446,13 @@ typedef enum UProperty {
      * @stable ICU 60
      */
     UCHAR_PREPENDED_CONCATENATION_MARK=63,
+    /**
+     * Binary property Extended_Pictographic.
+     * See http://www.unicode.org/reports/tr51/#Emoji_Properties
+     *
+     * @stable ICU 62
+     */
+    UCHAR_EXTENDED_PICTOGRAPHIC=64,
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the last constant for binary Unicode properties.
@@ -1683,6 +1690,31 @@ enum UBlockCode {
     /** @stable ICU 60 */
     UBLOCK_ZANABAZAR_SQUARE = 280, /*[11A00]*/
 
+    // New blocks in Unicode 11.0
+
+    /** @stable ICU 62 */
+    UBLOCK_CHESS_SYMBOLS = 281, /*[1FA00]*/
+    /** @stable ICU 62 */
+    UBLOCK_DOGRA = 282, /*[11800]*/
+    /** @stable ICU 62 */
+    UBLOCK_GEORGIAN_EXTENDED = 283, /*[1C90]*/
+    /** @stable ICU 62 */
+    UBLOCK_GUNJALA_GONDI = 284, /*[11D60]*/
+    /** @stable ICU 62 */
+    UBLOCK_HANIFI_ROHINGYA = 285, /*[10D00]*/
+    /** @stable ICU 62 */
+    UBLOCK_INDIC_SIYAQ_NUMBERS = 286, /*[1EC70]*/
+    /** @stable ICU 62 */
+    UBLOCK_MAKASAR = 287, /*[11EE0]*/
+    /** @stable ICU 62 */
+    UBLOCK_MAYAN_NUMERALS = 288, /*[1D2E0]*/
+    /** @stable ICU 62 */
+    UBLOCK_MEDEFAIDRIN = 289, /*[16E40]*/
+    /** @stable ICU 62 */
+    UBLOCK_OLD_SOGDIAN = 290, /*[10F00]*/
+    /** @stable ICU 62 */
+    UBLOCK_SOGDIAN = 291, /*[10F30]*/
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UBlockCode value.
@@ -1690,7 +1722,7 @@ enum UBlockCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UBLOCK_COUNT = 281,
+    UBLOCK_COUNT = 292,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** @stable ICU 2.0 */
@@ -1979,6 +2011,9 @@ typedef enum UJoiningGroup {
     U_JG_MALAYALAM_SSA,  /**< @stable ICU 60 */
     U_JG_MALAYALAM_TTA,  /**< @stable ICU 60 */
 
+    U_JG_HANIFI_ROHINGYA_KINNA_YA,  /**< @stable ICU 62 */
+    U_JG_HANIFI_ROHINGYA_PA,  /**< @stable ICU 62 */
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UJoiningGroup value.
@@ -2029,6 +2064,7 @@ typedef enum UGraphemeClusterBreak {
     U_GCB_GLUE_AFTER_ZWJ = 16,  /*[GAZ]*/
     /** @stable ICU 58 */
     U_GCB_ZWJ = 17,             /*[ZWJ]*/
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UGraphemeClusterBreak value.
@@ -2090,6 +2126,9 @@ typedef enum UWordBreakValues {
     U_WB_GLUE_AFTER_ZWJ = 20,   /*[GAZ]*/
     /** @stable ICU 58 */
     U_WB_ZWJ = 21,              /*[ZWJ]*/
+    /** @stable ICU 62 */
+    U_WB_WSEGSPACE = 22,        /*[WSEGSPACE]*/
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UWordBreakValues value.
@@ -2097,7 +2136,7 @@ typedef enum UWordBreakValues {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    U_WB_COUNT = 22
+    U_WB_COUNT = 23
 #endif  // U_HIDE_DEPRECATED_API
 } UWordBreakValues;
 

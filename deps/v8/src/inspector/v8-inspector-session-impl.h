@@ -101,6 +101,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
       int callId, std::unique_ptr<protocol::Serializable> message) override;
   void sendProtocolNotification(
       std::unique_ptr<protocol::Serializable> message) override;
+  void fallThrough(int callId, const String16& method,
+                   const String16& message) override;
   void flushProtocolNotifications() override;
 
   int m_contextGroupId;

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --noconcurrent-recompilation --expose-gc --allow-natives-syntax
+// Flags: --concurrent-recompilation --block-concurrent-recompilation
 
-%SetFlags("--concurrent-recompilation --block-concurrent-recompilation");
 gc();
 try { %UnblockConcurrentRecompilation(); } catch (e) { }

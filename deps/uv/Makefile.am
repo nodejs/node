@@ -32,6 +32,7 @@ libuv_la_SOURCES = src/fs-poll.c \
                    src/inet.c \
                    src/queue.h \
                    src/threadpool.c \
+                   src/timer.c \
                    src/uv-data-getter-setters.c \
                    src/uv-common.c \
                    src/uv-common.h \
@@ -67,14 +68,12 @@ libuv_la_SOURCES += src/win/async.c \
                     src/win/poll.c \
                     src/win/process-stdio.c \
                     src/win/process.c \
-                    src/win/req.c \
                     src/win/req-inl.h \
                     src/win/signal.c \
                     src/win/stream.c \
                     src/win/stream-inl.h \
                     src/win/tcp.c \
                     src/win/thread.c \
-                    src/win/timer.c \
                     src/win/tty.c \
                     src/win/udp.c \
                     src/win/util.c \
@@ -105,7 +104,6 @@ libuv_la_SOURCES += src/unix/async.c \
                    src/unix/stream.c \
                    src/unix/tcp.c \
                    src/unix/thread.c \
-                   src/unix/timer.c \
                    src/unix/tty.c \
                    src/unix/udp.c
 
@@ -225,6 +223,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-poll-close-doesnt-corrupt-stack.c \
                          test/test-poll-closesocket.c \
                          test/test-poll-oob.c \
+                         test/test-process-priority.c \
                          test/test-process-title.c \
                          test/test-process-title-threadsafe.c \
                          test/test-queue-foreach-delete.c \
@@ -340,8 +339,7 @@ libuv_la_SOURCES += src/unix/aix.c src/unix/aix-common.c
 endif
 
 if ANDROID
-uvinclude_HEADERS += include/uv/android-ifaddrs.h \
-                   include/uv/pthread-barrier.h
+uvinclude_HEADERS += include/uv/android-ifaddrs.h
 libuv_la_SOURCES += src/unix/android-ifaddrs.c \
                     src/unix/pthread-fixes.c
 endif
@@ -361,8 +359,7 @@ libuv_la_SOURCES += src/unix/cygwin.c \
 endif
 
 if DARWIN
-uvinclude_HEADERS += include/uv/darwin.h \
-                   include/uv/pthread-barrier.h
+uvinclude_HEADERS += include/uv/darwin.h
 libuv_la_CFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
 libuv_la_CFLAGS += -D_DARWIN_UNLIMITED_SELECT=1
 libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
@@ -445,7 +442,6 @@ libuv_la_SOURCES += src/unix/no-proctitle.c \
 endif
 
 if OS390
-uvinclude_HEADERS += include/uv/pthread-barrier.h
 libuv_la_CFLAGS += -D_UNIX03_THREADS \
                    -D_UNIX03_SOURCE \
                    -D_OPEN_SYS_IF_EXT=1 \

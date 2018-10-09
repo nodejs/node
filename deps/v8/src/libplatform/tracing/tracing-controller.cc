@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "include/libplatform/v8-tracing.h"
@@ -24,25 +25,37 @@ namespace tracing {
 // convert internally to determine the category name from the char enabled
 // pointer.
 const char* g_category_groups[MAX_CATEGORY_GROUPS] = {
-    "toplevel", "tracing already shutdown",
+    "toplevel",
     "tracing categories exhausted; must increase MAX_CATEGORY_GROUPS",
     "__metadata"};
 
 // The enabled flag is char instead of bool so that the API can be used from C.
 unsigned char g_category_group_enabled[MAX_CATEGORY_GROUPS] = {0};
 // Indexes here have to match the g_category_groups array indexes above.
-const int g_category_already_shutdown = 1;
-const int g_category_categories_exhausted = 2;
+const int g_category_categories_exhausted = 1;
 // Metadata category not used in V8.
-// const int g_category_metadata = 3;
-const int g_num_builtin_categories = 4;
+// const int g_category_metadata = 2;
+const int g_num_builtin_categories = 3;
 
 // Skip default categories.
 v8::base::AtomicWord g_category_index = g_num_builtin_categories;
 
 TracingController::TracingController() {}
 
-TracingController::~TracingController() { StopTracing(); }
+TracingController::~TracingController() {
+  StopTracing();
+
+  {
+    // Free memory for category group names allocated via strdup.
+    base::LockGuard<base::Mutex> lock(mutex_.get());
+    for (size_t i = g_category_index - 1; i >= g_num_builtin_categories; --i) {
+      const char* group = g_category_groups[i];
+      g_category_groups[i] = nullptr;
+      free(const_cast<char*>(group));
+    }
+    g_category_index = g_num_builtin_categories;
+  }
+}
 
 void TracingController::Initialize(TraceBuffer* trace_buffer) {
   trace_buffer_.reset(trace_buffer);
@@ -64,13 +77,15 @@ uint64_t TracingController::AddTraceEvent(
     const uint64_t* arg_values,
     std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
     unsigned int flags) {
-  uint64_t handle;
-  TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
-  if (trace_object) {
-    trace_object->Initialize(
-        phase, category_enabled_flag, name, scope, id, bind_id, num_args,
-        arg_names, arg_types, arg_values, arg_convertables, flags,
-        CurrentTimestampMicroseconds(), CurrentCpuTimestampMicroseconds());
+  uint64_t handle = 0;
+  if (mode_ != DISABLED) {
+    TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
+    if (trace_object) {
+      trace_object->Initialize(
+          phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+          arg_names, arg_types, arg_values, arg_convertables, flags,
+          CurrentTimestampMicroseconds(), CurrentCpuTimestampMicroseconds());
+    }
   }
   return handle;
 }
@@ -82,13 +97,15 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
     const uint64_t* arg_values,
     std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
     unsigned int flags, int64_t timestamp) {
-  uint64_t handle;
-  TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
-  if (trace_object) {
-    trace_object->Initialize(phase, category_enabled_flag, name, scope, id,
-                             bind_id, num_args, arg_names, arg_types,
-                             arg_values, arg_convertables, flags, timestamp,
-                             CurrentCpuTimestampMicroseconds());
+  uint64_t handle = 0;
+  if (mode_ != DISABLED) {
+    TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
+    if (trace_object) {
+      trace_object->Initialize(phase, category_enabled_flag, name, scope, id,
+                               bind_id, num_args, arg_names, arg_types,
+                               arg_values, arg_convertables, flags, timestamp,
+                               CurrentCpuTimestampMicroseconds());
+    }
   }
   return handle;
 }
@@ -103,10 +120,6 @@ void TracingController::UpdateTraceEventDuration(
 
 const uint8_t* TracingController::GetCategoryGroupEnabled(
     const char* category_group) {
-  if (!trace_buffer_) {
-    DCHECK(!g_category_group_enabled[g_category_already_shutdown]);
-    return &g_category_group_enabled[g_category_already_shutdown];
-  }
   return GetCategoryGroupEnabledInternal(category_group);
 }
 
@@ -190,17 +203,21 @@ const uint8_t* TracingController::GetCategoryGroupEnabledInternal(
   DCHECK(!strchr(category_group, '"'));
 
   // The g_category_groups is append only, avoid using a lock for the fast path.
-  size_t current_category_index = v8::base::Acquire_Load(&g_category_index);
+  size_t category_index = base::Acquire_Load(&g_category_index);
 
   // Search for pre-existing category group.
-  for (size_t i = 0; i < current_category_index; ++i) {
+  for (size_t i = 0; i < category_index; ++i) {
     if (strcmp(g_category_groups[i], category_group) == 0) {
       return &g_category_group_enabled[i];
     }
   }
 
+  // Slow path. Grab the lock.
+  base::LockGuard<base::Mutex> lock(mutex_.get());
+
+  // Check the list again with lock in hand.
   unsigned char* category_group_enabled = nullptr;
-  size_t category_index = base::Acquire_Load(&g_category_index);
+  category_index = base::Acquire_Load(&g_category_index);
   for (size_t i = 0; i < category_index; ++i) {
     if (strcmp(g_category_groups[i], category_group) == 0) {
       return &g_category_group_enabled[i];

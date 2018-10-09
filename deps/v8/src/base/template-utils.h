@@ -56,13 +56,6 @@ std::unique_ptr<T> make_unique(Args&&... args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
-// implicit_cast<A>(x) triggers an implicit cast from {x} to type {A}. This is
-// useful in situations where static_cast<A>(x) would do too much.
-template <class A>
-A implicit_cast(A x) {
-  return x;
-}
-
 // Helper to determine how to pass values: Pass scalars and arrays by value,
 // others by const reference (even if it was a non-const ref before; this is
 // disallowed by the style guide anyway).
@@ -120,6 +113,16 @@ constexpr auto fold(Func func, Ts&&... more) ->
   return detail::fold_helper<Func, Ts...>::fold(func,
                                                 std::forward<Ts>(more)...);
 }
+
+// {is_same<Ts...>::value} is true if all Ts are the same, false otherwise.
+template <typename... Ts>
+struct is_same : public std::false_type {};
+template <>
+struct is_same<> : public std::true_type {};
+template <typename T>
+struct is_same<T> : public std::true_type {};
+template <typename T, typename... Ts>
+struct is_same<T, T, Ts...> : public is_same<T, Ts...> {};
 
 }  // namespace base
 }  // namespace v8

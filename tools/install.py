@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
+import ast
 import errno
-import json
 import os
 import re
 import shutil
@@ -20,9 +20,7 @@ def abspath(*args):
 
 def load_config():
   s = open('config.gypi').read()
-  s = re.sub(r'#.*?\n', '', s) # strip comments
-  s = re.sub(r'\'', '"', s) # convert quotes
-  return json.loads(s)
+  return ast.literal_eval(s)
 
 def try_unlink(path):
   try:
@@ -146,7 +144,6 @@ def files(action):
   action(['src/node.stp'], 'share/systemtap/tapset/')
 
   action(['deps/v8/tools/gdbinit'], 'share/doc/node/')
-  action(['deps/v8/tools/lldbinit'], 'share/doc/node/')
   action(['deps/v8/tools/lldb_commands.py'], 'share/doc/node/')
 
   if 'freebsd' in sys.platform or 'openbsd' in sys.platform:
@@ -159,6 +156,14 @@ def files(action):
   headers(action)
 
 def headers(action):
+  def ignore_inspector_headers(files, dest):
+    inspector_headers = [
+      'deps/v8/include/v8-inspector.h',
+      'deps/v8/include/v8-inspector-protocol.h'
+    ]
+    files = filter(lambda name: name not in inspector_headers, files)
+    action(files, dest)
+
   action([
     'common.gypi',
     'config.gypi',
@@ -174,7 +179,7 @@ def headers(action):
   if sys.platform.startswith('aix'):
     action(['out/Release/node.exp'], 'include/node/')
 
-  subdir_files('deps/v8/include', 'include/node/', action)
+  subdir_files('deps/v8/include', 'include/node/', ignore_inspector_headers)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)

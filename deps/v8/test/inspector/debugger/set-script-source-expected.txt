@@ -1,8 +1,19 @@
 Tests Debugger.setScriptSource
-Function evaluate: {"type":"number","value":6,"description":"6"}
-PASS, result value: 6
-Function evaluate: {"type":"number","value":8,"description":"8"}
-PASS, result value: 8
-Has error reported: PASS
-Reported error is a compile error: PASS
-PASS, result value: 1
+TestExpression(2,4) === 6
+Update current script source 'a + b' -> 'a * b'..
+{
+    callFrames : [
+    ]
+    stackChanged : false
+}
+TestExpression(2,4) === 8
+Update current script source 'a * b' -> 'a # b'..
+{
+    exceptionDetails : {
+        columnNumber : 13
+        exceptionId : <exceptionId>
+        lineNumber : 1
+        text : Uncaught SyntaxError: Invalid or unexpected token
+    }
+}
+TestExpression(2,4) === 8

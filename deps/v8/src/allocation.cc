@@ -206,15 +206,15 @@ bool OnCriticalMemoryPressure(size_t length) {
   return true;
 }
 
-VirtualMemory::VirtualMemory() : address_(nullptr), size_(0) {}
+VirtualMemory::VirtualMemory() : address_(kNullAddress), size_(0) {}
 
 VirtualMemory::VirtualMemory(size_t size, void* hint, size_t alignment)
-    : address_(nullptr), size_(0) {
+    : address_(kNullAddress), size_(0) {
   size_t page_size = AllocatePageSize();
   size_t alloc_size = RoundUp(size, page_size);
-  address_ =
-      AllocatePages(hint, alloc_size, alignment, PageAllocator::kNoAccess);
-  if (address_ != nullptr) {
+  address_ = reinterpret_cast<Address>(
+      AllocatePages(hint, alloc_size, alignment, PageAllocator::kNoAccess));
+  if (address_ != kNullAddress) {
     size_ = alloc_size;
   }
 }
@@ -226,31 +226,29 @@ VirtualMemory::~VirtualMemory() {
 }
 
 void VirtualMemory::Reset() {
-  address_ = nullptr;
+  address_ = kNullAddress;
   size_ = 0;
 }
 
-bool VirtualMemory::SetPermissions(void* address, size_t size,
+bool VirtualMemory::SetPermissions(Address address, size_t size,
                                    PageAllocator::Permission access) {
   CHECK(InVM(address, size));
   bool result = v8::internal::SetPermissions(address, size, access);
   DCHECK(result);
-  USE(result);
   return result;
 }
 
-size_t VirtualMemory::Release(void* free_start) {
+size_t VirtualMemory::Release(Address free_start) {
   DCHECK(IsReserved());
-  DCHECK(IsAddressAligned(static_cast<Address>(free_start), CommitPageSize()));
+  DCHECK(IsAddressAligned(free_start, CommitPageSize()));
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.
-  const size_t free_size = size_ - (reinterpret_cast<size_t>(free_start) -
-                                    reinterpret_cast<size_t>(address_));
+  const size_t free_size = size_ - (free_start - address_);
   CHECK(InVM(free_start, free_size));
   DCHECK_LT(address_, free_start);
-  DCHECK_LT(free_start, reinterpret_cast<void*>(
-                            reinterpret_cast<size_t>(address_) + size_));
-  CHECK(ReleasePages(address_, size_, size_ - free_size));
+  DCHECK_LT(free_start, address_ + size_);
+  CHECK(ReleasePages(reinterpret_cast<void*>(address_), size_,
+                     size_ - free_size));
   size_ -= free_size;
   return free_size;
 }
@@ -259,13 +257,14 @@ void VirtualMemory::Free() {
   DCHECK(IsReserved());
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.
-  void* address = address_;
+  Address address = address_;
   size_t size = size_;
   CHECK(InVM(address, size));
   Reset();
   // FreePages expects size to be aligned to allocation granularity. Trimming
   // may leave size at only commit granularity. Align it here.
-  CHECK(FreePages(address, RoundUp(size, AllocatePageSize())));
+  CHECK(FreePages(reinterpret_cast<void*>(address),
+                  RoundUp(size, AllocatePageSize())));
 }
 
 void VirtualMemory::TakeControl(VirtualMemory* from) {

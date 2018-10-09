@@ -1221,6 +1221,7 @@ If you have published a useful plugin please submit a PR to add it to the next s
 ## Related packages
 
 - [ajv-async](https://github.com/epoberezkin/ajv-async) - plugin to configure async validation mode
+- [ajv-bsontype](https://github.com/BoLaMN/ajv-bsontype) - plugin to validate mongodb's bsonType formats
 - [ajv-cli](https://github.com/jessedc/ajv-cli) - command line interface
 - [ajv-errors](https://github.com/epoberezkin/ajv-errors) - plugin for custom error messages
 - [ajv-i18n](https://github.com/epoberezkin/ajv-i18n) - internationalised error messages

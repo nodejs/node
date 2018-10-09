@@ -4,18 +4,51 @@
 namespace node {
 namespace util {
 
+using v8::ALL_PROPERTIES;
 using v8::Array;
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
-using v8::Maybe;
 using v8::Object;
+using v8::ONLY_CONFIGURABLE;
+using v8::ONLY_ENUMERABLE;
+using v8::ONLY_WRITABLE;
 using v8::Private;
 using v8::Promise;
 using v8::Proxy;
+using v8::SKIP_STRINGS;
+using v8::SKIP_SYMBOLS;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
+
+static void GetOwnNonIndexProperties(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsUint32());
+
+  Local<Object> object = args[0].As<Object>();
+
+  Local<Array> properties;
+
+  v8::PropertyFilter filter =
+    static_cast<v8::PropertyFilter>(args[1].As<Uint32>()->Value());
+
+  if (!object->GetPropertyNames(
+        context, v8::KeyCollectionMode::kOwnOnly,
+        filter,
+        v8::IndexFilter::kSkipIndices)
+          .ToLocal(&properties)) {
+    return;
+  }
+  args.GetReturnValue().Set(properties);
+}
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a Promise.
@@ -53,29 +86,19 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject())
     return;
 
+  Environment* env = Environment::GetCurrent(args);
   bool is_key_value;
   Local<Array> entries;
   if (!args[0].As<Object>()->PreviewEntries(&is_key_value).ToLocal(&entries))
     return;
-  if (!is_key_value)
+  // Fast path for WeakMap, WeakSet and Set iterators.
+  if (args.Length() == 1)
     return args.GetReturnValue().Set(entries);
-
-  uint32_t length = entries->Length();
-  CHECK_EQ(length % 2, 0);
-
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-
-  Local<Array> pairs = Array::New(env->isolate(), length / 2);
-  for (uint32_t i = 0; i < length / 2; i++) {
-    Local<Array> pair = Array::New(env->isolate(), 2);
-    pair->Set(context, 0, entries->Get(context, i * 2).ToLocalChecked())
-        .FromJust();
-    pair->Set(context, 1, entries->Get(context, i * 2 + 1).ToLocalChecked())
-        .FromJust();
-    pairs->Set(context, i, pair).FromJust();
-  }
-  args.GetReturnValue().Set(pairs);
+  Local<Array> ret = Array::New(env->isolate(), 2);
+  ret->Set(env->context(), 0, entries).FromJust();
+  ret->Set(env->context(), 1, v8::Boolean::New(env->isolate(), is_key_value))
+      .FromJust();
+  return args.GetReturnValue().Set(ret);
 }
 
 // Side effect-free stringification that will never throw exceptions.
@@ -140,36 +163,6 @@ void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-
-void CreatePromise(const FunctionCallbackInfo<Value>& args) {
-  Local<Context> context = args.GetIsolate()->GetCurrentContext();
-  auto maybe_resolver = Promise::Resolver::New(context);
-  if (!maybe_resolver.IsEmpty())
-    args.GetReturnValue().Set(maybe_resolver.ToLocalChecked());
-}
-
-
-void PromiseResolve(const FunctionCallbackInfo<Value>& args) {
-  Local<Context> context = args.GetIsolate()->GetCurrentContext();
-  Local<Value> promise = args[0];
-  CHECK(promise->IsPromise());
-  if (promise.As<Promise>()->State() != Promise::kPending) return;
-  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();  // sic
-  Maybe<bool> ret = resolver->Resolve(context, args[1]);
-  args.GetReturnValue().Set(ret.FromMaybe(false));
-}
-
-
-void PromiseReject(const FunctionCallbackInfo<Value>& args) {
-  Local<Context> context = args.GetIsolate()->GetCurrentContext();
-  Local<Value> promise = args[0];
-  CHECK(promise->IsPromise());
-  if (promise.As<Promise>()->State() != Promise::kPending) return;
-  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();  // sic
-  Maybe<bool> ret = resolver->Reject(context, args[1]);
-  args.GetReturnValue().Set(ret.FromMaybe(false));
-}
-
 void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value strenvtag(args.GetIsolate(), args[0]);
@@ -179,6 +172,15 @@ void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
       .Set(String::NewFromUtf8(
             args.GetIsolate(), text.c_str(),
             v8::NewStringType::kNormal).ToLocalChecked());
+}
+
+void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK(args[0]->IsFunction());
+
+  isolate->EnqueueMicrotask(args[0].As<Function>());
 }
 
 void Initialize(Local<Object> target,
@@ -218,20 +220,31 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getProxyDetails", GetProxyDetails);
   env->SetMethodNoSideEffect(target, "safeToString", SafeToString);
   env->SetMethodNoSideEffect(target, "previewEntries", PreviewEntries);
+  env->SetMethodNoSideEffect(target, "getOwnNonIndexProperties",
+                                     GetOwnNonIndexProperties);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
   env->SetMethodNoSideEffect(target, "watchdogHasPendingSigint",
                              WatchdogHasPendingSigint);
 
-  env->SetMethodNoSideEffect(target, "createPromise", CreatePromise);
-  env->SetMethod(target, "promiseResolve", PromiseResolve);
-  env->SetMethod(target, "promiseReject", PromiseReject);
-
   env->SetMethod(target, "safeGetenv", SafeGetenv);
+
+  env->SetMethod(target, "enqueueMicrotask", EnqueueMicrotask);
+
+  Local<Object> constants = Object::New(env->isolate());
+  NODE_DEFINE_CONSTANT(constants, ALL_PROPERTIES);
+  NODE_DEFINE_CONSTANT(constants, ONLY_WRITABLE);
+  NODE_DEFINE_CONSTANT(constants, ONLY_ENUMERABLE);
+  NODE_DEFINE_CONSTANT(constants, ONLY_CONFIGURABLE);
+  NODE_DEFINE_CONSTANT(constants, SKIP_STRINGS);
+  NODE_DEFINE_CONSTANT(constants, SKIP_SYMBOLS);
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "propertyFilter"),
+              constants).FromJust();
 }
 
 }  // namespace util
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(util, node::util::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(util, node::util::Initialize)

@@ -22,24 +22,56 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const spawnSync = require('child_process').spawnSync;
+const { spawn } = require('child_process');
 
-let options = { stdio: ['pipe'] };
-let child = common.spawnPwd(options);
+// Test stdio piping.
+{
+  const child = spawn(...common.pwdCommand, { stdio: ['pipe'] });
+  assert.notStrictEqual(child.stdout, null);
+  assert.notStrictEqual(child.stderr, null);
+}
 
-assert.notStrictEqual(child.stdout, null);
-assert.notStrictEqual(child.stderr, null);
+// Test stdio ignoring.
+{
+  const child = spawn(...common.pwdCommand, { stdio: 'ignore' });
+  assert.strictEqual(child.stdout, null);
+  assert.strictEqual(child.stderr, null);
+}
 
-options = { stdio: 'ignore' };
-child = common.spawnPwd(options);
+// Asset options invariance.
+{
+  const options = { stdio: 'ignore' };
+  spawn(...common.pwdCommand, options);
+  assert.deepStrictEqual(options, { stdio: 'ignore' });
+}
 
-assert.strictEqual(child.stdout, null);
-assert.strictEqual(child.stderr, null);
+// Test stdout buffering.
+{
+  let output = '';
+  const child = spawn(...common.pwdCommand);
 
-options = { stdio: 'ignore' };
-child = spawnSync('cat', [], options);
-assert.deepStrictEqual(options, { stdio: 'ignore' });
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', function(s) {
+    output += s;
+  });
 
-common.expectsError(() => {
-  common.spawnPwd({ stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'ipc'] });
-}, { code: 'ERR_IPC_ONE_PIPE', type: Error });
+  child.on('exit', common.mustCall(function(code) {
+    assert.strictEqual(code, 0);
+  }));
+
+  child.on('close', common.mustCall(function() {
+    assert.strictEqual(true, output.length > 1);
+    assert.strictEqual('\n', output[output.length - 1]);
+  }));
+}
+
+// Assert only one IPC pipe allowed.
+common.expectsError(
+  () => {
+    spawn(
+      ...common.pwdCommand,
+      { stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'ipc'] }
+    );
+  },
+  { code: 'ERR_IPC_ONE_PIPE', type: Error }
+);

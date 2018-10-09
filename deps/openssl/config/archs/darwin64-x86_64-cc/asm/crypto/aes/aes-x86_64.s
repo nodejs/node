@@ -1,4 +1,4 @@
-.text
+.text	
 
 .p2align	4
 _x86_64_AES_encrypt:

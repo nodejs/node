@@ -182,8 +182,9 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
           if ((*script->GetScriptName())->IsString()) {
             Local<String> script_name =
                 Local<String>::Cast(script->GetScriptName());
-            temp_file_name = new char[script_name->Utf8Length() + 1];
-            script_name->WriteUtf8(temp_file_name);
+            temp_file_name =
+                new char[script_name->Utf8Length(event->isolate) + 1];
+            script_name->WriteUtf8(event->isolate, temp_file_name);
             jmethod.source_file_name = temp_file_name;
           }
 

@@ -66,10 +66,6 @@
 
 namespace node {
 
-#if HAVE_OPENSSL
-extern const char* default_cipher_list;
-#endif
-
 void DefineConstants(v8::Isolate* isolate, v8::Local<v8::Object> target);
 }  // namespace node
 

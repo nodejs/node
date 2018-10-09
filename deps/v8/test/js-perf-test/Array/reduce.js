@@ -27,12 +27,13 @@ function OptUnreliableReduce() {
 
 DefineHigherOrderTests([
   // name, test function, setup function, user callback
-  "DoubleReduce", mc("reduce"), DoubleSetup, (p, v, i, o) => p + v,
-  "SmiReduce", mc("reduce"), SmiSetup, (p, v, i, a) => p + 1,
-  "FastReduce", mc("reduce"), FastSetup, (p, v, i, a) => p + v,
-  "OptFastReduce", OptFastReduce, FastSetup, undefined,
-  "OptUnreliableReduce", OptUnreliableReduce, FastSetup,
-      (p, v, i, a) => p = v
+  ['DoubleReduce', newClosure('reduce'), DoubleSetup, (p, v, i, o) => p + v],
+  ['SmiReduce', newClosure('reduce'), SmiSetup, (p, v, i, a) => p + 1],
+  ['FastReduce', newClosure('reduce'), FastSetup, (p, v, i, a) => p + v],
+  ['OptFastReduce', OptFastReduce, FastSetup, undefined],
+  [
+    'OptUnreliableReduce', OptUnreliableReduce, FastSetup, (p, v, i, a) => p = v
+  ]
 ]);
 
 })();

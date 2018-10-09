@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_COLLECTION_H_
 
 #include "src/objects.h"
+#include "src/objects/ordered-hash-table.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -31,7 +32,7 @@ class JSSet : public JSCollection {
   DECL_CAST(JSSet)
 
   static void Initialize(Handle<JSSet> set, Isolate* isolate);
-  static void Clear(Handle<JSSet> set);
+  static void Clear(Isolate* isolate, Handle<JSSet> set);
 
   // Dispatched behavior.
   DECL_PRINTER(JSSet)
@@ -60,7 +61,7 @@ class JSMap : public JSCollection {
   DECL_CAST(JSMap)
 
   static void Initialize(Handle<JSMap> map, Isolate* isolate);
-  static void Clear(Handle<JSMap> map);
+  static void Clear(Isolate* isolate, Handle<JSMap> map);
 
   // Dispatched behavior.
   DECL_PRINTER(JSMap)
@@ -95,9 +96,6 @@ class JSWeakCollection : public JSObject {
   // [table]: the backing hash table mapping keys to values.
   DECL_ACCESSORS(table, Object)
 
-  // [next]: linked list of encountered weak maps during GC.
-  DECL_ACCESSORS(next, Object)
-
   static void Initialize(Handle<JSWeakCollection> collection, Isolate* isolate);
   static void Set(Handle<JSWeakCollection> collection, Handle<Object> key,
                   Handle<Object> value, int32_t hash);
@@ -107,22 +105,16 @@ class JSWeakCollection : public JSObject {
                                     int max_entries);
 
   static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kNextOffset = kTableOffset + kPointerSize;
-  static const int kSize = kNextOffset + kPointerSize;
-
-  // Visiting policy defines whether the table and next collection fields
-  // should be visited or not.
-  enum BodyVisitingPolicy { kIgnoreWeakness, kRespectWeakness };
+  static const int kSize = kTableOffset + kPointerSize;
 
   // Iterates the function object according to the visiting policy.
-  template <BodyVisitingPolicy>
   class BodyDescriptorImpl;
 
   // Visit the whole object.
-  typedef BodyDescriptorImpl<kIgnoreWeakness> BodyDescriptor;
+  typedef BodyDescriptorImpl BodyDescriptor;
 
-  // Don't visit table and next collection fields.
-  typedef BodyDescriptorImpl<kRespectWeakness> BodyDescriptorWeak;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCollection);

@@ -1,6 +1,7 @@
 "use strict";
-function isObject(x) {
-    return x != null && typeof x === 'object';
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.isObject = isObject;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/util/isObject"));
 //# sourceMappingURL=isObject.js.map

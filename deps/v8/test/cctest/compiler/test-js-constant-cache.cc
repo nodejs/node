@@ -15,7 +15,7 @@ namespace compiler {
 
 class JSCacheTesterHelper {
  protected:
-  JSCacheTesterHelper(Isolate* isolate, Zone* zone)
+  explicit JSCacheTesterHelper(Zone* zone)
       : main_graph_(zone),
         main_common_(zone),
         main_javascript_(zone),
@@ -33,7 +33,7 @@ class JSConstantCacheTester : public HandleAndZoneScope,
                               public JSGraph {
  public:
   JSConstantCacheTester()
-      : JSCacheTesterHelper(main_isolate(), main_zone()),
+      : JSCacheTesterHelper(main_zone()),
         JSGraph(main_isolate(), &main_graph_, &main_common_, &main_javascript_,
                 nullptr, &main_machine_) {
     main_graph_.SetStart(main_graph_.NewNode(common()->Start(0)));
@@ -339,17 +339,15 @@ TEST(JSGraph_GetCachedNodes_number) {
 
 TEST(JSGraph_GetCachedNodes_external) {
   JSConstantCacheTester T;
-  Isolate* isolate = T.main_isolate();
 
-  ExternalReference constants[] = {
-      ExternalReference::address_of_min_int(isolate),
-      ExternalReference::address_of_min_int(isolate),
-      ExternalReference::address_of_min_int(isolate),
-      ExternalReference::address_of_one_half(isolate),
-      ExternalReference::address_of_one_half(isolate),
-      ExternalReference::address_of_min_int(isolate),
-      ExternalReference::address_of_the_hole_nan(isolate),
-      ExternalReference::address_of_one_half(isolate)};
+  ExternalReference constants[] = {ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_one_half(),
+                                   ExternalReference::address_of_one_half(),
+                                   ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_the_hole_nan(),
+                                   ExternalReference::address_of_one_half()};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
     size_t count_before = T.graph()->NodeCount();
@@ -368,7 +366,6 @@ TEST(JSGraph_GetCachedNodes_external) {
 
 TEST(JSGraph_GetCachedNodes_together) {
   JSConstantCacheTester T;
-  Isolate* isolate = T.main_isolate();
 
   Node* constants[] = {
       T.TrueConstant(),
@@ -388,7 +385,7 @@ TEST(JSGraph_GetCachedNodes_together) {
       T.Float64Constant(V8_INFINITY),
       T.Constant(0.99),
       T.Constant(1.11),
-      T.ExternalConstant(ExternalReference::address_of_one_half(isolate))};
+      T.ExternalConstant(ExternalReference::address_of_one_half())};
 
   NodeVector nodes(T.main_zone());
   T.GetCachedNodes(&nodes);

@@ -310,12 +310,37 @@ function checkStack(stack, expected_lines) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
       'TypeError: ' + kTrapMsgs[kTrapTypeError],                // -
-      '    at indirect (wasm-function[2]:1)',                   // -
+      '    at indirect (wasm-function[2]:3)',                   // -
       '    at main (wasm-function[3]:3)',                       // -
       /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
   }
+})();
+
+(function testImportExportedFunction() {
+  // See https://crbug.com/860392.
+  print(arguments.callee.name);
+  let instance0 = (() => {
+    let builder = new WasmModuleBuilder();
+    builder.addFunction('f11', kSig_i_v).addBody(wasmI32Const(11)).exportFunc();
+    builder.addFunction('f17', kSig_i_v).addBody(wasmI32Const(17)).exportFunc();
+    return builder.instantiate();
+  })();
+
+  let builder = new WasmModuleBuilder();
+  let sig_i_v = builder.addType(kSig_i_v);
+  let f11_imp = builder.addImport('q', 'f11', sig_i_v);
+  let f17_imp = builder.addImport('q', 'f17', sig_i_v);
+  let add = builder.addFunction('add', sig_i_v).addBody([
+    kExprCallFunction, f11_imp,  // call f11
+    kExprCallFunction, f17_imp,  // call f17
+    kExprI32Add                  // i32.add
+  ]).exportFunc();
+  let instance = builder.instantiate(
+      {q: {f11: instance0.exports.f11, f17: instance0.exports.f17}});
+
+  assertEquals(28, instance.exports.add());
 })();
 
 (function testInfiniteRecursion() {

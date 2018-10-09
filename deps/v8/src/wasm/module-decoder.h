@@ -8,17 +8,18 @@
 #include "src/globals.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8 {
 namespace internal {
 
-namespace compiler {
-struct ModuleEnv;
-}
+class Counters;
 
 namespace wasm {
+
+struct ModuleEnv;
 
 inline bool IsValidSectionCode(uint8_t byte) {
   return kTypeSectionCode <= byte && byte <= kLastKnownModuleSection;
@@ -26,7 +27,7 @@ inline bool IsValidSectionCode(uint8_t byte) {
 
 const char* SectionName(SectionCode code);
 
-typedef Result<std::unique_ptr<WasmModule>> ModuleResult;
+typedef Result<std::shared_ptr<WasmModule>> ModuleResult;
 typedef Result<std::unique_ptr<WasmFunction>> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
@@ -58,37 +59,26 @@ struct LocalNames {
 };
 
 // Decodes the bytes of a wasm module between {module_start} and {module_end}.
-V8_EXPORT_PRIVATE ModuleResult SyncDecodeWasmModule(Isolate* isolate,
-                                                    const byte* module_start,
-                                                    const byte* module_end,
-                                                    bool verify_functions,
-                                                    ModuleOrigin origin);
-
-V8_EXPORT_PRIVATE ModuleResult AsyncDecodeWasmModule(
-    Isolate* isolate, const byte* module_start, const byte* module_end,
-    bool verify_functions, ModuleOrigin origin,
-    const std::shared_ptr<Counters> async_counters);
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    const WasmFeatures& enabled, const byte* module_start,
+    const byte* module_end, bool verify_functions, ModuleOrigin origin,
+    Counters* counters, AccountingAllocator* allocator);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
-V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
-                                                             const byte* start,
-                                                             const byte* end);
+V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(
+    const WasmFeatures& enabled, Zone* zone, const byte* start,
+    const byte* end);
 
 // Decodes the bytes of a wasm function between
 // {function_start} and {function_end}.
-V8_EXPORT_PRIVATE FunctionResult SyncDecodeWasmFunction(
-    Isolate* isolate, Zone* zone, const ModuleWireBytes& wire_bytes,
+V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunctionForTesting(
+    const WasmFeatures& enabled, Zone* zone, const ModuleWireBytes& wire_bytes,
     const WasmModule* module, const byte* function_start,
-    const byte* function_end);
+    const byte* function_end, Counters* counters);
 
-V8_EXPORT_PRIVATE FunctionResult
-AsyncDecodeWasmFunction(Isolate* isolate, Zone* zone, compiler::ModuleEnv* env,
-                        const byte* function_start, const byte* function_end,
-                        const std::shared_ptr<Counters> async_counters);
-
-V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
-                                                            const byte* end);
+V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(
+    const WasmFeatures& enabled, const byte* start, const byte* end);
 
 struct CustomSectionOffset {
   WireBytesRef section;
@@ -124,10 +114,10 @@ class ModuleDecoderImpl;
 
 class ModuleDecoder {
  public:
-  ModuleDecoder();
+  explicit ModuleDecoder(const WasmFeatures& enabled);
   ~ModuleDecoder();
 
-  void StartDecoding(Isolate* isolate,
+  void StartDecoding(Counters* counters, AccountingAllocator* allocator,
                      ModuleOrigin origin = ModuleOrigin::kWasmOrigin);
 
   void DecodeModuleHeader(Vector<const uint8_t> bytes, uint32_t offset);
@@ -142,7 +132,8 @@ class ModuleDecoder {
 
   ModuleResult FinishDecoding(bool verify_functions = true);
 
-  WasmModule* module() const;
+  const std::shared_ptr<WasmModule>& shared_module() const;
+  WasmModule* module() const { return shared_module().get(); }
 
   bool ok();
 
@@ -157,6 +148,7 @@ class ModuleDecoder {
   static SectionCode IdentifyUnknownSection(Decoder& decoder, const byte* end);
 
  private:
+  const WasmFeatures enabled_features_;
   std::unique_ptr<ModuleDecoderImpl> impl_;
 };
 

@@ -117,7 +117,7 @@ Simulator* Simulator::current(Isolate* isolate) {
   return sim;
 }
 
-void Simulator::CallImpl(byte* entry, CallArgument* args) {
+void Simulator::CallImpl(Address entry, CallArgument* args) {
   int index_x = 0;
   int index_d = 0;
 
@@ -1081,7 +1081,7 @@ void Simulator::CheckBreakNext() {
 
 
 void Simulator::PrintInstructionsAt(Instruction* start, uint64_t count) {
-  Instruction* end = start->InstructionAtOffset(count * kInstructionSize);
+  Instruction* end = start->InstructionAtOffset(count * kInstrSize);
   for (Instruction* pc = start; pc < end; pc = pc->following()) {
     disassembler_decoder_->Decode(pc);
   }
@@ -3184,7 +3184,7 @@ void Simulator::Debug() {
                  (strcmp(cmd, "po") == 0)) {
         if (argc == 2) {
           int64_t value;
-          OFStream os(stdout);
+          StdoutStream os;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";
@@ -3246,7 +3246,7 @@ void Simulator::Debug() {
               current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & kSmiTagMask) == 0) {
-              STATIC_ASSERT(kSmiValueSize == 32);
+              DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
               int32_t untagged = (value >> kSmiShift) & 0xFFFFFFFF;
               PrintF("smi %" PRId32, untagged);
             } else {
@@ -3415,7 +3415,7 @@ void Simulator::VisitException(Instruction* instr) {
         // The stop parameters are inlined in the code. Skip them:
         //  - Skip to the end of the message string.
         size_t size = kDebugMessageOffset + strlen(message) + 1;
-        pc_ = pc_->InstructionAtOffset(RoundUp(size, kInstructionSize));
+        pc_ = pc_->InstructionAtOffset(RoundUp(size, kInstrSize));
         //  - Verify that the unreachable marker is present.
         DCHECK(pc_->Mask(ExceptionMask) == HLT);
         DCHECK_EQ(pc_->ImmException(), kImmExceptionIsUnreachable);

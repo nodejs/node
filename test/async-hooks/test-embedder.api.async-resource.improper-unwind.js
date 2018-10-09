@@ -19,7 +19,7 @@ if (process.argv[2] === 'child') {
   // Therefore the 'after' of event2 needs to occur before the
   // 'after' of event 1.
   // The first test of the two below follows that rule,
-  // the second one doesnt.
+  // the second one doesn't.
 
   const event1 = new AsyncResource('event1', async_hooks.executionAsyncId());
   const event2 = new AsyncResource('event2', async_hooks.executionAsyncId());

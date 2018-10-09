@@ -1,7 +1,10 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
-
+const {
+  hijackStdout,
+  restoreStdout,
+} = require('../common/hijackstdio');
 const assert = require('assert');
 const errors = require('internal/errors');
 
@@ -77,7 +80,7 @@ common.expectsError(() => {
   }, { code: 'TEST_ERROR_1', type: RangeError });
 }, {
   code: 'ERR_ASSERTION',
-  message: /-   type: \[Function: TypeError]\n\+   type: \[Function: RangeError]/
+  message: /\+   type: \[Function: TypeError]\n-   type: \[Function: RangeError]/
 });
 
 common.expectsError(() => {
@@ -89,7 +92,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_ASSERTION',
   type: assert.AssertionError,
-  message: /-   message: 'Error for testing purposes: a'\n\+   message: \/\^Error/
+  message: /\+   message: 'Error for testing purposes: a',\n-   message: \/\^Error/
 });
 
 // Test ERR_INVALID_FD_TYPE
@@ -126,7 +129,7 @@ assert.strictEqual(errors.getMessage('ERR_MISSING_ARGS', ['a', 'b', 'c']),
 // Test ERR_SOCKET_BAD_PORT
 assert.strictEqual(
   errors.getMessage('ERR_SOCKET_BAD_PORT', [0]),
-  'Port should be > 0 and < 65536. Received 0.');
+  'Port should be >= 0 and < 65536. Received 0.');
 
 // Test ERR_TLS_CERT_ALTNAME_INVALID
 assert.strictEqual(
@@ -241,22 +244,22 @@ assert.strictEqual(
 // browser. Note that `message` remains non-enumerable after being assigned.
 {
   let initialConsoleLog = '';
-  common.hijackStdout((data) => { initialConsoleLog += data; });
+  hijackStdout((data) => { initialConsoleLog += data; });
   const myError = new errors.codes.ERR_TLS_HANDSHAKE_TIMEOUT();
   assert.deepStrictEqual(Object.keys(myError), []);
   const initialToString = myError.toString();
   console.log(myError);
   assert.notStrictEqual(initialConsoleLog, '');
 
-  common.restoreStdout();
+  restoreStdout();
 
   let subsequentConsoleLog = '';
-  common.hijackStdout((data) => { subsequentConsoleLog += data; });
+  hijackStdout((data) => { subsequentConsoleLog += data; });
   myError.message = 'Fhqwhgads';
   assert.deepStrictEqual(Object.keys(myError), []);
   assert.notStrictEqual(myError.toString(), initialToString);
   console.log(myError);
   assert.strictEqual(subsequentConsoleLog, initialConsoleLog);
 
-  common.restoreStdout();
+  restoreStdout();
 }

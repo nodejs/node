@@ -124,8 +124,7 @@ class Deserializer : public SerializerDeserializer {
 
   // A helper function for ReadData for reading external references.
   // Returns the new value of {current}.
-  inline void** ReadExternalReferenceCase(HowToCode how, Isolate* isolate,
-                                          void** current,
+  inline void** ReadExternalReferenceCase(HowToCode how, void** current,
                                           Address current_object_address);
 
   void ReadObject(int space_number, MaybeObject** write_back,

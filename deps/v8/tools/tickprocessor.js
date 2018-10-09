@@ -102,42 +102,43 @@ function TickProcessor(
     preprocessJson) {
   this.preprocessJson = preprocessJson;
   LogReader.call(this, {
-      'shared-library': { parsers: [null, parseInt, parseInt, parseInt],
+      'shared-library': { parsers: [parseString, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary },
       'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, parseInt,
-                    null, 'var-args'],
+          parsers: [parseString, parseInt, parseInt, parseInt, parseInt,
+                    parseString, parseVarArgs],
           processor: this.processCodeCreation },
       'code-deopt': {
           parsers: [parseInt, parseInt, parseInt, parseInt, parseInt,
-                    null, null, null],
+                    parseString, parseString, parseString],
           processor: this.processCodeDeopt },
       'code-move': { parsers: [parseInt, parseInt, ],
           processor: this.processCodeMove },
       'code-delete': { parsers: [parseInt],
           processor: this.processCodeDelete },
       'code-source-info': {
-          parsers: [parseInt, parseInt, parseInt, parseInt, null, null, null],
+          parsers: [parseInt, parseInt, parseInt, parseInt, parseString,
+                    parseString, parseString],
           processor: this.processCodeSourceInfo },
-      'script': {
-          parsers: [parseInt, null, null],
-          processor: this.processCodeScript },
+      'script-source': {
+          parsers: [parseInt, parseString, parseString],
+          processor: this.processScriptSource },
       'sfi-move': { parsers: [parseInt, parseInt],
           processor: this.processFunctionMove },
       'active-runtime-timer': {
-        parsers: [null],
+        parsers: [parseString],
         processor: this.processRuntimeTimerEvent },
       'tick': {
           parsers: [parseInt, parseInt, parseInt,
-                    parseInt, parseInt, 'var-args'],
+                    parseInt, parseInt, parseVarArgs],
           processor: this.processTick },
-      'heap-sample-begin': { parsers: [null, null, parseInt],
+      'heap-sample-begin': { parsers: [parseString, parseString, parseInt],
           processor: this.processHeapSampleBegin },
-      'heap-sample-end': { parsers: [null, null],
+      'heap-sample-end': { parsers: [parseString, parseString],
           processor: this.processHeapSampleEnd },
-      'timer-event-start' : { parsers: [null, null, null],
+      'timer-event-start' : { parsers: [parseString, parseString, parseString],
                               processor: this.advanceDistortion },
-      'timer-event-end' : { parsers: [null, null, null],
+      'timer-event-end' : { parsers: [parseString, parseString, parseString],
                             processor: this.advanceDistortion },
       // Ignored events.
       'profiler': null,
@@ -159,7 +160,6 @@ function TickProcessor(
   this.stateFilter_ = stateFilter;
   this.runtimeTimerFilter_ = runtimeTimerFilter;
   this.sourceMap = sourceMap;
-  this.deserializedEntriesNames_ = [];
   var ticks = this.ticks_ =
     { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
 
@@ -298,7 +298,6 @@ TickProcessor.prototype.processSharedLibrary = function(
 
 TickProcessor.prototype.processCodeCreation = function(
     type, kind, timestamp, start, size, name, maybe_func) {
-  name = this.deserializedEntriesNames_[start] || name;
   if (maybe_func.length) {
     var funcAddr = parseInt(maybe_func[0]);
     var state = parseState(maybe_func[1]);
@@ -332,7 +331,7 @@ TickProcessor.prototype.processCodeSourceInfo = function(
     endPos, sourcePositions, inliningPositions, inlinedFunctions);
 };
 
-TickProcessor.prototype.processCodeScript = function(script, url, source) {
+TickProcessor.prototype.processScriptSource = function(script, url, source) {
   this.profile_.addScriptSource(script, url, source);
 };
 

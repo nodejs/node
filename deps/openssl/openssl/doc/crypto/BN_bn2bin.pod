@@ -55,8 +55,8 @@ freed later using OPENSSL_free().
 BN_hex2bn() takes as many characters as possible from the string B<str>,
 including the leading character '-' which means negative, to form a valid
 hexadecimal number representation and converts them to a B<BIGNUM> and
-stores it in **B<bn>. If *B<bn> is NULL, a new B<BIGNUM> is created. If
-B<bn> is NULL, it only computes the length of valid representation.
+stores it in **B<a>. If *B<a> is NULL, a new B<BIGNUM> is created. If
+B<a> is NULL, it only computes the length of valid representation.
 A "negative zero" is converted to zero.
 BN_dec2bn() is the same using the decimal system.
 
@@ -106,7 +106,7 @@ L<BN_num_bytes(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

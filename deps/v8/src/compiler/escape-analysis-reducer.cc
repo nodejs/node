@@ -42,9 +42,9 @@ Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
     RelaxEffectsAndControls(original);
     return Replace(replacement);
   }
-  Type* const replacement_type = NodeProperties::GetType(replacement);
-  Type* const original_type = NodeProperties::GetType(original);
-  if (replacement_type->Is(original_type)) {
+  Type const replacement_type = NodeProperties::GetType(replacement);
+  Type const original_type = NodeProperties::GetType(original);
+  if (replacement_type.Is(original_type)) {
     RelaxEffectsAndControls(original);
     return Replace(replacement);
   }
@@ -99,7 +99,8 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
   }
 
   switch (node->opcode()) {
-    case IrOpcode::kAllocate: {
+    case IrOpcode::kAllocate:
+    case IrOpcode::kTypeGuard: {
       const VirtualObject* vobject = analysis_result().GetVirtualObject(node);
       if (vobject && !vobject->HasEscaped()) {
         RelaxEffectsAndControls(node);
@@ -366,7 +367,7 @@ Node* NodeHashCache::Query(Node* node) {
 
 NodeHashCache::Constructor::Constructor(NodeHashCache* cache,
                                         const Operator* op, int input_count,
-                                        Node** inputs, Type* type)
+                                        Node** inputs, Type type)
     : node_cache_(cache), from_(nullptr) {
   if (node_cache_->temp_nodes_.size() > 0) {
     tmp_ = node_cache_->temp_nodes_.back();

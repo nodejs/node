@@ -59,42 +59,52 @@ The order things are called
 const t = new stream.Transform({
   objectMode: true,
   transform: common.mustCall(function(chunk, _, next) {
-    assert.strictEqual(++state, chunk, 'transformCallback part 1');
+    // transformCallback part 1
+    assert.strictEqual(++state, chunk);
     this.push(state);
-    assert.strictEqual(++state, chunk + 2, 'transformCallback part 2');
+    // transformCallback part 2
+    assert.strictEqual(++state, chunk + 2);
     process.nextTick(next);
   }, 3),
   final: common.mustCall(function(done) {
     state++;
-    assert.strictEqual(state, 10, 'finalCallback part 1');
+    // finalCallback part 1
+    assert.strictEqual(state, 10);
     state++;
-    assert.strictEqual(state, 11, 'finalCallback part 2');
+    // finalCallback part 2
+    assert.strictEqual(state, 11);
     done();
   }, 1),
   flush: common.mustCall(function(done) {
     state++;
-    assert.strictEqual(state, 12, 'flushCallback part 1');
+    // fluchCallback part 1
+    assert.strictEqual(state, 12);
     process.nextTick(function() {
       state++;
-      assert.strictEqual(state, 15, 'flushCallback part 2');
+      // fluchCallback part 2
+      assert.strictEqual(state, 15);
       done();
     });
   }, 1)
 });
 t.on('finish', common.mustCall(function() {
   state++;
-  assert.strictEqual(state, 13, 'finishListener');
+  // finishListener
+  assert.strictEqual(state, 13);
 }, 1));
 t.on('end', common.mustCall(function() {
   state++;
-  assert.strictEqual(state, 16, 'end event');
+  // endEvent
+  assert.strictEqual(state, 16);
 }, 1));
 t.on('data', common.mustCall(function(d) {
-  assert.strictEqual(++state, d + 1, 'dataListener');
+  // dataListener
+  assert.strictEqual(++state, d + 1);
 }, 3));
 t.write(1);
 t.write(4);
 t.end(7, common.mustCall(function() {
   state++;
-  assert.strictEqual(state, 14, 'endMethodCallback');
+  // endMethodCallback
+  assert.strictEqual(state, 14);
 }, 1));

@@ -57,7 +57,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       ClearExceptionFlag flag);
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
-  static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
+  CompileForLiveEdit(ParseInfo* parse_info, Isolate* isolate);
 
   // Creates a new task that when run will parse and compile the streamed
   // script associated with |streaming_data| and can be finalized with
@@ -137,9 +139,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Create a shared function info object for a String source.
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
-      Handle<String> source, const ScriptDetails& script_details,
-      ScriptOriginOptions origin_options, v8::Extension* extension,
-      ScriptData* cached_data, ScriptCompiler::CompileOptions compile_options,
+      Isolate* isolate, Handle<String> source,
+      const ScriptDetails& script_details, ScriptOriginOptions origin_options,
+      v8::Extension* extension, ScriptData* cached_data,
+      ScriptCompiler::CompileOptions compile_options,
       ScriptCompiler::NoCacheReason no_cache_reason,
       NativesFlag is_natives_code);
 
@@ -149,8 +152,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // have been released, however the object itself isn't freed and is still
   // owned by the caller.
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForStreamedScript(
-      Handle<String> source, const ScriptDetails& script_details,
-      ScriptOriginOptions origin_options, ScriptStreamingData* streaming_data);
+      Isolate* isolate, Handle<String> source,
+      const ScriptDetails& script_details, ScriptOriginOptions origin_options,
+      ScriptStreamingData* streaming_data);
 
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).
@@ -300,7 +304,6 @@ class OptimizedCompilationJob : public CompilationJob {
   OptimizedCompilationInfo* compilation_info() const {
     return compilation_info_;
   }
-  virtual size_t AllocatedMemory() const { return 0; }
 
  protected:
   // Overridden by the actual implementation.

@@ -1,6 +1,1 @@
-import { delayWhen } from '../../operator/delayWhen';
-declare module '../../Observable' {
-    interface Observable<T> {
-        delayWhen: typeof delayWhen;
-    }
-}
+import 'rxjs-compat/add/operator/delayWhen';

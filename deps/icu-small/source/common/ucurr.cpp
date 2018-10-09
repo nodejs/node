@@ -16,10 +16,14 @@
 #include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/parsepos.h"
+#include "unicode/uniset.h"
+#include "unicode/usetiter.h"
+#include "unicode/utf16.h"
 #include "ustr_imp.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
+#include "static_unicode_sets.h"
 #include "uassert.h"
 #include "umutex.h"
 #include "ucln_cmn.h"
@@ -64,14 +68,6 @@ static const int32_t POW10[] = { 1, 10, 100, 1000, 10000, 100000,
                                  1000000, 10000000, 100000000, 1000000000 };
 
 static const int32_t MAX_POW10 = UPRV_LENGTHOF(POW10) - 1;
-
-// Defines equivalent currency symbols.
-static const char *EQUIV_CURRENCY_SYMBOLS[][2] = {
-    {"\\u00a5", "\\uffe5"},
-    {"$", "\\ufe69"},
-    {"$", "\\uff04"},
-    {"\\u20a8", "\\u20b9"},
-    {"\\u00a3", "\\u20a4"}};
 
 #define ISO_CURRENCY_CODE_LENGTH 3
 
@@ -1287,17 +1283,28 @@ static void
 linearSearch(const CurrencyNameStruct* currencyNames,
              int32_t begin, int32_t end,
              const UChar* text, int32_t textLen,
+             int32_t *partialMatchLen,
              int32_t *maxMatchLen, int32_t* maxMatchIndex) {
+    int32_t initialPartialMatchLen = *partialMatchLen;
     for (int32_t index = begin; index <= end; ++index) {
         int32_t len = currencyNames[index].currencyNameLen;
         if (len > *maxMatchLen && len <= textLen &&
             uprv_memcmp(currencyNames[index].currencyName, text, len * sizeof(UChar)) == 0) {
+            *partialMatchLen = MAX(*partialMatchLen, len);
             *maxMatchIndex = index;
             *maxMatchLen = len;
 #ifdef UCURR_DEBUG
             printf("maxMatchIndex = %d, maxMatchLen = %d\n",
                    *maxMatchIndex, *maxMatchLen);
 #endif
+        } else {
+            // Check for partial matches.
+            for (int32_t i=initialPartialMatchLen; i<MIN(len, textLen); i++) {
+                if (currencyNames[index].currencyName[i] != text[i]) {
+                    break;
+                }
+                *partialMatchLen = MAX(*partialMatchLen, i + 1);
+            }
         }
     }
 }
@@ -1315,6 +1322,7 @@ static void
 searchCurrencyName(const CurrencyNameStruct* currencyNames,
                    int32_t total_currency_count,
                    const UChar* text, int32_t textLen,
+                   int32_t *partialMatchLen,
                    int32_t* maxMatchLen, int32_t* maxMatchIndex) {
     *maxMatchIndex = -1;
     *maxMatchLen = 0;
@@ -1344,6 +1352,7 @@ searchCurrencyName(const CurrencyNameStruct* currencyNames,
         if (binarySearchBegin == -1) { // did not find the range
             break;
         }
+        *partialMatchLen = MAX(*partialMatchLen, index + 1);
         if (matchIndex != -1) {
             // find an exact match for text from text[0] to text[index]
             // in currencyNames array.
@@ -1354,6 +1363,7 @@ searchCurrencyName(const CurrencyNameStruct* currencyNames,
             // linear search if within threshold.
             linearSearch(currencyNames, binarySearchBegin, binarySearchEnd,
                          text, textLen,
+                         partialMatchLen,
                          maxMatchLen, maxMatchIndex);
             break;
         }
@@ -1422,19 +1432,13 @@ currency_cache_cleanup(void) {
 }
 
 
-U_CAPI void
-uprv_parseCurrency(const char* locale,
-                   const icu::UnicodeString& text,
-                   icu::ParsePosition& pos,
-                   int8_t type,
-                   UChar* result,
-                   UErrorCode& ec)
-{
-    U_NAMESPACE_USE
-
-    if (U_FAILURE(ec)) {
-        return;
-    }
+/**
+ * Loads the currency name data from the cache, or from resource bundles if necessary.
+ * The refCount is automatically incremented.  It is the caller's responsibility
+ * to decrement it when done!
+ */
+static CurrencyNameCacheEntry*
+getCacheEntry(const char* locale, UErrorCode& ec) {
 
     int32_t total_currency_name_count = 0;
     CurrencyNameStruct* currencyNames = NULL;
@@ -1455,17 +1459,13 @@ uprv_parseCurrency(const char* locale,
     }
     if (found != -1) {
         cacheEntry = currCache[found];
-        currencyNames = cacheEntry->currencyNames;
-        total_currency_name_count = cacheEntry->totalCurrencyNameCount;
-        currencySymbols = cacheEntry->currencySymbols;
-        total_currency_symbol_count = cacheEntry->totalCurrencySymbolCount;
         ++(cacheEntry->refCount);
     }
     umtx_unlock(&gCurrencyCacheMutex);
     if (found == -1) {
         collectCurrencyNames(locale, &currencyNames, &total_currency_name_count, &currencySymbols, &total_currency_symbol_count, ec);
         if (U_FAILURE(ec)) {
-            return;
+            return NULL;
         }
         umtx_lock(&gCurrencyCacheMutex);
         // check again.
@@ -1500,19 +1500,49 @@ uprv_parseCurrency(const char* locale,
             cacheEntry->totalCurrencySymbolCount = total_currency_symbol_count;
             cacheEntry->refCount = 2; // one for cache, one for reference
             currentCacheEntryIndex = (currentCacheEntryIndex + 1) % CURRENCY_NAME_CACHE_NUM;
-            ucln_common_registerCleanup(UCLN_COMMON_CURRENCY, currency_cache_cleanup);
+            ucln_common_registerCleanup(UCLN_COMMON_CURRENCY, currency_cleanup);
         } else {
             deleteCurrencyNames(currencyNames, total_currency_name_count);
             deleteCurrencyNames(currencySymbols, total_currency_symbol_count);
             cacheEntry = currCache[found];
-            currencyNames = cacheEntry->currencyNames;
-            total_currency_name_count = cacheEntry->totalCurrencyNameCount;
-            currencySymbols = cacheEntry->currencySymbols;
-            total_currency_symbol_count = cacheEntry->totalCurrencySymbolCount;
             ++(cacheEntry->refCount);
         }
         umtx_unlock(&gCurrencyCacheMutex);
     }
+
+    return cacheEntry;
+}
+
+static void releaseCacheEntry(CurrencyNameCacheEntry* cacheEntry) {
+    umtx_lock(&gCurrencyCacheMutex);
+    --(cacheEntry->refCount);
+    if (cacheEntry->refCount == 0) {  // remove
+        deleteCacheEntry(cacheEntry);
+    }
+    umtx_unlock(&gCurrencyCacheMutex);
+}
+
+U_CAPI void
+uprv_parseCurrency(const char* locale,
+                   const icu::UnicodeString& text,
+                   icu::ParsePosition& pos,
+                   int8_t type,
+                   int32_t* partialMatchLen,
+                   UChar* result,
+                   UErrorCode& ec) {
+    U_NAMESPACE_USE
+    if (U_FAILURE(ec)) {
+        return;
+    }
+    CurrencyNameCacheEntry* cacheEntry = getCacheEntry(locale, ec);
+    if (U_FAILURE(ec)) {
+        return;
+    }
+
+    int32_t total_currency_name_count = cacheEntry->totalCurrencyNameCount;
+    CurrencyNameStruct* currencyNames = cacheEntry->currencyNames;
+    int32_t total_currency_symbol_count = cacheEntry->totalCurrencySymbolCount;
+    CurrencyNameStruct* currencySymbols = cacheEntry->currencySymbols;
 
     int32_t start = pos.getIndex();
 
@@ -1523,11 +1553,14 @@ uprv_parseCurrency(const char* locale,
     UErrorCode ec1 = U_ZERO_ERROR;
     textLen = u_strToUpper(upperText, MAX_CURRENCY_NAME_LEN, inputText, textLen, locale, &ec1);
 
+    // Make sure partialMatchLen is initialized
+    *partialMatchLen = 0;
+
     int32_t max = 0;
     int32_t matchIndex = -1;
     // case in-sensitive comparision against currency names
     searchCurrencyName(currencyNames, total_currency_name_count,
-                       upperText, textLen, &max, &matchIndex);
+                       upperText, textLen, partialMatchLen, &max, &matchIndex);
 
 #ifdef UCURR_DEBUG
     printf("search in names, max = %d, matchIndex = %d\n", max, matchIndex);
@@ -1539,6 +1572,7 @@ uprv_parseCurrency(const char* locale,
         // case sensitive comparison against currency symbols and ISO code.
         searchCurrencyName(currencySymbols, total_currency_symbol_count,
                            inputText, textLen,
+                           partialMatchLen,
                            &maxInSymbol, &matchIndexInSymbol);
     }
 
@@ -1558,12 +1592,35 @@ uprv_parseCurrency(const char* locale,
     }
 
     // decrease reference count
-    umtx_lock(&gCurrencyCacheMutex);
-    --(cacheEntry->refCount);
-    if (cacheEntry->refCount == 0) {  // remove
-        deleteCacheEntry(cacheEntry);
+    releaseCacheEntry(cacheEntry);
+}
+
+void uprv_currencyLeads(const char* locale, icu::UnicodeSet& result, UErrorCode& ec) {
+    U_NAMESPACE_USE
+    if (U_FAILURE(ec)) {
+        return;
     }
-    umtx_unlock(&gCurrencyCacheMutex);
+    CurrencyNameCacheEntry* cacheEntry = getCacheEntry(locale, ec);
+    if (U_FAILURE(ec)) {
+        return;
+    }
+
+    for (int32_t i=0; i<cacheEntry->totalCurrencySymbolCount; i++) {
+        const CurrencyNameStruct& info = cacheEntry->currencySymbols[i];
+        UChar32 cp;
+        U16_GET(info.currencyName, 0, 0, info.currencyNameLen, cp);
+        result.add(cp);
+    }
+
+    for (int32_t i=0; i<cacheEntry->totalCurrencyNameCount; i++) {
+        const CurrencyNameStruct& info = cacheEntry->currencyNames[i];
+        UChar32 cp;
+        U16_GET(info.currencyName, 0, 0, info.currencyNameLen, cp);
+        result.add(cp);
+    }
+
+    // decrease reference count
+    releaseCacheEntry(cacheEntry);
 }
 
 
@@ -1729,7 +1786,8 @@ static const struct CurrencyList {
     {"BUK", UCURR_COMMON|UCURR_DEPRECATED},
     {"BWP", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"BYB", UCURR_COMMON|UCURR_DEPRECATED},
-    {"BYR", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"BYN", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"BYR", UCURR_COMMON|UCURR_DEPRECATED},
     {"BZD", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"CAD", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"CDF", UCURR_COMMON|UCURR_NON_DEPRECATED},
@@ -1739,6 +1797,7 @@ static const struct CurrencyList {
     {"CLE", UCURR_COMMON|UCURR_DEPRECATED},
     {"CLF", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
     {"CLP", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"CNH", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
     {"CNX", UCURR_UNCOMMON|UCURR_DEPRECATED},
     {"CNY", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"COP", UCURR_COMMON|UCURR_NON_DEPRECATED},
@@ -1761,7 +1820,7 @@ static const struct CurrencyList {
     {"ECV", UCURR_UNCOMMON|UCURR_DEPRECATED},
     {"EEK", UCURR_COMMON|UCURR_DEPRECATED},
     {"EGP", UCURR_COMMON|UCURR_NON_DEPRECATED},
-    {"EQE", UCURR_COMMON|UCURR_DEPRECATED},
+    {"EQE", UCURR_COMMON|UCURR_DEPRECATED}, // questionable, remove?
     {"ERN", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"ESA", UCURR_UNCOMMON|UCURR_DEPRECATED},
     {"ESB", UCURR_UNCOMMON|UCURR_DEPRECATED},
@@ -1785,7 +1844,7 @@ static const struct CurrencyList {
     {"GRD", UCURR_COMMON|UCURR_DEPRECATED},
     {"GTQ", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"GWE", UCURR_COMMON|UCURR_DEPRECATED},
-    {"GWP", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"GWP", UCURR_COMMON|UCURR_DEPRECATED},
     {"GYD", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"HKD", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"HNL", UCURR_COMMON|UCURR_NON_DEPRECATED},
@@ -1823,13 +1882,13 @@ static const struct CurrencyList {
     {"LKR", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"LRD", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"LSL", UCURR_COMMON|UCURR_NON_DEPRECATED},
-    {"LSM", UCURR_COMMON|UCURR_DEPRECATED},
-    {"LTL", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"LSM", UCURR_COMMON|UCURR_DEPRECATED}, // questionable, remove?
+    {"LTL", UCURR_COMMON|UCURR_DEPRECATED},
     {"LTT", UCURR_COMMON|UCURR_DEPRECATED},
     {"LUC", UCURR_UNCOMMON|UCURR_DEPRECATED},
     {"LUF", UCURR_COMMON|UCURR_DEPRECATED},
     {"LUL", UCURR_UNCOMMON|UCURR_DEPRECATED},
-    {"LVL", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"LVL", UCURR_COMMON|UCURR_DEPRECATED},
     {"LVR", UCURR_COMMON|UCURR_DEPRECATED},
     {"LYD", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"MAD", UCURR_COMMON|UCURR_NON_DEPRECATED},
@@ -1845,18 +1904,19 @@ static const struct CurrencyList {
     {"MMK", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"MNT", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"MOP", UCURR_COMMON|UCURR_NON_DEPRECATED},
-    {"MRO", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"MRO", UCURR_COMMON|UCURR_DEPRECATED},
+    {"MRU", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"MTL", UCURR_COMMON|UCURR_DEPRECATED},
     {"MTP", UCURR_COMMON|UCURR_DEPRECATED},
     {"MUR", UCURR_COMMON|UCURR_NON_DEPRECATED},
-    {"MVP", UCURR_COMMON|UCURR_DEPRECATED},
+    {"MVP", UCURR_COMMON|UCURR_DEPRECATED}, // questionable, remove?
     {"MVR", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"MWK", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"MXN", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"MXP", UCURR_COMMON|UCURR_DEPRECATED},
     {"MXV", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
     {"MYR", UCURR_COMMON|UCURR_NON_DEPRECATED},
-    {"MZE", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"MZE", UCURR_COMMON|UCURR_DEPRECATED},
     {"MZM", UCURR_COMMON|UCURR_DEPRECATED},
     {"MZN", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"NAD", UCURR_COMMON|UCURR_NON_DEPRECATED},
@@ -1897,15 +1957,16 @@ static const struct CurrencyList {
     {"SGD", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SHP", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SIT", UCURR_COMMON|UCURR_DEPRECATED},
-    {"SKK", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"SKK", UCURR_COMMON|UCURR_DEPRECATED},
     {"SLL", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SOS", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SRD", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SRG", UCURR_COMMON|UCURR_DEPRECATED},
     {"SSP", UCURR_COMMON|UCURR_NON_DEPRECATED},
-    {"STD", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"STD", UCURR_COMMON|UCURR_DEPRECATED},
+    {"STN", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SUR", UCURR_COMMON|UCURR_DEPRECATED},
-    {"SVC", UCURR_COMMON|UCURR_NON_DEPRECATED},
+    {"SVC", UCURR_COMMON|UCURR_DEPRECATED},
     {"SYP", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"SZL", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"THB", UCURR_COMMON|UCURR_NON_DEPRECATED},
@@ -1954,7 +2015,7 @@ static const struct CurrencyList {
     {"XPD", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
     {"XPF", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"XPT", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
-    {"XRE", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
+    {"XRE", UCURR_UNCOMMON|UCURR_DEPRECATED},
     {"XSU", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
     {"XTS", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
     {"XUA", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
@@ -1965,15 +2026,15 @@ static const struct CurrencyList {
     {"YUM", UCURR_COMMON|UCURR_DEPRECATED},
     {"YUN", UCURR_COMMON|UCURR_DEPRECATED},
     {"YUR", UCURR_COMMON|UCURR_DEPRECATED},
-    {"ZAL", UCURR_UNCOMMON|UCURR_NON_DEPRECATED},
+    {"ZAL", UCURR_UNCOMMON|UCURR_DEPRECATED},
     {"ZAR", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"ZMK", UCURR_COMMON|UCURR_DEPRECATED},
     {"ZMW", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"ZRN", UCURR_COMMON|UCURR_DEPRECATED},
     {"ZRZ", UCURR_COMMON|UCURR_DEPRECATED},
+    {"ZWD", UCURR_COMMON|UCURR_DEPRECATED},
     {"ZWL", UCURR_COMMON|UCURR_DEPRECATED},
     {"ZWR", UCURR_COMMON|UCURR_DEPRECATED},
-    {"ZWD", UCURR_COMMON|UCURR_DEPRECATED},
     { NULL, 0 } // Leave here to denote the end of the list.
 };
 
@@ -2144,16 +2205,20 @@ static void U_CALLCONV initIsoCodes(UErrorCode &status) {
 }
 
 static void populateCurrSymbolsEquiv(icu::Hashtable *hash, UErrorCode &status) {
-    if (U_FAILURE(status)) {
-        return;
-    }
-    int32_t length = UPRV_LENGTHOF(EQUIV_CURRENCY_SYMBOLS);
-    for (int32_t i = 0; i < length; ++i) {
-        icu::UnicodeString lhs(EQUIV_CURRENCY_SYMBOLS[i][0], -1, US_INV);
-        icu::UnicodeString rhs(EQUIV_CURRENCY_SYMBOLS[i][1], -1, US_INV);
-        makeEquivalent(lhs.unescape(), rhs.unescape(), hash, status);
-        if (U_FAILURE(status)) {
-            return;
+    if (U_FAILURE(status)) { return; }
+    for (auto& entry : unisets::kCurrencyEntries) {
+        UnicodeString exemplar(entry.exemplar);
+        const UnicodeSet* set = unisets::get(entry.key);
+        if (set == nullptr) { return; }
+        UnicodeSetIterator it(*set);
+        while (it.next()) {
+            UnicodeString value = it.getString();
+            if (value == exemplar) {
+                // No need to mark the exemplar character as an equivalent
+                continue;
+            }
+            makeEquivalent(exemplar, value, hash, status);
+            if (U_FAILURE(status)) { return; }
         }
     }
 }

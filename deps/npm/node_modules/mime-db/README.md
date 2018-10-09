@@ -65,14 +65,14 @@ To edit the database, only make PRs against `src/custom.json` or
 The `src/custom.json` file is a JSON object with the MIME type as the keys
 and the values being an object with the following keys:
 
-- `compressible` - leave out if you don't know, otherwise `true`/`false` for
-  if the data represented by the time is typically compressible.
+- `compressible` - leave out if you don't know, otherwise `true`/`false` to
+  indicate whether the data represented by the type is typically compressible.
 - `extensions` - include an array of file extensions that are associated with
   the type.
 - `notes` - human-readable notes about the type, typically what the type is.
 - `sources` - include an array of URLs of where the MIME type and the associated
   extensions are sourced from. This needs to be a [primary source](https://en.wikipedia.org/wiki/Primary_source);
-  links to type aggregating sites and Wikipedia are _not acceptible_.
+  links to type aggregating sites and Wikipedia are _not acceptable_.
 
 To update the build, run `npm run build`.
 

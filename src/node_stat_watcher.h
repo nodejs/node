@@ -44,7 +44,9 @@ class StatWatcher : public HandleWrap {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  size_t self_size() const override { return sizeof(*this); }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(StatWatcher)
+  SET_SELF_SIZE(StatWatcher)
 
  private:
   static void Callback(uv_fs_poll_t* handle,

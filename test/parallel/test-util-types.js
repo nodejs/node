@@ -1,13 +1,12 @@
-// Flags: --harmony-bigint --experimental-vm-modules
+// Flags: --experimental-vm-modules --expose-internals
 'use strict';
-const common = require('../common');
+require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { types, inspect } = require('util');
 const vm = require('vm');
-const { JSStream } = process.binding('js_stream');
-
-common.crashOnUnhandledRejection();
+const { internalBinding } = require('internal/test/binding');
+const { JSStream } = internalBinding('js_stream');
 
 const external = (new JSStream())._externalStream;
 const wasmBuffer = fixtures.readSync('test.wasm');
@@ -59,7 +58,8 @@ for (const [ value, _method ] of [
 
   for (const key of Object.keys(types)) {
     if ((types.isArrayBufferView(value) ||
-         types.isAnyArrayBuffer(value)) && key.includes('Array')) {
+         types.isAnyArrayBuffer(value)) && key.includes('Array') ||
+         key === 'isBoxedPrimitive') {
       continue;
     }
 
@@ -69,6 +69,15 @@ for (const [ value, _method ] of [
                        `${method}, ${types[key](value)}`);
   }
 }
+
+// Check boxed primitives.
+[
+  new Boolean(),
+  new Number(),
+  new String(),
+  Object(Symbol()),
+  Object(BigInt(0))
+].forEach((entry) => assert(types.isBoxedPrimitive(entry)));
 
 {
   assert(!types.isUint8Array({ [Symbol.toStringTag]: 'Uint8Array' }));
@@ -128,7 +137,7 @@ for (const [ value, _method ] of [
 }
 
 (async () => {
-  const m = new vm.Module('');
+  const m = new vm.SourceTextModule('');
   await m.link(() => 0);
   m.instantiate();
   await m.evaluate();

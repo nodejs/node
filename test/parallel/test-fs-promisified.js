@@ -5,8 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
 
-common.crashOnUnhandledRejection();
-
 const read = promisify(fs.read);
 const write = promisify(fs.write);
 const exists = promisify(fs.exists);

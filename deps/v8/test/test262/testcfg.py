@@ -43,17 +43,17 @@ from testrunner.outproc import test262
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
   'BigInt': '--harmony-bigint',
-  'regexp-named-groups': '--harmony-regexp-named-captures',
-  'regexp-unicode-property-escapes': '--harmony-regexp-property',
-  'Promise.prototype.finally': '--harmony-promise-finally',
   'class-fields-public': '--harmony-public-fields',
-  'optional-catch-binding': '--harmony-optional-catch-binding',
   'class-fields-private': '--harmony-private-fields',
-  'Array.prototype.flatten': '--harmony-array-flatten',
-  'Array.prototype.flatMap': '--harmony-array-flatten',
+  'Array.prototype.flat': '--harmony-array-flat',
+  'Array.prototype.flatMap': '--harmony-array-flat',
   'String.prototype.matchAll': '--harmony-string-matchall',
   'Symbol.matchAll': '--harmony-string-matchall',
   'numeric-separator-literal': '--harmony-numeric-separator',
+  'Intl.ListFormat': '--harmony-intl-list-format',
+  'Intl.Locale': '--harmony-locale',
+  'Intl.RelativeTimeFormat': '--harmony-intl-relative-time-format',
+  'Symbol.prototype.description': '--harmony-symbol-description',
 }
 
 SKIPPED_FEATURES = set([])

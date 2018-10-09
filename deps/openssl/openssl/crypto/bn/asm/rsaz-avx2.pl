@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2013-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -104,7 +104,7 @@ if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$addx = ($1>=11);
 }
 
-if (!$avx && `$ENV{CC} -v 2>&1` =~ /(^clang version|based on LLVM) ([3-9])\.([0-9]+)/) {
+if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|based on LLVM) ([3-9])\.([0-9]+)/) {
 	my $ver = $2 + $3/100.0;	# 3.1->3.01, 3.10->3.10
 	$avx = ($ver>=3.0) + ($ver>=3.01);
 	$addx = ($ver>=3.03);

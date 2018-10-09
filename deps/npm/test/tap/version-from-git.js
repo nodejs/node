@@ -22,6 +22,7 @@ test('npm version from-git with a valid tag creates a new commit', function (t) 
 
   function runVersion (er) {
     t.ifError(er, 'git tag ran without error')
+    npm.config.set('sign-git-commit', false)
     npm.config.set('sign-git-tag', false)
     npm.commands.version(['from-git'], checkVersion)
   }
@@ -51,6 +52,7 @@ test('npm version from-git with a valid tag updates the package.json version', f
 
   function runVersion (er) {
     t.ifError(er, 'git tag ran without error')
+    npm.config.set('sign-git-commit', false)
     npm.config.set('sign-git-tag', false)
     npm.commands.version(['from-git'], checkManifest)
   }
@@ -75,6 +77,7 @@ test('npm version from-git strips tag-version-prefix', function (t) {
 
   function runVersion (er) {
     t.ifError(er, 'git tag ran without error')
+    npm.config.set('sign-git-commit', false)
     npm.config.set('sign-git-tag', false)
     npm.config.set('tag-version-prefix', prefix)
     npm.commands.version(['from-git'], checkVersion)
@@ -107,6 +110,7 @@ test('npm version from-git only strips tag-version-prefix if it is a prefix', fu
 
   function runVersion (er) {
     t.ifError(er, 'git tag ran without error')
+    npm.config.set('sign-git-commit', false)
     npm.config.set('sign-git-tag', false)
     npm.config.set('tag-version-prefix', prefix)
     npm.commands.version(['from-git'], checkVersion)
@@ -137,6 +141,7 @@ test('npm version from-git with an existing version', function (t) {
 
   function runVersion (er) {
     t.ifError(er, 'git tag ran without error')
+    npm.config.set('sign-git-commit', false)
     npm.config.set('sign-git-tag', false)
     npm.commands.version(['from-git'], checkVersion)
   }
@@ -154,6 +159,7 @@ test('npm version from-git with an invalid version tag', function (t) {
 
   function runVersion (er) {
     t.ifError(er, 'git tag ran without error')
+    npm.config.set('sign-git-commit', false)
     npm.config.set('sign-git-tag', false)
     npm.commands.version(['from-git'], checkVersion)
   }
@@ -170,6 +176,7 @@ test('npm version from-git without any versions', function (t) {
 
   function runVersion (er) {
     t.ifError(er, 'created git repo without errors')
+    npm.config.set('sign-git-commit', false)
     npm.config.set('sign-git-tag', false)
     npm.commands.version(['from-git'], checkVersion)
   }

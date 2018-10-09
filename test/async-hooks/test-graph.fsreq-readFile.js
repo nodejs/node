@@ -18,9 +18,9 @@ function onexit() {
   hooks.disable();
   verifyGraph(
     hooks,
-    [ { type: 'FSREQWRAP', id: 'fsreq:1', triggerAsyncId: null },
-      { type: 'FSREQWRAP', id: 'fsreq:2', triggerAsyncId: 'fsreq:1' },
-      { type: 'FSREQWRAP', id: 'fsreq:3', triggerAsyncId: 'fsreq:2' },
-      { type: 'FSREQWRAP', id: 'fsreq:4', triggerAsyncId: 'fsreq:3' } ]
+    [ { type: 'FSREQCALLBACK', id: 'fsreq:1', triggerAsyncId: null },
+      { type: 'FSREQCALLBACK', id: 'fsreq:2', triggerAsyncId: 'fsreq:1' },
+      { type: 'FSREQCALLBACK', id: 'fsreq:3', triggerAsyncId: 'fsreq:2' },
+      { type: 'FSREQCALLBACK', id: 'fsreq:4', triggerAsyncId: 'fsreq:3' } ]
   );
 }

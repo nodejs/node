@@ -1,5 +1,0 @@
-{
-  "plugins": [
-    "./tools/remark-preset-lint-node/"
-  ]
-}

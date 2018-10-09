@@ -56,7 +56,10 @@ class FSEventWrap: public HandleWrap {
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Start(const FunctionCallbackInfo<Value>& args);
   static void GetInitialized(const FunctionCallbackInfo<Value>& args);
-  size_t self_size() const override { return sizeof(*this); }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(FSEventWrap)
+  SET_SELF_SIZE(FSEventWrap)
 
  private:
   static const encoding kDefaultEncoding = UTF8;
@@ -100,7 +103,7 @@ void FSEventWrap::Initialize(Local<Object> target,
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(fsevent_string);
 
-  AsyncWrap::AddWrapMethods(env, t);
+  t->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "close", Close);
 
@@ -116,7 +119,7 @@ void FSEventWrap::Initialize(Local<Object> target,
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete | v8::DontEnum));
 
-  target->Set(fsevent_string, t->GetFunction());
+  target->Set(fsevent_string, t->GetFunction(context).ToLocalChecked());
 }
 
 
@@ -230,4 +233,4 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(fs_event_wrap, node::FSEventWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(fs_event_wrap, node::FSEventWrap::Initialize)

@@ -139,7 +139,7 @@
  *   </tr>
  *   <tr>
  *     <td>Number Formatting</td>
- *     <td>unum.h</td>
+ *     <td>unumberformatter.h, unum.h</td>
  *     <td>icu::number::NumberFormatter (ICU 60+) or icu::NumberFormat (older versions)</td>
  *   </tr>
  *   <tr>

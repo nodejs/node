@@ -12,15 +12,27 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 `node [options] [V8 options] [script.js | -e "script" | -] [--] [arguments]`
 
-`node debug [script.js | -e "script" | <host>:<port>] …`
+`node inspect [script.js | -e "script" | <host>:<port>] …`
 
 `node --v8-options`
 
 Execute without arguments to start the [REPL][].
 
-_For more info about `node debug`, please see the [debugger][] documentation._
+_For more info about `node inspect`, please see the [debugger][] documentation._
 
 ## Options
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23020
+    description: Underscores instead of dashes are now allowed for
+                 Node.js options as well, in addition to V8 options.
+-->
+
+All options, including V8 options, allow words to be separated by both
+dashes (`-`) or underscores (`_`).
+
+For example, `--pending-deprecation` is equivalent to `--pending_deprecation`.
 
 ### `-`
 <!-- YAML
@@ -51,6 +63,17 @@ analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
 If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
 `domain` module that uses it).
+
+### `--completion-bash`
+<!-- YAML
+added: REPLACEME
+-->
+
+Print source-able bash completion script for Node.js.
+```console
+$ node --completion-bash > node_bash_completion
+$ source node_bash_completion
+```
 
 ### `--enable-fips`
 <!-- YAML
@@ -131,6 +154,13 @@ Activate inspector on `host:port`. Default is `127.0.0.1:9229`.
 V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome DevTools Protocol][].
+
+### `--loader=file`
+<!--
+added: v9.0.0
+-->
+
+Specify the `file` of the custom [experimental ECMAScript Module][] loader.
 
 ### `--napi-modules`
 <!-- YAML
@@ -278,6 +308,13 @@ added: v0.11.14
 
 Throw errors for deprecations.
 
+### `--title=title`
+<!-- YAML
+added: v10.7.0
+-->
+
+Set `process.title` on startup.
+
 ### `--tls-cipher-list=list`
 <!-- YAML
 added: v4.0.0
@@ -364,11 +401,6 @@ added: v0.1.3
 -->
 
 Print V8 command line options.
-
-V8 options allow words to be separated by both dashes (`-`) or
-underscores (`_`).
-
-For example, `--stack-trace-limit` is equivalent to `--stack_trace_limit`.
 
 ### `--v8-pool-size=num`
 <!-- YAML
@@ -539,6 +571,7 @@ Node options that are allowed are:
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
+- `--title`
 - `--tls-cipher-list`
 - `--trace-deprecation`
 - `--trace-event-categories`
@@ -610,6 +643,32 @@ Path to the file used to store the persistent REPL history. The default path is
 `~/.node_repl_history`, which is overridden by this variable. Setting the value
 to an empty string (`''` or `' '`) disables persistent REPL history.
 
+### `NODE_V8_COVERAGE=dir`
+
+When set, Node.js will begin outputting [V8 JavaScript code coverage][] to the
+directory provided as an argument. Coverage is output as an array of
+[ScriptCoverage][] objects:
+
+```json
+{
+  "result": [
+    {
+      "scriptId": "67",
+      "url": "internal/tty.js",
+      "functions": []
+    }
+  ]
+}
+```
+
+`NODE_V8_COVERAGE` will automatically propagate to subprocesses, making it
+easier to instrument applications that call the `child_process.spawn()` family
+of functions. `NODE_V8_COVERAGE` can be set to an empty string, to prevent
+propagation.
+
+At this time coverage is only collected in the main thread and will not be
+output for code executed by worker threads.
+
 ### `OPENSSL_CONF=file`
 <!-- YAML
 added: v6.11.0
@@ -676,6 +735,9 @@ greater than `4` (its current default value). For more information, see the
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
+[ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
+[V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
+[experimental ECMAScript Module]: esm.html#esm_loader_hooks
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html

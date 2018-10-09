@@ -5,7 +5,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "include/v8.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"

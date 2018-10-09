@@ -1,3 +1,1 @@
-export function identity<T>(x: T): T {
-  return x;
-}
+export * from 'rxjs-compat/util/identity';

@@ -26,15 +26,6 @@
 #include "uv.h"
 #include "internal.h"
 
-static int uv_cond_condvar_init(uv_cond_t* cond);
-static void uv_cond_condvar_destroy(uv_cond_t* cond);
-static void uv_cond_condvar_signal(uv_cond_t* cond);
-static void uv_cond_condvar_broadcast(uv_cond_t* cond);
-static void uv_cond_condvar_wait(uv_cond_t* cond, uv_mutex_t* mutex);
-static int uv_cond_condvar_timedwait(uv_cond_t* cond,
-    uv_mutex_t* mutex, uint64_t timeout);
-
-
 static void uv__once_inner(uv_once_t* guard, void (*callback)(void)) {
   DWORD result;
   HANDLE existing_event, created_event;
@@ -127,7 +118,7 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   ctx->arg = arg;
 
   /* Create the thread in suspended state so we have a chance to pass
-   * its own creation handle to it */   
+   * its own creation handle to it */
   thread = (HANDLE) _beginthreadex(NULL,
                                    0,
                                    uv__thread_start,
@@ -374,7 +365,7 @@ int uv_cond_init(uv_cond_t* cond) {
 
 void uv_cond_destroy(uv_cond_t* cond) {
   /* nothing to do */
-  UV__UNUSED(cond);
+  (void) &cond;
 }
 
 

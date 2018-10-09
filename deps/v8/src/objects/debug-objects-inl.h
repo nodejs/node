@@ -6,6 +6,7 @@
 #define V8_OBJECTS_DEBUG_OBJECTS_INL_H_
 
 #include "src/objects/debug-objects.h"
+#include "src/objects/shared-function-info.h"
 
 #include "src/heap/heap-inl.h"
 
@@ -23,9 +24,20 @@ CAST_ACCESSOR(BreakPoint)
 SMI_ACCESSORS(DebugInfo, flags, kFlagsOffset)
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 SMI_ACCESSORS(DebugInfo, debugger_hints, kDebuggerHintsOffset)
-ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayOffset)
+ACCESSORS(DebugInfo, script, Object, kScriptOffset)
+ACCESSORS(DebugInfo, original_bytecode_array, Object,
+          kOriginalBytecodeArrayOffset)
 ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateOffset)
 ACCESSORS(DebugInfo, coverage_info, Object, kCoverageInfoOffset)
+
+BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, side_effect_state,
+                    DebugInfo::SideEffectStateBits)
+BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debug_is_blackboxed,
+                    DebugInfo::DebugIsBlackboxedBit)
+BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, computed_debug_is_blackboxed,
+                    DebugInfo::ComputedDebugIsBlackboxedBit)
+BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debugging_id,
+                    DebugInfo::DebuggingIdBits)
 
 SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionOffset)
 ACCESSORS(BreakPointInfo, break_points, Object, kBreakPointsOffset)
@@ -33,18 +45,18 @@ ACCESSORS(BreakPointInfo, break_points, Object, kBreakPointsOffset)
 SMI_ACCESSORS(BreakPoint, id, kIdOffset)
 ACCESSORS(BreakPoint, condition, String, kConditionOffset)
 
-bool DebugInfo::HasDebugBytecodeArray() {
-  return debug_bytecode_array()->IsBytecodeArray();
+bool DebugInfo::HasInstrumentedBytecodeArray() {
+  return original_bytecode_array()->IsBytecodeArray();
 }
 
 BytecodeArray* DebugInfo::OriginalBytecodeArray() {
-  DCHECK(HasDebugBytecodeArray());
-  return shared()->GetBytecodeArray();
+  DCHECK(HasInstrumentedBytecodeArray());
+  return BytecodeArray::cast(original_bytecode_array());
 }
 
 BytecodeArray* DebugInfo::DebugBytecodeArray() {
-  DCHECK(HasDebugBytecodeArray());
-  return BytecodeArray::cast(debug_bytecode_array());
+  DCHECK(HasInstrumentedBytecodeArray());
+  return shared()->GetDebugBytecodeArray();
 }
 
 }  // namespace internal

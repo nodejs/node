@@ -46,7 +46,7 @@ N/A
 API
 ---
 
-.. c:function:: int uv_tty_init(uv_loop_t* loop, uv_tty_t* handle, uv_file fd, int readable)
+.. c:function:: int uv_tty_init(uv_loop_t* loop, uv_tty_t* handle, uv_file fd, int unused)
 
     Initialize a new TTY stream with the given file descriptor. Usually the
     file descriptor will be:
@@ -54,9 +54,6 @@ API
     * 0 = stdin
     * 1 = stdout
     * 2 = stderr
-
-    `readable`, specifies if you plan on calling :c:func:`uv_read_start` with
-    this stream. stdin is readable, stdout is not.
 
     On Unix this function will determine the path of the fd of the terminal
     using :man:`ttyname_r(3)`, open it, and use it if the passed file descriptor
@@ -67,8 +64,10 @@ API
     ioctl TIOCGPTN or TIOCPTYGNAME, for instance OpenBSD and Solaris.
 
     .. note::
-        If reopening the TTY fails, libuv falls back to blocking writes for
-        non-readable TTY streams.
+        If reopening the TTY fails, libuv falls back to blocking writes.
+
+    .. versionchanged:: 1.23.1: the `readable` parameter is now unused and ignored.
+                        The correct value will now be auto-detected from the kernel.
 
     .. versionchanged:: 1.9.0: the path of the TTY is determined by
                         :man:`ttyname_r(3)`. In earlier versions libuv opened

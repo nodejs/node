@@ -23,6 +23,8 @@ namespace interpreter {
 
 using compiler::CodeAssemblerState;
 using compiler::Node;
+template <class T>
+using TNode = compiler::TNode<T>;
 
 InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
                                            Bytecode bytecode,
@@ -139,7 +141,7 @@ Node* InterpreterAssembler::GetAccumulatorUnchecked() {
 Node* InterpreterAssembler::GetAccumulator() {
   DCHECK(Bytecodes::ReadsAccumulator(bytecode_));
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kRead;
-  return PoisonOnSpeculationTagged(GetAccumulatorUnchecked());
+  return TaggedPoisonOnSpeculation(GetAccumulatorUnchecked());
 }
 
 void InterpreterAssembler::SetAccumulator(Node* value) {
@@ -222,7 +224,7 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
-  return PoisonOnSpeculationWord(
+  return WordPoisonOnSpeculation(
       IntPtrAdd(GetInterpretedFramePointer(), RegisterFrameOffset(reg_index)));
 }
 
@@ -236,7 +238,7 @@ Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
 
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
   return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
-              RegisterFrameOffset(reg_index), LoadSensitivity::kNeedsPoisoning);
+              RegisterFrameOffset(reg_index), LoadSensitivity::kCritical);
 }
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
@@ -645,10 +647,10 @@ Node* InterpreterAssembler::BytecodeOperandIntrinsicId(int operand_index) {
 }
 
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
-  Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
-                                        BytecodeArray::kConstantPoolOffset);
+  TNode<FixedArray> constant_pool = CAST(LoadObjectField(
+      BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
   return LoadFixedArrayElement(constant_pool, UncheckedCast<IntPtrT>(index),
-                               LoadSensitivity::kNeedsPoisoning);
+                               LoadSensitivity::kCritical);
 }
 
 Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
@@ -667,8 +669,8 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntryAtOperandIndex(
   return SmiUntag(LoadConstantPoolEntryAtOperandIndex(operand_index));
 }
 
-Node* InterpreterAssembler::LoadFeedbackVector() {
-  Node* function = LoadRegister(Register::function_closure());
+TNode<FeedbackVector> InterpreterAssembler::LoadFeedbackVector() {
+  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
   return CodeStubAssembler::LoadFeedbackVector(function);
 }
 
@@ -703,8 +705,8 @@ void InterpreterAssembler::CallEpilogue() {
 void InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
                                               Node* slot_id) {
   Comment("increment call count");
-  Node* call_count =
-      LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize);
+  TNode<Smi> call_count =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize));
   // The lowest {FeedbackNexus::CallCountField::kShift} bits of the call
   // count are used as flags. To increment the call count by 1 we hence
   // have to increment by 1 << {FeedbackNexus::CallCountField::kShift}.
@@ -721,34 +723,33 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
   Label extra_checks(this, Label::kDeferred), done(this);
 
   // Check if we have monomorphic {target} feedback already.
-  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
+  TNode<MaybeObject> feedback =
+      LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Comment("check if monomorphic");
-  Node* is_monomorphic = WordEqual(target, feedback_value);
+  TNode<BoolT> is_monomorphic = IsWeakReferenceTo(feedback, CAST(target));
   GotoIf(is_monomorphic, &done);
 
   // Check if it is a megamorphic {target}.
   Comment("check if megamorphic");
-  Node* is_megamorphic =
-      WordEqual(feedback_element,
-                HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
+  Node* is_megamorphic = WordEqual(
+      feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
   Branch(is_megamorphic, &done, &extra_checks);
 
   BIND(&extra_checks);
   {
     Label initialize(this), mark_megamorphic(this);
 
-    Comment("check if weak cell");
+    Comment("check if weak reference");
     Node* is_uninitialized = WordEqual(
-        feedback_element,
+        feedback,
         HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
     GotoIf(is_uninitialized, &initialize);
-    CSA_ASSERT(this, IsWeakCell(feedback_element));
+    CSA_ASSERT(this, IsWeakOrClearedHeapObject(feedback));
 
-    // If the weak cell is cleared, we have a new chance to become monomorphic.
-    Comment("check if weak cell is cleared");
-    Node* is_smi = TaggedIsSmi(feedback_value);
-    Branch(is_smi, &initialize, &mark_megamorphic);
+    // If the weak reference is cleared, we have a new chance to become
+    // monomorphic.
+    Comment("check if weak reference is cleared");
+    Branch(IsClearedWeakHeapObject(feedback), &initialize, &mark_megamorphic);
 
     BIND(&initialize);
     {
@@ -791,7 +792,8 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
         }
       }
       BIND(&done_loop);
-      CreateWeakCellInFeedbackVector(feedback_vector, slot_id, target);
+      StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id,
+                                         CAST(target));
       ReportFeedbackUpdate(feedback_vector, slot_id, "Call:Initialize");
       Goto(&done);
     }
@@ -929,9 +931,10 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
   IncrementCallCount(feedback_vector, slot_id);
 
   // Check if we have monomorphic {new_target} feedback already.
-  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
-  Branch(WordEqual(new_target, feedback_value), &construct, &extra_checks);
+  TNode<MaybeObject> feedback =
+      LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  Branch(IsWeakReferenceTo(feedback, CAST(new_target)), &construct,
+         &extra_checks);
 
   BIND(&extra_checks);
   {
@@ -940,32 +943,31 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
 
     // Check if it is a megamorphic {new_target}..
     Comment("check if megamorphic");
-    Node* is_megamorphic =
-        WordEqual(feedback_element,
-                  HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
+    Node* is_megamorphic = WordEqual(
+        feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
     GotoIf(is_megamorphic, &construct);
 
-    Comment("check if weak cell");
-    Node* feedback_element_map = LoadMap(feedback_element);
-    GotoIfNot(IsWeakCellMap(feedback_element_map), &check_allocation_site);
+    Comment("check if weak reference");
+    GotoIfNot(IsWeakOrClearedHeapObject(feedback), &check_allocation_site);
 
-    // If the weak cell is cleared, we have a new chance to become monomorphic.
-    Comment("check if weak cell is cleared");
-    Node* is_smi = TaggedIsSmi(feedback_value);
-    Branch(is_smi, &initialize, &mark_megamorphic);
+    // If the weak reference is cleared, we have a new chance to become
+    // monomorphic.
+    Comment("check if weak reference is cleared");
+    Branch(IsClearedWeakHeapObject(feedback), &initialize, &mark_megamorphic);
 
     BIND(&check_allocation_site);
     {
       // Check if it is an AllocationSite.
       Comment("check if allocation site");
-      GotoIfNot(IsAllocationSiteMap(feedback_element_map), &check_initialized);
+      TNode<HeapObject> strong_feedback = CAST(feedback);
+      GotoIfNot(IsAllocationSite(strong_feedback), &check_initialized);
 
       // Make sure that {target} and {new_target} are the Array constructor.
       Node* array_function = LoadContextElement(LoadNativeContext(context),
                                                 Context::ARRAY_FUNCTION_INDEX);
       GotoIfNot(WordEqual(target, array_function), &mark_megamorphic);
       GotoIfNot(WordEqual(new_target, array_function), &mark_megamorphic);
-      var_site.Bind(feedback_element);
+      var_site.Bind(strong_feedback);
       Goto(&construct_array);
     }
 
@@ -973,8 +975,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
     {
       // Check if it is uninitialized.
       Comment("check if uninitialized");
-      Node* is_uninitialized = WordEqual(
-          feedback_element, LoadRoot(Heap::kuninitialized_symbolRootIndex));
+      Node* is_uninitialized =
+          WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex));
       Branch(is_uninitialized, &initialize, &mark_megamorphic);
     }
 
@@ -1021,12 +1023,12 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
 
       // Create an AllocationSite if {target} and {new_target} refer
       // to the current native context's Array constructor.
-      Label create_allocation_site(this), create_weak_cell(this);
-      GotoIfNot(WordEqual(target, new_target), &create_weak_cell);
+      Label create_allocation_site(this), store_weak_reference(this);
+      GotoIfNot(WordEqual(target, new_target), &store_weak_reference);
       Node* array_function = LoadContextElement(LoadNativeContext(context),
                                                 Context::ARRAY_FUNCTION_INDEX);
       Branch(WordEqual(target, array_function), &create_allocation_site,
-             &create_weak_cell);
+             &store_weak_reference);
 
       BIND(&create_allocation_site);
       {
@@ -1037,11 +1039,12 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
         Goto(&construct_array);
       }
 
-      BIND(&create_weak_cell);
+      BIND(&store_weak_reference);
       {
-        CreateWeakCellInFeedbackVector(feedback_vector, slot_id, new_target);
+        StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id,
+                                           CAST(new_target));
         ReportFeedbackUpdate(feedback_vector, slot_id,
-                             "Construct:CreateWeakCell");
+                             "Construct:StoreWeakReference");
         Goto(&construct);
       }
     }
@@ -1108,9 +1111,10 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
   IncrementCallCount(feedback_vector, slot_id);
 
   // Check if we have monomorphic {new_target} feedback already.
-  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
-  Branch(WordEqual(new_target, feedback_value), &construct, &extra_checks);
+  TNode<MaybeObject> feedback =
+      LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  Branch(IsWeakReferenceTo(feedback, CAST(new_target)), &construct,
+         &extra_checks);
 
   BIND(&extra_checks);
   {
@@ -1118,27 +1122,24 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
 
     // Check if it is a megamorphic {new_target}.
     Comment("check if megamorphic");
-    Node* is_megamorphic =
-        WordEqual(feedback_element,
-                  HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
+    Node* is_megamorphic = WordEqual(
+        feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
     GotoIf(is_megamorphic, &construct);
 
-    Comment("check if weak cell");
-    Node* is_weak_cell = WordEqual(LoadMap(feedback_element),
-                                   LoadRoot(Heap::kWeakCellMapRootIndex));
-    GotoIfNot(is_weak_cell, &check_initialized);
+    Comment("check if weak reference");
+    GotoIfNot(IsWeakOrClearedHeapObject(feedback), &check_initialized);
 
-    // If the weak cell is cleared, we have a new chance to become monomorphic.
-    Comment("check if weak cell is cleared");
-    Node* is_smi = TaggedIsSmi(feedback_value);
-    Branch(is_smi, &initialize, &mark_megamorphic);
+    // If the weak reference is cleared, we have a new chance to become
+    // monomorphic.
+    Comment("check if weak reference is cleared");
+    Branch(IsClearedWeakHeapObject(feedback), &initialize, &mark_megamorphic);
 
     BIND(&check_initialized);
     {
       // Check if it is uninitialized.
       Comment("check if uninitialized");
-      Node* is_uninitialized = WordEqual(
-          feedback_element, LoadRoot(Heap::kuninitialized_symbolRootIndex));
+      Node* is_uninitialized =
+          WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex));
       Branch(is_uninitialized, &initialize, &mark_megamorphic);
     }
 
@@ -1182,7 +1183,8 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
         }
       }
       BIND(&done_loop);
-      CreateWeakCellInFeedbackVector(feedback_vector, slot_id, new_target);
+      StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id,
+                                         CAST(new_target));
       ReportFeedbackUpdate(feedback_vector, slot_id,
                            "ConstructWithSpread:Initialize");
       Goto(&construct);
@@ -1420,12 +1422,12 @@ Node* InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
 
 Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset, Node* target_bytecode) {
-  InterpreterDispatchDescriptor descriptor(isolate());
   // Propagate speculation poisoning.
-  Node* poisoned_handler_entry = PoisonOnSpeculationWord(handler_entry);
+  Node* poisoned_handler_entry = WordPoisonOnSpeculation(handler_entry);
   return TailCallBytecodeDispatch(
-      descriptor, poisoned_handler_entry, GetAccumulatorUnchecked(),
-      bytecode_offset, BytecodeArrayTaggedPointer(), DispatchTableRawPointer());
+      InterpreterDispatchDescriptor{}, poisoned_handler_entry,
+      GetAccumulatorUnchecked(), bytecode_offset, BytecodeArrayTaggedPointer(),
+      DispatchTableRawPointer());
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
@@ -1579,66 +1581,111 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 #endif
 }
 
-void InterpreterAssembler::AbortIfRegisterCountInvalid(Node* register_file,
-                                                       Node* register_count) {
-  Node* array_size = LoadAndUntagFixedArrayBaseLength(register_file);
+void InterpreterAssembler::AbortIfRegisterCountInvalid(
+    Node* parameters_and_registers, Node* formal_parameter_count,
+    Node* register_count) {
+  Node* array_size = LoadAndUntagFixedArrayBaseLength(parameters_and_registers);
 
   Label ok(this), abort(this, Label::kDeferred);
-  Branch(UintPtrLessThanOrEqual(register_count, array_size), &ok, &abort);
+  Branch(UintPtrLessThanOrEqual(
+             IntPtrAdd(formal_parameter_count, register_count), array_size),
+         &ok, &abort);
 
   BIND(&abort);
-  Abort(AbortReason::kInvalidRegisterFileInGenerator);
+  Abort(AbortReason::kInvalidParametersAndRegistersInGenerator);
   Goto(&ok);
 
   BIND(&ok);
 }
 
-Node* InterpreterAssembler::ExportRegisterFile(
-    Node* array, const RegListNodePair& registers) {
+Node* InterpreterAssembler::ExportParametersAndRegisterFile(
+    TNode<FixedArray> array, const RegListNodePair& registers,
+    TNode<Int32T> formal_parameter_count) {
+  // Store the formal parameters (without receiver) followed by the
+  // registers into the generator's internal parameters_and_registers field.
+  TNode<IntPtrT> formal_parameter_count_intptr =
+      ChangeInt32ToIntPtr(formal_parameter_count);
   Node* register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
     CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
-    AbortIfRegisterCountInvalid(array, register_count);
+    AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
+                                register_count);
   }
 
-  Variable var_index(this, MachineType::PointerRepresentation());
-  var_index.Bind(IntPtrConstant(0));
-
-  // Iterate over register file and write values into array.
-  // The mapping of register to array index must match that used in
-  // BytecodeGraphBuilder::VisitResumeGenerator.
-  Label loop(this, &var_index), done_loop(this);
-  Goto(&loop);
-  BIND(&loop);
   {
-    Node* index = var_index.value();
-    GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
+    Variable var_index(this, MachineType::PointerRepresentation());
+    var_index.Bind(IntPtrConstant(0));
 
-    Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
-    Node* value = LoadRegister(reg_index);
+    // Iterate over parameters and write them into the array.
+    Label loop(this, &var_index), done_loop(this);
 
-    StoreFixedArrayElement(array, index, value);
+    Node* reg_base = IntPtrAdd(
+        IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() - 1),
+        formal_parameter_count_intptr);
 
-    var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
     Goto(&loop);
+    BIND(&loop);
+    {
+      Node* index = var_index.value();
+      GotoIfNot(UintPtrLessThan(index, formal_parameter_count_intptr),
+                &done_loop);
+
+      Node* reg_index = IntPtrSub(reg_base, index);
+      Node* value = LoadRegister(reg_index);
+
+      StoreFixedArrayElement(array, index, value);
+
+      var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+      Goto(&loop);
+    }
+    BIND(&done_loop);
   }
-  BIND(&done_loop);
+
+  {
+    // Iterate over register file and write values into array.
+    // The mapping of register to array index must match that used in
+    // BytecodeGraphBuilder::VisitResumeGenerator.
+    Variable var_index(this, MachineType::PointerRepresentation());
+    var_index.Bind(IntPtrConstant(0));
+
+    Label loop(this, &var_index), done_loop(this);
+    Goto(&loop);
+    BIND(&loop);
+    {
+      Node* index = var_index.value();
+      GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
+
+      Node* reg_index =
+          IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
+      Node* value = LoadRegister(reg_index);
+
+      Node* array_index = IntPtrAdd(formal_parameter_count_intptr, index);
+      StoreFixedArrayElement(array, array_index, value);
+
+      var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+      Goto(&loop);
+    }
+    BIND(&done_loop);
+  }
 
   return array;
 }
 
 Node* InterpreterAssembler::ImportRegisterFile(
-    Node* array, const RegListNodePair& registers) {
-  Node* register_count = ChangeUint32ToWord(registers.reg_count());
+    TNode<FixedArray> array, const RegListNodePair& registers,
+    TNode<Int32T> formal_parameter_count) {
+  TNode<IntPtrT> formal_parameter_count_intptr =
+      ChangeInt32ToIntPtr(formal_parameter_count);
+  TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
     CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
-    AbortIfRegisterCountInvalid(array, register_count);
+    AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
+                                register_count);
   }
 
-  Variable var_index(this, MachineType::PointerRepresentation());
-  var_index.Bind(IntPtrConstant(0));
+  TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
 
   // Iterate over array and write values into register file.  Also erase the
   // array contents to not keep them alive artificially.
@@ -1646,17 +1693,21 @@ Node* InterpreterAssembler::ImportRegisterFile(
   Goto(&loop);
   BIND(&loop);
   {
-    Node* index = var_index.value();
+    TNode<IntPtrT> index = var_index.value();
     GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
 
-    Node* value = LoadFixedArrayElement(array, index);
+    TNode<IntPtrT> array_index =
+        IntPtrAdd(formal_parameter_count_intptr, index);
+    TNode<Object> value = LoadFixedArrayElement(array, array_index);
 
-    Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
+    TNode<IntPtrT> reg_index =
+        IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
     StoreRegister(value, reg_index);
 
-    StoreFixedArrayElement(array, index, StaleRegisterConstant());
+    StoreFixedArrayElement(array, array_index,
+                           LoadRoot(Heap::kStaleRegisterRootIndex));
 
-    var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+    var_index = IntPtrAdd(index, IntPtrConstant(1));
     Goto(&loop);
   }
   BIND(&done_loop);

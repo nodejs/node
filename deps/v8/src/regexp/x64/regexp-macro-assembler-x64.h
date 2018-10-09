@@ -8,6 +8,7 @@
 #include "src/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/x64/assembler-x64.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
@@ -215,7 +216,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   void BranchOrBacktrack(Condition condition, Label* to);
 
   void MarkPositionForCodeRelativeFixup() {
-    code_relative_fixup_positions_.Add(masm_.pc_offset(), zone());
+    code_relative_fixup_positions_.push_back(masm_.pc_offset());
   }
 
   void FixupCodeRelativePositions();
@@ -252,9 +253,9 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   Isolate* isolate() const { return masm_.isolate(); }
 
   MacroAssembler masm_;
-  MacroAssembler::NoRootArrayScope no_root_array_scope_;
+  NoRootArrayScope no_root_array_scope_;
 
-  ZoneList<int> code_relative_fixup_positions_;
+  ZoneChunkList<int> code_relative_fixup_positions_;
 
   // Which mode to generate code for (LATIN1 or UC16).
   Mode mode_;

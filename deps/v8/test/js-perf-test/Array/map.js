@@ -49,15 +49,15 @@ function OptUnreliableMap() {
 
 DefineHigherOrderTests([
   // name, test function, setup function, user callback
-  "NaiveMapReplacement", NaiveMap, NaiveMapSetup, v => v,
-  "SmiMap", mc("map"), SmiSetup, v => v,
-  "DoubleMap", mc("map"), DoubleSetup, v => v,
-  "FastMap", mc("map"), FastSetup, v => v,
-  "SmallSmiToDoubleMap", mc("map"), SmiSetup, v => v + 0.5,
-  "SmallSmiToFastMap", mc("map"), SmiSetup, v => "hi" + v,
-  "GenericMap", mc("map", true), ObjectSetup, v => v,
-  "OptFastMap", OptFastMap, FastSetup, undefined,
-  "OptUnreliableMap", OptUnreliableMap, FastSetup, v => v
+  ['NaiveMapReplacement', NaiveMap, NaiveMapSetup, v => v],
+  ['SmiMap', newClosure('map'), SmiSetup, v => v],
+  ['DoubleMap', newClosure('map'), DoubleSetup, v => v],
+  ['FastMap', newClosure('map'), FastSetup, v => v],
+  ['SmallSmiToDoubleMap', newClosure('map'), SmiSetup, v => v + 0.5],
+  ['SmallSmiToFastMap', newClosure('map'), SmiSetup, v => 'hi' + v],
+  ['GenericMap', newClosure('map', true), ObjectSetup, v => v],
+  ['OptFastMap', OptFastMap, FastSetup, undefined],
+  ['OptUnreliableMap', OptUnreliableMap, FastSetup, v => v]
 ]);
 
 })();

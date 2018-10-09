@@ -99,11 +99,6 @@ class GlobalHandles {
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Object** location);
 
-  // Mark the reference to this object independent.
-  static void MarkIndependent(Object** location);
-
-  static bool IsIndependent(Object** location);
-
   // Tells whether global handle is near death.
   static bool IsNearDeath(Object** location);
 
@@ -137,11 +132,12 @@ class GlobalHandles {
 
   // Iterates over weak roots on the heap.
   void IterateWeakRootsForFinalizers(RootVisitor* v);
-  void IterateWeakRootsForPhantomHandles(WeakSlotCallback should_reset_handle);
+  void IterateWeakRootsForPhantomHandles(
+      WeakSlotCallbackWithHeap should_reset_handle);
 
   // Marks all handles that should be finalized based on the predicate
   // |should_reset_handle| as pending.
-  void IdentifyWeakHandles(WeakSlotCallback should_reset_handle);
+  void IdentifyWeakHandles(WeakSlotCallbackWithHeap should_reset_handle);
 
   // NOTE: Five ...NewSpace... functions below are used during
   // scavenge collections and iterate over sets of handles that are
@@ -180,6 +176,8 @@ class GlobalHandles {
   void Print();
 #endif  // DEBUG
 
+  void InvokeSecondPassPhantomCallbacks();
+
  private:
   // Internal node structures.
   class Node;
@@ -190,9 +188,7 @@ class GlobalHandles {
 
   explicit GlobalHandles(Isolate* isolate);
 
-  // Helpers for PostGarbageCollectionProcessing.
-  static void InvokeSecondPassPhantomCallbacks(
-      std::vector<PendingPhantomCallback>* callbacks, Isolate* isolate);
+  void InvokeSecondPassPhantomCallbacksFromTask();
   int PostScavengeProcessing(int initial_post_gc_processing_count);
   int PostMarkSweepProcessing(int initial_post_gc_processing_count);
   int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
@@ -223,6 +219,8 @@ class GlobalHandles {
   size_t number_of_phantom_handle_resets_;
 
   std::vector<PendingPhantomCallback> pending_phantom_callbacks_;
+  std::vector<PendingPhantomCallback> second_pass_callbacks_;
+  bool second_pass_callbacks_task_posted_ = false;
 
   friend class Isolate;
 
@@ -300,7 +298,7 @@ class EternalHandles {
   // Iterates over all handles which might be in new space.
   void IterateNewSpaceRoots(RootVisitor* visitor);
   // Rebuilds new space list.
-  void PostGarbageCollectionProcessing(Heap* heap);
+  void PostGarbageCollectionProcessing();
 
  private:
   static const int kInvalidIndex = -1;

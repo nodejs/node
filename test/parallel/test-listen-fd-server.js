@@ -44,7 +44,7 @@ process.on('exit', function() {
 // concurrency in HTTP servers!  Use the cluster module, or if you want
 // a more low-level approach, use child process IPC manually.
 test(function(child, port) {
-  // now make sure that we can request to the child, then kill it.
+  // now make sure that we can request to the subprocess, then kill it.
   http.get({
     server: 'localhost',
     port: port,

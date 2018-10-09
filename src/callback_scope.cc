@@ -43,6 +43,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     object_(object),
     callback_scope_(env) {
   CHECK_IMPLIES(expect == kRequireResource, !object.IsEmpty());
+  CHECK_NOT_NULL(env);
 
   if (!env->can_call_into_js()) {
     failed_ = true;
@@ -87,7 +88,7 @@ void InternalCallbackScope::Close() {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);
   }
 
-  if (IsInnerMakeCallback()) {
+  if (env_->makecallback_depth() > 1) {
     return;
   }
 

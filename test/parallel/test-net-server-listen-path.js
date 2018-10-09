@@ -63,8 +63,8 @@ function randomPipePath() {
     }, common.mustCall(() => {
       if (process.platform !== 'win32') {
         const mode = fs.statSync(handlePath).mode;
-        assert.ok(mode & fs.constants.S_IROTH !== 0);
-        assert.ok(mode & fs.constants.S_IWOTH !== 0);
+        assert.notStrictEqual(mode & fs.constants.S_IROTH, 0);
+        assert.notStrictEqual(mode & fs.constants.S_IWOTH, 0);
       }
       srv.close();
     }));

@@ -10,7 +10,10 @@
 {% endif %}
 #include {{format_include(config.lib.string_header)}}
 
+#include <cstddef>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {

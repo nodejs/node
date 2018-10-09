@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --no-stress-background-compile
 
 let id = 0;
 

@@ -11,6 +11,7 @@
 #include "src/simulator.h"
 #include "src/snapshot/macros.h"
 #include "src/snapshot/snapshot.h"
+#include "test/common/assembler-tester.h"
 
 // To generate the binary files for the test function, enable this section and
 // run GenerateTestFunctionData once on each arch.
@@ -19,94 +20,6 @@
 namespace v8 {
 namespace internal {
 namespace test_isolate_independent_builtins {
-
-#ifdef V8_EMBEDDED_BUILTINS
-UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
-
-  {
-    v8::Isolate::Scope isolate_scope(v8_isolate);
-    v8::internal::Isolate* isolate =
-        reinterpret_cast<v8::internal::Isolate*>(v8_isolate);
-    HandleScope handle_scope(isolate);
-
-    Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
-
-    // TODO(jgruber,v8:6666): Investigate CONST_POOL and VENEER_POOL kinds.
-    // CONST_POOL is currently relevant on {arm,arm64,mips,mips64,ppc,s390}.
-    //            Rumors are it will also become relevant on x64. My
-    //            understanding is that we should be fine if we ensure it
-    //            doesn't contain heap constants and we use pc-relative
-    //            addressing.
-    // VENEER_POOL is arm64-only. From what I've seen, jumps are pc-relative
-    //             and stay within the same code object and thus should be
-    //             isolate-independent.
-
-    // Build a white-list of all isolate-independent RelocInfo entry kinds.
-    constexpr int all_real_modes_mask =
-        (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
-    constexpr int mode_mask =
-        all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
-        ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
-        ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
-        ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
-        ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
-        ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-    STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
-    STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
-                  (1 << RelocInfo::COMMENT));
-    STATIC_ASSERT(
-        mode_mask ==
-        (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-         RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-         RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
-         RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-         RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
-         RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-         RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
-
-    constexpr bool kVerbose = false;
-    bool found_mismatch = false;
-    for (int i = 0; i < Builtins::builtin_count; i++) {
-      Code* code = isolate->builtins()->builtin(i);
-
-      if (kVerbose) {
-        printf("%s %s\n", Builtins::KindNameOf(i),
-               isolate->builtins()->name(i));
-      }
-
-      bool is_isolate_independent = true;
-      for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-        is_isolate_independent = false;
-
-#ifdef ENABLE_DISASSEMBLER
-        if (kVerbose) {
-          RelocInfo::Mode mode = it.rinfo()->rmode();
-          printf("  %s\n", RelocInfo::RelocModeName(mode));
-        }
-#endif
-      }
-
-      // Relaxed condition only checks whether the isolate-independent list is
-      // valid, not whether it is complete. This is to avoid constant work
-      // updating the list.
-      bool should_be_isolate_independent = Builtins::IsIsolateIndependent(i);
-      if (should_be_isolate_independent && !is_isolate_independent) {
-        found_mismatch = true;
-        printf("%s %s expected: %d, is: %d\n", Builtins::KindNameOf(i),
-               isolate->builtins()->name(i), should_be_isolate_independent,
-               is_isolate_independent);
-      }
-    }
-
-    CHECK(!found_mismatch);
-  }
-
-  v8_isolate->Dispose();
-}
-#endif  // V8_EMBEDDED_BUILTINS
 
 // V8_CC_MSVC is true for both MSVC and clang on windows. clang can handle
 // __asm__-style inline assembly but MSVC cannot, and thus we need a more
@@ -277,7 +190,7 @@ TEST(ByteInText) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   auto f = GeneratedCode<int(int, int)>::FromAddress(
-      isolate, const_cast<char*>(test_function0_bytes));
+      isolate, reinterpret_cast<Address>(&test_function0_bytes[0]));
   CHECK_EQ(7, f.Call(3, 4));
   CHECK_EQ(11, f.Call(5, 6));
 }

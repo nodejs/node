@@ -10,7 +10,7 @@
 
 const TokenStore = require("../token-store"),
     Traverser = require("./traverser"),
-    astUtils = require("../ast-utils"),
+    astUtils = require("../util/ast-utils"),
     lodash = require("lodash");
 
 //------------------------------------------------------------------------------

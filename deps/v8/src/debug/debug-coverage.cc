@@ -72,8 +72,7 @@ void SortBlockData(std::vector<CoverageBlock>& v) {
   std::sort(v.begin(), v.end(), CompareCoverageBlock);
 }
 
-std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
-                                              SharedFunctionInfo* shared) {
+std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo* shared) {
   DCHECK(shared->HasCoverageInfo());
 
   CoverageInfo* coverage_info =
@@ -385,13 +384,12 @@ bool IsBinaryMode(debug::Coverage::Mode mode) {
   }
 }
 
-void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
-                          SharedFunctionInfo* info,
+void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo* info,
                           debug::Coverage::Mode mode) {
   DCHECK(IsBlockMode(mode));
 
   function->has_block_coverage = true;
-  function->blocks = GetSortedBlockData(isolate, info);
+  function->blocks = GetSortedBlockData(info);
 
   // If in binary mode, only report counts of 0/1.
   if (mode == debug::Coverage::kBlockBinary) ClampToBinary(function);
@@ -505,7 +503,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
 
     {
       // Sort functions by start position, from outer to inner functions.
-      SharedFunctionInfo::ScriptIterator infos(script_handle);
+      SharedFunctionInfo::ScriptIterator infos(isolate, *script_handle);
       while (SharedFunctionInfo* info = infos.Next()) {
         sorted.push_back(info);
       }
@@ -544,7 +542,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
       CoverageFunction function(start, end, count, name);
 
       if (IsBlockMode(collectionMode) && info->HasCoverageInfo()) {
-        CollectBlockCoverage(isolate, &function, info, collectionMode);
+        CollectBlockCoverage(&function, info, collectionMode);
       }
 
       // Only include a function range if itself or its parent function is
@@ -575,7 +573,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       isolate->debug()->RemoveAllCoverageInfos();
       if (!isolate->is_collecting_type_profile()) {
         isolate->SetFeedbackVectorsForProfilingTools(
-            isolate->heap()->undefined_value());
+            ReadOnlyRoots(isolate).undefined_value());
       }
       break;
     case debug::Coverage::kBlockBinary:

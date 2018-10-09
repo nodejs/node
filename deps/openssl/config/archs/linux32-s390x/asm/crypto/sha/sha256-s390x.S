@@ -1234,7 +1234,7 @@ sha256_block_data_order:
 	cl	%r3,176(%r15)
 	jne	.Lloop
 
-	lm	%r6,%r15,184(%r15)
+	lm	%r6,%r15,184(%r15)	
 	br	%r14
 .size	sha256_block_data_order,.-sha256_block_data_order
 .string	"SHA256 block transform for s390x, CRYPTOGAMS by <appro@openssl.org>"

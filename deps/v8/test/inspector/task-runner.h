@@ -10,7 +10,6 @@
 #include "include/v8-inspector.h"
 #include "include/v8-platform.h"
 #include "include/v8.h"
-#include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/locked-queue-inl.h"
@@ -64,7 +63,7 @@ class TaskRunner : public v8::base::Thread {
 
   int nested_loop_count_;
 
-  v8::base::AtomicNumber<int> is_terminated_;
+  std::atomic<int> is_terminated_;
 
   DISALLOW_COPY_AND_ASSIGN(TaskRunner);
 };

@@ -45,14 +45,23 @@ class SwitchInfo {
     }
   }
 
+  // Ensure that comparison order of if-cascades is preserved.
+  std::vector<CaseInfo> CasesSortedByOriginalOrder() const {
+    std::vector<CaseInfo> result(cases_.begin(), cases_.end());
+    std::stable_sort(result.begin(), result.end());
+    return result;
+  }
+  std::vector<CaseInfo> CasesSortedByValue() const {
+    std::vector<CaseInfo> result(cases_.begin(), cases_.end());
+    std::stable_sort(result.begin(), result.end(),
+                     [](CaseInfo a, CaseInfo b) { return a.value < b.value; });
+    return result;
+  }
+  const ZoneVector<CaseInfo>& CasesUnsorted() const { return cases_; }
   int32_t min_value() const { return min_value_; }
   int32_t max_value() const { return max_value_; }
   size_t value_range() const { return value_range_; }
   size_t case_count() const { return cases_.size(); }
-  const CaseInfo& GetCase(size_t i) const {
-    DCHECK_LT(i, cases_.size());
-    return cases_[i];
-  }
   BasicBlock* default_branch() const { return default_branch_; }
 
  private:
@@ -299,8 +308,15 @@ class OperandGenerator {
       case IrOpcode::kNumberConstant:
         return Constant(OpParameter<double>(node->op()));
       case IrOpcode::kExternalConstant:
-      case IrOpcode::kComment:
         return Constant(OpParameter<ExternalReference>(node->op()));
+      case IrOpcode::kComment: {
+        // We cannot use {intptr_t} here, since the Constant constructor would
+        // be ambiguous on some architectures.
+        using ptrsize_int_t =
+            std::conditional<kPointerSize == 8, int64_t, int32_t>::type;
+        return Constant(reinterpret_cast<ptrsize_int_t>(
+            OpParameter<const char*>(node->op())));
+      }
       case IrOpcode::kHeapConstant:
         return Constant(HeapConstantOf(node->op()));
       case IrOpcode::kDeadValue: {

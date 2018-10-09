@@ -21,7 +21,7 @@ const proc_no_categories = cp.spawn(
 );
 
 proc_no_categories.once('exit', common.mustCall(() => {
-  assert(common.fileExists(FILE_NAME));
+  assert(fs.existsSync(FILE_NAME));
   // Only __metadata categories should have been emitted.
   fs.readFile(FILE_NAME, common.mustCall((err, data) => {
     assert.ok(JSON.parse(data.toString()).traceEvents.every(

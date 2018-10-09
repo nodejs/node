@@ -10,11 +10,11 @@ const d = path.join(tmpdir.path, 'dir');
 tmpdir.refresh();
 
 // Make sure the directory does not exist
-assert(!common.fileExists(d));
+assert(!fs.existsSync(d));
 // Create the directory now
 fs.mkdirSync(d);
 // Make sure the directory exists
-assert(common.fileExists(d));
+assert(fs.existsSync(d));
 // Try creating again, it should fail with EEXIST
 assert.throws(function() {
   fs.mkdirSync(d);
@@ -22,7 +22,7 @@ assert.throws(function() {
 // Remove the directory now
 fs.rmdirSync(d);
 // Make sure the directory does not exist
-assert(!common.fileExists(d));
+assert(!fs.existsSync(d));
 
 // Similarly test the Async version
 fs.mkdir(d, 0o666, common.mustCall(function(err) {

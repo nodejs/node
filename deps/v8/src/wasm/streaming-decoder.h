@@ -44,8 +44,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // Report the end of the stream. If the stream was successful, all
   // received bytes are passed by parameter. If there has been an error, an
   // empty array is passed.
-  virtual void OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
-                                size_t length) = 0;
+  virtual void OnFinishedStream(OwnedVector<uint8_t> bytes) = 0;
   // Report an error detected in the StreamingDecoder.
   virtual void OnError(DecodeResult result) = 0;
   // Report the abortion of the stream.
@@ -66,8 +65,13 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   void Abort();
 
-  // Notify the StreamingDecoder that there has been an compilation error.
-  void NotifyError() { ok_ = false; }
+  // Notify the StreamingDecoder that compilation ended and the
+  // StreamingProcessor should not be called anymore.
+  void NotifyCompilationEnded() {
+    // We set {ok_} to false to turn all future calls to the StreamingDecoder
+    // into no-ops.
+    ok_ = false;
+  }
 
  private:
   // TODO(ahaas): Put the whole private state of the StreamingDecoder into the

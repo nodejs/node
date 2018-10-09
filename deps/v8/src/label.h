@@ -32,8 +32,8 @@ class Label {
 // In debug builds, the old Label has to be cleared in order to avoid a DCHECK
 // failure in it's destructor.
 #ifdef DEBUG
-  Label(Label&& other) { *this = std::move(other); }
-  Label& operator=(Label&& other) {
+  Label(Label&& other) V8_NOEXCEPT { *this = std::move(other); }
+  Label& operator=(Label&& other) V8_NOEXCEPT {
     pos_ = other.pos_;
     near_link_pos_ = other.near_link_pos_;
     other.Unuse();
@@ -41,23 +41,23 @@ class Label {
     return *this;
   }
 #else
-  Label(Label&&) = default;
-  Label& operator=(Label&&) = default;
+  Label(Label&&) V8_NOEXCEPT = default;
+  Label& operator=(Label&&) V8_NOEXCEPT = default;
 #endif
 #endif
 
-  INLINE(~Label()) {
+  V8_INLINE ~Label() {
     DCHECK(!is_linked());
     DCHECK(!is_near_linked());
   }
 
-  INLINE(void Unuse()) { pos_ = 0; }
-  INLINE(void UnuseNear()) { near_link_pos_ = 0; }
+  V8_INLINE void Unuse() { pos_ = 0; }
+  V8_INLINE void UnuseNear() { near_link_pos_ = 0; }
 
-  INLINE(bool is_bound() const) { return pos_ < 0; }
-  INLINE(bool is_unused() const) { return pos_ == 0 && near_link_pos_ == 0; }
-  INLINE(bool is_linked() const) { return pos_ > 0; }
-  INLINE(bool is_near_linked() const) { return near_link_pos_ > 0; }
+  V8_INLINE bool is_bound() const { return pos_ < 0; }
+  V8_INLINE bool is_unused() const { return pos_ == 0 && near_link_pos_ == 0; }
+  V8_INLINE bool is_linked() const { return pos_ > 0; }
+  V8_INLINE bool is_near_linked() const { return near_link_pos_ > 0; }
 
   // Returns the position of bound or linked labels. Cannot be used
   // for unused labels.

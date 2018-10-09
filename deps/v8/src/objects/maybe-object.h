@@ -7,12 +7,14 @@
 
 #include "include/v8.h"
 #include "src/globals.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
 
 class HeapObject;
 class Smi;
+class StringStream;
 
 // A MaybeObject is either a SMI, a strong reference to a HeapObject, a weak
 // reference to a HeapObject, or a cleared weak reference. It's used for
@@ -21,23 +23,30 @@ class MaybeObject {
  public:
   bool IsSmi() const { return HAS_SMI_TAG(this); }
   inline bool ToSmi(Smi** value);
+  inline Smi* ToSmi();
 
-  bool IsClearedWeakHeapObject() {
+  bool IsClearedWeakHeapObject() const {
     return ::v8::internal::IsClearedWeakHeapObject(this);
   }
 
-  inline bool IsStrongOrWeakHeapObject();
+  inline bool IsStrongOrWeakHeapObject() const;
   inline bool ToStrongOrWeakHeapObject(HeapObject** result);
   inline bool ToStrongOrWeakHeapObject(HeapObject** result,
                                        HeapObjectReferenceType* reference_type);
-  inline bool IsStrongHeapObject();
+  inline bool IsStrongHeapObject() const;
   inline bool ToStrongHeapObject(HeapObject** result);
   inline HeapObject* ToStrongHeapObject();
-  inline bool IsWeakHeapObject();
+  inline bool IsWeakHeapObject() const;
+  inline bool IsWeakOrClearedHeapObject() const;
   inline bool ToWeakHeapObject(HeapObject** result);
   inline HeapObject* ToWeakHeapObject();
 
+  // Returns the HeapObject pointed to (either strongly or weakly).
   inline HeapObject* GetHeapObject();
+  inline Object* GetHeapObjectOrSmi();
+
+  inline bool IsObject() const;
+  inline Object* ToObject();
 
   static MaybeObject* FromSmi(Smi* smi) {
     DCHECK(HAS_SMI_TAG(smi));
@@ -49,13 +58,26 @@ class MaybeObject {
     return reinterpret_cast<MaybeObject*>(object);
   }
 
-  static MaybeObject* MakeWeak(MaybeObject* object) {
-    DCHECK(object->IsStrongOrWeakHeapObject());
-    return AddWeakHeapObjectMask(object);
-  }
+  static inline MaybeObject* MakeWeak(MaybeObject* object);
 
 #ifdef VERIFY_HEAP
-  static void VerifyMaybeObjectPointer(MaybeObject* p);
+  static void VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject* p);
+#endif
+
+  // Prints this object without details.
+  void ShortPrint(FILE* out = stdout);
+
+  // Prints this object without details to a message accumulator.
+  void ShortPrint(StringStream* accumulator);
+
+  void ShortPrint(std::ostream& os);
+
+#ifdef OBJECT_PRINT
+  void Print();
+  void Print(std::ostream& os);
+#else
+  void Print() { ShortPrint(); }
+  void Print(std::ostream& os) { ShortPrint(os); }
 #endif
 
  private:
@@ -66,12 +88,14 @@ class MaybeObject {
 // reference to a HeapObject, or a cleared weak reference.
 class HeapObjectReference : public MaybeObject {
  public:
-  static HeapObjectReference* Strong(HeapObject* object) {
+  static HeapObjectReference* Strong(Object* object) {
+    DCHECK(!object->IsSmi());
     DCHECK(!HasWeakHeapObjectTag(object));
     return reinterpret_cast<HeapObjectReference*>(object);
   }
 
-  static HeapObjectReference* Weak(HeapObject* object) {
+  static HeapObjectReference* Weak(Object* object) {
+    DCHECK(!object->IsSmi());
     DCHECK(!HasWeakHeapObjectTag(object));
     return AddWeakHeapObjectMask(object);
   }

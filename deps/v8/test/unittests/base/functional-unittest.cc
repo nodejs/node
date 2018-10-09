@@ -74,7 +74,9 @@ TYPED_TEST(FunctionalTest, EqualToImpliesSameHashCode) {
   this->rng()->NextBytes(values, sizeof(values));
   TRACED_FOREACH(TypeParam, v1, values) {
     TRACED_FOREACH(TypeParam, v2, values) {
-      if (e(v1, v2)) EXPECT_EQ(h(v1), h(v2));
+      if (e(v1, v2)) {
+        EXPECT_EQ(h(v1), h(v2));
+      }
     }
   }
 }
@@ -143,7 +145,9 @@ TYPED_TEST(FunctionalTest, BitEqualToImpliesSameBitHash) {
   this->rng()->NextBytes(&values, sizeof(values));
   TRACED_FOREACH(TypeParam, v1, values) {
     TRACED_FOREACH(TypeParam, v2, values) {
-      if (e(v1, v2)) EXPECT_EQ(h(v1), h(v2));
+      if (e(v1, v2)) {
+        EXPECT_EQ(h(v1), h(v2));
+      }
     }
   }
 }

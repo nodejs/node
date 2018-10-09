@@ -35,6 +35,9 @@
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
   # Irregexp interpreter overflows stack. We should just not crash.
   'fast/js/regexp-stack-overflow': [PASS, FAIL],
+
+  # Slow tests.
+  'dfg-double-vote-fuzz': [PASS, SLOW],
 }],  # ALWAYS
 ['system == windows', {
   # Exceeds call stack on windows after MSVS2017 switch.
@@ -113,6 +116,12 @@
 }],  # arch == arm64 and msan
 
 ##############################################################################
+['(variant == nooptimization or variant == stress or variant == no_liftoff) and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'dfg-double-vote-fuzz': [SKIP],
+}],  # (variant == nooptimization or variant == stress or variant == no_liftoff) and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long or getting too large call stacks.
   'fast/js/excessive-comma-usage': [SKIP],
@@ -120,14 +129,14 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ['no_i18n == True', {
   'fast/js/string-capitalization': [FAIL],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ]

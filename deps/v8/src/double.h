@@ -5,6 +5,7 @@
 #ifndef V8_DOUBLE_H_
 #define V8_DOUBLE_H_
 
+#include "src/base/macros.h"
 #include "src/diy-fp.h"
 
 namespace v8 {
@@ -17,13 +18,16 @@ inline double uint64_to_double(uint64_t d64) { return bit_cast<double>(d64); }
 // Helper functions for doubles.
 class Double {
  public:
-  static const uint64_t kSignMask = V8_2PART_UINT64_C(0x80000000, 00000000);
-  static const uint64_t kExponentMask = V8_2PART_UINT64_C(0x7FF00000, 00000000);
-  static const uint64_t kSignificandMask =
+  static constexpr uint64_t kSignMask = V8_2PART_UINT64_C(0x80000000, 00000000);
+  static constexpr uint64_t kExponentMask =
+      V8_2PART_UINT64_C(0x7FF00000, 00000000);
+  static constexpr uint64_t kSignificandMask =
       V8_2PART_UINT64_C(0x000FFFFF, FFFFFFFF);
-  static const uint64_t kHiddenBit = V8_2PART_UINT64_C(0x00100000, 00000000);
-  static const int kPhysicalSignificandSize = 52;  // Excludes the hidden bit.
-  static const int kSignificandSize = 53;
+  static constexpr uint64_t kHiddenBit =
+      V8_2PART_UINT64_C(0x00100000, 00000000);
+  static constexpr int kPhysicalSignificandSize =
+      52;  // Excludes the hidden bit.
+  static constexpr int kSignificandSize = 53;
 
   Double() : d64_(0) {}
   explicit Double(double d) : d64_(double_to_uint64(d)) {}
@@ -169,10 +173,10 @@ class Double {
   }
 
  private:
-  static const int kExponentBias = 0x3FF + kPhysicalSignificandSize;
-  static const int kDenormalExponent = -kExponentBias + 1;
-  static const int kMaxExponent = 0x7FF - kExponentBias;
-  static const uint64_t kInfinity = V8_2PART_UINT64_C(0x7FF00000, 00000000);
+  static constexpr int kExponentBias = 0x3FF + kPhysicalSignificandSize;
+  static constexpr int kDenormalExponent = -kExponentBias + 1;
+  static constexpr int kMaxExponent = 0x7FF - kExponentBias;
+  static constexpr uint64_t kInfinity = V8_2PART_UINT64_C(0x7FF00000, 00000000);
 
   // The field d64_ is not marked as const to permit the usage of the copy
   // constructor.

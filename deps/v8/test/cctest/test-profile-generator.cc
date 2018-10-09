@@ -28,7 +28,7 @@
 // Tests of profiles generator and utilities.
 
 #include "include/v8-profiler.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
@@ -64,6 +64,25 @@ TEST(ProfileNodeFindOrAddChild) {
   CHECK_EQ(childNode3, node->FindOrAddChild(&entry3));
 }
 
+TEST(ProfileNodeFindOrAddChildWithLineNumber) {
+  CcTest::InitializeVM();
+  ProfileTree tree(CcTest::i_isolate());
+  ProfileNode* root = tree.root();
+  CodeEntry a(i::CodeEventListener::FUNCTION_TAG, "a");
+  ProfileNode* a_node = root->FindOrAddChild(&a, -1);
+
+  // a --(22)--> child1
+  //   --(23)--> child1
+
+  CodeEntry child1(i::CodeEventListener::FUNCTION_TAG, "child1");
+  ProfileNode* child1_node = a_node->FindOrAddChild(&child1, 22);
+  CHECK(child1_node);
+  CHECK_EQ(child1_node, a_node->FindOrAddChild(&child1, 22));
+
+  ProfileNode* child2_node = a_node->FindOrAddChild(&child1, 23);
+  CHECK(child2_node);
+  CHECK_NE(child1_node, child2_node);
+}
 
 TEST(ProfileNodeFindOrAddChildForSameFunction) {
   CcTest::InitializeVM();
@@ -172,6 +191,29 @@ TEST(ProfileTreeAddPathFromEnd) {
   CHECK_EQ(1u, node4->self_ticks());
 }
 
+TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
+  CcTest::InitializeVM();
+  CodeEntry a(i::CodeEventListener::FUNCTION_TAG, "a");
+  CodeEntry b(i::CodeEventListener::FUNCTION_TAG, "b");
+  CodeEntry c(i::CodeEventListener::FUNCTION_TAG, "c");
+  ProfileTree tree(CcTest::i_isolate());
+  ProfileTreeTestHelper helper(&tree);
+
+  ProfileStackTrace path = {{&c, 5}, {&b, 3}, {&a, 1}};
+  tree.AddPathFromEnd(path, v8::CpuProfileNode::kNoLineNumberInfo, true,
+                      v8::CpuProfilingMode::kCallerLineNumbers);
+
+  ProfileNode* a_node =
+      tree.root()->FindChild(&a, v8::CpuProfileNode::kNoLineNumberInfo);
+  tree.Print();
+  CHECK(a_node);
+
+  ProfileNode* b_node = a_node->FindChild(&b, 1);
+  CHECK(b_node);
+
+  ProfileNode* c_node = b_node->FindChild(&c, 3);
+  CHECK(c_node);
+}
 
 TEST(ProfileTreeCalculateTotalTicks) {
   CcTest::InitializeVM();
@@ -262,59 +304,55 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CHECK_EQ(4u, node3->self_ticks());
 }
 
+static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
 
-static inline i::Address ToAddress(int n) {
-  return reinterpret_cast<i::Address>(n);
-}
-
+static inline void* ToPointer(int n) { return reinterpret_cast<void*>(n); }
 
 TEST(CodeMapAddCode) {
   CodeMap code_map;
-  CodeEntry entry1(i::CodeEventListener::FUNCTION_TAG, "aaa");
-  CodeEntry entry2(i::CodeEventListener::FUNCTION_TAG, "bbb");
-  CodeEntry entry3(i::CodeEventListener::FUNCTION_TAG, "ccc");
-  CodeEntry entry4(i::CodeEventListener::FUNCTION_TAG, "ddd");
-  code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
-  code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
-  code_map.AddCode(ToAddress(0x1900), &entry3, 0x50);
-  code_map.AddCode(ToAddress(0x1950), &entry4, 0x10);
+  CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+  CodeEntry* entry4 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ddd");
+  code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
+  code_map.AddCode(ToAddress(0x1700), entry2, 0x100);
+  code_map.AddCode(ToAddress(0x1900), entry3, 0x50);
+  code_map.AddCode(ToAddress(0x1950), entry4, 0x10);
   CHECK(!code_map.FindEntry(0));
   CHECK(!code_map.FindEntry(ToAddress(0x1500 - 1)));
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500)));
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500 + 0x100)));
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500 + 0x200 - 1)));
-  CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700)));
-  CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700 + 0x50)));
-  CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700 + 0x100 - 1)));
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1500)));
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1500 + 0x100)));
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1500 + 0x200 - 1)));
+  CHECK_EQ(entry2, code_map.FindEntry(ToAddress(0x1700)));
+  CHECK_EQ(entry2, code_map.FindEntry(ToAddress(0x1700 + 0x50)));
+  CHECK_EQ(entry2, code_map.FindEntry(ToAddress(0x1700 + 0x100 - 1)));
   CHECK(!code_map.FindEntry(ToAddress(0x1700 + 0x100)));
   CHECK(!code_map.FindEntry(ToAddress(0x1900 - 1)));
-  CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1900)));
-  CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1900 + 0x28)));
-  CHECK_EQ(&entry4, code_map.FindEntry(ToAddress(0x1950)));
-  CHECK_EQ(&entry4, code_map.FindEntry(ToAddress(0x1950 + 0x7)));
-  CHECK_EQ(&entry4, code_map.FindEntry(ToAddress(0x1950 + 0x10 - 1)));
+  CHECK_EQ(entry3, code_map.FindEntry(ToAddress(0x1900)));
+  CHECK_EQ(entry3, code_map.FindEntry(ToAddress(0x1900 + 0x28)));
+  CHECK_EQ(entry4, code_map.FindEntry(ToAddress(0x1950)));
+  CHECK_EQ(entry4, code_map.FindEntry(ToAddress(0x1950 + 0x7)));
+  CHECK_EQ(entry4, code_map.FindEntry(ToAddress(0x1950 + 0x10 - 1)));
   CHECK(!code_map.FindEntry(ToAddress(0x1950 + 0x10)));
   CHECK(!code_map.FindEntry(ToAddress(0xFFFFFFFF)));
 }
 
-
 TEST(CodeMapMoveAndDeleteCode) {
   CodeMap code_map;
-  CodeEntry entry1(i::CodeEventListener::FUNCTION_TAG, "aaa");
-  CodeEntry entry2(i::CodeEventListener::FUNCTION_TAG, "bbb");
-  code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
-  code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500)));
-  CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700)));
+  CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
+  code_map.AddCode(ToAddress(0x1700), entry2, 0x100);
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1500)));
+  CHECK_EQ(entry2, code_map.FindEntry(ToAddress(0x1700)));
   code_map.MoveCode(ToAddress(0x1500), ToAddress(0x1700));  // Deprecate bbb.
   CHECK(!code_map.FindEntry(ToAddress(0x1500)));
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1700)));
-  CodeEntry entry3(i::CodeEventListener::FUNCTION_TAG, "ccc");
-  code_map.AddCode(ToAddress(0x1750), &entry3, 0x100);
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1700)));
+  CodeEntry* entry3 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+  code_map.AddCode(ToAddress(0x1750), entry3, 0x100);
   CHECK(!code_map.FindEntry(ToAddress(0x1700)));
-  CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1750)));
+  CHECK_EQ(entry3, code_map.FindEntry(ToAddress(0x1750)));
 }
-
 
 namespace {
 
@@ -355,24 +393,24 @@ TEST(RecordTickSample) {
   //  aaa -> bbb -> ccc  - sample2
   //      -> ccc -> aaa  - sample3
   TickSample sample1;
-  sample1.pc = ToAddress(0x1600);
-  sample1.tos = ToAddress(0x1500);
-  sample1.stack[0] = ToAddress(0x1510);
+  sample1.pc = ToPointer(0x1600);
+  sample1.tos = ToPointer(0x1500);
+  sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
   TickSample sample2;
-  sample2.pc = ToAddress(0x1925);
-  sample2.tos = ToAddress(0x1900);
-  sample2.stack[0] = ToAddress(0x1780);
-  sample2.stack[1] = ToAddress(0x10000);  // non-existent.
-  sample2.stack[2] = ToAddress(0x1620);
+  sample2.pc = ToPointer(0x1925);
+  sample2.tos = ToPointer(0x1900);
+  sample2.stack[0] = ToPointer(0x1780);
+  sample2.stack[1] = ToPointer(0x10000);  // non-existent.
+  sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
   generator.RecordTickSample(sample2);
   TickSample sample3;
-  sample3.pc = ToAddress(0x1510);
-  sample3.tos = ToAddress(0x1500);
-  sample3.stack[0] = ToAddress(0x1910);
-  sample3.stack[1] = ToAddress(0x1610);
+  sample3.pc = ToPointer(0x1510);
+  sample3.tos = ToPointer(0x1500);
+  sample3.stack[0] = ToPointer(0x1910);
+  sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
@@ -393,10 +431,6 @@ TEST(RecordTickSample) {
   ProfileNode* node4 = top_down_test_helper.Walk(entry1, entry3, entry1);
   CHECK(node4);
   CHECK_EQ(entry1, node4->entry());
-
-  delete entry1;
-  delete entry2;
-  delete entry3;
 }
 
 static void CheckNodeIds(const ProfileNode* node, unsigned* expectedId) {
@@ -428,23 +462,23 @@ TEST(SampleIds) {
   //                    -> ccc #6 -> aaa #7 - sample3
   TickSample sample1;
   sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
-  sample1.pc = ToAddress(0x1600);
-  sample1.stack[0] = ToAddress(0x1510);
+  sample1.pc = ToPointer(0x1600);
+  sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
   TickSample sample2;
   sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
-  sample2.pc = ToAddress(0x1925);
-  sample2.stack[0] = ToAddress(0x1780);
-  sample2.stack[1] = ToAddress(0x10000);  // non-existent.
-  sample2.stack[2] = ToAddress(0x1620);
+  sample2.pc = ToPointer(0x1925);
+  sample2.stack[0] = ToPointer(0x1780);
+  sample2.stack[1] = ToPointer(0x10000);  // non-existent.
+  sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
   generator.RecordTickSample(sample2);
   TickSample sample3;
   sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
-  sample3.pc = ToAddress(0x1510);
-  sample3.stack[0] = ToAddress(0x1910);
-  sample3.stack[1] = ToAddress(0x1610);
+  sample3.pc = ToPointer(0x1510);
+  sample3.stack[0] = ToPointer(0x1910);
+  sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
@@ -458,10 +492,6 @@ TEST(SampleIds) {
   for (int i = 0; i < 3; i++) {
     CHECK_EQ(expected_id[i], profile->sample(i)->id());
   }
-
-  delete entry1;
-  delete entry2;
-  delete entry3;
 }
 
 
@@ -479,8 +509,8 @@ TEST(NoSamples) {
   // We are building the following calls tree:
   // (root)#1 -> aaa #2 -> aaa #3 - sample1
   TickSample sample1;
-  sample1.pc = ToAddress(0x1600);
-  sample1.stack[0] = ToAddress(0x1510);
+  sample1.pc = ToPointer(0x1600);
+  sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
 
@@ -490,8 +520,6 @@ TEST(NoSamples) {
   CHECK_EQ(3u, nodeId - 1);
 
   CHECK_EQ(0, profile->samples_count());
-
-  delete entry1;
 }
 
 
@@ -648,7 +676,8 @@ int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           env->Global()->Get(env.local(), v8_str(name)).ToLocalChecked())));
-  CodeEntry* func_entry = code_map->FindEntry(func->abstract_code()->address());
+  CodeEntry* func_entry =
+      code_map->FindEntry(func->abstract_code()->InstructionStart());
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }

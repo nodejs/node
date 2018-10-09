@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -92,19 +92,19 @@ static int eckey_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
 static EC_KEY *eckey_type2param(int ptype, const void *pval)
 {
     EC_KEY *eckey = NULL;
+    EC_GROUP *group = NULL;
+
     if (ptype == V_ASN1_SEQUENCE) {
         const ASN1_STRING *pstr = pval;
-        const unsigned char *pm = NULL;
-        int pmlen;
-        pm = pstr->data;
-        pmlen = pstr->length;
+        const unsigned char *pm = pstr->data;
+        int pmlen = pstr->length;
+
         if ((eckey = d2i_ECParameters(NULL, &pm, pmlen)) == NULL) {
             ECerr(EC_F_ECKEY_TYPE2PARAM, EC_R_DECODE_ERROR);
             goto ecerr;
         }
     } else if (ptype == V_ASN1_OBJECT) {
         const ASN1_OBJECT *poid = pval;
-        EC_GROUP *group;
 
         /*
          * type == V_ASN1_OBJECT => the parameters are given by an asn1 OID
@@ -129,6 +129,7 @@ static EC_KEY *eckey_type2param(int ptype, const void *pval)
 
  ecerr:
     EC_KEY_free(eckey);
+    EC_GROUP_free(group);
     return NULL;
 }
 

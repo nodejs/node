@@ -23,6 +23,10 @@ function build (gyp, argv, callback) {
     platformMake = 'gmake'
   } else if (process.platform.indexOf('bsd') !== -1) {
     platformMake = 'gmake'
+  } else if (win && argv.length > 0) {
+    argv = argv.map(function(target) {
+      return '/t:' + target
+    })
   }
 
   var release = processRelease(argv, gyp, process.version, process.release)

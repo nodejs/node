@@ -1,7 +1,7 @@
 "use strict";
-var zip_1 = require('./zip');
-function zipAll(project) {
-    return function (source) { return source.lift(new zip_1.ZipOperator(project)); };
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.zipAll = zipAll;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/operators/zipAll"));
 //# sourceMappingURL=zipAll.js.map

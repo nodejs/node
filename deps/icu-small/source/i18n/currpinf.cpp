@@ -203,6 +203,9 @@ CurrencyPluralInfo::setCurrencyPluralPattern(const UnicodeString& pluralCount,
                                              const UnicodeString& pattern,
                                              UErrorCode& status) {
     if (U_SUCCESS(status)) {
+        UnicodeString* oldValue = static_cast<UnicodeString*>(
+            fPluralCountToCurrencyUnitPattern->get(pluralCount));
+        delete oldValue;
         fPluralCountToCurrencyUnitPattern->put(pluralCount, new UnicodeString(pattern), status);
     }
 }

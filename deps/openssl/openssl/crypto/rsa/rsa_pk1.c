@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -175,27 +175,30 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
     if (num < 11)
         goto err;
 
-    em = OPENSSL_zalloc(num);
-    if (em == NULL) {
-        RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2, ERR_R_MALLOC_FAILURE);
-        return -1;
+    if (flen != num) {
+        em = OPENSSL_zalloc(num);
+        if (em == NULL) {
+            RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2, ERR_R_MALLOC_FAILURE);
+            return -1;
+        }
+        /*
+         * Caller is encouraged to pass zero-padded message created with
+         * BN_bn2binpad, but if it doesn't, we do this zero-padding copy
+         * to avoid leaking that information. The copy still leaks some
+         * side-channel information, but it's impossible to have a fixed
+         * memory access pattern since we can't read out of the bounds of
+         * |from|.
+         */
+        memcpy(em + num - flen, from, flen);
+        from = em;
     }
-    /*
-     * Always do this zero-padding copy (even when num == flen) to avoid
-     * leaking that information. The copy still leaks some side-channel
-     * information, but it's impossible to have a fixed memory access
-     * pattern since we can't read out of the bounds of |from|.
-     *
-     * TODO(emilia): Consider porting BN_bn2bin_padded from BoringSSL.
-     */
-    memcpy(em + num - flen, from, flen);
 
-    good = constant_time_is_zero(em[0]);
-    good &= constant_time_eq(em[1], 2);
+    good = constant_time_is_zero(from[0]);
+    good &= constant_time_eq(from[1], 2);
 
     found_zero_byte = 0;
     for (i = 2; i < num; i++) {
-        unsigned int equals0 = constant_time_is_zero(em[i]);
+        unsigned int equals0 = constant_time_is_zero(from[i]);
         zero_index =
             constant_time_select_int(~found_zero_byte & equals0, i,
                                      zero_index);
@@ -203,7 +206,7 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
     }
 
     /*
-     * PS must be at least 8 bytes long, and it starts two bytes into |em|.
+     * PS must be at least 8 bytes long, and it starts two bytes into |from|.
      * If we never found a 0-byte, then |zero_index| is 0 and the check
      * also fails.
      */
@@ -232,7 +235,7 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
         goto err;
     }
 
-    memcpy(to, em + msg_index, mlen);
+    memcpy(to, from + msg_index, mlen);
 
  err:
     OPENSSL_clear_free(em, num);

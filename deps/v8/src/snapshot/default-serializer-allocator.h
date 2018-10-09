@@ -23,6 +23,8 @@ class DefaultSerializerAllocator final {
   SerializerReference AllocateLargeObject(uint32_t size);
   SerializerReference AllocateOffHeapBackingStore();
 
+  void UseCustomChunkSize(uint32_t chunk_size);
+
 #ifdef DEBUG
   bool BackReferenceIsAlreadyAllocated(
       SerializerReference back_reference) const;
@@ -33,12 +35,14 @@ class DefaultSerializerAllocator final {
   void OutputStatistics();
 
  private:
+  // We try to not exceed this size for every chunk. We will not succeed for
+  // larger objects though.
+  uint32_t TargetChunkSize(int space);
+
   static constexpr int kNumberOfPreallocatedSpaces =
       SerializerDeserializer::kNumberOfPreallocatedSpaces;
   static constexpr int kNumberOfSpaces =
       SerializerDeserializer::kNumberOfSpaces;
-
-  static uint32_t MaxChunkSizeInSpace(int space);
 
   // Objects from the same space are put into chunks for bulk-allocation
   // when deserializing. We have to make sure that each chunk fits into a
@@ -60,6 +64,8 @@ class DefaultSerializerAllocator final {
   // corresponding ArrayBuffer will be null, which makes it indistinguishable
   // from index 0.
   uint32_t seen_backing_stores_index_ = 1;
+
+  uint32_t custom_chunk_size_ = 0;
 
   // The current serializer.
   Serializer<DefaultSerializerAllocator>* const serializer_;

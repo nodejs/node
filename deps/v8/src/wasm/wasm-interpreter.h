@@ -10,9 +10,6 @@
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
-namespace base {
-class AccountingAllocator;
-}
 
 namespace internal {
 class WasmInstanceObject;
@@ -70,18 +67,18 @@ class InterpretedFrame {
   WasmValue GetLocalValue(int index) const;
   WasmValue GetStackValue(int index) const;
 
-  // Deleter struct to delete the underlying InterpretedFrameImpl without
-  // violating language specifications.
-  struct Deleter {
-    void operator()(InterpretedFrame* ptr);
-  };
-
  private:
   friend class WasmInterpreter;
   // Don't instante InterpretedFrames; they will be allocated as
   // InterpretedFrameImpl in the interpreter implementation.
   InterpretedFrame() = delete;
   DISALLOW_COPY_AND_ASSIGN(InterpretedFrame);
+};
+
+// Deleter struct to delete the underlying InterpretedFrameImpl without
+// violating language specifications.
+struct InterpretedFrameDeleter {
+  void operator()(InterpretedFrame* ptr);
 };
 
 // An interpreter capable of executing WebAssembly.
@@ -105,7 +102,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     AfterCall = 1 << 1
   };
 
-  using FramePtr = std::unique_ptr<InterpretedFrame, InterpretedFrame::Deleter>;
+  using FramePtr = std::unique_ptr<InterpretedFrame, InterpretedFrameDeleter>;
 
   // Representation of a thread in the interpreter.
   class V8_EXPORT_PRIVATE Thread {

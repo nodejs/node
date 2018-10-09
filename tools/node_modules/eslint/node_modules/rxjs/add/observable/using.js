@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var using_1 = require('../../observable/using');
-Observable_1.Observable.using = using_1.using;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/observable/using");
 //# sourceMappingURL=using.js.map

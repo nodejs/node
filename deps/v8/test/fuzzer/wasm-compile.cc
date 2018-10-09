@@ -34,35 +34,30 @@ constexpr int kMaxFunctions = 4;
 constexpr int kMaxGlobals = 64;
 
 class DataRange {
-  const uint8_t* data_;
-  size_t size_;
+  Vector<const uint8_t> data_;
 
  public:
-  DataRange(const uint8_t* data, size_t size) : data_(data), size_(size) {}
+  explicit DataRange(Vector<const uint8_t> data) : data_(data) {}
 
   // Don't accidentally pass DataRange by value. This will reuse bytes and might
   // lead to OOM because the end might not be reached.
   // Define move constructor and move assignment, disallow copy constructor and
   // copy assignment (below).
-  DataRange(DataRange&& other) : DataRange(other.data_, other.size_) {
-    other.data_ = nullptr;
-    other.size_ = 0;
+  DataRange(DataRange&& other) V8_NOEXCEPT : DataRange(other.data_) {
+    other.data_ = {};
   }
-  DataRange& operator=(DataRange&& other) {
+  DataRange& operator=(DataRange&& other) V8_NOEXCEPT {
     data_ = other.data_;
-    size_ = other.size_;
-    other.data_ = nullptr;
-    other.size_ = 0;
+    other.data_ = {};
     return *this;
   }
 
-  size_t size() const { return size_; }
+  size_t size() const { return data_.size(); }
 
   DataRange split() {
-    uint16_t num_bytes = get<uint16_t>() % std::max(size_t{1}, size_);
-    DataRange split(data_, num_bytes);
+    uint16_t num_bytes = get<uint16_t>() % std::max(size_t{1}, data_.size());
+    DataRange split(data_.SubVector(0, num_bytes));
     data_ += num_bytes;
-    size_ -= num_bytes;
     return split;
   }
 
@@ -73,11 +68,10 @@ class DataRange {
     // okay if we don't have a full four bytes available, we'll just use what
     // we have. We aren't concerned about endianness because we are generating
     // arbitrary expressions.
-    const size_t num_bytes = std::min(sizeof(T), size_);
+    const size_t num_bytes = std::min(sizeof(T), data_.size());
     T result = T();
-    memcpy(&result, data_, num_bytes);
+    memcpy(&result, data_.start(), num_bytes);
     data_ += num_bytes;
-    size_ -= num_bytes;
     return result;
   }
 
@@ -112,7 +106,7 @@ class WasmGenerator {
         : gen_(gen) {
       gen->blocks_.push_back(br_type);
       gen->builder_->EmitWithU8(block_type,
-                                WasmOpcodes::ValueTypeCodeFor(result_type));
+                                ValueTypes::ValueTypeCodeFor(result_type));
     }
 
     ~BlockScope() {
@@ -388,9 +382,9 @@ class WasmGenerator {
 
   void set_global(DataRange& data) { global_op<kWasmStmt>(data); }
 
-  template <ValueType T1, ValueType T2>
+  template <ValueType... Types>
   void sequence(DataRange& data) {
-    Generate<T1, T2>(data);
+    Generate<Types...>(data);
   }
 
   void current_memory(DataRange& data) {
@@ -480,6 +474,9 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
 
   constexpr generate_fn alternates[] = {
       &WasmGenerator::sequence<kWasmStmt, kWasmStmt>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt,
+                               kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt>,
       &WasmGenerator::block<kWasmStmt>,
       &WasmGenerator::loop<kWasmStmt>,
       &WasmGenerator::if_<kWasmStmt, kIf>,
@@ -516,7 +513,9 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmI32, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmI32>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmI32, kWasmStmt>,
 
       &WasmGenerator::op<kExprI32Eqz, kWasmI32>,
       &WasmGenerator::op<kExprI32Eq, kWasmI32, kWasmI32>,
@@ -605,7 +604,9 @@ void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmI64, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmI64>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmI64, kWasmStmt>,
 
       &WasmGenerator::op<kExprI64Add, kWasmI64, kWasmI64>,
       &WasmGenerator::op<kExprI64Sub, kWasmI64, kWasmI64>,
@@ -660,7 +661,9 @@ void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmF32, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF32>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmF32, kWasmStmt>,
 
       &WasmGenerator::op<kExprF32Add, kWasmF32, kWasmF32>,
       &WasmGenerator::op<kExprF32Sub, kWasmF32, kWasmF32>,
@@ -691,7 +694,9 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
   }
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmF64, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF64>,
+      &WasmGenerator::sequence<kWasmStmt, kWasmF64, kWasmStmt>,
 
       &WasmGenerator::op<kExprF64Add, kWasmF64, kWasmF64>,
       &WasmGenerator::op<kExprF64Sub, kWasmF64, kWasmF64>,
@@ -751,7 +756,7 @@ FunctionSig* GenerateSig(Zone* zone, DataRange& data) {
 
 class WasmCompileFuzzer : public WasmExecutionFuzzer {
   bool GenerateModule(
-      Isolate* isolate, Zone* zone, const uint8_t* data, size_t size,
+      Isolate* isolate, Zone* zone, Vector<const uint8_t> data,
       ZoneBuffer& buffer, int32_t& num_args,
       std::unique_ptr<WasmValue[]>& interpreter_args,
       std::unique_ptr<Handle<Object>[]>& compiler_args) override {
@@ -759,7 +764,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     WasmModuleBuilder builder(zone);
 
-    DataRange range(data, static_cast<uint32_t>(size));
+    DataRange range(data);
     std::vector<FunctionSig*> function_signatures;
     function_signatures.push_back(sigs.i_iii());
 
@@ -819,7 +824,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool require_valid = true;
-  return WasmCompileFuzzer().FuzzWasmModule(data, size, require_valid);
+  return WasmCompileFuzzer().FuzzWasmModule({data, size}, require_valid);
 }
 
 }  // namespace fuzzer

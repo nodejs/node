@@ -32,7 +32,7 @@
 #include "include/v8.h"
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
@@ -432,7 +432,6 @@ TEST(RegExpParser) {
   CHECK_MIN_MAX("a(?=bbb|bb)c", 2, 2);
   CHECK_MIN_MAX("a(?!bbb|bb)c", 2, 2);
 
-  FLAG_harmony_regexp_named_captures = true;
   CheckParseEq("(?<a>x)(?<b>x)(?<c>x)\\k<a>",
                "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))", true);
   CheckParseEq("(?<a>x)(?<b>x)(?<c>x)\\k<b>",
@@ -447,7 +446,6 @@ TEST(RegExpParser) {
 
   CheckParseEq("(?<\\u{03C0}>a)", "(^ 'a')", true);
   CheckParseEq("(?<\\u03C0>a)", "(^ 'a')", true);
-  FLAG_harmony_regexp_named_captures = false;
 }
 
 TEST(ParserRegression) {
@@ -459,14 +457,16 @@ TEST(ParserRegression) {
 
 static void ExpectError(const char* input, const char* expected,
                         bool unicode = false) {
+  Isolate* isolate = CcTest::i_isolate();
+
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData result;
   JSRegExp::Flags flags = JSRegExp::kNone;
   if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(!v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
-                                                 &reader, flags, &result));
+  CHECK(!v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
+                                                 &result));
   CHECK_NULL(result.tree);
   CHECK(!result.error.is_null());
   std::unique_ptr<char[]> str = result.error->ToCString(ALLOW_NULLS);
@@ -501,7 +501,6 @@ TEST(Errors) {
   }
   ExpectError(os.str().c_str(), kTooManyCaptures);
 
-  FLAG_harmony_regexp_named_captures = true;
   const char* kInvalidCaptureName = "Invalid capture group name";
   ExpectError("(?<>.)", kInvalidCaptureName, true);
   ExpectError("(?<1>.)", kInvalidCaptureName, true);
@@ -516,7 +515,6 @@ TEST(Errors) {
   ExpectError("(?<b>)\\k<a>", kInvalidCaptureReferenced, true);
   const char* kInvalidNamedReference = "Invalid named reference";
   ExpectError("\\ka", kInvalidNamedReference, true);
-  FLAG_harmony_regexp_named_captures = false;
 }
 
 
@@ -794,22 +792,14 @@ class ContextInitializer {
   v8::Local<v8::Context> env_;
 };
 
-
-static ArchRegExpMacroAssembler::Result Execute(Code* code,
-                                                String* input,
+static ArchRegExpMacroAssembler::Result Execute(Code* code, String* input,
                                                 int start_offset,
-                                                const byte* input_start,
-                                                const byte* input_end,
+                                                Address input_start,
+                                                Address input_end,
                                                 int* captures) {
   return NativeRegExpMacroAssembler::Execute(
-      code,
-      input,
-      start_offset,
-      input_start,
-      input_end,
-      captures,
-      0,
-      CcTest::i_isolate());
+      code, input, start_offset, reinterpret_cast<byte*>(input_start),
+      reinterpret_cast<byte*>(input_end), captures, 0, CcTest::i_isolate());
 }
 
 
@@ -832,8 +822,7 @@ TEST(MacroAssemblerNativeSuccess) {
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
-  const byte* start_adr =
-      reinterpret_cast<const byte*>(seq_input->GetCharsAddress());
+  Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
       Execute(*code,
@@ -1989,8 +1978,9 @@ TEST(UncachedExternalString) {
   v8::Local<v8::String> external =
       v8::String::NewExternalOneByte(isolate, new UncachedExternalString())
           .ToLocalChecked();
-  CHECK(v8::Utils::OpenHandle(*external)->map() ==
-        CcTest::i_isolate()->heap()->short_external_one_byte_string_map());
+  CHECK(
+      v8::Utils::OpenHandle(*external)->map() ==
+      ReadOnlyRoots(CcTest::i_isolate()).short_external_one_byte_string_map());
   v8::Local<v8::Object> global = env->Global();
   global->Set(env.local(), v8_str("external"), external).FromJust();
   CompileRun("var re = /y(.)/; re.test('ab');");

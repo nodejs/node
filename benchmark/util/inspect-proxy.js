@@ -3,7 +3,7 @@
 const util = require('util');
 const common = require('../common.js');
 
-const bench = common.createBenchmark(main, { n: [1e6] });
+const bench = common.createBenchmark(main, { n: [2e4] });
 
 function main({ n }) {
   const proxyA = new Proxy({}, { get: () => {} });

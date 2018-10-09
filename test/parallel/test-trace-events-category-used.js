@@ -6,9 +6,13 @@ const cp = require('child_process');
 if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
 
-const CODE = `console.log(
-  process.binding("trace_events").categoryGroupEnabled("custom")
-);`;
+const CODE = `
+  const { internalBinding } = require('internal/test/binding');
+  const { isTraceCategoryEnabled } = internalBinding('trace_events');
+  console.log(
+    isTraceCategoryEnabled("custom")
+  );
+`;
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -16,7 +20,12 @@ process.chdir(tmpdir.path);
 
 const procEnabled = cp.spawn(
   process.execPath,
-  [ '--trace-event-categories', 'custom', '-e', CODE ]
+  [ '--trace-event-categories', 'custom',
+    // make test less noisy since internal/test/binding
+    // emits a warning.
+    '--no-warnings',
+    '--expose-internals',
+    '-e', CODE ]
 );
 let procEnabledOutput = '';
 
@@ -28,7 +37,12 @@ procEnabled.once('exit', common.mustCall(() => {
 
 const procDisabled = cp.spawn(
   process.execPath,
-  [ '--trace-event-categories', 'other', '-e', CODE ]
+  [ '--trace-event-categories', 'other',
+    // make test less noisy since internal/test/binding
+    // emits a warning.
+    '--no-warnings',
+    '--expose-internals',
+    '-e', CODE ]
 );
 let procDisabledOutput = '';
 

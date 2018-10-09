@@ -22,11 +22,11 @@ my $tin = q{The value of $foo is: {$foo}};
 Text::Template->always_prepend(q{$foo = "global"});
 
 $tmpl1 = Text::Template->new(TYPE => 'STRING',
-				SOURCE => $tin,
+				SOURCE => $tin,		
 			      );
 
 $tmpl2 = Text::Template->new(TYPE => 'STRING',
-			     SOURCE => $tin,
+			     SOURCE => $tin,		
 			     PREPEND => q{$foo = "template"},
 			     );
 
@@ -46,11 +46,11 @@ print "ok $n\n"; $n++;
 
 Emptyclass1->always_prepend(q{$foo = 'Emptyclass global';});
 $tmpl1 = Emptyclass1->new(TYPE => 'STRING',
-				SOURCE => $tin,
+				SOURCE => $tin,		
 			      );
 
 $tmpl2 = Emptyclass1->new(TYPE => 'STRING',
-			     SOURCE => $tin,
+			     SOURCE => $tin,		
 			     PREPEND => q{$foo = "template"},
 			     );
 
@@ -69,11 +69,11 @@ print "ok $n\n"; $n++;
 print "ok $n\n"; $n++;
 
 $tmpl1 = Emptyclass2->new(TYPE => 'STRING',
-				SOURCE => $tin,
+				SOURCE => $tin,		
 			      );
 
 $tmpl2 = Emptyclass2->new(TYPE => 'STRING',
-			     SOURCE => $tin,
+			     SOURCE => $tin,		
 			     PREPEND => q{$foo = "template"},
 			     );
 
@@ -90,3 +90,5 @@ print "ok $n\n"; $n++;
 print "ok $n\n"; $n++;
 ($t3 eq 'The value of $foo is: fillin') or print "not ";
 print "ok $n\n"; $n++;
+
+

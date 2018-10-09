@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 const NODE_DESCRIPTIONS = {
     DoWhileStatement: "a 'do...while' statement",

@@ -1,6 +1,8 @@
 #include "myobject.h"
 #include "../common.h"
 
+static int finalize_count = 0;
+
 MyObject::MyObject() : env_(nullptr), wrapper_(nullptr) {}
 
 MyObject::~MyObject() { napi_delete_reference(env_, wrapper_); }
@@ -8,8 +10,15 @@ MyObject::~MyObject() { napi_delete_reference(env_, wrapper_); }
 void MyObject::Destructor(napi_env env,
                           void* nativeObject,
                           void* /*finalize_hint*/) {
+  ++finalize_count;
   MyObject* obj = static_cast<MyObject*>(nativeObject);
   delete obj;
+}
+
+napi_value MyObject::GetFinalizeCount(napi_env env, napi_callback_info info) {
+  napi_value result;
+  NAPI_CALL(env, napi_create_int32(env, finalize_count, &result));
+  return result;
 }
 
 napi_ref MyObject::constructor;

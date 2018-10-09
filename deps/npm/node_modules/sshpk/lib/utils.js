@@ -21,6 +21,7 @@ module.exports = {
 };
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 var PrivateKey = require('./private-key');
 var Key = require('./key');
 var crypto = require('crypto');
@@ -101,7 +102,7 @@ function opensslKeyDeriv(cipher, salt, passphrase, count) {
 	salt = salt.slice(0, PKCS5_SALT_LEN);
 
 	var D, D_prev, bufs;
-	var material = new Buffer(0);
+	var material = Buffer.alloc(0);
 	while (material.length < clen.key + clen.iv) {
 		bufs = [];
 		if (D_prev)
@@ -185,7 +186,7 @@ function ecNormalize(buf, addZero) {
 		if (!addZero)
 			return (buf);
 	}
-	var b = new Buffer(buf.length + 1);
+	var b = Buffer.alloc(buf.length + 1);
 	b[0] = 0x0;
 	buf.copy(b, 1);
 	return (b);
@@ -203,7 +204,7 @@ function readBitString(der, tag) {
 function writeBitString(der, buf, tag) {
 	if (tag === undefined)
 		tag = asn1.Ber.BitString;
-	var b = new Buffer(buf.length + 1);
+	var b = Buffer.alloc(buf.length + 1);
 	b[0] = 0x00;
 	buf.copy(b, 1);
 	der.writeBuffer(b, tag);
@@ -214,7 +215,7 @@ function mpNormalize(buf) {
 	while (buf.length > 1 && buf[0] === 0x00 && (buf[1] & 0x80) === 0x00)
 		buf = buf.slice(1);
 	if ((buf[0] & 0x80) === 0x80) {
-		var b = new Buffer(buf.length + 1);
+		var b = Buffer.alloc(buf.length + 1);
 		b[0] = 0x00;
 		buf.copy(b, 1);
 		buf = b;
@@ -237,7 +238,7 @@ function zeroPadToLength(buf, len) {
 		buf = buf.slice(1);
 	}
 	while (buf.length < len) {
-		var b = new Buffer(buf.length + 1);
+		var b = Buffer.alloc(buf.length + 1);
 		b[0] = 0x00;
 		buf.copy(b, 1);
 		buf = b;
@@ -246,7 +247,7 @@ function zeroPadToLength(buf, len) {
 }
 
 function bigintToMpBuf(bigint) {
-	var buf = new Buffer(bigint.toByteArray());
+	var buf = Buffer.from(bigint.toByteArray());
 	buf = mpNormalize(buf);
 	return (buf);
 }
@@ -276,7 +277,7 @@ function calculateED25519Public(k) {
 		nacl = require('tweetnacl');
 
 	var kp = nacl.sign.keyPair.fromSeed(new Uint8Array(k));
-	return (new Buffer(kp.publicKey));
+	return (Buffer.from(kp.publicKey));
 }
 
 function calculateX25519Public(k) {
@@ -286,7 +287,7 @@ function calculateX25519Public(k) {
 		nacl = require('tweetnacl');
 
 	var kp = nacl.box.keyPair.fromSeed(new Uint8Array(k));
-	return (new Buffer(kp.publicKey));
+	return (Buffer.from(kp.publicKey));
 }
 
 function addRSAMissing(key) {
@@ -336,10 +337,10 @@ function publicFromPrivateECDSA(curveName, priv) {
 
 	var d = new jsbn(mpNormalize(priv));
 	var pub = G.multiply(d);
-	pub = new Buffer(curve.encodePointHex(pub), 'hex');
+	pub = Buffer.from(curve.encodePointHex(pub), 'hex');
 
 	var parts = [];
-	parts.push({name: 'curve', data: new Buffer(curveName)});
+	parts.push({name: 'curve', data: Buffer.from(curveName)});
 	parts.push({name: 'Q', data: pub});
 
 	var key = new Key({type: 'ecdsa', curve: curve, parts: parts});

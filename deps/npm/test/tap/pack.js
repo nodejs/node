@@ -165,3 +165,35 @@ test('pack --json', (t) => {
     })
     .then(() => rimraf(testDir))
 })
+
+test('postpack', (t) => {
+  const fixture = new Tacks(new Dir({
+    'package.json': new File({
+      name: 'generic-package',
+      version: '90000.100001.5',
+      scripts: {
+        postpack: 'node -e "var fs = require(\'fs\'); fs.openSync(\'postpack-step\', \'w+\'); if (!fs.existsSync(\'generic-package-90000.100001.5.tgz\')) { throw new Error(\'tar archive does not exist on postpack\') }"'
+      }
+    })
+  }))
+
+  return rimraf(testDir)
+    .then(() => fixture.create(testDir))
+    .then(() => common.npm([
+      'pack',
+      '--loglevel', 'notice',
+      '--cache', cache,
+      '--tmp', tmp,
+      '--prefix', testDir,
+      '--no-global'
+    ], {
+      cwd: testDir
+    }))
+    .spread((code, stdout, stderr) => {
+      t.equal(code, 0, 'npm pack exited ok')
+      return fs.statAsync(
+        path.join(testDir, 'postpack-step')
+      )
+    })
+    .then(() => rimraf(testDir))
+})

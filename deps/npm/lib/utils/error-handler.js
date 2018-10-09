@@ -57,7 +57,7 @@ process.on('exit', function (code) {
       log.error('', 'cb() never called!')
       console.error('')
       log.error('', 'This is an error with npm itself. Please report this error at:')
-      log.error('', '    <https://github.com/npm/npm/issues>')
+      log.error('', '    <https://npm.community>')
       writeLogFile()
     }
 

@@ -1,6 +1,8 @@
 #ifndef SRC_INSPECTOR_SOCKET_SERVER_H_
 #define SRC_INSPECTOR_SOCKET_SERVER_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "inspector_agent.h"
 #include "inspector_socket.h"
 #include "uv.h"
@@ -54,10 +56,6 @@ class InspectorSocketServer {
   void Send(int session_id, const std::string& message);
   //   kKill
   void TerminateConnections();
-  //   kAcceptSession
-  void AcceptSession(int session_id);
-  //   kDeclineSession
-  void DeclineSession(int session_id);
   int Port() const;
 
   // Session connection lifecycle
@@ -101,5 +99,7 @@ class InspectorSocketServer {
 
 }  // namespace inspector
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_INSPECTOR_SOCKET_SERVER_H_

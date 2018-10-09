@@ -283,6 +283,11 @@ h2, h3, h4, h5 {
   padding-right: 40px;
 }
 
+.srclink {
+  float: right;
+  font-size: smaller;
+}
+
 h1 span, h2 span, h3 span, h4 span {
   position: absolute;
   display: block;
@@ -502,6 +507,11 @@ th > *:last-child, td > *:last-child {
   height: 0;
   clear: both;
   visibility: hidden;
+}
+
+.github_icon {
+  vertical-align: middle;
+  margin: -2px 3px 0 0;
 }
 
 @media only screen and (max-width: 1024px) {

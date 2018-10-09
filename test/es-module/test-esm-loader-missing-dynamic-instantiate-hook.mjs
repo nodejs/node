@@ -1,11 +1,6 @@
 // Flags: --experimental-modules --loader ./test/fixtures/es-module-loaders/missing-dynamic-instantiate-hook.mjs
 
-import {
-  crashOnUnhandledRejection,
-  expectsError
-} from '../common';
-
-crashOnUnhandledRejection();
+import { expectsError } from '../common';
 
 import('test').catch(expectsError({
   code: 'ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK',

@@ -21,6 +21,12 @@
 
 'use strict';
 const common = require('../common');
+const {
+  hijackStdout,
+  hijackStderr,
+  restoreStdout,
+  restoreStderr,
+} = require('../common/hijackstdio');
 const assert = require('assert');
 const util = require('util');
 
@@ -28,10 +34,10 @@ assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 
 const strings = [];
-common.hijackStdout(function(data) {
+hijackStdout(function(data) {
   strings.push(data);
 });
-common.hijackStderr(common.mustNotCall('stderr.write must not be called'));
+hijackStderr(common.mustNotCall('stderr.write must not be called'));
 
 const tests = [
   { input: 'foo', output: 'foo' },
@@ -57,4 +63,5 @@ tests.forEach(function(test) {
 
 assert.strictEqual(process.stdout.writeTimes, tests.length);
 
-common.restoreStdout();
+restoreStdout();
+restoreStderr();

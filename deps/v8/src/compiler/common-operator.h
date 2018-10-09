@@ -5,12 +5,12 @@
 #ifndef V8_COMPILER_COMMON_OPERATOR_H_
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
-#include "src/assembler.h"
 #include "src/base/compiler-specific.h"
 #include "src/compiler/frame-states.h"
 #include "src/deoptimize-reason.h"
 #include "src/globals.h"
 #include "src/machine-type.h"
+#include "src/reloc-info.h"
 #include "src/vector-slot-pair.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-handle-set.h"
@@ -45,12 +45,32 @@ inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
 
-enum class IsSafetyCheck : uint8_t { kSafetyCheck, kNoSafetyCheck };
+enum class IsSafetyCheck : uint8_t {
+  kCriticalSafetyCheck,
+  kSafetyCheck,
+  kNoSafetyCheck
+};
+
+// Get the more critical safety check of the two arguments.
+IsSafetyCheck CombineSafetyChecks(IsSafetyCheck, IsSafetyCheck);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, IsSafetyCheck);
 inline size_t hash_value(IsSafetyCheck is_safety_check) {
   return static_cast<size_t>(is_safety_check);
 }
+
+enum class TrapId : uint32_t {
+#define DEF_ENUM(Name, ...) k##Name,
+  FOREACH_WASM_TRAPREASON(DEF_ENUM)
+#undef DEF_ENUM
+      kInvalid
+};
+
+inline size_t hash_value(TrapId id) { return static_cast<uint32_t>(id); }
+
+std::ostream& operator<<(std::ostream&, TrapId trap_id);
+
+TrapId TrapIdOf(const Operator* const op);
 
 struct BranchOperatorInfo {
   BranchHint hint;
@@ -347,7 +367,7 @@ RegionObservability RegionObservabilityOf(Operator const*)
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types);
 
-Type* TypeGuardTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
+Type TypeGuardTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 int OsrValueIndexOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
@@ -424,9 +444,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
   const Operator* End(size_t control_input_count);
-  const Operator* Branch(
-      BranchHint = BranchHint::kNone,
-      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  const Operator* Branch(BranchHint = BranchHint::kNone,
+                         IsSafetyCheck = IsSafetyCheck::kSafetyCheck);
   const Operator* IfTrue();
   const Operator* IfFalse();
   const Operator* IfSuccess();
@@ -445,8 +464,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
       DeoptimizeKind kind, DeoptimizeReason reason,
       VectorSlotPair const& feedback,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
-  const Operator* TrapIf(int32_t trap_id);
-  const Operator* TrapUnless(int32_t trap_id);
+  const Operator* TrapIf(TrapId trap_id);
+  const Operator* TrapUnless(TrapId trap_id);
   const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 
@@ -502,7 +521,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* TailCall(const CallDescriptor* call_descriptor);
   const Operator* Projection(size_t index);
   const Operator* Retain();
-  const Operator* TypeGuard(Type* type);
+  const Operator* TypeGuard(Type type);
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but
   // with {size} inputs.
@@ -513,7 +532,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
       FrameStateType type, int parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info);
 
-  const Operator* MarkAsSafetyCheck(const Operator* op);
+  const Operator* MarkAsSafetyCheck(const Operator* op,
+                                    IsSafetyCheck safety_check);
 
  private:
   Zone* zone() const { return zone_; }

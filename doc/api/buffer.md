@@ -992,6 +992,31 @@ console.log(buffer.buffer === arrayBuffer);
 // Prints: true
 ```
 
+### buf.byteOffset
+
+* {integer} The `byteOffset` on the underlying `ArrayBuffer` object based on
+  which this `Buffer` object is created.
+
+When setting `byteOffset` in `Buffer.from(ArrayBuffer, byteOffset, length)`
+or sometimes when allocating a buffer smaller than `Buffer.poolSize` the
+buffer doesn't start from a zero offset on the underlying `ArrayBuffer`.
+
+This can cause problems when accessing the underlying `ArrayBuffer` directly
+using `buf.buffer`, as the first bytes in this `ArrayBuffer` may be unrelated
+to the `buf` object itself.
+
+A common issue is when casting a `Buffer` object to a `TypedArray` object,
+in this case one needs to specify the `byteOffset` correctly:
+
+```js
+// Create a buffer smaller than `Buffer.poolSize`.
+const nodeBuffer = new Buffer.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+// When casting the Node.js Buffer to an Int8 TypedArray remember to use the
+// byteOffset.
+new Int8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.length);
+```
+
 ### buf.compare(target[, targetStart[, targetEnd[, sourceStart[, sourceEnd]]]])
 <!-- YAML
 added: v0.11.13
@@ -1060,7 +1085,7 @@ console.log(buf1.compare(buf2, 5, 6, 5));
 // Prints: 1
 ```
 
-[`ERR_INDEX_OUT_OF_RANGE`] is thrown if `targetStart < 0`, `sourceStart < 0`,
+[`ERR_OUT_OF_RANGE`] is thrown if `targetStart < 0`, `sourceStart < 0`,
 `targetEnd > target.byteLength`, or `sourceEnd > source.byteLength`.
 
 ### buf.copy(target[, targetStart[, sourceStart[, sourceEnd]]])
@@ -1172,6 +1197,9 @@ console.log(buf1.equals(buf3));
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22969
+    description: Throws `ERR_OUT_OF_RANGE` instead of `ERR_INDEX_OUT_OF_RANGE`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18790
     description: Negative `end` values throw an `ERR_INDEX_OUT_OF_RANGE` error.
@@ -1683,7 +1711,7 @@ console.log(buf.readIntLE(0, 6).toString(16));
 console.log(buf.readIntBE(0, 6).toString(16));
 // Prints: 1234567890ab
 console.log(buf.readIntBE(1, 6).toString(16));
-// Throws ERR_INDEX_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE
 console.log(buf.readIntBE(1, 0).toString(16));
 // Throws ERR_OUT_OF_RANGE
 ```
@@ -2120,15 +2148,15 @@ endian). `value` *should* be a valid 64-bit double. Behavior is undefined when
 ```js
 const buf = Buffer.allocUnsafe(8);
 
-buf.writeDoubleBE(0xdeadbeefcafebabe, 0);
+buf.writeDoubleBE(123.456, 0);
 
 console.log(buf);
-// Prints: <Buffer 43 eb d5 b7 dd f9 5f d7>
+// Prints: <Buffer 40 5e dd 2f 1a 9f be 77>
 
-buf.writeDoubleLE(0xdeadbeefcafebabe, 0);
+buf.writeDoubleLE(123.456, 0);
 
 console.log(buf);
-// Prints: <Buffer d7 5f f9 dd b7 d5 eb 43>
+// Prints: <Buffer 77 be 9f 1a 2f dd 5e 40>
 ```
 
 ### buf.writeFloatBE(value, offset)
@@ -2483,6 +2511,9 @@ encoding to another. Returns a new `Buffer` instance.
 Throws if the `fromEnc` or `toEnc` specify invalid character encodings or if
 conversion from `fromEnc` to `toEnc` is not permitted.
 
+Encodings supported by `buffer.transcode()` are: `'ascii'`, `'utf8'`,
+`'utf16le'`, `'ucs2'`, `'latin1'`, and `'binary'`.
+
 The transcoding process will use substitution characters if a given byte
 sequence cannot be adequately represented in the target encoding. For instance:
 
@@ -2612,9 +2643,9 @@ This value may depend on the JS engine that is being used.
 [`Buffer.from(string)`]: #buffer_class_method_buffer_from_string_encoding
 [`Buffer.poolSize`]: #buffer_class_property_buffer_poolsize
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
-[`ERR_INDEX_OUT_OF_RANGE`]: errors.html#ERR_INDEX_OUT_OF_RANGE
 [`ERR_INVALID_BUFFER_SIZE`]: errors.html#ERR_INVALID_BUFFER_SIZE
 [`ERR_INVALID_OPT_VALUE`]: errors.html#ERR_INVALID_OPT_VALUE
+[`ERR_OUT_OF_RANGE`]: errors.html#ERR_OUT_OF_RANGE
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`String#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf

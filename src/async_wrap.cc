@@ -23,6 +23,7 @@
 #include "env-inl.h"
 #include "node_internals.h"
 #include "util-inl.h"
+#include "tracing/traced_value.h"
 
 #include "v8.h"
 #include "v8-profiler.h"
@@ -32,7 +33,6 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
-using v8::HeapProfiler;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -43,7 +43,6 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PromiseHookType;
 using v8::PropertyCallbackInfo;
-using v8::RetainedObjectInfo;
 using v8::String;
 using v8::Uint32;
 using v8::Undefined;
@@ -61,84 +60,11 @@ static const char* const provider_names[] = {
 };
 
 
-// Report correct information in a heapdump.
-
-class RetainedAsyncInfo: public RetainedObjectInfo {
- public:
-  explicit RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap);
-
-  void Dispose() override;
-  bool IsEquivalent(RetainedObjectInfo* other) override;
-  intptr_t GetHash() override;
-  const char* GetLabel() override;
-  intptr_t GetSizeInBytes() override;
-
- private:
-  const char* label_;
-  const AsyncWrap* wrap_;
-  const int length_;
-};
-
-
-RetainedAsyncInfo::RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap)
-    : label_(provider_names[class_id - NODE_ASYNC_ID_OFFSET]),
-      wrap_(wrap),
-      length_(wrap->self_size()) {
-}
-
-
-void RetainedAsyncInfo::Dispose() {
-  delete this;
-}
-
-
-bool RetainedAsyncInfo::IsEquivalent(RetainedObjectInfo* other) {
-  return label_ == other->GetLabel() &&
-          wrap_ == static_cast<RetainedAsyncInfo*>(other)->wrap_;
-}
-
-
-intptr_t RetainedAsyncInfo::GetHash() {
-  return reinterpret_cast<intptr_t>(wrap_);
-}
-
-
-const char* RetainedAsyncInfo::GetLabel() {
-  return label_;
-}
-
-
-intptr_t RetainedAsyncInfo::GetSizeInBytes() {
-  return length_;
-}
-
-
-RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
-  // No class_id should be the provider type of NONE.
-  CHECK_GT(class_id, NODE_ASYNC_ID_OFFSET);
-  // And make sure the class_id doesn't extend past the last provider.
-  CHECK_LE(class_id - NODE_ASYNC_ID_OFFSET, AsyncWrap::PROVIDERS_LENGTH);
-  CHECK(wrapper->IsObject());
-  CHECK(!wrapper.IsEmpty());
-
-  Local<Object> object = wrapper.As<Object>();
-  CHECK_GT(object->InternalFieldCount(), 0);
-
-  AsyncWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, object, nullptr);
-
-  return new RetainedAsyncInfo(class_id, wrap);
-}
-
-
-// end RetainedAsyncInfo
-
-
 struct AsyncWrapObject : public AsyncWrap {
   static inline void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK(args.IsConstructCall());
-    CHECK(env->async_wrap_constructor_template()->HasInstance(args.This()));
+    CHECK(env->async_wrap_object_ctor_template()->HasInstance(args.This()));
     CHECK(args[0]->IsUint32());
     auto type = static_cast<ProviderType>(args[0].As<Uint32>()->Value());
     new AsyncWrapObject(env, args.This(), type);
@@ -147,7 +73,9 @@ struct AsyncWrapObject : public AsyncWrap {
   inline AsyncWrapObject(Environment* env, Local<Object> object,
                          ProviderType type) : AsyncWrap(env, object, type) {}
 
-  inline size_t self_size() const override { return sizeof(*this); }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(AsyncWrapObject)
+  SET_SELF_SIZE(AsyncWrapObject)
 };
 
 
@@ -252,7 +180,10 @@ class PromiseWrap : public AsyncWrap {
       : AsyncWrap(env, object, PROVIDER_PROMISE, -1, silent) {
     MakeWeak();
   }
-  size_t self_size() const override { return sizeof(*this); }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(PromiseWrap)
+  SET_SELF_SIZE(PromiseWrap)
 
   static constexpr int kPromiseField = 1;
   static constexpr int kIsChainedPromiseField = 2;
@@ -480,7 +411,8 @@ void AsyncWrap::PopAsyncIds(const FunctionCallbackInfo<Value>& args) {
 void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  double execution_async_id = args[0]->IsNumber() ? args[0]->NumberValue() : -1;
+  double execution_async_id =
+      args[0]->IsNumber() ? args[0].As<Number>()->Value() : -1;
   wrap->AsyncReset(execution_async_id);
 }
 
@@ -488,15 +420,20 @@ void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
 void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsNumber());
   AsyncWrap::EmitDestroy(
-      Environment::GetCurrent(args), args[0]->NumberValue());
+      Environment::GetCurrent(args),
+      args[0].As<Number>()->Value());
 }
 
-void AsyncWrap::AddWrapMethods(Environment* env,
-                               Local<FunctionTemplate> constructor,
-                               int flag) {
-  env->SetProtoMethod(constructor, "getAsyncId", AsyncWrap::GetAsyncId);
-  if (flag & kFlagHasReset)
-    env->SetProtoMethod(constructor, "asyncReset", AsyncWrap::AsyncReset);
+Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->async_wrap_ctor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(nullptr);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
+    env->SetProtoMethod(tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
+    env->SetProtoMethod(tmpl, "asyncReset", AsyncWrap::AsyncReset);
+    env->set_async_wrap_ctor_template(tmpl);
+  }
+  return tmpl;
 }
 
 void AsyncWrap::Initialize(Local<Object> target,
@@ -551,6 +488,10 @@ void AsyncWrap::Initialize(Local<Object> target,
               env->async_ids_stack_string(),
               env->async_hooks()->async_ids_stack().GetJSArray()).FromJust();
 
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "owner_symbol"),
+              env->owner_symbol()).FromJust();
+
   Local<Object> constants = Object::New(isolate);
 #define SET_HOOKS_CONSTANT(name)                                              \
   FORCE_SET_TARGET_FIELD(                                                     \
@@ -588,28 +529,21 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->set_async_hooks_promise_resolve_function(Local<Function>());
   env->set_async_hooks_binding(target);
 
+  // TODO(addaleax): This block might better work as a
+  // AsyncWrapObject::Initialize() or AsyncWrapObject::GetConstructorTemplate()
+  // function.
   {
     auto class_name = FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap");
     auto function_template = env->NewFunctionTemplate(AsyncWrapObject::New);
     function_template->SetClassName(class_name);
-    AsyncWrap::AddWrapMethods(env, function_template);
+    function_template->Inherit(AsyncWrap::GetConstructorTemplate(env));
     auto instance_template = function_template->InstanceTemplate();
     instance_template->SetInternalFieldCount(1);
     auto function =
         function_template->GetFunction(env->context()).ToLocalChecked();
     target->Set(env->context(), class_name, function).FromJust();
-    env->set_async_wrap_constructor_template(function_template);
+    env->set_async_wrap_object_ctor_template(function_template);
   }
-}
-
-
-void LoadAsyncWrapperInfo(Environment* env) {
-  HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
-#define V(PROVIDER)                                                           \
-  heap_profiler->SetWrapperClassInfoProvider(                                 \
-      (NODE_ASYNC_ID_OFFSET + AsyncWrap::PROVIDER_ ## PROVIDER), WrapperInfo);
-  NODE_ASYNC_PROVIDER_TYPES(V)
-#undef V
 }
 
 
@@ -628,9 +562,6 @@ AsyncWrap::AsyncWrap(Environment* env,
       provider_type_(provider) {
   CHECK_NE(provider, PROVIDER_NONE);
   CHECK_GE(object->InternalFieldCount(), 1);
-
-  // Shift provider value over to prevent id collision.
-  persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider_type_);
 
   // Use AsyncReset() call to execute the init() callbacks.
   AsyncReset(execution_async_id, silent);
@@ -682,13 +613,18 @@ void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
   switch (provider_type()) {
 #define V(PROVIDER)                                                           \
     case PROVIDER_ ## PROVIDER:                                               \
-      TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(                                      \
-        TRACING_CATEGORY_NODE1(async_hooks),                                  \
-        #PROVIDER, static_cast<int64_t>(get_async_id()),                      \
-        "executionAsyncId",                                                   \
-        static_cast<int64_t>(env()->execution_async_id()),                    \
-        "triggerAsyncId",                                                     \
-        static_cast<int64_t>(get_trigger_async_id()));                        \
+      if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(                        \
+          TRACING_CATEGORY_NODE1(async_hooks))) {                             \
+        auto data = tracing::TracedValue::Create();                           \
+        data->SetInteger("executionAsyncId",                                  \
+                         static_cast<int64_t>(env()->execution_async_id()));  \
+        data->SetInteger("triggerAsyncId",                                    \
+                         static_cast<int64_t>(get_trigger_async_id()));       \
+        TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(                                    \
+          TRACING_CATEGORY_NODE1(async_hooks),                                \
+          #PROVIDER, static_cast<int64_t>(get_async_id()),                    \
+          "data", std::move(data));                                           \
+        }                                                                     \
       break;
     NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
@@ -755,12 +691,16 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
 
 async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
-  return Environment::GetCurrent(isolate)->execution_async_id();
+  Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr) return -1;
+  return env->execution_async_id();
 }
 
 
 async_id AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
-  return Environment::GetCurrent(isolate)->trigger_async_id();
+  Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr) return -1;
+  return env->trigger_async_id();
 }
 
 
@@ -779,6 +719,7 @@ async_context EmitAsyncInit(Isolate* isolate,
                             v8::Local<v8::String> name,
                             async_id trigger_async_id) {
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);
 
   // Initialize async context struct
   if (trigger_async_id == -1)
@@ -801,12 +742,36 @@ void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
       Environment::GetCurrent(isolate), asyncContext.async_id);
 }
 
+std::string AsyncWrap::MemoryInfoName() const {
+  return provider_names[provider_type()];
+}
+
 std::string AsyncWrap::diagnostic_name() const {
-  return std::string(provider_names[provider_type()]) +
-      " (" + std::to_string(env()->thread_id()) + ":" +
+  return MemoryInfoName() + " (" + std::to_string(env()->thread_id()) + ":" +
       std::to_string(static_cast<int64_t>(async_id_)) + ")";
+}
+
+Local<Object> AsyncWrap::GetOwner() {
+  return GetOwner(env(), object());
+}
+
+Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
+  v8::EscapableHandleScope handle_scope(env->isolate());
+  CHECK(!obj.IsEmpty());
+
+  v8::TryCatch ignore_exceptions(env->isolate());
+  while (true) {
+    Local<Value> owner;
+    if (!obj->Get(env->context(),
+                  env->owner_symbol()).ToLocal(&owner) ||
+        !owner->IsObject()) {
+      return handle_scope.Escape(obj);
+    }
+
+    obj = owner.As<Object>();
+  }
 }
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(async_wrap, node::AsyncWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(async_wrap, node::AsyncWrap::Initialize)

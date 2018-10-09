@@ -67,7 +67,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   Handle<SharedFunctionInfo> shared_;  // Global handle.
   Handle<String> source_;              // Global handle.
   Handle<String> wrapper_;             // Global handle.
-  std::unique_ptr<v8::String::ExternalStringResourceBase> source_wrapper_;
   size_t max_stack_size_;
 
   // Members required for parsing.

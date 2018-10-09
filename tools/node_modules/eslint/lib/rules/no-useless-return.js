@@ -8,21 +8,12 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../ast-utils"),
+const astUtils = require("../util/ast-utils"),
     FixTracker = require("../util/fix-tracker");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
-
-/**
- * Adds all elements of 2nd argument into 1st argument.
- *
- * @param {Array} array - The destination array to add.
- * @param {Array} elements - The source array to add.
- * @returns {void}
- */
-const pushAll = Function.apply.bind(Array.prototype.push);
 
 /**
  * Removes the given element from the array.
@@ -137,7 +128,7 @@ module.exports = {
                     continue;
                 }
 
-                pushAll(uselessReturns, segmentInfoMap.get(segment).uselessReturns);
+                uselessReturns.push(...segmentInfoMap.get(segment).uselessReturns);
             }
 
             return uselessReturns;

@@ -70,6 +70,4 @@ async function runTest() {
   return child.expectShutdown();
 }
 
-common.crashOnUnhandledRejection();
-
 runTest();

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
@@ -35,8 +35,9 @@ static Handle<JSFunction> Compile(const char* source) {
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
-          source_code, Compiler::ScriptDetails(), v8::ScriptOriginOptions(),
-          nullptr, nullptr, v8::ScriptCompiler::kNoCompileOptions,
+          isolate, source_code, Compiler::ScriptDetails(),
+          v8::ScriptOriginOptions(), nullptr, nullptr,
+          v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -47,7 +48,7 @@ static Handle<JSFunction> Compile(const char* source) {
 TEST(TestLinkageCreate) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + b");
-  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
                                 shared, function);
   auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
@@ -64,7 +65,8 @@ TEST(TestLinkageJSFunctionIncoming) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(
             *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
-    Handle<SharedFunctionInfo> shared(function->shared());
+    Handle<SharedFunctionInfo> shared(function->shared(),
+                                      handles.main_isolate());
     OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
                                   shared, function);
     auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
@@ -81,7 +83,7 @@ TEST(TestLinkageJSFunctionIncoming) {
 TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
-  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
                                 shared, function);
 
@@ -108,7 +110,7 @@ TEST(TestLinkageStubCall) {
   Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
   OptimizedCompilationInfo info(ArrayVector("test"), &zone, Code::STUB);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate, &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
+      &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
   CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));

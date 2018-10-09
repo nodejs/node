@@ -40,6 +40,17 @@ However, the deprecation identifier will not be modified.
 
 <a id="DEP0001"></a>
 ### DEP0001: http.OutgoingMessage.prototype.flush
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v1.6.0
+    pr-url: https://github.com/nodejs/node/pull/1156
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -48,6 +59,18 @@ The `OutgoingMessage.prototype.flush()` method is deprecated. Use
 
 <a id="DEP0002"></a>
 ### DEP0002: require('\_linklist')
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12113
+    description: End-of-Life.
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/3078
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -55,6 +78,17 @@ The `_linklist` module is deprecated. Please use a userland alternative.
 
 <a id="DEP0003"></a>
 ### DEP0003: \_writableState.buffer
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.15
+    pr-url: https://github.com/nodejs/node-v0.x-archive/pull/8826
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -63,14 +97,39 @@ The `_writableState.buffer` property is deprecated. Use the
 
 <a id="DEP0004"></a>
 ### DEP0004: CryptoStream.prototype.readyState
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/17882
+    description: End-of-Life.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: 0.4.0
+    commit: 9c7f89bf56abd37a796fea621ad2e47dd33d2b82
+    description: Documentation-only deprecation.
+-->
 
-Type: Documentation-only
+Type: End-of-Life
 
-The `CryptoStream.prototype.readyState` property is deprecated and should not
-be used.
+The `CryptoStream.prototype.readyState` property was removed.
 
 <a id="DEP0005"></a>
 ### DEP0005: Buffer() constructor
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19524
+    description: Runtime deprecation.
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/4682
+    description: Documentation-only deprecation.
+-->
 
 Type: Runtime (supports [`--pending-deprecation`][])
 
@@ -99,6 +158,18 @@ outside `node_modules` in order to better target developers, rather than users.
 
 <a id="DEP0006"></a>
 ### DEP0006: child\_process options.customFds
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.14
+    description: Runtime deprecation.
+  - version: v0.5.11
+    description: Documentation-only deprecation.
+-->
 
 Type: Runtime
 
@@ -108,6 +179,21 @@ option should be used instead.
 
 <a id="DEP0007"></a>
 ### DEP0007: Replace cluster worker.suicide with worker.exitedAfterDisconnect
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/13702
+    description: End-of-Life.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/3747
+    description: Runtime deprecation.
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/3743
+    description: Documentation-only deprecation.
+-->
 
 Type: End-of-Life
 
@@ -120,6 +206,15 @@ precisely describe the actual semantics and was unnecessarily emotion-laden.
 
 <a id="DEP0008"></a>
 ### DEP0008: require('constants')
+<!-- YAML
+changes:
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/6534
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -130,33 +225,94 @@ to the `constants` property exposed by the relevant module. For instance,
 
 <a id="DEP0009"></a>
 ### DEP0009: crypto.pbkdf2 without digest
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22861
+    description: Runtime deprecation (for `digest === null`).
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/11305
+    description: End-of-Life (for `digest === undefined`).
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/4047
+    description: Runtime deprecation (for `digest === undefined`).
+-->
 
-Type: End-of-Life
+Type: Runtime
 
 Use of the [`crypto.pbkdf2()`][] API without specifying a digest was deprecated
 in Node.js 6.0 because the method defaulted to using the non-recommended
 `'SHA1'` digest. Previously, a deprecation warning was printed. Starting in
-Node.js 8.0.0, calling `crypto.pbkdf2()` or `crypto.pbkdf2Sync()` with an
-undefined `digest` will throw a `TypeError`.
+Node.js 8.0.0, calling `crypto.pbkdf2()` or `crypto.pbkdf2Sync()` with
+`digest` set to `undefined` will throw a `TypeError`.
+
+Beginning in Node.js REPLACEME, calling these functions with `digest` set to
+`null` will print a deprecation warning to align with the behavior when `digest`
+is `undefined`.
 
 <a id="DEP0010"></a>
 ### DEP0010: crypto.createCredentials
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21153
+    description: End-of-Life.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.13
+    pr-url: https://github.com/nodejs/node-v0.x-archive/pull/7265
+    description: Runtime deprecation.
+-->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`crypto.createCredentials()`][] API is deprecated. Please use
+The `crypto.createCredentials()` API was removed. Please use
 [`tls.createSecureContext()`][] instead.
 
 <a id="DEP0011"></a>
 ### DEP0011: crypto.Credentials
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21153
+    description: End-of-Life.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.13
+    pr-url: https://github.com/nodejs/node-v0.x-archive/pull/7265
+    description: Runtime deprecation.
+-->
 
-Type: Runtime
+Type: End-of-Life
 
-The `crypto.Credentials` class is deprecated. Please use [`tls.SecureContext`][]
+The `crypto.Credentials` class was removed. Please use [`tls.SecureContext`][]
 instead.
 
 <a id="DEP0012"></a>
 ### DEP0012: Domain.dispose
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/15412
+    description: End-of-Life.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.7
+    pr-url: https://github.com/nodejs/node-v0.x-archive/pull/5021
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -165,6 +321,15 @@ explicitly via error event handlers set on the domain instead.
 
 <a id="DEP0013"></a>
 ### DEP0013: fs asynchronous function without callback
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18668
+    description: End-of-Life.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/7897
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -173,6 +338,23 @@ in Node.js 10.0.0 onwards. (See https://github.com/nodejs/node/pull/12562.)
 
 <a id="DEP0014"></a>
 ### DEP0014: fs.read legacy String interface
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/9683
+    description: End-of-Life.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/4525
+    description: Runtime deprecation.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.1.96
+    commit: c93e0aaf062081db3ec40ac45b3e2c979d5759d6
+    description: Documentation-only deprecation.
+-->
 
 Type: End-of-Life
 
@@ -181,6 +363,23 @@ API as mentioned in the documentation instead.
 
 <a id="DEP0015"></a>
 ### DEP0015: fs.readSync legacy String interface
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/9683
+    description: End-of-Life.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/4525
+    description: Runtime deprecation.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.1.96
+    commit: c93e0aaf062081db3ec40ac45b3e2c979d5759d6
+    description: Documentation-only deprecation.
+-->
 
 Type: End-of-Life
 
@@ -189,6 +388,15 @@ The [`fs.readSync()`][] legacy `String` interface is deprecated. Use the
 
 <a id="DEP0016"></a>
 ### DEP0016: GLOBAL/root
+<!-- YAML
+changes:
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/1838
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -197,6 +405,15 @@ and should no longer be used.
 
 <a id="DEP0017"></a>
 ### DEP0017: Intl.v8BreakIterator
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/15238
+    description: End-of-Life.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/8908
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -205,6 +422,12 @@ See [`Intl.Segmenter`](https://github.com/tc39/proposal-intl-segmenter).
 
 <a id="DEP0018"></a>
 ### DEP0018: Unhandled promise rejections
+<!-- YAML
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/8217
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -214,6 +437,17 @@ code.
 
 <a id="DEP0019"></a>
 ### DEP0019: require('.') resolved outside directory
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v1.8.1
+    pr-url: https://github.com/nodejs/node/pull/1363
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -223,6 +457,17 @@ release.
 
 <a id="DEP0020"></a>
 ### DEP0020: Server.connections
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.9.7
+    pr-url: https://github.com/nodejs/node-v0.x-archive/pull/4595
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -231,6 +476,17 @@ The [`Server.connections`][] property is deprecated. Please use the
 
 <a id="DEP0021"></a>
 ### DEP0021: Server.listenFD
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.7.12
+    commit: 41421ff9da1288aa241a5e9dcf915b685ade1c23
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -239,6 +495,12 @@ The `Server.listenFD()` method is deprecated. Please use
 
 <a id="DEP0022"></a>
 ### DEP0022: os.tmpDir()
+<!-- YAML
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/6739
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -246,6 +508,17 @@ The `os.tmpDir()` API is deprecated. Please use [`os.tmpdir()`][] instead.
 
 <a id="DEP0023"></a>
 ### DEP0023: os.getNetworkInterfaces()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.6.0
+    commit: 37bb37d151fb6ee4696730e63ff28bb7a4924f97
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -254,14 +527,33 @@ The `os.getNetworkInterfaces()` method is deprecated. Please use the
 
 <a id="DEP0024"></a>
 ### DEP0024: REPLServer.prototype.convertToContext()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/13434
+    description: End-of-Life.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/7829
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
-The `REPLServer.prototype.convertToContext()` API is deprecated and should
-not be used.
+The `REPLServer.prototype.convertToContext()` API has been removed.
 
 <a id="DEP0025"></a>
 ### DEP0025: require('sys')
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v1.0.0
+    pr-url: https://github.com/nodejs/node/pull/317
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -269,6 +561,17 @@ The `sys` module is deprecated. Please use the [`util`][] module instead.
 
 <a id="DEP0026"></a>
 ### DEP0026: util.print()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.3
+    commit: 896b2aa7074fc886efd7dd0a397d694763cac7ce
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -277,6 +580,17 @@ instead.
 
 <a id="DEP0027"></a>
 ### DEP0027: util.puts()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.3
+    commit: 896b2aa7074fc886efd7dd0a397d694763cac7ce
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -284,6 +598,17 @@ The [`util.puts()`][] API is deprecated. Please use [`console.log()`][] instead.
 
 <a id="DEP0028"></a>
 ### DEP0028: util.debug()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.3
+    commit: 896b2aa7074fc886efd7dd0a397d694763cac7ce
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -292,6 +617,17 @@ instead.
 
 <a id="DEP0029"></a>
 ### DEP0029: util.error()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.3
+    commit: 896b2aa7074fc886efd7dd0a397d694763cac7ce
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -300,6 +636,15 @@ instead.
 
 <a id="DEP0030"></a>
 ### DEP0030: SlowBuffer
+<!-- YAML
+changes:
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5833
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -308,6 +653,15 @@ The [`SlowBuffer`][] class is deprecated. Please use
 
 <a id="DEP0031"></a>
 ### DEP0031: ecdh.setPublicKey()
+<!-- YAML
+changes:
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v5.2.0
+    pr-url: https://github.com/nodejs/node/pull/3511
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -316,6 +670,17 @@ API is not useful.
 
 <a id="DEP0032"></a>
 ### DEP0032: domain module
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v1.4.2
+    pr-url: https://github.com/nodejs/node/pull/943
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -323,6 +688,17 @@ The [`domain`][] module is deprecated and should not be used.
 
 <a id="DEP0033"></a>
 ### DEP0033: EventEmitter.listenerCount()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v3.2.0
+    pr-url: https://github.com/nodejs/node/pull/2349
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -331,6 +707,17 @@ deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
 
 <a id="DEP0034"></a>
 ### DEP0034: fs.exists(path, callback)
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v1.0.0
+    pr-url: https://github.com/iojs/io.js/pull/166
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -339,6 +726,16 @@ The [`fs.exists(path, callback)`][] API is deprecated. Please use
 
 <a id="DEP0035"></a>
 ### DEP0035: fs.lchmod(path, mode, callback)
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.4.7
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -346,13 +743,74 @@ The [`fs.lchmod(path, mode, callback)`][] API is deprecated.
 
 <a id="DEP0036"></a>
 ### DEP0036: fs.lchmodSync(path, mode)
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.4.7
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
 The [`fs.lchmodSync(path, mode)`][] API is deprecated.
 
+<a id="DEP0037"></a>
+### DEP0037: fs.lchown(path, uid, gid, callback)
+<!-- YAML
+changes:
+  - version: v10.6.0
+    pr-url: https://github.com/nodejs/node/pull/21498
+    description: Deprecation revoked.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.4.7
+    description: Documentation-only deprecation.
+-->
+
+Type: Deprecation revoked
+
+The [`fs.lchown(path, uid, gid, callback)`][] API is deprecated.
+
+<a id="DEP0038"></a>
+### DEP0038: fs.lchownSync(path, uid, gid)
+<!-- YAML
+changes:
+  - version: v10.6.0
+    pr-url: https://github.com/nodejs/node/pull/21498
+    description: Deprecation revoked.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.4.7
+    description: Documentation-only deprecation.
+-->
+
+Type: Deprecation revoked
+
+The [`fs.lchownSync(path, uid, gid)`][] API is deprecated.
+
 <a id="DEP0039"></a>
 ### DEP0039: require.extensions
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.10.6
+    commit: 7bd8a5a2a60b75266f89f9a32877d55294a3881c
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -360,6 +818,12 @@ The [`require.extensions`][] property is deprecated.
 
 <a id="DEP0040"></a>
 ### DEP0040: punycode module
+<!-- YAML
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/7941
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -368,6 +832,20 @@ instead.
 
 <a id="DEP0041"></a>
 ### DEP0041: NODE\_REPL\_HISTORY\_FILE environment variable
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/13876
+    description: End-of-Life.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v3.0.0
+    pr-url: https://github.com/nodejs/node/pull/2224
+    description: Documentation-only deprecation.
+-->
 
 Type: End-of-Life
 
@@ -376,14 +854,48 @@ The `NODE_REPL_HISTORY_FILE` environment variable was removed. Please use
 
 <a id="DEP0042"></a>
 ### DEP0042: tls.CryptoStream
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/17882
+    description: End-of-Life.
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v0.11.3
+    commit: af80e7bc6e6f33c582eb1f7d37c7f5bbe9f910f7
+    description: Documentation-only deprecation.
+-->
 
-Type: Documentation-only
+Type: End-of-Life
 
-The [`tls.CryptoStream`][] class is deprecated. Please use
+The [`tls.CryptoStream`][] class was removed. Please use
 [`tls.TLSSocket`][] instead.
 
 <a id="DEP0043"></a>
 ### DEP0043: tls.SecurePair
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/11349
+    description: Runtime deprecation.
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/6063
+    description: Documentation-only deprecation.
+  - version: v0.11.15
+    pr-url:
+      - https://github.com/nodejs/node-v0.x-archive/pull/8695
+      - https://github.com/nodejs/node-v0.x-archive/pull/8700
+    description: Deprecation revoked.
+  - version: v0.11.3
+    commit: af80e7bc6e6f33c582eb1f7d37c7f5bbe9f910f7
+    description: Runtime deprecation.
+-->
 
 Type: Documentation-only
 
@@ -392,6 +904,19 @@ The [`tls.SecurePair`][] class is deprecated. Please use
 
 <a id="DEP0044"></a>
 ### DEP0044: util.isArray()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -400,6 +925,19 @@ instead.
 
 <a id="DEP0045"></a>
 ### DEP0045: util.isBoolean()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -407,6 +945,19 @@ The [`util.isBoolean()`][] API is deprecated.
 
 <a id="DEP0046"></a>
 ### DEP0046: util.isBuffer()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -415,6 +966,19 @@ The [`util.isBuffer()`][] API is deprecated. Please use
 
 <a id="DEP0047"></a>
 ### DEP0047: util.isDate()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -422,6 +986,19 @@ The [`util.isDate()`][] API is deprecated.
 
 <a id="DEP0048"></a>
 ### DEP0048: util.isError()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -429,6 +1006,19 @@ The [`util.isError()`][] API is deprecated.
 
 <a id="DEP0049"></a>
 ### DEP0049: util.isFunction()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -436,6 +1026,19 @@ The [`util.isFunction()`][] API is deprecated.
 
 <a id="DEP0050"></a>
 ### DEP0050: util.isNull()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -443,6 +1046,19 @@ The [`util.isNull()`][] API is deprecated.
 
 <a id="DEP0051"></a>
 ### DEP0051: util.isNullOrUndefined()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -450,6 +1066,19 @@ The [`util.isNullOrUndefined()`][] API is deprecated.
 
 <a id="DEP0052"></a>
 ### DEP0052: util.isNumber()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -457,6 +1086,19 @@ The [`util.isNumber()`][] API is deprecated.
 
 <a id="DEP0053"></a>
 ### DEP0053 util.isObject()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -464,6 +1106,19 @@ The [`util.isObject()`][] API is deprecated.
 
 <a id="DEP0054"></a>
 ### DEP0054: util.isPrimitive()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -471,6 +1126,19 @@ The [`util.isPrimitive()`][] API is deprecated.
 
 <a id="DEP0055"></a>
 ### DEP0055: util.isRegExp()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -478,6 +1146,19 @@ The [`util.isRegExp()`][] API is deprecated.
 
 <a id="DEP0056"></a>
 ### DEP0056: util.isString()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -485,6 +1166,19 @@ The [`util.isString()`][] API is deprecated.
 
 <a id="DEP0057"></a>
 ### DEP0057: util.isSymbol()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -492,6 +1186,19 @@ The [`util.isSymbol()`][] API is deprecated.
 
 <a id="DEP0058"></a>
 ### DEP0058: util.isUndefined()
+<!-- YAML
+changes:
+  - version:
+    - v4.8.6
+    - v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version:
+    - v3.3.1
+    - v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2447
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -499,6 +1206,15 @@ The [`util.isUndefined()`][] API is deprecated.
 
 <a id="DEP0059"></a>
 ### DEP0059: util.log()
+<!-- YAML
+changes:
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/6161
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -506,6 +1222,15 @@ The [`util.log()`][] API is deprecated.
 
 <a id="DEP0060"></a>
 ### DEP0060: util.\_extend()
+<!-- YAML
+changes:
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/4903
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -513,6 +1238,18 @@ The [`util._extend()`][] API is deprecated.
 
 <a id="DEP0061"></a>
 ### DEP0061: fs.SyncWriteStream
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20735
+    description: End-of-Life.
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/10467
+    description: Runtime deprecation.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/6749
+    description: Documentation-only deprecation.
+-->
 
 Type: End-of-Life
 
@@ -522,6 +1259,12 @@ alternative.
 
 <a id="DEP0062"></a>
 ### DEP0062: node --debug
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/10970
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -531,6 +1274,12 @@ instead.
 
 <a id="DEP0063"></a>
 ### DEP0063: ServerResponse.prototype.writeHeader()
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/11355
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -542,6 +1291,26 @@ officially supported API.
 
 <a id="DEP0064"></a>
 ### DEP0064: tls.createSecurePair()
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/11349
+    description: Runtime deprecation.
+  - version: v6.12.0
+    pr-url: https://github.com/nodejs/node/pull/10116
+    description: A deprecation code has been assigned.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/6063
+    description: Documentation-only deprecation.
+  - version: v0.11.15
+    pr-url:
+      - https://github.com/nodejs/node-v0.x-archive/pull/8695
+      - https://github.com/nodejs/node-v0.x-archive/pull/8700
+    description: Deprecation revoked.
+  - version: v0.11.3
+    commit: af80e7bc6e6f33c582eb1f7d37c7f5bbe9f910f7
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -550,6 +1319,15 @@ The `tls.createSecurePair()` API was deprecated in documentation in Node.js
 
 <a id="DEP0065"></a>
 ### DEP0065: repl.REPL_MODE_MAGIC and NODE_REPL_MODE=magic
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19187
+    description: End-of-Life.
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/11599
+    description: Documentation-only deprecation.
+-->
 
 Type: End-of-Life
 
@@ -564,6 +1342,12 @@ removed. Please use `sloppy` instead.
 
 <a id="DEP0066"></a>
 ### DEP0066: outgoingMessage.\_headers, outgoingMessage.\_headerNames
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/10941
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -579,6 +1363,12 @@ were never documented as officially supported properties.
 
 <a id="DEP0067"></a>
 ### DEP0067: OutgoingMessage.prototype.\_renderHeaders
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/10941
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -590,6 +1380,12 @@ an officially supported API.
 
 <a id="DEP0068"></a>
 ### DEP0068: node debug
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/11441
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -598,6 +1394,18 @@ a V8-inspector based CLI debugger available through `node inspect`.
 
 <a id="DEP0069"></a>
 ### DEP0069: vm.runInDebugContext(string)
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/13295
+    description: End-of-Life.
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/12815
+    description: Runtime deprecation.
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12243
+    description: Documentation-only deprecation.
+-->
 
 Type: End-of-Life
 
@@ -607,6 +1415,15 @@ DebugContext was an experimental API.
 
 <a id="DEP0070"></a>
 ### DEP0070: async_hooks.currentId()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/14414
+    description: End-of-Life.
+  - version: v8.2.0
+    pr-url: https://github.com/nodejs/node/pull/13490
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -617,6 +1434,15 @@ This change was made while `async_hooks` was an experimental API.
 
 <a id="DEP0071"></a>
 ### DEP0071: async_hooks.triggerId()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/14414
+    description: End-of-Life.
+  - version: v8.2.0
+    pr-url: https://github.com/nodejs/node/pull/13490
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -627,6 +1453,15 @@ This change was made while `async_hooks` was an experimental API.
 
 <a id="DEP0072"></a>
 ### DEP0072: async_hooks.AsyncResource.triggerId()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/14414
+    description: End-of-Life.
+  - version: v8.2.0
+    pr-url: https://github.com/nodejs/node/pull/13490
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -637,6 +1472,15 @@ This change was made while `async_hooks` was an experimental API.
 
 <a id="DEP0073"></a>
 ### DEP0073: Several internal properties of net.Server
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/17141
+    description: End-of-Life.
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/14449
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -648,6 +1492,12 @@ code, no replacement API is provided.
 
 <a id="DEP0074"></a>
 ### DEP0074: REPLServer.bufferedCommand
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/13687
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -656,6 +1506,12 @@ The `REPLServer.bufferedCommand` property was deprecated in favor of
 
 <a id="DEP0075"></a>
 ### DEP0075: REPLServer.parseREPLKeyword()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/14223
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -663,6 +1519,15 @@ Type: Runtime
 
 <a id="DEP0076"></a>
 ### DEP0076: tls.parseCertString()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/14249
+    description: Runtime deprecation.
+  - version: v8.6.0
+    pr-url: https://github.com/nodejs/node/pull/14245
+    description: Documentation-only deprecation.
+-->
 
 Type: Runtime
 
@@ -686,6 +1551,12 @@ difference is that `querystring.parse()` does url decoding:
 
 <a id="DEP0077"></a>
 ### DEP0077: Module.\_debug()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/13948
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -696,6 +1567,12 @@ supported API.
 
 <a id="DEP0078"></a>
 ### DEP0078: REPLServer.turnOffEditorMode()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/15136
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -703,6 +1580,18 @@ Type: Runtime
 
 <a id="DEP0079"></a>
 ### DEP0079: Custom inspection function on Objects via .inspect()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20722
+    description: End-of-Life.
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/16393
+    description: Runtime deprecation.
+  - version: v8.7.0
+    pr-url: https://github.com/nodejs/node/pull/15631
+    description: Documentation-only deprecation.
+-->
 
 Type: End-of-Life
 
@@ -713,6 +1602,12 @@ may be specified.
 
 <a id="DEP0080"></a>
 ### DEP0080: path.\_makeLong()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/14956
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -722,6 +1617,12 @@ and replaced with an identical, public `path.toNamespacedPath()` method.
 
 <a id="DEP0081"></a>
 ### DEP0081: fs.truncate() using a file descriptor
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/15990
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -731,6 +1632,12 @@ file descriptors.
 
 <a id="DEP0082"></a>
 ### DEP0082: REPLServer.prototype.memory()
+<!-- YAML
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/16242
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -739,16 +1646,31 @@ the `REPLServer` itself. Do not use this function.
 
 <a id="DEP0083"></a>
 ### DEP0083: Disabling ECDH by setting ecdhCurve to false
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19794
+    description: End-of-Life.
+  - version: v9.2.0
+    pr-url: https://github.com/nodejs/node/pull/16130
+    description: Runtime deprecation.
+-->
 
-Type: Runtime
+Type: End-of-Life.
 
 The `ecdhCurve` option to `tls.createSecureContext()` and `tls.TLSSocket` could
-be set to `false` to disable ECDH entirely on the server only. This mode is
+be set to `false` to disable ECDH entirely on the server only. This mode was
 deprecated in preparation for migrating to OpenSSL 1.1.0 and consistency with
-the client. Use the `ciphers` parameter instead.
+the client and is now unsupported. Use the `ciphers` parameter instead.
 
 <a id="DEP0084"></a>
 ### DEP0084: requiring bundled internal dependencies
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/16392
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -780,6 +1702,17 @@ code modification is necessary if that is done.
 
 <a id="DEP0085"></a>
 ### DEP0085: AsyncHooks Sensitive API
+<!-- YAML
+changes:
+  - version: 10.0.0
+    pr-url: https://github.com/nodejs/node/pull/17147
+    description: End-of-Life.
+  - version:
+    - v8.10.0
+    - v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16972
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -789,6 +1722,17 @@ API instead.
 
 <a id="DEP0086"></a>
 ### DEP0086: Remove runInAsyncIdScope
+<!-- YAML
+changes:
+  - version: 10.0.0
+    pr-url: https://github.com/nodejs/node/pull/17147
+    description: End-of-Life.
+  - version:
+    - v8.10.0
+    - v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16972
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -798,6 +1742,14 @@ details.
 
 <a id="DEP0089"></a>
 ### DEP0089: require('assert')
+<!-- YAML
+changes:
+  - version:
+      - v9.9.0
+      - v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/17002
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -807,6 +1759,15 @@ same as the legacy assert but it will always use strict equality checks.
 
 <a id="DEP0090"></a>
 ### DEP0090: Invalid GCM authentication tag lengths
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17825
+    description: End-of-Life.
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18017
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -818,6 +1779,12 @@ considered invalid in compliance with [NIST SP 800-38D][].
 
 <a id="DEP0091"></a>
 ### DEP0091: crypto.DEFAULT_ENCODING
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18333
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -825,6 +1792,12 @@ The [`crypto.DEFAULT_ENCODING`][] property is deprecated.
 
 <a id="DEP0092"></a>
 ### DEP0092: Top-level `this` bound to `module.exports`
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/16878
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -834,6 +1807,12 @@ or `module.exports` instead.
 
 <a id="DEP0093"></a>
 ### DEP0093: crypto.fips is deprecated and replaced.
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18335
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -842,6 +1821,12 @@ and `crypto.getFips()` instead.
 
 <a id="DEP0094"></a>
 ### DEP0094: Using `assert.fail()` with more than one argument.
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18418
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -851,6 +1836,12 @@ method.
 
 <a id="DEP0095"></a>
 ### DEP0095: timers.enroll()
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18066
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -859,6 +1850,12 @@ Type: Runtime
 
 <a id="DEP0096"></a>
 ### DEP0096: timers.unenroll()
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18066
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -867,6 +1864,12 @@ Type: Runtime
 
 <a id="DEP0097"></a>
 ### DEP0097: MakeCallback with domain property
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/17417
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -876,6 +1879,15 @@ should start using the `async_context` variant of `MakeCallback` or
 
 <a id="DEP0098"></a>
 ### DEP0098: AsyncHooks Embedder AsyncResource.emitBefore and AsyncResource.emitAfter APIs
+<!-- YAML
+changes:
+  - version:
+    - v8.12.0
+    - v9.6.0
+    - v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18632
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -889,6 +1901,12 @@ https://github.com/nodejs/node/pull/18513 for more details.
 
 <a id="DEP0099"></a>
 ### DEP0099: async context-unaware node::MakeCallback C++ APIs
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18632
+    description: Compile-time deprecation.
+-->
 
 Type: Compile-time
 
@@ -898,6 +1916,14 @@ parameter.
 
 <a id="DEP0100"></a>
 ### DEP0100: process.assert()
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18666
+    description: Runtime deprecation.
+  - version: v0.3.7
+    description: Documentation-only deprecation.
+-->
 
 Type: Runtime
 
@@ -907,6 +1933,12 @@ This was never a documented feature.
 
 <a id="DEP0101"></a>
 ### DEP0101: --with-lttng
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18982
+    description: End-of-Life.
+-->
 
 Type: End-of-Life
 
@@ -914,6 +1946,12 @@ The `--with-lttng` compile-time option has been removed.
 
 <a id="DEP0102"></a>
 ### DEP0102: Using `noAssert` in Buffer#(read|write) operations.
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: End-of-Life.
+-->
 
 Type: End-of-Life
 
@@ -923,14 +1961,32 @@ could lead to hard to find errors and crashes.
 
 <a id="DEP0103"></a>
 ### DEP0103: process.binding('util').is[...] typechecks
+<!-- YAML
+changes:
+  - version: v10.9.0
+    pr-url: https://github.com/nodejs/node/pull/22004
+    description: Superseded by [DEP0111](#DEP0111).
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18415
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
 Using `process.binding()` in general should be avoided. The type checking
 methods in particular can be replaced by using [`util.types`][].
 
+This deprecation has been superseded by the deprecation of the
+`process.binding()` API ([DEP0111](#DEP0111)).
+
 <a id="DEP0104"></a>
 ### DEP0104: process.env string coercion
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/18990
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
@@ -942,6 +1998,15 @@ assigning it to `process.env`.
 
 <a id="DEP0105"></a>
 ### DEP0105: decipher.finaltol
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19941
+    description: End-of-Life.
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19353
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -951,18 +2016,36 @@ Type: End-of-Life
 
 <a id="DEP0106"></a>
 ### DEP0106: crypto.createCipher and crypto.createDecipher
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22089
+    description: Runtime deprecation.
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19343
+    description: Documentation-only deprecation.
+-->
 
-Type: Documentation-only
+Type: Runtime
 
 Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] should be
 avoided as they use a weak key derivation function (MD5 with no salt) and static
 initialization vectors. It is recommended to derive a key using
-[`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][] and
-[`crypto.createDecipheriv()`][] to obtain the [`Cipher`][] and [`Decipher`][]
-objects respectively.
+[`crypto.pbkdf2()`][] or [`crypto.scrypt()`][] and to use
+[`crypto.createCipheriv()`][] and [`crypto.createDecipheriv()`][] to obtain the
+[`Cipher`][] and [`Decipher`][] objects respectively.
 
 <a id="DEP0107"></a>
 ### DEP0107: tls.convertNPNProtocols()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20736
+    description: End-of-Life.
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19403
+    description: Runtime deprecation.
+-->
 
 Type: End-of-Life
 
@@ -971,6 +2054,12 @@ core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
 
 <a id="DEP0108"></a>
 ### DEP0108: zlib.bytesRead
+<!-- YAML
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19414
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
@@ -981,6 +2070,12 @@ expose values under these names.
 
 <a id="DEP0109"></a>
 ### DEP0109: http, https, and tls support for invalid URLs
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20270
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
@@ -993,11 +2088,147 @@ deprecated and support will be removed in the future.
 
 <a id="DEP0110"></a>
 ### DEP0110: vm.Script cached data
+<!-- YAML
+changes:
+  - version: v10.6.0
+    pr-url: https://github.com/nodejs/node/pull/20300
+    description: Documentation-only deprecation.
+-->
 
 Type: Documentation-only
 
-The option `produceCachedData` has been deprecated. Use
+The `produceCachedData` option is deprecated. Use
 [`script.createCachedData()`][] instead.
+
+<a id="DEP0111"></a>
+### DEP0111: process.binding()
+<!-- YAML
+changes:
+  - version: v10.9.0
+    pr-url: https://github.com/nodejs/node/pull/22004
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `process.binding()` API is intended for use by Node.js internal code
+only. Use of `process.binding()` by userland code is unsupported.
+
+<a id="DEP0112"></a>
+### DEP0112: dgram private APIs
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22011
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `dgram` module previously contained several APIs that were never meant to
+accessed outside of Node.js core: `Socket.prototype._handle`,
+`Socket.prototype._receiving`, `Socket.prototype._bindState`,
+`Socket.prototype._queue`, `Socket.prototype._reuseAddr`,
+`Socket.prototype._healthCheck()`, `Socket.prototype._stopReceiving()`, and
+`dgram._createSocketHandle()`.
+
+<a id="DEP0113"></a>
+### DEP0113: Cipher.setAuthTag(), Decipher.getAuthTag()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22126
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+With the current crypto API, having `Cipher.setAuthTag()` and
+`Decipher.getAuthTag()` is not helpful and both functions will throw an error
+when called. They have never been documented and will be removed in a future
+release.
+
+<a id="DEP0114"></a>
+### DEP0114: crypto._toBuf()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22501
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `crypto._toBuf()` function was not designed to be used by modules outside
+of Node.js core and will be removed in the future.
+
+<a id="DEP0115"></a>
+### DEP0115: crypto.prng(), crypto.pseudoRandomBytes(), crypto.rng()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url:
+      - https://github.com/nodejs/node/pull/22519
+      - https://github.com/nodejs/node/pull/23017
+    description: Added documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+In recent versions of Node.js, there is no difference between
+[`crypto.randomBytes()`][] and `crypto.pseudoRandomBytes()`. The latter is
+deprecated along with the undocumented aliases `crypto.prng()` and
+`crypto.rng()` in favor of [`crypto.randomBytes()`][] and may be removed in a
+future release.
+
+<a id="DEP0116"></a>
+### DEP0116: Legacy URL API
+<!-- YAML
+changes:
+  - version: v11.0.0
+    pr-url: https://github.com/nodejs/node/pull/22715
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
+[`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
+use the [WHATWG URL API][] instead.
+
+<a id="DEP0117"></a>
+### DEP0117: Native crypto handles
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22747
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Previous versions of Node.js exposed handles to internal native objects through
+the `_handle` property of the `Cipher`, `Decipher`, `DiffieHellman`,
+`DiffieHellmanGroup`, `ECDH`, `Hash`, `Hmac`, `Sign`, and `Verify` classes.
+Using the `_handle` property to access the native object is deprecated because
+improper use of the native object can lead to crashing the application.
+
+<a id="DEP0118"></a>
+### DEP0118: dns.lookup() support for a falsy hostname
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23173
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Previous versions of Node.js supported `dns.lookup()` with a falsy hostname
+like `dns.lookup(false)` due to backward compatibility.
+This behavior is undocumented and is thought to be unused in real world apps.
+It will become an error in future versions of Node.js.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -1020,12 +2251,13 @@ The option `produceCachedData` has been deprecated. Use
 [`console.log()`]: console.html#console_console_log_data_args
 [`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password_options
 [`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv_options
-[`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.createDecipher()`]: crypto.html#crypto_crypto_createdecipher_algorithm_password_options
 [`crypto.createDecipheriv()`]: crypto.html#crypto_crypto_createdecipheriv_algorithm_key_iv_options
 [`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
 [`crypto.fips`]: crypto.html#crypto_crypto_fips
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`crypto.randomBytes()`]: crypto.html#crypto_crypto_randombytes_size_callback
+[`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
 [`decipher.final()`]: crypto.html#crypto_decipher_final_outputencoding
 [`decipher.setAuthTag()`]: crypto.html#crypto_decipher_setauthtag_buffer
 [`domain`]: domain.html
@@ -1035,6 +2267,8 @@ The option `produceCachedData` has been deprecated. Use
 [`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
 [`fs.lchmod(path, mode, callback)`]: fs.html#fs_fs_lchmod_path_mode_callback
 [`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
+[`fs.lchown(path, uid, gid, callback)`]: fs.html#fs_fs_lchown_path_uid_gid_callback
+[`fs.lchownSync(path, uid, gid)`]: fs.html#fs_fs_lchownsync_path_uid_gid
 [`fs.read()`]: fs.html#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.html#fs_fs_readsync_fd_buffer_offset_length_position
 [`fs.stat()`]: fs.html#fs_fs_stat_path_options_callback
@@ -1046,6 +2280,7 @@ The option `produceCachedData` has been deprecated. Use
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
+[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
 [`require.extensions`]: modules.html#modules_require_extensions
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
@@ -1056,6 +2291,9 @@ The option `produceCachedData` has been deprecated. Use
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.checkServerIdentity()`]: tls.html#tls_tls_checkserveridentity_hostname_cert
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
+[`url.format()`]: url.html#url_url_format_urlobject
+[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
+[`url.resolve()`]: url.html#url_url_resolve_from_to
 [`util._extend()`]: util.html#util_util_extend_target_source
 [`util.debug()`]: util.html#util_util_debug_string
 [`util.error()`]: util.html#util_util_error_strings
@@ -1087,5 +2325,7 @@ The option `produceCachedData` has been deprecated. Use
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
-[NIST SP 800-38D]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
-[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
+[Legacy URL API]: url.html#url_legacy_url_api
+[legacy `urlObject`]: url.html#url_legacy_urlobject
+[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
+[WHATWG URL API]: url.html#url_the_whatwg_url_api

@@ -41,8 +41,8 @@ SafepointTable::SafepointTable(Address instruction_start,
       stack_slots_(stack_slots),
       has_deopt_(has_deopt) {
   Address header = instruction_start_ + safepoint_table_offset;
-  length_ = Memory::uint32_at(header + kLengthOffset);
-  entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
+  length_ = Memory<uint32_t>(header + kLengthOffset);
+  entry_size_ = Memory<uint32_t>(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
   entries_ = pc_and_deoptimization_indexes_ + (length_ * kFixedEntrySize);
   DCHECK_GT(entry_size_, 0);
@@ -71,6 +71,7 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   // We use kMaxUInt32 as sentinel value, so check that we don't hit that.
   DCHECK_NE(kMaxUInt32, pc_offset);
   unsigned len = length();
+  CHECK_GT(len, 0);
   // If pc == kMaxUInt32, then this entry covers all call sites in the function.
   if (len == 1 && GetPcOffset(0) == kMaxUInt32) return GetEntry(0);
   for (unsigned i = 0; i < len; i++) {
@@ -120,9 +121,8 @@ void SafepointTable::PrintBits(std::ostream& os,  // NOLINT
   }
 }
 
-
-void Safepoint::DefinePointerRegister(Register reg, Zone* zone) {
-  registers_->Add(reg.code(), zone);
+void Safepoint::DefinePointerRegister(Register reg) {
+  registers_->push_back(reg.code());
 }
 
 
@@ -132,20 +132,19 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
     int arguments,
     Safepoint::DeoptMode deopt_mode) {
   DCHECK_GE(arguments, 0);
-  deoptimization_info_.Add(
-      DeoptimizationInfo(zone_, assembler->pc_offset(), arguments, kind),
-      zone_);
+  deoptimization_info_.push_back(
+      DeoptimizationInfo(zone_, assembler->pc_offset(), arguments, kind));
   if (deopt_mode == Safepoint::kNoLazyDeopt) {
-    last_lazy_safepoint_ = deoptimization_info_.length();
+    last_lazy_safepoint_ = deoptimization_info_.size();
   }
-  DeoptimizationInfo& new_info = deoptimization_info_.last();
+  DeoptimizationInfo& new_info = deoptimization_info_.back();
   return Safepoint(new_info.indexes, new_info.registers);
 }
 
-
 void SafepointTableBuilder::RecordLazyDeoptimizationIndex(int index) {
-  while (last_lazy_safepoint_ < deoptimization_info_.length()) {
-    deoptimization_info_[last_lazy_safepoint_++].deopt_index = index;
+  for (auto it = deoptimization_info_.Find(last_lazy_safepoint_);
+       it != deoptimization_info_.end(); it++, last_lazy_safepoint_++) {
+    it->deopt_index = index;
   }
 }
 
@@ -156,17 +155,15 @@ unsigned SafepointTableBuilder::GetCodeOffset() const {
 
 int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
                                                     int start) {
-  int index = -1;
-  for (int i = start; i < deoptimization_info_.length(); i++) {
-    if (static_cast<int>(deoptimization_info_[i].pc) == pc) {
-      index = i;
-      break;
+  int index = start;
+  for (auto it = deoptimization_info_.Find(start);
+       it != deoptimization_info_.end(); it++, index++) {
+    if (static_cast<int>(it->pc) == pc) {
+      it->trampoline = trampoline;
+      return index;
     }
   }
-  CHECK_GE(index, 0);
-  DCHECK(index < deoptimization_info_.length());
-  deoptimization_info_[index].trampoline = trampoline;
-  return index;
+  UNREACHABLE();
 }
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
@@ -185,25 +182,23 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
       RoundUp(bits_per_entry, kBitsPerByte) >> kBitsPerByteLog2;
 
   // Emit the table header.
-  int length = deoptimization_info_.length();
+  int length = static_cast<int>(deoptimization_info_.size());
   assembler->dd(length);
   assembler->dd(bytes_per_entry);
 
   // Emit sorted table of pc offsets together with deoptimization indexes.
-  for (int i = 0; i < length; i++) {
-    const DeoptimizationInfo& info = deoptimization_info_[i];
+  for (const DeoptimizationInfo& info : deoptimization_info_) {
     assembler->dd(info.pc);
     assembler->dd(EncodeExceptPC(info));
     assembler->dd(info.trampoline);
   }
 
   // Emit table of bitmaps.
-  ZoneList<uint8_t> bits(bytes_per_entry, zone_);
-  for (int i = 0; i < length; i++) {
-    ZoneList<int>* indexes = deoptimization_info_[i].indexes;
-    ZoneList<int>* registers = deoptimization_info_[i].registers;
-    bits.Clear();
-    bits.AddBlock(0, bytes_per_entry, zone_);
+  ZoneVector<uint8_t> bits(bytes_per_entry, 0, zone_);
+  for (const DeoptimizationInfo& info : deoptimization_info_) {
+    ZoneChunkList<int>* indexes = info.indexes;
+    ZoneChunkList<int>* registers = info.registers;
+    std::fill(bits.begin(), bits.end(), 0);
 
     // Run through the registers (if any).
     DCHECK(IsAligned(kNumSafepointRegisters, kBitsPerByte));
@@ -213,8 +208,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
         bits[j] = SafepointTable::kNoRegisters;
       }
     } else {
-      for (int j = 0; j < registers->length(); j++) {
-        int index = registers->at(j);
+      for (int index : *registers) {
         DCHECK(index >= 0 && index < kNumSafepointRegisters);
         int byte_index = index >> kBitsPerByteLog2;
         int bit_index = index & (kBitsPerByte - 1);
@@ -223,8 +217,8 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
     }
 
     // Run through the indexes and build a bitmap.
-    for (int j = 0; j < indexes->length(); j++) {
-      int index = bits_per_entry - 1 - indexes->at(j);
+    for (int idx : *indexes) {
+      int index = bits_per_entry - 1 - idx;
       int byte_index = index >> kBitsPerByteLog2;
       int bit_index = index & (kBitsPerByte - 1);
       bits[byte_index] |= (1U << bit_index);
@@ -250,19 +244,19 @@ void SafepointTableBuilder::RemoveDuplicates() {
   // kMaxUInt32. This especially compacts the table for wasm code without tagged
   // pointers and without deoptimization info.
 
-  int length = deoptimization_info_.length();
-  if (length < 2) return;
+  if (deoptimization_info_.size() < 2) return;
 
-  // Check that all entries (1, length] are identical to entry 0.
-  const DeoptimizationInfo& first_info = deoptimization_info_[0];
-  for (int i = 1; i < length; ++i) {
-    if (!IsIdenticalExceptForPc(first_info, deoptimization_info_[i])) return;
+  // Check that all entries (1, size] are identical to entry 0.
+  const DeoptimizationInfo& first_info = deoptimization_info_.front();
+  for (auto it = deoptimization_info_.Find(1); it != deoptimization_info_.end();
+       it++) {
+    if (!IsIdenticalExceptForPc(first_info, *it)) return;
   }
 
   // If we get here, all entries were identical. Rewind the list to just one
   // entry, and set the pc to kMaxUInt32.
   deoptimization_info_.Rewind(1);
-  deoptimization_info_[0].pc = kMaxUInt32;
+  deoptimization_info_.front().pc = kMaxUInt32;
 }
 
 bool SafepointTableBuilder::IsIdenticalExceptForPc(
@@ -272,20 +266,21 @@ bool SafepointTableBuilder::IsIdenticalExceptForPc(
 
   if (info1.deopt_index != info2.deopt_index) return false;
 
-  ZoneList<int>* indexes1 = info1.indexes;
-  ZoneList<int>* indexes2 = info2.indexes;
-  if (indexes1->length() != indexes2->length()) return false;
-  for (int i = 0; i < indexes1->length(); ++i) {
-    if (indexes1->at(i) != indexes2->at(i)) return false;
+  ZoneChunkList<int>* indexes1 = info1.indexes;
+  ZoneChunkList<int>* indexes2 = info2.indexes;
+  if (indexes1->size() != indexes2->size()) return false;
+  if (!std::equal(indexes1->begin(), indexes1->end(), indexes2->begin())) {
+    return false;
   }
 
-  ZoneList<int>* registers1 = info1.registers;
-  ZoneList<int>* registers2 = info2.registers;
+  ZoneChunkList<int>* registers1 = info1.registers;
+  ZoneChunkList<int>* registers2 = info2.registers;
   if (registers1) {
     if (!registers2) return false;
-    if (registers1->length() != registers2->length()) return false;
-    for (int i = 0; i < registers1->length(); ++i) {
-      if (registers1->at(i) != registers2->at(i)) return false;
+    if (registers1->size() != registers2->size()) return false;
+    if (!std::equal(registers1->begin(), registers1->end(),
+                    registers2->begin())) {
+      return false;
     }
   } else if (registers2) {
     return false;

@@ -37,8 +37,8 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   __ leave();
 
   __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ebx,
-         FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ movzx_w(
+      ebx, FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
 
   ParameterCount dummy(ebx);
   __ InvokeFunction(edi, dummy, dummy, JUMP_FUNCTION);

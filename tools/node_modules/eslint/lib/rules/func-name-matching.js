@@ -9,7 +9,7 @@
 // Requirements
 //--------------------------------------------------------------------------
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 const esutils = require("esutils");
 
 //--------------------------------------------------------------------------
@@ -87,6 +87,12 @@ module.exports = {
                 additionalItems: false,
                 items: [optionsObject]
             }]
+        },
+        messages: {
+            matchProperty: "Function name `{{funcName}}` should match property name `{{name}}`",
+            matchVariable: "Function name `{{funcName}}` should match variable name `{{name}}`",
+            notMatchProperty: "Function name `{{funcName}}` should not match property name `{{name}}`",
+            notMatchVariable: "Function name `{{funcName}}` should not match variable name `{{name}}`"
         }
     },
 
@@ -132,20 +138,20 @@ module.exports = {
          * @returns {void}
          */
         function report(node, name, funcName, isProp) {
-            let message;
+            let messageId;
 
             if (nameMatches === "always" && isProp) {
-                message = "Function name `{{funcName}}` should match property name `{{name}}`";
+                messageId = "matchProperty";
             } else if (nameMatches === "always") {
-                message = "Function name `{{funcName}}` should match variable name `{{name}}`";
+                messageId = "matchVariable";
             } else if (isProp) {
-                message = "Function name `{{funcName}}` should not match property name `{{name}}`";
+                messageId = "notMatchProperty";
             } else {
-                message = "Function name `{{funcName}}` should not match variable name `{{name}}`";
+                messageId = "notMatchVariable";
             }
             context.report({
                 node,
-                message,
+                messageId,
                 data: {
                     name,
                     funcName

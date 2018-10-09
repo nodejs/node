@@ -3,6 +3,8 @@
 #include "node_internals.h"
 #include "v8.h"
 
+#include <atomic>
+
 namespace node {
 
 using v8::Array;
@@ -10,8 +12,13 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
+using v8::kPromiseHandlerAddedAfterReject;
+using v8::kPromiseRejectAfterResolved;
+using v8::kPromiseRejectWithNoHandler;
+using v8::kPromiseResolveAfterResolved;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Number;
 using v8::Object;
 using v8::Promise;
 using v8::PromiseRejectEvent;
@@ -27,6 +34,12 @@ void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
 
 void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
   args.GetIsolate()->RunMicrotasks();
+}
+
+void SetupTraceCategoryState(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  env->set_trace_category_state_function(args[0].As<Function>());
 }
 
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
@@ -51,28 +64,48 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 }
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
+  static std::atomic<uint64_t> unhandledRejections{0};
+  static std::atomic<uint64_t> rejectionsHandledAfter{0};
+
   Local<Promise> promise = message.GetPromise();
   Isolate* isolate = promise->GetIsolate();
   PromiseRejectEvent event = message.GetEvent();
 
   Environment* env = Environment::GetCurrent(isolate);
-  Local<Function> callback;
+
+  if (env == nullptr) return;
+
+  Local<Function> callback = env->promise_handler_function();
   Local<Value> value;
+  Local<Value> type = Number::New(env->isolate(), event);
 
-  if (event == v8::kPromiseRejectWithNoHandler) {
-    callback = env->promise_reject_unhandled_function();
+  if (event == kPromiseRejectWithNoHandler) {
     value = message.GetValue();
-
-    if (value.IsEmpty())
-      value = Undefined(isolate);
-  } else if (event == v8::kPromiseHandlerAddedAfterReject) {
-    callback = env->promise_reject_handled_function();
+    unhandledRejections++;
+    TRACE_COUNTER2(TRACING_CATEGORY_NODE2(promises, rejections),
+                  "rejections",
+                  "unhandled", unhandledRejections,
+                  "handledAfter", rejectionsHandledAfter);
+  } else if (event == kPromiseHandlerAddedAfterReject) {
     value = Undefined(isolate);
+    rejectionsHandledAfter++;
+    TRACE_COUNTER2(TRACING_CATEGORY_NODE2(promises, rejections),
+                  "rejections",
+                  "unhandled", unhandledRejections,
+                  "handledAfter", rejectionsHandledAfter);
+  } else if (event == kPromiseResolveAfterResolved) {
+    value = message.GetValue();
+  } else if (event == kPromiseRejectAfterResolved) {
+    value = message.GetValue();
   } else {
-    UNREACHABLE();
+    return;
   }
 
-  Local<Value> args[] = { promise, value };
+  if (value.IsEmpty()) {
+    value = Undefined(isolate);
+  }
+
+  Local<Value> args[] = { type, promise, value };
   MaybeLocal<Value> ret = callback->Call(env->context(),
                                          Undefined(isolate),
                                          arraysize(args),
@@ -87,11 +120,17 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
+  CHECK(args[1]->IsObject());
+
+  Local<Object> constants = args[1].As<Object>();
+
+  NODE_DEFINE_CONSTANT(constants, kPromiseRejectWithNoHandler);
+  NODE_DEFINE_CONSTANT(constants, kPromiseHandlerAddedAfterReject);
+  NODE_DEFINE_CONSTANT(constants, kPromiseResolveAfterResolved);
+  NODE_DEFINE_CONSTANT(constants, kPromiseRejectAfterResolved);
 
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
-  env->set_promise_reject_unhandled_function(args[0].As<Function>());
-  env->set_promise_reject_handled_function(args[1].As<Function>());
+  env->set_promise_handler_function(args[0].As<Function>());
 }
 
 #define BOOTSTRAP_METHOD(name, fn) env->SetMethod(bootstrapper, #name, fn)
@@ -102,6 +141,7 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
 // completes so that it can be gc'd as soon as possible.
 void SetupBootstrapObject(Environment* env,
                           Local<Object> bootstrapper) {
+  BOOTSTRAP_METHOD(_setupTraceCategoryState, SetupTraceCategoryState);
   BOOTSTRAP_METHOD(_setupProcessObject, SetupProcessObject);
   BOOTSTRAP_METHOD(_setupNextTick, SetupNextTick);
   BOOTSTRAP_METHOD(_setupPromises, SetupPromises);

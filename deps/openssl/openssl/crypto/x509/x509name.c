@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -191,7 +191,7 @@ int X509_NAME_add_entry(X509_NAME *name, const X509_NAME_ENTRY *ne, int loc,
         loc = n;
     else if (loc < 0)
         loc = n;
-
+    inc = (set == 0);
     name->modified = 1;
 
     if (set == -1) {
@@ -200,7 +200,6 @@ int X509_NAME_add_entry(X509_NAME *name, const X509_NAME_ENTRY *ne, int loc,
             inc = 1;
         } else {
             set = sk_X509_NAME_ENTRY_value(sk, loc - 1)->set;
-            inc = 0;
         }
     } else {                    /* if (set >= 0) */
 
@@ -211,12 +210,11 @@ int X509_NAME_add_entry(X509_NAME *name, const X509_NAME_ENTRY *ne, int loc,
                 set = 0;
         } else
             set = sk_X509_NAME_ENTRY_value(sk, loc)->set;
-        inc = (set == 0) ? 1 : 0;
     }
 
     /*
      * X509_NAME_ENTRY_dup is ASN1 generated code, that can't be easily
-     * const'ified; harmless cast as dup() don't modify its input.
+     * const'ified; harmless cast since dup() don't modify its input.
      */
     if ((new_name = X509_NAME_ENTRY_dup((X509_NAME_ENTRY *)ne)) == NULL)
         goto err;
@@ -228,7 +226,7 @@ int X509_NAME_add_entry(X509_NAME *name, const X509_NAME_ENTRY *ne, int loc,
     if (inc) {
         n = sk_X509_NAME_ENTRY_num(sk);
         for (i = loc + 1; i < n; i++)
-            sk_X509_NAME_ENTRY_value(sk, i - 1)->set += 1;
+            sk_X509_NAME_ENTRY_value(sk, i)->set += 1;
     }
     return (1);
  err:

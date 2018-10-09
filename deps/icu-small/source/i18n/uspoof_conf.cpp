@@ -76,6 +76,10 @@ SPUString::~SPUString() {
 
 SPUStringPool::SPUStringPool(UErrorCode &status) : fVec(NULL), fHash(NULL) {
     fVec = new UVector(status);
+    if (fVec == NULL) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
     fHash = uhash_open(uhash_hashUnicodeString,           // key hash function
                        uhash_compareUnicodeString,        // Key Comparator
                        NULL,                              // Value Comparator
@@ -136,6 +140,10 @@ SPUString *SPUStringPool::addString(UnicodeString *src, UErrorCode &status) {
         delete src;
     } else {
         hashedString = new SPUString(src);
+        if (hashedString == NULL) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return NULL;
+        }
         uhash_put(fHash, src, hashedString, &status);
         fVec->addElement(hashedString, status);
     }
@@ -160,11 +168,32 @@ ConfusabledataBuilder::ConfusabledataBuilder(SpoofImpl *spImpl, UErrorCode &stat
     if (U_FAILURE(status)) {
         return;
     }
-    fTable    = uhash_open(uhash_hashLong, uhash_compareLong, NULL, &status);
-    fKeySet     = new UnicodeSet();
-    fKeyVec     = new UVector(status);
-    fValueVec   = new UVector(status);
+
+    fTable = uhash_open(uhash_hashLong, uhash_compareLong, NULL, &status);
+
+    fKeySet = new UnicodeSet();
+    if (fKeySet == NULL) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
+
+    fKeyVec = new UVector(status);
+    if (fKeyVec == NULL) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
+
+    fValueVec = new UVector(status);
+    if (fValueVec == NULL) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
+
     stringPool = new SPUStringPool(status);
+    if (stringPool == NULL) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
 }
 
 

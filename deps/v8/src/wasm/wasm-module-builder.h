@@ -8,6 +8,7 @@
 #include "src/signature.h"
 #include "src/zone/zone-containers.h"
 
+#include "src/v8memory.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -33,19 +34,19 @@ class ZoneBuffer : public ZoneObject {
 
   void write_u16(uint16_t x) {
     EnsureSpace(2);
-    WriteLittleEndianValue<uint16_t>(pos_, x);
+    WriteLittleEndianValue<uint16_t>(reinterpret_cast<Address>(pos_), x);
     pos_ += 2;
   }
 
   void write_u32(uint32_t x) {
     EnsureSpace(4);
-    WriteLittleEndianValue<uint32_t>(pos_, x);
+    WriteLittleEndianValue<uint32_t>(reinterpret_cast<Address>(pos_), x);
     pos_ += 4;
   }
 
   void write_u64(uint64_t x) {
     EnsureSpace(8);
-    WriteLittleEndianValue<uint64_t>(pos_, x);
+    WriteLittleEndianValue<uint64_t>(reinterpret_cast<Address>(pos_), x);
     pos_ += 8;
   }
 
@@ -241,13 +242,6 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void WriteTo(ZoneBuffer& buffer) const;
   void WriteAsmJsOffsetTable(ZoneBuffer& buffer) const;
 
-  // TODO(titzer): use SignatureMap from signature-map.h here.
-  // This signature map is zone-allocated, but the other is heap allocated.
-  struct CompareFunctionSigs {
-    bool operator()(FunctionSig* a, FunctionSig* b) const;
-  };
-  typedef ZoneMap<FunctionSig*, uint32_t, CompareFunctionSigs> SignatureMap;
-
   Zone* zone() { return zone_; }
 
   FunctionSig* GetSignature(uint32_t index) { return signatures_[index]; }
@@ -290,7 +284,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;
   ZoneVector<WasmGlobal> globals_;
-  SignatureMap signature_map_;
+  ZoneUnorderedMap<FunctionSig, uint32_t> signature_map_;
   int start_function_index_;
   uint32_t min_memory_size_;
   uint32_t max_memory_size_;

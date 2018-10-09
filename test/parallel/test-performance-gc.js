@@ -4,7 +4,8 @@
 const common = require('../common');
 const assert = require('assert');
 const {
-  PerformanceObserver
+  PerformanceObserver,
+  constants
 } = require('perf_hooks');
 
 const {
@@ -12,7 +13,7 @@ const {
   NODE_PERFORMANCE_GC_MINOR,
   NODE_PERFORMANCE_GC_INCREMENTAL,
   NODE_PERFORMANCE_GC_WEAKCB
-} = process.binding('performance').constants;
+} = constants;
 
 const kinds = [
   NODE_PERFORMANCE_GC_MAJOR,

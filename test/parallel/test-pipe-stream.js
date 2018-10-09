@@ -49,15 +49,10 @@ function test(clazz, cb) {
     });
   }
 
-  const timeout = setTimeout(function() {
-    server.close();
-  }, 2000);
-
   const server = net.Server();
   server.listen(common.PIPE, ping);
   server.on('connection', pong);
   server.on('close', function() {
-    clearTimeout(timeout);
     check();
     cb && cb();
   });

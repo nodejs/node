@@ -20,6 +20,9 @@ use OpenSSL::Glob;
 
 # see INSTALL for instructions.
 
+my $orig_death_handler = $SIG{__DIE__};
+$SIG{__DIE__} = \&death_handler;
+
 my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-dso] [no-egd] [sctp] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--config=FILE] os/compiler[:flags]\n";
 
 # Options:
@@ -756,21 +759,21 @@ while (@argvcopy)
 		else
 			{ $config{options} .= " ".$_; }
 		}
+	}
 
-        if (defined($config{api}) && !exists $apitable->{$config{api}}) {
-		die "***** Unsupported api compatibility level: $config{api}\n",
-        }
+if (defined($config{api}) && !exists $apitable->{$config{api}}) {
+	die "***** Unsupported api compatibility level: $config{api}\n",
+}
 
-	if (keys %deprecated_options)
-		{
-		warn "***** Deprecated options: ",
-			join(", ", keys %deprecated_options), "\n";
-		}
-	if (keys %unsupported_options)
-		{
-		die "***** Unsupported options: ",
-			join(", ", keys %unsupported_options), "\n";
-		}
+if (keys %deprecated_options)
+	{
+	warn "***** Deprecated options: ",
+		join(", ", keys %deprecated_options), "\n";
+	}
+if (keys %unsupported_options)
+	{
+	die "***** Unsupported options: ",
+		join(", ", keys %unsupported_options), "\n";
 	}
 
 if ($libs =~ /(^|\s)-Wl,-rpath,/
@@ -908,10 +911,11 @@ if ($d) {
 	$target = $t;
     }
 }
+
+&usage if !$table{$target} || $table{$target}->{template};
+
 $config{target} = $target;
 my %target = resolve_config($target);
-
-&usage if (!%target || $target{template});
 
 my %conf_files = map { $_ => 1 } (@{$target{_conf_fname_int}});
 $config{conf_files} = [ sort keys %conf_files ];
@@ -1215,8 +1219,10 @@ if ($^O ne "VMS") {
 
     if (!$disabled{makedepend}) {
 	# We know that GNU C version 3 and up as well as all clang
-	# versions support dependency generation
-	if ($predefined{__GNUC__} >= 3) {
+	# versions support dependency generation, but Xcode did not
+	# handle $cc -M before clang support (but claims __GNUC__ = 3)
+	if (($predefined{__GNUC__} // -1) >= 3
+		&& !($predefined{__APPLE_CC__} && !$predefined{__clang__})) {
 	    $config{makedepprog} = $cc;
 	} else {
 	    $config{makedepprog} = which('makedepend');
@@ -2125,6 +2131,8 @@ my %builders = (
 
 $builders{$builder}->($builder_platform, @builder_opts);
 
+$SIG{__DIE__} = $orig_death_handler;
+
 print <<"EOF";
 
 Configured for $target.
@@ -2152,6 +2160,24 @@ exit(0);
 #
 # Helpers and utility functions
 #
+
+# Death handler, to print a helpful message in case of failure #######
+#
+sub death_handler {
+    die @_ if $^S;              # To prevent the added message in eval blocks
+    my $build_file = $target{build_file} // "build file";
+    my @message = ( <<"_____", @_ );
+
+Failure!  $build_file wasn't produced.
+Please read INSTALL and associated NOTES files.  You may also have to look over
+your available compiler tool chain or change your configuration.
+
+_____
+
+    # Dying is terminal, so it's ok to reset the signal handler here.
+    $SIG{__DIE__} = $orig_death_handler;
+    die @message;
+}
 
 # Configuration file reading #########################################
 

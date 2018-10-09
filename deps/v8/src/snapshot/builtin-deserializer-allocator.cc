@@ -44,16 +44,16 @@ Address BuiltinDeserializerAllocator::Allocate(AllocationSpace space,
     DCHECK(Internals::HasHeapObjectTag(obj));
     return HeapObject::cast(obj)->address();
   } else if (BSU::IsHandlerIndex(code_object_id)) {
-    if (handler_allocation_ != nullptr) {
+    if (handler_allocation_ != kNullAddress) {
       // Lazy deserialization.
       DCHECK_NULL(handler_allocations_);
       return handler_allocation_;
     } else {
       // Eager deserialization.
-      DCHECK_NULL(handler_allocation_);
+      DCHECK_EQ(kNullAddress, handler_allocation_);
       DCHECK_NOT_NULL(handler_allocations_);
       int index = HandlerAllocationIndex(code_object_id);
-      DCHECK_NOT_NULL(handler_allocations_->at(index));
+      DCHECK_NE(kNullAddress, handler_allocations_->at(index));
       return handler_allocations_->at(index);
     }
   }
@@ -74,7 +74,7 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltinsAndHandlers() {
     uint32_t builtin_size =
         deserializer()->ExtractCodeObjectSize(Builtins::kDeserializeLazy);
     DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
-    result.push_back({builtin_size, nullptr, nullptr});
+    result.push_back({builtin_size, kNullAddress, kNullAddress});
   }
 
   for (int i = 0; i < BSU::kNumberOfBuiltins; i++) {
@@ -88,7 +88,7 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltinsAndHandlers() {
 
     uint32_t builtin_size = deserializer()->ExtractCodeObjectSize(i);
     DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
-    result.push_back({builtin_size, nullptr, nullptr});
+    result.push_back({builtin_size, kNullAddress, kNullAddress});
   }
 
   // Reservations for bytecode handlers.
@@ -110,7 +110,7 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltinsAndHandlers() {
         const int index = BSU::BytecodeToIndex(bytecode, operand_scale);
         uint32_t handler_size = deserializer()->ExtractCodeObjectSize(index);
         DCHECK_LE(handler_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
-        result.push_back({handler_size, nullptr, nullptr});
+        result.push_back({handler_size, kNullAddress, kNullAddress});
       });
 
   return result;

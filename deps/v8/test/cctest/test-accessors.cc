@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/frames-inl.h"
 #include "src/string-stream.h"
 #include "test/cctest/cctest.h"
@@ -540,8 +540,7 @@ static void StackCheck(Local<String> name,
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
     i::Code* code = frame->LookupCode();
     CHECK(code->IsCode());
-    i::Address pc = frame->pc();
-    CHECK(code->contains(pc));
+    CHECK(code->contains(frame->pc()));
     iter.Advance();
   }
 }
@@ -813,7 +812,7 @@ TEST(PrototypeGetterAccessCheck) {
     CHECK(try_catch.HasCaught());
   }
 
-  // Test crankshaft.
+  // Test TurboFan.
   CompileRun("%OptimizeFunctionOnNextCall(f);");
 
   security_check_value = true;

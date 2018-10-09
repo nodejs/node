@@ -1,6 +1,1 @@
-import { skipWhile } from '../../operator/skipWhile';
-declare module '../../Observable' {
-    interface Observable<T> {
-        skipWhile: typeof skipWhile;
-    }
-}
+import 'rxjs-compat/add/operator/skipWhile';

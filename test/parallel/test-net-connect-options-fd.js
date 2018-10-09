@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (common.isWindows)
@@ -6,7 +7,8 @@ if (common.isWindows)
 const assert = require('assert');
 const net = require('net');
 const path = require('path');
-const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
+const { internalBinding } = require('internal/test/binding');
+const { Pipe, constants: PipeConstants } = internalBinding('pipe_wrap');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();

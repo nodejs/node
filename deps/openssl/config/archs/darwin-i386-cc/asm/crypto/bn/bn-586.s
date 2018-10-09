@@ -115,7 +115,7 @@ L001maw_non_sse2:
 	jz	L006maw_finish
 .align	4,0x90
 L007maw_loop:
-	# Round 0
+	# Round 0 
 	movl	(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -124,7 +124,7 @@ L007maw_loop:
 	adcl	$0,%edx
 	movl	%eax,(%edi)
 	movl	%edx,%esi
-	# Round 4
+	# Round 4 
 	movl	4(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -133,7 +133,7 @@ L007maw_loop:
 	adcl	$0,%edx
 	movl	%eax,4(%edi)
 	movl	%edx,%esi
-	# Round 8
+	# Round 8 
 	movl	8(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -142,7 +142,7 @@ L007maw_loop:
 	adcl	$0,%edx
 	movl	%eax,8(%edi)
 	movl	%edx,%esi
-	# Round 12
+	# Round 12 
 	movl	12(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -151,7 +151,7 @@ L007maw_loop:
 	adcl	$0,%edx
 	movl	%eax,12(%edi)
 	movl	%edx,%esi
-	# Round 16
+	# Round 16 
 	movl	16(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -160,7 +160,7 @@ L007maw_loop:
 	adcl	$0,%edx
 	movl	%eax,16(%edi)
 	movl	%edx,%esi
-	# Round 20
+	# Round 20 
 	movl	20(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -169,7 +169,7 @@ L007maw_loop:
 	adcl	$0,%edx
 	movl	%eax,20(%edi)
 	movl	%edx,%esi
-	# Round 24
+	# Round 24 
 	movl	24(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -178,7 +178,7 @@ L007maw_loop:
 	adcl	$0,%edx
 	movl	%eax,24(%edi)
 	movl	%edx,%esi
-	# Round 28
+	# Round 28 
 	movl	28(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -198,7 +198,7 @@ L006maw_finish:
 	jnz	L008maw_finish2
 	jmp	L009maw_end
 L008maw_finish2:
-	# Tail Round 0
+	# Tail Round 0 
 	movl	(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -209,7 +209,7 @@ L008maw_finish2:
 	movl	%eax,(%edi)
 	movl	%edx,%esi
 	jz	L009maw_end
-	# Tail Round 1
+	# Tail Round 1 
 	movl	4(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -220,7 +220,7 @@ L008maw_finish2:
 	movl	%eax,4(%edi)
 	movl	%edx,%esi
 	jz	L009maw_end
-	# Tail Round 2
+	# Tail Round 2 
 	movl	8(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -231,7 +231,7 @@ L008maw_finish2:
 	movl	%eax,8(%edi)
 	movl	%edx,%esi
 	jz	L009maw_end
-	# Tail Round 3
+	# Tail Round 3 
 	movl	12(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -242,7 +242,7 @@ L008maw_finish2:
 	movl	%eax,12(%edi)
 	movl	%edx,%esi
 	jz	L009maw_end
-	# Tail Round 4
+	# Tail Round 4 
 	movl	16(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -253,7 +253,7 @@ L008maw_finish2:
 	movl	%eax,16(%edi)
 	movl	%edx,%esi
 	jz	L009maw_end
-	# Tail Round 5
+	# Tail Round 5 
 	movl	20(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -264,7 +264,7 @@ L008maw_finish2:
 	movl	%eax,20(%edi)
 	movl	%edx,%esi
 	jz	L009maw_end
-	# Tail Round 6
+	# Tail Round 6 
 	movl	24(%ebx),%eax
 	mull	%ebp
 	addl	%esi,%eax
@@ -325,56 +325,56 @@ L011mw_non_sse2:
 	andl	$4294967288,%ebp
 	jz	L013mw_finish
 L014mw_loop:
-	# Round 0
+	# Round 0 
 	movl	(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
 	adcl	$0,%edx
 	movl	%eax,(%edi)
 	movl	%edx,%esi
-	# Round 4
+	# Round 4 
 	movl	4(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
 	adcl	$0,%edx
 	movl	%eax,4(%edi)
 	movl	%edx,%esi
-	# Round 8
+	# Round 8 
 	movl	8(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
 	adcl	$0,%edx
 	movl	%eax,8(%edi)
 	movl	%edx,%esi
-	# Round 12
+	# Round 12 
 	movl	12(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
 	adcl	$0,%edx
 	movl	%eax,12(%edi)
 	movl	%edx,%esi
-	# Round 16
+	# Round 16 
 	movl	16(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
 	adcl	$0,%edx
 	movl	%eax,16(%edi)
 	movl	%edx,%esi
-	# Round 20
+	# Round 20 
 	movl	20(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
 	adcl	$0,%edx
 	movl	%eax,20(%edi)
 	movl	%edx,%esi
-	# Round 24
+	# Round 24 
 	movl	24(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
 	adcl	$0,%edx
 	movl	%eax,24(%edi)
 	movl	%edx,%esi
-	# Round 28
+	# Round 28 
 	movl	28(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
@@ -393,7 +393,7 @@ L013mw_finish:
 	jnz	L015mw_finish2
 	jmp	L016mw_end
 L015mw_finish2:
-	# Tail Round 0
+	# Tail Round 0 
 	movl	(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
@@ -402,7 +402,7 @@ L015mw_finish2:
 	movl	%edx,%esi
 	decl	%ebp
 	jz	L016mw_end
-	# Tail Round 1
+	# Tail Round 1 
 	movl	4(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
@@ -411,7 +411,7 @@ L015mw_finish2:
 	movl	%edx,%esi
 	decl	%ebp
 	jz	L016mw_end
-	# Tail Round 2
+	# Tail Round 2 
 	movl	8(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
@@ -420,7 +420,7 @@ L015mw_finish2:
 	movl	%edx,%esi
 	decl	%ebp
 	jz	L016mw_end
-	# Tail Round 3
+	# Tail Round 3 
 	movl	12(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
@@ -429,7 +429,7 @@ L015mw_finish2:
 	movl	%edx,%esi
 	decl	%ebp
 	jz	L016mw_end
-	# Tail Round 4
+	# Tail Round 4 
 	movl	16(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
@@ -438,7 +438,7 @@ L015mw_finish2:
 	movl	%edx,%esi
 	decl	%ebp
 	jz	L016mw_end
-	# Tail Round 5
+	# Tail Round 5 
 	movl	20(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
@@ -447,7 +447,7 @@ L015mw_finish2:
 	movl	%edx,%esi
 	decl	%ebp
 	jz	L016mw_end
-	# Tail Round 6
+	# Tail Round 6 
 	movl	24(%ebx),%eax
 	mull	%ecx
 	addl	%esi,%eax
@@ -498,42 +498,42 @@ L018sqr_non_sse2:
 	andl	$4294967288,%ebx
 	jz	L020sw_finish
 L021sw_loop:
-	# Round 0
+	# Round 0 
 	movl	(%edi),%eax
 	mull	%eax
 	movl	%eax,(%esi)
 	movl	%edx,4(%esi)
-	# Round 4
+	# Round 4 
 	movl	4(%edi),%eax
 	mull	%eax
 	movl	%eax,8(%esi)
 	movl	%edx,12(%esi)
-	# Round 8
+	# Round 8 
 	movl	8(%edi),%eax
 	mull	%eax
 	movl	%eax,16(%esi)
 	movl	%edx,20(%esi)
-	# Round 12
+	# Round 12 
 	movl	12(%edi),%eax
 	mull	%eax
 	movl	%eax,24(%esi)
 	movl	%edx,28(%esi)
-	# Round 16
+	# Round 16 
 	movl	16(%edi),%eax
 	mull	%eax
 	movl	%eax,32(%esi)
 	movl	%edx,36(%esi)
-	# Round 20
+	# Round 20 
 	movl	20(%edi),%eax
 	mull	%eax
 	movl	%eax,40(%esi)
 	movl	%edx,44(%esi)
-	# Round 24
+	# Round 24 
 	movl	24(%edi),%eax
 	mull	%eax
 	movl	%eax,48(%esi)
 	movl	%edx,52(%esi)
-	# Round 28
+	# Round 28 
 	movl	28(%edi),%eax
 	mull	%eax
 	movl	%eax,56(%esi)
@@ -547,49 +547,49 @@ L020sw_finish:
 	movl	28(%esp),%ebx
 	andl	$7,%ebx
 	jz	L022sw_end
-	# Tail Round 0
+	# Tail Round 0 
 	movl	(%edi),%eax
 	mull	%eax
 	movl	%eax,(%esi)
 	decl	%ebx
 	movl	%edx,4(%esi)
 	jz	L022sw_end
-	# Tail Round 1
+	# Tail Round 1 
 	movl	4(%edi),%eax
 	mull	%eax
 	movl	%eax,8(%esi)
 	decl	%ebx
 	movl	%edx,12(%esi)
 	jz	L022sw_end
-	# Tail Round 2
+	# Tail Round 2 
 	movl	8(%edi),%eax
 	mull	%eax
 	movl	%eax,16(%esi)
 	decl	%ebx
 	movl	%edx,20(%esi)
 	jz	L022sw_end
-	# Tail Round 3
+	# Tail Round 3 
 	movl	12(%edi),%eax
 	mull	%eax
 	movl	%eax,24(%esi)
 	decl	%ebx
 	movl	%edx,28(%esi)
 	jz	L022sw_end
-	# Tail Round 4
+	# Tail Round 4 
 	movl	16(%edi),%eax
 	mull	%eax
 	movl	%eax,32(%esi)
 	decl	%ebx
 	movl	%edx,36(%esi)
 	jz	L022sw_end
-	# Tail Round 5
+	# Tail Round 5 
 	movl	20(%edi),%eax
 	mull	%eax
 	movl	%eax,40(%esi)
 	decl	%ebx
 	movl	%edx,44(%esi)
 	jz	L022sw_end
-	# Tail Round 6
+	# Tail Round 6 
 	movl	24(%edi),%eax
 	mull	%eax
 	movl	%eax,48(%esi)
@@ -626,7 +626,7 @@ L_bn_add_words_begin:
 	andl	$4294967288,%ebp
 	jz	L023aw_finish
 L024aw_loop:
-	# Round 0
+	# Round 0 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	addl	%eax,%ecx
@@ -635,7 +635,7 @@ L024aw_loop:
 	addl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,(%ebx)
-	# Round 1
+	# Round 1 
 	movl	4(%esi),%ecx
 	movl	4(%edi),%edx
 	addl	%eax,%ecx
@@ -644,7 +644,7 @@ L024aw_loop:
 	addl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,4(%ebx)
-	# Round 2
+	# Round 2 
 	movl	8(%esi),%ecx
 	movl	8(%edi),%edx
 	addl	%eax,%ecx
@@ -653,7 +653,7 @@ L024aw_loop:
 	addl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,8(%ebx)
-	# Round 3
+	# Round 3 
 	movl	12(%esi),%ecx
 	movl	12(%edi),%edx
 	addl	%eax,%ecx
@@ -662,7 +662,7 @@ L024aw_loop:
 	addl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,12(%ebx)
-	# Round 4
+	# Round 4 
 	movl	16(%esi),%ecx
 	movl	16(%edi),%edx
 	addl	%eax,%ecx
@@ -671,7 +671,7 @@ L024aw_loop:
 	addl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,16(%ebx)
-	# Round 5
+	# Round 5 
 	movl	20(%esi),%ecx
 	movl	20(%edi),%edx
 	addl	%eax,%ecx
@@ -680,7 +680,7 @@ L024aw_loop:
 	addl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,20(%ebx)
-	# Round 6
+	# Round 6 
 	movl	24(%esi),%ecx
 	movl	24(%edi),%edx
 	addl	%eax,%ecx
@@ -689,7 +689,7 @@ L024aw_loop:
 	addl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,24(%ebx)
-	# Round 7
+	# Round 7 
 	movl	28(%esi),%ecx
 	movl	28(%edi),%edx
 	addl	%eax,%ecx
@@ -708,7 +708,7 @@ L023aw_finish:
 	movl	32(%esp),%ebp
 	andl	$7,%ebp
 	jz	L025aw_end
-	# Tail Round 0
+	# Tail Round 0 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	addl	%eax,%ecx
@@ -719,7 +719,7 @@ L023aw_finish:
 	decl	%ebp
 	movl	%ecx,(%ebx)
 	jz	L025aw_end
-	# Tail Round 1
+	# Tail Round 1 
 	movl	4(%esi),%ecx
 	movl	4(%edi),%edx
 	addl	%eax,%ecx
@@ -730,7 +730,7 @@ L023aw_finish:
 	decl	%ebp
 	movl	%ecx,4(%ebx)
 	jz	L025aw_end
-	# Tail Round 2
+	# Tail Round 2 
 	movl	8(%esi),%ecx
 	movl	8(%edi),%edx
 	addl	%eax,%ecx
@@ -741,7 +741,7 @@ L023aw_finish:
 	decl	%ebp
 	movl	%ecx,8(%ebx)
 	jz	L025aw_end
-	# Tail Round 3
+	# Tail Round 3 
 	movl	12(%esi),%ecx
 	movl	12(%edi),%edx
 	addl	%eax,%ecx
@@ -752,7 +752,7 @@ L023aw_finish:
 	decl	%ebp
 	movl	%ecx,12(%ebx)
 	jz	L025aw_end
-	# Tail Round 4
+	# Tail Round 4 
 	movl	16(%esi),%ecx
 	movl	16(%edi),%edx
 	addl	%eax,%ecx
@@ -763,7 +763,7 @@ L023aw_finish:
 	decl	%ebp
 	movl	%ecx,16(%ebx)
 	jz	L025aw_end
-	# Tail Round 5
+	# Tail Round 5 
 	movl	20(%esi),%ecx
 	movl	20(%edi),%edx
 	addl	%eax,%ecx
@@ -774,7 +774,7 @@ L023aw_finish:
 	decl	%ebp
 	movl	%ecx,20(%ebx)
 	jz	L025aw_end
-	# Tail Round 6
+	# Tail Round 6 
 	movl	24(%esi),%ecx
 	movl	24(%edi),%edx
 	addl	%eax,%ecx
@@ -806,7 +806,7 @@ L_bn_sub_words_begin:
 	andl	$4294967288,%ebp
 	jz	L026aw_finish
 L027aw_loop:
-	# Round 0
+	# Round 0 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -815,7 +815,7 @@ L027aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,(%ebx)
-	# Round 1
+	# Round 1 
 	movl	4(%esi),%ecx
 	movl	4(%edi),%edx
 	subl	%eax,%ecx
@@ -824,7 +824,7 @@ L027aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,4(%ebx)
-	# Round 2
+	# Round 2 
 	movl	8(%esi),%ecx
 	movl	8(%edi),%edx
 	subl	%eax,%ecx
@@ -833,7 +833,7 @@ L027aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,8(%ebx)
-	# Round 3
+	# Round 3 
 	movl	12(%esi),%ecx
 	movl	12(%edi),%edx
 	subl	%eax,%ecx
@@ -842,7 +842,7 @@ L027aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,12(%ebx)
-	# Round 4
+	# Round 4 
 	movl	16(%esi),%ecx
 	movl	16(%edi),%edx
 	subl	%eax,%ecx
@@ -851,7 +851,7 @@ L027aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,16(%ebx)
-	# Round 5
+	# Round 5 
 	movl	20(%esi),%ecx
 	movl	20(%edi),%edx
 	subl	%eax,%ecx
@@ -860,7 +860,7 @@ L027aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,20(%ebx)
-	# Round 6
+	# Round 6 
 	movl	24(%esi),%ecx
 	movl	24(%edi),%edx
 	subl	%eax,%ecx
@@ -869,7 +869,7 @@ L027aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,24(%ebx)
-	# Round 7
+	# Round 7 
 	movl	28(%esi),%ecx
 	movl	28(%edi),%edx
 	subl	%eax,%ecx
@@ -888,7 +888,7 @@ L026aw_finish:
 	movl	32(%esp),%ebp
 	andl	$7,%ebp
 	jz	L028aw_end
-	# Tail Round 0
+	# Tail Round 0 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -899,7 +899,7 @@ L026aw_finish:
 	decl	%ebp
 	movl	%ecx,(%ebx)
 	jz	L028aw_end
-	# Tail Round 1
+	# Tail Round 1 
 	movl	4(%esi),%ecx
 	movl	4(%edi),%edx
 	subl	%eax,%ecx
@@ -910,7 +910,7 @@ L026aw_finish:
 	decl	%ebp
 	movl	%ecx,4(%ebx)
 	jz	L028aw_end
-	# Tail Round 2
+	# Tail Round 2 
 	movl	8(%esi),%ecx
 	movl	8(%edi),%edx
 	subl	%eax,%ecx
@@ -921,7 +921,7 @@ L026aw_finish:
 	decl	%ebp
 	movl	%ecx,8(%ebx)
 	jz	L028aw_end
-	# Tail Round 3
+	# Tail Round 3 
 	movl	12(%esi),%ecx
 	movl	12(%edi),%edx
 	subl	%eax,%ecx
@@ -932,7 +932,7 @@ L026aw_finish:
 	decl	%ebp
 	movl	%ecx,12(%ebx)
 	jz	L028aw_end
-	# Tail Round 4
+	# Tail Round 4 
 	movl	16(%esi),%ecx
 	movl	16(%edi),%edx
 	subl	%eax,%ecx
@@ -943,7 +943,7 @@ L026aw_finish:
 	decl	%ebp
 	movl	%ecx,16(%ebx)
 	jz	L028aw_end
-	# Tail Round 5
+	# Tail Round 5 
 	movl	20(%esi),%ecx
 	movl	20(%edi),%edx
 	subl	%eax,%ecx
@@ -954,7 +954,7 @@ L026aw_finish:
 	decl	%ebp
 	movl	%ecx,20(%ebx)
 	jz	L028aw_end
-	# Tail Round 6
+	# Tail Round 6 
 	movl	24(%esi),%ecx
 	movl	24(%edi),%edx
 	subl	%eax,%ecx
@@ -986,7 +986,7 @@ L_bn_sub_part_words_begin:
 	andl	$4294967288,%ebp
 	jz	L029aw_finish
 L030aw_loop:
-	# Round 0
+	# Round 0 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -995,7 +995,7 @@ L030aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,(%ebx)
-	# Round 1
+	# Round 1 
 	movl	4(%esi),%ecx
 	movl	4(%edi),%edx
 	subl	%eax,%ecx
@@ -1004,7 +1004,7 @@ L030aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,4(%ebx)
-	# Round 2
+	# Round 2 
 	movl	8(%esi),%ecx
 	movl	8(%edi),%edx
 	subl	%eax,%ecx
@@ -1013,7 +1013,7 @@ L030aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,8(%ebx)
-	# Round 3
+	# Round 3 
 	movl	12(%esi),%ecx
 	movl	12(%edi),%edx
 	subl	%eax,%ecx
@@ -1022,7 +1022,7 @@ L030aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,12(%ebx)
-	# Round 4
+	# Round 4 
 	movl	16(%esi),%ecx
 	movl	16(%edi),%edx
 	subl	%eax,%ecx
@@ -1031,7 +1031,7 @@ L030aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,16(%ebx)
-	# Round 5
+	# Round 5 
 	movl	20(%esi),%ecx
 	movl	20(%edi),%edx
 	subl	%eax,%ecx
@@ -1040,7 +1040,7 @@ L030aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,20(%ebx)
-	# Round 6
+	# Round 6 
 	movl	24(%esi),%ecx
 	movl	24(%edi),%edx
 	subl	%eax,%ecx
@@ -1049,7 +1049,7 @@ L030aw_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,24(%ebx)
-	# Round 7
+	# Round 7 
 	movl	28(%esi),%ecx
 	movl	28(%edi),%edx
 	subl	%eax,%ecx
@@ -1068,7 +1068,7 @@ L029aw_finish:
 	movl	32(%esp),%ebp
 	andl	$7,%ebp
 	jz	L031aw_end
-	# Tail Round 0
+	# Tail Round 0 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -1082,7 +1082,7 @@ L029aw_finish:
 	addl	$4,%ebx
 	decl	%ebp
 	jz	L031aw_end
-	# Tail Round 1
+	# Tail Round 1 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -1096,7 +1096,7 @@ L029aw_finish:
 	addl	$4,%ebx
 	decl	%ebp
 	jz	L031aw_end
-	# Tail Round 2
+	# Tail Round 2 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -1110,7 +1110,7 @@ L029aw_finish:
 	addl	$4,%ebx
 	decl	%ebp
 	jz	L031aw_end
-	# Tail Round 3
+	# Tail Round 3 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -1124,7 +1124,7 @@ L029aw_finish:
 	addl	$4,%ebx
 	decl	%ebp
 	jz	L031aw_end
-	# Tail Round 4
+	# Tail Round 4 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -1138,7 +1138,7 @@ L029aw_finish:
 	addl	$4,%ebx
 	decl	%ebp
 	jz	L031aw_end
-	# Tail Round 5
+	# Tail Round 5 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -1152,7 +1152,7 @@ L029aw_finish:
 	addl	$4,%ebx
 	decl	%ebp
 	jz	L031aw_end
-	# Tail Round 6
+	# Tail Round 6 
 	movl	(%esi),%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -1171,14 +1171,14 @@ L031aw_end:
 	cmpl	$0,%ebp
 	je	L032pw_end
 	jge	L033pw_pos
-	# pw_neg
+	# pw_neg 
 	movl	$0,%edx
 	subl	%ebp,%edx
 	movl	%edx,%ebp
 	andl	$4294967288,%ebp
 	jz	L034pw_neg_finish
 L035pw_neg_loop:
-	# dl<0 Round 0
+	# dl<0 Round 0 
 	movl	$0,%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -1187,7 +1187,7 @@ L035pw_neg_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,(%ebx)
-	# dl<0 Round 1
+	# dl<0 Round 1 
 	movl	$0,%ecx
 	movl	4(%edi),%edx
 	subl	%eax,%ecx
@@ -1196,7 +1196,7 @@ L035pw_neg_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,4(%ebx)
-	# dl<0 Round 2
+	# dl<0 Round 2 
 	movl	$0,%ecx
 	movl	8(%edi),%edx
 	subl	%eax,%ecx
@@ -1205,7 +1205,7 @@ L035pw_neg_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,8(%ebx)
-	# dl<0 Round 3
+	# dl<0 Round 3 
 	movl	$0,%ecx
 	movl	12(%edi),%edx
 	subl	%eax,%ecx
@@ -1214,7 +1214,7 @@ L035pw_neg_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,12(%ebx)
-	# dl<0 Round 4
+	# dl<0 Round 4 
 	movl	$0,%ecx
 	movl	16(%edi),%edx
 	subl	%eax,%ecx
@@ -1223,7 +1223,7 @@ L035pw_neg_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,16(%ebx)
-	# dl<0 Round 5
+	# dl<0 Round 5 
 	movl	$0,%ecx
 	movl	20(%edi),%edx
 	subl	%eax,%ecx
@@ -1232,7 +1232,7 @@ L035pw_neg_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,20(%ebx)
-	# dl<0 Round 6
+	# dl<0 Round 6 
 	movl	$0,%ecx
 	movl	24(%edi),%edx
 	subl	%eax,%ecx
@@ -1241,7 +1241,7 @@ L035pw_neg_loop:
 	subl	%edx,%ecx
 	adcl	$0,%eax
 	movl	%ecx,24(%ebx)
-	# dl<0 Round 7
+	# dl<0 Round 7 
 	movl	$0,%ecx
 	movl	28(%edi),%edx
 	subl	%eax,%ecx
@@ -1261,7 +1261,7 @@ L034pw_neg_finish:
 	subl	%edx,%ebp
 	andl	$7,%ebp
 	jz	L032pw_end
-	# dl<0 Tail Round 0
+	# dl<0 Tail Round 0 
 	movl	$0,%ecx
 	movl	(%edi),%edx
 	subl	%eax,%ecx
@@ -1272,7 +1272,7 @@ L034pw_neg_finish:
 	decl	%ebp
 	movl	%ecx,(%ebx)
 	jz	L032pw_end
-	# dl<0 Tail Round 1
+	# dl<0 Tail Round 1 
 	movl	$0,%ecx
 	movl	4(%edi),%edx
 	subl	%eax,%ecx
@@ -1283,7 +1283,7 @@ L034pw_neg_finish:
 	decl	%ebp
 	movl	%ecx,4(%ebx)
 	jz	L032pw_end
-	# dl<0 Tail Round 2
+	# dl<0 Tail Round 2 
 	movl	$0,%ecx
 	movl	8(%edi),%edx
 	subl	%eax,%ecx
@@ -1294,7 +1294,7 @@ L034pw_neg_finish:
 	decl	%ebp
 	movl	%ecx,8(%ebx)
 	jz	L032pw_end
-	# dl<0 Tail Round 3
+	# dl<0 Tail Round 3 
 	movl	$0,%ecx
 	movl	12(%edi),%edx
 	subl	%eax,%ecx
@@ -1305,7 +1305,7 @@ L034pw_neg_finish:
 	decl	%ebp
 	movl	%ecx,12(%ebx)
 	jz	L032pw_end
-	# dl<0 Tail Round 4
+	# dl<0 Tail Round 4 
 	movl	$0,%ecx
 	movl	16(%edi),%edx
 	subl	%eax,%ecx
@@ -1316,7 +1316,7 @@ L034pw_neg_finish:
 	decl	%ebp
 	movl	%ecx,16(%ebx)
 	jz	L032pw_end
-	# dl<0 Tail Round 5
+	# dl<0 Tail Round 5 
 	movl	$0,%ecx
 	movl	20(%edi),%edx
 	subl	%eax,%ecx
@@ -1327,7 +1327,7 @@ L034pw_neg_finish:
 	decl	%ebp
 	movl	%ecx,20(%ebx)
 	jz	L032pw_end
-	# dl<0 Tail Round 6
+	# dl<0 Tail Round 6 
 	movl	$0,%ecx
 	movl	24(%edi),%edx
 	subl	%eax,%ecx
@@ -1341,42 +1341,42 @@ L033pw_pos:
 	andl	$4294967288,%ebp
 	jz	L036pw_pos_finish
 L037pw_pos_loop:
-	# dl>0 Round 0
+	# dl>0 Round 0 
 	movl	(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,(%ebx)
 	jnc	L038pw_nc0
-	# dl>0 Round 1
+	# dl>0 Round 1 
 	movl	4(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,4(%ebx)
 	jnc	L039pw_nc1
-	# dl>0 Round 2
+	# dl>0 Round 2 
 	movl	8(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,8(%ebx)
 	jnc	L040pw_nc2
-	# dl>0 Round 3
+	# dl>0 Round 3 
 	movl	12(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,12(%ebx)
 	jnc	L041pw_nc3
-	# dl>0 Round 4
+	# dl>0 Round 4 
 	movl	16(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,16(%ebx)
 	jnc	L042pw_nc4
-	# dl>0 Round 5
+	# dl>0 Round 5 
 	movl	20(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,20(%ebx)
 	jnc	L043pw_nc5
-	# dl>0 Round 6
+	# dl>0 Round 6 
 	movl	24(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,24(%ebx)
 	jnc	L044pw_nc6
-	# dl>0 Round 7
+	# dl>0 Round 7 
 	movl	28(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,28(%ebx)
@@ -1390,49 +1390,49 @@ L036pw_pos_finish:
 	movl	36(%esp),%ebp
 	andl	$7,%ebp
 	jz	L032pw_end
-	# dl>0 Tail Round 0
+	# dl>0 Tail Round 0 
 	movl	(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,(%ebx)
 	jnc	L046pw_tail_nc0
 	decl	%ebp
 	jz	L032pw_end
-	# dl>0 Tail Round 1
+	# dl>0 Tail Round 1 
 	movl	4(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,4(%ebx)
 	jnc	L047pw_tail_nc1
 	decl	%ebp
 	jz	L032pw_end
-	# dl>0 Tail Round 2
+	# dl>0 Tail Round 2 
 	movl	8(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,8(%ebx)
 	jnc	L048pw_tail_nc2
 	decl	%ebp
 	jz	L032pw_end
-	# dl>0 Tail Round 3
+	# dl>0 Tail Round 3 
 	movl	12(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,12(%ebx)
 	jnc	L049pw_tail_nc3
 	decl	%ebp
 	jz	L032pw_end
-	# dl>0 Tail Round 4
+	# dl>0 Tail Round 4 
 	movl	16(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,16(%ebx)
 	jnc	L050pw_tail_nc4
 	decl	%ebp
 	jz	L032pw_end
-	# dl>0 Tail Round 5
+	# dl>0 Tail Round 5 
 	movl	20(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,20(%ebx)
 	jnc	L051pw_tail_nc5
 	decl	%ebp
 	jz	L032pw_end
-	# dl>0 Tail Round 6
+	# dl>0 Tail Round 6 
 	movl	24(%esi),%ecx
 	subl	%eax,%ecx
 	movl	%ecx,24(%ebx)

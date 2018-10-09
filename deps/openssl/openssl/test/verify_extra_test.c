@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -137,6 +137,43 @@ static int test_alt_chains_cert_forgery(const char *roots_f,
     return ret;
 }
 
+static int test_store_ctx(const char *bad_f)
+{
+    X509_STORE_CTX *sctx = NULL;
+    X509 *x = NULL;
+    BIO *bio = NULL;
+    int testresult = 0, ret;
+
+    bio = BIO_new_file(bad_f, "r");
+    if (bio == NULL)
+        goto err;
+
+    x = PEM_read_bio_X509(bio, NULL, 0, NULL);
+    if (x == NULL)
+        goto err;
+
+    sctx = X509_STORE_CTX_new();
+    if (sctx == NULL)
+        goto err;
+
+    if (!X509_STORE_CTX_init(sctx, NULL, x, NULL))
+        goto err;
+
+    /* Verifying a cert where we have no trusted certs should fail */
+    ret = X509_verify_cert(sctx);
+
+    if (ret == 0) {
+        /* This is the result we were expecting: Test passed */
+        testresult = 1;
+    }
+
+ err:
+    X509_STORE_CTX_free(sctx);
+    X509_free(x);
+    BIO_free(bio);
+    return testresult;
+}
+
 int main(int argc, char **argv)
 {
     CRYPTO_set_mem_debug(1);
@@ -149,6 +186,11 @@ int main(int argc, char **argv)
 
     if (!test_alt_chains_cert_forgery(argv[1], argv[2], argv[3])) {
         fprintf(stderr, "Test alt chains cert forgery failed\n");
+        return 1;
+    }
+
+    if (!test_store_ctx(argv[3])) {
+        fprintf(stderr, "Test X509_STORE_CTX failed\n");
         return 1;
     }
 

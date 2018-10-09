@@ -170,10 +170,10 @@ function npmUsage (valid, cb) {
     npm.config.get('long') ? usages()
       : '    ' + wrap(commands),
     '',
-    'npm <command> -h     quick help on <command>',
-    'npm -l           display full usage info',
-    'npm help <term>  search for help on <term>',
-    'npm help npm     involved overview',
+    'npm <command> -h  quick help on <command>',
+    'npm -l            display full usage info',
+    'npm help <term>   search for help on <term>',
+    'npm help npm      involved overview',
     '',
     'Specify configs in the ini-formatted file:',
     '    ' + npm.config.get('userconfig'),
@@ -184,7 +184,7 @@ function npmUsage (valid, cb) {
   ].join('\n'))
 
   if (npm.argv.length > 1) {
-    didYouMean(npm.argv[1], commands)
+    output(didYouMean(npm.argv[1], commands))
   }
 
   cb(valid)

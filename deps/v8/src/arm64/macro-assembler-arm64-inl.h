@@ -24,17 +24,6 @@ MemOperand FieldMemOperand(Register object, int offset) {
 }
 
 
-MemOperand UntagSmiFieldMemOperand(Register object, int offset) {
-  return UntagSmiMemOperand(object, offset - kHeapObjectTag);
-}
-
-
-MemOperand UntagSmiMemOperand(Register object, int offset) {
-  // Assumes that Smis are shifted by 32 bits and little endianness.
-  STATIC_ASSERT(kSmiShift == 32);
-  return MemOperand(object, offset + (kSmiShift / kBitsPerByte));
-}
-
 void TurboAssembler::And(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
@@ -297,6 +286,7 @@ void TurboAssembler::Asr(const Register& rd, const Register& rn,
 }
 
 void TurboAssembler::B(Label* label) {
+  DCHECK(allow_macro_instructions());
   b(label);
   CheckVeneerPool(false, false);
 }
@@ -790,18 +780,6 @@ void TurboAssembler::Mneg(const Register& rd, const Register& rn,
   mneg(rd, rn, rm);
 }
 
-void TurboAssembler::Mov(const Register& rd, const Register& rn) {
-  DCHECK(allow_macro_instructions());
-  DCHECK(!rd.IsZero());
-  // Emit a register move only if the registers are distinct, or if they are
-  // not X registers. Note that mov(w0, w0) is not a no-op because it clears
-  // the top word of x0.
-  if (!rd.Is(rn) || !rd.Is64Bits()) {
-    Assembler::mov(rd, rn);
-  }
-}
-
-
 void MacroAssembler::Movk(const Register& rd, uint64_t imm, int shift) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -838,6 +816,12 @@ void TurboAssembler::Rbit(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   rbit(rd, rn);
+}
+
+void TurboAssembler::Rev(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  rev(rd, rn);
 }
 
 void TurboAssembler::Ret(const Register& xn) {
@@ -1039,47 +1023,51 @@ void TurboAssembler::Uxtw(const Register& rd, const Register& rn) {
 void TurboAssembler::InitializeRootRegister() {
   ExternalReference roots_array_start =
       ExternalReference::roots_array_start(isolate());
-  Mov(root, Operand(roots_array_start));
+  Mov(kRootRegister, Operand(roots_array_start));
+  Add(kRootRegister, kRootRegister, kRootRegisterBias);
 }
 
 
 void MacroAssembler::SmiTag(Register dst, Register src) {
-  STATIC_ASSERT(kXRegSizeInBits ==
-                static_cast<unsigned>(kSmiShift + kSmiValueSize));
   DCHECK(dst.Is64Bits() && src.Is64Bits());
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   Lsl(dst, src, kSmiShift);
 }
-
 
 void MacroAssembler::SmiTag(Register smi) { SmiTag(smi, smi); }
 
 void TurboAssembler::SmiUntag(Register dst, Register src) {
-  STATIC_ASSERT(kXRegSizeInBits ==
-                static_cast<unsigned>(kSmiShift + kSmiValueSize));
   DCHECK(dst.Is64Bits() && src.Is64Bits());
   if (FLAG_enable_slow_asserts) {
     AssertSmi(src);
   }
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   Asr(dst, src, kSmiShift);
 }
 
+void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
+  DCHECK(dst.Is64Bits());
+  if (SmiValuesAre32Bits()) {
+    if (src.IsImmediateOffset() && src.shift_amount() == 0) {
+      // Load value directly from the upper half-word.
+      // Assumes that Smis are shifted by 32 bits and little endianness.
+      DCHECK_EQ(kSmiShift, 32);
+      Ldrsw(dst,
+            MemOperand(src.base(), src.offset() + (kSmiShift / kBitsPerByte),
+                       src.addrmode()));
+
+    } else {
+      Ldr(dst, src);
+      SmiUntag(dst);
+    }
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    Ldr(dst, src);
+    SmiUntag(dst);
+  }
+}
+
 void TurboAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
-
-void MacroAssembler::SmiUntagToDouble(VRegister dst, Register src) {
-  DCHECK(dst.Is64Bits() && src.Is64Bits());
-  if (FLAG_enable_slow_asserts) {
-    AssertSmi(src);
-  }
-  Scvtf(dst, src, kSmiShift);
-}
-
-void MacroAssembler::SmiUntagToFloat(VRegister dst, Register src) {
-  DCHECK(dst.Is32Bits() && src.Is64Bits());
-  if (FLAG_enable_slow_asserts) {
-    AssertSmi(src);
-  }
-  Scvtf(dst, src, kSmiShift);
-}
 
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
                                Label* not_smi_label) {
@@ -1096,6 +1084,15 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
   }
 }
 
+void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
+  Cmp(x, y);
+  B(eq, dest);
+}
+
+void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
+  Cmp(x, y);
+  B(lt, dest);
+}
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   JumpIfSmi(value, nullptr, not_smi_label);

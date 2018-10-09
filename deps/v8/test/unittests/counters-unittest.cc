@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "src/api-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/time.h"
 #include "src/counters-inl.h"
@@ -570,7 +571,7 @@ TEST_F(RuntimeCallStatsTest, BasicJavaScript) {
 
   {
     NativeTimeScope native_timer_scope;
-    RunJS("function f() { return 1; }");
+    RunJS("function f() { return 1; };");
   }
   EXPECT_EQ(1, counter->count());
   int64_t time = counter->time().InMicroseconds();
@@ -578,7 +579,7 @@ TEST_F(RuntimeCallStatsTest, BasicJavaScript) {
 
   {
     NativeTimeScope native_timer_scope;
-    RunJS("f()");
+    RunJS("f();");
   }
   EXPECT_EQ(2, counter->count());
   EXPECT_LE(time, counter->time().InMicroseconds());
@@ -587,38 +588,43 @@ TEST_F(RuntimeCallStatsTest, BasicJavaScript) {
 TEST_F(RuntimeCallStatsTest, FunctionLengthGetter) {
   RuntimeCallCounter* getter_counter =
       stats()->GetCounter(RuntimeCallCounterId::kFunctionLengthGetter);
-  RuntimeCallCounter* js_counter =
-      stats()->GetCounter(RuntimeCallCounterId::kJS_Execution);
   EXPECT_EQ(0, getter_counter->count());
-  EXPECT_EQ(0, js_counter->count());
+  EXPECT_EQ(0, js_counter()->count());
   EXPECT_EQ(0, getter_counter->time().InMicroseconds());
-  EXPECT_EQ(0, js_counter->time().InMicroseconds());
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
 
   {
     NativeTimeScope native_timer_scope;
-    RunJS("function f(array) { return array.length; }");
+    RunJS("function f(array) { return array.length; };");
   }
   EXPECT_EQ(0, getter_counter->count());
-  EXPECT_EQ(1, js_counter->count());
+  EXPECT_EQ(1, js_counter()->count());
   EXPECT_EQ(0, getter_counter->time().InMicroseconds());
-  int64_t js_time = js_counter->time().InMicroseconds();
+  int64_t js_time = js_counter()->time().InMicroseconds();
   EXPECT_LT(0, js_time);
 
   {
     NativeTimeScope native_timer_scope;
-    RunJS("f.length");
+    RunJS("f.length;");
   }
   EXPECT_EQ(1, getter_counter->count());
-  EXPECT_EQ(2, js_counter->count());
+  EXPECT_EQ(2, js_counter()->count());
   EXPECT_LE(0, getter_counter->time().InMicroseconds());
-  EXPECT_LE(js_time, js_counter->time().InMicroseconds());
+  EXPECT_LE(js_time, js_counter()->time().InMicroseconds());
 
   {
     NativeTimeScope native_timer_scope;
-    RunJS("for (let i = 0; i < 50; i++) { f.length }");
+    RunJS("for (let i = 0; i < 50; i++) { f.length };");
   }
   EXPECT_EQ(51, getter_counter->count());
-  EXPECT_EQ(3, js_counter->count());
+  EXPECT_EQ(3, js_counter()->count());
+
+  {
+    NativeTimeScope native_timer_scope;
+    RunJS("for (let i = 0; i < 1000; i++) { f.length; };");
+  }
+  EXPECT_EQ(1051, getter_counter->count());
+  EXPECT_EQ(4, js_counter()->count());
 }
 
 namespace {
@@ -631,7 +637,10 @@ static void CustomCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 }  // namespace
 
-TEST_F(RuntimeCallStatsTest, CustomCallback) {
+TEST_F(RuntimeCallStatsTest, CallbackFunction) {
+  RuntimeCallCounter* callback_counter =
+      stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
+
   current_test = this;
   // Set up a function template with a custom callback.
   v8::Isolate* isolate = v8_isolate();
@@ -645,9 +654,9 @@ TEST_F(RuntimeCallStatsTest, CustomCallback) {
       object_template->NewInstance(v8_context()).ToLocalChecked();
   SetGlobalProperty("custom_object", object);
 
-  // TODO(cbruni): Check api accessor timer (one above the custom callback).
   EXPECT_EQ(0, js_counter()->count());
   EXPECT_EQ(0, counter()->count());
+  EXPECT_EQ(0, callback_counter->count());
   EXPECT_EQ(0, counter2()->count());
   {
     RuntimeCallTimerScope scope(stats(), counter_id());
@@ -655,29 +664,105 @@ TEST_F(RuntimeCallStatsTest, CustomCallback) {
     RunJS("custom_object.callback();");
   }
   EXPECT_EQ(1, js_counter()->count());
+  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(1, callback_counter->count());
+  EXPECT_EQ(1, counter2()->count());
   // Given that no native timers are used, only the two scopes explitly
   // mentioned above will track the time.
   EXPECT_EQ(0, js_counter()->time().InMicroseconds());
-  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(0, callback_counter->time().InMicroseconds());
   EXPECT_EQ(100, counter()->time().InMicroseconds());
-  EXPECT_EQ(1, counter2()->count());
   EXPECT_EQ(kCustomCallbackTime, counter2()->time().InMicroseconds());
 
-  RunJS("for (let i = 0; i < 9; i++) { custom_object.callback() };");
+  RunJS("for (let i = 0; i < 9; i++) { custom_object.callback(); };");
   EXPECT_EQ(2, js_counter()->count());
-  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
   EXPECT_EQ(1, counter()->count());
-  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(10, callback_counter->count());
   EXPECT_EQ(10, counter2()->count());
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(0, callback_counter->time().InMicroseconds());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
   EXPECT_EQ(kCustomCallbackTime * 10, counter2()->time().InMicroseconds());
 
-  RunJS("for (let i = 0; i < 4000; i++) { custom_object.callback() };");
+  RunJS("for (let i = 0; i < 4000; i++) { custom_object.callback(); };");
   EXPECT_EQ(3, js_counter()->count());
-  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
   EXPECT_EQ(1, counter()->count());
-  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(4010, callback_counter->count());
   EXPECT_EQ(4010, counter2()->count());
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(0, callback_counter->time().InMicroseconds());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
   EXPECT_EQ(kCustomCallbackTime * 4010, counter2()->time().InMicroseconds());
+}
+
+TEST_F(RuntimeCallStatsTest, ApiGetter) {
+  RuntimeCallCounter* callback_counter =
+      stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
+  current_test = this;
+  // Set up a function template with an api accessor.
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessorProperty(
+      NewString("apiGetter"),
+      v8::FunctionTemplate::New(isolate, CustomCallback));
+  v8::Local<v8::Object> object =
+      object_template->NewInstance(v8_context()).ToLocalChecked();
+  SetGlobalProperty("custom_object", object);
+
+  // TODO(cbruni): Check api accessor timer (one above the custom callback).
+  EXPECT_EQ(0, js_counter()->count());
+  EXPECT_EQ(0, counter()->count());
+  EXPECT_EQ(0, callback_counter->count());
+  EXPECT_EQ(0, counter2()->count());
+
+  {
+    RuntimeCallTimerScope scope(stats(), counter_id());
+    Sleep(100);
+    RunJS("custom_object.apiGetter;");
+  }
+  PrintStats();
+
+  EXPECT_EQ(1, js_counter()->count());
+  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(1, callback_counter->count());
+  EXPECT_EQ(1, counter2()->count());
+  // Given that no native timers are used, only the two scopes explitly
+  // mentioned above will track the time.
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(0, callback_counter->time().InMicroseconds());
+  EXPECT_EQ(kCustomCallbackTime, counter2()->time().InMicroseconds());
+
+  RunJS("for (let i = 0; i < 9; i++) { custom_object.apiGetter };");
+  PrintStats();
+
+  EXPECT_EQ(2, js_counter()->count());
+  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(10, callback_counter->count());
+  EXPECT_EQ(10, counter2()->count());
+
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(0, callback_counter->time().InMicroseconds());
+  EXPECT_EQ(kCustomCallbackTime * 10, counter2()->time().InMicroseconds());
+
+  RunJS("for (let i = 0; i < 4000; i++) { custom_object.apiGetter };");
+  PrintStats();
+
+  EXPECT_EQ(3, js_counter()->count());
+  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(4010, callback_counter->count());
+  EXPECT_EQ(4010, counter2()->count());
+
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(0, callback_counter->time().InMicroseconds());
+  EXPECT_EQ(kCustomCallbackTime * 4010, counter2()->time().InMicroseconds());
+
+  PrintStats();
 }
 
 }  // namespace internal

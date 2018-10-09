@@ -58,7 +58,7 @@ ubrk_swap(const UDataSwapper *ds,
 U_NAMESPACE_BEGIN
 
 // The current RBBI data format version.
-static const uint8_t RBBI_DATA_FORMAT_VERSION[] = {4, 0, 0, 0};
+static const uint8_t RBBI_DATA_FORMAT_VERSION[] = {5, 0, 0, 0};
 
 /*
  *   The following structs map exactly onto the raw data from ICU common data file.
@@ -81,10 +81,6 @@ struct RBBIDataHeader {
     uint32_t         fFTableLen;
     uint32_t         fRTable;         /*  Offset to the reverse state transition table. */
     uint32_t         fRTableLen;
-    uint32_t         fSFTable;        /*  safe point forward transition table */
-    uint32_t         fSFTableLen;
-    uint32_t         fSRTable;        /*  safe point reverse transition table */
-    uint32_t         fSRTableLen;
     uint32_t         fTrie;           /*  Offset to Trie data for character categories */
     uint32_t         fTrieLen;
     uint32_t         fRuleSource;     /*  Offset to the source for for the break */
@@ -174,8 +170,6 @@ public:
     const RBBIDataHeader     *fHeader;
     const RBBIStateTable     *fForwardTable;
     const RBBIStateTable     *fReverseTable;
-    const RBBIStateTable     *fSafeFwdTable;
-    const RBBIStateTable     *fSafeRevTable;
     const UChar              *fRuleSource;
     const int32_t            *fRuleStatusTable;
 

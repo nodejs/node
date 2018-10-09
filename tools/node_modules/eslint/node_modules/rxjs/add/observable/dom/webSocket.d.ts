@@ -1,6 +1,1 @@
-import { webSocket as staticWebSocket } from '../../../observable/dom/webSocket';
-declare module '../../../Observable' {
-    namespace Observable {
-        let webSocket: typeof staticWebSocket;
-    }
-}
+import 'rxjs-compat/add/observable/dom/webSocket';

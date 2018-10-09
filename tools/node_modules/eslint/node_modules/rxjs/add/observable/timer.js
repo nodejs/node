@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var timer_1 = require('../../observable/timer');
-Observable_1.Observable.timer = timer_1.timer;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/observable/timer");
 //# sourceMappingURL=timer.js.map

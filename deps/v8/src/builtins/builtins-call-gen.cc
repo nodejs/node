@@ -62,9 +62,8 @@ void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
 }
 
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
-    Node* target, Node* new_target, Node* arguments_list, Node* context) {
-  VARIABLE(var_elements, MachineRepresentation::kTagged);
-  VARIABLE(var_length, MachineRepresentation::kWord32);
+    TNode<Object> target, SloppyTNode<Object> new_target,
+    TNode<Object> arguments_list, TNode<Context> context) {
   Label if_done(this), if_arguments(this), if_array(this),
       if_holey_array(this, Label::kDeferred),
       if_runtime(this, Label::kDeferred);
@@ -75,7 +74,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     Label if_target_callable(this),
         if_target_not_callable(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(target), &if_target_not_callable);
-    Branch(IsCallable(target), &if_target_callable, &if_target_not_callable);
+    Branch(IsCallable(CAST(target)), &if_target_callable,
+           &if_target_not_callable);
     BIND(&if_target_not_callable);
     {
       CallRuntime(Runtime::kThrowApplyNonFunction, context, target);
@@ -87,7 +87,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     Label if_target_constructor(this),
         if_target_not_constructor(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(target), &if_target_not_constructor);
-    Branch(IsConstructor(target), &if_target_constructor,
+    Branch(IsConstructor(CAST(target)), &if_target_constructor,
            &if_target_not_constructor);
     BIND(&if_target_not_constructor);
     {
@@ -100,7 +100,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     Label if_new_target_constructor(this),
         if_new_target_not_constructor(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(new_target), &if_new_target_not_constructor);
-    Branch(IsConstructor(new_target), &if_new_target_constructor,
+    Branch(IsConstructor(CAST(new_target)), &if_new_target_constructor,
            &if_new_target_not_constructor);
     BIND(&if_new_target_not_constructor);
     {
@@ -111,27 +111,29 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   }
 
   GotoIf(TaggedIsSmi(arguments_list), &if_runtime);
-  Node* arguments_list_map = LoadMap(arguments_list);
-  Node* native_context = LoadNativeContext(context);
+
+  TNode<Map> arguments_list_map = LoadMap(CAST(arguments_list));
+  TNode<Context> native_context = LoadNativeContext(context);
 
   // Check if {arguments_list} is an (unmodified) arguments object.
-  Node* sloppy_arguments_map =
-      LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX);
+  TNode<Map> sloppy_arguments_map = CAST(
+      LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
   GotoIf(WordEqual(arguments_list_map, sloppy_arguments_map), &if_arguments);
-  Node* strict_arguments_map =
-      LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
+  TNode<Map> strict_arguments_map = CAST(
+      LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX));
   GotoIf(WordEqual(arguments_list_map, strict_arguments_map), &if_arguments);
 
   // Check if {arguments_list} is a fast JSArray.
   Branch(IsJSArrayMap(arguments_list_map), &if_array, &if_runtime);
 
+  TVARIABLE(FixedArrayBase, var_elements);
+  TVARIABLE(Int32T, var_length);
   BIND(&if_array);
   {
     // Try to extract the elements from a JSArray object.
-    var_elements.Bind(
-        LoadObjectField(arguments_list, JSArray::kElementsOffset));
-    var_length.Bind(LoadAndUntagToWord32ObjectField(arguments_list,
-                                                    JSArray::kLengthOffset));
+    var_elements = LoadElements(CAST(arguments_list));
+    var_length =
+        LoadAndUntagToWord32ObjectField(arguments_list, JSArray::kLengthOffset);
 
     // Holey arrays and double backing stores need special treatment.
     STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
@@ -142,7 +144,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
     STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == HOLEY_DOUBLE_ELEMENTS);
 
-    Node* kind = LoadMapElementsKind(arguments_list_map);
+    TNode<Int32T> kind = LoadMapElementsKind(arguments_list_map);
 
     GotoIf(Int32GreaterThan(kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
            &if_runtime);
@@ -160,26 +162,25 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 
   BIND(&if_arguments);
   {
+    TNode<JSArgumentsObject> js_arguments = CAST(arguments_list);
     // Try to extract the elements from an JSArgumentsObject.
-    Node* length =
-        LoadObjectField(arguments_list, JSArgumentsObject::kLengthOffset);
-    Node* elements =
-        LoadObjectField(arguments_list, JSArgumentsObject::kElementsOffset);
-    Node* elements_length = LoadFixedArrayBaseLength(elements);
+    TNode<Object> length =
+        LoadObjectField(js_arguments, JSArgumentsObject::kLengthOffset);
+    TNode<FixedArrayBase> elements = LoadElements(js_arguments);
+    TNode<Smi> elements_length = LoadFixedArrayBaseLength(elements);
     GotoIfNot(WordEqual(length, elements_length), &if_runtime);
-    var_elements.Bind(elements);
-    var_length.Bind(SmiToInt32(length));
+    var_elements = elements;
+    var_length = SmiToInt32(CAST(length));
     Goto(&if_done);
   }
 
   BIND(&if_runtime);
   {
     // Ask the runtime to create the list (actually a FixedArray).
-    Node* elements =
-        CallRuntime(Runtime::kCreateListFromArrayLike, context, arguments_list);
-    var_elements.Bind(elements);
-    var_length.Bind(
-        LoadAndUntagToWord32ObjectField(elements, FixedArray::kLengthOffset));
+    var_elements = CAST(CallRuntime(Runtime::kCreateListFromArrayLike, context,
+                                    arguments_list));
+    var_length = LoadAndUntagToWord32ObjectField(var_elements.value(),
+                                                 FixedArray::kLengthOffset);
     Goto(&if_done);
   }
 
@@ -188,27 +189,41 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   BIND(&if_done);
   {
     Label if_not_double(this), if_double(this);
-    Node* elements = var_elements.value();
-    Node* length = var_length.value();
-    Node* args_count = Int32Constant(0);  // args already on the stack
+    TNode<Int32T> args_count = Int32Constant(0);  // args already on the stack
 
+    TNode<Int32T> length = var_length.value();
+    {
+      Label normalize_done(this);
+      GotoIfNot(Word32Equal(length, Int32Constant(0)), &normalize_done);
+      // Make sure we don't accidentally pass along the
+      // empty_fixed_double_array since the tailed-called stubs cannot handle
+      // the normalization yet.
+      var_elements = EmptyFixedArrayConstant();
+      Goto(&normalize_done);
+
+      BIND(&normalize_done);
+    }
+
+    TNode<FixedArrayBase> elements = var_elements.value();
     Branch(IsFixedDoubleArray(elements), &if_double, &if_not_double);
 
     BIND(&if_not_double);
-    if (new_target == nullptr) {
-      Callable callable = CodeFactory::CallVarargs(isolate());
-      TailCallStub(callable, context, target, args_count, elements, length);
-    } else {
-      Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, args_count, elements,
-                   length);
+    {
+      if (new_target == nullptr) {
+        Callable callable = CodeFactory::CallVarargs(isolate());
+        TailCallStub(callable, context, target, args_count, elements, length);
+      } else {
+        Callable callable = CodeFactory::ConstructVarargs(isolate());
+        TailCallStub(callable, context, target, new_target, args_count,
+                     elements, length);
+      }
     }
 
     BIND(&if_double);
     {
       // Kind is hardcoded here because CreateListFromArrayLike will only
       // produce holey double arrays.
-      CallOrConstructDoubleVarargs(target, new_target, elements, length,
+      CallOrConstructDoubleVarargs(target, new_target, CAST(elements), length,
                                    args_count, context,
                                    Int32Constant(HOLEY_DOUBLE_ELEMENTS));
     }
@@ -219,38 +234,33 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 // boxed as HeapNumbers, then tail calls CallVarargs/ConstructVarargs depending
 // on whether {new_target} was passed.
 void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
-    Node* target, Node* new_target, Node* elements, Node* length,
-    Node* args_count, Node* context, Node* kind) {
-  Label if_holey_double(this), if_packed_double(this), if_done(this);
+    TNode<Object> target, SloppyTNode<Object> new_target,
+    TNode<FixedDoubleArray> elements, TNode<Int32T> length,
+    TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
+  Label if_done(this);
 
   const ElementsKind new_kind = PACKED_ELEMENTS;
-  const ParameterMode mode = INTPTR_PARAMETERS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-  Node* intptr_length = ChangeInt32ToIntPtr(length);
+  TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
+  CSA_ASSERT(this, WordNotEqual(intptr_length, IntPtrConstant(0)));
 
   // Allocate a new FixedArray of Objects.
-  Node* new_elements =
-      AllocateFixedArray(new_kind, intptr_length, mode,
-                         CodeStubAssembler::kAllowLargeObjectAllocation);
+  TNode<FixedArray> new_elements = CAST(AllocateFixedArray(
+      new_kind, intptr_length, CodeStubAssembler::kAllowLargeObjectAllocation));
   Branch(Word32Equal(kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
-         &if_holey_double, &if_packed_double);
-
-  BIND(&if_holey_double);
-  {
-    // Fill the FixedArray with pointers to HeapObjects.
-    CopyFixedArrayElements(HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
-                           new_elements, intptr_length, intptr_length,
-                           barrier_mode);
-    Goto(&if_done);
-  }
-
-  BIND(&if_packed_double);
-  {
-    CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, new_kind,
-                           new_elements, intptr_length, intptr_length,
-                           barrier_mode);
-    Goto(&if_done);
-  }
+         [&] {
+           // Fill the FixedArray with pointers to HeapObjects.
+           CopyFixedArrayElements(HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
+                                  new_elements, intptr_length, intptr_length,
+                                  barrier_mode);
+           Goto(&if_done);
+         },
+         [&] {
+           CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, new_kind,
+                                  new_elements, intptr_length, intptr_length,
+                                  barrier_mode);
+           Goto(&if_done);
+         });
 
   BIND(&if_done);
   {
@@ -266,18 +276,19 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
 }
 
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
-    Node* target, Node* new_target, Node* spread, Node* args_count,
-    Node* context) {
+    TNode<Object> target, TNode<Object> new_target, TNode<Object> spread,
+    TNode<Int32T> args_count, TNode<Context> context) {
   Label if_smiorobject(this), if_double(this),
       if_generic(this, Label::kDeferred);
 
-  VARIABLE(var_length, MachineRepresentation::kWord32);
-  VARIABLE(var_elements, MachineRepresentation::kTagged);
-  VARIABLE(var_elements_kind, MachineRepresentation::kWord32);
+  TVARIABLE(Int32T, var_length);
+  TVARIABLE(FixedArrayBase, var_elements);
+  TVARIABLE(Int32T, var_elements_kind);
 
   GotoIf(TaggedIsSmi(spread), &if_generic);
-  Node* spread_map = LoadMap(spread);
+  TNode<Map> spread_map = LoadMap(CAST(spread));
   GotoIfNot(IsJSArrayMap(spread_map), &if_generic);
+  TNode<JSArray> spread_array = CAST(spread);
 
   // Check that we have the original Array.prototype.
   GotoIfNot(IsPrototypeInitialArrayPrototype(context, spread_map), &if_generic);
@@ -287,40 +298,41 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   // Check that the Array.prototype hasn't been modified in a way that would
   // affect iteration.
-  Node* protector_cell = LoadRoot(Heap::kArrayIteratorProtectorRootIndex);
-  DCHECK(isolate()->heap()->array_iterator_protector()->IsPropertyCell());
+  TNode<PropertyCell> protector_cell =
+      CAST(LoadRoot(Heap::kArrayIteratorProtectorRootIndex));
   GotoIf(WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                    SmiConstant(Isolate::kProtectorInvalid)),
          &if_generic);
+  {
+    // The fast-path accesses the {spread} elements directly.
+    TNode<Int32T> spread_kind = LoadMapElementsKind(spread_map);
+    var_elements_kind = spread_kind;
+    var_length =
+        LoadAndUntagToWord32ObjectField(spread_array, JSArray::kLengthOffset);
+    var_elements = LoadElements(spread_array);
 
-  // The fast-path accesses the {spread} elements directly.
-  Node* spread_kind = LoadMapElementsKind(spread_map);
-  var_elements_kind.Bind(spread_kind);
-  var_length.Bind(
-      LoadAndUntagToWord32ObjectField(spread, JSArray::kLengthOffset));
-  var_elements.Bind(LoadObjectField(spread, JSArray::kElementsOffset));
-
-  // Check elements kind of {spread}.
-  GotoIf(Int32LessThan(spread_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
-         &if_smiorobject);
-  Branch(Int32GreaterThan(spread_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
-         &if_generic, &if_double);
+    // Check elements kind of {spread}.
+    GotoIf(Int32LessThan(spread_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
+           &if_smiorobject);
+    Branch(
+        Int32GreaterThan(spread_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
+        &if_generic, &if_double);
+  }
 
   BIND(&if_generic);
   {
     Label if_iterator_fn_not_callable(this, Label::kDeferred);
-    Node* iterator_fn = GetProperty(context, spread, IteratorSymbolConstant());
-    GotoIf(TaggedIsSmi(iterator_fn), &if_iterator_fn_not_callable);
-    GotoIfNot(IsCallable(iterator_fn), &if_iterator_fn_not_callable);
-    Node* list =
-        CallBuiltin(Builtins::kIterableToList, context, spread, iterator_fn);
-    CSA_ASSERT(this, IsJSArray(list));
-    Node* list_kind = LoadMapElementsKind(LoadMap(list));
-    var_length.Bind(
-        LoadAndUntagToWord32ObjectField(list, JSArray::kLengthOffset));
-    var_elements.Bind(LoadObjectField(list, JSArray::kElementsOffset));
-    var_elements_kind.Bind(list_kind);
-    Branch(Int32LessThan(list_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
+    TNode<Object> iterator_fn =
+        GetProperty(context, spread, IteratorSymbolConstant());
+    GotoIfNot(TaggedIsCallable(iterator_fn), &if_iterator_fn_not_callable);
+    TNode<JSArray> list = CAST(
+        CallBuiltin(Builtins::kIterableToList, context, spread, iterator_fn));
+    var_length = LoadAndUntagToWord32ObjectField(list, JSArray::kLengthOffset);
+
+    var_elements = LoadElements(list);
+    var_elements_kind = LoadElementsKind(list);
+    Branch(Int32LessThan(var_elements_kind.value(),
+                         Int32Constant(PACKED_DOUBLE_ELEMENTS)),
            &if_smiorobject, &if_double);
 
     BIND(&if_iterator_fn_not_callable);
@@ -329,8 +341,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_smiorobject);
   {
-    Node* const elements = var_elements.value();
-    Node* const length = var_length.value();
+    TNode<FixedArrayBase> elements = var_elements.value();
+    TNode<Int32T> length = var_length.value();
 
     if (new_target == nullptr) {
       Callable callable = CodeFactory::CallVarargs(isolate());
@@ -344,29 +356,28 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_double);
   {
-    Node* const elements_kind = var_elements_kind.value();
-    Node* const elements = var_elements.value();
-    Node* const length = var_length.value();
-
-    CallOrConstructDoubleVarargs(target, new_target, elements, length,
-                                 args_count, context, elements_kind);
+    GotoIf(Word32Equal(var_length.value(), Int32Constant(0)), &if_smiorobject);
+    CallOrConstructDoubleVarargs(target, new_target, CAST(var_elements.value()),
+                                 var_length.value(), args_count, context,
+                                 var_elements_kind.value());
   }
 }
 
 TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
-  Node* target = Parameter(CallWithArrayLikeDescriptor::kTarget);
-  Node* new_target = nullptr;
-  Node* arguments_list = Parameter(CallWithArrayLikeDescriptor::kArgumentsList);
-  Node* context = Parameter(CallWithArrayLikeDescriptor::kContext);
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
+  SloppyTNode<Object> new_target = nullptr;
+  TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 TF_BUILTIN(CallWithSpread, CallOrConstructBuiltinsAssembler) {
-  Node* target = Parameter(CallWithSpreadDescriptor::kTarget);
-  Node* new_target = nullptr;
-  Node* spread = Parameter(CallWithSpreadDescriptor::kSpread);
-  Node* args_count = Parameter(CallWithSpreadDescriptor::kArgumentsCount);
-  Node* context = Parameter(CallWithSpreadDescriptor::kContext);
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
+  SloppyTNode<Object> new_target = nullptr;
+  TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
+  TNode<Int32T> args_count =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 

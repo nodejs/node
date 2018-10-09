@@ -3,6 +3,7 @@
 module.exports = Certificate;
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('./algs');
 var crypto = require('crypto');
 var Fingerprint = require('./fingerprint');
@@ -185,7 +186,7 @@ Certificate.createSelfSigned = function (subjectOrSubjects, key, options) {
 	assert.optionalBuffer(options.serial, 'options.serial');
 	var serial = options.serial;
 	if (serial === undefined)
-		serial = new Buffer('0000000000000001', 'hex');
+		serial = Buffer.from('0000000000000001', 'hex');
 
 	var purposes = options.purposes;
 	if (purposes === undefined)
@@ -283,7 +284,7 @@ Certificate.create =
 	assert.optionalBuffer(options.serial, 'options.serial');
 	var serial = options.serial;
 	if (serial === undefined)
-		serial = new Buffer('0000000000000001', 'hex');
+		serial = Buffer.from('0000000000000001', 'hex');
 
 	var purposes = options.purposes;
 	if (purposes === undefined)

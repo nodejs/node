@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-common.crashOnUnhandledRejection();
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -18,7 +17,6 @@ server.listen(0, common.mustCall(() => {
   const connect = util.promisify(http2.connect);
 
   connect(`http://localhost:${server.address().port}`)
-    .catch(common.mustNotCall())
     .then(common.mustCall((client) => {
       assert(client);
       const req = client.request();

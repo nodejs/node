@@ -1,2 +1,1 @@
-import { PromiseObservable } from './PromiseObservable';
-export declare const fromPromise: typeof PromiseObservable.create;
+export * from 'rxjs-compat/observable/fromPromise';

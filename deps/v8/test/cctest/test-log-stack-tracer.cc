@@ -30,7 +30,7 @@
 #include <stdlib.h>
 
 #include "include/v8-profiler.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/code-stubs.h"
 #include "src/disassembler.h"
 #include "src/isolate.h"
@@ -45,9 +45,8 @@ namespace v8 {
 namespace internal {
 
 static bool IsAddressWithinFuncCode(JSFunction* function, void* addr) {
-  Address address = reinterpret_cast<Address>(addr);
   i::AbstractCode* code = function->abstract_code();
-  return code->contains(address);
+  return code->contains(reinterpret_cast<Address>(addr));
 }
 
 static bool IsAddressWithinFuncCode(v8::Local<v8::Context> context,
@@ -80,16 +79,21 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
 #if defined(V8_HOST_ARCH_32_BIT)
-  int32_t low_bits = reinterpret_cast<int32_t>(calling_frame->fp());
+  int32_t low_bits = static_cast<int32_t>(calling_frame->fp());
   args.This()
       ->Set(context, v8_str("low_bits"), v8_num(low_bits >> 1))
       .FromJust();
 #elif defined(V8_HOST_ARCH_64_BIT)
-  uint64_t fp = reinterpret_cast<uint64_t>(calling_frame->fp());
-  int32_t low_bits = static_cast<int32_t>(fp & 0xFFFFFFFF);
-  int32_t high_bits = static_cast<int32_t>(fp >> 32);
-  args.This()->Set(context, v8_str("low_bits"), v8_num(low_bits)).FromJust();
-  args.This()->Set(context, v8_str("high_bits"), v8_num(high_bits)).FromJust();
+  Address fp = calling_frame->fp();
+  uint64_t kSmiValueMask =
+      (static_cast<uintptr_t>(1) << (kSmiValueSize - 1)) - 1;
+  int32_t low_bits = static_cast<int32_t>(fp & kSmiValueMask);
+  fp >>= kSmiValueSize - 1;
+  int32_t high_bits = static_cast<int32_t>(fp & kSmiValueMask);
+  fp >>= kSmiValueSize - 1;
+  CHECK_EQ(fp, 0);  // Ensure all the bits are successfully encoded.
+  args.This()->Set(context, v8_str("low_bits"), v8_int(low_bits)).FromJust();
+  args.This()->Set(context, v8_str("high_bits"), v8_int(high_bits)).FromJust();
 #else
 #error Host architecture is neither 32-bit nor 64-bit.
 #endif
@@ -167,7 +171,7 @@ TEST(CFromJSStackTrace) {
 
   CHECK(sample.has_external_callback);
   CHECK_EQ(FUNCTION_ADDR(i::TraceExtension::Trace),
-           sample.external_callback_entry);
+           reinterpret_cast<Address>(sample.external_callback_entry));
 
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
   unsigned base = 0;
@@ -221,7 +225,7 @@ TEST(PureJSStackTrace) {
 
   CHECK(sample.has_external_callback);
   CHECK_EQ(FUNCTION_ADDR(i::TraceExtension::JSTrace),
-           sample.external_callback_entry);
+           reinterpret_cast<Address>(sample.external_callback_entry));
 
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
   unsigned base = 0;
@@ -231,15 +235,14 @@ TEST(PureJSStackTrace) {
       context, "OuterJSTrace", sample.stack[base + 1]));
 }
 
-
-static void CFuncDoTrace(byte dummy_parameter) {
+static void CFuncDoTrace(byte dummy_param) {
   Address fp;
 #if V8_HAS_BUILTIN_FRAME_ADDRESS
   fp = reinterpret_cast<Address>(__builtin_frame_address(0));
 #elif V8_CC_MSVC
   // Approximate a frame pointer address. We compile without base pointers,
   // so we can't trust ebp/rbp.
-  fp = &dummy_parameter - 2 * sizeof(void*);  // NOLINT
+  fp = reinterpret_cast<Address>(&dummy_param) - 2 * sizeof(void*);  // NOLINT
 #else
 #error Unexpected platform.
 #endif

@@ -23,7 +23,7 @@ struct V8StackTraceId;
 
 class StackFrame {
  public:
-  explicit StackFrame(v8::Local<v8::StackFrame> frame);
+  explicit StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> frame);
   ~StackFrame() = default;
 
   void translate(WasmTranslation* wasmTranslation);
@@ -33,7 +33,8 @@ class StackFrame {
   const String16& sourceURL() const;
   int lineNumber() const;    // 0-based.
   int columnNumber() const;  // 0-based.
-  std::unique_ptr<protocol::Runtime::CallFrame> buildInspectorObject() const;
+  std::unique_ptr<protocol::Runtime::CallFrame> buildInspectorObject(
+      V8InspectorClient* client) const;
   bool isEqual(StackFrame* frame) const;
 
  private:
@@ -42,13 +43,14 @@ class StackFrame {
   String16 m_sourceURL;
   int m_lineNumber;    // 0-based.
   int m_columnNumber;  // 0-based.
+  bool m_hasSourceURLComment;
 };
 
 class V8StackTraceImpl : public V8StackTrace {
  public:
   static void setCaptureStackTraceForUncaughtExceptions(v8::Isolate*,
                                                         bool capture);
-  static const int maxCallStackSizeToCapture = 200;
+  static int maxCallStackSizeToCapture;
   static std::unique_ptr<V8StackTraceImpl> create(V8Debugger*,
                                                   int contextGroupId,
                                                   v8::Local<v8::StackTrace>,
@@ -64,6 +66,7 @@ class V8StackTraceImpl : public V8StackTrace {
   // V8StackTrace implementation.
   // This method drops the async stack trace.
   std::unique_ptr<V8StackTrace> clone() override;
+  StringView firstNonEmptySourceURL() const override;
   bool isEmpty() const override;
   StringView topSourceURL() const override;
   int topLineNumber() const override;    // 1-based.
@@ -116,6 +119,16 @@ class AsyncStackTrace {
   std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObject(
       V8Debugger* debugger, int maxAsyncDepth) const;
 
+  // If async stack has suspended task id, it means that at moment when we
+  // capture current stack trace we suspended corresponded asynchronous
+  // execution flow and it is possible to request pause for a momemnt when
+  // that flow is resumed.
+  // E.g. every time when we suspend async function we mark corresponded async
+  // stack as suspended and every time when this function is resumed we remove
+  // suspendedTaskId.
+  void setSuspendedTaskId(void* task);
+  void* suspendedTaskId() const;
+
   int contextGroupId() const;
   const String16& description() const;
   std::weak_ptr<AsyncStackTrace> parent() const;
@@ -134,6 +147,7 @@ class AsyncStackTrace {
 
   int m_contextGroupId;
   uintptr_t m_id;
+  void* m_suspendedTaskId;
   String16 m_description;
 
   std::vector<std::shared_ptr<StackFrame>> m_frames;

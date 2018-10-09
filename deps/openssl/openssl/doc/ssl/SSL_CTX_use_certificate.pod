@@ -153,6 +153,13 @@ L<SSL_CTX_set_default_passwd_cb(3)>.
 of view, it however does not make sense as the data in the certificate
 is considered public anyway.)
 
+All of the functions to set a new certificate will replace any existing
+certificate of the same type that has already been set. Similarly all of the
+functions to set a new private key will replace any private key that has already
+been set. Applications should call L<SSL_CTX_check_private_key(3)> or
+L<SSL_check_private_key(3)> as appropriate after loading a new certificate and
+private key to confirm that the certificate and key match.
+
 =head1 RETURN VALUES
 
 On success, the functions return 1.
@@ -170,7 +177,7 @@ L<SSL_CTX_add_extra_chain_cert(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

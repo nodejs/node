@@ -6,8 +6,9 @@
 
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
+#include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/wasm-translation.h"
-#include "src/utils.h"
+#include "src/v8memory.h"
 
 namespace v8_inspector {
 
@@ -37,7 +38,8 @@ String16 calculateHash(const String16& str) {
   size_t sizeInBytes = sizeof(UChar) * str.length();
   data = reinterpret_cast<const uint32_t*>(str.characters16());
   for (size_t i = 0; i < sizeInBytes / 4; ++i) {
-    uint32_t d = v8::internal::ReadUnalignedUInt32(data + i);
+    uint32_t d = v8::internal::ReadUnalignedUInt32(
+        reinterpret_cast<v8::internal::Address>(data + i));
 #if V8_TARGET_LITTLE_ENDIAN
     uint32_t v = d;
 #else
@@ -109,41 +111,11 @@ class ActualScript : public V8DebuggerScript {
 
  public:
   ActualScript(v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
-               bool isLiveEdit)
+               bool isLiveEdit, V8InspectorClient* client)
       : V8DebuggerScript(isolate, String16::fromInteger(script->Id()),
-                         GetNameOrSourceUrl(script)),
+                         GetScriptURL(isolate, script, client)),
         m_isLiveEdit(isLiveEdit) {
-    v8::Local<v8::String> tmp;
-    if (script->SourceURL().ToLocal(&tmp)) m_sourceURL = toProtocolString(tmp);
-    if (script->SourceMappingURL().ToLocal(&tmp))
-      m_sourceMappingURL = toProtocolString(tmp);
-    m_startLine = script->LineOffset();
-    m_startColumn = script->ColumnOffset();
-    std::vector<int> lineEnds = script->LineEnds();
-    CHECK(lineEnds.size());
-    int source_length = lineEnds[lineEnds.size() - 1];
-    if (lineEnds.size()) {
-      m_endLine = static_cast<int>(lineEnds.size()) + m_startLine - 1;
-      if (lineEnds.size() > 1) {
-        m_endColumn = source_length - lineEnds[lineEnds.size() - 2] - 1;
-      } else {
-        m_endColumn = source_length + m_startColumn;
-      }
-    } else {
-      m_endLine = m_startLine;
-      m_endColumn = m_startColumn;
-    }
-
-    USE(script->ContextId().To(&m_executionContextId));
-
-    if (script->Source().ToLocal(&tmp)) {
-      m_source = toProtocolString(tmp);
-    }
-
-    m_isModule = script->IsModule();
-
-    m_script.Reset(m_isolate, script);
-    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
+    Initialize(script);
   }
 
   bool isLiveEdit() const override { return m_isLiveEdit; }
@@ -165,17 +137,17 @@ class ActualScript : public V8DebuggerScript {
   }
 
   void setSource(const String16& newSource, bool preview,
-                 bool* stackChanged) override {
+                 v8::debug::LiveEditResult* result) override {
     DCHECK(!isModule());
-    v8::HandleScope scope(m_isolate);
+    v8::EscapableHandleScope scope(m_isolate);
     v8::Local<v8::String> v8Source = toV8String(m_isolate, newSource);
-    if (!m_script.Get(m_isolate)->SetScriptSource(v8Source, preview,
-                                                  stackChanged)) {
+    if (!m_script.Get(m_isolate)->SetScriptSource(v8Source, preview, result)) {
+      result->message = scope.Escape(result->message);
       return;
     }
     if (preview) return;
-    m_source = newSource;
     m_hash = String16();
+    Initialize(scope.Escape(result->script));
   }
 
   bool getPossibleBreakpoints(
@@ -247,15 +219,59 @@ class ActualScript : public V8DebuggerScript {
   }
 
  private:
-  String16 GetNameOrSourceUrl(v8::Local<v8::debug::Script> script) {
-    v8::Local<v8::String> name;
-    if (script->Name().ToLocal(&name) || script->SourceURL().ToLocal(&name))
-      return toProtocolString(name);
+  String16 GetScriptURL(v8::Isolate* isolate,
+                        v8::Local<v8::debug::Script> script,
+                        V8InspectorClient* client) {
+    v8::Local<v8::String> sourceURL;
+    if (script->SourceURL().ToLocal(&sourceURL) && sourceURL->Length() > 0)
+      return toProtocolString(isolate, sourceURL);
+    v8::Local<v8::String> v8Name;
+    if (script->Name().ToLocal(&v8Name) && v8Name->Length() > 0) {
+      String16 name = toProtocolString(isolate, v8Name);
+      std::unique_ptr<StringBuffer> url =
+          client->resourceNameToUrl(toStringView(name));
+      return url ? toString16(url->string()) : name;
+    }
     return String16();
   }
 
   v8::Local<v8::debug::Script> script() const override {
     return m_script.Get(m_isolate);
+  }
+
+  void Initialize(v8::Local<v8::debug::Script> script) {
+    v8::Local<v8::String> tmp;
+    m_hasSourceURLComment =
+        script->SourceURL().ToLocal(&tmp) && tmp->Length() > 0;
+    if (script->SourceMappingURL().ToLocal(&tmp))
+      m_sourceMappingURL = toProtocolString(m_isolate, tmp);
+    m_startLine = script->LineOffset();
+    m_startColumn = script->ColumnOffset();
+    std::vector<int> lineEnds = script->LineEnds();
+    CHECK(lineEnds.size());
+    int source_length = lineEnds[lineEnds.size() - 1];
+    if (lineEnds.size()) {
+      m_endLine = static_cast<int>(lineEnds.size()) + m_startLine - 1;
+      if (lineEnds.size() > 1) {
+        m_endColumn = source_length - lineEnds[lineEnds.size() - 2] - 1;
+      } else {
+        m_endColumn = source_length + m_startColumn;
+      }
+    } else {
+      m_endLine = m_startLine;
+      m_endColumn = m_startColumn;
+    }
+
+    USE(script->ContextId().To(&m_executionContextId));
+
+    if (script->Source().ToLocal(&tmp)) {
+      m_source = toProtocolString(m_isolate, tmp);
+    }
+
+    m_isModule = script->IsModule();
+
+    m_script.Reset(m_isolate, script);
+    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
   }
 
   String16 m_sourceMappingURL;
@@ -289,7 +305,9 @@ class WasmVirtualScript : public V8DebuggerScript {
   bool isLiveEdit() const override { return false; }
   bool isModule() const override { return false; }
   void setSourceMappingURL(const String16&) override {}
-  void setSource(const String16&, bool, bool*) override { UNREACHABLE(); }
+  void setSource(const String16&, bool, v8::debug::LiveEditResult*) override {
+    UNREACHABLE();
+  }
   bool isSourceLoadedLazily() const override { return true; }
   const String16& source() const override {
     return m_wasmTranslation->GetSource(m_id, m_functionIndex);
@@ -391,9 +409,9 @@ class WasmVirtualScript : public V8DebuggerScript {
 
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::Create(
     v8::Isolate* isolate, v8::Local<v8::debug::Script> scriptObj,
-    bool isLiveEdit) {
+    bool isLiveEdit, V8InspectorClient* client) {
   return std::unique_ptr<ActualScript>(
-      new ActualScript(isolate, scriptObj, isLiveEdit));
+      new ActualScript(isolate, scriptObj, isLiveEdit, client));
 }
 
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::CreateWasm(
@@ -411,12 +429,11 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate, String16 id,
 
 V8DebuggerScript::~V8DebuggerScript() {}
 
-const String16& V8DebuggerScript::sourceURL() const {
-  return m_sourceURL.isEmpty() ? m_url : m_sourceURL;
-}
-
 void V8DebuggerScript::setSourceURL(const String16& sourceURL) {
-  m_sourceURL = sourceURL;
+  if (sourceURL.length() > 0) {
+    m_hasSourceURLComment = true;
+    m_url = sourceURL;
+  }
 }
 
 bool V8DebuggerScript::setBreakpoint(const String16& condition,
@@ -424,5 +441,4 @@ bool V8DebuggerScript::setBreakpoint(const String16& condition,
   v8::HandleScope scope(m_isolate);
   return script()->SetBreakpoint(toV8String(m_isolate, condition), loc, id);
 }
-
 }  // namespace v8_inspector

@@ -7,7 +7,7 @@
 #include <sstream>
 
 #include "include/v8-platform.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/template-utils.h"
@@ -102,19 +102,17 @@ class MockPlatform : public v8::Platform {
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
-    constexpr bool is_foreground_task_runner = true;
-    return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
-  }
-
-  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
-      v8::Isolate* isolate) override {
-    constexpr bool is_foreground_task_runner = false;
-    return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
+    return std::make_shared<MockForegroundTaskRunner>(this);
   }
 
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     base::LockGuard<base::Mutex> lock(&mutex_);
     worker_tasks_.push_back(std::move(task));
+  }
+
+  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
+                                 double delay_in_seconds) override {
+    UNREACHABLE();
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
@@ -259,19 +257,14 @@ class MockPlatform : public v8::Platform {
     DISALLOW_COPY_AND_ASSIGN(TaskWrapper);
   };
 
-  class MockTaskRunner final : public TaskRunner {
+  class MockForegroundTaskRunner final : public TaskRunner {
    public:
-    MockTaskRunner(MockPlatform* platform, bool is_foreground_task_runner)
-        : platform_(platform),
-          is_foreground_task_runner_(is_foreground_task_runner) {}
+    explicit MockForegroundTaskRunner(MockPlatform* platform)
+        : platform_(platform) {}
 
     void PostTask(std::unique_ptr<v8::Task> task) override {
       base::LockGuard<base::Mutex> lock(&platform_->mutex_);
-      if (is_foreground_task_runner_) {
-        platform_->foreground_tasks_.push_back(std::move(task));
-      } else {
-        platform_->worker_tasks_.push_back(std::move(task));
-      }
+      platform_->foreground_tasks_.push_back(std::move(task));
     }
 
     void PostDelayedTask(std::unique_ptr<Task> task,
@@ -286,14 +279,10 @@ class MockPlatform : public v8::Platform {
       platform_->idle_task_ = task.release();
     }
 
-    bool IdleTasksEnabled() override {
-      // Idle tasks are enabled only in the foreground task runner.
-      return is_foreground_task_runner_;
-    };
+    bool IdleTasksEnabled() override { return true; };
 
    private:
     MockPlatform* platform_;
-    bool is_foreground_task_runner_;
   };
 
   double time_;

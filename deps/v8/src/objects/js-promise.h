@@ -45,6 +45,9 @@ class JSPromise : public JSObject {
   // block in an async function.
   DECL_BOOLEAN_ACCESSORS(handled_hint)
 
+  int async_task_id() const;
+  void set_async_task_id(int id);
+
   static const char* Status(Promise::PromiseState status);
   Promise::PromiseState status() const;
   void set_status(Promise::PromiseState status);
@@ -77,6 +80,7 @@ class JSPromise : public JSObject {
   static const int kStatusBits = 2;
   static const int kHasHandlerBit = 2;
   static const int kHandledHintBit = 3;
+  class AsyncTaskIdField : public BitField<int, kHandledHintBit + 1, 22> {};
 
   static const int kStatusShift = 0;
   static const int kStatusMask = 0x3;

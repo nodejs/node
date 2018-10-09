@@ -7,6 +7,7 @@
 
 #include "src/heap/incremental-marking.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects/maybe-object.h"
 
 namespace v8 {
@@ -17,8 +18,10 @@ void IncrementalMarking::RecordWrite(HeapObject* obj, Object** slot,
                                      Object* value) {
   DCHECK_IMPLIES(slot != nullptr, !HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
-  RecordMaybeWeakWrite(obj, reinterpret_cast<MaybeObject**>(slot),
-                       reinterpret_cast<MaybeObject*>(value));
+  if (IsMarking() && value->IsHeapObject()) {
+    RecordWriteSlow(obj, reinterpret_cast<HeapObjectReference**>(slot),
+                    HeapObject::cast(value));
+  }
 }
 
 void IncrementalMarking::RecordMaybeWeakWrite(HeapObject* obj,
@@ -30,21 +33,6 @@ void IncrementalMarking::RecordMaybeWeakWrite(HeapObject* obj,
   if (IsMarking() && value->ToStrongOrWeakHeapObject(&heap_object)) {
     RecordWriteSlow(obj, reinterpret_cast<HeapObjectReference**>(slot),
                     heap_object);
-  }
-}
-
-void IncrementalMarking::RecordWrites(HeapObject* obj) {
-  if (IsMarking()) {
-    if (FLAG_concurrent_marking || marking_state()->IsBlack(obj)) {
-      RevisitObject(obj);
-    }
-  }
-}
-
-void IncrementalMarking::RecordWriteIntoCode(Code* host, RelocInfo* rinfo,
-                                             Object* value) {
-  if (IsMarking() && value->IsHeapObject()) {
-    RecordWriteIntoCodeSlow(host, rinfo, value);
   }
 }
 

@@ -1,7 +1,7 @@
 # This is a vpython "spec" file.
 #
 # It describes patterns for python wheel dependencies of the python scripts in
-# the chromium repo, particularly for dependencies that have compiled components
+# the V8 repo, particularly for dependencies that have compiled components
 # (since pure-python dependencies can be easily vendored into third_party).
 #
 # When vpython is invoked, it finds this file and builds a python VirtualEnv,

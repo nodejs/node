@@ -1,1 +1,1 @@
-{"version":3,"file":"errorObject.js","sourceRoot":"","sources":["../../src/util/errorObject.ts"],"names":[],"mappings":";AAAA,0FAA0F;AAC7E,mBAAW,GAAQ,EAAE,CAAC,EAAE,EAAE,EAAE,CAAC","sourcesContent":["// typeof any so that it we don't have to cast when comparing a result to the error object\nexport const errorObject: any = { e: {} };"]}
+{"version":3,"file":"errorObject.js","sources":["../src/util/errorObject.ts"],"names":[],"mappings":";;;;;AAAA,kDAA6C"}

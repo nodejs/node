@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -91,7 +91,7 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     if (EVP_CIPHER_iv_length(cipher)) {
         if (aiv)
             memcpy(iv, aiv, EVP_CIPHER_iv_length(cipher));
-        else if (RAND_bytes(iv, EVP_CIPHER_iv_length(cipher)) < 0)
+        else if (RAND_bytes(iv, EVP_CIPHER_iv_length(cipher)) <= 0)
             goto err;
     }
 

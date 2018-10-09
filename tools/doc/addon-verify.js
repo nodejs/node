@@ -1,28 +1,38 @@
 'use strict';
 
-const { mkdir, readFileSync, writeFile } = require('fs');
+// doc/api/addons.md has a bunch of code.  Extract it for verification
+// that the C++ code compiles and the js code runs.
+// Add .gyp files which will be used to compile the C++ code.
+// Modify the require paths in the js code to pull from the build tree.
+// Triggered from the build-addons target in the Makefile and vcbuild.bat.
+
+const { mkdir, writeFile } = require('fs');
 const { resolve } = require('path');
-const { lexer } = require('marked');
+const vfile = require('to-vfile');
+const unified = require('unified');
+const remarkParse = require('remark-parse');
 
 const rootDir = resolve(__dirname, '..', '..');
 const doc = resolve(rootDir, 'doc', 'api', 'addons.md');
 const verifyDir = resolve(rootDir, 'test', 'addons');
 
-const tokens = lexer(readFileSync(doc, 'utf8'));
+const file = vfile.readSync(doc, 'utf8');
+const tree = unified().use(remarkParse).parse(file);
 const addons = {};
 let id = 0;
 let currentHeader;
 
 const validNames = /^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/;
-tokens.forEach(({ type, text }) => {
-  if (type === 'heading') {
-    currentHeader = text;
+tree.children.forEach((node) => {
+  if (node.type === 'heading') {
+    currentHeader = file.contents.slice(
+      node.children[0].position.start.offset,
+      node.position.end.offset);
     addons[currentHeader] = { files: {} };
-  }
-  if (type === 'code') {
-    const match = text.match(validNames);
+  } else if (node.type === 'code') {
+    const match = node.value.match(validNames);
     if (match !== null) {
-      addons[currentHeader].files[match[1]] = text;
+      addons[currentHeader].files[match[1]] = node.value;
     }
   }
 });

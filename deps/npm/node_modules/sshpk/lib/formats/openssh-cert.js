@@ -15,6 +15,7 @@ module.exports = {
 var assert = require('assert-plus');
 var SSHBuffer = require('../ssh-buffer');
 var crypto = require('crypto');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('../algs');
 var Key = require('../key');
 var PrivateKey = require('../private-key');
@@ -50,7 +51,7 @@ function read(buf, options) {
 	var algo = parts[0];
 	var data = parts[1];
 
-	data = new Buffer(data, 'base64');
+	data = Buffer.from(data, 'base64');
 	return (fromBuffer(data, algo));
 }
 
@@ -164,7 +165,7 @@ function dateToInt64(date) {
 	var i = Math.round(date.getTime() / 1000);
 	var upper = Math.floor(i / 4294967296);
 	var lower = Math.floor(i % 4294967296);
-	var buf = new Buffer(8);
+	var buf = Buffer.alloc(8);
 	buf.writeUInt32BE(upper, 0);
 	buf.writeUInt32BE(lower, 4);
 	return (buf);
@@ -278,15 +279,15 @@ function toBuffer(cert, noSig) {
 	buf.writeInt64(dateToInt64(cert.validUntil));
 
 	if (sig.critical === undefined)
-		sig.critical = new Buffer(0);
+		sig.critical = Buffer.alloc(0);
 	buf.writeBuffer(sig.critical);
 
 	if (sig.exts === undefined)
-		sig.exts = new Buffer(0);
+		sig.exts = Buffer.alloc(0);
 	buf.writeBuffer(sig.exts);
 
 	/* reserved */
-	buf.writeBuffer(new Buffer(0));
+	buf.writeBuffer(Buffer.alloc(0));
 
 	sub = rfc4253.write(cert.issuerKey);
 	buf.writeBuffer(sub);

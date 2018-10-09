@@ -1,12 +1,13 @@
 'use strict';
 const common = require('../common');
+const { isCPPSymbolsNotMapped } = require('./util');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 if (!common.enoughTestCpu)
   common.skip('test is CPU-intensive');
 
-if (common.isCPPSymbolsNotMapped) {
+if (isCPPSymbolsNotMapped) {
   common.skip('C++ symbols are not mapped for this OS.');
 }
 

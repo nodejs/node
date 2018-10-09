@@ -1,9 +1,10 @@
 'use strict';
 const common = require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
-const inputStream = new common.ArrayStream();
-const outputStream = new common.ArrayStream();
+const inputStream = new ArrayStream();
+const outputStream = new ArrayStream();
 const input = ['var foo = {', '};', 'foo;'];
 let output = '';
 

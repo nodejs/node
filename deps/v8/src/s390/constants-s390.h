@@ -29,6 +29,9 @@
 namespace v8 {
 namespace internal {
 
+// TODO(sigurds): Change this value once we use relative jumps.
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
+
 // Number of registers
 const int kNumRegisters = 16;
 
@@ -36,6 +39,11 @@ const int kNumRegisters = 16;
 const int kNumDoubleRegisters = 16;
 
 const int kNoRegister = -1;
+
+// Actual value of root register is offset from the root array's start
+// to take advantage of negative displacement values.
+// TODO(sigurds): Choose best value.
+constexpr int kRootRegisterBias = 128;
 
 // sign-extend the least significant 16-bits of value <imm>
 #define SIGN_EXT_IMM16(imm) ((static_cast<int>(imm) << 16) >> 16)
@@ -131,27 +139,6 @@ inline Condition NegateCondition(Condition cond) {
       DCHECK(false);
   }
   return al;
-}
-
-// Commute a condition such that {a cond b == b cond' a}.
-inline Condition CommuteCondition(Condition cond) {
-  switch (cond) {
-    case lt:
-      return gt;
-    case gt:
-      return lt;
-    case ge:
-      return le;
-    case le:
-      return ge;
-    case eq:
-      return eq;
-    case ne:
-      return ne;
-    default:
-      DCHECK(false);
-      return cond;
-  }
 }
 
 // -----------------------------------------------------------------------------
@@ -270,23 +257,15 @@ typedef uint64_t SixByteInstr;
 
 #define S390_RRF_A_OPCODE_LIST(V)                                           \
   V(ipte, IPTE, 0xB221)     /* type = RRF_A INVALIDATE PAGE TABLE ENTRY  */ \
-  V(mdtr, MDTR, 0xB3D0)     /* type = RRF_A MULTIPLY (long DFP)  */         \
   V(mdtra, MDTRA, 0xB3D0)   /* type = RRF_A MULTIPLY (long DFP)  */         \
-  V(ddtr, DDTR, 0xB3D1)     /* type = RRF_A DIVIDE (long DFP)  */           \
   V(ddtra, DDTRA, 0xB3D1)   /* type = RRF_A DIVIDE (long DFP)  */           \
-  V(adtr, ADTR, 0xB3D2)     /* type = RRF_A ADD (long DFP)  */              \
   V(adtra, ADTRA, 0xB3D2)   /* type = RRF_A ADD (long DFP)  */              \
-  V(sdtr, SDTR, 0xB3D3)     /* type = RRF_A SUBTRACT (long DFP)  */         \
   V(sdtra, SDTRA, 0xB3D3)   /* type = RRF_A SUBTRACT (long DFP)  */         \
-  V(mxtr, MXTR, 0xB3D8)     /* type = RRF_A MULTIPLY (extended DFP)  */     \
   V(mxtra, MXTRA, 0xB3D8)   /* type = RRF_A MULTIPLY (extended DFP)  */     \
   V(msrkc, MSRKC, 0xB9FD)   /* type = RRF_A MULTIPLY (32)*/                 \
   V(msgrkc, MSGRKC, 0xB9ED) /* type = RRF_A MULTIPLY (64)*/                 \
-  V(dxtr, DXTR, 0xB3D9)     /* type = RRF_A DIVIDE (extended DFP)  */       \
   V(dxtra, DXTRA, 0xB3D9)   /* type = RRF_A DIVIDE (extended DFP)  */       \
-  V(axtr, AXTR, 0xB3DA)     /* type = RRF_A ADD (extended DFP)  */          \
   V(axtra, AXTRA, 0xB3DA)   /* type = RRF_A ADD (extended DFP)  */          \
-  V(sxtr, SXTR, 0xB3DB)     /* type = RRF_A SUBTRACT (extended DFP)  */     \
   V(sxtra, SXTRA, 0xB3DB)   /* type = RRF_A SUBTRACT (extended DFP)  */     \
   V(ahhhr, AHHHR, 0xB9C8)   /* type = RRF_A ADD HIGH (32)  */               \
   V(shhhr, SHHHR, 0xB9C9)   /* type = RRF_A SUBTRACT HIGH (32)  */          \
@@ -362,9 +341,7 @@ typedef uint64_t SixByteInstr;
 
 #define S390_RRF_C_OPCODE_LIST(V)                                           \
   V(sske, SSKE, 0xB22B)   /* type = RRF_C SET STORAGE KEY EXTENDED  */      \
-  V(cuutf, CUUTF, 0xB2A6) /* type = RRF_C CONVERT UNICODE TO UTF-8  */      \
   V(cu21, CU21, 0xB2A6)   /* type = RRF_C CONVERT UTF-16 TO UTF-8  */       \
-  V(cutfu, CUTFU, 0xB2A7) /* type = RRF_C CONVERT UTF-8 TO UNICODE  */      \
   V(cu12, CU12, 0xB2A7)   /* type = RRF_C CONVERT UTF-8 TO UTF-16  */       \
   V(ppa, PPA, 0xB2E8)     /* type = RRF_C PERFORM PROCESSOR ASSIST  */      \
   V(cgrt, CGRT, 0xB960)   /* type = RRF_C COMPARE AND TRAP (64)  */         \
@@ -404,14 +381,11 @@ typedef uint64_t SixByteInstr;
     0xB345) /* type = RRF_E LOAD ROUNDED (extended to long BFP)  */            \
   V(lexbra, LEXBRA,                                                            \
     0xB346) /* type = RRF_E LOAD ROUNDED (extended to short BFP)  */           \
-  V(fixbr, FIXBR, 0xB347)   /* type = RRF_E LOAD FP INTEGER (extended BFP)  */ \
   V(fixbra, FIXBRA, 0xB347) /* type = RRF_E LOAD FP INTEGER (extended BFP)  */ \
   V(tbedr, TBEDR,                                                              \
     0xB350)             /* type = RRF_E CONVERT HFP TO BFP (long to short)  */ \
   V(tbdr, TBDR, 0xB351) /* type = RRF_E CONVERT HFP TO BFP (long)  */          \
-  V(fiebr, FIEBR, 0xB357)   /* type = RRF_E LOAD FP INTEGER (short BFP)  */    \
   V(fiebra, FIEBRA, 0xB357) /* type = RRF_E LOAD FP INTEGER (short BFP)  */    \
-  V(fidbr, FIDBR, 0xB35F)   /* type = RRF_E LOAD FP INTEGER (long BFP)  */     \
   V(fidbra, FIDBRA, 0xB35F) /* type = RRF_E LOAD FP INTEGER (long BFP)  */     \
   V(celfbr, CELFBR,                                                            \
     0xB390) /* type = RRF_E CONVERT FROM LOGICAL (32 to short BFP)  */         \
@@ -425,15 +399,10 @@ typedef uint64_t SixByteInstr;
     0xB395) /* type = RRF_E CONVERT FROM FIXED (32 to long BFP)  */            \
   V(cxfbra, CXFBRA,                                                            \
     0xB396) /* type = RRF_E CONVERT FROM FIXED (32 to extended BFP)  */        \
-  V(cfebr, CFEBR,                                                              \
-    0xB398) /* type = RRF_E CONVERT TO FIXED (short BFP to 32)  */             \
   V(cfebra, CFEBRA,                                                            \
     0xB398) /* type = RRF_E CONVERT TO FIXED (short BFP to 32)  */             \
-  V(cfdbr, CFDBR, 0xB399) /* type = RRF_E CONVERT TO FIXED (long BFP to 32) */ \
   V(cfdbra, CFDBRA,                                                            \
     0xB399) /* type = RRF_E CONVERT TO FIXED (long BFP to 32)  */              \
-  V(cfxbr, CFXBR,                                                              \
-    0xB39A) /* type = RRF_E CONVERT TO FIXED (extended BFP to 32)  */          \
   V(cfxbra, CFXBRA,                                                            \
     0xB39A) /* type = RRF_E CONVERT TO FIXED (extended BFP to 32)  */          \
   V(clfebr, CLFEBR,                                                            \
@@ -454,15 +423,10 @@ typedef uint64_t SixByteInstr;
     0xB3A5) /* type = RRF_E CONVERT FROM FIXED (64 to long BFP)  */            \
   V(cxgbra, CXGBRA,                                                            \
     0xB3A6) /* type = RRF_E CONVERT FROM FIXED (64 to extended BFP)  */        \
-  V(cgebr, CGEBR,                                                              \
-    0xB3A8) /* type = RRF_E CONVERT TO FIXED (short BFP to 64)  */             \
   V(cgebra, CGEBRA,                                                            \
     0xB3A8) /* type = RRF_E CONVERT TO FIXED (short BFP to 64)  */             \
-  V(cgdbr, CGDBR, 0xB3A9) /* type = RRF_E CONVERT TO FIXED (long BFP to 64) */ \
   V(cgdbra, CGDBRA,                                                            \
     0xB3A9) /* type = RRF_E CONVERT TO FIXED (long BFP to 64)  */              \
-  V(cgxbr, CGXBR,                                                              \
-    0xB3AA) /* type = RRF_E CONVERT TO FIXED (extended BFP to 64)  */          \
   V(cgxbra, CGXBRA,                                                            \
     0xB3AA) /* type = RRF_E CONVERT TO FIXED (extended BFP to 64)  */          \
   V(clgebr, CLGEBR,                                                            \
@@ -484,11 +448,8 @@ typedef uint64_t SixByteInstr;
   V(ldxtr, LDXTR,                                                              \
     0xB3DD) /* type = RRF_E LOAD ROUNDED (extended to long DFP)  */            \
   V(fixtr, FIXTR, 0xB3DF) /* type = RRF_E LOAD FP INTEGER (extended DFP)  */   \
-  V(cgdtr, CGDTR, 0xB3E1) /* type = RRF_E CONVERT TO FIXED (long DFP to 64) */ \
   V(cgdtra, CGDTRA,                                                            \
     0xB3E1) /* type = RRF_E CONVERT TO FIXED (long DFP to 64)  */              \
-  V(cgxtr, CGXTR,                                                              \
-    0xB3E9) /* type = RRF_E CONVERT TO FIXED (extended DFP to 64)  */          \
   V(cgxtra, CGXTRA,                                                            \
     0xB3E9) /* type = RRF_E CONVERT TO FIXED (extended DFP to 64)  */          \
   V(cdgtra, CDGTRA,                                                            \
@@ -686,7 +647,11 @@ typedef uint64_t SixByteInstr;
     0xEDAD) /* type = RSL_B CONVERT TO PACKED (from extended DFP)  */         \
   V(cdpt, CDPT, 0xEDAE) /* type = RSL_B CONVERT FROM PACKED (to long DFP)  */ \
   V(cxpt, CXPT,                                                               \
-    0xEDAF) /* type = RSL_B CONVERT FROM PACKED (to extended DFP)  */
+    0xEDAF) /* type = RSL_B CONVERT FROM PACKED (to extended DFP)  */         \
+  V(czdt, CZDT, 0xEDA8) /* type = RSL CONVERT TO ZONED (from long DFP)  */    \
+  V(czxt, CZXT, 0xEDA9) /* type = RSL CONVERT TO ZONED (from extended DFP) */ \
+  V(cdzt, CDZT, 0xEDAA) /* type = RSL CONVERT FROM ZONED (to long DFP)  */    \
+  V(cxzt, CXZT, 0xEDAB) /* type = RSL CONVERT FROM ZONED (to extended DFP) */
 
 #define S390_SI_OPCODE_LIST(V)                                          \
   V(tm, TM, 0x91)       /* type = SI    TEST UNDER MASK  */             \
@@ -829,9 +794,7 @@ typedef uint64_t SixByteInstr;
   V(llilh, LLILH, 0xA5E) /* type = RI_A  LOAD LOGICAL IMMEDIATE (low high)  */ \
   V(llill, LLILL, 0xA5F) /* type = RI_A  LOAD LOGICAL IMMEDIATE (low low)  */  \
   V(tmlh, TMLH, 0xA70)   /* type = RI_A  TEST UNDER MASK (low high)  */        \
-  V(tmh, TMH, 0xA70)     /* type = RI_A  TEST UNDER MASK HIGH  */              \
   V(tmll, TMLL, 0xA71)   /* type = RI_A  TEST UNDER MASK (low low)  */         \
-  V(tml, TML, 0xA71)     /* type = RI_A  TEST UNDER MASK LOW  */               \
   V(tmhh, TMHH, 0xA72)   /* type = RI_A  TEST UNDER MASK (high high)  */       \
   V(tmhl, TMHL, 0xA73)   /* type = RI_A  TEST UNDER MASK (high low)  */        \
   V(lhi, LHI, 0xA78)     /* type = RI_A  LOAD HALFWORD IMMEDIATE (32)<-16  */  \
@@ -855,12 +818,6 @@ typedef uint64_t SixByteInstr;
 
 #define S390_RI_C_OPCODE_LIST(V) \
   V(brc, BRC, 0xA74) /* type = RI_C BRANCH RELATIVE ON CONDITION  */
-
-#define S390_RSL_OPCODE_LIST(V)                                                \
-  V(czdt, CZDT, 0xEDA8) /* type = RSL CONVERT TO ZONED (from long DFP)  */     \
-  V(czxt, CZXT, 0xEDA9) /* type = RSL CONVERT TO ZONED (from extended DFP)  */ \
-  V(cdzt, CDZT, 0xEDAA) /* type = RSL CONVERT FROM ZONED (to long DFP)  */     \
-  V(cxzt, CXZT, 0xEDAB) /* type = RSL CONVERT FROM ZONED (to extended DFP) */
 
 #define S390_SMI_OPCODE_LIST(V) \
   V(bpp, BPP, 0xC7) /* type = SMI   BRANCH PREDICTION PRELOAD  */
@@ -1096,7 +1053,6 @@ typedef uint64_t SixByteInstr;
   V(icm, ICM, 0xBF)   /* type = RS_B  INSERT CHARACTERS UNDER MASK (low)  */
 
 #define S390_S_OPCODE_LIST(V)                                                  \
-  V(awr, AWR, 0x2E)           /* type = S     ADD UNNORMALIZED (long HFP)  */  \
   V(lpsw, LPSW, 0x82)         /* type = S     LOAD PSW  */                     \
   V(diagnose, DIAGNOSE, 0x83) /* type = S     DIAGNOSE  */                     \
   V(ts, TS, 0x93)             /* type = S     TEST AND SET  */                 \
@@ -1194,7 +1150,6 @@ typedef uint64_t SixByteInstr;
   V(ae, AE, 0x7A)     /* type = RX_A  ADD NORMALIZED (short HFP)  */        \
   V(se, SE, 0x7B)     /* type = RX_A  SUBTRACT NORMALIZED (short HFP)  */   \
   V(mde, MDE, 0x7C)   /* type = RX_A  MULTIPLY (short to long HFP)  */      \
-  V(me, ME, 0x7C)     /* type = RX_A  MULTIPLY (short to long HFP)  */      \
   V(de, DE, 0x7D)     /* type = RX_A  DIVIDE (short HFP)  */                \
   V(au, AU, 0x7E)     /* type = RX_A  ADD UNNORMALIZED (short HFP)  */      \
   V(su, SU, 0x7F)     /* type = RX_A  SUBTRACT UNNORMALIZED (short HFP)  */ \
@@ -1325,11 +1280,6 @@ typedef uint64_t SixByteInstr;
   V(lnxbr, LNXBR, 0xB341) /* type = RRE   LOAD NEGATIVE (extended BFP)  */     \
   V(ltxbr, LTXBR, 0xB342) /* type = RRE   LOAD AND TEST (extended BFP)  */     \
   V(lcxbr, LCXBR, 0xB343) /* type = RRE   LOAD COMPLEMENT (extended BFP)  */   \
-  V(ledbr, LEDBR, 0xB344) /* type = RRE   LOAD ROUNDED (long to short BFP)  */ \
-  V(ldxbr, LDXBR,                                                              \
-    0xB345) /* type = RRE   LOAD ROUNDED (extended to long BFP)  */            \
-  V(lexbr, LEXBR,                                                              \
-    0xB346) /* type = RRE   LOAD ROUNDED (extended to short BFP)  */           \
   V(kxbr, KXBR, 0xB348) /* type = RRE   COMPARE AND SIGNAL (extended BFP)  */  \
   V(cxbr, CXBR, 0xB349) /* type = RRE   COMPARE (extended BFP)  */             \
   V(axbr, AXBR, 0xB34A) /* type = RRE   ADD (extended BFP)  */                 \
@@ -1359,18 +1309,6 @@ typedef uint64_t SixByteInstr;
   V(sfpc, SFPC, 0xB384)   /* type = RRE   SET FPC  */                          \
   V(sfasr, SFASR, 0xB385) /* type = RRE   SET FPC AND SIGNAL  */               \
   V(efpc, EFPC, 0xB38C)   /* type = RRE   EXTRACT FPC  */                      \
-  V(cefbr, CEFBR,                                                              \
-    0xB394) /* type = RRE   CONVERT FROM FIXED (32 to short BFP)  */           \
-  V(cdfbr, CDFBR,                                                              \
-    0xB395) /* type = RRE   CONVERT FROM FIXED (32 to long BFP)  */            \
-  V(cxfbr, CXFBR,                                                              \
-    0xB396) /* type = RRE   CONVERT FROM FIXED (32 to extended BFP)  */        \
-  V(cegbr, CEGBR,                                                              \
-    0xB3A4) /* type = RRE   CONVERT FROM FIXED (64 to short BFP)  */           \
-  V(cdgbr, CDGBR,                                                              \
-    0xB3A5) /* type = RRE   CONVERT FROM FIXED (64 to long BFP)  */            \
-  V(cxgbr, CXGBR,                                                              \
-    0xB3A6) /* type = RRE   CONVERT FROM FIXED (64 to extended BFP)  */        \
   V(cefr, CEFR,                                                                \
     0xB3B4) /* type = RRE   CONVERT FROM FIXED (32 to short HFP)  */           \
   V(cdfr, CDFR, 0xB3B5) /* type = RRE   CONVERT FROM FIXED (32 to long HFP) */ \
@@ -1402,16 +1340,12 @@ typedef uint64_t SixByteInstr;
     0xB3ED) /* type = RRE   EXTRACT BIASED EXPONENT (extended DFP to 64)  */   \
   V(esxtr, ESXTR,                                                              \
     0xB3EF) /* type = RRE   EXTRACT SIGNIFICANCE (extended DFP to 64)  */      \
-  V(cdgtr, CDGTR,                                                              \
-    0xB3F1) /* type = RRE   CONVERT FROM FIXED (64 to long DFP)  */            \
   V(cdutr, CDUTR,                                                              \
     0xB3F2) /* type = RRE   CONVERT FROM UNSIGNED PACKED (64 to long DFP)  */  \
   V(cdstr, CDSTR,                                                              \
     0xB3F3) /* type = RRE   CONVERT FROM SIGNED PACKED (64 to long DFP)  */    \
   V(cedtr, CEDTR,                                                              \
     0xB3F4) /* type = RRE   COMPARE BIASED EXPONENT (long DFP)  */             \
-  V(cxgtr, CXGTR,                                                              \
-    0xB3F9) /* type = RRE   CONVERT FROM FIXED (64 to extended DFP)  */        \
   V(cxutr, CXUTR,                                                              \
     0xB3FA) /* type = RRE   CONVERT FROM UNSIGNED PACKED (128 to ext. DFP)  */ \
   V(cxstr, CXSTR, 0xB3FB) /* type = RRE   CONVERT FROM SIGNED PACKED (128 to*/ \
@@ -1541,6 +1475,7 @@ typedef uint64_t SixByteInstr;
     0xEC45) /* type = RIE_E BRANCH RELATIVE ON INDEX LOW OR EQ. (64)  */
 
 #define S390_RR_OPCODE_LIST(V)                                                 \
+  V(awr, AWR, 0x2E)     /* type = RR    ADD UNNORMALIZED (long HFP)  */        \
   V(spm, SPM, 0x04)     /* type = RR    SET PROGRAM MASK  */                   \
   V(balr, BALR, 0x05)   /* type = RR    BRANCH AND LINK  */                    \
   V(bctr, BCTR, 0x06)   /* type = RR    BRANCH ON COUNT (32)  */               \
@@ -1572,7 +1507,6 @@ typedef uint64_t SixByteInstr;
   V(lcdr, LCDR, 0x23)   /* type = RR    LOAD COMPLEMENT (long HFP)  */         \
   V(hdr, HDR, 0x24)     /* type = RR    HALVE (long HFP)  */                   \
   V(ldxr, LDXR, 0x25) /* type = RR    LOAD ROUNDED (extended to long HFP)  */  \
-  V(lrdr, LRDR, 0x25) /* type = RR    LOAD ROUNDED (extended to long HFP)  */  \
   V(mxr, MXR, 0x26)   /* type = RR    MULTIPLY (extended HFP)  */              \
   V(mxdr, MXDR, 0x27) /* type = RR    MULTIPLY (long to extended HFP)  */      \
   V(ldr, LDR, 0x28)   /* type = RR    LOAD (long)  */                          \
@@ -1588,7 +1522,6 @@ typedef uint64_t SixByteInstr;
   V(lcer, LCER, 0x33) /* type = RR    LOAD COMPLEMENT (short HFP)  */          \
   V(her_z, HER_Z, 0x34) /* type = RR    HALVE (short HFP)  */                  \
   V(ledr, LEDR, 0x35)   /* type = RR    LOAD ROUNDED (long to short HFP)  */   \
-  V(lrer, LRER, 0x35)   /* type = RR    LOAD ROUNDED (long to short HFP)  */   \
   V(axr, AXR, 0x36)     /* type = RR    ADD NORMALIZED (extended HFP)  */      \
   V(sxr, SXR, 0x37)     /* type = RR    SUBTRACT NORMALIZED (extended HFP)  */ \
   V(ler, LER, 0x38)     /* type = RR    LOAD (short)  */                       \
@@ -1596,7 +1529,6 @@ typedef uint64_t SixByteInstr;
   V(aer, AER, 0x3A)     /* type = RR    ADD NORMALIZED (short HFP)  */         \
   V(ser, SER, 0x3B)     /* type = RR    SUBTRACT NORMALIZED (short HFP)  */    \
   V(mder, MDER, 0x3C)   /* type = RR    MULTIPLY (short to long HFP)  */       \
-  V(mer, MER, 0x3C)     /* type = RR    MULTIPLY (short to long HFP)  */       \
   V(der, DER, 0x3D)     /* type = RR    DIVIDE (short HFP)  */                 \
   V(aur, AUR, 0x3E)     /* type = RR    ADD UNNORMALIZED (short HFP)  */       \
   V(sur, SUR, 0x3F)     /* type = RR    SUBTRACT UNNORMALIZED (short HFP)  */
@@ -1684,7 +1616,6 @@ typedef uint64_t SixByteInstr;
   S390_RSI_OPCODE_LIST(V)   \
   S390_RI_B_OPCODE_LIST(V)  \
   S390_RI_C_OPCODE_LIST(V)  \
-  S390_RSL_OPCODE_LIST(V)   \
   S390_SMI_OPCODE_LIST(V)   \
   S390_RXY_A_OPCODE_LIST(V) \
   S390_RXY_B_OPCODE_LIST(V) \
@@ -2230,6 +2161,17 @@ class RSInstruction : Instruction {
   inline int B2Value() const { return Bits<FourByteInstr, int>(15, 12); }
   inline unsigned int D2Value() const {
     return Bits<FourByteInstr, unsigned int>(11, 0);
+  }
+  inline int size() const { return 4; }
+};
+
+// RSI Instruction
+class RSIInstruction : Instruction {
+ public:
+  inline int R1Value() const { return Bits<FourByteInstr, int>(23, 20); }
+  inline int R3Value() const { return Bits<FourByteInstr, int>(19, 16); }
+  inline int I2Value() const {
+    return static_cast<int32_t>(Bits<FourByteInstr, int16_t>(15, 0));
   }
   inline int size() const { return 4; }
 };

@@ -72,6 +72,7 @@ function createPromise() {
 session.setupScriptMap();
 
 Protocol.Debugger.enable();
+Protocol.Debugger.setAsyncCallStackDepth({maxDepth: 128});
 InspectorTest.runAsyncTestSuite([
   async function testScheduleErrors() {
     Protocol.Runtime.evaluate({ expression: 'testNoScheduledTask()' });

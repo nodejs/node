@@ -26,99 +26,26 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include <set>
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 
-using ::v8::internal::EmbeddedVector;
-using ::v8::internal::Object;
 using ::v8::internal::Handle;
-using ::v8::internal::Heap;
-using ::v8::internal::JSGlobalProxy;
-using ::v8::internal::Code;
-using ::v8::internal::Debug;
-using ::v8::internal::StackFrame;
-using ::v8::internal::StepAction;
+using ::v8::internal::StepNone;  // From StepAction enum
 using ::v8::internal::StepIn;  // From StepAction enum
 using ::v8::internal::StepNext;  // From StepAction enum
 using ::v8::internal::StepOut;  // From StepAction enum
-using ::v8::internal::Vector;
-using ::v8::internal::StrLength;
-
-// Size of temp buffer for formatting small strings.
-#define SMALL_STRING_BUFFER_SIZE 80
-
-// --- H e l p e r   C l a s s e s
-
-
-// Helper class for creating a V8 enviromnent for running tests
-class DebugLocalContext {
- public:
-  inline DebugLocalContext(
-      v8::Isolate* isolate, v8::ExtensionConfiguration* extensions = 0,
-      v8::Local<v8::ObjectTemplate> global_template =
-          v8::Local<v8::ObjectTemplate>(),
-      v8::Local<v8::Value> global_object = v8::Local<v8::Value>())
-      : scope_(isolate),
-        context_(v8::Context::New(isolate, extensions, global_template,
-                                  global_object)) {
-    context_->Enter();
-  }
-  inline DebugLocalContext(
-      v8::ExtensionConfiguration* extensions = 0,
-      v8::Local<v8::ObjectTemplate> global_template =
-          v8::Local<v8::ObjectTemplate>(),
-      v8::Local<v8::Value> global_object = v8::Local<v8::Value>())
-      : scope_(CcTest::isolate()),
-        context_(v8::Context::New(CcTest::isolate(), extensions,
-                                  global_template, global_object)) {
-    context_->Enter();
-  }
-  inline ~DebugLocalContext() {
-    context_->Exit();
-  }
-  inline v8::Local<v8::Context> context() { return context_; }
-  inline v8::Context* operator->() { return *context_; }
-  inline v8::Context* operator*() { return *context_; }
-  inline v8::Isolate* GetIsolate() { return context_->GetIsolate(); }
-  inline bool IsReady() { return !context_.IsEmpty(); }
-  void ExposeDebug() {
-    v8::internal::Isolate* isolate =
-        reinterpret_cast<v8::internal::Isolate*>(context_->GetIsolate());
-    v8::internal::Factory* factory = isolate->factory();
-    // Expose the debug context global object in the global object for testing.
-    CHECK(isolate->debug()->Load());
-    Handle<v8::internal::Context> debug_context =
-        isolate->debug()->debug_context();
-    debug_context->set_security_token(
-        v8::Utils::OpenHandle(*context_)->security_token());
-
-    Handle<JSGlobalProxy> global(Handle<JSGlobalProxy>::cast(
-        v8::Utils::OpenHandle(*context_->Global())));
-    Handle<v8::internal::String> debug_string =
-        factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("debug"));
-    v8::internal::JSObject::SetOwnPropertyIgnoreAttributes(
-        global, debug_string, handle(debug_context->global_proxy()),
-        v8::internal::DONT_ENUM)
-        .Check();
-  }
-
- private:
-  v8::HandleScope scope_;
-  v8::Local<v8::Context> context_;
-};
-
 
 // --- H e l p e r   F u n c t i o n s
 
@@ -136,33 +63,17 @@ static v8::Local<v8::Function> CompileFunction(v8::Isolate* isolate,
 
 
 // Compile and run the supplied source and return the requested function.
-static v8::Local<v8::Function> CompileFunction(DebugLocalContext* env,
+static v8::Local<v8::Function> CompileFunction(LocalContext* env,
                                                const char* source,
                                                const char* function_name) {
-  return CompileFunction(env->GetIsolate(), source, function_name);
-}
-
-static void SetDebugEventListener(
-    v8::Isolate* isolate, v8::Debug::EventCallback that,
-    v8::Local<v8::Value> data = v8::Local<v8::Value>()) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::HandleScope scope(i_isolate);
-  if (that == nullptr) {
-    i_isolate->debug()->SetDebugDelegate(nullptr, false);
-  } else {
-    i::Handle<i::Object> i_data = i_isolate->factory()->undefined_value();
-    if (!data.IsEmpty()) i_data = v8::Utils::OpenHandle(*data);
-    i::NativeDebugDelegate* delegate =
-        new i::NativeDebugDelegate(i_isolate, that, i_data);
-    i_isolate->debug()->SetDebugDelegate(delegate, true);
-  }
+  return CompileFunction((*env)->GetIsolate(), source, function_name);
 }
 
 // Is there any debug info for the function?
 static bool HasBreakInfo(v8::Local<v8::Function> fun) {
   Handle<v8::internal::JSFunction> f =
       Handle<v8::internal::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
-  Handle<v8::internal::SharedFunctionInfo> shared(f->shared());
+  Handle<v8::internal::SharedFunctionInfo> shared(f->shared(), f->GetIsolate());
   return shared->HasBreakInfo();
 }
 
@@ -203,36 +114,11 @@ static void ChangeBreakOnException(bool caught, bool uncaught) {
 }
 
 
-// Change break on exception using the global Debug object.
-static void ChangeBreakOnExceptionFromJS(v8::Isolate* isolate, bool caught,
-                                         bool uncaught) {
-  if (caught) {
-    CompileRunChecked(isolate, "debug.Debug.setBreakOnException()");
-  } else {
-    CompileRunChecked(isolate, "debug.Debug.clearBreakOnException()");
-  }
-  if (uncaught) {
-    CompileRunChecked(isolate, "debug.Debug.setBreakOnUncaughtException()");
-  } else {
-    CompileRunChecked(isolate, "debug.Debug.clearBreakOnUncaughtException()");
-  }
-}
-
-// Change break on exception using the native API call.
-static void ChangeBreakOnExceptionFromAPI(
-    v8::Isolate* isolate, v8::debug::ExceptionBreakState state) {
-  v8::debug::ChangeBreakOnException(isolate, state);
-}
-
 // Prepare to step to next break location.
-static void PrepareStep(StepAction step_action) {
+static void PrepareStep(i::StepAction step_action) {
   v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   debug->PrepareStep(step_action);
 }
-
-
-static void ClearStepping() { CcTest::i_isolate()->debug()->ClearStepping(); }
-
 
 // This function is in namespace v8::internal to be friend with class
 // v8::internal::Debug.
@@ -271,7 +157,6 @@ Handle<FixedArray> GetDebuggedFunctions() {
 void CheckDebuggerUnloaded() {
   // Check that the debugger context is cleared and that there is no debug
   // information stored for the debugger.
-  CHECK(CcTest::i_isolate()->debug()->debug_context().is_null());
   CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
@@ -299,377 +184,38 @@ static void CheckDebuggerUnloaded() { v8::internal::CheckDebuggerUnloaded(); }
 // --- The different tests uses a number of debug event handlers.
 // ---
 
-
-// Source for the JavaScript function which picks out the function
-// name of a frame.
-const char* frame_function_name_source =
-    "function frame_function_name(exec_state, frame_number) {"
-    "  return exec_state.frame(frame_number).func().name();"
-    "}";
-v8::Local<v8::Function> frame_function_name;
-
-
-// Source for the JavaScript function which pick out the name of the
-// first argument of a frame.
-const char* frame_argument_name_source =
-    "function frame_argument_name(exec_state, frame_number) {"
-    "  return exec_state.frame(frame_number).argumentName(0);"
-    "}";
-v8::Local<v8::Function> frame_argument_name;
-
-
-// Source for the JavaScript function which pick out the value of the
-// first argument of a frame.
-const char* frame_argument_value_source =
-    "function frame_argument_value(exec_state, frame_number) {"
-    "  return exec_state.frame(frame_number).argumentValue(0).value_;"
-    "}";
-v8::Local<v8::Function> frame_argument_value;
-
-
-// Source for the JavaScript function which pick out the name of the
-// first argument of a frame.
-const char* frame_local_name_source =
-    "function frame_local_name(exec_state, frame_number) {"
-    "  return exec_state.frame(frame_number).localName(0);"
-    "}";
-v8::Local<v8::Function> frame_local_name;
-
-
-// Source for the JavaScript function which pick out the value of the
-// first argument of a frame.
-const char* frame_local_value_source =
-    "function frame_local_value(exec_state, frame_number) {"
-    "  return exec_state.frame(frame_number).localValue(0).value_;"
-    "}";
-v8::Local<v8::Function> frame_local_value;
-
-
-// Source for the JavaScript function which picks out the source line for the
-// top frame.
-const char* frame_source_line_source =
-    "function frame_source_line(exec_state) {"
-    "  return exec_state.frame(0).sourceLine();"
-    "}";
-v8::Local<v8::Function> frame_source_line;
-
-
-// Source for the JavaScript function which picks out the source column for the
-// top frame.
-const char* frame_source_column_source =
-    "function frame_source_column(exec_state) {"
-    "  return exec_state.frame(0).sourceColumn();"
-    "}";
-v8::Local<v8::Function> frame_source_column;
-
-
-// Source for the JavaScript function which picks out the script name for the
-// top frame.
-const char* frame_script_name_source =
-    "function frame_script_name(exec_state) {"
-    "  return exec_state.frame(0).func().script().name();"
-    "}";
-v8::Local<v8::Function> frame_script_name;
-
-
-// Source for the JavaScript function which returns the number of frames.
-static const char* frame_count_source =
-    "function frame_count(exec_state) {"
-    "  return exec_state.frameCount();"
-    "}";
-v8::Local<v8::Function> frame_count;
-
-
-// Global variable to store the last function hit - used by some tests.
-char last_function_hit[80];
-
-// Global variable to store the name for last script hit - used by some tests.
-char last_script_name_hit[80];
-
-// Global variables to store the last source position - used by some tests.
-int last_source_line = -1;
-int last_source_column = -1;
-
-// Debug event handler which counts the break points which have been hit.
+// Debug event handler which counts a number of events.
 int break_point_hit_count = 0;
 int break_point_hit_count_deoptimize = 0;
-static void DebugEventBreakPointHitCount(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  v8::internal::Isolate* isolate = CcTest::i_isolate();
-  Debug* debug = isolate->debug();
-  // When hitting a debug event listener there must be a break set.
-  CHECK_NE(debug->break_id(), 0);
-
-  // Count the number of breaks.
-  if (event == v8::Break) {
+class DebugEventCounter : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&) {
     break_point_hit_count++;
-    if (!frame_function_name.IsEmpty()) {
-      // Get the name of the function.
-      const int argc = 2;
-      v8::Local<v8::Value> argv[argc] = {
-          exec_state, v8::Integer::New(CcTest::isolate(), 0)};
-      v8::Local<v8::Value> result =
-          frame_function_name->Call(context, exec_state, argc, argv)
-              .ToLocalChecked();
-      if (result->IsUndefined()) {
-        last_function_hit[0] = '\0';
-      } else {
-        CHECK(result->IsString());
-        v8::Local<v8::String> function_name(result.As<v8::String>());
-        function_name->WriteUtf8(last_function_hit);
-      }
-    }
-
-    if (!frame_source_line.IsEmpty()) {
-      // Get the source line.
-      const int argc = 1;
-      v8::Local<v8::Value> argv[argc] = {exec_state};
-      v8::Local<v8::Value> result =
-          frame_source_line->Call(context, exec_state, argc, argv)
-              .ToLocalChecked();
-      CHECK(result->IsNumber());
-      last_source_line = result->Int32Value(context).FromJust();
-    }
-
-    if (!frame_source_column.IsEmpty()) {
-      // Get the source column.
-      const int argc = 1;
-      v8::Local<v8::Value> argv[argc] = {exec_state};
-      v8::Local<v8::Value> result =
-          frame_source_column->Call(context, exec_state, argc, argv)
-              .ToLocalChecked();
-      CHECK(result->IsNumber());
-      last_source_column = result->Int32Value(context).FromJust();
-    }
-
-    if (!frame_script_name.IsEmpty()) {
-      // Get the script name of the function script.
-      const int argc = 1;
-      v8::Local<v8::Value> argv[argc] = {exec_state};
-      v8::Local<v8::Value> result =
-          frame_script_name->Call(context, exec_state, argc, argv)
-              .ToLocalChecked();
-      if (result->IsUndefined()) {
-        last_script_name_hit[0] = '\0';
-      } else {
-        CHECK(result->IsString());
-        v8::Local<v8::String> script_name(result.As<v8::String>());
-        script_name->WriteUtf8(last_script_name_hit);
-      }
-    }
-
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
     if (break_point_hit_count == break_point_hit_count_deoptimize) {
-      i::Deoptimizer::DeoptimizeAll(isolate);
+      i::Deoptimizer::DeoptimizeAll(CcTest::i_isolate());
     }
-  }
-}
-
-
-// Debug event handler which counts a number of events and collects the stack
-// height if there is a function compiled for that.
-int exception_hit_count = 0;
-int uncaught_exception_hit_count = 0;
-int last_js_stack_height = -1;
-
-static void DebugEventCounterClear() {
-  break_point_hit_count = 0;
-  exception_hit_count = 0;
-  uncaught_exception_hit_count = 0;
-}
-
-static void DebugEventCounter(
-    const v8::Debug::EventDetails& event_details) {
-  v8::Isolate::AllowJavascriptExecutionScope allow_script(CcTest::isolate());
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::Local<v8::Object> event_data = event_details.GetEventData();
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-
-  // When hitting a debug event listener there must be a break set.
-  CHECK_NE(debug->break_id(), 0);
-
-  // Count the number of breaks.
-  if (event == v8::Break) {
-    break_point_hit_count++;
-  } else if (event == v8::Exception) {
-    exception_hit_count++;
-
-    // Check whether the exception was uncaught.
-    v8::Local<v8::String> fun_name = v8_str(CcTest::isolate(), "uncaught");
-    v8::Local<v8::Function> fun = v8::Local<v8::Function>::Cast(
-        event_data->Get(context, fun_name).ToLocalChecked());
-    v8::Local<v8::Value> result =
-        fun->Call(context, event_data, 0, nullptr).ToLocalChecked();
-    if (result->IsTrue()) {
-      uncaught_exception_hit_count++;
-    }
+    if (step_action_ != StepNone) PrepareStep(step_action_);
   }
 
-  // Collect the JavsScript stack height if the function frame_count is
-  // compiled.
-  if (!frame_count.IsEmpty()) {
-    static const int kArgc = 1;
-    v8::Local<v8::Value> argv[kArgc] = {exec_state};
-    // Using exec_state as receiver is just to have a receiver.
-    v8::Local<v8::Value> result =
-        frame_count->Call(context, exec_state, kArgc, argv).ToLocalChecked();
-    last_js_stack_height = result->Int32Value(context).FromJust();
+  void set_step_action(i::StepAction step_action) {
+    step_action_ = step_action;
   }
-}
 
-
-// Debug event handler which evaluates a number of expressions when a break
-// point is hit. Each evaluated expression is compared with an expected value.
-// For this debug event handler to work the following two global varaibles
-// must be initialized.
-//   checks: An array of expressions and expected results
-//   evaluate_check_function: A JavaScript function (see below)
-
-// Structure for holding checks to do.
-struct EvaluateCheck {
-  const char* expr;  // An expression to evaluate when a break point is hit.
-  v8::Local<v8::Value> expected;  // The expected result.
+ private:
+  i::StepAction step_action_ = StepNone;
 };
 
-
-// Array of checks to do.
-struct EvaluateCheck* checks = nullptr;
-// Source for The JavaScript function which can do the evaluation when a break
-// point is hit.
-const char* evaluate_check_source =
-    "function evaluate_check(exec_state, expr, expected) {"
-    "  return exec_state.frame(0).evaluate(expr).value() === expected;"
-    "}";
-v8::Local<v8::Function> evaluate_check_function;
-
-// The actual debug event described by the longer comment above.
-static void DebugEventEvaluate(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  // When hitting a debug event listener there must be a break set.
-  CHECK_NE(debug->break_id(), 0);
-
-  if (event == v8::Break) {
-    break_point_hit_count++;
-    for (int i = 0; checks[i].expr != nullptr; i++) {
-      const int argc = 3;
-      v8::Local<v8::String> string = v8_str(isolate, checks[i].expr);
-      v8::Local<v8::Value> argv[argc] = {exec_state, string,
-                                         checks[i].expected};
-      v8::Local<v8::Value> result =
-          evaluate_check_function->Call(context, exec_state, argc, argv)
-              .ToLocalChecked();
-      if (!result->IsTrue()) {
-        v8::String::Utf8Value utf8(isolate, checks[i].expected);
-        V8_Fatal(__FILE__, __LINE__, "%s != %s", checks[i].expr, *utf8);
-      }
-    }
-  }
-}
-
-
-// This debug event listener removes a breakpoint in a function
-i::Handle<i::BreakPoint> debug_event_remove_break_point;
-static void DebugEventRemoveBreakPoint(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Value> data = event_details.GetCallbackData();
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  // When hitting a debug event listener there must be a break set.
-  CHECK_NE(debug->break_id(), 0);
-
-  if (event == v8::Break) {
-    break_point_hit_count++;
-    CHECK(data->IsFunction());
-    ClearBreakPoint(debug_event_remove_break_point);
-  }
-}
-
-
-// Debug event handler which counts break points hit and performs a step
-// afterwards.
-StepAction step_action = StepIn;  // Step action to perform when stepping.
-static void DebugEventStep(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  // When hitting a debug event listener there must be a break set.
-  CHECK_NE(debug->break_id(), 0);
-
-  if (event == v8::Break) {
-    break_point_hit_count++;
-    PrepareStep(step_action);
-  }
-}
-
-
-// Debug event handler which counts break points hit and performs a step
-// afterwards. For each call the expected function is checked.
-// For this debug event handler to work the following two global varaibles
-// must be initialized.
-//   expected_step_sequence: An array of the expected function call sequence.
-//   frame_function_name: A JavaScript function (see below).
-
-// String containing the expected function call sequence. Note: this only works
-// if functions have name length of one.
-const char* expected_step_sequence = nullptr;
-
-// The actual debug event described by the longer comment above.
-static void DebugEventStepSequence(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  // When hitting a debug event listener there must be a break set.
-  CHECK_NE(debug->break_id(), 0);
-
-  if (event == v8::Break || event == v8::Exception) {
-    // Check that the current function is the expected.
-    CHECK(break_point_hit_count <
-          StrLength(expected_step_sequence));
-    const int argc = 2;
-    v8::Local<v8::Value> argv[argc] = {exec_state,
-                                       v8::Integer::New(CcTest::isolate(), 0)};
-    v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-    v8::Local<v8::Value> result =
-        frame_function_name->Call(context, exec_state, argc, argv)
-            .ToLocalChecked();
-    CHECK(result->IsString());
-    v8::String::Utf8Value function_name(
-        CcTest::isolate(), result->ToString(context).ToLocalChecked());
-    CHECK_EQ(1, StrLength(*function_name));
-    CHECK_EQ((*function_name)[0],
-              expected_step_sequence[break_point_hit_count]);
-
-    // Perform step.
-    break_point_hit_count++;
-    PrepareStep(step_action);
-  }
-}
-
-
 // Debug event handler which performs a garbage collection.
-static void DebugEventBreakPointCollectGarbage(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  // When hitting a debug event listener there must be a break set.
-  CHECK_NE(debug->break_id(), 0);
-
-  // Perform a garbage collection when break point is hit and continue. Based
-  // on the number of break points hit either scavenge or mark compact
-  // collector is used.
-  if (event == v8::Break) {
+class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&) {
+    // Perform a garbage collection when break point is hit and continue. Based
+    // on the number of break points hit either scavenge or mark compact
+    // collector is used.
     break_point_hit_count++;
     if (break_point_hit_count % 2 == 0) {
       // Scavenge.
@@ -679,19 +225,14 @@ static void DebugEventBreakPointCollectGarbage(
       CcTest::CollectAllGarbage();
     }
   }
-}
-
+};
 
 // Debug event handler which re-issues a debug break and calls the garbage
 // collector to have the heap verified.
-static void DebugEventBreak(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  // When hitting a debug event listener there must be a break set.
-  CHECK_NE(debug->break_id(), 0);
-
-  if (event == v8::Break) {
+class DebugEventBreak : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&) {
     // Count the number of breaks.
     break_point_hit_count++;
 
@@ -700,31 +241,30 @@ static void DebugEventBreak(
     CcTest::CollectGarbage(v8::internal::NEW_SPACE);
 
     // Set the break flag again to come back here as soon as possible.
-    v8::debug::DebugBreak(CcTest::isolate());
+    v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
   }
-}
+};
 
+static void BreakRightNow(v8::Isolate* isolate, void*) {
+  v8::debug::BreakRightNow(isolate);
+}
 
 // Debug event handler which re-issues a debug break until a limit has been
 // reached.
 int max_break_point_hit_count = 0;
 bool terminate_after_max_break_point_hit = false;
-static void DebugEventBreakMax(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Isolate* v8_isolate = CcTest::isolate();
-  v8::internal::Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Debug* debug = isolate->debug();
-  // When hitting a debug event listener there must be a break set.
-  CHECK_NE(debug->break_id(), 0);
-
-  if (event == v8::Break) {
+class DebugEventBreakMax : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&) {
+    v8::Isolate* v8_isolate = CcTest::isolate();
+    v8::internal::Isolate* isolate = CcTest::i_isolate();
     if (break_point_hit_count < max_break_point_hit_count) {
       // Count the number of breaks.
       break_point_hit_count++;
 
       // Set the break flag again to come back here as soon as possible.
-      v8::debug::DebugBreak(v8_isolate);
+      v8_isolate->RequestInterrupt(BreakRightNow, nullptr);
 
     } else if (terminate_after_max_break_point_hit) {
       // Terminate execution after the last break if requested.
@@ -737,31 +277,14 @@ static void DebugEventBreakMax(
       i::Deoptimizer::DeoptimizeAll(isolate);
     }
   }
-}
-
-
-// --- M e s s a g e   C a l l b a c k
-
-
-// Message callback which counts the number of messages.
-int message_callback_count = 0;
-
-static void MessageCallbackCountClear() {
-  message_callback_count = 0;
-}
-
-static void MessageCallbackCount(v8::Local<v8::Message> message,
-                                 v8::Local<v8::Value> data) {
-  message_callback_count++;
-}
-
+};
 
 // --- T h e   A c t u a l   T e s t s
 
 // Test that the debug info in the VM is in sync with the functions being
 // debugged.
 TEST(DebugInfo) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   // Create a couple of functions for the test.
   v8::Local<v8::Function> foo =
@@ -800,40 +323,42 @@ TEST(DebugInfo) {
 // Test that a break point can be set at an IC store location.
 TEST(BreakPointICStore) {
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Local<v8::Function> foo =
       CompileFunction(&env, "function foo(){bar=0;}", "foo");
 
   // Run without breakpoints.
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint
   i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(1, break_point_hit_count);
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 // Test that a break point can be set at an IC store location.
 TEST(BreakPointCondition) {
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   CompileRun("var a = false");
   v8::Local<v8::Function> foo =
       CompileFunction(&env, "function foo() { return 1 }", "foo");
@@ -855,38 +380,39 @@ TEST(BreakPointCondition) {
   CompileRun("foo()");
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 // Test that a break point can be set at an IC load location.
 TEST(BreakPointICLoad) {
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   CompileRunChecked(env->GetIsolate(), "bar=1");
   v8::Local<v8::Function> foo =
       CompileFunction(&env, "function foo(){var x=bar;}", "foo");
 
   // Run without breakpoints.
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
   i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(1, break_point_hit_count);
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -894,30 +420,31 @@ TEST(BreakPointICLoad) {
 // Test that a break point can be set at an IC call location.
 TEST(BreakPointICCall) {
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   CompileRunChecked(env->GetIsolate(), "function bar(){}");
   v8::Local<v8::Function> foo =
       CompileFunction(&env, "function foo(){bar();}", "foo");
 
   // Run without breakpoints.
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint
   i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(1, break_point_hit_count);
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
-  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+  foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -925,13 +452,14 @@ TEST(BreakPointICCall) {
 // Test that a break point can be set at an IC call location and survive a GC.
 TEST(BreakPointICCallWithGC) {
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointCollectGarbage);
+  DebugEventBreakPointCollectGarbage delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   CompileRunChecked(env->GetIsolate(), "function bar(){return 1;}");
   v8::Local<v8::Function> foo =
       CompileFunction(&env, "function foo(){return bar();}", "foo");
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
 
   // Run without breakpoints.
   CHECK_EQ(1, foo->Call(context, env->Global(), 0, nullptr)
@@ -958,7 +486,7 @@ TEST(BreakPointICCallWithGC) {
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -966,13 +494,14 @@ TEST(BreakPointICCallWithGC) {
 // Test that a break point can be set at an IC call location and survive a GC.
 TEST(BreakPointConstructCallWithGC) {
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointCollectGarbage);
+  DebugEventBreakPointCollectGarbage delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   CompileRunChecked(env->GetIsolate(), "function bar(){ this.x = 1;}");
   v8::Local<v8::Function> foo =
       CompileFunction(&env, "function foo(){return new bar(1).x;}", "foo");
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
 
   // Run without breakpoints.
   CHECK_EQ(1, foo->Call(context, env->Global(), 0, nullptr)
@@ -999,60 +528,17 @@ TEST(BreakPointConstructCallWithGC) {
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
-
-// Test that a break point can be set at a return store location.
-TEST(BreakPointReturn) {
-  break_point_hit_count = 0;
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  // Create a functions for checking the source line and column when hitting
-  // a break point.
-  frame_source_line = CompileFunction(&env,
-                                      frame_source_line_source,
-                                      "frame_source_line");
-  frame_source_column = CompileFunction(&env,
-                                        frame_source_column_source,
-                                        "frame_source_column");
-
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
-  v8::Local<v8::Function> foo =
-      CompileFunction(&env, "function foo(){}", "foo");
-  v8::Local<v8::Context> context = env.context();
-
-  // Run without breakpoints.
-  foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(0, break_point_hit_count);
-
-  // Run with breakpoint
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
-  foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(1, break_point_hit_count);
-  CHECK_EQ(0, last_source_line);
-  CHECK_EQ(15, last_source_column);
-  foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(2, break_point_hit_count);
-  CHECK_EQ(0, last_source_line);
-  CHECK_EQ(15, last_source_column);
-
-  // Run without breakpoints.
-  ClearBreakPoint(bp);
-  foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(2, break_point_hit_count);
-
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
-}
 
 TEST(BreakPointBuiltin) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1074,15 +560,16 @@ TEST(BreakPointBuiltin) {
   ExpectString("'b'.repeat(10)", "bbbbbbbbbb");
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointJSBuiltin) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1104,15 +591,16 @@ TEST(BreakPointJSBuiltin) {
   CompileRun("[1,2,3].sort()");
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointBoundBuiltin) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1136,15 +624,16 @@ TEST(BreakPointBoundBuiltin) {
   ExpectString("boundrepeat(10)", "aaaaaaaaaa");
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointConstructorBuiltin) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1197,16 +686,17 @@ TEST(BreakPointConstructorBuiltin) {
   CompileRun("new Number()");
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointInlinedBuiltin) {
   i::FLAG_allow_natives_syntax = true;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1237,16 +727,17 @@ TEST(BreakPointInlinedBuiltin) {
   CompileRun("test(0.3);");
   CHECK_EQ(3, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointInlineBoundBuiltin) {
   i::FLAG_allow_natives_syntax = true;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1281,17 +772,18 @@ TEST(BreakPointInlineBoundBuiltin) {
   CompileRun("test(9);");
   CHECK_EQ(3, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointInlinedConstructorBuiltin) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_experimental_inline_promise_constructor = true;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1322,17 +814,18 @@ TEST(BreakPointInlinedConstructorBuiltin) {
   CompileRun("test(9);");
   CHECK_EQ(3, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointBuiltinConcurrentOpt) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_block_concurrent_recompilation = true;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1361,16 +854,17 @@ TEST(BreakPointBuiltinConcurrentOpt) {
   CompileRun("test(0.3);");
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointBuiltinTFOperator) {
   i::FLAG_allow_natives_syntax = true;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1401,15 +895,16 @@ TEST(BreakPointBuiltinTFOperator) {
   CompileRun("test('f');");
   CHECK_EQ(3, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointBuiltinNewContext) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
@@ -1444,7 +939,7 @@ TEST(BreakPointBuiltinNewContext) {
   }
 #endif
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -1453,10 +948,11 @@ void NoOpFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 TEST(BreakPointApiFunction) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   i::Handle<i::BreakPoint> bp;
 
@@ -1464,9 +960,9 @@ TEST(BreakPointApiFunction) {
       v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
 
   v8::Local<v8::Function> function =
-      function_template->GetFunction(env.context()).ToLocalChecked();
+      function_template->GetFunction(env.local()).ToLocalChecked();
 
-  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+  env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
 
   // === Test simple builtin ===
   break_point_hit_count = 0;
@@ -1484,7 +980,7 @@ TEST(BreakPointApiFunction) {
   ExpectInt32("f()", 2);
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -1497,10 +993,11 @@ void GetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 TEST(BreakPointApiGetter) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   i::Handle<i::BreakPoint> bp;
 
@@ -1510,12 +1007,12 @@ TEST(BreakPointApiGetter) {
       v8::FunctionTemplate::New(env->GetIsolate(), GetWrapperCallback);
 
   v8::Local<v8::Function> function =
-      function_template->GetFunction(env.context()).ToLocalChecked();
+      function_template->GetFunction(env.local()).ToLocalChecked();
   v8::Local<v8::Function> get =
-      get_template->GetFunction(env.context()).ToLocalChecked();
+      get_template->GetFunction(env.local()).ToLocalChecked();
 
-  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
-  env->Global()->Set(env.context(), v8_str("get_wrapper"), get).ToChecked();
+  env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
+  env->Global()->Set(env.local(), v8_str("get_wrapper"), get).ToChecked();
   CompileRun(
       "var o = {};"
       "Object.defineProperty(o, 'f', { get: f, enumerable: true });");
@@ -1536,7 +1033,7 @@ TEST(BreakPointApiGetter) {
   CompileRun("get_wrapper(o, 'f', 2)");
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -1548,10 +1045,11 @@ void SetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 TEST(BreakPointApiSetter) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   i::Handle<i::BreakPoint> bp;
 
@@ -1561,12 +1059,12 @@ TEST(BreakPointApiSetter) {
       v8::FunctionTemplate::New(env->GetIsolate(), SetWrapperCallback);
 
   v8::Local<v8::Function> function =
-      function_template->GetFunction(env.context()).ToLocalChecked();
+      function_template->GetFunction(env.local()).ToLocalChecked();
   v8::Local<v8::Function> set =
-      set_template->GetFunction(env.context()).ToLocalChecked();
+      set_template->GetFunction(env.local()).ToLocalChecked();
 
-  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
-  env->Global()->Set(env.context(), v8_str("set_wrapper"), set).ToChecked();
+  env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
+  env->Global()->Set(env.local(), v8_str("set_wrapper"), set).ToChecked();
 
   CompileRun(
       "var o = {};"
@@ -1608,15 +1106,16 @@ TEST(BreakPointApiSetter) {
   CompileRun("set_wrapper(o, 'f', 2)");
   CHECK_EQ(2, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointApiAccessor) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   i::Handle<i::BreakPoint> bp;
 
@@ -1628,8 +1127,8 @@ TEST(BreakPointApiAccessor) {
   obj_template->SetAccessorProperty(v8_str("f"), accessor_template,
                                     accessor_template);
   v8::Local<v8::Object> obj =
-      obj_template->NewInstance(env.context()).ToLocalChecked();
-  env->Global()->Set(env.context(), v8_str("o"), obj).ToChecked();
+      obj_template->NewInstance(env.local()).ToLocalChecked();
+  env->Global()->Set(env.local(), v8_str("o"), obj).ToChecked();
 
   v8::Local<v8::Function> function =
       CompileRun("Object.getOwnPropertyDescriptor(o, 'f').set")
@@ -1670,16 +1169,17 @@ TEST(BreakPointApiAccessor) {
   CompileRun("o.f");
   CHECK_EQ(42, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointInlineApiFunction) {
   i::FLAG_allow_natives_syntax = true;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   i::Handle<i::BreakPoint> bp;
 
@@ -1687,9 +1187,9 @@ TEST(BreakPointInlineApiFunction) {
       v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
 
   v8::Local<v8::Function> function =
-      function_template->GetFunction(env.context()).ToLocalChecked();
+      function_template->GetFunction(env.local()).ToLocalChecked();
 
-  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+  env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
   CompileRun("function g() { return 1 +  f(); }");
 
   // === Test simple builtin ===
@@ -1712,7 +1212,7 @@ TEST(BreakPointInlineApiFunction) {
   ExpectInt32("g()", 3);
   CHECK_EQ(3, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -1720,10 +1220,11 @@ TEST(BreakPointInlineApiFunction) {
 TEST(BreakPointConditionBuiltin) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_block_concurrent_recompilation = true;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
 
@@ -1842,17 +1343,18 @@ TEST(BreakPointConditionBuiltin) {
   ExpectString("f('a')", "aaaaaaaaaa");
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(BreakPointInlining) {
   i::FLAG_allow_natives_syntax = true;
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   break_point_hit_count = 0;
   v8::Local<v8::Function> inlinee =
@@ -1880,7 +1382,7 @@ TEST(BreakPointInlining) {
   CompileRun("test(0.3);");
   CHECK_EQ(3, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -1899,11 +1401,12 @@ static void CallWithBreakPoints(v8::Local<v8::Context> context,
 // Test GC during break point processing.
 TEST(GCDuringBreakPointProcessing) {
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointCollectGarbage);
+  DebugEventBreakPointCollectGarbage delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Local<v8::Function> foo;
 
   // Test IC store break point with garbage collection.
@@ -1931,7 +1434,7 @@ TEST(GCDuringBreakPointProcessing) {
   SetBreakPoint(foo, 0);
   CallWithBreakPoints(context, env->Global(), foo, 1, 25);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -1963,11 +1466,12 @@ static void CallAndGC(v8::Local<v8::Context> context,
 // Test that a break point can be set at a return store location.
 TEST(BreakPointSurviveGC) {
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
 
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Local<v8::Function> foo;
 
   // Test IC store break point with garbage collection.
@@ -2012,47 +1516,18 @@ TEST(BreakPointSurviveGC) {
   }
   CallAndGC(context, env->Global(), foo);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
-
-
-
-// Test that it is possible to remove the last break point for a function
-// inside the break handling of that break point.
-TEST(RemoveBreakPointInBreak) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  v8::Local<v8::Context> context = env.context();
-  v8::Local<v8::Function> foo =
-      CompileFunction(&env, "function foo(){a=1;}", "foo");
-
-  // Register the debug event listener pasing the function
-  SetDebugEventListener(env->GetIsolate(), DebugEventRemoveBreakPoint, foo);
-
-  debug_event_remove_break_point = SetBreakPoint(foo, 0);
-
-  break_point_hit_count = 0;
-  foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(1, break_point_hit_count);
-
-  break_point_hit_count = 0;
-  foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(0, break_point_hit_count);
-
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
-}
-
 
 // Test that the debugger statement causes a break.
 TEST(DebuggerStatement) {
   break_point_hit_count = 0;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
-  v8::Local<v8::Context> context = env.context();
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::Local<v8::Context> context = env.local();
   v8::Script::Compile(context,
                       v8_str(env->GetIsolate(), "function bar(){debugger}"))
       .ToLocalChecked()
@@ -2080,7 +1555,7 @@ TEST(DebuggerStatement) {
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(3, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -2088,10 +1563,11 @@ TEST(DebuggerStatement) {
 // Test setting a breakpoint on the debugger statement.
 TEST(DebuggerStatementBreakpoint) {
     break_point_hit_count = 0;
-    DebugLocalContext env;
+    LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    v8::Local<v8::Context> context = env.context();
-    SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+    v8::Local<v8::Context> context = env.local();
+    DebugEventCounter delegate;
+    v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
     v8::Script::Compile(context,
                         v8_str(env->GetIsolate(), "function foo(){debugger;}"))
         .ToLocalChecked()
@@ -2113,166 +1589,21 @@ TEST(DebuggerStatementBreakpoint) {
     CHECK_EQ(2, break_point_hit_count);
 
     ClearBreakPoint(bp);
-    SetDebugEventListener(env->GetIsolate(), nullptr);
+    v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
     CheckDebuggerUnloaded();
-}
-
-
-// Test that the evaluation of expressions when a break point is hit generates
-// the correct results.
-TEST(DebugEvaluate) {
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  env.ExposeDebug();
-
-  // Create a function for checking the evaluation when hitting a break point.
-  evaluate_check_function = CompileFunction(&env,
-                                            evaluate_check_source,
-                                            "evaluate_check");
-  // Register the debug event listener
-  SetDebugEventListener(isolate, DebugEventEvaluate);
-
-  // Different expected vaules of x and a when in a break point (u = undefined,
-  // d = Hello, world!).
-  struct EvaluateCheck checks_uu[] = {{"x", v8::Undefined(isolate)},
-                                      {"a", v8::Undefined(isolate)},
-                                      {nullptr, v8::Local<v8::Value>()}};
-  struct EvaluateCheck checks_hu[] = {
-      {"x", v8_str(env->GetIsolate(), "Hello, world!")},
-      {"a", v8::Undefined(isolate)},
-      {nullptr, v8::Local<v8::Value>()}};
-  struct EvaluateCheck checks_hh[] = {
-      {"x", v8_str(env->GetIsolate(), "Hello, world!")},
-      {"a", v8_str(env->GetIsolate(), "Hello, world!")},
-      {nullptr, v8::Local<v8::Value>()}};
-
-  // Simple test function. The "y=0" is in the function foo to provide a break
-  // location. For "y=0" the "y" is at position 15 in the foo function
-  // therefore setting breakpoint at position 15 will break at "y=0" and
-  // setting it higher will break after.
-  v8::Local<v8::Function> foo = CompileFunction(&env,
-    "function foo(x) {"
-    "  var a;"
-    "  y=0;"  // To ensure break location 1.
-    "  a=x;"
-    "  y=0;"  // To ensure break location 2.
-    "}",
-    "foo");
-  const int foo_break_position_1 = 15;
-  const int foo_break_position_2 = 29;
-
-  v8::Local<v8::Context> context = env.context();
-  // Arguments with one parameter "Hello, world!"
-  v8::Local<v8::Value> argv_foo[1] = {
-      v8_str(env->GetIsolate(), "Hello, world!")};
-
-  // Call foo with breakpoint set before a=x and undefined as parameter.
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, foo_break_position_1);
-  checks = checks_uu;
-  foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-
-  // Call foo with breakpoint set before a=x and parameter "Hello, world!".
-  checks = checks_hu;
-  foo->Call(context, env->Global(), 1, argv_foo).ToLocalChecked();
-
-  // Call foo with breakpoint set after a=x and parameter "Hello, world!".
-  ClearBreakPoint(bp);
-  SetBreakPoint(foo, foo_break_position_2);
-  checks = checks_hh;
-  foo->Call(context, env->Global(), 1, argv_foo).ToLocalChecked();
-
-  // Test that overriding Object.prototype will not interfere into evaluation
-  // on call frame.
-  v8::Local<v8::Function> zoo =
-      CompileFunction(&env,
-                      "x = undefined;"
-                      "function zoo(t) {"
-                      "  var a=x;"
-                      "  Object.prototype.x = 42;"
-                      "  x=t;"
-                      "  y=0;"  // To ensure break location.
-                      "  delete Object.prototype.x;"
-                      "  x=a;"
-                      "}",
-                      "zoo");
-  const int zoo_break_position = 50;
-
-  // Arguments with one parameter "Hello, world!"
-  v8::Local<v8::Value> argv_zoo[1] = {
-      v8_str(env->GetIsolate(), "Hello, world!")};
-
-  // Call zoo with breakpoint set at y=0.
-  DebugEventCounterClear();
-  bp = SetBreakPoint(zoo, zoo_break_position);
-  checks = checks_hu;
-  zoo->Call(context, env->Global(), 1, argv_zoo).ToLocalChecked();
-  CHECK_EQ(1, break_point_hit_count);
-  ClearBreakPoint(bp);
-
-  // Test function with an inner function. The "y=0" is in function barbar
-  // to provide a break location. For "y=0" the "y" is at position 8 in the
-  // barbar function therefore setting breakpoint at position 8 will break at
-  // "y=0" and setting it higher will break after.
-  v8::Local<v8::Function> bar = CompileFunction(&env,
-    "y = 0;"
-    "x = 'Goodbye, world!';"
-    "function bar(x, b) {"
-    "  var a;"
-    "  function barbar() {"
-    "    y=0; /* To ensure break location.*/"
-    "    a=x;"
-    "  };"
-    "  barbar();"
-    "  y=0;a=x;"
-    "}",
-    "bar");
-  const int barbar_break_position = 8;
-
-  // Call bar setting breakpoint before a=x in barbar and undefined as
-  // parameter.
-  checks = checks_uu;
-  v8::Local<v8::Value> argv_bar_1[2] = {
-      v8::Undefined(isolate), v8::Number::New(isolate, barbar_break_position)};
-  bar->Call(context, env->Global(), 2, argv_bar_1).ToLocalChecked();
-
-  // Call bar setting breakpoint before a=x in barbar and parameter
-  // "Hello, world!".
-  checks = checks_hu;
-  v8::Local<v8::Value> argv_bar_2[2] = {
-      v8_str(env->GetIsolate(), "Hello, world!"),
-      v8::Number::New(env->GetIsolate(), barbar_break_position)};
-  bar->Call(context, env->Global(), 2, argv_bar_2).ToLocalChecked();
-
-  // Call bar setting breakpoint after a=x in barbar and parameter
-  // "Hello, world!".
-  checks = checks_hh;
-  v8::Local<v8::Value> argv_bar_3[2] = {
-      v8_str(env->GetIsolate(), "Hello, world!"),
-      v8::Number::New(env->GetIsolate(), barbar_break_position + 1)};
-  bar->Call(context, env->Global(), 2, argv_bar_3).ToLocalChecked();
-
-  SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded();
-}
-
-
-int debugEventCount = 0;
-static void CheckDebugEvent(const v8::Debug::EventDetails& eventDetails) {
-  if (eventDetails.GetEvent() == v8::Break) ++debugEventCount;
 }
 
 
 // Test that the conditional breakpoints work event if code generation from
 // strings is prohibited in the debugee context.
 TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  env.ExposeDebug();
 
-  SetDebugEventListener(env->GetIsolate(), CheckDebugEvent);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   v8::Local<v8::Function> foo = CompileFunction(&env,
     "function foo(x) {\n"
     "  var s = 'String value2';\n"
@@ -2283,19 +1614,19 @@ TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
   // Set conditional breakpoint with condition 'true'.
   SetBreakPoint(foo, 4, "true");
 
-  debugEventCount = 0;
+  break_point_hit_count = 0;
   env->AllowCodeGenerationFromStrings(false);
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(1, debugEventCount);
+  CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 // Simple test of the stepping mechanism using only store ICs.
 TEST(DebugStepLinear) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Create a function for testing stepping.
@@ -2307,23 +1638,25 @@ TEST(DebugStepLinear) {
   CompileRun("a=0; b=0; c=0; foo();");
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
   SetBreakPoint(foo, 3);
 
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // With stepping all break locations are hit.
   CHECK_EQ(4, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   SetBreakPoint(foo, 3);
   break_point_hit_count = 0;
@@ -2332,18 +1665,19 @@ TEST(DebugStepLinear) {
   // Without stepping only active break points are hit.
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 // Test of the stepping mechanism for keyed load in a loop.
 TEST(DebugStepKeyedLoadLoop) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
   // Create a function for testing stepping of keyed load. The statement 'y=1'
   // is there to have more than one breakable statement in the loop, TODO(315).
@@ -2360,7 +1694,7 @@ TEST(DebugStepKeyedLoadLoop) {
       "y=0\n",
       "foo");
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create array [0,1,2,3,4,5,6,7,8,9]
   v8::Local<v8::Array> a = v8::Array::New(env->GetIsolate(), 10);
   for (int i = 0; i < 10; i++) {
@@ -2376,25 +1710,26 @@ TEST(DebugStepKeyedLoadLoop) {
 
   // Set up break point and step through the function.
   SetBreakPoint(foo, 3);
-  step_action = StepNext;
+  run_step.set_step_action(StepNext);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), kArgc, args).ToLocalChecked();
 
   // With stepping all break locations are hit.
   CHECK_EQ(44, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 // Test of the stepping mechanism for keyed store in a loop.
 TEST(DebugStepKeyedStoreLoop) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
   // Create a function for testing stepping of keyed store. The statement 'y=1'
   // is there to have more than one breakable statement in the loop, TODO(315).
@@ -2410,7 +1745,7 @@ TEST(DebugStepKeyedStoreLoop) {
       "y=0\n",
       "foo");
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create array [0,1,2,3,4,5,6,7,8,9]
   v8::Local<v8::Array> a = v8::Array::New(env->GetIsolate(), 10);
   for (int i = 0; i < 10; i++) {
@@ -2426,27 +1761,28 @@ TEST(DebugStepKeyedStoreLoop) {
 
   // Set up break point and step through the function.
   SetBreakPoint(foo, 3);
-  step_action = StepNext;
+  run_step.set_step_action(StepNext);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), kArgc, args).ToLocalChecked();
 
   // With stepping all break locations are hit.
   CHECK_EQ(44, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 // Test of the stepping mechanism for named load in a loop.
 TEST(DebugStepNamedLoadLoop) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping of named load.
   v8::Local<v8::Function> foo = CompileFunction(
       &env,
@@ -2471,27 +1807,28 @@ TEST(DebugStepNamedLoadLoop) {
 
   // Set up break point and step through the function.
   SetBreakPoint(foo, 4);
-  step_action = StepNext;
+  run_step.set_step_action(StepNext);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // With stepping all break locations are hit.
   CHECK_EQ(65, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 static void DoDebugStepNamedStoreLoop(int expected) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
   // Create a function for testing stepping of named store.
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   v8::Local<v8::Function> foo = CompileFunction(
       &env,
       "function foo() {\n"
@@ -2507,14 +1844,14 @@ static void DoDebugStepNamedStoreLoop(int expected) {
 
   // Set up break point and step through the function.
   SetBreakPoint(foo, 3);
-  step_action = StepNext;
+  run_step.set_step_action(StepNext);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // With stepping all expected break locations are hit.
   CHECK_EQ(expected, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -2524,13 +1861,14 @@ TEST(DebugStepNamedStoreLoop) { DoDebugStepNamedStoreLoop(34); }
 
 // Test the stepping mechanism with different ICs.
 TEST(DebugStepLinearMixedICs) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping.
   v8::Local<v8::Function> foo = CompileFunction(&env,
       "function bar() {};"
@@ -2545,18 +1883,19 @@ TEST(DebugStepLinearMixedICs) {
 
   SetBreakPoint(foo, 0);
 
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // With stepping all break locations are hit.
   CHECK_EQ(10, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   SetBreakPoint(foo, 0);
   break_point_hit_count = 0;
@@ -2565,19 +1904,20 @@ TEST(DebugStepLinearMixedICs) {
   // Without stepping only active break points are hit.
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepDeclarations) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const char* src = "function foo() { "
@@ -2593,25 +1933,26 @@ TEST(DebugStepDeclarations) {
   SetBreakPoint(foo, 0);
 
   // Stepping through the declarations.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(5, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepLocals) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const char* src = "function foo() { "
@@ -2627,26 +1968,27 @@ TEST(DebugStepLocals) {
   SetBreakPoint(foo, 0);
 
   // Stepping through the declarations.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(5, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepIf) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
@@ -2664,34 +2006,35 @@ TEST(DebugStepIf) {
   SetBreakPoint(foo, 0);
 
   // Stepping through the true part.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_true[argc] = {v8::True(isolate)};
   foo->Call(context, env->Global(), argc, argv_true).ToLocalChecked();
   CHECK_EQ(4, break_point_hit_count);
 
   // Stepping through the false part.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_false[argc] = {v8::False(isolate)};
   foo->Call(context, env->Global(), argc, argv_false).ToLocalChecked();
   CHECK_EQ(5, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepSwitch) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(isolate, DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
@@ -2715,41 +2058,42 @@ TEST(DebugStepSwitch) {
   SetBreakPoint(foo, 0);
 
   // One case with fall-through.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_1[argc] = {v8::Number::New(isolate, 1)};
   foo->Call(context, env->Global(), argc, argv_1).ToLocalChecked();
   CHECK_EQ(6, break_point_hit_count);
 
   // Another case.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_2[argc] = {v8::Number::New(isolate, 2)};
   foo->Call(context, env->Global(), argc, argv_2).ToLocalChecked();
   CHECK_EQ(5, break_point_hit_count);
 
   // Last case.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_3[argc] = {v8::Number::New(isolate, 3)};
   foo->Call(context, env->Global(), argc, argv_3).ToLocalChecked();
   CHECK_EQ(7, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepWhile) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(isolate, DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
@@ -2764,41 +2108,42 @@ TEST(DebugStepWhile) {
   SetBreakPoint(foo, 8);  // "var a = 0;"
 
   // Looping 0 times.  We still should break at the while-condition once.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_0[argc] = {v8::Number::New(isolate, 0)};
   foo->Call(context, env->Global(), argc, argv_0).ToLocalChecked();
   CHECK_EQ(3, break_point_hit_count);
 
   // Looping 10 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_10[argc] = {v8::Number::New(isolate, 10)};
   foo->Call(context, env->Global(), argc, argv_10).ToLocalChecked();
   CHECK_EQ(23, break_point_hit_count);
 
   // Looping 100 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_100[argc] = {v8::Number::New(isolate, 100)};
   foo->Call(context, env->Global(), argc, argv_100).ToLocalChecked();
   CHECK_EQ(203, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepDoWhile) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(isolate, DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
@@ -2813,41 +2158,42 @@ TEST(DebugStepDoWhile) {
   SetBreakPoint(foo, 8);  // "var a = 0;"
 
   // Looping 0 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_0[argc] = {v8::Number::New(isolate, 0)};
   foo->Call(context, env->Global(), argc, argv_0).ToLocalChecked();
   CHECK_EQ(4, break_point_hit_count);
 
   // Looping 10 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_10[argc] = {v8::Number::New(isolate, 10)};
   foo->Call(context, env->Global(), argc, argv_10).ToLocalChecked();
   CHECK_EQ(22, break_point_hit_count);
 
   // Looping 100 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_100[argc] = {v8::Number::New(isolate, 100)};
   foo->Call(context, env->Global(), argc, argv_100).ToLocalChecked();
   CHECK_EQ(202, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepFor) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(isolate, DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
@@ -2863,41 +2209,42 @@ TEST(DebugStepFor) {
   SetBreakPoint(foo, 8);  // "a = 1;"
 
   // Looping 0 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_0[argc] = {v8::Number::New(isolate, 0)};
   foo->Call(context, env->Global(), argc, argv_0).ToLocalChecked();
   CHECK_EQ(4, break_point_hit_count);
 
   // Looping 10 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_10[argc] = {v8::Number::New(isolate, 10)};
   foo->Call(context, env->Global(), argc, argv_10).ToLocalChecked();
   CHECK_EQ(34, break_point_hit_count);
 
   // Looping 100 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_100[argc] = {v8::Number::New(isolate, 100)};
   foo->Call(context, env->Global(), argc, argv_100).ToLocalChecked();
   CHECK_EQ(304, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepForContinue) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(isolate, DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
@@ -2921,7 +2268,7 @@ TEST(DebugStepForContinue) {
   // Each loop generates 4 or 5 steps depending on whether a is equal.
 
   // Looping 10 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_10[argc] = {v8::Number::New(isolate, 10)};
   result = foo->Call(context, env->Global(), argc, argv_10).ToLocalChecked();
@@ -2929,7 +2276,7 @@ TEST(DebugStepForContinue) {
   CHECK_EQ(62, break_point_hit_count);
 
   // Looping 100 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_100[argc] = {v8::Number::New(isolate, 100)};
   result = foo->Call(context, env->Global(), argc, argv_100).ToLocalChecked();
@@ -2937,20 +2284,21 @@ TEST(DebugStepForContinue) {
   CHECK_EQ(557, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepForBreak) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(isolate, DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
@@ -2975,7 +2323,7 @@ TEST(DebugStepForBreak) {
   // which only generates 4.
 
   // Looping 10 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_10[argc] = {v8::Number::New(isolate, 10)};
   result = foo->Call(context, env->Global(), argc, argv_10).ToLocalChecked();
@@ -2983,7 +2331,7 @@ TEST(DebugStepForBreak) {
   CHECK_EQ(64, break_point_hit_count);
 
   // Looping 100 times.
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   v8::Local<v8::Value> argv_100[argc] = {v8::Number::New(isolate, 100)};
   result = foo->Call(context, env->Global(), argc, argv_100).ToLocalChecked();
@@ -2991,19 +2339,20 @@ TEST(DebugStepForBreak) {
   CHECK_EQ(604, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepForIn) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   v8::Local<v8::Function> foo;
@@ -3017,7 +2366,7 @@ TEST(DebugStepForIn) {
   foo = CompileFunction(&env, src_1, "foo");
   SetBreakPoint(foo, 0);  // "var a = ..."
 
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(8, break_point_hit_count);
@@ -3034,25 +2383,26 @@ TEST(DebugStepForIn) {
   foo = CompileFunction(&env, src_2, "foo");
   SetBreakPoint(foo, 0);  // "var a = ..."
 
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(10, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugStepWith) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const char* src = "function foo(x) { "
@@ -3069,26 +2419,27 @@ TEST(DebugStepWith) {
   v8::Local<v8::Value> result;
   SetBreakPoint(foo, 8);  // "var a = {};"
 
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(4, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 TEST(DebugConditional) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(isolate, DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const char* src =
@@ -3099,12 +2450,12 @@ TEST(DebugConditional) {
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 0);  // "var a;"
 
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(2, break_point_hit_count);
 
-  step_action = StepIn;
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   const int argc = 1;
   v8::Local<v8::Value> argv_true[argc] = {v8::True(isolate)};
@@ -3112,179 +2463,37 @@ TEST(DebugConditional) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
-
-
-TEST(StepInOutSimple) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  // Create a function for checking the function when hitting a break point.
-  frame_function_name = CompileFunction(&env,
-                                        frame_function_name_source,
-                                        "frame_function_name");
-
-  // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStepSequence);
-
-  v8::Local<v8::Context> context = env.context();
-  // Create a function for testing stepping. Run it to allow it to get
-  // optimized.
-  const char* src = "function a() {b();c();}; "
-                    "function b() {c();}; "
-                    "function c() {}; "
-                    "a(); b(); c()";
-  v8::Local<v8::Function> a = CompileFunction(&env, src, "a");
-  SetBreakPoint(a, 0);
-
-  // Step through invocation of a with step in.
-  step_action = StepIn;
-  break_point_hit_count = 0;
-  expected_step_sequence = "abcbaca";
-  a->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Step through invocation of a with step next.
-  step_action = StepNext;
-  break_point_hit_count = 0;
-  expected_step_sequence = "aaa";
-  a->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Step through invocation of a with step out.
-  step_action = StepOut;
-  break_point_hit_count = 0;
-  expected_step_sequence = "a";
-  a->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
-}
-
-
-TEST(StepInOutTree) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  // Create a function for checking the function when hitting a break point.
-  frame_function_name = CompileFunction(&env,
-                                        frame_function_name_source,
-                                        "frame_function_name");
-
-  // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStepSequence);
-
-  v8::Local<v8::Context> context = env.context();
-  // Create a function for testing stepping. Run it to allow it to get
-  // optimized.
-  const char* src = "function a() {b(c(d()),d());c(d());d()}; "
-                    "function b(x,y) {c();}; "
-                    "function c(x) {}; "
-                    "function d() {}; "
-                    "a(); b(); c(); d()";
-  v8::Local<v8::Function> a = CompileFunction(&env, src, "a");
-  SetBreakPoint(a, 0);
-
-  // Step through invocation of a with step in.
-  step_action = StepIn;
-  break_point_hit_count = 0;
-  expected_step_sequence = "adacadabcbadacada";
-  a->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Step through invocation of a with step next.
-  step_action = StepNext;
-  break_point_hit_count = 0;
-  expected_step_sequence = "aaaa";
-  a->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Step through invocation of a with step out.
-  step_action = StepOut;
-  break_point_hit_count = 0;
-  expected_step_sequence = "a";
-  a->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
-}
-
-
-TEST(StepInOutBranch) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  // Create a function for checking the function when hitting a break point.
-  frame_function_name = CompileFunction(&env,
-                                        frame_function_name_source,
-                                        "frame_function_name");
-
-  // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStepSequence);
-
-  v8::Local<v8::Context> context = env.context();
-  // Create a function for testing stepping. Run it to allow it to get
-  // optimized.
-  const char* src = "function a() {b(false);c();}; "
-                    "function b(x) {if(x){c();};}; "
-                    "function c() {}; "
-                    "a(); b(); c()";
-  v8::Local<v8::Function> a = CompileFunction(&env, src, "a");
-  SetBreakPoint(a, 0);
-
-  // Step through invocation of a.
-  step_action = StepIn;
-  break_point_hit_count = 0;
-  expected_step_sequence = "abbaca";
-  a->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
-}
-
 
 // Test that step in does not step into native functions.
 TEST(DebugStepNatives) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Create a function for testing stepping.
-  v8::Local<v8::Function> foo = CompileFunction(
-      &env,
-      "function foo(){debugger;Math.sin(1);}",
-      "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo(){debugger;Math.sin(1);}", "foo");
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
-  step_action = StepIn;
+  v8::Local<v8::Context> context = env.local();
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // With stepping all break locations are hit.
   CHECK_EQ(3, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
@@ -3292,39 +2501,40 @@ TEST(DebugStepNatives) {
   // Without stepping only active break points are hit.
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
-
 // Test that step in works with function.apply.
 TEST(DebugStepFunctionApply) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Create a function for testing stepping.
-  v8::Local<v8::Function> foo = CompileFunction(
-      &env,
-      "function bar(x, y, z) { if (x == 1) { a = y; b = z; } }"
-      "function foo(){ debugger; bar.apply(this, [1,2,3]); }",
-      "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar(x, y, z) { if (x == 1) { a = y; b = z; } }"
+                      "function foo(){ debugger; bar.apply(this, [1,2,3]); }",
+                      "foo");
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStep);
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
 
-  v8::Local<v8::Context> context = env.context();
-  step_action = StepIn;
+  v8::Local<v8::Context> context = env.local();
+  run_step.set_step_action(StepIn);
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // With stepping all break locations are hit.
   CHECK_EQ(7, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
@@ -3332,18 +2542,18 @@ TEST(DebugStepFunctionApply) {
   // Without stepping only the debugger statement is hit.
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 // Test that step in works with function.call.
 TEST(DebugStepFunctionCall) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping.
   v8::Local<v8::Function> foo = CompileFunction(
       &env,
@@ -3358,8 +2568,9 @@ TEST(DebugStepFunctionCall) {
       "foo");
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(isolate, DebugEventStep);
-  step_action = StepIn;
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
+  run_step.set_step_action(StepIn);
 
   // Check stepping where the if condition in bar is false.
   break_point_hit_count = 0;
@@ -3373,11 +2584,12 @@ TEST(DebugStepFunctionCall) {
   foo->Call(context, env->Global(), argc, argv).ToLocalChecked();
   CHECK_EQ(8, break_point_hit_count);
 
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
-  SetDebugEventListener(isolate, DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
@@ -3385,18 +2597,18 @@ TEST(DebugStepFunctionCall) {
   // Without stepping only the debugger statement is hit.
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(isolate, nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 // Test that step in works with Function.call.apply.
 TEST(DebugStepFunctionCallApply) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping.
   v8::Local<v8::Function> foo =
       CompileFunction(&env,
@@ -3409,18 +2621,20 @@ TEST(DebugStepFunctionCallApply) {
                       "foo");
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(isolate, DebugEventStep);
-  step_action = StepIn;
+  DebugEventCounter run_step;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &run_step);
+  run_step.set_step_action(StepIn);
 
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(6, break_point_hit_count);
 
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
-  SetDebugEventListener(isolate, DebugEventBreakPointHitCount);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
@@ -3428,22 +2642,22 @@ TEST(DebugStepFunctionCallApply) {
   // Without stepping only the debugger statement is hit.
   CHECK_EQ(1, break_point_hit_count);
 
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(isolate, nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 // Tests that breakpoint will be hit if it's set in script.
 TEST(PauseInScript) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
-  env.ExposeDebug();
 
   // Register a debug event listener which counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventCounter);
+  DebugEventCounter event_counter;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &event_counter);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a script that returns a function.
   const char* src = "(function (evt) {})";
   const char* script_name = "StepInHandlerTest";
@@ -3456,7 +2670,8 @@ TEST(PauseInScript) {
 
   // Set breakpoint in the script.
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()));
+      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()),
+      isolate);
   i::Handle<i::String> condition = isolate->factory()->empty_string();
   int position = 0;
   int id;
@@ -3468,421 +2683,27 @@ TEST(PauseInScript) {
   CHECK(r->IsFunction());
   CHECK_EQ(1, break_point_hit_count);
 
-  // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  // Get rid of the debug delegate.
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
-
-static void DebugEventCounterCheck(int caught, int uncaught, int message) {
-  CHECK_EQ(caught, exception_hit_count);
-  CHECK_EQ(uncaught, uncaught_exception_hit_count);
-  CHECK_EQ(message, message_callback_count);
-}
-
-
-// Test break on exceptions. For each exception break combination the number
-// of debug event exception callbacks and message callbacks are collected. The
-// number of debug event exception callbacks are used to check that the
-// debugger is called correctly and the number of message callbacks is used to
-// check that uncaught exceptions are still returned even if there is a break
-// for them.
-TEST(BreakOnException) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  env.ExposeDebug();
-
-  v8::Local<v8::Context> context = env.context();
-  // Create functions for testing break on exception.
-  CompileFunction(&env, "function throws(){throw 1;}", "throws");
-  v8::Local<v8::Function> caught =
-      CompileFunction(&env,
-                      "function caught(){try {throws();} catch(e) {};}",
-                      "caught");
-  v8::Local<v8::Function> notCaught =
-      CompileFunction(&env, "function notCaught(){throws();}", "notCaught");
-  v8::Local<v8::Function> notCaughtFinally = CompileFunction(
-      &env, "function notCaughtFinally(){try{throws();}finally{}}",
-      "notCaughtFinally");
-  // In this edge case, even though this finally does not propagate the
-  // exception, the debugger considers this uncaught, since we want to break
-  // at the first throw for the general case where finally implicitly rethrows.
-  v8::Local<v8::Function> edgeCaseFinally = CompileFunction(
-      &env, "function caughtFinally(){L:try{throws();}finally{break L;}}",
-      "caughtFinally");
-
-  env->GetIsolate()->AddMessageListener(MessageCallbackCount);
-  SetDebugEventListener(env->GetIsolate(), DebugEventCounter);
-
-  // Initial state should be no break on exceptions.
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(0, 0, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(0, 0, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 2);
-
-  // No break on exception
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnException(false, false);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(0, 0, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(0, 0, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 2);
-
-  // Break on uncaught exception
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnException(false, true);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(1, 1, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(2, 2, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(3, 3, 2);
-
-  // Break on exception and uncaught exception
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnException(true, true);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(1, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(2, 1, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(3, 2, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(4, 3, 2);
-
-  // Break on exception
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnException(true, false);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(1, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(2, 1, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(3, 2, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(4, 3, 2);
-
-  // No break on exception using JavaScript
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnExceptionFromJS(env->GetIsolate(), false, false);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(0, 0, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(0, 0, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 2);
-
-  // Break on uncaught exception using JavaScript
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnExceptionFromJS(env->GetIsolate(), false, true);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(1, 1, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(2, 2, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(3, 3, 2);
-
-  // Break on exception and uncaught exception using JavaScript
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnExceptionFromJS(env->GetIsolate(), true, true);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(1, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(2, 1, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(3, 2, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(4, 3, 2);
-
-  // Break on exception using JavaScript
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnExceptionFromJS(env->GetIsolate(), true, false);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(1, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(2, 1, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(3, 2, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(4, 3, 2);
-
-  // No break on exception using native API
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnExceptionFromAPI(env->GetIsolate(),
-                                v8::debug::NoBreakOnException);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(0, 0, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(0, 0, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 2);
-
-  // // Break on uncaught exception using native API
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnExceptionFromAPI(env->GetIsolate(),
-                                v8::debug::BreakOnUncaughtException);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(0, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(1, 1, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(2, 2, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(3, 3, 2);
-
-  // // Break on exception and uncaught exception using native API
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-  ChangeBreakOnExceptionFromAPI(env->GetIsolate(),
-                                v8::debug::BreakOnAnyException);
-  caught->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(1, 0, 0);
-  CHECK(notCaught->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(2, 1, 1);
-  CHECK(notCaughtFinally->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  DebugEventCounterCheck(3, 2, 2);
-  edgeCaseFinally->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  DebugEventCounterCheck(4, 3, 2);
-
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
-  env->GetIsolate()->RemoveMessageListeners(MessageCallbackCount);
-}
-
-
-static void try_finally_original_message(v8::Local<v8::Message> message,
-                                         v8::Local<v8::Value> data) {
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  CHECK_EQ(2, message->GetLineNumber(context).FromJust());
-  CHECK_EQ(2, message->GetStartColumn(context).FromJust());
-  message_callback_count++;
-}
-
-
-TEST(TryFinallyOriginalMessage) {
-  // Test that the debugger plays nicely with the pending message.
-  message_callback_count = 0;
-  DebugEventCounterClear();
-  DebugLocalContext env;
-  v8::Isolate* isolate = CcTest::isolate();
-  isolate->AddMessageListener(try_finally_original_message);
-  SetDebugEventListener(isolate, DebugEventCounter);
-  ChangeBreakOnException(true, true);
-  v8::HandleScope scope(isolate);
-  CompileRun(
-      "try {\n"
-      "  throw 1;\n"
-      "} finally {\n"
-      "}\n");
-  DebugEventCounterCheck(1, 1, 1);
-  SetDebugEventListener(isolate, nullptr);
-  isolate->RemoveMessageListeners(try_finally_original_message);
-}
-
-
-// Test break on exception from compiler errors. When compiling using
-// v8::Script::Compile there is no JavaScript stack whereas when compiling using
-// eval there are JavaScript frames.
-TEST(BreakOnCompileException) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  v8::Local<v8::Context> context = env.context();
-  // For this test, we want to break on uncaught exceptions:
-  ChangeBreakOnException(false, true);
-
-  // Create a function for checking the function when hitting a break point.
-  frame_count = CompileFunction(&env, frame_count_source, "frame_count");
-
-  env->GetIsolate()->AddMessageListener(MessageCallbackCount);
-  SetDebugEventListener(env->GetIsolate(), DebugEventCounter);
-
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-
-  // Check initial state.
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
-  CHECK_EQ(-1, last_js_stack_height);
-
-  // Throws SyntaxError: Unexpected end of input
-  CHECK(
-      v8::Script::Compile(context, v8_str(env->GetIsolate(), "+++")).IsEmpty());
-  // Exceptions with no stack are skipped.
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
-  CHECK_EQ(0, last_js_stack_height);  // No JavaScript stack.
-
-  // Throws SyntaxError: Unexpected identifier
-  CHECK(
-      v8::Script::Compile(context, v8_str(env->GetIsolate(), "x x")).IsEmpty());
-  // Exceptions with no stack are skipped.
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(2, message_callback_count);
-  CHECK_EQ(0, last_js_stack_height);  // No JavaScript stack.
-
-  // Throws SyntaxError: Unexpected end of input
-  CHECK(v8::Script::Compile(context, v8_str(env->GetIsolate(), "eval('+++')"))
-            .ToLocalChecked()
-            ->Run(context)
-            .IsEmpty());
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(3, message_callback_count);
-  CHECK_EQ(1, last_js_stack_height);
-
-  // Throws SyntaxError: Unexpected identifier
-  CHECK(v8::Script::Compile(context, v8_str(env->GetIsolate(), "eval('x x')"))
-            .ToLocalChecked()
-            ->Run(context)
-            .IsEmpty());
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(2, uncaught_exception_hit_count);
-  CHECK_EQ(4, message_callback_count);
-  CHECK_EQ(1, last_js_stack_height);
-}
-
-
-TEST(StepWithException) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  // For this test, we want to break on uncaught exceptions:
-  ChangeBreakOnException(false, true);
-
-  // Create a function for checking the function when hitting a break point.
-  frame_function_name = CompileFunction(&env,
-                                        frame_function_name_source,
-                                        "frame_function_name");
-
-  // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventStepSequence);
-
-  v8::Local<v8::Context> context = env.context();
-  // Create functions for testing stepping.
-  const char* src = "function a() { n(); }; "
-                    "function b() { c(); }; "
-                    "function c() { n(); }; "
-                    "function d() { x = 1; try { e(); } catch(x) { x = 2; } }; "
-                    "function e() { n(); }; "
-                    "function f() { x = 1; try { g(); } catch(x) { x = 2; } }; "
-                    "function g() { h(); }; "
-                    "function h() { x = 1; throw 1; }; ";
-
-  // Step through invocation of a.
-  ClearStepping();
-  v8::Local<v8::Function> a = CompileFunction(&env, src, "a");
-  SetBreakPoint(a, 0);
-  step_action = StepIn;
-  break_point_hit_count = 0;
-  expected_step_sequence = "aa";
-  CHECK(a->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Step through invocation of b + c.
-  ClearStepping();
-  v8::Local<v8::Function> b = CompileFunction(&env, src, "b");
-  SetBreakPoint(b, 0);
-  step_action = StepIn;
-  break_point_hit_count = 0;
-  expected_step_sequence = "bcc";
-  CHECK(b->Call(context, env->Global(), 0, nullptr).IsEmpty());
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Step through invocation of d + e.
-  ClearStepping();
-  v8::Local<v8::Function> d = CompileFunction(&env, src, "d");
-  SetBreakPoint(d, 0);
-  ChangeBreakOnException(false, true);
-  step_action = StepIn;
-  break_point_hit_count = 0;
-  expected_step_sequence = "ddedd";
-  d->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Step through invocation of d + e now with break on caught exceptions.
-  ChangeBreakOnException(true, true);
-  step_action = StepIn;
-  break_point_hit_count = 0;
-  expected_step_sequence = "ddeedd";
-  d->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Step through invocation of f + g + h.
-  ClearStepping();
-  v8::Local<v8::Function> f = CompileFunction(&env, src, "f");
-  SetBreakPoint(f, 0);
-  ChangeBreakOnException(false, true);
-  step_action = StepIn;
-  break_point_hit_count = 0;
-  expected_step_sequence = "ffghhff";
-  f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Step through invocation of f + g + h now with break on caught exceptions.
-  ChangeBreakOnException(true, true);
-  step_action = StepIn;
-  break_point_hit_count = 0;
-  expected_step_sequence = "ffghhhff";
-  f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(StrLength(expected_step_sequence),
-           break_point_hit_count);
-
-  // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
-}
-
+int message_callback_count = 0;
 
 TEST(DebugBreak) {
   i::FLAG_stress_compaction = false;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which sets the break flag and counts.
-  SetDebugEventListener(isolate, DebugEventBreak);
+  DebugEventBreak delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping.
   const char* src = "function f0() {}"
                     "function f1(x1) {}"
@@ -3905,7 +2726,7 @@ TEST(DebugBreak) {
   f3->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   // Call all functions with different argument count.
   break_point_hit_count = 0;
@@ -3920,48 +2741,51 @@ TEST(DebugBreak) {
   CHECK_EQ(4 * arraysize(argv), break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
-static void DebugScopingListener(const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  if (event != v8::Exception) return;
+class DebugScopingListener : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(
+      v8::Local<v8::Context>,
+      const std::vector<v8::debug::BreakpointId>&) override {
+    auto stack_traces =
+        v8::debug::StackTraceIterator::Create(CcTest::isolate());
+    v8::debug::Location location = stack_traces->GetSourceLocation();
+    CHECK_EQ(26, location.GetColumnNumber());
+    CHECK_EQ(0, location.GetLineNumber());
 
-  auto stack_traces = v8::debug::StackTraceIterator::Create(CcTest::isolate());
-  v8::debug::Location location = stack_traces->GetSourceLocation();
-  CHECK_EQ(26, location.GetColumnNumber());
-  CHECK_EQ(0, location.GetLineNumber());
+    auto scopes = stack_traces->GetScopeIterator();
+    CHECK_EQ(v8::debug::ScopeIterator::ScopeTypeWith, scopes->GetType());
+    CHECK_EQ(20, scopes->GetStartLocation().GetColumnNumber());
+    CHECK_EQ(31, scopes->GetEndLocation().GetColumnNumber());
 
-  auto scopes = stack_traces->GetScopeIterator();
-  CHECK_EQ(v8::debug::ScopeIterator::ScopeTypeWith, scopes->GetType());
-  CHECK_EQ(20, scopes->GetStartLocation().GetColumnNumber());
-  CHECK_EQ(31, scopes->GetEndLocation().GetColumnNumber());
+    scopes->Advance();
+    CHECK_EQ(v8::debug::ScopeIterator::ScopeTypeLocal, scopes->GetType());
+    CHECK_EQ(0, scopes->GetStartLocation().GetColumnNumber());
+    CHECK_EQ(68, scopes->GetEndLocation().GetColumnNumber());
 
-  scopes->Advance();
-  CHECK_EQ(v8::debug::ScopeIterator::ScopeTypeLocal, scopes->GetType());
-  CHECK_EQ(0, scopes->GetStartLocation().GetColumnNumber());
-  CHECK_EQ(68, scopes->GetEndLocation().GetColumnNumber());
+    scopes->Advance();
+    CHECK_EQ(v8::debug::ScopeIterator::ScopeTypeGlobal, scopes->GetType());
 
-  scopes->Advance();
-  CHECK_EQ(v8::debug::ScopeIterator::ScopeTypeGlobal, scopes->GetType());
-  CHECK(scopes->GetFunction().IsEmpty());
-
-  scopes->Advance();
-  CHECK(scopes->Done());
-}
+    scopes->Advance();
+    CHECK(scopes->Done());
+  }
+};
 
 TEST(DebugBreakInWrappedScript) {
   i::FLAG_stress_compaction = false;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which sets the break flag and counts.
-  SetDebugEventListener(isolate, DebugScopingListener);
+  DebugScopingListener delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
 
   static const char* source =
       //   0         1         2         3         4         5         6 7
@@ -3975,18 +2799,18 @@ TEST(DebugBreakInWrappedScript) {
     v8::ScriptCompiler::Source script_source(v8_str(source));
     v8::Local<v8::Function> fun =
         v8::ScriptCompiler::CompileFunctionInContext(
-            env.context(), &script_source, 0, nullptr, 0, nullptr)
+            env.local(), &script_source, 0, nullptr, 0, nullptr)
             .ToLocalChecked();
     v8::Local<v8::Value> result =
-        fun->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+        fun->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
     CHECK(result->IsString());
     CHECK(v8::Local<v8::String>::Cast(result)
-              ->Equals(env.context(), v8_str(expect))
+              ->Equals(env.local(), v8_str(expect))
               .FromJust());
   }
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -3995,16 +2819,17 @@ TEST(DebugBreakWithoutJS) {
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
-  v8::Local<v8::Context> context = env.context();
   v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
 
   // Register a debug event listener which sets the break flag and counts.
-  SetDebugEventListener(isolate, DebugEventBreak);
+  DebugEventBreak delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   v8::Local<v8::String> json = v8_str("[1]");
   v8::Local<v8::Value> parsed = v8::JSON::Parse(context, json).ToLocalChecked();
@@ -4017,30 +2842,31 @@ TEST(DebugBreakWithoutJS) {
   CHECK_EQ(1, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 // Test to ensure that JavaScript code keeps running while the debug break
 // through the stack limit flag is set but breaks are disabled.
 TEST(DisableBreak) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which sets the break flag and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventCounter);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping.
   const char* src = "function f() {g()};function g(){i=0; while(i<10){i++}}";
   v8::Local<v8::Function> f = CompileFunction(&env, src, "f");
 
   // Set, test and cancel debug break.
-  v8::debug::DebugBreak(env->GetIsolate());
-  v8::debug::CancelDebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
+  v8::debug::ClearBreakOnNextFunctionCall(env->GetIsolate());
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   // Call all functions with different argument count.
   break_point_hit_count = 0;
@@ -4048,7 +2874,7 @@ TEST(DisableBreak) {
   CHECK_EQ(1, break_point_hit_count);
 
   {
-    v8::debug::DebugBreak(env->GetIsolate());
+    v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
     v8::internal::DisableBreak disable_break(isolate->debug());
     f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
@@ -4059,16 +2885,18 @@ TEST(DisableBreak) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 TEST(DisableDebuggerStatement) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which sets the break flag and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventCounter);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+
   CompileRun("debugger;");
   CHECK_EQ(1, break_point_hit_count);
 
@@ -4077,6 +2905,8 @@ TEST(DisableDebuggerStatement) {
   isolate->debug()->set_break_points_active(false);
   CompileRun("debugger;");
   CHECK_EQ(1, break_point_hit_count);
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
 }
 
 static const char* kSimpleExtensionSource =
@@ -4091,10 +2921,11 @@ TEST(NoBreakWhenBootstrapping) {
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which sets the break flag and counts.
-  SetDebugEventListener(isolate, DebugEventCounter);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(isolate);
+  v8::debug::SetBreakOnNextFunctionCall(isolate);
   break_point_hit_count = 0;
   {
     // Create a context with an extension to make sure that some JavaScript
@@ -4110,759 +2941,28 @@ TEST(NoBreakWhenBootstrapping) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(isolate, nullptr);
   CheckDebuggerUnloaded();
 }
-
-
-static void NamedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
-  v8::Local<v8::Array> result = v8::Array::New(info.GetIsolate(), 3);
-  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  CHECK(result->Set(context, v8::Integer::New(info.GetIsolate(), 0),
-                    v8_str(info.GetIsolate(), "a"))
-            .FromJust());
-  CHECK(result->Set(context, v8::Integer::New(info.GetIsolate(), 1),
-                    v8_str(info.GetIsolate(), "b"))
-            .FromJust());
-  CHECK(result->Set(context, v8::Integer::New(info.GetIsolate(), 2),
-                    v8_str(info.GetIsolate(), "c"))
-            .FromJust());
-  info.GetReturnValue().Set(result);
-}
-
-
-static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Array> result = v8::Array::New(isolate, 2);
-  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  CHECK(result->Set(context, v8::Integer::New(isolate, 0),
-                    v8::Number::New(isolate, 1))
-            .FromJust());
-  CHECK(result->Set(context, v8::Integer::New(isolate, 1),
-                    v8::Number::New(isolate, 10))
-            .FromJust());
-  info.GetReturnValue().Set(result);
-}
-
-
-static void NamedGetter(v8::Local<v8::Name> name,
-                        const v8::PropertyCallbackInfo<v8::Value>& info) {
-  if (name->IsSymbol()) return;
-  v8::String::Utf8Value n(CcTest::isolate(), v8::Local<v8::String>::Cast(name));
-  if (strcmp(*n, "a") == 0) {
-    info.GetReturnValue().Set(v8_str(info.GetIsolate(), "AA"));
-    return;
-  } else if (strcmp(*n, "b") == 0) {
-    info.GetReturnValue().Set(v8_str(info.GetIsolate(), "BB"));
-    return;
-  } else if (strcmp(*n, "c") == 0) {
-    info.GetReturnValue().Set(v8_str(info.GetIsolate(), "CC"));
-    return;
-  } else {
-    info.GetReturnValue().SetUndefined();
-    return;
-  }
-}
-
-
-static void IndexedGetter(uint32_t index,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(static_cast<double>(index + 1));
-}
-
-
-TEST(InterceptorPropertyMirror) {
-  // Create a V8 environment with debug access.
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  env.ExposeDebug();
-
-  v8::Local<v8::Context> context = env.context();
-  // Create object with named interceptor.
-  v8::Local<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
-  named->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      NamedGetter, nullptr, nullptr, nullptr, NamedEnum));
-  CHECK(env->Global()
-            ->Set(context, v8_str(isolate, "intercepted_named"),
-                  named->NewInstance(context).ToLocalChecked())
-            .FromJust());
-
-  // Create object with indexed interceptor.
-  v8::Local<v8::ObjectTemplate> indexed = v8::ObjectTemplate::New(isolate);
-  indexed->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      IndexedGetter, nullptr, nullptr, nullptr, IndexedEnum));
-  CHECK(env->Global()
-            ->Set(context, v8_str(isolate, "intercepted_indexed"),
-                  indexed->NewInstance(context).ToLocalChecked())
-            .FromJust());
-
-  // Create object with both named and indexed interceptor.
-  v8::Local<v8::ObjectTemplate> both = v8::ObjectTemplate::New(isolate);
-  both->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      NamedGetter, nullptr, nullptr, nullptr, NamedEnum));
-  both->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      IndexedGetter, nullptr, nullptr, nullptr, IndexedEnum));
-  CHECK(env->Global()
-            ->Set(context, v8_str(isolate, "intercepted_both"),
-                  both->NewInstance(context).ToLocalChecked())
-            .FromJust());
-
-  // Get mirrors for the three objects with interceptor.
-  CompileRun(
-      "var named_mirror = debug.MakeMirror(intercepted_named);"
-      "var indexed_mirror = debug.MakeMirror(intercepted_indexed);"
-      "var both_mirror = debug.MakeMirror(intercepted_both)");
-  CHECK(CompileRun("named_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-  CHECK(CompileRun("indexed_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-  CHECK(CompileRun("both_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-
-  // Get the property names from the interceptors
-  CompileRun(
-      "named_names = named_mirror.propertyNames();"
-      "indexed_names = indexed_mirror.propertyNames();"
-      "both_names = both_mirror.propertyNames()");
-  CHECK_EQ(3, CompileRun("named_names.length")->Int32Value(context).FromJust());
-  CHECK_EQ(2,
-           CompileRun("indexed_names.length")->Int32Value(context).FromJust());
-  CHECK_EQ(5, CompileRun("both_names.length")->Int32Value(context).FromJust());
-
-  // Check the expected number of properties.
-  const char* source;
-  source = "named_mirror.properties().length";
-  CHECK_EQ(3, CompileRun(source)->Int32Value(context).FromJust());
-
-  source = "indexed_mirror.properties().length";
-  CHECK_EQ(2, CompileRun(source)->Int32Value(context).FromJust());
-
-  source = "both_mirror.properties().length";
-  CHECK_EQ(5, CompileRun(source)->Int32Value(context).FromJust());
-
-  // Get the interceptor properties for the object with only named interceptor.
-  CompileRun("var named_values = named_mirror.properties()");
-
-  // Check that the properties are interceptor properties.
-  for (int i = 0; i < 3; i++) {
-    EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
-    SNPrintF(buffer,
-             "named_values[%d] instanceof debug.PropertyMirror", i);
-    CHECK(CompileRun(buffer.start())->BooleanValue(context).FromJust());
-
-    SNPrintF(buffer, "named_values[%d].isNative()", i);
-    CHECK(CompileRun(buffer.start())->BooleanValue(context).FromJust());
-  }
-
-  // Get the interceptor properties for the object with only indexed
-  // interceptor.
-  CompileRun("var indexed_values = indexed_mirror.properties()");
-
-  // Check that the properties are interceptor properties.
-  for (int i = 0; i < 2; i++) {
-    EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
-    SNPrintF(buffer,
-             "indexed_values[%d] instanceof debug.PropertyMirror", i);
-    CHECK(CompileRun(buffer.start())->BooleanValue(context).FromJust());
-  }
-
-  // Get the interceptor properties for the object with both types of
-  // interceptors.
-  CompileRun("var both_values = both_mirror.properties()");
-
-  // Check that the properties are interceptor properties.
-  for (int i = 0; i < 5; i++) {
-    EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
-    SNPrintF(buffer, "both_values[%d] instanceof debug.PropertyMirror", i);
-    CHECK(CompileRun(buffer.start())->BooleanValue(context).FromJust());
-  }
-
-  // Check the property names.
-  source = "both_values[0].name() == '1'";
-  CHECK(CompileRun(source)->BooleanValue(context).FromJust());
-
-  source = "both_values[1].name() == '10'";
-  CHECK(CompileRun(source)->BooleanValue(context).FromJust());
-
-  source = "both_values[2].name() == 'a'";
-  CHECK(CompileRun(source)->BooleanValue(context).FromJust());
-
-  source = "both_values[3].name() == 'b'";
-  CHECK(CompileRun(source)->BooleanValue(context).FromJust());
-
-  source = "both_values[4].name() == 'c'";
-  CHECK(CompileRun(source)->BooleanValue(context).FromJust());
-}
-
-
-TEST(HiddenPrototypePropertyMirror) {
-  // Create a V8 environment with debug access.
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  env.ExposeDebug();
-
-  v8::Local<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New(isolate);
-  t0->InstanceTemplate()->Set(v8_str(isolate, "x"),
-                              v8::Number::New(isolate, 0));
-  v8::Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
-  t1->SetHiddenPrototype(true);
-  t1->InstanceTemplate()->Set(v8_str(isolate, "y"),
-                              v8::Number::New(isolate, 1));
-  v8::Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New(isolate);
-  t2->SetHiddenPrototype(true);
-  t2->InstanceTemplate()->Set(v8_str(isolate, "z"),
-                              v8::Number::New(isolate, 2));
-  v8::Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New(isolate);
-  t3->InstanceTemplate()->Set(v8_str(isolate, "u"),
-                              v8::Number::New(isolate, 3));
-
-  v8::Local<v8::Context> context = env.context();
-  // Create object and set them on the global object.
-  v8::Local<v8::Object> o0 = t0->GetFunction(context)
-                                 .ToLocalChecked()
-                                 ->NewInstance(context)
-                                 .ToLocalChecked();
-  CHECK(env->Global()->Set(context, v8_str(isolate, "o0"), o0).FromJust());
-  v8::Local<v8::Object> o1 = t1->GetFunction(context)
-                                 .ToLocalChecked()
-                                 ->NewInstance(context)
-                                 .ToLocalChecked();
-  CHECK(env->Global()->Set(context, v8_str(isolate, "o1"), o1).FromJust());
-  v8::Local<v8::Object> o2 = t2->GetFunction(context)
-                                 .ToLocalChecked()
-                                 ->NewInstance(context)
-                                 .ToLocalChecked();
-  CHECK(env->Global()->Set(context, v8_str(isolate, "o2"), o2).FromJust());
-  v8::Local<v8::Object> o3 = t3->GetFunction(context)
-                                 .ToLocalChecked()
-                                 ->NewInstance(context)
-                                 .ToLocalChecked();
-  CHECK(env->Global()->Set(context, v8_str(isolate, "o3"), o3).FromJust());
-
-  // Get mirrors for the four objects.
-  CompileRun(
-      "var o0_mirror = debug.MakeMirror(o0);"
-      "var o1_mirror = debug.MakeMirror(o1);"
-      "var o2_mirror = debug.MakeMirror(o2);"
-      "var o3_mirror = debug.MakeMirror(o3)");
-  CHECK(CompileRun("o0_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-  CHECK(CompileRun("o1_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-  CHECK(CompileRun("o2_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-  CHECK(CompileRun("o3_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-
-  // Check that each object has one property.
-  CHECK_EQ(1, CompileRun("o0_mirror.propertyNames().length")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(1, CompileRun("o1_mirror.propertyNames().length")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(1, CompileRun("o2_mirror.propertyNames().length")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(1, CompileRun("o3_mirror.propertyNames().length")
-                  ->Int32Value(context)
-                  .FromJust());
-
-  // Set o1 as prototype for o0. o1 has the hidden prototype flag so all
-  // properties on o1 should be seen on o0.
-  CHECK(o0->Set(context, v8_str(isolate, "__proto__"), o1).FromJust());
-  CHECK_EQ(2, CompileRun("o0_mirror.propertyNames().length")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(0, CompileRun("o0_mirror.property('x').value().value()")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(1, CompileRun("o0_mirror.property('y').value().value()")
-                  ->Int32Value(context)
-                  .FromJust());
-
-  // Set o2 as prototype for o0 (it will end up after o1 as o1 has the hidden
-  // prototype flag. o2 also has the hidden prototype flag so all properties
-  // on o2 should be seen on o0 as well as properties on o1.
-  CHECK(o0->Set(context, v8_str(isolate, "__proto__"), o2).FromJust());
-  CHECK_EQ(3, CompileRun("o0_mirror.propertyNames().length")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(0, CompileRun("o0_mirror.property('x').value().value()")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(1, CompileRun("o0_mirror.property('y').value().value()")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(2, CompileRun("o0_mirror.property('z').value().value()")
-                  ->Int32Value(context)
-                  .FromJust());
-
-  // Set o3 as prototype for o0 (it will end up after o1 and o2 as both o1 and
-  // o2 has the hidden prototype flag. o3 does not have the hidden prototype
-  // flag so properties on o3 should not be seen on o0 whereas the properties
-  // from o1 and o2 should still be seen on o0.
-  // Final prototype chain: o0 -> o1 -> o2 -> o3
-  // Hidden prototypes:           ^^    ^^
-  CHECK(o0->Set(context, v8_str(isolate, "__proto__"), o3).FromJust());
-  CHECK_EQ(3, CompileRun("o0_mirror.propertyNames().length")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(1, CompileRun("o3_mirror.propertyNames().length")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(0, CompileRun("o0_mirror.property('x').value().value()")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(1, CompileRun("o0_mirror.property('y').value().value()")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK_EQ(2, CompileRun("o0_mirror.property('z').value().value()")
-                  ->Int32Value(context)
-                  .FromJust());
-  CHECK(CompileRun("o0_mirror.property('u').isUndefined()")
-            ->BooleanValue(context)
-            .FromJust());
-
-  // The prototype (__proto__) for o0 should be o3 as o1 and o2 are hidden.
-  CHECK(CompileRun("o0_mirror.protoObject().value() == o3_mirror.value()")
-            ->BooleanValue(context)
-            .FromJust());
-}
-
-
-static void ProtperyXNativeGetter(
-    v8::Local<v8::String> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(10);
-}
-
-
-TEST(NativeGetterPropertyMirror) {
-  // Create a V8 environment with debug access.
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  env.ExposeDebug();
-
-  v8::Local<v8::Context> context = env.context();
-  v8::Local<v8::String> name = v8_str(isolate, "x");
-  // Create object with named accessor.
-  v8::Local<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
-  named->SetAccessor(name, &ProtperyXNativeGetter, nullptr,
-                     v8::Local<v8::Value>(), v8::DEFAULT, v8::None);
-
-  // Create object with named property getter.
-  CHECK(env->Global()
-            ->Set(context, v8_str(isolate, "instance"),
-                  named->NewInstance(context).ToLocalChecked())
-            .FromJust());
-  CHECK_EQ(10, CompileRun("instance.x")->Int32Value(context).FromJust());
-
-  // Get mirror for the object with property getter.
-  CompileRun("var instance_mirror = debug.MakeMirror(instance);");
-  CHECK(CompileRun("instance_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-
-  CompileRun("var named_names = instance_mirror.propertyNames();");
-  CHECK_EQ(1, CompileRun("named_names.length")->Int32Value(context).FromJust());
-  CHECK(CompileRun("named_names[0] == 'x'")->BooleanValue(context).FromJust());
-  CHECK(CompileRun("instance_mirror.property('x').value().isNumber()")
-            ->BooleanValue(context)
-            .FromJust());
-  CHECK(CompileRun("instance_mirror.property('x').value().value() == 10")
-            ->BooleanValue(context)
-            .FromJust());
-}
-
-
-static void ProtperyXNativeGetterThrowingError(
-    v8::Local<v8::String> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CompileRun("throw new Error('Error message');");
-}
-
-
-TEST(NativeGetterThrowingErrorPropertyMirror) {
-  // Create a V8 environment with debug access.
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  env.ExposeDebug();
-
-  v8::Local<v8::Context> context = env.context();
-  v8::Local<v8::String> name = v8_str(isolate, "x");
-  // Create object with named accessor.
-  v8::Local<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
-  named->SetAccessor(name, &ProtperyXNativeGetterThrowingError, nullptr,
-                     v8::Local<v8::Value>(), v8::DEFAULT, v8::None);
-
-  // Create object with named property getter.
-  CHECK(env->Global()
-            ->Set(context, v8_str(isolate, "instance"),
-                  named->NewInstance(context).ToLocalChecked())
-            .FromJust());
-
-  // Get mirror for the object with property getter.
-  CompileRun("var instance_mirror = debug.MakeMirror(instance);");
-  CHECK(CompileRun("instance_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-  CompileRun("named_names = instance_mirror.propertyNames();");
-  CHECK_EQ(1, CompileRun("named_names.length")->Int32Value(context).FromJust());
-  CHECK(CompileRun("named_names[0] == 'x'")->BooleanValue(context).FromJust());
-  CHECK(CompileRun("instance_mirror.property('x').value().isError()")
-            ->BooleanValue(context)
-            .FromJust());
-
-  // Check that the message is that passed to the Error constructor.
-  CHECK(
-      CompileRun(
-          "instance_mirror.property('x').value().message() == 'Error message'")
-          ->BooleanValue(context)
-          .FromJust());
-}
-
-
-// Test that hidden properties object is not returned as an unnamed property
-// among regular properties.
-// See http://crbug.com/26491
-TEST(NoHiddenProperties) {
-  // Create a V8 environment with debug access.
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  env.ExposeDebug();
-
-  v8::Local<v8::Context> context = env.context();
-  // Create an object in the global scope.
-  const char* source = "var obj = {a: 1};";
-  v8::Script::Compile(context, v8_str(isolate, source))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(
-      env->Global()->Get(context, v8_str(isolate, "obj")).ToLocalChecked());
-  // Set a hidden property on the object.
-  obj->SetPrivate(
-         env.context(),
-         v8::Private::New(isolate, v8_str(isolate, "v8::test-debug::a")),
-         v8::Int32::New(isolate, 11))
-      .FromJust();
-
-  // Get mirror for the object with property getter.
-  CompileRun("var obj_mirror = debug.MakeMirror(obj);");
-  CHECK(CompileRun("obj_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-  CompileRun("var named_names = obj_mirror.propertyNames();");
-  // There should be exactly one property. But there is also an unnamed
-  // property whose value is hidden properties dictionary. The latter
-  // property should not be in the list of reguar properties.
-  CHECK_EQ(1, CompileRun("named_names.length")->Int32Value(context).FromJust());
-  CHECK(CompileRun("named_names[0] == 'a'")->BooleanValue(context).FromJust());
-  CHECK(CompileRun("obj_mirror.property('a').value().value() == 1")
-            ->BooleanValue(context)
-            .FromJust());
-
-  // Object created by t0 will become hidden prototype of object 'obj'.
-  v8::Local<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New(isolate);
-  t0->InstanceTemplate()->Set(v8_str(isolate, "b"),
-                              v8::Number::New(isolate, 2));
-  t0->SetHiddenPrototype(true);
-  v8::Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
-  t1->InstanceTemplate()->Set(v8_str(isolate, "c"),
-                              v8::Number::New(isolate, 3));
-
-  // Create proto objects, add hidden properties to them and set them on
-  // the global object.
-  v8::Local<v8::Object> protoObj = t0->GetFunction(context)
-                                       .ToLocalChecked()
-                                       ->NewInstance(context)
-                                       .ToLocalChecked();
-  protoObj->SetPrivate(
-              env.context(),
-              v8::Private::New(isolate, v8_str(isolate, "v8::test-debug::b")),
-              v8::Int32::New(isolate, 12))
-      .FromJust();
-  CHECK(env->Global()
-            ->Set(context, v8_str(isolate, "protoObj"), protoObj)
-            .FromJust());
-  v8::Local<v8::Object> grandProtoObj = t1->GetFunction(context)
-                                            .ToLocalChecked()
-                                            ->NewInstance(context)
-                                            .ToLocalChecked();
-  grandProtoObj->SetPrivate(env.context(),
-                            v8::Private::New(
-                                isolate, v8_str(isolate, "v8::test-debug::c")),
-                            v8::Int32::New(isolate, 13))
-      .FromJust();
-  CHECK(env->Global()
-            ->Set(context, v8_str(isolate, "grandProtoObj"), grandProtoObj)
-            .FromJust());
-
-  // Setting prototypes: obj->protoObj->grandProtoObj
-  CHECK(protoObj->Set(context, v8_str(isolate, "__proto__"), grandProtoObj)
-            .FromJust());
-  CHECK(obj->Set(context, v8_str(isolate, "__proto__"), protoObj).FromJust());
-
-  // Get mirror for the object with property getter.
-  CompileRun("var obj_mirror = debug.MakeMirror(obj);");
-  CHECK(CompileRun("obj_mirror instanceof debug.ObjectMirror")
-            ->BooleanValue(context)
-            .FromJust());
-  CompileRun("var named_names = obj_mirror.propertyNames();");
-  // There should be exactly two properties - one from the object itself and
-  // another from its hidden prototype.
-  CHECK_EQ(2, CompileRun("named_names.length")->Int32Value(context).FromJust());
-  CHECK(CompileRun("named_names.sort(); named_names[0] == 'a' &&"
-                   "named_names[1] == 'b'")
-            ->BooleanValue(context)
-            .FromJust());
-  CHECK(CompileRun("obj_mirror.property('a').value().value() == 1")
-            ->BooleanValue(context)
-            .FromJust());
-  CHECK(CompileRun("obj_mirror.property('b').value().value() == 2")
-            ->BooleanValue(context)
-            .FromJust());
-}
-
 
 TEST(SetDebugEventListenerOnUninitializedVM) {
   v8::HandleScope scope(CcTest::isolate());
   EnableDebugger(CcTest::isolate());
 }
 
-// Source for a JavaScript function which returns the data parameter of a
-// function called in the context of the debugger. If no data parameter is
-// passed it throws an exception.
-static const char* debugger_call_with_data_source =
-    "function debugger_call_with_data(exec_state, data) {"
-    "  if (data) return data;"
-    "  throw 'No data!'"
-    "}";
-v8::Local<v8::Function> debugger_call_with_data;
-
-
-// Source for a JavaScript function which returns the data parameter of a
-// function called in the context of the debugger. If no data parameter is
-// passed it throws an exception.
-static const char* debugger_call_with_closure_source =
-    "var x = 3;"
-    "(function (exec_state) {"
-    "  if (exec_state.y) return x - 1;"
-    "  exec_state.y = x;"
-    "  return exec_state.y"
-    "})";
-v8::Local<v8::Function> debugger_call_with_closure;
-
-// Function to retrieve the number of JavaScript frames by calling a JavaScript
-// in the debugger.
-static void CheckFrameCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-  CHECK(v8::debug::Call(context, frame_count).ToLocalChecked()->IsNumber());
-  CHECK_EQ(args[0]->Int32Value(context).FromJust(),
-           v8::debug::Call(context, frame_count)
-               .ToLocalChecked()
-               ->Int32Value(context)
-               .FromJust());
-}
-
-
-// Function to retrieve the source line of the top JavaScript frame by calling a
-// JavaScript function in the debugger.
-static void CheckSourceLine(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-  CHECK(
-      v8::debug::Call(context, frame_source_line).ToLocalChecked()->IsNumber());
-  CHECK_EQ(args[0]->Int32Value(context).FromJust(),
-           v8::debug::Call(context, frame_source_line)
-               .ToLocalChecked()
-               ->Int32Value(context)
-               .FromJust());
-}
-
-
-// Function to test passing an additional parameter to a JavaScript function
-// called in the debugger. It also tests that functions called in the debugger
-// can throw exceptions.
-static void CheckDataParameter(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Local<v8::String> data = v8_str(args.GetIsolate(), "Test");
-  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-  CHECK(v8::debug::Call(context, debugger_call_with_data, data)
-            .ToLocalChecked()
-            ->IsString());
-
-  for (int i = 0; i < 3; i++) {
-    v8::TryCatch catcher(args.GetIsolate());
-    CHECK(v8::debug::Call(context, debugger_call_with_data).IsEmpty());
-    CHECK(catcher.HasCaught());
-    CHECK(catcher.Exception()->IsString());
-  }
-}
-
-
-// Function to test using a JavaScript with closure in the debugger.
-static void CheckClosure(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-  CHECK(v8::debug::Call(context, debugger_call_with_closure)
-            .ToLocalChecked()
-            ->IsNumber());
-  CHECK_EQ(3, v8::debug::Call(context, debugger_call_with_closure)
-                  .ToLocalChecked()
-                  ->Int32Value(context)
-                  .FromJust());
-}
-
-
-// Test functions called through the debugger.
-TEST(CallFunctionInDebugger) {
-  // Create and enter a context with the functions CheckFrameCount,
-  // CheckSourceLine and CheckDataParameter installed.
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::ObjectTemplate> global_template =
-      v8::ObjectTemplate::New(isolate);
-  global_template->Set(v8_str(isolate, "CheckFrameCount"),
-                       v8::FunctionTemplate::New(isolate, CheckFrameCount));
-  global_template->Set(v8_str(isolate, "CheckSourceLine"),
-                       v8::FunctionTemplate::New(isolate, CheckSourceLine));
-  global_template->Set(v8_str(isolate, "CheckDataParameter"),
-                       v8::FunctionTemplate::New(isolate, CheckDataParameter));
-  global_template->Set(v8_str(isolate, "CheckClosure"),
-                       v8::FunctionTemplate::New(isolate, CheckClosure));
-  v8::Local<v8::Context> context =
-      v8::Context::New(isolate, nullptr, global_template);
-  v8::Context::Scope context_scope(context);
-
-  // Compile a function for checking the number of JavaScript frames.
-  v8::Script::Compile(context, v8_str(isolate, frame_count_source))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  frame_count = v8::Local<v8::Function>::Cast(
-      context->Global()
-          ->Get(context, v8_str(isolate, "frame_count"))
-          .ToLocalChecked());
-
-  // Compile a function for returning the source line for the top frame.
-  v8::Script::Compile(context, v8_str(isolate, frame_source_line_source))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  frame_source_line = v8::Local<v8::Function>::Cast(
-      context->Global()
-          ->Get(context, v8_str(isolate, "frame_source_line"))
-          .ToLocalChecked());
-
-  // Compile a function returning the data parameter.
-  v8::Script::Compile(context, v8_str(isolate, debugger_call_with_data_source))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  debugger_call_with_data = v8::Local<v8::Function>::Cast(
-      context->Global()
-          ->Get(context, v8_str(isolate, "debugger_call_with_data"))
-          .ToLocalChecked());
-
-  // Compile a function capturing closure.
-  debugger_call_with_closure = v8::Local<v8::Function>::Cast(
-      v8::Script::Compile(context,
-                          v8_str(isolate, debugger_call_with_closure_source))
-          .ToLocalChecked()
-          ->Run(context)
-          .ToLocalChecked());
-
-  // Calling a function through the debugger returns 0 frames if there are
-  // no JavaScript frames.
-  CHECK(v8::Integer::New(isolate, 0)
-            ->Equals(context,
-                     v8::debug::Call(context, frame_count).ToLocalChecked())
-            .FromJust());
-
-  // Test that the number of frames can be retrieved.
-  v8::Script::Compile(context, v8_str(isolate, "CheckFrameCount(1)"))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  v8::Script::Compile(context, v8_str(isolate,
-                                      "function f() {"
-                                      "  CheckFrameCount(2);"
-                                      "}; f()"))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-
-  // Test that the source line can be retrieved.
-  v8::Script::Compile(context, v8_str(isolate, "CheckSourceLine(0)"))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  v8::Script::Compile(context, v8_str(isolate,
-                                      "function f() {\n"
-                                      "  CheckSourceLine(1)\n"
-                                      "  CheckSourceLine(2)\n"
-                                      "  CheckSourceLine(3)\n"
-                                      "}; f()"))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-
-  // Test that a parameter can be passed to a function called in the debugger.
-  v8::Script::Compile(context, v8_str(isolate, "CheckDataParameter()"))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-
-  // Test that a function with closure can be run in the debugger.
-  v8::Script::Compile(context, v8_str(isolate, "CheckClosure()"))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-
-  // Test that the source line is correct when there is a line offset.
-  v8::ScriptOrigin origin(v8_str(isolate, "test"),
-                          v8::Integer::New(isolate, 7));
-  v8::Script::Compile(context, v8_str(isolate, "CheckSourceLine(7)"), &origin)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  v8::Script::Compile(context, v8_str(isolate,
-                                      "function f() {\n"
-                                      "  CheckSourceLine(8)\n"
-                                      "  CheckSourceLine(9)\n"
-                                      "  CheckSourceLine(10)\n"
-                                      "}; f()"),
-                      &origin)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-}
-
-
 // Test that clearing the debug event listener actually clears all break points
 // and related information.
 TEST(DebuggerUnload) {
-  DebugLocalContext env;
-
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
   // Check debugger is unloaded before it is used.
   CheckDebuggerUnloaded();
 
   // Set a debug event listener.
   break_point_hit_count = 0;
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
-  v8::Local<v8::Context> context = env.context();
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::Local<v8::Context> context = env.local();
   {
     v8::HandleScope scope(env->GetIsolate());
     // Create a couple of functions for the test.
@@ -4887,41 +2987,11 @@ TEST(DebuggerUnload) {
 
   // Remove the debug event listener without clearing breakpoints. Do this
   // outside a handle scope.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 int event_listener_hit_count = 0;
-
-// Debugger event listener which clears itself while active.
-static void EventListenerClearingItself(
-    const v8::Debug::EventDetails& details) {
-  event_listener_hit_count++;
-
-  // Clear debug event listener.
-  SetDebugEventListener(details.GetIsolate(), nullptr);
-}
-
-
-// Test clearing the debug message handler while processing a debug event.
-TEST(DebuggerClearEventListenerWhileActive) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  // Check debugger is unloaded before it is used.
-  CheckDebuggerUnloaded();
-
-  // Set a debug event listener.
-  SetDebugEventListener(env->GetIsolate(), EventListenerClearingItself);
-
-  // Run code to throw an uncaught exception. This should trigger the listener.
-  CompileRun("throw 1");
-
-  // The event listener should have been called.
-  CHECK_EQ(1, event_listener_hit_count);
-
-  CheckDebuggerUnloaded();
-}
 
 // Test for issue http://code.google.com/p/v8/issues/detail?id=289.
 // Make sure that DebugGetLoadedScripts doesn't return scripts
@@ -4932,15 +3002,15 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
   virtual ~EmptyExternalStringResource() {}
   virtual size_t length() const { return empty_.length(); }
   virtual const uint16_t* data() const { return empty_.start(); }
+
  private:
   ::v8::internal::EmbeddedVector<uint16_t, 1> empty_;
 };
 
 TEST(DebugScriptLineEndsAreAscending) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  env.ExposeDebug();
 
   // Compile a test script.
   v8::Local<v8::String> script = v8_str(isolate,
@@ -4950,21 +3020,19 @@ TEST(DebugScriptLineEndsAreAscending) {
 
   v8::ScriptOrigin origin1 = v8::ScriptOrigin(v8_str(isolate, "name"));
   v8::Local<v8::Script> script1 =
-      v8::Script::Compile(env.context(), script, &origin1).ToLocalChecked();
+      v8::Script::Compile(env.local(), script, &origin1).ToLocalChecked();
   USE(script1);
 
   Handle<v8::internal::FixedArray> instances;
   {
     v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-    v8::internal::DebugScope debug_scope(debug);
-    CHECK(!debug_scope.failed());
     instances = debug->GetLoadedScripts();
   }
 
   CHECK_GT(instances->length(), 0);
   for (int i = 0; i < instances->length(); i++) {
     Handle<v8::internal::Script> script = Handle<v8::internal::Script>(
-        v8::internal::Script::cast(instances->get(i)));
+        v8::internal::Script::cast(instances->get(i)), CcTest::i_isolate());
 
     v8::internal::Script::InitLineEnds(script);
     v8::internal::FixedArray* ends =
@@ -4980,105 +3048,41 @@ TEST(DebugScriptLineEndsAreAscending) {
   }
 }
 
-
-// Test script break points set on lines.
-TEST(ScriptNameAndData) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  env.ExposeDebug();
-
-  // Create functions for retrieving script name and data for the function on
-  // the top frame when hitting a break point.
-  frame_script_name = CompileFunction(&env,
-                                      frame_script_name_source,
-                                      "frame_script_name");
-
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
-
-  v8::Local<v8::Context> context = env.context();
-  // Test function source.
-  v8::Local<v8::String> script = v8_str(env->GetIsolate(),
-                                        "function f() {\n"
-                                        "  debugger;\n"
-                                        "}\n");
-
-  v8::ScriptOrigin origin1 =
-      v8::ScriptOrigin(v8_str(env->GetIsolate(), "name"));
-  v8::Local<v8::Script> script1 =
-      v8::Script::Compile(context, script, &origin1).ToLocalChecked();
-  script1->Run(context).ToLocalChecked();
-  v8::Local<v8::Function> f;
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-
-  f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(1, break_point_hit_count);
-  CHECK_EQ(0, strcmp("name", last_script_name_hit));
-
-  // Compile the same script again without setting data. As the compilation
-  // cache is disabled when debugging expect the data to be missing.
-  v8::Script::Compile(context, script, &origin1)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-  f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(2, break_point_hit_count);
-  CHECK_EQ(0, strcmp("name", last_script_name_hit));
-
-  v8::Local<v8::String> data_obj_source =
-      v8_str(env->GetIsolate(),
-             "({ a: 'abc',\n"
-             "  b: 123,\n"
-             "  toString: function() { return this.a + ' ' + this.b; }\n"
-             "})\n");
-  v8::Script::Compile(context, data_obj_source)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  v8::ScriptOrigin origin2 =
-      v8::ScriptOrigin(v8_str(env->GetIsolate(), "new name"));
-  v8::Local<v8::Script> script2 =
-      v8::Script::Compile(context, script, &origin2).ToLocalChecked();
-  script2->Run(context).ToLocalChecked();
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-  f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(3, break_point_hit_count);
-  CHECK_EQ(0, strcmp("new name", last_script_name_hit));
-
-  v8::Local<v8::Script> script3 =
-      v8::Script::Compile(context, script, &origin2).ToLocalChecked();
-  script3->Run(context).ToLocalChecked();
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-  f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(4, break_point_hit_count);
-}
-
-
 static v8::Local<v8::Context> expected_context;
 static v8::Local<v8::Value> expected_context_data;
 
+class ContextCheckEventListener : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             const std::vector<v8::debug::BreakpointId>&
+                                 inspector_break_points_hit) override {
+    CheckContext();
+  }
+  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+                      bool has_compile_error) override {
+    CheckContext();
+  }
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise,
+                       bool is_uncaught) override {
+    CheckContext();
+  }
+  bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
+                            const v8::debug::Location& start,
+                            const v8::debug::Location& end) override {
+    CheckContext();
+    return false;
+  }
 
-// Check that the expected context is the one generating the debug event.
-static void ContextCheckEventListener(
-    const v8::Debug::EventDetails& event_details) {
-  CHECK(event_details.GetEventContext() == expected_context);
-  CHECK(event_details.GetEventContext()->GetEmbedderData(0)->StrictEquals(
-      expected_context_data));
-  event_listener_hit_count++;
-}
-
+ private:
+  void CheckContext() {
+    v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+    CHECK(context == expected_context);
+    CHECK(context->GetEmbedderData(0)->StrictEquals(expected_context_data));
+    event_listener_hit_count++;
+  }
+};
 
 // Test which creates two contexts and sets different embedder data on each.
 // Checks that this data is set correctly and that when the debug event
@@ -5098,7 +3102,8 @@ TEST(ContextData) {
   context_2 =
       v8::Context::New(isolate, nullptr, global_template, global_object);
 
-  SetDebugEventListener(isolate, ContextCheckEventListener);
+  ContextCheckEventListener delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
 
   // Default data value is undefined.
   CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
@@ -5124,7 +3129,6 @@ TEST(ContextData) {
     f->Call(context_1, context_1->Global(), 0, nullptr).ToLocalChecked();
   }
 
-
   // Enter and run function in the second context.
   {
     v8::Context::Scope context_scope(context_2);
@@ -5137,125 +3141,9 @@ TEST(ContextData) {
   // Two times compile event and two times break event.
   CHECK_GT(event_listener_hit_count, 3);
 
-  SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(isolate, nullptr);
   CheckDebuggerUnloaded();
 }
-
-// Debug event listener which issues a debug break when it hits a break event.
-static int event_listener_break_hit_count = 0;
-static void DebugBreakEventListener(const v8::Debug::EventDetails& details) {
-  // Schedule a debug break for break events.
-  if (details.GetEvent() == v8::Break) {
-    event_listener_break_hit_count++;
-    if (event_listener_break_hit_count == 1) {
-      v8::debug::DebugBreak(details.GetIsolate());
-    }
-  }
-}
-
-// Test that a debug break can be scheduled while in a event listener.
-TEST(DebugBreakInEventListener) {
-  i::FLAG_turbo_inlining = false;  // Make sure g is not inlined into f.
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  SetDebugEventListener(env->GetIsolate(), DebugBreakEventListener);
-
-  v8::Local<v8::Context> context = env.context();
-  // Test functions.
-  const char* script = "function f() { debugger; g(); } function g() { }";
-  CompileRun(script);
-  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-  v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "g"))
-          .ToLocalChecked());
-
-  // Call f then g. The debugger statement in f will cause a break which will
-  // cause another break.
-  f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(2, event_listener_break_hit_count);
-  // Calling g will not cause any additional breaks.
-  g->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(2, event_listener_break_hit_count);
-}
-
-
-#ifndef V8_INTERPRETED_REGEXP
-// Debug event handler which gets the function on the top frame and schedules a
-// break a number of times.
-static void DebugEventDebugBreak(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  if (event == v8::Break) {
-    break_point_hit_count++;
-
-    // Get the name of the top frame function.
-    if (!frame_function_name.IsEmpty()) {
-      // Get the name of the function.
-      const int argc = 2;
-      v8::Local<v8::Value> argv[argc] = {
-          exec_state, v8::Integer::New(CcTest::isolate(), 0)};
-      v8::Local<v8::Value> result =
-          frame_function_name->Call(context, exec_state, argc, argv)
-              .ToLocalChecked();
-      if (result->IsUndefined()) {
-        last_function_hit[0] = '\0';
-      } else {
-        CHECK(result->IsString());
-        v8::Local<v8::String> function_name(
-            result->ToString(context).ToLocalChecked());
-        function_name->WriteUtf8(last_function_hit);
-      }
-    }
-
-    // Keep forcing breaks.
-    if (break_point_hit_count < 20) {
-      v8::debug::DebugBreak(CcTest::isolate());
-    }
-  }
-}
-
-
-TEST(RegExpDebugBreak) {
-  // This test only applies to native regexps.
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::Context> context = env.context();
-  // Create a function for checking the function when hitting a break point.
-  frame_function_name = CompileFunction(&env,
-                                        frame_function_name_source,
-                                        "frame_function_name");
-
-  // Test RegExp which matches white spaces and comments at the beginning of a
-  // source line.
-  const char* script =
-    "var sourceLineBeginningSkip = /^(?:[ \\v\\h]*(?:\\/\\*.*?\\*\\/)*)*/;\n"
-    "function f(s) { return s.match(sourceLineBeginningSkip)[0].length; }";
-
-  v8::Local<v8::Function> f = CompileFunction(env->GetIsolate(), script, "f");
-  const int argc = 1;
-  v8::Local<v8::Value> argv[argc] = {
-      v8_str(env->GetIsolate(), "  /* xxx */ a=0;")};
-  v8::Local<v8::Value> result =
-      f->Call(context, env->Global(), argc, argv).ToLocalChecked();
-  CHECK_EQ(12, result->Int32Value(context).FromJust());
-
-  SetDebugEventListener(env->GetIsolate(), DebugEventDebugBreak);
-  v8::debug::DebugBreak(env->GetIsolate());
-  result = f->Call(context, env->Global(), argc, argv).ToLocalChecked();
-
-  // Check that there was only one break event. Matching RegExp should not
-  // cause Break events.
-  CHECK_EQ(1, break_point_hit_count);
-  CHECK_EQ(0, strcmp("f", last_function_hit));
-}
-#endif  // V8_INTERPRETED_REGEXP
 
 // Test which creates a context and sets embedder data on it. Checks that this
 // data is set correctly and that when the debug event listener is called for
@@ -5269,7 +3157,8 @@ TEST(EvalContextData) {
       v8::Local<v8::ObjectTemplate>();
   context_1 = v8::Context::New(CcTest::isolate(), nullptr, global_template);
 
-  SetDebugEventListener(CcTest::isolate(), ContextCheckEventListener);
+  ContextCheckEventListener delegate;
+  v8::debug::SetDebugDelegate(CcTest::isolate(), &delegate);
 
   // Contexts initially do not have embedder data fields.
   CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
@@ -5291,132 +3180,120 @@ TEST(EvalContextData) {
     f->Call(context_1, context_1->Global(), 0, nullptr).ToLocalChecked();
   }
 
-  SetDebugEventListener(CcTest::isolate(), nullptr);
+  v8::debug::SetDebugDelegate(CcTest::isolate(), nullptr);
 
   // One time compile event and one time break event.
   CHECK_GT(event_listener_hit_count, 2);
   CheckDebuggerUnloaded();
 }
 
-
-// Debug event listener which counts the after compile events.
-int after_compile_event_count = 0;
-static void AfterCompileEventListener(const v8::Debug::EventDetails& details) {
-  // Count the number of scripts collected.
-  if (details.GetEvent() == v8::AfterCompile) {
-    after_compile_event_count++;
+// Debug event listener which counts script compiled events.
+class ScriptCompiledDelegate : public v8::debug::DebugDelegate {
+ public:
+  void ScriptCompiled(v8::Local<v8::debug::Script>, bool,
+                      bool has_compile_error) override {
+    if (!has_compile_error) {
+      after_compile_event_count++;
+    } else {
+      compile_error_event_count++;
+    }
   }
-}
 
+  int after_compile_event_count = 0;
+  int compile_error_event_count = 0;
+};
 
 // Tests that after compile event is sent as many times as there are scripts
 // compiled.
 TEST(AfterCompileEventWhenEventListenerIsReset) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   const char* script = "var a=1";
 
-  SetDebugEventListener(env->GetIsolate(), AfterCompileEventListener);
+  ScriptCompiledDelegate delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Script::Compile(context, v8_str(env->GetIsolate(), script))
       .ToLocalChecked()
       ->Run(context)
       .ToLocalChecked();
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
 
-  SetDebugEventListener(env->GetIsolate(), AfterCompileEventListener);
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
   v8::Script::Compile(context, v8_str(env->GetIsolate(), script))
       .ToLocalChecked()
       ->Run(context)
       .ToLocalChecked();
 
   // Setting listener to nullptr should cause debugger unload.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 
   // Compilation cache should be disabled when debugger is active.
-  CHECK_EQ(2, after_compile_event_count);
+  CHECK_EQ(2, delegate.after_compile_event_count);
 }
-
-
-// Syntax error event handler which counts a number of events.
-int compile_error_event_count = 0;
-
-static void CompileErrorEventCounterClear() {
-  compile_error_event_count = 0;
-}
-
-static void CompileErrorEventCounter(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-
-  if (event == v8::CompileError) {
-    compile_error_event_count++;
-  }
-}
-
 
 // Tests that syntax error event is sent as many times as there are scripts
 // with syntax error compiled.
 TEST(SyntaxErrorEventOnSyntaxException) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // For this test, we want to break on uncaught exceptions:
   ChangeBreakOnException(false, true);
 
-  SetDebugEventListener(env->GetIsolate(), CompileErrorEventCounter);
-  v8::Local<v8::Context> context = env.context();
-
-  CompileErrorEventCounterClear();
+  ScriptCompiledDelegate delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::Local<v8::Context> context = env.local();
 
   // Check initial state.
-  CHECK_EQ(0, compile_error_event_count);
+  CHECK_EQ(0, delegate.compile_error_event_count);
 
   // Throws SyntaxError: Unexpected end of input
   CHECK(
       v8::Script::Compile(context, v8_str(env->GetIsolate(), "+++")).IsEmpty());
-  CHECK_EQ(1, compile_error_event_count);
+  CHECK_EQ(1, delegate.compile_error_event_count);
 
   CHECK(v8::Script::Compile(context, v8_str(env->GetIsolate(), "/sel\\/: \\"))
             .IsEmpty());
-  CHECK_EQ(2, compile_error_event_count);
+  CHECK_EQ(2, delegate.compile_error_event_count);
 
   v8::Local<v8::Script> script =
       v8::Script::Compile(context,
                           v8_str(env->GetIsolate(), "JSON.parse('1234:')"))
           .ToLocalChecked();
-  CHECK_EQ(2, compile_error_event_count);
+  CHECK_EQ(2, delegate.compile_error_event_count);
   CHECK(script->Run(context).IsEmpty());
-  CHECK_EQ(3, compile_error_event_count);
+  CHECK_EQ(3, delegate.compile_error_event_count);
 
   v8::Script::Compile(context,
                       v8_str(env->GetIsolate(), "new RegExp('/\\/\\\\');"))
       .ToLocalChecked();
-  CHECK_EQ(3, compile_error_event_count);
+  CHECK_EQ(3, delegate.compile_error_event_count);
 
   v8::Script::Compile(context, v8_str(env->GetIsolate(), "throw 1;"))
       .ToLocalChecked();
-  CHECK_EQ(3, compile_error_event_count);
+  CHECK_EQ(3, delegate.compile_error_event_count);
 }
 
 // Tests that break event is sent when event listener is reset.
 TEST(BreakEventWhenEventListenerIsReset) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   const char* script = "function f() {};";
 
-  SetDebugEventListener(env->GetIsolate(), AfterCompileEventListener);
+  ScriptCompiledDelegate delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Script::Compile(context, v8_str(env->GetIsolate(), script))
       .ToLocalChecked()
       ->Run(context)
       .ToLocalChecked();
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
 
-  SetDebugEventListener(env->GetIsolate(), AfterCompileEventListener);
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
   v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "f"))
@@ -5424,70 +3301,50 @@ TEST(BreakEventWhenEventListenerIsReset) {
   f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // Setting event listener to nullptr should cause debugger unload.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 
   // Compilation cache should be disabled when debugger is active.
-  CHECK_EQ(1, after_compile_event_count);
+  CHECK_EQ(1, delegate.after_compile_event_count);
 }
 
+// Tests that script is reported as compiled when bound to context.
+TEST(AfterCompileEventOnBindToContext) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  ScriptCompiledDelegate delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
 
-static int exception_event_count = 0;
-static void ExceptionEventListener(const v8::Debug::EventDetails& details) {
-  if (details.GetEvent() == v8::Exception) exception_event_count++;
-}
-
-// Tests that exception event is sent when event listener is reset.
-TEST(ExceptionEventWhenEventListenerIsReset) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  v8::Local<v8::Context> context = env.context();
-  // For this test, we want to break on uncaught exceptions:
-  ChangeBreakOnException(false, true);
-
-  exception_event_count = 0;
-  const char* script = "function f() {throw new Error()};";
-
-  SetDebugEventListener(env->GetIsolate(), AfterCompileEventListener);
-  v8::Script::Compile(context, v8_str(env->GetIsolate(), script))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-
-  SetDebugEventListener(env->GetIsolate(), ExceptionEventListener);
-  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
+  const char* source = "var a=1";
+  v8::ScriptCompiler::Source script_source(
+      v8::String::NewFromUtf8(isolate, source, v8::NewStringType::kNormal)
           .ToLocalChecked());
-  CHECK(f->Call(context, env->Global(), 0, nullptr).IsEmpty());
 
-  // Setting event listener to nullptr should cause debugger unload.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
+  v8::Local<v8::UnboundScript> unbound =
+      v8::ScriptCompiler::CompileUnboundScript(isolate, &script_source)
+          .ToLocalChecked();
+  CHECK_EQ(delegate.after_compile_event_count, 0);
 
-  CHECK_EQ(1, exception_event_count);
-}
-
-
-static void BreakEventListener(const v8::Debug::EventDetails& details) {
-  if (details.GetEvent() == v8::Break) break_point_hit_count++;
+  unbound->BindToCurrentContext();
+  CHECK_EQ(delegate.after_compile_event_count, 1);
+  v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
 
 // Test that if DebugBreak is forced it is ignored when code from
 // debug-delay.js is executed.
 TEST(NoDebugBreakInAfterCompileEventListener) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
 
   // Register a debug event listener which sets the break flag and counts.
-  SetDebugEventListener(env->GetIsolate(), BreakEventListener);
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   // Set the debug break flag.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   // Create a function for testing stepping.
   const char* src = "function f() { eval('var x = 10;'); } ";
@@ -5497,22 +3354,22 @@ TEST(NoDebugBreakInAfterCompileEventListener) {
   CHECK_EQ(1, break_point_hit_count);
 
   // Set the debug break flag again.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
   f->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
   // There should be one more break event when the script is evaluated in 'f'.
   CHECK_EQ(2, break_point_hit_count);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
 
 // Test that the debug break flag works with function.apply.
 TEST(DebugBreakFunctionApply) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
 
   // Create a function for testing breaking in apply.
   v8::Local<v8::Function> foo = CompileFunction(
@@ -5523,10 +3380,11 @@ TEST(DebugBreakFunctionApply) {
       "foo");
 
   // Register a debug event listener which steps and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakMax);
+  DebugEventBreakMax delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   // Set the debug break flag before calling the code using function.apply.
-  v8::debug::DebugBreak(env->GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
   // Limit the number of debug breaks. This is a regression test for issue 493
   // where this test would enter an infinite loop.
@@ -5537,299 +3395,9 @@ TEST(DebugBreakFunctionApply) {
   // When keeping the debug break several break will happen.
   CHECK_GT(break_point_hit_count, 1);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
-
-
-v8::Local<v8::Context> debugee_context;
-v8::Local<v8::Context> debugger_context;
-
-
-// Property getter that checks that current and calling contexts
-// are both the debugee contexts.
-static void NamedGetterWithCallingContextCheck(
-    v8::Local<v8::String> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(info.GetIsolate(), name), "a"));
-  v8::Local<v8::Context> current = info.GetIsolate()->GetCurrentContext();
-  CHECK(current == debugee_context);
-  CHECK(current != debugger_context);
-  info.GetReturnValue().Set(1);
-}
-
-
-// Debug event listener that checks if the first argument of a function is
-// an object with property 'a' == 1. If the property has custom accessor
-// this handler will eventually invoke it.
-static void DebugEventGetAtgumentPropertyValue(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
-  if (event == v8::Break) {
-    break_point_hit_count++;
-    CHECK(debugger_context == CcTest::isolate()->GetCurrentContext());
-    v8::Local<v8::Function> func = v8::Local<v8::Function>::Cast(CompileRun(
-        "(function(exec_state) {\n"
-        "    return (exec_state.frame(0).argumentValue(0).property('a').\n"
-        "            value().value() == 1);\n"
-        "})"));
-    const int argc = 1;
-    v8::Local<v8::Value> argv[argc] = {exec_state};
-    v8::Local<v8::Value> result =
-        func->Call(debugger_context, exec_state, argc, argv).ToLocalChecked();
-    CHECK(result->IsTrue());
-  }
-}
-
-
-TEST(CallingContextIsNotDebugContext) {
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  // Create and enter a debugee context.
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  env.ExposeDebug();
-
-  // Save handles to the debugger and debugee contexts to be used in
-  // NamedGetterWithCallingContextCheck.
-  debugee_context = env.context();
-  debugger_context = v8::Utils::ToLocal(debug->debug_context());
-
-  // Create object with 'a' property accessor.
-  v8::Local<v8::ObjectTemplate> named = v8::ObjectTemplate::New(isolate);
-  named->SetAccessor(v8_str(isolate, "a"), NamedGetterWithCallingContextCheck);
-  CHECK(env->Global()
-            ->Set(debugee_context, v8_str(isolate, "obj"),
-                  named->NewInstance(debugee_context).ToLocalChecked())
-            .FromJust());
-
-  // Register the debug event listener
-  SetDebugEventListener(isolate, DebugEventGetAtgumentPropertyValue);
-
-  // Create a function that invokes debugger.
-  v8::Local<v8::Function> foo = CompileFunction(
-      &env,
-      "function bar(x) { debugger; }"
-      "function foo(){ bar(obj); }",
-      "foo");
-
-  break_point_hit_count = 0;
-  foo->Call(debugee_context, env->Global(), 0, nullptr).ToLocalChecked();
-  CHECK_EQ(1, break_point_hit_count);
-
-  SetDebugEventListener(isolate, nullptr);
-  debugee_context = v8::Local<v8::Context>();
-  debugger_context = v8::Local<v8::Context>();
-  CheckDebuggerUnloaded();
-}
-
-
-static v8::Local<v8::Value> expected_callback_data;
-static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
-  CHECK(details.GetEventContext() == expected_context);
-  CHECK(expected_callback_data->Equals(details.GetEventContext(),
-                                       details.GetCallbackData())
-            .FromJust());
-}
-
-
-// Check that event details contain context where debug event occurred.
-TEST(DebugEventContext) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  expected_context = v8::Context::New(isolate);
-  expected_callback_data = v8::Int32::New(isolate, 2010);
-  SetDebugEventListener(isolate, DebugEventContextChecker,
-                        expected_callback_data);
-  v8::Context::Scope context_scope(expected_context);
-  v8::Script::Compile(expected_context,
-                      v8_str(isolate, "(function(){debugger;})();"))
-      .ToLocalChecked()
-      ->Run(expected_context)
-      .ToLocalChecked();
-  expected_context.Clear();
-  SetDebugEventListener(isolate, nullptr);
-  expected_context_data = v8::Local<v8::Value>();
-  CheckDebuggerUnloaded();
-}
-
-
-static bool debug_event_break_deoptimize_done = false;
-
-static void DebugEventBreakDeoptimize(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  if (event == v8::Break) {
-    if (!frame_function_name.IsEmpty()) {
-      // Get the name of the function.
-      const int argc = 2;
-      v8::Local<v8::Value> argv[argc] = {
-          exec_state, v8::Integer::New(CcTest::isolate(), 0)};
-      v8::Local<v8::Value> result =
-          frame_function_name->Call(context, exec_state, argc, argv)
-              .ToLocalChecked();
-      if (!result->IsUndefined()) {
-        char fn[80];
-        CHECK(result->IsString());
-        v8::Local<v8::String> function_name(
-            result->ToString(context).ToLocalChecked());
-        function_name->WriteUtf8(fn);
-        if (strcmp(fn, "bar") == 0) {
-          i::Deoptimizer::DeoptimizeAll(CcTest::i_isolate());
-          debug_event_break_deoptimize_done = true;
-        }
-      }
-    }
-
-    v8::debug::DebugBreak(CcTest::isolate());
-  }
-}
-
-
-// Test deoptimization when execution is broken using the debug break stack
-// check interrupt.
-TEST(DeoptimizeDuringDebugBreak) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  env.ExposeDebug();
-  v8::Local<v8::Context> context = env.context();
-
-  // Create a function for checking the function when hitting a break point.
-  frame_function_name = CompileFunction(&env,
-                                        frame_function_name_source,
-                                        "frame_function_name");
-
-  // Set a debug event listener which will keep interrupting execution until
-  // debug break. When inside function bar it will deoptimize all functions.
-  // This tests lazy deoptimization bailout for the stack check, as the first
-  // time in function bar when using debug break and no break points will be at
-  // the initial stack check.
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakDeoptimize);
-
-  // Compile and run function bar which will optimize it for some flag settings.
-  v8::Local<v8::Function> f = CompileFunction(&env, "function bar(){}", "bar");
-  f->Call(context, v8::Undefined(env->GetIsolate()), 0, nullptr)
-      .ToLocalChecked();
-
-  // Set debug break and call bar again.
-  v8::debug::DebugBreak(env->GetIsolate());
-  f->Call(context, v8::Undefined(env->GetIsolate()), 0, nullptr)
-      .ToLocalChecked();
-
-  CHECK(debug_event_break_deoptimize_done);
-
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-}
-
-
-static void DebugEventBreakWithOptimizedStack(
-    const v8::Debug::EventDetails& event_details) {
-  v8::Isolate* isolate = event_details.GetEventContext()->GetIsolate();
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  if (event == v8::Break) {
-    if (!frame_function_name.IsEmpty()) {
-      for (int i = 0; i < 2; i++) {
-        const int argc = 2;
-        v8::Local<v8::Value> argv[argc] = {exec_state,
-                                           v8::Integer::New(isolate, i)};
-        // Get the name of the function in frame i.
-        v8::Local<v8::Value> result =
-            frame_function_name->Call(context, exec_state, argc, argv)
-                .ToLocalChecked();
-        CHECK(result->IsString());
-        v8::Local<v8::String> function_name(
-            result->ToString(context).ToLocalChecked());
-        CHECK(
-            function_name->Equals(context, v8_str(isolate, "loop")).FromJust());
-        // Get the name of the first argument in frame i.
-        result = frame_argument_name->Call(context, exec_state, argc, argv)
-                     .ToLocalChecked();
-        CHECK(result->IsString());
-        v8::Local<v8::String> argument_name(
-            result->ToString(context).ToLocalChecked());
-        CHECK(argument_name->Equals(context, v8_str(isolate, "count"))
-                  .FromJust());
-        // Get the value of the first argument in frame i. If the
-        // function is optimized the value will be undefined, otherwise
-        // the value will be '1 - i'.
-        //
-        // TODO(3141533): We should be able to get the real value for
-        // optimized frames.
-        result = frame_argument_value->Call(context, exec_state, argc, argv)
-                     .ToLocalChecked();
-        CHECK(result->IsUndefined() ||
-              (result->Int32Value(context).FromJust() == 1 - i));
-        // Get the name of the first local variable.
-        result = frame_local_name->Call(context, exec_state, argc, argv)
-                     .ToLocalChecked();
-        CHECK(result->IsString());
-        v8::Local<v8::String> local_name(
-            result->ToString(context).ToLocalChecked());
-        CHECK(local_name->Equals(context, v8_str(isolate, "local")).FromJust());
-        // Get the value of the first local variable. If the function
-        // is optimized the value will be undefined, otherwise it will
-        // be 42.
-        //
-        // TODO(3141533): We should be able to get the real value for
-        // optimized frames.
-        result = frame_local_value->Call(context, exec_state, argc, argv)
-                     .ToLocalChecked();
-        CHECK(result->IsUndefined() ||
-              (result->Int32Value(context).FromJust() == 42));
-      }
-    }
-  }
-}
-
-
-static void ScheduleBreak(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  SetDebugEventListener(args.GetIsolate(), DebugEventBreakWithOptimizedStack);
-  v8::debug::DebugBreak(args.GetIsolate());
-}
-
-
-TEST(DebugBreakStackInspection) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::Context> context = env.context();
-
-  frame_function_name =
-      CompileFunction(&env, frame_function_name_source, "frame_function_name");
-  frame_argument_name =
-      CompileFunction(&env, frame_argument_name_source, "frame_argument_name");
-  frame_argument_value = CompileFunction(&env,
-                                         frame_argument_value_source,
-                                         "frame_argument_value");
-  frame_local_name =
-      CompileFunction(&env, frame_local_name_source, "frame_local_name");
-  frame_local_value =
-      CompileFunction(&env, frame_local_value_source, "frame_local_value");
-
-  v8::Local<v8::FunctionTemplate> schedule_break_template =
-      v8::FunctionTemplate::New(env->GetIsolate(), ScheduleBreak);
-  v8::Local<v8::Function> schedule_break =
-      schedule_break_template->GetFunction(context).ToLocalChecked();
-  CHECK(env->Global()
-            ->Set(context, v8_str("scheduleBreak"), schedule_break)
-            .FromJust());
-
-  const char* src =
-      "function loop(count) {"
-      "  var local = 42;"
-      "  if (count < 1) { scheduleBreak(); loop(count + 1); }"
-      "}"
-      "loop(0);";
-  v8::Script::Compile(context, v8_str(env->GetIsolate(), src))
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-}
-
 
 // Test that setting the terminate execution flag during debug break processing.
 static void TestDebugBreakInLoop(const char* loop_head,
@@ -5842,7 +3410,7 @@ static void TestDebugBreakInLoop(const char* loop_head,
     // Perform a lazy deoptimization after various numbers of breaks
     // have been hit.
 
-    EmbeddedVector<char, 1024> buffer;
+    i::EmbeddedVector<char, 1024> buffer;
     SNPrintF(buffer, "function f() {%s%s%s}", loop_head, loop_bodies[i],
              loop_tail);
 
@@ -5862,7 +3430,7 @@ static void TestDebugBreakInLoop(const char* loop_head,
       CompileRun(buffer.start());
 
       // Set the debug break to enter the debugger as soon as possible.
-      v8::debug::DebugBreak(CcTest::isolate());
+      v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
 
       // Call function with infinite loop.
       CompileRun("f();");
@@ -5891,11 +3459,12 @@ static const char* loop_bodies_2[] = {
 
 void DebugBreakLoop(const char* loop_header, const char** loop_bodies,
                     const char* loop_footer) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   // Register a debug event listener which sets the break flag and counts.
-  SetDebugEventListener(env->GetIsolate(), DebugEventBreakMax);
+  DebugEventBreakMax delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   CompileRun(
       "var a = 1;\n"
@@ -5905,7 +3474,7 @@ void DebugBreakLoop(const char* loop_header, const char** loop_bodies,
   TestDebugBreakInLoop(loop_header, loop_bodies, loop_footer);
 
   // Get rid of the debug event listener.
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
 
@@ -5965,50 +3534,29 @@ TEST(DebugBreakInForCondition2) {
   DebugBreakLoop("for (;a == 1;) {", loop_bodies_2, "}");
 }
 
+class DebugBreakInlineListener : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             const std::vector<v8::debug::BreakpointId>&
+                                 inspector_break_points_hit) override {
+    int expected_frame_count = 4;
+    int expected_line_number[] = {1, 4, 7, 12};
 
-v8::Local<v8::Script> inline_script;
-
-static void DebugBreakInlineListener(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  if (event != v8::Break) return;
-
-  int expected_frame_count = 4;
-  int expected_line_number[] = {1, 4, 7, 12};
-
-  i::Handle<i::Object> compiled_script = v8::Utils::OpenHandle(*inline_script);
-  i::Handle<i::Script> source_script = i::Handle<i::Script>(i::Script::cast(
-      i::JSFunction::cast(*compiled_script)->shared()->script()));
-
-  int break_id = CcTest::i_isolate()->debug()->break_id();
-  char script[128];
-  i::Vector<char> script_vector(script, sizeof(script));
-  SNPrintF(script_vector, "%%GetFrameCount(%d)", break_id);
-  v8::Local<v8::Value> result = CompileRun(script);
-
-  int frame_count = result->Int32Value(context).FromJust();
-  CHECK_EQ(expected_frame_count, frame_count);
-
-  for (int i = 0; i < frame_count; i++) {
-    // The 6. element in the returned array of GetFrameDetails contains the
-    // source position of that frame.
-    SNPrintF(script_vector, "%%GetFrameDetails(%d, %d)[6]", break_id, i);
-    v8::Local<v8::Value> result = CompileRun(script);
-    CHECK_EQ(expected_line_number[i],
-             i::Script::GetLineNumber(source_script,
-                                      result->Int32Value(context).FromJust()));
+    int frame_count = 0;
+    auto iterator = v8::debug::StackTraceIterator::Create(CcTest::isolate());
+    for (; !iterator->Done(); iterator->Advance(), ++frame_count) {
+      v8::debug::Location loc = iterator->GetSourceLocation();
+      CHECK_EQ(expected_line_number[frame_count], loc.GetLineNumber());
+    }
+    CHECK_EQ(frame_count, expected_frame_count);
   }
-  SetDebugEventListener(CcTest::isolate(), nullptr);
-  CcTest::isolate()->TerminateExecution();
-}
-
+};
 
 TEST(DebugBreakInline) {
   i::FLAG_allow_natives_syntax = true;
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::Context> context = env.local();
   const char* source =
       "function debug(b) {             \n"
       "  if (b) debugger;              \n"
@@ -6023,22 +3571,14 @@ TEST(DebugBreakInline) {
       "g(false);                       \n"
       "%OptimizeFunctionOnNextCall(g); \n"
       "g(true);";
-  SetDebugEventListener(env->GetIsolate(), DebugBreakInlineListener);
-  inline_script =
+  DebugBreakInlineListener delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::Local<v8::Script> inline_script =
       v8::Script::Compile(context, v8_str(env->GetIsolate(), source))
           .ToLocalChecked();
   inline_script->Run(context).ToLocalChecked();
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
 }
-
-
-static void DebugEventStepNext(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  if (event == v8::Break) {
-    PrepareStep(StepNext);
-  }
-}
-
 
 static void RunScriptInANewCFrame(const char* source) {
   v8::TryCatch try_catch(CcTest::isolate());
@@ -6056,9 +3596,11 @@ TEST(Regress131642) {
   // recursive call.  In an attempt to step out, we crawl the stack using the
   // recorded frame pointer from the first script and fail when not finding it
   // on the stack.
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  SetDebugEventListener(env->GetIsolate(), DebugEventStepNext);
+  DebugEventCounter delegate;
+  delegate.set_step_action(StepNext);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   // We step through the first script.  It exits through an exception.  We run
   // this inside a new frame to record a different FP than the second script
@@ -6070,74 +3612,28 @@ TEST(Regress131642) {
   const char* script_2 = "[0].forEach(function() { });";
   CompileRun(script_2);
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
 }
 
-
-// Import from test-heap.cc
-namespace v8 {
-namespace internal {
-namespace heap {
-int CountNativeContexts();
-}  // namespace heap
-}  // namespace internal
-}  // namespace v8
-
-static void NopListener(const v8::Debug::EventDetails& event_details) {
-}
-
-
-TEST(DebuggerCreatesContextIffActive) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  CHECK_EQ(1, v8::internal::heap::CountNativeContexts());
-
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CompileRun("debugger;");
-  CHECK_EQ(1, v8::internal::heap::CountNativeContexts());
-
-  SetDebugEventListener(env->GetIsolate(), NopListener);
-  CompileRun("debugger;");
-  CHECK_EQ(2, v8::internal::heap::CountNativeContexts());
-
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-}
-
-
-TEST(LiveEditEnabled) {
-  v8::internal::FLAG_allow_natives_syntax = true;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::debug::SetLiveEditEnabled(env->GetIsolate(), true);
-  CompileRun("%LiveEditCompareStrings('', '')");
-}
-
-
-TEST(LiveEditDisabled) {
-  v8::internal::FLAG_allow_natives_syntax = true;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::debug::SetLiveEditEnabled(env->GetIsolate(), false);
-  CompileRun("%LiveEditCompareStrings('', '')");
-}
-
-
-static void DebugBreakStackTraceListener(
-    const v8::Debug::EventDetails& event_details) {
-  v8::StackTrace::CurrentStackTrace(CcTest::isolate(), 10);
-}
-
+class DebugBreakStackTraceListener : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             const std::vector<v8::debug::BreakpointId>&
+                                 inspector_break_points_hit) override {
+    v8::StackTrace::CurrentStackTrace(CcTest::isolate(), 10);
+  }
+};
 
 static void AddDebugBreak(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::debug::DebugBreak(args.GetIsolate());
+  v8::debug::SetBreakOnNextFunctionCall(args.GetIsolate());
 }
 
-
 TEST(DebugBreakStackTrace) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  SetDebugEventListener(env->GetIsolate(), DebugBreakStackTraceListener);
-  v8::Local<v8::Context> context = env.context();
+  DebugBreakStackTraceListener delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::Local<v8::Context> context = env.local();
   v8::Local<v8::FunctionTemplate> add_debug_break_template =
       v8::FunctionTemplate::New(env->GetIsolate(), AddDebugBreak);
   v8::Local<v8::Function> add_debug_break =
@@ -6158,18 +3654,23 @@ TEST(DebugBreakStackTrace) {
 
 v8::base::Semaphore terminate_requested_semaphore(0);
 v8::base::Semaphore terminate_fired_semaphore(0);
-bool terminate_already_fired = false;
 
+class DebugBreakTriggerTerminate : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             const std::vector<v8::debug::BreakpointId>&
+                                 inspector_break_points_hit) override {
+    if (terminate_already_fired_) return;
+    terminate_requested_semaphore.Signal();
+    // Wait for at most 2 seconds for the terminate request.
+    CHECK(
+        terminate_fired_semaphore.WaitFor(v8::base::TimeDelta::FromSeconds(2)));
+    terminate_already_fired_ = true;
+  }
 
-static void DebugBreakTriggerTerminate(
-    const v8::Debug::EventDetails& event_details) {
-  if (event_details.GetEvent() != v8::Break || terminate_already_fired) return;
-  terminate_requested_semaphore.Signal();
-  // Wait for at most 2 seconds for the terminate request.
-  CHECK(terminate_fired_semaphore.WaitFor(v8::base::TimeDelta::FromSeconds(2)));
-  terminate_already_fired = true;
-}
-
+ private:
+  bool terminate_already_fired_ = false;
+};
 
 class TerminationThread : public v8::base::Thread {
  public:
@@ -6188,25 +3689,155 @@ class TerminationThread : public v8::base::Thread {
 
 
 TEST(DebugBreakOffThreadTerminate) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  SetDebugEventListener(isolate, DebugBreakTriggerTerminate);
+  DebugBreakTriggerTerminate delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
   TerminationThread terminator(isolate);
   terminator.Start();
   v8::TryCatch try_catch(env->GetIsolate());
-  v8::debug::DebugBreak(isolate);
+  env->GetIsolate()->RequestInterrupt(BreakRightNow, nullptr);
   CompileRun("while (true);");
   CHECK(try_catch.HasTerminated());
 }
 
+class ArchiveRestoreThread : public v8::base::Thread,
+                             public v8::debug::DebugDelegate {
+ public:
+  ArchiveRestoreThread(v8::Isolate* isolate, int spawn_count)
+      : Thread(Options("ArchiveRestoreThread")),
+        isolate_(isolate),
+        debug_(reinterpret_cast<i::Isolate*>(isolate_)->debug()),
+        spawn_count_(spawn_count),
+        break_count_(0) {}
 
-static void DebugEventExpectNoException(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  CHECK_NE(v8::Exception, event);
+  virtual void Run() {
+    v8::Locker locker(isolate_);
+    isolate_->Enter();
+
+    v8::HandleScope scope(isolate_);
+    v8::Local<v8::Context> context = v8::Context::New(isolate_);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::Function> test = CompileFunction(isolate_,
+                                                   "function test(n) {\n"
+                                                   "  debugger;\n"
+                                                   "  return n + 1;\n"
+                                                   "}\n",
+                                                   "test");
+
+    debug_->SetDebugDelegate(this);
+    v8::internal::DisableBreak enable_break(debug_, false);
+
+    v8::Local<v8::Value> args[1] = {v8::Integer::New(isolate_, spawn_count_)};
+
+    int result = test->Call(context, context->Global(), 1, args)
+                     .ToLocalChecked()
+                     ->Int32Value(context)
+                     .FromJust();
+
+    // Verify that test(spawn_count_) returned spawn_count_ + 1.
+    CHECK_EQ(spawn_count_ + 1, result);
+
+    isolate_->Exit();
+  }
+
+  void BreakProgramRequested(v8::Local<v8::Context> context,
+                             const std::vector<v8::debug::BreakpointId>&) {
+    auto stack_traces = v8::debug::StackTraceIterator::Create(isolate_);
+    if (!stack_traces->Done()) {
+      v8::debug::Location location = stack_traces->GetSourceLocation();
+
+      i::PrintF("ArchiveRestoreThread #%d hit breakpoint at line %d\n",
+                spawn_count_, location.GetLineNumber());
+
+      switch (location.GetLineNumber()) {
+        case 1:  // debugger;
+          CHECK_EQ(break_count_, 0);
+
+          // Attempt to stop on the next line after the first debugger
+          // statement. If debug->{Archive,Restore}Debug() improperly reset
+          // thread-local debug information, the debugger will fail to stop
+          // before the test function returns.
+          debug_->PrepareStep(StepNext);
+
+          // Spawning threads while handling the current breakpoint verifies
+          // that the parent thread correctly archived and restored the
+          // state necessary to stop on the next line. If not, then control
+          // will simply continue past the `return n + 1` statement.
+          MaybeSpawnChildThread();
+
+          break;
+
+        case 2:  // return n + 1;
+          CHECK_EQ(break_count_, 1);
+          break;
+
+        default:
+          CHECK(false);
+      }
+    }
+
+    ++break_count_;
+  }
+
+  void MaybeSpawnChildThread() {
+    if (spawn_count_ > 1) {
+      v8::Unlocker unlocker(isolate_);
+
+      // Spawn a thread that spawns a thread that spawns a thread (and so
+      // on) so that the ThreadManager is forced to archive and restore
+      // the current thread.
+      ArchiveRestoreThread child(isolate_, spawn_count_ - 1);
+      child.Start();
+      child.Join();
+
+      // The child thread sets itself as the debug delegate, so we need to
+      // usurp it after the child finishes, or else future breakpoints
+      // will be delegated to a destroyed ArchiveRestoreThread object.
+      debug_->SetDebugDelegate(this);
+
+      // This is the most important check in this test, since
+      // child.GetBreakCount() will return 1 if the debugger fails to stop
+      // on the `return n + 1` line after the grandchild thread returns.
+      CHECK_EQ(child.GetBreakCount(), 2);
+    }
+  }
+
+  int GetBreakCount() { return break_count_; }
+
+ private:
+  v8::Isolate* isolate_;
+  v8::internal::Debug* debug_;
+  const int spawn_count_;
+  int break_count_;
+};
+
+TEST(DebugArchiveRestore) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  ArchiveRestoreThread thread(isolate, 5);
+  // Instead of calling thread.Start() and thread.Join() here, we call
+  // thread.Run() directly, to make sure we exercise archive/restore
+  // logic on the *current* thread as well as other threads.
+  thread.Run();
+  CHECK_EQ(thread.GetBreakCount(), 2);
+
+  isolate->Dispose();
 }
 
+class DebugEventExpectNoException : public v8::debug::DebugDelegate {
+ public:
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise,
+                       bool is_uncaught) override {
+    CHECK(false);
+  }
+};
 
 static void TryCatchWrappedThrowCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -6215,13 +3846,13 @@ static void TryCatchWrappedThrowCallback(
   CHECK(try_catch.HasCaught());
 }
 
-
 TEST(DebugPromiseInterceptedByTryCatch) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  SetDebugEventListener(isolate, &DebugEventExpectNoException);
-  v8::Local<v8::Context> context = env.context();
+  DebugEventExpectNoException delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  v8::Local<v8::Context> context = env.local();
   ChangeBreakOnException(false, true);
 
   v8::Local<v8::FunctionTemplate> fun =
@@ -6239,131 +3870,39 @@ TEST(DebugPromiseInterceptedByTryCatch) {
   CHECK(CompileRun("r")->Equals(context, v8_str("resolved")).FromJust());
 }
 
+class NoInterruptsOnDebugEvent : public v8::debug::DebugDelegate {
+ public:
+  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+                      bool has_compile_error) override {
+    ++after_compile_handler_depth_;
+    // Do not allow nested AfterCompile events.
+    CHECK_LE(after_compile_handler_depth_, 1);
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate);
+    isolate->RequestInterrupt(&HandleInterrupt, this);
+    CompileRun("function foo() {}; foo();");
+    --after_compile_handler_depth_;
+  }
 
-static int exception_event_counter = 0;
+ private:
+  static void HandleInterrupt(v8::Isolate* isolate, void* data) {
+    NoInterruptsOnDebugEvent* d = static_cast<NoInterruptsOnDebugEvent*>(data);
+    CHECK_EQ(0, d->after_compile_handler_depth_);
+  }
 
-
-static void DebugEventCountException(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  if (event == v8::Exception) exception_event_counter++;
-}
-
-
-static void ThrowCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CompileRun("throw 'rejection';");
-}
-
-
-TEST(DebugPromiseRejectedByCallback) {
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  SetDebugEventListener(isolate, &DebugEventCountException);
-  v8::Local<v8::Context> context = env.context();
-  ChangeBreakOnException(false, true);
-  exception_event_counter = 0;
-
-  v8::Local<v8::FunctionTemplate> fun =
-      v8::FunctionTemplate::New(isolate, ThrowCallback);
-  CHECK(env->Global()
-            ->Set(context, v8_str("fun"),
-                  fun->GetFunction(context).ToLocalChecked())
-            .FromJust());
-
-  CompileRun("var p = new Promise(function(res, rej) { fun(); res(); });");
-  CompileRun(
-      "var r;"
-      "p.then(function() { r = 'resolved'; },"
-      "       function(e) { r = 'rejected' + e; });");
-  CHECK(
-      CompileRun("r")->Equals(context, v8_str("rejectedrejection")).FromJust());
-  CHECK_EQ(1, exception_event_counter);
-}
-
-
-static void DebugHarmonyScopingListener(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  if (event != v8::Break) return;
-
-  int break_id = CcTest::i_isolate()->debug()->break_id();
-
-  char script[128];
-  i::Vector<char> script_vector(script, sizeof(script));
-  SNPrintF(script_vector, "%%GetFrameCount(%d)", break_id);
-  ExpectInt32(script, 1);
-
-  SNPrintF(script_vector, "var frame = new FrameMirror(%d, 0);", break_id);
-  CompileRun(script);
-  ExpectInt32("frame.evaluate('x').value_", 1);
-  ExpectInt32("frame.evaluate('y').value_", 2);
-
-  CompileRun("var allScopes = frame.allScopes()");
-  ExpectInt32("allScopes.length", 2);
-
-  ExpectBoolean("allScopes[0].scopeType() === ScopeType.Script", true);
-
-  ExpectInt32("allScopes[0].scopeObject().value_.x", 1);
-
-  ExpectInt32("allScopes[0].scopeObject().value_.y", 2);
-
-  CompileRun("allScopes[0].setVariableValue('x', 5);");
-  CompileRun("allScopes[0].setVariableValue('y', 6);");
-  ExpectInt32("frame.evaluate('x + y').value_", 11);
-}
-
-
-TEST(DebugBreakInLexicalScopes) {
-  i::FLAG_allow_natives_syntax = true;
-
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  SetDebugEventListener(isolate, DebugHarmonyScopingListener);
-
-  CompileRun(
-      "'use strict';            \n"
-      "let x = 1;               \n");
-  ExpectInt32(
-      "'use strict';            \n"
-      "let y = 2;               \n"
-      "debugger;                \n"
-      "x * y",
-      30);
-  ExpectInt32(
-      "x = 1; y = 2; \n"
-      "debugger;"
-      "x * y",
-      30);
-}
-
-static int after_compile_handler_depth = 0;
-static void HandleInterrupt(v8::Isolate* isolate, void* data) {
-  CHECK_EQ(0, after_compile_handler_depth);
-}
-
-static void NoInterruptsOnDebugEvent(
-    const v8::Debug::EventDetails& event_details) {
-  if (event_details.GetEvent() != v8::AfterCompile) return;
-  ++after_compile_handler_depth;
-  // Do not allow nested AfterCompile events.
-  CHECK_LE(after_compile_handler_depth, 1);
-  v8::Isolate* isolate = event_details.GetEventContext()->GetIsolate();
-  v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate);
-  isolate->RequestInterrupt(&HandleInterrupt, nullptr);
-  CompileRun("function foo() {}; foo();");
-  --after_compile_handler_depth;
-}
+  int after_compile_handler_depth_ = 0;
+};
 
 TEST(NoInterruptsInDebugListener) {
-  DebugLocalContext env;
-  SetDebugEventListener(env->GetIsolate(), NoInterruptsOnDebugEvent);
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
+  NoInterruptsOnDebugEvent delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   CompileRun("void(0);");
 }
 
 TEST(BreakLocationIterator) {
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
@@ -6377,13 +3916,13 @@ TEST(BreakLocationIterator) {
       "f");
   Handle<i::Object> function_obj = v8::Utils::OpenHandle(*result);
   Handle<i::JSFunction> function = Handle<i::JSFunction>::cast(function_obj);
-  Handle<i::SharedFunctionInfo> shared(function->shared());
+  Handle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
 
   EnableDebugger(isolate);
   CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
   i_isolate->debug()->PrepareFunctionForDebugExecution(shared);
 
-  Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
+  Handle<i::DebugInfo> debug_info(shared->GetDebugInfo(), i_isolate);
 
   {
     i::BreakIterator iterator(debug_info);
@@ -6408,27 +3947,28 @@ TEST(BreakLocationIterator) {
   DisableDebugger(isolate);
 }
 
-size_t current_action = 0;
-StepAction actions[] = {StepNext, StepNext};
-static void DebugStepOverFunctionWithCaughtExceptionListener(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  if (event != v8::Break) return;
-  ++break_point_hit_count;
-  if (current_action >= 2) return;
-  PrepareStep(actions[current_action]);
-}
+class DebugStepOverFunctionWithCaughtExceptionListener
+    : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             const std::vector<v8::debug::BreakpointId>&
+                                 inspector_break_points_hit) override {
+    ++break_point_hit_count;
+    if (break_point_hit_count >= 3) return;
+    PrepareStep(StepNext);
+  }
+  int break_point_hit_count = 0;
+};
 
 TEST(DebugStepOverFunctionWithCaughtException) {
   i::FLAG_allow_natives_syntax = true;
 
-  DebugLocalContext env;
+  LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  SetDebugEventListener(isolate,
-                        DebugStepOverFunctionWithCaughtExceptionListener);
+  DebugStepOverFunctionWithCaughtExceptionListener delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
 
-  break_point_hit_count = 0;
   CompileRun(
       "function foo() {\n"
       "  try { throw new Error(); } catch (e) {}\n"
@@ -6437,8 +3977,8 @@ TEST(DebugStepOverFunctionWithCaughtException) {
       "foo();\n"
       "foo();\n");
 
-  SetDebugEventListener(env->GetIsolate(), nullptr);
-  CHECK_EQ(4, break_point_hit_count);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CHECK_EQ(3, delegate.break_point_hit_count);
 }
 
 bool near_heap_limit_callback_called = false;
@@ -6623,8 +4163,8 @@ TEST(BuiltinsExceptionPrediction) {
   i::Builtins* builtins = iisolate->builtins();
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
-    Code* builtin = builtins->builtin(i);
-    if (builtin->kind() != Code::BUILTIN) continue;
+    i::Code* builtin = builtins->builtin(i);
+    if (builtin->kind() != i::Code::BUILTIN) continue;
     auto prediction = builtin->GetBuiltinCatchPrediction();
     USE(prediction);
   }
@@ -6671,7 +4211,7 @@ TEST(DebugEvaluateNoSideEffect) {
     while (i::HeapObject* obj = iterator.next()) {
       if (!obj->IsJSFunction()) continue;
       i::JSFunction* fun = i::JSFunction::cast(obj);
-      all_functions.emplace_back(fun);
+      all_functions.emplace_back(fun, isolate);
     }
   }
 
@@ -6680,9 +4220,264 @@ TEST(DebugEvaluateNoSideEffect) {
   for (i::Handle<i::JSFunction> fun : all_functions) {
     bool failed = false;
     isolate->debug()->StartSideEffectCheckMode();
-    failed = !isolate->debug()->PerformSideEffectCheck(fun);
+    failed = !isolate->debug()->PerformSideEffectCheck(
+        fun, v8::Utils::OpenHandle(*env->Global()));
     isolate->debug()->StopSideEffectCheckMode();
     if (failed) isolate->clear_pending_exception();
   }
   DisableDebugger(env->GetIsolate());
+}
+
+namespace {
+i::MaybeHandle<i::Script> FindScript(
+    i::Isolate* isolate, const std::vector<i::Handle<i::Script>>& scripts,
+    const char* name) {
+  Handle<i::String> i_name =
+      isolate->factory()->NewStringFromAsciiChecked(name);
+  for (const auto& script : scripts) {
+    if (!script->name()->IsString()) continue;
+    if (i_name->Equals(i::String::cast(script->name()))) return script;
+  }
+  return i::MaybeHandle<i::Script>();
+}
+}  // anonymous namespace
+
+UNINITIALIZED_TEST(LoadedAtStartupScripts) {
+  i::FLAG_expose_gc = true;
+  i::FLAG_expose_natives_as = "natives";
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext context(isolate);
+
+    std::vector<i::Handle<i::Script>> scripts;
+    CompileWithOrigin(v8_str("function foo(){}"), v8_str("normal.js"));
+    std::unordered_map<int, int> count_by_type;
+    {
+      i::DisallowHeapAllocation no_gc;
+      i::Script::Iterator iterator(i_isolate);
+      i::Script* script;
+      while ((script = iterator.Next()) != nullptr) {
+        if (script->type() == i::Script::TYPE_NATIVE &&
+            script->name()->IsUndefined(i_isolate)) {
+          continue;
+        }
+        ++count_by_type[script->type()];
+        scripts.emplace_back(script, i_isolate);
+      }
+    }
+    CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE],
+             i::Natives::GetBuiltinsCount());
+    CHECK_EQ(count_by_type[i::Script::TYPE_EXTENSION], 2);
+    CHECK_EQ(count_by_type[i::Script::TYPE_NORMAL], 1);
+    CHECK_EQ(count_by_type[i::Script::TYPE_WASM], 0);
+    CHECK_EQ(count_by_type[i::Script::TYPE_INSPECTOR], 0);
+
+    i::Handle<i::Script> native_array_script =
+        FindScript(i_isolate, scripts, "native array.js").ToHandleChecked();
+    CHECK_EQ(native_array_script->type(), i::Script::TYPE_NATIVE);
+
+    i::Handle<i::Script> gc_script =
+        FindScript(i_isolate, scripts, "v8/gc").ToHandleChecked();
+    CHECK_EQ(gc_script->type(), i::Script::TYPE_EXTENSION);
+
+    i::Handle<i::Script> normal_script =
+        FindScript(i_isolate, scripts, "normal.js").ToHandleChecked();
+    CHECK_EQ(normal_script->type(), i::Script::TYPE_NORMAL);
+  }
+  isolate->Dispose();
+}
+
+TEST(SourceInfo) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  const char* source =
+      "//\n"
+      "function a() { b(); };\n"
+      "function    b() {\n"
+      "  c(true);\n"
+      "};\n"
+      "  function c(x) {\n"
+      "    if (x) {\n"
+      "      return 1;\n"
+      "    } else {\n"
+      "      return 1;\n"
+      "    }\n"
+      "  };\n"
+      "function d(x) {\n"
+      "  x = 1 ;\n"
+      "  x = 2 ;\n"
+      "  x = 3 ;\n"
+      "  x = 4 ;\n"
+      "  x = 5 ;\n"
+      "  x = 6 ;\n"
+      "  x = 7 ;\n"
+      "  x = 8 ;\n"
+      "  x = 9 ;\n"
+      "  x = 10;\n"
+      "  x = 11;\n"
+      "  x = 12;\n"
+      "  x = 13;\n"
+      "  x = 14;\n"
+      "  x = 15;\n"
+      "}\n";
+  v8::Local<v8::Script> v8_script =
+      v8::Script::Compile(env.local(), v8_str(source)).ToLocalChecked();
+  i::Handle<i::Script> i_script(
+      i::Script::cast(v8::Utils::OpenHandle(*v8_script)->shared()->script()),
+      CcTest::i_isolate());
+  v8::Local<v8::debug::Script> script =
+      v8::ToApiHandle<v8::debug::Script>(i_script);
+
+  // Test that when running through source positions the position, line and
+  // column progresses as expected.
+  v8::debug::Location prev_location = script->GetSourceLocation(0);
+  CHECK_EQ(prev_location.GetLineNumber(), 0);
+  CHECK_EQ(prev_location.GetColumnNumber(), 0);
+  for (int offset = 1; offset < 100; ++offset) {
+    v8::debug::Location location = script->GetSourceLocation(offset);
+    if (prev_location.GetLineNumber() == location.GetLineNumber()) {
+      CHECK_EQ(location.GetColumnNumber(), prev_location.GetColumnNumber() + 1);
+    } else {
+      CHECK_EQ(location.GetLineNumber(), prev_location.GetLineNumber() + 1);
+      CHECK_EQ(location.GetColumnNumber(), 0);
+    }
+    prev_location = location;
+  }
+
+  // Every line of d() is the same length.  Verify we can loop through all
+  // positions and find the right line # for each.
+  // The position of the first line of d(), i.e. "x = 1 ;".
+  const int start_line_d = 13;
+  const int start_code_d =
+      static_cast<int>(strstr(source, "  x = 1 ;") - source);
+  const int num_lines_d = 15;
+  const int line_length_d = 10;
+  int p = start_code_d;
+  for (int line = 0; line < num_lines_d; ++line) {
+    for (int column = 0; column < line_length_d; ++column) {
+      v8::debug::Location location = script->GetSourceLocation(p);
+      CHECK_EQ(location.GetLineNumber(), start_line_d + line);
+      CHECK_EQ(location.GetColumnNumber(), column);
+      ++p;
+    }
+  }
+
+  // Test first positon.
+  CHECK_EQ(script->GetSourceLocation(0).GetLineNumber(), 0);
+  CHECK_EQ(script->GetSourceLocation(0).GetColumnNumber(), 0);
+
+  // Test second positon.
+  CHECK_EQ(script->GetSourceLocation(1).GetLineNumber(), 0);
+  CHECK_EQ(script->GetSourceLocation(1).GetColumnNumber(), 1);
+
+  // Test first positin in function a().
+  const int start_a =
+      static_cast<int>(strstr(source, "function a") - source) + 10;
+  CHECK_EQ(script->GetSourceLocation(start_a).GetLineNumber(), 1);
+  CHECK_EQ(script->GetSourceLocation(start_a).GetColumnNumber(), 10);
+
+  // Test first positin in function b().
+  const int start_b =
+      static_cast<int>(strstr(source, "function    b") - source) + 13;
+  CHECK_EQ(script->GetSourceLocation(start_b).GetLineNumber(), 2);
+  CHECK_EQ(script->GetSourceLocation(start_b).GetColumnNumber(), 13);
+
+  // Test first positin in function c().
+  const int start_c =
+      static_cast<int>(strstr(source, "function c") - source) + 10;
+  CHECK_EQ(script->GetSourceLocation(start_c).GetLineNumber(), 5);
+  CHECK_EQ(script->GetSourceLocation(start_c).GetColumnNumber(), 12);
+
+  // Test first positin in function d().
+  const int start_d =
+      static_cast<int>(strstr(source, "function d") - source) + 10;
+  CHECK_EQ(script->GetSourceLocation(start_d).GetLineNumber(), 12);
+  CHECK_EQ(script->GetSourceLocation(start_d).GetColumnNumber(), 10);
+
+  // Test offsets.
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(1, 10)), start_a);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(2, 13)), start_b);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(3, 0)), start_b + 5);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(3, 2)), start_b + 7);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(4, 0)), start_b + 16);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(5, 12)), start_c);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(6, 0)), start_c + 6);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(7, 0)), start_c + 19);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(8, 0)), start_c + 35);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(9, 0)), start_c + 48);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(10, 0)), start_c + 64);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(11, 0)), start_c + 70);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(12, 10)), start_d);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(13, 0)), start_d + 6);
+  for (int i = 1; i <= num_lines_d; ++i) {
+    CHECK_EQ(script->GetSourceOffset(v8::debug::Location(start_line_d + i, 0)),
+             6 + (i * line_length_d) + start_d);
+  }
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(start_line_d + 17, 0)),
+           start_d + 158);
+
+  // Make sure invalid inputs work properly.
+  const int last_position = static_cast<int>(strlen(source)) - 1;
+  CHECK_EQ(script->GetSourceLocation(-1).GetLineNumber(), 0);
+  CHECK_EQ(script->GetSourceLocation(last_position + 2).GetLineNumber(),
+           i::kNoSourcePosition);
+
+  // Test last position.
+  CHECK_EQ(script->GetSourceLocation(last_position).GetLineNumber(), 28);
+  CHECK_EQ(script->GetSourceLocation(last_position).GetColumnNumber(), 1);
+  CHECK_EQ(script->GetSourceLocation(last_position + 1).GetLineNumber(), 29);
+  CHECK_EQ(script->GetSourceLocation(last_position + 1).GetColumnNumber(), 0);
+}
+
+namespace {
+class SetBreakpointOnScriptCompiled : public v8::debug::DebugDelegate {
+ public:
+  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+                      bool has_compile_error) override {
+    v8::Local<v8::String> name;
+    if (!script->SourceURL().ToLocal(&name)) return;
+    v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+    if (!name->Equals(context, v8_str("test")).FromJust()) return;
+    CHECK(!has_compile_error);
+    v8::debug::Location loc(1, 2);
+    CHECK(script->SetBreakpoint(v8_str(""), &loc, &id_));
+    CHECK_EQ(loc.GetLineNumber(), 1);
+    CHECK_EQ(loc.GetColumnNumber(), 10);
+  }
+
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             const std::vector<v8::debug::BreakpointId>&
+                                 inspector_break_points_hit) override {
+    ++break_count_;
+    CHECK_EQ(inspector_break_points_hit[0], id_);
+  }
+
+  int break_count() const { return break_count_; }
+
+ private:
+  int break_count_ = 0;
+  v8::debug::BreakpointId id_;
+};
+}  // anonymous namespace
+
+TEST(Regress517592) {
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
+  SetBreakpointOnScriptCompiled delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  CompileRun(
+      v8_str("eval('var foo = function foo() {\\n' +\n"
+             "'  var a = 1;\\n' +\n"
+             "'}\\n' +\n"
+             "'//@ sourceURL=test')"));
+  CHECK_EQ(delegate.break_count(), 0);
+  CompileRun(v8_str("foo()"));
+  CHECK_EQ(delegate.break_count(), 1);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
 }

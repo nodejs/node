@@ -1,6 +1,7 @@
 {
   "current_cpu": "x64",
   "dcheck_always_on": false,
+  "is_android": false,
   "is_asan": false,
   "is_cfi": false,
   "is_component_build": false,

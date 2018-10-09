@@ -395,7 +395,7 @@ void MipsDebugger::Debug() {
         } else {
           // Allow si to jump over generated breakpoints.
           PrintF("/!\\ Jumping over generated breakpoint.\n");
-          sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
+          sim_->set_pc(sim_->get_pc() + kInstrSize);
         }
       } else if ((strcmp(cmd, "c") == 0) || (strcmp(cmd, "cont") == 0)) {
         // Execute the one instruction we broke at with breakpoints disabled.
@@ -473,7 +473,7 @@ void MipsDebugger::Debug() {
                  || (strcmp(cmd, "printobject") == 0)) {
         if (argc == 2) {
           int32_t value;
-          OFStream os(stdout);
+          StdoutStream os;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";
@@ -562,7 +562,7 @@ void MipsDebugger::Debug() {
 
         if (argc == 1) {
           cur = reinterpret_cast<byte*>(sim_->get_pc());
-          end = cur + (10 * Instruction::kInstrSize);
+          end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int regnum = Registers::Number(arg1);
           if (regnum != kInvalidRegister || strncmp(arg1, "0x", 2) == 0) {
@@ -571,7 +571,7 @@ void MipsDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(value);
               // Disassemble 10 instructions at <arg1>.
-              end = cur + (10 * Instruction::kInstrSize);
+              end = cur + (10 * kInstrSize);
             }
           } else {
             // The argument is the number of instructions.
@@ -579,7 +579,7 @@ void MipsDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(sim_->get_pc());
               // Disassemble <arg1> instructions.
-              end = cur + (value * Instruction::kInstrSize);
+              end = cur + (value * kInstrSize);
             }
           }
         } else {
@@ -587,7 +587,7 @@ void MipsDebugger::Debug() {
           int32_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
             cur = reinterpret_cast<byte*>(value1);
-            end = cur + (value2 * Instruction::kInstrSize);
+            end = cur + (value2 * kInstrSize);
           }
         }
 
@@ -595,7 +595,7 @@ void MipsDebugger::Debug() {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(cur),
                  buffer.start());
-          cur += Instruction::kInstrSize;
+          cur += kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
         PrintF("relinquishing control to gdb\n");
@@ -622,12 +622,10 @@ void MipsDebugger::Debug() {
         PrintF("No flags on MIPS !\n");
       } else if (strcmp(cmd, "stop") == 0) {
         int32_t value;
-        intptr_t stop_pc = sim_->get_pc() -
-            2 * Instruction::kInstrSize;
+        intptr_t stop_pc = sim_->get_pc() - 2 * kInstrSize;
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         Instruction* msg_address =
-          reinterpret_cast<Instruction*>(stop_pc +
-              Instruction::kInstrSize);
+            reinterpret_cast<Instruction*>(stop_pc + kInstrSize);
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
           if (sim_->IsStopInstruction(stop_instr)) {
@@ -696,20 +694,20 @@ void MipsDebugger::Debug() {
 
         if (argc == 1) {
           cur = reinterpret_cast<byte*>(sim_->get_pc());
-          end = cur + (10 * Instruction::kInstrSize);
+          end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int32_t value;
           if (GetValue(arg1, &value)) {
             cur = reinterpret_cast<byte*>(value);
             // no length parameter passed, assume 10 instructions
-            end = cur + (10 * Instruction::kInstrSize);
+            end = cur + (10 * kInstrSize);
           }
         } else {
           int32_t value1;
           int32_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
             cur = reinterpret_cast<byte*>(value1);
-            end = cur + (value2 * Instruction::kInstrSize);
+            end = cur + (value2 * kInstrSize);
           }
         }
 
@@ -717,7 +715,7 @@ void MipsDebugger::Debug() {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(cur),
                  buffer.start());
-          cur += Instruction::kInstrSize;
+          cur += kInstrSize;
         }
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
         PrintF("cont\n");
@@ -751,7 +749,7 @@ void MipsDebugger::Debug() {
         PrintF("    Stops are debug instructions inserted by\n");
         PrintF("    the Assembler::stop() function.\n");
         PrintF("    When hitting a stop, the Simulator will\n");
-        PrintF("    stop and and give control to the Debugger.\n");
+        PrintF("    stop and give control to the Debugger.\n");
         PrintF("    All stop codes are watched:\n");
         PrintF("    - They can be enabled / disabled: the Simulator\n");
         PrintF("       will / won't stop when hitting them.\n");
@@ -871,8 +869,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
   if (cache_hit) {
     // Check that the data in memory matches the contents of the I-cache.
     CHECK_EQ(0, memcmp(reinterpret_cast<void*>(instr),
-                       cache_page->CachedData(offset),
-                       Instruction::kInstrSize));
+                       cache_page->CachedData(offset), kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
     memcpy(cached_line, line, CachePage::kLineLength);
@@ -927,7 +924,6 @@ Simulator::~Simulator() { free(stack_); }
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
        isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK_NOT_NULL(isolate_data);
   DCHECK_NOT_NULL(isolate_data);
 
   Simulator* sim = isolate_data->simulator();
@@ -2301,17 +2297,18 @@ void Simulator::SoftwareInterrupt() {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
             PrintF("Call to host function at %p with args %f, %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   dval1);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
             PrintF("Call to host function at %p with arg %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
             PrintF("Call to host function at %p with args %f, %d",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   ival);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, ival);
             break;
           default:
             UNREACHABLE();
@@ -2411,8 +2408,8 @@ void Simulator::SoftwareInterrupt() {
         PrintF(
             "Call to host function at %p "
             "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x\n",
-            static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
-            arg4, arg5, arg6, arg7, arg8);
+            reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
+            arg3, arg4, arg5, arg6, arg7, arg8);
       }
       int64_t result =
           target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
@@ -3797,7 +3794,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       int32_t next_pc = rs();
       int32_t current_pc = get_pc();
       Instruction* branch_delay_instr =
-          reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
+          reinterpret_cast<Instruction*>(current_pc + kInstrSize);
       BranchDelayInstructionDecode(branch_delay_instr);
       set_pc(next_pc);
       pc_modified_ = true;
@@ -3808,9 +3805,9 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       int32_t return_addr_reg = rd_reg();
       int32_t current_pc = get_pc();
       Instruction* branch_delay_instr =
-          reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
+          reinterpret_cast<Instruction*>(current_pc + kInstrSize);
       BranchDelayInstructionDecode(branch_delay_instr);
-      set_register(return_addr_reg, current_pc + 2 * Instruction::kInstrSize);
+      set_register(return_addr_reg, current_pc + 2 * kInstrSize);
       set_pc(next_pc);
       pc_modified_ = true;
       break;
@@ -6304,12 +6301,12 @@ void Simulator::DecodeTypeImmediate() {
       [this, &next_pc, &execute_branch_delay_instruction](bool do_branch) {
         execute_branch_delay_instruction = true;
         int32_t current_pc = get_pc();
+        set_register(31, current_pc + 2 * kInstrSize);
         if (do_branch) {
           int16_t imm16 = this->instr_.Imm16Value();
-          next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
-          set_register(31, current_pc + 2 * Instruction::kInstrSize);
+          next_pc = current_pc + (imm16 << 2) + kInstrSize;
         } else {
-          next_pc = current_pc + 2 * Instruction::kInstrSize;
+          next_pc = current_pc + 2 * kInstrSize;
         }
       };
 
@@ -6319,9 +6316,9 @@ void Simulator::DecodeTypeImmediate() {
     int32_t current_pc = get_pc();
     if (do_branch) {
       int16_t imm16 = this->instr_.Imm16Value();
-      next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
+      next_pc = current_pc + (imm16 << 2) + kInstrSize;
     } else {
-      next_pc = current_pc + 2 * Instruction::kInstrSize;
+      next_pc = current_pc + 2 * kInstrSize;
     }
   };
 
@@ -6343,9 +6340,9 @@ void Simulator::DecodeTypeImmediate() {
       //              pc + kInstrSize + 511 * kInstrSize]
       int16_t offset = static_cast<int16_t>(imm16 << (bitsIn16Int - 10)) >>
                        (bitsIn16Int - 12);
-      next_pc = current_pc + offset + Instruction::kInstrSize;
+      next_pc = current_pc + offset + kInstrSize;
     } else {
-      next_pc = current_pc + 2 * Instruction::kInstrSize;
+      next_pc = current_pc + 2 * kInstrSize;
     }
   };
 
@@ -6356,8 +6353,8 @@ void Simulator::DecodeTypeImmediate() {
       int32_t imm = this->instr_.ImmValue(bits);
       imm <<= 32 - bits;
       imm >>= 32 - bits;
-      next_pc = current_pc + (imm << 2) + Instruction::kInstrSize;
-      set_register(31, current_pc + Instruction::kInstrSize);
+      next_pc = current_pc + (imm << 2) + kInstrSize;
+      set_register(31, current_pc + kInstrSize);
     }
   };
 
@@ -6368,7 +6365,7 @@ void Simulator::DecodeTypeImmediate() {
       int32_t imm = this->instr_.ImmValue(bits);
       imm <<= 32 - bits;
       imm >>= 32 - bits;
-      next_pc = get_pc() + (imm << 2) + Instruction::kInstrSize;
+      next_pc = get_pc() + (imm << 2) + kInstrSize;
     }
   };
 
@@ -6386,10 +6383,10 @@ void Simulator::DecodeTypeImmediate() {
           break;
         }
         case BC1EQZ:
-          BranchCompactHelper(!(get_fpu_register(ft_reg) & 0x1), 16);
+          BranchHelper(!(get_fpu_register(ft_reg) & 0x1));
           break;
         case BC1NEZ:
-          BranchCompactHelper(get_fpu_register(ft_reg) & 0x1, 16);
+          BranchHelper(get_fpu_register(ft_reg) & 0x1);
           break;
         case BZ_V: {
           msa_reg_t wt;
@@ -6568,7 +6565,7 @@ void Simulator::DecodeTypeImmediate() {
       if (rs_reg != 0) {  // BNEZC
         BranchCompactHelper(rs != 0, 21);
       } else {  // JIALC
-        set_register(31, get_pc() + Instruction::kInstrSize);
+        set_register(31, get_pc() + kInstrSize);
         next_pc = rt + imm16;
       }
       break;
@@ -6864,7 +6861,7 @@ void Simulator::DecodeTypeImmediate() {
     // We don't check for end_sim_pc. First it should not be met as the current
     // pc is valid. Secondly a jump should always execute its branch delay slot.
     Instruction* branch_delay_instr =
-        reinterpret_cast<Instruction*>(get_pc() + Instruction::kInstrSize);
+        reinterpret_cast<Instruction*>(get_pc() + kInstrSize);
     BranchDelayInstructionDecode(branch_delay_instr);
   }
 
@@ -6890,13 +6887,13 @@ void Simulator::DecodeTypeJump() {
   // We don't check for end_sim_pc. First it should not be met as the current pc
   // is valid. Secondly a jump should always execute its branch delay slot.
   Instruction* branch_delay_instr =
-      reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
+      reinterpret_cast<Instruction*>(current_pc + kInstrSize);
   BranchDelayInstructionDecode(branch_delay_instr);
 
   // Update pc and ra if necessary.
   // Do this after the branch delay execution.
   if (simInstr.IsLinkingInstruction()) {
-    set_register(31, current_pc + 2 * Instruction::kInstrSize);
+    set_register(31, current_pc + 2 * kInstrSize);
   }
   set_pc(next_pc);
   pc_modified_ = true;
@@ -6937,12 +6934,9 @@ void Simulator::InstructionDecode(Instruction* instr) {
            trace_buf_.start());
   }
   if (!pc_modified_) {
-    set_register(pc, reinterpret_cast<int32_t>(instr) +
-                 Instruction::kInstrSize);
+    set_register(pc, reinterpret_cast<int32_t>(instr) + kInstrSize);
   }
 }
-
-
 
 void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
@@ -6974,13 +6968,12 @@ void Simulator::Execute() {
   }
 }
 
-
-void Simulator::CallInternal(byte* entry) {
+void Simulator::CallInternal(Address entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
   // Prepare to execute the code at entry.
-  set_register(pc, reinterpret_cast<int32_t>(entry));
+  set_register(pc, static_cast<int32_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
   // the LR the simulation stops when returning to this call point.
@@ -7044,7 +7037,7 @@ void Simulator::CallInternal(byte* entry) {
   set_register(fp, fp_val);
 }
 
-intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+intptr_t Simulator::CallImpl(Address entry, int argument_count,
                              const intptr_t* arguments) {
   // Set up arguments.
 
@@ -7078,8 +7071,7 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(v0);
 }
 
-
-double Simulator::CallFP(byte* entry, double d0, double d1) {
+double Simulator::CallFP(Address entry, double d0, double d1) {
   if (!IsMipsSoftFloatABI) {
     set_fpu_register_double(f12, d0);
     set_fpu_register_double(f14, d1);

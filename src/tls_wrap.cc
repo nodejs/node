@@ -26,7 +26,6 @@
 #include "node_crypto_bio.h"  // NodeBIO
 // ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
-#include "node_counters.h"
 #include "node_internals.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
@@ -60,8 +59,6 @@ TLSWrap::TLSWrap(Environment* env,
       SSLWrap<TLSWrap>(env, sc, kind),
       StreamBase(env),
       sc_(sc),
-      enc_in_(nullptr),
-      enc_out_(nullptr),
       write_size_(0),
       started_(false),
       established_(false),
@@ -86,8 +83,6 @@ TLSWrap::TLSWrap(Environment* env,
 
 
 TLSWrap::~TLSWrap() {
-  enc_in_ = nullptr;
-  enc_out_ = nullptr;
   sc_ = nullptr;
 }
 
@@ -112,11 +107,9 @@ void TLSWrap::NewSessionDoneCb() {
 
 
 void TLSWrap::InitSSL() {
-  // Initialize SSL
-  enc_in_ = crypto::NodeBIO::New();
-  enc_out_ = crypto::NodeBIO::New();
-  crypto::NodeBIO::FromBIO(enc_in_)->AssignEnvironment(env());
-  crypto::NodeBIO::FromBIO(enc_out_)->AssignEnvironment(env());
+  // Initialize SSL – OpenSSL takes ownership of these.
+  enc_in_ = crypto::NodeBIO::New(env()).release();
+  enc_out_ = crypto::NodeBIO::New(env()).release();
 
   SSL_set_bio(ssl_.get(), enc_in_, enc_out_);
 
@@ -288,8 +281,6 @@ void TLSWrap::EncOut() {
     InvokeQueued(res.err);
     return;
   }
-
-  NODE_COUNT_NET_BYTES_SENT(write_size_);
 
   if (!res.async) {
     HandleScope handle_scope(env()->isolate());
@@ -758,6 +749,8 @@ void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
 
   // Destroy the SSL structure and friends
   wrap->SSLWrap<TLSWrap>::DestroySSL();
+  wrap->enc_in_ = nullptr;
+  wrap->enc_out_ = nullptr;
 
   if (wrap->stream_ != nullptr)
     wrap->stream_->RemoveStreamListener(wrap);
@@ -864,6 +857,16 @@ void TLSWrap::GetWriteQueueSize(const FunctionCallbackInfo<Value>& info) {
 }
 
 
+void TLSWrap::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("error", error_);
+  tracker->TrackField("pending_cleartext_input", pending_cleartext_input_);
+  if (enc_in_ != nullptr)
+    tracker->TrackField("enc_in", crypto::NodeBIO::FromBIO(enc_in_));
+  if (enc_out_ != nullptr)
+    tracker->TrackField("enc_out", crypto::NodeBIO::FromBIO(enc_out_));
+}
+
+
 void TLSWrap::Initialize(Local<Object> target,
                          Local<Value> unused,
                          Local<Context> context) {
@@ -887,7 +890,7 @@ void TLSWrap::Initialize(Local<Object> target,
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 
-  AsyncWrap::AddWrapMethods(env, t, AsyncWrap::kFlagHasReset);
+  t->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(t, "receive", Receive);
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
@@ -901,11 +904,12 @@ void TLSWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "getServername", GetServername);
   env->SetProtoMethod(t, "setServername", SetServername);
 
-  env->set_tls_wrap_constructor_function(t->GetFunction());
+  env->set_tls_wrap_constructor_function(
+      t->GetFunction(env->context()).ToLocalChecked());
 
-  target->Set(tlsWrapString, t->GetFunction());
+  target->Set(tlsWrapString, t->GetFunction(env->context()).ToLocalChecked());
 }
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(tls_wrap, node::TLSWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(tls_wrap, node::TLSWrap::Initialize)

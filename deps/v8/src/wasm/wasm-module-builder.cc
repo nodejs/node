@@ -249,33 +249,13 @@ void WasmModuleBuilder::AddDataSegment(const byte* data, uint32_t size,
   }
 }
 
-bool WasmModuleBuilder::CompareFunctionSigs::operator()(FunctionSig* a,
-                                                        FunctionSig* b) const {
-  if (a->return_count() < b->return_count()) return true;
-  if (a->return_count() > b->return_count()) return false;
-  if (a->parameter_count() < b->parameter_count()) return true;
-  if (a->parameter_count() > b->parameter_count()) return false;
-  for (size_t r = 0; r < a->return_count(); r++) {
-    if (a->GetReturn(r) < b->GetReturn(r)) return true;
-    if (a->GetReturn(r) > b->GetReturn(r)) return false;
-  }
-  for (size_t p = 0; p < a->parameter_count(); p++) {
-    if (a->GetParam(p) < b->GetParam(p)) return true;
-    if (a->GetParam(p) > b->GetParam(p)) return false;
-  }
-  return false;
-}
-
 uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
-  SignatureMap::iterator pos = signature_map_.find(sig);
-  if (pos != signature_map_.end()) {
-    return pos->second;
-  } else {
-    uint32_t index = static_cast<uint32_t>(signatures_.size());
-    signature_map_[sig] = index;
-    signatures_.push_back(sig);
-    return index;
-  }
+  auto sig_entry = signature_map_.find(*sig);
+  if (sig_entry != signature_map_.end()) return sig_entry->second;
+  uint32_t index = static_cast<uint32_t>(signatures_.size());
+  signature_map_.emplace(*sig, index);
+  signatures_.push_back(sig);
+  return index;
 }
 
 uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
@@ -301,7 +281,7 @@ uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
 
 uint32_t WasmModuleBuilder::AddGlobalImport(Vector<const char> name,
                                             ValueType type) {
-  global_imports_.push_back({name, WasmOpcodes::ValueTypeCodeFor(type)});
+  global_imports_.push_back({name, ValueTypes::ValueTypeCodeFor(type)});
   return static_cast<uint32_t>(global_imports_.size() - 1);
 }
 
@@ -346,11 +326,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
       buffer.write_u8(kWasmFunctionTypeCode);
       buffer.write_size(sig->parameter_count());
       for (auto param : sig->parameters()) {
-        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(param));
+        buffer.write_u8(ValueTypes::ValueTypeCodeFor(param));
       }
       buffer.write_size(sig->return_count());
       for (auto ret : sig->returns()) {
-        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(ret));
+        buffer.write_u8(ValueTypes::ValueTypeCodeFor(ret));
       }
     }
     FixupSection(buffer, start);
@@ -392,7 +372,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   if (indirect_functions_.size() > 0) {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer.write_u8(1);  // table count
-    buffer.write_u8(kWasmAnyFunctionTypeCode);
+    buffer.write_u8(kLocalAnyFunc);
     buffer.write_u8(kHasMaximumFlag);
     buffer.write_size(indirect_functions_.size());
     buffer.write_size(indirect_functions_.size());
@@ -423,7 +403,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(globals_.size());
 
     for (auto global : globals_) {
-      buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(global.type));
+      buffer.write_u8(ValueTypes::ValueTypeCodeFor(global.type));
       buffer.write_u8(global.mutability ? 1 : 0);
       switch (global.init.kind) {
         case WasmInitExpr::kI32Const:

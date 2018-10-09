@@ -34,8 +34,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <string>
 #include <functional>  // std::function
+#include <set>
+#include <string>
+#include <unordered_map>
 
 namespace node {
 
@@ -87,14 +89,9 @@ NO_RETURN void Abort();
 NO_RETURN void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
 
-#define FIXED_ONE_BYTE_STRING(isolate, string)                                \
-  (node::OneByteString((isolate), (string), sizeof(string) - 1))
-
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \
-  void operator=(const TypeName&) = delete;                                   \
-  void operator=(TypeName&&) = delete;                                        \
   TypeName(const TypeName&) = delete;                                         \
-  TypeName(TypeName&&) = delete
+  TypeName& operator=(const TypeName&) = delete
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
@@ -245,6 +242,15 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const unsigned char* data,
                                            int length = -1);
+
+// Used to be a macro, hence the uppercase name.
+template <int N>
+inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
+    v8::Isolate* isolate,
+    const char(&data)[N]) {
+  return OneByteString(isolate, data, N - 1);
+}
+
 
 // Swaps bytes in place. nbytes is the number of bytes to swap and must be a
 // multiple of the word size (checked by function).
@@ -475,6 +481,17 @@ struct FunctionDeleter {
 
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
+
+std::set<std::string> ParseCommaSeparatedSet(const std::string& in);
+
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           const std::string& str);
+template <typename T>
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           const std::vector<T>& vec);
+template <typename T, typename U>
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           const std::unordered_map<T, U>& map);
 
 }  // namespace node
 

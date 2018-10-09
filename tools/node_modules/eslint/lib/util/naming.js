@@ -7,7 +7,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const pathUtil = require("../util/path-util");
+const pathUtils = require("../util/path-utils");
 
 //------------------------------------------------------------------------------
 // Private
@@ -31,7 +31,7 @@ function normalizePackageName(name, prefix) {
      * https://github.com/eslint/eslint/issues/5644
      */
     if (normalizedName.indexOf("\\") > -1) {
-        normalizedName = pathUtil.convertPathToPosix(normalizedName);
+        normalizedName = pathUtils.convertPathToPosix(normalizedName);
     }
 
     if (normalizedName.charAt(0) === "@") {

@@ -1,3 +1,1 @@
-import {  IntervalObservable  } from './IntervalObservable';
-
-export const interval = IntervalObservable.create;
+export * from 'rxjs-compat/observable/interval';

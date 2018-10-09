@@ -553,7 +553,7 @@ void AsmJsParser::ValidateModuleVarImport(VarInfo* info,
     } else {
       info->kind = VarKind::kImportedFunction;
       info->import = new (zone()->New(sizeof(FunctionImportInfo)))
-          FunctionImportInfo({name, WasmModuleBuilder::SignatureMap(zone())});
+          FunctionImportInfo(name, zone());
       info->mutable_variable = false;
     }
   }
@@ -1345,7 +1345,8 @@ void AsmJsParser::ValidateCase() {
     FAIL("Numeric literal out of range");
   }
   int32_t value = static_cast<int32_t>(uvalue);
-  if (negate) {
+  DCHECK_IMPLIES(negate && uvalue == 0x80000000, value == kMinInt);
+  if (negate && value != kMinInt) {
     value = -value;
   }
   EXPECT_TOKEN(':');
@@ -1406,7 +1407,6 @@ AsmType* AsmJsParser::NumericLiteral() {
       current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
       return AsmType::FixNum();
     } else {
-      DCHECK_LE(uvalue, 0xFFFFFFFF);
       current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
       return AsmType::Unsigned();
     }
@@ -2210,14 +2210,14 @@ AsmType* AsmJsParser::ValidateCall() {
     DCHECK_NOT_NULL(function_info->import);
     // TODO(bradnelson): Factor out.
     uint32_t index;
-    auto it = function_info->import->cache.find(sig);
+    auto it = function_info->import->cache.find(*sig);
     if (it != function_info->import->cache.end()) {
       index = it->second;
       DCHECK(function_info->function_defined);
     } else {
       index =
           module_builder_->AddImport(function_info->import->function_name, sig);
-      function_info->import->cache[sig] = index;
+      function_info->import->cache[*sig] = index;
       function_info->function_defined = true;
     }
     current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
@@ -2501,18 +2501,16 @@ void AsmJsParser::GatherCases(ZoneVector<int32_t>* cases) {
       }
     } else if (depth == 1 && Peek(TOK(case))) {
       scanner_.Next();
-      int32_t value;
       uint32_t uvalue;
-      if (Check('-')) {
-        if (!CheckForUnsigned(&uvalue)) {
-          break;
-        }
-        value = -static_cast<int32_t>(uvalue);
-      } else {
-        if (!CheckForUnsigned(&uvalue)) {
-          break;
-        }
-        value = static_cast<int32_t>(uvalue);
+      bool negate = false;
+      if (Check('-')) negate = true;
+      if (!CheckForUnsigned(&uvalue)) {
+        break;
+      }
+      int32_t value = static_cast<int32_t>(uvalue);
+      DCHECK_IMPLIES(negate && uvalue == 0x80000000, value == kMinInt);
+      if (negate && value != kMinInt) {
+        value = -value;
       }
       cases->push_back(value);
     } else if (Peek(AsmJsScanner::kEndOfInput) ||

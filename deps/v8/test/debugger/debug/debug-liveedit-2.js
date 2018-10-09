@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noalways-opt
-
+// Flags: --noalways-opt --allow-natives-syntax
 
 Debug = debug.Debug
 
@@ -43,19 +42,12 @@ var old_closure = ChooseAnimal(19);
 
 assertEquals("Cat", old_closure());
 
-var script = Debug.findScript(ChooseAnimal);
-
-var orig_animal = "'Cat'";
-var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "'Capybara' + p";
-
 // We patch innermost function "Chooser".
 // However, this does not actually patch existing "Chooser" instances,
 // because old value of parameter "p" was not saved.
 // Instead it patches ChooseAnimal.
-var change_log = new Array();
-Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
-print("Change log: " + JSON.stringify(change_log) + "\n");
+%LiveEditPatchScript(
+    ChooseAnimal, Debug.scriptSource(ChooseAnimal).replace("'Cat'", "'Capybara' + p"));
 
 var new_closure = ChooseAnimal(19);
 // New instance of closure is patched.

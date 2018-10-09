@@ -1,10 +1,1 @@
-import { Observable, ObservableInput } from '../Observable';
-import { IScheduler } from '../Scheduler';
-export declare function concat<T>(v1: ObservableInput<T>, scheduler?: IScheduler): Observable<T>;
-export declare function concat<T, T2>(v1: ObservableInput<T>, v2: ObservableInput<T2>, scheduler?: IScheduler): Observable<T | T2>;
-export declare function concat<T, T2, T3>(v1: ObservableInput<T>, v2: ObservableInput<T2>, v3: ObservableInput<T3>, scheduler?: IScheduler): Observable<T | T2 | T3>;
-export declare function concat<T, T2, T3, T4>(v1: ObservableInput<T>, v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, scheduler?: IScheduler): Observable<T | T2 | T3 | T4>;
-export declare function concat<T, T2, T3, T4, T5>(v1: ObservableInput<T>, v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, scheduler?: IScheduler): Observable<T | T2 | T3 | T4 | T5>;
-export declare function concat<T, T2, T3, T4, T5, T6>(v1: ObservableInput<T>, v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, v6: ObservableInput<T6>, scheduler?: IScheduler): Observable<T | T2 | T3 | T4 | T5 | T6>;
-export declare function concat<T>(...observables: (ObservableInput<T> | IScheduler)[]): Observable<T>;
-export declare function concat<T, R>(...observables: (ObservableInput<any> | IScheduler)[]): Observable<R>;
+export * from 'rxjs-compat/observable/concat';

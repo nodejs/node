@@ -24,17 +24,12 @@ class FieldType : public Object {
   static Handle<FieldType> Class(i::Handle<i::Map> map, Isolate* isolate);
   static FieldType* cast(Object* object);
 
-  bool NowContains(Object* value) {
-    if (this == Any()) return true;
-    if (this == None()) return false;
-    if (!value->IsHeapObject()) return false;
-    return HeapObject::cast(value)->map() == Map::cast(this);
-  }
+  bool NowContains(Object* value);
 
   bool NowContains(Handle<Object> value) { return NowContains(*value); }
 
   bool IsClass();
-  Handle<i::Map> AsClass();
+  Map* AsClass();
   bool IsNone() { return this == None(); }
   bool IsAny() { return this == Any(); }
   bool NowStable();

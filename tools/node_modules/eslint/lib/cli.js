@@ -20,7 +20,7 @@ const fs = require("fs"),
     options = require("./options"),
     CLIEngine = require("./cli-engine"),
     mkdirp = require("mkdirp"),
-    log = require("./logging");
+    log = require("./util/logging");
 
 const debug = require("debug")("eslint:cli");
 

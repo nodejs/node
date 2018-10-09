@@ -1,11 +1,11 @@
-.TH "NPM\-PUBLISH" "1" "May 2018" "" ""
+.TH "NPM\-PUBLISH" "1" "August 2018" "" ""
 .SH "NAME"
 \fBnpm-publish\fR \- Publish a package
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm publish [<tarball>|<folder>] [\-\-tag <tag>] [\-\-access <public|restricted>] [\-\-otp otpcode]
+npm publish [<tarball>|<folder>] [\-\-tag <tag>] [\-\-access <public|restricted>] [\-\-otp otpcode] [\-\-dry\-run]
 
 Publishes '\.' if no argument supplied
 Sets tag 'latest' if no \-\-tag specified
@@ -48,6 +48,10 @@ to publish scoped packages\.
 If you have two\-factor authentication enabled in \fBauth\-and\-writes\fP mode
 then you can provide a code from your authenticator with this\. If you
 don't include this and you're running from a TTY then you'll be prompted\.
+.IP \(bu 2
+\fB[\-\-dry\-run]\fP
+Does everything publish would do except actually publishing to the registry\.
+Reports the details of what would have been published\.
 
 .RE
 .P
@@ -62,9 +66,8 @@ As of \fBnpm@5\fP, both a sha1sum and an integrity field with a sha512sum of the
 tarball will be submitted to the registry during publication\. Subsequent
 installs will use the strongest supported algorithm to verify downloads\.
 .P
-For a "dry run" that does everything except actually publishing to the
-registry, see npm help \fBnpm\-pack\fP, which figures out the files to be included and
-packs them into a tarball to be uploaded to the registry\.
+Similar to \fB\-\-dry\-run\fP see npm help \fBnpm\-pack\fP, which figures out the files to be
+included and packs them into a tarball to be uploaded to the registry\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

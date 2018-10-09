@@ -1,3 +1,1 @@
-import {  PairsObservable  } from './PairsObservable';
-
-export const pairs = PairsObservable.create;
+export * from 'rxjs-compat/observable/pairs';

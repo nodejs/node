@@ -26,7 +26,6 @@ function f(x) {
 }                                  // break
 
 Debug.setBreakPoint(f, 0, 0);      // break
-Debug.scripts();                   // break
 
 new Error("123").stack;            // break
 Math.sin(0);                       // break

@@ -54,8 +54,8 @@ void RelocInfo::apply(intptr_t delta) {
   // Absolute code pointer inside code object moves with the code object.
   if (IsInternalReference(rmode_)) {
     // Jump table entry
-    Address target = Memory::Address_at(pc_);
-    Memory::Address_at(pc_) = target + delta;
+    Address target = Memory<Address>(pc_);
+    Memory<Address>(pc_) = target + delta;
   } else if (IsCodeTarget(rmode_)) {
     SixByteInstr instr =
         Instruction::InstructionBits(reinterpret_cast<const byte*>(pc_));
@@ -78,7 +78,7 @@ void RelocInfo::apply(intptr_t delta) {
 Address RelocInfo::target_internal_reference() {
   if (IsInternalReference(rmode_)) {
     // Jump table entry
-    return Memory::Address_at(pc_);
+    return Memory<Address>(pc_);
   } else {
     // mov sequence
     DCHECK(IsInternalReferenceEncoded(rmode_));
@@ -88,7 +88,7 @@ Address RelocInfo::target_internal_reference() {
 
 Address RelocInfo::target_internal_reference_address() {
   DCHECK(IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
-  return reinterpret_cast<Address>(pc_);
+  return pc_;
 }
 
 Address RelocInfo::target_address() {
@@ -110,7 +110,7 @@ Address RelocInfo::target_address_address() {
   // instruction bits, the size of the target will be zero, indicating that the
   // serializer should not step forward in memory after a target is resolved
   // and written.
-  return reinterpret_cast<Address>(pc_);
+  return pc_;
 }
 
 Address RelocInfo::constant_pool_entry_address() {
@@ -137,7 +137,7 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   SixByteInstr instr =
       Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
   int index = instr & 0xFFFFFFFF;
-  return code_targets_[index];
+  return GetCodeTarget(index);
 }
 
 HeapObject* RelocInfo::target_object() {
@@ -156,7 +156,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
@@ -164,9 +164,7 @@ void RelocInfo::set_target_object(HeapObject* target,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target);
-    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
+    WriteBarrierForCode(host(), this, target);
   }
 }
 
@@ -178,13 +176,6 @@ Address RelocInfo::target_external_reference() {
 void RelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
-  Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   icache_flush_mode);
-}
-
-void RelocInfo::set_wasm_code_table_entry(Address target,
-                                          ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::WASM_CODE_TABLE_ENTRY);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
 }
@@ -210,17 +201,18 @@ void RelocInfo::set_target_runtime_entry(Address target,
 void RelocInfo::WipeOut() {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
-         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
+         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_) ||
+         IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
     // Jump table entry
-    Memory::Address_at(pc_) = nullptr;
-  } else if (IsInternalReferenceEncoded(rmode_)) {
+    Memory<Address>(pc_) = kNullAddress;
+  } else if (IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_)) {
     // mov sequence
     // Currently used only by deserializer, no need to flush.
-    Assembler::set_target_address_at(pc_, constant_pool_, nullptr,
+    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress,
                                      SKIP_ICACHE_FLUSH);
   } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, nullptr);
+    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
   }
 }
 
@@ -229,7 +221,7 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTarget(mode)) {
+  } else if (RelocInfo::IsCodeTargetMode(mode)) {
     visitor->VisitCodeTarget(host(), this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(host(), this);
@@ -245,23 +237,6 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 // Operand constructors
 Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
 
-int32_t Assembler::emit_code_target(Handle<Code> target,
-                                    RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsCodeTarget(rmode));
-  RecordRelocInfo(rmode);
-
-  size_t current = code_targets_.size();
-  if (current > 0 && !target.is_null() &&
-      code_targets_.back().address() == target.address()) {
-    // Optimization if we keep jumping to the same code target.
-    current--;
-  } else {
-    code_targets_.push_back(target);
-  }
-  return current;
-}
-
-
 // Fetch the 32bit value from the FIXED_SEQUENCE IIHF / IILF
 Address Assembler::target_address_at(Address pc, Address constant_pool) {
   // S390 Instruction!
@@ -272,7 +247,7 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
   if (BRASL == op1 || BRCL == op1) {
     int32_t dis = static_cast<int32_t>(instr_1 & 0xFFFFFFFF) * 2;
-    return reinterpret_cast<Address>(reinterpret_cast<uint64_t>(pc) + dis);
+    return pc + dis;
   }
 
 #if V8_TARGET_ARCH_S390X
@@ -284,18 +259,18 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
       reinterpret_cast<const byte*>(pc + instr1_length));
   // IIHF for hi_32, IILF for lo_32
   if (IIHF == op1 && IILF == op2) {
-    return reinterpret_cast<Address>(((instr_1 & 0xFFFFFFFF) << 32) |
-                                     ((instr_2 & 0xFFFFFFFF)));
+    return static_cast<Address>(((instr_1 & 0xFFFFFFFF) << 32) |
+                                ((instr_2 & 0xFFFFFFFF)));
   }
 #else
   // IILF loads 32-bits
   if (IILF == op1 || CFI == op1) {
-    return reinterpret_cast<Address>((instr_1 & 0xFFFFFFFF));
+    return static_cast<Address>((instr_1 & 0xFFFFFFFF));
   }
 #endif
 
   UNIMPLEMENTED();
-  return (Address)0;
+  return 0;
 }
 
 // This sets the branch destination (which gets loaded at the call address).
@@ -305,15 +280,20 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Code* code, Address target) {
   set_target_address_at(instruction_payload,
-                        code ? code->constant_pool() : nullptr, target);
+                        code ? code->constant_pool() : kNullAddress, target);
+}
+
+int Assembler::deserialization_special_target_size(
+    Address instruction_payload) {
+  return kSpecialTargetSize;
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
   if (RelocInfo::IsInternalReferenceEncoded(mode)) {
-    set_target_address_at(pc, nullptr, target, SKIP_ICACHE_FLUSH);
+    set_target_address_at(pc, kNullAddress, target, SKIP_ICACHE_FLUSH);
   } else {
-    Memory::Address_at(pc) = target;
+    Memory<Address>(pc) = target;
   }
 }
 

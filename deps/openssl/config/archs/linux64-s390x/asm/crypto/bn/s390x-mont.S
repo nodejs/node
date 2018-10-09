@@ -26,12 +26,12 @@ bn_mul_mont:
 	la	%r4,0(%r7,%r4)	# restore %r4
 	ahi	%r1,-1		# adjust %r1 for inner loop
 	lg	%r6,0(%r6)	# pull n0
-
+	
 
 	lg	%r2,0(%r4)
-
+	
 	lg	%r9,0(%r3)
-
+	
 	mlgr	%r8,%r2	# ap[0]*bp[0]
 	lgr	%r12,%r8
 
@@ -39,7 +39,7 @@ bn_mul_mont:
 	msgr	%r0,%r6
 
 	lg	%r11,0(%r5)	#
-
+	
 	mlgr	%r10,%r0	# np[0]*m1
 	algr	%r11,%r9	# +="tp[0]"
 	lghi	%r13,0
@@ -51,14 +51,14 @@ bn_mul_mont:
 .align	16
 .L1st:
 	lg	%r9,0(%r7,%r3)
-
+	
 	mlgr	%r8,%r2	# ap[j]*bp[0]
 	algr	%r9,%r12
 	lghi	%r12,0
 	alcgr	%r12,%r8
 
 	lg	%r11,0(%r7,%r5)
-
+	
 	mlgr	%r10,%r0	# np[j]*m1
 	algr	%r11,%r13
 	lghi	%r13,0
@@ -79,9 +79,9 @@ bn_mul_mont:
 
 .Louter:
 	lg	%r2,0(%r4)	# bp[i]
-
+	
 	lg	%r9,0(%r3)
-
+	
 	mlgr	%r8,%r2	# ap[0]*bp[i]
 	alg	%r9,160(%r15)	# +=tp[0]
 	lghi	%r12,0
@@ -91,7 +91,7 @@ bn_mul_mont:
 	msgr	%r0,%r6	# tp[0]*n0
 
 	lg	%r11,0(%r5)	# np[0]
-
+	
 	mlgr	%r10,%r0	# np[0]*m1
 	algr	%r11,%r9	# +="tp[0]"
 	lghi	%r13,0
@@ -103,7 +103,7 @@ bn_mul_mont:
 .align	16
 .Linner:
 	lg	%r9,0(%r7,%r3)
-
+	
 	mlgr	%r8,%r2	# ap[j]*bp[i]
 	algr	%r9,%r12
 	lghi	%r12,0
@@ -112,7 +112,7 @@ bn_mul_mont:
 	alcgr	%r12,%r8
 
 	lg	%r11,0(%r7,%r5)
-
+	
 	mlgr	%r10,%r0	# np[j]*m1
 	algr	%r11,%r13
 	lghi	%r13,0
@@ -145,24 +145,24 @@ bn_mul_mont:
 	lr	%r14,%r1
 .Lsub:	lg	%r9,0(%r7,%r3)
 	lg	%r11,0(%r7,%r5)
-
+	
 	slbgr	%r9,%r11
 	stg	%r9,0(%r7,%r2)
 	la	%r7,8(%r7)
 	brct	%r14,.Lsub
 	lghi	%r8,0
 	slbgr	%r12,%r8	# handle upmost carry
-
-	ngr	%r3,%r12
-	lghi	%r5,-1
-	xgr	%r5,%r12
-	ngr	%r5,%r2
-	ogr	%r3,%r5		# ap=borrow?tp:rp
+	lghi	%r13,-1
+	xgr	%r13,%r12
 
 	la	%r7,0(%r0)
 	lgr	%r14,%r1
-.Lcopy:	lg	%r9,0(%r7,%r3)		# copy or in-place refresh
-
+.Lcopy:	lg	%r8,160(%r7,%r15)	# conditional copy
+	lg	%r9,0(%r7,%r2)
+	ngr	%r8,%r12
+	ngr	%r9,%r13
+	ogr	%r9,%r8
+	
 	stg	%r7,160(%r7,%r15)	# zap tp
 	stg	%r9,0(%r7,%r2)
 	la	%r7,8(%r7)

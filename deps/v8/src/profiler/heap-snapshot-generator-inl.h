@@ -7,6 +7,9 @@
 
 #include "src/profiler/heap-snapshot-generator.h"
 
+#include "src/profiler/heap-profiler.h"
+#include "src/string-hasher-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -38,6 +41,12 @@ int HeapEntry::set_children_index(int index) {
   return next_index;
 }
 
+void HeapEntry::add_child(HeapGraphEdge* edge) {
+  *(children_begin() + children_count_++) = edge;
+}
+
+HeapGraphEdge* HeapEntry::child(int i) { return *(children_begin() + i); }
+
 std::deque<HeapGraphEdge*>::iterator HeapEntry::children_begin() {
   DCHECK_GE(children_index_, 0);
   SLOW_DCHECK(
@@ -51,8 +60,22 @@ std::deque<HeapGraphEdge*>::iterator HeapEntry::children_end() {
   return children_begin() + children_count_;
 }
 
-
 Isolate* HeapEntry::isolate() const { return snapshot_->profiler()->isolate(); }
+
+uint32_t HeapSnapshotJSONSerializer::StringHash(const void* string) {
+  const char* s = reinterpret_cast<const char*>(string);
+  int len = static_cast<int>(strlen(s));
+  return StringHasher::HashSequentialString(s, len,
+                                            v8::internal::kZeroHashSeed);
+}
+
+int HeapSnapshotJSONSerializer::to_node_index(const HeapEntry* e) {
+  return to_node_index(e->index());
+}
+
+int HeapSnapshotJSONSerializer::to_node_index(int entry_index) {
+  return entry_index * kNodeFieldsCount;
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -367,6 +367,7 @@ const StatementTypes = {
 
     block: newNodeTypeTester("BlockStatement"),
     empty: newNodeTypeTester("EmptyStatement"),
+    function: newNodeTypeTester("FunctionDeclaration"),
 
     break: newKeywordTester("break"),
     case: newKeywordTester("case"),
@@ -378,7 +379,6 @@ const StatementTypes = {
     do: newKeywordTester("do"),
     export: newKeywordTester("export"),
     for: newKeywordTester("for"),
-    function: newKeywordTester("function"),
     if: newKeywordTester("if"),
     import: newKeywordTester("import"),
     let: newKeywordTester("let"),

@@ -18,9 +18,8 @@ B<cipher> is the symmetric cipher to use. B<flags> is an optional set of flags.
 
 =head1 NOTES
 
-Only certificates carrying RSA keys are supported so the recipient certificates
-supplied to this function must all contain RSA public keys, though they do not
-have to be signed using the RSA algorithm.
+Only certificates carrying RSA, Diffie-Hellman or EC keys are supported by this
+function.
 
 EVP_des_ede3_cbc() (triple DES) is the algorithm of choice for S/MIME use
 because most clients will support it.
@@ -94,7 +93,7 @@ The B<CMS_STREAM> flag was first supported in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

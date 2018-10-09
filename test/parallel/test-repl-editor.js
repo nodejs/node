@@ -1,8 +1,9 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const repl = require('repl');
+const ArrayStream = require('../common/arraystream');
 
 // \u001b[1G - Moves the cursor to 1st column
 // \u001b[0J - Clear screen
@@ -11,7 +12,7 @@ const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
 const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
 
 function run({ input, output, event, checkTerminalCodes = true }) {
-  const stream = new common.ArrayStream();
+  const stream = new ArrayStream();
   let found = '';
 
   stream.write = (msg) => found += msg.replace('\r', '');
@@ -73,9 +74,9 @@ const tests = [
 tests.forEach(run);
 
 // Auto code alignment for .editor mode
-function testCodeAligment({ input, cursor = 0, line = '' }) {
-  const stream = new common.ArrayStream();
-  const outputStream = new common.ArrayStream();
+function testCodeAlignment({ input, cursor = 0, line = '' }) {
+  const stream = new ArrayStream();
+  const outputStream = new ArrayStream();
 
   stream.write = () => { throw new Error('Writing not allowed!'); };
 
@@ -120,4 +121,4 @@ const codeAlignmentTests = [
   }
 ];
 
-codeAlignmentTests.forEach(testCodeAligment);
+codeAlignmentTests.forEach(testCodeAlignment);

@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/conversions.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -39,10 +42,10 @@ BUILTIN(NumberPrototypeToExponential) {
       isolate, fraction_digits, Object::ToInteger(isolate, fraction_digits));
   double const fraction_digits_number = fraction_digits->Number();
 
-  if (std::isnan(value_number)) return isolate->heap()->NaN_string();
+  if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {
-    return (value_number < 0.0) ? isolate->heap()->minus_Infinity_string()
-                                : isolate->heap()->Infinity_string();
+    return (value_number < 0.0) ? ReadOnlyRoots(isolate).minus_Infinity_string()
+                                : ReadOnlyRoots(isolate).Infinity_string();
   }
   if (fraction_digits_number < 0.0 ||
       fraction_digits_number > kMaxFractionDigits) {
@@ -93,10 +96,10 @@ BUILTIN(NumberPrototypeToFixed) {
                                    "toFixed() digits")));
   }
 
-  if (std::isnan(value_number)) return isolate->heap()->NaN_string();
+  if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {
-    return (value_number < 0.0) ? isolate->heap()->minus_Infinity_string()
-                                : isolate->heap()->Infinity_string();
+    return (value_number < 0.0) ? ReadOnlyRoots(isolate).minus_Infinity_string()
+                                : ReadOnlyRoots(isolate).Infinity_string();
   }
   char* const str = DoubleToFixedCString(
       value_number, static_cast<int>(fraction_digits_number));
@@ -114,6 +117,7 @@ BUILTIN(NumberPrototypeToLocaleString) {
   if (value->IsJSValue()) {
     value = handle(Handle<JSValue>::cast(value)->value(), isolate);
   }
+  // 1. Let x be ? thisNumberValue(this value)
   if (!value->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
@@ -122,8 +126,15 @@ BUILTIN(NumberPrototypeToLocaleString) {
                               isolate->factory()->Number_string()));
   }
 
+#ifdef V8_INTL_SUPPORT
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      Intl::NumberToLocaleString(isolate, value, args.atOrUndefined(isolate, 1),
+                                 args.atOrUndefined(isolate, 2)));
+#else
   // Turn the {value} into a String.
   return *isolate->factory()->NumberToString(value);
+#endif  // V8_INTL_SUPPORT
 }
 
 // ES6 section 20.1.3.5 Number.prototype.toPrecision ( precision )
@@ -155,10 +166,10 @@ BUILTIN(NumberPrototypeToPrecision) {
                                      Object::ToInteger(isolate, precision));
   double const precision_number = precision->Number();
 
-  if (std::isnan(value_number)) return isolate->heap()->NaN_string();
+  if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {
-    return (value_number < 0.0) ? isolate->heap()->minus_Infinity_string()
-                                : isolate->heap()->Infinity_string();
+    return (value_number < 0.0) ? ReadOnlyRoots(isolate).minus_Infinity_string()
+                                : ReadOnlyRoots(isolate).Infinity_string();
   }
   if (precision_number < 1.0 || precision_number > kMaxFractionDigits) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -219,10 +230,10 @@ BUILTIN(NumberPrototypeToString) {
   }
 
   // Slow case.
-  if (std::isnan(value_number)) return isolate->heap()->NaN_string();
+  if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {
-    return (value_number < 0.0) ? isolate->heap()->minus_Infinity_string()
-                                : isolate->heap()->Infinity_string();
+    return (value_number < 0.0) ? ReadOnlyRoots(isolate).minus_Infinity_string()
+                                : ReadOnlyRoots(isolate).Infinity_string();
   }
   char* const str =
       DoubleToRadixCString(value_number, static_cast<int>(radix_number));

@@ -1,8 +1,13 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 const tty = require('tty');
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const {
+  UV_EBADF,
+  UV_EINVAL
+} = internalBinding('uv');
 const assert = require('assert');
 
 assert.throws(
@@ -18,7 +23,7 @@ assert.throws(
   const info = {
     code: common.isWindows ? 'EBADF' : 'EINVAL',
     message: common.isWindows ? 'bad file descriptor' : 'invalid argument',
-    errno: common.isWindows ? uv.UV_EBADF : uv.UV_EINVAL,
+    errno: common.isWindows ? UV_EBADF : UV_EINVAL,
     syscall: 'uv_tty_init'
   };
 

@@ -101,31 +101,8 @@ TF_BUILTIN(AllocateHeapNumber, CodeStubAssembler) {
 
 // ES6 #sec-number.isinteger
 TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
-  Node* number = Parameter(Descriptor::kNumber);
-
-  Label return_true(this), return_false(this);
-
-  // Check if {number} is a Smi.
-  GotoIf(TaggedIsSmi(number), &return_true);
-
-  // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumber(number), &return_false);
-
-  // Load the actual value of {number}.
-  Node* number_value = LoadHeapNumberValue(number);
-
-  // Truncate the value of {number} to an integer (or an infinity).
-  Node* integer = Float64Trunc(number_value);
-
-  // Check if {number}s value matches the integer (ruling out the infinities).
-  Branch(Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
-         &return_true, &return_false);
-
-  BIND(&return_true);
-  Return(TrueConstant());
-
-  BIND(&return_false);
-  Return(FalseConstant());
+  TNode<Object> number = CAST(Parameter(Descriptor::kNumber));
+  Return(SelectBooleanConstant(IsInteger(number)));
 }
 
 // ES6 #sec-number.isnan
@@ -153,37 +130,8 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
 
 // ES6 #sec-number.issafeinteger
 TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
-  Node* number = Parameter(Descriptor::kNumber);
-
-  Label return_true(this), return_false(this);
-
-  // Check if {number} is a Smi.
-  GotoIf(TaggedIsSmi(number), &return_true);
-
-  // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumber(number), &return_false);
-
-  // Load the actual value of {number}.
-  Node* number_value = LoadHeapNumberValue(number);
-
-  // Truncate the value of {number} to an integer (or an infinity).
-  Node* integer = Float64Trunc(number_value);
-
-  // Check if {number}s value matches the integer (ruling out the infinities).
-  GotoIfNot(
-      Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
-      &return_false);
-
-  // Check if the {integer} value is in safe integer range.
-  Branch(Float64LessThanOrEqual(Float64Abs(integer),
-                                Float64Constant(kMaxSafeInteger)),
-         &return_true, &return_false);
-
-  BIND(&return_true);
-  Return(TrueConstant());
-
-  BIND(&return_false);
-  Return(FalseConstant());
+  TNode<Object> number = CAST(Parameter(Descriptor::kNumber));
+  Return(SelectBooleanConstant(IsSafeInteger(number)));
 }
 
 // ES6 #sec-number.parsefloat
@@ -280,7 +228,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
 }
 
 // ES6 #sec-number.parseint
-TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
+TF_BUILTIN(ParseInt, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kString);
   Node* radix = Parameter(Descriptor::kRadix);
@@ -355,6 +303,14 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
     Node* result = CallRuntime(Runtime::kStringParseInt, context, input, radix);
     Return(result);
   }
+}
+
+// ES6 #sec-number.parseint
+TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kString);
+  Node* radix = Parameter(Descriptor::kRadix);
+  Return(CallBuiltin(Builtins::kParseInt, context, input, radix));
 }
 
 // ES6 #sec-number.prototype.valueof
@@ -436,13 +392,9 @@ TF_BUILTIN(Add, AddStubAssembler) {
 
       BIND(&if_right_smi);
       {
-        // Try fast Smi addition first, bail out if it overflows.
-        Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(left),
-                                           BitcastTaggedToWord(right));
-        Node* overflow = Projection(1, pair);
         Label if_overflow(this);
-        GotoIf(overflow, &if_overflow);
-        Return(BitcastWordToTaggedSigned(Projection(0, pair)));
+        TNode<Smi> result = TrySmiAdd(CAST(left), CAST(right), &if_overflow);
+        Return(result);
 
         BIND(&if_overflow);
         {
@@ -731,12 +683,10 @@ TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
 
   BIND(&do_smi_sub);
   {
-    // Try a fast Smi subtraction first, bail out if it overflows.
-    Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(var_left.value()),
-                                       BitcastTaggedToWord(var_right.value()));
-    Node* overflow = Projection(1, pair);
-    Label if_overflow(this), if_notoverflow(this);
-    Branch(overflow, &if_overflow, &if_notoverflow);
+    Label if_overflow(this);
+    TNode<Smi> result = TrySmiSub(CAST(var_left.value()),
+                                  CAST(var_right.value()), &if_overflow);
+    Return(result);
 
     BIND(&if_overflow);
     {
@@ -744,9 +694,6 @@ TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
       var_right_double.Bind(SmiToFloat64(var_right.value()));
       Goto(&do_double_sub);
     }
-
-    BIND(&if_notoverflow);
-    Return(BitcastWordToTaggedSigned(Projection(0, pair)));
   }
 
   BIND(&do_double_sub);
@@ -831,7 +778,7 @@ TF_BUILTIN(Negate, NumberBuiltinsAssembler) {
                       &do_bigint);
 
   BIND(&do_smi);
-  { Return(SmiMul(var_input.value(), SmiConstant(-1))); }
+  { Return(SmiMul(CAST(var_input.value()), SmiConstant(-1))); }
 
   BIND(&do_double);
   {
@@ -859,7 +806,7 @@ TF_BUILTIN(Multiply, NumberBuiltinsAssembler) {
 
   BIND(&do_smi_mul);
   // The result is not necessarily a smi, in case of overflow.
-  Return(SmiMul(var_left.value(), var_right.value()));
+  Return(SmiMul(CAST(var_left.value()), CAST(var_right.value())));
 
   BIND(&do_double_mul);
   Node* value = Float64Mul(var_left_double.value(), var_right_double.value());
@@ -887,8 +834,8 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
   {
     // TODO(jkummerow): Consider just always doing a double division.
     Label bailout(this);
-    Node* dividend = var_left.value();
-    Node* divisor = var_right.value();
+    TNode<Smi> dividend = CAST(var_left.value());
+    TNode<Smi> divisor = CAST(var_right.value());
 
     // Do floating point division if {divisor} is zero.
     GotoIf(SmiEqual(divisor, SmiConstant(0)), &bailout);
@@ -968,7 +915,7 @@ TF_BUILTIN(Modulus, NumberBuiltinsAssembler) {
                        &var_left_double, &var_right_double, &do_bigint_mod);
 
   BIND(&do_smi_mod);
-  Return(SmiMod(var_left.value(), var_right.value()));
+  Return(SmiMod(CAST(var_left.value()), CAST(var_right.value())));
 
   BIND(&do_double_mod);
   Node* value = Float64Mod(var_left_double.value(), var_right_double.value());

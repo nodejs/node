@@ -214,6 +214,8 @@
 # define V8_HAS_ATTRIBUTE_ALIGNED (__has_attribute(aligned))
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
+# define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE \
+    (__has_extension(attribute_deprecated_with_message))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))

@@ -24,8 +24,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util.h"
+#include <limits.h>  // INT_MAX
 #include <cstring>
+#include "util.h"
 
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -396,6 +397,62 @@ inline char* Malloc(size_t n) { return Malloc<char>(n); }
 inline char* Calloc(size_t n) { return Calloc<char>(n); }
 inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
 inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
+
+// This is a helper in the .cc file so including util-inl.h doesn't include more
+// headers than we really need to.
+void ThrowErrStringTooLong(v8::Isolate* isolate);
+
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const std::string& str) {
+  v8::Isolate* isolate = context->GetIsolate();
+  if (UNLIKELY(str.size() >= static_cast<size_t>(v8::String::kMaxLength))) {
+    // V8 only has a TODO comment about adding an exception when the maximum
+    // string size is exceeded.
+    ThrowErrStringTooLong(isolate);
+    return v8::MaybeLocal<v8::Value>();
+  }
+
+  return v8::String::NewFromUtf8(
+             isolate, str.data(), v8::NewStringType::kNormal, str.size())
+      .FromMaybe(v8::Local<v8::String>());
+}
+
+template <typename T>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const std::vector<T>& vec) {
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::EscapableHandleScope handle_scope(isolate);
+
+  v8::Local<v8::Array> arr = v8::Array::New(isolate, vec.size());
+  for (size_t i = 0; i < vec.size(); ++i) {
+    v8::Local<v8::Value> val;
+    if (!ToV8Value(context, vec[i]).ToLocal(&val) ||
+        arr->Set(context, i, val).IsNothing()) {
+      return v8::MaybeLocal<v8::Value>();
+    }
+  }
+
+  return handle_scope.Escape(arr);
+}
+
+template <typename T, typename U>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const std::unordered_map<T, U>& map) {
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::EscapableHandleScope handle_scope(isolate);
+
+  v8::Local<v8::Map> ret = v8::Map::New(isolate);
+  for (const auto& item : map) {
+    v8::Local<v8::Value> first, second;
+    if (!ToV8Value(context, item.first).ToLocal(&first) ||
+        !ToV8Value(context, item.second).ToLocal(&second) ||
+        ret->Set(context, first, second).IsEmpty()) {
+      return v8::MaybeLocal<v8::Value>();
+    }
+  }
+
+  return handle_scope.Escape(ret);
+}
 
 }  // namespace node
 

@@ -7,9 +7,9 @@
         "some": "property"
       }
     },
-    {"value": 1},
-    {"value": 2},
-    {"blbl": [{}, {"a":0, "b":1, "value":3}, 10]},
+    {"value": [1]},
+    {"value": {"a":2}},
+    {"blbl": [{}, {"a":0, "b":1, "value":"3"}, 10]},
     {"value": 4}
   ]
 }

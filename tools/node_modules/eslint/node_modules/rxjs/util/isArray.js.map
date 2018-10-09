@@ -1,1 +1,1 @@
-{"version":3,"file":"isArray.js","sourceRoot":"","sources":["../../src/util/isArray.ts"],"names":[],"mappings":";AAAa,eAAO,GAAG,KAAK,CAAC,OAAO,IAAI,CAAC,UAAI,CAAM,IAAe,OAAA,CAAC,IAAI,OAAO,CAAC,CAAC,MAAM,KAAK,QAAQ,EAAjC,CAAiC,CAAC,CAAC","sourcesContent":["export const isArray = Array.isArray || (<T>(x: any): x is T[] => x && typeof x.length === 'number');\n"]}
+{"version":3,"file":"isArray.js","sources":["../src/util/isArray.ts"],"names":[],"mappings":";;;;;AAAA,8CAAyC"}

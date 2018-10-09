@@ -1,6 +1,1 @@
-import { dematerialize } from '../../operator/dematerialize';
-declare module '../../Observable' {
-    interface Observable<T> {
-        dematerialize: typeof dematerialize;
-    }
-}
+import 'rxjs-compat/add/operator/dematerialize';

@@ -6,6 +6,9 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
+#include "src/ic/accessor-assembler.h"
+#include "src/ic/keyed-store-generic.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/shared-function-info.h"
 
@@ -26,8 +29,10 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   void ReturnToStringFormat(Node* context, Node* string);
-  void AddToDictionaryIf(Node* condition, Node* name_dictionary,
-                         Handle<Name> name, Node* value, Label* bailout);
+  void AddToDictionaryIf(TNode<BoolT> condition,
+                         TNode<NameDictionary> name_dictionary,
+                         Handle<Name> name, TNode<Object> value,
+                         Label* bailout);
   Node* FromPropertyDescriptor(Node* context, Node* desc);
   Node* FromPropertyDetails(Node* context, Node* raw_value, Node* details,
                             Label* if_bailout);
@@ -38,6 +43,16 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
   Node* GetAccessorOrUndefined(Node* accessor, Label* if_bailout);
 
   Node* IsSpecialReceiverMap(SloppyTNode<Map> map);
+
+  TNode<Word32T> IsStringWrapperElementsKind(TNode<Map> map);
+
+  // Checks that |map| has only simple properties, returns bitfield3.
+  TNode<Uint32T> EnsureOnlyHasSimpleProperties(TNode<Map> map,
+                                               TNode<Int32T> instance_type,
+                                               Label* bailout);
+
+  void ObjectAssignFast(TNode<Context> context, TNode<JSReceiver> to,
+                        TNode<Object> from, Label* slow);
 };
 
 class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
@@ -48,8 +63,6 @@ class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
 
  protected:
   enum CollectType { kEntries, kValues };
-
-  TNode<Word32T> IsStringWrapperElementsKind(TNode<Map> map);
 
   TNode<BoolT> IsPropertyEnumerable(TNode<Uint32T> details);
 
@@ -153,8 +166,7 @@ Node* ObjectBuiltinsAssembler::IsSpecialReceiverMap(SloppyTNode<Map> map) {
   return is_special;
 }
 
-TNode<Word32T>
-ObjectEntriesValuesBuiltinsAssembler::IsStringWrapperElementsKind(
+TNode<Word32T> ObjectBuiltinsAssembler::IsStringWrapperElementsKind(
     TNode<Map> map) {
   Node* kind = LoadMapElementsKind(map);
   return Word32Or(
@@ -188,7 +200,7 @@ TNode<Uint32T> ObjectEntriesValuesBuiltinsAssembler::HasHiddenPrototype(
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
     TNode<Context> context, TNode<Object> maybe_object,
     CollectType collect_type) {
-  TNode<JSReceiver> receiver = ToObject(context, maybe_object);
+  TNode<JSReceiver> receiver = ToObject_Inline(context, maybe_object);
 
   Label if_call_runtime_with_fast_path(this, Label::kDeferred),
       if_call_runtime(this, Label::kDeferred),
@@ -255,7 +267,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     TNode<Context> context, TNode<JSObject> object,
     Label* if_call_runtime_with_fast_path, Label* if_no_properties,
     CollectType collect_type) {
-  Node* native_context = LoadNativeContext(context);
+  TNode<Context> native_context = LoadNativeContext(context);
   TNode<Map> array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   TNode<Map> map = LoadMap(object);
@@ -263,9 +275,9 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
 
   Label if_has_enum_cache(this), if_not_has_enum_cache(this),
       collect_entries(this);
-  Node* object_enum_length =
-      DecodeWordFromWord32<Map::EnumLengthBits>(bit_field3);
-  Node* has_enum_cache = WordNotEqual(
+  TNode<IntPtrT> object_enum_length =
+      Signed(DecodeWordFromWord32<Map::EnumLengthBits>(bit_field3));
+  TNode<BoolT> has_enum_cache = WordNotEqual(
       object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel));
 
   // In case, we found enum_cache in object,
@@ -281,9 +293,8 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
   BIND(&if_has_enum_cache);
   {
     GotoIf(WordEqual(object_enum_length, IntPtrConstant(0)), if_no_properties);
-    TNode<FixedArray> values_or_entries = TNode<FixedArray>::UncheckedCast(
-        AllocateFixedArray(PACKED_ELEMENTS, object_enum_length,
-                           INTPTR_PARAMETERS, kAllowLargeObjectAllocation));
+    TNode<FixedArray> values_or_entries = CAST(AllocateFixedArray(
+        PACKED_ELEMENTS, object_enum_length, kAllowLargeObjectAllocation));
 
     // If in case we have enum_cache,
     // we can't detect accessor of object until loop through descriptors.
@@ -331,8 +342,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       // the next descriptor.
       GotoIfNot(IsPropertyEnumerable(details), &next_descriptor);
 
-      VARIABLE(var_property_value, MachineRepresentation::kTagged,
-               UndefinedConstant());
+      TVARIABLE(Object, var_property_value, UndefinedConstant());
       TNode<IntPtrT> descriptor_name_index = ToKeyIndex<DescriptorArray>(
           Unsigned(TruncateIntPtrToInt32(var_descriptor_number.value())));
 
@@ -342,7 +352,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
                                  &var_property_value);
 
       // If kind is "value", append value to properties.
-      Node* value = var_property_value.value();
+      TNode<Object> value = var_property_value.value();
 
       if (collect_type == CollectType::kEntries) {
         // Let entry be CreateArrayFromList(« key, value »).
@@ -351,9 +361,9 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
         std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
             PACKED_ELEMENTS, array_map, SmiConstant(2), nullptr,
             IntPtrConstant(2));
-        StoreFixedArrayElement(elements, 0, next_key, SKIP_WRITE_BARRIER);
-        StoreFixedArrayElement(elements, 1, value, SKIP_WRITE_BARRIER);
-        value = array;
+        StoreFixedArrayElement(CAST(elements), 0, next_key, SKIP_WRITE_BARRIER);
+        StoreFixedArrayElement(CAST(elements), 1, value, SKIP_WRITE_BARRIER);
+        value = TNode<JSArray>::UncheckedCast(array);
       }
 
       StoreFixedArrayElement(values_or_entries, var_result_index.value(),
@@ -419,7 +429,7 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   BIND(&if_objectisnotsmi);
 
   Node* map = LoadMap(object);
-  Node* instance_type = LoadMapInstanceType(map);
+  TNode<Int32T> instance_type = LoadMapInstanceType(map);
 
   {
     VARIABLE(var_index, MachineType::PointerRepresentation());
@@ -471,6 +481,219 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
 
   BIND(&call_runtime);
   Return(CallRuntime(Runtime::kObjectHasOwnProperty, context, object, key));
+}
+
+// ES #sec-object.assign
+TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> target = args.GetOptionalArgumentValue(0);
+
+  // 1. Let to be ? ToObject(target).
+  TNode<JSReceiver> to = ToObject_Inline(context, target);
+
+  Label done(this);
+  // 2. If only one argument was passed, return to.
+  GotoIf(UintPtrLessThanOrEqual(argc, IntPtrConstant(1)), &done);
+
+  // 3. Let sources be the List of argument values starting with the
+  //    second argument.
+  // 4. For each element nextSource of sources, in ascending index order,
+  args.ForEach(
+      [=](Node* next_source_) {
+        TNode<Object> next_source = CAST(next_source_);
+        Label slow(this), cont(this);
+        ObjectAssignFast(context, to, next_source, &slow);
+        Goto(&cont);
+
+        BIND(&slow);
+        {
+          CallRuntime(Runtime::kSetDataProperties, context, to, next_source);
+          Goto(&cont);
+        }
+        BIND(&cont);
+      },
+      IntPtrConstant(1));
+  Goto(&done);
+
+  // 5. Return to.
+  BIND(&done);
+  args.PopAndReturn(to);
+}
+
+TNode<Uint32T> ObjectBuiltinsAssembler::EnsureOnlyHasSimpleProperties(
+    TNode<Map> map, TNode<Int32T> instance_type, Label* bailout) {
+  GotoIf(IsCustomElementsReceiverInstanceType(instance_type), bailout);
+
+  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
+  GotoIf(IsSetWord32(bit_field3, Map::IsDictionaryMapBit::kMask |
+                                     Map::HasHiddenPrototypeBit::kMask),
+         bailout);
+
+  return bit_field3;
+}
+
+// This function mimics what FastAssign() function does for C++ implementation.
+void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
+                                               TNode<JSReceiver> to,
+                                               TNode<Object> from,
+                                               Label* slow) {
+  Label done(this);
+
+  // Non-empty strings are the only non-JSReceivers that need to be handled
+  // explicitly by Object.assign.
+  GotoIf(TaggedIsSmi(from), &done);
+  TNode<Map> from_map = LoadMap(CAST(from));
+  TNode<Int32T> from_instance_type = LoadMapInstanceType(from_map);
+  {
+    Label cont(this);
+    GotoIf(IsJSReceiverInstanceType(from_instance_type), &cont);
+    GotoIfNot(IsStringInstanceType(from_instance_type), &done);
+    {
+      Branch(SmiEqual(LoadStringLengthAsSmi(CAST(from)), SmiConstant(0)), &done,
+             slow);
+    }
+    BIND(&cont);
+  }
+
+  // If the target is deprecated, the object will be updated on first store. If
+  // the source for that store equals the target, this will invalidate the
+  // cached representation of the source. Handle this case in runtime.
+  TNode<Map> to_map = LoadMap(to);
+  GotoIf(IsDeprecatedMap(to_map), slow);
+  TNode<BoolT> to_is_simple_receiver = IsSimpleObjectMap(to_map);
+
+  GotoIfNot(IsJSObjectInstanceType(from_instance_type), slow);
+  TNode<Uint32T> from_bit_field3 =
+      EnsureOnlyHasSimpleProperties(from_map, from_instance_type, slow);
+
+  GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(from))), slow);
+
+  TNode<DescriptorArray> from_descriptors = LoadMapDescriptors(from_map);
+  TNode<Uint32T> nof_descriptors =
+      DecodeWord32<Map::NumberOfOwnDescriptorsBits>(from_bit_field3);
+
+  TVARIABLE(BoolT, var_stable, Int32TrueConstant());
+  VariableList list({&var_stable}, zone());
+
+  DescriptorArrayForEach(
+      list, Unsigned(Int32Constant(0)), nof_descriptors,
+      [=, &var_stable](TNode<UintPtrT> descriptor_key_index) {
+        TNode<Name> next_key = CAST(
+            LoadWeakFixedArrayElement(from_descriptors, descriptor_key_index));
+
+        TVARIABLE(Object, var_value, SmiConstant(0));
+        Label do_store(this), next_iteration(this);
+
+        {
+          TVARIABLE(Map, var_from_map);
+          TVARIABLE(HeapObject, var_meta_storage);
+          TVARIABLE(IntPtrT, var_entry);
+          TVARIABLE(Uint32T, var_details);
+          Label if_found(this);
+
+          Label if_found_fast(this), if_found_dict(this);
+
+          Label if_stable(this), if_not_stable(this);
+          Branch(var_stable.value(), &if_stable, &if_not_stable);
+          BIND(&if_stable);
+          {
+            // Directly decode from the descriptor array if |from| did not
+            // change shape.
+            var_from_map = from_map;
+            var_meta_storage = from_descriptors;
+            var_entry = Signed(descriptor_key_index);
+            Goto(&if_found_fast);
+          }
+          BIND(&if_not_stable);
+          {
+            // If the map did change, do a slower lookup. We are still
+            // guaranteed that the object has a simple shape, and that the key
+            // is a name.
+            var_from_map = LoadMap(CAST(from));
+            TryLookupPropertyInSimpleObject(
+                CAST(from), var_from_map.value(), next_key, &if_found_fast,
+                &if_found_dict, &var_meta_storage, &var_entry, &next_iteration);
+          }
+
+          BIND(&if_found_fast);
+          {
+            TNode<DescriptorArray> descriptors = CAST(var_meta_storage.value());
+            TNode<IntPtrT> name_index = var_entry.value();
+
+            // Skip non-enumerable properties.
+            var_details = LoadDetailsByKeyIndex(descriptors, name_index);
+            GotoIf(IsSetWord32(var_details.value(),
+                               PropertyDetails::kAttributesDontEnumMask),
+                   &next_iteration);
+
+            LoadPropertyFromFastObject(from, var_from_map.value(), descriptors,
+                                       name_index, var_details.value(),
+                                       &var_value);
+            Goto(&if_found);
+          }
+          BIND(&if_found_dict);
+          {
+            Node* dictionary = var_meta_storage.value();
+            Node* entry = var_entry.value();
+
+            TNode<Uint32T> details =
+                LoadDetailsByKeyIndex<NameDictionary>(dictionary, entry);
+            // Skip non-enumerable properties.
+            GotoIf(
+                IsSetWord32(details, PropertyDetails::kAttributesDontEnumMask),
+                &next_iteration);
+
+            var_details = details;
+            var_value = LoadValueByKeyIndex<NameDictionary>(dictionary, entry);
+            Goto(&if_found);
+          }
+
+          // Here we have details and value which could be an accessor.
+          BIND(&if_found);
+          {
+            Label slow_load(this, Label::kDeferred);
+
+            var_value =
+                CallGetterIfAccessor(var_value.value(), var_details.value(),
+                                     context, from, &slow_load, kCallJSGetter);
+            Goto(&do_store);
+
+            BIND(&slow_load);
+            {
+              var_value =
+                  CallRuntime(Runtime::kGetProperty, context, from, next_key);
+              Goto(&do_store);
+            }
+          }
+        }
+
+        // Store property to target object.
+        BIND(&do_store);
+        {
+          KeyedStoreGenericGenerator::SetProperty(
+              state(), context, to, to_is_simple_receiver, next_key,
+              var_value.value(), LanguageMode::kStrict);
+
+          // Check if the |from| object is still stable, i.e. we can proceed
+          // using property details from preloaded |from_descriptors|.
+          var_stable = Select<BoolT>(
+              var_stable.value(),
+              [=] { return WordEqual(LoadMap(CAST(from)), from_map); },
+              [=] { return Int32FalseConstant(); });
+
+          Goto(&next_iteration);
+        }
+
+        BIND(&next_iteration);
+      });
+
+  Goto(&done);
+
+  BIND(&done);
 }
 
 // ES #sec-object.keys
@@ -539,6 +762,108 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   {
     // Let the runtime compute the elements.
     Node* elements = CallRuntime(Runtime::kObjectKeys, context, object);
+    var_length.Bind(LoadObjectField(elements, FixedArray::kLengthOffset));
+    var_elements.Bind(elements);
+    Goto(&if_join);
+  }
+
+  BIND(&if_join);
+  {
+    // Wrap the elements into a proper JSArray and return that.
+    Node* native_context = LoadNativeContext(context);
+    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    Node* array = AllocateUninitializedJSArrayWithoutElements(
+        array_map, var_length.value(), nullptr);
+    StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
+                                   var_elements.value());
+    Return(array);
+  }
+}
+
+// ES #sec-object.getOwnPropertyNames
+TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
+
+  VARIABLE(var_length, MachineRepresentation::kTagged);
+  VARIABLE(var_elements, MachineRepresentation::kTagged);
+  Label if_empty(this, Label::kDeferred), if_empty_elements(this),
+      if_fast(this), try_fast(this, Label::kDeferred),
+      if_slow(this, Label::kDeferred), if_join(this);
+
+  // Check if the {object} has a usable enum cache.
+  GotoIf(TaggedIsSmi(object), &if_slow);
+  Node* object_map = LoadMap(object);
+  Node* object_bit_field3 = LoadMapBitField3(object_map);
+  Node* object_enum_length =
+      DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
+  GotoIf(
+      WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
+      &try_fast);
+
+  // Ensure that the {object} doesn't have any elements.
+  CSA_ASSERT(this, IsJSObjectMap(object_map));
+  Node* object_elements = LoadElements(object);
+  GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
+  Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
+         &if_slow);
+
+  // Check whether all own properties are enumerable.
+  BIND(&if_empty_elements);
+  Node* number_descriptors =
+      DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(object_bit_field3);
+  GotoIfNot(WordEqual(object_enum_length, number_descriptors), &if_slow);
+
+  // Check whether there are enumerable properties.
+  Branch(WordEqual(object_enum_length, IntPtrConstant(0)), &if_empty, &if_fast);
+
+  BIND(&if_fast);
+  {
+    // The {object} has a usable enum cache and all own properties are
+    // enumerable, use that.
+    Node* object_descriptors = LoadMapDescriptors(object_map);
+    Node* object_enum_cache =
+        LoadObjectField(object_descriptors, DescriptorArray::kEnumCacheOffset);
+    Node* object_enum_keys =
+        LoadObjectField(object_enum_cache, EnumCache::kKeysOffset);
+
+    // Allocate a JSArray and copy the elements from the {object_enum_keys}.
+    Node* array = nullptr;
+    Node* elements = nullptr;
+    Node* native_context = LoadNativeContext(context);
+    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    Node* array_length = SmiTag(object_enum_length);
+    std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+        PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
+        INTPTR_PARAMETERS);
+    CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
+                           object_enum_length, SKIP_WRITE_BARRIER);
+    Return(array);
+  }
+
+  BIND(&try_fast);
+  {
+    // Let the runtime compute the elements and try initializing enum cache.
+    Node* elements = CallRuntime(Runtime::kObjectGetOwnPropertyNamesTryFast,
+                                 context, object);
+    var_length.Bind(LoadObjectField(elements, FixedArray::kLengthOffset));
+    var_elements.Bind(elements);
+    Goto(&if_join);
+  }
+
+  BIND(&if_empty);
+  {
+    // The {object} doesn't have any enumerable keys.
+    var_length.Bind(SmiConstant(0));
+    var_elements.Bind(EmptyFixedArrayConstant());
+    Goto(&if_join);
+  }
+
+  BIND(&if_slow);
+  {
+    // Let the runtime compute the elements.
+    Node* elements =
+        CallRuntime(Runtime::kObjectGetOwnPropertyNames, context, object);
     var_length.Bind(LoadObjectField(elements, FixedArray::kLengthOffset));
     var_elements.Bind(elements);
     Goto(&if_join);
@@ -897,10 +1222,73 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
 
 // ES6 #sec-object.prototype.valueof
 TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  Return(ToObject(context, receiver));
+  Return(ToObject_Inline(context, receiver));
+}
+
+// ES #sec-object.create
+TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
+  Node* const prototype = Parameter(Descriptor::kPrototypeArg);
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const native_context = LoadNativeContext(context);
+  Label call_runtime(this, Label::kDeferred), prototype_null(this),
+      prototype_jsreceiver(this);
+  {
+    Comment("Argument check: prototype");
+    GotoIf(IsNull(prototype), &prototype_null);
+    BranchIfJSReceiver(prototype, &prototype_jsreceiver, &call_runtime);
+  }
+
+  VARIABLE(map, MachineRepresentation::kTagged);
+  VARIABLE(properties, MachineRepresentation::kTagged);
+  Label instantiate_map(this);
+
+  BIND(&prototype_null);
+  {
+    Comment("Prototype is null");
+    map.Bind(LoadContextElement(native_context,
+                                Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+    properties.Bind(AllocateNameDictionary(NameDictionary::kInitialCapacity));
+    Goto(&instantiate_map);
+  }
+
+  BIND(&prototype_jsreceiver);
+  {
+    Comment("Prototype is JSReceiver");
+    properties.Bind(EmptyFixedArrayConstant());
+    Node* object_function =
+        LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX);
+    Node* object_function_map = LoadObjectField(
+        object_function, JSFunction::kPrototypeOrInitialMapOffset);
+    map.Bind(object_function_map);
+    GotoIf(WordEqual(prototype, LoadMapPrototype(map.value())),
+           &instantiate_map);
+    Comment("Try loading the prototype info");
+    Node* prototype_info =
+        LoadMapPrototypeInfo(LoadMap(prototype), &call_runtime);
+    TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
+        prototype_info, PrototypeInfo::kObjectCreateMapOffset);
+    GotoIf(IsStrongReferenceTo(maybe_map, UndefinedConstant()), &call_runtime);
+    map.Bind(ToWeakHeapObject(maybe_map, &call_runtime));
+    Goto(&instantiate_map);
+  }
+
+  BIND(&instantiate_map);
+  {
+    Comment("Instantiate map");
+    Node* instance = AllocateJSObjectFromMap(map.value(), properties.value());
+    Return(instance);
+  }
+
+  BIND(&call_runtime);
+  {
+    Comment("Call Runtime (prototype is not null/jsreceiver)");
+    Node* result = CallRuntime(Runtime::kObjectCreate, context, prototype,
+                               UndefinedConstant());
+    Return(result);
+  }
 }
 
 // ES #sec-object.create
@@ -909,12 +1297,12 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   int const kPropertiesArg = 1;
 
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   Node* prototype = args.GetOptionalArgumentValue(kPrototypeArg);
   Node* properties = args.GetOptionalArgumentValue(kPropertiesArg);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
 
   Label call_runtime(this, Label::kDeferred), prototype_valid(this),
       no_properties(this);
@@ -975,10 +1363,11 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       Node* prototype_info =
           LoadMapPrototypeInfo(LoadMap(prototype), &call_runtime);
       Comment("Load ObjectCreateMap from PrototypeInfo");
-      Node* weak_cell =
-          LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
-      GotoIf(IsUndefined(weak_cell), &call_runtime);
-      map.Bind(LoadWeakCellValue(weak_cell, &call_runtime));
+      TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
+          prototype_info, PrototypeInfo::kObjectCreateMapOffset);
+      GotoIf(IsStrongReferenceTo(maybe_map, UndefinedConstant()),
+             &call_runtime);
+      map.Bind(ToWeakHeapObject(maybe_map, &call_runtime));
       Goto(&instantiate_map);
     }
 
@@ -1034,7 +1423,7 @@ TF_BUILTIN(HasProperty, ObjectBuiltinsAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* context = Parameter(Descriptor::kContext);
 
-  Return(HasProperty(object, key, context, kHasProperty));
+  Return(HasProperty(context, object, key, kHasProperty));
 }
 
 TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {
@@ -1078,12 +1467,17 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
   Node* bytecode_array = LoadSharedFunctionInfoBytecodeArray(shared);
 
+  Node* formal_parameter_count = ChangeInt32ToIntPtr(
+      LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
+                      MachineType::Uint16()));
   Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
-  Node* size = WordSar(frame_size, IntPtrConstant(kPointerSizeLog2));
-  Node* register_file = AllocateFixedArray(HOLEY_ELEMENTS, size);
-  FillFixedArrayWithValue(HOLEY_ELEMENTS, register_file, IntPtrConstant(0),
-                          size, Heap::kUndefinedValueRootIndex);
+  Node* size = IntPtrAdd(WordSar(frame_size, IntPtrConstant(kPointerSizeLog2)),
+                         formal_parameter_count);
+  Node* parameters_and_registers = AllocateFixedArray(HOLEY_ELEMENTS, size);
+  FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
+                          IntPtrConstant(0), size,
+                          Heap::kUndefinedValueRootIndex);
   // TODO(cbruni): support start_offset to avoid double initialization.
   Node* result = AllocateJSObjectFromMap(maybe_map, nullptr, nullptr, kNone,
                                          kWithSlackTracking);
@@ -1093,8 +1487,9 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
                                  context);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kReceiverOffset,
                                  receiver);
-  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kRegisterFileOffset,
-                                 register_file);
+  StoreObjectFieldNoWriteBarrier(
+      result, JSGeneratorObject::kParametersAndRegistersOffset,
+      parameters_and_registers);
   Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
                                  executing);
@@ -1115,16 +1510,16 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
 // ES6 section 19.1.2.7 Object.getOwnPropertyDescriptor ( O, P )
 TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
+  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  Node* context = Parameter(Descriptor::kContext);
+  CSA_ASSERT(this, IsUndefined(Parameter(Descriptor::kJSNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
   Node* object = args.GetOptionalArgumentValue(0);
   Node* key = args.GetOptionalArgumentValue(1);
 
   // 1. Let obj be ? ToObject(O).
-  object = ToObject(context, object);
+  object = ToObject_Inline(CAST(context), CAST(object));
 
   // 2. Let key be ? ToPropertyKey(P).
   key = ToName(context, key);
@@ -1134,7 +1529,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
       call_runtime(this, Label::kDeferred),
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
   Node* map = LoadMap(object);
-  Node* instance_type = LoadMapInstanceType(map);
+  TNode<Int32T> instance_type = LoadMapInstanceType(map);
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
   {
     VARIABLE(var_index, MachineType::PointerRepresentation(),
@@ -1206,10 +1601,9 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   args.PopAndReturn(UndefinedConstant());
 }
 
-void ObjectBuiltinsAssembler::AddToDictionaryIf(Node* condition,
-                                                Node* name_dictionary,
-                                                Handle<Name> name, Node* value,
-                                                Label* bailout) {
+void ObjectBuiltinsAssembler::AddToDictionaryIf(
+    TNode<BoolT> condition, TNode<NameDictionary> name_dictionary,
+    Handle<Name> name, TNode<Object> value, Label* bailout) {
   Label done(this);
   GotoIfNot(condition, &done);
 
@@ -1269,13 +1663,14 @@ Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
         native_context, Context::SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP);
     // We want to preallocate the slots for value, writable, get, set,
     // enumerable and configurable - a total of 6
-    Node* properties = AllocateNameDictionary(6);
+    TNode<NameDictionary> properties = AllocateNameDictionary(6);
     Node* js_desc = AllocateJSObjectFromMap(map, properties);
 
     Label bailout(this, Label::kDeferred);
 
     Factory* factory = isolate()->factory();
-    Node* value = LoadObjectField(desc, PropertyDescriptorObject::kValueOffset);
+    TNode<Object> value =
+        LoadObjectField(desc, PropertyDescriptorObject::kValueOffset);
     AddToDictionaryIf(IsNotTheHole(value), properties, factory->value_string(),
                       value, &bailout);
     AddToDictionaryIf(
@@ -1285,10 +1680,12 @@ Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
             IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags)),
         &bailout);
 
-    Node* get = LoadObjectField(desc, PropertyDescriptorObject::kGetOffset);
+    TNode<Object> get =
+        LoadObjectField(desc, PropertyDescriptorObject::kGetOffset);
     AddToDictionaryIf(IsNotTheHole(get), properties, factory->get_string(), get,
                       &bailout);
-    Node* set = LoadObjectField(desc, PropertyDescriptorObject::kSetOffset);
+    TNode<Object> set =
+        LoadObjectField(desc, PropertyDescriptorObject::kSetOffset);
     AddToDictionaryIf(IsNotTheHole(set), properties, factory->set_string(), set,
                       &bailout);
 

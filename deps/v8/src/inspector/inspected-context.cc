@@ -110,11 +110,11 @@ InjectedScript* InspectedContext::getInjectedScript(int sessionId) {
 }
 
 bool InspectedContext::createInjectedScript(int sessionId) {
-  DCHECK(m_injectedScripts.find(sessionId) == m_injectedScripts.end());
   std::unique_ptr<InjectedScript> injectedScript =
       InjectedScript::create(this, sessionId);
   // InjectedScript::create can destroy |this|.
   if (!injectedScript) return false;
+  CHECK(m_injectedScripts.find(sessionId) == m_injectedScripts.end());
   m_injectedScripts[sessionId] = std::move(injectedScript);
   return true;
 }

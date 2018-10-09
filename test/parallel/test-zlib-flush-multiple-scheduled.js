@@ -8,8 +8,6 @@ const {
   Z_PARTIAL_FLUSH, Z_SYNC_FLUSH, Z_FULL_FLUSH, Z_FINISH
 } = zlib.constants;
 
-common.crashOnUnhandledRejection();
-
 async function getOutput(...sequenceOfFlushes) {
   const zipper = zlib.createGzip({ highWaterMark: 16384 });
 

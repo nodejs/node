@@ -41,8 +41,8 @@ class RegExpUtils : public AllStatic {
 
   // ES#sec-advancestringindex
   // AdvanceStringIndex ( S, index, unicode )
-  static uint64_t AdvanceStringIndex(Isolate* isolate, Handle<String> string,
-                                     uint64_t index, bool unicode);
+  static uint64_t AdvanceStringIndex(Handle<String> string, uint64_t index,
+                                     bool unicode);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetAdvancedStringIndex(
       Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
       bool unicode);

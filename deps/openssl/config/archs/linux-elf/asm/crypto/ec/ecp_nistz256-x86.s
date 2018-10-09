@@ -3857,7 +3857,7 @@ ecp_nistz256_scatter_w7:
 	movl	20(%esp),%edi
 	movl	24(%esp),%esi
 	movl	28(%esp),%ebp
-	leal	-1(%edi,%ebp,1),%edi
+	leal	(%edi,%ebp,1),%edi
 	movl	$16,%ebp
 .L007scatter_w7_loop:
 	movl	(%esi),%eax

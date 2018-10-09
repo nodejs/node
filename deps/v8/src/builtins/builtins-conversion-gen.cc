@@ -142,6 +142,14 @@ TF_BUILTIN(ToNumber, CodeStubAssembler) {
   Return(ToNumber(context, input));
 }
 
+// Like ToNumber, but also converts BigInts.
+TF_BUILTIN(ToNumberConvertBigInt, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+
+  Return(ToNumber(context, input, BigIntHandling::kConvertToNumber));
+}
+
 // ES section #sec-tostring-applied-to-the-number-type
 TF_BUILTIN(NumberToString, CodeStubAssembler) {
   TNode<Number> input = CAST(Parameter(Descriptor::kArgument));
@@ -368,7 +376,7 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Goto(&if_wrapjsvalue);
 
   BIND(&if_wrapjsvalue);
-  Node* native_context = LoadNativeContext(context);
+  TNode<Context> native_context = LoadNativeContext(context);
   Node* constructor = LoadFixedArrayElement(
       native_context, constructor_function_index_var.value());
   Node* initial_map =
@@ -392,7 +400,7 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
 
 // ES6 section 12.5.5 typeof operator
 TF_BUILTIN(Typeof, CodeStubAssembler) {
-  Node* object = Parameter(TypeofDescriptor::kObject);
+  Node* object = Parameter(Descriptor::kObject);
 
   Return(Typeof(object));
 }

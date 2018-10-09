@@ -39,8 +39,7 @@ after packing it up into a tarball (b).</p>
 <pre><code>git://github.com/user/project.git#commit-ish
 git+ssh://user@hostname:project.git#commit-ish
 git+http://user@hostname/project/blah.git#commit-ish
-git+https://user@hostname/project/blah.git#commit-ish
-</code></pre><p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
+git+https://user@hostname/project/blah.git#commit-ish</code></pre><p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
 an argument to <code>git checkout</code>.  The default is <code>master</code>.</p>
 <h2 id="the-package-json-file">The package.json File</h2>
 <p>You need to have a <code>package.json</code> file in the root of your project to do
@@ -154,26 +153,21 @@ problems trying to publish it.  Or, worse yet, you&#39;ll be able to
 publish it, but you&#39;ll be publishing a broken or pointless package.
 So don&#39;t do that.</p>
 <p>In the root of your package, do this:</p>
-<pre><code>npm install . -g
-</code></pre><p>That&#39;ll show you that it&#39;s working.  If you&#39;d rather just create a symlink
+<pre><code>npm install . -g</code></pre><p>That&#39;ll show you that it&#39;s working.  If you&#39;d rather just create a symlink
 package that points to your working directory, then do this:</p>
-<pre><code>npm link
-</code></pre><p>Use <code>npm ls -g</code> to see if it&#39;s there.</p>
+<pre><code>npm link</code></pre><p>Use <code>npm ls -g</code> to see if it&#39;s there.</p>
 <p>To test a local install, go into some other folder, and then do:</p>
 <pre><code>cd ../some-other-folder
-npm install ../my-package
-</code></pre><p>to install it locally into the node_modules folder in that other place.</p>
+npm install ../my-package</code></pre><p>to install it locally into the node_modules folder in that other place.</p>
 <p>Then go into the node-repl, and try using require(&quot;my-thing&quot;) to
 bring in your module&#39;s main module.</p>
 <h2 id="create-a-user-account">Create a User Account</h2>
 <p>Create a user with the adduser command.  It works like this:</p>
-<pre><code>npm adduser
-</code></pre><p>and then follow the prompts.</p>
+<pre><code>npm adduser</code></pre><p>and then follow the prompts.</p>
 <p>This is documented better in <a href="../cli/npm-adduser.html">npm-adduser(1)</a>.</p>
 <h2 id="publish-your-package">Publish your package</h2>
 <p>This part&#39;s easy.  In the root of your folder, do this:</p>
-<pre><code>npm publish
-</code></pre><p>You can give publish a url to a tarball, or a filename of a tarball,
+<pre><code>npm publish</code></pre><p>You can give publish a url to a tarball, or a filename of a tarball,
 or a path to a folder.</p>
 <p>Note that pretty much <strong>everything in that folder will be exposed</strong>
 by default.  So, if you have secret stuff in there, use a
@@ -204,5 +198,5 @@ from a fresh checkout.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-developers &mdash; npm@6.1.0</p>
+<p id="footer">npm-developers &mdash; npm@6.4.1</p>
 

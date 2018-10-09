@@ -30,7 +30,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            expression: "Expected a function expression.",
+            declaration: "Expected a function declaration."
+        }
     },
 
     create(context) {
@@ -45,7 +49,7 @@ module.exports = {
                 stack.push(false);
 
                 if (!enforceDeclarations && node.parent.type !== "ExportDefaultDeclaration") {
-                    context.report({ node, message: "Expected a function expression." });
+                    context.report({ node, messageId: "expression" });
                 }
             },
             "FunctionDeclaration:exit"() {
@@ -56,7 +60,7 @@ module.exports = {
                 stack.push(false);
 
                 if (enforceDeclarations && node.parent.type === "VariableDeclarator") {
-                    context.report({ node: node.parent, message: "Expected a function declaration." });
+                    context.report({ node: node.parent, messageId: "declaration" });
                 }
             },
             "FunctionExpression:exit"() {
@@ -79,7 +83,7 @@ module.exports = {
                 const hasThisExpr = stack.pop();
 
                 if (enforceDeclarations && !hasThisExpr && node.parent.type === "VariableDeclarator") {
-                    context.report({ node: node.parent, message: "Expected a function declaration." });
+                    context.report({ node: node.parent, messageId: "declaration" });
                 }
             };
         }

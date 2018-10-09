@@ -13,7 +13,7 @@ let gen;
 !function() {
   function GetCoverage(source) {
     for (var script of %DebugCollectCoverage()) {
-      if (script.script.source == source) return script;
+      if (script.script === source) return script;
     }
     return undefined;
   };

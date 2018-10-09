@@ -133,7 +133,7 @@ through either:
 
 ICU is able to automatically find and load a variety of data formats, but the
 data must be appropriate for the ICU version, and the file correctly named.
-The most common name for the data file is `icudt5X[bl].dat`, where `5X` denotes
+The most common name for the data file is `icudt6X[bl].dat`, where `6X` denotes
 the intended ICU version, and `b` or `l` indicates the system's endianness.
 Check ["ICU Data"][] article in the ICU User Guide for other supported formats
 and more details on ICU data in general.
@@ -209,7 +209,7 @@ to be helpful:
 [BUILDING.md#full-icu]: https://github.com/nodejs/node/blob/master/BUILDING.md#build-with-full-icu-support-all-locales-supported-by-icu
 [ECMA-262]: https://tc39.github.io/ecma262/
 [ECMA-402]: https://tc39.github.io/ecma402/
-[ICU]: http://icu-project.org/
+[ICU]: http://site.icu-project.org/
 [REPL]: repl.html#repl_repl
 [Test262]: https://github.com/tc39/test262/tree/master/test/intl402
 [WHATWG URL parser]: url.html#url_the_whatwg_url_api

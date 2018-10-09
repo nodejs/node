@@ -11,11 +11,14 @@
 #include "src/allocation.h"
 #include "src/base/macros.h"
 #include "src/boxed-float.h"
+#include "src/code-tracer.h"
 #include "src/deoptimize-reason.h"
 #include "src/feedback-vector.h"
 #include "src/frame-constants.h"
+#include "src/globals.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
+#include "src/objects/shared-function-info.h"
 #include "src/source-position.h"
 #include "src/zone/zone-chunk-list.h"
 
@@ -31,8 +34,8 @@ class RegisterValues;
 class TranslatedValue {
  public:
   // Allocation-less getter of the value.
-  // Returns heap()->arguments_marker() if allocation would be
-  // necessary to get the value.
+  // Returns ReadOnlyRoots::arguments_marker() if allocation would be necessary
+  // to get the value.
   Object* GetRawValue() const;
 
   // Getter for the value, takes care of materializing the subgraph
@@ -171,31 +174,39 @@ class TranslatedFrame {
   class iterator {
    public:
     iterator& operator++() {
+      ++input_index_;
       AdvanceIterator(&position_);
       return *this;
     }
 
     iterator operator++(int) {
+      ++input_index_;
       iterator original(position_);
       AdvanceIterator(&position_);
       return original;
     }
 
     bool operator==(const iterator& other) const {
+      // Ignore {input_index_} for equality.
       return position_ == other.position_;
     }
     bool operator!=(const iterator& other) const { return !(*this == other); }
 
     TranslatedValue& operator*() { return (*position_); }
     TranslatedValue* operator->() { return &(*position_); }
+    const TranslatedValue& operator*() const { return (*position_); }
+    const TranslatedValue* operator->() const { return &(*position_); }
+
+    int input_index() const { return input_index_; }
 
    private:
     friend TranslatedFrame;
 
     explicit iterator(std::deque<TranslatedValue>::iterator position)
-        : position_(position) {}
+        : position_(position), input_index_(0) {}
 
     std::deque<TranslatedValue>::iterator position_;
+    int input_index_;
   };
 
   typedef TranslatedValue& reference;
@@ -297,9 +308,9 @@ class TranslatedState {
 
   Isolate* isolate() { return isolate_; }
 
-  void Init(Address input_frame_pointer, TranslationIterator* iterator,
-            FixedArray* literal_array, RegisterValues* registers,
-            FILE* trace_file, int parameter_count);
+  void Init(Isolate* isolate, Address input_frame_pointer,
+            TranslationIterator* iterator, FixedArray* literal_array,
+            RegisterValues* registers, FILE* trace_file, int parameter_count);
 
   void VerifyMaterializedObjects();
   bool DoUpdateFeedback();
@@ -362,7 +373,7 @@ class TranslatedState {
 
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_ = nullptr;
-  Address stack_frame_pointer_ = nullptr;
+  Address stack_frame_pointer_ = kNullAddress;
   int formal_parameter_count_;
 
   struct ObjectPosition {
@@ -384,8 +395,6 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
 
 class Deoptimizer : public Malloced {
  public:
-  enum BailoutType { EAGER, LAZY, SOFT, kLastBailoutType = SOFT };
-
   struct DeoptInfo {
     DeoptInfo(SourcePosition position, DeoptimizeReason deopt_reason,
               int deopt_id)
@@ -398,48 +407,45 @@ class Deoptimizer : public Malloced {
     static const int kNoDeoptId = -1;
   };
 
-  static DeoptInfo GetDeoptInfo(Code* code, byte* from);
+  static DeoptInfo GetDeoptInfo(Code* code, Address from);
 
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
                                                     BailoutId node_id);
 
   struct JumpTableEntry : public ZoneObject {
     inline JumpTableEntry(Address entry, const DeoptInfo& deopt_info,
-                          Deoptimizer::BailoutType type, bool frame)
+                          DeoptimizeKind kind, bool frame)
         : label(),
           address(entry),
           deopt_info(deopt_info),
-          bailout_type(type),
+          deopt_kind(kind),
           needs_frame(frame) {}
 
     bool IsEquivalentTo(const JumpTableEntry& other) const {
-      return address == other.address && bailout_type == other.bailout_type &&
+      return address == other.address && deopt_kind == other.deopt_kind &&
              needs_frame == other.needs_frame;
     }
 
     Label label;
     Address address;
     DeoptInfo deopt_info;
-    Deoptimizer::BailoutType bailout_type;
+    DeoptimizeKind deopt_kind;
     bool needs_frame;
   };
 
-  static const char* MessageFor(BailoutType type);
+  static const char* MessageFor(DeoptimizeKind kind);
 
   int output_count() const { return output_count_; }
 
   Handle<JSFunction> function() const;
   Handle<Code> compiled_code() const;
-  BailoutType bailout_type() const { return bailout_type_; }
+  DeoptimizeKind deopt_kind() const { return deopt_kind_; }
 
   // Number of created JS frames. Not all created frames are necessarily JS.
   int jsframe_count() const { return jsframe_count_; }
 
-  static Deoptimizer* New(JSFunction* function,
-                          BailoutType type,
-                          unsigned bailout_id,
-                          Address from,
-                          int fp_to_sp_delta,
+  static Deoptimizer* New(JSFunction* function, DeoptimizeKind kind,
+                          unsigned bailout_id, Address from, int fp_to_sp_delta,
                           Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
 
@@ -470,10 +476,14 @@ class Deoptimizer : public Malloced {
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
   static Address GetDeoptimizationEntry(Isolate* isolate, int id,
-                                        BailoutType type);
-  static int GetDeoptimizationId(Isolate* isolate,
-                                 Address addr,
-                                 BailoutType type);
+                                        DeoptimizeKind kind);
+  static int GetDeoptimizationId(Isolate* isolate, Address addr,
+                                 DeoptimizeKind kind);
+
+  // Returns true if {addr} is a deoptimization entry and stores its type in
+  // {type}. Returns false if {addr} is not a deoptimization entry.
+  static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
+                                    DeoptimizeKind* type);
 
   // Code generation support.
   static int input_offset() { return OFFSET_OF(Deoptimizer, input_); }
@@ -493,14 +503,14 @@ class Deoptimizer : public Malloced {
   // Generators for the deoptimization entry code.
   class TableEntryGenerator BASE_EMBEDDED {
    public:
-    TableEntryGenerator(MacroAssembler* masm, BailoutType type, int count)
-        : masm_(masm), type_(type), count_(count) {}
+    TableEntryGenerator(MacroAssembler* masm, DeoptimizeKind kind, int count)
+        : masm_(masm), deopt_kind_(kind), count_(count) {}
 
     void Generate();
 
    protected:
     MacroAssembler* masm() const { return masm_; }
-    BailoutType type() const { return type_; }
+    DeoptimizeKind deopt_kind() const { return deopt_kind_; }
     Isolate* isolate() const { return masm_->isolate(); }
 
     void GeneratePrologue();
@@ -509,25 +519,32 @@ class Deoptimizer : public Malloced {
     int count() const { return count_; }
 
     MacroAssembler* masm_;
-    Deoptimizer::BailoutType type_;
+    DeoptimizeKind deopt_kind_;
     int count_;
   };
 
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
-                                               BailoutType type);
+                                               DeoptimizeKind kind);
   static void EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
 
  private:
+  friend class FrameWriter;
+  void QueueValueForMaterialization(Address output_address, Object* obj,
+                                    const TranslatedFrame::iterator& iterator);
+
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
 
-  Deoptimizer(Isolate* isolate, JSFunction* function, BailoutType type,
+  Deoptimizer(Isolate* isolate, JSFunction* function, DeoptimizeKind kind,
               unsigned bailout_id, Address from, int fp_to_sp_delta);
   Code* FindOptimizedCode();
   void PrintFunctionName();
   void DeleteFrameDescriptions();
+
+  static bool IsInDeoptimizationTable(Isolate* isolate, Address addr,
+                                      DeoptimizeKind type);
 
   void DoComputeOutputFrames();
   void DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
@@ -554,17 +571,6 @@ class Deoptimizer : public Malloced {
                                     int frame_index,
                                     BuiltinContinuationMode mode);
 
-  void WriteTranslatedValueToOutput(
-      TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
-      unsigned output_offset, const char* debug_hint_string = nullptr,
-      Address output_address_for_materialization = nullptr);
-  void WriteValueToOutput(Object* value, int input_index, int frame_index,
-                          unsigned output_offset,
-                          const char* debug_hint_string);
-  void DebugPrintOutputSlot(intptr_t value, int frame_index,
-                            unsigned output_offset,
-                            const char* debug_hint_string);
-
   unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
   static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo* shared);
@@ -572,8 +578,8 @@ class Deoptimizer : public Malloced {
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo* shared);
   static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
 
-  static void GenerateDeoptimizationEntries(
-      MacroAssembler* masm, int count, BailoutType type);
+  static void GenerateDeoptimizationEntries(MacroAssembler* masm, int count,
+                                            DeoptimizeKind kind);
 
   // Marks all the code in the given context for deoptimization.
   static void MarkAllCodeForContext(Context* native_context);
@@ -594,7 +600,7 @@ class Deoptimizer : public Malloced {
   JSFunction* function_;
   Code* compiled_code_;
   unsigned bailout_id_;
-  BailoutType bailout_type_;
+  DeoptimizeKind deopt_kind_;
   Address from_;
   int fp_to_sp_delta_;
   bool deoptimizing_throw_;
@@ -845,7 +851,11 @@ class DeoptimizerData {
 
  private:
   Heap* heap_;
-  Code* deopt_entry_code_[Deoptimizer::kLastBailoutType + 1];
+  static const int kLastDeoptimizeKind =
+      static_cast<int>(DeoptimizeKind::kLastDeoptimizeKind);
+  Code* deopt_entry_code_[kLastDeoptimizeKind + 1];
+  Code* deopt_entry_code(DeoptimizeKind kind);
+  void set_deopt_entry_code(DeoptimizeKind kind, Code* code);
 
   Deoptimizer* current_;
 
@@ -1025,12 +1035,6 @@ class DeoptimizedFrameInfo : public Malloced {
   // Get the frame context.
   Handle<Object> GetContext() { return context_; }
 
-  // Check if this frame is preceded by construct stub frame.  The bottom-most
-  // inlined frame might still be called by an uninlined construct stub.
-  bool HasConstructStub() {
-    return has_construct_stub_;
-  }
-
   // Get an incoming argument.
   Handle<Object> GetParameter(int index) {
     DCHECK(0 <= index && index < parameters_count());
@@ -1062,7 +1066,6 @@ class DeoptimizedFrameInfo : public Malloced {
 
   Handle<JSFunction> function_;
   Handle<Object> context_;
-  bool has_construct_stub_;
   std::vector<Handle<Object> > parameters_;
   std::vector<Handle<Object> > expression_stack_;
   int source_position_;

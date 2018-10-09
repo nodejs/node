@@ -19,6 +19,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/worklist.h"
 #include "src/isolate.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/utils-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -156,8 +157,9 @@ class ConcurrentMarkingVisitor final
       Object* object = snapshot.value(i);
       DCHECK(!HasWeakHeapObjectTag(object));
       if (!object->IsHeapObject()) continue;
-      MarkObject(HeapObject::cast(object));
-      MarkCompactCollector::RecordSlot(host, slot, object);
+      HeapObject* heap_object = HeapObject::cast(object);
+      MarkObject(heap_object);
+      MarkCompactCollector::RecordSlot(host, slot, heap_object);
     }
   }
 
@@ -308,7 +310,6 @@ class ConcurrentMarkingVisitor final
       VisitPointer(map, HeapObject::RawMaybeWeakField(
                             map, Map::kTransitionsOrPrototypeInfoOffset));
       VisitPointer(map, HeapObject::RawField(map, Map::kDependentCodeOffset));
-      VisitPointer(map, HeapObject::RawField(map, Map::kWeakCellCacheOffset));
       bailout_.Push(map);
     }
     return 0;
@@ -331,30 +332,60 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  int VisitWeakCell(Map* map, WeakCell* object) {
-    if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object, object->map_slot());
-    if (!object->cleared()) {
-      HeapObject* value = HeapObject::cast(object->value());
-      if (marking_state_.IsBlackOrGrey(value)) {
-        // Weak cells with live values are directly processed here to reduce
-        // the processing time of weak cells during the main GC pause.
-        Object** slot = HeapObject::RawField(object, WeakCell::kValueOffset);
-        MarkCompactCollector::RecordSlot(object, slot, value);
-      } else {
-        // If we do not know about liveness of values of weak cells, we have to
-        // process them when we know the liveness of the whole transitive
-        // closure.
-        weak_objects_->weak_cells.Push(task_id_, object);
-      }
-    }
-    return WeakCell::BodyDescriptor::SizeOf(map, object);
+  int VisitJSWeakCollection(Map* map, JSWeakCollection* object) {
+    return VisitJSObjectSubclass(map, object);
   }
 
-  int VisitJSWeakCollection(Map* map, JSWeakCollection* object) {
-    // TODO(ulan): implement iteration of strong fields.
-    bailout_.Push(object);
-    return 0;
+  int VisitEphemeronHashTable(Map* map, EphemeronHashTable* table) {
+    if (!ShouldVisit(table)) return 0;
+    weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
+
+    for (int i = 0; i < table->Capacity(); i++) {
+      Object** key_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+      HeapObject* key = HeapObject::cast(table->KeyAt(i));
+      MarkCompactCollector::RecordSlot(table, key_slot, key);
+
+      Object** value_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+
+      if (marking_state_.IsBlackOrGrey(key)) {
+        VisitPointer(table, value_slot);
+
+      } else {
+        Object* value_obj = table->ValueAt(i);
+
+        if (value_obj->IsHeapObject()) {
+          HeapObject* value = HeapObject::cast(value_obj);
+          MarkCompactCollector::RecordSlot(table, value_slot, value);
+
+          // Revisit ephemerons with both key and value unreachable at end
+          // of concurrent marking cycle.
+          if (marking_state_.IsWhite(value)) {
+            weak_objects_->discovered_ephemerons.Push(task_id_,
+                                                      Ephemeron{key, value});
+          }
+        }
+      }
+    }
+
+    return table->SizeFromMap(map);
+  }
+
+  // Implements ephemeron semantics: Marks value if key is already reachable.
+  // Returns true if value was actually marked.
+  bool VisitEphemeron(HeapObject* key, HeapObject* value) {
+    if (marking_state_.IsBlackOrGrey(key)) {
+      if (marking_state_.WhiteToGrey(value)) {
+        shared_.Push(value);
+        return true;
+      }
+
+    } else if (marking_state_.IsWhite(value)) {
+      weak_objects_->next_ephemerons.Push(task_id_, Ephemeron{key, value});
+    }
+
+    return false;
   }
 
   void MarkObject(HeapObject* object) {
@@ -535,8 +566,20 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     heap_->isolate()->PrintWithTimestamp(
         "Starting concurrent marking task %d\n", task_id);
   }
+  bool ephemeron_marked = false;
+
   {
     TimedScope scope(&time_ms);
+
+    {
+      Ephemeron ephemeron;
+
+      while (weak_objects_->current_ephemerons.Pop(task_id, &ephemeron)) {
+        if (visitor.VisitEphemeron(ephemeron.key, ephemeron.value)) {
+          ephemeron_marked = true;
+        }
+      }
+    }
 
     bool done = false;
     while (!done) {
@@ -563,21 +606,40 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       marked_bytes += current_marked_bytes;
       base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
                                                 marked_bytes);
-      if (task_state->preemption_request.Value()) {
+      if (task_state->preemption_request) {
         TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                      "ConcurrentMarking::Run Preempted");
         break;
       }
     }
+
+    if (done) {
+      Ephemeron ephemeron;
+
+      while (weak_objects_->discovered_ephemerons.Pop(task_id, &ephemeron)) {
+        if (visitor.VisitEphemeron(ephemeron.key, ephemeron.value)) {
+          ephemeron_marked = true;
+        }
+      }
+    }
+
     shared_->FlushToGlobal(task_id);
     bailout_->FlushToGlobal(task_id);
     on_hold_->FlushToGlobal(task_id);
 
-    weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
+    weak_objects_->ephemeron_hash_tables.FlushToGlobal(task_id);
+    weak_objects_->current_ephemerons.FlushToGlobal(task_id);
+    weak_objects_->next_ephemerons.FlushToGlobal(task_id);
+    weak_objects_->discovered_ephemerons.FlushToGlobal(task_id);
     weak_objects_->weak_references.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
-    total_marked_bytes_.Increment(marked_bytes);
+    total_marked_bytes_ += marked_bytes;
+
+    if (ephemeron_marked) {
+      set_ephemeron_marked(true);
+    }
+
     {
       base::LockGuard<base::Mutex> guard(&pending_lock_);
       is_pending_[task_id] = false;
@@ -619,7 +681,7 @@ void ConcurrentMarking::ScheduleTasks() {
         heap_->isolate()->PrintWithTimestamp(
             "Scheduling concurrent marking task %d\n", i);
       }
-      task_state_[i].preemption_request.SetValue(false);
+      task_state_[i].preemption_request = false;
       is_pending_[i] = true;
       ++pending_task_count_;
       auto task =
@@ -637,7 +699,9 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
     base::LockGuard<base::Mutex> guard(&pending_lock_);
     if (pending_task_count_ > 0) return;
   }
-  if (!shared_->IsGlobalPoolEmpty()) {
+  if (!shared_->IsGlobalPoolEmpty() ||
+      !weak_objects_->current_ephemerons.IsEmpty() ||
+      !weak_objects_->discovered_ephemerons.IsEmpty()) {
     ScheduleTasks();
   }
 }
@@ -658,7 +722,7 @@ bool ConcurrentMarking::Stop(StopRequest stop_request) {
           is_pending_[i] = false;
           --pending_task_count_;
         } else if (stop_request == StopRequest::PREEMPT_TASKS) {
-          task_state_[i].preemption_request.SetValue(true);
+          task_state_[i].preemption_request = true;
         }
       }
     }
@@ -670,6 +734,13 @@ bool ConcurrentMarking::Stop(StopRequest stop_request) {
     DCHECK(!is_pending_[i]);
   }
   return true;
+}
+
+bool ConcurrentMarking::IsStopped() {
+  if (!FLAG_concurrent_marking) return true;
+
+  base::LockGuard<base::Mutex> guard(&pending_lock_);
+  return pending_task_count_ == 0;
 }
 
 void ConcurrentMarking::FlushLiveBytes(
@@ -687,7 +758,7 @@ void ConcurrentMarking::FlushLiveBytes(
     live_bytes.clear();
     task_state_[i].marked_bytes = 0;
   }
-  total_marked_bytes_.SetValue(0);
+  total_marked_bytes_ = 0;
 }
 
 void ConcurrentMarking::ClearLiveness(MemoryChunk* chunk) {
@@ -704,7 +775,7 @@ size_t ConcurrentMarking::TotalMarkedBytes() {
     result +=
         base::AsAtomicWord::Relaxed_Load<size_t>(&task_state_[i].marked_bytes);
   }
-  result += total_marked_bytes_.Value();
+  result += total_marked_bytes_;
   return result;
 }
 

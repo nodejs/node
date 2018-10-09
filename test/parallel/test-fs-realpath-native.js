@@ -3,11 +3,17 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-if (!common.isOSX) common.skip('MacOS-only test.');
+const filename = __filename.toLowerCase();
 
-assert.strictEqual(fs.realpathSync.native('/users'), '/Users');
-fs.realpath.native('/users', common.mustCall(function(err, res) {
-  assert.ifError(err);
-  assert.strictEqual(res, '/Users');
-  assert.strictEqual(this, undefined);
-}));
+assert.strictEqual(
+  fs.realpathSync.native('./test/parallel/test-fs-realpath-native.js')
+    .toLowerCase(),
+  filename);
+
+fs.realpath.native(
+  './test/parallel/test-fs-realpath-native.js',
+  common.mustCall(function(err, res) {
+    assert.ifError(err);
+    assert.strictEqual(res.toLowerCase(), filename);
+    assert.strictEqual(this, undefined);
+  }));

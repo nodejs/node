@@ -44,7 +44,10 @@ class EnumCache : public Tuple2 {
 //   [4]: first value for constants | Smi(1) when not used
 //
 //   [2 + number of descriptors * 3]: start of slack
-class DescriptorArray : public FixedArray {
+// The "value" fields store either values or field types. A field type is either
+// FieldType::None(), FieldType::Any() or a weak reference to a Map. All other
+// references are strong.
+class DescriptorArray : public WeakFixedArray {
  public:
   // Returns the number of descriptors in the array.
   inline int number_of_descriptors() const;
@@ -66,12 +69,13 @@ class DescriptorArray : public FixedArray {
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name* GetKey(int descriptor_number);
   inline Object** GetKeySlot(int descriptor_number);
-  inline Object* GetValue(int descriptor_number);
+  inline Object* GetStrongValue(int descriptor_number);
   inline void SetValue(int descriptor_number, Object* value);
-  inline Object** GetValueSlot(int descriptor_number);
+  inline MaybeObject* GetValue(int descriptor_number);
+  inline MaybeObject** GetValueSlot(int descriptor_number);
   static inline int GetValueOffset(int descriptor_number);
-  inline Object** GetDescriptorStartSlot(int descriptor_number);
-  inline Object** GetDescriptorEndSlot(int descriptor_number);
+  inline MaybeObject** GetDescriptorStartSlot(int descriptor_number);
+  inline MaybeObject** GetDescriptorEndSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
   inline FieldType* GetFieldType(int descriptor_number);
@@ -81,9 +85,8 @@ class DescriptorArray : public FixedArray {
   inline void SetSortedKey(int pointer, int descriptor_number);
 
   // Accessor for complete descriptor.
-  inline void Get(int descriptor_number, Descriptor* desc);
   inline void Set(int descriptor_number, Descriptor* desc);
-  inline void Set(int descriptor_number, Name* key, Object* value,
+  inline void Set(int descriptor_number, Name* key, MaybeObject* value,
                   PropertyDetails details);
   void Replace(int descriptor_number, Descriptor* descriptor);
 
@@ -96,22 +99,28 @@ class DescriptorArray : public FixedArray {
   // array.
   inline void Append(Descriptor* desc);
 
-  static Handle<DescriptorArray> CopyUpTo(Handle<DescriptorArray> desc,
+  static Handle<DescriptorArray> CopyUpTo(Isolate* isolate,
+                                          Handle<DescriptorArray> desc,
                                           int enumeration_index, int slack = 0);
 
   static Handle<DescriptorArray> CopyUpToAddAttributes(
-      Handle<DescriptorArray> desc, int enumeration_index,
+      Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
       PropertyAttributes attributes, int slack = 0);
+
+  static Handle<DescriptorArray> CopyForFastObjectClone(
+      Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
+      int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort();
 
   // Search the instance descriptors for given name.
-  INLINE(int Search(Name* name, int number_of_own_descriptors));
+  V8_INLINE int Search(Name* name, int number_of_own_descriptors);
+  V8_INLINE int Search(Name* name, Map* map);
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
-  INLINE(int SearchWithCache(Isolate* isolate, Name* name, Map* map));
+  V8_INLINE int SearchWithCache(Isolate* isolate, Name* name, Map* map);
 
   bool IsEqualUpTo(DescriptorArray* desc, int nof_descriptors);
 
@@ -143,15 +152,11 @@ class DescriptorArray : public FixedArray {
   static const int kEntrySize = 3;
 
   // Print all the descriptors.
-  void PrintDescriptors(std::ostream& os);  // NOLINT
+  void PrintDescriptors(std::ostream& os);
   void PrintDescriptorDetails(std::ostream& os, int descriptor,
                               PropertyDetails::PrintMode mode);
 
-#if defined(DEBUG) || defined(OBJECT_PRINT)
-  // For our gdb macros, we should perhaps change these in the future.
-  void Print();
-#endif
-
+  DECL_PRINTER(DescriptorArray)
   DECL_VERIFIER(DescriptorArray)
 
 #ifdef DEBUG
@@ -182,6 +187,9 @@ class DescriptorArray : public FixedArray {
   }
 
  private:
+  inline MaybeObject* get(int index) const;
+  inline void set(int index, MaybeObject* value);
+
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
   void CopyFrom(int index, DescriptorArray* src);

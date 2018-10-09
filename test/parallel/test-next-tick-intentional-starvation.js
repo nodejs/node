@@ -23,12 +23,8 @@
 require('../common');
 const assert = require('assert');
 
-// this is the inverse of test-next-tick-starvation.
-// it verifies that process.nextTick will *always* come before other
-// events, up to the limit of the process.maxTickDepth value.
-
-// WARNING: unsafe!
-process.maxTickDepth = Infinity;
+// this is the inverse of test-next-tick-starvation. it verifies
+// that process.nextTick will *always* come before other events
 
 let ran = false;
 let starved = false;

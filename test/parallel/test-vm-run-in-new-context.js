@@ -26,8 +26,8 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-assert.strictEqual(typeof global.gc, 'function',
-                   'Run this test with --expose-gc');
+if (typeof global.gc !== 'function')
+  assert.fail('Run this test with --expose-gc');
 
 // Run a string
 const result = vm.runInNewContext('\'passed\';');

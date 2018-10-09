@@ -54,7 +54,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
                                 Executability::NOT_EXECUTABLE);
   EXPECT_NE(nullptr, page);
   const int page_size = getpagesize();
-  void* start_address = static_cast<void*>(page->address());
+  void* start_address = reinterpret_cast<void*>(page->address());
   EXPECT_EQ(0, msync(start_address, page_size, MS_SYNC));
   allocator()->Free<MemoryAllocator::kPooledAndQueue>(page);
   EXPECT_EQ(0, msync(start_address, page_size, MS_SYNC));
@@ -72,7 +72,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
                                 Executability::NOT_EXECUTABLE);
   EXPECT_NE(nullptr, page);
   const int page_size = getpagesize();
-  void* start_address = static_cast<void*>(page->address());
+  void* start_address = reinterpret_cast<void*>(page->address());
   EXPECT_EQ(0, msync(start_address, page_size, MS_SYNC));
   allocator()->Free<MemoryAllocator::kPooledAndQueue>(page);
   EXPECT_EQ(0, msync(start_address, page_size, MS_SYNC));

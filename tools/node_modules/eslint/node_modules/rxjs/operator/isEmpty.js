@@ -1,16 +1,7 @@
 "use strict";
-var isEmpty_1 = require('../operators/isEmpty');
-/**
- * If the source Observable is empty it returns an Observable that emits true, otherwise it emits false.
- *
- * <img src="./img/isEmpty.png" width="100%">
- *
- * @return {Observable} An Observable that emits a Boolean.
- * @method isEmpty
- * @owner Observable
- */
-function isEmpty() {
-    return isEmpty_1.isEmpty()(this);
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.isEmpty = isEmpty;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/operator/isEmpty"));
 //# sourceMappingURL=isEmpty.js.map

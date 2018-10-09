@@ -4,10 +4,10 @@
 
 #include "src/parsing/parse-info.h"
 
-#include "src/api.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/base/template-utils.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
@@ -16,15 +16,16 @@
 namespace v8 {
 namespace internal {
 
-ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
-    : zone_(std::make_shared<Zone>(zone_allocator, ZONE_NAME)),
+ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
+    : zone_(base::make_unique<Zone>(zone_allocator, ZONE_NAME)),
       flags_(0),
       extension_(nullptr),
       script_scope_(nullptr),
       unicode_cache_(nullptr),
       stack_limit_(0),
       hash_seed_(0),
-      function_flags_(0),
+      function_kind_(FunctionKind::kNormalFunction),
+      script_id_(-1),
       start_position_(0),
       end_position_(0),
       parameters_end_pos_(kNoSourcePosition),
@@ -36,13 +37,25 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       function_name_(nullptr),
       runtime_call_stats_(nullptr),
       source_range_map_(nullptr),
-      literal_(nullptr) {}
+      literal_(nullptr) {
+  set_hash_seed(isolate->heap()->HashSeed());
+  set_stack_limit(isolate->stack_guard()->real_climit());
+  set_unicode_cache(isolate->unicode_cache());
+  set_runtime_call_stats(isolate->counters()->runtime_call_stats());
+  set_logger(isolate->logger());
+  set_ast_string_constants(isolate->ast_string_constants());
+  if (isolate->is_block_code_coverage()) set_block_coverage_enabled();
+  if (isolate->is_collecting_type_profile()) set_collect_type_profile();
+}
 
-ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
-    : ParseInfo(shared->GetIsolate()->allocator()) {
-  Isolate* isolate = shared->GetIsolate();
-  InitFromIsolate(isolate);
+ParseInfo::ParseInfo(Isolate* isolate)
+    : ParseInfo(isolate, isolate->allocator()) {
+  script_id_ = isolate->heap()->NextScriptId();
+  LOG(isolate, ScriptEvent(Logger::ScriptEventType::kReserveId, script_id_));
+}
 
+ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
+    : ParseInfo(isolate, isolate->allocator()) {
   // Do not support re-parsing top-level function of a wrapped script.
   // TODO(yangguo): consider whether we need a top-level function in a
   //                wrapped script at all.
@@ -52,22 +65,21 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_wrapped_as_function(shared->is_wrapped());
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_is_named_expression(shared->is_named_expression());
-  set_function_flags(shared->flags());
   set_start_position(shared->StartPosition());
   set_end_position(shared->EndPosition());
-  function_literal_id_ = shared->function_literal_id();
+  function_literal_id_ = shared->FunctionLiteralId(isolate);
   set_language_mode(shared->language_mode());
+  set_function_kind(shared->kind());
+  set_declaration(shared->is_declaration());
+  set_requires_instance_fields_initializer(
+      shared->requires_instance_fields_initializer());
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
 
-  Handle<Script> script(Script::cast(shared->script()));
+  Handle<Script> script(Script::cast(shared->script()), isolate);
   set_script(script);
-  set_native(script->type() == Script::TYPE_NATIVE);
-  set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
-  set_module(script->origin_options().IsModule());
-  DCHECK(!(is_eval() && is_module()));
 
   if (shared->HasOuterScopeInfo()) {
-    set_outer_scope_info(handle(shared->GetOuterScopeInfo()));
+    set_outer_scope_info(handle(shared->GetOuterScopeInfo(), isolate));
   }
 
   // CollectTypeProfile uses its own feedback slots. If we have existing
@@ -78,96 +90,18 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
       (shared->HasFeedbackMetadata()
            ? shared->feedback_metadata()->HasTypeProfileSlot()
            : script->IsUserJavaScript()));
-  if (block_coverage_enabled() && script->IsUserJavaScript()) {
-    AllocateSourceRangeMap();
-  }
 }
 
-ParseInfo::ParseInfo(Handle<Script> script)
-    : ParseInfo(script->GetIsolate()->allocator()) {
-  InitFromIsolate(script->GetIsolate());
-
-  set_allow_lazy_parsing();
-  set_toplevel();
-  set_script(script);
-  set_wrapped_as_function(script->is_wrapped());
-
-  set_native(script->type() == Script::TYPE_NATIVE);
-  set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
-  set_module(script->origin_options().IsModule());
-  DCHECK(!(is_eval() && is_module()));
-
-  set_collect_type_profile(script->GetIsolate()->is_collecting_type_profile() &&
+ParseInfo::ParseInfo(Isolate* isolate, Handle<Script> script)
+    : ParseInfo(isolate, isolate->allocator()) {
+  SetScriptForToplevelCompile(isolate, script);
+  set_collect_type_profile(isolate->is_collecting_type_profile() &&
                            script->IsUserJavaScript());
-  if (block_coverage_enabled() && script->IsUserJavaScript()) {
-    AllocateSourceRangeMap();
-  }
 }
 
 ParseInfo::~ParseInfo() {}
 
-// static
-ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
-  Isolate* isolate = shared->GetIsolate();
-  ParseInfo* p = new ParseInfo(isolate->allocator());
-
-  p->InitFromIsolate(isolate);
-  p->set_toplevel(shared->is_toplevel());
-  p->set_allow_lazy_parsing(FLAG_lazy_inner_functions);
-  p->set_is_named_expression(shared->is_named_expression());
-  p->set_function_flags(shared->flags());
-  p->set_start_position(shared->StartPosition());
-  p->set_end_position(shared->EndPosition());
-  p->function_literal_id_ = shared->function_literal_id();
-  p->set_language_mode(shared->language_mode());
-
-  // BUG(5946): This function exists as a workaround until we can
-  // get rid of %SetCode in our native functions. The ParseInfo
-  // is explicitly set up for the case that:
-  // a) you have a native built-in,
-  // b) it's being run for the 2nd-Nth time in an isolate,
-  // c) we've already compiled bytecode and therefore don't need
-  //    to parse.
-  // We tolerate a ParseInfo without a Script in this case.
-  p->set_native(true);
-  p->set_eval(false);
-  p->set_module(false);
-  DCHECK_NE(shared->kind(), FunctionKind::kModule);
-
-  Handle<HeapObject> scope_info(shared->GetOuterScopeInfo());
-  if (!scope_info->IsTheHole(isolate) &&
-      Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
-    p->set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));
-  }
-  return p;
-}
-
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
-
-bool ParseInfo::is_declaration() const {
-  return SharedFunctionInfo::IsDeclarationBit::decode(function_flags_);
-}
-
-FunctionKind ParseInfo::function_kind() const {
-  return SharedFunctionInfo::FunctionKindBits::decode(function_flags_);
-}
-
-bool ParseInfo::requires_instance_fields_initializer() const {
-  return SharedFunctionInfo::RequiresInstanceFieldsInitializer::decode(
-      function_flags_);
-}
-
-void ParseInfo::InitFromIsolate(Isolate* isolate) {
-  DCHECK_NOT_NULL(isolate);
-  set_hash_seed(isolate->heap()->HashSeed());
-  set_stack_limit(isolate->stack_guard()->real_climit());
-  set_unicode_cache(isolate->unicode_cache());
-  set_runtime_call_stats(isolate->counters()->runtime_call_stats());
-  set_logger(isolate->logger());
-  set_ast_string_constants(isolate->ast_string_constants());
-  if (isolate->is_block_code_coverage()) set_block_coverage_enabled();
-  if (isolate->is_collecting_type_profile()) set_collect_type_profile();
-}
 
 void ParseInfo::EmitBackgroundParseStatisticsOnBackgroundThread() {
   // If runtime call stats was enabled by tracing, emit a trace event at the
@@ -197,9 +131,36 @@ void ParseInfo::UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate) {
   set_runtime_call_stats(main_call_stats);
 }
 
-void ParseInfo::ShareZone(ParseInfo* other) {
-  DCHECK_EQ(0, zone_->allocation_size());
-  zone_ = other->zone_;
+Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
+                                       ScriptOriginOptions origin_options,
+                                       NativesFlag natives) {
+  // Create a script object describing the script to be compiled.
+  Handle<Script> script;
+  if (script_id_ == -1) {
+    script = isolate->factory()->NewScript(source);
+  } else {
+    script = isolate->factory()->NewScriptWithId(source, script_id_);
+  }
+  if (isolate->NeedsSourcePositionsForProfiling()) {
+    Script::InitLineEnds(script);
+  }
+  switch (natives) {
+    case NATIVES_CODE:
+      script->set_type(Script::TYPE_NATIVE);
+      break;
+    case EXTENSION_CODE:
+      script->set_type(Script::TYPE_EXTENSION);
+      break;
+    case INSPECTOR_CODE:
+      script->set_type(Script::TYPE_INSPECTOR);
+      break;
+    case NOT_NATIVES_CODE:
+      break;
+  }
+  script->set_origin_options(origin_options);
+
+  SetScriptForToplevelCompile(isolate, script);
+  return script;
 }
 
 AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
@@ -208,11 +169,6 @@ AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
         new AstValueFactory(zone(), ast_string_constants(), hash_seed()));
   }
   return ast_value_factory();
-}
-
-void ParseInfo::ShareAstValueFactory(ParseInfo* other) {
-  DCHECK(!ast_value_factory_.get());
-  ast_value_factory_ = other->ast_value_factory_;
 }
 
 void ParseInfo::AllocateSourceRangeMap() {
@@ -226,6 +182,31 @@ void ParseInfo::set_character_stream(
     std::unique_ptr<Utf16CharacterStream> character_stream) {
   DCHECK_NULL(character_stream_);
   character_stream_.swap(character_stream);
+}
+
+void ParseInfo::SetScriptForToplevelCompile(Isolate* isolate,
+                                            Handle<Script> script) {
+  set_script(script);
+  set_allow_lazy_parsing();
+  set_toplevel();
+  set_collect_type_profile(isolate->is_collecting_type_profile() &&
+                           script->IsUserJavaScript());
+  set_wrapped_as_function(script->is_wrapped());
+}
+
+void ParseInfo::set_script(Handle<Script> script) {
+  script_ = script;
+  DCHECK(script_id_ == -1 || script_id_ == script->id());
+  script_id_ = script->id();
+
+  set_native(script->type() == Script::TYPE_NATIVE);
+  set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  set_module(script->origin_options().IsModule());
+  DCHECK(!(is_eval() && is_module()));
+
+  if (block_coverage_enabled() && script->IsUserJavaScript()) {
+    AllocateSourceRangeMap();
+  }
 }
 
 }  // namespace internal

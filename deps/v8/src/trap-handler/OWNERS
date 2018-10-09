@@ -1,11 +1,11 @@
 set noparent
 
-bradnelson@chromium.org
-eholk@chromium.org
+titzer@chromium.org
+ahaas@chromium.org
 
 # Changes to this directory should also be reviewed by:
 #
-#   eholk@chromium.org
+#   ahaas@chromium.org
 #   mseaborn@chromium.org
 #   mark@chromium.org
 

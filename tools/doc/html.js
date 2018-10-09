@@ -23,69 +23,59 @@
 
 const common = require('./common.js');
 const fs = require('fs');
-const marked = require('marked');
+const unified = require('unified');
+const find = require('unist-util-find');
+const visit = require('unist-util-visit');
+const markdown = require('remark-parse');
+const remark2rehype = require('remark-rehype');
+const raw = require('rehype-raw');
+const htmlStringify = require('rehype-stringify');
 const path = require('path');
 const typeParser = require('./type-parser.js');
 
-module.exports = toHTML;
-
-// Make `marked` to not automatically insert id attributes in headings.
-const renderer = new marked.Renderer();
-renderer.heading = (text, level) => `<h${level}>${text}</h${level}>\n`;
-marked.setOptions({ renderer });
+module.exports = {
+  toHTML, firstHeader, preprocessText, preprocessElements, buildToc
+};
 
 const docPath = path.resolve(__dirname, '..', '..', 'doc');
 
-const gtocPath = path.join(docPath, 'api', '_toc.md');
-const gtocMD = fs.readFileSync(gtocPath, 'utf8').replace(/^@\/\/.*$/gm, '');
-const gtocHTML = marked(gtocMD).replace(
-  /<a href="(.*?)"/g,
-  (all, href) => `<a class="nav-${href.replace('.html', '')
-                                      .replace(/\W+/g, '-')}" href="${href}"`
-);
+// Add class attributes to index navigation links.
+function navClasses() {
+  return (tree) => {
+    visit(tree, { type: 'element', tagName: 'a' }, (node) => {
+      node.properties.class = 'nav-' +
+        node.properties.href.replace('.html', '').replace(/\W+/g, '-');
+    });
+  };
+}
+
+const gtocPath = path.join(docPath, 'api', 'index.md');
+const gtocMD = fs.readFileSync(gtocPath, 'utf8').replace(/^<!--.*?-->/gms, '');
+const gtocHTML = unified()
+  .use(markdown)
+  .use(remark2rehype, { allowDangerousHTML: true })
+  .use(raw)
+  .use(navClasses)
+  .use(htmlStringify)
+  .processSync(gtocMD).toString();
 
 const templatePath = path.join(docPath, 'template.html');
 const template = fs.readFileSync(templatePath, 'utf8');
 
-function toHTML({ input, filename, nodeVersion, analytics }, cb) {
+function toHTML({ input, content, filename, nodeVersion }, cb) {
   filename = path.basename(filename, '.md');
-
-  const lexed = marked.lexer(input);
-
-  const firstHeading = lexed.find(({ type }) => type === 'heading');
-  const section = firstHeading ? firstHeading.text : 'Index';
-
-  preprocessText(lexed);
-  preprocessElements(lexed, filename);
-
-  // Generate the table of contents. This mutates the lexed contents in-place.
-  const toc = buildToc(lexed, filename);
 
   const id = filename.replace(/\W+/g, '-');
 
   let HTML = template.replace('__ID__', id)
                      .replace(/__FILENAME__/g, filename)
-                     .replace('__SECTION__', section)
+                     .replace('__SECTION__', content.section)
                      .replace(/__VERSION__/g, nodeVersion)
-                     .replace('__TOC__', toc)
+                     .replace('__TOC__', content.toc)
                      .replace('__GTOC__', gtocHTML.replace(
-                       `class="nav-${id}`, `class="nav-${id} active`));
-
-  if (analytics) {
-    HTML = HTML.replace('<!-- __TRACKING__ -->', `
-    <script src="assets/dnt_helper.js"></script>
-    <script>
-      if (!_dntEnabled()) {
-        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;
-        i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},
-        i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];
-        a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,
-        'script','//www.google-analytics.com/analytics.js','ga');
-        ga('create', '${analytics}', 'auto');
-        ga('send', 'pageview');
-      }
-    </script>`);
-  }
+                       `class="nav-${id}`, `class="nav-${id} active`))
+                     .replace('__EDIT_ON_GITHUB__', editOnGitHub(filename))
+                     .replace('__CONTENT__', content.toString());
 
   const docCreated = input.match(
     /<!--\s*introduced_in\s*=\s*v([0-9]+)\.([0-9]+)\.[0-9]+\s*-->/);
@@ -96,37 +86,36 @@ function toHTML({ input, filename, nodeVersion, analytics }, cb) {
     HTML = HTML.replace('__ALTDOCS__', '');
   }
 
-  // Content insertion has to be the last thing we do with the lexed tokens,
-  // because it's destructive.
-  HTML = HTML.replace('__CONTENT__', marked.parser(lexed));
-
   cb(null, HTML);
+}
+
+// Set the section name based on the first header.  Default to 'Index'.
+function firstHeader() {
+  return (tree, file) => {
+    file.section = 'Index';
+
+    const heading = find(tree, { type: 'heading' });
+    if (heading) {
+      const text = find(heading, { type: 'text' });
+      if (text) file.section = text.value;
+    }
+  };
 }
 
 // Handle general body-text replacements.
 // For example, link man page references to the actual page.
-function preprocessText(lexed) {
-  lexed.forEach((token) => {
-    if (token.type === 'table') {
-      if (token.header) {
-        token.header = token.header.map(replaceInText);
+function preprocessText() {
+  return (tree) => {
+    visit(tree, null, (node) => {
+      if (node.type === 'text' && node.value) {
+        const value = linkJsTypeDocs(linkManPages(node.value));
+        if (value !== node.value) {
+          node.type = 'html';
+          node.value = value;
+        }
       }
-
-      if (token.cells) {
-        token.cells.forEach((row, i) => {
-          token.cells[i] = row.map(replaceInText);
-        });
-      }
-    } else if (token.text && token.type !== 'code') {
-      token.text = replaceInText(token.text);
-    }
-  });
-}
-
-// Replace placeholders in text tokens.
-function replaceInText(text) {
-  if (text === '') return text;
-  return linkJsTypeDocs(linkManPages(text));
+    });
+  };
 }
 
 // Syscalls which appear in the docs, but which only exist in BSD / macOS.
@@ -170,66 +159,96 @@ function linkJsTypeDocs(text) {
   return parts.join('`');
 }
 
-// Preprocess stability blockquotes and YAML blocks.
-function preprocessElements(lexed, filename) {
-  const STABILITY_RE = /(.*:)\s*(\d)([\s\S]*)/;
-  let state = null;
-  let headingIndex = -1;
-  let heading = null;
+// Preprocess headers, stability blockquotes, and YAML blocks.
+function preprocessElements({ filename }) {
+  return (tree, file) => {
+    const STABILITY_RE = /(.*:)\s*(\d)([\s\S]*)/;
+    let headingIndex = -1;
+    let heading = null;
 
-  lexed.forEach((token, index) => {
-    if (token.type === 'heading') {
-      headingIndex = index;
-      heading = token;
-    }
-    if (token.type === 'html' && common.isYAMLBlock(token.text)) {
-      token.text = parseYAML(token.text);
-    }
-    if (token.type === 'blockquote_start') {
-      state = 'MAYBE_STABILITY_BQ';
-      lexed[index] = { type: 'space' };
-    }
-    if (token.type === 'blockquote_end' && state === 'MAYBE_STABILITY_BQ') {
-      state = null;
-      lexed[index] = { type: 'space' };
-    }
-    if (token.type === 'paragraph' && state === 'MAYBE_STABILITY_BQ') {
-      if (token.text.includes('Stability:')) {
-        const [, prefix, number, explication] = token.text.match(STABILITY_RE);
-        const isStabilityIndex =
-          index - 2 === headingIndex || // General.
-          index - 3 === headingIndex;   // With api_metadata block.
+    visit(tree, null, (node, index) => {
+      if (node.type === 'heading') {
+        headingIndex = index;
+        heading = node;
 
-        if (heading && isStabilityIndex) {
-          heading.stability = number;
-          headingIndex = -1;
-          heading = null;
+        // Ensure optional API parameters are not treated as links by
+        // collapsing all of heading into a single text node.
+        if (heading.children.length > 1) {
+          const position = {
+            start: heading.children[0].position.start,
+            end: heading.position.end
+          };
+
+          heading.children = [{
+            type: 'text',
+            value: file.contents.slice(
+              position.start.offset, position.end.offset)
+              .replace('&lt;', '<')
+              .replace('&gt;', '>')
+              .replace(/\\(.{1})/g, '$1'),
+            position
+          }];
         }
 
-        // Do not link to the section we are already in.
-        const noLinking = filename === 'documentation' &&
-          heading !== null && heading.text === 'Stability Index';
-        token.text = `<div class="api_stability api_stability_${number}">` +
-          (noLinking ? '' :
-            '<a href="documentation.html#documentation_stability_index">') +
-          `${prefix} ${number}${noLinking ? '' : '</a>'}${explication}</div>`
-          .replace(/\n/g, ' ');
+      } else if (node.type === 'html' && common.isYAMLBlock(node.value)) {
+        node.value = parseYAML(node.value);
 
-        lexed[index] = { type: 'html', text: token.text };
-      } else if (state === 'MAYBE_STABILITY_BQ') {
-        state = null;
-        lexed[index - 1] = { type: 'blockquote_start' };
+      } else if (node.type === 'blockquote') {
+        const paragraph = node.children[0].type === 'paragraph' &&
+          node.children[0];
+        const text = paragraph && paragraph.children[0].type === 'text' &&
+          paragraph.children[0];
+        if (text && text.value.includes('Stability:')) {
+          const [, prefix, number, explication] =
+            text.value.match(STABILITY_RE);
+
+          const isStabilityIndex =
+            index - 2 === headingIndex || // General.
+            index - 3 === headingIndex;   // With api_metadata block.
+
+          if (heading && isStabilityIndex) {
+            heading.stability = number;
+            headingIndex = -1;
+            heading = null;
+          }
+
+          // Do not link to the section we are already in.
+          const noLinking = filename.includes('documentation') &&
+            heading !== null && heading.children[0].value === 'Stability Index';
+
+          // collapse blockquote and paragraph into a single node
+          node.type = 'paragraph';
+          node.children.shift();
+          node.children.unshift(...paragraph.children);
+
+          // insert div with prefix and number
+          node.children.unshift({
+            type: 'html',
+            value: `<div class="api_stability api_stability_${number}">` +
+              (noLinking ? '' :
+                '<a href="documentation.html#documentation_stability_index">') +
+              `${prefix} ${number}${noLinking ? '' : '</a>'}`
+                .replace(/\n/g, ' ')
+          });
+
+          // remove prefix and number from text
+          text.value = explication;
+
+          // close div
+          node.children.push({ type: 'html', value: '</div>' });
+        }
       }
-    }
-  });
+    });
+  };
 }
 
 function parseYAML(text) {
   const meta = common.extractAndParseYAML(text);
-  let html = '<div class="api_metadata">\n';
+  let result = '<div class="api_metadata">\n';
 
   const added = { description: '' };
   const deprecated = { description: '' };
+  const removed = { description: '' };
 
   if (meta.added) {
     added.version = meta.added.join(', ');
@@ -242,37 +261,59 @@ function parseYAML(text) {
         `<span>Deprecated since: ${deprecated.version}</span>`;
   }
 
+  if (meta.removed) {
+    removed.version = meta.removed.join(', ');
+    removed.description = `<span>Removed in: ${removed.version}</span>`;
+  }
+
   if (meta.changes.length > 0) {
     if (added.description) meta.changes.push(added);
     if (deprecated.description) meta.changes.push(deprecated);
+    if (removed.description) meta.changes.push(removed);
 
     meta.changes.sort((a, b) => versionSort(a.version, b.version));
 
-    html += '<details class="changelog"><summary>History</summary>\n' +
+    result += '<details class="changelog"><summary>History</summary>\n' +
             '<table>\n<tr><th>Version</th><th>Changes</th></tr>\n';
 
     meta.changes.forEach((change) => {
-      html += `<tr><td>${change.version}</td>\n` +
-                  `<td>${marked(change.description)}</td></tr>\n`;
+      const description = unified()
+        .use(markdown)
+        .use(remark2rehype, { allowDangerousHTML: true })
+        .use(raw)
+        .use(htmlStringify)
+        .processSync(change.description).toString();
+
+      const version = common.arrify(change.version).join(', ');
+
+      result += `<tr><td>${version}</td>\n` +
+                  `<td>${description}</td></tr>\n`;
     });
 
-    html += '</table>\n</details>\n';
+    result += '</table>\n</details>\n';
   } else {
-    html += `${added.description}${deprecated.description}\n`;
+    result += `${added.description}${deprecated.description}` +
+              `${removed.description}\n`;
   }
 
   if (meta.napiVersion) {
-    html += `<span>N-API version: ${meta.napiVersion.join(', ')}</span>\n`;
+    result += `<span>N-API version: ${meta.napiVersion.join(', ')}</span>\n`;
   }
 
-  html += '</div>';
-  return html;
+  result += '</div>';
+  return result;
+}
+
+function minVersion(a) {
+  return common.arrify(a).reduce((min, e) => {
+    return !min || versionSort(min, e) < 0 ? e : min;
+  });
 }
 
 const numberRe = /^\d*/;
 function versionSort(a, b) {
-  a = a.trim();
-  b = b.trim();
+  a = minVersion(a).trim();
+  b = minVersion(b).trim();
   let i = 0; // Common prefix length.
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
   a = a.substr(i);
@@ -280,48 +321,68 @@ function versionSort(a, b) {
   return +b.match(numberRe)[0] - +a.match(numberRe)[0];
 }
 
-function buildToc(lexed, filename) {
-  const startIncludeRefRE = /^\s*<!-- \[start-include:(.+)\] -->\s*$/;
-  const endIncludeRefRE = /^\s*<!-- \[end-include:.+\] -->\s*$/;
-  const realFilenames = [filename];
-  const idCounters = Object.create(null);
-  let toc = '';
-  let depth = 0;
+function buildToc({ filename, apilinks }) {
+  return (tree, file) => {
+    const startIncludeRefRE = /^\s*<!-- \[start-include:(.+)\] -->\s*$/;
+    const endIncludeRefRE = /^\s*<!-- \[end-include:.+\] -->\s*$/;
+    const realFilenames = [filename];
+    const idCounters = Object.create(null);
+    let toc = '';
+    let depth = 0;
 
-  lexed.forEach((token) => {
-    // Keep track of the current filename along comment wrappers of inclusions.
-    if (token.type === 'html') {
-      const [, includedFileName] = token.text.match(startIncludeRefRE) || [];
-      if (includedFileName !== undefined)
-        realFilenames.unshift(includedFileName);
-      else if (endIncludeRefRE.test(token.text))
-        realFilenames.shift();
-    }
+    visit(tree, null, (node) => {
+      // Keep track of the current filename for comment wrappers of inclusions.
+      if (node.type === 'html') {
+        const [, includedFileName] = node.value.match(startIncludeRefRE) || [];
+        if (includedFileName !== undefined)
+          realFilenames.unshift(includedFileName);
+        else if (endIncludeRefRE.test(node.value))
+          realFilenames.shift();
+      }
 
-    if (token.type !== 'heading') return;
+      if (node.type !== 'heading') return;
 
-    if (token.depth - depth > 1) {
-      throw new Error(`Inappropriate heading level:\n${JSON.stringify(token)}`);
-    }
+      if (node.depth - depth > 1) {
+        throw new Error(
+          `Inappropriate heading level:\n${JSON.stringify(node)}`
+        );
+      }
 
-    depth = token.depth;
-    const realFilename = path.basename(realFilenames[0], '.md');
-    const headingText = token.text.trim();
-    const id = getId(`${realFilename}_${headingText}`, idCounters);
+      depth = node.depth;
+      const realFilename = path.basename(realFilenames[0], '.md');
+      const headingText = file.contents.slice(
+        node.children[0].position.start.offset,
+        node.position.end.offset).trim();
+      const id = getId(`${realFilename}_${headingText}`, idCounters);
 
-    const hasStability = token.stability !== undefined;
-    toc += ' '.repeat((depth - 1) * 2) +
-      (hasStability ? `* <span class="stability_${token.stability}">` : '* ') +
-      `<a href="#${id}">${token.text}</a>${hasStability ? '</span>' : ''}\n`;
+      const hasStability = node.stability !== undefined;
+      toc += ' '.repeat((depth - 1) * 2) +
+        (hasStability ? `* <span class="stability_${node.stability}">` : '* ') +
+        `<a href="#${id}">${headingText}</a>${hasStability ? '</span>' : ''}\n`;
 
-    token.text += `<span><a class="mark" href="#${id}" id="${id}">#</a></span>`;
-    if (realFilename === 'errors' && headingText.startsWith('ERR_')) {
-      token.text += `<span><a class="mark" href="#${headingText}" ` +
-                                             `id="${headingText}">#</a></span>`;
-    }
-  });
+      let anchor =
+         `<span><a class="mark" href="#${id}" id="${id}">#</a></span>`;
 
-  return marked(toc);
+      if (realFilename === 'errors' && headingText.startsWith('ERR_')) {
+        anchor += `<span><a class="mark" href="#${headingText}" ` +
+                  `id="${headingText}">#</a></span>`;
+      }
+
+      const api = headingText.replace(/^.*:\s+/, '').replace(/\(.*/, '');
+      if (apilinks[api]) {
+        anchor = `<a class="srclink" href=${apilinks[api]}>[src]</a>${anchor}`;
+      }
+
+      node.children.push({ type: 'html', value: anchor });
+    });
+
+    file.toc = unified()
+      .use(markdown)
+      .use(remark2rehype, { allowDangerousHTML: true })
+      .use(raw)
+      .use(htmlStringify)
+      .processSync(toc).toString();
+  };
 }
 
 const notAlphaNumerics = /[^a-z0-9]+/g;
@@ -376,4 +437,10 @@ function altDocs(filename, docCreated) {
       <ol class="version-picker">${list}</ol>
     </li>
   ` : '';
+}
+
+// eslint-disable-next-line max-len
+const githubLogo = '<span class="github_icon"><svg height="16" width="16" viewBox="0 0 16.1 16.1" fill="currentColor"><path d="M8 0a8 8 0 0 0-2.5 15.6c.4 0 .5-.2.5-.4v-1.5c-2 .4-2.5-.5-2.7-1 0-.1-.5-.9-.8-1-.3-.2-.7-.6 0-.6.6 0 1 .6 1.2.8.7 1.2 1.9 1 2.4.7 0-.5.2-.9.5-1-1.8-.3-3.7-1-3.7-4 0-.9.3-1.6.8-2.2 0-.2-.3-1 .1-2 0 0 .7-.3 2.2.7a7.4 7.4 0 0 1 4 0c1.5-1 2.2-.8 2.2-.8.5 1.1.2 2 .1 2.1.5.6.8 1.3.8 2.2 0 3-1.9 3.7-3.6 4 .3.2.5.7.5 1.4v2.2c0 .2.1.5.5.4A8 8 0 0 0 16 8a8 8 0 0 0-8-8z"/></svg></span>';
+function editOnGitHub(filename) {
+  return `<li class="edit_on_github"><a href="https://github.com/nodejs/node/edit/master/doc/api/${filename}.md">${githubLogo}Edit on GitHub</a></li>`;
 }

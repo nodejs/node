@@ -5,8 +5,6 @@ const bench = common.createBenchmark(main, {
   n: [12e6]
 });
 
-process.maxTickDepth = Infinity;
-
 function main({ n }) {
   let counter = n;
   function cb4(arg1, arg2, arg3, arg4) {

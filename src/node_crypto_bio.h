@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_crypto.h"
 #include "openssl/bio.h"
 #include "env-inl.h"
 #include "util-inl.h"
@@ -32,25 +33,21 @@
 namespace node {
 namespace crypto {
 
-class NodeBIO {
+// This class represents buffers for OpenSSL I/O, implemented as a singly-linked
+// list of chunks. It can be used both for writing data from Node to OpenSSL
+// and back, but only one direction per instance.
+// The structure is only accessed, and owned by, the OpenSSL BIOPointer
+// (a.k.a. std::unique_ptr<BIO>).
+class NodeBIO : public MemoryRetainer {
  public:
-  NodeBIO() : env_(nullptr),
-              initial_(kInitialBufferLength),
-              length_(0),
-              eof_return_(-1),
-              read_head_(nullptr),
-              write_head_(nullptr) {
-  }
-
   ~NodeBIO();
 
-  static BIO* New();
+  static BIOPointer New(Environment* env = nullptr);
 
   // NewFixed takes a copy of `len` bytes from `data` and returns a BIO that,
   // when read from, returns those bytes followed by EOF.
-  static BIO* NewFixed(const char* data, size_t len);
-
-  void AssignEnvironment(Environment* env);
+  static BIOPointer NewFixed(const char* data, size_t len,
+                             Environment* env = nullptr);
 
   // Move read head to next buffer if needed
   void TryMoveReadHead();
@@ -110,6 +107,13 @@ class NodeBIO {
 
   static NodeBIO* FromBIO(BIO* bio);
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackFieldWithSize("buffer", length_, "NodeBIO::Buffer");
+  }
+
+  SET_MEMORY_INFO_NAME(NodeBIO)
+  SET_SELF_SIZE(NodeBIO)
+
  private:
   static int New(BIO* bio);
   static int Free(BIO* bio);
@@ -154,12 +158,14 @@ class NodeBIO {
     char* data_;
   };
 
-  Environment* env_;
-  size_t initial_;
-  size_t length_;
-  int eof_return_;
-  Buffer* read_head_;
-  Buffer* write_head_;
+  Environment* env_ = nullptr;
+  size_t initial_ = kInitialBufferLength;
+  size_t length_ = 0;
+  int eof_return_ = -1;
+  Buffer* read_head_ = nullptr;
+  Buffer* write_head_ = nullptr;
+
+  friend void node::crypto::InitCryptoOnce();
 };
 
 }  // namespace crypto

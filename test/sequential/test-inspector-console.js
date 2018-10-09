@@ -35,5 +35,4 @@ async function runTest() {
   session.disconnect();
 }
 
-common.crashOnUnhandledRejection();
 runTest();

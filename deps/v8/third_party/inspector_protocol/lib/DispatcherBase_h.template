@@ -5,9 +5,8 @@
 #ifndef {{"_".join(config.protocol.namespace)}}_DispatcherBase_h
 #define {{"_".join(config.protocol.namespace)}}_DispatcherBase_h
 
-//#include "Collections.h"
-//#include "ErrorSupport.h"
 //#include "Forward.h"
+//#include "ErrorSupport.h"
 //#include "Values.h"
 
 {% for namespace in config.protocol.namespace %}
@@ -22,7 +21,6 @@ public:
         kSuccess = 0,
         kError = 1,
         kFallThrough = 2,
-        kAsync = 3
     };
 
     enum ErrorCode {
@@ -68,7 +66,7 @@ public:
 
     class {{config.lib.export_macro}} Callback {
     public:
-        Callback(std::unique_ptr<WeakPtr> backendImpl, int callId, int callbackId);
+        Callback(std::unique_ptr<WeakPtr> backendImpl, int callId, const String& method, const String& message);
         virtual ~Callback();
         void dispose();
 
@@ -79,13 +77,16 @@ public:
     private:
         std::unique_ptr<WeakPtr> m_backendImpl;
         int m_callId;
-        int m_callbackId;
+        String m_method;
+        String m_message;
     };
 
     explicit DispatcherBase(FrontendChannel*);
     virtual ~DispatcherBase();
 
-    virtual DispatchResponse::Status dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject) = 0;
+    virtual bool canDispatch(const String& method) = 0;
+    virtual void dispatch(int callId, const String& method, const String& rawMessage, std::unique_ptr<protocol::DictionaryValue> messageObject) = 0;
+    FrontendChannel* channel() { return m_frontendChannel; }
 
     void sendResponse(int callId, const DispatchResponse&, std::unique_ptr<protocol::DictionaryValue> result);
     void sendResponse(int callId, const DispatchResponse&);
@@ -95,15 +96,9 @@ public:
 
     std::unique_ptr<WeakPtr> weakPtr();
 
-    int nextCallbackId();
-    void markFallThrough(int callbackId);
-    bool lastCallbackFallThrough() { return m_lastCallbackFallThrough; }
-
 private:
     FrontendChannel* m_frontendChannel;
-    protocol::HashSet<WeakPtr*> m_weakPtrs;
-    int m_lastCallbackId;
-    bool m_lastCallbackFallThrough;
+    std::unordered_set<WeakPtr*> m_weakPtrs;
 };
 
 class {{config.lib.export_macro}} UberDispatcher {
@@ -111,19 +106,18 @@ class {{config.lib.export_macro}} UberDispatcher {
 public:
     explicit UberDispatcher(FrontendChannel*);
     void registerBackend(const String& name, std::unique_ptr<protocol::DispatcherBase>);
-    void setupRedirects(const HashMap<String, String>&);
-    DispatchResponse::Status dispatch(std::unique_ptr<Value> message, int* callId = nullptr, String* method = nullptr);
+    void setupRedirects(const std::unordered_map<String, String>&);
+    bool parseCommand(Value* message, int* callId, String* method);
+    bool canDispatch(const String& method);
+    void dispatch(int callId, const String& method, std::unique_ptr<Value> message, const String& rawMessage);
     FrontendChannel* channel() { return m_frontendChannel; }
-    bool fallThroughForNotFound() { return m_fallThroughForNotFound; }
-    void setFallThroughForNotFound(bool);
-    bool getCommandName(const String& message, String* method, std::unique_ptr<protocol::DictionaryValue>* parsedMessage);
     virtual ~UberDispatcher();
 
 private:
+    protocol::DispatcherBase* findDispatcher(const String& method);
     FrontendChannel* m_frontendChannel;
-    bool m_fallThroughForNotFound;
-    HashMap<String, String> m_redirects;
-    protocol::HashMap<String, std::unique_ptr<protocol::DispatcherBase>> m_dispatchers;
+    std::unordered_map<String, String> m_redirects;
+    std::unordered_map<String, std::unique_ptr<protocol::DispatcherBase>> m_dispatchers;
 };
 
 class InternalResponse : public Serializable {

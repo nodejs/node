@@ -2,7 +2,7 @@ Dual licensed under WTFPL and MIT:
 
 ---
 
-Copyright © 2012–2016 Domenic Denicola <d@domenic.me>
+Copyright © 2012–2018 Domenic Denicola <d@domenic.me>
 
 This work is free. You can redistribute it and/or modify it under the
 terms of the Do What The Fuck You Want To Public License, Version 2,
@@ -26,7 +26,7 @@ as published by Sam Hocevar. See below for more details.
 
 The MIT License (MIT)
 
-Copyright © 2012–2016 Domenic Denicola <d@domenic.me>
+Copyright © 2012–2018 Domenic Denicola <d@domenic.me>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

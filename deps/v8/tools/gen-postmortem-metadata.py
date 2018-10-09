@@ -58,6 +58,9 @@ consts_misc = [
     { 'name': 'APIObjectType',          'value': 'JS_API_OBJECT_TYPE' },
     { 'name': 'SpecialAPIObjectType',   'value': 'JS_SPECIAL_API_OBJECT_TYPE' },
 
+    { 'name': 'FirstContextType',     'value': 'FIRST_CONTEXT_TYPE' },
+    { 'name': 'LastContextType',     'value': 'LAST_CONTEXT_TYPE' },
+
     { 'name': 'IsNotStringMask',        'value': 'kIsNotStringMask' },
     { 'name': 'StringTag',              'value': 'kStringTag' },
 
@@ -184,25 +187,18 @@ consts_misc = [
 
     { 'name': 'scopeinfo_idx_nparams',
         'value': 'ScopeInfo::kParameterCount' },
-    { 'name': 'scopeinfo_idx_nstacklocals',
-        'value': 'ScopeInfo::kStackLocalCount' },
     { 'name': 'scopeinfo_idx_ncontextlocals',
         'value': 'ScopeInfo::kContextLocalCount' },
     { 'name': 'scopeinfo_idx_first_vars',
         'value': 'ScopeInfo::kVariablePartIndex' },
-
-    { 'name': 'sharedfunctioninfo_start_position_mask',
-        'value': 'SharedFunctionInfo::StartPositionBits::kMask' },
-    { 'name': 'sharedfunctioninfo_start_position_shift',
-        'value': 'SharedFunctionInfo::StartPositionBits::kShift' },
 
     { 'name': 'jsarray_buffer_was_neutered_mask',
         'value': 'JSArrayBuffer::WasNeutered::kMask' },
     { 'name': 'jsarray_buffer_was_neutered_shift',
         'value': 'JSArrayBuffer::WasNeutered::kShift' },
 
-    { 'name': 'context_idx_closure',
-        'value': 'Context::CLOSURE_INDEX' },
+    { 'name': 'context_idx_scope_info',
+        'value': 'Context::SCOPE_INFO_INDEX' },
     { 'name': 'context_idx_native',
         'value': 'Context::NATIVE_CONTEXT_INDEX' },
     { 'name': 'context_idx_prev',
@@ -211,6 +207,9 @@ consts_misc = [
         'value': 'Context::EXTENSION_INDEX' },
     { 'name': 'context_min_slots',
         'value': 'Context::MIN_CONTEXT_SLOTS' },
+    { 'name': 'context_idx_embedder_data',
+        'value': 'Internals::kContextEmbedderDataIndex' },
+
 
     { 'name': 'namedictionaryshape_prefix_size',
         'value': 'NameDictionaryShape::kPrefixSize' },
@@ -231,6 +230,8 @@ consts_misc = [
         'value': 'SimpleNumberDictionaryShape::kPrefixSize' },
     { 'name': 'simplenumberdictionaryshape_entry_size',
         'value': 'SimpleNumberDictionaryShape::kEntrySize' },
+
+    { 'name': 'type_JSError__JS_ERROR_TYPE', 'value': 'JS_ERROR_TYPE' },
 ];
 
 #
@@ -265,12 +266,12 @@ extras_accessors = [
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
-    'SharedFunctionInfo, function_token_position, int, kFunctionTokenPositionOffset',
-    'SharedFunctionInfo, start_position_and_type, int, kStartPositionAndTypeOffset',
-    'SharedFunctionInfo, end_position, int, kEndPositionOffset',
-    'SharedFunctionInfo, internal_formal_parameter_count, int, kFormalParameterCountOffset',
+    'UncompiledData, start_position, int32_t, kStartPositionOffset',
+    'UncompiledData, end_position, int32_t, kEndPositionOffset',
+    'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
+    'SharedFunctionInfo, internal_formal_parameter_count, uint16_t, kFormalParameterCountOffset',
     'SharedFunctionInfo, flags, int, kFlagsOffset',
-    'SharedFunctionInfo, length, int, kLengthOffset',
+    'SharedFunctionInfo, length, uint16_t, kLengthOffset',
     'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
@@ -284,7 +285,7 @@ extras_accessors = [
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
-    'SeqOneByteString', 'SharedFunctionInfo'
+    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo'
 ];
 
 
@@ -306,6 +307,8 @@ header = '''
 #include "src/frames.h"
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/contexts.h"
+#include "src/objects.h"
+#include "src/objects/js-regexp-string-iterator.h"
 
 using namespace v8::internal;
 
@@ -415,14 +418,9 @@ def load_objects_from_file(objfilename, checktypes):
         #
         for type in types:
                 #
-                # Symbols and Strings are implemented using the same classes.
-                #
-                usetype = re.sub('SYMBOL_', 'STRING_', type);
-
-                #
                 # REGEXP behaves like REG_EXP, as in JS_REGEXP_TYPE => JSRegExp.
                 #
-                usetype = re.sub('_REGEXP_', '_REG_EXP_', usetype);
+                usetype = re.sub('_REGEXP_', '_REG_EXP_', type);
 
                 #
                 # Remove the "_TYPE" suffix and then convert to camel case,

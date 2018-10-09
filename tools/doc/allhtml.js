@@ -12,7 +12,7 @@ const htmlFiles = fs.readdirSync(source, 'utf8')
   .filter((name) => name.includes('.html') && name !== 'all.html');
 
 // Read the table of contents.
-const toc = fs.readFileSync(source + '/_toc.html', 'utf8');
+const toc = fs.readFileSync(source + '/index.html', 'utf8');
 
 // Extract (and concatenate) the toc and apicontent from each document.
 let contents = '';
@@ -47,11 +47,13 @@ for (const link of toc.match(/<a.*?>/g)) {
   seen[href] = true;
 }
 
-// Replace various mentions of _toc with all.
-let all = toc.replace(/_toc\.html/g, 'all.html')
-  .replace('_toc.json', 'all.json')
-  .replace('api-section-_toc', 'api-section-all')
-  .replace('data-id="_toc"', 'data-id="all"');
+// Replace various mentions of index with all.
+let all = toc.replace(/index\.html/g, 'all.html')
+  .replace('<a href="all.html" name="toc">', '<a href="index.html" name="toc">')
+  .replace('index.json', 'all.json')
+  .replace('api-section-index', 'api-section-all')
+  .replace('data-id="index"', 'data-id="all"')
+  .replace(/<li class="edit_on_github">.*?<\/li>/, '');
 
 // Clean up the title.
 all = all.replace(/<title>.*?\| /, '<title>');
@@ -71,3 +73,16 @@ all = all.slice(0, apiStart.index + apiStart[0].length) +
 
 // Write results.
 fs.writeFileSync(source + '/all.html', all, 'utf8');
+
+// Validate all hrefs have a target.
+const ids = new Set();
+const idRe = / id="(\w+)"/g;
+let match;
+while (match = idRe.exec(all)) {
+  ids.add(match[1]);
+}
+
+const hrefRe = / href="#(\w+)"/g;
+while (match = hrefRe.exec(all)) {
+  if (!ids.has(match[1])) throw new Error(`link not found: ${match[1]}`);
+}

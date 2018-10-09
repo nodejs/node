@@ -269,7 +269,7 @@ nothing requires it any more.
 ## Additional fields / Adding new fields
 
 Installers should ignore any field they aren't aware of.  It's not an error
-to have additional properities in the package-lock or lock file.
+to have additional properties in the package-lock or lock file.
 
 Installers that want to add new fields should either have one added via RFC
 in the npm issue tracker and an accompanying documentation PR, or should prefix

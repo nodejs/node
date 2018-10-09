@@ -34,6 +34,7 @@
 // change they are 114 characters away from each other. New instance of Code is
 // required when those numbers cross the border value of 64 (in any direction).
 
+// Flags: --allow-natives-syntax
 Debug = debug.Debug
 
 eval(
@@ -46,19 +47,13 @@ eval(
     "}"
 );
 
-var script = Debug.findScript(BeingReplaced);
-
-var orig_body = "{}";
-var patch_pos = script.source.indexOf(orig_body);
-// Line long enough to change rinfo encoding.
-var new_body_patch = "{return 'Capybara';" +
-    "                                                                          " +
-    "}";
-
-var change_log = new Array();
 function Changer() {
-  Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_body.length, new_body_patch, change_log);
-  print("Change log: " + JSON.stringify(change_log) + "\n");
+  // Line long enough to change rinfo encoding.
+  var new_source =
+    Debug.scriptSource(BeingReplaced).replace("{}", "{return 'Capybara';" +
+    "                                                                          " +
+    "}");
+  %LiveEditPatchScript(BeingReplaced, new_source);
 }
 
 function NoOp() {

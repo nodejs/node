@@ -31,8 +31,14 @@
   'overrides/caching': [PASS, FAIL],
 }],  # ALWAYS
 
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
+
+['system == windows', {
+  # noi18n cannot turn on ICU backend for Date
+  'relative-time-format/default-locale-fr-CA': [SKIP],
+  'relative-time-format/default-locale-pt-BR': [SKIP],
+}],  # system == windows'
 
 ]

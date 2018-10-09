@@ -21,6 +21,7 @@ using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 using v8_inspector::StringBuffer;
@@ -66,7 +67,7 @@ class JSBindingsConnection : public AsyncWrap {
                          callback_(env->isolate(), callback) {
     Agent* inspector = env->inspector_agent();
     session_ = inspector->Connect(std::unique_ptr<JSBindingsSessionDelegate>(
-        new JSBindingsSessionDelegate(env, this)));
+        new JSBindingsSessionDelegate(env, this)), false);
   }
 
   void OnMessage(Local<Value> value) {
@@ -103,7 +104,14 @@ class JSBindingsConnection : public AsyncWrap {
     }
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackField("callback", callback_);
+    tracker->TrackFieldWithSize(
+        "session", sizeof(*session_), "InspectorSession");
+  }
+
+  SET_MEMORY_INFO_NAME(JSBindingsConnection)
+  SET_SELF_SIZE(JSBindingsConnection)
 
  private:
   std::unique_ptr<InspectorSession> session_;
@@ -112,7 +120,7 @@ class JSBindingsConnection : public AsyncWrap {
 
 static bool InspectorEnabled(Environment* env) {
   Agent* agent = env->inspector_agent();
-  return agent->io() != nullptr || agent->HasConnectedSessions();
+  return agent->IsActive();
 }
 
 void AddCommandLineAPI(const FunctionCallbackInfo<Value>& info) {
@@ -142,12 +150,11 @@ void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
-  Isolate* isolate = info.GetIsolate();
-  HandleScope handle_scope(isolate);
+  Environment* env = Environment::GetCurrent(info);
+  Isolate* isolate = env->isolate();
   Local<Context> context = isolate->GetCurrentContext();
   CHECK_LT(2, info.Length());
   SlicedArguments call_args(info, /* start */ 3);
-  Environment* env = Environment::GetCurrent(isolate);
   if (InspectorEnabled(env)) {
     Local<Value> inspector_method = info[0];
     CHECK(inspector_method->IsFunction());
@@ -235,20 +242,21 @@ void Open(const FunctionCallbackInfo<Value>& args) {
   bool wait_for_connect = false;
 
   if (args.Length() > 0 && args[0]->IsUint32()) {
-    uint32_t port = args[0]->Uint32Value();
-    agent->options().set_port(static_cast<int>(port));
+    uint32_t port = args[0].As<Uint32>()->Value();
+    agent->options()->host_port.port = port;
   }
 
   if (args.Length() > 1 && args[1]->IsString()) {
     Utf8Value host(env->isolate(), args[1].As<String>());
-    agent->options().set_host_name(*host);
+    agent->options()->host_port.host_name = *host;
   }
 
   if (args.Length() > 2 && args[2]->IsBoolean()) {
     wait_for_connect = args[2]->BooleanValue(env->context()).FromJust();
   }
-
-  agent->StartIoThread(wait_for_connect);
+  agent->StartIoThread();
+  if (wait_for_connect)
+    agent->WaitForConnect();
 }
 
 void Url(const FunctionCallbackInfo<Value>& args) {
@@ -279,7 +287,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
   Agent* agent = env->inspector_agent();
   env->SetMethod(target, "consoleCall", InspectorConsoleCall);
   env->SetMethod(target, "addCommandLineAPI", AddCommandLineAPI);
-  if (agent->IsWaitingForConnect())
+  if (agent->WillWaitForConnect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "open", Open);
   env->SetMethodNoSideEffect(target, "url", Url);
@@ -300,10 +308,13 @@ void Initialize(Local<Object> target, Local<Value> unused,
       env->NewFunctionTemplate(JSBindingsConnection::New);
   tmpl->InstanceTemplate()->SetInternalFieldCount(1);
   tmpl->SetClassName(conn_str);
-  AsyncWrap::AddWrapMethods(env, tmpl);
+  tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(tmpl, "dispatch", JSBindingsConnection::Dispatch);
   env->SetProtoMethod(tmpl, "disconnect", JSBindingsConnection::Disconnect);
-  target->Set(env->context(), conn_str, tmpl->GetFunction()).ToChecked();
+  target
+      ->Set(env->context(), conn_str,
+            tmpl->GetFunction(env->context()).ToLocalChecked())
+      .ToChecked();
 }
 
 }  // namespace

@@ -47,13 +47,6 @@ U_NAMESPACE_BEGIN
 
 class UVector32;
 
-// Forward declaration for number formatting:
-namespace number {
-namespace impl {
-class NumberStringBuilder;
-}
-}
-
 /**
  * FieldPositionIterator returns the field ids and their start/limit positions generated
  * by a call to Format::format.  See Format, NumberFormat, DecimalFormat.
@@ -114,7 +107,6 @@ private:
     void setData(UVector32 *adopt, UErrorCode& status);
 
     friend class FieldPositionIteratorHandler;
-    friend class number::impl::NumberStringBuilder;
 
     UVector32 *data;
     int32_t pos;

@@ -7,6 +7,81 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.0h and 1.1.0i [14 Aug 2018]
+
+  *) Client DoS due to large DH parameter
+
+     During key agreement in a TLS handshake using a DH(E) based ciphersuite a
+     malicious server can send a very large prime value to the client. This will
+     cause the client to spend an unreasonably long period of time generating a
+     key for this prime resulting in a hang until the client has finished. This
+     could be exploited in a Denial Of Service attack.
+
+     This issue was reported to OpenSSL on 5th June 2018 by Guido Vranken
+     (CVE-2018-0732)
+     [Guido Vranken]
+
+  *) Cache timing vulnerability in RSA Key Generation
+
+     The OpenSSL RSA Key generation algorithm has been shown to be vulnerable to
+     a cache timing side channel attack. An attacker with sufficient access to
+     mount cache timing attacks during the RSA key generation process could
+     recover the private key.
+
+     This issue was reported to OpenSSL on 4th April 2018 by Alejandro Cabrera
+     Aldaya, Billy Brumley, Cesar Pereida Garcia and Luis Manuel Alvarez Tapia.
+     (CVE-2018-0737)
+     [Billy Brumley]
+
+  *) Make EVP_PKEY_asn1_new() a bit stricter about its input.  A NULL pem_str
+     parameter is no longer accepted, as it leads to a corrupt table.  NULL
+     pem_str is reserved for alias entries only.
+     [Richard Levitte]
+
+  *) Revert blinding in ECDSA sign and instead make problematic addition
+     length-invariant. Switch even to fixed-length Montgomery multiplication.
+     [Andy Polyakov]
+
+  *) Change generating and checking of primes so that the error rate of not
+     being prime depends on the intended use based on the size of the input.
+     For larger primes this will result in more rounds of Miller-Rabin.
+     The maximal error rate for primes with more than 1080 bits is lowered
+     to 2^-128.
+     [Kurt Roeckx, Annie Yousar]
+
+  *) Increase the number of Miller-Rabin rounds for DSA key generating to 64.
+     [Kurt Roeckx]
+
+  *) Add blinding to ECDSA and DSA signatures to protect against side channel
+     attacks discovered by Keegan Ryan (NCC Group).
+     [Matt Caswell]
+
+  *) When unlocking a pass phrase protected PEM file or PKCS#8 container, we
+     now allow empty (zero character) pass phrases.
+     [Richard Levitte]
+
+  *) Certificate time validation (X509_cmp_time) enforces stricter
+     compliance with RFC 5280. Fractional seconds and timezone offsets
+     are no longer allowed.
+     [Emilia Käsper]
+
+  *) Fixed a text canonicalisation bug in CMS
+
+     Where a CMS detached signature is used with text content the text goes
+     through a canonicalisation process first prior to signing or verifying a
+     signature. This process strips trailing space at the end of lines, converts
+     line terminators to CRLF and removes additional trailing line terminators
+     at the end of a file. A bug in the canonicalisation process meant that
+     some characters, such as form-feed, were incorrectly treated as whitespace
+     and removed. This is contrary to the specification (RFC5485). This fix
+     could mean that detached text data signed with an earlier version of
+     OpenSSL 1.1.0 may fail to verify using the fixed version, or text data
+     signed with a fixed OpenSSL may fail to verify with an earlier version of
+     OpenSSL 1.1.0. A workaround is to only verify the canonicalised text data
+     and use the "-binary" flag (for the "cms" command line application) or set
+     the SMIME_BINARY/PKCS7_BINARY/CMS_BINARY flags (if using CMS_verify()).
+     [Matt Caswell]
+
  Changes between 1.1.0g and 1.1.0h [27 Mar 2018]
 
   *) Constructed ASN.1 types with a recursive definition could exceed the stack
@@ -1144,13 +1219,13 @@
      [Steve Henson]
 
   *) Experimental encrypt-then-mac support.
-
+    
      Experimental support for encrypt then mac from
      draft-gutmann-tls-encrypt-then-mac-02.txt
 
      To enable it set the appropriate extension number (0x42 for the test
      server) using e.g. -DTLSEXT_TYPE_encrypt_then_mac=0x42
-
+ 
      For non-compliant peers (i.e. just about everything) this should have no
      effect.
 
@@ -1201,7 +1276,7 @@
 
   *) Use separate DRBG fields for internal and external flags. New function
      FIPS_drbg_health_check() to perform on demand health checking. Add
-     generation tests to fips_test_suite with reduced health check interval to
+     generation tests to fips_test_suite with reduced health check interval to 
      demonstrate periodic health checking. Add "nodh" option to
      fips_test_suite to skip very slow DH test.
      [Steve Henson]
@@ -1215,7 +1290,7 @@
      combination: call this in fips_test_suite.
      [Steve Henson]
 
-  *) Add support for canonical generation of DSA parameter 'g'. See
+  *) Add support for canonical generation of DSA parameter 'g'. See 
      FIPS 186-3 A.2.3.
 
   *) Add support for HMAC DRBG from SP800-90. Update DRBG algorithm test and
@@ -1239,7 +1314,7 @@
      requested amount of entropy.
      [Steve Henson]
 
-  *) Add PRNG security strength checks to RSA, DSA and ECDSA using
+  *) Add PRNG security strength checks to RSA, DSA and ECDSA using 
      information in FIPS186-3, SP800-57 and SP800-131A.
      [Steve Henson]
 
@@ -1331,7 +1406,7 @@
      can be set or retrieved with a ctrl. The IV length is by default 12
      bytes (96 bits) but can be set to an alternative value. If the IV
      length exceeds the maximum IV length (currently 16 bytes) it cannot be
-     set before the key.
+     set before the key. 
      [Steve Henson]
 
   *) New flag in ciphers: EVP_CIPH_FLAG_CUSTOM_CIPHER. This means the
@@ -1374,7 +1449,7 @@
      Add CMAC pkey methods.
      [Steve Henson]
 
-  *) Experimental renegotiation in s_server -www mode. If the client
+  *) Experimental renegotiation in s_server -www mode. If the client 
      browses /reneg connection is renegotiated. If /renegcert it is
      renegotiated requesting a certificate.
      [Steve Henson]
@@ -1394,7 +1469,7 @@
   *) New macro __owur for "OpenSSL Warn Unused Result". This makes use of
      a gcc attribute to warn if the result of a function is ignored. This
      is enable if DEBUG_UNUSED is set. Add to several functions in evp.h
-     whose return value is often ignored.
+     whose return value is often ignored. 
      [Steve Henson]
 
   *) New -noct, -requestct, -requirect and -ctlogfile options for s_client.
@@ -3628,7 +3703,7 @@
 
   *) New option -sigopt to dgst utility. Update dgst to use
      EVP_Digest{Sign,Verify}*. These two changes make it possible to use
-     alternative signing parameters such as X9.31 or PSS in the dgst
+     alternative signing parameters such as X9.31 or PSS in the dgst 
      utility.
      [Steve Henson]
 
@@ -12379,7 +12454,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
   *) Fixed sk_insert which never worked properly.
      [Steve Henson]
 
-  *) Fix ASN1 macros so they can handle indefinite length constructed
+  *) Fix ASN1 macros so they can handle indefinite length constructed 
      EXPLICIT tags. Some non standard certificates use these: they can now
      be read in.
      [Steve Henson]

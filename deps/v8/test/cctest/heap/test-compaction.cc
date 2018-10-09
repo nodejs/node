@@ -219,8 +219,9 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
       // leaving others in place.
       bool in_place = true;
       Handle<FixedArray> current = root_array;
-      while (current->get(0) != heap->undefined_value()) {
-        current = Handle<FixedArray>(FixedArray::cast(current->get(0)));
+      while (current->get(0) != ReadOnlyRoots(heap).undefined_value()) {
+        current =
+            Handle<FixedArray>(FixedArray::cast(current->get(0)), isolate);
         CHECK(current->IsFixedArray());
         if (Page::FromAddress(current->address()) != to_be_aborted_page) {
           in_place = false;
@@ -288,7 +289,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
       root_array->set(0, *compaction_page_handles.back());
       Handle<FixedArray> new_space_array =
           isolate->factory()->NewFixedArray(1, NOT_TENURED);
-      CHECK(heap->InNewSpace(*new_space_array));
+      CHECK(Heap::InNewSpace(*new_space_array));
       compaction_page_handles.front()->set(1, *new_space_array);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
     }
@@ -313,9 +314,10 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
       // leaving others in place.
       bool in_place = true;
       Handle<FixedArray> current = root_array;
-      while (current->get(0) != heap->undefined_value()) {
-        current = Handle<FixedArray>(FixedArray::cast(current->get(0)));
-        CHECK(!heap->InNewSpace(*current));
+      while (current->get(0) != ReadOnlyRoots(heap).undefined_value()) {
+        current =
+            Handle<FixedArray>(FixedArray::cast(current->get(0)), isolate);
+        CHECK(!Heap::InNewSpace(*current));
         CHECK(current->IsFixedArray());
         if (Page::FromAddress(current->address()) != to_be_aborted_page) {
           in_place = false;

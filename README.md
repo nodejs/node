@@ -9,13 +9,11 @@
 </p>
 
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. For
-more information on using Node.js, see the
-[Node.js Website][].
+more information on using Node.js, see the [Node.js Website][].
 
-The Node.js project is supported by the
-[Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
-policies, and releases are managed under an
-[open governance model](./GOVERNANCE.md).
+Node.js contributions, policies, and releases are managed under an
+[open governance model](./GOVERNANCE.md). The [Node.js Foundation][] provides
+support for the project.
 
 **This project is bound by a [Code of Conduct][].**
 
@@ -49,8 +47,8 @@ When looking for support, please first search for your question in these venues:
 * [Node.js Help][]
 * [Open or closed issues in the Node.js GitHub organization](https://github.com/issues?utf8=%E2%9C%93&q=sort%3Aupdated-desc+org%3Anodejs+is%3Aissue)
 
-If you didn't find an answer in one of the official resources above, you can
-search these unofficial resources:
+If you didn't find an answer in the resources above, try these unofficial
+resources:
 
 * [Questions tagged 'node.js' on StackOverflow][]
 * [#node.js channel on chat.freenode.net][]. See <http://nodeirc.info/> for more
@@ -59,72 +57,69 @@ search these unofficial resources:
 * [Node.js Slack Community](https://node-js.slack.com/): Visit
   [nodeslackers.com](http://www.nodeslackers.com/) to register.
 
-GitHub issues are meant for tracking enhancements and bugs, not general support.
+GitHub issues are for tracking enhancements and bugs, not general support.
 
-Remember, libre != gratis; the open source license grants you the freedom to use
-and modify, but not commitments of other people's time. Please be respectful,
-and set your expectations accordingly.
+The open source license grants you the freedom to use Node.js. It does not
+guarantee commitments of other people's time. Please be respectful and manage
+your expectations.
 
-## Release Types
+## Release Types 
 
-The Node.js project maintains multiple types of releases:
-
-* **Current**: Released from active development branches of this repository,
-  versioned by [SemVer](https://semver.org) and signed by a member of the
-  [Release Team](#release-team).
-  Code for Current releases is organized in this repository by major version
-  number. For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
-  The major version number of Current releases will increment every 6 months
-  allowing for breaking changes to be introduced. This happens in April and
-  October every year. Current release lines beginning in October each year have
-  a maximum support life of 8 months. Current release lines beginning in April
-  each year will convert to LTS (see below) after 6 months and receive further
-  support for 30 months.
+* **Current**: Under active development. Code for the Current release is in the
+  branch for its major version number (for example,
+  [v10.x](https://github.com/nodejs/node/tree/v10.x)). Node.js releases a new
+  major version every 6 months, allowing for breaking changes. This happens in
+  April and October every year. Releases appearing each October have a support
+  life of 8 months. Releases appearing each April convert to LTS (see below)
+  each October.
 * **LTS**: Releases that receive Long-term Support, with a focus on stability
-  and security. Every second Current release line (major version) will become an
-  LTS line and receive 18 months of _Active LTS_ support and a further 12
-  months of _Maintenance_. LTS release lines are given alphabetically
-  ordered codenames, beginning with v4 Argon. LTS releases are less frequent
-  and will attempt to maintain consistent major and minor version numbers,
-  only incrementing patch version numbers. There are no breaking changes or
-  feature additions, except in some special circumstances.
-* **Nightly**: Versions of code in this repository on the current Current
-  branch, automatically built every 24-hours where changes exist. Use with
-  caution.
+  and security. Every even-numbered major version will become an LTS release.
+  LTS releases receive 18 months of _Active LTS_ support and a further 12 months
+  of _Maintenance_. LTS release lines have alphabetically-ordered codenames,
+  beginning with v4 Argon. There are no breaking changes or feature additions,
+  except in some special circumstances.
+* **Nightly**: Code from the Current branch built every 24-hours when there are
+  changes. Use with caution.
 
-More information can be found in the [LTS README](https://github.com/nodejs/LTS/).
+Current and LTS releases follow [Semantic Versioning](https://semver.org). A
+member of the [Release Team](#release-team) signs each Current and LTS release.
+For more information, see the
+[Release README](https://github.com/nodejs/Release).
 
 ### Download
 
 Binaries, installers, and source tarballs are available at
-<https://nodejs.org>.
+<https://nodejs.org/en/download/>.
 
 #### Current and LTS Releases
-**Current** and **LTS** releases are available at
-<https://nodejs.org/download/release/>, listed under their version strings.
+<https://nodejs.org/download/release/>
+
 The [latest](https://nodejs.org/download/release/latest/) directory is an
-alias for the latest Current release. The latest LTS release from an LTS
-line is available in the form: latest-_codename_. For example:
-<https://nodejs.org/download/release/latest-argon>.
+alias for the latest Current release. The latest-_codename_ directory is an
+alias for the latest release from an LTS line. For example,
+<https://nodejs.org/download/release/latest-carbon> is the latest Carbon
+(Node.js version 8) release.
 
 #### Nightly Releases
-**Nightly** builds are available at
-<https://nodejs.org/download/nightly/>, listed under their version
-string which includes their date (in UTC time) and the commit SHA at
-the HEAD of the release.
+<https://nodejs.org/download/nightly/>
+
+Listed under their version string which includes their date (in UTC time) and
+the commit SHA at the HEAD of the release.
 
 #### API Documentation
-**API documentation** is available in each release and nightly
-directory under _docs_. <https://nodejs.org/api/> points to the API
-documentation of the latest stable version.
+
+Documentation for the latest Current release is at <https://nodejs.org/api/>.
+Version-specific documentation is available in each release directory in the
+_docs_ subdirectory. Version-specific documentation is also at
+<https://nodejs.org/download/docs/>.
+
 
 ### Verifying Binaries
 
-Current, LTS, and Nightly download directories all contain a SHASUMS256.txt
-file that lists the SHA checksums for each file available for
-download.
+Download directories contain a `SHASUMS256.txt` file with SHA checksums for the
+files.
 
-The SHASUMS256.txt can be downloaded using `curl`.
+To download `SHASUMS256.txt` using `curl`:
 
 ```console
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
@@ -137,14 +132,11 @@ it through `sha256sum` with a command such as:
 $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 ```
 
-Current and LTS releases (but not Nightlies) also have the GPG detached
-signature of SHASUMS256.txt available as SHASUMS256.txt.sig. You can use `gpg`
-to verify that SHASUMS256.txt has not been tampered with.
-
-To verify SHASUMS256.txt has not been altered, you will first need to import
-all of the GPG keys of individuals authorized to create releases. They are
-listed at the bottom of this README under [Release Team](#release-team).
-Use a command such as this to import the keys:
+For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
+`SHASUMS256.txt.sig`. You can use it with `gpg` to verify the integrity of
+`SHASUM256.txt`. You will first need to import all the GPG keys of individuals
+authorized to create releases. They are at the bottom of this README under
+[Release Team](#release-team). To import the keys:
 
 ```console
 $ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
@@ -152,24 +144,19 @@ $ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C2
 
 See the bottom of this README for a full script to import active release keys.
 
-Next, download the SHASUMS256.txt.sig for the release:
+Next, download the `SHASUMS256.txt.sig` for the release:
 
 ```console
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt.sig
 ```
 
-After downloading the appropriate SHASUMS256.txt and SHASUMS256.txt.sig files,
-you can then use `gpg --verify SHASUMS256.txt.sig SHASUMS256.txt` to verify
-that the file has been signed by an authorized member of the Node.js team.
-
-Once verified, use the SHASUMS256.txt file to get the checksum for
-the binary verification command above.
+Then use `gpg --verify SHASUMS256.txt.sig SHASUMS256.txt` to verify
+the file's signature.
 
 ## Building Node.js
 
-See [BUILDING.md](BUILDING.md) for instructions on how to build
-Node.js from source. The document also contains a list of
-officially supported platforms.
+See [BUILDING.md](BUILDING.md) for instructions on how to build Node.js from
+source and a list of supported platforms.
 
 ## Security
 
@@ -237,18 +224,20 @@ For more information about the governance of the Node.js project, see
 
 * [addaleax](https://github.com/addaleax) -
 **Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
+* [apapirovski](https://github.com/apapirovski) -
+**Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
 * [ChALkeR](https://github.com/ChALkeR) -
 **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; (he/him)
 * [cjihrig](https://github.com/cjihrig) -
-**Colin Ihrig** &lt;cjihrig@gmail.com&gt;
+**Colin Ihrig** &lt;cjihrig@gmail.com&gt; (he/him)
 * [danbev](https://github.com/danbev) -
-**Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
+**Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt; (he/him)
 * [fhinkel](https://github.com/fhinkel) -
 **Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt; (she/her)
 * [Fishrock123](https://github.com/Fishrock123) -
 **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt;
-* [gibfahn](https://github.com/gibfahn) -
-**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
+* [gabrielschulhof](https://github.com/gabrielschulhof) -
+**Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
 * [jasnell](https://github.com/jasnell) -
 **James M Snell** &lt;jasnell@gmail.com&gt; (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
@@ -280,6 +269,8 @@ For more information about the governance of the Node.js project, see
 **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 * [evanlucas](https://github.com/evanlucas) -
 **Evan Lucas** &lt;evanlucas@me.com&gt; (he/him)
+* [gibfahn](https://github.com/gibfahn) -
+**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [indutny](https://github.com/indutny) -
 **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
 * [isaacs](https://github.com/isaacs) -
@@ -329,10 +320,12 @@ For more information about the governance of the Node.js project, see
 **Benedikt Meurer** &lt;benedikt.meurer@gmail.com&gt;
 * [bnoordhuis](https://github.com/bnoordhuis) -
 **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
+* [boneskull](https://github.com/boneskull) -
+**Christopher Hiller** &lt;boneskull@boneskull.com&gt; (he/him)
 * [brendanashworth](https://github.com/brendanashworth) -
 **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt;
 * [BridgeAR](https://github.com/BridgeAR) -
-**Ruben Bridgewater** &lt;ruben@bridgewater.de&gt;
+**Ruben Bridgewater** &lt;ruben@bridgewater.de&gt; (he/him)
 * [bzoz](https://github.com/bzoz) -
 **Bartosz Sosnowski** &lt;bartosz@janeasystems.com&gt;
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
@@ -342,19 +335,21 @@ For more information about the governance of the Node.js project, see
 * [chrisdickinson](https://github.com/chrisdickinson) -
 **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 * [cjihrig](https://github.com/cjihrig) -
-**Colin Ihrig** &lt;cjihrig@gmail.com&gt;
+**Colin Ihrig** &lt;cjihrig@gmail.com&gt; (he/him)
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [codebytere](https://github.com/codebytere) -
 **Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
-**Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
+**Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt; (he/him)
 * [DavidCai1993](https://github.com/DavidCai1993) -
 **David Cai** &lt;davidcai1993@yahoo.com&gt; (he/him)
 * [davisjam](https://github.com/davisjam) -
 **Jamie Davis** &lt;davisjam@vt.edu&gt; (he/him)
 * [devsnek](https://github.com/devsnek) -
 **Gus Caplan** &lt;me@gus.host&gt; (he/him)
+* [digitalinfinity](https://github.com/digitalinfinity) -
+**Hitesh Kanwathirtha** &lt;digitalinfinity@gmail.com&gt; (he/him)
 * [edsadr](https://github.com/edsadr) -
 **Adrian Estrada** &lt;edsadr@gmail.com&gt; (he/him)
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
@@ -373,6 +368,8 @@ For more information about the governance of the Node.js project, see
 **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt;
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
 **Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
+* [gdams](https://github.com/gdams) -
+**George Adams** &lt;george.adams@uk.ibm.com&gt; (he/him)
 * [geek](https://github.com/geek) -
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [gibfahn](https://github.com/gibfahn) -
@@ -422,13 +419,15 @@ For more information about the governance of the Node.js project, see
 * [kunalspathak](https://github.com/kunalspathak) -
 **Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lance](https://github.com/lance) -
-**Lance Ball** &lt;lball@redhat.com&gt;
+**Lance Ball** &lt;lball@redhat.com&gt; (he/him)
 * [Leko](https://github.com/Leko) -
 **Shingo Inoue** &lt;leko.noor@gmail.com&gt; (he/him)
 * [lpinca](https://github.com/lpinca) -
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lucamaraschi](https://github.com/lucamaraschi) -
 **Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
+* [lundibundi](https://github.com/lundibundi) -
+**Denys Otrishko** &lt;shishugi@gmail.com&gt; (he/him)
 * [maclover7](https://github.com/maclover7) -
 **Jon Moss** &lt;me@jonathanmoss.me&gt; (he/him)
 * [mafintosh](https://github.com/mafintosh)
@@ -440,7 +439,7 @@ For more information about the governance of the Node.js project, see
 * [misterdjules](https://github.com/misterdjules) -
 **Julien Gilli** &lt;jgilli@nodejs.org&gt;
 * [mmarchini](https://github.com/mmarchini) -
-**Matheus Marchini** &lt;matheus@sthima.com&gt;
+**Matheus Marchini** &lt;mat@mmarchini.me&gt;
 * [MoonBall](https://github.com/MoonBall) -
 **Chen Gang** &lt;gangc.cxy@foxmail.com&gt;
 * [mscdex](https://github.com/mscdex) -
@@ -448,7 +447,7 @@ For more information about the governance of the Node.js project, see
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
 * [not-an-aardvark](https://github.com/not-an-aardvark) -
-**Teddy Katz** &lt;teddy.katz@gmail.com&gt;
+**Teddy Katz** &lt;teddy.katz@gmail.com&gt; (he/him)
 * [ofrobots](https://github.com/ofrobots) -
 **Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [orangemocha](https://github.com/orangemocha) -
@@ -471,6 +470,8 @@ For more information about the governance of the Node.js project, see
 **Ron Korving** &lt;ron@ronkorving.nl&gt;
 * [RReverser](https://github.com/RReverser) -
 **Ingvar Stepanyan** &lt;me@rreverser.com&gt;
+* [rubys](https://github.com/rubys) -
+**Sam Ruby** &lt;rubys@intertwingly.net&gt;
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
 * [ryzokuken](https://github.com/ryzokuken) -
@@ -631,6 +632,7 @@ Previous releases may also have been signed with one of the following GPG keys:
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Help]: https://github.com/nodejs/help
+[Node.js Foundation]: https://nodejs.org/en/foundation/
 [Node.js Website]: https://nodejs.org/en/
 [Questions tagged 'node.js' on StackOverflow]: https://stackoverflow.com/questions/tagged/node.js
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md

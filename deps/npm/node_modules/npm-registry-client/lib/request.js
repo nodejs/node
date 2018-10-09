@@ -289,13 +289,26 @@ function requestDone (method, where, cb) {
       }
 
       if (!parsed.error) {
-        er = makeError(
-          'Registry returned ' + response.statusCode +
-          ' for ' + method +
-          ' on ' + where,
-          name,
-          response.statusCode
-        )
+        if (response.statusCode === 401 && response.headers['www-authenticate']) {
+          const auth = response.headers['www-authenticate'].split(/,\s*/).map(s => s.toLowerCase())
+          if (auth.indexOf('ipaddress') !== -1) {
+            er = makeError('Login is not allowed from your IP address', name, response.statusCode, 'EAUTHIP')
+          } else if (auth.indexOf('otp') !== -1) {
+            er = makeError('OTP required for this operation', name, response.statusCode, 'EOTP')
+          } else {
+            er = makeError('Unable to authenticate, need: ' + response.headers['www-authenticate'], name, response.statusCode, 'EAUTHUNKNOWN')
+          }
+        } else {
+          const msg = parsed.message ? ': ' + parsed.message : ''
+          er = makeError(
+            'Registry returned ' + response.statusCode +
+            ' for ' + method +
+            ' on ' + where +
+            msg,
+            name,
+            response.statusCode
+          )
+        }
       } else if (name && parsed.error === 'not_found') {
         er = makeError('404 Not Found: ' + name, name, response.statusCode)
       } else if (name && parsed.error === 'User not found') {
@@ -312,12 +325,12 @@ function requestDone (method, where, cb) {
   }.bind(this)
 }
 
-function makeError (message, name, code) {
+function makeError (message, name, statusCode, code) {
   var er = new Error(message)
   if (name) er.pkgid = name
-  if (code) {
-    er.statusCode = code
-    er.code = 'E' + code
+  if (statusCode) {
+    er.statusCode = statusCode
+    er.code = code || 'E' + statusCode
   }
   return er
 }

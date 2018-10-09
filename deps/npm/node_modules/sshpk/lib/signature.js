@@ -3,6 +3,7 @@
 module.exports = Signature;
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('./algs');
 var crypto = require('crypto');
 var errs = require('./errors');
@@ -141,7 +142,7 @@ Signature.prototype.toString = function (format) {
 
 Signature.parse = function (data, type, format) {
 	if (typeof (data) === 'string')
-		data = new Buffer(data, 'base64');
+		data = Buffer.from(data, 'base64');
 	assert.buffer(data, 'data');
 	assert.string(format, 'format');
 	assert.string(type, 'type');

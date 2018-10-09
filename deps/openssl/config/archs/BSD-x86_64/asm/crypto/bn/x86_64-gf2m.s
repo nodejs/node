@@ -1,4 +1,4 @@
-.text
+.text	
 
 .type	_mul_1x1,@function
 .align	16

@@ -8,12 +8,18 @@
 // of `configure`.
 
 const {
-  nativeModuleWrap,
-  builtinSource,
-  cannotUseCache
+  getCodeCache,
+  getSource,
+  cachableBuiltins
 } = require('internal/bootstrap/cache');
 
-const vm = require('vm');
+function hash(str) {
+  if (process.versions.openssl) {
+    return require('crypto').createHash('sha256').update(str).digest('hex');
+  }
+  return '';
+}
+
 const fs = require('fs');
 
 const resultPath = process.argv[2];
@@ -53,6 +59,8 @@ function getInitalizer(key, cache) {
   const defName = key.replace(/\//g, '_').replace(/-/g, '_');
   const definition = `static uint8_t ${defName}_raw[] = {\n` +
                      `${cache.join(',')}\n};`;
+  const source = getSource(key);
+  const sourceHash = hash(source);
   const initializer = `
   v8::Local<v8::ArrayBuffer> ${defName}_ab =
     v8::ArrayBuffer::New(isolate, ${defName}_raw, ${cache.length});
@@ -62,39 +70,39 @@ function getInitalizer(key, cache) {
               FIXED_ONE_BYTE_STRING(isolate, "${key}"),
               ${defName}_array).FromJust();
   `;
+  const hashIntializer = `
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "${key}"),
+              OneByteString(isolate, "${sourceHash}")).FromJust();
+  `;
   return {
-    definition, initializer
+    definition, initializer, hashIntializer, sourceHash
   };
 }
 
 const cacheDefinitions = [];
 const cacheInitializers = [];
+const cacheHashInitializers = [];
 let totalCacheSize = 0;
 
 
-for (const key of Object.keys(builtinSource)) {
-  if (cannotUseCache.includes(key)) continue;
-  const code = nativeModuleWrap(builtinSource[key]);
-
-  // Note that this must corresponds to the code in
-  // NativeModule.prototype.compile
-  const script = new vm.Script(code, {
-    filename: `${key}.js`,
-    produceCachedData: true
-  });
-
-  if (!script.cachedData) {
+for (const key of cachableBuiltins) {
+  const cachedData = getCodeCache(key);
+  if (!cachedData.length) {
     console.error(`Failed to generate code cache for '${key}'`);
     process.exit(1);
   }
 
-  const length = script.cachedData.length;
+  const length = cachedData.length;
   totalCacheSize += length;
-  const { definition, initializer } = getInitalizer(key, script.cachedData);
+  const {
+    definition, initializer, hashIntializer, sourceHash
+  } = getInitalizer(key, cachedData);
   cacheDefinitions.push(definition);
   cacheInitializers.push(initializer);
+  cacheHashInitializers.push(hashIntializer);
   console.log(`Generated cache for '${key}', size = ${formatSize(length)}` +
-              `, total = ${formatSize(totalCacheSize)}`);
+              `, hash = ${sourceHash}, total = ${formatSize(totalCacheSize)}`);
 }
 
 const result = `#include "node.h"
@@ -115,6 +123,13 @@ void DefineCodeCache(Environment* env, v8::Local<v8::Object> target) {
   v8::Isolate* isolate = env->isolate();
   v8::Local<v8::Context> context = env->context();
   ${cacheInitializers.join('\n')}
+}
+
+// The target here will be returned as \`internalBinding('code_cache_hash')\`
+void DefineCodeCacheHash(Environment* env, v8::Local<v8::Object> target) {
+  v8::Isolate* isolate = env->isolate();
+  v8::Local<v8::Context> context = env->context();
+  ${cacheHashInitializers.join('\n')}
 }
 
 }  // namespace node

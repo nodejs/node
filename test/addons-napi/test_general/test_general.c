@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 #include <stdlib.h>
 #include "../common.h"
@@ -177,6 +178,17 @@ static napi_value wrap(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
+static napi_value unwrap(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value wrapped;
+  void* data;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &wrapped, NULL, NULL));
+  NAPI_CALL(env, napi_unwrap(env, wrapped, &data));
+
+  return NULL;
+}
+
 static napi_value remove_wrap(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value wrapped;
@@ -216,7 +228,7 @@ static napi_value testAdjustExternalMemory(napi_env env, napi_callback_info info
   int64_t adjustedValue;
 
   NAPI_CALL(env, napi_adjust_external_memory(env, 1, &adjustedValue));
-  NAPI_CALL(env, napi_create_double(env, adjustedValue, &result));
+  NAPI_CALL(env, napi_create_double(env, (double)adjustedValue, &result));
 
   return result;
 }
@@ -230,6 +242,33 @@ static napi_value testNapiRun(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_run_script(env, script, &result));
 
   return result;
+}
+
+static void finalizer_only_callback(napi_env env, void* data, void* hint) {
+  napi_ref js_cb_ref = data;
+  napi_value js_cb, undefined;
+  NAPI_CALL_RETURN_VOID(env, napi_get_reference_value(env, js_cb_ref, &js_cb));
+  NAPI_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));
+  NAPI_CALL_RETURN_VOID(env,
+      napi_call_function(env, undefined, js_cb, 0, NULL, NULL));
+  NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, js_cb_ref));
+}
+
+static napi_value add_finalizer_only(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value argv[2];
+  napi_ref js_cb_ref;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+  NAPI_CALL(env, napi_create_reference(env, argv[1], 1, &js_cb_ref));
+  NAPI_CALL(env,
+      napi_add_finalizer(env,
+                         argv[0],
+                         js_cb_ref,
+                         finalizer_only_callback,
+                         NULL,
+                         NULL));
+  return NULL;
 }
 
 static napi_value Init(napi_env env, napi_value exports) {
@@ -246,7 +285,9 @@ static napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NAPI_PROPERTY("testNapiErrorCleanup", testNapiErrorCleanup),
     DECLARE_NAPI_PROPERTY("testNapiTypeof", testNapiTypeof),
     DECLARE_NAPI_PROPERTY("wrap", wrap),
+    DECLARE_NAPI_PROPERTY("unwrap", unwrap),
     DECLARE_NAPI_PROPERTY("removeWrap", remove_wrap),
+    DECLARE_NAPI_PROPERTY("addFinalizerOnly", add_finalizer_only),
     DECLARE_NAPI_PROPERTY("testFinalizeWrap", test_finalize_wrap),
     DECLARE_NAPI_PROPERTY("finalizeWasCalled", finalize_was_called),
     DECLARE_NAPI_PROPERTY("derefItemWasCalled", deref_item_was_called),

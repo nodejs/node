@@ -14,6 +14,7 @@ module.exports = {
 };
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('../algs');
 var utils = require('../utils');
 var Key = require('../key');
@@ -54,7 +55,7 @@ function keyTypeToAlg(key) {
 
 function read(partial, type, buf, options) {
 	if (typeof (buf) === 'string')
-		buf = new Buffer(buf);
+		buf = Buffer.from(buf);
 	assert.buffer(buf, 'buf');
 
 	var key = {};

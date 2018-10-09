@@ -109,6 +109,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_BitcastFloat32ToInt32:
     case kPPC_BitcastInt64ToDouble:
     case kPPC_BitcastDoubleToInt64:
+    case kPPC_ByteRev32:
+    case kPPC_ByteRev64:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:

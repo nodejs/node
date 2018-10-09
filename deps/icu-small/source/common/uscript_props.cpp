@@ -71,7 +71,7 @@ const int32_t SCRIPT_PROPS[] = {
     0x0EA5 | RECOMMENDED | LB_LETTERS,  // Laoo
     0x004C | RECOMMENDED | CASED,  // Latn
     0x0D15 | RECOMMENDED,  // Mlym
-    0x1826 | LIMITED_USE,  // Mong
+    0x1826 | EXCLUSION,  // Mong
     0x1000 | RECOMMENDED | LB_LETTERS,  // Mymr
     0x168F | EXCLUSION,  // Ogam
     0x10300 | EXCLUSION,  // Ital
@@ -222,6 +222,13 @@ const int32_t SCRIPT_PROPS[] = {
     0x11D10 | EXCLUSION,  // Gonm
     0x11A5C | EXCLUSION,  // Soyo
     0x11A0B | EXCLUSION,  // Zanb
+    0x1180B | EXCLUSION,  // Dogr
+    0x11D71 | LIMITED_USE,  // Gong
+    0x11EE5 | EXCLUSION,  // Maka
+    0x16E40 | EXCLUSION | CASED,  // Medf
+    0x10D12 | LIMITED_USE | RTL,  // Rohg
+    0x10F42 | EXCLUSION | RTL,  // Sogd
+    0x10F19 | EXCLUSION | RTL,  // Sogo
     // End copy-paste from parsescriptmetadata.py
 };
 

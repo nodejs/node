@@ -155,10 +155,8 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
   }
 }
 
-V8_WARN_UNUSED_RESULT Object* LocaleConvertCase(Handle<String> s,
-                                                Isolate* isolate,
-                                                bool is_to_upper,
-                                                const char* lang) {
+MaybeHandle<String> LocaleConvertCase(Handle<String> s, Isolate* isolate,
+                                      bool is_to_upper, const char* lang) {
   auto case_converter = is_to_upper ? u_strToUpper : u_strToLower;
   int32_t src_length = s->length();
   int32_t dest_length = src_length;
@@ -166,15 +164,16 @@ V8_WARN_UNUSED_RESULT Object* LocaleConvertCase(Handle<String> s,
   Handle<SeqTwoByteString> result;
   std::unique_ptr<uc16[]> sap;
 
-  if (dest_length == 0) return isolate->heap()->empty_string();
+  if (dest_length == 0) return ReadOnlyRoots(isolate).empty_string_handle();
 
   // This is not a real loop. It'll be executed only once (no overflow) or
   // twice (overflow).
   for (int i = 0; i < 2; ++i) {
     // Case conversion can increase the string length (e.g. sharp-S => SS) so
     // that we have to handle RangeError exceptions here.
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawTwoByteString(dest_length));
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result, isolate->factory()->NewRawTwoByteString(dest_length),
+        String);
     DisallowHeapAllocation no_gc;
     DCHECK(s->IsFlat());
     String::FlatContent flat = s->GetFlatContent();
@@ -192,22 +191,17 @@ V8_WARN_UNUSED_RESULT Object* LocaleConvertCase(Handle<String> s,
   DCHECK(U_SUCCESS(status));
   if (V8_LIKELY(status == U_STRING_NOT_TERMINATED_WARNING)) {
     DCHECK(dest_length == result->length());
-    return *result;
+    return result;
   }
-  if (U_SUCCESS(status)) {
-    DCHECK(dest_length < result->length());
-    return *Handle<SeqTwoByteString>::cast(
-        SeqString::Truncate(result, dest_length));
-  }
-  return *s;
+  DCHECK(dest_length < result->length());
+  return SeqString::Truncate(result, dest_length);
 }
 
 // A stripped-down version of ConvertToLower that can only handle flat one-byte
 // strings and does not allocate. Note that {src} could still be, e.g., a
 // one-byte sliced string with a two-byte parent string.
 // Called from TF builtins.
-V8_WARN_UNUSED_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
-                                                    Isolate* isolate) {
+V8_WARN_UNUSED_RESULT String* ConvertOneByteToLower(String* src, String* dst) {
   DCHECK_EQ(src->length(), dst->length());
   DCHECK(src->HasOnlyOneByteChars());
   DCHECK(src->IsFlat());
@@ -252,8 +246,7 @@ V8_WARN_UNUSED_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
   return dst;
 }
 
-V8_WARN_UNUSED_RESULT Object* ConvertToLower(Handle<String> s,
-                                             Isolate* isolate) {
+MaybeHandle<String> ConvertToLower(Handle<String> s, Isolate* isolate) {
   if (!s->HasOnlyOneByteChars()) {
     // Use a slower implementation for strings with characters beyond U+00FF.
     return LocaleConvertCase(s, isolate, false, "");
@@ -275,17 +268,16 @@ V8_WARN_UNUSED_RESULT Object* ConvertToLower(Handle<String> s,
   bool is_short = length < static_cast<int>(sizeof(uintptr_t));
   if (is_short) {
     bool is_lower_ascii = FindFirstUpperOrNonAscii(*s, length) == length;
-    if (is_lower_ascii) return *s;
+    if (is_lower_ascii) return s;
   }
 
   Handle<SeqOneByteString> result =
       isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 
-  return ConvertOneByteToLower(*s, *result, isolate);
+  return Handle<String>(ConvertOneByteToLower(*s, *result), isolate);
 }
 
-V8_WARN_UNUSED_RESULT Object* ConvertToUpper(Handle<String> s,
-                                             Isolate* isolate) {
+MaybeHandle<String> ConvertToUpper(Handle<String> s, Isolate* isolate) {
   int32_t length = s->length();
   if (s->HasOnlyOneByteChars() && length > 0) {
     Handle<SeqOneByteString> result =
@@ -305,8 +297,9 @@ V8_WARN_UNUSED_RESULT Object* ConvertToUpper(Handle<String> s,
             FastAsciiConvert<false>(reinterpret_cast<char*>(result->GetChars()),
                                     reinterpret_cast<const char*>(src.start()),
                                     length, &has_changed_character);
-        if (index_to_first_unprocessed == length)
-          return has_changed_character ? *result : *s;
+        if (index_to_first_unprocessed == length) {
+          return has_changed_character ? result : s;
+        }
         // If not ASCII, we keep the result up to index_to_first_unprocessed and
         // process the rest.
         is_result_single_byte =
@@ -315,7 +308,7 @@ V8_WARN_UNUSED_RESULT Object* ConvertToUpper(Handle<String> s,
       } else {
         DCHECK(flat.IsTwoByte());
         Vector<const uint16_t> src = flat.ToUC16Vector();
-        if (ToUpperFastASCII(src, result)) return *result;
+        if (ToUpperFastASCII(src, result)) return result;
         is_result_single_byte = ToUpperOneByte(src, dest, &sharp_s_count);
       }
     }
@@ -326,13 +319,14 @@ V8_WARN_UNUSED_RESULT Object* ConvertToUpper(Handle<String> s,
       return LocaleConvertCase(s, isolate, true, "");
     }
 
-    if (sharp_s_count == 0) return *result;
+    if (sharp_s_count == 0) return result;
 
     // We have sharp_s_count sharp-s characters, but the result is still
     // in the Latin-1 range.
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        isolate->factory()->NewRawOneByteString(length + sharp_s_count));
+        isolate->factory()->NewRawOneByteString(length + sharp_s_count),
+        String);
     DisallowHeapAllocation no_gc;
     String::FlatContent flat = s->GetFlatContent();
     if (flat.IsOneByte()) {
@@ -341,14 +335,14 @@ V8_WARN_UNUSED_RESULT Object* ConvertToUpper(Handle<String> s,
       ToUpperWithSharpS(flat.ToUC16Vector(), result);
     }
 
-    return *result;
+    return result;
   }
 
   return LocaleConvertCase(s, isolate, true, "");
 }
 
-V8_WARN_UNUSED_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
-                                          Isolate* isolate) {
+MaybeHandle<String> ConvertCase(Handle<String> s, bool is_upper,
+                                Isolate* isolate) {
   return is_upper ? ConvertToUpper(s, isolate) : ConvertToLower(s, isolate);
 }
 

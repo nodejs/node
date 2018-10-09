@@ -11,8 +11,7 @@
 
 <h1><a href="../cli/npm-unpublish.html">npm-unpublish</a></h1> <p>Remove a package from the registry</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm unpublish [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]
-</code></pre><h2 id="warning">WARNING</h2>
+<pre><code>npm unpublish [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]</code></pre><h2 id="warning">WARNING</h2>
 <p><strong>It is generally considered bad behavior to remove versions of a library
 that others are depending on!</strong></p>
 <p>Consider using the <code>deprecate</code> command
@@ -24,10 +23,12 @@ entry and removing the tarball.</p>
 <p>If no version is specified, or if all versions are removed then
 the root package entry is removed from the registry entirely.</p>
 <p>Even if a package version is unpublished, that specific name and
-version combination can never be reused.  In order to publish the
-package again, a new version number must be used.</p>
+version combination can never be reused. In order to publish the
+package again, a new version number must be used. Additionally,
+new versions of packages with every version unpublished may not
+be republished until 24 hours have passed.</p>
 <p>With the default registry (<code>registry.npmjs.org</code>), unpublish is
-only allowed with versions published in the last 24 hours. If you
+only allowed with versions published in the last 72 hours. If you
 are trying to unpublish a version published longer ago than that,
 contact <a href="mailto:support@npmjs.com">support@npmjs.com</a>.</p>
 <p>The scope is optional and follows the usual rules for <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>.</p>
@@ -51,5 +52,5 @@ contact <a href="mailto:support@npmjs.com">support@npmjs.com</a>.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-unpublish &mdash; npm@6.1.0</p>
+<p id="footer">npm-unpublish &mdash; npm@6.4.1</p>
 

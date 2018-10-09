@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --pending-deprecation
 'use strict';
 const common = require('../common');
 
@@ -34,6 +35,9 @@ const kMaxPossibleLength = Math.min(kMaxLength, kMaxUint32);
 
 // bump, we register a lot of exit listeners
 process.setMaxListeners(256);
+
+common.expectWarning('DeprecationWarning',
+                     'crypto.pseudoRandomBytes is deprecated.', 'DEP0115');
 
 {
   [crypto.randomBytes, crypto.pseudoRandomBytes].forEach((f) => {

@@ -40,8 +40,12 @@ void DefaultWorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<Task> task,
                                                      double delay_in_seconds) {
   base::LockGuard<base::Mutex> guard(&lock_);
   if (terminated_) return;
-  // There is no use case for this function on a worker thread at the
-  // moment, but it is still part of the interface.
+  if (delay_in_seconds == 0) {
+    queue_.Append(std::move(task));
+    return;
+  }
+  // There is no use case for this function with non zero delay_in_second on a
+  // worker thread at the moment, but it is still part of the interface.
   UNIMPLEMENTED();
 }
 

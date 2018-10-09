@@ -10,8 +10,6 @@ tmpdir.refresh();
 
 const fn = path.join(tmpdir.path, 'large-file');
 
-common.crashOnUnhandledRejection();
-
 async function validateReadFile() {
   // Creating large buffer with random content
   const buffer = Buffer.from(

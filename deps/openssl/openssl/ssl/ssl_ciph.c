@@ -101,10 +101,7 @@ static const ssl_cipher_table ssl_cipher_table_cipher[SSL_ENC_NUM_IDX] = {
     {SSL_CHACHA20POLY1305, NID_chacha20_poly1305},
 };
 
-static const EVP_CIPHER *ssl_cipher_methods[SSL_ENC_NUM_IDX] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL
-};
+static const EVP_CIPHER *ssl_cipher_methods[SSL_ENC_NUM_IDX];
 
 #define SSL_COMP_NULL_IDX       0
 #define SSL_COMP_ZLIB_IDX       1

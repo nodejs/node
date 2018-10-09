@@ -3,7 +3,7 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 #ifndef __NUMBER_ROUNDINGUTILS_H__
 #define __NUMBER_ROUNDINGUTILS_H__
 
@@ -131,7 +131,62 @@ inline bool roundsAtMidpoint(int roundingMode) {
     }
 }
 
+/**
+ * Computes the number of fraction digits in a double. Used for computing maxFrac for an increment.
+ * Calls into the DoubleToStringConverter library to do so.
+ */
+digits_t doubleFractionLength(double input);
+
 } // namespace roundingutils
+
+
+/**
+ * Encapsulates a Precision and a RoundingMode and performs rounding on a DecimalQuantity.
+ *
+ * This class does not exist in Java: instead, the base Precision class is used.
+ */
+class RoundingImpl {
+  public:
+    RoundingImpl() = default;  // default constructor: leaves object in undefined state
+
+    RoundingImpl(const Precision& precision, UNumberFormatRoundingMode roundingMode,
+                 const CurrencyUnit& currency, UErrorCode& status);
+
+    static RoundingImpl passThrough();
+
+    /** Required for ScientificFormatter */
+    bool isSignificantDigits() const;
+
+    /**
+     * Rounding endpoint used by Engineering and Compact notation. Chooses the most appropriate multiplier (magnitude
+     * adjustment), applies the adjustment, rounds, and returns the chosen multiplier.
+     *
+     * <p>
+     * In most cases, this is simple. However, when rounding the number causes it to cross a multiplier boundary, we
+     * need to re-do the rounding. For example, to display 999,999 in Engineering notation with 2 sigfigs, first you
+     * guess the multiplier to be -3. However, then you end up getting 1000E3, which is not the correct output. You then
+     * change your multiplier to be -6, and you get 1.0E6, which is correct.
+     *
+     * @param input The quantity to process.
+     * @param producer Function to call to return a multiplier based on a magnitude.
+     * @return The number of orders of magnitude the input was adjusted by this method.
+     */
+    int32_t
+    chooseMultiplierAndApply(impl::DecimalQuantity &input, const impl::MultiplierProducer &producer,
+                             UErrorCode &status);
+
+    void apply(impl::DecimalQuantity &value, UErrorCode &status) const;
+
+    /** Version of {@link #apply} that obeys minInt constraints. Used for scientific notation compatibility mode. */
+    void apply(impl::DecimalQuantity &value, int32_t minInt, UErrorCode status);
+
+  private:
+    Precision fPrecision;
+    UNumberFormatRoundingMode fRoundingMode;
+    bool fPassThrough;
+};
+
+
 } // namespace impl
 } // namespace number
 U_NAMESPACE_END

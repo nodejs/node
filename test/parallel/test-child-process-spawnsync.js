@@ -22,10 +22,9 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { spawnSync } = require('child_process');
 
-const spawnSync = require('child_process').spawnSync;
-
-// Echo does different things on Windows and Unix, but in both cases, it does
+// `sleep` does different things on Windows and Unix, but in both cases, it does
 // more-or-less nothing if there are no parameters
 const ret = spawnSync('sleep', ['0']);
 assert.strictEqual(ret.status, 0);
@@ -42,21 +41,23 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
 {
   // Test the cwd option
   const cwd = common.rootDir;
-  const response = common.spawnSyncPwd({ cwd });
+  const response = spawnSync(...common.pwdCommand, { cwd });
 
   assert.strictEqual(response.stdout.toString().trim(), cwd);
 }
 
-{
-  // Test the encoding option
-  const noEncoding = common.spawnSyncPwd();
-  const bufferEncoding = common.spawnSyncPwd({ encoding: 'buffer' });
-  const utf8Encoding = common.spawnSyncPwd({ encoding: 'utf8' });
 
-  assert.deepStrictEqual(noEncoding.output, bufferEncoding.output);
-  assert.deepStrictEqual([
+{
+  // Assert Buffer is the default encoding
+  const retDefault = spawnSync(...common.pwdCommand);
+  const retBuffer = spawnSync(...common.pwdCommand, { encoding: 'buffer' });
+  assert.deepStrictEqual(retDefault.output, retBuffer.output);
+
+  const retUTF8 = spawnSync(...common.pwdCommand, { encoding: 'utf8' });
+  const stringifiedDefault = [
     null,
-    noEncoding.stdout.toString(),
-    noEncoding.stderr.toString()
-  ], utf8Encoding.output);
+    retDefault.stdout.toString(),
+    retDefault.stderr.toString()
+  ];
+  assert.deepStrictEqual(retUTF8.output, stringifiedDefault);
 }

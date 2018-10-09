@@ -1,9 +1,11 @@
+// Flags: --expose-internals
 'use strict';
 
 require('../common');
 const assert = require('assert');
 const util = require('util');
-const processUtil = process.binding('util');
+const { internalBinding } = require('internal/test/binding');
+const processUtil = internalBinding('util');
 const opts = { showProxy: true };
 
 const target = {};
@@ -48,13 +50,17 @@ const expected1 = 'Proxy [ {}, {} ]';
 const expected2 = 'Proxy [ Proxy [ {}, {} ], {} ]';
 const expected3 = 'Proxy [ Proxy [ Proxy [ {}, {} ], {} ], Proxy [ {}, {} ] ]';
 const expected4 = 'Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [ {}, {} ], {} ] ]';
-const expected5 = 'Proxy [ Proxy [ Proxy [ Proxy [Array], {} ],' +
+const expected5 = 'Proxy [ Proxy [ Proxy [ Proxy [ {}, {} ], {} ],' +
                   ' Proxy [ {}, {} ] ],\n  Proxy [ Proxy [ {}, {} ]' +
-                  ', Proxy [ Proxy [Array], {} ] ] ]';
-const expected6 = 'Proxy [ Proxy [ Proxy [ Proxy [Array], Proxy [Array]' +
-                  ' ],\n    Proxy [ Proxy [Array], Proxy [Array] ] ],\n' +
-                  '  Proxy [ Proxy [ Proxy [Array], Proxy [Array] ],\n' +
-                  '    Proxy [ Proxy [Array], Proxy [Array] ] ] ]';
+                  ', Proxy [ Proxy [ {}, {} ], {} ] ] ]';
+const expected6 = 'Proxy [ Proxy [ Proxy [ Proxy [ Proxy [ {}, {} ], {} ], ' +
+                    'Proxy [ {}, {} ] ],\n' +
+                  '    Proxy [ Proxy [ {}, {} ], ' +
+                    'Proxy [ Proxy [ {}, {} ], {} ] ] ],\n' +
+                  '  Proxy [ Proxy [ Proxy [ Proxy [ {}, {} ], {} ], ' +
+                    'Proxy [ {}, {} ] ],\n' +
+                  '    Proxy [ Proxy [ {}, {} ], ' +
+                    'Proxy [ Proxy [ {}, {} ], {} ] ] ] ]';
 assert.strictEqual(
   util.inspect(proxy1, { showProxy: true, depth: null }),
   expected1);

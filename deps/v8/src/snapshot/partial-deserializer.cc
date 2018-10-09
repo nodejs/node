@@ -4,7 +4,7 @@
 
 #include "src/snapshot/partial-deserializer.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/snapshot/snapshot.h"
 
@@ -39,7 +39,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   DisallowHeapAllocation no_gc;
   // Keep track of the code space start and end pointers in case new
   // code objects were unserialized
-  OldSpace* code_space = isolate->heap()->code_space();
+  CodeSpace* code_space = isolate->heap()->code_space();
   Address start_address = code_space->top();
   Object* root;
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);

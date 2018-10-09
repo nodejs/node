@@ -42,6 +42,7 @@ class InvalidatedSlotsFilter {
   Address invalidated_end_;
   HeapObject* invalidated_object_;
   int invalidated_object_size_;
+  bool slots_in_free_space_are_valid_;
   InvalidatedSlots empty_;
 #ifdef DEBUG
   Address last_slot_;

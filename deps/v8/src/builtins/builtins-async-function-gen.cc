@@ -7,6 +7,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-generator.h"
 
 namespace v8 {
 namespace internal {
@@ -20,6 +21,10 @@ class AsyncFunctionBuiltinsAssembler : public AsyncBuiltinsAssembler {
   void AsyncFunctionAwait(Node* const context, Node* const generator,
                           Node* const awaited, Node* const outer_promise,
                           const bool is_predicted_as_caught);
+  void AsyncFunctionAwaitOptimized(Node* const context, Node* const generator,
+                                   Node* const awaited,
+                                   Node* const outer_promise,
+                                   const bool is_predicted_as_caught);
 
   void AsyncFunctionAwaitResumeClosure(
       Node* const context, Node* const sent_value,
@@ -55,9 +60,9 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
   // Ensure that the generator is neither closed nor running.
   CSA_SLOW_ASSERT(
       this,
-      SmiGreaterThan(
-          LoadObjectField(generator, JSGeneratorObject::kContinuationOffset),
-          SmiConstant(JSGeneratorObject::kGeneratorClosed)));
+      SmiGreaterThan(CAST(LoadObjectField(
+                         generator, JSGeneratorObject::kContinuationOffset)),
+                     SmiConstant(JSGeneratorObject::kGeneratorClosed)));
 
   // Remember the {resume_mode} for the {generator}.
   StoreObjectFieldNoWriteBarrier(generator,
@@ -120,6 +125,11 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   // TODO(jgruber): Use a faster specialized version of
   // InternalPerformPromiseThen.
 
+  Label after_debug_hook(this), call_debug_hook(this, Label::kDeferred);
+  GotoIf(HasAsyncEventDelegate(), &call_debug_hook);
+  Goto(&after_debug_hook);
+  BIND(&after_debug_hook);
+
   Await(context, generator, awaited, outer_promise, AwaitContext::kLength,
         init_closure_context, Context::ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN,
         Context::ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN,
@@ -128,6 +138,47 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   // Return outer promise to avoid adding an load of the outer promise before
   // suspending in BytecodeGenerator.
   Return(outer_promise);
+
+  BIND(&call_debug_hook);
+  CallRuntime(Runtime::kDebugAsyncFunctionSuspended, context, outer_promise);
+  Goto(&after_debug_hook);
+}
+
+void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitOptimized(
+    Node* const context, Node* const generator, Node* const awaited,
+    Node* const outer_promise, const bool is_predicted_as_caught) {
+  CSA_SLOW_ASSERT(this, HasInstanceType(generator, JS_GENERATOR_OBJECT_TYPE));
+  CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
+
+  ContextInitializer init_closure_context = [&](Node* context) {
+    StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
+                                      generator);
+  };
+
+  // TODO(jgruber): AsyncBuiltinsAssembler::Await currently does not reuse
+  // the awaited promise if it is already a promise. Reuse is non-spec compliant
+  // but part of our old behavior gives us a couple of percent
+  // performance boost.
+  // TODO(jgruber): Use a faster specialized version of
+  // InternalPerformPromiseThen.
+
+  Label after_debug_hook(this), call_debug_hook(this, Label::kDeferred);
+  GotoIf(HasAsyncEventDelegate(), &call_debug_hook);
+  Goto(&after_debug_hook);
+  BIND(&after_debug_hook);
+
+  AwaitOptimized(
+      context, generator, awaited, outer_promise, AwaitContext::kLength,
+      init_closure_context, Context::ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN,
+      Context::ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN, is_predicted_as_caught);
+
+  // Return outer promise to avoid adding an load of the outer promise before
+  // suspending in BytecodeGenerator.
+  Return(outer_promise);
+
+  BIND(&call_debug_hook);
+  CallRuntime(Runtime::kDebugAsyncFunctionSuspended, context, outer_promise);
+  Goto(&after_debug_hook);
 }
 
 // Called by the parser from the desugaring of 'await' when catch
@@ -145,6 +196,19 @@ TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
                      kIsPredictedAsCaught);
 }
 
+TF_BUILTIN(AsyncFunctionAwaitCaughtOptimized, AsyncFunctionBuiltinsAssembler) {
+  CSA_ASSERT_JS_ARGC_EQ(this, 3);
+  Node* const generator = Parameter(Descriptor::kGenerator);
+  Node* const awaited = Parameter(Descriptor::kAwaited);
+  Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  static const bool kIsPredictedAsCaught = true;
+
+  AsyncFunctionAwaitOptimized(context, generator, awaited, outer_promise,
+                              kIsPredictedAsCaught);
+}
+
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates no locally surrounding catch block.
 TF_BUILTIN(AsyncFunctionAwaitUncaught, AsyncFunctionBuiltinsAssembler) {
@@ -158,6 +222,20 @@ TF_BUILTIN(AsyncFunctionAwaitUncaught, AsyncFunctionBuiltinsAssembler) {
 
   AsyncFunctionAwait(context, generator, awaited, outer_promise,
                      kIsPredictedAsCaught);
+}
+
+TF_BUILTIN(AsyncFunctionAwaitUncaughtOptimized,
+           AsyncFunctionBuiltinsAssembler) {
+  CSA_ASSERT_JS_ARGC_EQ(this, 3);
+  Node* const generator = Parameter(Descriptor::kGenerator);
+  Node* const awaited = Parameter(Descriptor::kAwaited);
+  Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  static const bool kIsPredictedAsCaught = false;
+
+  AsyncFunctionAwaitOptimized(context, generator, awaited, outer_promise,
+                              kIsPredictedAsCaught);
 }
 
 TF_BUILTIN(AsyncFunctionPromiseCreate, AsyncFunctionBuiltinsAssembler) {
@@ -177,29 +255,29 @@ TF_BUILTIN(AsyncFunctionPromiseCreate, AsyncFunctionBuiltinsAssembler) {
     // Push the Promise under construction in an async function on
     // the catch prediction stack to handle exceptions thrown before
     // the first await.
-    // Assign ID and create a recurring task to save stack for future
-    // resumptions from await.
-    CallRuntime(Runtime::kDebugAsyncFunctionPromiseCreated, context, promise);
+    CallRuntime(Runtime::kDebugPushPromise, context, promise);
     Return(promise);
   }
 }
 
 TF_BUILTIN(AsyncFunctionPromiseRelease, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 1);
+  CSA_ASSERT_JS_ARGC_EQ(this, 2);
   Node* const promise = Parameter(Descriptor::kPromise);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Label if_is_debug_active(this, Label::kDeferred);
-  GotoIf(IsDebugActive(), &if_is_debug_active);
+  Label call_debug_instrumentation(this, Label::kDeferred);
+  GotoIf(HasAsyncEventDelegate(), &call_debug_instrumentation);
+  GotoIf(IsDebugActive(), &call_debug_instrumentation);
 
   // Early exit if debug is not active.
   Return(UndefinedConstant());
 
-  BIND(&if_is_debug_active);
+  BIND(&call_debug_instrumentation);
   {
     // Pop the Promise under construction in an async function on
     // from catch prediction stack.
-    CallRuntime(Runtime::kDebugPopPromise, context);
+    CallRuntime(Runtime::kDebugAsyncFunctionFinished, context,
+                Parameter(Descriptor::kCanSuspend), promise);
     Return(promise);
   }
 }

@@ -157,7 +157,7 @@ Join our [Mailing List](https://groups.google.com/group/eslint) or [Chatroom](ht
 
 ## Releases
 
-We have scheduled releases every two weeks on Friday or Saturday.
+We have scheduled releases every two weeks on Friday or Saturday. You can follow a [release issue](https://github.com/eslint/eslint/issues?q=is%3Aopen+is%3Aissue+label%3Arelease) for updates about the scheduling of any particular release.
 
 ## Semantic Versioning Policy
 

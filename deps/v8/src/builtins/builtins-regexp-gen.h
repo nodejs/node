@@ -29,20 +29,26 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<Object> MatchAllIterator(TNode<Context> context,
                                  TNode<Context> native_context,
-                                 TNode<Object> regexp, TNode<Object> string,
+                                 TNode<Object> regexp, TNode<String> string,
+                                 TNode<BoolT> is_fast_regexp,
                                  char const* method_name);
 
  protected:
+  TNode<Smi> SmiZero();
+  TNode<IntPtrT> IntPtrZero();
+
   // Allocate a RegExpResult with the given length (the number of captures,
   // including the match itself), index (the index where the match starts),
-  // and input string. |length| and |index| are expected to be tagged, and
-  // |input| must be a string.
-  Node* AllocateRegExpResult(Node* context, Node* length, Node* index,
-                             Node* input);
+  // and input string.
+  TNode<JSRegExpResult> AllocateRegExpResult(TNode<Context> context,
+                                             TNode<Smi> length,
+                                             TNode<Smi> index,
+                                             TNode<String> input);
 
-  Node* FastLoadLastIndex(Node* regexp);
-  Node* SlowLoadLastIndex(Node* context, Node* regexp);
-  Node* LoadLastIndex(Node* context, Node* regexp, bool is_fastpath);
+  TNode<Object> FastLoadLastIndex(TNode<JSRegExp> regexp);
+  TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);
+  TNode<Object> LoadLastIndex(TNode<Context> context, TNode<Object> regexp,
+                              bool is_fastpath);
 
   void FastStoreLastIndex(Node* regexp, Node* value);
   void SlowStoreLastIndex(Node* context, Node* regexp, Node* value);
@@ -57,36 +63,41 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                          Variable* var_string_end);
 
   // Low level logic around the actual call into pattern matching code.
-  Node* RegExpExecInternal(Node* const context, Node* const regexp,
-                           Node* const string, Node* const last_index,
-                           Node* const match_info);
+  TNode<HeapObject> RegExpExecInternal(TNode<Context> context,
+                                       TNode<JSRegExp> regexp,
+                                       TNode<String> string,
+                                       TNode<Number> last_index,
+                                       TNode<RegExpMatchInfo> match_info);
 
-  Node* ConstructNewResultFromMatchInfo(Node* const context, Node* const regexp,
-                                        Node* const match_info,
-                                        TNode<String> const string);
+  TNode<JSRegExpResult> ConstructNewResultFromMatchInfo(
+      TNode<Context> context, TNode<JSReceiver> maybe_regexp,
+      TNode<RegExpMatchInfo> match_info, TNode<String> string);
 
-  Node* RegExpPrototypeExecBodyWithoutResult(Node* const context,
-                                             Node* const regexp,
-                                             Node* const string,
-                                             Label* if_didnotmatch,
-                                             const bool is_fastpath);
-  Node* RegExpPrototypeExecBody(Node* const context, Node* const regexp,
-                                TNode<String> string, const bool is_fastpath);
+  TNode<RegExpMatchInfo> RegExpPrototypeExecBodyWithoutResult(
+      TNode<Context> context, TNode<JSReceiver> maybe_regexp,
+      TNode<String> string, Label* if_didnotmatch, const bool is_fastpath);
+  TNode<HeapObject> RegExpPrototypeExecBody(TNode<Context> context,
+                                            TNode<JSReceiver> maybe_regexp,
+                                            TNode<String> string,
+                                            const bool is_fastpath);
 
   Node* ThrowIfNotJSReceiver(Node* context, Node* maybe_receiver,
                              MessageTemplate::Template msg_template,
                              char const* method_name);
 
+  // Analogous to BranchIfFastRegExp, for use in asserts.
+  TNode<BoolT> IsFastRegExp(SloppyTNode<Context> context,
+                            SloppyTNode<Object> object);
+
   void BranchIfFastRegExp(Node* const context, Node* const object,
                           Label* const if_isunmodified,
                           Label* const if_ismodified);
 
-  // Analogous to BranchIfFastRegExp, for use in asserts.
-  Node* IsFastRegExp(Node* const context, Node* const object);
-
   // Performs fast path checks on the given object itself, but omits prototype
   // checks.
   Node* IsFastRegExpNoPrototype(Node* const context, Node* const object);
+  TNode<BoolT> IsFastRegExpWithOriginalExec(TNode<Context> context,
+                                            TNode<JSRegExp> object);
   Node* IsFastRegExpNoPrototype(Node* const context, Node* const object,
                                 Node* const map);
 
@@ -104,6 +115,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                   int counter, const char* method_name);
 
   Node* IsRegExp(Node* const context, Node* const maybe_receiver);
+
   Node* RegExpInitialize(Node* const context, Node* const regexp,
                          Node* const maybe_pattern, Node* const maybe_flags);
 
@@ -122,7 +134,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                      Node* const string);
 
   void RegExpPrototypeSplitBody(Node* const context, Node* const regexp,
-                                TNode<String> const string, Node* const limit);
+                                TNode<String> const string,
+                                TNode<Smi> const limit);
 
   Node* ReplaceGlobalCallableFastPath(Node* context, Node* regexp, Node* string,
                                       Node* replace_callable);

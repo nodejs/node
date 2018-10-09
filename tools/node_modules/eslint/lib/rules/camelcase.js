@@ -145,7 +145,7 @@ module.exports = {
                         const assignmentKeyEqualsValue = node.parent.key.name === node.parent.value.name;
 
                         // prevent checking righthand side of destructured object
-                        if (!assignmentKeyEqualsValue && node.parent.key === node) {
+                        if (node.parent.key === node && node.parent.value !== node) {
                             return;
                         }
 

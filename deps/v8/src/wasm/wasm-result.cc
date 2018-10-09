@@ -145,7 +145,7 @@ void ErrorThrower::Reset() {
   error_msg_.clear();
 }
 
-ErrorThrower::ErrorThrower(ErrorThrower&& other)
+ErrorThrower::ErrorThrower(ErrorThrower&& other) V8_NOEXCEPT
     : isolate_(other.isolate_),
       context_(other.context_),
       error_type_(other.error_type_),

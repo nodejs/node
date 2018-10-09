@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
 if (!common.isMainThread)
-  common.skip('Workers don’t have process-like stdio');
+  common.skip("Workers don't have process-like stdio");
 
-// Test if Node handles acessing process.stdin if it is a redirected
+// Test if Node handles accessing process.stdin if it is a redirected
 // pipe without deadlocking
 const { spawn, spawnSync } = require('child_process');
 

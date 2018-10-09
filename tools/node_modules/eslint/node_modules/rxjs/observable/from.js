@@ -1,4 +1,7 @@
 "use strict";
-var FromObservable_1 = require('./FromObservable');
-exports.from = FromObservable_1.FromObservable.create;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/observable/from"));
 //# sourceMappingURL=from.js.map

@@ -221,7 +221,7 @@ server.listen(0, common.mustCall(function() {
   }, common.mustCall());
 })).unref();
 
-const errMessagePassword = /bad password read/;
+const errMessagePassword = /bad decrypt/;
 
 // Missing passphrase
 assert.throws(function() {

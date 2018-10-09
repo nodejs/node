@@ -51,6 +51,7 @@ namespace {
 /*
  * A union which permits us to convert between a double and two 32 bit
  * ints.
+ * TODO(jkummerow): This is undefined behavior. Use bit_cast instead.
  */
 
 #if V8_TARGET_LITTLE_ENDIAN

@@ -477,13 +477,36 @@ typedef enum USpoofChecks {
       */
     USPOOF_CHAR_LIMIT               =  64,
 
-   /**
+    /**
      * Check that an identifier does not mix numbers from different numbering systems.
      * For more information, see UTS 39 section 5.3.
      *
      * @stable ICU 51
      */
     USPOOF_MIXED_NUMBERS            = 128,
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Check that an identifier does not have a combining character following a character in which that
+     * combining character would be hidden; for example 'i' followed by a U+0307 combining dot.
+     *
+     * More specifically, the following characters are forbidden from preceding a U+0307:
+     * <ul>
+     * <li>Those with the Soft_Dotted Unicode property (which includes 'i' and 'j')</li>
+     * <li>Latin lowercase letter 'l'</li>
+     * <li>Dotless 'i' and 'j' ('ı' and 'ȷ', U+0131 and U+0237)</li>
+     * <li>Any character whose confusable prototype ends with such a character
+     * (Soft_Dotted, 'l', 'ı', or 'ȷ')</li>
+     * </ul>
+     * In addition, combining characters are allowed between the above characters and U+0307 except those
+     * with combining class 0 or combining class "Above" (230, same class as U+0307).
+     *
+     * This list and the number of combing characters considered by this check may grow over time.
+     *
+     * @draft ICU 62
+     */
+    USPOOF_HIDDEN_OVERLAY            = 256,
+#endif  /* U_HIDE_DRAFT_API */
 
    /**
      * Enable all spoof checks.

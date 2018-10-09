@@ -2,8 +2,12 @@
 
 =head1 NAME
 
-SSL_get1_supported_ciphers, SSL_get_client_ciphers,
-SSL_get_ciphers, SSL_CTX_get_ciphers, SSL_get_cipher_list
+SSL_get1_supported_ciphers,
+SSL_get_client_ciphers,
+SSL_get_ciphers,
+SSL_CTX_get_ciphers,
+SSL_get_cipher_list,
+SSL_get_shared_ciphers
 - get list of available SSL_CIPHERs
 
 =head1 SYNOPSIS
@@ -15,6 +19,7 @@ SSL_get_ciphers, SSL_CTX_get_ciphers, SSL_get_cipher_list
  STACK_OF(SSL_CIPHER) *SSL_get1_supported_ciphers(SSL *s);
  STACK_OF(SSL_CIPHER) *SSL_get_client_ciphers(const SSL *ssl);
  const char *SSL_get_cipher_list(const SSL *ssl, int priority);
+ char *SSL_get_shared_ciphers(const SSL *s, char *buf, int size);
 
 =head1 DESCRIPTION
 
@@ -25,16 +30,16 @@ is returned.
 SSL_CTX_get_ciphers() returns the stack of available SSL_CIPHERs for B<ctx>.
 
 SSL_get1_supported_ciphers() returns the stack of enabled SSL_CIPHERs for
-B<ssl>, sorted by preference.
+B<ssl> as would be sent in a ClientHello (that is, sorted by preference).
 The list depends on settings like the cipher list, the supported protocol
 versions, the security level, and the enabled signature algorithms.
 SRP and PSK ciphers are only enabled if the appropriate callbacks or settings
 have been applied.
-This is the list that will be sent by the client to the server.
-The list supported by the server might include more ciphers in case there is a
-hole in the list of supported protocols.
-The server will also not use ciphers from this list depending on the
-configured certificates and DH parameters.
+The list of ciphers that would be sent in a ClientHello can differ from
+the list of ciphers that would be acceptable when acting as a server.
+For example, additional ciphers may be usable by a server if there is
+a gap in the list of supported protocols, and some ciphers may not be
+usable by a server if there is not a suitable certificate configured.
 If B<ssl> is NULL or no ciphers are available, NULL is returned.
 
 SSL_get_client_ciphers() returns the stack of available SSL_CIPHERs matching the
@@ -45,6 +50,19 @@ SSL_get_cipher_list() returns a pointer to the name of the SSL_CIPHER
 listed for B<ssl> with B<priority>. If B<ssl> is NULL, no ciphers are
 available, or there are less ciphers than B<priority> available, NULL
 is returned.
+
+SSL_get_shared_ciphers() creates a colon separated and NUL terminated list of
+SSL_CIPHER names that are available in both the client and the server. B<buf> is
+the buffer that should be populated with the list of names and B<size> is the
+size of that buffer. A pointer to B<buf> is returned on success or NULL on
+error. If the supplied buffer is not large enough to contain the complete list
+of names then a truncated list of names will be returned. Note that just because
+a ciphersuite is available (i.e. it is configured in the cipher list) and shared
+by both the client and the server it does not mean that it is enabled (see the
+description of SSL_get1_supported_ciphers() above). This function will return
+available shared ciphersuites whether or not they are enabled. This is a server
+side function only and must only be called after the completion of the initial
+handshake.
 
 =head1 NOTES
 
@@ -74,7 +92,7 @@ L<SSL_CIPHER_get_name(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

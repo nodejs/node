@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -9,8 +10,9 @@ const assert = require('assert');
 
 // Objects that call StreamBase::AddMethods, when setting up
 // their prototype
-const TTY = process.binding('tty_wrap').TTY;
-const UDP = process.binding('udp_wrap').UDP;
+const { internalBinding } = require('internal/test/binding');
+const TTY = internalBinding('tty_wrap').TTY;
+const UDP = internalBinding('udp_wrap').UDP;
 
 {
   // Should throw instead of raise assertions
@@ -30,24 +32,26 @@ const UDP = process.binding('udp_wrap').UDP;
     UDP.prototype.fd;
   }, TypeError);
 
+  const StreamWrapProto = Object.getPrototypeOf(TTY.prototype);
+
   // Should not throw for Object.getOwnPropertyDescriptor
   assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(TTY.prototype, 'bytesRead'),
+    typeof Object.getOwnPropertyDescriptor(StreamWrapProto, 'bytesRead'),
     'object'
   );
 
   assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(TTY.prototype, 'fd'),
+    typeof Object.getOwnPropertyDescriptor(StreamWrapProto, 'fd'),
     'object'
   );
 
   assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(TTY.prototype, '_externalStream'),
+    typeof Object.getOwnPropertyDescriptor(StreamWrapProto, '_externalStream'),
     'object'
   );
 
   assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(UDP.prototype, 'fd'),
+    typeof Object.getOwnPropertyDescriptor(StreamWrapProto, 'fd'),
     'object'
   );
 

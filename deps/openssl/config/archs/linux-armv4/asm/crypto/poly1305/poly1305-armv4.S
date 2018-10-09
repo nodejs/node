@@ -132,6 +132,7 @@ poly1305_init:
 .type	poly1305_blocks,%function
 .align	5
 poly1305_blocks:
+.Lpoly1305_blocks:
 	stmdb	sp!,{r3,r4,r5,r6,r7,r8,r9,r10,r11,lr}
 
 	ands	r2,r2,#-16
@@ -606,7 +607,7 @@ poly1305_blocks_neon:
 	cmp	r2,#64
 	bhs	.Lenter_neon
 	tst	ip,ip			@ is_base2_26?
-	beq	poly1305_blocks
+	beq	.Lpoly1305_blocks
 
 .Lenter_neon:
 	stmdb	sp!,{r4,r5,r6,r7}

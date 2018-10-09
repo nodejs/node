@@ -1,2 +1,1 @@
-import { FromEventObservable } from './FromEventObservable';
-export declare const fromEvent: typeof FromEventObservable.create;
+export * from 'rxjs-compat/observable/fromEvent';

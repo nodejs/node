@@ -32,7 +32,7 @@
 #include "v8.h"
 #include "node_perf_common.h"
 #include "node_context_data.h"
-#include "tracing/agent.h"
+#include "node_worker.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -218,8 +218,8 @@ inline Environment::AsyncCallbackScope::~AsyncCallbackScope() {
   env_->makecallback_cntr_--;
 }
 
-inline bool Environment::AsyncCallbackScope::in_makecallback() const {
-  return env_->makecallback_cntr_ > 1;
+inline size_t Environment::makecallback_depth() const {
+  return makecallback_cntr_;
 }
 
 inline Environment::ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)
@@ -281,6 +281,9 @@ inline void Environment::AssignToContext(v8::Local<v8::Context> context,
                                          const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kEnvironment, this);
+  // Used by EnvPromiseHook to know that we are on a node context.
+  context->SetAlignedPointerInEmbedderData(
+    ContextEmbedderIndex::kContextTag, Environment::kNodeContextTagPtr);
 #if HAVE_INSPECTOR
   inspector_agent()->ContextCreated(context, info);
 #endif  // HAVE_INSPECTOR
@@ -291,6 +294,15 @@ inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
 }
 
 inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
+  if (UNLIKELY(context.IsEmpty() ||
+      context->GetNumberOfEmbedderDataFields() <
+          ContextEmbedderIndex::kContextTag ||
+      context->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kContextTag) !=
+          Environment::kNodeContextTagPtr)) {
+    return nullptr;
+  }
+
   return static_cast<Environment*>(
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kEnvironment));
@@ -322,8 +334,8 @@ inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
-inline tracing::Agent* Environment::tracing_agent() const {
-  return tracing_agent_;
+inline tracing::AgentWriterHandle* Environment::tracing_agent_writer() const {
+  return tracing_agent_writer_;
 }
 
 inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
@@ -413,20 +425,32 @@ inline void Environment::set_printed_error(bool value) {
 }
 
 inline void Environment::set_trace_sync_io(bool value) {
-  trace_sync_io_ = value;
+  options_->trace_sync_io = value;
 }
 
 inline bool Environment::abort_on_uncaught_exception() const {
-  return abort_on_uncaught_exception_;
+  return options_->abort_on_uncaught_exception;
 }
 
 inline void Environment::set_abort_on_uncaught_exception(bool value) {
-  abort_on_uncaught_exception_ = value;
+  options_->abort_on_uncaught_exception = value;
 }
 
 inline AliasedBuffer<uint32_t, v8::Uint32Array>&
 Environment::should_abort_on_uncaught_toggle() {
   return should_abort_on_uncaught_toggle_;
+}
+
+inline AliasedBuffer<uint8_t, v8::Uint8Array>&
+Environment::trace_category_state() {
+  return trace_category_state_;
+}
+
+inline uint32_t Environment::get_next_module_id() {
+  return module_id_counter_++;
+}
+inline uint32_t Environment::get_next_script_id() {
+  return script_id_counter_++;
 }
 
 Environment::ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
@@ -556,6 +580,14 @@ Environment::file_handle_read_wrap_freelist() {
   return file_handle_read_wrap_freelist_;
 }
 
+inline std::shared_ptr<EnvironmentOptions> Environment::options() {
+  return options_;
+}
+
+inline std::shared_ptr<PerIsolateOptions> IsolateData::options() {
+  return options_;
+}
+
 void Environment::CreateImmediate(native_immediate_callback cb,
                                   void* data,
                                   v8::Local<v8::Object> obj,
@@ -623,6 +655,11 @@ inline void Environment::remove_sub_worker_context(worker::Worker* context) {
   sub_worker_contexts_.erase(context);
 }
 
+inline bool Environment::is_stopping_worker() const {
+  CHECK(!is_main_thread());
+  return worker_context_->is_stopped();
+}
+
 inline performance::performance_state* Environment::performance_state() {
   return performance_state_.get();
 }
@@ -685,13 +722,15 @@ inline v8::Local<v8::FunctionTemplate>
 inline void Environment::SetMethod(v8::Local<v8::Object> that,
                                    const char* name,
                                    v8::FunctionCallback callback) {
+  v8::Local<v8::Context> context = isolate()->GetCurrentContext();
   v8::Local<v8::Function> function =
-      NewFunctionTemplate(callback,
-                          v8::Local<v8::Signature>(),
+      NewFunctionTemplate(callback, v8::Local<v8::Signature>(),
                           // TODO(TimothyGu): Investigate if SetMethod is ever
                           // used for constructors.
                           v8::ConstructorBehavior::kAllow,
-                          v8::SideEffectType::kHasSideEffect)->GetFunction();
+                          v8::SideEffectType::kHasSideEffect)
+          ->GetFunction(context)
+          .ToLocalChecked();
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
@@ -703,13 +742,15 @@ inline void Environment::SetMethod(v8::Local<v8::Object> that,
 inline void Environment::SetMethodNoSideEffect(v8::Local<v8::Object> that,
                                                const char* name,
                                                v8::FunctionCallback callback) {
+  v8::Local<v8::Context> context = isolate()->GetCurrentContext();
   v8::Local<v8::Function> function =
-      NewFunctionTemplate(callback,
-                          v8::Local<v8::Signature>(),
+      NewFunctionTemplate(callback, v8::Local<v8::Signature>(),
                           // TODO(TimothyGu): Investigate if SetMethod is ever
                           // used for constructors.
                           v8::ConstructorBehavior::kAllow,
-                          v8::SideEffectType::kHasNoSideEffect)->GetFunction();
+                          v8::SideEffectType::kHasNoSideEffect)
+          ->GetFunction(context)
+          .ToLocalChecked();
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
@@ -801,6 +842,22 @@ size_t Environment::CleanupHookCallback::Hash::operator()(
 bool Environment::CleanupHookCallback::Equal::operator()(
     const CleanupHookCallback& a, const CleanupHookCallback& b) const {
   return a.fn_ == b.fn_ && a.arg_ == b.arg_;
+}
+
+BaseObject* Environment::CleanupHookCallback::GetBaseObject() const {
+  if (fn_ == BaseObject::DeleteMe)
+    return static_cast<BaseObject*>(arg_);
+  else
+    return nullptr;
+}
+
+template <typename T>
+void Environment::ForEachBaseObject(T&& iterator) {
+  for (const auto& hook : cleanup_hooks_) {
+    BaseObject* obj = hook.GetBaseObject();
+    if (obj != nullptr)
+      iterator(obj);
+  }
 }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)

@@ -163,7 +163,7 @@ class InstructionSelectorTest : public TestWithContext,
           Operator::kNoProperties,       // properties
           kCalleeSaveRegisters,          // callee-saved registers
           kCalleeSaveFPRegisters,        // callee-saved fp regs
-          CallDescriptor::kNoFlags,      // flags
+          CallDescriptor::kCanUseRoots,  // flags
           "iselect-test-call");
     }
   };

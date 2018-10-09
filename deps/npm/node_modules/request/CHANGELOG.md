@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.87.0 (2018/05/21)
+- [#2943](https://github.com/request/request/pull/2943) Replace hawk dependency with a local implemenation (#2943) (@hueniverse)
+
 ### v2.86.0 (2018/05/15)
 - [#2885](https://github.com/request/request/pull/2885) Remove redundant code (for Node.js 0.9.4 and below) and dependency (@ChALkeR)
 - [#2942](https://github.com/request/request/pull/2942) Make Test GREEN Again! (@simov)

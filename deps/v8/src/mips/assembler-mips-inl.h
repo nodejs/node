@@ -69,8 +69,7 @@ int32_t Operand::immediate() const {
 void RelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
-    byte* p = reinterpret_cast<byte*>(pc_);
-    Assembler::RelocateInternalReference(rmode_, p, delta);
+    Assembler::RelocateInternalReference(rmode_, pc_, delta);
   }
 }
 
@@ -102,15 +101,11 @@ Address RelocInfo::target_address_address() {
     // On R6 we don't move to the end of the instructions to be patched, but one
     // instruction before, because if these instructions are at the end of the
     // code object it can cause errors in the deserializer.
-    return reinterpret_cast<Address>(
-        pc_ +
-        (Assembler::kInstructionsFor32BitConstant - 1) * Assembler::kInstrSize);
+    return pc_ + (Assembler::kInstructionsFor32BitConstant - 1) * kInstrSize;
   } else {
-    return reinterpret_cast<Address>(
-        pc_ + Assembler::kInstructionsFor32BitConstant * Assembler::kInstrSize);
+    return pc_ + Assembler::kInstructionsFor32BitConstant * kInstrSize;
   }
 }
-
 
 Address RelocInfo::constant_pool_entry_address() {
   UNREACHABLE();
@@ -131,39 +126,41 @@ void Assembler::deserialization_set_special_target_at(
     // On R6 the address location is shifted by one instruction
     set_target_address_at(
         instruction_payload - (kInstructionsFor32BitConstant - 1) * kInstrSize,
-        code ? code->constant_pool() : nullptr, target);
+        code ? code->constant_pool() : kNullAddress, target);
   } else {
     set_target_address_at(
         instruction_payload - kInstructionsFor32BitConstant * kInstrSize,
-        code ? code->constant_pool() : nullptr, target);
+        code ? code->constant_pool() : kNullAddress, target);
   }
+}
+
+int Assembler::deserialization_special_target_size(
+    Address instruction_payload) {
+  return kSpecialTargetSize;
 }
 
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
-  Instr instr1 = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
-  Instr instr2 = Assembler::instr_at(pc + 1 * Assembler::kInstrSize);
+  Instr instr1 = Assembler::instr_at(pc + 0 * kInstrSize);
+  Instr instr2 = Assembler::instr_at(pc + 1 * kInstrSize);
   DCHECK(Assembler::IsLui(instr1));
   DCHECK(Assembler::IsOri(instr2) || Assembler::IsJicOrJialc(instr2));
   instr1 &= ~kImm16Mask;
   instr2 &= ~kImm16Mask;
-  int32_t imm = reinterpret_cast<int32_t>(target);
+  int32_t imm = static_cast<int32_t>(target);
   DCHECK_EQ(imm & 3, 0);
   if (Assembler::IsJicOrJialc(instr2)) {
     // Encoded internal references are lui/jic load of 32-bit absolute address.
     uint32_t lui_offset_u, jic_offset_u;
     Assembler::UnpackTargetAddressUnsigned(imm, lui_offset_u, jic_offset_u);
 
-    Assembler::instr_at_put(pc + 0 * Assembler::kInstrSize,
-                            instr1 | lui_offset_u);
-    Assembler::instr_at_put(pc + 1 * Assembler::kInstrSize,
-                            instr2 | jic_offset_u);
+    Assembler::instr_at_put(pc + 0 * kInstrSize, instr1 | lui_offset_u);
+    Assembler::instr_at_put(pc + 1 * kInstrSize, instr2 | jic_offset_u);
   } else {
     // Encoded internal references are lui/ori load of 32-bit absolute address.
-    Assembler::instr_at_put(pc + 0 * Assembler::kInstrSize,
+    Assembler::instr_at_put(pc + 0 * kInstrSize,
                             instr1 | ((imm >> kLuiShift) & kImm16Mask));
-    Assembler::instr_at_put(pc + 1 * Assembler::kInstrSize,
-                            instr2 | (imm & kImm16Mask));
+    Assembler::instr_at_put(pc + 1 * kInstrSize, instr2 | (imm & kImm16Mask));
   }
 
   // Currently used only by deserializer, and all code will be flushed
@@ -177,7 +174,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
     set_target_internal_reference_encoded_at(pc, target);
   } else {
     DCHECK(mode == RelocInfo::INTERNAL_REFERENCE);
-    Memory::Address_at(pc) = target;
+    Memory<Address>(pc) = target;
   }
 }
 
@@ -193,7 +190,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
       Assembler::target_address_at(pc_, constant_pool_)));
 }
 
-void RelocInfo::set_target_object(HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
@@ -201,9 +198,7 @@ void RelocInfo::set_target_object(HeapObject* target,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target));
-    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
+    WriteBarrierForCode(host(), this, target);
   }
 }
 
@@ -222,36 +217,29 @@ void RelocInfo::set_target_external_reference(
 
 Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
-    return Memory::Address_at(pc_);
+    return Memory<Address>(pc_);
   } else {
     // Encoded internal references are lui/ori or lui/jic load of 32-bit
     // absolute address.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
-    Instr instr1 = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
-    Instr instr2 = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
+    Instr instr1 = Assembler::instr_at(pc_ + 0 * kInstrSize);
+    Instr instr2 = Assembler::instr_at(pc_ + 1 * kInstrSize);
     DCHECK(Assembler::IsLui(instr1));
     DCHECK(Assembler::IsOri(instr2) || Assembler::IsJicOrJialc(instr2));
     if (Assembler::IsJicOrJialc(instr2)) {
-      return reinterpret_cast<Address>(
+      return static_cast<Address>(
           Assembler::CreateTargetAddress(instr1, instr2));
     }
     int32_t imm = (instr1 & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
     imm |= (instr2 & static_cast<int32_t>(kImm16Mask));
-    return reinterpret_cast<Address>(imm);
+    return static_cast<Address>(imm);
   }
 }
 
 
 Address RelocInfo::target_internal_reference_address() {
   DCHECK(rmode_ == INTERNAL_REFERENCE || rmode_ == INTERNAL_REFERENCE_ENCODED);
-  return reinterpret_cast<Address>(pc_);
-}
-
-void RelocInfo::set_wasm_code_table_entry(Address target,
-                                          ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::WASM_CODE_TABLE_ENTRY);
-  Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   icache_flush_mode);
+  return pc_;
 }
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
@@ -275,13 +263,14 @@ Address RelocInfo::target_off_heap_target() {
 void RelocInfo::WipeOut() {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
-         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
+         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_) ||
+         IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
-    Memory::Address_at(pc_) = nullptr;
+    Memory<Address>(pc_) = kNullAddress;
   } else if (IsInternalReferenceEncoded(rmode_)) {
-    Assembler::set_target_internal_reference_encoded_at(pc_, nullptr);
+    Assembler::set_target_internal_reference_encoded_at(pc_, kNullAddress);
   } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, nullptr);
+    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
   }
 }
 
@@ -290,7 +279,7 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTarget(mode)) {
+  } else if (RelocInfo::IsCodeTargetMode(mode)) {
     visitor->VisitCodeTarget(host(), this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(host(), this);
@@ -311,13 +300,6 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 void Assembler::CheckBuffer() {
   if (buffer_space() <= kGap) {
     GrowBuffer();
-  }
-}
-
-
-void Assembler::CheckTrampolinePoolQuick(int extra_instructions) {
-  if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
-    CheckTrampolinePool();
   }
 }
 

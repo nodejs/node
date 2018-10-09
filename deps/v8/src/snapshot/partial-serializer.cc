@@ -5,7 +5,7 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -20,6 +20,7 @@ PartialSerializer::PartialSerializer(
       can_be_rehashed_(true),
       context_(nullptr) {
   InitializeCodeAddressMap();
+  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
 
 PartialSerializer::~PartialSerializer() {
@@ -36,11 +37,11 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
   // it before serializing, it will get re-added to the context list
   // explicitly when it's loaded.
   context_->set(Context::NEXT_CONTEXT_LINK,
-                isolate()->heap()->undefined_value());
-  DCHECK(!context_->global_object()->IsUndefined(context_->GetIsolate()));
+                ReadOnlyRoots(isolate()).undefined_value());
+  DCHECK(!context_->global_object()->IsUndefined());
   // Reset math random cache to get fresh random numbers.
   context_->set_math_random_index(Smi::kZero);
-  context_->set_math_random_cache(isolate()->heap()->undefined_value());
+  context_->set_math_random_cache(ReadOnlyRoots(isolate()).undefined_value());
 
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
                    reinterpret_cast<Object**>(o));
@@ -105,7 +106,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     // Unconditionally reset the JSFunction to its SFI's code, since we can't
     // serialize optimized code anyway.
     JSFunction* closure = JSFunction::cast(obj);
-    closure->set_code(closure->shared()->GetCode());
+    if (closure->is_compiled()) closure->set_code(closure->shared()->GetCode());
   }
 
   CheckRehashability(obj);
@@ -124,8 +125,8 @@ bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
   return o->IsName() || o->IsSharedFunctionInfo() || o->IsHeapNumber() ||
          o->IsCode() || o->IsScopeInfo() || o->IsAccessorInfo() ||
          o->IsTemplateInfo() ||
-         o->map() ==
-             startup_serializer_->isolate()->heap()->fixed_cow_array_map();
+         o->map() == ReadOnlyRoots(startup_serializer_->isolate())
+                         .fixed_cow_array_map();
 }
 
 void PartialSerializer::SerializeEmbedderFields() {
@@ -139,7 +140,7 @@ void PartialSerializer::SerializeEmbedderFields() {
     HandleScope scope(isolate());
     Handle<JSObject> obj(embedder_field_holders_.back(), isolate());
     embedder_field_holders_.pop_back();
-    SerializerReference reference = reference_map()->Lookup(*obj);
+    SerializerReference reference = reference_map()->LookupReference(*obj);
     DCHECK(reference.is_back_reference());
     int embedder_fields_count = obj->GetEmbedderFieldCount();
     for (int i = 0; i < embedder_fields_count; i++) {

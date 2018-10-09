@@ -12,10 +12,11 @@ namespace {
 const int kIsolateDataIndex = 2;
 const int kContextGroupIdIndex = 3;
 
-v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
+v8::internal::Vector<uint16_t> ToVector(v8::Isolate* isolate,
+                                        v8::Local<v8::String> str) {
   v8::internal::Vector<uint16_t> buffer =
       v8::internal::Vector<uint16_t>::New(str->Length());
-  str->Write(buffer.start(), 0, str->Length());
+  str->Write(isolate, buffer.start(), 0, str->Length());
   return buffer;
 }
 
@@ -63,6 +64,7 @@ IsolateData::IsolateData(TaskRunner* task_runner,
   params.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   params.snapshot_blob = startup_data;
+  params.only_terminate_in_safe_scope = true;
   isolate_.reset(v8::Isolate::New(params));
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   if (with_inspector) {
@@ -136,7 +138,8 @@ v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
     v8::Local<v8::Module> referrer) {
   IsolateData* data = IsolateData::FromContext(context);
   std::string str = *v8::String::Utf8Value(data->isolate(), specifier);
-  return data->modules_[ToVector(specifier)].Get(data->isolate());
+  return data->modules_[ToVector(data->isolate(), specifier)].Get(
+      data->isolate());
 }
 
 int IsolateData::ConnectSession(int context_group_id,
@@ -248,7 +251,7 @@ int IsolateData::HandleMessage(v8::Local<v8::Message> message,
   int script_id =
       static_cast<int>(message->GetScriptOrigin().ScriptID()->Value());
   if (!stack.IsEmpty() && stack->GetFrameCount() > 0) {
-    int top_script_id = stack->GetFrame(0)->GetScriptId();
+    int top_script_id = stack->GetFrame(isolate, 0)->GetScriptId();
     if (top_script_id == script_id) script_id = 0;
   }
   int line_number = message->GetLineNumber(context).FromMaybe(0);
@@ -257,13 +260,14 @@ int IsolateData::HandleMessage(v8::Local<v8::Message> message,
     column_number = message->GetStartColumn(context).FromJust() + 1;
 
   v8_inspector::StringView detailed_message;
-  v8::internal::Vector<uint16_t> message_text_string = ToVector(message->Get());
+  v8::internal::Vector<uint16_t> message_text_string =
+      ToVector(isolate, message->Get());
   v8_inspector::StringView message_text(message_text_string.start(),
                                         message_text_string.length());
   v8::internal::Vector<uint16_t> url_string;
   if (message->GetScriptOrigin().ResourceName()->IsString()) {
-    url_string =
-        ToVector(message->GetScriptOrigin().ResourceName().As<v8::String>());
+    url_string = ToVector(
+        isolate, message->GetScriptOrigin().ResourceName().As<v8::String>());
   }
   v8_inspector::StringView url(url_string.start(), url_string.length());
 
@@ -421,4 +425,33 @@ void IsolateData::consoleAPIMessage(int contextGroupId,
 void IsolateData::maxAsyncCallStackDepthChanged(int depth) {
   if (!log_max_async_call_stack_depth_changed_) return;
   fprintf(stdout, "maxAsyncCallStackDepthChanged: %d\n", depth);
+}
+
+void IsolateData::SetResourceNamePrefix(v8::Local<v8::String> prefix) {
+  resource_name_prefix_.Reset(v8::Isolate::GetCurrent(), prefix);
+}
+
+namespace {
+class StringBufferImpl : public v8_inspector::StringBuffer {
+ public:
+  StringBufferImpl(v8::Isolate* isolate, v8::Local<v8::String> string)
+      : data_(ToVector(isolate, string)),
+        view_(data_.start(), data_.length()) {}
+  const v8_inspector::StringView& string() override { return view_; }
+
+ private:
+  v8::internal::Vector<uint16_t> data_;
+  v8_inspector::StringView view_;
+};
+}  // anonymous namespace
+
+std::unique_ptr<v8_inspector::StringBuffer> IsolateData::resourceNameToUrl(
+    const v8_inspector::StringView& resourceName) {
+  if (resource_name_prefix_.IsEmpty()) return nullptr;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::String> name = ToString(isolate, resourceName);
+  v8::Local<v8::String> prefix = resource_name_prefix_.Get(isolate);
+  v8::Local<v8::String> url = v8::String::Concat(isolate, prefix, name);
+  return std::unique_ptr<StringBufferImpl>(new StringBufferImpl(isolate, url));
 }

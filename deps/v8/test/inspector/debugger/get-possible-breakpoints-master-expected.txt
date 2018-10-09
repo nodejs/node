@@ -267,5 +267,5 @@ function twiceDefined() {
   |_|return a + b;|R|
 }
 
-
+|R|
 

@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	sha512_block_data_order

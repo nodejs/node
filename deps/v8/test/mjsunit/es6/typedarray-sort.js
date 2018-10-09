@@ -68,3 +68,59 @@ for (var constructor of typedArrayConstructors) {
   %ArrayBufferNeuter(array.buffer);
   assertThrows(() => array.sort(), TypeError);
 }
+
+// The following creates a test for each typed element kind, where the array
+// to sort consists of some max/min/zero elements.
+//
+// When providing a custom compare function, the torque version of
+// TypedArray.p.sort needs to convert array elements to "Number"/"BigInt"
+// and back. The following test checks the edge cases for that conversion.
+
+let constructorsWithArrays = [
+  {ctor: Uint8Array, array: [255, 254, 4, 3, 2, 1, 0]},
+  {ctor: Int8Array, array: [127, 126, 1, 0, -1, -127, -128]},
+  {ctor: Uint16Array, array: [2 ** 16 - 1, 2 ** 16 - 2, 4, 3, 2, 1, 0]},
+  {
+    ctor: Int16Array,
+    array: [2 ** 15 - 1, 2 ** 15 - 2, 1, 0, -1, -(2 ** 15 - 1), -(2 ** 15)]
+  },
+  {ctor: Uint32Array, array: [2 ** 32 - 1, 2 ** 32 - 2, 4, 3, 2, 1, 0]},
+  {
+    ctor: Int32Array,
+    array: [2 ** 31 - 1, 2 ** 31 - 2, 1, 0, -1, -(2 ** 31 - 1), -(2 ** 31)]
+  },
+  {
+    ctor: Float32Array,
+    array: [2 ** 24, 2 ** 24 - 1, 1, 0,-1, -(2 ** 24 - 1), -(2 ** 24)]
+  },
+  {
+    ctor: Float64Array,
+    array: [2 ** 53, 2 ** 53 - 1, 1, 0, -1, -(2 ** 53 - 1), -(2 ** 53)]
+  },
+  {ctor: Uint8ClampedArray, array: [255, 254, 4, 3, 2, 1, 0]},
+  {
+    ctor: BigUint64Array,
+    array: [2n ** 64n - 1n, 2n ** 64n - 2n, 4n, 3n, 2n, 1n, 0n]
+  },
+  {
+    ctor: BigInt64Array,
+    array: [2n ** 63n - 1n, 2n ** 63n - 2n, 1n, 0n,
+            -1n, -(2n ** 63n - 1n), -(2n ** 63n)]
+  }
+];
+
+// Compare function needs to return a Number in all cases, and not a BigInt.
+// Hence we can not simply return "a - b".
+function cmpfn(a, b) {
+  if (a < b) return -1;
+  if (b < a) return 1;
+  return 0;
+}
+
+for (let constructor of constructorsWithArrays) {
+  let array = new constructor.ctor(constructor.array);
+
+  assertEquals(array.sort(cmpfn), array);
+  assertArrayLikeEquals(array, constructor.array.reverse(), constructor.ctor);
+  assertEquals(array.length, constructor.array.length);
+}

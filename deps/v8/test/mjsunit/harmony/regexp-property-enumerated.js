@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-property
-
 assertThrows("/\\p{Bidi_Class=L}+/u");
 assertThrows("/\\p{bc=Left_To_Right}+/u");
 assertThrows("/\\p{bc=AL}+/u");

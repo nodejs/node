@@ -166,6 +166,55 @@ static base::LazyInstance<ArchDefaultPoisoningRegisterConfiguration,
                           PoisoningRegisterConfigurationInitializer>::type
     kDefaultPoisoningRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
 
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+// Allocatable registers with the root register removed.
+// TODO(v8:6666): Once all builtins have been migrated, we could remove this
+// configuration and remove kRootRegister from ALLOCATABLE_GENERAL_REGISTERS
+// instead.
+class ArchPreserveRootIA32RegisterConfiguration : public RegisterConfiguration {
+ public:
+  ArchPreserveRootIA32RegisterConfiguration()
+      : RegisterConfiguration(
+            Register::kNumRegisters, DoubleRegister::kNumRegisters,
+            kMaxAllocatableGeneralRegisterCount - 1,
+            get_num_allocatable_double_registers(),
+            InitializeGeneralRegisterCodes(), get_allocatable_double_codes(),
+            kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
+            kSimd128RegisterNames) {}
+
+ private:
+  static const int* InitializeGeneralRegisterCodes() {
+    int filtered_index = 0;
+    for (int i = 0; i < kMaxAllocatableGeneralRegisterCount; ++i) {
+      if (kAllocatableGeneralCodes[i] != kRootRegister.code()) {
+        allocatable_general_codes_[filtered_index] =
+            kAllocatableGeneralCodes[i];
+        filtered_index++;
+      }
+    }
+    DCHECK_EQ(filtered_index, kMaxAllocatableGeneralRegisterCount - 1);
+    return allocatable_general_codes_;
+  }
+
+  static int
+      allocatable_general_codes_[kMaxAllocatableGeneralRegisterCount - 1];
+};
+
+int ArchPreserveRootIA32RegisterConfiguration::allocatable_general_codes_
+    [kMaxAllocatableGeneralRegisterCount - 1];
+
+struct PreserveRootIA32RegisterConfigurationInitializer {
+  static void Construct(void* config) {
+    new (config) ArchPreserveRootIA32RegisterConfiguration();
+  }
+};
+
+static base::LazyInstance<ArchPreserveRootIA32RegisterConfiguration,
+                          PreserveRootIA32RegisterConfigurationInitializer>::
+    type kPreserveRootIA32RegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
+#endif  // defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+
 // RestrictedRegisterConfiguration uses the subset of allocatable general
 // registers the architecture support, which results into generating assembly
 // to use less registers. Currently, it's only used by RecordWrite code stub.
@@ -182,8 +231,8 @@ class RestrictedRegisterConfiguration : public RegisterConfiguration {
             allocatable_general_register_codes.get(),
             get_allocatable_double_codes(),
             kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
-            allocatable_general_register_names.get(), kFloatRegisterNames,
-            kDoubleRegisterNames, kSimd128RegisterNames),
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
+            kSimd128RegisterNames),
         allocatable_general_register_codes_(
             std::move(allocatable_general_register_codes)),
         allocatable_general_register_names_(
@@ -217,6 +266,12 @@ const RegisterConfiguration* RegisterConfiguration::Default() {
 const RegisterConfiguration* RegisterConfiguration::Poisoning() {
   return &kDefaultPoisoningRegisterConfiguration.Get();
 }
+
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+const RegisterConfiguration* RegisterConfiguration::PreserveRootIA32() {
+  return &kPreserveRootIA32RegisterConfiguration.Get();
+}
+#endif  // defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
 
 const RegisterConfiguration* RegisterConfiguration::RestrictGeneralRegisters(
     RegList registers) {
@@ -314,6 +369,12 @@ RegisterConfiguration::RegisterConfiguration(
     allocatable_float_codes_mask_ = allocatable_simd128_codes_mask_ =
         allocatable_double_codes_mask_;
   }
+}
+
+const char* RegisterConfiguration::GetGeneralOrSpecialRegisterName(
+    int code) const {
+  if (code < num_general_registers_) return GetGeneralRegisterName(code);
+  return Assembler::GetSpecialRegisterName(code);
 }
 
 // Assert that kFloat32, kFloat64, and kSimd128 are consecutive values.

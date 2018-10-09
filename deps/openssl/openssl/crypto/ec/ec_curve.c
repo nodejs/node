@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -3036,6 +3036,8 @@ static EC_GROUP *ec_group_new_from_data(const ec_list_element curve)
     }
 #endif
 
+    EC_GROUP_set_curve_name(group, curve.nid);
+
     if ((P = EC_POINT_new(group)) == NULL) {
         ECerr(EC_F_EC_GROUP_NEW_FROM_DATA, ERR_R_EC_LIB);
         goto err;
@@ -3100,8 +3102,6 @@ EC_GROUP *EC_GROUP_new_by_curve_name(int nid)
         ECerr(EC_F_EC_GROUP_NEW_BY_CURVE_NAME, EC_R_UNKNOWN_GROUP);
         return NULL;
     }
-
-    EC_GROUP_set_curve_name(ret, nid);
 
     return ret;
 }

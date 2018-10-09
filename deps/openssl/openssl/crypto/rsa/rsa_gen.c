@@ -89,6 +89,8 @@ static int rsa_builtin_keygen(RSA *rsa, int bits, BIGNUM *e_value,
     if (BN_copy(rsa->e, e_value) == NULL)
         goto err;
 
+    BN_set_flags(rsa->p, BN_FLG_CONSTTIME);
+    BN_set_flags(rsa->q, BN_FLG_CONSTTIME);
     BN_set_flags(r2, BN_FLG_CONSTTIME);
     /* generate p and q */
     for (;;) {

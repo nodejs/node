@@ -83,7 +83,7 @@ class CompilationCacheScript : public CompilationSubCache {
                                          MaybeHandle<Object> name,
                                          int line_offset, int column_offset,
                                          ScriptOriginOptions resource_options,
-                                         Handle<Context> context,
+                                         Handle<Context> native_context,
                                          LanguageMode language_mode);
 
   void Put(Handle<String> source, Handle<Context> context,
@@ -158,7 +158,7 @@ class CompilationCache {
   MaybeHandle<SharedFunctionInfo> LookupScript(
       Handle<String> source, MaybeHandle<Object> name, int line_offset,
       int column_offset, ScriptOriginOptions resource_options,
-      Handle<Context> context, LanguageMode language_mode);
+      Handle<Context> native_context, LanguageMode language_mode);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
@@ -175,7 +175,7 @@ class CompilationCache {
 
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
-  void PutScript(Handle<String> source, Handle<Context> context,
+  void PutScript(Handle<String> source, Handle<Context> native_context,
                  LanguageMode language_mode,
                  Handle<SharedFunctionInfo> function_info);
 
@@ -220,9 +220,9 @@ class CompilationCache {
   // The number of sub caches covering the different types to cache.
   static const int kSubCacheCount = 4;
 
-  bool IsEnabled() { return FLAG_compilation_cache && enabled_; }
+  bool IsEnabled() const { return FLAG_compilation_cache && enabled_; }
 
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
 
   Isolate* isolate_;
 

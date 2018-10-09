@@ -9,8 +9,6 @@ const http = require('http');
 const http2 = require('http2');
 const { promisify } = require('util');
 
-common.crashOnUnhandledRejection();
-
 {
   let finished = false;
   const processed = [];
@@ -167,8 +165,13 @@ common.crashOnUnhandledRejection();
 
 {
   const server = http.createServer((req, res) => {
+    let sent = false;
     const rs = new Readable({
       read() {
+        if (sent) {
+          return;
+        }
+        sent = true;
         rs.push('hello');
       },
       destroy: common.mustCall((err, cb) => {
@@ -197,8 +200,12 @@ common.crashOnUnhandledRejection();
 
 {
   const server = http.createServer((req, res) => {
+    let sent = 0;
     const rs = new Readable({
       read() {
+        if (sent++ > 10) {
+          return;
+        }
         rs.push('hello');
       },
       destroy: common.mustCall((err, cb) => {
@@ -244,8 +251,12 @@ common.crashOnUnhandledRejection();
       port: server.address().port
     });
 
+    let sent = 0;
     const rs = new Readable({
       read() {
+        if (sent++ > 10) {
+          return;
+        }
         rs.push('hello');
       }
     });

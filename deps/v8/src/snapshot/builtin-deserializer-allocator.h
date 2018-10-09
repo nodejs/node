@@ -135,7 +135,7 @@ class BuiltinDeserializerAllocator final {
 
   // Stores the allocated space for a single handler during lazy
   // deserialization.
-  Address handler_allocation_ = nullptr;
+  Address handler_allocation_ = kNullAddress;
 
   bool next_reference_is_weak_ = false;
 

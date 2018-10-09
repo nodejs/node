@@ -89,9 +89,12 @@ class GeneratedCode {
  public:
   using Signature = Return(Args...);
 
-  template <typename T>
-  static GeneratedCode FromAddress(Isolate* isolate, T* addr) {
+  static GeneratedCode FromAddress(Isolate* isolate, Address addr) {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(addr));
+  }
+
+  static GeneratedCode FromBuffer(Isolate* isolate, byte* buffer) {
+    return GeneratedCode(isolate, reinterpret_cast<Signature*>(buffer));
   }
 
   static GeneratedCode FromCode(Code* code) {
@@ -102,7 +105,7 @@ class GeneratedCode {
   // Defined in simulator-base.h.
   Return Call(Args... args) {
     return Simulator::current(isolate_)->template Call<Return>(
-        reinterpret_cast<byte*>(fn_ptr_), args...);
+        reinterpret_cast<Address>(fn_ptr_), args...);
   }
 #else
   DISABLE_CFI_ICALL Return Call(Args... args) {

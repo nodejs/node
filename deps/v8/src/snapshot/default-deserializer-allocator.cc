@@ -45,7 +45,7 @@ Address DefaultDeserializerAllocator::AllocateRaw(AllocationSpace space,
   } else {
     DCHECK_LT(space, kNumberOfPreallocatedSpaces);
     Address address = high_water_[space];
-    DCHECK_NOT_NULL(address);
+    DCHECK_NE(address, kNullAddress);
     high_water_[space] += size;
 #ifdef DEBUG
     // Assert that the current reserved chunk is still big enough.
@@ -71,9 +71,9 @@ Address DefaultDeserializerAllocator::Allocate(AllocationSpace space,
     // aligned object when the filler maps have not been deserialized yet.
     // We require filler maps as padding to align the object.
     Heap* heap = isolate()->heap();
-    DCHECK(heap->free_space_map()->IsMap());
-    DCHECK(heap->one_pointer_filler_map()->IsMap());
-    DCHECK(heap->two_pointer_filler_map()->IsMap());
+    DCHECK(ReadOnlyRoots(heap).free_space_map()->IsMap());
+    DCHECK(ReadOnlyRoots(heap).one_pointer_filler_map()->IsMap());
+    DCHECK(ReadOnlyRoots(heap).two_pointer_filler_map()->IsMap());
     obj = heap->AlignWithFiller(obj, size, reserved, next_alignment_);
     address = obj->address();
     next_alignment_ = kWordAligned;
@@ -125,7 +125,8 @@ void DefaultDeserializerAllocator::DecodeReservation(
   DCHECK_EQ(0, reservations_[FIRST_SPACE].size());
   int current_space = FIRST_SPACE;
   for (auto& r : res) {
-    reservations_[current_space].push_back({r.chunk_size(), NULL, NULL});
+    reservations_[current_space].push_back(
+        {r.chunk_size(), kNullAddress, kNullAddress});
     if (r.is_last()) current_space++;
   }
   DCHECK_EQ(kNumberOfSpaces, current_space);

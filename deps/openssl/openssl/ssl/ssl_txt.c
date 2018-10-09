@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -70,18 +70,18 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
 
     if (x->cipher == NULL) {
         if (((x->cipher_id) & 0xff000000) == 0x02000000) {
-            if (BIO_printf
-                (bp, "    Cipher    : %06lX\n", x->cipher_id & 0xffffff) <= 0)
+            if (BIO_printf(bp, "    Cipher    : %06lX\n",
+                           x->cipher_id & 0xffffff) <= 0)
                 goto err;
         } else {
-            if (BIO_printf
-                (bp, "    Cipher    : %04lX\n", x->cipher_id & 0xffff) <= 0)
+            if (BIO_printf(bp, "    Cipher    : %04lX\n",
+                           x->cipher_id & 0xffff) <= 0)
                 goto err;
         }
     } else {
-        if (BIO_printf
-            (bp, "    Cipher    : %s\n",
-             ((x->cipher == NULL) ? "unknown" : x->cipher->name)) <= 0)
+        if (BIO_printf(bp, "    Cipher    : %s\n",
+                       ((x->cipher->name == NULL) ? "unknown"
+                                                  : x->cipher->name)) <= 0)
             goto err;
     }
     if (BIO_puts(bp, "    Session-ID: ") <= 0)

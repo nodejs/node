@@ -9,6 +9,7 @@
 #include "src/objects-inl.h"
 #include "src/string-stream.h"
 #include "src/utils.h"
+#include "src/vector.h"
 #include "src/version.h"
 
 namespace v8 {
@@ -87,39 +88,90 @@ Log::MessageBuilder::MessageBuilder(Log* log)
   DCHECK_NOT_NULL(log_->format_buffer_);
 }
 
+void Log::MessageBuilder::AppendString(String* str,
+                                       base::Optional<int> length_limit) {
+  if (str == nullptr) return;
 
-void Log::MessageBuilder::Append(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  AppendVA(format, args);
-  va_end(args);
+  DisallowHeapAllocation no_gc;  // Ensure string stays valid.
+  int length = str->length();
+  if (length_limit) length = std::min(length, *length_limit);
+  for (int i = 0; i < length; i++) {
+    uint16_t c = str->Get(i);
+    if (c <= 0xFF) {
+      AppendCharacter(static_cast<char>(c));
+    } else {
+      // Escape non-ascii characters.
+      AppendRawFormatString("\\u%04x", c & 0xFFFF);
+    }
+  }
 }
 
+void Log::MessageBuilder::AppendString(Vector<const char> str) {
+  for (auto i = str.begin(); i < str.end(); i++) AppendCharacter(*i);
+}
 
-void Log::MessageBuilder::AppendVA(const char* format, va_list args) {
-  Vector<char> buf(log_->format_buffer_, Log::kMessageBufferSize);
-  int length = v8::internal::VSNPrintF(buf, format, args);
-  // {length} is -1 if output was truncated.
-  if (length == -1) length = Log::kMessageBufferSize;
-  DCHECK_LE(length, Log::kMessageBufferSize);
-  AppendStringPart(log_->format_buffer_, length);
+void Log::MessageBuilder::AppendString(const char* str) {
+  if (str == nullptr) return;
+  AppendString(str, strlen(str));
+}
+
+void Log::MessageBuilder::AppendString(const char* str, size_t length) {
+  if (str == nullptr) return;
+
+  for (size_t i = 0; i < length; i++) {
+    DCHECK_NE(str[i], '\0');
+    AppendCharacter(str[i]);
+  }
+}
+
+void Log::MessageBuilder::AppendFormatString(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  const int length = FormatStringIntoBuffer(format, args);
+  va_end(args);
+  for (int i = 0; i < length; i++) {
+    DCHECK_NE(log_->format_buffer_[i], '\0');
+    AppendCharacter(log_->format_buffer_[i]);
+  }
+}
+
+void Log::MessageBuilder::AppendCharacter(char c) {
+  if (c >= 32 && c <= 126) {
+    if (c == ',') {
+      // Escape commas to avoid adding column separators.
+      AppendRawFormatString("\\x2C");
+    } else if (c == '\\') {
+      AppendRawFormatString("\\\\");
+    } else {
+      // Safe, printable ascii character.
+      AppendRawCharacter(c);
+    }
+  } else if (c == '\n') {
+    // Escape newlines to avoid adding row separators.
+    AppendRawFormatString("\\n");
+  } else {
+    // Escape non-printable characters.
+    AppendRawFormatString("\\x%02x", c & 0xFF);
+  }
 }
 
 void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   DCHECK(symbol);
   OFStream& os = log_->os_;
   os << "symbol(";
-  if (!symbol->name()->IsUndefined(symbol->GetIsolate())) {
+  if (!symbol->name()->IsUndefined()) {
     os << "\"";
-    AppendDetailed(String::cast(symbol->name()), false);
+    AppendSymbolNameDetails(String::cast(symbol->name()), false);
     os << "\" ";
   }
   os << "hash " << std::hex << symbol->Hash() << std::dec << ")";
 }
 
-void Log::MessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
+void Log::MessageBuilder::AppendSymbolNameDetails(String* str,
+                                                  bool show_impl_info) {
   if (str == nullptr) return;
-  DisallowHeapAllocation no_gc;  // Ensure string stay valid.
+
+  DisallowHeapAllocation no_gc;  // Ensure string stays valid.
   OFStream& os = log_->os_;
   int limit = str->length();
   if (limit > 0x1000) limit = 0x1000;
@@ -129,62 +181,32 @@ void Log::MessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
     if (StringShape(str).IsInternalized()) os << '#';
     os << ':' << str->length() << ':';
   }
-  AppendStringPart(str, limit);
+  AppendString(str, limit);
 }
 
-void Log::MessageBuilder::AppendString(String* str) {
-  if (str == nullptr) return;
-  int len = str->length();
-  AppendStringPart(str, len);
+int Log::MessageBuilder::FormatStringIntoBuffer(const char* format,
+                                                va_list args) {
+  Vector<char> buf(log_->format_buffer_, Log::kMessageBufferSize);
+  int length = v8::internal::VSNPrintF(buf, format, args);
+  // |length| is -1 if output was truncated.
+  if (length == -1) length = Log::kMessageBufferSize;
+  DCHECK_LE(length, Log::kMessageBufferSize);
+  DCHECK_GE(length, 0);
+  return length;
 }
 
-void Log::MessageBuilder::AppendString(const char* string) {
-  if (string == nullptr) return;
-  for (const char* p = string; *p != '\0'; p++) {
-    this->AppendCharacter(*p);
+void Log::MessageBuilder::AppendRawFormatString(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  const int length = FormatStringIntoBuffer(format, args);
+  va_end(args);
+  for (int i = 0; i < length; i++) {
+    DCHECK_NE(log_->format_buffer_[i], '\0');
+    AppendRawCharacter(log_->format_buffer_[i]);
   }
 }
 
-void Log::MessageBuilder::AppendStringPart(String* str, int len) {
-  DCHECK_LE(len, str->length());
-  DisallowHeapAllocation no_gc;  // Ensure string stay valid.
-  // TODO(cbruni): unify escaping.
-  for (int i = 0; i < len; i++) {
-    uc32 c = str->Get(i);
-    if (c <= 0xFF) {
-      AppendCharacter(static_cast<char>(c));
-    } else {
-      // Escape any non-ascii range characters.
-      Append("\\u%04x", c);
-    }
-  }
-}
-
-void Log::MessageBuilder::AppendStringPart(const char* str, size_t len) {
-  for (size_t i = 0; i < len; i++) {
-    DCHECK_NE(str[i], '\0');
-    this->AppendCharacter(str[i]);
-  }
-}
-
-void Log::MessageBuilder::AppendCharacter(char c) {
-  OFStream& os = log_->os_;
-  // A log entry (separate by commas) cannot contain commas or line-breaks.
-  if (c >= 32 && c <= 126) {
-    if (c == ',') {
-      // Escape commas (log field separator) directly.
-      os << "\\x2C";
-    } else {
-      // Directly append any printable ascii character.
-      os << c;
-    }
-  } else if (c == '\n') {
-    os << "\\n";
-  } else {
-    // Escape any non-printable characters.
-    Append("\\x%02x", c);
-  }
-}
+void Log::MessageBuilder::AppendRawCharacter(char c) { log_->os_ << c; }
 
 void Log::MessageBuilder::WriteToLogFile() { log_->os_ << std::endl; }
 
@@ -235,7 +257,8 @@ Log::MessageBuilder& Log::MessageBuilder::operator<<<Name*>(Name* name) {
 template <>
 Log::MessageBuilder& Log::MessageBuilder::operator<<<LogSeparator>(
     LogSeparator separator) {
-  log_->os_ << ',';
+  // Skip escaping to create a new column.
+  this->AppendRawCharacter(',');
   return *this;
 }
 

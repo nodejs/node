@@ -5,7 +5,6 @@
 #ifndef WASM_ATOMICOP_UTILS_H
 #define WASM_ATOMICOP_UTILS_H
 
-#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"

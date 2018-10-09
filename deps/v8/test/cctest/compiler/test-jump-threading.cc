@@ -77,6 +77,10 @@ class TestCode : public HandleAndZoneScope {
   }
   void End() {
     Start();
+    int end = static_cast<int>(sequence_.instructions().size());
+    if (current_->code_start() == end) {  // Empty block.  Insert a nop.
+      sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
+    }
     sequence_.EndBlock(current_->rpo_number());
     current_ = nullptr;
     rpo_number_ = RpoNumber::FromInt(rpo_number_.ToInt() + 1);
@@ -613,7 +617,7 @@ void ApplyForwarding(TestCode& code, int size, int* forward) {
   for (int i = 0; i < size; i++) {
     vector.push_back(RpoNumber::FromInt(forward[i]));
   }
-  JumpThreading::ApplyForwarding(vector, &code.sequence_);
+  JumpThreading::ApplyForwarding(code.main_zone(), vector, &code.sequence_);
 }
 
 

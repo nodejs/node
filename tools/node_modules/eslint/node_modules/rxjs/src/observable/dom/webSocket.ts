@@ -1,3 +1,1 @@
-import {  WebSocketSubject  } from './WebSocketSubject';
-
-export const webSocket = WebSocketSubject.create;
+export * from 'rxjs-compat/observable/dom/webSocket';

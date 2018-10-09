@@ -31,10 +31,11 @@ const Readable = require('stream').Readable;
     assert.strictEqual(state.reading, false);
   }
 
+  const expectedReadingMore = [true, false];
   readable.on('readable', common.mustCall(() => {
-    // 'readable' always gets called before 'end'
-    // since 'end' hasn't been emitted, more data could be incoming
-    assert.strictEqual(state.readingMore, true);
+    // there is only one readingMore scheduled from on('data'),
+    // after which everything is governed by the .read() call
+    assert.strictEqual(state.readingMore, expectedReadingMore.shift());
 
     // if the stream has ended, we shouldn't be reading
     assert.strictEqual(state.ended, !state.reading);

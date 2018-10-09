@@ -13,6 +13,7 @@
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/module.h"
 
 namespace v8 {
@@ -170,30 +171,6 @@ Node* IntrinsicsGenerator::IsTypedArray(
   return IsInstanceType(input, JS_TYPED_ARRAY_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSMap(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_MAP_TYPE);
-}
-
-Node* IntrinsicsGenerator::IsJSSet(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_SET_TYPE);
-}
-
-Node* IntrinsicsGenerator::IsJSWeakMap(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_WEAK_MAP_TYPE);
-}
-
-Node* IntrinsicsGenerator::IsJSWeakSet(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_WEAK_SET_TYPE);
-}
-
 Node* IntrinsicsGenerator::IsSmi(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* input = __ LoadRegisterFromRegisterList(args, 0);
@@ -233,6 +210,12 @@ Node* IntrinsicsGenerator::HasProperty(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
       args, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
+}
+
+Node* IntrinsicsGenerator::GetProperty(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsStubCall(
+      args, context, Builtins::CallableFor(isolate(), Builtins::kGetProperty));
 }
 
 Node* IntrinsicsGenerator::RejectPromise(

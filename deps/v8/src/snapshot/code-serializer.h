@@ -5,7 +5,6 @@
 #ifndef V8_SNAPSHOT_CODE_SERIALIZER_H_
 #define V8_SNAPSHOT_CODE_SERIALIZER_H_
 
-#include "src/parsing/preparse-data.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {
@@ -50,15 +49,15 @@ class CodeSerializer : public Serializer<> {
   ScriptData* SerializeSharedFunctionInfo(Handle<SharedFunctionInfo> info);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
-      Isolate* isolate, ScriptData* cached_data, Handle<String> source);
+      Isolate* isolate, ScriptData* cached_data, Handle<String> source,
+      ScriptOriginOptions origin_options);
 
   const std::vector<uint32_t>* stub_keys() const { return &stub_keys_; }
 
   uint32_t source_hash() const { return source_hash_; }
 
  protected:
-  explicit CodeSerializer(Isolate* isolate, uint32_t source_hash)
-      : Serializer(isolate), source_hash_(source_hash) {}
+  CodeSerializer(Isolate* isolate, uint32_t source_hash);
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
   virtual void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
@@ -148,7 +147,8 @@ class SerializedCodeData : public SerializedData {
 
   Vector<const uint32_t> CodeStubKeys() const;
 
-  static uint32_t SourceHash(Handle<String> source);
+  static uint32_t SourceHash(Handle<String> source,
+                             ScriptOriginOptions origin_options);
 
  private:
   explicit SerializedCodeData(ScriptData* data);

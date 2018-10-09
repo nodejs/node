@@ -1,3 +1,1 @@
-import {  UsingObservable  } from './UsingObservable';
-
-export const using = UsingObservable.create;
+export * from 'rxjs-compat/observable/using';

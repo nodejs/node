@@ -17,6 +17,7 @@ Opera Software ASA <*@opera.com>
 Intel Corporation <*@intel.com>
 MIPS Technologies, Inc. <*@mips.com>
 Imagination Technologies, LLC <*@imgtec.com>
+Wave Computing, Inc. <*@wavecomp.com>
 Loongson Technology Corporation Limited <*@loongson.cn>
 Code Aurora Forum <*@codeaurora.org>
 Home Jinni Inc. <*@homejinni.com>
@@ -32,6 +33,8 @@ Facebook, Inc. <*@fb.com>
 Facebook, Inc. <*@oculus.com>
 Vewd Software AS <*@vewd.com>
 Groupon <*@groupon.com>
+Meteor Development Group <*@meteor.com>
+Cloudflare, Inc. <*@cloudflare.com>
 
 Aaron Bieber <deftly@gmail.com>
 Abdulla Kamar <abdulla.kamar@gmail.com>
@@ -41,12 +44,14 @@ Alexander Botero-Lowry <alexbl@FreeBSD.org>
 Alexander Karpinsky <homm86@gmail.com>
 Alexandre Vassalotti <avassalotti@gmail.com>
 Alexis Campailla <alexis@janeasystems.com>
+Amos Lim <eui-sang.lim@samsung.com>
 Andreas Anyuru <andreas.anyuru@gmail.com>
 Andrew Paprocki <andrew@ishiboo.com>
 Andrei Kashcha <anvaka@gmail.com>
 Anna Henningsen <anna@addaleax.net>
 Bangfu Tao <bangfu.tao@samsung.com>
 Ben Coe <ben@npmjs.com>
+Ben Newman <ben@meteor.com>
 Ben Noordhuis <info@bnoordhuis.nl>
 Benjamin Tan <demoneaux@gmail.com>
 Bert Belder <bertbelder@gmail.com>
@@ -61,6 +66,7 @@ Daniel Andersson <kodandersson@gmail.com>
 Daniel Bevenius <daniel.bevenius@gmail.com>
 Daniel James <dnljms@gmail.com>
 Deon Dior <diaoyuanjie@gmail.com>
+Dominic Farolini <domfarolino@gmail.com>
 Douglas Crosher <dtc-v8@scieneer.com>
 Dusan Milosavljevic <dusan.m.milosavljevic@gmail.com>
 Erich Ocean <erich.ocean@me.com>
@@ -70,11 +76,13 @@ Felix Geisendörfer <haimuiba@gmail.com>
 Filipe David Manana <fdmanana@gmail.com>
 Franziska Hinkelmann <franziska.hinkelmann@gmail.com>
 Geoffrey Garside <ggarside@gmail.com>
+Gergely Nagy <ngg@ngg.hu>
 Gus Caplan <me@gus.host>
 Gwang Yoon Hwang <ryumiel@company100.net>
 Henrique Ferreiro <henrique.ferreiro@gmail.com>
 Hirofumi Mako <mkhrfm@gmail.com>
 Honggyu Kim <honggyu.kp@gmail.com>
+Ingvar Stepanyan <me@rreverser.com>
 Ioseb Dzmanashvili <ioseb.dzmanashvili@gmail.com>
 Isiah Meadows <impinball@gmail.com>
 Jaime Bernardo <jaime@janeasystems.com>
@@ -82,6 +90,7 @@ Jan de Mooij <jandemooij@gmail.com>
 Jan Krems <jan.krems@gmail.com>
 Jay Freeman <saurik@saurik.com>
 James Pike <g00gle@chilon.net>
+James M Snell <jasnell@gmail.com>
 Jianghua Yang <jianghua.yjh@alibaba-inc.com>
 Joel Stanley <joel@jms.id.au>
 Johan Bergström <johan@bergstroem.nu>
@@ -92,6 +101,7 @@ Kang-Hao (Kenny) Lu <kennyluck@csail.mit.edu>
 Karl Skomski <karl@skomski.com>
 Kevin Gibbons <bakkot@gmail.com>
 Kris Selden <kris.selden@gmail.com>
+Kyounga Ra <kyounga@alticast.com>
 Loo Rong Jie <loorongjie@gmail.com>
 Luis Reis <luis.m.reis@gmail.com>
 Luke Zarko <lukezarko@gmail.com>
@@ -125,8 +135,10 @@ Paul Lind <plind44@gmail.com>
 Qingyan Li <qingyan.liqy@alibaba-inc.com>
 Qiuyi Zhang <qiuyi.zqy@alibaba-inc.com>
 Rafal Krypa <rafal@krypa.net>
+Ray Glover <ray@rayglover.net>
 Refael Ackermann <refack@gmail.com>
 Rene Rebe <rene@exactcode.de>
+Rick Waldron <waldron.rick@gmail.com>
 Rob Wu <rob@robwu.nl>
 Robert Mustacchi <rm@fingolfin.org>
 Robert Nagy <robert.nagy@gmail.com>
@@ -142,6 +154,8 @@ Taketoshi Aono <brn@b6n.ch>
 Teddy Katz <teddy.katz@gmail.com>
 Tiancheng "Timothy" Gu <timothygu99@gmail.com>
 Tobias Burnus <burnus@net-b.de>
+Tobias Nießen <tniessen@tnie.de>
+Ujjwal Sharma <usharma1998@gmail.com>
 Victor Costan <costan@gmail.com>
 Vlad Burlik <vladbph@gmail.com>
 Vladimir Krivosheev <develar@gmail.com>

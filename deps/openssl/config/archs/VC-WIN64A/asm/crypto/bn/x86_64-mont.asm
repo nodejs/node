@@ -214,30 +214,30 @@ $L$inner_enter:
 
 	xor	r14,r14
 	mov	rax,QWORD[rsp]
-	lea	rsi,[rsp]
 	mov	r15,r9
-	jmp	NEAR $L$sub
+
 ALIGN	16
 $L$sub:	sbb	rax,QWORD[r14*8+rcx]
 	mov	QWORD[r14*8+rdi],rax
-	mov	rax,QWORD[8+r14*8+rsi]
+	mov	rax,QWORD[8+r14*8+rsp]
 	lea	r14,[1+r14]
 	dec	r15
 	jnz	NEAR $L$sub
 
 	sbb	rax,0
+	mov	rbx,-1
+	xor	rbx,rax
 	xor	r14,r14
-	and	rsi,rax
-	not	rax
-	mov	rcx,rdi
-	and	rcx,rax
 	mov	r15,r9
-	or	rsi,rcx
-ALIGN	16
+
 $L$copy:
-	mov	rax,QWORD[r14*8+rsi]
-	mov	QWORD[r14*8+rsp],r14
-	mov	QWORD[r14*8+rdi],rax
+	mov	rcx,QWORD[r14*8+rdi]
+	mov	rdx,QWORD[r14*8+rsp]
+	and	rcx,rbx
+	and	rdx,rax
+	mov	QWORD[r14*8+rsp],r9
+	or	rdx,rcx
+	mov	QWORD[r14*8+rdi],rdx
 	lea	r14,[1+r14]
 	sub	r15,1
 	jnz	NEAR $L$copy
@@ -605,10 +605,10 @@ $L$inner4x:
 	cmp	r14,r9
 	jb	NEAR $L$outer4x
 	mov	rdi,QWORD[16+r9*8+rsp]
+	lea	r15,[((-4))+r9]
 	mov	rax,QWORD[rsp]
-	pxor	xmm0,xmm0
 	mov	rdx,QWORD[8+rsp]
-	shr	r9,2
+	shr	r15,2
 	lea	rsi,[rsp]
 	xor	r14,r14
 
@@ -616,9 +616,7 @@ $L$inner4x:
 	mov	rbx,QWORD[16+rsi]
 	mov	rbp,QWORD[24+rsi]
 	sbb	rdx,QWORD[8+rcx]
-	lea	r15,[((-1))+r9]
-	jmp	NEAR $L$sub4x
-ALIGN	16
+
 $L$sub4x:
 	mov	QWORD[r14*8+rdi],rax
 	mov	QWORD[8+r14*8+rdi],rdx
@@ -645,34 +643,35 @@ $L$sub4x:
 
 	sbb	rax,0
 	mov	QWORD[24+r14*8+rdi],rbp
-	xor	r14,r14
-	and	rsi,rax
-	not	rax
-	mov	rcx,rdi
-	and	rcx,rax
-	lea	r15,[((-1))+r9]
-	or	rsi,rcx
+	pxor	xmm0,xmm0
+DB	102,72,15,110,224
+	pcmpeqd	xmm5,xmm5
+	pshufd	xmm4,xmm4,0
+	mov	r15,r9
+	pxor	xmm5,xmm4
+	shr	r15,2
+	xor	eax,eax
 
-	movdqu	xmm1,XMMWORD[rsi]
-	movdqa	XMMWORD[rsp],xmm0
-	movdqu	XMMWORD[rdi],xmm1
 	jmp	NEAR $L$copy4x
 ALIGN	16
 $L$copy4x:
-	movdqu	xmm2,XMMWORD[16+r14*1+rsi]
-	movdqu	xmm1,XMMWORD[32+r14*1+rsi]
-	movdqa	XMMWORD[16+r14*1+rsp],xmm0
-	movdqu	XMMWORD[16+r14*1+rdi],xmm2
-	movdqa	XMMWORD[32+r14*1+rsp],xmm0
-	movdqu	XMMWORD[32+r14*1+rdi],xmm1
-	lea	r14,[32+r14]
+	movdqa	xmm1,XMMWORD[rax*1+rsp]
+	movdqu	xmm2,XMMWORD[rax*1+rdi]
+	pand	xmm1,xmm4
+	pand	xmm2,xmm5
+	movdqa	xmm3,XMMWORD[16+rax*1+rsp]
+	movdqa	XMMWORD[rax*1+rsp],xmm0
+	por	xmm1,xmm2
+	movdqu	xmm2,XMMWORD[16+rax*1+rdi]
+	movdqu	XMMWORD[rax*1+rdi],xmm1
+	pand	xmm3,xmm4
+	pand	xmm2,xmm5
+	movdqa	XMMWORD[16+rax*1+rsp],xmm0
+	por	xmm3,xmm2
+	movdqu	XMMWORD[16+rax*1+rdi],xmm3
+	lea	rax,[32+rax]
 	dec	r15
 	jnz	NEAR $L$copy4x
-
-	shl	r9,2
-	movdqu	xmm2,XMMWORD[16+r14*1+rsi]
-	movdqa	XMMWORD[16+r14*1+rsp],xmm0
-	movdqu	XMMWORD[16+r14*1+rdi],xmm2
 	mov	rsi,QWORD[8+r9*8+rsp]
 	mov	rax,1
 	mov	r15,QWORD[((-48))+rsi]

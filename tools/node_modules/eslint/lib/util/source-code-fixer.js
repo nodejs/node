@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const debug = require("debug")("eslint:text-fixer");
+const debug = require("debug")("eslint:source-code-fixer");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -107,7 +107,7 @@ SourceCodeFixer.applyFixes = function(sourceText, messages, shouldFix) {
     }
 
     messages.forEach(problem => {
-        if (problem.hasOwnProperty("fix")) {
+        if (Object.prototype.hasOwnProperty.call(problem, "fix")) {
             fixes.push(problem);
         } else {
             remainingMessages.push(problem);

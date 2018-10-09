@@ -1,8 +1,11 @@
 #ifndef SRC_NODE_CONTEXTIFY_H_
 #define SRC_NODE_CONTEXTIFY_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node_internals.h"
 #include "node_context_data.h"
+#include "base_object-inl.h"
 
 namespace node {
 namespace contextify {
@@ -49,12 +52,15 @@ class ContextifyContext {
         context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject));
   }
 
+
   template <typename T>
   static ContextifyContext* Get(const v8::PropertyCallbackInfo<T>& args);
 
  private:
   static void MakeContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CompileFunction(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WeakCallback(
       const v8::WeakCallbackInfo<ContextifyContext>& data);
   static void PropertyGetterCallback(
@@ -97,7 +103,40 @@ class ContextifyContext {
   Persistent<v8::Context> context_;
 };
 
+class ContextifyScript : public BaseObject {
+ public:
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(ContextifyScript)
+  SET_SELF_SIZE(ContextifyScript)
+
+  ContextifyScript(Environment* env, v8::Local<v8::Object> object);
+  ~ContextifyScript();
+
+  static void Init(Environment* env, v8::Local<v8::Object> target);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool InstanceOf(Environment* env, const v8::Local<v8::Value>& args);
+  static void CreateCachedData(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RunInThisContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RunInContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DecorateErrorStack(Environment* env,
+                                 const v8::TryCatch& try_catch);
+  static bool EvalMachine(Environment* env,
+                          const int64_t timeout,
+                          const bool display_errors,
+                          const bool break_on_sigint,
+                          const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  inline uint32_t id() { return id_; }
+
+ private:
+  node::Persistent<v8::UnboundScript> script_;
+  uint32_t id_;
+};
+
 }  // namespace contextify
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CONTEXTIFY_H_

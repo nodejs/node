@@ -24,13 +24,12 @@ digest B<dgst> using the private key B<dsa> and places its ASN.1 DER
 encoding at B<sigret>. The length of the signature is places in
 *B<siglen>. B<sigret> must point to DSA_size(B<dsa>) bytes of memory.
 
-DSA_sign_setup() may be used to precompute part of the signing
-operation in case signature generation is time-critical. It expects
-B<dsa> to contain DSA parameters. It places the precomputed values
-in newly allocated B<BIGNUM>s at *B<kinvp> and *B<rp>, after freeing
-the old ones unless *B<kinvp> and *B<rp> are NULL. These values may
-be passed to DSA_sign() in B<dsa-E<gt>kinv> and B<dsa-E<gt>r>.
-B<ctx> is a pre-allocated B<BN_CTX> or NULL.
+DSA_sign_setup() is defined only for backward binary compatibility and
+should not be used.
+Since OpenSSL 1.1.0 the DSA type is opaque and the output of
+DSA_sign_setup() cannot be used anyway: calling this function will only
+cause overhead, and does not affect the actual signature
+(pre-)computation.
 
 DSA_verify() verifies that the signature B<sigbuf> of size B<siglen>
 matches a given message digest B<dgst> of size B<len>.
@@ -60,7 +59,7 @@ L<DSA_do_sign(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

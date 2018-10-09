@@ -714,7 +714,8 @@ void Sampler::DoSample() {
   zx_handle_t profiled_thread = platform_data()->profiled_thread();
   if (profiled_thread == ZX_HANDLE_INVALID) return;
 
-  if (zx_task_suspend(profiled_thread) != ZX_OK) return;
+  zx_handle_t suspend_token = ZX_HANDLE_INVALID;
+  if (zx_task_suspend_token(profiled_thread, &suspend_token) != ZX_OK) return;
 
   // Wait for the target thread to become suspended, or to exit.
   // TODO(wez): There is currently no suspension count for threads, so there
@@ -726,7 +727,7 @@ void Sampler::DoSample() {
       profiled_thread, ZX_THREAD_SUSPENDED | ZX_THREAD_TERMINATED,
       zx_deadline_after(ZX_MSEC(100)), &signals);
   if (suspended != ZX_OK || (signals & ZX_THREAD_SUSPENDED) == 0) {
-    zx_task_resume(profiled_thread, 0);
+    zx_handle_close(suspend_token);
     return;
   }
 
@@ -747,7 +748,7 @@ void Sampler::DoSample() {
     SampleStack(state);
   }
 
-  zx_task_resume(profiled_thread, 0);
+  zx_handle_close(suspend_token);
 }
 
 // TODO(wez): Remove this once the Fuchsia SDK has rolled.

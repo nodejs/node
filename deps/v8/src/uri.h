@@ -6,6 +6,7 @@
 #define V8_URI_H_
 
 #include "src/allocation.h"
+#include "src/maybe-handles.h"
 #include "src/objects.h"
 
 namespace v8 {

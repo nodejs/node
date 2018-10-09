@@ -193,3 +193,27 @@ function redirectToInterpreter(
     }
   }
 })();
+
+(function testInterpreterPreservedOnTierUp() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+  var fun_body = [kExprI32Const, 23];
+  var fun = builder.addFunction('fun', kSig_i_v).addBody(fun_body).exportFunc();
+  var instance = builder.instantiate();
+  var exp = instance.exports;
+
+  // Initially the interpreter is not being called.
+  var initial_interpreted = %WasmNumInterpretedCalls(instance);
+  assertEquals(23, exp.fun());
+  assertEquals(initial_interpreted + 0, %WasmNumInterpretedCalls(instance));
+
+  // Redirection will cause the interpreter to be called.
+  %RedirectToWasmInterpreter(instance, fun.index);
+  assertEquals(23, exp.fun());
+  assertEquals(initial_interpreted + 1, %WasmNumInterpretedCalls(instance));
+
+  // Requesting a tier-up still ensure the interpreter is being called.
+  %WasmTierUpFunction(instance, fun.index);
+  assertEquals(23, exp.fun());
+  assertEquals(initial_interpreted + 2, %WasmNumInterpretedCalls(instance));
+})();

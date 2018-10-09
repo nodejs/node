@@ -224,8 +224,8 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 // s7: context register
-// s3: lithium scratch
-// s4: lithium scratch2
+// s3: scratch register
+// s4: scratch register 2
 #define DECLARE_REGISTER(R) \
   constexpr Register R = Register::from_code<kRegCode_##R>();
 GENERAL_REGISTERS(DECLARE_REGISTER)
@@ -310,6 +310,7 @@ DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
 #undef DECLARE_DOUBLE_REGISTER
 
 constexpr DoubleRegister no_freg = DoubleRegister::no_reg();
+constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 // SIMD registers.
 typedef MSARegister Simd128Register;
@@ -394,20 +395,21 @@ constexpr uint64_t kSmiShiftMask = (1UL << kSmiShift) - 1;
 class Operand BASE_EMBEDDED {
  public:
   // Immediate.
-  INLINE(explicit Operand(int64_t immediate,
-                          RelocInfo::Mode rmode = RelocInfo::NONE))
+  V8_INLINE explicit Operand(int64_t immediate,
+                             RelocInfo::Mode rmode = RelocInfo::NONE)
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
-  INLINE(explicit Operand(const ExternalReference& f))
+  V8_INLINE explicit Operand(const ExternalReference& f)
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
-    value_.immediate = reinterpret_cast<int64_t>(f.address());
+    value_.immediate = static_cast<int64_t>(f.address());
   }
-  INLINE(explicit Operand(const char* s));
-  INLINE(explicit Operand(Object** opp));
-  INLINE(explicit Operand(Context** cpp));
+  V8_INLINE explicit Operand(const char* s);
+  V8_INLINE explicit Operand(Object** opp);
+  V8_INLINE explicit Operand(Context** cpp);
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value)) : rm_(no_reg), rmode_(RelocInfo::NONE) {
+  V8_INLINE explicit Operand(Smi* value)
+      : rm_(no_reg), rmode_(RelocInfo::NONE) {
     value_.immediate = reinterpret_cast<intptr_t>(value);
   }
 
@@ -415,10 +417,10 @@ class Operand BASE_EMBEDDED {
   static Operand EmbeddedCode(CodeStub* stub);
 
   // Register.
-  INLINE(explicit Operand(Register rm)) : rm_(rm) {}
+  V8_INLINE explicit Operand(Register rm) : rm_(rm) {}
 
   // Return true if this is a register operand.
-  INLINE(bool is_reg() const);
+  V8_INLINE bool is_reg() const;
 
   inline int64_t immediate() const;
 
@@ -481,8 +483,7 @@ class MemOperand : public Operand {
   friend class Assembler;
 };
 
-
-class Assembler : public AssemblerBase {
+class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -498,9 +499,7 @@ class Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
-  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~Assembler() { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -566,6 +565,7 @@ class Assembler : public AssemblerBase {
   }
   uint64_t jump_address(Label* L);
   uint64_t jump_offset(Label* L);
+  uint64_t branch_long_offset(Label* L);
 
   // Puts a labels target address at the given position.
   // The high 8 bits are set to zero.
@@ -574,19 +574,19 @@ class Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);
-  INLINE(static void set_target_address_at(
+  V8_INLINE static void set_target_address_at(
       Address pc, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
-    set_target_value_at(pc, reinterpret_cast<uint64_t>(target),
-                        icache_flush_mode);
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
+    set_target_value_at(pc, target, icache_flush_mode);
   }
   // On MIPS there is no Constant Pool so we skip that parameter.
-  INLINE(static Address target_address_at(Address pc, Address constant_pool)) {
+  V8_INLINE static Address target_address_at(Address pc,
+                                             Address constant_pool) {
     return target_address_at(pc);
   }
-  INLINE(static void set_target_address_at(
+  V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
     set_target_address_at(pc, target, icache_flush_mode);
   }
 
@@ -608,16 +608,28 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_special_target_at(
       Address instruction_payload, Code* code, Address target);
 
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
+
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  // Size of an instruction.
-  static constexpr int kInstrSize = sizeof(Instr);
-
   // Difference between address of current opcode and target address offset.
-  static constexpr int kBranchPCOffset = 4;
+  static constexpr int kBranchPCOffset = kInstrSize;
+
+  // Difference between address of current opcode and target address offset,
+  // when we are generatinga sequence of instructions for long relative PC
+  // branches
+  static constexpr int kLongBranchPCOffset = 3 * kInstrSize;
+
+  // Adjust ra register in branch delay slot of bal instruction so to skip
+  // instructions not needed after optimization of PIC in
+  // TurboAssembler::BranchAndLink method.
+
+  static constexpr int kOptimizedBranchAndLinkLongReturnOffset = 4 * kInstrSize;
 
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
@@ -652,7 +664,8 @@ class Assembler : public AssemblerBase {
   // Max offset for compact branch instructions with 26-bit offset field
   static constexpr int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
 
-  static constexpr int kTrampolineSlotsSize = 2 * kInstrSize;
+  static constexpr int kTrampolineSlotsSize =
+      kArchVariant == kMips64r6 ? 2 * kInstrSize : 7 * kInstrSize;
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
@@ -754,6 +767,7 @@ class Assembler : public AssemblerBase {
     bltc(rs, rt, shifted_branch_offset(L));
   }
   void bltzal(Register rs, int16_t offset);
+  void nal() { bltzal(zero_reg, 0); }
   void blezalc(Register rt, int16_t offset);
   inline void blezalc(Register rt, Label* L) {
     blezalc(rt, shifted_branch_offset(L));
@@ -1789,7 +1803,7 @@ class Assembler : public AssemblerBase {
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
                          int id);
 
-  static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
+  static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
                                        intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
@@ -1815,8 +1829,8 @@ class Assembler : public AssemblerBase {
   }
 
   // Read/patch instructions.
-  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(byte* pc, Instr instr) {
+  static Instr instr_at(Address pc) { return *reinterpret_cast<Instr*>(pc); }
+  static void instr_at_put(Address pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
@@ -1828,6 +1842,7 @@ class Assembler : public AssemblerBase {
   static bool IsBranch(Instr instr);
   static bool IsMsaBranch(Instr instr);
   static bool IsBc(Instr instr);
+  static bool IsNal(Instr instr);
   static bool IsBzc(Instr instr);
 
   static bool IsBeq(Instr instr);
@@ -1842,6 +1857,7 @@ class Assembler : public AssemblerBase {
   static bool IsJ(Instr instr);
   static bool IsLui(Instr instr);
   static bool IsOri(Instr instr);
+  static bool IsMov(Instr instr, Register rd, Register rs);
 
   static bool IsJal(Instr instr);
   static bool IsJr(Instr instr);
@@ -1947,6 +1963,9 @@ class Assembler : public AssemblerBase {
 
   void EndBlockTrampolinePool() {
     trampoline_pool_blocked_nesting_--;
+    if (trampoline_pool_blocked_nesting_ == 0) {
+      CheckTrampolinePoolQuick(1);
+    }
   }
 
   bool is_trampoline_pool_blocked() const {
@@ -1982,7 +2001,11 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
+  void CheckTrampolinePoolQuick(int extra_instructions = 0) {
+    if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
+      CheckTrampolinePool();
+    }
+  }
 
  private:
   // Avoid overflows for displacements etc.
@@ -2247,22 +2270,8 @@ class Assembler : public AssemblerBase {
 
   RegList scratch_register_list_;
 
-  // The following functions help with avoiding allocations of embedded heap
-  // objects during the code assembly phase. {RequestHeapObject} records the
-  // need for a future heap number allocation or code stub generation. After
-  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request). That is, for each request, it will patch the
-  // dummy heap object handle that we emitted during code assembly with the
-  // actual heap object handle.
- protected:
-  // TODO(neis): Make private if its use can be moved out of TurboAssembler.
-  void RequestHeapObject(HeapObjectRequest request);
-
  private:
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
 
   friend class RegExpMacroAssemblerMIPS;
   friend class RelocInfo;

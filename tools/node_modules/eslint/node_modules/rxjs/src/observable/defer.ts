@@ -1,3 +1,1 @@
-import {  DeferObservable  } from './DeferObservable';
-
-export const defer = DeferObservable.create;
+export * from 'rxjs-compat/observable/defer';

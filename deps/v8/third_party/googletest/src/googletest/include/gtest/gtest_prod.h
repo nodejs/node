@@ -29,7 +29,8 @@
 //
 // Author: wan@google.com (Zhanyong Wan)
 //
-// Google C++ Testing Framework definitions useful in production code.
+// Google C++ Testing and Mocking Framework definitions useful in production code.
+// GOOGLETEST_CM0003 DO NOT DELETE
 
 #ifndef GTEST_INCLUDE_GTEST_GTEST_PROD_H_
 #define GTEST_INCLUDE_GTEST_GTEST_PROD_H_

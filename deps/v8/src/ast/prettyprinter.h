@@ -8,14 +8,16 @@
 #include "src/allocation.h"
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
-#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
 
+class IncrementalStringBuilder;  // to avoid including string-builder-inl.h
+
 class CallPrinter final : public AstVisitor<CallPrinter> {
  public:
   explicit CallPrinter(Isolate* isolate, bool is_user_js);
+  ~CallPrinter();
 
   // The following routine prints the node with position |position| into a
   // string.
@@ -42,7 +44,8 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 
   Isolate* isolate_;
   int num_prints_;
-  IncrementalStringBuilder builder_;
+  // Allocate the builder on the heap simply because it's forward declared.
+  std::unique_ptr<IncrementalStringBuilder> builder_;
   int position_;  // position of ast node to print
   bool found_;
   bool done_;
@@ -56,8 +59,8 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
  protected:
   void PrintLiteral(Handle<Object> value, bool quote);
   void PrintLiteral(const AstRawString* value, bool quote);
-  void FindStatements(ZoneList<Statement*>* statements);
-  void FindArguments(ZoneList<Expression*>* arguments);
+  void FindStatements(ZonePtrList<Statement>* statements);
+  void FindArguments(ZonePtrList<Expression>* arguments);
 };
 
 
@@ -88,17 +91,17 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
 
   void Init();
 
-  void PrintLabels(ZoneList<const AstRawString*>* labels);
+  void PrintLabels(ZonePtrList<const AstRawString>* labels);
   void PrintLiteral(const AstRawString* value, bool quote);
   void PrintLiteral(const AstConsString* value, bool quote);
   void PrintLiteral(Literal* literal, bool quote);
   void PrintIndented(const char* txt);
   void PrintIndentedVisit(const char* s, AstNode* node);
 
-  void PrintStatements(ZoneList<Statement*>* statements);
+  void PrintStatements(ZonePtrList<Statement>* statements);
   void PrintDeclarations(Declaration::List* declarations);
   void PrintParameters(DeclarationScope* scope);
-  void PrintArguments(ZoneList<Expression*>* arguments);
+  void PrintArguments(ZonePtrList<Expression>* arguments);
   void PrintCaseClause(CaseClause* clause);
   void PrintLiteralIndented(const char* info, Literal* literal, bool quote);
   void PrintLiteralIndented(const char* info, const AstRawString* value,
@@ -107,9 +110,10 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
                             bool quote);
   void PrintLiteralWithModeIndented(const char* info, Variable* var,
                                     const AstRawString* value);
-  void PrintLabelsIndented(ZoneList<const AstRawString*>* labels);
-  void PrintObjectProperties(ZoneList<ObjectLiteral::Property*>* properties);
-  void PrintClassProperties(ZoneList<ClassLiteral::Property*>* properties);
+  void PrintLabelsIndented(ZonePtrList<const AstRawString>* labels,
+                           const char* prefix = "");
+  void PrintObjectProperties(ZonePtrList<ObjectLiteral::Property>* properties);
+  void PrintClassProperties(ZonePtrList<ClassLiteral::Property>* properties);
 
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }

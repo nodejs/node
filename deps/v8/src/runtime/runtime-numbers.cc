@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/isolate-inl.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +24,7 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  return *String::ToNumber(subject);
+  return *String::ToNumber(isolate, subject);
 }
 
 
@@ -40,15 +39,16 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
   Handle<String> subject;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, subject,
                                      Object::ToString(isolate, string));
-  subject = String::Flatten(subject);
+  subject = String::Flatten(isolate, subject);
 
   // Convert {radix} to Int32.
   if (!radix->IsNumber()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix, Object::ToNumber(radix));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix,
+                                       Object::ToNumber(isolate, radix));
   }
   int radix32 = DoubleToInt32(radix->Number());
   if (radix32 != 0 && (radix32 < 2 || radix32 > 36)) {
-    return isolate->heap()->nan_value();
+    return ReadOnlyRoots(isolate).nan_value();
   }
 
   double result = StringToInt(isolate, subject, radix32);
@@ -62,39 +62,19 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
-  double value =
-      StringToDouble(isolate->unicode_cache(), subject, ALLOW_TRAILING_JUNK,
-                     std::numeric_limits<double>::quiet_NaN());
+  double value = StringToDouble(isolate, isolate->unicode_cache(), subject,
+                                ALLOW_TRAILING_JUNK,
+                                std::numeric_limits<double>::quiet_NaN());
 
   return *isolate->factory()->NewNumber(value);
 }
 
-RUNTIME_FUNCTION(Runtime_NumberToStringSkipCache) {
+RUNTIME_FUNCTION(Runtime_NumberToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
 
-  return *isolate->factory()->NumberToString(number, false);
-}
-
-
-// Converts a Number to a Smi, if possible. Returns NaN if the number is not
-// a small integer.
-RUNTIME_FUNCTION(Runtime_NumberToSmi) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  if (obj->IsSmi()) {
-    return obj;
-  }
-  if (obj->IsHeapNumber()) {
-    double value = HeapNumber::cast(obj)->value();
-    int int_value = FastD2I(value);
-    if (value == FastI2D(int_value) && Smi::IsValid(int_value)) {
-      return Smi::FromInt(int_value);
-    }
-  }
-  return isolate->heap()->nan_value();
+  return *isolate->factory()->NumberToString(number);
 }
 
 // Compare two Smis x, y as if they were converted to strings and then

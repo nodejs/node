@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "src/base/platform/mutex.h"
-#include "src/objects/js-array.h"
+#include "src/objects/js-array-buffer.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +28,7 @@ class ArrayBufferCollector {
   // These allocations will begin to be freed once FreeAllocations() is called,
   // or on TearDown.
   void AddGarbageAllocations(
-      std::vector<JSArrayBuffer::Allocation>* allocations);
+      std::vector<JSArrayBuffer::Allocation> allocations);
 
   // Calls FreeAllocations() on a background thread.
   void FreeAllocationsOnBackgroundThread();
@@ -42,7 +42,7 @@ class ArrayBufferCollector {
 
   Heap* heap_;
   base::Mutex allocations_mutex_;
-  std::vector<std::vector<JSArrayBuffer::Allocation>*> allocations_;
+  std::vector<std::vector<JSArrayBuffer::Allocation>> allocations_;
 };
 
 }  // namespace internal

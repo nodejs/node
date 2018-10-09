@@ -14,7 +14,7 @@ URLs and URL-like strings for other types.
   slashes on a file specifier will be removed, that is 'file://../foo/bar`
   references the same package as same as `file:../foo/bar`.  The latter is
   considered canonical.
-* Attempting to install a specifer that has a windows drive letter will
+* Attempting to install a specifier that has a windows drive letter will
   produce an error on non-Windows systems.
 * A valid `file:` specifier points is:
   * a valid package file. That is, a `.tar`, `.tar.gz` or `.tgz` containing
@@ -55,16 +55,13 @@ note for the `npm-shrinkwrap.json` as it means the specifier there will
 be different then the original `package.json` (where it was relative to that
 `package.json`).
 
-# No, for `file:` type specifiers, we SHOULD shrinkwrap.  Other symlinks we
-# should not. Other symlinks w/o the link spec should be an error.
-
 When shrinkwrapping file specifiers, the contents of the destination
 package's `node_modules` WILL NOT be included in the shrinkwrap. If you want to lock
 down the destination package's `node_modules` you should create a shrinkwrap for it
 separately.
 
 This is necessary to support the mono repo use case where many projects file
-to the same package.  If each project included its own npm-shrinkwrap.json
+to the same package.  If each project included its own `npm-shrinkwrap.json`
 then they would each have their own distinct set of transitive dependencies
 and they'd step on each other any time you ran an install in one or the other.
 
@@ -75,7 +72,7 @@ shrinkwrapped packages.
 
 #### File type specifiers pointing at tarballs
 
-File-type specifiers pointing at a `.tgz` or `.tar.gz or `.tar` file will
+File-type specifiers pointing at a `.tgz` or `.tar.gz` or `.tar` file will
 install it as a package file in the same way we would a remote tarball.  The
 checksum of the package file should be recorded so that we can check for updates.
 
@@ -134,7 +131,7 @@ example-package@1.0.0 /path/to/example-package
 +-- a -> file:../a
 ```
 
-Of note here: No version is included as the relavent detail is WHERE the
+Of note here: No version is included as the relevant detail is WHERE the
 package came from, not what version happened to be in that path.
 
 ### Outdated

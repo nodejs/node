@@ -100,7 +100,7 @@ void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode) {
       // coverage.
       if (isolate->is_best_effort_code_coverage()) {
         isolate->SetFeedbackVectorsForProfilingTools(
-            isolate->heap()->undefined_value());
+            ReadOnlyRoots(isolate).undefined_value());
       }
     }
   } else {

@@ -3,14 +3,15 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
-#include "resource.h"
-#include "number_compact.h"
 #include "unicode/ustring.h"
 #include "unicode/ures.h"
 #include "cstring.h"
 #include "charstr.h"
+#include "resource.h"
+#include "number_compact.h"
+#include "number_microprops.h"
 #include "uresimp.h"
 
 using namespace icu;
@@ -275,15 +276,15 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
     int magnitude;
     if (quantity.isZero()) {
         magnitude = 0;
-        micros.rounding.apply(quantity, status);
+        micros.rounder.apply(quantity, status);
     } else {
         // TODO: Revisit chooseMultiplierAndApply
-        int multiplier = micros.rounding.chooseMultiplierAndApply(quantity, data, status);
+        int multiplier = micros.rounder.chooseMultiplierAndApply(quantity, data, status);
         magnitude = quantity.isZero() ? 0 : quantity.getMagnitude();
         magnitude -= multiplier;
     }
 
-    StandardPlural::Form plural = quantity.getStandardPlural(rules);
+    StandardPlural::Form plural = utils::getStandardPlural(rules, quantity);
     const UChar *patternString = data.getPattern(magnitude, plural);
     if (patternString == nullptr) {
         // Use the default (non-compact) modifier.
@@ -313,7 +314,7 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
     }
 
     // We already performed rounding. Do not perform it again.
-    micros.rounding = Rounder::constructPassThrough();
+    micros.rounder = RoundingImpl::passThrough();
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

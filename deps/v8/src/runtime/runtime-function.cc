@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include "src/accessors.h"
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/compiler.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +27,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetName) {
 }
 
 // TODO(5530): Remove once uses in debug.js are gone.
-RUNTIME_FUNCTION(Runtime_FunctionGetScript) {
+RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
@@ -36,11 +35,9 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScript) {
   if (function->IsJSFunction()) {
     Handle<Object> script(
         Handle<JSFunction>::cast(function)->shared()->script(), isolate);
-    if (script->IsScript()) {
-      return *Script::GetWrapper(Handle<Script>::cast(script));
-    }
+    if (script->IsScript()) return Handle<Script>::cast(script)->source();
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
@@ -64,10 +61,10 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
   if (function->IsJSFunction()) {
     Handle<SharedFunctionInfo> shared(
-        Handle<JSFunction>::cast(function)->shared());
+        Handle<JSFunction>::cast(function)->shared(), isolate);
     return *SharedFunctionInfo::GetSourceCode(shared);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -80,13 +77,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   return Smi::FromInt(pos);
 }
 
-RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-
-  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  return fun->native_context()->debug_context_id();
-}
 
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
@@ -104,12 +94,12 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, source, 1);
 
-  Handle<SharedFunctionInfo> target_shared(target->shared());
-  Handle<SharedFunctionInfo> source_shared(source->shared());
+  Handle<SharedFunctionInfo> target_shared(target->shared(), isolate);
+  Handle<SharedFunctionInfo> source_shared(source->shared(), isolate);
 
   if (!source->is_compiled() &&
       !Compiler::Compile(source, Compiler::KEEP_EXCEPTION)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
 
   // Set the function data, scope info, formal parameter count, and the length
@@ -120,26 +110,24 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
       source_shared->raw_outer_scope_info_or_feedback_metadata());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
-  target_shared->set_raw_start_position_and_type(
-      source_shared->raw_start_position_and_type());
-  target_shared->set_raw_end_position(source_shared->raw_end_position());
   bool was_native = target_shared->native();
   target_shared->set_flags(source_shared->flags());
   target_shared->set_native(was_native);
-  target_shared->set_function_literal_id(source_shared->function_literal_id());
-
   target_shared->set_scope_info(source_shared->scope_info());
 
   Handle<Object> source_script(source_shared->script(), isolate);
+  int function_literal_id = source_shared->FunctionLiteralId(isolate);
   if (source_script->IsScript()) {
     SharedFunctionInfo::SetScript(source_shared,
-                                  isolate->factory()->undefined_value());
+                                  isolate->factory()->undefined_value(),
+                                  function_literal_id);
   }
-  SharedFunctionInfo::SetScript(target_shared, source_script);
+  SharedFunctionInfo::SetScript(target_shared, source_script,
+                                function_literal_id);
 
   // Set the code of the target function.
   target->set_code(source_shared->GetCode());
-  Handle<Context> context(source->context());
+  Handle<Context> context(source->context(), isolate);
   target->set_context(*context);
 
   // Make sure we get a fresh copy of the feedback vector to avoid cross
@@ -150,7 +138,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   if (isolate->logger()->is_listening_to_code_events() ||
       isolate->is_profiling()) {
     isolate->logger()->LogExistingFunction(
-        source_shared, Handle<AbstractCode>(source_shared->abstract_code()));
+        source_shared, handle(source_shared->abstract_code(), isolate));
   }
 
   return *target;
@@ -170,7 +158,7 @@ RUNTIME_FUNCTION(Runtime_SetNativeFlag) {
     JSFunction* func = JSFunction::cast(object);
     func->shared()->set_native(true);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -204,16 +192,6 @@ RUNTIME_FUNCTION(Runtime_IsFunction) {
   return isolate->heap()->ToBoolean(object->IsFunction());
 }
 
-
-RUNTIME_FUNCTION(Runtime_FunctionToString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
-  return function->IsJSBoundFunction()
-             ? *JSBoundFunction::ToString(
-                   Handle<JSBoundFunction>::cast(function))
-             : *JSFunction::ToString(Handle<JSFunction>::cast(function));
-}
 
 }  // namespace internal
 }  // namespace v8

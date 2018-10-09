@@ -7,6 +7,8 @@
 
 #include "src/objects/js-collection.h"
 
+#include "src/objects-inl.h"  // Needed for write barriers
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -18,12 +20,6 @@ ACCESSORS(JSCollectionIterator, table, Object, kTableOffset)
 ACCESSORS(JSCollectionIterator, index, Object, kIndexOffset)
 
 ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
-ACCESSORS(JSWeakCollection, next, Object, kNextOffset)
-
-TYPE_CHECKER(JSMap, JS_MAP_TYPE)
-TYPE_CHECKER(JSSet, JS_SET_TYPE)
-TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
-TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
 
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
@@ -37,7 +33,7 @@ Object* JSMapIterator::CurrentValue() {
   OrderedHashMap* table(OrderedHashMap::cast(this->table()));
   int index = Smi::ToInt(this->index());
   Object* value = table->ValueAt(index);
-  DCHECK(!value->IsTheHole(table->GetIsolate()));
+  DCHECK(!value->IsTheHole());
   return value;
 }
 

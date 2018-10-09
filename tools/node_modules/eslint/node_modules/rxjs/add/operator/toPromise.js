@@ -1,3 +1,4 @@
-// HACK: does nothing, because `toPromise` now lives on the `Observable` itself.
-// leaving this module here to prevent breakage.
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/operator/toPromise");
 //# sourceMappingURL=toPromise.js.map

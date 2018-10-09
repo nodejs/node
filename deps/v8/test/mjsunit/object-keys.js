@@ -32,3 +32,61 @@
   k.shift();
   assertEquals(0, k.length);
 })();
+
+// Ensure we invoke all steps on proxies.
+(function ObjectKeysProxy() {
+  let log = [];
+  let result = Object.keys(new Proxy({}, {
+    ownKeys(target) {
+      log.push('ownKeys');
+      return ['a', 'b', 'c'];
+    },
+    getOwnPropertyDescriptor(target, key) {
+      log.push('getOwnPropertyDescriptor-' + key);
+      if (key === 'b') return {enumerable: false, configurable: true};
+      return {enumerable: true, configurable: true};
+    }
+  }));
+  assertEquals(['a', 'c'], result);
+  assertEquals(
+      [
+        'ownKeys', 'getOwnPropertyDescriptor-a', 'getOwnPropertyDescriptor-b',
+        'getOwnPropertyDescriptor-c'
+      ],
+      log);
+
+  // Test normal target.
+  log = [];
+  let target = {a: 1, b: 1, c: 1};
+  let handler = {
+    getOwnPropertyDescriptor(target, key) {
+      log.push('getOwnPropertyDescriptor-' + key);
+      if (key === 'b') return {enumerable: false, configurable: true};
+      return {enumerable: true, configurable: true};
+    }
+  };
+  result = Object.keys(new Proxy(target, handler));
+  assertEquals(['a', 'c'], result);
+  assertEquals(
+      [
+        'getOwnPropertyDescriptor-a', 'getOwnPropertyDescriptor-b',
+        'getOwnPropertyDescriptor-c'
+      ],
+      log);
+
+  // Test trap invocation with non-enumerable target properties.
+  log = [];
+  target = Object.create(Object.prototype, {
+    a: {enumerable: true, configurable: true},
+    b: {enumerable: false, configurable: true},
+    c: {enumerable: true, configurable: true}
+  });
+  result = Object.keys(new Proxy(target, handler));
+  assertEquals(['a', 'c'], result);
+  assertEquals(
+      [
+        'getOwnPropertyDescriptor-a', 'getOwnPropertyDescriptor-b',
+        'getOwnPropertyDescriptor-c'
+      ],
+      log);
+})();

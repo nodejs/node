@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
@@ -94,8 +94,7 @@ void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
   {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Object> tmp = v8::Local<v8::Object>::New(isolate, fp.handle);
-    CHECK(
-        CcTest::i_isolate()->heap()->InNewSpace(*v8::Utils::OpenHandle(*tmp)));
+    CHECK(i::Heap::InNewSpace(*v8::Utils::OpenHandle(*tmp)));
   }
 
   fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
@@ -470,8 +469,7 @@ TEST(GCFromWeakCallbacks) {
         v8::HandleScope scope(isolate);
         v8::Local<v8::Object> tmp =
             v8::Local<v8::Object>::New(isolate, fp.handle);
-        CHECK(CcTest::i_isolate()->heap()->InNewSpace(
-            *v8::Utils::OpenHandle(*tmp)));
+        CHECK(i::Heap::InNewSpace(*v8::Utils::OpenHandle(*tmp)));
       }
       fp.flag = false;
       fp.handle.SetWeak(&fp, gc_forcing_callback[inner_gc],
@@ -481,6 +479,35 @@ TEST(GCFromWeakCallbacks) {
       CHECK(fp.flag);
     }
   }
+}
+
+namespace {
+
+void SecondPassCallback(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->flag = true;
+}
+
+void FirstPassCallback(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->handle.Reset();
+  data.SetSecondPassCallback(SecondPassCallback);
+}
+
+}  // namespace
+
+TEST(SecondPassPhantomCallbacks) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(CcTest::isolate());
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+  FlagAndPersistent fp;
+  ConstructJSApiObject(isolate, context, &fp);
+  fp.flag = false;
+  fp.handle.SetWeak(&fp, FirstPassCallback, v8::WeakCallbackType::kParameter);
+  CHECK(!fp.flag);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  CHECK(fp.flag);
 }
 
 }  // namespace internal

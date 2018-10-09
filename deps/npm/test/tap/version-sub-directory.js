@@ -32,6 +32,7 @@ test('npm version <semver> from a subdirectory', function (t) {
   function version (er, stdout, stderr) {
     t.ifError(er, 'git repo initialized without issue')
     t.notOk(stderr, 'no error output')
+    npm.config.set('sign-git-commit', false)
     npm.config.set('sign-git-tag', false)
     npm.commands.version(['patch'], checkVersion)
   }

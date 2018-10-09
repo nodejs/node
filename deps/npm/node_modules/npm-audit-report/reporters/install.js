@@ -43,17 +43,8 @@ function summary (data, options) {
     log(`${green('0')} vulnerabilities`)
     return output
   } else {
-    let total = 0
-    const sev = []
-
-    const keys = Object.keys(data.metadata.vulnerabilities)
-    for (let key of keys) {
-      const value = data.metadata.vulnerabilities[key]
-      total = total + value
-      if (value > 0) {
-        sev.push([key, value])
-      }
-    }
+    const total = Utils.totalVulnCount(data.metadata.vulnerabilities)
+    const sev = Utils.severities(data.metadata.vulnerabilities)
 
     if (sev.length > 1) {
       const severities = sev.map((value) => {

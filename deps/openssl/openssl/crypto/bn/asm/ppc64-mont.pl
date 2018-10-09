@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1501,16 +1501,14 @@ Lsub:	ldx	$t0,$tp,$i
 
 	li	$i,0
 	subfe	$ovf,$i,$ovf	; handle upmost overflow bit
-	and	$ap,$tp,$ovf
-	andc	$np,$rp,$ovf
-	or	$ap,$ap,$np	; ap=borrow?tp:rp
-	addi	$t7,$ap,8
 	mtctr	$j
 
 .align	4
-Lcopy:				; copy or in-place refresh
-	ldx	$t0,$ap,$i
-	ldx	$t1,$t7,$i
+Lcopy:				; conditional copy
+	ldx	$t0,$tp,$i
+	ldx	$t1,$t4,$i
+	ldx	$t2,$rp,$i
+	ldx	$t3,$t6,$i
 	std	$i,8($nap_d)	; zap nap_d
 	std	$i,16($nap_d)
 	std	$i,24($nap_d)
@@ -1519,6 +1517,12 @@ Lcopy:				; copy or in-place refresh
 	std	$i,48($nap_d)
 	std	$i,56($nap_d)
 	stdu	$i,64($nap_d)
+	and	$t0,$t0,$ovf
+	and	$t1,$t1,$ovf
+	andc	$t2,$t2,$ovf
+	andc	$t3,$t3,$ovf
+	or	$t0,$t0,$t2
+	or	$t1,$t1,$t3
 	stdx	$t0,$rp,$i
 	stdx	$t1,$t6,$i
 	stdx	$i,$tp,$i	; zap tp at once
@@ -1561,20 +1565,21 @@ Lsub:	lwz	$t0,12($tp)	; load tp[j..j+3] in 64-bit word order
 
 	li	$i,0
 	subfe	$ovf,$i,$ovf	; handle upmost overflow bit
-	addi	$tp,$sp,`$FRAME+$TRANSFER+4`
+	addi	$ap,$sp,`$FRAME+$TRANSFER+4`
 	subf	$rp,$num,$rp	; rewind rp
-	and	$ap,$tp,$ovf
-	andc	$np,$rp,$ovf
-	or	$ap,$ap,$np	; ap=borrow?tp:rp
 	addi	$tp,$sp,`$FRAME+$TRANSFER`
 	mtctr	$j
 
 .align	4
-Lcopy:				; copy or in-place refresh
+Lcopy:				; conditional copy
 	lwz	$t0,4($ap)
 	lwz	$t1,8($ap)
 	lwz	$t2,12($ap)
 	lwzu	$t3,16($ap)
+	lwz	$t4,4($rp)
+	lwz	$t5,8($rp)
+	lwz	$t6,12($rp)
+	lwz	$t7,16($rp)
 	std	$i,8($nap_d)	; zap nap_d
 	std	$i,16($nap_d)
 	std	$i,24($nap_d)
@@ -1583,6 +1588,18 @@ Lcopy:				; copy or in-place refresh
 	std	$i,48($nap_d)
 	std	$i,56($nap_d)
 	stdu	$i,64($nap_d)
+	and	$t0,$t0,$ovf
+	and	$t1,$t1,$ovf
+	and	$t2,$t2,$ovf
+	and	$t3,$t3,$ovf
+	andc	$t4,$t4,$ovf
+	andc	$t5,$t5,$ovf
+	andc	$t6,$t6,$ovf
+	andc	$t7,$t7,$ovf
+	or	$t0,$t0,$t4
+	or	$t1,$t1,$t5
+	or	$t2,$t2,$t6
+	or	$t3,$t3,$t7
 	stw	$t0,4($rp)
 	stw	$t1,8($rp)
 	stw	$t2,12($rp)

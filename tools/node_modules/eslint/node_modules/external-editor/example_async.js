@@ -1,4 +1,4 @@
-var ExternalEditor = require('./main');
+var ExternalEditor = require('./main').ExternalEditor;
 var readline = require('readline');
 
 var rl = readline.createInterface({

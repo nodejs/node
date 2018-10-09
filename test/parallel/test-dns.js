@@ -26,8 +26,6 @@ const assert = require('assert');
 const dns = require('dns');
 const dnsPromises = dns.promises;
 
-common.crashOnUnhandledRejection();
-
 const existing = dns.getServers();
 assert(existing.length > 0);
 
@@ -137,21 +135,38 @@ assert.deepStrictEqual(dns.getServers(), portsExpected);
 dns.setServers([]);
 assert.deepStrictEqual(dns.getServers(), []);
 
-common.expectsError(() => {
-  dns.resolve('example.com', [], common.mustNotCall());
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "rrtype" argument must be of type string. ' +
-           'Received type object'
-});
+{
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "rrtype" argument must be of type string. ' +
+             'Received type object'
+  };
+  common.expectsError(() => {
+    dns.resolve('example.com', [], common.mustNotCall());
+  }, errObj);
+  common.expectsError(() => {
+    dnsPromises.resolve('example.com', []);
+  }, errObj);
+}
+{
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "name" argument must be of type string. ' +
+             'Received type undefined'
+  };
+  common.expectsError(() => {
+    dnsPromises.resolve();
+  }, errObj);
+}
 
 // dns.lookup should accept only falsey and string values
 {
   const errorReg = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "hostname" argument must be one of type string or falsy/
+    message: /^The "hostname" argument must be of type string\. Received type .*/
   }, 10);
 
   assert.throws(() => dns.lookup({}, common.mustNotCall()), errorReg);
@@ -275,7 +290,7 @@ const portErr = (port) => {
   const err = {
     code: 'ERR_SOCKET_BAD_PORT',
     message:
-      `Port should be > 0 and < 65536. Received ${port}.`,
+      `Port should be >= 0 and < 65536. Received ${port}.`,
     type: RangeError
   };
 

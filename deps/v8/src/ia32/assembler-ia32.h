@@ -40,6 +40,7 @@
 #include <deque>
 
 #include "src/assembler.h"
+#include "src/ia32/constants-ia32.h"
 #include "src/ia32/sse-instr.h"
 #include "src/isolate.h"
 #include "src/utils.h"
@@ -140,6 +141,7 @@ typedef XMMRegister Simd128Register;
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr DoubleRegister no_double_reg = DoubleRegister::no_reg();
+constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 // Note that the bit values must match those used in actual instruction encoding
 constexpr int kNumRegs = 8;
@@ -196,31 +198,6 @@ inline Condition NegateCondition(Condition cc) {
 }
 
 
-// Commute a condition such that {a cond b == b cond' a}.
-inline Condition CommuteCondition(Condition cc) {
-  switch (cc) {
-    case below:
-      return above;
-    case above:
-      return below;
-    case above_equal:
-      return below_equal;
-    case below_equal:
-      return above_equal;
-    case less:
-      return greater;
-    case greater:
-      return less;
-    case greater_equal:
-      return less_equal;
-    case less_equal:
-      return greater_equal;
-    default:
-      return cc;
-  }
-}
-
-
 enum RoundingMode {
   kRoundToNearest = 0x0,
   kRoundDown = 0x1,
@@ -233,6 +210,7 @@ enum RoundingMode {
 
 class Immediate BASE_EMBEDDED {
  public:
+  // Calls where x is an Address (uintptr_t) resolve to this overload.
   inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NONE) {
     value_.immediate = x;
     rmode_ = rmode;
@@ -243,9 +221,6 @@ class Immediate BASE_EMBEDDED {
       : Immediate(handle.address(), RelocInfo::EMBEDDED_OBJECT) {}
   inline explicit Immediate(Smi* value)
       : Immediate(reinterpret_cast<intptr_t>(value)) {}
-  inline explicit Immediate(Address addr,
-                            RelocInfo::Mode rmode = RelocInfo::NONE)
-      : Immediate(reinterpret_cast<int32_t>(addr), rmode) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Immediate EmbeddedCode(CodeStub* code);
@@ -269,6 +244,15 @@ class Immediate BASE_EMBEDDED {
   int immediate() const {
     DCHECK(!is_heap_object_request());
     return value_.immediate;
+  }
+
+  bool is_external_reference() const {
+    return rmode() == RelocInfo::EXTERNAL_REFERENCE;
+  }
+
+  ExternalReference external_reference() const {
+    DCHECK(is_external_reference());
+    return bit_cast<ExternalReference>(immediate());
   }
 
   bool is_zero() const { return RelocInfo::IsNone(rmode_) && immediate() == 0; }
@@ -322,25 +306,25 @@ enum ScaleFactor {
   times_twice_pointer_size = times_8
 };
 
-class Operand {
+class V8_EXPORT_PRIVATE Operand {
  public:
   // reg
-  INLINE(explicit Operand(Register reg)) { set_modrm(3, reg); }
+  V8_INLINE explicit Operand(Register reg) { set_modrm(3, reg); }
 
   // XMM reg
-  INLINE(explicit Operand(XMMRegister xmm_reg)) {
+  V8_INLINE explicit Operand(XMMRegister xmm_reg) {
     Register reg = Register::from_code(xmm_reg.code());
     set_modrm(3, reg);
   }
 
   // [disp/r]
-  INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode)) {
+  V8_INLINE explicit Operand(int32_t disp, RelocInfo::Mode rmode) {
     set_modrm(0, ebp);
     set_dispr(disp, rmode);
   }
 
   // [disp/r]
-  INLINE(explicit Operand(Immediate imm)) {
+  V8_INLINE explicit Operand(Immediate imm) {
     set_modrm(0, ebp);
     set_dispr(imm.immediate(), imm.rmode_);
   }
@@ -360,18 +344,6 @@ class Operand {
   static Operand JumpTable(Register index, ScaleFactor scale, Label* table) {
     return Operand(index, scale, reinterpret_cast<int32_t>(table),
                    RelocInfo::INTERNAL_REFERENCE);
-  }
-
-  static Operand StaticVariable(const ExternalReference& ext) {
-    return Operand(reinterpret_cast<int32_t>(ext.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  static Operand StaticArray(Register index,
-                             ScaleFactor scale,
-                             const ExternalReference& arr) {
-    return Operand(index, scale, reinterpret_cast<int32_t>(arr.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
   }
 
   static Operand ForRegisterPlusImmediate(Register base, Immediate imm) {
@@ -415,9 +387,9 @@ class Operand {
 
   byte buf_[6];
   // The number of bytes in buf_.
-  uint8_t len_;
+  uint8_t len_ = 0;
   // Only valid if len_ > 4.
-  RelocInfo::Mode rmode_;
+  RelocInfo::Mode rmode_ = RelocInfo::NONE;
 
   // TODO(clemensh): Get rid of this friendship, or make Operand immutable.
   friend class Assembler;
@@ -475,8 +447,7 @@ class Displacement BASE_EMBEDDED {
   void init(Label* L, Type type);
 };
 
-
-class Assembler : public AssemblerBase {
+class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
   // space to write an instruction and its relocation information.
@@ -504,9 +475,7 @@ class Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
-  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -529,6 +498,10 @@ class Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
       Address instruction_payload, Code* code, Address target);
+
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
@@ -641,6 +614,7 @@ class Assembler : public AssemblerBase {
   void movzx_w(Register dst, Register src) { movzx_w(dst, Operand(src)); }
   void movzx_w(Register dst, Operand src);
 
+  void movq(XMMRegister dst, Operand src);
   // Conditional moves
   void cmov(Condition cc, Register dst, Register src) {
     cmov(cc, dst, Operand(src));
@@ -668,6 +642,7 @@ class Assembler : public AssemblerBase {
   void cmpxchg(Operand dst, Register src);
   void cmpxchg_b(Operand dst, Register src);
   void cmpxchg_w(Operand dst, Register src);
+  void cmpxchg8b(Operand dst);
 
   // Memory Fence
   void lfence();
@@ -816,6 +791,7 @@ class Assembler : public AssemblerBase {
   void xor_(Operand dst, const Immediate& x);
 
   // Bit operations.
+  void bswap(Register dst);
   void bt(Operand dst, Register src);
   void bts(Register dst, Register src) { bts(Operand(dst), src); }
   void bts(Operand dst, Register src);
@@ -850,11 +826,9 @@ class Assembler : public AssemblerBase {
 
   // Calls
   void call(Label* L);
-  void call(byte* entry, RelocInfo::Mode rmode);
-  int CallSize(Operand adr);
+  void call(Address entry, RelocInfo::Mode rmode);
   void call(Register reg) { call(Operand(reg)); }
   void call(Operand adr);
-  int CallSize(Handle<Code> code, RelocInfo::Mode mode);
   void call(Handle<Code> code, RelocInfo::Mode rmode);
   void call(CodeStub* stub);
   void wasm_call(Address address, RelocInfo::Mode rmode);
@@ -862,10 +836,13 @@ class Assembler : public AssemblerBase {
   // Jumps
   // unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(byte* entry, RelocInfo::Mode rmode);
+  void jmp(Address entry, RelocInfo::Mode rmode);
   void jmp(Register reg) { jmp(Operand(reg)); }
   void jmp(Operand adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
+  // unconditionoal jump relative to the current address. Low-level rountine,
+  // use with caution!
+  void jmp_rel(int offset);
 
   // Conditional jumps
   void j(Condition cc,
@@ -1111,8 +1088,6 @@ class Assembler : public AssemblerBase {
   void movss(XMMRegister dst, XMMRegister src) { movss(dst, Operand(src)); }
   void extractps(Register dst, XMMRegister src, byte imm8);
 
-  void ptest(XMMRegister dst, XMMRegister src);
-
   void psllw(XMMRegister reg, int8_t shift);
   void pslld(XMMRegister reg, int8_t shift);
   void psrlw(XMMRegister reg, int8_t shift);
@@ -1124,6 +1099,10 @@ class Assembler : public AssemblerBase {
   void psrlq(XMMRegister reg, int8_t shift);
   void psrlq(XMMRegister dst, XMMRegister src);
 
+  void pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    pshufhw(dst, Operand(src), shuffle);
+  }
+  void pshufhw(XMMRegister dst, Operand src, uint8_t shuffle);
   void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     pshuflw(dst, Operand(src), shuffle);
   }
@@ -1137,6 +1116,11 @@ class Assembler : public AssemblerBase {
     pblendw(dst, Operand(src), mask);
   }
   void pblendw(XMMRegister dst, Operand src, uint8_t mask);
+
+  void palignr(XMMRegister dst, XMMRegister src, uint8_t mask) {
+    palignr(dst, Operand(src), mask);
+  }
+  void palignr(XMMRegister dst, Operand src, uint8_t mask);
 
   void pextrb(Register dst, XMMRegister src, int8_t offset) {
     pextrb(Operand(dst), src, offset);
@@ -1437,6 +1421,10 @@ class Assembler : public AssemblerBase {
   void vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8);
 
+  void vpshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    vpshufhw(dst, Operand(src), shuffle);
+  }
+  void vpshufhw(XMMRegister dst, Operand src, uint8_t shuffle);
   void vpshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     vpshuflw(dst, Operand(src), shuffle);
   }
@@ -1451,6 +1439,12 @@ class Assembler : public AssemblerBase {
     vpblendw(dst, src1, Operand(src2), mask);
   }
   void vpblendw(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t mask);
+
+  void vpalignr(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                uint8_t mask) {
+    vpalignr(dst, src1, Operand(src2), mask);
+  }
+  void vpalignr(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t mask);
 
   void vpextrb(Register dst, XMMRegister src, int8_t offset) {
     vpextrb(Operand(dst), src, offset);
@@ -1679,6 +1673,7 @@ class Assembler : public AssemblerBase {
   }
 
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
+  SSE4_RM_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
 #undef DECLARE_SSE4_INSTRUCTION
 
 #define DECLARE_SSE34_AVX_INSTRUCTION(instruction, prefix, escape1, escape2,  \
@@ -1693,6 +1688,18 @@ class Assembler : public AssemblerBase {
   SSSE3_INSTRUCTION_LIST(DECLARE_SSE34_AVX_INSTRUCTION)
   SSE4_INSTRUCTION_LIST(DECLARE_SSE34_AVX_INSTRUCTION)
 #undef DECLARE_SSE34_AVX_INSTRUCTION
+
+#define DECLARE_SSE4_AVX_RM_INSTRUCTION(instruction, prefix, escape1, escape2, \
+                                        opcode)                                \
+  void v##instruction(XMMRegister dst, XMMRegister src) {                      \
+    v##instruction(dst, Operand(src));                                         \
+  }                                                                            \
+  void v##instruction(XMMRegister dst, Operand src) {                          \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0);   \
+  }
+
+  SSE4_RM_INSTRUCTION_LIST(DECLARE_SSE4_AVX_RM_INSTRUCTION)
+#undef DECLARE_SSE4_AVX_RM_INSTRUCTION
 
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
@@ -1790,7 +1797,9 @@ class Assembler : public AssemblerBase {
   // sel specifies the /n in the modrm byte (see the Intel PRM).
   void emit_arith(int sel, Operand dst, const Immediate& x);
 
+  void emit_operand(int code, Operand adr);
   void emit_operand(Register reg, Operand adr);
+  void emit_operand(XMMRegister reg, Operand adr);
 
   void emit_label(Label* label);
 
@@ -1836,6 +1845,8 @@ class Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
   friend class EnsureSpace;
 
   // Internal reference positions, required for (potential) patching in
@@ -1845,19 +1856,6 @@ class Assembler : public AssemblerBase {
 
   // code generation
   RelocInfoWriter reloc_info_writer;
-
-  // The following functions help with avoiding allocations of embedded heap
-  // objects during the code assembly phase. {RequestHeapObject} records the
-  // need for a future heap number allocation or code stub generation. After
-  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request). That is, for each request, it will patch the
-  // dummy heap object handle that we emitted during code assembly with the
-  // actual heap object handle.
-  void RequestHeapObject(HeapObjectRequest request);
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
 
   // Variables for this instance of assembler
   int farjmp_num_ = 0;

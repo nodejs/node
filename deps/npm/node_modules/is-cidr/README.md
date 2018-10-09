@@ -35,11 +35,11 @@ Check if `input` is a IPv4 or IPv6 CIDR address.
 
 ### isCidr.v4(input)
 
-Check if `input` is IPv4 CIDR address.
+Check if `input` is a IPv4 CIDR address.
 
 ### isCidr.v6(input)
 
-Check if `input` is IPv6 CIDR address.
+Check if `input` is a IPv6 CIDR address.
 
 
 ## Related

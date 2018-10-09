@@ -61,7 +61,7 @@ So a very simple version of this function could be coded as
 
 	push(@INC,"perlasm","../../perlasm");
 	require "x86asm.pl";
-
+	
 	&asm_init($ARGV[0],"cacl.pl");
 
 	&external_label("other");
@@ -121,3 +121,4 @@ void BF_cbc_encrypt(unsigned char *in, unsigned char *out, long length,
 
 &cbc("des_ncbc_encrypt","des_encrypt","des_encrypt",0,4,5,3,5,-1);
 &cbc("des_ede3_cbc_encrypt","des_encrypt3","des_decrypt3",0,6,7,3,4,5);
+

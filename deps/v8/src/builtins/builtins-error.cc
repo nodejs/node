@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
-#include "src/builtins/builtins-utils.h"
-
 #include "src/accessors.h"
+#include "src/builtins/builtins-utils-inl.h"
+#include "src/builtins/builtins.h"
 #include "src/counters.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/property-descriptor.h"
-#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
@@ -74,7 +73,7 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::SetAccessor(object, name, error_stack, DONT_ENUM));
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // ES6 section 19.5.3.4 Error.prototype.toString ( )

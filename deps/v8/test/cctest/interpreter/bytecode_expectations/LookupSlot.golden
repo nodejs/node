@@ -12,9 +12,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 62
+bytecode array length: 63
 bytecodes: [
-                B(CreateFunctionContext), U8(3),
+                B(CreateFunctionContext), U8(0), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(4),
@@ -23,9 +23,9 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(5),
   /*   10 E> */ B(StackCheck),
-  /*   14 S> */ B(LdaLookupGlobalSlot), U8(0), U8(0), U8(1),
+  /*   14 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
                 B(Star), R(2),
-                B(LdaConstant), U8(1),
+                B(LdaConstant), U8(2),
                 B(Star), R(3),
                 B(LdaZero),
                 B(Star), R(7),
@@ -39,10 +39,11 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(2),
   /*   14 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(2),
-  /*   35 S> */ B(LdaLookupGlobalSlot), U8(2), U8(4), U8(1),
+  /*   35 S> */ B(LdaLookupGlobalSlot), U8(3), U8(4), U8(1),
   /*   44 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["var x = 10;"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
@@ -56,9 +57,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 64
 bytecodes: [
-                B(CreateFunctionContext), U8(3),
+                B(CreateFunctionContext), U8(0), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(4),
@@ -67,9 +68,9 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(5),
   /*   10 E> */ B(StackCheck),
-  /*   14 S> */ B(LdaLookupGlobalSlot), U8(0), U8(0), U8(1),
+  /*   14 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
                 B(Star), R(2),
-                B(LdaConstant), U8(1),
+                B(LdaConstant), U8(2),
                 B(Star), R(3),
                 B(LdaZero),
                 B(Star), R(7),
@@ -83,11 +84,12 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(2),
   /*   14 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(2),
-  /*   35 S> */ B(LdaLookupGlobalSlotInsideTypeof), U8(2), U8(4), U8(1),
+  /*   35 S> */ B(LdaLookupGlobalSlotInsideTypeof), U8(3), U8(4), U8(1),
                 B(TypeOf),
   /*   51 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["var x = 10;"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
@@ -101,9 +103,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 64
 bytecodes: [
-                B(CreateFunctionContext), U8(3),
+                B(CreateFunctionContext), U8(0), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(4),
@@ -113,10 +115,10 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(5),
   /*   10 E> */ B(StackCheck),
   /*   14 S> */ B(LdaSmi), I8(20),
-  /*   16 E> */ B(StaLookupSlot), U8(0), U8(0),
-  /*   22 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
+  /*   16 E> */ B(StaLookupSlot), U8(1), U8(0),
+  /*   22 S> */ B(LdaLookupGlobalSlot), U8(2), U8(0), U8(1),
                 B(Star), R(2),
-                B(LdaConstant), U8(2),
+                B(LdaConstant), U8(3),
                 B(Star), R(3),
                 B(LdaZero),
                 B(Star), R(7),
@@ -133,6 +135,7 @@ bytecodes: [
   /*   38 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
@@ -151,9 +154,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 62
+bytecode array length: 63
 bytecodes: [
-                B(CreateFunctionContext), U8(3),
+                B(CreateFunctionContext), U8(0), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(4),
@@ -162,9 +165,9 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(5),
   /*   38 E> */ B(StackCheck),
-  /*   44 S> */ B(LdaLookupGlobalSlot), U8(0), U8(0), U8(1),
+  /*   44 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
                 B(Star), R(2),
-                B(LdaConstant), U8(1),
+                B(LdaConstant), U8(2),
                 B(Star), R(3),
                 B(LdaZero),
                 B(Star), R(7),
@@ -178,10 +181,11 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(2),
   /*   44 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(2),
-  /*   66 S> */ B(LdaLookupContextSlot), U8(2), U8(6), U8(1),
+  /*   66 S> */ B(LdaLookupContextSlot), U8(3), U8(6), U8(1),
   /*   75 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["var x = 10"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
@@ -200,9 +204,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 62
+bytecode array length: 63
 bytecodes: [
-                B(CreateFunctionContext), U8(3),
+                B(CreateFunctionContext), U8(0), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(4),
@@ -211,9 +215,9 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(5),
   /*   34 E> */ B(StackCheck),
-  /*   40 S> */ B(LdaLookupGlobalSlot), U8(0), U8(0), U8(1),
+  /*   40 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
                 B(Star), R(2),
-                B(LdaConstant), U8(1),
+                B(LdaConstant), U8(2),
                 B(Star), R(3),
                 B(LdaZero),
                 B(Star), R(7),
@@ -227,10 +231,11 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(2),
   /*   40 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(2),
-  /*   62 S> */ B(LdaLookupGlobalSlot), U8(2), U8(4), U8(1),
+  /*   62 S> */ B(LdaLookupGlobalSlot), U8(3), U8(4), U8(1),
   /*   71 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["var x = 10"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],

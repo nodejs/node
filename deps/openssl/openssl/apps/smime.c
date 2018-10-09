@@ -89,7 +89,7 @@ OPTIONS smime_options[] = {
     {"no-CApath", OPT_NOCAPATH, '-',
      "Do not load certificates from the default certificates directory"},
     {"resign", OPT_RESIGN, '-', "Resign a signed message"},
-    {"nochain", OPT_NOCHAIN, '-',
+    {"nochain", OPT_NOCHAIN, '-', 
      "set PKCS7_NOCHAIN so certificates contained in the message are not used as untrusted CAs" },
     {"nosmimecap", OPT_NOSMIMECAP, '-', "Omit the SMIMECapabilities attribute"},
     {"stream", OPT_STREAM, '-', "Enable CMS streaming" },

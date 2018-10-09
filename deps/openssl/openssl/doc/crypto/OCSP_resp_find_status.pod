@@ -7,7 +7,8 @@ OCSP_resp_get0_signer,
 OCSP_resp_get0_id,
 OCSP_resp_get0_produced_at,
 OCSP_resp_find_status, OCSP_resp_count, OCSP_resp_get0, OCSP_resp_find,
-OCSP_single_get0_status, OCSP_check_validity
+OCSP_single_get0_status, OCSP_check_validity,
+OCSP_basic_verify
 - OCSP response utility functions
 
 =head1 SYNOPSIS
@@ -43,6 +44,9 @@ OCSP_single_get0_status, OCSP_check_validity
  int OCSP_check_validity(ASN1_GENERALIZEDTIME *thisupd,
                          ASN1_GENERALIZEDTIME *nextupd,
                          long sec, long maxsec);
+
+ int OCSP_basic_verify(OCSP_BASICRESP *bs, STACK_OF(X509) *certs,
+                      X509_STORE *st, unsigned long flags);
 
 =head1 DESCRIPTION
 
@@ -93,6 +97,27 @@ OCSP_single_get0_status(). If B<sec> is non-zero it indicates how many seconds
 leeway should be allowed in the check. If B<maxsec> is positive it indicates
 the maximum age of B<thisupd> in seconds.
 
+OCSP_basic_verify() checks that the basic response message B<bs> is correctly
+signed and that the signer certificate can be validated. It takes B<st> as
+the trusted store and B<certs> as a set of untrusted intermediate certificates.
+The function first tries to find the signer certificate of the response
+in <certs>. It also searches the certificates the responder may have included
+in B<bs> unless the B<flags> contain B<OCSP_NOINTERN>.
+It fails if the signer certificate cannot be found.
+Next, the function checks the signature of B<bs> and fails on error
+unless the B<flags> contain B<OCSP_NOSIGS>. Then the function already returns
+success if the B<flags> contain B<OCSP_NOVERIFY> or if the signer certificate
+was found in B<certs> and the B<flags> contain B<OCSP_TRUSTOTHER>.
+Otherwise the function continues by validating the signer certificate.
+To this end, all certificates in B<cert> and in B<bs> are considered as
+untrusted certificates for the construction of the validation path for the
+signer certificate unless the B<OCSP_NOCHAIN> flag is set. After successful path
+validation the function returns success if the B<OCSP_NOCHECKS> flag is set.
+Otherwise it verifies that the signer certificate meets the OCSP issuer
+criteria including potential delegation. If this does not succeed and the
+B<flags> do not contain B<OCSP_NOEXPLICIT> the function checks for explicit
+trust for OCSP signing in the root CA certificate.
+
 =head1 RETURN VALUES
 
 OCSP_resp_find_status() returns 1 if B<id> is found in B<bs> and 0 otherwise.
@@ -111,6 +136,9 @@ occurred.
 
 OCSP_resp_get0_signer() returns 1 if the signing certificate was located,
 or 0 on error.
+
+OCSP_basic_verify() returns 1 on success, 0 on error, or -1 on fatal error such
+as malloc failure.
 
 =head1 NOTES
 
@@ -142,7 +170,7 @@ L<OCSP_sendreq_new(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

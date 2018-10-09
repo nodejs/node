@@ -4,8 +4,6 @@ const { addresses } = require('../common/internet');
 if (!common.hasIPv6)
   common.skip('this test, no IPv6 support');
 
-common.crashOnUnhandledRejection();
-
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');

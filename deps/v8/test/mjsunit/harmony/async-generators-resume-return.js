@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
+load('test/mjsunit/test-async.js');
+
 // .return() from state suspendedStart with undefined
 testAsync(test => {
   test.plan(3);

@@ -7,6 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -46,7 +47,7 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
 
   // Reserves space for captures.
   static Handle<RegExpMatchInfo> ReserveCaptures(
-      Handle<RegExpMatchInfo> match_info, int capture_count);
+      Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count);
 
   DECL_CAST(RegExpMatchInfo)
 

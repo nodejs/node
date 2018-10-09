@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 #include "include/libplatform/libplatform.h"
-#include "src/assembler.h"
+#include "src/assembler-arch.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
 #include "src/msan.h"
@@ -22,7 +22,6 @@ class SnapshotWriter {
   SnapshotWriter()
       : snapshot_cpp_path_(nullptr), snapshot_blob_path_(nullptr) {}
 
-#ifdef V8_EMBEDDED_BUILTINS
   void SetEmbeddedFile(const char* embedded_cpp_file) {
     embedded_cpp_path_ = embedded_cpp_file;
   }
@@ -30,7 +29,6 @@ class SnapshotWriter {
   void SetEmbeddedVariant(const char* embedded_variant) {
     embedded_variant_ = embedded_variant;
   }
-#endif
 
   void SetSnapshotFile(const char* snapshot_cpp_file) {
     snapshot_cpp_path_ = snapshot_cpp_file;
@@ -51,11 +49,9 @@ class SnapshotWriter {
     MaybeWriteStartupBlob(blob_vector);
   }
 
-#ifdef V8_EMBEDDED_BUILTINS
   void WriteEmbedded(const i::EmbeddedData* blob) const {
     MaybeWriteEmbeddedFile(blob);
   }
-#endif
 
  private:
   void MaybeWriteStartupBlob(const i::Vector<const i::byte>& blob) const {
@@ -120,7 +116,6 @@ class SnapshotWriter {
     fprintf(fp, "\n");
   }
 
-#ifdef V8_EMBEDDED_BUILTINS
   void MaybeWriteEmbeddedFile(const i::EmbeddedData* blob) const {
     if (embedded_cpp_path_ == nullptr) return;
 
@@ -158,6 +153,9 @@ class SnapshotWriter {
 
   static void WriteEmbeddedFileData(FILE* fp, const i::EmbeddedData* blob,
                                     const char* embedded_variant) {
+    fprintf(fp, "V8_EMBEDDED_TEXT_HEADER(v8_%s_embedded_blob_)\n",
+            embedded_variant);
+#ifdef V8_OS_MACOSX
     // Note: On some platforms (observed on mac64), inserting labels into the
     // .byte stream causes the compiler to reorder symbols, invalidating stored
     // offsets.
@@ -166,14 +164,45 @@ class SnapshotWriter {
     // there since the chrome build process on mac verifies the order of symbols
     // present in the binary.
     // For now, the straight-forward solution seems to be to just emit a pure
-    // .byte stream.
-    fprintf(fp, "V8_EMBEDDED_TEXT_HEADER(v8_%s_embedded_blob_)\n",
-            embedded_variant);
+    // .byte stream on OSX.
     WriteBinaryContentsAsByteDirective(fp, blob->data(), blob->size());
+#else
+    WriteBinaryContentsAsByteDirective(fp, blob->data(),
+                                       i::EmbeddedData::RawDataOffset());
+    WriteBuiltins(fp, blob, embedded_variant);
+#endif
     fprintf(fp, "extern \"C\" const uint8_t v8_%s_embedded_blob_[];\n",
             embedded_variant);
     fprintf(fp, "static const uint32_t v8_embedded_blob_size_ = %d;\n\n",
             blob->size());
+  }
+
+  static void WriteBuiltins(FILE* fp, const i::EmbeddedData* blob,
+                            const char* embedded_variant) {
+    const bool is_default_variant =
+        std::strcmp(embedded_variant, "Default") == 0;
+    for (int i = 0; i < i::Builtins::builtin_count; i++) {
+      if (!blob->ContainsBuiltin(i)) continue;
+
+      // Labels created here will show up in backtraces. We check in
+      // Isolate::SetEmbeddedBlob that the blob layout remains unchanged, i.e.
+      // that labels do not insert bytes into the middle of the blob byte
+      // stream.
+      if (is_default_variant) {
+        // Create nicer symbol names for the default mode.
+        fprintf(fp, "__asm__(V8_ASM_LABEL(\"Builtins_%s\"));\n",
+                i::Builtins::name(i));
+      } else {
+        fprintf(fp, "__asm__(V8_ASM_LABEL(\"%s_Builtins_%s\"));\n",
+                embedded_variant, i::Builtins::name(i));
+      }
+
+      WriteBinaryContentsAsByteDirective(
+          fp,
+          reinterpret_cast<const uint8_t*>(blob->InstructionStartOfBuiltin(i)),
+          blob->PaddedInstructionSizeOfBuiltin(i));
+    }
+    fprintf(fp, "\n");
   }
 
   static void WriteBinaryContentsAsByteDirective(FILE* fp, const uint8_t* data,
@@ -207,7 +236,6 @@ class SnapshotWriter {
     if (current_line_length != 0) fprintf(fp, "\\n\"\n");
     fprintf(fp, ");\n");
   }
-#endif
 
   static FILE* GetFileDescriptorOrDie(const char* filename) {
     FILE* fp = v8::base::OS::FOpen(filename, "wb");
@@ -218,10 +246,8 @@ class SnapshotWriter {
     return fp;
   }
 
-#ifdef V8_EMBEDDED_BUILTINS
   const char* embedded_cpp_path_ = nullptr;
   const char* embedded_variant_ = "Default";
-#endif
   const char* snapshot_cpp_path_;
   const char* snapshot_blob_path_;
 };
@@ -349,14 +375,12 @@ v8::StartupData WarmUpSnapshotDataBlob(v8::SnapshotCreator* snapshot_creator,
   return result;
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 void WriteEmbeddedFile(v8::SnapshotCreator* creator, SnapshotWriter* writer) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(creator->GetIsolate());
   isolate->PrepareEmbeddedBlobForSerialization();
   i::EmbeddedData embedded_blob = i::EmbeddedData::FromBlob();
   writer->WriteEmbedded(&embedded_blob);
 }
-#endif  // V8_EMBEDDED_BUILTINS
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -385,11 +409,11 @@ int main(int argc, char** argv) {
     SnapshotWriter writer;
     if (i::FLAG_startup_src) writer.SetSnapshotFile(i::FLAG_startup_src);
     if (i::FLAG_startup_blob) writer.SetStartupBlobFile(i::FLAG_startup_blob);
-#ifdef V8_EMBEDDED_BUILTINS
-    if (i::FLAG_embedded_src) writer.SetEmbeddedFile(i::FLAG_embedded_src);
-    if (i::FLAG_embedded_variant)
-      writer.SetEmbeddedVariant(i::FLAG_embedded_variant);
-#endif
+    if (i::FLAG_embedded_builtins) {
+      if (i::FLAG_embedded_src) writer.SetEmbeddedFile(i::FLAG_embedded_src);
+      if (i::FLAG_embedded_variant)
+        writer.SetEmbeddedVariant(i::FLAG_embedded_variant);
+    }
 
     std::unique_ptr<char> embed_script(
         GetExtraCode(argc >= 2 ? argv[1] : nullptr, "embedding"));
@@ -398,14 +422,26 @@ int main(int argc, char** argv) {
 
     v8::StartupData blob;
     {
-      v8::SnapshotCreator snapshot_creator;
-#ifdef V8_EMBEDDED_BUILTINS
-      // This process is a bit tricky since we might go on to make a second
-      // snapshot if a warmup script is passed. In that case, create the first
-      // snapshot without off-heap trampolines and only move code off-heap for
-      // the warmed-up snapshot.
-      if (!warmup_script) WriteEmbeddedFile(&snapshot_creator, &writer);
-#endif
+      v8::Isolate* isolate = v8::Isolate::Allocate();
+      if (i::FLAG_embedded_builtins) {
+        // Set code range such that relative jumps for builtins to
+        // builtin calls in the snapshot are possible.
+        i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+        size_t code_range_size =
+            i::kMaximalCodeRangeSize == 0
+                ? i::kMaxPCRelativeCodeRangeInMB
+                : std::min(i::kMaximalCodeRangeSize / i::MB,
+                           i::kMaxPCRelativeCodeRangeInMB);
+        i_isolate->heap()->ConfigureHeap(0, 0, code_range_size);
+      }
+      v8::SnapshotCreator snapshot_creator(isolate);
+      if (i::FLAG_embedded_builtins) {
+        // This process is a bit tricky since we might go on to make a second
+        // snapshot if a warmup script is passed. In that case, create the first
+        // snapshot without off-heap trampolines and only move code off-heap for
+        // the warmed-up snapshot.
+        if (!warmup_script) WriteEmbeddedFile(&snapshot_creator, &writer);
+      }
       blob = CreateSnapshotDataBlob(&snapshot_creator, embed_script.get());
     }
 
@@ -413,9 +449,9 @@ int main(int argc, char** argv) {
       CHECK(blob.raw_size > 0 && blob.data != nullptr);
       v8::StartupData cold = blob;
       v8::SnapshotCreator snapshot_creator(nullptr, &cold);
-#ifdef V8_EMBEDDED_BUILTINS
-      WriteEmbeddedFile(&snapshot_creator, &writer);
-#endif
+      if (i::FLAG_embedded_builtins) {
+        WriteEmbeddedFile(&snapshot_creator, &writer);
+      }
       blob = WarmUpSnapshotDataBlob(&snapshot_creator, warmup_script.get());
       delete[] cold.data;
     }

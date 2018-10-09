@@ -20,7 +20,10 @@ module.exports = {
 
         schema: [],
 
-        fixable: "code"
+        fixable: "code",
+        messages: {
+            requireParens: "Wrap the regexp literal in parens to disambiguate the slash."
+        }
     },
 
     create(context) {
@@ -33,15 +36,16 @@ module.exports = {
                     nodeType = token.type;
 
                 if (nodeType === "RegularExpression") {
-                    const source = sourceCode.getTokenBefore(node);
+                    const beforeToken = sourceCode.getTokenBefore(node);
+                    const afterToken = sourceCode.getTokenAfter(node);
                     const ancestors = context.getAncestors();
                     const grandparent = ancestors[ancestors.length - 1];
 
                     if (grandparent.type === "MemberExpression" && grandparent.object === node &&
-                        (!source || source.value !== "(")) {
+                        !(beforeToken && beforeToken.value === "(" && afterToken && afterToken.value === ")")) {
                         context.report({
                             node,
-                            message: "Wrap the regexp literal in parens to disambiguate the slash.",
+                            messageId: "requireParens",
                             fix: fixer => fixer.replaceText(node, `(${sourceCode.getText(node)})`)
                         });
                     }

@@ -142,7 +142,7 @@ listener_delegate = function(exec_state) {
       {exported_var: undefined, imported_var: undefined},
       0, exec_state);
   CheckScopeDoesNotHave(
-      ["local_var", "doesntexist", "local_let", "exported_let", "imported_let"],
+      ["doesntexist", "exported_let", "imported_let"],
       0, exec_state);
 };
 debugger;
@@ -163,7 +163,7 @@ listener_delegate = function(exec_state) {
   CheckScopeContent(
       {exported_let: 3, exported_var: 4,
        imported_let: 3, imported_var: 4}, 0, exec_state);
-  CheckScopeDoesNotHave(["local_var", "local_let"], 0, exec_state);
+  CheckScopeDoesNotHave([], 0, exec_state);
 };
 debugger;
 EndTest();
@@ -181,7 +181,7 @@ listener_delegate = function(exec_state) {
   CheckScopeContent(
       {exported_let: 13, exported_var: 14,
        imported_let: 13, imported_var: 14}, 0, exec_state);
-  CheckScopeDoesNotHave(["local_var", "local_let"], 0, exec_state);
+  CheckScopeDoesNotHave([], 0, exec_state);
 };
 debugger;
 EndTest();

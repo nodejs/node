@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,9 +10,8 @@
 #include <string.h>
 #include <openssl/err.h>
 #include <openssl/obj_mac.h>
-#include <openssl/bn.h>
 #include <openssl/rand.h>
-#include <openssl/ec.h>
+#include "internal/bn_int.h"
 #include "ec_lcl.h"
 
 int ossl_ecdsa_sign(int type, const unsigned char *dgst, int dlen,
@@ -53,13 +52,12 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in,
         return 0;
     }
 
-    if (ctx_in == NULL) {
+    if ((ctx = ctx_in) == NULL) {
         if ((ctx = BN_CTX_new()) == NULL) {
             ECerr(EC_F_ECDSA_SIGN_SETUP, ERR_R_MALLOC_FAILURE);
             return 0;
         }
-    } else
-        ctx = ctx_in;
+    }
 
     k = BN_new();               /* this value is later returned in *kinvp */
     r = BN_new();               /* this value is later returned in *rp */
@@ -73,10 +71,6 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in,
         goto err;
     }
     order = EC_GROUP_get0_order(group);
-    if (order == NULL) {
-        ECerr(EC_F_ECDSA_SIGN_SETUP, ERR_R_EC_LIB);
-        goto err;
-    }
 
     /* Preallocate space */
     order_bits = BN_num_bits(order);
@@ -87,23 +81,23 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in,
 
     do {
         /* get random k */
-        do
+        do {
             if (dgst != NULL) {
-                if (!BN_generate_dsa_nonce
-                    (k, order, EC_KEY_get0_private_key(eckey), dgst, dlen,
-                     ctx)) {
+                if (!BN_generate_dsa_nonce(k, order,
+                                           EC_KEY_get0_private_key(eckey),
+                                           dgst, dlen, ctx)) {
                     ECerr(EC_F_ECDSA_SIGN_SETUP,
-                             EC_R_RANDOM_NUMBER_GENERATION_FAILED);
+                          EC_R_RANDOM_NUMBER_GENERATION_FAILED);
                     goto err;
                 }
             } else {
                 if (!BN_rand_range(k, order)) {
                     ECerr(EC_F_ECDSA_SIGN_SETUP,
-                             EC_R_RANDOM_NUMBER_GENERATION_FAILED);
+                          EC_R_RANDOM_NUMBER_GENERATION_FAILED);
                     goto err;
                 }
             }
-        while (BN_is_zero(k));
+        } while (BN_is_zero(k));
 
         /*
          * We do not want timing information to leak the length of k, so we
@@ -129,18 +123,16 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in,
         }
         if (EC_METHOD_get_field_type(EC_GROUP_method_of(group)) ==
             NID_X9_62_prime_field) {
-            if (!EC_POINT_get_affine_coordinates_GFp
-                (group, tmp_point, X, NULL, ctx)) {
+            if (!EC_POINT_get_affine_coordinates_GFp(group, tmp_point, X,
+                                                     NULL, ctx)) {
                 ECerr(EC_F_ECDSA_SIGN_SETUP, ERR_R_EC_LIB);
                 goto err;
             }
         }
 #ifndef OPENSSL_NO_EC2M
         else {                  /* NID_X9_62_characteristic_two_field */
-
-            if (!EC_POINT_get_affine_coordinates_GF2m(group,
-                                                      tmp_point, X, NULL,
-                                                      ctx)) {
+            if (!EC_POINT_get_affine_coordinates_GF2m(group, tmp_point, X,
+                                                      NULL, ctx)) {
                 ECerr(EC_F_ECDSA_SIGN_SETUP, ERR_R_EC_LIB);
                 goto err;
             }
@@ -150,8 +142,7 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in,
             ECerr(EC_F_ECDSA_SIGN_SETUP, ERR_R_BN_LIB);
             goto err;
         }
-    }
-    while (BN_is_zero(r));
+    } while (BN_is_zero(r));
 
     /* compute the inverse of k */
     if (EC_GROUP_get_mont_data(group) != NULL) {
@@ -210,8 +201,7 @@ ECDSA_SIG *ossl_ecdsa_sign_sig(const unsigned char *dgst, int dgst_len,
                                EC_KEY *eckey)
 {
     int ok = 0, i;
-    BIGNUM *kinv = NULL, *s, *m = NULL, *tmp = NULL, *blind = NULL;
-    BIGNUM *blindm = NULL;
+    BIGNUM *kinv = NULL, *s, *m = NULL;
     const BIGNUM *order, *ckinv;
     BN_CTX *ctx = NULL;
     const EC_GROUP *group;
@@ -244,27 +234,13 @@ ECDSA_SIG *ossl_ecdsa_sign_sig(const unsigned char *dgst, int dgst_len,
     }
     s = ret->s;
 
-    ctx = BN_CTX_secure_new();
-    if (ctx == NULL) {
-        ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_MALLOC_FAILURE);
-        goto err;
-    }
-
-    BN_CTX_start(ctx);
-    tmp = BN_CTX_get(ctx);
-    m = BN_CTX_get(ctx);
-    blind = BN_CTX_get(ctx);
-    blindm = BN_CTX_get(ctx);
-    if (blindm == NULL) {
+    if ((ctx = BN_CTX_new()) == NULL
+        || (m = BN_new()) == NULL) {
         ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_MALLOC_FAILURE);
         goto err;
     }
 
     order = EC_GROUP_get0_order(group);
-    if (order == NULL) {
-        ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_EC_LIB);
-        goto err;
-    }
     i = BN_num_bits(order);
     /*
      * Need to truncate digest if it is too long: first truncate whole bytes.
@@ -275,7 +251,7 @@ ECDSA_SIG *ossl_ecdsa_sign_sig(const unsigned char *dgst, int dgst_len,
         ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_BN_LIB);
         goto err;
     }
-    /* If still too long truncate remaining bits with a shift */
+    /* If still too long, truncate remaining bits with a shift */
     if ((8 * dgst_len > i) && !BN_rshift(m, m, 8 - (i & 0x7))) {
         ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_BN_LIB);
         goto err;
@@ -296,59 +272,27 @@ ECDSA_SIG *ossl_ecdsa_sign_sig(const unsigned char *dgst, int dgst_len,
         }
 
         /*
-         * The normal signature calculation is:
-         *
-         *   s := k^-1 * (m + r * priv_key) mod order
-         *
-         * We will blind this to protect against side channel attacks
-         *
-         *   s := k^-1 * blind^-1 * (blind * m + blind * r * priv_key) mod order
+         * With only one multiplicant being in Montgomery domain
+         * multiplication yields real result without post-conversion.
+         * Also note that all operations but last are performed with
+         * zero-padded vectors. Last operation, BN_mod_mul_montgomery
+         * below, returns user-visible value with removed zero padding.
          */
-
-        /* Generate a blinding value */
-        do {
-            if (!BN_rand(blind, BN_num_bits(order) - 1, BN_RAND_TOP_ANY,
-                         BN_RAND_BOTTOM_ANY))
-                goto err;
-        } while (BN_is_zero(blind));
-        BN_set_flags(blind, BN_FLG_CONSTTIME);
-        BN_set_flags(blindm, BN_FLG_CONSTTIME);
-        BN_set_flags(tmp, BN_FLG_CONSTTIME);
-
-        /* tmp := blind * priv_key * r mod order */
-        if (!BN_mod_mul(tmp, blind, priv_key, order, ctx)) {
+        if (!bn_to_mont_fixed_top(s, ret->r, group->mont_data, ctx)
+            || !bn_mul_mont_fixed_top(s, s, priv_key, group->mont_data, ctx)) {
             ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_BN_LIB);
             goto err;
         }
-        if (!BN_mod_mul(tmp, tmp, ret->r, order, ctx)) {
+        if (!bn_mod_add_fixed_top(s, s, m, order)) {
             ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_BN_LIB);
             goto err;
         }
-
-        /* blindm := blind * m mod order */
-        if (!BN_mod_mul(blindm, blind, m, order, ctx)) {
-            ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_BN_LIB);
-            goto err;
-        }
-
-        /* s : = (blind * priv_key * r) + (blind * m) mod order */
-        if (!BN_mod_add_quick(s, tmp, blindm, order)) {
-            ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_BN_LIB);
-            goto err;
-        }
-
-        /* s:= s * blind^-1 mod order */
-        if (BN_mod_inverse(blind, blind, order, ctx) == NULL) {
-            ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_BN_LIB);
-            goto err;
-        }
-        if (!BN_mod_mul(s, s, blind, order, ctx)) {
-            ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_BN_LIB);
-            goto err;
-        }
-
-        /* s := s * k^-1 mod order */
-        if (!BN_mod_mul(s, s, ckinv, order, ctx)) {
+        /*
+         * |s| can still be larger than modulus, because |m| can be. In
+         * such case we count on Montgomery reduction to tie it up.
+         */
+        if (!bn_to_mont_fixed_top(s, s, group->mont_data, ctx)
+            || !BN_mod_mul_montgomery(s, s, ckinv, group->mont_data, ctx)) {
             ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, ERR_R_BN_LIB);
             goto err;
         }
@@ -362,11 +306,11 @@ ECDSA_SIG *ossl_ecdsa_sign_sig(const unsigned char *dgst, int dgst_len,
                 ECerr(EC_F_OSSL_ECDSA_SIGN_SIG, EC_R_NEED_NEW_SETUP_VALUES);
                 goto err;
             }
-        } else
+        } else {
             /* s != 0 => we have a valid signature */
             break;
-    }
-    while (1);
+        }
+    } while (1);
 
     ok = 1;
  err:
@@ -374,8 +318,8 @@ ECDSA_SIG *ossl_ecdsa_sign_sig(const unsigned char *dgst, int dgst_len,
         ECDSA_SIG_free(ret);
         ret = NULL;
     }
-    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
+    BN_clear_free(m);
     BN_clear_free(kinv);
     return ret;
 }

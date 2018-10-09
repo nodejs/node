@@ -1,2 +1,1 @@
-import { TimerObservable } from './TimerObservable';
-export declare const timer: typeof TimerObservable.create;
+export * from 'rxjs-compat/observable/timer';

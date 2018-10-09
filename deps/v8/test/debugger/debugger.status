@@ -18,8 +18,9 @@
   'debug/es6/debug-promises/reject-with-invalid-reject': [FAIL],
 
   # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
-  # parameter value
-  'debug/es6/debug-scope-default-param-with-eval': [FAIL],
+  # parameter value (the test causes indexing a FixedArray out of bounds ->
+  # CRASH is also a reasonable outcome).
+  'debug/es6/debug-scope-default-param-with-eval': [FAIL, CRASH],
 
   # Slow tests
   'debug/debug-scopes': [PASS, SLOW],
@@ -41,9 +42,6 @@
 
   # Very slow in stress mode.
   'regress/regress-2318': [SKIP],
-
-  # https://crbug.com/v8/7626
-  'debug/debug-stepout-scope-part*': [PASS, ['tsan', SKIP]],
 }],  # variant == stress
 
 ##############################################################################
@@ -75,9 +73,9 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ['arch == arm and not simulator_run', {
@@ -86,12 +84,24 @@
 }],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
+['arch == arm and mode == debug', {
+  # Tests taking too long
+  'debug/debug-stepout-scope-part1': [SKIP],
+  'debug/debug-stepout-scope-part2': [SKIP],
+  'debug/debug-stepout-scope-part3': [SKIP],
+  'debug/debug-stepout-scope-part4': [SKIP],
+  'debug/debug-stepout-scope-part5': [SKIP],
+  'debug/debug-stepout-scope-part6': [SKIP],
+  'debug/debug-stepout-scope-part7': [SKIP],
+  'debug/debug-stepout-scope-part8': [SKIP],
+}],  # 'arch == arm and mode == debug'
+
+##############################################################################
 ['arch == s390 or arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debug/debug-liveedit-check-stack': [SKIP],
   'debug/debug-liveedit-double-call': [SKIP],
-  'debug/debug-liveedit-stack-padding': [SKIP],
   'debug/debug-liveedit-restart-frame': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 

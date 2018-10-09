@@ -32,6 +32,7 @@
 
 #include <vector>
 
+#include "src/base/platform/mutex.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console-agent-impl.h"
@@ -43,6 +44,8 @@
 #include "src/inspector/v8-profiler-agent-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
+
+#include "include/v8-platform.h"
 
 namespace v8_inspector {
 
@@ -87,6 +90,7 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
   v8::MicrotasksScope microtasksScope(m_isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Context::Scope contextScope(context);
+  v8::Isolate::SafeForTerminationScope allowTermination(m_isolate);
   return unboundScript->BindToCurrentContext()->Run(context);
 }
 
@@ -184,6 +188,17 @@ InspectedContext* V8InspectorImpl::getContext(int contextId) const {
   return getContext(contextGroupId(contextId), contextId);
 }
 
+v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(
+    int groupId, v8::Maybe<int> contextId) {
+  if (contextId.IsNothing()) {
+    v8::Local<v8::Context> context =
+        client()->ensureDefaultContextInGroup(groupId);
+    return context.IsEmpty() ? v8::MaybeLocal<v8::Context>() : context;
+  }
+  InspectedContext* context = getContext(contextId.FromJust());
+  return context ? context->context() : v8::MaybeLocal<v8::Context>();
+}
+
 void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   int contextId = ++m_lastContextId;
   InspectedContext* context = new InspectedContext(this, info, contextId);
@@ -202,6 +217,7 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   (*contextById)[contextId].reset(context);
   forEachSession(
       info.contextGroupId, [&context](V8InspectorSessionImpl* session) {
+        session->runtimeAgent()->addBindings(context);
         session->runtimeAgent()->reportExecutionContextCreated(context);
       });
 }
@@ -374,6 +390,50 @@ void V8InspectorImpl::forEachSession(
     auto sessionIt = it->second.find(sessionId);
     if (sessionIt != it->second.end()) callback(sessionIt->second);
   }
+}
+
+V8InspectorImpl::EvaluateScope::EvaluateScope(v8::Isolate* isolate)
+    : m_isolate(isolate), m_safeForTerminationScope(isolate) {}
+
+struct V8InspectorImpl::EvaluateScope::CancelToken {
+  v8::base::Mutex m_mutex;
+  bool m_canceled = false;
+};
+
+V8InspectorImpl::EvaluateScope::~EvaluateScope() {
+  if (m_cancelToken) {
+    v8::base::LockGuard<v8::base::Mutex> lock(&m_cancelToken->m_mutex);
+    m_cancelToken->m_canceled = true;
+    m_isolate->CancelTerminateExecution();
+  }
+}
+
+class V8InspectorImpl::EvaluateScope::TerminateTask : public v8::Task {
+ public:
+  TerminateTask(v8::Isolate* isolate, std::shared_ptr<CancelToken> token)
+      : m_isolate(isolate), m_token(token) {}
+
+  void Run() {
+    // CancelToken contains m_canceled bool which may be changed from main
+    // thread, so lock mutex first.
+    v8::base::LockGuard<v8::base::Mutex> lock(&m_token->m_mutex);
+    if (m_token->m_canceled) return;
+    m_isolate->TerminateExecution();
+  }
+
+ private:
+  v8::Isolate* m_isolate;
+  std::shared_ptr<CancelToken> m_token;
+};
+
+protocol::Response V8InspectorImpl::EvaluateScope::setTimeout(double timeout) {
+  if (m_isolate->IsExecutionTerminating()) {
+    return protocol::Response::Error("Execution was terminated");
+  }
+  m_cancelToken.reset(new CancelToken());
+  v8::debug::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+      v8::base::make_unique<TerminateTask>(m_isolate, m_cancelToken), timeout);
+  return protocol::Response::OK();
 }
 
 }  // namespace v8_inspector

@@ -80,7 +80,16 @@ class TraceFileReader extends HTMLElement {
       // Delay the loading a bit to allow for CSS animations to happen.
       setTimeout(() => reader.readAsArrayBuffer(file), 10);
     } else {
-      reader.onload = (e) => this.processRawText(file, e.target.result);
+      reader.onload = (e) => {
+        try {
+          this.processRawText(file, e.target.result);
+          this.section.className = 'success';
+          this.$('#fileReader').classList.add('done');
+        } catch (err) {
+          console.error(err);
+          this.section.className = 'failure';
+        }
+      };
       setTimeout(() => reader.readAsText(file), 10);
     }
   }
@@ -124,6 +133,16 @@ class TraceFileReader extends HTMLElement {
       };
       data[entry.isolate].data_sets.add(data_set);
     }
+  }
+
+  addFieldTypeData(data, isolate, gc_id, data_set, tagged_fields,
+                   embedder_fields, unboxed_double_fields, other_raw_fields) {
+    data[isolate].gcs[gc_id][data_set].field_data = {
+      tagged_fields,
+      embedder_fields,
+      unboxed_double_fields,
+      other_raw_fields
+    };
   }
 
   addInstanceTypeData(data, isolate, gc_id, data_set, instance_type, entry) {
@@ -194,6 +213,13 @@ class TraceFileReader extends HTMLElement {
                 const time = entry.time;
                 const gc_id = entry.id;
                 data[isolate].gcs[gc_id].time = time;
+
+                const field_data = entry.field_data;
+                this.addFieldTypeData(data, isolate, gc_id, data_set,
+                  field_data.tagged_fields, field_data.embedder_fields,
+                  field_data.unboxed_double_fields,
+                  field_data.other_raw_fields);
+
                 data[isolate].gcs[gc_id][data_set].bucket_sizes =
                     entry.bucket_sizes;
                 for (let [instance_type, value] of Object.entries(
@@ -223,7 +249,7 @@ class TraceFileReader extends HTMLElement {
         line = line.replace(/^I\/v8\s*\(\d+\):\s+/g, '');
         return JSON.parse(line);
       } catch (e) {
-        console.log('Unable to parse line: \'' + line + '\'\' (' + e + ')');
+        console.log('Unable to parse line: \'' + line + '\' (' + e + ')');
       }
       return null;
     });
@@ -251,6 +277,12 @@ class TraceFileReader extends HTMLElement {
         data[entry.isolate].gcs[entry.id].time = entry.time;
         if ('zone' in entry)
           data[entry.isolate].gcs[entry.id].malloced = entry.zone;
+      } else if (entry.type === 'field_data') {
+        this.createOrUpdateEntryIfNeeded(data, entry);
+        this.createDatasetIfNeeded(data, entry, entry.key);
+        this.addFieldTypeData(data, entry.isolate, entry.id, entry.key,
+          entry.tagged_fields, entry.embedder_fields,
+          entry.unboxed_double_fields, entry.other_raw_fields);
       } else if (entry.type === 'instance_type_data') {
         if (entry.id in data[entry.isolate].gcs) {
           this.createOrUpdateEntryIfNeeded(data, entry);

@@ -283,7 +283,7 @@ class SourceProcessor(SourceFileProcessor):
   Check that all files include a copyright notice and no trailing whitespaces.
   """
 
-  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', '.status']
+  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', '.status', '.tq', '.g4']
 
   def __init__(self):
     self.runtime_function_call_pattern = self.CreateRuntimeFunctionCallMatcher()
@@ -297,7 +297,7 @@ class SourceProcessor(SourceFileProcessor):
         m = pattern.match(line)
         if m:
           runtime_functions.append(m.group(1))
-    if len(runtime_functions) < 500:
+    if len(runtime_functions) < 450:
       print ("Runtime functions list is suspiciously short. "
              "Consider updating the presubmit script.")
       sys.exit(1)

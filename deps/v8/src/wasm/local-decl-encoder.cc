@@ -4,6 +4,7 @@
 
 #include "src/wasm/local-decl-encoder.h"
 
+#include "src/signature.h"
 #include "src/wasm/leb-helper.h"
 
 namespace v8 {
@@ -26,7 +27,7 @@ size_t LocalDeclEncoder::Emit(byte* buffer) const {
   LEBHelper::write_u32v(&pos, static_cast<uint32_t>(local_decls.size()));
   for (auto& local_decl : local_decls) {
     LEBHelper::write_u32v(&pos, local_decl.first);
-    *pos = WasmOpcodes::ValueTypeCodeFor(local_decl.second);
+    *pos = ValueTypes::ValueTypeCodeFor(local_decl.second);
     ++pos;
   }
   DCHECK_EQ(Size(), pos - buffer);

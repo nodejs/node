@@ -21,17 +21,15 @@ const fs = require("fs"),
     Linter = require("./linter"),
     IgnoredPaths = require("./ignored-paths"),
     Config = require("./config"),
-    fileEntryCache = require("file-entry-cache"),
-    globUtil = require("./util/glob-util"),
+    LintResultCache = require("./util/lint-result-cache"),
+    globUtils = require("./util/glob-utils"),
     validator = require("./config/config-validator"),
-    stringify = require("json-stable-stringify-without-jsonify"),
     hash = require("./util/hash"),
     ModuleResolver = require("./util/module-resolver"),
     naming = require("./util/naming"),
     pkg = require("../package.json");
 
 const debug = require("debug")("eslint:cli-engine");
-
 const resolver = new ModuleResolver();
 
 //------------------------------------------------------------------------------
@@ -42,7 +40,7 @@ const resolver = new ModuleResolver();
  * The options to configure a CLI engine with.
  * @typedef {Object} CLIEngineOptions
  * @property {boolean} allowInlineConfig Enable or disable inline configuration comments.
- * @property {boolean|Object} baseConfig Base config object. True enables recommend rules and environments.
+ * @property {Object} baseConfig Base config object, extended by all configs used with this CLIEngine instance
  * @property {boolean} cache Enable result caching.
  * @property {string} cacheLocation The cache file to use instead of .eslintcache.
  * @property {string} configFile The configuration file to use.
@@ -359,8 +357,6 @@ function getCacheFile(cacheFile, cwd) {
     return resolvedCacheFile;
 }
 
-const configHashCache = new WeakMap();
-
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -403,18 +399,6 @@ class CLIEngine {
         this.options = options;
         this.linter = new Linter();
 
-        if (options.cache) {
-            const cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
-
-            /**
-             * Cache used to avoid operating on files that haven't changed since the
-             * last successful execution (e.g., file passed linting with no errors and
-             * no warnings).
-             * @type {Object}
-             */
-            this._fileCache = fileEntryCache.create(cacheFile);
-        }
-
         // load in additional rules
         if (this.options.rulePaths) {
             const cwd = this.options.cwd;
@@ -434,6 +418,17 @@ class CLIEngine {
         }
 
         this.config = new Config(this.options, this.linter);
+
+        if (this.options.cache) {
+            const cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
+
+            /**
+             * Cache used to avoid operating on files that haven't changed since the
+             * last successful execution.
+             * @type {Object}
+             */
+            this._lintResultCache = new LintResultCache(cacheFile, this.config);
+        }
     }
 
     getRules() {
@@ -473,7 +468,7 @@ class CLIEngine {
      * @returns {void}
      */
     static outputFixes(report) {
-        report.results.filter(result => result.hasOwnProperty("output")).forEach(result => {
+        report.results.filter(result => Object.prototype.hasOwnProperty.call(result, "output")).forEach(result => {
             fs.writeFileSync(result.filePath, result.output);
         });
     }
@@ -496,7 +491,7 @@ class CLIEngine {
      * @returns {string[]} The equivalent glob patterns.
      */
     resolveFileGlobPatterns(patterns) {
-        return globUtil.resolveFileGlobPatterns(patterns.filter(Boolean), this.options);
+        return globUtils.resolveFileGlobPatterns(patterns.filter(Boolean), this.options);
     }
 
     /**
@@ -506,7 +501,7 @@ class CLIEngine {
      */
     executeOnFiles(patterns) {
         const options = this.options,
-            fileCache = this._fileCache,
+            lintResultCache = this._lintResultCache,
             configHelper = this.config;
         const cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
 
@@ -514,49 +509,26 @@ class CLIEngine {
             fs.unlinkSync(cacheFile);
         }
 
-        /**
-         * Calculates the hash of the config file used to validate a given file
-         * @param  {string} filename The path of the file to retrieve a config object for to calculate the hash
-         * @returns {string}         the hash of the config
-         */
-        function hashOfConfigFor(filename) {
-            const config = configHelper.getConfig(filename);
-
-            if (!configHashCache.has(config)) {
-                configHashCache.set(config, hash(`${pkg.version}_${stringify(config)}`));
-            }
-
-            return configHashCache.get(config);
-        }
-
         const startTime = Date.now();
-        const fileList = globUtil.listFilesToProcess(patterns, options);
+        const fileList = globUtils.listFilesToProcess(patterns, options);
         const results = fileList.map(fileInfo => {
             if (fileInfo.ignored) {
                 return createIgnoreResult(fileInfo.filename, options.cwd);
             }
 
             if (options.cache) {
+                const cachedLintResults = lintResultCache.getCachedLintResults(fileInfo.filename);
 
-                /*
-                 * get the descriptor for this file
-                 * with the metadata and the flag that determines if
-                 * the file has changed
-                 */
-                const descriptor = fileCache.getFileDescriptor(fileInfo.filename);
-                const hashOfConfig = hashOfConfigFor(fileInfo.filename);
-                const changed = descriptor.changed || descriptor.meta.hashOfConfig !== hashOfConfig;
+                if (cachedLintResults) {
+                    const resultHadMessages = cachedLintResults.messages && cachedLintResults.messages.length;
 
-                if (!changed) {
-                    debug(`Skipping file since hasn't changed: ${fileInfo.filename}`);
+                    if (resultHadMessages && options.fix) {
+                        debug(`Reprocessing cached file to allow autofix: ${fileInfo.filename}`);
+                    } else {
+                        debug(`Skipping file since it hasn't changed: ${fileInfo.filename}`);
 
-                    /*
-                     * Add the the cached results (always will be 0 error and
-                     * 0 warnings). We should not cache results for files that
-                     * failed, in order to guarantee that next execution will
-                     * process those files as well.
-                     */
-                    return descriptor.meta.results;
+                        return cachedLintResults;
+                    }
                 }
             }
 
@@ -567,30 +539,18 @@ class CLIEngine {
 
         if (options.cache) {
             results.forEach(result => {
-                if (result.messages.length) {
 
-                    /*
-                     * if a file contains errors or warnings we don't want to
-                     * store the file in the cache so we can guarantee that
-                     * next execution will also operate on this file
-                     */
-                    fileCache.removeEntry(result.filePath);
-                } else {
-
-                    /*
-                     * since the file passed we store the result here
-                     * TODO: it might not be necessary to store the results list in the cache,
-                     * since it should always be 0 errors/warnings
-                     */
-                    const descriptor = fileCache.getFileDescriptor(result.filePath);
-
-                    descriptor.meta.hashOfConfig = hashOfConfigFor(result.filePath);
-                    descriptor.meta.results = result;
-                }
+                /*
+                 * Store the lint result in the LintResultCache.
+                 * NOTE: The LintResultCache will remove the file source and any
+                 * other properties that are difficult to serialize, and will
+                 * hydrate those properties back in on future lint runs.
+                 */
+                lintResultCache.setCachedLintResults(result.filePath, result);
             });
 
             // persist the cache to disk
-            fileCache.reconcile();
+            lintResultCache.reconcile();
         }
 
         const stats = calculateStatsPerRun(results);

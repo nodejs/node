@@ -32,16 +32,20 @@ Decision DecideObjectIsSmi(Node* const input) {
 
 }  // namespace
 
-SimplifiedOperatorReducer::SimplifiedOperatorReducer(Editor* editor,
-                                                     JSGraph* jsgraph)
-    : AdvancedReducer(editor), jsgraph_(jsgraph) {}
+SimplifiedOperatorReducer::SimplifiedOperatorReducer(
+    Editor* editor, JSGraph* jsgraph, JSHeapBroker* js_heap_broker)
+    : AdvancedReducer(editor),
+      jsgraph_(jsgraph),
+      js_heap_broker_(js_heap_broker) {}
 
 SimplifiedOperatorReducer::~SimplifiedOperatorReducer() {}
 
 
 Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
+  DisallowHeapAccess no_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
+      // TODO(neis): Provide HeapObjectRefMatcher?
       HeapObjectMatcher m(node->InputAt(0));
       if (m.Is(factory()->true_value())) return ReplaceBoolean(false);
       if (m.Is(factory()->false_value())) return ReplaceBoolean(true);
@@ -57,7 +61,9 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceInt32(m.Value()->BooleanValue());
+      if (m.HasValue()) {
+        return ReplaceInt32(m.Ref(js_heap_broker()).BooleanValue());
+      }
       if (m.IsChangeBitToTagged()) return Replace(m.InputAt(0));
       break;
     }

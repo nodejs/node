@@ -9,8 +9,6 @@ const net = require('net');
 let running = false;
 const queue = [];
 
-common.crashOnUnhandledRejection();
-
 const dnsPromises = dns.promises;
 const isIPv4 = net.isIPv4;
 const isIPv6 = net.isIPv6;

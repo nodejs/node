@@ -152,11 +152,12 @@ class V8_EXPORT_PRIVATE NodeProperties final {
                              // but instance type is reliable.
   };
   static InferReceiverMapsResult InferReceiverMaps(
-      Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return);
+      Isolate* isolate, Node* receiver, Node* effect,
+      ZoneHandleSet<Map>* maps_return);
 
-  static MaybeHandle<Map> GetMapWitness(Node* node);
-  static bool HasInstanceTypeWitness(Node* receiver, Node* effect,
-                                     InstanceType instance_type);
+  static MaybeHandle<Map> GetMapWitness(Isolate* isolate, Node* node);
+  static bool HasInstanceTypeWitness(Isolate* isolate, Node* receiver,
+                                     Node* effect, InstanceType instance_type);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join
@@ -166,11 +167,12 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Returns true if the {receiver} can be a primitive value (i.e. is not
   // definitely a JavaScript object); might walk up the {effect} chain to
   // find map checks on {receiver}.
-  static bool CanBePrimitive(Node* receiver, Node* effect);
+  static bool CanBePrimitive(Isolate* isolate, Node* receiver, Node* effect);
 
   // Returns true if the {receiver} can be null or undefined. Might walk
   // up the {effect} chain to find map checks for {receiver}.
-  static bool CanBeNullOrUndefined(Node* receiver, Node* effect);
+  static bool CanBeNullOrUndefined(Isolate* isolate, Node* receiver,
+                                   Node* effect);
 
   // ---------------------------------------------------------------------------
   // Context.
@@ -183,17 +185,17 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // ---------------------------------------------------------------------------
   // Type.
 
-  static bool IsTyped(Node* node) { return node->type() != nullptr; }
-  static Type* GetType(Node* node) {
+  static bool IsTyped(Node* node) { return !node->type().IsInvalid(); }
+  static Type GetType(Node* node) {
     DCHECK(IsTyped(node));
     return node->type();
   }
-  static Type* GetTypeOrAny(Node* node);
-  static void SetType(Node* node, Type* type) {
-    DCHECK_NOT_NULL(type);
+  static Type GetTypeOrAny(Node* node);
+  static void SetType(Node* node, Type type) {
+    DCHECK(!type.IsInvalid());
     node->set_type(type);
   }
-  static void RemoveType(Node* node) { node->set_type(nullptr); }
+  static void RemoveType(Node* node) { node->set_type(Type::Invalid()); }
   static bool AllValueInputsAreTyped(Node* node);
 
  private:

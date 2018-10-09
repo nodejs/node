@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var delayWhen_1 = require('../../operator/delayWhen');
-Observable_1.Observable.prototype.delayWhen = delayWhen_1.delayWhen;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/operator/delayWhen");
 //# sourceMappingURL=delayWhen.js.map

@@ -29,6 +29,7 @@ namespace node {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Local;
 using v8::Object;
@@ -127,6 +128,21 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
       .FromMaybe(false)) {
     wrap->MakeCallback(env->handle_onclose_symbol(), 0, nullptr);
   }
+}
+
+Local<FunctionTemplate> HandleWrap::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->handle_wrap_ctor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(nullptr);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HandleWrap"));
+    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    env->SetProtoMethod(tmpl, "close", HandleWrap::Close);
+    env->SetProtoMethodNoSideEffect(tmpl, "hasRef", HandleWrap::HasRef);
+    env->SetProtoMethod(tmpl, "ref", HandleWrap::Ref);
+    env->SetProtoMethod(tmpl, "unref", HandleWrap::Unref);
+    env->set_handle_wrap_ctor_template(tmpl);
+  }
+  return tmpl;
 }
 
 

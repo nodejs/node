@@ -33,7 +33,7 @@ bool NoReturn(Node* node) {
   return node->opcode() == IrOpcode::kDead ||
          node->opcode() == IrOpcode::kUnreachable ||
          node->opcode() == IrOpcode::kDeadValue ||
-         NodeProperties::GetTypeOrAny(node)->IsNone();
+         NodeProperties::GetTypeOrAny(node).IsNone();
 }
 
 Node* FindDeadInput(Node* node) {
@@ -46,6 +46,7 @@ Node* FindDeadInput(Node* node) {
 }  // namespace
 
 Reduction DeadCodeElimination::Reduce(Node* node) {
+  DisallowHeapAccess no_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kEnd:
       return ReduceEnd(node);
@@ -217,7 +218,7 @@ Reduction DeadCodeElimination::ReducePhi(Node* node) {
   if (reduction.Changed()) return reduction;
   MachineRepresentation rep = PhiRepresentationOf(node->op());
   if (rep == MachineRepresentation::kNone ||
-      NodeProperties::GetTypeOrAny(node)->IsNone()) {
+      NodeProperties::GetTypeOrAny(node).IsNone()) {
     return Replace(DeadValue(node, rep));
   }
   int input_count = node->op()->ValueInputCount();

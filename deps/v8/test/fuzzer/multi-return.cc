@@ -19,6 +19,7 @@
 #include "src/optimized-compilation-info.h"
 #include "src/simulator.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -67,7 +68,8 @@ class InputProvider {
 
   int NextInt32(int limit) {
     if (current_ + sizeof(uint32_t) > end_) return 0;
-    int result = ReadLittleEndianValue<int>(current_);
+    int result =
+        ReadLittleEndianValue<int>(reinterpret_cast<Address>(current_));
     current_ += sizeof(uint32_t);
     return result % limit;
   }
@@ -134,14 +136,14 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
   wasm::FunctionSig::Builder builder(zone, return_count, param_count);
   for (size_t i = 0; i < param_count; i++) {
     MachineType type = RandomType(input);
-    builder.AddParam(type.representation());
+    builder.AddParam(wasm::ValueTypes::ValueTypeFor(type));
   }
   // Read the end byte of the parameters.
   input->NextInt8(1);
 
   for (size_t i = 0; i < return_count; i++) {
     MachineType type = RandomType(input);
-    builder.AddReturn(type.representation());
+    builder.AddReturn(wasm::ValueTypes::ValueTypeFor(type));
   }
 
   return compiler::GetWasmCallDescriptor(zone, builder.Build());
@@ -149,13 +151,18 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
 
 std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
                                                          size_t code_size) {
+  std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule);
+  module->num_declared_functions = 1;
+  wasm::ModuleEnv env(
+      module.get(), wasm::UseTrapHandler::kNoTrapHandler,
+      wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
+
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
-  std::unique_ptr<wasm::NativeModule> module =
-      isolate->wasm_engine()->code_manager()->NewNativeModule(code_size, 1, 0,
-                                                              false);
-  return module;
+  return isolate->wasm_engine()->code_manager()->NewNativeModule(
+      isolate, i::wasm::kAllWasmFeatures, code_size, false, std::move(module),
+      env);
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -251,7 +258,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   OptimizedCompilationInfo info(ArrayVector("testing"), &zone, Code::STUB);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
-      &info, i_isolate, desc, callee.graph(), callee.Export());
+                          &info, i_isolate, desc, callee.graph(),
+                          AssemblerOptions::Default(i_isolate), callee.Export())
+                          .ToHandleChecked();
 
   std::unique_ptr<wasm::NativeModule> module =
       AllocateNativeModule(i_isolate, code->raw_instruction_size());
@@ -294,8 +303,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Call the wrapper.
   OptimizedCompilationInfo wrapper_info(ArrayVector("wrapper"), &zone,
                                         Code::STUB);
-  Handle<Code> wrapper_code = Pipeline::GenerateCodeForTesting(
-      &wrapper_info, i_isolate, wrapper_desc, caller.graph(), caller.Export());
+  Handle<Code> wrapper_code =
+      Pipeline::GenerateCodeForTesting(
+          &wrapper_info, i_isolate, wrapper_desc, caller.graph(),
+          AssemblerOptions::Default(i_isolate), caller.Export())
+          .ToHandleChecked();
+
   auto fn = GeneratedCode<int32_t>::FromCode(*wrapper_code);
   int result = fn.Call();
 

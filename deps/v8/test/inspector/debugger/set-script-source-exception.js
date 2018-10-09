@@ -2,22 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-let {session, contextGroup, Protocol} = InspectorTest.start('Check that setScriptSource completes correctly when an exception is thrown.');
+let {session, contextGroup, Protocol} = InspectorTest.start(
+    'Check that setScriptSource completes correctly when an exception is' +
+    ' thrown.');
 
 Protocol.Debugger.enable();
 
-InspectorTest.runTestSuite([
-  function testIncorrectScriptId(next) {
-    Protocol.Debugger.setScriptSource({ scriptId: '-1', scriptSource: '0' })
-      .then(InspectorTest.logMessage)
-      .then(next);
+InspectorTest.runAsyncTestSuite([
+  async function testIncorrectScriptId() {
+    InspectorTest.logMessage(await Protocol.Debugger.setScriptSource(
+        {scriptId: '-1', scriptSource: '0'}));
   },
 
-  function testSourceWithSyntaxError(next) {
-    Protocol.Debugger.onceScriptParsed()
-      .then(message => Protocol.Debugger.setScriptSource({ scriptId: message.params.scriptId, scriptSource: 'a # b' }))
-      .then(InspectorTest.logMessage)
-      .then(next);
+  async function testSourceWithSyntaxError() {
     contextGroup.addScript('function foo() {}');
+    const {params} = await Protocol.Debugger.onceScriptParsed();
+    const msg = await Protocol.Debugger.setScriptSource({
+      scriptId: params.scriptId,
+      scriptSource: 'function foo() {\n  return a # b;\n}'
+    });
+    InspectorTest.logMessage(msg);
   }
 ]);

@@ -78,8 +78,6 @@ class SloppyBlockFunctionMap : public ZoneHashMap {
   int count_;
 };
 
-enum class AnalyzeMode { kRegular, kDebugger };
-
 // Global invariants after AST construction: Each reference (i.e. identifier)
 // to a JavaScript variable (including global properties) is represented by a
 // VariableProxy node. Immediately after AST construction and before variable
@@ -134,7 +132,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
 
-  static Scope* DeserializeScopeChain(Zone* zone, ScopeInfo* scope_info,
+  static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
+                                      ScopeInfo* scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
                                       DeserializationMode deserialization_mode);
@@ -256,7 +255,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // which is an error even though the two 'e's are declared in different
   // scopes.
   Declaration* CheckLexDeclarationsConflictingWith(
-      const ZoneList<const AstRawString*>& names);
+      const ZonePtrList<const AstRawString>& names);
 
   // ---------------------------------------------------------------------------
   // Scope-specific info.
@@ -366,7 +365,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Whether this needs to be represented by a runtime context.
   bool NeedsContext() const {
     // Catch scopes always have heap slots.
-    DCHECK(!is_catch_scope() || num_heap_slots() > 0);
+    DCHECK_IMPLIES(is_catch_scope(), num_heap_slots() > 0);
+    DCHECK_IMPLIES(is_with_scope(), num_heap_slots() > 0);
     return num_heap_slots() > 0;
   }
 
@@ -646,12 +646,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Creates a script scope.
   DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory);
 
-  bool IsDeclaredParameter(const AstRawString* name) {
-    // If IsSimpleParameterList is false, duplicate parameters are not allowed,
-    // however `arguments` may be allowed if function is not strict code. Thus,
-    // the assumptions explained above do not hold.
-    return params_.Contains(variables_.Lookup(name));
-  }
+  bool IsDeclaredParameter(const AstRawString* name);
 
   FunctionKind function_kind() const { return function_kind_; }
 
@@ -809,10 +804,20 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     has_simple_parameters_ = false;
   }
 
+  // Returns whether the arguments object aliases formal parameters.
+  CreateArgumentsType GetArgumentsType() const {
+    DCHECK(is_function_scope());
+    DCHECK(!is_arrow_scope());
+    DCHECK_NOT_NULL(arguments_);
+    return is_sloppy(language_mode()) && has_simple_parameters()
+               ? CreateArgumentsType::kMappedArguments
+               : CreateArgumentsType::kUnmappedArguments;
+  }
+
   // The local variable 'arguments' if we need to allocate it; nullptr
   // otherwise.
   Variable* arguments() const {
-    DCHECK(!is_arrow_scope() || arguments_ == nullptr);
+    DCHECK_IMPLIES(is_arrow_scope(), arguments_ == nullptr);
     return arguments_;
   }
 
@@ -867,10 +872,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // Allocate ScopeInfos for top scope and any inner scopes that need them.
   // Does nothing if ScopeInfo is already allocated.
-  static void AllocateScopeInfos(ParseInfo* info, Isolate* isolate,
-                                 AnalyzeMode mode);
+  static void AllocateScopeInfos(ParseInfo* info, Isolate* isolate);
 
-  Handle<StringSet> CollectNonLocals(ParseInfo* info,
+  Handle<StringSet> CollectNonLocals(Isolate* isolate, ParseInfo* info,
                                      Handle<StringSet> non_locals);
 
   // Determine if we can use lazy compilation for this scope.
@@ -964,7 +968,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_inferred_function_name_ : 1;
 
   // Parameter list in source order.
-  ZoneList<Variable*> params_;
+  ZonePtrList<Variable> params_;
   // Map of function names to lists of functions defined in sloppy blocks
   SloppyBlockFunctionMap* sloppy_block_function_map_;
   // Convenience variable.
@@ -1031,7 +1035,8 @@ class ModuleScope final : public DeclarationScope {
   // The generated ModuleDescriptor does not preserve all information.  In
   // particular, its module_requests map will be empty because we no longer need
   // the map after parsing.
-  ModuleScope(Handle<ScopeInfo> scope_info, AstValueFactory* ast_value_factory);
+  ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
+              AstValueFactory* ast_value_factory);
 
   ModuleDescriptor* module() const {
     DCHECK_NOT_NULL(module_descriptor_);

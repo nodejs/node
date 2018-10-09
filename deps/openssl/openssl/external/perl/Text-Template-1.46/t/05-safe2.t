@@ -96,7 +96,10 @@ print +($Q::H eq 'good7' ? '' : 'not '), "ok $n\n";
 $Q::H = $Q::H;
 $n++;
 
-# (12)
+# (12) 
 print +($Q2::H eq 'good8' ? '' : 'not '), "ok $n\n";
 $Q2::H = $Q2::H;
 $n++;
+
+
+

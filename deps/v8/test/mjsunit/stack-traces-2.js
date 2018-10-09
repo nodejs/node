@@ -57,25 +57,8 @@ function testTraceNativeConversion(nativeFunc) {
   }
 }
 
-
-function testNotOmittedBuiltin(throwing, included) {
-  try {
-    throwing();
-    assertUnreachable(included);
-  } catch (e) {
-    assertTrue(e.stack.indexOf(included) >= 0, included);
-  }
-}
-
-
 testTraceNativeConversion(String);  // Does ToString on argument.
 testTraceNativeConversion(RegExp);  // Does ToString on argument.
 
 testTraceNativeConstructor(String);  // Does ToString on argument.
 testTraceNativeConstructor(RegExp);  // Does ToString on argument.
-
-// QuickSort has builtins object as receiver, and is non-native
-// builtin. Should not be omitted with the --builtins-in-stack-traces flag.
-testNotOmittedBuiltin(function(){ [thrower, 2].sort(function (a,b) {
-                                                     (b < a) - (a < b); });
-                      }, "QuickSort");

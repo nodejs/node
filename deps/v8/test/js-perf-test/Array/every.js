@@ -27,11 +27,11 @@ function OptUnreliableEvery() {
 
 DefineHigherOrderTests([
   // name, test function, setup function, user callback
-  "DoubleEvery", mc("every"), DoubleSetup, v => v > 0.0,
-  "SmiEvery", mc("every"), SmiSetup, v => v != 34343,
-  "FastEvery", mc("every"), FastSetup, v => v !== 'hi',
-  "OptFastEvery", OptFastEvery, FastSetup, v => true,
-  "OptUnreliableEvery", OptUnreliableEvery, FastSetup, v => true
+  ['DoubleEvery', newClosure('every'), DoubleSetup, v => v > 0.0],
+  ['SmiEvery', newClosure('every'), SmiSetup, v => v != 34343],
+  ['FastEvery', newClosure('every'), FastSetup, v => v !== 'hi'],
+  ['OptFastEvery', OptFastEvery, FastSetup, v => true],
+  ['OptUnreliableEvery', OptUnreliableEvery, FastSetup, v => true]
 ]);
 
 })();

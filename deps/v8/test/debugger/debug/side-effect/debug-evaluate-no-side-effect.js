@@ -93,6 +93,7 @@ function listener(event, exec_state, event_data, data) {
     fail("eval('Math.sin(1)')");
     fail("eval('exception = 1')");
     fail("global_eval('1')");
+    success(1, "(() => { var a = 1; return a++; })()")
   } catch (e) {
     exception = e;
     print(e, e.stack);

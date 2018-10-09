@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cmath>
+#include <string>
 #include <type_traits>
 
 #include "include/v8.h"
@@ -21,7 +22,6 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/globals.h"
 #include "src/vector.h"
-#include "src/zone/zone.h"
 
 #if defined(V8_OS_AIX)
 #include <fenv.h>  // NOLINT(build/c++11)
@@ -473,13 +473,12 @@ class BitSetComputer {
 // ----------------------------------------------------------------------------
 // Hash function.
 
-static const uint32_t kZeroHashSeed = 0;
+static const uint64_t kZeroHashSeed = 0;
 
 // Thomas Wang, Integer Hash Functions.
-// http://www.concentric.net/~Ttwang/tech/inthash.htm
-inline uint32_t ComputeIntegerHash(uint32_t key, uint32_t seed) {
+// http://www.concentric.net/~Ttwang/tech/inthash.htm`
+inline uint32_t ComputeUnseededHash(uint32_t key) {
   uint32_t hash = key;
-  hash = hash ^ seed;
   hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
   hash = hash ^ (hash >> 12);
   hash = hash + (hash << 2);
@@ -487,10 +486,6 @@ inline uint32_t ComputeIntegerHash(uint32_t key, uint32_t seed) {
   hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
   hash = hash ^ (hash >> 16);
   return hash & 0x3fffffff;
-}
-
-inline uint32_t ComputeIntegerHash(uint32_t key) {
-  return ComputeIntegerHash(key, kZeroHashSeed);
 }
 
 inline uint32_t ComputeLongHash(uint64_t key) {
@@ -501,15 +496,21 @@ inline uint32_t ComputeLongHash(uint64_t key) {
   hash = hash ^ (hash >> 11);
   hash = hash + (hash << 6);
   hash = hash ^ (hash >> 22);
-  return static_cast<uint32_t>(hash);
+  return static_cast<uint32_t>(hash & 0x3fffffff);
 }
 
+inline uint32_t ComputeSeededHash(uint32_t key, uint64_t seed) {
+  return ComputeLongHash(static_cast<uint64_t>(key) ^ seed);
+}
 
 inline uint32_t ComputePointerHash(void* ptr) {
-  return ComputeIntegerHash(
+  return ComputeUnseededHash(
       static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));
 }
 
+inline uint32_t ComputeAddressHash(Address address) {
+  return ComputeUnseededHash(static_cast<uint32_t>(address & 0xFFFFFFFFul));
+}
 
 // ----------------------------------------------------------------------------
 // Generated memcpy/memmove
@@ -1077,12 +1078,6 @@ inline void Flush() {
 char* ReadLine(const char* prompt);
 
 
-// Read and return the raw bytes in a file. the size of the buffer is returned
-// in size.
-// The returned buffer must be freed by the caller.
-byte* ReadBytes(const char* filename, int* size, bool verbose = true);
-
-
 // Append size chars from str to the file given by filename.
 // The file is overwritten. Returns the number of chars written.
 int AppendChars(const char* filename,
@@ -1226,40 +1221,37 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #undef STOS
 }
 
-
-// Simple support to read a file into a 0-terminated C-string.
-// The returned buffer must be freed by the caller.
+// Simple support to read a file into std::string.
 // On return, *exits tells whether the file existed.
-V8_EXPORT_PRIVATE Vector<const char> ReadFile(const char* filename,
-                                              bool* exists,
-                                              bool verbose = true);
-Vector<const char> ReadFile(FILE* file,
-                            bool* exists,
-                            bool verbose = true);
-
+V8_EXPORT_PRIVATE std::string ReadFile(const char* filename, bool* exists,
+                                       bool verbose = true);
+std::string ReadFile(FILE* file, bool* exists, bool verbose = true);
 
 template <typename sourcechar, typename sinkchar>
-INLINE(static void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src,
-                                     size_t chars));
+V8_INLINE static void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src,
+                                        size_t chars);
 #if defined(V8_HOST_ARCH_ARM)
-INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src,
-                              size_t chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
-                              size_t chars));
+V8_INLINE void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src,
+                                 size_t chars);
+V8_INLINE void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src,
+                                 size_t chars);
+V8_INLINE void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
+                                 size_t chars);
 #elif defined(V8_HOST_ARCH_MIPS)
-INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
-                              size_t chars));
+V8_INLINE void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src,
+                                 size_t chars);
+V8_INLINE void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
+                                 size_t chars);
 #elif defined(V8_HOST_ARCH_PPC) || defined(V8_HOST_ARCH_S390)
-INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
-                              size_t chars));
+V8_INLINE void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src,
+                                 size_t chars);
+V8_INLINE void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
+                                 size_t chars);
 #endif
 
 // Copy from 8bit/16bit chars to 8bit/16bit chars.
 template <typename sourcechar, typename sinkchar>
-INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars));
+V8_INLINE void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars);
 
 template <typename sourcechar, typename sinkchar>
 void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars) {
@@ -1568,92 +1560,11 @@ bool DoubleToBoolean(double d);
 template <typename Stream>
 bool StringToArrayIndex(Stream* stream, uint32_t* index);
 
-// Returns current value of top of the stack. Works correctly with ASAN.
-DISABLE_ASAN
-inline uintptr_t GetCurrentStackPosition() {
-  // Takes the address of the limit variable in order to find out where
-  // the top of stack is right now.
-  uintptr_t limit = reinterpret_cast<uintptr_t>(&limit);
-  return limit;
-}
-
-template <typename V>
-static inline V ReadUnalignedValue(const void* p) {
-  ASSERT_TRIVIALLY_COPYABLE(V);
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
-  return *reinterpret_cast<const V*>(p);
-#else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
-  V r;
-  memmove(&r, p, sizeof(V));
-  return r;
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
-}
-
-template <typename V>
-static inline void WriteUnalignedValue(void* p, V value) {
-  ASSERT_TRIVIALLY_COPYABLE(V);
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
-  *(reinterpret_cast<V*>(p)) = value;
-#else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
-  memmove(p, &value, sizeof(V));
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
-}
-
-static inline double ReadFloatValue(const void* p) {
-  return ReadUnalignedValue<float>(p);
-}
-
-static inline double ReadDoubleValue(const void* p) {
-  return ReadUnalignedValue<double>(p);
-}
-
-static inline void WriteDoubleValue(void* p, double value) {
-  WriteUnalignedValue(p, value);
-}
-
-static inline uint16_t ReadUnalignedUInt16(const void* p) {
-  return ReadUnalignedValue<uint16_t>(p);
-}
-
-static inline void WriteUnalignedUInt16(void* p, uint16_t value) {
-  WriteUnalignedValue(p, value);
-}
-
-static inline uint32_t ReadUnalignedUInt32(const void* p) {
-  return ReadUnalignedValue<uint32_t>(p);
-}
-
-static inline void WriteUnalignedUInt32(void* p, uint32_t value) {
-  WriteUnalignedValue(p, value);
-}
-
-template <typename V>
-static inline V ReadLittleEndianValue(const void* p) {
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-  return ReadUnalignedValue<V>(p);
-#elif defined(V8_TARGET_BIG_ENDIAN)
-  V ret = 0;
-  const byte* src = reinterpret_cast<const byte*>(p);
-  byte* dst = reinterpret_cast<byte*>(&ret);
-  for (size_t i = 0; i < sizeof(V); i++) {
-    dst[i] = src[sizeof(V) - i - 1];
-  }
-  return ret;
-#endif  // V8_TARGET_LITTLE_ENDIAN
-}
-
-template <typename V>
-static inline void WriteLittleEndianValue(void* p, V value) {
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-  WriteUnalignedValue<V>(p, value);
-#elif defined(V8_TARGET_BIG_ENDIAN)
-  byte* src = reinterpret_cast<byte*>(&value);
-  byte* dst = reinterpret_cast<byte*>(p);
-  for (size_t i = 0; i < sizeof(V); i++) {
-    dst[i] = src[sizeof(V) - i - 1];
-  }
-#endif  // V8_TARGET_LITTLE_ENDIAN
-}
+// Returns the current stack top. Works correctly with ASAN and SafeStack.
+// GetCurrentStackPosition() should not be inlined, because it works on stack
+// frames if it were inlined into a function with a huge stack frame it would
+// return an address significantly above the actual current stack position.
+V8_NOINLINE uintptr_t GetCurrentStackPosition();
 
 template <typename V>
 static inline V ByteReverse(V value) {
@@ -1661,13 +1572,13 @@ static inline V ByteReverse(V value) {
   switch (size_of_v) {
     case 2:
 #if V8_HAS_BUILTIN_BSWAP16
-      return __builtin_bswap16(value);
+      return static_cast<V>(__builtin_bswap16(static_cast<uint16_t>(value)));
 #else
       return value << 8 | (value >> 8 & 0x00FF);
 #endif
     case 4:
 #if V8_HAS_BUILTIN_BSWAP32
-      return __builtin_bswap32(value);
+      return static_cast<V>(__builtin_bswap32(static_cast<uint32_t>(value)));
 #else
     {
       size_t bits_of_v = size_of_v * kBitsPerByte;
@@ -1679,7 +1590,7 @@ static inline V ByteReverse(V value) {
 #endif
     case 8:
 #if V8_HAS_BUILTIN_BSWAP64
-      return __builtin_bswap64(value);
+      return static_cast<V>(__builtin_bswap64(static_cast<uint64_t>(value)));
 #else
     {
       size_t bits_of_v = size_of_v * kBitsPerByte;
@@ -1800,20 +1711,17 @@ class ThreadedList final {
   DISALLOW_COPY_AND_ASSIGN(ThreadedList);
 };
 
-// Can be used to create a threaded list of |T|.
-template <typename T>
-class ThreadedListZoneEntry final : public ZoneObject {
- public:
-  explicit ThreadedListZoneEntry(T value) : value_(value), next_(nullptr) {}
+V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
+                                    Vector<const char> filter);
 
-  T value() { return value_; }
-  ThreadedListZoneEntry<T>** next() { return &next_; }
-
- private:
-  T value_;
-  ThreadedListZoneEntry<T>* next_;
-  DISALLOW_COPY_AND_ASSIGN(ThreadedListZoneEntry);
-};
+// Zap the specified area with a specific byte pattern. This currently defaults
+// to int3 on x64 and ia32. On other architectures this will produce unspecified
+// instruction sequences.
+// TODO(jgruber): Better support for other architectures.
+V8_INLINE void ZapCode(Address addr, size_t size_in_bytes) {
+  static constexpr int kZapByte = 0xCC;
+  std::memset(reinterpret_cast<void*>(addr), kZapByte, size_in_bytes);
+}
 
 }  // namespace internal
 }  // namespace v8

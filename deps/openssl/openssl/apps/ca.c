@@ -725,10 +725,10 @@ end_of_options:
 
     /*****************************************************************/
     if (req || gencrl) {
-        /* FIXME: Is it really always text? */
-        Sout = bio_open_default(outfile, 'w', FORMAT_TEXT);
-        if (Sout == NULL)
-            goto end;
+        if (spkac_file != NULL) {
+            output_der = 1;
+            batch = 1;
+        }
     }
 
     if (md == NULL
@@ -872,10 +872,6 @@ end_of_options:
                     BIO_printf(bio_err, "Memory allocation failure\n");
                     goto end;
                 }
-                if (outfile) {
-                    output_der = 1;
-                    batch = 1;
-                }
             }
         }
         if (ss_cert_file != NULL) {
@@ -929,10 +925,13 @@ end_of_options:
             if (j > 0) {
                 total_done++;
                 BIO_printf(bio_err, "\n");
-                if (!BN_add_word(serial, 1))
+                if (!BN_add_word(serial, 1)) {
+                    X509_free(x);
                     goto end;
+                }
                 if (!sk_X509_push(cert_sk, x)) {
                     BIO_printf(bio_err, "Memory allocation failure\n");
+                    X509_free(x);
                     goto end;
                 }
             }
@@ -1017,6 +1016,11 @@ end_of_options:
             if (verbose)
                 BIO_printf(bio_err, "writing %s\n", buf[2]);
 
+            Sout = bio_open_default(outfile, 'w',
+                                    output_der ? FORMAT_ASN1 : FORMAT_TEXT);
+            if (Sout == NULL)
+                goto end;
+
             Cout = BIO_new_file(buf[2], "w");
             if (Cout == NULL) {
                 perror(buf[2]);
@@ -1025,6 +1029,8 @@ end_of_options:
             write_new_certificate(Cout, xi, 0, notext);
             write_new_certificate(Sout, xi, output_der, notext);
             BIO_free_all(Cout);
+            BIO_free_all(Sout);
+            Sout = NULL;
         }
 
         if (sk_X509_num(cert_sk)) {
@@ -1171,6 +1177,11 @@ end_of_options:
         crlnumber = NULL;
 
         if (!do_X509_CRL_sign(crl, pkey, dgst, sigopts))
+            goto end;
+
+        Sout = bio_open_default(outfile, 'w',
+                                output_der ? FORMAT_ASN1 : FORMAT_TEXT);
+        if (Sout == NULL)
             goto end;
 
         PEM_write_bio_X509_CRL(Sout, crl);

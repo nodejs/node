@@ -1,13 +1,13 @@
 npm(1) -- a JavaScript package manager
 ==============================
 
-[![Build Status](https://img.shields.io/travis/npm/npm/latest.svg)](https://travis-ci.org/npm/npm)
+[![Build Status](https://img.shields.io/travis/npm/cli/latest.svg)](https://travis-ci.org/npm/cli)
 
 ## SYNOPSIS
 
 This is just enough info to get you up and running.
 
-Much more info available via `npm help` once it's installed.
+Much more info will be available via `npm help` once it's installed.
 
 ## IMPORTANT
 
@@ -16,16 +16,13 @@ Much more info available via `npm help` once it's installed.
 To install an old **and unsupported** version of npm that works on node v5
 and prior, clone the git repo and dig through the old tags and branches.
 
-**npm is configured to use npm, Inc.'s public package registry at
-<https://registry.npmjs.org> by default.**
+**npm is configured to use npm, Inc.'s public registry at
+<https://registry.npmjs.org> by default.** Use of the npm public registry
+is subject to terms of use available at <https://www.npmjs.com/policies/terms>.
 
 You can configure npm to use any compatible registry you
 like, and even run your own registry. Check out the [doc on
 registries](https://docs.npmjs.com/misc/registry).
-
-Use of someone else's registry may be governed by terms of use. The
-terms of use for the default public registry are available at
-<https://www.npmjs.com>.
 
 ## Super Easy Install
 
@@ -88,7 +85,7 @@ experience if you run a recent version of npm. To upgrade, either use [Microsoft
 upgrade tool](https://github.com/felixrieseberg/npm-windows-upgrade),
 [download a new version of Node](https://nodejs.org/en/download/),
 or follow the Windows upgrade instructions in the
-[npm Troubleshooting Guide](./TROUBLESHOOTING.md).
+[Installing/upgrading npm](https://npm.community/t/installing-upgrading-npm/251/2) post.
 
 If that's not fancy enough for you, then you can fetch the code with
 git, and mess with it directly.
@@ -153,7 +150,7 @@ you should [read this](https://docs.npmjs.com/misc/developers).
 When you find issues, please report them:
 
 * web:
-  <https://github.com/npm/npm/issues>
+  <https://npm.community/c/bugs>
 
 Be sure to include *all* of the output from the npm command that didn't work
 as expected.  The `npm-debug.log` file is also helpful to provide.

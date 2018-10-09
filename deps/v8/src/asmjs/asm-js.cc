@@ -23,6 +23,7 @@
 
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
@@ -329,6 +330,28 @@ UnoptimizedCompilationJob* AsmJs::NewCompilationJob(
   return new AsmJsCompilationJob(parse_info, literal, allocator);
 }
 
+namespace {
+inline bool IsValidAsmjsMemorySize(size_t size) {
+  // Enforce asm.js spec minimum size.
+  if (size < (1u << 12u)) return false;
+  // Enforce engine-limited maximum allocation size.
+  if (size > wasm::kV8MaxWasmMemoryBytes) return false;
+  // Enforce flag-limited maximum allocation size.
+  if (size > (FLAG_wasm_max_mem_pages * uint64_t{wasm::kWasmPageSize})) {
+    return false;
+  }
+  // Enforce power-of-2 sizes for 2^12 - 2^24.
+  if (size < (1u << 24u)) {
+    uint32_t size32 = static_cast<uint32_t>(size);
+    return base::bits::IsPowerOfTwo(size32);
+  }
+  // Enforce multiple of 2^24 for sizes >= 2^24
+  if ((size % (1u << 24u)) != 0) return false;
+  // All checks passed!
+  return true;
+}
+}  // namespace
+
 MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
                                               Handle<SharedFunctionInfo> shared,
                                               Handle<FixedArray> wasm_data,
@@ -338,10 +361,10 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
   Handle<HeapNumber> uses_bitset(
-      HeapNumber::cast(wasm_data->get(kWasmDataUsesBitSet)));
+      HeapNumber::cast(wasm_data->get(kWasmDataUsesBitSet)), isolate);
   Handle<WasmModuleObject> module(
-      WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
-  Handle<Script> script(Script::cast(shared->script()));
+      WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)), isolate);
+  Handle<Script> script(Script::cast(shared->script()), isolate);
   // TODO(mstarzinger): The position currently points to the module definition
   // but should instead point to the instantiation site (more intuitive).
   int position = shared->StartPosition();
@@ -369,15 +392,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     }
     memory->set_is_growable(false);
     size_t size = NumberToSize(memory->byte_length());
-    // TODO(mstarzinger): We currently only limit byte length of the buffer to
-    // be a multiple of 8, we should enforce the stricter spec limits here.
-    if (size % FixedTypedArrayBase::kMaxElementSize != 0) {
-      ReportInstantiationFailure(script, position, "Unexpected heap size");
-      return MaybeHandle<Object>();
-    }
-    // Currently WebAssembly only supports heap sizes within the uint32_t range.
-    if (size > std::numeric_limits<uint32_t>::max()) {
-      ReportInstantiationFailure(script, position, "Unexpected heap size");
+    // Check the asm.js heap size against the valid limits.
+    if (!IsValidAsmjsMemorySize(size)) {
+      ReportInstantiationFailure(script, position, "Invalid heap size");
       return MaybeHandle<Object>();
     }
   } else {
@@ -392,8 +409,14 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     // An exception caused by the module start function will be set as pending
     // and bypass the {ErrorThrower}, this happens in case of a stack overflow.
     if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+    if (thrower.error()) {
+      ScopedVector<char> error_reason(100);
+      SNPrintF(error_reason, "Internal wasm failure: %s", thrower.error_msg());
+      ReportInstantiationFailure(script, position, error_reason.start());
+    } else {
+      ReportInstantiationFailure(script, position, "Internal wasm failure");
+    }
     thrower.Reset();  // Ensure exceptions do not propagate.
-    ReportInstantiationFailure(script, position, "Internal wasm failure");
     return MaybeHandle<Object>();
   }
   DCHECK(!thrower.error());
@@ -405,7 +428,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   Handle<Name> single_function_name(
       isolate->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName));
   MaybeHandle<Object> single_function =
-      Object::GetProperty(module_object, single_function_name);
+      Object::GetProperty(isolate, module_object, single_function_name);
   if (!single_function.is_null() &&
       !single_function.ToHandleChecked()->IsUndefined(isolate)) {
     return single_function;
@@ -413,7 +436,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   Handle<String> exports_name =
       isolate->factory()->InternalizeUtf8String("exports");
-  return Object::GetProperty(module_object, exports_name);
+  return Object::GetProperty(isolate, module_object, exports_name);
 }
 
 }  // namespace internal

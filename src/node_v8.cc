@@ -200,4 +200,4 @@ void Initialize(Local<Object> target,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(v8, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(v8, node::Initialize)

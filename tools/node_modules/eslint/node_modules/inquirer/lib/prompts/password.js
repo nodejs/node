@@ -4,6 +4,7 @@
  */
 
 var chalk = require('chalk');
+var { map, takeUntil } = require('rxjs/operators');
 var Base = require('./base');
 var observe = require('../utils/events');
 
@@ -30,14 +31,16 @@ class PasswordPrompt extends Base {
     var events = observe(this.rl);
 
     // Once user confirm (enter key)
-    var submit = events.line.map(this.filterInput.bind(this));
+    var submit = events.line.pipe(map(this.filterInput.bind(this)));
 
     var validation = this.handleSubmitEvents(submit);
     validation.success.forEach(this.onEnd.bind(this));
     validation.error.forEach(this.onError.bind(this));
 
     if (this.opt.mask) {
-      events.keypress.takeUntil(validation.success).forEach(this.onKeypress.bind(this));
+      events.keypress
+        .pipe(takeUntil(validation.success))
+        .forEach(this.onKeypress.bind(this));
     }
 
     // Init

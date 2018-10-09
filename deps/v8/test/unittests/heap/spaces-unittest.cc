@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/spaces-inl.h"
 #include "src/isolate.h"
 #include "test/unittests/test-utils.h"
@@ -20,7 +21,6 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   CompactionSpace* compaction_space =
       new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
   EXPECT_TRUE(compaction_space != NULL);
-  EXPECT_TRUE(compaction_space->SetUp());
 
   for (Page* p : *old_space) {
     // Unlink free lists from the main space to avoid reusing the memory for
@@ -50,6 +50,94 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
             old_space->CountTotalPages());
 
   delete compaction_space;
+}
+
+TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
+  constexpr Address address1 = Page::kPageSize;
+  HeapObject* object1 = reinterpret_cast<HeapObject*>(address1);
+  MemoryChunk* chunk1 = MemoryChunk::FromHeapObject(object1);
+  heap_internals::MemoryChunk* slim_chunk1 =
+      heap_internals::MemoryChunk::FromHeapObject(object1);
+  EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
+  constexpr Address address2 = 2 * Page::kPageSize - 1;
+  HeapObject* object2 = reinterpret_cast<HeapObject*>(address2);
+  MemoryChunk* chunk2 = MemoryChunk::FromHeapObject(object2);
+  heap_internals::MemoryChunk* slim_chunk2 =
+      heap_internals::MemoryChunk::FromHeapObject(object2);
+  EXPECT_EQ(static_cast<void*>(chunk2), static_cast<void*>(slim_chunk2));
+}
+
+TEST_F(SpacesTest, WriteBarrierIsMarking) {
+  char memory[256];
+  memset(&memory, 0, sizeof(memory));
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  heap_internals::MemoryChunk* slim_chunk =
+      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
+  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+  EXPECT_FALSE(slim_chunk->IsMarking());
+  chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+  EXPECT_TRUE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+  EXPECT_TRUE(slim_chunk->IsMarking());
+  chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
+  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+  EXPECT_FALSE(slim_chunk->IsMarking());
+}
+
+TEST_F(SpacesTest, WriteBarrierInNewSpaceToSpace) {
+  char memory[256];
+  memset(&memory, 0, sizeof(memory));
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  heap_internals::MemoryChunk* slim_chunk =
+      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
+  EXPECT_FALSE(chunk->InNewSpace());
+  EXPECT_FALSE(slim_chunk->InNewSpace());
+  chunk->SetFlag(MemoryChunk::IN_TO_SPACE);
+  EXPECT_TRUE(chunk->InNewSpace());
+  EXPECT_TRUE(slim_chunk->InNewSpace());
+  chunk->ClearFlag(MemoryChunk::IN_TO_SPACE);
+  EXPECT_FALSE(chunk->InNewSpace());
+  EXPECT_FALSE(slim_chunk->InNewSpace());
+}
+
+TEST_F(SpacesTest, WriteBarrierInNewSpaceFromSpace) {
+  char memory[256];
+  memset(&memory, 0, sizeof(memory));
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  heap_internals::MemoryChunk* slim_chunk =
+      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
+  EXPECT_FALSE(chunk->InNewSpace());
+  EXPECT_FALSE(slim_chunk->InNewSpace());
+  chunk->SetFlag(MemoryChunk::IN_FROM_SPACE);
+  EXPECT_TRUE(chunk->InNewSpace());
+  EXPECT_TRUE(slim_chunk->InNewSpace());
+  chunk->ClearFlag(MemoryChunk::IN_FROM_SPACE);
+  EXPECT_FALSE(chunk->InNewSpace());
+  EXPECT_FALSE(slim_chunk->InNewSpace());
+}
+
+TEST_F(SpacesTest, CodeRangeAddressReuse) {
+  CodeRangeAddressHint hint;
+  // Create code ranges.
+  void* code_range1 = hint.GetAddressHint(100);
+  void* code_range2 = hint.GetAddressHint(200);
+  void* code_range3 = hint.GetAddressHint(100);
+
+  // Since the addresses are random, we cannot check that they are different.
+
+  // Free two code ranges.
+  hint.NotifyFreedCodeRange(code_range1, 100);
+  hint.NotifyFreedCodeRange(code_range2, 200);
+
+  // The next two code ranges should reuse the freed addresses.
+  void* code_range4 = hint.GetAddressHint(100);
+  EXPECT_EQ(code_range4, code_range1);
+  void* code_range5 = hint.GetAddressHint(200);
+  EXPECT_EQ(code_range5, code_range2);
+
+  // Free the third code range and check address reuse.
+  hint.NotifyFreedCodeRange(code_range3, 100);
+  void* code_range6 = hint.GetAddressHint(100);
+  EXPECT_EQ(code_range6, code_range3);
 }
 
 }  // namespace internal

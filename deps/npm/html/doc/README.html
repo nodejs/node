@@ -10,22 +10,20 @@
     <div id="wrapper">
 
 <h1><a href="cli/npm.html">npm</a></h1> <p>a JavaScript package manager</p>
-<p><a href="https://travis-ci.org/npm/npm"><img src="https://img.shields.io/travis/npm/npm/latest.svg" alt="Build Status"></a></p>
+<p><a href="https://travis-ci.org/npm/cli"><img src="https://img.shields.io/travis/npm/cli/latest.svg" alt="Build Status"></a></p>
 <h2 id="synopsis">SYNOPSIS</h2>
 <p>This is just enough info to get you up and running.</p>
-<p>Much more info available via <code>npm help</code> once it&#39;s installed.</p>
+<p>Much more info will be available via <code>npm help</code> once it&#39;s installed.</p>
 <h2 id="important">IMPORTANT</h2>
 <p><strong>You need node v6 or higher to run this program.</strong></p>
 <p>To install an old <strong>and unsupported</strong> version of npm that works on node v5
 and prior, clone the git repo and dig through the old tags and branches.</p>
-<p><strong>npm is configured to use npm, Inc.&#39;s public package registry at
-<a href="https://registry.npmjs.org">https://registry.npmjs.org</a> by default.</strong></p>
+<p><strong>npm is configured to use npm, Inc.&#39;s public registry at
+<a href="https://registry.npmjs.org">https://registry.npmjs.org</a> by default.</strong> Use of the npm public registry
+is subject to terms of use available at <a href="https://www.npmjs.com/policies/terms">https://www.npmjs.com/policies/terms</a>.</p>
 <p>You can configure npm to use any compatible registry you
 like, and even run your own registry. Check out the <a href="https://docs.npmjs.com/misc/registry">doc on
 registries</a>.</p>
-<p>Use of someone else&#39;s registry may be governed by terms of use. The
-terms of use for the default public registry are available at
-<a href="https://www.npmjs.com">https://www.npmjs.com</a>.</p>
 <h2 id="super-easy-install">Super Easy Install</h2>
 <p>npm is bundled with <a href="https://nodejs.org/en/download/">node</a>.</p>
 <h3 id="windows-computers">Windows Computers</h3>
@@ -40,15 +38,12 @@ paths, etc.) then read on.</p>
 <p>There&#39;s a pretty robust install script at
 <a href="https://www.npmjs.com/install.sh">https://www.npmjs.com/install.sh</a>.  You can download that and run it.</p>
 <p>Here&#39;s an example using curl:</p>
-<pre><code class="lang-sh">curl -L https://www.npmjs.com/install.sh | sh
-</code></pre>
+<pre><code class="language-sh">curl -L https://www.npmjs.com/install.sh | sh</code></pre>
 <h3 id="slightly-fancier">Slightly Fancier</h3>
 <p>You can set any npm configuration params with that script:</p>
-<pre><code class="lang-sh">npm_config_prefix=/some/path sh install.sh
-</code></pre>
+<pre><code class="language-sh">npm_config_prefix=/some/path sh install.sh</code></pre>
 <p>Or, you can run it in uber-debuggery mode:</p>
-<pre><code class="lang-sh">npm_debug=1 sh install.sh
-</code></pre>
+<pre><code class="language-sh">npm_debug=1 sh install.sh</code></pre>
 <h3 id="even-fancier">Even Fancier</h3>
 <p>Get the code with git.  Use <code>make</code> to build the docs and do other stuff.
 If you plan on hacking on npm, <code>make link</code> is your friend.</p>
@@ -62,18 +57,16 @@ experience if you run a recent version of npm. To upgrade, either use <a href="h
 upgrade tool</a>,
 <a href="https://nodejs.org/en/download/">download a new version of Node</a>,
 or follow the Windows upgrade instructions in the
-<a href="./TROUBLESHOOTING.md">npm Troubleshooting Guide</a>.</p>
+<a href="https://npm.community/t/installing-upgrading-npm/251/2">Installing/upgrading npm</a> post.</p>
 <p>If that&#39;s not fancy enough for you, then you can fetch the code with
 git, and mess with it directly.</p>
 <h2 id="installing-on-cygwin">Installing on Cygwin</h2>
 <p>No.</p>
 <h2 id="uninstalling">Uninstalling</h2>
 <p>So sad to see you go.</p>
-<pre><code class="lang-sh">sudo npm uninstall npm -g
-</code></pre>
+<pre><code class="language-sh">sudo npm uninstall npm -g</code></pre>
 <p>Or, if that fails,</p>
-<pre><code class="lang-sh">sudo make uninstall
-</code></pre>
+<pre><code class="language-sh">sudo make uninstall</code></pre>
 <h2 id="more-severe-uninstalling">More Severe Uninstalling</h2>
 <p>Usually, the above instructions are sufficient.  That will remove
 npm, but leave behind anything you&#39;ve installed.</p>
@@ -82,13 +75,11 @@ then you can use the <code>npm ls</code> command to find them, and then <code>np
 remove them.</p>
 <p>To remove cruft left behind by npm 0.x, you can use the included
 <code>clean-old.sh</code> script file.  You can run it conveniently like this:</p>
-<pre><code class="lang-sh">npm explore npm -g -- sh scripts/clean-old.sh
-</code></pre>
+<pre><code class="language-sh">npm explore npm -g -- sh scripts/clean-old.sh</code></pre>
 <p>npm uses two configuration files, one for per-user configs, and another
 for global (every-user) configs.  You can view them by doing:</p>
-<pre><code class="lang-sh">npm config get userconfig   # defaults to ~/.npmrc
-npm config get globalconfig # defaults to /usr/local/etc/npmrc
-</code></pre>
+<pre><code class="language-sh">npm config get userconfig   # defaults to ~/.npmrc
+npm config get globalconfig # defaults to /usr/local/etc/npmrc</code></pre>
 <p>Uninstalling npm does not remove configuration files by default.  You
 must remove them yourself manually if you want them gone.  Note that
 this means that future npm installs will not remember the settings that
@@ -102,7 +93,7 @@ you should <a href="https://docs.npmjs.com/misc/developers">read this</a>.</p>
 <p>When you find issues, please report them:</p>
 <ul>
 <li>web:
-<a href="https://github.com/npm/npm/issues">https://github.com/npm/npm/issues</a></li>
+<a href="https://npm.community/c/bugs">https://npm.community/c/bugs</a></li>
 </ul>
 <p>Be sure to include <em>all</em> of the output from the npm command that didn&#39;t work
 as expected.  The <code>npm-debug.log</code> file is also helpful to provide.</p>
@@ -127,5 +118,5 @@ doubt tell you to put the output in a gist or email.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@6.1.0</p>
+<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@6.4.1</p>
 

@@ -1,5 +1,6 @@
 IF[{- !$disabled{tests} -}]
   PROGRAMS_NO_INST=\
+          versions \
           aborttest \
           sanitytest exdatatest bntest \
           ectest ecdsatest gmdifftest pbelutest ideatest \
@@ -17,7 +18,11 @@ IF[{- !$disabled{tests} -}]
           dtlsv1listentest ct_test threadstest afalgtest d2i_test \
           ssl_test_ctx_test ssl_test x509aux cipherlist_test asynciotest \
           bioprinttest sslapitest dtlstest sslcorrupttest bio_enc_test \
-          ocspapitest fatalerrtest
+          ocspapitest fatalerrtest x509_time_test x509_dup_cert_test errtest
+
+  SOURCE[versions]=versions.c
+  INCLUDE[versions]=../include
+  DEPEND[versions]=../libcrypto
 
   SOURCE[aborttest]=aborttest.c
   INCLUDE[aborttest]=../include
@@ -292,11 +297,23 @@ IF[{- !$disabled{tests} -}]
   INCLUDE[bio_enc_test]=../include
   DEPEND[bio_enc_test]=../libcrypto
 
+  SOURCE[x509_time_test]=x509_time_test.c testutil.c
+  INCLUDE[x509_time_test]=.. ../include
+  DEPEND[x509_time_test]=../libcrypto
+
+  SOURCE[x509_dup_cert_test]=x509_dup_cert_test.c
+  INCLUDE[x509_dup_cert_test]=../include
+  DEPEND[x509_dup_cert_test]=../libcrypto
+
   IF[{- !$disabled{shared} -}]
     PROGRAMS_NO_INST=shlibloadtest
     SOURCE[shlibloadtest]=shlibloadtest.c
     INCLUDE[shlibloadtest]=../include
   ENDIF
+
+  SOURCE[errtest]=errtest.c testutil.c
+  INCLUDE[errtest]=../include
+  DEPEND[errtest]=../libcrypto
 ENDIF
 
 {-

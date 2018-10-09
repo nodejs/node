@@ -41,10 +41,8 @@ class FlagsContinuation final {
   // blocks.
   static FlagsContinuation ForBranch(FlagsCondition condition,
                                      BasicBlock* true_block,
-                                     BasicBlock* false_block,
-                                     bool update_poison) {
-    FlagsMode mode = update_poison ? kFlags_branch_and_poison : kFlags_branch;
-    return FlagsContinuation(mode, condition, true_block, false_block);
+                                     BasicBlock* false_block) {
+    return FlagsContinuation(kFlags_branch, condition, true_block, false_block);
   }
 
   static FlagsContinuation ForBranchAndPoison(FlagsCondition condition,
@@ -55,13 +53,21 @@ class FlagsContinuation final {
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
-  static FlagsContinuation ForDeoptimize(
+  static FlagsContinuation ForDeoptimize(FlagsCondition condition,
+                                         DeoptimizeKind kind,
+                                         DeoptimizeReason reason,
+                                         VectorSlotPair const& feedback,
+                                         Node* frame_state) {
+    return FlagsContinuation(kFlags_deoptimize, condition, kind, reason,
+                             feedback, frame_state);
+  }
+
+  // Creates a new flags continuation for an eager deoptimization exit.
+  static FlagsContinuation ForDeoptimizeAndPoison(
       FlagsCondition condition, DeoptimizeKind kind, DeoptimizeReason reason,
-      VectorSlotPair const& feedback, Node* frame_state, bool update_poison) {
-    FlagsMode mode =
-        update_poison ? kFlags_deoptimize_and_poison : kFlags_deoptimize;
-    return FlagsContinuation(mode, condition, kind, reason, feedback,
-                             frame_state);
+      VectorSlotPair const& feedback, Node* frame_state) {
+    return FlagsContinuation(kFlags_deoptimize_and_poison, condition, kind,
+                             reason, feedback, frame_state);
   }
 
   // Creates a new flags continuation for a boolean value.
@@ -70,8 +76,8 @@ class FlagsContinuation final {
   }
 
   // Creates a new flags continuation for a wasm trap.
-  static FlagsContinuation ForTrap(FlagsCondition condition,
-                                   Runtime::FunctionId trap_id, Node* result) {
+  static FlagsContinuation ForTrap(FlagsCondition condition, TrapId trap_id,
+                                   Node* result) {
     return FlagsContinuation(condition, trap_id, result);
   }
 
@@ -112,7 +118,7 @@ class FlagsContinuation final {
     DCHECK(IsSet());
     return frame_state_or_result_;
   }
-  Runtime::FunctionId trap_id() const {
+  TrapId trap_id() const {
     DCHECK(IsTrap());
     return trap_id_;
   }
@@ -204,8 +210,7 @@ class FlagsContinuation final {
     DCHECK_NOT_NULL(result);
   }
 
-  FlagsContinuation(FlagsCondition condition, Runtime::FunctionId trap_id,
-                    Node* result)
+  FlagsContinuation(FlagsCondition condition, TrapId trap_id, Node* result)
       : mode_(kFlags_trap),
         condition_(condition),
         frame_state_or_result_(result),
@@ -222,7 +227,7 @@ class FlagsContinuation final {
                                  // or mode_ == kFlags_set.
   BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch*.
   BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch*.
-  Runtime::FunctionId trap_id_;  // Only valid if mode_ == kFlags_trap.
+  TrapId trap_id_;               // Only valid if mode_ == kFlags_trap.
 };
 
 // This struct connects nodes of parameters which are going to be pushed on the
@@ -246,11 +251,15 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
   enum EnableScheduling { kDisableScheduling, kEnableScheduling };
-  enum EnableSerialization { kDisableSerialization, kEnableSerialization };
+  enum EnableRootsRelativeAddressing {
+    kDisableRootsRelativeAddressing,
+    kEnableRootsRelativeAddressing
+  };
   enum EnableSwitchJumpTable {
     kDisableSwitchJumpTable,
     kEnableSwitchJumpTable
   };
+  enum EnableTraceTurboJson { kDisableTraceTurboJson, kEnableTraceTurboJson };
 
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
@@ -262,9 +271,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
                                                ? kEnableScheduling
                                                : kDisableScheduling,
-      EnableSerialization enable_serialization = kDisableSerialization,
-      PoisoningMitigationLevel poisoning_enabled =
-          PoisoningMitigationLevel::kOff);
+      EnableRootsRelativeAddressing enable_roots_relative_addressing =
+          kDisableRootsRelativeAddressing,
+      PoisoningMitigationLevel poisoning_level =
+          PoisoningMitigationLevel::kDontPoison,
+      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   // Visit code for the entire graph with the included schedule.
   bool SelectInstructions();
@@ -371,6 +382,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
 
+  bool NeedsPoisoning(IsSafetyCheck safety_check) const;
+
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
   // ===========================================================================
@@ -424,13 +437,46 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 
   // Check if we can generate loads and stores of ExternalConstants relative
-  // to the roots register, i.e. if both a root register is available for this
-  // compilation unit and the serializer is disabled.
+  // to the roots register.
   bool CanAddressRelativeToRootsRegister() const;
   // Check if we can use the roots register to access GC roots.
   bool CanUseRootsRegister() const;
 
   Isolate* isolate() const { return sequence()->isolate(); }
+
+  const ZoneVector<std::pair<int, int>>& instr_origins() const {
+    return instr_origins_;
+  }
+
+  // Expose these SIMD helper functions for testing.
+  static void CanonicalizeShuffleForTesting(bool inputs_equal, uint8_t* shuffle,
+                                            bool* needs_swap,
+                                            bool* is_swizzle) {
+    CanonicalizeShuffle(inputs_equal, shuffle, needs_swap, is_swizzle);
+  }
+
+  static bool TryMatchIdentityForTesting(const uint8_t* shuffle) {
+    return TryMatchIdentity(shuffle);
+  }
+  template <int LANES>
+  static bool TryMatchDupForTesting(const uint8_t* shuffle, int* index) {
+    return TryMatchDup<LANES>(shuffle, index);
+  }
+  static bool TryMatch32x4ShuffleForTesting(const uint8_t* shuffle,
+                                            uint8_t* shuffle32x4) {
+    return TryMatch32x4Shuffle(shuffle, shuffle32x4);
+  }
+  static bool TryMatch16x8ShuffleForTesting(const uint8_t* shuffle,
+                                            uint8_t* shuffle16x8) {
+    return TryMatch16x8Shuffle(shuffle, shuffle16x8);
+  }
+  static bool TryMatchConcatForTesting(const uint8_t* shuffle,
+                                       uint8_t* offset) {
+    return TryMatchConcat(shuffle, offset);
+  }
+  static bool TryMatchBlendForTesting(const uint8_t* shuffle) {
+    return TryMatchBlend(shuffle);
+  }
 
  private:
   friend class OperandGenerator;
@@ -448,6 +494,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void EmitTableSwitch(const SwitchInfo& sw, InstructionOperand& index_operand);
   void EmitLookupSwitch(const SwitchInfo& sw,
                         InstructionOperand& value_operand);
+  void EmitBinarySearchSwitch(const SwitchInfo& sw,
+                              InstructionOperand& value_operand);
 
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
@@ -559,8 +607,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                          BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
-  void VisitTrapIf(Node* node, Runtime::FunctionId func_id);
-  void VisitTrapUnless(Node* node, Runtime::FunctionId func_id);
+  void VisitTrapIf(Node* node, TrapId trap_id);
+  void VisitTrapUnless(Node* node, TrapId trap_id);
   void VisitTailCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
@@ -575,6 +623,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);
 
+  void EmitWordPoisonOnSpeculation(Node* node);
+
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* call_descriptor, Node* node);
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
@@ -586,6 +636,27 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
+
+  // Converts a shuffle into canonical form, meaning that the first lane index
+  // is in the range [0 .. 15]. Set |inputs_equal| true if this is an explicit
+  // swizzle. Returns canonicalized |shuffle|, |needs_swap|, and |is_swizzle|.
+  // If |needs_swap| is true, inputs must be swapped. If |is_swizzle| is true,
+  // the second input can be ignored.
+  static void CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle,
+                                  bool* needs_swap, bool* is_swizzle);
+
+  // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
+  // indices, and a boolean indicating if the shuffle is a swizzle (one input).
+  void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle);
+
+  // Swaps the two first input operands of the node, to help match shuffles
+  // to specific architectural instructions.
+  void SwapShuffleInputs(Node* node);
+
+  // Tries to match an 8x16 byte shuffle to the identity shuffle, which is
+  // [0 1 ... 15]. This should be called after canonicalizing the shuffle, so
+  // the second identity shuffle, [16 17 .. 31] is converted to the first one.
+  static bool TryMatchIdentity(const uint8_t* shuffle);
 
   // Tries to match a byte shuffle to a scalar splat operation. Returns the
   // index of the lane if successful.
@@ -611,22 +682,30 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     return true;
   }
 
-  // Tries to match 8x16 byte shuffle to an equivalent 32x4 word shuffle. If
-  // successful, it writes the 32x4 shuffle word indices.
+  // Tries to match an 8x16 byte shuffle to an equivalent 32x4 shuffle. If
+  // successful, it writes the 32x4 shuffle word indices. E.g.
+  // [0 1 2 3 8 9 10 11 4 5 6 7 12 13 14 15] == [0 2 1 3]
   static bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4);
 
-  // Tries to match a byte shuffle to a concatenate operation. If successful,
-  // it writes the byte offset.
-  static bool TryMatchConcat(const uint8_t* shuffle, uint8_t mask,
-                             uint8_t* offset);
+  // Tries to match an 8x16 byte shuffle to an equivalent 16x8 shuffle. If
+  // successful, it writes the 16x8 shuffle word indices. E.g.
+  // [0 1 8 9 2 3 10 11 4 5 12 13 6 7 14 15] == [0 4 1 5 2 6 3 7]
+  static bool TryMatch16x8Shuffle(const uint8_t* shuffle, uint8_t* shuffle16x8);
 
-  // Packs 4 bytes of shuffle into a 32 bit immediate, using a mask from
-  // CanonicalizeShuffle to convert unary shuffles.
-  static int32_t Pack4Lanes(const uint8_t* shuffle, uint8_t mask);
+  // Tries to match a byte shuffle to a concatenate operation, formed by taking
+  // 16 bytes from the 32 byte concatenation of the inputs.  If successful, it
+  // writes the byte offset. E.g. [4 5 6 7 .. 16 17 18 19] concatenates both
+  // source vectors with offset 4. The shuffle should be canonicalized.
+  static bool TryMatchConcat(const uint8_t* shuffle, uint8_t* offset);
 
-  // Canonicalize shuffles to make pattern matching simpler. Returns a mask that
-  // will ignore the high bit of indices if shuffle is unary.
-  uint8_t CanonicalizeShuffle(Node* node);
+  // Tries to match a byte shuffle to a blend operation, which is a shuffle
+  // where no lanes change position. E.g. [0 9 2 11 .. 14 31] interleaves the
+  // even lanes of the first source with the odd lanes of the second.  The
+  // shuffle should be canonicalized.
+  static bool TryMatchBlend(const uint8_t* shuffle);
+
+  // Packs 4 bytes of shuffle into a 32 bit immediate.
+  static int32_t Pack4Lanes(const uint8_t* shuffle);
 
   // ===========================================================================
 
@@ -643,13 +722,17 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void MarkPairProjectionsAsWord32(Node* node);
   bool IsSourcePositionUsed(Node* node);
-  void VisitAtomicBinaryOperation(Node* node, ArchOpcode int8_op,
-                                  ArchOpcode uint8_op, ArchOpcode int16_op,
-                                  ArchOpcode uint16_op, ArchOpcode word32_op);
+  void VisitWord32AtomicBinaryOperation(Node* node, ArchOpcode int8_op,
+                                        ArchOpcode uint8_op,
+                                        ArchOpcode int16_op,
+                                        ArchOpcode uint16_op,
+                                        ArchOpcode word32_op);
   void VisitWord64AtomicBinaryOperation(Node* node, ArchOpcode uint8_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,
                                         ArchOpcode uint64_op);
+  void VisitWord64AtomicNarrowBinop(Node* node, ArchOpcode uint8_op,
+                                    ArchOpcode uint16_op, ArchOpcode uint32_op);
 
   // ===========================================================================
 
@@ -671,12 +754,14 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   IntVector virtual_register_rename_;
   InstructionScheduler* scheduler_;
   EnableScheduling enable_scheduling_;
-  EnableSerialization enable_serialization_;
+  EnableRootsRelativeAddressing enable_roots_relative_addressing_;
   EnableSwitchJumpTable enable_switch_jump_table_;
 
-  PoisoningMitigationLevel poisoning_enabled_;
+  PoisoningMitigationLevel poisoning_level_;
   Frame* frame_;
   bool instruction_selection_failed_;
+  ZoneVector<std::pair<int, int>> instr_origins_;
+  EnableTraceTurboJson trace_turbo_;
 };
 
 }  // namespace compiler

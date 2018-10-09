@@ -1,3 +1,1 @@
-import {  RangeObservable  } from './RangeObservable';
-
-export const range = RangeObservable.create;
+export * from 'rxjs-compat/observable/range';

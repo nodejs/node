@@ -24,7 +24,7 @@ async function testBreakpointOnStart(session) {
   ];
 
   session.send(commands);
-  await session.waitForBreakOnLine(0, session.scriptPath());
+  await session.waitForBreakOnLine(0, session.scriptURL());
 }
 
 async function runTests() {
@@ -37,5 +37,4 @@ async function runTests() {
   assert.strictEqual(55, (await child.expectShutdown()).exitCode);
 }
 
-common.crashOnUnhandledRejection();
 runTests();

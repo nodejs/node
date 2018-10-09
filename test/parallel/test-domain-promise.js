@@ -5,8 +5,6 @@ const domain = require('domain');
 const fs = require('fs');
 const vm = require('vm');
 
-common.crashOnUnhandledRejection();
-
 {
   const d = domain.create();
 

@@ -10,8 +10,6 @@ const tmpDir = tmpdir.path;
 
 tmpdir.refresh();
 
-common.crashOnUnhandledRejection();
-
 const dest = path.resolve(tmpDir, 'tmp.txt');
 const buffer = Buffer.from('abc'.repeat(1000));
 const buffer2 = Buffer.from('xyz'.repeat(1000));

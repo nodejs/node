@@ -25,9 +25,26 @@ group("v8_check_static_initializers") {
   ]
 }
 
+group("v8_android_test_runner_deps") {
+  testonly = true
+
+  if (is_android && !build_with_chromium) {
+    data_deps = [
+      "../build/android:test_runner_py",
+    ]
+    data = [
+      # This is used by android.py, but not included by test_runner_py above.
+      "../third_party/catapult/devil/devil/android/perf/",
+    ]
+  }
+}
+
 group("v8_testrunner") {
+  testonly = true
+
   data_deps = [
     "..:v8_dump_build_config",
+    ":v8_android_test_runner_deps",
   ]
 
   data = [

@@ -98,7 +98,8 @@ class IdentityMapTester : public HandleAndZoneScope {
     }
 
     // Delete {key1}
-    void* deleted_entry_1 = map.Delete(key1);
+    void* deleted_entry_1;
+    CHECK(map.Delete(key1, &deleted_entry_1));
     CHECK_NOT_NULL(deleted_entry_1);
     deleted_entry_1 = val1;
 
@@ -114,7 +115,8 @@ class IdentityMapTester : public HandleAndZoneScope {
     }
 
     // Delete {key2}
-    void* deleted_entry_2 = map.Delete(key2);
+    void* deleted_entry_2;
+    CHECK(map.Delete(key2, &deleted_entry_2));
     CHECK_NOT_NULL(deleted_entry_2);
     deleted_entry_2 = val2;
 
@@ -160,7 +162,8 @@ class IdentityMapTester : public HandleAndZoneScope {
   }
 
   void CheckDelete(Handle<Object> key, void* value) {
-    void* entry = map.Delete(key);
+    void* entry;
+    CHECK(map.Delete(key, &entry));
     CHECK_NOT_NULL(entry);
     CHECK_EQ(value, entry);
   }
@@ -197,14 +200,18 @@ TEST(Find_num_not_found) {
 TEST(Delete_smi_not_found) {
   IdentityMapTester t;
   for (int i = 0; i < 100; i++) {
-    CHECK_NULL(t.map.Delete(t.smi(i)));
+    void* deleted_value = &t;
+    CHECK(!t.map.Delete(t.smi(i), &deleted_value));
+    CHECK_EQ(&t, deleted_value);
   }
 }
 
 TEST(Delete_num_not_found) {
   IdentityMapTester t;
   for (int i = 0; i < 100; i++) {
-    CHECK_NULL(t.map.Delete(t.num(i + 0.2)));
+    void* deleted_value = &t;
+    CHECK(!t.map.Delete(t.num(i + 0.2), &deleted_value));
+    CHECK_EQ(&t, deleted_value);
   }
 }
 
@@ -311,7 +318,8 @@ TEST(Delete_num_1000) {
 
   // Delete every second value in reverse.
   for (int i = 999; i >= 0; i -= 2) {
-    void* entry = t.map.Delete(t.smi(i * kPrime));
+    void* entry;
+    CHECK(t.map.Delete(t.smi(i * kPrime), &entry));
     CHECK_EQ(reinterpret_cast<void*>(i * kPrime), entry);
   }
 
@@ -327,7 +335,8 @@ TEST(Delete_num_1000) {
 
   // Delete the rest.
   for (int i = 0; i < 1000; i += 2) {
-    void* entry = t.map.Delete(t.smi(i * kPrime));
+    void* entry;
+    CHECK(t.map.Delete(t.smi(i * kPrime), &entry));
     CHECK_EQ(reinterpret_cast<void*>(i * kPrime), entry);
   }
 
@@ -706,9 +715,10 @@ TEST(CanonicalHandleScope) {
   CHECK_EQ(next_handle, isolate->handle_scope_data()->next);
 
   // Deduplicate root list items.
-  Handle<String> empty_string(heap->empty_string());
-  Handle<Map> free_space_map(heap->free_space_map());
-  Handle<Symbol> uninitialized_symbol(heap->uninitialized_symbol());
+  Handle<String> empty_string(ReadOnlyRoots(heap).empty_string(), isolate);
+  Handle<Map> free_space_map(ReadOnlyRoots(heap).free_space_map(), isolate);
+  Handle<Symbol> uninitialized_symbol(
+      ReadOnlyRoots(heap).uninitialized_symbol(), isolate);
   CHECK_EQ(isolate->factory()->empty_string().location(),
            empty_string.location());
   CHECK_EQ(isolate->factory()->free_space_map().location(),
@@ -723,13 +733,13 @@ TEST(CanonicalHandleScope) {
   Handle<String> string1 =
       isolate->factory()->NewStringFromAsciiChecked("test");
   next_handle = isolate->handle_scope_data()->next;
-  Handle<HeapNumber> number2(*number1);
-  Handle<String> string2(*string1);
+  Handle<HeapNumber> number2(*number1, isolate);
+  Handle<String> string2(*string1, isolate);
   CHECK_EQ(number1.location(), number2.location());
   CHECK_EQ(string1.location(), string2.location());
   CcTest::CollectAllGarbage();
-  Handle<HeapNumber> number3(*number2);
-  Handle<String> string3(*string2);
+  Handle<HeapNumber> number3(*number2, isolate);
+  Handle<String> string3(*string2, isolate);
   CHECK_EQ(number1.location(), number3.location());
   CHECK_EQ(string1.location(), string3.location());
   // Check that no new handles have been allocated.
@@ -738,23 +748,23 @@ TEST(CanonicalHandleScope) {
   // Inner handle scope do not create canonical handles.
   {
     HandleScope inner(isolate);
-    Handle<HeapNumber> number4(*number1);
-    Handle<String> string4(*string1);
+    Handle<HeapNumber> number4(*number1, isolate);
+    Handle<String> string4(*string1, isolate);
     CHECK_NE(number1.location(), number4.location());
     CHECK_NE(string1.location(), string4.location());
 
     // Nested canonical scope does not conflict with outer canonical scope,
     // but does not canonicalize across scopes.
     CanonicalHandleScope inner_canonical(isolate);
-    Handle<HeapNumber> number5(*number4);
-    Handle<String> string5(*string4);
+    Handle<HeapNumber> number5(*number4, isolate);
+    Handle<String> string5(*string4, isolate);
     CHECK_NE(number4.location(), number5.location());
     CHECK_NE(string4.location(), string5.location());
     CHECK_NE(number1.location(), number5.location());
     CHECK_NE(string1.location(), string5.location());
 
-    Handle<HeapNumber> number6(*number1);
-    Handle<String> string6(*string1);
+    Handle<HeapNumber> number6(*number1, isolate);
+    Handle<String> string6(*string1, isolate);
     CHECK_NE(number4.location(), number6.location());
     CHECK_NE(string4.location(), string6.location());
     CHECK_NE(number1.location(), number6.location());

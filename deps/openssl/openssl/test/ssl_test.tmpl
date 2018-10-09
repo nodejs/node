@@ -92,35 +92,35 @@ client = {-$testname-}-client{-
         $OUT .= "\n[$testname-server-extra]\n";
         foreach my $key (sort keys %{$server{"extra"}}) {
             $OUT .= qq{$key} . " = " . qq{$server{"extra"}{$key}\n}
-		 if defined $server{"extra"}{$key};
+	    	 if defined $server{"extra"}{$key};
         }
     }
     if (%server2 && $server2{"extra"}) {
         $OUT .= "\n[$testname-server2-extra]\n";
         foreach my $key (sort keys %{$server2{"extra"}}) {
             $OUT .= qq{$key} . " = " . qq{$server2{"extra"}{$key}\n}
-		 if defined $server2{"extra"}{$key};
+	    	 if defined $server2{"extra"}{$key};
         }
     }
    if (%resume_server && $resume_server{"extra"}) {
         $OUT .= "\n[$testname-resume-server-extra]\n";
         foreach my $key (sort keys %{$resume_server{"extra"}}) {
             $OUT .= qq{$key} . " = " . qq{$resume_server{"extra"}{$key}\n}
-		 if defined $resume_server{"extra"}{$key};
+	    	 if defined $resume_server{"extra"}{$key};
         }
     }
    if ($client{"extra"}) {
         $OUT .= "\n[$testname-client-extra]\n";
         foreach my $key (sort keys %{$client{"extra"}}) {
             $OUT .= qq{$key} . " = " . qq{$client{"extra"}{$key}\n}
-		 if defined $client{"extra"}{$key};
+	    	 if defined $client{"extra"}{$key};
         }
    }
    if (%resume_client && $resume_client{"extra"}) {
         $OUT .= "\n[$testname-resume-client-extra]\n";
         foreach my $key (sort keys %{$resume_client{"extra"}}) {
             $OUT .= qq{$key} . " = " . qq{$resume_client{"extra"}{$key}\n}
-		 if defined $resume_client{"extra"}{$key};
+	    	 if defined $resume_client{"extra"}{$key};
         }
     }
 -}

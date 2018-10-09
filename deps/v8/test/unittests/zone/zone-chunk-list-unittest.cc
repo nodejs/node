@@ -280,5 +280,77 @@ TEST(ZoneChunkList, PushBackPopBackSize) {
   CHECK_EQ(size_t(0), zone_chunk_list.size());
 }
 
+TEST(ZoneChunkList, AdvanceZeroTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  auto iterator_advance = zone_chunk_list.begin();
+
+  iterator_advance.Advance(0);
+
+  CHECK_EQ(iterator_advance, zone_chunk_list.begin());
+}
+
+TEST(ZoneChunkList, AdvancePartwayTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  auto iterator_advance = zone_chunk_list.begin();
+  auto iterator_one_by_one = zone_chunk_list.begin();
+
+  iterator_advance.Advance(kItemCount / 2);
+  for (size_t i = 0; i < kItemCount / 2; ++i) {
+    ++iterator_one_by_one;
+  }
+
+  CHECK_EQ(iterator_advance, iterator_one_by_one);
+}
+
+TEST(ZoneChunkList, AdvanceEndTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  auto iterator_advance = zone_chunk_list.begin();
+
+  iterator_advance.Advance(kItemCount);
+
+  CHECK_EQ(iterator_advance, zone_chunk_list.end());
+}
+
+TEST(ZoneChunkList, FindOverChunkBoundary) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<int> zone_chunk_list(&zone);
+
+  // Make sure we get two chunks.
+  int chunk_size = static_cast<int>(ZoneChunkList<int>::StartMode::kSmall);
+  for (int i = 0; i < chunk_size + 1; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  for (int i = 0; i < chunk_size + 1; ++i) {
+    CHECK_EQ(i, *zone_chunk_list.Find(i));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

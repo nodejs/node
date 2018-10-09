@@ -24,8 +24,8 @@ const eslintScope = require("eslint-scope"),
     Traverser = require("./util/traverser"),
     createReportTranslator = require("./report-translator"),
     Rules = require("./rules"),
-    timing = require("./timing"),
-    astUtils = require("./ast-utils"),
+    timing = require("./util/timing"),
+    astUtils = require("./util/ast-utils"),
     pkg = require("../package.json"),
     SourceCodeFixer = require("./util/source-code-fixer");
 
@@ -465,11 +465,10 @@ function resolveParserOptions(parserName, providedOptions, enabledEnvironments) 
  * @returns {Object} The resolved globals object
  */
 function resolveGlobals(providedGlobals, enabledEnvironments) {
-    return Object.assign.apply(
-        null,
-        [{}]
-            .concat(enabledEnvironments.filter(env => env.globals).map(env => env.globals))
-            .concat(providedGlobals)
+    return Object.assign(
+        {},
+        ...enabledEnvironments.filter(env => env.globals).map(env => env.globals),
+        providedGlobals
     );
 }
 

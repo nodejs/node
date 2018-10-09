@@ -1,5 +1,5 @@
 /**
- * @fileoverview This option sets a specific tab width for your code
+ * @fileoverview This rule sets a specific indentation style and width for your code
  *
  * @author Teddy Katz
  * @author Vitaly Puzrin
@@ -13,7 +13,7 @@
 //------------------------------------------------------------------------------
 
 const lodash = require("lodash");
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 const createTree = require("functional-red-black-tree");
 
 //------------------------------------------------------------------------------
@@ -855,7 +855,11 @@ module.exports = {
                         previousElement &&
                         previousElementLastToken.loc.end.line - countTrailingLinebreaks(previousElementLastToken.value) > startToken.loc.end.line
                     ) {
-                        offsets.setDesiredOffsets(element.range, firstTokenOfPreviousElement, 0);
+                        offsets.setDesiredOffsets(
+                            [previousElement.range[1], element.range[1]],
+                            firstTokenOfPreviousElement,
+                            0
+                        );
                     }
                 }
             });
@@ -995,6 +999,31 @@ module.exports = {
             node = node.parent;
 
             return !node || node.loc.start.line === token.loc.start.line;
+        }
+
+        /**
+         * Check whether there are any blank (whitespace-only) lines between
+         * two tokens on separate lines.
+         * @param {Token} firstToken The first token.
+         * @param {Token} secondToken The second token.
+         * @returns {boolean} `true` if the tokens are on separate lines and
+         *   there exists a blank line between them, `false` otherwise.
+         */
+        function hasBlankLinesBetween(firstToken, secondToken) {
+            const firstTokenLine = firstToken.loc.end.line;
+            const secondTokenLine = secondToken.loc.start.line;
+
+            if (firstTokenLine === secondTokenLine || firstTokenLine === secondTokenLine - 1) {
+                return false;
+            }
+
+            for (let line = firstTokenLine + 1; line < secondTokenLine; ++line) {
+                if (!tokenInfo.firstTokensByLineNumber.has(line)) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         const ignoredNodeFirstTokens = new Set();
@@ -1304,7 +1333,9 @@ module.exports = {
                 node.expressions.forEach((expression, index) => {
                     const previousQuasi = node.quasis[index];
                     const nextQuasi = node.quasis[index + 1];
-                    const tokenToAlignFrom = previousQuasi.loc.start.line === previousQuasi.loc.end.line ? sourceCode.getFirstToken(previousQuasi) : null;
+                    const tokenToAlignFrom = previousQuasi.loc.start.line === previousQuasi.loc.end.line
+                        ? sourceCode.getFirstToken(previousQuasi)
+                        : null;
 
                     offsets.setDesiredOffsets([previousQuasi.range[1], nextQuasi.range[0]], tokenToAlignFrom, 1);
                     offsets.setDesiredOffset(sourceCode.getFirstToken(nextQuasi), tokenToAlignFrom, 0);
@@ -1312,7 +1343,9 @@ module.exports = {
             },
 
             VariableDeclaration(node) {
-                const variableIndent = options.VariableDeclarator.hasOwnProperty(node.kind) ? options.VariableDeclarator[node.kind] : DEFAULT_VARIABLE_INDENT;
+                const variableIndent = Object.prototype.hasOwnProperty.call(options.VariableDeclarator, node.kind)
+                    ? options.VariableDeclarator[node.kind]
+                    : DEFAULT_VARIABLE_INDENT;
 
                 if (node.declarations[node.declarations.length - 1].loc.start.line > node.loc.start.line) {
 
@@ -1536,10 +1569,13 @@ module.exports = {
                             const tokenBefore = precedingTokens.get(firstTokenOfLine);
                             const tokenAfter = tokenBefore ? sourceCode.getTokenAfter(tokenBefore) : sourceCode.ast.tokens[0];
 
+                            const mayAlignWithBefore = tokenBefore && !hasBlankLinesBetween(tokenBefore, firstTokenOfLine);
+                            const mayAlignWithAfter = tokenAfter && !hasBlankLinesBetween(firstTokenOfLine, tokenAfter);
+
                             // If a comment matches the expected indentation of the token immediately before or after, don't report it.
                             if (
-                                tokenBefore && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenBefore)) ||
-                                tokenAfter && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenAfter))
+                                mayAlignWithBefore && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenBefore)) ||
+                                mayAlignWithAfter && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenAfter))
                             ) {
                                 return;
                             }

@@ -16,7 +16,7 @@ The following reads an ASN.1 sequence with a boolean.
 
     var Ber = require('asn1').Ber;
 
-    var reader = new Ber.Reader(new Buffer([0x30, 0x03, 0x01, 0x01, 0xff]));
+    var reader = new Ber.Reader(Buffer.from([0x30, 0x03, 0x01, 0x01, 0xff]));
 
     reader.readSequence();
     console.log('Sequence len: ' + reader.length);
@@ -47,4 +47,4 @@ MIT.
 
 ## Bugs
 
-See <https://github.com/mcavage/node-asn1/issues>.
+See <https://github.com/joyent/node-asn1/issues>.

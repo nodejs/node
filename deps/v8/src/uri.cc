@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "src/char-predicates-inl.h"
-#include "src/handles.h"
 #include "src/isolate-inl.h"
 #include "src/string-search.h"
 #include "src/unicode-inl.h"
@@ -175,7 +174,7 @@ bool IntoOneAndTwoByte(Handle<String> uri, bool is_uri,
 
 MaybeHandle<String> Uri::Decode(Isolate* isolate, Handle<String> uri,
                                 bool is_uri) {
-  uri = String::Flatten(uri);
+  uri = String::Flatten(isolate, uri);
   std::vector<uint8_t> one_byte_buffer;
   std::vector<uc16> two_byte_buffer;
 
@@ -273,7 +272,7 @@ void EncodePair(uc16 cc1, uc16 cc2, std::vector<uint8_t>* buffer) {
 
 MaybeHandle<String> Uri::Encode(Isolate* isolate, Handle<String> uri,
                                 bool is_uri) {
-  uri = String::Flatten(uri);
+  uri = String::Flatten(isolate, uri);
   int uri_length = uri->length();
   std::vector<uint8_t> buffer;
   buffer.reserve(uri_length);
@@ -492,7 +491,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
 
 MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
   Handle<String> result;
-  string = String::Flatten(string);
+  string = String::Flatten(isolate, string);
   return string->IsOneByteRepresentationUnderneath()
              ? EscapePrivate<uint8_t>(isolate, string)
              : EscapePrivate<uc16>(isolate, string);
@@ -500,7 +499,7 @@ MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
 
 MaybeHandle<String> Uri::Unescape(Isolate* isolate, Handle<String> string) {
   Handle<String> result;
-  string = String::Flatten(string);
+  string = String::Flatten(isolate, string);
   return string->IsOneByteRepresentationUnderneath()
              ? UnescapePrivate<uint8_t>(isolate, string)
              : UnescapePrivate<uc16>(isolate, string);

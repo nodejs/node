@@ -1,6 +1,6 @@
 'use strict';
 var _ = require('lodash');
-var Rx = require('rxjs/Rx');
+var { from, of } = require('rxjs');
 var runAsync = require('run-async');
 
 /**
@@ -14,10 +14,10 @@ var runAsync = require('run-async');
 
 exports.fetchAsyncQuestionProperty = function(question, prop, answers) {
   if (!_.isFunction(question[prop])) {
-    return Rx.Observable.of(question);
+    return of(question);
   }
 
-  return Rx.Observable.fromPromise(
+  return from(
     runAsync(question[prop])(answers).then(value => {
       question[prop] = value;
       return question;

@@ -1,6 +1,7 @@
 *.swp
 .*.swp
 npm-debug.log
+/.github
 /test
 node_modules/marked
 node_modules/ronn

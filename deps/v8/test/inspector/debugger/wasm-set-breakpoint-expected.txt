@@ -1,0 +1,62 @@
+Tests stepping through wasm scripts
+Installing code an global variable.
+Calling instantiate function.
+Waiting for two wasm scripts to be parsed.
+Ignoring script with url v8://test/callInstantiate
+Got wasm script: wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-0
+Requesting source for wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-0...
+Got wasm script: wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-1
+Requesting source for wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-1...
+func $wasm_A
+  nop
+  nop
+end
+
+func $wasm_B (param i32)
+  loop
+    get_local 0
+    if
+      get_local 0
+      i32.const 1
+      i32.sub
+      set_local 0
+      call 0
+      br 1
+    end
+  end
+end
+
+Setting breakpoint on line 8 (on the setlocal before the call), url wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-1
+Setting breakpoint on line 7 (on the setlocal before the call), url wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-1
+Setting breakpoint on line 6 (on the setlocal before the call), url wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-1
+Setting breakpoint on line 5 (on the setlocal before the call), url wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-1
+Setting breakpoint on line 3 (on the setlocal before the call), url wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-1
+Setting breakpoint on line 4  (on the setlocal before the call), url wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-1
+3
+4
+5
+6
+7
+8
+3
+4
+5
+6
+7
+8
+3
+4
+5
+6
+7
+8
+3
+4
+5
+6
+7
+8
+3
+exports.main returned!
+Finished!
+

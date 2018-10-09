@@ -79,7 +79,6 @@ class BuiltinSnapshotData final : public SnapshotData {
   // ... list of builtins offsets
 };
 
-#ifdef V8_EMBEDDED_BUILTINS
 class EmbeddedData final {
  public:
   static EmbeddedData FromIsolate(Isolate* isolate);
@@ -90,50 +89,69 @@ class EmbeddedData final {
 
   void Dispose() { delete[] data_; }
 
-  const uint8_t* InstructionStartOfBuiltin(int i) const;
+  Address InstructionStartOfBuiltin(int i) const;
   uint32_t InstructionSizeOfBuiltin(int i) const;
 
   bool ContainsBuiltin(int i) const { return InstructionSizeOfBuiltin(i) > 0; }
 
   // Padded with kCodeAlignment.
   uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
-    return RoundUp<kCodeAlignment>(InstructionSizeOfBuiltin(i));
+    return PadAndAlign(InstructionSizeOfBuiltin(i));
   }
+
+  size_t CreateHash() const;
+  size_t Hash() const {
+    return *reinterpret_cast<const size_t*>(data_ + HashOffset());
+  }
+
+  struct Metadata {
+    // Blob layout information.
+    uint32_t instructions_offset;
+    uint32_t instructions_length;
+  };
+  STATIC_ASSERT(offsetof(Metadata, instructions_offset) == 0);
+  STATIC_ASSERT(offsetof(Metadata, instructions_length) == kUInt32Size);
+  STATIC_ASSERT(sizeof(Metadata) == kUInt32Size + kUInt32Size);
 
   // The layout of the blob is as follows:
   //
-  // [0] offset of instruction stream 0
-  // ... offsets
-  // [N] length of instruction stream 0
-  // ... lengths
+  // [0] hash of the remaining blob
+  // [1] metadata of instruction stream 0
+  // ... metadata
   // ... instruction streams
 
   static constexpr uint32_t kTableSize = Builtins::builtin_count;
-  static constexpr uint32_t OffsetsOffset() { return 0; }
-  static constexpr uint32_t OffsetsSize() { return kUInt32Size * kTableSize; }
-  static constexpr uint32_t LengthsOffset() {
-    return OffsetsOffset() + OffsetsSize();
+  static constexpr uint32_t HashOffset() { return 0; }
+  static constexpr uint32_t HashSize() { return kSizetSize; }
+  static constexpr uint32_t MetadataOffset() {
+    return HashOffset() + HashSize();
   }
-  static constexpr uint32_t LengthsSize() { return kUInt32Size * kTableSize; }
+  static constexpr uint32_t MetadataSize() {
+    return sizeof(struct Metadata) * kTableSize;
+  }
   static constexpr uint32_t RawDataOffset() {
-    return RoundUp<kCodeAlignment>(LengthsOffset() + LengthsSize());
+    return PadAndAlign(MetadataOffset() + MetadataSize());
   }
 
  private:
   EmbeddedData(const uint8_t* data, uint32_t size) : data_(data), size_(size) {}
 
-  const uint32_t* Offsets() const {
-    return reinterpret_cast<const uint32_t*>(data_ + OffsetsOffset());
-  }
-  const uint32_t* Lengths() const {
-    return reinterpret_cast<const uint32_t*>(data_ + LengthsOffset());
+  const Metadata* Metadata() const {
+    return reinterpret_cast<const struct Metadata*>(data_ + MetadataOffset());
   }
   const uint8_t* RawData() const { return data_ + RawDataOffset(); }
+
+  static constexpr int PadAndAlign(int size) {
+    // Ensure we have at least one byte trailing the actual builtin
+    // instructions which we can later fill with int3.
+    return RoundUp<kCodeAlignment>(size + 1);
+  }
+
+  void PrintStatistics() const;
 
   const uint8_t* data_;
   uint32_t size_;
 };
-#endif
 
 class Snapshot : public AllStatic {
  public:
@@ -194,10 +212,11 @@ class Snapshot : public AllStatic {
                                                uint32_t index);
 
   static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
-    return ReadLittleEndianValue<uint32_t>(data->data + offset);
+    return ReadLittleEndianValue<uint32_t>(
+        reinterpret_cast<Address>(data->data) + offset);
   }
   static void SetHeaderValue(char* data, uint32_t offset, uint32_t value) {
-    WriteLittleEndianValue(data + offset, value);
+    WriteLittleEndianValue(reinterpret_cast<Address>(data) + offset, value);
   }
 
   static void CheckVersion(const v8::StartupData* data);

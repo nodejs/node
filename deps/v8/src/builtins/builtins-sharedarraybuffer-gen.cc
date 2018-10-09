@@ -111,8 +111,8 @@ void SharedArrayBufferBuiltinsAssembler::ValidateAtomicIndex(Node* array,
                                                              Node* context) {
   // Check if the index is in bounds. If not, throw RangeError.
   Label check_passed(this);
-  Node* array_length_word32 = TruncateTaggedToWord32(
-      context, LoadObjectField(array, JSTypedArray::kLengthOffset));
+  Node* array_length_word32 =
+      TruncateTaggedToWord32(context, LoadTypedArrayLength(CAST(array)));
   GotoIf(Uint32LessThan(index_word, array_length_word32), &check_passed);
 
   ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex);
@@ -127,12 +127,10 @@ void SharedArrayBufferBuiltinsAssembler::DebugSanityCheckAtomicIndex(
   // ToInteger above calls out to JavaScript. A SharedArrayBuffer can't be
   // neutered and the TypedArray length can't change either, so skipping this
   // check in Release mode is safe.
-  CSA_ASSERT(
-      this,
-      Uint32LessThan(
-          index_word,
-          TruncateTaggedToWord32(
-              context, LoadObjectField(array, JSTypedArray::kLengthOffset))));
+  CSA_ASSERT(this,
+             Uint32LessThan(index_word,
+                            TruncateTaggedToWord32(
+                                context, LoadTypedArrayLength(CAST(array)))));
 }
 #endif
 

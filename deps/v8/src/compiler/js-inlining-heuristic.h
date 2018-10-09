@@ -34,7 +34,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   void Finalize() final;
 
  private:
-  // This limit currently matches what Crankshaft does. We may want to
+  // This limit currently matches what the old compiler did. We may want to
   // re-evaluate and come up with a proper limit for TurboFan.
   static const int kMaxCallPolymorphism = 4;
 
@@ -80,6 +80,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   SimplifiedOperatorBuilder* simplified() const;
 
   Mode const mode_;

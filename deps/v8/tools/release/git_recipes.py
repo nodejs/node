@@ -207,12 +207,14 @@ class GitRecipesMixin(object):
 
   def GitUpload(self, reviewer="", author="", force=False, cq=False,
                 cq_dry_run=False, bypass_hooks=False, cc="", private=False,
-                **kwargs):
+                tbr_reviewer="", **kwargs):
     args = ["cl upload --send-mail"]
     if author:
       args += ["--email", Quoted(author)]
     if reviewer:
       args += ["-r", Quoted(reviewer)]
+    if tbr_reviewer:
+      args += ["--tbrs", Quoted(tbr_reviewer)]
     if force:
       args.append("-f")
     if cq:

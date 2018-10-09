@@ -11,12 +11,12 @@ function assertCompiles(buffer) {
   return assertPromiseResult(
       WebAssembly.compile(buffer),
       module => assertTrue(module instanceof WebAssembly.Module),
-      ex => assertUnreachable);
+      ex => assertUnreachable());
 }
 
 function assertCompileError(buffer) {
   return assertPromiseResult(
-      WebAssembly.compile(buffer), module => assertUnreachable,
+      WebAssembly.compile(buffer), module => assertUnreachable(),
       ex => assertTrue(ex instanceof WebAssembly.CompileError));
 }
 

@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 
@@ -5,7 +6,8 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 // Monkey-patch SecureContext
-const binding = process.binding('crypto');
+const { internalBinding } = require('internal/test/binding');
+const binding = internalBinding('crypto');
 const NativeSecureContext = binding.SecureContext;
 
 binding.SecureContext = function() {

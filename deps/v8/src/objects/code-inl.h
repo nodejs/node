@@ -7,8 +7,11 @@
 
 #include "src/objects/code.h"
 
+#include "src/interpreter/bytecode-register.h"
 #include "src/isolate.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/map-inl.h"
+#include "src/objects/maybe-object-inl.h"
 #include "src/v8memory.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -16,10 +19,6 @@
 
 namespace v8 {
 namespace internal {
-
-TYPE_CHECKER(BytecodeArray, BYTECODE_ARRAY_TYPE)
-TYPE_CHECKER(Code, CODE_TYPE)
-TYPE_CHECKER(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)
 
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(BytecodeArray)
@@ -115,7 +114,7 @@ Address AbstractCode::InstructionEnd() {
   }
 }
 
-bool AbstractCode::contains(byte* inner_pointer) {
+bool AbstractCode::contains(Address inner_pointer) {
   return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
 }
 
@@ -134,17 +133,17 @@ BytecodeArray* AbstractCode::GetBytecodeArray() {
 }
 
 DependentCode* DependentCode::next_link() {
-  return DependentCode::cast(get(kNextLinkIndex));
+  return DependentCode::cast(Get(kNextLinkIndex)->ToStrongHeapObject());
 }
 
 void DependentCode::set_next_link(DependentCode* next) {
-  set(kNextLinkIndex, next);
+  Set(kNextLinkIndex, HeapObjectReference::Strong(next));
 }
 
-int DependentCode::flags() { return Smi::ToInt(get(kFlagsIndex)); }
+int DependentCode::flags() { return Smi::ToInt(Get(kFlagsIndex)->ToSmi()); }
 
 void DependentCode::set_flags(int flags) {
-  set(kFlagsIndex, Smi::FromInt(flags));
+  Set(kFlagsIndex, MaybeObject::FromObject(Smi::FromInt(flags)));
 }
 
 int DependentCode::count() { return CountField::decode(flags()); }
@@ -157,27 +156,27 @@ DependentCode::DependencyGroup DependentCode::group() {
   return static_cast<DependencyGroup>(GroupField::decode(flags()));
 }
 
-void DependentCode::set_group(DependentCode::DependencyGroup group) {
-  set_flags(GroupField::update(flags(), static_cast<int>(group)));
+void DependentCode::set_object_at(int i, MaybeObject* object) {
+  Set(kCodesStartIndex + i, object);
 }
 
-void DependentCode::set_object_at(int i, Object* object) {
-  set(kCodesStartIndex + i, object);
+MaybeObject* DependentCode::object_at(int i) {
+  return Get(kCodesStartIndex + i);
 }
 
-Object* DependentCode::object_at(int i) { return get(kCodesStartIndex + i); }
-
-void DependentCode::clear_at(int i) { set_undefined(kCodesStartIndex + i); }
+void DependentCode::clear_at(int i) {
+  Set(kCodesStartIndex + i,
+      HeapObjectReference::Strong(GetReadOnlyRoots().undefined_value()));
+}
 
 void DependentCode::copy(int from, int to) {
-  set(kCodesStartIndex + to, get(kCodesStartIndex + from));
+  Set(kCodesStartIndex + to, Get(kCodesStartIndex + from));
 }
 
 INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
-#define CODE_ACCESSORS(name, type, offset)           \
-  ACCESSORS_CHECKED2(Code, name, type, offset, true, \
-                     !GetHeap()->InNewSpace(value))
+#define CODE_ACCESSORS(name, type, offset) \
+  ACCESSORS_CHECKED2(Code, name, type, offset, true, !Heap::InNewSpace(value))
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
@@ -192,10 +191,12 @@ void Code::WipeOutHeader() {
 }
 
 void Code::clear_padding() {
-  memset(address() + kHeaderPaddingStart, 0, kHeaderSize - kHeaderPaddingStart);
+  memset(reinterpret_cast<void*>(address() + kHeaderPaddingStart), 0,
+         kHeaderSize - kHeaderPaddingStart);
   Address data_end =
       has_unwinding_info() ? unwinding_info_end() : raw_instruction_end();
-  memset(data_end, 0, CodeSize() - (data_end - address()));
+  memset(reinterpret_cast<void*>(data_end), 0,
+         CodeSize() - (data_end - address()));
 }
 
 ByteArray* Code::SourcePositionTable() const {
@@ -225,31 +226,34 @@ void Code::set_next_code_link(Object* value) {
 }
 
 int Code::InstructionSize() const {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionSize();
-#endif
+  if (is_off_heap_trampoline()) {
+    DCHECK(FLAG_embedded_builtins);
+    return OffHeapInstructionSize();
+  }
   return raw_instruction_size();
 }
 
-byte* Code::raw_instruction_start() const {
-  return const_cast<byte*>(FIELD_ADDR_CONST(this, kHeaderSize));
+Address Code::raw_instruction_start() const {
+  return FIELD_ADDR(this, kHeaderSize);
 }
 
 Address Code::InstructionStart() const {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionStart();
-#endif
+  if (is_off_heap_trampoline()) {
+    DCHECK(FLAG_embedded_builtins);
+    return OffHeapInstructionStart();
+  }
   return raw_instruction_start();
 }
 
-byte* Code::raw_instruction_end() const {
+Address Code::raw_instruction_end() const {
   return raw_instruction_start() + raw_instruction_size();
 }
 
 Address Code::InstructionEnd() const {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionEnd();
-#endif
+  if (is_off_heap_trampoline()) {
+    DCHECK(FLAG_embedded_builtins);
+    return OffHeapInstructionEnd();
+  }
   return raw_instruction_end();
 }
 
@@ -269,14 +273,12 @@ void Code::set_unwinding_info_size(int value) {
   WRITE_UINT64_FIELD(this, GetUnwindingInfoSizeOffset(), value);
 }
 
-byte* Code::unwinding_info_start() const {
+Address Code::unwinding_info_start() const {
   DCHECK(has_unwinding_info());
-  return const_cast<byte*>(
-             FIELD_ADDR_CONST(this, GetUnwindingInfoSizeOffset())) +
-         kInt64Size;
+  return FIELD_ADDR(this, GetUnwindingInfoSizeOffset()) + kInt64Size;
 }
 
-byte* Code::unwinding_info_end() const {
+Address Code::unwinding_info_end() const {
   DCHECK(has_unwinding_info());
   return unwinding_info_start() + unwinding_info_size();
 }
@@ -304,14 +306,26 @@ byte* Code::relocation_start() const {
   return unchecked_relocation_info()->GetDataStartAddress();
 }
 
+byte* Code::relocation_end() const {
+  return unchecked_relocation_info()->GetDataStartAddress() +
+         unchecked_relocation_info()->length();
+}
+
 int Code::relocation_size() const {
   return unchecked_relocation_info()->length();
 }
 
-byte* Code::entry() const { return raw_instruction_start(); }
+Address Code::entry() const { return raw_instruction_start(); }
 
-bool Code::contains(byte* inner_pointer) {
-  return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
+bool Code::contains(Address inner_pointer) {
+  if (is_off_heap_trampoline()) {
+    DCHECK(FLAG_embedded_builtins);
+    if (OffHeapInstructionStart() <= inner_pointer &&
+        inner_pointer < OffHeapInstructionEnd()) {
+      return true;
+    }
+  }
+  return (address() <= inner_pointer) && (inner_pointer < address() + Size());
 }
 
 int Code::ExecutableSize() const {
@@ -328,13 +342,15 @@ Code::Kind Code::kind() const {
 }
 
 void Code::initialize_flags(Kind kind, bool has_unwinding_info,
-                            bool is_turbofanned, int stack_slots) {
+                            bool is_turbofanned, int stack_slots,
+                            bool is_off_heap_trampoline) {
   CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
   static_assert(Code::NUMBER_OF_KINDS <= KindField::kMax + 1, "field overflow");
   uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
                    KindField::encode(kind) |
                    IsTurbofannedField::encode(is_turbofanned) |
-                   StackSlotsField::encode(stack_slots);
+                   StackSlotsField::encode(stack_slots) |
+                   IsOffHeapTrampoline::encode(is_off_heap_trampoline);
   WRITE_UINT32_FIELD(this, kFlagsOffset, flags);
   DCHECK_IMPLIES(stack_slots != 0, has_safepoint_info());
 }
@@ -428,6 +444,10 @@ inline void Code::set_is_exception_caught(bool value) {
   code_data_container()->set_kind_specific_flags(updated);
 }
 
+inline bool Code::is_off_heap_trampoline() const {
+  return IsOffHeapTrampoline::decode(READ_UINT32_FIELD(this, kFlagsOffset));
+}
+
 inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
   if (is_promise_rejection()) return HandlerTable::PROMISE;
   if (is_exception_caught()) return HandlerTable::CAUGHT;
@@ -517,10 +537,18 @@ Address Code::constant_pool() const {
       return InstructionStart() + offset;
     }
   }
-  return nullptr;
+  return kNullAddress;
 }
 
 Code* Code::GetCodeFromTargetAddress(Address address) {
+  {
+    // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass
+    // in the current isolate.
+    Address start = reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlob());
+    Address end = start + Isolate::CurrentEmbeddedBlobSize();
+    CHECK(address < start || address >= end);
+  }
+
   HeapObject* code = HeapObject::FromAddress(address - Code::kHeaderSize);
   // GetCodeFromTargetAddress might be called when marking objects during mark
   // sweep. reinterpret_cast is therefore used instead of the more appropriate
@@ -535,7 +563,7 @@ Object* Code::GetObjectFromCodeEntry(Address code_entry) {
 }
 
 Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
-  return GetObjectFromCodeEntry(Memory::Address_at(location_of_address));
+  return GetObjectFromCodeEntry(Memory<Address>(location_of_address));
 }
 
 bool Code::CanContainWeakObjects() {
@@ -565,7 +593,8 @@ INT_ACCESSORS(CodeDataContainer, kind_specific_flags, kKindSpecificFlagsOffset)
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 void CodeDataContainer::clear_padding() {
-  memset(address() + kUnalignedSize, 0, kSize - kUnalignedSize);
+  memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
+         kSize - kUnalignedSize);
 }
 
 byte BytecodeArray::get(int index) {
@@ -669,7 +698,8 @@ ACCESSORS(BytecodeArray, source_position_table, Object,
 
 void BytecodeArray::clear_padding() {
   int data_size = kHeaderSize + length();
-  memset(address() + data_size, 0, SizeFor(length()) - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0,
+         SizeFor(length()) - data_size);
 }
 
 Address BytecodeArray::GetFirstBytecodeAddress() {

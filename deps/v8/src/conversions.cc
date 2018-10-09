@@ -941,7 +941,7 @@ class StringToBigIntHelper : public StringToIntHelper {
 };
 
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
-  string = String::Flatten(string);
+  string = String::Flatten(isolate, string);
   StringToBigIntHelper helper(isolate, string);
   return helper.GetResult();
 }
@@ -1330,9 +1330,10 @@ char* DoubleToRadixCString(double value, int radix) {
 
 
 // ES6 18.2.4 parseFloat(string)
-double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
-                      int flags, double empty_string_val) {
-  Handle<String> flattened = String::Flatten(string);
+double StringToDouble(Isolate* isolate, UnicodeCache* unicode_cache,
+                      Handle<String> string, int flags,
+                      double empty_string_val) {
+  Handle<String> flattened = String::Flatten(isolate, string);
   {
     DisallowHeapAllocation no_gc;
     String::FlatContent flat = flattened->GetFlatContent();

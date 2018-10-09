@@ -44,7 +44,7 @@ setTimeout(function() {
   Debug.setListener(null);
   assertNull(exception);
   var expectation =
-    ["debugger;","debugger;","  print(1);","}","  return 2;","  return 2;",
+    ["debugger;","","  print(1);","}","  return 2;","  return 2;",
      "  throw new Error();","  print(3);","}  // STOP"];
   assertEquals(log, expectation);
 });

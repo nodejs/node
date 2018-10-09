@@ -6,8 +6,7 @@
 from collections import namedtuple
 import coverage
 import json
-from mock import DEFAULT
-from mock import MagicMock
+from mock import MagicMock, patch
 import os
 from os import path, sys
 import platform
@@ -27,6 +26,7 @@ TEST_WORKSPACE = path.join(tempfile.gettempdir(), "test-v8-run-perf")
 
 V8_JSON = {
   "path": ["."],
+  "owners": ["username@chromium.org"],
   "binary": "d7",
   "flags": ["--flag"],
   "main": "run.js",
@@ -40,6 +40,7 @@ V8_JSON = {
 
 V8_NESTED_SUITES_JSON = {
   "path": ["."],
+  "owners": ["username@chromium.org"],
   "flags": ["--flag"],
   "run_count": 1,
   "units": "score",
@@ -76,6 +77,7 @@ V8_NESTED_SUITES_JSON = {
 
 V8_GENERIC_JSON = {
   "path": ["."],
+  "owners": ["username@chromium.org"],
   "binary": "cc",
   "flags": ["--flag"],
   "generic": True,
@@ -429,9 +431,9 @@ class PerfTest(unittest.TestCase):
     platform.Run = MagicMock(
         return_value=("Richards: 1.234\nDeltaBlue: 10657567\n", None))
     run_perf.AndroidPlatform = MagicMock(return_value=platform)
-    self.assertEquals(
-        0, self._CallMain("--android-build-tools", "/some/dir",
-                          "--arch", "arm"))
+    with patch.object(run_perf.Platform, 'ReadBuildConfig',
+        MagicMock(return_value={'is_android': True})):
+      self.assertEquals(0, self._CallMain("--arch", "arm"))
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": ["1.234"], "stddev": ""},
       {"name": "DeltaBlue", "results": ["10657567.0"], "stddev": ""},

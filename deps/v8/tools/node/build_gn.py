@@ -25,14 +25,19 @@ import sys
 import node_common
 
 GN_ARGS = [
-  "v8_monolithic = true",
-  "is_component_build = false",
-  "v8_use_external_startup_data = false",
-  "use_custom_libcxx = false",
-  "use_sysroot = false",
+  "v8_monolithic=true",
+  "is_component_build=false",
+  "v8_use_external_startup_data=false",
+  "use_custom_libcxx=false",
 ]
 
 BUILD_TARGET = "v8_monolith"
+
+def FindTargetOs(flags):
+  for flag in flags:
+    if flag.startswith("target_os="):
+      return flag[len("target_os="):].strip('"')
+  raise Exception('No target_os was set.')
 
 def FindGn(options):
   if options.host_os == "linux":
@@ -46,57 +51,93 @@ def FindGn(options):
   return os.path.join(options.v8_path, "buildtools", os_path, "gn")
 
 def GenerateBuildFiles(options):
-  print "Setting GN args."
   gn = FindGn(options)
-  gn_args = []
-  gn_args.extend(GN_ARGS)
+  gn_args = list(GN_ARGS)
+  target_os = FindTargetOs(options.flag)
+  if target_os != "win":
+    gn_args.append("use_sysroot=false")
+
   for flag in options.flag:
     flag = flag.replace("=1", "=true")
     flag = flag.replace("=0", "=false")
     flag = flag.replace("target_cpu=ia32", "target_cpu=\"x86\"")
     gn_args.append(flag)
-  if options.mode == "DEBUG":
-    gn_args.append("is_debug = true")
+  if options.mode == "Debug":
+    gn_args.append("is_debug=true")
   else:
-    gn_args.append("is_debug = false")
+    gn_args.append("is_debug=false")
 
-  if not os.path.isdir(options.build_path):
-    os.makedirs(options.build_path)
-  with open(os.path.join(options.build_path, "args.gn"), "w") as args_file:
-    args_file.write("\n".join(gn_args))
-  subprocess.check_call([gn, "gen", "-C", options.build_path],
-                        cwd=options.v8_path)
+  flattened_args = ' '.join(gn_args)
+  if options.extra_gn_args:
+    flattened_args += ' ' + options.extra_gn_args
+
+  args = [gn, "gen", options.build_path, "-q", "--args=" + flattened_args]
+  subprocess.check_call(args)
 
 def Build(options):
-  print "Building."
   depot_tools = node_common.EnsureDepotTools(options.v8_path, False)
   ninja = os.path.join(depot_tools, "ninja")
-  subprocess.check_call([ninja, "-v", "-C", options.build_path, BUILD_TARGET],
-                        cwd=options.v8_path)
+  if sys.platform == 'win32':
+    # Required because there is an extension-less file called "ninja".
+    ninja += ".exe"
+  args = [ninja, "-C", options.build_path, BUILD_TARGET]
+  if options.max_load:
+    args += ["-l" + options.max_load]
+  if options.max_jobs:
+    args += ["-j" + options.max_jobs]
+  else:
+    with open(os.path.join(options.build_path, "args.gn")) as f:
+      if "use_goma = true" in f.read():
+        args += ["-j500"]
+  subprocess.check_call(args)
 
 def ParseOptions(args):
   parser = argparse.ArgumentParser(
       description="Build %s with GN" % BUILD_TARGET)
   parser.add_argument("--mode", help="Build mode (Release/Debug)")
-  parser.add_argument("--v8_path", help="Path to V8")
-  parser.add_argument("--build_path", help="Path to build result")
+  parser.add_argument("--v8_path", help="Path to V8", required=True)
+  parser.add_argument("--build_path", help="Path to build result",
+                      required=True)
   parser.add_argument("--flag", help="Translate GYP flag to GN",
                       action="append")
   parser.add_argument("--host_os", help="Current operating system")
+  parser.add_argument("--bundled-win-toolchain",
+                      help="Value for DEPOT_TOOLS_WIN_TOOLCHAIN")
+  parser.add_argument("--bundled-win-toolchain-root",
+                      help="Value for DEPOT_TOOLS_WIN_TOOLCHAIN_ROOT")
+  parser.add_argument("--depot-tools", help="Absolute path to depot_tools")
+  parser.add_argument("--extra-gn-args", help="Additional GN args")
+  parser.add_argument("--build", help="Run ninja as opposed to gn gen.",
+                      action="store_true")
+  parser.add_argument("--max-jobs", help="ninja's -j parameter")
+  parser.add_argument("--max-load", help="ninja's -l parameter")
   options = parser.parse_args(args)
 
-  assert options.host_os
-  assert options.mode == "Debug" or options.mode == "Release"
-
-  assert options.v8_path
-  options.v8_path = os.path.abspath(options.v8_path)
-  assert os.path.isdir(options.v8_path)
-
-  assert options.build_path
   options.build_path = os.path.abspath(options.build_path)
+
+  if not options.build:
+    assert options.host_os
+    assert options.mode == "Debug" or options.mode == "Release"
+
+    options.v8_path = os.path.abspath(options.v8_path)
+    assert os.path.isdir(options.v8_path)
+
   return options
+
 
 if __name__ == "__main__":
   options = ParseOptions(sys.argv[1:])
-  GenerateBuildFiles(options)
-  Build(options)
+  # Build can result in running gn gen, so need to set environment variables
+  # for build as well as generate.
+  if options.bundled_win_toolchain:
+    os.environ['DEPOT_TOOLS_WIN_TOOLCHAIN'] = options.bundled_win_toolchain
+  if options.bundled_win_toolchain_root:
+    os.environ['DEPOT_TOOLS_WIN_TOOLCHAIN_ROOT'] = (
+        options.bundled_win_toolchain_root)
+  if options.depot_tools:
+    os.environ['PATH'] = (
+        options.depot_tools + os.path.pathsep + os.environ['PATH'])
+  if not options.build:
+    GenerateBuildFiles(options)
+  else:
+    Build(options)

@@ -415,7 +415,7 @@ console.timeEnd('100-elements');
 
 ### console.timeLog([label][, ...data])
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 * `label` {string} **Default:** `'default'`
 * `...data` {any}
@@ -503,6 +503,7 @@ console.profileEnd('MyLabel');
 <!-- YAML
 added: v8.0.0
 -->
+* `label` {string}
 
 This method does not display anything unless used in the inspector. Stops the
 current JavaScript CPU profiling session if one has been started and prints

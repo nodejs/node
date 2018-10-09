@@ -1,6 +1,8 @@
 'use strict';
 const common = require('../common');
 
+common.disableCrashOnUnhandledRejection();
+
 const expectedValueWarning = ['Symbol()', common.noWarnCode];
 const expectedDeprecationWarning = ['Unhandled promise rejections are ' +
                                    'deprecated. In the future, promise ' +

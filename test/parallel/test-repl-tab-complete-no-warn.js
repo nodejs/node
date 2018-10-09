@@ -1,13 +1,14 @@
 'use strict';
 
 const common = require('../common');
+const ArrayStream = require('../common/arraystream');
 const repl = require('repl');
 const DEFAULT_MAX_LISTENERS = require('events').defaultMaxListeners;
 
-common.ArrayStream.prototype.write = () => {
+ArrayStream.prototype.write = () => {
 };
 
-const putIn = new common.ArrayStream();
+const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
 
 // https://github.com/nodejs/node/issues/18284

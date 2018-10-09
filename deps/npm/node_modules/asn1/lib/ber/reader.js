@@ -1,18 +1,19 @@
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
 
 var assert = require('assert');
+var Buffer = require('safer-buffer').Buffer;
 
 var ASN1 = require('./types');
 var errors = require('./errors');
 
 
-///--- Globals
+// --- Globals
 
 var newInvalidAsn1Error = errors.newInvalidAsn1Error;
 
 
 
-///--- API
+// --- API
 
 function Reader(data) {
   if (!data || !Buffer.isBuffer(data))
@@ -52,7 +53,7 @@ Object.defineProperty(Reader.prototype, 'buffer', {
  * @param {Boolean} peek true means don't move offset.
  * @return {Number} the next byte, null if not enough data.
  */
-Reader.prototype.readByte = function(peek) {
+Reader.prototype.readByte = function (peek) {
   if (this._size - this._offset < 1)
     return null;
 
@@ -65,7 +66,7 @@ Reader.prototype.readByte = function(peek) {
 };
 
 
-Reader.prototype.peek = function() {
+Reader.prototype.peek = function () {
   return this.readByte(true);
 };
 
@@ -81,7 +82,7 @@ Reader.prototype.peek = function() {
  * @return {Number} the amount of offset to advance the buffer.
  * @throws {InvalidAsn1Error} on bad ASN.1
  */
-Reader.prototype.readLength = function(offset) {
+Reader.prototype.readLength = function (offset) {
   if (offset === undefined)
     offset = this._offset;
 
@@ -92,10 +93,10 @@ Reader.prototype.readLength = function(offset) {
   if (lenB === null)
     return null;
 
-  if ((lenB & 0x80) == 0x80) {
+  if ((lenB & 0x80) === 0x80) {
     lenB &= 0x7f;
 
-    if (lenB == 0)
+    if (lenB === 0)
       throw newInvalidAsn1Error('Indefinite length not supported');
 
     if (lenB > 4)
@@ -124,7 +125,7 @@ Reader.prototype.readLength = function(offset) {
  *
  * @return {Number} the sequence's tag.
  */
-Reader.prototype.readSequence = function(tag) {
+Reader.prototype.readSequence = function (tag) {
   var seq = this.peek();
   if (seq === null)
     return null;
@@ -141,22 +142,22 @@ Reader.prototype.readSequence = function(tag) {
 };
 
 
-Reader.prototype.readInt = function() {
+Reader.prototype.readInt = function () {
   return this._readTag(ASN1.Integer);
 };
 
 
-Reader.prototype.readBoolean = function() {
+Reader.prototype.readBoolean = function () {
   return (this._readTag(ASN1.Boolean) === 0 ? false : true);
 };
 
 
-Reader.prototype.readEnumeration = function() {
+Reader.prototype.readEnumeration = function () {
   return this._readTag(ASN1.Enumeration);
 };
 
 
-Reader.prototype.readString = function(tag, retbuf) {
+Reader.prototype.readString = function (tag, retbuf) {
   if (!tag)
     tag = ASN1.OctetString;
 
@@ -179,7 +180,7 @@ Reader.prototype.readString = function(tag, retbuf) {
   this._offset = o;
 
   if (this.length === 0)
-    return retbuf ? new Buffer(0) : '';
+    return retbuf ? Buffer.alloc(0) : '';
 
   var str = this._buf.slice(this._offset, this._offset + this.length);
   this._offset += this.length;
@@ -187,7 +188,7 @@ Reader.prototype.readString = function(tag, retbuf) {
   return retbuf ? str : str.toString('utf8');
 };
 
-Reader.prototype.readOID = function(tag) {
+Reader.prototype.readOID = function (tag) {
   if (!tag)
     tag = ASN1.OID;
 
@@ -203,7 +204,7 @@ Reader.prototype.readOID = function(tag) {
 
     value <<= 7;
     value += byte & 0x7f;
-    if ((byte & 0x80) == 0) {
+    if ((byte & 0x80) === 0) {
       values.push(value);
       value = 0;
     }
@@ -217,7 +218,7 @@ Reader.prototype.readOID = function(tag) {
 };
 
 
-Reader.prototype._readTag = function(tag) {
+Reader.prototype._readTag = function (tag) {
   assert.ok(tag !== undefined);
 
   var b = this.peek();
@@ -248,7 +249,7 @@ Reader.prototype._readTag = function(tag) {
     value |= (this._buf[this._offset++] & 0xff);
   }
 
-  if ((fb & 0x80) == 0x80 && i !== 4)
+  if ((fb & 0x80) === 0x80 && i !== 4)
     value -= (1 << (i * 8));
 
   return value >> 0;
@@ -256,6 +257,6 @@ Reader.prototype._readTag = function(tag) {
 
 
 
-///--- Exported API
+// --- Exported API
 
 module.exports = Reader;

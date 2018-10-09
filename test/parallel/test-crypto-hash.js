@@ -100,9 +100,9 @@ fileStream.on('data', function(data) {
   sha1Hash.update(data);
 });
 fileStream.on('close', common.mustCall(function() {
+  // Test SHA1 of sample.png
   assert.strictEqual(sha1Hash.digest('hex'),
-                     '22723e553129a336ad96e10f6aecdf0f45e4149e',
-                     'Test SHA1 of sample.png');
+                     '22723e553129a336ad96e10f6aecdf0f45e4149e');
 }));
 
 // Issue https://github.com/nodejs/node-v0.x-archive/issues/2227: unknown digest

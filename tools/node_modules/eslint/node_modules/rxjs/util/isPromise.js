@@ -1,6 +1,7 @@
 "use strict";
-function isPromise(value) {
-    return value && typeof value.subscribe !== 'function' && typeof value.then === 'function';
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.isPromise = isPromise;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/util/isPromise"));
 //# sourceMappingURL=isPromise.js.map

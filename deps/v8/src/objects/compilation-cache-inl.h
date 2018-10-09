@@ -7,6 +7,11 @@
 
 #include "src/objects/compilation-cache.h"
 
+#include "src/objects/name-inl.h"
+#include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/string.h"
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -44,7 +49,7 @@ uint32_t CompilationCacheShape::HashForObject(Isolate* isolate,
   if (object->IsNumber()) return static_cast<uint32_t>(object->Number());
 
   FixedArray* val = FixedArray::cast(object);
-  if (val->map() == val->GetHeap()->fixed_cow_array_map()) {
+  if (val->map() == val->GetReadOnlyRoots().fixed_cow_array_map()) {
     DCHECK_EQ(4, val->length());
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(val->get(0));
     String* source = String::cast(val->get(1));

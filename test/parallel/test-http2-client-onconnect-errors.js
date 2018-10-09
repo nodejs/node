@@ -5,11 +5,12 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { internalBinding } = require('internal/test/binding');
 const {
   constants,
   Http2Session,
   nghttp2ErrorString
-} = process.binding('http2');
+} = internalBinding('http2');
 const http2 = require('http2');
 const { NghttpError } = require('internal/http2/util');
 

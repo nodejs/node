@@ -1,3 +1,1 @@
-import {  EmptyObservable  } from './EmptyObservable';
-
-export const empty = EmptyObservable.create;
+export * from 'rxjs-compat/observable/empty';

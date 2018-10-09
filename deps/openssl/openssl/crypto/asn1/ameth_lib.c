@@ -255,6 +255,18 @@ EVP_PKEY_ASN1_METHOD *EVP_PKEY_asn1_new(int id, int flags,
             goto err;
     }
 
+    /*
+     * One of the following must be true:
+     *
+     * pem_str == NULL AND ASN1_PKEY_ALIAS is set
+     * pem_str != NULL AND ASN1_PKEY_ALIAS is clear
+     *
+     * Anything else is an error and may lead to a corrupt ASN1 method table
+     */
+    if (!((pem_str == NULL && (flags & ASN1_PKEY_ALIAS) != 0)
+          || (pem_str != NULL && (flags & ASN1_PKEY_ALIAS) == 0)))
+        goto err;
+
     if (pem_str) {
         ameth->pem_str = OPENSSL_strdup(pem_str);
         if (!ameth->pem_str)

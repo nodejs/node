@@ -50,15 +50,12 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
   Local<String> statWatcherString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher");
   t->SetClassName(statWatcherString);
+  t->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-  AsyncWrap::AddWrapMethods(env, t);
   env->SetProtoMethod(t, "start", StatWatcher::Start);
-  env->SetProtoMethod(t, "close", HandleWrap::Close);
-  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
-  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
-  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
 
-  target->Set(statWatcherString, t->GetFunction());
+  target->Set(statWatcherString,
+              t->GetFunction(env->context()).ToLocalChecked());
 }
 
 

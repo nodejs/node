@@ -20,7 +20,7 @@ sub new
         $records,
         $startoffset,
         $message_frag_lens) = @_;
-
+    
     my $self = $class->SUPER::new(
         $server,
         TLSProxy::Message::MT_SERVER_HELLO,
@@ -66,7 +66,7 @@ sub parse
     my $extension_data;
     if ($extensions_len != 0) {
         $extension_data = substr($self->data, $ptr);
-
+    
         if (length($extension_data) != $extensions_len) {
             die "Invalid extension length\n";
         }

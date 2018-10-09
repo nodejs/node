@@ -83,13 +83,12 @@ class CodeEventListener {
   virtual void GetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void SetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void RegExpCodeCreateEvent(AbstractCode* code, String* source) = 0;
-  virtual void CodeMoveEvent(AbstractCode* from, Address to) = 0;
+  virtual void CodeMoveEvent(AbstractCode* from, AbstractCode* to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
   virtual void CodeDisableOptEvent(AbstractCode* code,
                                    SharedFunctionInfo* shared) = 0;
-  enum DeoptKind { kSoft, kLazy, kEager };
-  virtual void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+  virtual void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
                               int fp_to_sp_delta) = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
@@ -155,7 +154,7 @@ class CodeEventDispatcher {
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) {
     CODE_EVENT_DISPATCH(RegExpCodeCreateEvent(code, source));
   }
-  void CodeMoveEvent(AbstractCode* from, Address to) {
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
     CODE_EVENT_DISPATCH(CodeMoveEvent(from, to));
   }
   void SharedFunctionInfoMoveEvent(Address from, Address to) {
@@ -165,7 +164,7 @@ class CodeEventDispatcher {
   void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared) {
     CODE_EVENT_DISPATCH(CodeDisableOptEvent(code, shared));
   }
-  void CodeDeoptEvent(Code* code, CodeEventListener::DeoptKind kind, Address pc,
+  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) {
     CODE_EVENT_DISPATCH(CodeDeoptEvent(code, kind, pc, fp_to_sp_delta));
   }

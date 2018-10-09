@@ -1,3 +1,1 @@
-import {  BoundNodeCallbackObservable  } from './BoundNodeCallbackObservable';
-
-export const bindNodeCallback = BoundNodeCallbackObservable.create;
+export * from 'rxjs-compat/observable/bindNodeCallback';

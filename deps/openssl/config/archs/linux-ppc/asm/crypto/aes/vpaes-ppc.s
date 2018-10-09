@@ -95,7 +95,7 @@ _vpaes_consts:
 	mflr	12
 	addi	12,12,-0x308
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .byte	86,101,99,116,111,114,32,80,101,114,109,117,116,97,116,105,111,110,32,65,69,83,32,102,111,114,32,65,108,116,105,86,101,99,44,32,77,105,107,101,32,72,97,109,98,117,114,103,32,40,83,116,97,110,102,111,114,100,32,85,110,105,118,101,114,115,105,116,121,41,0
@@ -135,7 +135,7 @@ _vpaes_encrypt_preheat:
 	lvx	17, 12, 8
 	lvx	18, 12, 11
 	lvx	19, 12, 10
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -223,7 +223,7 @@ _vpaes_encrypt_core:
 	vxor	4, 4, 5
 	vxor	0, 0, 4
 	vperm	0, 0, 7, 1
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -319,7 +319,7 @@ vpaes_encrypt:
 	lvx	30,10,1
 	lvx	31,11,1
 	addi	1,1,232
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,0,3,0
 .long	0
@@ -361,7 +361,7 @@ _vpaes_decrypt_preheat:
 	lvx	21, 12, 8
 	lvx	22, 12, 11
 	lvx	23, 12, 10
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -456,7 +456,7 @@ _vpaes_decrypt_core:
 	vxor	4, 4, 5
 	vxor	0, 1, 4
 	vperm	0, 0, 7, 2
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -552,7 +552,7 @@ vpaes_decrypt:
 	lvx	30,10,1
 	lvx	31,11,1
 	addi	1,1,232
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,0,3,0
 .long	0
@@ -780,7 +780,7 @@ vpaes_cbc_encrypt:
 	lwz	31,236(1)
 	mtlr	0
 	addi	1,1,240
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,2,6,0
 .long	0
@@ -834,7 +834,7 @@ _vpaes_key_preheat:
 	lvx	24, 12, 9
 	lvx	25, 0, 12
 	lvx	26, 12, 8
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1080,7 +1080,7 @@ _vpaes_schedule_core:
 	vxor	6, 6, 6
 	vxor	7, 7, 7
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1108,7 +1108,7 @@ _vpaes_schedule_192_smear:
 	vor	0, 6, 6
 	vsldoi	6, 6, 9, 8
 	vsldoi	6, 9, 6, 8
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1174,7 +1174,7 @@ _vpaes_schedule_low_round:
 
 	vxor	0, 1, 7
 	vxor	7, 1, 7
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1196,7 +1196,7 @@ _vpaes_schedule_transform:
 
 	vperm	2, 13, 13, 2
 	vxor	0, 0, 2
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1248,7 +1248,7 @@ _vpaes_schedule_mangle:
 	vsel	2, 28, 1, 30
 	vor	28, 1, 1
 	stvx	2, 0, 5
-	blr
+	blr	
 
 .align	4
 .Lschedule_mangle_dec:
@@ -1299,7 +1299,7 @@ _vpaes_schedule_mangle:
 	vsel	2, 28, 1, 30
 	vor	28, 1, 1
 	stvx	2, 0, 5
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1376,7 +1376,7 @@ vpaes_set_encrypt_key:
 	lvx	30,10,1
 	lvx	31,11,1
 	addi	1,1,232
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,0,3,0
 .long	0
@@ -1460,7 +1460,7 @@ vpaes_set_decrypt_key:
 	lvx	30,10,1
 	lvx	31,11,1
 	addi	1,1,232
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,0,3,0
 .long	0

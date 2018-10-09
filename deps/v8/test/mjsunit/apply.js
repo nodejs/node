@@ -110,6 +110,7 @@ function s() {
 assertEquals("bar42foofishhorse", s.apply("bar", arr), "apply to string");
 
 function al() {
+  print(this);
   assertEquals(Object(345), this);
   return arguments.length + arguments[arguments.length - 1];
 }

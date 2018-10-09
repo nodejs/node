@@ -1,6 +1,5 @@
 Port of the OpenBSD `bcrypt_pbkdf` function to pure Javascript. `npm`-ified
-version of [Devi Mandiri's port]
-(https://github.com/devi/tmp/blob/master/js/bcrypt_pbkdf.js),
+version of [Devi Mandiri's port](https://github.com/devi/tmp/blob/master/js/bcrypt_pbkdf.js),
 with some minor performance improvements. The code is copied verbatim (and
 un-styled) from Devi's work.
 
@@ -37,3 +36,10 @@ Parameters:
  * `sha2pass`, a Uint8Array of length 64
  * `sha2salt`, a Uint8Array of length 64
  * `out`, a Uint8Array of length 32, will be filled with output
+
+## License
+
+This source form is a 1:1 port from the OpenBSD `blowfish.c` and `bcrypt_pbkdf.c`.
+As a result, it retains the original copyright and license. The two files are
+under slightly different (but compatible) licenses, and are here combined in
+one file. For each of the full license texts see `LICENSE`.

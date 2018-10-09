@@ -18,6 +18,8 @@
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
+#include <utility>
+
 #include "unicode/uobject.h"
 #include "unicode/rbbi.h"
 #include "unicode/uniset.h"
@@ -25,8 +27,7 @@
 #include "uhash.h"
 #include "uvector.h"
 #include "unicode/symtable.h"// For UnicodeSet parsing, is the interface that
-                          //    looks up references to $variables within a set.
-
+                             //    looks up references to $variables within a set.
 
 
 U_NAMESPACE_BEGIN
@@ -123,9 +124,15 @@ public:
     RBBIRuleBuilder(const UnicodeString  &rules,
                     UParseError          *parseErr,
                     UErrorCode           &status
-        );
+    );
 
     virtual    ~RBBIRuleBuilder();
+
+    /**
+     *  Build the state tables and char class Trie from the source rules.
+     */
+    RBBIDataHeader  *build(UErrorCode &status);
+
 
     /**
      * Fold together redundant character classes (table columns) and
@@ -162,10 +169,7 @@ public:
     RBBISetBuilder                *fSetBuilder;      // Set and Character Category builder.
     UVector                       *fUSetNodes;       // Vector of all uset nodes.
 
-    RBBITableBuilder              *fForwardTables;   // State transition tables
-    RBBITableBuilder              *fReverseTables;
-    RBBITableBuilder              *fSafeFwdTables;
-    RBBITableBuilder              *fSafeRevTables;
+    RBBITableBuilder              *fForwardTable;    // State transition table, build time form.
 
     UVector                       *fRuleStatusVals;  // The values that can be returned
                                                      //   from getRuleStatus().
@@ -199,6 +203,11 @@ struct RBBISetTableEl {
     UnicodeString *key;
     RBBINode      *val;
 };
+
+/**
+ *   A pair of ints, used to bundle pairs of states or pairs of character classes.
+ */
+typedef std::pair<int32_t, int32_t> IntPair;
 
 
 //----------------------------------------------------------------------------

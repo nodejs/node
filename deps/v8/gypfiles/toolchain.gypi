@@ -1127,7 +1127,7 @@
             'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
           }],
           [ 'v8_target_arch=="ppc64"', {
-            'cflags': [ '-maix64' ],
+            'cflags': [ '-maix64', '-fdollars-in-identifiers' ],
             'ldflags': [ '-maix64 -Wl,-bbigtoc' ],
           }],
         ],
@@ -1425,5 +1425,24 @@
         }],
       ],
     },  # configurations
+    'msvs_disabled_warnings': [
+      4245,  # Conversion with signed/unsigned mismatch.
+      4267,  # Conversion with possible loss of data.
+      4324,  # Padding structure due to alignment.
+      4701,  # Potentially uninitialized local variable.
+      4702,  # Unreachable code.
+      4703,  # Potentially uninitialized local pointer variable.
+      4709,  # Comma operator within array index expr (bugged).
+      4714,  # Function marked forceinline not inlined.
+
+      # MSVC assumes that control can get past an exhaustive switch and then
+      # warns if there's no return there (see https://crbug.com/v8/7658)
+      4715,  # Not all control paths return a value.
+
+      4718,  # Recursive call has no side-effect.
+      4723,  # https://crbug.com/v8/7771
+      4724,  # https://crbug.com/v8/7771
+      4800,  # Forcing value to bool.
+    ],
   },  # target_defaults
 }

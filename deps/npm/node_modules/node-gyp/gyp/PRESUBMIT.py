@@ -73,23 +73,15 @@ PYLINT_DISABLED_WARNINGS = [
 ]
 
 
-def CheckChangeOnUpload(input_api, output_api):
-  report = []
-  report.extend(input_api.canned_checks.PanProjectChecks(
-      input_api, output_api))
-  return report
-
-
-def CheckChangeOnCommit(input_api, output_api):
-  report = []
-
+def _LicenseHeader(input_api):
   # Accept any year number from 2009 to the current year.
   current_year = int(input_api.time.strftime('%Y'))
   allowed_years = (str(s) for s in reversed(xrange(2009, current_year + 1)))
+
   years_re = '(' + '|'.join(allowed_years) + ')'
 
   # The (c) is deprecated, but tolerate it until it's removed from all files.
-  license = (
+  return (
       r'.*? Copyright (\(c\) )?%(year)s Google Inc\. All rights reserved\.\n'
       r'.*? Use of this source code is governed by a BSD-style license that '
         r'can be\n'
@@ -98,8 +90,18 @@ def CheckChangeOnCommit(input_api, output_api):
       'year': years_re,
   }
 
+def CheckChangeOnUpload(input_api, output_api):
+  report = []
   report.extend(input_api.canned_checks.PanProjectChecks(
-      input_api, output_api, license_header=license))
+      input_api, output_api, license_header=_LicenseHeader(input_api)))
+  return report
+
+
+def CheckChangeOnCommit(input_api, output_api):
+  report = []
+
+  report.extend(input_api.canned_checks.PanProjectChecks(
+      input_api, output_api, license_header=_LicenseHeader(input_api)))
   report.extend(input_api.canned_checks.CheckTreeIsOpen(
       input_api, output_api,
       'http://gyp-status.appspot.com/status',

@@ -131,7 +131,7 @@ class Optional {
     if (!other.storage_.is_null_) Init(other.value());
   }
 
-  Optional(Optional&& other) {
+  Optional(Optional&& other) V8_NOEXCEPT {
     if (!other.storage_.is_null_) Init(std::move(other.value()));
   }
 
@@ -164,7 +164,7 @@ class Optional {
     return *this;
   }
 
-  Optional& operator=(Optional&& other) {
+  Optional& operator=(Optional&& other) V8_NOEXCEPT {
     if (other.storage_.is_null_) {
       FreeIfNeeded();
       return *this;
@@ -182,16 +182,16 @@ class Optional {
     return *this;
   }
 
-  // TODO(mlamouri): can't use 'constexpr' with DCHECK.
+  // TODO(mlamouri): can't use 'constexpr' with CHECK.
   const T* operator->() const {
-    DCHECK(!storage_.is_null_);
+    CHECK(!storage_.is_null_);
     return &value();
   }
 
   // TODO(mlamouri): using 'constexpr' here breaks compiler that assume it was
   // meant to be 'constexpr const'.
   T* operator->() {
-    DCHECK(!storage_.is_null_);
+    CHECK(!storage_.is_null_);
     return &value();
   }
 
@@ -214,26 +214,26 @@ class Optional {
   // TODO(mlamouri): using 'constexpr' here breaks compiler that assume it was
   // meant to be 'constexpr const'.
   T& value() & {
-    DCHECK(!storage_.is_null_);
+    CHECK(!storage_.is_null_);
     return storage_.value_;
   }
 
-  // TODO(mlamouri): can't use 'constexpr' with DCHECK.
+  // TODO(mlamouri): can't use 'constexpr' with CHECK.
   const T& value() const & {
-    DCHECK(!storage_.is_null_);
+    CHECK(!storage_.is_null_);
     return storage_.value_;
   }
 
   // TODO(mlamouri): using 'constexpr' here breaks compiler that assume it was
   // meant to be 'constexpr const'.
   T&& value() && {
-    DCHECK(!storage_.is_null_);
+    CHECK(!storage_.is_null_);
     return std::move(storage_.value_);
   }
 
-  // TODO(mlamouri): can't use 'constexpr' with DCHECK.
+  // TODO(mlamouri): can't use 'constexpr' with CHECK.
   const T&& value() const && {
-    DCHECK(!storage_.is_null_);
+    CHECK(!storage_.is_null_);
     return std::move(storage_.value_);
   }
 
@@ -273,7 +273,7 @@ class Optional {
       return;
     }
 
-    DCHECK(!storage_.is_null_ && !other.storage_.is_null_);
+    CHECK(!storage_.is_null_ && !other.storage_.is_null_);
     using std::swap;
     swap(**this, *other);
   }
@@ -288,20 +288,20 @@ class Optional {
 
  private:
   void Init(const T& value) {
-    DCHECK(storage_.is_null_);
+    CHECK(storage_.is_null_);
     new (&storage_.value_) T(value);
     storage_.is_null_ = false;
   }
 
   void Init(T&& value) {
-    DCHECK(storage_.is_null_);
+    CHECK(storage_.is_null_);
     new (&storage_.value_) T(std::move(value));
     storage_.is_null_ = false;
   }
 
   template <class... Args>
   void Init(Args&&... args) {
-    DCHECK(storage_.is_null_);
+    CHECK(storage_.is_null_);
     new (&storage_.value_) T(std::forward<Args>(args)...);
     storage_.is_null_ = false;
   }

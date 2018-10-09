@@ -1,1 +1,1 @@
-export declare function noop(): void;
+export * from 'rxjs-compat/util/noop';

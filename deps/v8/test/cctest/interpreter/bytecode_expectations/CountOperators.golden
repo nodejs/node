@@ -112,7 +112,7 @@ bytecodes: [
   /*   69 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
@@ -137,7 +137,7 @@ bytecodes: [
   /*   69 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
@@ -168,7 +168,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["var"],
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -196,7 +196,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["var"],
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -207,14 +207,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 23
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   53 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   53 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(0),
   /*   78 S> */ B(LdaCurrentContextSlot), U8(4),
                 B(Inc), U8(1),
@@ -222,6 +222,7 @@ bytecodes: [
   /*   89 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -233,14 +234,14 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 29
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   53 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   53 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(0),
   /*   78 S> */ B(LdaCurrentContextSlot), U8(4),
                 B(ToNumeric), U8(1),
@@ -251,6 +252,7 @@ bytecodes: [
   /*   89 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -281,7 +283,7 @@ bytecodes: [
   /*   83 S> */ B(Return),
 ]
 constant pool: [
-  TUPLE2_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]

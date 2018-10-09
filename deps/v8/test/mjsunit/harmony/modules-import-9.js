@@ -8,7 +8,7 @@ var ran = false;
 
 async function test() {
   try {
-    let namespace = await import('modules-skip-5.js');
+    let namespace = await import('modules-skip-5.js').then(x => x);
     assertSame(namespace.static_life, namespace.dynamic_life);
     assertSame(namespace.relative_static_life, namespace.dynamic_life);
     ran = true;

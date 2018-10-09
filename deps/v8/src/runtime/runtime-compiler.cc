@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
@@ -12,6 +10,9 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 
@@ -36,7 +37,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
     return isolate->StackOverflow();
   }
   if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   DCHECK(function->is_compiled());
   return function->code();
@@ -51,7 +52,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
     return isolate->StackOverflow();
   }
   if (!Compiler::CompileOptimized(function, ConcurrencyMode::kConcurrent)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   DCHECK(function->is_compiled());
   return function->code();
@@ -66,10 +67,10 @@ RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
   DCHECK_EQ(function->feedback_vector()->optimization_marker(),
             OptimizationMarker::kLogFirstExecution);
   DCHECK(FLAG_log_function_events);
-  Handle<SharedFunctionInfo> sfi(function->shared());
-  LOG(isolate, FunctionEvent("first-execution", Script::cast(sfi->script()), -1,
-                             0, sfi->StartPosition(), sfi->EndPosition(),
-                             sfi->DebugName()));
+  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  LOG(isolate, FunctionEvent(
+                   "first-execution", Script::cast(sfi->script())->id(), 0,
+                   sfi->StartPosition(), sfi->EndPosition(), sfi->DebugName()));
   function->feedback_vector()->ClearOptimizationMarker();
   // Return the code to continue execution, we don't care at this point whether
   // this is for lazy compilation or has been eagerly complied.
@@ -85,7 +86,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
     return isolate->StackOverflow();
   }
   if (!Compiler::CompileOptimized(function, ConcurrencyMode::kNotConcurrent)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   DCHECK(function->is_compiled());
   return function->code();
@@ -121,8 +122,8 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     memory = args.at<JSArrayBuffer>(3);
   }
   if (function->shared()->HasAsmWasmData()) {
-    Handle<SharedFunctionInfo> shared(function->shared());
-    Handle<FixedArray> data(shared->asm_wasm_data());
+    Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+    Handle<FixedArray> data(shared->asm_wasm_data(), isolate);
     MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
         isolate, shared, data, stdlib, foreign, memory);
     if (!result.is_null()) {
@@ -130,9 +131,10 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     }
   }
   // Remove wasm data, mark as broken for asm->wasm, replace function code with
-  // CompileLazy, and return a smi 0 to indicate failure.
+  // UncompiledData, and return a smi 0 to indicate failure.
   if (function->shared()->HasAsmWasmData()) {
-    function->shared()->FlushCompiled();
+    SharedFunctionInfo::DiscardCompiled(isolate,
+                                        handle(function->shared(), isolate));
   }
   function->shared()->set_is_asm_wasm_broken(true);
   DCHECK(function->code() ==
@@ -153,7 +155,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   Handle<JSFunction> function = deoptimizer->function();
-  Deoptimizer::BailoutType type = deoptimizer->bailout_type();
+  DeoptimizeKind type = deoptimizer->deopt_kind();
 
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
@@ -169,11 +171,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   isolate->set_context(Context::cast(top_frame->context()));
 
   // Invalidate the underlying optimized code on non-lazy deopts.
-  if (type != Deoptimizer::LAZY) {
+  if (type != DeoptimizeKind::kLazy) {
     Deoptimizer::DeoptimizeFunction(*function);
   }
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -203,7 +205,7 @@ BailoutId DetermineEntryAndDisarmOSRForInterpreter(JavaScriptFrame* frame) {
   // the one installed on the function (e.g. patched by debugger). This however
   // is fine because we guarantee the layout to be in sync, hence any BailoutId
   // representing the entry point will be valid for any copy of the bytecode.
-  Handle<BytecodeArray> bytecode(iframe->GetBytecodeArray());
+  Handle<BytecodeArray> bytecode(iframe->GetBytecodeArray(), iframe->isolate());
 
   DCHECK(frame->LookupCode()->is_interpreter_trampoline_builtin());
   DCHECK(frame->function()->shared()->HasBytecodeArray());
@@ -294,8 +296,8 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
                                  Handle<SharedFunctionInfo> outer_info,
                                  LanguageMode language_mode,
                                  int eval_scope_position, int eval_position) {
-  Handle<Context> context = Handle<Context>(isolate->context());
-  Handle<Context> native_context = Handle<Context>(context->native_context());
+  Handle<Context> context(isolate->context(), isolate);
+  Handle<Context> native_context(context->native_context(), isolate);
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
@@ -308,7 +310,7 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
     MaybeHandle<Object> maybe_error = isolate->factory()->NewEvalError(
         MessageTemplate::kCodeGenFromStrings, error_message);
     if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
 
   // Deal with a normal eval call with a string argument. Compile it
@@ -320,7 +322,7 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
       Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
                                     restriction, kNoSourcePosition,
                                     eval_scope_position, eval_position),
-      isolate->heap()->exception());
+      ReadOnlyRoots(isolate).exception());
   return *compiled;
 }
 

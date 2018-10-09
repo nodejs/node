@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 
@@ -197,30 +197,30 @@ L$inner_enter:
 
 	xorq	%r14,%r14
 	movq	(%rsp),%rax
-	leaq	(%rsp),%rsi
 	movq	%r9,%r15
-	jmp	L$sub
+
 .p2align	4
 L$sub:	sbbq	(%rcx,%r14,8),%rax
 	movq	%rax,(%rdi,%r14,8)
-	movq	8(%rsi,%r14,8),%rax
+	movq	8(%rsp,%r14,8),%rax
 	leaq	1(%r14),%r14
 	decq	%r15
 	jnz	L$sub
 
 	sbbq	$0,%rax
+	movq	$-1,%rbx
+	xorq	%rax,%rbx
 	xorq	%r14,%r14
-	andq	%rax,%rsi
-	notq	%rax
-	movq	%rdi,%rcx
-	andq	%rax,%rcx
 	movq	%r9,%r15
-	orq	%rcx,%rsi
-.p2align	4
+
 L$copy:
-	movq	(%rsi,%r14,8),%rax
-	movq	%r14,(%rsp,%r14,8)
-	movq	%rax,(%rdi,%r14,8)
+	movq	(%rdi,%r14,8),%rcx
+	movq	(%rsp,%r14,8),%rdx
+	andq	%rbx,%rcx
+	andq	%rax,%rdx
+	movq	%r9,(%rsp,%r14,8)
+	orq	%rcx,%rdx
+	movq	%rdx,(%rdi,%r14,8)
 	leaq	1(%r14),%r14
 	subq	$1,%r15
 	jnz	L$copy
@@ -574,10 +574,10 @@ L$inner4x:
 	cmpq	%r9,%r14
 	jb	L$outer4x
 	movq	16(%rsp,%r9,8),%rdi
+	leaq	-4(%r9),%r15
 	movq	0(%rsp),%rax
-	pxor	%xmm0,%xmm0
 	movq	8(%rsp),%rdx
-	shrq	$2,%r9
+	shrq	$2,%r15
 	leaq	(%rsp),%rsi
 	xorq	%r14,%r14
 
@@ -585,9 +585,7 @@ L$inner4x:
 	movq	16(%rsi),%rbx
 	movq	24(%rsi),%rbp
 	sbbq	8(%rcx),%rdx
-	leaq	-1(%r9),%r15
-	jmp	L$sub4x
-.p2align	4
+
 L$sub4x:
 	movq	%rax,0(%rdi,%r14,8)
 	movq	%rdx,8(%rdi,%r14,8)
@@ -614,34 +612,35 @@ L$sub4x:
 
 	sbbq	$0,%rax
 	movq	%rbp,24(%rdi,%r14,8)
-	xorq	%r14,%r14
-	andq	%rax,%rsi
-	notq	%rax
-	movq	%rdi,%rcx
-	andq	%rax,%rcx
-	leaq	-1(%r9),%r15
-	orq	%rcx,%rsi
+	pxor	%xmm0,%xmm0
+.byte	102,72,15,110,224
+	pcmpeqd	%xmm5,%xmm5
+	pshufd	$0,%xmm4,%xmm4
+	movq	%r9,%r15
+	pxor	%xmm4,%xmm5
+	shrq	$2,%r15
+	xorl	%eax,%eax
 
-	movdqu	(%rsi),%xmm1
-	movdqa	%xmm0,(%rsp)
-	movdqu	%xmm1,(%rdi)
 	jmp	L$copy4x
 .p2align	4
 L$copy4x:
-	movdqu	16(%rsi,%r14,1),%xmm2
-	movdqu	32(%rsi,%r14,1),%xmm1
-	movdqa	%xmm0,16(%rsp,%r14,1)
-	movdqu	%xmm2,16(%rdi,%r14,1)
-	movdqa	%xmm0,32(%rsp,%r14,1)
-	movdqu	%xmm1,32(%rdi,%r14,1)
-	leaq	32(%r14),%r14
+	movdqa	(%rsp,%rax,1),%xmm1
+	movdqu	(%rdi,%rax,1),%xmm2
+	pand	%xmm4,%xmm1
+	pand	%xmm5,%xmm2
+	movdqa	16(%rsp,%rax,1),%xmm3
+	movdqa	%xmm0,(%rsp,%rax,1)
+	por	%xmm2,%xmm1
+	movdqu	16(%rdi,%rax,1),%xmm2
+	movdqu	%xmm1,(%rdi,%rax,1)
+	pand	%xmm4,%xmm3
+	pand	%xmm5,%xmm2
+	movdqa	%xmm0,16(%rsp,%rax,1)
+	por	%xmm2,%xmm3
+	movdqu	%xmm3,16(%rdi,%rax,1)
+	leaq	32(%rax),%rax
 	decq	%r15
 	jnz	L$copy4x
-
-	shlq	$2,%r9
-	movdqu	16(%rsi,%r14,1),%xmm2
-	movdqa	%xmm0,16(%rsp,%r14,1)
-	movdqu	%xmm2,16(%rdi,%r14,1)
 	movq	8(%rsp,%r9,8),%rsi
 	movq	$1,%rax
 	movq	-48(%rsi),%r15

@@ -43,7 +43,11 @@ module.exports = function(name, version, hashfunc) {
     return buf || bytesToUuid(bytes);
   };
 
-  generateUUID.name = name;
+  // Function#name is not settable on some platforms (#270)
+  try {
+    generateUUID.name = name;
+  } catch (err) {
+  }
 
   // Pre-defined namespaces, per Appendix C
   generateUUID.DNS = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';

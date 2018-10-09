@@ -6,7 +6,7 @@
 #include <sstream>
 #include <utility>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/v8.h"
@@ -44,14 +44,15 @@ Handle<T> GetLexical(const char* name) {
 
   Handle<String> str_name = factory->InternalizeUtf8String(name);
   Handle<ScriptContextTable> script_contexts(
-      isolate->native_context()->script_context_table());
+      isolate->native_context()->script_context_table(), isolate);
 
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
-    Handle<Object> result =
-        FixedArray::get(*ScriptContextTable::GetContext(
-                            script_contexts, lookup_result.context_index),
-                        lookup_result.slot_index, isolate);
+  if (ScriptContextTable::Lookup(isolate, script_contexts, str_name,
+                                 &lookup_result)) {
+    Handle<Object> result = FixedArray::get(
+        *ScriptContextTable::GetContext(isolate, script_contexts,
+                                        lookup_result.context_index),
+        lookup_result.slot_index, isolate);
     return Handle<T>::cast(result);
   }
   return Handle<T>();
@@ -86,7 +87,7 @@ static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
   } else {
     Object* value = obj->RawFastPropertyAt(field_index);
     CHECK(value->IsMutableHeapNumber());
-    return HeapNumber::cast(value)->value();
+    return MutableHeapNumber::cast(value)->value();
   }
 }
 
@@ -137,7 +138,7 @@ TEST(JSObjectBasic) {
   Handle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
-  Handle<Map> initial_map(func->initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
   // One instance created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -198,7 +199,7 @@ TEST(JSObjectComplex) {
   Handle<JSObject> obj5 = CompileRunI<JSObject>("new A(5);");
 
   CHECK(func->has_initial_map());
-  Handle<Map> initial_map(func->initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
   // Three instances created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 3,
@@ -283,7 +284,7 @@ TEST(JSGeneratorObjectBasic) {
   Handle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
-  Handle<Map> initial_map(func->initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
   // One instance created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -359,10 +360,10 @@ TEST(SubclassBasicNoBaseClassInstances) {
   Handle<JSObject> obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
-  Handle<Map> a_initial_map(a_func->initial_map());
+  Handle<Map> a_initial_map(a_func->initial_map(), a_func->GetIsolate());
 
   CHECK(b_func->has_initial_map());
-  Handle<Map> b_initial_map(b_func->initial_map());
+  Handle<Map> b_initial_map(b_func->initial_map(), a_func->GetIsolate());
 
   // Zero instances of A created.
   CHECK_EQ(Map::kSlackTrackingCounterStart,
@@ -454,10 +455,10 @@ TEST(SubclassBasic) {
   Handle<JSObject> b_obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
-  Handle<Map> a_initial_map(a_func->initial_map());
+  Handle<Map> a_initial_map(a_func->initial_map(), a_func->GetIsolate());
 
   CHECK(b_func->has_initial_map());
-  Handle<Map> b_initial_map(b_func->initial_map());
+  Handle<Map> b_initial_map(b_func->initial_map(), a_func->GetIsolate());
 
   // One instance of a base class created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -577,7 +578,7 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
     Handle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    Handle<Map> initial_map(func->initial_map());
+    Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
     // If the object is slow-mode already, bail out.
     if (obj->map()->is_dictionary_map()) continue;
@@ -687,7 +688,7 @@ TEST(InobjectPropetiesCountOverflowInSubclass) {
     Handle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    Handle<Map> initial_map(func->initial_map());
+    Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
     // There must be no slack left.
     CHECK_EQ(JSObject::kMaxInstanceSize, obj->map()->instance_size());
@@ -871,7 +872,7 @@ TEST(SlowModeSubclass) {
     Handle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    Handle<Map> initial_map(func->initial_map());
+    Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
     // Object should go dictionary mode.
     CHECK_EQ(JSObject::kHeaderSize, obj->map()->instance_size());
@@ -937,7 +938,7 @@ static void TestSubclassBuiltin(const char* subclass_name,
   RunI<JSObject>(new_script);
 
   CHECK(func->has_initial_map());
-  Handle<Map> initial_map(func->initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
   CHECK_EQ(instance_type, initial_map->instance_type());
 
@@ -1147,7 +1148,7 @@ TEST(SubclassTypedArrayBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-#define TYPED_ARRAY_TEST(Type, type, TYPE, elementType, size) \
+#define TYPED_ARRAY_TEST(Type, type, TYPE, elementType) \
   TestSubclassBuiltin("A" #Type, JS_TYPED_ARRAY_TYPE, #Type "Array", "42");
 
   TYPED_ARRAYS(TYPED_ARRAY_TEST)

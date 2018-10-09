@@ -9,6 +9,7 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/globals.h"
 #include "src/machine-type.h"
+#include "src/maybe-handles.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -302,6 +303,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   CommonOperatorBuilder* common() const;
   AbstractState const* empty_state() const { return &empty_state_; }
+  Isolate* isolate() const;
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

@@ -21,6 +21,8 @@ namespace internal {
 class DeferredHandles;
 class HandleScopeImplementer;
 class Isolate;
+template <typename T>
+class MaybeHandle;
 class Object;
 
 // ----------------------------------------------------------------------------
@@ -97,7 +99,6 @@ class Handle final : public HandleBase {
                   "static type violation");
   }
 
-  V8_INLINE explicit Handle(T* object);
   V8_INLINE Handle(T* object, Isolate* isolate);
 
   // Allocate a new handle for the object, do not canonicalize.
@@ -122,10 +123,7 @@ class Handle final : public HandleBase {
   }
 
   template <typename S>
-  static const Handle<T> cast(Handle<S> that) {
-    T::cast(*reinterpret_cast<T**>(that.location()));
-    return Handle<T>(reinterpret_cast<T**>(that.location_));
-  }
+  inline static const Handle<T> cast(Handle<S> that);
 
   // TODO(yangguo): Values that contain empty handles should be declared as
   // MaybeHandle to force validation before being used as handles.
@@ -144,7 +142,7 @@ class Handle final : public HandleBase {
   // Provide function object for location hashing.
   struct hash : public std::unary_function<Handle<T>, size_t> {
     V8_INLINE size_t operator()(Handle<T> const& handle) const {
-      return base::hash<void*>()(handle.address());
+      return base::hash<Address>()(handle.address());
     }
   };
 
@@ -159,82 +157,6 @@ class Handle final : public HandleBase {
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle);
-
-template <typename T>
-V8_INLINE Handle<T> handle(T* object, Isolate* isolate) {
-  return Handle<T>(object, isolate);
-}
-
-template <typename T>
-V8_INLINE Handle<T> handle(T* object) {
-  return Handle<T>(object);
-}
-
-// ----------------------------------------------------------------------------
-// A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
-// into a Handle requires checking that it does not point to nullptr.  This
-// ensures nullptr checks before use.
-//
-// Also note that Handles do not provide default equality comparison or hashing
-// operators on purpose. Such operators would be misleading, because intended
-// semantics is ambiguous between Handle location and object identity.
-template <typename T>
-class MaybeHandle final {
- public:
-  V8_INLINE MaybeHandle() {}
-
-  // Constructor for handling automatic up casting from Handle.
-  // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
-  V8_INLINE MaybeHandle(Handle<S> handle)
-      : location_(reinterpret_cast<T**>(handle.location_)) {}
-
-  // Constructor for handling automatic up casting.
-  // Ex. MaybeHandle<JSArray> can be passed when Handle<Object> is expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
-  V8_INLINE MaybeHandle(MaybeHandle<S> maybe_handle)
-      : location_(reinterpret_cast<T**>(maybe_handle.location_)) {}
-
-  V8_INLINE MaybeHandle(T* object, Isolate* isolate)
-      : MaybeHandle(handle(object, isolate)) {}
-
-  V8_INLINE void Assert() const { DCHECK_NOT_NULL(location_); }
-  V8_INLINE void Check() const { CHECK_NOT_NULL(location_); }
-
-  V8_INLINE Handle<T> ToHandleChecked() const {
-    Check();
-    return Handle<T>(location_);
-  }
-
-  // Convert to a Handle with a type that can be upcasted to.
-  template <typename S>
-  V8_INLINE bool ToHandle(Handle<S>* out) const {
-    if (location_ == nullptr) {
-      *out = Handle<T>::null();
-      return false;
-    } else {
-      *out = Handle<T>(location_);
-      return true;
-    }
-  }
-
-  // Returns the raw address where this handle is stored. This should only be
-  // used for hashing handles; do not ever try to dereference it.
-  V8_INLINE Address address() const { return bit_cast<Address>(location_); }
-
-  bool is_null() const { return location_ == nullptr; }
-
- protected:
-  T** location_ = nullptr;
-
-  // MaybeHandles of different classes are allowed to access each
-  // other's location_.
-  template <typename>
-  friend class MaybeHandle;
-};
-
 
 // ----------------------------------------------------------------------------
 // A stack-allocated class that governs a number of local handles.

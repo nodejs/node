@@ -3829,7 +3829,7 @@ L$_ecp_nistz256_scatter_w7_begin:
 	mov	edi,DWORD [20+esp]
 	mov	esi,DWORD [24+esp]
 	mov	ebp,DWORD [28+esp]
-	lea	edi,[ebp*1+edi-1]
+	lea	edi,[ebp*1+edi]
 	mov	ebp,16
 L$007scatter_w7_loop:
 	mov	eax,DWORD [esi]

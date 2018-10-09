@@ -305,6 +305,31 @@ to percent-encode may vary somewhat from what the [`url.parse()`][] and
 
 Gets and sets the port portion of the URL.
 
+The port value may be a number or a string containing a number in the range
+`0` to `65535` (inclusive). Setting the value to the default port of the
+`URL` objects given `protocol` will result in the `port` value becoming
+the empty string (`''`).
+
+The port value can be an empty string in which case the port depends on
+the protocol/scheme:
+
+| protocol | port |
+| :------- | :--- |
+| "ftp"    | 21   |
+| "file"   |      |
+| "gopher" | 70   |
+| "http"   | 80   |
+| "https"  | 443  |
+| "ws"     | 80   |
+| "wss"    | 443  |
+
+Upon assigning a value to the port, the value will first be converted to a
+string using `.toString()`.
+
+If that string is invalid but it begins with a number, the leading number is
+assigned to `port`.
+If the number lies outside the range denoted above, it is ignored.
+
 ```js
 const myURL = new URL('https://example.org:8888');
 console.log(myURL.port);
@@ -346,19 +371,6 @@ console.log(myURL.port);
 // Prints 1234
 ```
 
-The port value may be set as either a number or as a string containing a number
-in the range `0` to `65535` (inclusive). Setting the value to the default port
-of the `URL` objects given `protocol` will result in the `port` value becoming
-the empty string (`''`).
-
-Upon assigning a value to the port, the value will first be converted to a
-string using `.toString()`.
-
-If that string is invalid but it begins with a number, the leading number is
-assigned to `port`.
-Otherwise, or if the number lies outside the range denoted above,
-it is ignored.
-
 Note that numbers which contain a decimal point,
 such as floating-point numbers or numbers in scientific notation,
 are not an exception to this rule.
@@ -388,6 +400,46 @@ console.log(myURL.href);
 ```
 
 Invalid URL protocol values assigned to the `protocol` property are ignored.
+
+##### Special Schemes
+
+The [WHATWG URL Standard][] considers a handful of URL protocol schemes to be
+_special_ in terms of how they are parsed and serialized. When a URL is
+parsed using one of these special protocols, the `url.protocol` property
+may be changed to another special protocol but cannot be changed to a
+non-special protocol, and vice versa.
+
+For instance, changing from `http` to `https` works:
+
+```js
+const u = new URL('http://example.org');
+u.protocol = 'https';
+console.log(u.href);
+// https://example.org
+```
+
+However, changing from `http` to a hypothetical `fish` protocol does not
+because the new protocol is not special.
+
+```js
+const u = new URL('http://example.org');
+u.protocol = 'fish';
+console.log(u.href);
+// http://example.org
+```
+
+Likewise, changing from a non-special protocol to a special protocol is also
+not permitted:
+
+```js
+const u = new URL('fish://example.org');
+u.protocol = 'http';
+console.log(u.href);
+// fish://example.org
+```
+
+The protocol schemes considered to be special by the WHATWG URL Standard
+include: `ftp`, `file`, `gopher`, `http`, `https`, `ws`, and `wss`.
 
 #### url.search
 
@@ -828,6 +880,28 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 // Prints an empty string
 ```
 
+### url.fileURLToPath(url)
+
+* `url` {URL | string} The file URL string or URL object to convert to a path.
+* Returns: {string} The fully-resolved platform-specific Node.js file path.
+
+This function ensures the correct decodings of percent-encoded characters as
+well as ensuring a cross-platform valid absolute path string.
+
+```js
+new URL('file:///C:/path/').pathname;    // Incorrect: /C:/path/
+fileURLToPath('file:///C:/path/');       // Correct:   C:\path\ (Windows)
+
+new URL('file://nas/foo.txt').pathname;  // Incorrect: /foo.txt
+fileURLToPath('file://nas/foo.txt');     // Correct:   \\nas\foo.txt (Windows)
+
+new URL('file:///你好.txt').pathname;    // Incorrect: /%E4%BD%A0%E5%A5%BD.txt
+fileURLToPath('file:///你好.txt');       // Correct:   /你好.txt (POSIX)
+
+new URL('file:///hello world').pathname; // Incorrect: /hello%20world
+fileURLToPath('file:///hello world');    // Correct:   /hello world (POSIX)
+```
+
 ### url.format(URL[, options])
 <!-- YAML
 added: v7.6.0
@@ -854,8 +928,6 @@ string serializations of the URL. These are not, however, customizable in
 any way. The `url.format(URL[, options])` method allows for basic customization
 of the output.
 
-For example:
-
 ```js
 const myURL = new URL('https://a:b@你好你好?abc#foo');
 
@@ -869,9 +941,38 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 // Prints 'https://你好你好/?abc'
 ```
 
+### url.pathToFileURL(path)
+
+* `path` {string} The path to convert to a File URL.
+* Returns: {URL} The file URL object.
+
+This function ensures that `path` is resolved absolutely, and that the URL
+control characters are correctly encoded when converting into a File URL.
+
+```js
+new URL(__filename);                // Incorrect: throws (POSIX)
+new URL(__filename);                // Incorrect: C:\... (Windows)
+pathToFileURL(__filename);          // Correct:   file:///... (POSIX)
+pathToFileURL(__filename);          // Correct:   file:///C:/... (Windows)
+
+new URL('/foo#1', 'file:');         // Incorrect: file:///foo#1
+pathToFileURL('/foo#1');            // Correct:   file:///foo%231 (POSIX)
+
+new URL('/some/path%.js', 'file:'); // Incorrect: file:///some/path%
+pathToFileURL('/some/path%.js');    // Correct:   file:///some/path%25 (POSIX)
+```
+
 ## Legacy URL API
 
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+
 ### Legacy `urlObject`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22715
+    description: The Legacy URL API is deprecated. Use the WHATWG URL API.
+-->
 
 The legacy `urlObject` (`require('url').Url`) is created and returned by the
 `url.parse()` function.
@@ -879,17 +980,17 @@ The legacy `urlObject` (`require('url').Url`) is created and returned by the
 #### urlObject.auth
 
 The `auth` property is the username and password portion of the URL, also
-referred to as "userinfo". This string subset follows the `protocol` and
-double slashes (if present) and precedes the `host` component, delimited by an
-ASCII "at sign" (`@`). The format of the string is `{username}[:{password}]`,
-with the `[:{password}]` portion being optional.
+referred to as _userinfo_. This string subset follows the `protocol` and
+double slashes (if present) and precedes the `host` component, delimited by `@`.
+The string is either the username, or it is the username and password separated
+by `:`.
 
 For example: `'user:pass'`.
 
 #### urlObject.hash
 
-The `hash` property consists of the "fragment" portion of the URL including
-the leading ASCII hash (`#`) character.
+The `hash` property is the fragment identifier portion of the URL including the
+leading `#` character.
 
 For example: `'#hash'`.
 
@@ -930,7 +1031,7 @@ is everything following the `host` (including the `port`) and before the start
 of the `query` or `hash` components, delimited by either the ASCII question
 mark (`?`) or hash (`#`) characters.
 
-For example `'/p/a/t/h'`.
+For example: `'/p/a/t/h'`.
 
 No decoding of the path string is performed.
 
@@ -977,6 +1078,9 @@ forward-slash characters (`/`) are required following the colon in the
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22715
+    description: The Legacy URL API is deprecated. Use the WHATWG URL API.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7234
     description: URLs with a `file:` scheme will now always use the correct
@@ -1065,6 +1169,9 @@ The formatting process operates as follows:
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22715
+    description: The Legacy URL API is deprecated. Use the WHATWG URL API.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/13606
     description: The `search` property on the returned URL object is now `null`
@@ -1093,6 +1200,9 @@ A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22715
+    description: The Legacy URL API is deprecated. Use the WHATWG URL API.
   - version: v6.6.0
     pr-url: https://github.com/nodejs/node/pull/8215
     description: The `auth` fields are now kept intact when `from` and `to`
@@ -1111,8 +1221,6 @@ changes:
 
 The `url.resolve()` method resolves a target URL relative to a base URL in a
 manner similar to that of a Web browser resolving an anchor tag HREF.
-
-For example:
 
 ```js
 const url = require('url');
@@ -1171,7 +1279,7 @@ specific conditions, in addition to all other cases.
 
 When non-ASCII characters appear within a hostname, the hostname is encoded
 using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
-*both* Punycode encoded and percent-encoded characters. For example:
+*both* Punycode encoded and percent-encoded characters:
 
 ```js
 const myURL = new URL('https://%CF%80.com/foo');

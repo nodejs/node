@@ -37,6 +37,7 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
+#include "test/common/assembler-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -52,9 +53,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       v8::internal::CodeObjectRequired::kYes);
 
-  DoubleToIStub stub(isolate, destination_reg);
-
-  byte* start = stub.GetCode()->raw_instruction_start();
+  Handle<Code> code = BUILTIN_CODE(isolate, DoubleToI);
+  Address start = code->InstructionStart();
 
   // Save callee save registers.
   __ Push(r7, r6, r5, r4);
@@ -88,6 +88,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Call through to the actual stub
   __ Call(start, RelocInfo::EXTERNAL_REFERENCE);
 
+  __ ldr(destination_reg, MemOperand(sp, 0));
   __ add(sp, sp, Operand(kDoubleSize));
 
   // Make sure no registers have been unexpectedly clobbered
@@ -116,7 +117,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
-  Assembler::FlushICache(buffer, allocated);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
 }

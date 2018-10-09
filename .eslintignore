@@ -1,3 +1,4 @@
+node_modules
 lib/internal/v8.js
 lib/internal/v8_prof_polyfill.js
 lib/punycode.js
@@ -6,8 +7,8 @@ test/es-module/test-esm-dynamic-import.js
 test/fixtures
 test/message/esm_display_syntax_error.mjs
 tools/icu
-tools/remark-*
-node_modules
+tools/lint-md.js
+tools/node-lint-md-cli-rollup/dist
 benchmark/tmp
 doc/**/*.js
 !.eslintrc.js

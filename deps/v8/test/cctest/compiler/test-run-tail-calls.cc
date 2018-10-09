@@ -108,6 +108,7 @@ CallDescriptor* CreateDescriptorForStackArguments(Zone* zone,
 void TestHelper(int n, int m) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
+  CanonicalHandleScope canonical(isolate);
   Zone* zone = scope.main_zone();
   CallDescriptor* caller_descriptor =
       CreateDescriptorForStackArguments(zone, n);

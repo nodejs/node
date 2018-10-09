@@ -365,7 +365,7 @@ void S390Debugger::Debug() {
                  (strcmp(cmd, "printobject") == 0)) {
         if (argc == 2) {
           intptr_t value;
-          OFStream os(stdout);
+          StdoutStream os;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";
@@ -605,7 +605,7 @@ void S390Debugger::Debug() {
         PrintF("    Stops are debug instructions inserted by\n");
         PrintF("    the Assembler::stop() function.\n");
         PrintF("    When hitting a stop, the Simulator will\n");
-        PrintF("    stop and and give control to the S390Debugger.\n");
+        PrintF("    stop and give control to the S390Debugger.\n");
         PrintF("    The first %d stop codes are watched:\n",
                Simulator::kNumOfWatchedStops);
         PrintF("    - They can be enabled / disabled: the Simulator\n");
@@ -998,8 +998,6 @@ void Simulator::EvalTableInit() {
   EvalTable[STFPC] = &Simulator::Evaluate_STFPC;
   EvalTable[LFPC] = &Simulator::Evaluate_LFPC;
   EvalTable[TRE] = &Simulator::Evaluate_TRE;
-  EvalTable[CUUTF] = &Simulator::Evaluate_CUUTF;
-  EvalTable[CUTFU] = &Simulator::Evaluate_CUTFU;
   EvalTable[STFLE] = &Simulator::Evaluate_STFLE;
   EvalTable[SRNMB] = &Simulator::Evaluate_SRNMB;
   EvalTable[SRNMT] = &Simulator::Evaluate_SRNMT;
@@ -1105,7 +1103,6 @@ void Simulator::EvalTableInit() {
   EvalTable[CGDR] = &Simulator::Evaluate_CGDR;
   EvalTable[CGXR] = &Simulator::Evaluate_CGXR;
   EvalTable[LGDR] = &Simulator::Evaluate_LGDR;
-  EvalTable[MDTR] = &Simulator::Evaluate_MDTR;
   EvalTable[MDTRA] = &Simulator::Evaluate_MDTRA;
   EvalTable[DDTRA] = &Simulator::Evaluate_DDTRA;
   EvalTable[ADTRA] = &Simulator::Evaluate_ADTRA;
@@ -1905,17 +1902,18 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             case ExternalReference::BUILTIN_FP_FP_CALL:
             case ExternalReference::BUILTIN_COMPARE_CALL:
               PrintF("Call to host function at %p with args %f, %f",
-                     static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                     dval1);
+                     reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     dval0, dval1);
               break;
             case ExternalReference::BUILTIN_FP_CALL:
               PrintF("Call to host function at %p with arg %f",
-                     static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0);
+                     reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     dval0);
               break;
             case ExternalReference::BUILTIN_FP_INT_CALL:
               PrintF("Call to host function at %p with args %f, %" V8PRIdPTR,
-                     static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                     ival);
+                     reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     dval0, ival);
               break;
             default:
               UNREACHABLE();
@@ -2058,8 +2056,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               "\t\t\t\targs %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR,
-              static_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1], arg[2],
-              arg[3], arg[4], arg[5], arg[6], arg[7], arg[8]);
+              reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1],
+              arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8]);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
                    static_cast<intptr_t>(get_register(sp)));
@@ -2390,7 +2388,7 @@ void Simulator::Execute() {
   }
 }
 
-void Simulator::CallInternal(byte* entry, int reg_arg_count) {
+void Simulator::CallInternal(Address entry, int reg_arg_count) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
@@ -2400,7 +2398,7 @@ void Simulator::CallInternal(byte* entry, int reg_arg_count) {
     set_pc(*(reinterpret_cast<intptr_t*>(entry)));
   } else {
     // entry is the instruction address
-    set_pc(reinterpret_cast<intptr_t>(entry));
+    set_pc(static_cast<intptr_t>(entry));
   }
   // Remember the values of non-volatile registers.
   int64_t r6_val = get_register(r6);
@@ -2475,7 +2473,7 @@ void Simulator::CallInternal(byte* entry, int reg_arg_count) {
   set_register(r13, r13_val);
 }
 
-intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+intptr_t Simulator::CallImpl(Address entry, int argument_count,
                              const intptr_t* arguments) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
@@ -2522,7 +2520,7 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   set_pc(*(reinterpret_cast<intptr_t*>(entry)));
 #else
   // entry is the instruction address
-  set_pc(reinterpret_cast<intptr_t>(entry));
+  set_pc(static_cast<intptr_t>(entry));
 #endif
 
   // Put target address in ip (for JS prologue).
@@ -2597,19 +2595,19 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(r2);
 }
 
-void Simulator::CallFP(byte* entry, double d0, double d1) {
+void Simulator::CallFP(Address entry, double d0, double d1) {
   set_d_register_from_double(0, d0);
   set_d_register_from_double(1, d1);
   CallInternal(entry);
 }
 
-int32_t Simulator::CallFPReturnsInt(byte* entry, double d0, double d1) {
+int32_t Simulator::CallFPReturnsInt(Address entry, double d0, double d1) {
   CallFP(entry, d0, d1);
   int32_t result = get_register(r2);
   return result;
 }
 
-double Simulator::CallFPReturnsDouble(byte* entry, double d0, double d1) {
+double Simulator::CallFPReturnsDouble(Address entry, double d0, double d1) {
   CallFP(entry, d0, d1);
   return get_double_from_d_register(0);
 }
@@ -2679,6 +2677,12 @@ uintptr_t Simulator::PopAddress() {
   int d2 = AS(RSInstruction)->D2Value();          \
   int length = 4;
 
+#define DECODE_RSI_INSTRUCTION(r1, r3, i2)        \
+  int r1 = AS(RSIInstruction)->R1Value();         \
+  int r3 = AS(RSIInstruction)->R3Value();         \
+  int32_t i2 = AS(RSIInstruction)->I2Value();     \
+  int length = 4;
+
 #define DECODE_SI_INSTRUCTION_I_UINT8(b1, d1_val, imm_val) \
   int b1 = AS(SIInstruction)->B1Value();                   \
   intptr_t d1_val = AS(SIInstruction)->D1Value();          \
@@ -2743,6 +2747,12 @@ uintptr_t Simulator::PopAddress() {
   int length = 2;
 
 #define DECODE_RIE_D_INSTRUCTION(r1, r2, i2)  \
+  int r1 = AS(RIEInstruction)->R1Value();     \
+  int r2 = AS(RIEInstruction)->R2Value();     \
+  int32_t i2 = AS(RIEInstruction)->I6Value(); \
+  int length = 6;
+
+#define DECODE_RIE_E_INSTRUCTION(r1, r2, i2)  \
   int r1 = AS(RIEInstruction)->R1Value();     \
   int r2 = AS(RIEInstruction)->R2Value();     \
   int32_t i2 = AS(RIEInstruction)->I6Value(); \
@@ -3865,9 +3875,19 @@ EVALUATE(LE) {
 }
 
 EVALUATE(BRXH) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(BRXH);
+  DECODE_RSI_INSTRUCTION(r1, r3, i2);
+  int32_t r1_val = (r1 == 0) ? 0 : get_low_register<int32_t>(r1);
+  int32_t r3_val = (r3 == 0) ? 0 : get_low_register<int32_t>(r3);
+  intptr_t branch_address = get_pc() + (2 * i2);
+  r1_val += r3_val;
+  int32_t compare_val = r3 % 2 == 0 ?
+          get_low_register<int32_t>(r3 + 1) : r3_val;
+  if (r1_val > compare_val) {
+    set_pc(branch_address);
+  }
+  set_low_register(r1, r1_val);
+  return length;
 }
 
 EVALUATE(BRXLE) {
@@ -5268,18 +5288,6 @@ EVALUATE(TRE) {
   return 0;
 }
 
-EVALUATE(CUUTF) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
-}
-
-EVALUATE(CUTFU) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
-}
-
 EVALUATE(STFLE) {
   UNIMPLEMENTED();
   USE(instr);
@@ -6389,12 +6397,6 @@ EVALUATE(LGDR) {
   return length;
 }
 
-EVALUATE(MDTR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
-}
-
 EVALUATE(MDTRA) {
   UNIMPLEMENTED();
   USE(instr);
@@ -7138,9 +7140,13 @@ EVALUATE(LLGCR) {
 }
 
 EVALUATE(LLGHR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLGHR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  uint64_t r2_val = get_low_register<uint64_t>(r2);
+  r2_val <<= 48;
+  r2_val >>= 48;
+  set_register(r1, r2_val);
+  return length;
 }
 
 EVALUATE(MLGR) {
@@ -9189,28 +9195,38 @@ EVALUATE(STOC) {
   return 0;
 }
 
+#define ATOMIC_LOAD_AND_UPDATE_WORD32(op)                       \
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);                     \
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);            \
+  intptr_t addr = static_cast<intptr_t>(b2_val) + d2;           \
+  int32_t r3_val = get_low_register<int32_t>(r3);               \
+  DCHECK_EQ(addr & 0x3, 0);                              \
+  int32_t r1_val = op(reinterpret_cast<int32_t*>(addr),         \
+                      r3_val, __ATOMIC_SEQ_CST);                \
+  set_low_register(r1, r1_val);
+
 EVALUATE(LAN) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAN);
+  ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_and);
+  return length;
 }
 
 EVALUATE(LAO) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAO);
+  ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_or);
+  return length;
 }
 
 EVALUATE(LAX) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAX);
+  ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_xor);
+  return length;
 }
 
 EVALUATE(LAA) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LAA);
+  ATOMIC_LOAD_AND_UPDATE_WORD32(__atomic_fetch_add);
+  return length;
 }
 
 EVALUATE(LAAL) {
@@ -9219,10 +9235,21 @@ EVALUATE(LAAL) {
   return 0;
 }
 
+#undef ATOMIC_LOAD_AND_UPDATE_WORD32
+
 EVALUATE(BRXHG) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(BRXHG);
+  DECODE_RIE_E_INSTRUCTION(r1, r3, i2);
+  int64_t r1_val = (r1 == 0) ? 0 : get_register(r1);
+  int64_t r3_val = (r3 == 0) ? 0 : get_register(r3);
+  intptr_t branch_address = get_pc() + (2 * i2);
+  r1_val += r3_val;
+  int64_t compare_val = r3 % 2 == 0 ? get_register(r3 + 1) : r3_val;
+  if (r1_val > compare_val) {
+    set_pc(branch_address);
+  }
+  set_register(r1, r1_val);
+  return length;
 }
 
 EVALUATE(BRXLG) {

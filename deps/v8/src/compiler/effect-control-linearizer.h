@@ -27,6 +27,7 @@ class JSGraph;
 class Graph;
 class Schedule;
 class SourcePositionTable;
+class NodeOriginTable;
 
 class V8_EXPORT_PRIVATE EffectControlLinearizer {
  public:
@@ -34,6 +35,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
 
   EffectControlLinearizer(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                           SourcePositionTable* source_positions,
+                          NodeOriginTable* node_origins,
                           MaskArrayIndexEnable mask_array_index);
 
   void Run();
@@ -56,7 +58,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeTaggedToUint32(Node* node);
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
   Node* LowerCheckBounds(Node* node, Node* frame_state);
-  Node* LowerMaskIndexWithBound(Node* node);
+  Node* LowerPoisonIndex(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
@@ -97,6 +99,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerObjectIsDetectableCallable(Node* node);
   Node* LowerObjectIsMinusZero(Node* node);
   Node* LowerObjectIsNaN(Node* node);
+  Node* LowerNumberIsNaN(Node* node);
   Node* LowerObjectIsNonCallable(Node* node);
   Node* LowerObjectIsNumber(Node* node);
   Node* LowerObjectIsReceiver(Node* node);
@@ -148,7 +151,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   void LowerTransitionElementsKind(Node* node);
   Node* LowerLoadFieldByIndex(Node* node);
   Node* LowerLoadTypedElement(Node* node);
+  Node* LowerLoadDataViewElement(Node* node);
   void LowerStoreTypedElement(Node* node);
+  void LowerStoreDataViewElement(Node* node);
   void LowerStoreSignedSmallElement(Node* node);
   Node* LowerFindOrderedHashMapEntry(Node* node);
   Node* LowerFindOrderedHashMapEntryForInt32Key(Node* node);
@@ -157,6 +162,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   void LowerTransitionAndStoreNonNumberElement(Node* node);
   void LowerRuntimeAbort(Node* node);
   Node* LowerConvertReceiver(Node* node);
+  Node* LowerDateNow(Node* node);
 
   // Lowering of optional operators.
   Maybe<Node*> LowerFloat64RoundUp(Node* node);
@@ -172,9 +178,11 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                  const VectorSlotPair& feedback,
                                                  Node* value,
                                                  Node* frame_state);
+  Node* BuildReverseBytes(ExternalArrayType type, Node* value);
   Node* BuildFloat64RoundDown(Node* value);
   Node* BuildFloat64RoundTruncate(Node* input);
-  Node* ComputeIntegerHash(Node* value);
+  Node* BuildUint32Mod(Node* lhs, Node* rhs);
+  Node* ComputeUnseededHash(Node* value);
   Node* LowerStringComparison(Callable const& callable, Node* node);
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
@@ -211,6 +219,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   MaskArrayIndexEnable mask_array_index_;
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
+  NodeOriginTable* node_origins_;
   GraphAssembler graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
 };

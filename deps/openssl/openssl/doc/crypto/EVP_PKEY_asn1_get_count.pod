@@ -48,7 +48,7 @@ engine that implements it.
 
 EVP_PKEY_asn1_get0_info() returns the public key ID, base public key
 ID (both NIDs), any flags, the method description and PEM type string
-associated with the public key ASN.1 method B<*ameth>.
+associated with the public key ASN.1 method B<*ameth>. 
 
 EVP_PKEY_asn1_count(), EVP_PKEY_asn1_get0(), EVP_PKEY_asn1_find() and
 EVP_PKEY_asn1_find_str() are not thread safe, but as long as all

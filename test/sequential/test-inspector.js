@@ -33,8 +33,7 @@ function checkBadPath(err) {
 }
 
 function checkException(message) {
-  assert.strictEqual(message.exceptionDetails, undefined,
-                     'An exception occurred during execution');
+  assert.strictEqual(message.exceptionDetails, undefined);
 }
 
 function assertScopeValues({ result }, expected) {
@@ -69,7 +68,7 @@ async function testBreakpointOnStart(session) {
   ];
 
   await session.send(commands);
-  await session.waitForBreakOnLine(0, session.scriptPath());
+  await session.waitForBreakOnLine(0, session.scriptURL());
 }
 
 async function testBreakpoint(session) {
@@ -77,7 +76,7 @@ async function testBreakpoint(session) {
   const commands = [
     { 'method': 'Debugger.setBreakpointByUrl',
       'params': { 'lineNumber': 5,
-                  'url': session.scriptPath(),
+                  'url': session.scriptURL(),
                   'columnNumber': 0,
                   'condition': ''
       }
@@ -92,7 +91,7 @@ async function testBreakpoint(session) {
          `Script source is wrong: ${scriptSource}`);
 
   await session.waitForConsoleOutput('log', ['A message', 5]);
-  const paused = await session.waitForBreakOnLine(5, session.scriptPath());
+  const paused = await session.waitForBreakOnLine(5, session.scriptURL());
   const scopeId = paused.params.callFrames[0].scopeChain[0].object.objectId;
 
   console.log('[test]', 'Verify we can read current application state');
@@ -291,7 +290,5 @@ async function runTest() {
   await session.runToCompletion();
   assert.strictEqual(55, (await child.expectShutdown()).exitCode);
 }
-
-common.crashOnUnhandledRejection();
 
 runTest();

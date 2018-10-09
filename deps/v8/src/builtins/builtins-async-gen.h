@@ -28,6 +28,12 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
               const ContextInitializer& init_closure_context,
               Node* on_resolve_context_index, Node* on_reject_context_index,
               Node* is_predicted_as_caught);
+  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
+                       Node* outer_promise, int context_length,
+                       const ContextInitializer& init_closure_context,
+                       Node* on_resolve_context_index,
+                       Node* on_reject_context_index,
+                       Node* is_predicted_as_caught);
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
               int context_length,
               const ContextInitializer& init_closure_context,
@@ -38,6 +44,17 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                  IntPtrConstant(on_reject_context_index),
                  is_predicted_as_caught);
   }
+  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
+                       Node* outer_promise, int context_length,
+                       const ContextInitializer& init_closure_context,
+                       int on_resolve_context_index,
+                       int on_reject_context_index,
+                       Node* is_predicted_as_caught) {
+    return AwaitOptimized(
+        context, generator, value, outer_promise, context_length,
+        init_closure_context, IntPtrConstant(on_resolve_context_index),
+        IntPtrConstant(on_reject_context_index), is_predicted_as_caught);
+  }
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
               int context_length,
               const ContextInitializer& init_closure_context,
@@ -47,6 +64,17 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                  init_closure_context, on_resolve_context_index,
                  on_reject_context_index,
                  BooleanConstant(is_predicted_as_caught));
+  }
+  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
+                       Node* outer_promise, int context_length,
+                       const ContextInitializer& init_closure_context,
+                       int on_resolve_context_index,
+                       int on_reject_context_index,
+                       bool is_predicted_as_caught) {
+    return AwaitOptimized(context, generator, value, outer_promise,
+                          context_length, init_closure_context,
+                          on_resolve_context_index, on_reject_context_index,
+                          BooleanConstant(is_predicted_as_caught));
   }
 
   // Return a new built-in function object as defined in

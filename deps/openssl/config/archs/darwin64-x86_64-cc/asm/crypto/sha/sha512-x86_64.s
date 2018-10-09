@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	_sha512_block_data_order
@@ -5362,3 +5362,4 @@ L$done_avx2:
 	leaq	48(%rsi),%rsp
 L$epilogue_avx2:
 	.byte	0xf3,0xc3
+

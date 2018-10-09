@@ -117,19 +117,20 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
   Handle<JSObject> jserror = Handle<JSObject>::cast(error);
 
   Handle<Name> key_start_pos = factory->error_start_pos_symbol();
-  JSObject::SetProperty(jserror, key_start_pos,
+  JSObject::SetProperty(isolate, jserror, key_start_pos,
                         handle(Smi::FromInt(location.start_pos()), isolate),
                         LanguageMode::kSloppy)
       .Check();
 
   Handle<Name> key_end_pos = factory->error_end_pos_symbol();
-  JSObject::SetProperty(jserror, key_end_pos,
+  JSObject::SetProperty(isolate, jserror, key_end_pos,
                         handle(Smi::FromInt(location.end_pos()), isolate),
                         LanguageMode::kSloppy)
       .Check();
 
   Handle<Name> key_script = factory->error_script_symbol();
-  JSObject::SetProperty(jserror, key_script, script, LanguageMode::kSloppy)
+  JSObject::SetProperty(isolate, jserror, key_script, script,
+                        LanguageMode::kSloppy)
       .Check();
 
   isolate->Throw(*error, &location);

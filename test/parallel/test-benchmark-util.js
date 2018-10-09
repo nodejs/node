@@ -13,5 +13,6 @@ runBenchmark('util',
               'pos=start',
               'size=1',
               'type=',
+              'len=1',
               'version=native'],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

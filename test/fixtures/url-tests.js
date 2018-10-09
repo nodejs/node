@@ -2,7 +2,7 @@
 
 /* The following tests are copied from WPT. Modifications to them should be
    upstreamed first. Refs:
-   https://github.com/w3c/web-platform-tests/blob/88b75886e/url/urltestdata.json
+   https://github.com/web-platform-tests/wpt/blob/ba4921d054/url/resources/urltestdata.json
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 module.exports =
@@ -4021,6 +4021,37 @@ module.exports =
     "port": "",
     "pathname": "/%60%7B%7D",
     "search": "?`{}",
+    "hash": ""
+  },
+  "byte is ' and url is special",
+  {
+    "input": "http://host/?'",
+    "base": "about:blank",
+    "href": "http://host/?%27",
+    "origin": "http://host",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/",
+    "search": "?%27",
+    "hash": ""
+  },
+  {
+    "input": "notspecial://host/?'",
+    "base": "about:blank",
+    "href": "notspecial://host/?'",
+    "origin": "null",
+    "protocol": "notspecial:",
+    "username": "",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/",
+    "search": "?'",
     "hash": ""
   },
   "# Credentials in base",

@@ -15,7 +15,7 @@ L$_fcrypt_body_begin:
 	push	ebx
 	push	esi
 	push	edi
-	;
+	; 
 	; Load the 2 words
 	xor	edi,edi
 	xor	esi,esi
@@ -24,7 +24,7 @@ L$_fcrypt_body_begin:
 	mov	ebp,DWORD [28+esp]
 	push	DWORD 25
 L$000start:
-	;
+	; 
 	; Round 0
 	mov	eax,DWORD [36+esp]
 	mov	edx,esi
@@ -74,7 +74,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	edi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 1
 	mov	eax,DWORD [36+esp]
 	mov	edx,edi
@@ -124,7 +124,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	esi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 2
 	mov	eax,DWORD [36+esp]
 	mov	edx,esi
@@ -174,7 +174,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	edi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 3
 	mov	eax,DWORD [36+esp]
 	mov	edx,edi
@@ -224,7 +224,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	esi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 4
 	mov	eax,DWORD [36+esp]
 	mov	edx,esi
@@ -274,7 +274,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	edi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 5
 	mov	eax,DWORD [36+esp]
 	mov	edx,edi
@@ -324,7 +324,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	esi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 6
 	mov	eax,DWORD [36+esp]
 	mov	edx,esi
@@ -374,7 +374,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	edi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 7
 	mov	eax,DWORD [36+esp]
 	mov	edx,edi
@@ -424,7 +424,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	esi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 8
 	mov	eax,DWORD [36+esp]
 	mov	edx,esi
@@ -474,7 +474,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	edi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 9
 	mov	eax,DWORD [36+esp]
 	mov	edx,edi
@@ -524,7 +524,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	esi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 10
 	mov	eax,DWORD [36+esp]
 	mov	edx,esi
@@ -574,7 +574,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	edi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 11
 	mov	eax,DWORD [36+esp]
 	mov	edx,edi
@@ -624,7 +624,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	esi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 12
 	mov	eax,DWORD [36+esp]
 	mov	edx,esi
@@ -674,7 +674,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	edi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 13
 	mov	eax,DWORD [36+esp]
 	mov	edx,edi
@@ -724,7 +724,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	esi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 14
 	mov	eax,DWORD [36+esp]
 	mov	edx,esi
@@ -774,7 +774,7 @@ L$000start:
 	mov	ebx,DWORD [0x500+edx*1+ebp]
 	xor	edi,ebx
 	mov	ebp,DWORD [32+esp]
-	;
+	; 
 	; Round 15
 	mov	eax,DWORD [36+esp]
 	mov	edx,edi
@@ -831,7 +831,7 @@ L$000start:
 	mov	esi,eax
 	mov	DWORD [esp],ebx
 	jnz	NEAR L$000start
-	;
+	; 
 	; FP
 	mov	edx,DWORD [28+esp]
 	ror	edi,1
@@ -840,35 +840,35 @@ L$000start:
 	and	esi,0xaaaaaaaa
 	xor	eax,esi
 	xor	edi,esi
-	;
+	; 
 	rol	eax,23
 	mov	esi,eax
 	xor	eax,edi
 	and	eax,0x03fc03fc
 	xor	esi,eax
 	xor	edi,eax
-	;
+	; 
 	rol	esi,10
 	mov	eax,esi
 	xor	esi,edi
 	and	esi,0x33333333
 	xor	eax,esi
 	xor	edi,esi
-	;
+	; 
 	rol	edi,18
 	mov	esi,edi
 	xor	edi,eax
 	and	edi,0xfff0000f
 	xor	esi,edi
 	xor	eax,edi
-	;
+	; 
 	rol	esi,12
 	mov	edi,esi
 	xor	esi,eax
 	and	esi,0xf0f0f0f0
 	xor	edi,esi
 	xor	eax,esi
-	;
+	; 
 	ror	eax,4
 	mov	DWORD [edx],eax
 	mov	DWORD [4+edx],edi

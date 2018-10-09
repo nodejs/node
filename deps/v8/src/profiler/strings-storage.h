@@ -7,35 +7,44 @@
 
 #include <stdarg.h>
 
-#include "src/allocation.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
 
+class Name;
+
 // Provides a storage of strings allocated in C++ heap, to hold them
 // forever, even if they disappear from JS heap or external storage.
-class StringsStorage {
+class V8_EXPORT_PRIVATE StringsStorage {
  public:
-  explicit StringsStorage(Heap* heap);
+  StringsStorage();
   ~StringsStorage();
 
+  // Copies the given c-string and stores it, returning the stored copy, or just
+  // returns the existing string in storage if it already exists.
   const char* GetCopy(const char* src);
+  // Returns a formatted string, de-duplicated via the storage.
   PRINTF_FORMAT(2, 3) const char* GetFormatted(const char* format, ...);
-  PRINTF_FORMAT(2, 0)
-  const char* GetVFormatted(const char* format, va_list args);
+  // Returns a stored string resulting from name, or "<symbol>" for a symbol.
   const char* GetName(Name* name);
+  // Returns the string representation of the int from the store.
   const char* GetName(int index);
-  const char* GetFunctionName(Name* name);
-  const char* GetFunctionName(const char* name);
+  // Appends string resulting from name to prefix, then returns the stored
+  // result.
+  const char* GetConsName(const char* prefix, Name* name);
 
  private:
   static bool StringsMatch(void* key1, void* key2);
+  // Adds the string to storage and returns it, or if a matching string exists
+  // in the storage, deletes str and returns the matching string instead.
   const char* AddOrDisposeString(char* str, int len);
   base::CustomMatcherHashMap::Entry* GetEntry(const char* str, int len);
+  PRINTF_FORMAT(2, 0)
+  const char* GetVFormatted(const char* format, va_list args);
 
-  uint32_t hash_seed_;
   base::CustomMatcherHashMap names_;
 
   DISALLOW_COPY_AND_ASSIGN(StringsStorage);

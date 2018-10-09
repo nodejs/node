@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -734,11 +734,11 @@ static int remove_session_lock(SSL_CTX *ctx, SSL_SESSION *c, int lck)
         if (lck)
             CRYPTO_THREAD_unlock(ctx->lock);
 
-        if (ret)
-            SSL_SESSION_free(r);
-
         if (ctx->remove_session_cb != NULL)
             ctx->remove_session_cb(ctx, c);
+
+        if (ret)
+            SSL_SESSION_free(r);
     } else
         ret = 0;
     return (ret);

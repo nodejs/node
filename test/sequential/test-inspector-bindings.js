@@ -1,9 +1,11 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
 const assert = require('assert');
 const inspector = require('inspector');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 // This test case will set a breakpoint 4 lines below
 function debuggedFunction() {
@@ -84,8 +86,8 @@ function testSampleDebugSession() {
   }, TypeError);
   session.post('Debugger.enable', () => cbAsSecondArgCalled = true);
   session.post('Debugger.setBreakpointByUrl', {
-    'lineNumber': 12,
-    'url': path.resolve(__dirname, __filename),
+    'lineNumber': 14,
+    'url': pathToFileURL(path.resolve(__dirname, __filename)).toString(),
     'columnNumber': 0,
     'condition': ''
   });
@@ -114,8 +116,6 @@ async function testNoCrashConsoleLogBeforeThrow() {
   console.log('Did not crash');
   session.disconnect();
 }
-
-common.crashOnUnhandledRejection();
 
 async function doTests() {
   await testNoCrashWithExceptionInCallback();

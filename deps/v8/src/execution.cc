@@ -4,7 +4,7 @@
 
 #include "src/execution.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/bootstrapper.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug.h"
@@ -157,7 +157,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    value->ObjectVerify();
+    value->ObjectVerify(isolate);
   }
 #endif
 
@@ -244,7 +244,7 @@ MaybeHandle<Object> Execution::TryCall(
     if (maybe_result.is_null()) {
       DCHECK(isolate->has_pending_exception());
       if (isolate->pending_exception() ==
-          isolate->heap()->termination_exception()) {
+          ReadOnlyRoots(isolate).termination_exception()) {
         is_termination = true;
       } else {
         if (exception_out != nullptr) {
@@ -315,29 +315,56 @@ void StackGuard::DisableInterrupts() {
   reset_limits(access);
 }
 
-
-void StackGuard::PushPostponeInterruptsScope(PostponeInterruptsScope* scope) {
+void StackGuard::PushInterruptsScope(InterruptsScope* scope) {
   ExecutionAccess access(isolate_);
-  // Intercept already requested interrupts.
-  int intercepted = thread_local_.interrupt_flags_ & scope->intercept_mask_;
-  scope->intercepted_flags_ = intercepted;
-  thread_local_.interrupt_flags_ &= ~intercepted;
+  DCHECK_NE(scope->mode_, InterruptsScope::kNoop);
+  if (scope->mode_ == InterruptsScope::kPostponeInterrupts) {
+    // Intercept already requested interrupts.
+    int intercepted = thread_local_.interrupt_flags_ & scope->intercept_mask_;
+    scope->intercepted_flags_ = intercepted;
+    thread_local_.interrupt_flags_ &= ~intercepted;
+  } else {
+    DCHECK_EQ(scope->mode_, InterruptsScope::kRunInterrupts);
+    // Restore postponed interrupts.
+    int restored_flags = 0;
+    for (InterruptsScope* current = thread_local_.interrupt_scopes_;
+         current != nullptr; current = current->prev_) {
+      restored_flags |= (current->intercepted_flags_ & scope->intercept_mask_);
+      current->intercepted_flags_ &= ~scope->intercept_mask_;
+    }
+    thread_local_.interrupt_flags_ |= restored_flags;
+  }
   if (!has_pending_interrupts(access)) reset_limits(access);
   // Add scope to the chain.
-  scope->prev_ = thread_local_.postpone_interrupts_;
-  thread_local_.postpone_interrupts_ = scope;
+  scope->prev_ = thread_local_.interrupt_scopes_;
+  thread_local_.interrupt_scopes_ = scope;
 }
 
-
-void StackGuard::PopPostponeInterruptsScope() {
+void StackGuard::PopInterruptsScope() {
   ExecutionAccess access(isolate_);
-  PostponeInterruptsScope* top = thread_local_.postpone_interrupts_;
-  // Make intercepted interrupts active.
-  DCHECK_EQ(thread_local_.interrupt_flags_ & top->intercept_mask_, 0);
-  thread_local_.interrupt_flags_ |= top->intercepted_flags_;
+  InterruptsScope* top = thread_local_.interrupt_scopes_;
+  DCHECK_NE(top->mode_, InterruptsScope::kNoop);
+  if (top->mode_ == InterruptsScope::kPostponeInterrupts) {
+    // Make intercepted interrupts active.
+    DCHECK_EQ(thread_local_.interrupt_flags_ & top->intercept_mask_, 0);
+    thread_local_.interrupt_flags_ |= top->intercepted_flags_;
+  } else {
+    DCHECK_EQ(top->mode_, InterruptsScope::kRunInterrupts);
+    // Postpone existing interupts if needed.
+    if (top->prev_) {
+      for (int interrupt = 1; interrupt < ALL_INTERRUPTS;
+           interrupt = interrupt << 1) {
+        InterruptFlag flag = static_cast<InterruptFlag>(interrupt);
+        if ((thread_local_.interrupt_flags_ & flag) &&
+            top->prev_->Intercept(flag)) {
+          thread_local_.interrupt_flags_ &= ~flag;
+        }
+      }
+    }
+  }
   if (has_pending_interrupts(access)) set_interrupt_limits(access);
   // Remove scope from chain.
-  thread_local_.postpone_interrupts_ = top->prev_;
+  thread_local_.interrupt_scopes_ = top->prev_;
 }
 
 
@@ -349,9 +376,9 @@ bool StackGuard::CheckInterrupt(InterruptFlag flag) {
 
 void StackGuard::RequestInterrupt(InterruptFlag flag) {
   ExecutionAccess access(isolate_);
-  // Check the chain of PostponeInterruptsScopes for interception.
-  if (thread_local_.postpone_interrupts_ &&
-      thread_local_.postpone_interrupts_->Intercept(flag)) {
+  // Check the chain of InterruptsScope for interception.
+  if (thread_local_.interrupt_scopes_ &&
+      thread_local_.interrupt_scopes_->Intercept(flag)) {
     return;
   }
 
@@ -366,8 +393,8 @@ void StackGuard::RequestInterrupt(InterruptFlag flag) {
 
 void StackGuard::ClearInterrupt(InterruptFlag flag) {
   ExecutionAccess access(isolate_);
-  // Clear the interrupt flag from the chain of PostponeInterruptsScopes.
-  for (PostponeInterruptsScope* current = thread_local_.postpone_interrupts_;
+  // Clear the interrupt flag from the chain of InterruptsScope.
+  for (InterruptsScope* current = thread_local_.interrupt_scopes_;
        current != nullptr; current = current->prev_) {
     current->intercepted_flags_ &= ~flag;
   }
@@ -424,7 +451,7 @@ void StackGuard::ThreadLocal::Clear() {
   set_jslimit(kIllegalLimit);
   real_climit_ = kIllegalLimit;
   set_climit(kIllegalLimit);
-  postpone_interrupts_ = nullptr;
+  interrupt_scopes_ = nullptr;
   interrupt_flags_ = 0;
 }
 
@@ -441,7 +468,7 @@ bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
     set_climit(limit);
     should_set_stack_limits = true;
   }
-  postpone_interrupts_ = nullptr;
+  interrupt_scopes_ = nullptr;
   interrupt_flags_ = 0;
   return should_set_stack_limits;
 }
@@ -468,13 +495,6 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 // --- C a l l s   t o   n a t i v e s ---
 
 
-void StackGuard::HandleGCInterrupt() {
-  if (CheckAndClearInterrupt(GC_REQUEST)) {
-    isolate_->heap()->HandleGCRequest();
-  }
-}
-
-
 Object* StackGuard::HandleInterrupts() {
   if (FLAG_verify_predictable) {
     // Advance synthetic time by making a time request.
@@ -492,15 +512,6 @@ Object* StackGuard::HandleInterrupts() {
       any_interrupt_handled = true;
     }
     isolate_->heap()->HandleGCRequest();
-  }
-
-  if (CheckDebugBreak()) {
-    if (FLAG_trace_interrupts) {
-      if (any_interrupt_handled) PrintF(", ");
-      PrintF("DEBUG_BREAK");
-      any_interrupt_handled = true;
-    }
-    isolate_->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
   }
 
   if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {
@@ -552,7 +563,7 @@ Object* StackGuard::HandleInterrupts() {
   isolate_->counters()->runtime_profiler_ticks()->Increment();
   isolate_->runtime_profiler()->MarkCandidatesForOptimization();
 
-  return isolate_->heap()->undefined_value();
+  return ReadOnlyRoots(isolate_).undefined_value();
 }
 
 }  // namespace internal

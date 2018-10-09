@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -155,32 +155,40 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 
     dblen = num - mdlen - 1;
     db = OPENSSL_malloc(dblen);
-    em = OPENSSL_malloc(num);
-    if (db == NULL || em == NULL) {
+    if (db == NULL) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1, ERR_R_MALLOC_FAILURE);
         goto cleanup;
     }
 
-    /*
-     * Always do this zero-padding copy (even when num == flen) to avoid
-     * leaking that information. The copy still leaks some side-channel
-     * information, but it's impossible to have a fixed  memory access
-     * pattern since we can't read out of the bounds of |from|.
-     *
-     * TODO(emilia): Consider porting BN_bn2bin_padded from BoringSSL.
-     */
-    memset(em, 0, num);
-    memcpy(em + num - flen, from, flen);
+    if (flen != num) {
+        em = OPENSSL_zalloc(num);
+        if (em == NULL) {
+            RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1,
+                   ERR_R_MALLOC_FAILURE);
+            goto cleanup;
+        }
+
+        /*
+         * Caller is encouraged to pass zero-padded message created with
+         * BN_bn2binpad, but if it doesn't, we do this zero-padding copy
+         * to avoid leaking that information. The copy still leaks some
+         * side-channel information, but it's impossible to have a fixed
+         * memory access pattern since we can't read out of the bounds of
+         * |from|.
+         */
+        memcpy(em + num - flen, from, flen);
+        from = em;
+    }
 
     /*
      * The first byte must be zero, however we must not leak if this is
      * true. See James H. Manger, "A Chosen Ciphertext  Attack on RSA
      * Optimal Asymmetric Encryption Padding (OAEP) [...]", CRYPTO 2001).
      */
-    good = constant_time_is_zero(em[0]);
+    good = constant_time_is_zero(from[0]);
 
-    maskedseed = em + 1;
-    maskeddb = em + 1 + mdlen;
+    maskedseed = from + 1;
+    maskeddb = from + 1 + mdlen;
 
     if (PKCS1_MGF1(seed, mdlen, maskeddb, dblen, mgf1md))
         goto cleanup;

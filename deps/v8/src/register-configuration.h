@@ -34,6 +34,9 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   // Register configuration with reserved masking register.
   static const RegisterConfiguration* Poisoning();
 
+  // Register configuration with reserved root register on ia32.
+  static const RegisterConfiguration* PreserveRootIA32();
+
   static const RegisterConfiguration* RestrictGeneralRegisters(
       RegList registers);
 
@@ -102,7 +105,9 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   bool IsAllocatableSimd128Code(int index) const {
     return ((1 << index) & allocatable_simd128_codes_mask_) != 0;
   }
+  const char* GetGeneralOrSpecialRegisterName(int code) const;
   const char* GetGeneralRegisterName(int code) const {
+    DCHECK_LT(code, num_general_registers_);
     return general_register_names_[code];
   }
   const char* GetFloatRegisterName(int code) const {

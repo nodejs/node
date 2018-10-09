@@ -87,6 +87,7 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -214,6 +215,13 @@ class ConverterObject : public BaseObject, Converter {
       result.AllocateSufficientStorage(limit);
 
     UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
+    OnScopeLeave cleanup([&]() {
+      if (flush) {
+        // Reset the converter state.
+        converter->bomSeen_ = false;
+        ucnv_reset(converter->conv);
+      }
+    });
 
     const char* source = input_obj_data;
     size_t source_length = input_obj_length;
@@ -237,18 +245,15 @@ class ConverterObject : public BaseObject, Converter {
         result.SetLength(target - &result[0]);
       ret = ToBufferEndian(env, &result);
       args.GetReturnValue().Set(ret.ToLocalChecked());
-      goto reset;
+      return;
     }
 
     args.GetReturnValue().Set(status);
-
-   reset:
-    if (flush) {
-      // Reset the converter state
-      converter->bomSeen_ = false;
-      ucnv_reset(converter->conv);
-    }
   }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(ConverterObject)
+  SET_SELF_SIZE(ConverterObject)
 
  protected:
   ConverterObject(Environment* env,
@@ -496,7 +501,8 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
 
 void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  UErrorCode status = static_cast<UErrorCode>(args[0]->Int32Value());
+  CHECK(args[0]->IsInt32());
+  UErrorCode status = static_cast<UErrorCode>(args[0].As<Int32>()->Value());
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           u_errorName(status),
@@ -546,7 +552,7 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
             TYPE_ICU ","
             TYPE_UNICODE ","
             TYPE_CLDR ","
-            TYPE_TZ));
+            TYPE_TZ, v8::NewStringType::kNormal).ToLocalChecked());
   } else {
     CHECK_GE(args.Length(), 1);
     CHECK(args[0]->IsString());
@@ -559,7 +565,7 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
       // Success.
       args.GetReturnValue().Set(
           String::NewFromUtf8(env->isolate(),
-          versionString));
+          versionString, v8::NewStringType::kNormal).ToLocalChecked());
     }
   }
 }
@@ -809,13 +815,13 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1)
     return;
 
-  bool ambiguous_as_full_width = args[1]->BooleanValue();
-  bool expand_emoji_sequence = args[2]->BooleanValue();
+  bool ambiguous_as_full_width = args[1]->IsTrue();
+  bool expand_emoji_sequence = args[2]->IsTrue();
 
   if (args[0]->IsNumber()) {
-    args.GetReturnValue().Set(
-        GetColumnWidth(args[0]->Uint32Value(),
-                       ambiguous_as_full_width));
+    uint32_t val;
+    if (!args[0]->Uint32Value(env->context()).To(&val)) return;
+    args.GetReturnValue().Set(GetColumnWidth(val, ambiguous_as_full_width));
     return;
   }
 
@@ -876,6 +882,6 @@ void Initialize(Local<Object> target,
 }  // namespace i18n
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(icu, node::i18n::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(icu, node::i18n::Initialize)
 
 #endif  // NODE_HAVE_I18N_SUPPORT

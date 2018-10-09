@@ -57,7 +57,7 @@ streaming single pass option should be available.
 =head1 RETURN VALUES
 
 SMIME_read_PKCS7() returns a valid B<PKCS7> structure or B<NULL>
-is an error occurred. The error can be obtained from ERR_get_error(3).
+if an error occurred. The error can be obtained from ERR_get_error(3).
 
 =head1 SEE ALSO
 
@@ -68,7 +68,7 @@ L<PKCS7_decrypt(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2002-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -23,6 +23,8 @@ namespace interpreter {
 
 #define UNIQUE_VAR() "var a" STR(__COUNTER__) " = 0;\n"
 
+#define LOAD_UNIQUE_PROPERTY() "  b.name" STR(__COUNTER__) ";\n"
+
 #define REPEAT_2(...) __VA_ARGS__ __VA_ARGS__
 #define REPEAT_4(...) REPEAT_2(__VA_ARGS__) REPEAT_2(__VA_ARGS__)
 #define REPEAT_8(...) REPEAT_4(__VA_ARGS__) REPEAT_4(__VA_ARGS__)
@@ -65,6 +67,21 @@ namespace interpreter {
   REPEAT_8_UNIQUE_VARS()         \
   UNIQUE_VAR()                   \
   UNIQUE_VAR()
+
+#define REPEAT_2_LOAD_UNIQUE_PROPERTY() \
+  LOAD_UNIQUE_PROPERTY() LOAD_UNIQUE_PROPERTY()
+#define REPEAT_4_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_2_LOAD_UNIQUE_PROPERTY() REPEAT_2_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_8_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_4_LOAD_UNIQUE_PROPERTY() REPEAT_4_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_16_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_8_LOAD_UNIQUE_PROPERTY() REPEAT_8_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_32_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_16_LOAD_UNIQUE_PROPERTY() REPEAT_16_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_64_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_32_LOAD_UNIQUE_PROPERTY() REPEAT_32_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_128_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_64_LOAD_UNIQUE_PROPERTY() REPEAT_64_LOAD_UNIQUE_PROPERTY()
 
 static const char* kGoldenFileDirectory =
     "test/cctest/interpreter/bytecode_expectations/";
@@ -112,6 +129,27 @@ std::string BuildActual(const BytecodeExpectationsPrinter& printer,
   return actual_stream.str();
 }
 
+// inplace left trim
+static inline void ltrim(std::string& str) {
+  str.erase(str.begin(),
+            std::find_if(str.begin(), str.end(),
+                         [](unsigned char ch) { return !std::isspace(ch); }));
+}
+
+// inplace right trim
+static inline void rtrim(std::string& str) {
+  str.erase(std::find_if(str.rbegin(), str.rend(),
+                         [](unsigned char ch) { return !std::isspace(ch); })
+                .base(),
+            str.end());
+}
+
+static inline std::string trim(std::string& str) {
+  ltrim(str);
+  rtrim(str);
+  return str;
+}
+
 bool CompareTexts(const std::string& generated, const std::string& expected) {
   std::istringstream generated_stream(generated);
   std::istringstream expected_stream(expected);
@@ -140,7 +178,7 @@ bool CompareTexts(const std::string& generated, const std::string& expected) {
       return false;
     }
 
-    if (generated_line != expected_line) {
+    if (trim(generated_line) != trim(expected_line)) {
       std::cerr << "Inputs differ at line " << line_number << "\n";
       std::cerr << "  Generated: '" << generated_line << "'\n";
       std::cerr << "  Expected:  '" << expected_line << "'\n";
@@ -375,9 +413,8 @@ TEST(PropertyLoads) {
     "f({\"-124\" : \"test\", name : 123 })",
 
     "function f(a) {\n"
-    "  var b;\n"
-    "  b = a.name;\n"
-    REPEAT_127("  b = a.name;\n")
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  return a.name;\n"
     "}\n"
     "f({name : \"test\"})\n",
@@ -393,6 +430,242 @@ TEST(PropertyLoads) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PropertyLoads.golden")));
+}
+
+TEST(PropertyLoadStoreOneShot) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_top_level(true);
+  printer.set_oneshot_opt(true);
+
+  const char* snippets[] = {
+      R"(
+      l = {
+        'a': 1,
+        'b': 2
+      };
+
+      v = l['a'] + l['b'];
+      l['b'] = 7;
+      l['a'] = l['b'];
+      )",
+
+      R"(
+      l = {
+        'a': 1.1,
+        'b': 2.2
+      };
+      for (i = 0; i < 5; ++i) {
+        l['a'] = l['a'] + l['b'];
+        l['b'] = l['a'] + l['b'];
+      }
+      )",
+
+      R"(
+      l = {
+        'a': 1.1,
+        'b': 2.2
+      };
+      while (s > 0) {
+        l['a']  = l['a'] - l['b'];
+        l['b']  = l['b'] - l['a'];
+      }
+      )",
+
+      R"(
+      l = {
+        'a': 1.1,
+        'b': 2.2
+      };
+      s = 10;
+      do {
+        l['a'] = l['b'] - l['a'];
+      } while (s < 10);
+      )",
+
+      R"(
+      l = {
+        'c': 1.1,
+        'd': 2.2
+      };
+      if (l['c'] < 3) {
+        l['c'] = 3;
+      } else {
+        l['d'] = 3;
+      }
+      )",
+
+      R"(
+      a = [1.1, [2.2, 4.5]];
+      )",
+
+      R"(
+      b = [];
+      )",
+  };
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PropertyLoadStoreOneShot.golden")));
+}
+
+TEST(PropertyLoadStoreWithoutOneShot) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_top_level(true);
+
+  const char* snippets[] = {
+      R"(
+      l = {
+        'aa': 1.1,
+        'bb': 2.2
+      };
+
+      v = l['aa'] + l['bb'];
+      l['bb'] = 7;
+      l['aa'] = l['bb'];
+      )",
+
+      R"(
+      l = {
+        'cc': 3.1,
+        'dd': 4.2
+      };
+      if (l['cc'] < 3) {
+        l['cc'] = 3;
+      } else {
+        l['dd'] = 3;
+      }
+      )",
+  };
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PropertyLoadStoreWithoutOneShot.golden")));
+}
+
+TEST(IIFEWithOneshotOpt) {
+  InitializedIgnitionHandleScope scope;
+  v8::Isolate* isolate = CcTest::isolate();
+  BytecodeExpectationsPrinter printer(isolate);
+  printer.set_wrap(false);
+  printer.set_top_level(true);
+  printer.set_print_callee(true);
+  printer.set_oneshot_opt(true);
+
+  const char* snippets[] = {
+      // No feedback vectors for top-level loads/store named property in an IIFE
+      R"(
+      (function() {
+        l = {};
+        l.aa = 2;
+        l.bb = l.aa;
+        return arguments.callee;
+      })();
+    )",
+      // Normal load/store within loops of an IIFE
+      R"(
+      (function() {
+        l = {};
+        for (i = 0; i < 5; ++i) {
+          l.aa = 2;
+          l.bb = l.aa;
+        }
+        return arguments.callee;
+      })();
+    )",
+
+      R"(
+      (function() {
+        l = {};
+        c = 4;
+        while(c > 4) {
+          l.aa = 2;
+          l.bb = l.aa;
+          c--;
+        }
+        return arguments.callee;
+      })();
+    )",
+
+      R"(
+      (function() {
+        l = {};
+        c = 4;
+        do {
+          l.aa = 2;
+          l.bb = l.aa;
+          c--;
+        } while(c > 4)
+        return arguments.callee;
+      })();
+    )",
+      // No feedback vectors for loads/stores in conditionals
+      R"(
+      (function() {
+        l = {
+          'aa': 3.3,
+          'bb': 4.4
+        };
+        if (l.aa < 3) {
+          l.aa = 3;
+        } else {
+          l.aa = l.bb;
+        }
+        return arguments.callee;
+      })();
+    )",
+
+      R"(
+      (function() {
+        a = [0, [1, 1,2,], 3];
+        return arguments.callee;
+      })();
+    )",
+
+      R"(
+      (function() {
+        a = [];
+        return arguments.callee;
+      })();
+    )",
+  };
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("IIFEWithOneshotOpt.golden")));
+}
+
+TEST(IIFEWithoutOneshotOpt) {
+  InitializedIgnitionHandleScope scope;
+  v8::Isolate* isolate = CcTest::isolate();
+  BytecodeExpectationsPrinter printer(isolate);
+  printer.set_wrap(false);
+  printer.set_top_level(true);
+  printer.set_print_callee(true);
+
+  const char* snippets[] = {
+      R"(
+      (function() {
+        l = {};
+        l.a = 2;
+        l.b = l.a;
+        return arguments.callee;
+      })();
+    )",
+      R"(
+      (function() {
+        l = {
+          'a': 4.3,
+          'b': 3.4
+        };
+        if (l.a < 3) {
+          l.a = 3;
+        } else {
+          l.a = l.b;
+        }
+        return arguments.callee;
+      })();
+    )",
+  };
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("IIFEWithoutOneshotOpt.golden")));
 }
 
 TEST(PropertyStores) {
@@ -425,7 +698,8 @@ TEST(PropertyStores) {
 
     "function f(a) {\n"
     "  a.name = 1;\n"
-    REPEAT_127("  a.name = 1;\n")
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  a.name = 2;\n"
     "}\n"
     "f({name : \"test\"})\n",
@@ -433,7 +707,8 @@ TEST(PropertyStores) {
     "function f(a) {\n"
     " 'use strict';\n"
     "  a.name = 1;\n"
-    REPEAT_127("  a.name = 1;\n")
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  a.name = 2;\n"
     "}\n"
     "f({name : \"test\"})\n",
@@ -477,9 +752,10 @@ TEST(PropertyCall) {
       "f(" FUNC_ARG ", 1)",
 
       "function f(a) {\n"
-      " a.func;\n"              //
-      REPEAT_127(" a.func;\n")  //
-      " return a.func(); }\n"
+      "  var b = {};\n"
+      REPEAT_128_LOAD_UNIQUE_PROPERTY()
+      "  a.func;\n"              //
+      "  return a.func(); }\n"
       "f(" FUNC_ARG ")",
 
       "function f(a) { return a.func(1).func(2).func(3); }\n"
@@ -510,9 +786,9 @@ TEST(LoadGlobal) {
     "f()",
 
     "a = 1;\n"
-    "function f(b) {\n"
-    "  b.name;\n"
-    REPEAT_127("  b.name;\n")
+    "function f(c) {\n"
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  return a;\n"
     "}\n"
     "f({name: 1});\n",
@@ -545,18 +821,18 @@ TEST(StoreGlobal) {
     "f();\n",
 
     "a = 1;\n"
-    "function f(b) {\n"
-    "  b.name;\n"
-    REPEAT_127("  b.name;\n")
+    "function f(c) {\n"
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  a = 2;\n"
     "}\n"
     "f({name: 1});\n",
 
     "a = 1;\n"
-    "function f(b) {\n"
+    "function f(c) {\n"
     "  'use strict';\n"
-    "  b.name;\n"
-    REPEAT_127("  b.name;\n")
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  a = 2;\n"
     "}\n"
     "f({name: 1});\n",
@@ -1183,6 +1459,12 @@ TEST(ArrayLiterals) {
       "return [ [ 1, 2 ], [ 3 ] ];\n",
 
       "var a = 1; return [ [ a, 2 ], [ a + 2 ] ];\n",
+
+      "var a = [ 1, 2 ]; return [ ...a ];\n",
+
+      "var a = [ 1, 2 ]; return [ 0, ...a ];\n",
+
+      "var a = [ 1, 2 ]; return [ ...a, 3 ];\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
@@ -2803,6 +3085,14 @@ TEST(TemplateLiterals) {
 #undef REPEAT_64_UNIQUE_VARS
 #undef REPEAT_128_UNIQUE_VARS
 #undef REPEAT_250_UNIQUE_VARS
+#undef LOAD_UNIQUE_PROPERTY
+#undef REPEAT_2_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_4_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_8_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_16_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_32_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_64_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_128_LOAD_UNIQUE_PROPERTY
 #undef FUNC_ARG
 
 }  // namespace interpreter

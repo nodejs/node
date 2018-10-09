@@ -135,7 +135,15 @@ var assertContains;
 // Assert that a string matches a given regex.
 var assertMatches;
 
-// Assert the result of a promise.
+// Assert that a promise resolves or rejects.
+// Parameters:
+// {promise} - the promise
+// {success} - optional - a callback which is called with the result of the
+//             resolving promise.
+//  {fail} -   optional - a callback which is called with the result of the
+//             rejecting promise. If the promise is rejected but no {fail}
+//             callback is set, the error is propagated out of the promise
+//             chain.
 var assertPromiseResult;
 
 var promiseTestChain;
@@ -171,9 +179,6 @@ var isOptimized;
 
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
-
-// Used for async tests. See definition below for more documentation.
-var testAsync;
 
 // Monkey-patchable all-purpose failure handler.
 var failWithMessage;
@@ -270,7 +275,7 @@ var prettyPrinted;
           case "Object":
             break;
           default:
-            return objectClass + "()";
+            return objectClass + "(" + String(value) + ")";
         }
         // [[Class]] is "Object".
         var name = value.constructor.name;
@@ -498,7 +503,7 @@ var prettyPrinted;
     try {
       fun();
     } catch(e) {
-      assertEquals(val, e);
+      assertSame(val, e);
       return;
     }
     failWithMessage("Did not throw exception");
@@ -555,35 +560,47 @@ var prettyPrinted;
     }
   };
 
-  assertPromiseResult = function(promise, success, fail) {
-    // Use --allow-natives-syntax to use this function. Note that this function
-    // overwrites {failWithMessage} permanently with %AbortJS.
+  function concatenateErrors(stack, exception) {
+    // If the exception does not contain a stack trace, wrap it in a new Error.
+    if (!exception.stack) exception = new Error(exception);
 
-    // We have to patch mjsunit because normal assertion failures just throw
-    // exceptions which are swallowed in a then clause.
-    // We use eval here to avoid parsing issues with the natives syntax.
-    if (!success) success = () => {};
-
-    failWithMessage = (msg) => eval("%AbortJS(msg)");
-    if (!fail) {
-      fail = result => failWithMessage("assertPromiseResult failed: " + result);
+    // If the exception already provides a special stack trace, we do not modify
+    // it.
+    if (typeof exception.stack !== 'string') {
+      return exception;
     }
+    exception.stack = stack + '\n\n' + exception.stack;
+    return exception;
+  }
 
-    var test_promise =
-        promise.then(
-          result => {
-            try {
-              success(result);
-            } catch (e) {
-              failWithMessage(String(e));
-            }
-          },
-          result => {
-            fail(result);
+  assertPromiseResult = function(promise, success, fail) {
+    const stack = (new Error()).stack;
+
+    var test_promise = promise.then(
+        result => {
+          try {
+            if (--promiseTestCount == 0) testRunner.notifyDone();
+            if (success) success(result);
+          } catch (e) {
+            // Use setTimeout to throw the error again to get out of the promise
+            // chain.
+            setTimeout(_ => {
+              throw concatenateErrors(stack, e);
+            }, 0);
           }
-        )
-        .then((x)=> {
-          if (--promiseTestCount == 0) testRunner.notifyDone();
+        },
+        result => {
+          try {
+            if (--promiseTestCount == 0) testRunner.notifyDone();
+            if (!fail) throw result;
+            fail(result);
+          } catch (e) {
+            // Use setTimeout to throw the error again to get out of the promise
+            // chain.
+            setTimeout(_ => {
+              throw concatenateErrors(stack, e);
+            }, 0);
+          }
         });
 
     if (!promiseTestChain) promiseTestChain = Promise.resolve();
@@ -736,112 +753,5 @@ var prettyPrinted;
       return "" + error.message + "\n" + ArrayPrototypeJoin.call(stack, "\n");
     } catch(e) {};
     return error.stack;
-  }
-
-  /**
-   * This is to be used through the testAsync helper function defined
-   * below.
-   *
-   * This requires the --allow-natives-syntax flag to allow calling
-   * runtime functions.
-   *
-   * There must be at least one assertion in an async test. A test
-   * with no assertions will fail.
-   *
-   * @example
-   * testAsync(assert => {
-   *   assert.plan(1) // There should be one assertion in this test.
-   *   Promise.resolve(1)
-   *    .then(val => assert.equals(1, val),
-   *          assert.unreachable);
-   * })
-   */
-  class AsyncAssertion {
-    constructor(test, name) {
-      this.expectedAsserts_ = -1;
-      this.actualAsserts_ = 0;
-      this.test_ = test;
-      this.name_ = name || '';
-    }
-
-    /**
-     * Sets the number of expected asserts in the test. The test fails
-     * if the number of asserts computed after running the test is not
-     * equal to this specified value.
-     * @param {number} expectedAsserts
-     */
-    plan(expectedAsserts) {
-      this.expectedAsserts_ = expectedAsserts;
-    }
-
-    fail(expectedText, found) {
-      let message = formatFailureText(expectedText, found);
-      message += "\nin test:" + this.name_
-      message += "\n" + Function.prototype.toString.apply(this.test_);
-      eval("%AbortJS(message)");
-    }
-
-    equals(expected, found, name_opt) {
-      this.actualAsserts_++;
-      if (!deepEquals(expected, found)) {
-        this.fail(prettyPrinted(expected), found, name_opt);
-      }
-    }
-
-    unreachable() {
-      let message = "Failure: unreachable in test: " + this.name_;
-      message += "\n" + Function.prototype.toString.apply(this.test_);
-      eval("%AbortJS(message)");
-    }
-
-    unexpectedRejection(details) {
-      return (error) => {
-        let message =
-            "Failure: unexpected Promise rejection in test: " + this.name_;
-        if (details) message += "\n    @" + details;
-        if (error instanceof Error) {
-          message += "\n" + String(error.stack);
-        } else {
-          message += "\n" + String(error);
-        }
-        message += "\n\n" + Function.prototype.toString.apply(this.test_);
-        eval("%AbortJS(message)");
-      };
-    }
-
-    drainMicrotasks() {
-      eval("%RunMicrotasks()");
-    }
-
-    done_() {
-      if (this.expectedAsserts_ === -1) {
-        let message = "Please call t.plan(count) to initialize test harness " +
-            "with correct assert count (Note: count > 0)";
-        eval("%AbortJS(message)");
-      }
-
-      if (this.expectedAsserts_ !== this.actualAsserts_) {
-        let message = "Expected asserts: " + this.expectedAsserts_;
-        message += ", Actual asserts: " + this.actualAsserts_;
-        message += "\nin test: " + this.name_;
-        message += "\n" + Function.prototype.toString.apply(this.test_);
-        eval("%AbortJS(message)");
-      }
-    }
-  }
-
-  /** This is used to test async functions and promises.
-   * @param {testCallback} test - test function
-   * @param {string} [name] - optional name of the test
-   *
-   *
-   * @callback testCallback
-   * @param {AsyncAssertion} assert
-   */
-  testAsync = function(test, name) {
-    let assert = new AsyncAssertion(test, name);
-    test(assert);
-    eval("%RunMicrotasks()");
-    assert.done_();
   }
 })();

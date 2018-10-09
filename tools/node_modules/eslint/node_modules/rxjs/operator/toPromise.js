@@ -1,6 +1,7 @@
 "use strict";
-var Observable_1 = require('../Observable');
-// HACK: this is here for backward compatability
-// TODO(benlesh): remove this in v6.
-exports.toPromise = Observable_1.Observable.prototype.toPromise;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/operator/toPromise"));
 //# sourceMappingURL=toPromise.js.map

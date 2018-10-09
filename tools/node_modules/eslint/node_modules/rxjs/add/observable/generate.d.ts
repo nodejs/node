@@ -1,6 +1,1 @@
-import { generate as staticGenerate } from '../../observable/generate';
-declare module '../../Observable' {
-    namespace Observable {
-        let generate: typeof staticGenerate;
-    }
-}
+import 'rxjs-compat/add/observable/generate';

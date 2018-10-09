@@ -1,2 +1,1 @@
-import { NeverObservable } from './NeverObservable';
-export declare const never: typeof NeverObservable.create;
+export * from 'rxjs-compat/observable/never';

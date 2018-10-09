@@ -98,7 +98,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   message_ports_.clear();
 
   std::vector<Local<SharedArrayBuffer>> shared_array_buffers;
-  // Attach all transfered SharedArrayBuffers to their new Isolate.
+  // Attach all transferred SharedArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < shared_array_buffers_.size(); ++i) {
     Local<SharedArrayBuffer> sab;
     if (!shared_array_buffers_[i]->GetSharedArrayBuffer(env, context)
@@ -116,7 +116,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
       &delegate);
   delegate.deserializer = &deserializer;
 
-  // Attach all transfered ArrayBuffers to their new Isolate.
+  // Attach all transferred ArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < array_buffer_contents_.size(); ++i) {
     Local<ArrayBuffer> ab =
         ArrayBuffer::New(env->isolate(),
@@ -234,7 +234,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   friend class worker::Message;
 };
 
-}  // anynomous namespace
+}  // anonymous namespace
 
 Maybe<bool> Message::Serialize(Environment* env,
                                Local<Context> context,
@@ -325,11 +325,23 @@ Maybe<bool> Message::Serialize(Environment* env,
   return Just(true);
 }
 
+void Message::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("array_buffer_contents", array_buffer_contents_);
+  tracker->TrackFieldWithSize("shared_array_buffers",
+      shared_array_buffers_.size() * sizeof(shared_array_buffers_[0]));
+  tracker->TrackField("message_ports", message_ports_);
+}
+
 MessagePortData::MessagePortData(MessagePort* owner) : owner_(owner) { }
 
 MessagePortData::~MessagePortData() {
   CHECK_EQ(owner_, nullptr);
   Disentangle();
+}
+
+void MessagePortData::MemoryInfo(MemoryTracker* tracker) const {
+  Mutex::ScopedLock lock(mutex_);
+  tracker->TrackField("incoming_messages", incoming_messages_);
 }
 
 void MessagePortData::AddToIncomingQueue(Message&& message) {
@@ -407,7 +419,7 @@ MessagePort::MessagePort(Environment* env,
   async()->data = static_cast<void*>(this);
 
   Local<Value> fn;
-  if (!wrap->Get(context, env->oninit_string()).ToLocal(&fn))
+  if (!wrap->Get(context, env->oninit_symbol()).ToLocal(&fn))
     return;
 
   if (fn->IsFunction()) {
@@ -469,14 +481,14 @@ MessagePort* MessagePort::New(
   Local<Function> ctor;
   if (!GetMessagePortConstructor(env, context).ToLocal(&ctor))
     return nullptr;
-  MessagePort* port = nullptr;
 
   // Construct a new instance, then assign the listener instance and possibly
   // the MessagePortData to it.
   Local<Object> instance;
   if (!ctor->NewInstance(context).ToLocal(&instance))
     return nullptr;
-  ASSIGN_OR_RETURN_UNWRAP(&port, instance, nullptr);
+  MessagePort* port = Unwrap<MessagePort>(instance);
+  CHECK_NOT_NULL(port);
   if (data) {
     port->Detach();
     port->data_ = std::move(data);
@@ -688,14 +700,6 @@ void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
   port->OnMessage();
 }
 
-size_t MessagePort::self_size() const {
-  Mutex::ScopedLock lock(data_->mutex_);
-  size_t sz = sizeof(*this) + sizeof(*data_);
-  for (const Message& msg : data_->incoming_messages_)
-    sz += sizeof(msg) + msg.main_message_buf_.size;
-  return sz;
-}
-
 void MessagePort::Entangle(MessagePort* a, MessagePort* b) {
   Entangle(a, b->data_.get());
 }
@@ -716,17 +720,12 @@ MaybeLocal<Function> GetMessagePortConstructor(
     Local<FunctionTemplate> m = env->NewFunctionTemplate(MessagePort::New);
     m->SetClassName(env->message_port_constructor_string());
     m->InstanceTemplate()->SetInternalFieldCount(1);
-
-    AsyncWrap::AddWrapMethods(env, m);
+    m->Inherit(HandleWrap::GetConstructorTemplate(env));
 
     env->SetProtoMethod(m, "postMessage", MessagePort::PostMessage);
     env->SetProtoMethod(m, "start", MessagePort::Start);
     env->SetProtoMethod(m, "stop", MessagePort::Stop);
     env->SetProtoMethod(m, "drain", MessagePort::Drain);
-    env->SetProtoMethod(m, "close", HandleWrap::Close);
-    env->SetProtoMethod(m, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(m, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(m, "hasRef", HandleWrap::HasRef);
 
     env->set_message_port_constructor_template(m);
   }

@@ -7,17 +7,18 @@
 
 #include <cmath>
 
-// TODO(turbofan): Move ExternalReference out of assembler.h
-#include "src/assembler.h"
 #include "src/base/compiler-specific.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/double.h"
+#include "src/external-reference.h"
 #include "src/globals.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+class JSHeapBroker;
 
 // A pattern matcher for nodes.
 struct NodeMatcher {
@@ -192,6 +193,10 @@ struct HeapObjectMatcher final
 
   bool Is(Handle<HeapObject> const& value) const {
     return this->HasValue() && this->Value().address() == value.address();
+  }
+
+  ObjectRef Ref(JSHeapBroker* broker) const {
+    return ObjectRef(broker, this->Value());
   }
 };
 
@@ -391,11 +396,10 @@ struct AddMatcher : public BinopMatcher {
       return;
     }
 
-    if (this->right().opcode() == kAddOpcode &&
-        this->left().opcode() != kAddOpcode) {
-      this->SwapInputs();
-    } else if (this->right().opcode() == kSubOpcode &&
-               this->left().opcode() != kSubOpcode) {
+    if ((this->left().opcode() != kSubOpcode &&
+         this->left().opcode() != kAddOpcode) &&
+        (this->right().opcode() == kAddOpcode ||
+         this->right().opcode() == kSubOpcode)) {
       this->SwapInputs();
     }
   }
@@ -491,14 +495,14 @@ struct BaseWithIndexAndDisplacementMatcher {
     bool power_of_two_plus_one = false;
     DisplacementMode displacement_mode = kPositiveDisplacement;
     int scale = 0;
-    if (m.HasIndexInput() && left->OwnedByAddressingOperand()) {
+    if (m.HasIndexInput() && OwnedByAddressingOperand(left)) {
       index = m.IndexInput();
       scale = m.scale();
       scale_expression = left;
       power_of_two_plus_one = m.power_of_two_plus_one();
       bool match_found = false;
       if (right->opcode() == AddMatcher::kSubOpcode &&
-          right->OwnedByAddressingOperand()) {
+          OwnedByAddressingOperand(right)) {
         AddMatcher right_matcher(right);
         if (right_matcher.right().HasValue()) {
           // (S + (B - D))
@@ -510,7 +514,7 @@ struct BaseWithIndexAndDisplacementMatcher {
       }
       if (!match_found) {
         if (right->opcode() == AddMatcher::kAddOpcode &&
-            right->OwnedByAddressingOperand()) {
+            OwnedByAddressingOperand(right)) {
           AddMatcher right_matcher(right);
           if (right_matcher.right().HasValue()) {
             // (S + (B + D))
@@ -531,7 +535,7 @@ struct BaseWithIndexAndDisplacementMatcher {
     } else {
       bool match_found = false;
       if (left->opcode() == AddMatcher::kSubOpcode &&
-          left->OwnedByAddressingOperand()) {
+          OwnedByAddressingOperand(left)) {
         AddMatcher left_matcher(left);
         Node* left_left = left_matcher.left().node();
         Node* left_right = left_matcher.right().node();
@@ -557,7 +561,7 @@ struct BaseWithIndexAndDisplacementMatcher {
       }
       if (!match_found) {
         if (left->opcode() == AddMatcher::kAddOpcode &&
-            left->OwnedByAddressingOperand()) {
+            OwnedByAddressingOperand(left)) {
           AddMatcher left_matcher(left);
           Node* left_left = left_matcher.left().node();
           Node* left_right = left_matcher.right().node();
@@ -667,6 +671,29 @@ struct BaseWithIndexAndDisplacementMatcher {
     scale_ = scale;
     matches_ = true;
   }
+
+  static bool OwnedByAddressingOperand(Node* node) {
+    for (auto use : node->use_edges()) {
+      Node* from = use.from();
+      switch (from->opcode()) {
+        case IrOpcode::kLoad:
+        case IrOpcode::kPoisonedLoad:
+        case IrOpcode::kInt32Add:
+        case IrOpcode::kInt64Add:
+          // Skip addressing uses.
+          break;
+        case IrOpcode::kStore:
+          // If the stored value is this node, it is not an addressing use.
+          if (from->InputAt(2) == node) return false;
+          // Otherwise it is used as an address and skipped.
+          break;
+        default:
+          // Non-addressing use found.
+          return false;
+      }
+    }
+    return true;
+  }
 };
 
 typedef BaseWithIndexAndDisplacementMatcher<Int32AddMatcher>
@@ -720,6 +747,64 @@ struct V8_EXPORT_PRIVATE DiamondMatcher
   Node* branch_;
   Node* if_true_;
   Node* if_false_;
+};
+
+template <class BinopMatcher, IrOpcode::Value expected_opcode>
+struct WasmStackCheckMatcher {
+  explicit WasmStackCheckMatcher(Node* compare) : compare_(compare) {}
+
+  bool Matched() {
+    if (compare_->opcode() != expected_opcode) return false;
+    BinopMatcher m(compare_);
+    return MatchedInternal(m.left(), m.right());
+  }
+
+ private:
+  bool MatchedInternal(const typename BinopMatcher::LeftMatcher& l,
+                       const typename BinopMatcher::RightMatcher& r) {
+    // In wasm, the stack check is performed by loading the value given by
+    // the address of a field stored in the instance object. That object is
+    // passed as a parameter.
+    if (l.IsLoad() && r.IsLoadStackPointer()) {
+      LoadMatcher<LoadMatcher<NodeMatcher>> mleft(l.node());
+      if (mleft.object().IsLoad() && mleft.index().Is(0) &&
+          mleft.object().object().IsParameter()) {
+        return true;
+      }
+    }
+    return false;
+  }
+  Node* compare_;
+};
+
+template <class BinopMatcher, IrOpcode::Value expected_opcode>
+struct StackCheckMatcher {
+  StackCheckMatcher(Isolate* isolate, Node* compare)
+      : isolate_(isolate), compare_(compare) {}
+  bool Matched() {
+    // TODO(jgruber): Ideally, we could be more flexible here and also match the
+    // same pattern with switched operands (i.e.: left is LoadStackPointer and
+    // right is the js_stack_limit load). But to be correct in all cases, we'd
+    // then have to invert the outcome of the stack check comparison.
+    if (compare_->opcode() != expected_opcode) return false;
+    BinopMatcher m(compare_);
+    return MatchedInternal(m.left(), m.right());
+  }
+
+ private:
+  bool MatchedInternal(const typename BinopMatcher::LeftMatcher& l,
+                       const typename BinopMatcher::RightMatcher& r) {
+    if (l.IsLoad() && r.IsLoadStackPointer()) {
+      LoadMatcher<ExternalReferenceMatcher> mleft(l.node());
+      ExternalReference js_stack_limit =
+          ExternalReference::address_of_stack_limit(isolate_);
+      if (mleft.object().Is(js_stack_limit) && mleft.index().Is(0)) return true;
+    }
+    return false;
+  }
+
+  Isolate* isolate_;
+  Node* compare_;
 };
 
 }  // namespace compiler

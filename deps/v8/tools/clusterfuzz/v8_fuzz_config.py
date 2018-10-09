@@ -13,15 +13,13 @@ FOOZZIE_EXPERIMENTS = [
   [5, 'ignition', 'trusted_opt', 'd8'],
   [10, 'ignition', 'slow_path', 'd8'],
   [5, 'ignition', 'slow_path_opt', 'd8'],
-  [20, 'ignition', 'ignition_turbo', 'd8'],
+  [25, 'ignition', 'ignition_turbo', 'd8'],
   [20, 'ignition', 'ignition_turbo_opt', 'd8'],
-  [4, 'ignition_turbo_opt', 'ignition_turbo_opt', 'clang_x86/d8'],
-  [4, 'ignition_turbo', 'ignition_turbo', 'clang_x86/d8'],
-  [4, 'ignition', 'ignition', 'clang_x86/d8'],
+  [5, 'ignition_turbo_opt', 'ignition_turbo_opt', 'clang_x86/d8'],
+  [5, 'ignition_turbo', 'ignition_turbo', 'clang_x86/d8'],
+  [5, 'ignition', 'ignition', 'clang_x86/d8'],
   [5, 'ignition', 'ignition', 'clang_x64_v8_arm64/d8'],
   [5, 'ignition', 'ignition', 'clang_x86_v8_arm/d8'],
-  [5, 'ignition', 'liftoff', 'd8'],
-  [3, 'liftoff', 'liftoff', 'clang_x86/d8'],
 ]
 
 class Config(object):

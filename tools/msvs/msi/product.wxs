@@ -72,14 +72,9 @@
       <ComponentRef Id="NodeVarsScript"/>
       <ComponentRef Id="NodeStartMenu"/>
       <ComponentRef Id="AppData" />
+      <ComponentRef Id="InstallToolsBat" />
+      <ComponentRef Id="InstallToolsTxt" />
       <ComponentGroupRef Id="Product.Generated"/>
-
-      <Feature Id="NodePerfCtrSupport"
-               Level="1"
-               Title="!(loc.NodePerfCtrSupport_Title)"
-               Description="!(loc.NodePerfCtrSupport_Description)">
-        <ComponentRef Id="NodePerfCtrSupport"/>
-      </Feature>
 
       <Feature Id="NodeEtwSupport"
                Level="1"
@@ -162,13 +157,13 @@
         <File Id="nodevars.bat" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\nodevars.bat"/>
       </Component>
 
-      <?if $(var.NoPerfCtr) != 1 ?>
-      <Component Id="NodePerfCtrSupport">
-        <File Id="node_perfctr_provider_man" Name="node_perfctr_provider.man" Source="$(var.RepoDir)\src\res\node_perfctr_provider.man">
-          <util:PerfCounterManifest ResourceFileDirectory="[INSTALLDIR]"/>
-        </File>
+      <Component Id="InstallToolsBat">
+        <File Id="InstallToolsBat" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\install_tools\install_tools.bat"/>
       </Component>
-      <?endif?>
+
+      <Component Id="InstallToolsTxt">
+        <File Id="InstallToolsTxt" Source="$(var.RepoDir)\tools\msvs\install_tools\install_tools.txt"/>
+      </Component>
 
       <?if $(var.NoETW) != 1 ?>
       <Component Id="NodeEtwSupport">
@@ -193,6 +188,12 @@
                   Name="Node.js command prompt"
                   Target="[%ComSpec]"
                   Arguments='/k "[INSTALLDIR]nodevars.bat"'
+                  Show="normal"
+                  WorkingDirectory="INSTALLDIR"/>
+        <Shortcut Id="InstallToolsShortcut"
+                  Name="Install Additional Tools for Node.js"
+                  Target="[%ComSpec]"
+                  Arguments='/d /c "[INSTALLDIR]install_tools.bat"'
                   Show="normal"
                   WorkingDirectory="INSTALLDIR"/>
         <Shortcut Id="NodeExecutableShortcut"
@@ -254,7 +255,7 @@
                        KeyPath="yes"/>
         <util:InternetShortcut Id="WebsiteShortcut"
                                Name="Node.js website"
-                               Target="http://nodejs.org"
+                               Target="https://nodejs.org/"
                                Type="url"/>
         <util:InternetShortcut Id="DocsShortcut"
                                Name="Node.js documentation"
@@ -310,6 +311,9 @@
                   Execute="immediate"
                   Return="check" />
 
+    <Property Id="WixShellExecTarget" Value="[#InstallToolsBat]" />
+    <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" />
+
     <InstallUISequence>
       <Custom Action='SetInstallScope' Before='FindRelatedProducts'/>
     </InstallUISequence>
@@ -340,6 +344,23 @@
       <DialogRef Id="InstallDirDlg"/>
       <DialogRef Id="BrowseDlg"/>
       <DialogRef Id="InvalidDirDlg"/>
+      <Dialog Id="NativeToolsDlg" Width="370" Height="270" Title="!(loc.NativeToolsDlg_Title)">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="!(loc.NativeToolsDlgBannerBitmap)" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.NativeToolsDlgTitle)" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.NativeToolsDlgDescription)" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+        <Control Id="Intro" Type="Text" X="20" Y="65" Width="330" Height="30" NoPrefix="yes" Text="!(loc.NativeToolsDlgIntro)" />
+        <Control Id="InstallCheckbox" Type="CheckBox" X="20" Y="105" Width="330" Height="30" Property="NATIVETOOLSCHECKBOX" CheckBoxValue="1" Text="!(loc.NativeToolsDlgInstallCheckbox)" />
+        <Control Id="ManualDetails" Type="Hyperlink" X="20" Y="140" Width="330" Height="30" Text="!(loc.NativeToolsDlgManualDetails)" />
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+      </Dialog>
 
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">NOT Installed</Publish>
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">Installed AND PATCH</Publish>
@@ -350,7 +371,6 @@
       <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="10">1</Publish>
       <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="10">1</Publish>
       <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="20">1</Publish>
-      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" Order="1">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed AND NOT PATCH</Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3">Installed AND PATCH</Publish>
@@ -361,7 +381,11 @@
       <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
       <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="1">Installed</Publish>
       <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="2">NOT Installed</Publish>
-      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="NativeToolsDlg">1</Publish>
+      <Publish Dialog="NativeToolsDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg">1</Publish>
+      <Publish Dialog="NativeToolsDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">NATIVETOOLSCHECKBOX = 1</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
 
       <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="!(loc.WIXUI_EXITDIALOGOPTIONALTEXT)"/>
     </UI>

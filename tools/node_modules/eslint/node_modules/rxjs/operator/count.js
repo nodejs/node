@@ -1,55 +1,7 @@
 "use strict";
-var count_1 = require('../operators/count');
-/**
- * Counts the number of emissions on the source and emits that number when the
- * source completes.
- *
- * <span class="informal">Tells how many values were emitted, when the source
- * completes.</span>
- *
- * <img src="./img/count.png" width="100%">
- *
- * `count` transforms an Observable that emits values into an Observable that
- * emits a single value that represents the number of values emitted by the
- * source Observable. If the source Observable terminates with an error, `count`
- * will pass this error notification along without emitting a value first. If
- * the source Observable does not terminate at all, `count` will neither emit
- * a value nor terminate. This operator takes an optional `predicate` function
- * as argument, in which case the output emission will represent the number of
- * source values that matched `true` with the `predicate`.
- *
- * @example <caption>Counts how many seconds have passed before the first click happened</caption>
- * var seconds = Rx.Observable.interval(1000);
- * var clicks = Rx.Observable.fromEvent(document, 'click');
- * var secondsBeforeClick = seconds.takeUntil(clicks);
- * var result = secondsBeforeClick.count();
- * result.subscribe(x => console.log(x));
- *
- * @example <caption>Counts how many odd numbers are there between 1 and 7</caption>
- * var numbers = Rx.Observable.range(1, 7);
- * var result = numbers.count(i => i % 2 === 1);
- * result.subscribe(x => console.log(x));
- *
- * // Results in:
- * // 4
- *
- * @see {@link max}
- * @see {@link min}
- * @see {@link reduce}
- *
- * @param {function(value: T, i: number, source: Observable<T>): boolean} [predicate] A
- * boolean function to select what values are to be counted. It is provided with
- * arguments of:
- * - `value`: the value from the source Observable.
- * - `index`: the (zero-based) "index" of the value from the source Observable.
- * - `source`: the source Observable instance itself.
- * @return {Observable} An Observable of one number that represents the count as
- * described above.
- * @method count
- * @owner Observable
- */
-function count(predicate) {
-    return count_1.count(predicate)(this);
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.count = count;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/operator/count"));
 //# sourceMappingURL=count.js.map

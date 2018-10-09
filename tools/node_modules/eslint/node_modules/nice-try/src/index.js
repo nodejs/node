@@ -7,7 +7,6 @@
  */
 module.exports = function(fn) {
 
-	try { return fn() }
-	catch (e) {}
+	try { return fn() } catch (e) {}
 
 }

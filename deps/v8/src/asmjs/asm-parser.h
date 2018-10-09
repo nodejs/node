@@ -76,9 +76,16 @@ class AsmJsParser {
   };
   // clang-format on
 
+  // A single import in asm.js can require multiple imports in wasm, if the
+  // function is used with different signatures. {cache} keeps the wasm
+  // imports for the single asm.js import of name {function_name}.
   struct FunctionImportInfo {
     Vector<const char> function_name;
-    WasmModuleBuilder::SignatureMap cache;
+    ZoneUnorderedMap<FunctionSig, uint32_t> cache;
+
+    // Constructor.
+    FunctionImportInfo(Vector<const char> name, Zone* zone)
+        : function_name(name), cache(zone) {}
   };
 
   struct VarInfo {

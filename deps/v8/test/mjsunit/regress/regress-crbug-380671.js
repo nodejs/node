@@ -10,4 +10,5 @@ assertEquals(0xc0000000, buffer.byteLength);
 // mock allocator would allow us to allocate more than the physical memory
 // available on 32bit platforms, leaving the internal counters in an invalid
 // state.
+buffer = null;
 gc();

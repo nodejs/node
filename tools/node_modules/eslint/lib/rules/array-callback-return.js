@@ -11,7 +11,7 @@
 
 const lodash = require("lodash");
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers

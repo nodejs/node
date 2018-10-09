@@ -12,6 +12,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -363,11 +364,11 @@ bool NodeProperties::IsSame(Node* a, Node* b) {
 
 // static
 NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
-    Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return) {
+    Isolate* isolate, Node* receiver, Node* effect,
+    ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
     Handle<HeapObject> receiver = m.Value();
-    Isolate* const isolate = m.Value()->GetIsolate();
     // We don't use ICs for the Array.prototype and the Object.prototype
     // because the runtime has to be able to intercept them properly, so
     // we better make sure that TurboFan doesn't outsmart the system here
@@ -416,7 +417,8 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
             Handle<JSFunction> original_constructor =
                 Handle<JSFunction>::cast(mnewtarget.Value());
             if (original_constructor->has_initial_map()) {
-              Handle<Map> initial_map(original_constructor->initial_map());
+              Handle<Map> initial_map(original_constructor->initial_map(),
+                                      isolate);
               if (initial_map->constructor_or_backpointer() ==
                   *mtarget.Value()) {
                 *maps_return = ZoneHandleSet<Map>(initial_map);
@@ -503,12 +505,12 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
 }
 
 // static
-MaybeHandle<Map> NodeProperties::GetMapWitness(Node* node) {
+MaybeHandle<Map> NodeProperties::GetMapWitness(Isolate* isolate, Node* node) {
   ZoneHandleSet<Map> maps;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(receiver, effect, &maps);
+      NodeProperties::InferReceiverMaps(isolate, receiver, effect, &maps);
   if (result == NodeProperties::kReliableReceiverMaps && maps.size() == 1) {
     return maps[0];
   }
@@ -516,11 +518,13 @@ MaybeHandle<Map> NodeProperties::GetMapWitness(Node* node) {
 }
 
 // static
-bool NodeProperties::HasInstanceTypeWitness(Node* receiver, Node* effect,
+bool NodeProperties::HasInstanceTypeWitness(Isolate* isolate, Node* receiver,
+                                            Node* effect,
                                             InstanceType instance_type) {
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+      NodeProperties::InferReceiverMaps(isolate, receiver, effect,
+                                        &receiver_maps);
   switch (result) {
     case NodeProperties::kUnreliableReceiverMaps:
     case NodeProperties::kReliableReceiverMaps:
@@ -551,7 +555,8 @@ bool NodeProperties::NoObservableSideEffectBetween(Node* effect,
 }
 
 // static
-bool NodeProperties::CanBePrimitive(Node* receiver, Node* effect) {
+bool NodeProperties::CanBePrimitive(Isolate* isolate, Node* receiver,
+                                    Node* effect) {
   switch (receiver->opcode()) {
 #define CASE(Opcode) case IrOpcode::k##Opcode:
     JS_CONSTRUCT_OP_LIST(CASE)
@@ -571,7 +576,8 @@ bool NodeProperties::CanBePrimitive(Node* receiver, Node* effect) {
       // just the instance types, which don't change
       // across potential side-effecting operations.
       ZoneHandleSet<Map> maps;
-      if (InferReceiverMaps(receiver, effect, &maps) != kNoReceiverMaps) {
+      if (InferReceiverMaps(isolate, receiver, effect, &maps) !=
+          kNoReceiverMaps) {
         // Check if all {maps} are actually JSReceiver maps.
         for (size_t i = 0; i < maps.size(); ++i) {
           if (!maps[i]->IsJSReceiverMap()) return true;
@@ -584,8 +590,9 @@ bool NodeProperties::CanBePrimitive(Node* receiver, Node* effect) {
 }
 
 // static
-bool NodeProperties::CanBeNullOrUndefined(Node* receiver, Node* effect) {
-  if (CanBePrimitive(receiver, effect)) {
+bool NodeProperties::CanBeNullOrUndefined(Isolate* isolate, Node* receiver,
+                                          Node* effect) {
+  if (CanBePrimitive(isolate, receiver, effect)) {
     switch (receiver->opcode()) {
       case IrOpcode::kCheckInternalizedString:
       case IrOpcode::kCheckNumber:
@@ -596,13 +603,13 @@ bool NodeProperties::CanBeNullOrUndefined(Node* receiver, Node* effect) {
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:
       case IrOpcode::kJSToNumber:
+      case IrOpcode::kJSToNumberConvertBigInt:
       case IrOpcode::kJSToNumeric:
       case IrOpcode::kJSToString:
       case IrOpcode::kToBoolean:
         return false;
       case IrOpcode::kHeapConstant: {
         Handle<HeapObject> value = HeapObjectMatcher(receiver).Value();
-        Isolate* const isolate = value->GetIsolate();
         return value->IsNullOrUndefined(isolate);
       }
       default:
@@ -624,7 +631,7 @@ Node* NodeProperties::GetOuterContext(Node* node, size_t* depth) {
 }
 
 // static
-Type* NodeProperties::GetTypeOrAny(Node* node) {
+Type NodeProperties::GetTypeOrAny(Node* node) {
   return IsTyped(node) ? node->type() : Type::Any();
 }
 

@@ -7,18 +7,22 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/js-graph.h"
+#include "src/compiler/machine-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-marker.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Signature;
+
 namespace compiler {
 
 class SimdScalarLowering {
  public:
-  SimdScalarLowering(JSGraph* jsgraph,
+  SimdScalarLowering(MachineGraph* mcgraph,
                      Signature<MachineRepresentation>* signature);
 
   void LowerGraph();
@@ -48,10 +52,10 @@ class SimdScalarLowering {
     int input_index;
   };
 
-  Zone* zone() const { return jsgraph_->zone(); }
-  Graph* graph() const { return jsgraph_->graph(); }
-  MachineOperatorBuilder* machine() const { return jsgraph_->machine(); }
-  CommonOperatorBuilder* common() const { return jsgraph_->common(); }
+  Zone* zone() const { return mcgraph_->zone(); }
+  Graph* graph() const { return mcgraph_->graph(); }
+  MachineOperatorBuilder* machine() const { return mcgraph_->machine(); }
+  CommonOperatorBuilder* common() const { return mcgraph_->common(); }
   Signature<MachineRepresentation>* signature() const { return signature_; }
 
   void LowerNode(Node* node);
@@ -64,15 +68,17 @@ class SimdScalarLowering {
   int ReplacementCount(Node* node);
   void Float32ToInt32(Node** replacements, Node** result);
   void Int32ToFloat32(Node** replacements, Node** result);
+  template <typename T>
+  void Int32ToSmallerInt(Node** replacements, Node** result);
+  template <typename T>
+  void SmallerIntToInt32(Node** replacements, Node** result);
   Node** GetReplacementsWithType(Node* node, SimdType type);
   SimdType ReplacementType(Node* node);
   void PreparePhiReplacement(Node* phi);
   void SetLoweredType(Node* node, Node* output);
   void GetIndexNodes(Node* index, Node** new_indices, SimdType type);
-  void LowerLoadOp(MachineRepresentation rep, Node* node,
-                   const Operator* load_op, SimdType type);
-  void LowerStoreOp(MachineRepresentation rep, Node* node,
-                    const Operator* store_op, SimdType rep_type);
+  void LowerLoadOp(Node* node, SimdType type);
+  void LowerStoreOp(Node* node);
   void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
                      bool not_horizontal = true);
   void LowerCompareOp(Node* node, SimdType input_rep_type, const Operator* op,
@@ -87,12 +93,17 @@ class SimdScalarLowering {
   void LowerIntMinMax(Node* node, const Operator* op, bool is_max,
                       SimdType type);
   void LowerConvertFromFloat(Node* node, bool is_signed);
+  void LowerConvertFromInt(Node* node, SimdType input_rep_type,
+                           SimdType output_rep_type, bool is_signed,
+                           int start_index);
+  void LowerPack(Node* node, SimdType input_rep_type, SimdType output_rep_type,
+                 bool is_signed);
   void LowerShiftOp(Node* node, SimdType type);
   Node* BuildF64Trunc(Node* input);
   void LowerNotEqual(Node* node, SimdType input_rep_type, const Operator* op);
   MachineType MachineTypeFrom(SimdType simdType);
 
-  JSGraph* const jsgraph_;
+  MachineGraph* const mcgraph_;
   NodeMarker<State> state_;
   ZoneDeque<NodeState> stack_;
   Replacement* replacements_;

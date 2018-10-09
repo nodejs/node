@@ -10,6 +10,7 @@ module.exports = {
 
 var assert = require('assert-plus');
 var asn1 = require('asn1');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('../algs');
 var utils = require('../utils');
 var Key = require('../key');
@@ -89,7 +90,7 @@ var EXTS = {
 
 function read(buf, options) {
 	if (typeof (buf) === 'string') {
-		buf = new Buffer(buf, 'binary');
+		buf = Buffer.from(buf, 'binary');
 	}
 	assert.buffer(buf, 'buf');
 
@@ -500,7 +501,7 @@ function write(cert, options) {
 	der.endSequence();
 
 	var sigData = sig.signature.toBuffer('asn1');
-	var data = new Buffer(sigData.length + 1);
+	var data = Buffer.alloc(sigData.length + 1);
 	data[0] = 0;
 	sigData.copy(data, 1);
 	der.writeBuffer(data, asn1.Ber.BitString);
@@ -710,8 +711,7 @@ function writeBitField(setBits, bitIndex) {
 	var bitLen = bitIndex.length;
 	var blen = Math.ceil(bitLen / 8);
 	var unused = blen * 8 - bitLen;
-	var bits = new Buffer(1 + blen);
-	bits.fill(0);
+	var bits = Buffer.alloc(1 + blen); // zero-filled
 	bits[0] = unused;
 	for (var i = 0; i < bitLen; ++i) {
 		var byteN = 1 + Math.floor(i / 8);

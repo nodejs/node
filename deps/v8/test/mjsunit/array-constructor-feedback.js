@@ -138,7 +138,6 @@ function assertKind(expected, obj, name_opt) {
   %OptimizeFunctionOnNextCall(bar);
   b = bar();
   assertOptimized(bar);
-  %DebugPrint(3);
   b[0] = 3.5;
   c = bar();
   assertKind(elements_kind.fast_smi_only, c);

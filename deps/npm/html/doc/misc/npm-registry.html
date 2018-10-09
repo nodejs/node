@@ -14,11 +14,17 @@
 <p>To resolve packages by name and version, npm talks to a registry website
 that implements the CommonJS Package Registry specification for reading
 package info.</p>
-<p>Additionally, npm&#39;s package registry implementation supports several
+<p>npm is configured to use npm, Inc.&#39;s public registry at
+<a href="https://registry.npmjs.org">https://registry.npmjs.org</a> by default. Use of the npm public registry is
+subject to terms of use available at <a href="https://www.npmjs.com/policies/terms">https://www.npmjs.com/policies/terms</a>.</p>
+<p>You can configure npm to use any compatible registry you like, and even run
+your own registry. Use of someone else&#39;s registry may be governed by their
+terms of use.</p>
+<p>npm&#39;s package registry implementation supports several
 write APIs as well, to allow for publishing packages and managing user
 account information.</p>
-<p>The official public npm registry is at <a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>.  It
-is powered by a CouchDB database, of which there is a public mirror at
+<p>The npm public registry is powered by a CouchDB database,
+of which there is a public mirror at
 <a href="https://skimdb.npmjs.com/registry">https://skimdb.npmjs.com/registry</a>.  The code for the couchapp is
 available at <a href="https://github.com/npm/npm-registry-couchapp">https://github.com/npm/npm-registry-couchapp</a>.</p>
 <p>The registry URL used is determined by the scope of the package (see
@@ -43,8 +49,8 @@ interesting.
 This is used to gather better metrics on how npm is used by humans, versus
 build farms.</li>
 </ul>
-<p>The npm registry does not to correlate the information in these headers with
-any authenticated accounts that may be used in the same requests.</p>
+<p>The npm registry does not try to correlate the information in these headers
+with any authenticated accounts that may be used in the same requests.</p>
 <h2 id="can-i-run-my-own-private-registry-">Can I run my own private registry?</h2>
 <p>Yes!</p>
 <p>The easiest way is to replicate the couch database, and use the same (or
@@ -69,7 +75,7 @@ otherwise.</p>
 <p>No, but it&#39;s way easier.  Basically, yes, you do, or you have to
 effectively implement the entire CouchDB API anyway.</p>
 <h2 id="is-there-a-website-or-something-to-see-package-docs-and-such-">Is there a website or something to see package docs and such?</h2>
-<p>Yes, head over to <a href="https://npmjs.com/">https://npmjs.com/</a></p>
+<p>Yes, head over to <a href="https://www.npmjs.com/">https://www.npmjs.com/</a></p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-config.html">npm-config(1)</a></li>
@@ -90,5 +96,5 @@ effectively implement the entire CouchDB API anyway.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-registry &mdash; npm@6.1.0</p>
+<p id="footer">npm-registry &mdash; npm@6.4.1</p>
 

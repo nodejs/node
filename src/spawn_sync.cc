@@ -35,9 +35,14 @@ using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
+using v8::MaybeLocal;
+using v8::Nothing;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -372,7 +377,8 @@ void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->PrintSyncTrace();
   SyncProcessRunner p(env);
-  Local<Value> result = p.Run(args[0]);
+  Local<Value> result;
+  if (!p.Run(args[0]).ToLocal(&result)) return;
   args.GetReturnValue().Set(result);
 }
 
@@ -430,22 +436,21 @@ Environment* SyncProcessRunner::env() const {
   return env_;
 }
 
-
-Local<Object> SyncProcessRunner::Run(Local<Value> options) {
+MaybeLocal<Object> SyncProcessRunner::Run(Local<Value> options) {
   EscapableHandleScope scope(env()->isolate());
 
   CHECK_EQ(lifecycle_, kUninitialized);
 
-  TryInitializeAndRunLoop(options);
+  Maybe<bool> r = TryInitializeAndRunLoop(options);
   CloseHandlesAndDeleteLoop();
+  if (r.IsNothing()) return MaybeLocal<Object>();
 
   Local<Object> result = BuildResultObject();
 
   return scope.Escape(result);
 }
 
-
-void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
+Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   int r;
 
   // There is no recovery from failure inside TryInitializeAndRunLoop - the
@@ -454,18 +459,24 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   lifecycle_ = kInitialized;
 
   uv_loop_ = new uv_loop_t;
-  if (uv_loop_ == nullptr)
-    return SetError(UV_ENOMEM);
+  if (uv_loop_ == nullptr) {
+    SetError(UV_ENOMEM);
+    return Just(false);
+  }
   CHECK_EQ(uv_loop_init(uv_loop_), 0);
 
-  r = ParseOptions(options);
-  if (r < 0)
-    return SetError(r);
+  if (!ParseOptions(options).To(&r)) return Nothing<bool>();
+  if (r < 0) {
+    SetError(r);
+    return Just(false);
+  }
 
   if (timeout_ > 0) {
     r = uv_timer_init(uv_loop_, &uv_timer_);
-    if (r < 0)
-      return SetError(r);
+    if (r < 0) {
+      SetError(r);
+      return Just(false);
+    }
 
     uv_unref(reinterpret_cast<uv_handle_t*>(&uv_timer_));
 
@@ -477,22 +488,28 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
     // which implicitly stops it, so there is no risk that the timeout callback
     // runs when the process didn't start.
     r = uv_timer_start(&uv_timer_, KillTimerCallback, timeout_, 0);
-    if (r < 0)
-      return SetError(r);
+    if (r < 0) {
+      SetError(r);
+      return Just(false);
+    }
   }
 
   uv_process_options_.exit_cb = ExitCallback;
   r = uv_spawn(uv_loop_, &uv_process_, &uv_process_options_);
-  if (r < 0)
-    return SetError(r);
+  if (r < 0) {
+    SetError(r);
+    return Just(false);
+  }
   uv_process_.data = this;
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i].get();
     if (h != nullptr) {
       r = h->Start();
-      if (r < 0)
-        return SetPipeError(r);
+      if (r < 0) {
+        SetPipeError(r);
+        return Just(false);
+      }
     }
   }
 
@@ -503,6 +520,7 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
 
   // If we get here the process should have exited.
   CHECK_GE(exit_status_, 0);
+  return Just(true);
 }
 
 
@@ -683,7 +701,10 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
   if (term_signal_ > 0)
     js_result->Set(context, env()->signal_string(),
                    String::NewFromUtf8(env()->isolate(),
-                                       signo_string(term_signal_))).FromJust();
+                                       signo_string(term_signal_),
+                                       v8::NewStringType::kNormal)
+                       .ToLocalChecked())
+        .FromJust();
   else
     js_result->Set(context, env()->signal_string(),
                    Null(env()->isolate())).FromJust();
@@ -721,46 +742,41 @@ Local<Array> SyncProcessRunner::BuildOutputArray() {
   return scope.Escape(js_output);
 }
 
-
-int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
+Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   HandleScope scope(env()->isolate());
   int r;
 
-  if (!js_value->IsObject())
-    return UV_EINVAL;
+  if (!js_value->IsObject()) return Just<int>(UV_EINVAL);
 
   Local<Context> context = env()->context();
   Local<Object> js_options = js_value.As<Object>();
 
   Local<Value> js_file =
       js_options->Get(context, env()->file_string()).ToLocalChecked();
-  r = CopyJsString(js_file, &file_buffer_);
-  if (r < 0)
-    return r;
+  if (!CopyJsString(js_file, &file_buffer_).To(&r)) return Nothing<int>();
+  if (r < 0) return Just(r);
   uv_process_options_.file = file_buffer_;
 
   Local<Value> js_args =
       js_options->Get(context, env()->args_string()).ToLocalChecked();
-  r = CopyJsStringArray(js_args, &args_buffer_);
-  if (r < 0)
-    return r;
+  if (!CopyJsStringArray(js_args, &args_buffer_).To(&r)) return Nothing<int>();
+  if (r < 0) return Just(r);
   uv_process_options_.args = reinterpret_cast<char**>(args_buffer_);
 
   Local<Value> js_cwd =
       js_options->Get(context, env()->cwd_string()).ToLocalChecked();
   if (IsSet(js_cwd)) {
-    r = CopyJsString(js_cwd, &cwd_buffer_);
-    if (r < 0)
-      return r;
+    if (!CopyJsString(js_cwd, &cwd_buffer_).To(&r)) return Nothing<int>();
+    if (r < 0) return Just(r);
     uv_process_options_.cwd = cwd_buffer_;
   }
 
   Local<Value> js_env_pairs =
       js_options->Get(context, env()->env_pairs_string()).ToLocalChecked();
   if (IsSet(js_env_pairs)) {
-    r = CopyJsStringArray(js_env_pairs, &env_buffer_);
-    if (r < 0)
-      return r;
+    if (!CopyJsStringArray(js_env_pairs, &env_buffer_).To(&r))
+      return Nothing<int>();
+    if (r < 0) return Just(r);
 
     uv_process_options_.env = reinterpret_cast<char**>(env_buffer_);
   }
@@ -768,7 +784,7 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
       js_options->Get(context, env()->uid_string()).ToLocalChecked();
   if (IsSet(js_uid)) {
     CHECK(js_uid->IsInt32());
-    const int32_t uid = js_uid->Int32Value(context).FromJust();
+    const int32_t uid = js_uid.As<Int32>()->Value();
     uv_process_options_.uid = static_cast<uv_uid_t>(uid);
     uv_process_options_.flags |= UV_PROCESS_SETUID;
   }
@@ -777,7 +793,7 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
       js_options->Get(context, env()->gid_string()).ToLocalChecked();
   if (IsSet(js_gid)) {
     CHECK(js_gid->IsInt32());
-    const int32_t gid = js_gid->Int32Value(context).FromJust();
+    const int32_t gid = js_gid.As<Int32>()->Value();
     uv_process_options_.gid = static_cast<uv_gid_t>(gid);
     uv_process_options_.flags |= UV_PROCESS_SETGID;
   }
@@ -818,16 +834,15 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
       js_options->Get(context, env()->kill_signal_string()).ToLocalChecked();
   if (IsSet(js_kill_signal)) {
     CHECK(js_kill_signal->IsInt32());
-    kill_signal_ = js_kill_signal->Int32Value(context).FromJust();
+    kill_signal_ = js_kill_signal.As<Int32>()->Value();
   }
 
   Local<Value> js_stdio =
       js_options->Get(context, env()->stdio_string()).ToLocalChecked();
   r = ParseStdioOptions(js_stdio);
-  if (r < 0)
-    return r;
+  if (r < 0) return Just(r);
 
-  return 0;
+  return Just(0);
 }
 
 
@@ -967,9 +982,8 @@ bool SyncProcessRunner::IsSet(Local<Value> value) {
   return !value->IsUndefined() && !value->IsNull();
 }
 
-
-int SyncProcessRunner::CopyJsString(Local<Value> js_value,
-                                    const char** target) {
+Maybe<int> SyncProcessRunner::CopyJsString(Local<Value> js_value,
+                                           const char** target) {
   Isolate* isolate = env()->isolate();
   Local<String> js_string;
   size_t size, written;
@@ -977,11 +991,14 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
 
   if (js_value->IsString())
     js_string = js_value.As<String>();
-  else
-    js_string = js_value->ToString(env()->isolate());
+  else if (!js_value->ToString(env()->isolate()->GetCurrentContext())
+                .ToLocal(&js_string))
+    return Nothing<int>();
 
   // Include space for null terminator byte.
-  size = StringBytes::StorageSize(isolate, js_string, UTF8) + 1;
+  if (!StringBytes::StorageSize(isolate, js_string, UTF8).To(&size))
+    return Nothing<int>();
+  size += 1;
 
   buffer = new char[size];
 
@@ -989,12 +1006,11 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
   buffer[written] = '\0';
 
   *target = buffer;
-  return 0;
+  return Just(0);
 }
 
-
-int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
-                                         char** target) {
+Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
+                                                char** target) {
   Isolate* isolate = env()->isolate();
   Local<Array> js_array;
   uint32_t length;
@@ -1002,8 +1018,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   char** list;
   char* buffer;
 
-  if (!js_value->IsArray())
-    return UV_EINVAL;
+  if (!js_value->IsArray()) return Just<int>(UV_EINVAL);
 
   Local<Context> context = env()->context();
   js_array = js_value.As<Array>()->Clone().As<Array>();
@@ -1021,10 +1036,22 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   for (uint32_t i = 0; i < length; i++) {
     auto value = js_array->Get(context, i).ToLocalChecked();
 
-    if (!value->IsString())
-      js_array->Set(context, i, value->ToString(env()->isolate())).FromJust();
+    if (!value->IsString()) {
+      Local<String> string;
+      if (!value->ToString(env()->isolate()->GetCurrentContext())
+               .ToLocal(&string))
+        return Nothing<int>();
+      js_array
+          ->Set(context,
+                i,
+                value->ToString(env()->isolate()->GetCurrentContext())
+                    .ToLocalChecked())
+          .FromJust();
+    }
 
-    data_size += StringBytes::StorageSize(isolate, value, UTF8) + 1;
+    Maybe<size_t> maybe_size = StringBytes::StorageSize(isolate, value, UTF8);
+    if (maybe_size.IsNothing()) return Nothing<int>();
+    data_size += maybe_size.FromJust() + 1;
     data_size = ROUND_UP(data_size, sizeof(void*));
   }
 
@@ -1048,7 +1075,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   list[length] = nullptr;
 
   *target = buffer;
-  return 0;
+  return Just(0);
 }
 
 
@@ -1073,5 +1100,5 @@ void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(spawn_sync,
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(spawn_sync,
   node::SyncProcessRunner::Initialize)

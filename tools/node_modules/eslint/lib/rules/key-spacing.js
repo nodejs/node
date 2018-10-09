@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -540,7 +540,7 @@ module.exports = {
             const length = properties.length,
                 widths = properties.map(getKeyWidth), // Width of keys, including quotes
                 align = alignmentOptions.on; // "value" or "colon"
-            let targetWidth = Math.max.apply(null, widths),
+            let targetWidth = Math.max(...widths),
                 beforeColon, afterColon, mode;
 
             if (alignmentOptions && length > 1) { // When aligning values within a group, use the alignment configuration.

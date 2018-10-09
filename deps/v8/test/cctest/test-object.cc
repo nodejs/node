@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
@@ -181,9 +181,11 @@ TEST(EnumCache) {
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
   // DescriptorArray.
   Handle<EnumCache> previous_enum_cache(
-      a->map()->instance_descriptors()->GetEnumCache());
-  Handle<FixedArray> previous_keys(previous_enum_cache->keys());
-  Handle<FixedArray> previous_indices(previous_enum_cache->indices());
+      a->map()->instance_descriptors()->GetEnumCache(), a->GetIsolate());
+  Handle<FixedArray> previous_keys(previous_enum_cache->keys(),
+                                   a->GetIsolate());
+  Handle<FixedArray> previous_indices(previous_enum_cache->indices(),
+                                      a->GetIsolate());
   CompileRun("var s = 0; for (let key in c) { s += c[key] };");
   {
     CHECK_EQ(a->map()->EnumLength(), 1);
@@ -217,9 +219,9 @@ TEST(EnumCache) {
   // {b} can reuse the existing EnumCache, hence we only need to set the correct
   // EnumLength on the map without modifying the cache itself.
   previous_enum_cache =
-      handle(a->map()->instance_descriptors()->GetEnumCache());
-  previous_keys = handle(previous_enum_cache->keys());
-  previous_indices = handle(previous_enum_cache->indices());
+      handle(a->map()->instance_descriptors()->GetEnumCache(), a->GetIsolate());
+  previous_keys = handle(previous_enum_cache->keys(), a->GetIsolate());
+  previous_indices = handle(previous_enum_cache->indices(), a->GetIsolate());
   CompileRun("var s = 0; for (let key in b) { s += b[key] };");
   {
     CHECK_EQ(a->map()->EnumLength(), 1);

@@ -33,6 +33,9 @@ import scipy.stats
 from math import sqrt
 
 
+MAX_NOF_RETRIES = 5
+
+
 # Run benchmarks.
 
 def print_command(cmd_args):
@@ -211,9 +214,13 @@ def run_site(site, domain, args, timeout=None):
               print >> f, "URL: {}".format(site)
           retries_since_good_run = 0
           break
-        if retries_since_good_run < 6:
-          timeout += 2 ** retries_since_good_run
-          retries_since_good_run += 1
+        if retries_since_good_run > MAX_NOF_RETRIES:
+          # Abort after too many retries, no point in ever increasing the
+          # timeout.
+          print("TOO MANY EMPTY RESULTS ABORTING RUN")
+          break
+        timeout += 2 ** retries_since_good_run
+        retries_since_good_run += 1
         print("EMPTY RESULT, REPEATING RUN ({})".format(
             retries_since_good_run));
       finally:

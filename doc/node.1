@@ -43,7 +43,7 @@
 .Op Ar arguments ...
 .
 .Nm node
-.Cm debug
+.Cm inspect
 .Op Fl e Ar string | Ar script.js | Fl | Ar <host>:<port>
 .Ar ...
 .
@@ -74,6 +74,9 @@ the next argument will be used as a script filename.
 .
 .It Fl -abort-on-uncaught-exception
 Aborting instead of exiting causes a core file to be generated for analysis.
+.
+.It Fl -completion-bash
+Print source-able bash completion script for Node.js.
 .
 .It Fl -enable-fips
 Enable FIPS-compliant crypto at startup.
@@ -124,6 +127,12 @@ Default is
 V8 Inspector integration allows attaching Chrome DevTools and IDEs to Node.js instances for debugging and profiling.
 It uses the Chrome DevTools Protocol.
 .
+.It Fl -loader Ns = Ns Ar file
+Specify the
+.Ar file
+as a custom loader, to load
+.Fl -experimental-modules .
+.
 .It Fl -napi-modules
 This option is a no-op.
 It is kept for compatibility.
@@ -166,6 +175,9 @@ instead of printing to stderr.
 .
 .It Fl -throw-deprecation
 Throw errors for deprecations.
+.
+.It Fl -title Ns = Ns Ar title
+Specify process.title on startup.
 .
 .It Fl -tls-cipher-list Ns = Ns Ar list
 Specify an alternative default TLS cipher list.

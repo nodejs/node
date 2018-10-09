@@ -27,7 +27,9 @@ class JSStream : public AsyncWrap, public StreamBase {
               size_t count,
               uv_stream_t* send_handle) override;
 
-  size_t self_size() const override { return sizeof(*this); }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(JSStream)
+  SET_SELF_SIZE(JSStream)
 
  protected:
   JSStream(Environment* env, v8::Local<v8::Object> obj);

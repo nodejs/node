@@ -49,7 +49,7 @@ typedef struct
 /**
  * Various registry keys and key fragments.
  */
-static const char CURRENT_ZONE_REGKEY[] = "SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation\\";
+static const wchar_t CURRENT_ZONE_REGKEY[] = L"SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation\\";
 static const char STANDARD_TIME_REGKEY[] = " Standard Time";
 static const char TZI_REGKEY[] = "TZI";
 static const char STD_REGKEY[] = "Std";
@@ -121,27 +121,39 @@ static LONG getSTDName(const char *winid, char *regStdName, int32_t length)
     return result;
 }
 
-static LONG getTZKeyName(char* tzKeyName, int32_t length)
+static LONG getTZKeyName(char* tzKeyName, int32_t tzKeyNamelength)
 {
     HKEY hkey;
     LONG result = FALSE;
-    DWORD cbData = length;
+    WCHAR timeZoneKeyNameData[128];
+    DWORD timeZoneKeyNameLength = static_cast<DWORD>(sizeof(timeZoneKeyNameData));
 
-    if(ERROR_SUCCESS == RegOpenKeyExA(
+    if(ERROR_SUCCESS == RegOpenKeyExW(
         HKEY_LOCAL_MACHINE,
         CURRENT_ZONE_REGKEY,
         0,
         KEY_QUERY_VALUE,
         &hkey))
     {
-         result = RegQueryValueExA(
+        if (ERROR_SUCCESS == RegQueryValueExW(
              hkey,
-             "TimeZoneKeyName",
+             L"TimeZoneKeyName",
              NULL,
              NULL,
-             (LPBYTE)tzKeyName,
-             &cbData);
+             (LPBYTE)timeZoneKeyNameData,
+             &timeZoneKeyNameLength))
+        {
+            // Ensure null termination.
+            timeZoneKeyNameData[UPRV_LENGTHOF(timeZoneKeyNameData) - 1] = L'\0';
 
+            // Convert the UTF-16 string to UTF-8.
+            UErrorCode status = U_ZERO_ERROR;
+            u_strToUTF8(tzKeyName, tzKeyNamelength, NULL, reinterpret_cast<const UChar *>(timeZoneKeyNameData), -1, &status);
+            if (U_ZERO_ERROR == status)
+            {
+                result = ERROR_SUCCESS;
+            }
+        }
         RegCloseKey(hkey);
     }
 

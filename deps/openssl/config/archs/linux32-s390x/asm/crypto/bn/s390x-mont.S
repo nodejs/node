@@ -152,16 +152,16 @@ bn_mul_mont:
 	brct	%r14,.Lsub
 	lghi	%r8,0
 	slbgr	%r12,%r8	# handle upmost carry
-
-	ngr	%r3,%r12
-	lghi	%r5,-1
-	xgr	%r5,%r12
-	ngr	%r5,%r2
-	ogr	%r3,%r5		# ap=borrow?tp:rp
+	lghi	%r13,-1
+	xgr	%r13,%r12
 
 	la	%r7,0(%r0)
 	lgr	%r14,%r1
-.Lcopy:	lg	%r9,0(%r7,%r3)		# copy or in-place refresh
+.Lcopy:	lg	%r8,96(%r7,%r15)	# conditional copy
+	lg	%r9,0(%r7,%r2)
+	ngr	%r8,%r12
+	ngr	%r9,%r13
+	ogr	%r9,%r8
 	rllg	%r9,%r9,32
 	stg	%r7,96(%r7,%r15)	# zap tp
 	stg	%r9,0(%r7,%r2)

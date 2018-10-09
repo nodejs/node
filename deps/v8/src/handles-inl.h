@@ -7,7 +7,7 @@
 
 #include "src/handles.h"
 #include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/msan.h"
 
 namespace v8 {
 namespace internal {
@@ -23,6 +23,12 @@ Handle<T> Handle<T>::New(T* object, Isolate* isolate) {
       reinterpret_cast<T**>(HandleScope::CreateHandle(isolate, object)));
 }
 
+template <typename T>
+template <typename S>
+const Handle<T> Handle<T>::cast(Handle<S> that) {
+  T::cast(*reinterpret_cast<T**>(that.location()));
+  return Handle<T>(reinterpret_cast<T**>(that.location_));
+}
 
 HandleScope::HandleScope(Isolate* isolate) {
   HandleScopeData* data = isolate->handle_scope_data();
@@ -33,16 +39,17 @@ HandleScope::HandleScope(Isolate* isolate) {
 }
 
 template <typename T>
-Handle<T>::Handle(T* object) : Handle(object, object->GetIsolate()) {}
+Handle<T>::Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
 
 template <typename T>
-Handle<T>::Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
+V8_INLINE Handle<T> handle(T* object, Isolate* isolate) {
+  return Handle<T>(object, isolate);
+}
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
   return os << Brief(*handle);
 }
-
 
 HandleScope::~HandleScope() {
 #ifdef DEBUG
@@ -68,15 +75,17 @@ void HandleScope::CloseScope(Isolate* isolate,
 
   std::swap(current->next, prev_next);
   current->level--;
+  Object** limit = prev_next;
   if (current->limit != prev_limit) {
     current->limit = prev_limit;
+    limit = prev_limit;
     DeleteExtensions(isolate);
-#ifdef ENABLE_HANDLE_ZAPPING
-    ZapRange(current->next, prev_limit);
-  } else {
-    ZapRange(current->next, prev_next);
-#endif
   }
+#ifdef ENABLE_HANDLE_ZAPPING
+  ZapRange(current->next, limit);
+#endif
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(
+      current->next, static_cast<size_t>(limit - current->next));
 }
 
 

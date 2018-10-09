@@ -1,14 +1,16 @@
+// Flags: --expose-internals
 'use strict';
 require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const { UV_EOF } = internalBinding('uv');
 
 const s = new net.Socket({
   handle: {
     readStart: function() {
-      setImmediate(() => this.onread(uv.UV_EOF, null));
+      setImmediate(() => this.onread(UV_EOF, null));
     },
     close: (cb) => setImmediate(cb)
   },

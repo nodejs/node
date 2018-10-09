@@ -98,6 +98,7 @@ module.exports = {
     'no-dupe-class-members': 'error',
     'no-dupe-keys': 'error',
     'no-duplicate-case': 'error',
+    'no-duplicate-imports': 'error',
     'no-empty-character-class': 'error',
     'no-ex-assign': 'error',
     'no-extra-boolean-cast': 'error',
@@ -109,6 +110,7 @@ module.exports = {
     'no-invalid-regexp': 'error',
     'no-irregular-whitespace': 'error',
     'no-lonely-if': 'error',
+    'no-misleading-character-class': 'error',
     'no-mixed-requires': 'error',
     'no-mixed-spaces-and-tabs': 'error',
     'no-multi-spaces': ['error', { ignoreEOLComments: true }],
@@ -121,27 +123,28 @@ module.exports = {
     'no-proto': 'error',
     'no-redeclare': 'error',
     'no-restricted-modules': ['error', 'sys'],
+    /* eslint-disable max-len */
     'no-restricted-properties': [
       'error',
       {
         object: 'assert',
         property: 'deepEqual',
-        message: 'Use assert.deepStrictEqual().',
+        message: 'Use `assert.deepStrictEqual()`.',
       },
       {
         object: 'assert',
         property: 'notDeepEqual',
-        message: 'Use assert.notDeepStrictEqual().',
+        message: 'Use `assert.notDeepStrictEqual()`.',
       },
       {
         object: 'assert',
         property: 'equal',
-        message: 'Use assert.strictEqual() rather than assert.equal().',
+        message: 'Use `assert.strictEqual()` rather than `assert.equal()`.',
       },
       {
         object: 'assert',
         property: 'notEqual',
-        message: 'Use assert.notStrictEqual() rather than assert.notEqual().',
+        message: 'Use `assert.notStrictEqual()` rather than `assert.notEqual()`.',
       },
       {
         property: '__defineGetter__',
@@ -152,40 +155,48 @@ module.exports = {
         message: '__defineSetter__ is deprecated.',
       }
     ],
-    /* eslint-disable max-len */
     // If this list is modified, please copy the change to lib/.eslintrc.yaml
+    // and test/.eslintrc.yaml.
     'no-restricted-syntax': [
       'error',
+      {
+        selector: "CallExpression[callee.object.name='assert'][callee.property.name='deepStrictEqual'][arguments.2.type='Literal']",
+        message: 'Do not use a literal for the third argument of assert.deepStrictEqual()'
+      },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='doesNotThrow']",
         message: 'Please replace `assert.doesNotThrow()` and add a comment next to the code instead.'
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='rejects'][arguments.length<2]",
-        message: 'assert.rejects() must be invoked with at least two arguments.',
+        message: '`assert.rejects()` must be invoked with at least two arguments.',
+      },
+      {
+        selector: "CallExpression[callee.object.name='assert'][callee.property.name='strictEqual'][arguments.2.type='Literal']",
+        message: 'Do not use a literal for the third argument of assert.strictEqual()'
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])",
-        message: 'Use an object as second argument of assert.throws()',
+        message: 'Use an object as second argument of `assert.throws()`.',
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.length<2]",
-        message: 'assert.throws() must be invoked with at least two arguments.',
+        message: '`assert.throws()` must be invoked with at least two arguments.',
       },
       {
         selector: "CallExpression[callee.name='setTimeout'][arguments.length<2]",
-        message: 'setTimeout() must be invoked with at least two arguments.',
+        message: '`setTimeout()` must be invoked with at least two arguments.',
       },
       {
         selector: "CallExpression[callee.name='setInterval'][arguments.length<2]",
-        message: 'setInterval() must be invoked with at least 2 arguments.',
+        message: '`setInterval()` must be invoked with at least two arguments.',
       },
       {
         selector: 'ThrowStatement > CallExpression[callee.name=/Error$/]',
-        message: 'Use new keyword when throwing an Error.',
+        message: 'Use `new` keyword when throwing an `Error`.',
       }
     ],
-    /* eslint-enable max-len, quotes */
+    /* eslint-enable max-len */
     'no-return-await': 'error',
     'no-self-assign': 'error',
     'no-self-compare': 'error',
@@ -246,6 +257,7 @@ module.exports = {
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
+    'node-core/no-duplicate-requires': 'error',
   },
   globals: {
     Atomics: false,
@@ -263,6 +275,9 @@ module.exports = {
     DTRACE_HTTP_SERVER_REQUEST: false,
     DTRACE_HTTP_SERVER_RESPONSE: false,
     DTRACE_NET_SERVER_CONNECTION: false,
-    DTRACE_NET_STREAM_END: false
+    DTRACE_NET_STREAM_END: false,
+    TextEncoder: false,
+    TextDecoder: false,
+    queueMicrotask: false,
   },
 };

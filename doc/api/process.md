@@ -97,6 +97,59 @@ the child process.
 The message goes through serialization and parsing. The resulting message might
 not be the same as what is originally sent.
 
+### Event: 'multipleResolves'
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string} The error type. One of `'resolve'` or `'reject'`.
+* `promise` {Promise} The promise that resolved or rejected more than once.
+* `value` {any} The value with which the promise was either resolved or
+  rejected after the original resolve.
+
+The `'multipleResolves'` event is emitted whenever a `Promise` has been either:
+
+* Resolved more than once.
+* Rejected more than once.
+* Rejected after resolve.
+* Resolved after reject.
+
+This is useful for tracking errors in your application while using the promise
+constructor. Otherwise such mistakes are silently swallowed due to being in a
+dead zone.
+
+It is recommended to end the process on such errors, since the process could be
+in an undefined state. While using the promise constructor make sure that it is
+guaranteed to trigger the `resolve()` or `reject()` functions exactly once per
+call and never call both functions in the same call.
+
+```js
+process.on('multipleResolves', (type, promise, reason) => {
+  console.error(type, promise, reason);
+  setImmediate(() => process.exit(1));
+});
+
+async function main() {
+  try {
+    return await new Promise((resolve, reject) => {
+      resolve('First call');
+      resolve('Swallowed resolve');
+      reject(new Error('Swallowed reject'));
+    });
+  } catch {
+    throw new Error('Failed');
+  }
+}
+
+main().then(console.log);
+// resolve: Promise { 'First call' } 'Swallowed resolve'
+// reject: Promise { 'First call' } Error: Swallowed reject
+//     at Promise (*)
+//     at new Promise (<anonymous>)
+//     at main (*)
+// First call
+```
+
 ### Event: 'rejectionHandled'
 <!-- YAML
 added: v1.4.1
@@ -151,9 +204,13 @@ added: v0.1.18
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
-handles such exceptions by printing the stack trace to `stderr` and exiting.
+handles such exceptions by printing the stack trace to `stderr` and exiting
+with code 1, overriding any previously set [`process.exitCode`][].
 Adding a handler for the `'uncaughtException'` event overrides this default
-behavior.
+behavior. You may also change the [`process.exitCode`][] in
+`'uncaughtException'` handler which will result in process exiting with
+provided exit code, otherwise in the presence of such handler the process will
+exit with 0.
 
 The listener function is called with the `Error` object passed as the only
 argument.
@@ -411,6 +468,55 @@ The `process.abort()` method causes the Node.js process to exit immediately and
 generate a core file.
 
 This feature is not available in [`Worker`][] threads.
+
+## process.allowedNodeEnvironmentFlags
+<!-- YAML
+added: v10.10.0
+-->
+
+* {Set}
+
+The `process.allowedNodeEnvironmentFlags` property is a special,
+read-only `Set` of flags allowable within the [`NODE_OPTIONS`][]
+environment variable.
+
+`process.allowedNodeEnvironmentFlags` extends `Set`, but overrides
+`Set.prototype.has` to recognize several different possible flag
+representations.  `process.allowedNodeEnvironmentFlags.has()` will
+return `true` in the following cases:
+
+- Flags may omit leading single (`-`) or double (`--`) dashes; e.g.,
+  `inspect-brk` for `--inspect-brk`, or `r` for `-r`.
+- Flags passed through to V8 (as listed in `--v8-options`) may replace
+  one or more *non-leading* dashes for an underscore, or vice-versa;
+  e.g., `--perf_basic_prof`, `--perf-basic-prof`, `--perf_basic-prof`,
+  etc.
+- Flags may contain one or more equals (`=`) characters; all
+  characters after and including the first equals will be ignored;
+  e.g., `--stack-trace-limit=100`.
+- Flags *must* be allowable within [`NODE_OPTIONS`][].
+
+When iterating over `process.allowedNodeEnvironmentFlags`, flags will
+appear only *once*; each will begin with one or more dashes. Flags
+passed through to V8 will contain underscores instead of non-leading
+dashes:
+
+```js
+process.allowedNodeEnvironmentFlags.forEach((flag) => {
+  // -r
+  // --inspect-brk
+  // --abort_on_uncaught_exception
+  // ...
+});
+```
+
+The methods `add()`, `clear()`, and `delete()` of
+`process.allowedNodeEnvironmentFlags` do nothing, and will fail
+silently.
+
+If Node.js was compiled *without* [`NODE_OPTIONS`][] support (shown in
+[`process.config`][]), `process.allowedNodeEnvironmentFlags` will
+contain what *would have* been allowable.
 
 ## process.arch
 <!-- YAML
@@ -890,8 +996,6 @@ Assigning a property on `process.env` will implicitly convert the value
 to a string. **This behavior is deprecated.** Future versions of Node.js may
 throw an error when the value is not a string, number, or boolean.
 
-Example:
-
 ```js
 process.env.test = null;
 console.log(process.env.test);
@@ -903,8 +1007,6 @@ console.log(process.env.test);
 
 Use `delete` to delete a property from `process.env`.
 
-Example:
-
 ```js
 process.env.TEST = 1;
 delete process.env.TEST;
@@ -913,8 +1015,6 @@ console.log(process.env.TEST);
 ```
 
 On Windows operating systems, environment variables are case-insensitive.
-
-Example:
 
 ```js
 process.env.TEST = 1;
@@ -1192,7 +1292,7 @@ setTimeout(() => {
 
 ## process.hrtime.bigint()
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 
 * Returns: {bigint}
@@ -1230,7 +1330,7 @@ the group access list, using all groups of which the user is a member. This is
 a privileged operation that requires that the Node.js process either have `root`
 access or the `CAP_SETGID` capability.
 
-Note that care must be taken when dropping privileges. Example:
+Note that care must be taken when dropping privileges:
 
 ```js
 console.log(process.getgroups());         // [ 0 ]
@@ -1691,6 +1791,7 @@ This feature is not available in [`Worker`][] threads.
 <!-- YAML
 added: v0.1.28
 -->
+* `id` {integer | string}
 
 The `process.setuid(id)` method sets the user identity of the process. (See
 setuid(2).) The `id` can be passed as either a numeric ID or a username string.
@@ -1749,8 +1850,6 @@ a [Writable][] stream.
 `process.stderr` differs from other Node.js streams in important ways, see
 [note on process I/O][] for more information.
 
-This feature is not available in [`Worker`][] threads.
-
 ## process.stdin
 
 * {Stream}
@@ -1783,8 +1882,6 @@ In "old" streams mode the `stdin` stream is paused by default, so one
 must call `process.stdin.resume()` to read from it. Note also that calling
 `process.stdin.resume()` itself would switch stream to "old" mode.
 
-This feature is not available in [`Worker`][] threads.
-
 ## process.stdout
 
 * {Stream}
@@ -1803,8 +1900,6 @@ process.stdin.pipe(process.stdout);
 `process.stdout` differs from other Node.js streams in important ways, see
 [note on process I/O][] for more information.
 
-This feature is not available in [`Worker`][] threads.
-
 ### A note on process I/O
 
 `process.stdout` and `process.stderr` differ from other Node.js streams in
@@ -1812,9 +1907,7 @@ important ways:
 
 1. They are used internally by [`console.log()`][] and [`console.error()`][],
    respectively.
-2. They cannot be closed ([`end()`][] will throw).
-3. They will never emit the [`'finish'`][] event.
-4. Writes may be synchronous depending on what the stream is connected to
+2. Writes may be synchronous depending on what the stream is connected to
    and whether the system is Windows or POSIX:
    - Files: *synchronous* on Windows and POSIX
    - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on POSIX
@@ -2039,7 +2132,6 @@ cases:
   code will be `128` + `6`, or `134`.
 
 [`'exit'`]: #process_event_exit
-[`'finish'`]: stream.html#stream_event_finish
 [`'message'`]: child_process.html#child_process_event_message
 [`'rejectionHandled'`]: #process_event_rejectionhandled
 [`'uncaughtException'`]: #process_event_uncaughtexception
@@ -2053,11 +2145,12 @@ cases:
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
 [`domain`]: domain.html
-[`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`NODE_OPTIONS`]: cli.html#cli_node_options_options
 [`os.constants.dlopen`]: os.html#os_dlopen_constants
 [`process.argv`]: #process_process_argv
+[`process.config`]: #process_process_config
 [`process.execPath`]: #process_process_execpath
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
@@ -2076,7 +2169,7 @@ cases:
 [Cluster]: cluster.html
 [debugger]: debugger.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams
-[LTS]: https://github.com/nodejs/LTS/
+[LTS]: https://github.com/nodejs/Release
 [note on process I/O]: process.html#process_a_note_on_process_i_o
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning

@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "include/v8.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
@@ -88,9 +88,9 @@ TEST_F(UnoptimizedCompileJobTest, StateTransitions) {
 }
 
 TEST_F(UnoptimizedCompileJobTest, SyntaxError) {
-  test::ScriptResource script("^^^", strlen("^^^"));
+  test::ScriptResource* script = new test::ScriptResource("^^^", strlen("^^^"));
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      isolate(), tracer(), test::CreateSharedFunctionInfo(isolate(), &script),
+      isolate(), tracer(), test::CreateSharedFunctionInfo(isolate(), script),
       FLAG_stack_size));
 
   job->PrepareOnMainThread(isolate());
@@ -120,7 +120,8 @@ TEST_F(UnoptimizedCompileJobTest, CompileAndRun) {
       "g();";
   Handle<JSFunction> f = RunJS<JSFunction>(script);
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
+      isolate(), tracer(), handle(f->shared(), f->GetIsolate()),
+      FLAG_stack_size));
 
   job->PrepareOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());
@@ -147,9 +148,10 @@ TEST_F(UnoptimizedCompileJobTest, CompileFailureToAnalyse) {
     raw_script += "'x' + 'x' - ";
   }
   raw_script += " 'x'; }";
-  test::ScriptResource script(raw_script.c_str(), strlen(raw_script.c_str()));
+  test::ScriptResource* script =
+      new test::ScriptResource(raw_script.c_str(), strlen(raw_script.c_str()));
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      isolate(), tracer(), test::CreateSharedFunctionInfo(isolate(), &script),
+      isolate(), tracer(), test::CreateSharedFunctionInfo(isolate(), script),
       100));
 
   job->PrepareOnMainThread(isolate());
@@ -173,9 +175,10 @@ TEST_F(UnoptimizedCompileJobTest, CompileFailureToFinalize) {
     raw_script += "'x' + 'x' - ";
   }
   raw_script += " 'x'; }";
-  test::ScriptResource script(raw_script.c_str(), strlen(raw_script.c_str()));
+  test::ScriptResource* script =
+      new test::ScriptResource(raw_script.c_str(), strlen(raw_script.c_str()));
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      isolate(), tracer(), test::CreateSharedFunctionInfo(isolate(), &script),
+      isolate(), tracer(), test::CreateSharedFunctionInfo(isolate(), script),
       50));
 
   job->PrepareOnMainThread(isolate());
@@ -218,9 +221,10 @@ TEST_F(UnoptimizedCompileJobTest, CompileOnBackgroundThread) {
       "  var d = { foo: 100, bar : bar() }\n"
       "  return bar;"
       "}";
-  test::ScriptResource script(raw_script, strlen(raw_script));
+  test::ScriptResource* script =
+      new test::ScriptResource(raw_script, strlen(raw_script));
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      isolate(), tracer(), test::CreateSharedFunctionInfo(isolate(), &script),
+      isolate(), tracer(), test::CreateSharedFunctionInfo(isolate(), script),
       100));
 
   job->PrepareOnMainThread(isolate());
@@ -249,7 +253,8 @@ TEST_F(UnoptimizedCompileJobTest, LazyInnerFunctions) {
   Handle<JSFunction> f = RunJS<JSFunction>(script);
 
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
+      isolate(), tracer(), handle(f->shared(), f->GetIsolate()),
+      FLAG_stack_size));
 
   job->PrepareOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());

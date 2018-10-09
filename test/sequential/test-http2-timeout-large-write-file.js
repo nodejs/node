@@ -48,7 +48,7 @@ server.on('stream', common.mustCall((stream) => {
 }));
 server.setTimeout(serverTimeout);
 server.on('timeout', () => {
-  assert.strictEqual(didReceiveData, false, 'Should not timeout');
+  assert.ok(!didReceiveData, 'Should not timeout');
 });
 
 server.listen(0, common.mustCall(() => {

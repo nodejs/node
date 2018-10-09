@@ -356,6 +356,17 @@ test('npm run-script keep non-zero exit code', function (t) {
   })
 })
 
+test('npm run-script nonexistent script and display suggestions', function (t) {
+  writeMetadata(directOnly)
+
+  common.npm(['run-script', 'whoop'], opts, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 1, 'got expected exit code')
+    t.has(stderr, 'Did you mean this?')
+    t.end()
+  })
+})
+
 test('cleanup', function (t) {
   cleanup()
   t.end()

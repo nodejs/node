@@ -15,14 +15,19 @@ class CallOrConstructBuiltinsAssembler : public CodeStubAssembler {
   explicit CallOrConstructBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void CallOrConstructWithArrayLike(Node* target, Node* new_target,
-                                    Node* arguments_list, Node* context);
-  void CallOrConstructDoubleVarargs(Node* target, Node* new_target,
-                                    Node* elements, Node* length,
-                                    Node* args_count, Node* context,
-                                    Node* kind);
-  void CallOrConstructWithSpread(Node* target, Node* new_target, Node* spread,
-                                 Node* args_count, Node* context);
+  void CallOrConstructWithArrayLike(TNode<Object> target,
+                                    SloppyTNode<Object> new_target,
+                                    TNode<Object> arguments_list,
+                                    TNode<Context> context);
+  void CallOrConstructDoubleVarargs(TNode<Object> target,
+                                    SloppyTNode<Object> new_target,
+                                    TNode<FixedDoubleArray> elements,
+                                    TNode<Int32T> length,
+                                    TNode<Int32T> args_count,
+                                    TNode<Context> context, TNode<Int32T> kind);
+  void CallOrConstructWithSpread(TNode<Object> target, TNode<Object> new_target,
+                                 TNode<Object> spread, TNode<Int32T> args_count,
+                                 TNode<Context> context);
 };
 
 }  // namespace internal

@@ -11,7 +11,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/flags.h"
 #include "src/signature.h"
-#include "src/utils.h"
+#include "src/v8memory.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone-containers.h"
 
@@ -280,7 +280,7 @@ class Decoder {
     } else if (!validate_size(pc, sizeof(IntType), msg)) {
       return IntType{0};
     }
-    return ReadLittleEndianValue<IntType>(pc);
+    return ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
   }
 
   template <typename IntType>

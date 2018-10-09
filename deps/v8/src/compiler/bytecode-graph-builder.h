@@ -93,6 +93,12 @@ class BytecodeGraphBuilder {
     return MakeNode(op, arraysize(buffer), buffer, false);
   }
 
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6) {
+    Node* buffer[] = {n1, n2, n3, n4, n5, n6};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
   // Helpers to create new control nodes.
   Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
   Node* NewIfFalse() { return NewNode(common()->IfFalse()); }
@@ -178,7 +184,6 @@ class BytecodeGraphBuilder {
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
-  void BuildTestingOp(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);
   void BuildHoleCheckAndThrow(Node* condition, Runtime::FunctionId runtime_id,
@@ -302,6 +307,7 @@ class BytecodeGraphBuilder {
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   Zone* graph_zone() const { return graph()->zone(); }
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   JSOperatorBuilder* javascript() const { return jsgraph_->javascript(); }
   SimplifiedOperatorBuilder* simplified() const {
     return jsgraph_->simplified();

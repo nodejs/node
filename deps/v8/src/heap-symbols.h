@@ -7,6 +7,7 @@
 
 #define INTERNALIZED_STRING_LIST(V)                                \
   V(add_string, "add")                                             \
+  V(always_string, "always")                                       \
   V(anonymous_function_string, "(anonymous function)")             \
   V(anonymous_string, "anonymous")                                 \
   V(apply_string, "apply")                                         \
@@ -19,6 +20,7 @@
   V(ArrayIterator_string, "Array Iterator")                        \
   V(assign_string, "assign")                                       \
   V(async_string, "async")                                         \
+  V(auto_string, "auto")                                           \
   V(await_string, "await")                                         \
   V(BigInt_string, "BigInt")                                       \
   V(bigint_string, "bigint")                                       \
@@ -35,14 +37,17 @@
   V(call_string, "call")                                           \
   V(callee_string, "callee")                                       \
   V(caller_string, "caller")                                       \
+  V(caseFirst_string, "caseFirst")                                 \
   V(cell_value_string, "%cell_value")                              \
   V(char_at_string, "CharAt")                                      \
   V(closure_string, "(closure)")                                   \
+  V(collation_string, "collation")                                 \
   V(column_string, "column")                                       \
   V(CompileError_string, "CompileError")                           \
   V(configurable_string, "configurable")                           \
   V(construct_string, "construct")                                 \
   V(constructor_string, "constructor")                             \
+  V(conjunction_string, "conjunction")                             \
   V(create_string, "create")                                       \
   V(currency_string, "currency")                                   \
   V(Date_string, "Date")                                           \
@@ -54,6 +59,7 @@
   V(defineProperty_string, "defineProperty")                       \
   V(deleteProperty_string, "deleteProperty")                       \
   V(did_handle_string, "didHandle")                                \
+  V(disjunction_string, "disjunction")                             \
   V(display_name_string, "displayName")                            \
   V(done_string, "done")                                           \
   V(dot_catch_string, ".catch")                                    \
@@ -67,6 +73,7 @@
   V(enqueue_string, "enqueue")                                     \
   V(entries_string, "entries")                                     \
   V(enumerable_string, "enumerable")                               \
+  V(element_string, "element")                                     \
   V(era_string, "era")                                             \
   V(Error_string, "Error")                                         \
   V(error_to_string, "[object Error]")                             \
@@ -89,11 +96,13 @@
   V(getOwnPropertyDescriptors_string, "getOwnPropertyDescriptors") \
   V(getPrototypeOf_string, "getPrototypeOf")                       \
   V(global_string, "global")                                       \
+  V(globalThis_string, "globalThis")                               \
   V(group_string, "group")                                         \
   V(groups_string, "groups")                                       \
   V(has_string, "has")                                             \
   V(hour_string, "hour")                                           \
   V(ignoreCase_string, "ignoreCase")                               \
+  V(ignorePunctuation_string, "ignorePunctuation")                 \
   V(illegal_access_string, "illegal access")                       \
   V(illegal_argument_string, "illegal argument")                   \
   V(index_string, "index")                                         \
@@ -115,6 +124,8 @@
   V(line_string, "line")                                           \
   V(LinkError_string, "LinkError")                                 \
   V(literal_string, "literal")                                     \
+  V(locale_string, "locale")                                       \
+  V(long_string, "long")                                           \
   V(Map_string, "Map")                                             \
   V(MapIterator_string, "Map Iterator")                            \
   V(message_string, "message")                                     \
@@ -128,6 +139,7 @@
   V(name_string, "name")                                           \
   V(NaN_string, "NaN")                                             \
   V(nan_string, "nan")                                             \
+  V(narrow_string, "narrow")                                       \
   V(native_string, "native")                                       \
   V(new_target_string, ".new.target")                              \
   V(next_string, "next")                                           \
@@ -141,6 +153,7 @@
   V(Number_string, "Number")                                       \
   V(number_string, "number")                                       \
   V(number_to_string, "[object Number]")                           \
+  V(numeric_string, "numeric")                                     \
   V(Object_string, "Object")                                       \
   V(object_string, "object")                                       \
   V(object_to_string, "[object Object]")                           \
@@ -172,9 +185,11 @@
   V(RuntimeError_string, "RuntimeError")                           \
   V(Script_string, "Script")                                       \
   V(script_string, "script")                                       \
+  V(short_string, "short")                                         \
   V(second_string, "second")                                       \
-  V(set_space_string, "set ")                                      \
   V(Set_string, "Set")                                             \
+  V(sensitivity_string, "sensitivity")                             \
+  V(set_space_string, "set ")                                      \
   V(set_string, "set")                                             \
   V(SetIterator_string, "Set Iterator")                            \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
@@ -188,6 +203,7 @@
   V(String_string, "String")                                       \
   V(string_string, "string")                                       \
   V(string_to_string, "[object String]")                           \
+  V(style_string, "style")                                         \
   V(symbol_species_string, "[Symbol.species]")                     \
   V(Symbol_string, "Symbol")                                       \
   V(symbol_string, "symbol")                                       \
@@ -210,7 +226,9 @@
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
   V(unicode_string, "unicode")                                     \
+  V(unit_string, "unit")                                           \
   V(URIError_string, "URIError")                                   \
+  V(usage_string, "usage")                                         \
   V(use_asm_string, "use asm")                                     \
   V(use_strict_string, "use strict")                               \
   V(value_string, "value")                                         \
@@ -256,8 +274,6 @@
   V(sealed_symbol)                     \
   V(stack_trace_symbol)                \
   V(strict_function_transition_symbol) \
-  V(wasm_function_index_symbol)        \
-  V(wasm_instance_symbol)              \
   V(uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST(V)                    \
@@ -294,6 +310,15 @@
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)
 
+#define TOP_MC_SCOPES(F) \
+  F(MC_CLEAR)            \
+  F(MC_EPILOGUE)         \
+  F(MC_EVACUATE)         \
+  F(MC_FINISH)           \
+  F(MC_MARK)             \
+  F(MC_PROLOGUE)         \
+  F(MC_SWEEP)
+
 #define TRACER_SCOPES(F)                             \
   INCREMENTAL_SCOPES(F)                              \
   F(HEAP_EPILOGUE)                                   \
@@ -302,18 +327,15 @@
   F(HEAP_EXTERNAL_PROLOGUE)                          \
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
-  F(MC_CLEAR)                                        \
+  TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
   F(MC_CLEAR_MAPS)                                   \
   F(MC_CLEAR_SLOTS_BUFFER)                           \
   F(MC_CLEAR_STORE_BUFFER)                           \
   F(MC_CLEAR_STRING_TABLE)                           \
-  F(MC_CLEAR_WEAK_CELLS)                             \
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
-  F(MC_EPILOGUE)                                     \
-  F(MC_EVACUATE)                                     \
   F(MC_EVACUATE_CANDIDATES)                          \
   F(MC_EVACUATE_CLEAN_UP)                            \
   F(MC_EVACUATE_COPY)                                \
@@ -325,21 +347,20 @@
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
-  F(MC_FINISH)                                       \
-  F(MC_MARK)                                         \
   F(MC_MARK_FINISH_INCREMENTAL)                      \
   F(MC_MARK_MAIN)                                    \
   F(MC_MARK_ROOTS)                                   \
   F(MC_MARK_WEAK_CLOSURE)                            \
-  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                  \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON)                  \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)          \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)           \
   F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)               \
   F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                 \
   F(MC_MARK_WEAK_CLOSURE_HARMONY)                    \
+  F(MC_MARK_WRAPPERS)                                \
   F(MC_MARK_WRAPPER_EPILOGUE)                        \
   F(MC_MARK_WRAPPER_PROLOGUE)                        \
   F(MC_MARK_WRAPPER_TRACING)                         \
-  F(MC_PROLOGUE)                                     \
-  F(MC_SWEEP)                                        \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_OLD)                                    \
@@ -372,6 +393,7 @@
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)  \
   F(SCAVENGER_SCAVENGE_PARALLEL)                     \
   F(SCAVENGER_SCAVENGE_ROOTS)                        \
+  F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
   F(SCAVENGER_SCAVENGE_WEAK)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \

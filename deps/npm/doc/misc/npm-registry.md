@@ -7,12 +7,20 @@ To resolve packages by name and version, npm talks to a registry website
 that implements the CommonJS Package Registry specification for reading
 package info.
 
-Additionally, npm's package registry implementation supports several
+npm is configured to use npm, Inc.'s public registry at
+<https://registry.npmjs.org> by default. Use of the npm public registry is
+subject to terms of use available at <https://www.npmjs.com/policies/terms>.
+
+You can configure npm to use any compatible registry you like, and even run
+your own registry. Use of someone else's registry may be governed by their
+terms of use.
+
+npm's package registry implementation supports several
 write APIs as well, to allow for publishing packages and managing user
 account information.
 
-The official public npm registry is at <https://registry.npmjs.org/>.  It
-is powered by a CouchDB database, of which there is a public mirror at
+The npm public registry is powered by a CouchDB database,
+of which there is a public mirror at
 <https://skimdb.npmjs.com/registry>.  The code for the couchapp is
 available at <https://github.com/npm/npm-registry-couchapp>.
 
@@ -41,8 +49,8 @@ about your environment:
   This is used to gather better metrics on how npm is used by humans, versus
   build farms.
 
-The npm registry does not to correlate the information in these headers with
-any authenticated accounts that may be used in the same requests.
+The npm registry does not try to correlate the information in these headers
+with any authenticated accounts that may be used in the same requests.
 
 ## Can I run my own private registry?
 
@@ -81,7 +89,7 @@ effectively implement the entire CouchDB API anyway.
 
 ## Is there a website or something to see package docs and such?
 
-Yes, head over to <https://npmjs.com/>
+Yes, head over to <https://www.npmjs.com/>
 
 ## SEE ALSO
 

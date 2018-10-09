@@ -923,7 +923,7 @@ if [ $? = "0" ]; then
 
   if [ "$VERBOSE" = "true" ]; then
     echo $PERL $THERE/Configure $OUT $options
-  fi
+  fi  
   if [ "$DRYRUN" = "false" ]; then
     $PERL $THERE/Configure $OUT $options
   fi

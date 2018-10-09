@@ -827,6 +827,396 @@ napi_status ConcludeDeferred(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+class ThreadSafeFunction : public node::AsyncResource {
+ public:
+  ThreadSafeFunction(v8::Local<v8::Function> func,
+                     v8::Local<v8::Object> resource,
+                     v8::Local<v8::String> name,
+                     size_t thread_count_,
+                     void* context_,
+                     size_t max_queue_size_,
+                     napi_env env_,
+                     void* finalize_data_,
+                     napi_finalize finalize_cb_,
+                     napi_threadsafe_function_call_js call_js_cb_):
+                     AsyncResource(env_->isolate,
+                                   resource,
+                                   *v8::String::Utf8Value(env_->isolate, name)),
+      thread_count(thread_count_),
+      is_closing(false),
+      context(context_),
+      max_queue_size(max_queue_size_),
+      env(env_),
+      finalize_data(finalize_data_),
+      finalize_cb(finalize_cb_),
+      call_js_cb(call_js_cb_ == nullptr ? CallJs : call_js_cb_),
+      handles_closing(false) {
+    ref.Reset(env->isolate, func);
+    node::AddEnvironmentCleanupHook(env->isolate, Cleanup, this);
+  }
+
+  ~ThreadSafeFunction() {
+    node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
+  }
+
+  // These methods can be called from any thread.
+
+  napi_status Push(void* data, napi_threadsafe_function_call_mode mode) {
+    node::Mutex::ScopedLock lock(this->mutex);
+
+    while (queue.size() >= max_queue_size &&
+        max_queue_size > 0 &&
+        !is_closing) {
+      if (mode == napi_tsfn_nonblocking) {
+        return napi_queue_full;
+      }
+      cond->Wait(lock);
+    }
+
+    if (is_closing) {
+      if (thread_count == 0) {
+        return napi_invalid_arg;
+      } else {
+        thread_count--;
+        return napi_closing;
+      }
+    } else {
+      if (uv_async_send(&async) != 0) {
+        return napi_generic_failure;
+      }
+      queue.push(data);
+      return napi_ok;
+    }
+  }
+
+  napi_status Acquire() {
+    node::Mutex::ScopedLock lock(this->mutex);
+
+    if (is_closing) {
+      return napi_closing;
+    }
+
+    thread_count++;
+
+    return napi_ok;
+  }
+
+  napi_status Release(napi_threadsafe_function_release_mode mode) {
+    node::Mutex::ScopedLock lock(this->mutex);
+
+    if (thread_count == 0) {
+      return napi_invalid_arg;
+    }
+
+    thread_count--;
+
+    if (thread_count == 0 || mode == napi_tsfn_abort) {
+      if (!is_closing) {
+        is_closing = (mode == napi_tsfn_abort);
+        if (is_closing && max_queue_size > 0) {
+          cond->Signal(lock);
+        }
+        if (uv_async_send(&async) != 0) {
+          return napi_generic_failure;
+        }
+      }
+    }
+
+    return napi_ok;
+  }
+
+  void EmptyQueueAndDelete() {
+    for (; !queue.empty() ; queue.pop()) {
+      call_js_cb(nullptr, nullptr, context, queue.front());
+    }
+    delete this;
+  }
+
+  // These methods must only be called from the loop thread.
+
+  napi_status Init() {
+    ThreadSafeFunction* ts_fn = this;
+
+    if (uv_async_init(env->loop, &async, AsyncCb) == 0) {
+      if (max_queue_size > 0) {
+        cond.reset(new node::ConditionVariable);
+      }
+      if ((max_queue_size == 0 || cond.get() != nullptr) &&
+          uv_idle_init(env->loop, &idle) == 0) {
+        return napi_ok;
+      }
+
+      NodeEnv()->CloseHandle(
+          reinterpret_cast<uv_handle_t*>(&async),
+          [](uv_handle_t* handle) -> void {
+            ThreadSafeFunction* ts_fn =
+                node::ContainerOf(&ThreadSafeFunction::async,
+                                  reinterpret_cast<uv_async_t*>(handle));
+            delete ts_fn;
+          });
+
+      // Prevent the thread-safe function from being deleted here, because
+      // the callback above will delete it.
+      ts_fn = nullptr;
+    }
+
+    delete ts_fn;
+
+    return napi_generic_failure;
+  }
+
+  napi_status Unref() {
+    uv_unref(reinterpret_cast<uv_handle_t*>(&async));
+    uv_unref(reinterpret_cast<uv_handle_t*>(&idle));
+
+    return napi_ok;
+  }
+
+  napi_status Ref() {
+    uv_ref(reinterpret_cast<uv_handle_t*>(&async));
+    uv_ref(reinterpret_cast<uv_handle_t*>(&idle));
+
+    return napi_ok;
+  }
+
+  void DispatchOne() {
+    void* data = nullptr;
+    bool popped_value = false;
+    bool idle_stop_failed = false;
+
+    {
+      node::Mutex::ScopedLock lock(this->mutex);
+      if (is_closing) {
+        CloseHandlesAndMaybeDelete();
+      } else {
+        size_t size = queue.size();
+        if (size > 0) {
+          data = queue.front();
+          queue.pop();
+          popped_value = true;
+          if (size == max_queue_size && max_queue_size > 0) {
+            cond->Signal(lock);
+          }
+          size--;
+        }
+
+        if (size == 0) {
+          if (thread_count == 0) {
+            is_closing = true;
+            if (max_queue_size > 0) {
+              cond->Signal(lock);
+            }
+            CloseHandlesAndMaybeDelete();
+          } else {
+            if (uv_idle_stop(&idle) != 0) {
+              idle_stop_failed = true;
+            }
+          }
+        }
+      }
+    }
+
+    if (popped_value || idle_stop_failed) {
+      v8::HandleScope scope(env->isolate);
+      CallbackScope cb_scope(this);
+
+      if (idle_stop_failed) {
+        CHECK(napi_throw_error(env,
+                               "ERR_NAPI_TSFN_STOP_IDLE_LOOP",
+                               "Failed to stop the idle loop") == napi_ok);
+      } else {
+        v8::Local<v8::Function> js_cb =
+            v8::Local<v8::Function>::New(env->isolate, ref);
+        call_js_cb(env,
+                   v8impl::JsValueFromV8LocalValue(js_cb),
+                   context,
+                   data);
+      }
+    }
+  }
+
+  node::Environment* NodeEnv() {
+    // Grabbing the Node.js environment requires a handle scope because it
+    // looks up fields on the current context.
+    v8::HandleScope scope(env->isolate);
+    node::Environment* node_env = node::Environment::GetCurrent(env->isolate);
+    CHECK_NOT_NULL(node_env);
+    return node_env;
+  }
+
+  void MaybeStartIdle() {
+    if (uv_idle_start(&idle, IdleCb) != 0) {
+      v8::HandleScope scope(env->isolate);
+      CallbackScope cb_scope(this);
+      CHECK(napi_throw_error(env,
+                             "ERR_NAPI_TSFN_START_IDLE_LOOP",
+                             "Failed to start the idle loop") == napi_ok);
+    }
+  }
+
+  void Finalize() {
+    v8::HandleScope scope(env->isolate);
+    if (finalize_cb) {
+      CallbackScope cb_scope(this);
+      finalize_cb(env, finalize_data, context);
+    }
+    EmptyQueueAndDelete();
+  }
+
+  inline void* Context() {
+    return context;
+  }
+
+  void CloseHandlesAndMaybeDelete(bool set_closing = false) {
+    if (set_closing) {
+      node::Mutex::ScopedLock lock(this->mutex);
+      is_closing = true;
+      if (max_queue_size > 0) {
+        cond->Signal(lock);
+      }
+    }
+    if (handles_closing) {
+      return;
+    }
+    handles_closing = true;
+    NodeEnv()->CloseHandle(
+        reinterpret_cast<uv_handle_t*>(&async),
+        [](uv_handle_t* handle) -> void {
+          ThreadSafeFunction* ts_fn =
+              node::ContainerOf(&ThreadSafeFunction::async,
+                                reinterpret_cast<uv_async_t*>(handle));
+          ts_fn->NodeEnv()->CloseHandle(
+              reinterpret_cast<uv_handle_t*>(&ts_fn->idle),
+              [](uv_handle_t* handle) -> void {
+                ThreadSafeFunction* ts_fn =
+                    node::ContainerOf(&ThreadSafeFunction::idle,
+                                      reinterpret_cast<uv_idle_t*>(handle));
+                ts_fn->Finalize();
+              });
+        });
+  }
+
+  // Default way of calling into JavaScript. Used when ThreadSafeFunction is
+  //  without a call_js_cb_.
+  static void CallJs(napi_env env, napi_value cb, void* context, void* data) {
+    if (!(env == nullptr || cb == nullptr)) {
+      napi_value recv;
+      napi_status status;
+
+      status = napi_get_undefined(env, &recv);
+      if (status != napi_ok) {
+        napi_throw_error(env, "ERR_NAPI_TSFN_GET_UNDEFINED",
+            "Failed to retrieve undefined value");
+        return;
+      }
+
+      status = napi_call_function(env, recv, cb, 0, nullptr, nullptr);
+      if (status != napi_ok && status != napi_pending_exception) {
+        napi_throw_error(env, "ERR_NAPI_TSFN_CALL_JS",
+            "Failed to call JS callback");
+        return;
+      }
+    }
+  }
+
+  static void IdleCb(uv_idle_t* idle) {
+    ThreadSafeFunction* ts_fn =
+        node::ContainerOf(&ThreadSafeFunction::idle, idle);
+    ts_fn->DispatchOne();
+  }
+
+  static void AsyncCb(uv_async_t* async) {
+    ThreadSafeFunction* ts_fn =
+        node::ContainerOf(&ThreadSafeFunction::async, async);
+    ts_fn->MaybeStartIdle();
+  }
+
+  static void Cleanup(void* data) {
+    reinterpret_cast<ThreadSafeFunction*>(data)
+        ->CloseHandlesAndMaybeDelete(true);
+  }
+
+ private:
+  // These are variables protected by the mutex.
+  node::Mutex mutex;
+  std::unique_ptr<node::ConditionVariable> cond;
+  std::queue<void*> queue;
+  uv_async_t async;
+  uv_idle_t idle;
+  size_t thread_count;
+  bool is_closing;
+
+  // These are variables set once, upon creation, and then never again, which
+  // means we don't need the mutex to read them.
+  void* context;
+  size_t max_queue_size;
+
+  // These are variables accessed only from the loop thread.
+  node::Persistent<v8::Function> ref;
+  napi_env env;
+  void* finalize_data;
+  napi_finalize finalize_cb;
+  napi_threadsafe_function_call_js call_js_cb;
+  bool handles_closing;
+};
+
+enum WrapType {
+  retrievable,
+  anonymous
+};
+
+template <WrapType wrap_type> static inline
+napi_status Wrap(napi_env env,
+                 napi_value js_object,
+                 void* native_object,
+                 napi_finalize finalize_cb,
+                 void* finalize_hint,
+                 napi_ref* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, js_object);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(js_object);
+  RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
+  v8::Local<v8::Object> obj = value.As<v8::Object>();
+
+  if (wrap_type == retrievable) {
+    // If we've already wrapped this object, we error out.
+    RETURN_STATUS_IF_FALSE(env,
+        !obj->HasPrivate(context, NAPI_PRIVATE_KEY(context, wrapper))
+            .FromJust(),
+        napi_invalid_arg);
+  } else if (wrap_type == anonymous) {
+    // If no finalize callback is provided, we error out.
+    CHECK_ARG(env, finalize_cb);
+  }
+
+  v8impl::Reference* reference = nullptr;
+  if (result != nullptr) {
+    // The returned reference should be deleted via napi_delete_reference()
+    // ONLY in response to the finalize callback invocation. (If it is deleted
+    // before then, then the finalize callback will never be invoked.)
+    // Therefore a finalize callback is required when returning a reference.
+    CHECK_ARG(env, finalize_cb);
+    reference = v8impl::Reference::New(
+        env, obj, 0, false, finalize_cb, native_object, finalize_hint);
+    *result = reinterpret_cast<napi_ref>(reference);
+  } else {
+    // Create a self-deleting reference.
+    reference = v8impl::Reference::New(env, obj, 0, true, finalize_cb,
+        native_object, finalize_cb == nullptr ? nullptr : finalize_hint);
+  }
+
+  if (wrap_type == retrievable) {
+    CHECK(obj->SetPrivate(context, NAPI_PRIVATE_KEY(context, wrapper),
+          v8::External::New(isolate, reference)).FromJust());
+  }
+
+  return GET_RETURN_STATUS(env);
+}
+
 }  // end of namespace v8impl
 
 // Intercepts the Node-V8 module registration callback. Converts parameters
@@ -847,7 +1237,9 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Context> context,
                                     napi_addon_register_func init) {
   if (init == nullptr) {
-    node::Environment::GetCurrent(context)->ThrowError(
+    node::Environment* node_env = node::Environment::GetCurrent(context);
+    CHECK_NOT_NULL(node_env);
+    node_env->ThrowError(
         "Module has no declared entry point.");
     return;
   }
@@ -926,7 +1318,8 @@ const char* error_messages[] = {nullptr,
                                 "Invalid handle scope usage",
                                 "Invalid callback scope usage",
                                 "Thread-safe function queue is full",
-                                "Thread-safe function handle is closing"
+                                "Thread-safe function handle is closing",
+                                "A bigint was expected",
 };
 
 static inline napi_status napi_clear_last_error(napi_env env) {
@@ -958,7 +1351,7 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      node::arraysize(error_messages) == napi_closing + 1,
+      node::arraysize(error_messages) == napi_bigint_expected + 1,
       "Count of error messages must match count of error values");
   CHECK_LE(env->last_error.error_code, napi_callback_scope_mismatch);
 
@@ -1025,11 +1418,11 @@ napi_status napi_create_function(napi_env env,
 
   RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
 
-  v8::Local<v8::FunctionTemplate> tpl = v8::FunctionTemplate::New(
-      isolate, v8impl::FunctionCallbackWrapper::Invoke, cbdata);
-
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::MaybeLocal<v8::Function> maybe_function = tpl->GetFunction(context);
+  v8::MaybeLocal<v8::Function> maybe_function =
+      v8::Function::New(context,
+                        v8impl::FunctionCallbackWrapper::Invoke,
+                        cbdata);
   CHECK_MAYBE_EMPTY(env, maybe_function, napi_generic_failure);
 
   return_value = scope.Escape(maybe_function.ToLocalChecked());
@@ -1125,7 +1518,9 @@ napi_status napi_define_class(napi_env env,
     }
   }
 
-  *result = v8impl::JsValueFromV8LocalValue(scope.Escape(tpl->GetFunction()));
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  *result = v8impl::JsValueFromV8LocalValue(
+      scope.Escape(tpl->GetFunction(context).ToLocalChecked()));
 
   if (static_property_count > 0) {
     std::vector<napi_property_descriptor> static_descriptors;
@@ -1491,13 +1886,17 @@ napi_status napi_define_properties(napi_env env,
       v8::Local<v8::Value> cbdata =
           v8impl::CreateFunctionCallbackData(env, p->method, p->data);
 
-      RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
+      CHECK_MAYBE_EMPTY(env, cbdata, napi_generic_failure);
 
-      v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(
-          isolate, v8impl::FunctionCallbackWrapper::Invoke, cbdata);
+      v8::MaybeLocal<v8::Function> maybe_fn =
+          v8::Function::New(context,
+                            v8impl::FunctionCallbackWrapper::Invoke,
+                            cbdata);
+
+      CHECK_MAYBE_EMPTY(env, maybe_fn, napi_generic_failure);
 
       auto define_maybe = obj->DefineOwnProperty(
-        context, property_name, t->GetFunction(), attributes);
+        context, property_name, maybe_fn.ToLocalChecked(), attributes);
 
       if (!define_maybe.FromMaybe(false)) {
         return napi_set_last_error(env, napi_generic_failure);
@@ -1709,6 +2108,58 @@ napi_status napi_create_int64(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_create_bigint_int64(napi_env env,
+                                     int64_t value,
+                                     napi_value* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+
+  *result = v8impl::JsValueFromV8LocalValue(
+      v8::BigInt::New(env->isolate, value));
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_create_bigint_uint64(napi_env env,
+                                      uint64_t value,
+                                      napi_value* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+
+  *result = v8impl::JsValueFromV8LocalValue(
+      v8::BigInt::NewFromUnsigned(env->isolate, value));
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_create_bigint_words(napi_env env,
+                                     int sign_bit,
+                                     size_t word_count,
+                                     const uint64_t* words,
+                                     napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, words);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+
+  if (word_count > INT_MAX) {
+    napi_throw_range_error(env, nullptr, "Maximum BigInt size exceeded");
+    return napi_set_last_error(env, napi_pending_exception);
+  }
+
+  v8::MaybeLocal<v8::BigInt> b = v8::BigInt::NewFromWords(
+      context, sign_bit, word_count, words);
+
+  if (try_catch.HasCaught()) {
+    return napi_set_last_error(env, napi_pending_exception);
+  } else {
+    CHECK_MAYBE_EMPTY(env, b, napi_generic_failure);
+    *result = v8impl::JsValueFromV8LocalValue(b.ToLocalChecked());
+    return napi_clear_last_error(env);
+  }
+}
+
 napi_status napi_get_boolean(napi_env env, bool value, napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
@@ -1781,14 +2232,16 @@ static napi_status set_error_code(napi_env env,
     if (!maybe_name.IsEmpty()) {
       v8::Local<v8::Value> name = maybe_name.ToLocalChecked();
       if (name->IsString()) {
-        name_string = v8::String::Concat(name_string, name.As<v8::String>());
+        name_string =
+            v8::String::Concat(isolate, name_string, name.As<v8::String>());
       }
     }
-    name_string = v8::String::Concat(name_string,
-                                     FIXED_ONE_BYTE_STRING(isolate, " ["));
-    name_string = v8::String::Concat(name_string, code_value.As<v8::String>());
-    name_string = v8::String::Concat(name_string,
-                                     FIXED_ONE_BYTE_STRING(isolate, "]"));
+    name_string = v8::String::Concat(
+        isolate, name_string, node::FIXED_ONE_BYTE_STRING(isolate, " ["));
+    name_string =
+        v8::String::Concat(isolate, name_string, code_value.As<v8::String>());
+    name_string = v8::String::Concat(
+        isolate, name_string, node::FIXED_ONE_BYTE_STRING(isolate, "]"));
 
     set_maybe = err_object->Set(context, name_key, name_string);
     RETURN_STATUS_IF_FALSE(env,
@@ -1874,6 +2327,8 @@ napi_status napi_typeof(napi_env env,
 
   if (v->IsNumber()) {
     *result = napi_number;
+  } else if (v->IsBigInt()) {
+    *result = napi_bigint;
   } else if (v->IsString()) {
     *result = napi_string;
   } else if (v->IsFunction()) {
@@ -2197,6 +2652,72 @@ napi_status napi_get_value_int64(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_get_value_bigint_int64(napi_env env,
+                                        napi_value value,
+                                        int64_t* result,
+                                        bool* lossless) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, result);
+  CHECK_ARG(env, lossless);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  RETURN_STATUS_IF_FALSE(env, val->IsBigInt(), napi_bigint_expected);
+
+  *result = val.As<v8::BigInt>()->Int64Value(lossless);
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_get_value_bigint_uint64(napi_env env,
+                                         napi_value value,
+                                         uint64_t* result,
+                                         bool* lossless) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, result);
+  CHECK_ARG(env, lossless);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  RETURN_STATUS_IF_FALSE(env, val->IsBigInt(), napi_bigint_expected);
+
+  *result = val.As<v8::BigInt>()->Uint64Value(lossless);
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_get_value_bigint_words(napi_env env,
+                                        napi_value value,
+                                        int* sign_bit,
+                                        size_t* word_count,
+                                        uint64_t* words) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, word_count);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  RETURN_STATUS_IF_FALSE(env, val->IsBigInt(), napi_bigint_expected);
+
+  v8::Local<v8::BigInt> big = val.As<v8::BigInt>();
+
+  int word_count_int = *word_count;
+
+  if (sign_bit == nullptr && words == nullptr) {
+    word_count_int = big->WordCount();
+  } else {
+    CHECK_ARG(env, sign_bit);
+    CHECK_ARG(env, words);
+    big->ToWordsArray(sign_bit, &word_count_int, words);
+  }
+
+  *word_count = word_count_int;
+
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_get_value_bool(napi_env env, napi_value value, bool* result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
@@ -2235,9 +2756,12 @@ napi_status napi_get_value_string_latin1(napi_env env,
     CHECK_ARG(env, result);
     *result = val.As<v8::String>()->Length();
   } else {
-    int copied = val.As<v8::String>()->WriteOneByte(
-      reinterpret_cast<uint8_t*>(buf), 0, bufsize - 1,
-      v8::String::NO_NULL_TERMINATION);
+    int copied =
+        val.As<v8::String>()->WriteOneByte(env->isolate,
+                                           reinterpret_cast<uint8_t*>(buf),
+                                           0,
+                                           bufsize - 1,
+                                           v8::String::NO_NULL_TERMINATION);
 
     buf[copied] = '\0';
     if (result != nullptr) {
@@ -2269,11 +2793,14 @@ napi_status napi_get_value_string_utf8(napi_env env,
 
   if (!buf) {
     CHECK_ARG(env, result);
-    *result = val.As<v8::String>()->Utf8Length();
+    *result = val.As<v8::String>()->Utf8Length(env->isolate);
   } else {
     int copied = val.As<v8::String>()->WriteUtf8(
-      buf, bufsize - 1, nullptr, v8::String::REPLACE_INVALID_UTF8 |
-      v8::String::NO_NULL_TERMINATION);
+        env->isolate,
+        buf,
+        bufsize - 1,
+        nullptr,
+        v8::String::REPLACE_INVALID_UTF8 | v8::String::NO_NULL_TERMINATION);
 
     buf[copied] = '\0';
     if (result != nullptr) {
@@ -2308,9 +2835,11 @@ napi_status napi_get_value_string_utf16(napi_env env,
     // V8 assumes UTF-16 length is the same as the number of characters.
     *result = val.As<v8::String>()->Length();
   } else {
-    int copied = val.As<v8::String>()->Write(
-      reinterpret_cast<uint16_t*>(buf), 0, bufsize - 1,
-      v8::String::NO_NULL_TERMINATION);
+    int copied = val.As<v8::String>()->Write(env->isolate,
+                                             reinterpret_cast<uint16_t*>(buf),
+                                             0,
+                                             bufsize - 1,
+                                             v8::String::NO_NULL_TERMINATION);
 
     buf[copied] = '\0';
     if (result != nullptr) {
@@ -2394,41 +2923,12 @@ napi_status napi_wrap(napi_env env,
                       napi_finalize finalize_cb,
                       void* finalize_hint,
                       napi_ref* result) {
-  NAPI_PREAMBLE(env);
-  CHECK_ARG(env, js_object);
-
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-
-  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(js_object);
-  RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
-  v8::Local<v8::Object> obj = value.As<v8::Object>();
-
-  // If we've already wrapped this object, we error out.
-  RETURN_STATUS_IF_FALSE(env,
-      !obj->HasPrivate(context, NAPI_PRIVATE_KEY(context, wrapper)).FromJust(),
-      napi_invalid_arg);
-
-  v8impl::Reference* reference = nullptr;
-  if (result != nullptr) {
-    // The returned reference should be deleted via napi_delete_reference()
-    // ONLY in response to the finalize callback invocation. (If it is deleted
-    // before then, then the finalize callback will never be invoked.)
-    // Therefore a finalize callback is required when returning a reference.
-    CHECK_ARG(env, finalize_cb);
-    reference = v8impl::Reference::New(
-        env, obj, 0, false, finalize_cb, native_object, finalize_hint);
-    *result = reinterpret_cast<napi_ref>(reference);
-  } else {
-    // Create a self-deleting reference.
-    reference = v8impl::Reference::New(env, obj, 0, true, finalize_cb,
-        native_object, finalize_cb == nullptr ? nullptr : finalize_hint);
-  }
-
-  CHECK(obj->SetPrivate(context, NAPI_PRIVATE_KEY(context, wrapper),
-        v8::External::New(isolate, reference)).FromJust());
-
-  return GET_RETURN_STATUS(env);
+  return v8impl::Wrap<v8impl::retrievable>(env,
+                                           js_object,
+                                           native_object,
+                                           finalize_cb,
+                                           finalize_hint,
+                                           result);
 }
 
 napi_status napi_unwrap(napi_env env, napi_value obj, void** result) {
@@ -3135,6 +3635,14 @@ napi_status napi_create_typedarray(napi_env env,
       CREATE_TYPED_ARRAY(
           env, Float64Array, 8, buffer, byte_offset, length, typedArray);
       break;
+    case napi_bigint64_array:
+      CREATE_TYPED_ARRAY(
+          env, BigInt64Array, 8, buffer, byte_offset, length, typedArray);
+      break;
+    case napi_biguint64_array:
+      CREATE_TYPED_ARRAY(
+          env, BigUint64Array, 8, buffer, byte_offset, length, typedArray);
+      break;
     default:
       return napi_set_last_error(env, napi_invalid_arg);
   }
@@ -3177,6 +3685,10 @@ napi_status napi_get_typedarray_info(napi_env env,
       *type = napi_float32_array;
     } else if (value->IsFloat64Array()) {
       *type = napi_float64_array;
+    } else if (value->IsBigInt64Array()) {
+      *type = napi_bigint64_array;
+    } else if (value->IsBigUint64Array()) {
+      *type = napi_biguint64_array;
     }
   }
 
@@ -3558,336 +4070,7 @@ napi_status napi_run_script(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
-class TsFn: public node::AsyncResource {
- public:
-  TsFn(v8::Local<v8::Function> func,
-       v8::Local<v8::Object> resource,
-       v8::Local<v8::String> name,
-       size_t thread_count_,
-       void* context_,
-       size_t max_queue_size_,
-       napi_env env_,
-       void* finalize_data_,
-       napi_finalize finalize_cb_,
-       napi_threadsafe_function_call_js call_js_cb_):
-      AsyncResource(env_->isolate,
-                    resource,
-                    *v8::String::Utf8Value(env_->isolate, name)),
-      thread_count(thread_count_),
-      is_closing(false),
-      context(context_),
-      max_queue_size(max_queue_size_),
-      env(env_),
-      finalize_data(finalize_data_),
-      finalize_cb(finalize_cb_),
-      idle_running(false),
-      call_js_cb(call_js_cb_ == nullptr ? CallJs : call_js_cb_),
-      handles_closing(false) {
-    ref.Reset(env->isolate, func);
-    node::AddEnvironmentCleanupHook(env->isolate, Cleanup, this);
-  }
-
-  ~TsFn() {
-    node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
-  }
-
-  // These methods can be called from any thread.
-
-  napi_status Push(void* data, napi_threadsafe_function_call_mode mode) {
-    node::Mutex::ScopedLock lock(this->mutex);
-
-    while (queue.size() >= max_queue_size &&
-        max_queue_size > 0 &&
-        !is_closing) {
-      if (mode == napi_tsfn_nonblocking) {
-        return napi_queue_full;
-      }
-      cond->Wait(lock);
-    }
-
-    if (is_closing) {
-      if (thread_count == 0) {
-        return napi_invalid_arg;
-      } else {
-        thread_count--;
-        return napi_closing;
-      }
-    } else {
-      if (uv_async_send(&async) != 0) {
-        return napi_generic_failure;
-      }
-      queue.push(data);
-      return napi_ok;
-    }
-  }
-
-  napi_status Acquire() {
-    node::Mutex::ScopedLock lock(this->mutex);
-
-    if (is_closing) {
-      return napi_closing;
-    }
-
-    thread_count++;
-
-    return napi_ok;
-  }
-
-  napi_status Release(napi_threadsafe_function_release_mode mode) {
-    node::Mutex::ScopedLock lock(this->mutex);
-
-    if (thread_count == 0) {
-      return napi_invalid_arg;
-    }
-
-    thread_count--;
-
-    if (thread_count == 0 || mode == napi_tsfn_abort) {
-      if (!is_closing) {
-        is_closing = (mode == napi_tsfn_abort);
-        if (is_closing) {
-          cond->Signal(lock);
-        }
-        if (uv_async_send(&async) != 0) {
-          return napi_generic_failure;
-        }
-      }
-    }
-
-    return napi_ok;
-  }
-
-  void EmptyQueueAndDelete() {
-    for (; !queue.empty() ; queue.pop()) {
-      call_js_cb(nullptr, nullptr, context, queue.front());
-    }
-    delete this;
-  }
-
-  // These methods must only be called from the loop thread.
-
-  napi_status Init() {
-    TsFn* ts_fn = this;
-
-    if (uv_async_init(env->loop, &async, AsyncCb) == 0) {
-      if (max_queue_size > 0) {
-        cond.reset(new node::ConditionVariable);
-      }
-      if ((max_queue_size == 0 || cond.get() != nullptr) &&
-          uv_idle_init(env->loop, &idle) == 0) {
-        return napi_ok;
-      }
-
-      node::Environment::GetCurrent(env->isolate)->CloseHandle(
-          reinterpret_cast<uv_handle_t*>(&async),
-          [] (uv_handle_t* handle) -> void {
-            TsFn* ts_fn =
-                node::ContainerOf(&TsFn::async,
-                                  reinterpret_cast<uv_async_t*>(handle));
-            delete ts_fn;
-          });
-
-      // Prevent the thread-safe function from being deleted here, because
-      // the callback above will delete it.
-      ts_fn = nullptr;
-    }
-
-    delete ts_fn;
-
-    return napi_generic_failure;
-  }
-
-  napi_status Unref() {
-    uv_unref(reinterpret_cast<uv_handle_t*>(&async));
-    uv_unref(reinterpret_cast<uv_handle_t*>(&idle));
-
-    return napi_ok;
-  }
-
-  napi_status Ref() {
-    uv_ref(reinterpret_cast<uv_handle_t*>(&async));
-    uv_ref(reinterpret_cast<uv_handle_t*>(&idle));
-
-    return napi_ok;
-  }
-
-  void DispatchOne() {
-    void* data;
-    bool popped_value = false;
-    bool idle_stop_failed = false;
-
-    {
-      node::Mutex::ScopedLock lock(this->mutex);
-      if (is_closing) {
-        CloseHandlesAndMaybeDelete();
-      } else {
-        size_t size = queue.size();
-        if (size > 0) {
-          data = queue.front();
-          queue.pop();
-          popped_value = true;
-          if (size == max_queue_size && max_queue_size > 0) {
-            cond->Signal(lock);
-          }
-          size--;
-        }
-
-        if (size == 0) {
-          if (thread_count == 0) {
-            is_closing = true;
-            cond->Signal(lock);
-            CloseHandlesAndMaybeDelete();
-          } else {
-            if (uv_idle_stop(&idle) != 0) {
-              idle_stop_failed = true;
-            } else {
-              idle_running = false;
-            }
-          }
-        }
-      }
-    }
-
-    if (popped_value || idle_stop_failed) {
-      v8::HandleScope scope(env->isolate);
-      CallbackScope cb_scope(this);
-
-      if (idle_stop_failed) {
-        CHECK(napi_throw_error(env,
-                               "ERR_NAPI_TSFN_STOP_IDLE_LOOP",
-                               "Failed to stop the idle loop") == napi_ok);
-      } else {
-        v8::Local<v8::Function> js_cb =
-            v8::Local<v8::Function>::New(env->isolate, ref);
-        call_js_cb(env,
-                   v8impl::JsValueFromV8LocalValue(js_cb),
-                   context,
-                   data);
-      }
-    }
-  }
-
-  node::Environment* NodeEnv() {
-    // For some reason grabbing the Node.js environment requires a handle scope.
-    v8::HandleScope scope(env->isolate);
-    return node::Environment::GetCurrent(env->isolate);
-  }
-
-  void MaybeStartIdle() {
-    if (!idle_running) {
-      if (uv_idle_start(&idle, IdleCb) != 0) {
-        v8::HandleScope scope(env->isolate);
-        CallbackScope cb_scope(this);
-        CHECK(napi_throw_error(env,
-                               "ERR_NAPI_TSFN_START_IDLE_LOOP",
-                               "Failed to start the idle loop") == napi_ok);
-      }
-    }
-  }
-
-  void Finalize() {
-    v8::HandleScope scope(env->isolate);
-    if (finalize_cb) {
-      CallbackScope cb_scope(this);
-      finalize_cb(env, finalize_data, context);
-    }
-    EmptyQueueAndDelete();
-  }
-
-  inline void* Context() {
-    return context;
-  }
-
-  void CloseHandlesAndMaybeDelete(bool set_closing = false) {
-    if (set_closing) {
-      node::Mutex::ScopedLock lock(this->mutex);
-      is_closing = true;
-      cond->Signal(lock);
-    }
-    if (handles_closing) {
-      return;
-    }
-    handles_closing = true;
-    NodeEnv()->CloseHandle(
-        reinterpret_cast<uv_handle_t*>(&async),
-        [] (uv_handle_t* handle) -> void {
-          TsFn* ts_fn = node::ContainerOf(&TsFn::async,
-              reinterpret_cast<uv_async_t*>(handle));
-          ts_fn->NodeEnv()->CloseHandle(
-              reinterpret_cast<uv_handle_t*>(&ts_fn->idle),
-              [] (uv_handle_t* handle) -> void {
-                TsFn* ts_fn = node::ContainerOf(&TsFn::idle,
-                    reinterpret_cast<uv_idle_t*>(handle));
-                ts_fn->Finalize();
-              });
-        });
-  }
-
-  // Default way of calling into JavaScript. Used when TsFn is constructed
-  // without a call_js_cb_.
-  static void CallJs(napi_env env, napi_value cb, void* context, void* data) {
-    if (!(env == nullptr || cb == nullptr)) {
-      napi_value recv;
-      napi_status status;
-
-      status = napi_get_undefined(env, &recv);
-      if (status != napi_ok) {
-        napi_throw_error(env, "ERR_NAPI_TSFN_GET_UNDEFINED",
-            "Failed to retrieve undefined value");
-        return;
-      }
-
-      status = napi_call_function(env, recv, cb, 0, nullptr, nullptr);
-      if (status != napi_ok && status != napi_pending_exception) {
-        napi_throw_error(env, "ERR_NAPI_TSFN_CALL_JS",
-            "Failed to call JS callback");
-        return;
-      }
-    }
-  }
-
-  static void IdleCb(uv_idle_t* idle) {
-    TsFn* ts_fn =
-        node::ContainerOf(&TsFn::idle, idle);
-    ts_fn->DispatchOne();
-  }
-
-  static void AsyncCb(uv_async_t* async) {
-    TsFn* ts_fn =
-        node::ContainerOf(&TsFn::async, async);
-    ts_fn->MaybeStartIdle();
-  }
-
-  static void Cleanup(void* data) {
-    reinterpret_cast<TsFn*>(data)->CloseHandlesAndMaybeDelete(true);
-  }
-
- private:
-  // These are variables protected by the mutex.
-  node::Mutex mutex;
-  std::unique_ptr<node::ConditionVariable> cond;
-  std::queue<void*> queue;
-  uv_async_t async;
-  uv_idle_t idle;
-  size_t thread_count;
-  bool is_closing;
-
-  // These are variables set once, upon creation, and then never again, which
-  // means we don't need the mutex to read them.
-  void* context;
-  size_t max_queue_size;
-
-  // These are variables accessed only from the loop thread.
-  node::Persistent<v8::Function> ref;
-  napi_env env;
-  void* finalize_data;
-  napi_finalize finalize_cb;
-  bool idle_running;
-  napi_threadsafe_function_call_js call_js_cb;
-  bool handles_closing;
-};
-
-NAPI_EXTERN napi_status
+napi_status
 napi_create_threadsafe_function(napi_env env,
                                 napi_value func,
                                 napi_value async_resource,
@@ -3922,16 +4105,17 @@ napi_create_threadsafe_function(napi_env env,
   v8::Local<v8::String> v8_name;
   CHECK_TO_STRING(env, v8_context, v8_name, async_resource_name);
 
-  TsFn* ts_fn = new TsFn(v8_func,
-                         v8_resource,
-                         v8_name,
-                         initial_thread_count,
-                         context,
-                         max_queue_size,
-                         env,
-                         thread_finalize_data,
-                         thread_finalize_cb,
-                         call_js_cb);
+  v8impl::ThreadSafeFunction* ts_fn =
+      new v8impl::ThreadSafeFunction(v8_func,
+                                     v8_resource,
+                                     v8_name,
+                                     initial_thread_count,
+                                     context,
+                                     max_queue_size,
+                                     env,
+                                     thread_finalize_data,
+                                     thread_finalize_cb,
+                                     call_js_cb);
 
   if (ts_fn == nullptr) {
     status = napi_generic_failure;
@@ -3946,45 +4130,60 @@ napi_create_threadsafe_function(napi_env env,
   return napi_set_last_error(env, status);
 }
 
-NAPI_EXTERN napi_status
+napi_status
 napi_get_threadsafe_function_context(napi_threadsafe_function func,
                                      void** result) {
   CHECK(func != nullptr);
   CHECK(result != nullptr);
 
-  *result = reinterpret_cast<TsFn*>(func)->Context();
+  *result = reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Context();
   return napi_ok;
 }
 
-NAPI_EXTERN napi_status
+napi_status
 napi_call_threadsafe_function(napi_threadsafe_function func,
                               void* data,
                               napi_threadsafe_function_call_mode is_blocking) {
   CHECK(func != nullptr);
-  return reinterpret_cast<TsFn*>(func)->Push(data, is_blocking);
+  return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Push(data,
+                                                                   is_blocking);
 }
 
-NAPI_EXTERN napi_status
+napi_status
 napi_acquire_threadsafe_function(napi_threadsafe_function func) {
   CHECK(func != nullptr);
-  return reinterpret_cast<TsFn*>(func)->Acquire();
+  return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Acquire();
 }
 
-NAPI_EXTERN napi_status
+napi_status
 napi_release_threadsafe_function(napi_threadsafe_function func,
                                  napi_threadsafe_function_release_mode mode) {
   CHECK(func != nullptr);
-  return reinterpret_cast<TsFn*>(func)->Release(mode);
+  return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Release(mode);
 }
 
-NAPI_EXTERN napi_status
+napi_status
 napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func) {
   CHECK(func != nullptr);
-  return reinterpret_cast<TsFn*>(func)->Unref();
+  return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Unref();
 }
 
-NAPI_EXTERN napi_status
+napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func) {
   CHECK(func != nullptr);
-  return reinterpret_cast<TsFn*>(func)->Ref();
+  return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Ref();
+}
+
+napi_status napi_add_finalizer(napi_env env,
+                               napi_value js_object,
+                               void* native_object,
+                               napi_finalize finalize_cb,
+                               void* finalize_hint,
+                               napi_ref* result) {
+  return v8impl::Wrap<v8impl::anonymous>(env,
+                                         js_object,
+                                         native_object,
+                                         finalize_cb,
+                                         finalize_hint,
+                                         result);
 }

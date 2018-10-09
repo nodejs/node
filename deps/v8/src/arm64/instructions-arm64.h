@@ -104,11 +104,11 @@ class Instruction {
   }
 
   V8_INLINE const Instruction* following(int count = 1) const {
-    return InstructionAtOffset(count * static_cast<int>(kInstructionSize));
+    return InstructionAtOffset(count * static_cast<int>(kInstrSize));
   }
 
   V8_INLINE Instruction* following(int count = 1) {
-    return InstructionAtOffset(count * static_cast<int>(kInstructionSize));
+    return InstructionAtOffset(count * static_cast<int>(kInstrSize));
   }
 
   V8_INLINE const Instruction* preceding(int count = 1) const {
@@ -329,9 +329,8 @@ class Instruction {
 
   // The range of the branch instruction, expressed as 'instr +- range'.
   static int32_t ImmBranchRange(ImmBranchType branch_type) {
-    return
-      (1 << (ImmBranchRangeBitwidth(branch_type) + kInstructionSizeLog2)) / 2 -
-      kInstructionSize;
+    return (1 << (ImmBranchRangeBitwidth(branch_type) + kInstrSizeLog2)) / 2 -
+           kInstrSize;
   }
 
   int ImmBranch() const {
@@ -353,6 +352,12 @@ class Instruction {
     int32_t low16 = following()->ImmException();
     return (high16 << 16) | low16;
   }
+
+  bool IsUnconditionalBranch() const {
+    return Mask(UnconditionalBranchMask) == B;
+  }
+
+  bool IsBranchAndLink() const { return Mask(UnconditionalBranchMask) == BL; }
 
   bool IsBranchAndLinkToRegister() const {
     return Mask(UnconditionalBranchToRegisterMask) == BLR;
@@ -396,9 +401,9 @@ class Instruction {
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
-  void SetImmPCOffsetTarget(AssemblerBase::IsolateData isolate_data,
+  void SetImmPCOffsetTarget(const AssemblerOptions& options,
                             Instruction* target);
-  void SetUnresolvedInternalReferenceImmTarget(AssemblerBase::IsolateData,
+  void SetUnresolvedInternalReferenceImmTarget(const AssemblerOptions& options,
                                                Instruction* target);
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
@@ -413,14 +418,14 @@ class Instruction {
   V8_INLINE const Instruction* InstructionAtOffset(
       int64_t offset, CheckAlignment check = CHECK_ALIGNMENT) const {
     // The FUZZ_disasm test relies on no check being done.
-    DCHECK(check == NO_CHECK || IsAligned(offset, kInstructionSize));
+    DCHECK(check == NO_CHECK || IsAligned(offset, kInstrSize));
     return this + offset;
   }
 
   V8_INLINE Instruction* InstructionAtOffset(
       int64_t offset, CheckAlignment check = CHECK_ALIGNMENT) {
     // The FUZZ_disasm test relies on no check being done.
-    DCHECK(check == NO_CHECK || IsAligned(offset, kInstructionSize));
+    DCHECK(check == NO_CHECK || IsAligned(offset, kInstrSize));
     return this + offset;
   }
 
@@ -435,8 +440,7 @@ class Instruction {
 
   static const int ImmPCRelRangeBitwidth = 21;
   static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
-  void SetPCRelImmTarget(AssemblerBase::IsolateData isolate_data,
-                         Instruction* target);
+  void SetPCRelImmTarget(const AssemblerOptions& options, Instruction* target);
   void SetBranchImmTarget(Instruction* target);
 };
 
@@ -529,9 +533,9 @@ const Instr kImmExceptionIsPrintf = 0xdeb1;
 // passed in. This information could be retrieved from the printf format string,
 // but the format string is not trivial to parse so we encode the relevant
 // information with the HLT instruction.
-const unsigned kPrintfArgCountOffset = 1 * kInstructionSize;
-const unsigned kPrintfArgPatternListOffset = 2 * kInstructionSize;
-const unsigned kPrintfLength = 3 * kInstructionSize;
+const unsigned kPrintfArgCountOffset = 1 * kInstrSize;
+const unsigned kPrintfArgPatternListOffset = 2 * kInstrSize;
+const unsigned kPrintfLength = 3 * kInstrSize;
 
 const unsigned kPrintfMaxArgCount = 4;
 
@@ -552,12 +556,12 @@ const Instr kImmExceptionIsDebug = 0xdeb0;
 // - Debug code.
 // - Debug parameters.
 // - Debug message string. This is a nullptr-terminated ASCII string, padded to
-//   kInstructionSize so that subsequent instructions are correctly aligned.
+//   kInstrSize so that subsequent instructions are correctly aligned.
 // - A kImmExceptionIsUnreachable marker, to catch accidental execution of the
 //   string data.
-const unsigned kDebugCodeOffset = 1 * kInstructionSize;
-const unsigned kDebugParamsOffset = 2 * kInstructionSize;
-const unsigned kDebugMessageOffset = 3 * kInstructionSize;
+const unsigned kDebugCodeOffset = 1 * kInstrSize;
+const unsigned kDebugParamsOffset = 2 * kInstrSize;
+const unsigned kDebugMessageOffset = 3 * kInstrSize;
 
 // Debug parameters.
 // Used without a TRACE_ option, the Debugger will print the arguments only

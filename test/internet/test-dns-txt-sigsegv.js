@@ -1,10 +1,8 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const dns = require('dns');
 const dnsPromises = dns.promises;
-
-common.crashOnUnhandledRejection();
 
 (async function() {
   const result = await dnsPromises.resolveTxt('www.microsoft.com');

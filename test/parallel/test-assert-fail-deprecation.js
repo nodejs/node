@@ -19,7 +19,8 @@ assert.throws(() => {
   message: '\'first\' != \'second\'',
   operator: '!=',
   actual: 'first',
-  expected: 'second'
+  expected: 'second',
+  generatedMessage: true
 });
 
 // Three args
@@ -29,9 +30,10 @@ assert.throws(() => {
   code: 'ERR_ASSERTION',
   name: 'AssertionError [ERR_ASSERTION]',
   message: 'another custom message',
-  operator: undefined,
+  operator: 'fail',
   actual: 'ignored',
-  expected: 'ignored'
+  expected: 'ignored',
+  generatedMessage: false
 });
 
 // Three args with custom Error

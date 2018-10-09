@@ -274,7 +274,7 @@ class RepresentationChanger final {
   // out signedness for the word32->float64 conversion, then we check that the
   // uses truncate to word32 (so they do not care about signedness).
   Node* GetRepresentationFor(Node* node, MachineRepresentation output_rep,
-                             Type* output_type, Node* use_node,
+                             Type output_type, Node* use_node,
                              UseInfo use_info);
   const Operator* Int32OperatorFor(IrOpcode::Value opcode);
   const Operator* Int32OverflowOperatorFor(IrOpcode::Value opcode);
@@ -304,30 +304,30 @@ class RepresentationChanger final {
 
   Node* GetTaggedSignedRepresentationFor(Node* node,
                                          MachineRepresentation output_rep,
-                                         Type* output_type, Node* use_node,
+                                         Type output_type, Node* use_node,
                                          UseInfo use_info);
   Node* GetTaggedPointerRepresentationFor(Node* node,
                                           MachineRepresentation output_rep,
-                                          Type* output_type, Node* use_node,
+                                          Type output_type, Node* use_node,
                                           UseInfo use_info);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type* output_type, Truncation truncation);
+                                   Type output_type, Truncation truncation);
   Node* GetFloat32RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
-                                    Type* output_type, Truncation truncation);
+                                    Type output_type, Truncation truncation);
   Node* GetFloat64RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
-                                    Type* output_type, Node* use_node,
+                                    Type output_type, Node* use_node,
                                     UseInfo use_info);
   Node* GetWord32RepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type* output_type, Node* use_node,
+                                   Type output_type, Node* use_node,
                                    UseInfo use_info);
   Node* GetBitRepresentationFor(Node* node, MachineRepresentation output_rep,
-                                Type* output_type);
+                                Type output_type);
   Node* GetWord64RepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type* output_type);
+                                   Type output_type);
   Node* TypeError(Node* node, MachineRepresentation output_rep,
-                  Type* output_type, MachineRepresentation use);
+                  Type output_type, MachineRepresentation use);
   Node* MakeTruncatedInt32Constant(double value);
   Node* InsertChangeBitToTagged(Node* node);
   Node* InsertChangeFloat32ToFloat64(Node* node);

@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include <memory>
 
 #include "src/api.h"
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
@@ -16,8 +14,10 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/js-array-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -27,13 +27,7 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   CHECK(isolate->bootstrapper()->IsActive());
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_IsScriptWrapper) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(args[0]->IsScriptWrapper());
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
@@ -55,13 +49,13 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
   CHECK(array->HasFastElements());
   CHECK(isolate->bootstrapper()->IsActive());
   Handle<Context> native_context = isolate->native_context();
-  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
+  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()), isolate);
   int length = Smi::ToInt(array->length());
   for (int i = 0; i < length; i += 2) {
     CHECK(fixed_array->get(i)->IsString());
-    Handle<String> name(String::cast(fixed_array->get(i)));
+    Handle<String> name(String::cast(fixed_array->get(i)), isolate);
     CHECK(fixed_array->get(i + 1)->IsJSObject());
-    Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)));
+    Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)), isolate);
     int index = Context::ImportedFieldIndexForName(name);
     if (index == Context::kNotFound) {
       index = Context::IntrinsicIndexForName(name);
@@ -69,7 +63,7 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
     CHECK_NE(index, Context::kNotFound);
     native_context->set(index, *object);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_Throw) {
@@ -126,8 +120,8 @@ namespace {
 
 const char* ElementsKindToType(ElementsKind fixed_elements_kind) {
   switch (fixed_elements_kind) {
-#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                   \
+#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                             \
     return #Type "Array";
 
     TYPED_ARRAYS(ELEMENTS_KIND_CASE)
@@ -303,7 +297,7 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(length, 0);
-  if (length == 0) return isolate->heap()->empty_string();
+  if (length == 0) return ReadOnlyRoots(isolate).empty_string();
   Handle<SeqOneByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawOneByteString(length));
@@ -314,7 +308,7 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(length, 0);
-  if (length == 0) return isolate->heap()->empty_string();
+  if (length == 0) return ReadOnlyRoots(isolate).empty_string();
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawTwoByteString(length));
@@ -336,7 +330,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     std::vector<FrameSummary> frames;
     it.frame()->Summarize(&frames);
     auto& summary = frames.back().AsJavaScript();
-    Handle<SharedFunctionInfo> shared(summary.function()->shared());
+    Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
     Handle<Object> script(shared->script(), isolate);
     int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&
@@ -353,7 +347,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
                               CallPrinter::ErrorHint* hint) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
-    ParseInfo info(location.shared());
+    ParseInfo info(isolate, location.shared());
     if (parsing::ParseAny(&info, location.shared(), isolate)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
@@ -430,11 +424,6 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
 RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  if (FLAG_harmony_restrict_constructor_return) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kClassConstructorReturnedNonObject));
-  }
 
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
@@ -482,16 +471,7 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(counter, 0);
   isolate->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(counter));
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(
-    Runtime_IncrementUseCounterConstructorReturnNonUndefinedPrimitive) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kConstructorNonUndefinedPrimitiveReturn);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
@@ -536,7 +516,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
       std::fclose(f);
     else
       std::fflush(f);
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 }
 
@@ -579,7 +559,8 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
   Handle<Object> next;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, next,
-      Object::GetProperty(sync_iterator, isolate->factory()->next_string()));
+      Object::GetProperty(isolate, sync_iterator,
+                          isolate->factory()->next_string()));
 
   return *isolate->factory()->NewJSAsyncFromSyncIterator(
       Handle<JSReceiver>::cast(sync_iterator), next);
@@ -590,7 +571,7 @@ RUNTIME_FUNCTION(Runtime_CreateTemplateObject) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(TemplateObjectDescription, description, 0);
 
-  return *TemplateObjectDescription::CreateTemplateObject(description);
+  return *TemplateObjectDescription::CreateTemplateObject(isolate, description);
 }
 
 RUNTIME_FUNCTION(Runtime_ReportMessage) {
@@ -607,7 +588,7 @@ RUNTIME_FUNCTION(Runtime_ReportMessage) {
   isolate->set_pending_exception(*message_obj);
   isolate->ReportPendingMessagesFromJavaScript();
   isolate->clear_pending_exception();
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

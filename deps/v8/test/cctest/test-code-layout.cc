@@ -36,9 +36,10 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
 
   CHECK(!code->has_unwinding_info());
   CHECK_EQ(code->raw_instruction_size(), buffer_size);
-  CHECK_EQ(0, memcmp(code->raw_instruction_start(), buffer, buffer_size));
-  CHECK_EQ(code->raw_instruction_end() - reinterpret_cast<byte*>(*code),
-           Code::kHeaderSize + buffer_size - kHeapObjectTag);
+  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->raw_instruction_start()),
+                     buffer, buffer_size));
+  CHECK_EQ(code->raw_instruction_end() - code->address(),
+           Code::kHeaderSize + buffer_size);
 }
 
 TEST(CodeLayoutWithUnwindingInfo) {
@@ -73,17 +74,17 @@ TEST(CodeLayoutWithUnwindingInfo) {
 
   CHECK(code->has_unwinding_info());
   CHECK_EQ(code->raw_instruction_size(), buffer_size);
-  CHECK_EQ(0, memcmp(code->raw_instruction_start(), buffer, buffer_size));
+  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->raw_instruction_start()),
+                     buffer, buffer_size));
   CHECK(IsAligned(code->GetUnwindingInfoSizeOffset(), 8));
   CHECK_EQ(code->unwinding_info_size(), unwinding_info_size);
-  CHECK(
-      IsAligned(reinterpret_cast<uintptr_t>(code->unwinding_info_start()), 8));
-  CHECK_EQ(
-      memcmp(code->unwinding_info_start(), unwinding_info, unwinding_info_size),
-      0);
-  CHECK_EQ(code->unwinding_info_end() - reinterpret_cast<byte*>(*code),
+  CHECK(IsAligned(code->unwinding_info_start(), 8));
+  CHECK_EQ(memcmp(reinterpret_cast<void*>(code->unwinding_info_start()),
+                  unwinding_info, unwinding_info_size),
+           0);
+  CHECK_EQ(code->unwinding_info_end() - code->address(),
            Code::kHeaderSize + RoundUp(buffer_size, kInt64Size) + kInt64Size +
-               unwinding_info_size - kHeapObjectTag);
+               unwinding_info_size);
 }
 
 }  // namespace internal

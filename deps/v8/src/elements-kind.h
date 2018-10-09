@@ -11,6 +11,20 @@
 namespace v8 {
 namespace internal {
 
+// V has parameters (Type, type, TYPE, C type)
+#define TYPED_ARRAYS(V)                                  \
+  V(Uint8, uint8, UINT8, uint8_t)                        \
+  V(Int8, int8, INT8, int8_t)                            \
+  V(Uint16, uint16, UINT16, uint16_t)                    \
+  V(Int16, int16, INT16, int16_t)                        \
+  V(Uint32, uint32, UINT32, uint32_t)                    \
+  V(Int32, int32, INT32, int32_t)                        \
+  V(Float32, float32, FLOAT32, float)                    \
+  V(Float64, float64, FLOAT64, double)                   \
+  V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t) \
+  V(BigUint64, biguint64, BIGUINT64, uint64_t)           \
+  V(BigInt64, bigint64, BIGINT64, int64_t)
+
 enum ElementsKind {
   // The "fast" kind for elements that only contain SMI values. Must be first
   // to make it possible to efficiently check maps for this kind.
@@ -39,18 +53,10 @@ enum ElementsKind {
   FAST_STRING_WRAPPER_ELEMENTS,
   SLOW_STRING_WRAPPER_ELEMENTS,
 
-  // Fixed typed arrays.
-  UINT8_ELEMENTS,
-  INT8_ELEMENTS,
-  UINT16_ELEMENTS,
-  INT16_ELEMENTS,
-  UINT32_ELEMENTS,
-  INT32_ELEMENTS,
-  FLOAT32_ELEMENTS,
-  FLOAT64_ELEMENTS,
-  UINT8_CLAMPED_ELEMENTS,
-  BIGUINT64_ELEMENTS,
-  BIGINT64_ELEMENTS,
+// Fixed typed arrays.
+#define TYPED_ARRAY_ELEMENTS_KIND(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
+  TYPED_ARRAYS(TYPED_ARRAY_ELEMENTS_KIND)
+#undef TYPED_ARRAY_ELEMENTS_KIND
 
   // Sentinel ElementsKind for objects with no elements.
   NO_ELEMENTS,
@@ -74,6 +80,7 @@ const int kFastElementsKindPackedToHoley =
     HOLEY_SMI_ELEMENTS - PACKED_SMI_ELEMENTS;
 
 int ElementsKindToShiftSize(ElementsKind elements_kind);
+int ElementsKindToByteSize(ElementsKind elements_kind);
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind);
 const char* ElementsKindToString(ElementsKind kind);
 
@@ -264,6 +271,7 @@ inline bool IsTransitionableFastElementsKind(ElementsKind from_kind) {
          from_kind != TERMINAL_FAST_ELEMENTS_KIND;
 }
 
+inline bool ElementsKindEqual(ElementsKind a, ElementsKind b) { return a == b; }
 
 }  // namespace internal
 }  // namespace v8

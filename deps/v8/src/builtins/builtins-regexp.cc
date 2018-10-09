@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"
-#include "src/string-builder.h"
+#include "src/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -31,7 +31,8 @@ BUILTIN(RegExpPrototypeToString) {
     Handle<Object> source;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, source,
-        JSReceiver::GetProperty(recv, isolate->factory()->source_string()));
+        JSReceiver::GetProperty(isolate, recv,
+                                isolate->factory()->source_string()));
     Handle<String> source_str;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, source_str,
                                        Object::ToString(isolate, source));
@@ -43,7 +44,8 @@ BUILTIN(RegExpPrototypeToString) {
     Handle<Object> flags;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, flags,
-        JSReceiver::GetProperty(recv, isolate->factory()->flags_string()));
+        JSReceiver::GetProperty(isolate, recv,
+                                isolate->factory()->flags_string()));
     Handle<String> flags_str;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, flags_str,
                                        Object::ToString(isolate, flags));
@@ -80,7 +82,7 @@ DEFINE_CAPTURE_GETTER(9)
 BUILTIN(RegExpInputGetter) {
   HandleScope scope(isolate);
   Handle<Object> obj(isolate->regexp_last_match_info()->LastInput(), isolate);
-  return obj->IsUndefined(isolate) ? isolate->heap()->empty_string()
+  return obj->IsUndefined(isolate) ? ReadOnlyRoots(isolate).empty_string()
                                    : String::cast(*obj);
 }
 
@@ -91,7 +93,7 @@ BUILTIN(RegExpInputSetter) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str,
                                      Object::ToString(isolate, value));
   isolate->regexp_last_match_info()->SetLastInput(*str);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // Getters for the static properties lastMatch, lastParen, leftContext, and
@@ -108,7 +110,9 @@ BUILTIN(RegExpLastParenGetter) {
   HandleScope scope(isolate);
   Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
   const int length = match_info->NumberOfCaptureRegisters();
-  if (length <= 2) return isolate->heap()->empty_string();  // No captures.
+  if (length <= 2) {
+    return ReadOnlyRoots(isolate).empty_string();  // No captures.
+  }
 
   DCHECK_EQ(0, length % 2);
   const int last_capture = (length / 2) - 1;
@@ -123,7 +127,7 @@ BUILTIN(RegExpLeftContextGetter) {
   HandleScope scope(isolate);
   Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
   const int start_index = match_info->Capture(0);
-  Handle<String> last_subject(match_info->LastSubject());
+  Handle<String> last_subject(match_info->LastSubject(), isolate);
   return *isolate->factory()->NewSubString(last_subject, 0, start_index);
 }
 
@@ -131,7 +135,7 @@ BUILTIN(RegExpRightContextGetter) {
   HandleScope scope(isolate);
   Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
   const int start_index = match_info->Capture(1);
-  Handle<String> last_subject(match_info->LastSubject());
+  Handle<String> last_subject(match_info->LastSubject(), isolate);
   const int len = last_subject->length();
   return *isolate->factory()->NewSubString(last_subject, start_index, len);
 }

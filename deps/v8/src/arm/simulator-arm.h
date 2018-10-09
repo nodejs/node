@@ -148,9 +148,7 @@ class Simulator : public SimulatorBase {
   void set_pc(int32_t value);
   int32_t get_pc() const;
 
-  Address get_sp() const {
-    return reinterpret_cast<Address>(static_cast<intptr_t>(get_register(sp)));
-  }
+  Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
   // Accessor to the internal simulator stack area.
   uintptr_t StackLimit(uintptr_t c_limit) const;
@@ -159,13 +157,13 @@ class Simulator : public SimulatorBase {
   void Execute();
 
   template <typename Return, typename... Args>
-  Return Call(byte* entry, Args... args) {
+  Return Call(Address entry, Args... args) {
     return VariadicCall<Return>(this, &Simulator::CallImpl, entry, args...);
   }
 
   // Alternative: call a 2-argument double function.
   template <typename Return>
-  Return CallFP(byte* entry, double d0, double d1) {
+  Return CallFP(Address entry, double d0, double d1) {
     return ConvertReturn<Return>(CallFPImpl(entry, d0, d1));
   }
 
@@ -212,9 +210,9 @@ class Simulator : public SimulatorBase {
     end_sim_pc = -2
   };
 
-  V8_EXPORT_PRIVATE intptr_t CallImpl(byte* entry, int argument_count,
+  V8_EXPORT_PRIVATE intptr_t CallImpl(Address entry, int argument_count,
                                       const intptr_t* arguments);
-  intptr_t CallFPImpl(byte* entry, double d0, double d1);
+  intptr_t CallFPImpl(Address entry, double d0, double d1);
 
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
@@ -278,21 +276,23 @@ class Simulator : public SimulatorBase {
   inline void WriteB(int32_t addr, int8_t value);
   int WriteExB(int32_t addr, uint8_t value);
 
-  inline uint16_t ReadHU(int32_t addr, Instruction* instr);
-  inline int16_t ReadH(int32_t addr, Instruction* instr);
-  uint16_t ReadExHU(int32_t addr, Instruction* instr);
+  inline uint16_t ReadHU(int32_t addr);
+  inline int16_t ReadH(int32_t addr);
+  uint16_t ReadExHU(int32_t addr);
   // Note: Overloaded on the sign of the value.
-  inline void WriteH(int32_t addr, uint16_t value, Instruction* instr);
-  inline void WriteH(int32_t addr, int16_t value, Instruction* instr);
-  int WriteExH(int32_t addr, uint16_t value, Instruction* instr);
+  inline void WriteH(int32_t addr, uint16_t value);
+  inline void WriteH(int32_t addr, int16_t value);
+  int WriteExH(int32_t addr, uint16_t value);
 
-  inline int ReadW(int32_t addr, Instruction* instr);
-  int ReadExW(int32_t addr, Instruction* instr);
-  inline void WriteW(int32_t addr, int value, Instruction* instr);
-  int WriteExW(int32_t addr, int value, Instruction* instr);
+  inline int ReadW(int32_t addr);
+  int ReadExW(int32_t addr);
+  inline void WriteW(int32_t addr, int value);
+  int WriteExW(int32_t addr, int value);
 
   int32_t* ReadDW(int32_t addr);
   void WriteDW(int32_t addr, int32_t value1, int32_t value2);
+  int32_t* ReadExDW(int32_t addr);
+  int WriteExDW(int32_t addr, int32_t value1, int32_t value2);
 
   // Executing is handled based on the instruction type.
   // Both type 0 and type 1 rolled into one.
@@ -344,7 +344,7 @@ class Simulator : public SimulatorBase {
   void SetSpecialRegister(SRegisterFieldMask reg_and_mask, uint32_t value);
   uint32_t GetFromSpecialRegister(SRegister reg);
 
-  void CallInternal(byte* entry);
+  void CallInternal(Address entry);
 
   // Architecture state.
   // Saturating instructions require a Q flag to indicate saturation.
@@ -416,6 +416,7 @@ class Simulator : public SimulatorBase {
     Byte = 1,
     HalfWord = 2,
     Word = 4,
+    DoubleWord = 8,
   };
 
   // The least-significant bits of the address are ignored. The number of bits

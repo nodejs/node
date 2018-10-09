@@ -1,1 +1,1 @@
-export declare function isFunction(x: any): x is Function;
+export * from 'rxjs-compat/util/isFunction';

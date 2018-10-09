@@ -1,3 +1,1 @@
-import {  ErrorObservable  } from './ErrorObservable';
-
-export const _throw = ErrorObservable.create;
+export * from 'rxjs-compat/observable/throw';

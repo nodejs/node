@@ -34,7 +34,7 @@
 #include "patternprops.h"
 #include "uresimp.h"
 #include "nfrs.h"
-#include "digitlst.h"
+#include "number_decimalquantity.h"
 
 // debugging
 // #define RBNF_DEBUG
@@ -67,6 +67,8 @@ static const UChar gSemiPercent[] =
 #define kMaxDouble (kHalfMaxDouble * kHalfMaxDouble)
 
 U_NAMESPACE_BEGIN
+
+using number::impl::DecimalQuantity;
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(RuleBasedNumberFormat)
 
@@ -1109,21 +1111,21 @@ RuleBasedNumberFormat::findRuleSet(const UnicodeString& name, UErrorCode& status
 }
 
 UnicodeString&
-RuleBasedNumberFormat::format(const DigitList &number,
+RuleBasedNumberFormat::format(const DecimalQuantity &number,
                       UnicodeString &appendTo,
                       FieldPositionIterator *posIter,
                       UErrorCode &status) const {
     if (U_FAILURE(status)) {
         return appendTo;
     }
-    DigitList copy(number);
-    if (copy.fitsIntoInt64(false)) {
-        format(((DigitList &)number).getInt64(), appendTo, posIter, status);
+    DecimalQuantity copy(number);
+    if (copy.fitsInLong()) {
+        format(number.toLong(), appendTo, posIter, status);
     }
     else {
-        copy.roundAtExponent(0);
-        if (copy.fitsIntoInt64(false)) {
-            format(number.getDouble(), appendTo, posIter, status);
+        copy.roundToMagnitude(0, number::impl::RoundingMode::UNUM_ROUND_HALFEVEN, status);
+        if (copy.fitsInLong()) {
+            format(number.toDouble(), appendTo, posIter, status);
         }
         else {
             // We're outside of our normal range that this framework can handle.
@@ -1132,7 +1134,7 @@ RuleBasedNumberFormat::format(const DigitList &number,
             // TODO this section should probably be optimized. The DecimalFormat is shared in ICU4J.
             NumberFormat *decimalFormat = NumberFormat::createInstance(locale, UNUM_DECIMAL, status);
             Formattable f;
-            f.adoptDigitList(new DigitList(number));
+            f.adoptDecimalQuantity(new DecimalQuantity(number));
             decimalFormat->format(f, appendTo, posIter, status);
             delete decimalFormat;
         }
@@ -1142,21 +1144,21 @@ RuleBasedNumberFormat::format(const DigitList &number,
 
 
 UnicodeString&
-RuleBasedNumberFormat::format(const DigitList &number,
+RuleBasedNumberFormat::format(const DecimalQuantity &number,
                      UnicodeString& appendTo,
                      FieldPosition& pos,
                      UErrorCode &status) const {
     if (U_FAILURE(status)) {
         return appendTo;
     }
-    DigitList copy(number);
-    if (copy.fitsIntoInt64(false)) {
-        format(((DigitList &)number).getInt64(), appendTo, pos, status);
+    DecimalQuantity copy(number);
+    if (copy.fitsInLong()) {
+        format(number.toLong(), appendTo, pos, status);
     }
     else {
-        copy.roundAtExponent(0);
-        if (copy.fitsIntoInt64(false)) {
-            format(number.getDouble(), appendTo, pos, status);
+        copy.roundToMagnitude(0, number::impl::RoundingMode::UNUM_ROUND_HALFEVEN, status);
+        if (copy.fitsInLong()) {
+            format(number.toDouble(), appendTo, pos, status);
         }
         else {
             // We're outside of our normal range that this framework can handle.
@@ -1165,7 +1167,7 @@ RuleBasedNumberFormat::format(const DigitList &number,
             // TODO this section should probably be optimized. The DecimalFormat is shared in ICU4J.
             NumberFormat *decimalFormat = NumberFormat::createInstance(locale, UNUM_DECIMAL, status);
             Formattable f;
-            f.adoptDigitList(new DigitList(number));
+            f.adoptDecimalQuantity(new DecimalQuantity(number));
             decimalFormat->format(f, appendTo, pos, status);
             delete decimalFormat;
         }
@@ -1270,11 +1272,13 @@ RuleBasedNumberFormat::format(double number,
 {
     int32_t startPos = toAppendTo.length();
     if (getRoundingMode() != DecimalFormat::ERoundingMode::kRoundUnnecessary && !uprv_isNaN(number) && !uprv_isInfinite(number)) {
-        DigitList digitList;
-        digitList.set(number);
-        digitList.setRoundingMode(getRoundingMode());
-        digitList.roundFixedPoint(getMaximumFractionDigits());
-        number = digitList.getDouble();
+        DecimalQuantity digitList;
+        digitList.setToDouble(number);
+        digitList.roundToMagnitude(
+                -getMaximumFractionDigits(),
+                static_cast<UNumberFormatRoundingMode>(getRoundingMode()),
+                status);
+        number = digitList.toDouble();
     }
     rs.format(number, toAppendTo, toAppendTo.length(), 0, status);
     adjustForCapitalizationContext(startPos, toAppendTo, status);
@@ -1310,9 +1314,9 @@ RuleBasedNumberFormat::format(int64_t number, NFRuleSet *ruleSet, UnicodeString&
             NumberFormat *decimalFormat = NumberFormat::createInstance(locale, UNUM_DECIMAL, status);
             Formattable f;
             FieldPosition pos(FieldPosition::DONT_CARE);
-            DigitList *digitList = new DigitList();
-            digitList->set(number);
-            f.adoptDigitList(digitList);
+            DecimalQuantity *digitList = new DecimalQuantity();
+            digitList->setToLong(number);
+            f.adoptDecimalQuantity(digitList);
             decimalFormat->format(f, toAppendTo, pos, status);
             delete decimalFormat;
         }

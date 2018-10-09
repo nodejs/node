@@ -458,7 +458,7 @@ _s390x_AES_encrypt:
 	or	%r9,%r1
 	or	%r2,%r6
 	or	%r3,%r7
-
+	
 	srlg	%r5,%r10,5	# i0
 	srlg	%r6,%r10,13	# i1
 	nr	%r5,%r0
@@ -511,7 +511,7 @@ _s390x_AES_encrypt:
 	x	%r10,24(%r4)
 	x	%r11,28(%r4)
 
-	br	%r14
+	br	%r14	
 .size	_s390x_AES_encrypt,.-_s390x_AES_encrypt
 .type	AES_Td,@object
 .align	256
@@ -1015,7 +1015,7 @@ _s390x_AES_decrypt:
 	x	%r10,24(%r4)
 	x	%r11,28(%r4)
 
-	br	%r14
+	br	%r14	
 .size	_s390x_AES_decrypt,.-_s390x_AES_decrypt
 # void AES_set_encrypt_key(const unsigned char *in, int bits,
 # 		 AES_KEY *key) {
@@ -1496,7 +1496,7 @@ AES_cbc_encrypt:
 .Lcbc_enc_done:
 	lg	%r6,6*8(%r15)
 	st	%r8,0(%r6)
-	st	%r9,4(%r6)
+	st	%r9,4(%r6)	
 	st	%r10,8(%r6)
 	st	%r11,12(%r6)
 
@@ -1744,7 +1744,7 @@ _s390x_xts_km:
 	llgc	%r3,2*8-1(%r15)
 	nill	%r3,0x0f		# %r3%=16
 	br	%r14
-
+	
 .align	16
 .Lxts_km_vanilla:
 	# prepare and allocate stack frame at the top of 4K page
@@ -1960,7 +1960,7 @@ AES_xts_encrypt:
 	xgr	%r9,%r1
 	lrvgr	%r9,%r9			# flip byte order
 	lrvgr	%r11,%r11
-	srlg	%r8,%r9,32		# smash the tweak to 4x32-bits
+	srlg	%r8,%r9,32		# smash the tweak to 4x32-bits 
 	stg	%r9,144+0(%r15)	# save the tweak
 	llgfr	%r9,%r9
 	srlg	%r10,%r11,32
@@ -2011,7 +2011,7 @@ AES_xts_encrypt:
 	xgr	%r9,%r1
 	lrvgr	%r9,%r9			# flip byte order
 	lrvgr	%r11,%r11
-	srlg	%r8,%r9,32		# smash the tweak to 4x32-bits
+	srlg	%r8,%r9,32		# smash the tweak to 4x32-bits 
 	stg	%r9,144+0(%r15)	# save the tweak
 	llgfr	%r9,%r9
 	srlg	%r10,%r11,32
@@ -2188,7 +2188,7 @@ AES_xts_decrypt:
 	xgr	%r9,%r1
 	lrvgr	%r9,%r9			# flip byte order
 	lrvgr	%r11,%r11
-	srlg	%r8,%r9,32		# smash the tweak to 4x32-bits
+	srlg	%r8,%r9,32		# smash the tweak to 4x32-bits 
 	stg	%r9,144+0(%r15)	# save the tweak
 	llgfr	%r9,%r9
 	srlg	%r10,%r11,32

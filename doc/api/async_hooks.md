@@ -150,9 +150,9 @@ Because printing to the console is an asynchronous operation, `console.log()`
 will cause the AsyncHooks callbacks to be called. Using `console.log()` or
 similar asynchronous operations inside an AsyncHooks callback function will thus
 cause an infinite recursion. An easy solution to this when debugging is to use a
-synchronous logging operation such as `fs.writeSync(1, msg)`. This will print to
-stdout because `1` is the file descriptor for stdout and will not invoke
-AsyncHooks recursively because it is synchronous.
+synchronous logging operation such as `fs.writeSync(process.stdout.fd, msg)`.
+This will print to stdout and will not invoke AsyncHooks recursively because it
+is synchronous.
 
 ```js
 const fs = require('fs');
@@ -160,7 +160,7 @@ const util = require('util');
 
 function debug(...args) {
   // use a function like this one when debugging inside an AsyncHooks callback
-  fs.writeSync(1, `${util.format(...args)}\n`);
+  fs.writeSync(process.stdout.fd, `${util.format(...args)}\n`);
 }
 ```
 
@@ -240,7 +240,7 @@ FSEVENTWRAP, FSREQWRAP, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPPARSER,
 JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP, SHUTDOWNWRAP,
 SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPSERVER, TCPWRAP, TTYWRAP,
 UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST,
-RANDOMBYTESREQUEST, TLSWRAP, Timeout, Immediate, TickObject
+RANDOMBYTESREQUEST, TLSWRAP, Microtask, Timeout, Immediate, TickObject
 ```
 
 There is also the `PROMISE` resource type, which is used to track `Promise`
@@ -330,17 +330,17 @@ async_hooks.createHook({
   },
   before(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeSync(1, `${indentStr}before:  ${asyncId}\n`);
+    fs.writeSync(process.stdout.fd, `${indentStr}before:  ${asyncId}\n`);
     indent += 2;
   },
   after(asyncId) {
     indent -= 2;
     const indentStr = ' '.repeat(indent);
-    fs.writeSync(1, `${indentStr}after:   ${asyncId}\n`);
+    fs.writeSync(process.stdout.fd, `${indentStr}after:   ${asyncId}\n`);
   },
   destroy(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeSync(1, `${indentStr}destroy: ${asyncId}\n`);
+    fs.writeSync(process.stdout.fd, `${indentStr}destroy: ${asyncId}\n`);
   },
 }).enable();
 
@@ -534,8 +534,6 @@ expensive nature of the [promise introspection API][PromiseHooks] provided by
 V8. This means that programs using promises or `async`/`await` will not get
 correct execution and trigger ids for promise callback contexts by default.
 
-Here's an example:
-
 ```js
 const ah = require('async_hooks');
 Promise.resolve(1729).then(() => {
@@ -551,7 +549,7 @@ the `triggerAsyncId` value is `0`, which means that we are missing context about
 the resource that caused (triggered) the `then()` callback to be executed.
 
 Installing async hooks via `async_hooks.createHook` enables promise execution
-tracking. Example:
+tracking:
 
 ```js
 const ah = require('async_hooks');
@@ -726,6 +724,6 @@ never be called.
 [`destroy` callback]: #async_hooks_destroy_asyncid
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
 [Hook Callbacks]: #async_hooks_hook_callbacks
-[PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk
+[PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [promise execution tracking]: #async_hooks_promise_execution_tracking
 [`Worker`]: worker_threads.html#worker_threads_class_worker

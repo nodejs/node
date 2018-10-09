@@ -1,4 +1,4 @@
-.text
+.text	
 .p2align	4
 
 .globl	_md5_block_asm_data_order
@@ -662,3 +662,4 @@ L$end:
 	addq	$40,%rsp
 L$epilogue:
 	.byte	0xf3,0xc3
+

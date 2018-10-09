@@ -1,6 +1,1 @@
-import { debounceTime } from '../../operator/debounceTime';
-declare module '../../Observable' {
-    interface Observable<T> {
-        debounceTime: typeof debounceTime;
-    }
-}
+import 'rxjs-compat/add/operator/debounceTime';

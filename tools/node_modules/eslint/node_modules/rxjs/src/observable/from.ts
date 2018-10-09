@@ -1,3 +1,1 @@
-import {  FromObservable  } from './FromObservable';
-
-export const from = FromObservable.create;
+export * from 'rxjs-compat/observable/from';

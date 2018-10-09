@@ -12,7 +12,7 @@
 const fs = require("fs"),
     path = require("path"),
     ignore = require("ignore"),
-    pathUtil = require("./util/path-util");
+    pathUtils = require("./util/path-utils");
 
 const debug = require("debug")("eslint:ignored-paths");
 
@@ -79,6 +79,40 @@ function mergeDefaultOptions(options) {
     return Object.assign({}, DEFAULT_OPTIONS, options);
 }
 
+/* eslint-disable valid-jsdoc */
+/**
+ * Normalize the path separators in a given string.
+ * On Windows environment, this replaces `\` by `/`.
+ * Otherwrise, this does nothing.
+ * @param {string} str The path string to normalize.
+ * @returns {string} The normalized path.
+ */
+const normalizePathSeps = path.sep === "/"
+    ? (str => str)
+    : ((seps, str) => str.replace(seps, "/")).bind(null, new RegExp(`\\${path.sep}`, "g"));
+/* eslint-enable valid-jsdoc */
+
+/**
+ * Converts a glob pattern to a new glob pattern relative to a different directory
+ * @param {string} globPattern The glob pattern, relative the the old base directory
+ * @param {string} relativePathToOldBaseDir A relative path from the new base directory to the old one
+ * @returns {string} A glob pattern relative to the new base directory
+ */
+function relativize(globPattern, relativePathToOldBaseDir) {
+    if (relativePathToOldBaseDir === "") {
+        return globPattern;
+    }
+
+    const prefix = globPattern.startsWith("!") ? "!" : "";
+    const globWithoutPrefix = globPattern.replace(/^!/, "");
+
+    if (globWithoutPrefix.startsWith("/")) {
+        return `${prefix}/${normalizePathSeps(relativePathToOldBaseDir)}${globWithoutPrefix}`;
+    }
+
+    return globPattern;
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -96,23 +130,29 @@ class IgnoredPaths {
 
         this.cache = {};
 
-        /**
-         * add pattern to node-ignore instance
-         * @param {Object} ig, instance of node-ignore
-         * @param {string} pattern, pattern do add to ig
-         * @returns {array} raw ignore rules
-         */
-        function addPattern(ig, pattern) {
-            return ig.addPattern(pattern);
-        }
-
         this.defaultPatterns = [].concat(DEFAULT_IGNORE_DIRS, options.patterns || []);
-        this.baseDir = options.cwd;
+
+        this.ignoreFileDir = options.ignore !== false && options.ignorePath
+            ? path.dirname(path.resolve(options.cwd, options.ignorePath))
+            : options.cwd;
+        this.options = options;
+        this._baseDir = null;
 
         this.ig = {
             custom: ignore(),
             default: ignore()
         };
+
+        this.defaultPatterns.forEach(pattern => this.addPatternRelativeToCwd(this.ig.default, pattern));
+        if (options.dotfiles !== true) {
+
+            /*
+             * ignore files beginning with a dot, but not files in a parent or
+             * ancestor directory (which in relative format will begin with `../`).
+             */
+            this.addPatternRelativeToCwd(this.ig.default, ".*");
+            this.addPatternRelativeToCwd(this.ig.default, "!../");
+        }
 
         /*
          * Add a way to keep track of ignored files.  This was present in node-ignore
@@ -120,17 +160,6 @@ class IgnoredPaths {
          */
         this.ig.custom.ignoreFiles = [];
         this.ig.default.ignoreFiles = [];
-
-        if (options.dotfiles !== true) {
-
-            /*
-             * ignore files beginning with a dot, but not files in a parent or
-             * ancestor directory (which in relative format will begin with `../`).
-             */
-            addPattern(this.ig.default, [".*", "!../"]);
-        }
-
-        addPattern(this.ig.default, this.defaultPatterns);
 
         if (options.ignore !== false) {
             let ignorePath;
@@ -154,13 +183,11 @@ class IgnoredPaths {
                     debug(`Loaded ignore file ${ignorePath}`);
                 } catch (e) {
                     debug("Could not find ignore file in cwd");
-                    this.options = options;
                 }
             }
 
             if (ignorePath) {
                 debug(`Adding ${ignorePath}`);
-                this.baseDir = path.dirname(path.resolve(options.cwd, ignorePath));
                 this.addIgnoreFile(this.ig.custom, ignorePath);
                 this.addIgnoreFile(this.ig.default, ignorePath);
             } else {
@@ -187,8 +214,8 @@ class IgnoredPaths {
                         if (packageJSONOptions.eslintIgnore) {
                             if (Array.isArray(packageJSONOptions.eslintIgnore)) {
                                 packageJSONOptions.eslintIgnore.forEach(pattern => {
-                                    addPattern(this.ig.custom, pattern);
-                                    addPattern(this.ig.default, pattern);
+                                    this.addPatternRelativeToIgnoreFile(this.ig.custom, pattern);
+                                    this.addPatternRelativeToIgnoreFile(this.ig.default, pattern);
                                 });
                             } else {
                                 throw new TypeError("Package.json eslintIgnore property requires an array of paths");
@@ -202,12 +229,68 @@ class IgnoredPaths {
             }
 
             if (options.ignorePattern) {
-                addPattern(this.ig.custom, options.ignorePattern);
-                addPattern(this.ig.default, options.ignorePattern);
+                this.addPatternRelativeToCwd(this.ig.custom, options.ignorePattern);
+                this.addPatternRelativeToCwd(this.ig.default, options.ignorePattern);
             }
         }
+    }
 
-        this.options = options;
+    /*
+     * If `ignoreFileDir` is a subdirectory of `cwd`, all paths will be normalized to be relative to `cwd`.
+     * Otherwise, all paths will be normalized to be relative to `ignoreFileDir`.
+     * This ensures that the final normalized ignore rule will not contain `..`, which is forbidden in
+     * ignore rules.
+     */
+
+    addPatternRelativeToCwd(ig, pattern) {
+        const baseDir = this.getBaseDir();
+        const cookedPattern = baseDir === this.options.cwd
+            ? pattern
+            : relativize(pattern, path.relative(baseDir, this.options.cwd));
+
+        ig.addPattern(cookedPattern);
+        debug("addPatternRelativeToCwd:\n  original = %j\n  cooked   = %j", pattern, cookedPattern);
+    }
+
+    addPatternRelativeToIgnoreFile(ig, pattern) {
+        const baseDir = this.getBaseDir();
+        const cookedPattern = baseDir === this.ignoreFileDir
+            ? pattern
+            : relativize(pattern, path.relative(baseDir, this.ignoreFileDir));
+
+        ig.addPattern(cookedPattern);
+        debug("addPatternRelativeToIgnoreFile:\n  original = %j\n  cooked   = %j", pattern, cookedPattern);
+    }
+
+    // Detect the common ancestor
+    getBaseDir() {
+        if (!this._baseDir) {
+            const a = path.resolve(this.options.cwd);
+            const b = path.resolve(this.ignoreFileDir);
+            let lastSepPos = 0;
+
+            // Set the shorter one (it's the common ancestor if one includes the other).
+            this._baseDir = a.length < b.length ? a : b;
+
+            // Set the common ancestor.
+            for (let i = 0; i < a.length && i < b.length; ++i) {
+                if (a[i] !== b[i]) {
+                    this._baseDir = a.slice(0, lastSepPos);
+                    break;
+                }
+                if (a[i] === path.sep) {
+                    lastSepPos = i;
+                }
+            }
+
+            // If it's only Windows drive letter, it needs \
+            if (/^[A-Z]:$/.test(this._baseDir)) {
+                this._baseDir += "\\";
+            }
+
+            debug("baseDir = %j", this._baseDir);
+        }
+        return this._baseDir;
     }
 
     /**
@@ -217,7 +300,7 @@ class IgnoredPaths {
      */
     readIgnoreFile(filePath) {
         if (typeof this.cache[filePath] === "undefined") {
-            this.cache[filePath] = fs.readFileSync(filePath, "utf8");
+            this.cache[filePath] = fs.readFileSync(filePath, "utf8").split(/\r?\n/g).filter(Boolean);
         }
         return this.cache[filePath];
     }
@@ -226,11 +309,13 @@ class IgnoredPaths {
      * add ignore file to node-ignore instance
      * @param {Object} ig, instance of node-ignore
      * @param {string} filePath, file to add to ig
-     * @returns {array} raw ignore rules
+     * @returns {void}
      */
     addIgnoreFile(ig, filePath) {
         ig.ignoreFiles.push(filePath);
-        return ig.add(this.readIgnoreFile(filePath));
+        this
+            .readIgnoreFile(filePath)
+            .forEach(ignoreRule => this.addPatternRelativeToIgnoreFile(ig, ignoreRule));
     }
 
     /**
@@ -243,7 +328,7 @@ class IgnoredPaths {
 
         let result = false;
         const absolutePath = path.resolve(this.options.cwd, filepath);
-        const relativePath = pathUtil.getRelativePath(absolutePath, this.baseDir);
+        const relativePath = pathUtils.getRelativePath(absolutePath, this.getBaseDir());
 
         if (typeof category === "undefined") {
             result = (this.ig.default.filter([relativePath]).length === 0) ||
@@ -251,6 +336,9 @@ class IgnoredPaths {
         } else {
             result = (this.ig[category].filter([relativePath]).length === 0);
         }
+        debug("contains:");
+        debug("  target = %j", filepath);
+        debug("  result = %j", result);
 
         return result;
 
@@ -261,13 +349,15 @@ class IgnoredPaths {
      * @returns {function()} method to check whether a folder should be ignored by glob.
      */
     getIgnoredFoldersGlobChecker() {
+        const baseDir = this.getBaseDir();
+        const ig = ignore();
 
-        const ig = ignore().add(DEFAULT_IGNORE_DIRS);
+        DEFAULT_IGNORE_DIRS.forEach(ignoreDir => this.addPatternRelativeToCwd(ig, ignoreDir));
 
         if (this.options.dotfiles !== true) {
 
             // Ignore hidden folders.  (This cannot be ".*", or else it's not possible to unignore hidden files)
-            ig.add([".*/*", "!../"]);
+            ig.add([".*/*", "!../*"]);
         }
 
         if (this.options.ignore) {
@@ -276,10 +366,8 @@ class IgnoredPaths {
 
         const filter = ig.createFilter();
 
-        const base = this.baseDir;
-
         return function(absolutePath) {
-            const relative = pathUtil.getRelativePath(absolutePath, base);
+            const relative = pathUtils.getRelativePath(absolutePath, baseDir);
 
             if (!relative) {
                 return false;

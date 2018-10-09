@@ -153,9 +153,10 @@ class TestCase(object):
       - random seed
       - extra flags (from command line)
       - user flags (variant/fuzzer flags)
-      - statusfile flags
       - mode flags (based on chosen mode)
       - source flags (from source code) [empty by default]
+      - test-suite flags
+      - statusfile flags
 
     The best way to modify how parameters are created is to only override
     methods for getting partial parameters.
@@ -165,10 +166,10 @@ class TestCase(object):
         self._get_random_seed_flags() +
         self._get_extra_flags() +
         self._get_variant_flags() +
-        self._get_statusfile_flags() +
         self._get_mode_flags() +
         self._get_source_flags() +
-        self._get_suite_flags()
+        self._get_suite_flags() +
+        self._get_statusfile_flags()
     )
 
   def _get_cmd_env(self):
@@ -239,7 +240,8 @@ class TestCase(object):
       args=params,
       env=env,
       timeout=timeout,
-      verbose=self._test_config.verbose
+      verbose=self._test_config.verbose,
+      resources_func=self._get_resources,
     )
 
   def _parse_source_flags(self, source=None):
@@ -258,6 +260,14 @@ class TestCase(object):
 
   def _get_source_path(self):
     return None
+
+  def _get_resources(self):
+    """Returns a list of absolute paths with additional files needed by the
+    test case.
+
+    Used to push additional files to Android devices.
+    """
+    return []
 
   @property
   def output_proc(self):

@@ -1,10 +1,11 @@
 'use strict';
+// Flags: --expose-gc
+
 const common = require('../../common');
 const assert = require('assert');
 
 // testing api calls for function
 const test_function = require(`./build/${common.buildType}/test_function`);
-
 
 function func1() {
   return 1;
@@ -29,3 +30,8 @@ assert.strictEqual(test_function.TestCall(func4, 1), 2);
 
 assert.strictEqual(test_function.TestName.name, 'Name');
 assert.strictEqual(test_function.TestNameShort.name, 'Name_');
+
+let tracked_function = test_function.MakeTrackedFunction(common.mustCall());
+assert(!!tracked_function);
+tracked_function = null;
+global.gc();

@@ -1,1 +1,1 @@
-export declare function applyMixins(derivedCtor: any, baseCtors: any[]): void;
+export * from 'rxjs-compat/util/applyMixins';

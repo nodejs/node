@@ -7,7 +7,7 @@
 .private_extern	_OPENSSL_ia32cap_P
 .comm	_OPENSSL_ia32cap_P,16,2
 
-.text
+.text	
 
 .globl	_OPENSSL_atomic_add
 
@@ -455,3 +455,4 @@ L$tail_rdseed_bytes:
 
 L$done_rdseed_bytes:
 	.byte	0xf3,0xc3
+

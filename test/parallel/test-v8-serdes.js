@@ -1,5 +1,8 @@
+// Flags: --expose-gc --expose-internals
+
 'use strict';
 
+const { internalBinding } = require('internal/test/binding');
 const common = require('../common');
 const assert = require('assert');
 const v8 = require('v8');
@@ -20,7 +23,7 @@ const objects = [
   circular
 ];
 
-const hostObject = new (process.binding('js_stream').JSStream)();
+const hostObject = new (internalBinding('js_stream').JSStream)();
 
 const serializerTypeError =
   /^TypeError: Class constructor Serializer cannot be invoked without 'new'$/;

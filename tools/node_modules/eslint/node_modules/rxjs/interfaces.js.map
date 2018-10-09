@@ -1,1 +1,1 @@
-{"version":3,"file":"interfaces.js","sourceRoot":"","sources":["../src/interfaces.ts"],"names":[],"mappings":"","sourcesContent":["import { Observable } from './Observable';\n\nexport type UnaryFunction<T, R> = (source: T) => R;\n\nexport type OperatorFunction<T, R> = UnaryFunction<Observable<T>, Observable<R>>;\n\nexport type FactoryOrValue<T> = T | (() => T);\n\nexport type MonoTypeOperatorFunction<T> = OperatorFunction<T, T>;\n"]}
+{"version":3,"file":"interfaces.js","sources":["src/interfaces.ts"],"names":[],"mappings":""}

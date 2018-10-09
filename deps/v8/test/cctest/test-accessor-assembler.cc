@@ -118,7 +118,6 @@ Handle<Code> CreateCodeOfKind(Code::Kind kind) {
 
 TEST(TryProbeStubCache) {
   typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 3;
   CodeAssemblerTester data(isolate, kNumParams);
@@ -134,14 +133,15 @@ TEST(TryProbeStubCache) {
 
     Label passed(&m), failed(&m);
 
-    Variable var_handler(&m, MachineRepresentation::kTagged);
+    CodeStubAssembler::TVariable<MaybeObject> var_handler(&m);
     Label if_handler(&m), if_miss(&m);
 
     m.TryProbeStubCache(&stub_cache, receiver, name, &if_handler, &var_handler,
                         &if_miss);
     m.BIND(&if_handler);
-    m.Branch(m.WordEqual(expected_handler, var_handler.value()), &passed,
-             &failed);
+    m.Branch(m.WordEqual(expected_handler,
+                         m.BitcastMaybeObjectToWord(var_handler.value())),
+             &passed, &failed);
 
     m.BIND(&if_miss);
     m.Branch(m.WordEqual(expected_handler, m.IntPtrConstant(0)), &passed,
@@ -217,7 +217,7 @@ TEST(TryProbeStubCache) {
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
     Handle<Code> handler = handlers[index % handlers.size()];
-    stub_cache.Set(*name, receiver->map(), *handler);
+    stub_cache.Set(*name, receiver->map(), MaybeObject::FromObject(*handler));
   }
 
   // Perform some queries.
@@ -227,14 +227,14 @@ TEST(TryProbeStubCache) {
     int index = rand_gen.NextInt();
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
-    Object* handler = stub_cache.Get(*name, receiver->map());
+    MaybeObject* handler = stub_cache.Get(*name, receiver->map());
     if (handler == nullptr) {
       queried_non_existing = true;
     } else {
       queried_existing = true;
     }
 
-    Handle<Object> expected_handler(handler, isolate);
+    Handle<Object> expected_handler(handler->GetHeapObjectOrSmi(), isolate);
     ft.CheckTrue(receiver, name, expected_handler);
   }
 
@@ -243,14 +243,14 @@ TEST(TryProbeStubCache) {
     int index2 = rand_gen.NextInt();
     Handle<Name> name = names[index1 % names.size()];
     Handle<JSObject> receiver = receivers[index2 % receivers.size()];
-    Object* handler = stub_cache.Get(*name, receiver->map());
+    MaybeObject* handler = stub_cache.Get(*name, receiver->map());
     if (handler == nullptr) {
       queried_non_existing = true;
     } else {
       queried_existing = true;
     }
 
-    Handle<Object> expected_handler(handler, isolate);
+    Handle<Object> expected_handler(handler->GetHeapObjectOrSmi(), isolate);
     ft.CheckTrue(receiver, name, expected_handler);
   }
   // Ensure we performed both kind of queries.

@@ -480,7 +480,7 @@ static char *ts_get_status_text(STACK_OF(ASN1_UTF8STRING) *text)
     return result;
 }
 
-static int ts_check_policy(const ASN1_OBJECT *req_oid,
+static int ts_check_policy(const ASN1_OBJECT *req_oid, 
                            const TS_TST_INFO *tst_info)
 {
     const ASN1_OBJECT *resp_oid = tst_info->policy_id;

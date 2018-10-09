@@ -19,7 +19,7 @@ if (isMainThread) {
                           '--trace-event-categories', 'node',
                           '-e', CODE ]);
   proc.once('exit', common.mustCall(() => {
-    assert(common.fileExists(FILE_NAME));
+    assert(fs.existsSync(FILE_NAME));
     fs.readFile(FILE_NAME, common.mustCall((err, data) => {
       const traces = JSON.parse(data.toString()).traceEvents;
       assert(traces.length > 0);

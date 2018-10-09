@@ -13,10 +13,10 @@ let result;
 const array_size = 100;
 const max_index = array_size - 1;
 
-// mc stands for "Make Closure," it's a handy function to get a fresh
+// newClosure is a handy function to get a fresh
 // closure unpolluted by IC feedback for a 2nd-order array builtin
 // test.
-function mc(name, generic = false) {
+function newClosure(name, generic = false) {
   if (generic) {
     return new Function(
       `result = Array.prototype.${name}.call(array, func, this_arg);`);
@@ -24,23 +24,55 @@ function mc(name, generic = false) {
   return new Function(`result = array.${name}(func, this_arg);`);
 }
 
-function benchy(name, test, testSetup) {
-  new BenchmarkSuite(name, [1000],
-      [
-        new Benchmark(name, false, false, 0, test, testSetup, ()=>{})
-      ]);
+function MakeHoley(array) {
+  for (let i =0; i < array.length; i+=2) {
+    delete array[i];
+  }
+  assert(%HasHoleyElements(array));
 }
 
 function SmiSetup() {
   array = Array.from({ length: array_size }, (_, i) => i);
+  assert(%HasSmiElements(array));
+}
+
+function HoleySmiSetup() {
+  SmiSetup();
+  MakeHoley(array);
+  assert(%HasSmiElements(array));
 }
 
 function DoubleSetup() {
   array = Array.from({ length: array_size }, (_, i) => i + 0.5);
+  assert(%HasDoubleElements(array));
+}
+
+function HoleyDoubleSetup() {
+  DoubleSetup();
+  MakeHoley(array);
+  assert(%HasDoubleElements(array));
 }
 
 function FastSetup() {
   array = Array.from({ length: array_size }, (_, i) => `value ${i}`);
+  assert(%HasObjectElements(array));
+}
+
+function HoleyFastSetup() {
+  FastSetup();
+  MakeHoley(array);
+  assert(%HasObjectElements(array));
+}
+
+function DictionarySetup() {
+  array = [];
+  // Add a large index to force dictionary elements.
+  array[2**30] = 10;
+  // Spread out {array_size} elements.
+  for (var i = 0; i < array_size-1; i++) {
+    array[i*101] = i;
+  }
+  assert(%HasDictionaryElements(array));
 }
 
 function ObjectSetup() {
@@ -48,22 +80,32 @@ function ObjectSetup() {
   for (var i = 0; i < array_size; i++) {
     array[i] = i;
   }
+  assert(%HasObjectElements(array));
+  assert(%HasHoleyElements(array));
+}
+
+
+const ARRAY_SETUP = {
+  PACKED_SMI: SmiSetup,
+  HOLEY_SMI: HoleySmiSetup,
+  PACKED_DOUBLE: DoubleSetup,
+  HOLEY_DOUBLE: HoleyDoubleSetup,
+  PACKED: FastSetup,
+  HOLEY: HoleyFastSetup,
+  DICTIONARY: DictionarySetup,
 }
 
 function DefineHigherOrderTests(tests) {
   let i = 0;
   while (i < tests.length) {
-     const name = tests[i++];
-     const testFunc = tests[i++];
-     const setupFunc = tests[i++];
-     const callback = tests[i++];
+     const [name, testFunc, setupFunc, callback] = tests[i++];
 
      let setupFuncWrapper = () => {
        func = callback;
        this_arg = undefined;
        setupFunc();
      };
-     benchy(name, testFunc, setupFuncWrapper);
+     createSuite(name, 1000, testFunc, setupFuncWrapper);
   }
 }
 
@@ -83,6 +125,8 @@ load('from.js');
 load('of.js');
 load('join.js');
 load('to-string.js');
+load('slice.js');
+load('copy-within.js');
 
 var success = true;
 

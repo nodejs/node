@@ -12,9 +12,6 @@
     <String Id="NodeRuntime_Title">Node.js 运行时</String>
     <String Id="NodeRuntime_Description">安装核心 [ProductName] 运行时（node.exe）。</String>
 
-    <String Id="NodePerfCtrSupport_Title">性能计数器</String>
-    <String Id="NodePerfCtrSupport_Description">为 [ProductName] 安装特定的性能计数器支持。</String>
-
     <String Id="NodeEtwSupport_Title">事件追踪（ETW）</String>
     <String Id="NodeEtwSupport_Description">为 [ProductName] 生成的事件安装事件追踪（ETW）的支持。</String>
 

@@ -34,9 +34,13 @@ function extractAndParseYAML(text) {
     meta.deprecated = arrify(meta.deprecated);
   }
 
+  if (meta.removed) {
+    meta.removed = arrify(meta.removed);
+  }
+
   meta.changes = meta.changes || [];
 
   return meta;
 }
 
-module.exports = { isYAMLBlock, extractAndParseYAML };
+module.exports = { arrify, isYAMLBlock, extractAndParseYAML };

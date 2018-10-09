@@ -2,15 +2,12 @@
 #define SRC_INSPECTOR_TRACING_AGENT_H_
 
 #include "node/inspector/protocol/NodeTracing.h"
+#include "tracing/agent.h"
 #include "v8.h"
 
 
 namespace node {
 class Environment;
-
-namespace tracing {
-class Agent;
-}  // namespace tracing
 
 namespace inspector {
 namespace protocol {
@@ -32,8 +29,7 @@ class TracingAgent : public NodeTracing::Backend {
   void DisconnectTraceClient();
 
   Environment* env_;
-  std::unique_ptr<std::pair<tracing::Agent*, int>,
-                  void (*)(std::pair<tracing::Agent*, int>*)> trace_writer_;
+  tracing::AgentWriterHandle trace_writer_;
   std::unique_ptr<NodeTracing::Frontend> frontend_;
 };
 

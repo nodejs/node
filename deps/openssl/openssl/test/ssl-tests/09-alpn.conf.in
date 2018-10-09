@@ -180,7 +180,7 @@ our @tests = (
         name => "alpn-selected-sni-server-does-not-support-alpn",
         server => {
             extra => {
-                "ALPNProtocols" => "bar",
+                "ALPNProtocols" => "bar", 
                 "ServerNameCallback" => "IgnoreMismatch",
             },
         },

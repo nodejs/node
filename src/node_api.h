@@ -598,7 +598,7 @@ NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
                                                     int64_t change_in_bytes,
                                                     int64_t* adjusted_value);
 
-// Runnig a script
+// Running a script
 NAPI_EXTERN napi_status napi_run_script(napi_env env,
                                         napi_value script,
                                         napi_value* result);
@@ -671,6 +671,36 @@ napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 NAPI_EXTERN napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
+NAPI_EXTERN napi_status napi_create_bigint_int64(napi_env env,
+                                                 int64_t value,
+                                                 napi_value* result);
+NAPI_EXTERN napi_status napi_create_bigint_uint64(napi_env env,
+                                                  uint64_t value,
+                                                  napi_value* result);
+NAPI_EXTERN napi_status napi_create_bigint_words(napi_env env,
+                                                 int sign_bit,
+                                                 size_t word_count,
+                                                 const uint64_t* words,
+                                                 napi_value* result);
+NAPI_EXTERN napi_status napi_get_value_bigint_int64(napi_env env,
+                                                    napi_value value,
+                                                    int64_t* result,
+                                                    bool* lossless);
+NAPI_EXTERN napi_status napi_get_value_bigint_uint64(napi_env env,
+                                                     napi_value value,
+                                                     uint64_t* result,
+                                                     bool* lossless);
+NAPI_EXTERN napi_status napi_get_value_bigint_words(napi_env env,
+                                                    napi_value value,
+                                                    int* sign_bit,
+                                                    size_t* word_count,
+                                                    uint64_t* words);
+NAPI_EXTERN napi_status napi_add_finalizer(napi_env env,
+                                           napi_value js_object,
+                                           void* native_object,
+                                           napi_finalize finalize_cb,
+                                           void* finalize_hint,
+                                           napi_ref* result);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END

@@ -29,7 +29,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
       Parser* parser, Block* block,
       const DeclarationDescriptor* declaration_descriptor,
       const Parser::DeclarationParsingResult::Declaration* declaration,
-      ZoneList<const AstRawString*>* names, bool* ok);
+      ZonePtrList<const AstRawString>* names, bool* ok);
 
   static void RewriteDestructuringAssignment(Parser* parser,
                                              RewritableExpression* to_rewrite,
@@ -108,7 +108,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   int value_beg_position_;
   Block* block_;
   const DeclarationDescriptor* descriptor_;
-  ZoneList<const AstRawString*>* names_;
+  ZonePtrList<const AstRawString>* names_;
   Expression* current_value_;
   int recursion_level_;
   bool* ok_;
@@ -119,7 +119,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 void Parser::DeclareAndInitializeVariables(
     Block* block, const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
-    ZoneList<const AstRawString*>* names, bool* ok) {
+    ZonePtrList<const AstRawString>* names, bool* ok) {
   PatternRewriter::DeclareAndInitializeVariables(
       this, block, declaration_descriptor, declaration, names, ok);
 }
@@ -140,7 +140,7 @@ void PatternRewriter::DeclareAndInitializeVariables(
     Parser* parser, Block* block,
     const DeclarationDescriptor* declaration_descriptor,
     const Parser::DeclarationParsingResult::Declaration* declaration,
-    ZoneList<const AstRawString*>* names, bool* ok) {
+    ZonePtrList<const AstRawString>* names, bool* ok) {
   DCHECK(block->ignore_completion_value());
 
   PatternRewriter rewriter(declaration_descriptor->scope, parser, BINDING);
@@ -195,7 +195,8 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   VariableProxy* proxy =
       factory()->NewVariableProxy(name, NORMAL_VARIABLE, pattern->position());
   Declaration* declaration;
-  if (descriptor_->mode == VAR && !descriptor_->scope->is_declaration_scope()) {
+  if (descriptor_->mode == VariableMode::kVar &&
+      !descriptor_->scope->is_declaration_scope()) {
     DCHECK(descriptor_->scope->is_block_scope() ||
            descriptor_->scope->is_with_scope());
     declaration = factory()->NewNestedVariableDeclaration(
@@ -261,7 +262,7 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // For 'let' and 'const' declared variables the initialization always
   // assigns to the declared variable.
   // But for var declarations we need to do a new lookup.
-  if (descriptor_->mode == VAR) {
+  if (descriptor_->mode == VariableMode::kVar) {
     proxy = var_init_scope->NewUnresolved(factory(), name);
   } else {
     DCHECK_NOT_NULL(proxy);
@@ -367,14 +368,14 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
                                          Variable** temp_var) {
   auto temp = *temp_var = CreateTempVar(current_value_);
 
-  ZoneList<Expression*>* rest_runtime_callargs = nullptr;
+  ZonePtrList<Expression>* rest_runtime_callargs = nullptr;
   if (pattern->has_rest_property()) {
     // non_rest_properties_count = pattern->properties()->length - 1;
     // args_length = 1 + non_rest_properties_count because we need to
     // pass temp as well to the runtime function.
     int args_length = pattern->properties()->length();
     rest_runtime_callargs =
-        new (zone()) ZoneList<Expression*>(args_length, zone());
+        new (zone()) ZonePtrList<Expression>(args_length, zone());
     rest_runtime_callargs->Add(factory()->NewVariableProxy(temp), zone());
   }
 
@@ -409,7 +410,7 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
 
         if (property->is_computed_name()) {
           DCHECK(!key->IsPropertyName() || !key->IsNumberLiteral());
-          auto args = new (zone()) ZoneList<Expression*>(1, zone());
+          auto args = new (zone()) ZonePtrList<Expression>(1, zone());
           args->Add(key, zone());
           auto to_name_key = CreateTempVar(factory()->NewCallRuntime(
               Runtime::kToName, args, kNoSourcePosition));
@@ -592,7 +593,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // let array = [];
     Variable* array;
     {
-      auto empty_exprs = new (zone()) ZoneList<Expression*>(0, zone());
+      auto empty_exprs = new (zone()) ZonePtrList<Expression>(0, zone());
       array = CreateTempVar(
           factory()->NewArrayLiteral(empty_exprs, kNoSourcePosition));
     }
@@ -670,7 +671,8 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     //   #maybe_store_and_unset_done;
     //   #increment_index;
     // }
-    WhileStatement* loop = factory()->NewWhileStatement(nullptr, nopos);
+    WhileStatement* loop =
+        factory()->NewWhileStatement(nullptr, nullptr, nopos);
     {
       Expression* condition = factory()->NewUnaryOperation(
           Token::NOT, factory()->NewVariableProxy(done), nopos);

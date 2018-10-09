@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/elements.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -26,11 +27,11 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   }
   Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(argument);
   if (!array_buffer->is_neuterable()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   if (array_buffer->backing_store() == nullptr) {
     CHECK_EQ(Smi::kZero, array_buffer->byte_length());
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   // Shared array buffers should never be neutered.
   CHECK(!array_buffer->is_shared());
@@ -41,7 +42,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   isolate->heap()->UnregisterArrayBuffer(*array_buffer);
   array_buffer->Neuter();
   isolate->array_buffer_allocator()->Free(backing_store, byte_length);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
@@ -121,9 +122,9 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   if (length <= 1) return *array;
 
   Handle<FixedTypedArrayBase> elements(
-      FixedTypedArrayBase::cast(array->elements()));
+      FixedTypedArrayBase::cast(array->elements()), isolate);
   switch (array->type()) {
-#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype, size)     \
+#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)           \
   case kExternal##Type##Array: {                            \
     ctype* data = static_cast<ctype*>(elements->DataPtr()); \
     if (kExternal##Type##Array == kExternalFloat64Array ||  \
@@ -175,7 +176,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   Handle<Object> len;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, len,
-      Object::GetProperty(obj, isolate->factory()->length_string()));
+      Object::GetProperty(isolate, obj, isolate->factory()->length_string()));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
                                      Object::ToLength(isolate, len));
 

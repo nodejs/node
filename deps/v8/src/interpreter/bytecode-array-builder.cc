@@ -176,12 +176,13 @@ namespace {
 template <OperandTypeInfo type_info>
 class UnsignedOperandHelper {
  public:
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder, size_t value)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                    size_t value) {
     DCHECK(IsValid(value));
     return static_cast<uint32_t>(value);
   }
 
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder, int value)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder, int value) {
     DCHECK_GE(value, 0);
     return Convert(builder, static_cast<size_t>(value));
   }
@@ -215,7 +216,7 @@ UNSIGNED_SCALABLE_SCALAR_OPERAND_TYPE_LIST(DEFINE_UNSIGNED_OPERAND_HELPER)
 template <>
 class OperandHelper<OperandType::kImm> {
  public:
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder, int value)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder, int value) {
     return static_cast<uint32_t>(value);
   }
 };
@@ -223,7 +224,8 @@ class OperandHelper<OperandType::kImm> {
 template <>
 class OperandHelper<OperandType::kReg> {
  public:
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder, Register reg)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                    Register reg) {
     return builder->GetInputRegisterOperand(reg);
   }
 };
@@ -231,8 +233,8 @@ class OperandHelper<OperandType::kReg> {
 template <>
 class OperandHelper<OperandType::kRegList> {
  public:
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder,
-                                 RegisterList reg_list)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                    RegisterList reg_list) {
     return builder->GetInputRegisterListOperand(reg_list);
   }
 };
@@ -240,8 +242,8 @@ class OperandHelper<OperandType::kRegList> {
 template <>
 class OperandHelper<OperandType::kRegPair> {
  public:
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder,
-                                 RegisterList reg_list)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                    RegisterList reg_list) {
     DCHECK_EQ(reg_list.register_count(), 2);
     return builder->GetInputRegisterListOperand(reg_list);
   }
@@ -250,7 +252,8 @@ class OperandHelper<OperandType::kRegPair> {
 template <>
 class OperandHelper<OperandType::kRegOut> {
  public:
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder, Register reg)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                    Register reg) {
     return builder->GetOutputRegisterOperand(reg);
   }
 };
@@ -258,8 +261,8 @@ class OperandHelper<OperandType::kRegOut> {
 template <>
 class OperandHelper<OperandType::kRegOutList> {
  public:
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder,
-                                 RegisterList reg_list)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                    RegisterList reg_list) {
     return builder->GetOutputRegisterListOperand(reg_list);
   }
 };
@@ -267,8 +270,8 @@ class OperandHelper<OperandType::kRegOutList> {
 template <>
 class OperandHelper<OperandType::kRegOutPair> {
  public:
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder,
-                                 RegisterList reg_list)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                    RegisterList reg_list) {
     DCHECK_EQ(2, reg_list.register_count());
     return builder->GetOutputRegisterListOperand(reg_list);
   }
@@ -277,8 +280,8 @@ class OperandHelper<OperandType::kRegOutPair> {
 template <>
 class OperandHelper<OperandType::kRegOutTriple> {
  public:
-  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder,
-                                 RegisterList reg_list)) {
+  V8_INLINE static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                    RegisterList reg_list) {
     DCHECK_EQ(3, reg_list.register_count());
     return builder->GetOutputRegisterListOperand(reg_list);
   }
@@ -291,8 +294,8 @@ template <Bytecode bytecode, AccumulatorUse accumulator_use,
 class BytecodeNodeBuilder {
  public:
   template <typename... Operands>
-  INLINE(static BytecodeNode Make(BytecodeArrayBuilder* builder,
-                                  Operands... operands)) {
+  V8_INLINE static BytecodeNode Make(BytecodeArrayBuilder* builder,
+                                     Operands... operands) {
     static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,
                   "too many operands for bytecode");
     builder->PrepareToOutputBytecode<bytecode, accumulator_use>();
@@ -511,15 +514,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
                                                              Register reg) {
   switch (op) {
-    case Token::Value::EQ_STRICT:
-      OutputTestEqualStrictNoFeedback(reg);
-      break;
     case Token::Value::IN:
       OutputTestIn(reg);
       break;
     default:
       UNREACHABLE();
   }
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareReference(Register reg) {
+  OutputTestReferenceEqual(reg);
   return *this;
 }
 
@@ -904,20 +909,23 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateBlockContext(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateCatchContext(
-    Register exception, const AstRawString* name, const Scope* scope) {
-  size_t name_index = GetConstantPoolEntry(name);
+    Register exception, const Scope* scope) {
   size_t scope_index = GetConstantPoolEntry(scope);
-  OutputCreateCatchContext(exception, name_index, scope_index);
+  OutputCreateCatchContext(exception, scope_index);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
-  OutputCreateFunctionContext(slots);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(
+    const Scope* scope, int slots) {
+  size_t scope_index = GetConstantPoolEntry(scope);
+  OutputCreateFunctionContext(scope_index, slots);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEvalContext(int slots) {
-  OutputCreateEvalContext(slots);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEvalContext(
+    const Scope* scope, int slots) {
+  size_t scope_index = GetConstantPoolEntry(scope);
+  OutputCreateEvalContext(scope_index, slots);
   return *this;
 }
 
@@ -975,6 +983,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEmptyObjectLiteral() {
   OutputCreateEmptyObjectLiteral();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CloneObject(Register source,
+                                                        int flags,
+                                                        int feedback_slot) {
+  OutputCloneObject(source, flags, feedback_slot);
   return *this;
 }
 

@@ -3,7 +3,8 @@
  --------------------
 
  This document describes installation on all supported operating
- systems (the Linux/Unix family, OpenVMS and Windows)
+ systems (the Unix/Linux family (which includes Mac OS/X), OpenVMS,
+ and Windows).
 
  To install OpenSSL, you will need:
 
@@ -76,7 +77,7 @@
 
  If you want to just get on with it, do:
 
-  on Unix:
+  on Unix (again, this includes Mac OS/X):
 
     $ ./config
     $ make
@@ -208,7 +209,7 @@
                    without a path). This flag must be provided if the
                    zlib-dynamic option is not also used. If zlib-dynamic is used
                    then this flag is optional and a default value ("ZLIB1") is
-                   used if not provided.
+                   used if not provided. 
                    On VMS: this is the filename of the zlib library (with or
                    without a path). This flag is optional and if not provided
                    then "GNV$LIBZSHR", "GNV$LIBZSHR32" or "GNV$LIBZSHR64" is
@@ -663,7 +664,7 @@
        $ nmake TESTS='test_rsa test_dsa' test           # Windows
 
      And of course, you can combine (Unix example shown):
-
+       
        $ make VERBOSE=1 TESTS='test_rsa test_dsa' test
 
      You can find the list of available tests like this:
@@ -733,7 +734,7 @@
                         command symbols.
          [.SYSTEST]     Contains the installation verification procedure.
          [.HTML]        Contains the HTML rendition of the manual pages.
-
+                        
 
      Additionally, install will add the following directories under
      OPENSSLDIR (the directory given with --openssldir or its default)

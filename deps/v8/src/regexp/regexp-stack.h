@@ -46,7 +46,8 @@ class RegExpStack {
   // Gives the top of the memory used as stack.
   Address stack_base() {
     DCHECK_NE(0, thread_local_.memory_size_);
-    return thread_local_.memory_ + thread_local_.memory_size_;
+    return reinterpret_cast<Address>(thread_local_.memory_) +
+           thread_local_.memory_size_;
   }
 
   // The total size of the memory allocated for the stack.
@@ -76,7 +77,8 @@ class RegExpStack {
   ~RegExpStack();
 
   // Artificial limit used when no memory has been allocated.
-  static const uintptr_t kMemoryTop = static_cast<uintptr_t>(-1);
+  static const Address kMemoryTop =
+      static_cast<Address>(static_cast<uintptr_t>(-1));
 
   // Minimal size of allocated stack area.
   static const size_t kMinimumStackSize = 1 * KB;
@@ -88,13 +90,13 @@ class RegExpStack {
   struct ThreadLocal {
     ThreadLocal() { Clear(); }
     // If memory_size_ > 0 then memory_ must be non-nullptr.
-    Address memory_;
+    byte* memory_;
     size_t memory_size_;
     Address limit_;
     void Clear() {
       memory_ = nullptr;
       memory_size_ = 0;
-      limit_ = reinterpret_cast<Address>(kMemoryTop);
+      limit_ = kMemoryTop;
     }
     void Free();
   };

@@ -15,8 +15,11 @@ config("gtest_config") {
     # and other systems, we tell gtest to always use its internal engine.
     "GTEST_HAS_POSIX_RE=0",
 
+    # Enables C++11 features.
     "GTEST_LANG_CXX11=1",
-    "GTEST_HAS_STD_TUPLE=1",
+
+    # Prevents gtest from including both <tr1/tuple> and <tuple>.
+    "GTEST_HAS_TR1_TUPLE=0",
   ]
 
   # Gtest headers need to be able to find themselves.
@@ -86,6 +89,12 @@ source_set("gtest") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  deps = []
+
+  if (is_fuchsia) {
+    deps += [ "//third_party/fuchsia-sdk:fdio" ]
+  }
 }
 
 # Do NOT depend on this directly. Use //testing/gtest:gtest_main instead.

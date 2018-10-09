@@ -2,10 +2,8 @@
 
 // Flags: --experimental-modules
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-
-common.crashOnUnhandledRejection();
 
 const file = '../fixtures/syntax/bad_syntax.js';
 

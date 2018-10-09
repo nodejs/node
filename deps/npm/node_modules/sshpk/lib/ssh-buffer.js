@@ -3,6 +3,7 @@
 module.exports = SSHBuffer;
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 
 function SSHBuffer(opts) {
 	assert.object(opts, 'options');
@@ -10,7 +11,7 @@ function SSHBuffer(opts) {
 		assert.buffer(opts.buffer, 'options.buffer');
 
 	this._size = opts.buffer ? opts.buffer.length : 1024;
-	this._buffer = opts.buffer || (new Buffer(this._size));
+	this._buffer = opts.buffer || Buffer.alloc(this._size);
 	this._offset = 0;
 }
 
@@ -32,7 +33,7 @@ SSHBuffer.prototype.skip = function (n) {
 
 SSHBuffer.prototype.expand = function () {
 	this._size *= 2;
-	var buf = new Buffer(this._size);
+	var buf = Buffer.alloc(this._size);
 	this._buffer.copy(buf, 0);
 	this._buffer = buf;
 };
@@ -96,7 +97,7 @@ SSHBuffer.prototype.writeBuffer = function (buf) {
 };
 
 SSHBuffer.prototype.writeString = function (str) {
-	this.writeBuffer(new Buffer(str, 'utf8'));
+	this.writeBuffer(Buffer.from(str, 'utf8'));
 };
 
 SSHBuffer.prototype.writeCString = function (str) {

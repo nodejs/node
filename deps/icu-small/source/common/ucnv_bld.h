@@ -288,6 +288,9 @@ ucnv_swap(const UDataSwapper *ds,
           const void *inData, int32_t length, void *outData,
           UErrorCode *pErrorCode);
 
+U_CAPI void U_EXPORT2
+ucnv_enableCleanup();
+
 #endif
 
 #endif /* _UCNV_BLD */

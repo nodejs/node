@@ -59,7 +59,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   }
 
  protected:
-  virtual byte* Generate() {
+  virtual Address Generate() {
     if (code_.is_null()) {
       Schedule* schedule = this->Export();
       auto call_descriptor = this->call_descriptor();
@@ -67,7 +67,8 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(),
                                     Code::STUB);
       code_ = Pipeline::GenerateCodeForTesting(
-          &info, main_isolate(), call_descriptor, graph, schedule);
+          &info, main_isolate(), call_descriptor, graph,
+          AssemblerOptions::Default(main_isolate()), schedule);
     }
     return this->code_.ToHandleChecked()->entry();
   }
@@ -95,7 +96,7 @@ class BufferedRawMachineAssemblerTester
     }
   }
 
-  virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
+  Address Generate() override { return RawMachineAssemblerTester::Generate(); }
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter
@@ -151,7 +152,7 @@ class BufferedRawMachineAssemblerTester<void>
     }
   }
 
-  virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
+  Address Generate() override { return RawMachineAssemblerTester::Generate(); }
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter
@@ -297,22 +298,22 @@ class Float64BinopTester : public BinopTester<double, USE_RESULT_BUFFER> {
 // and return a pointer value.
 // TODO(titzer): pick word size of pointers based on V8_TARGET.
 template <typename Type>
-class PointerBinopTester : public BinopTester<Type*, USE_RETURN_REGISTER> {
+class PointerBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
  public:
   explicit PointerBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, USE_RETURN_REGISTER>(tester,
-                                                MachineType::Pointer()) {}
+      : BinopTester<Type, USE_RETURN_REGISTER>(tester, MachineType::Pointer()) {
+  }
 };
 
 
 // A helper class for testing code sequences that take two tagged parameters and
 // return a tagged value.
 template <typename Type>
-class TaggedBinopTester : public BinopTester<Type*, USE_RETURN_REGISTER> {
+class TaggedBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
  public:
   explicit TaggedBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, USE_RETURN_REGISTER>(tester,
-                                                MachineType::AnyTagged()) {}
+      : BinopTester<Type, USE_RETURN_REGISTER>(tester,
+                                               MachineType::AnyTagged()) {}
 };
 
 // A helper class for testing compares. Wraps a machine opcode and provides

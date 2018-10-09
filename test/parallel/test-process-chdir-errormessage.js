@@ -11,6 +11,9 @@ common.expectsError(
   {
     type: Error,
     code: 'ENOENT',
-    message: "ENOENT: no such file or directory, chdir 'does-not-exist'",
+    message: /ENOENT: no such file or directory, chdir .+ -> 'does-not-exist'/,
+    path: process.cwd(),
+    syscall: 'chdir',
+    dest: 'does-not-exist'
   }
 );

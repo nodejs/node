@@ -1,0 +1,932 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module data_view {
+
+  extern operator '.buffer'
+      macro LoadArrayBufferViewBuffer(JSArrayBufferView): JSArrayBuffer;
+  extern operator '.byte_length'
+      macro LoadDataViewByteLength(JSDataView): Number;
+  extern operator '.byte_offset'
+      macro LoadDataViewByteOffset(JSDataView): Number;
+  extern operator '.backing_store'
+      macro LoadArrayBufferBackingStore(JSArrayBuffer): RawPtr;
+
+  macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
+    if constexpr (kind == UINT8_ELEMENTS) {
+      return 'DataView.prototype.getUint8';
+    } else if constexpr (kind == INT8_ELEMENTS) {
+      return 'DataView.prototype.getInt8';
+    } else if constexpr (kind == UINT16_ELEMENTS) {
+      return 'DataView.prototype.getUint16';
+    } else if constexpr (kind == INT16_ELEMENTS) {
+      return 'DataView.prototype.getInt16';
+    } else if constexpr (kind == UINT32_ELEMENTS) {
+      return 'DataView.prototype.getUint32';
+    } else if constexpr (kind == INT32_ELEMENTS) {
+      return 'DataView.prototype.getInt32';
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      return 'DataView.prototype.getFloat32';
+    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+      return 'DataView.prototype.getFloat64';
+    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      return 'DataView.prototype.getBigInt64';
+    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+      return 'DataView.prototype.getBigUint64';
+    } else {
+      unreachable;
+    }
+  }
+
+  macro MakeDataViewSetterNameString(kind: constexpr ElementsKind): String {
+    if constexpr (kind == UINT8_ELEMENTS) {
+      return 'DataView.prototype.setUint8';
+    } else if constexpr (kind == INT8_ELEMENTS) {
+      return 'DataView.prototype.setInt8';
+    } else if constexpr (kind == UINT16_ELEMENTS) {
+      return 'DataView.prototype.setUint16';
+    } else if constexpr (kind == INT16_ELEMENTS) {
+      return 'DataView.prototype.setInt16';
+    } else if constexpr (kind == UINT32_ELEMENTS) {
+      return 'DataView.prototype.setUint32';
+    } else if constexpr (kind == INT32_ELEMENTS) {
+      return 'DataView.prototype.setInt32';
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      return 'DataView.prototype.setFloat32';
+    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+      return 'DataView.prototype.setFloat64';
+    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      return 'DataView.prototype.setBigInt64';
+    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+      return 'DataView.prototype.setBigUint64';
+    } else {
+      unreachable;
+    }
+  }
+
+  macro WasNeutered(view: JSArrayBufferView): bool {
+    return IsDetachedBuffer(view.buffer);
+  }
+
+  macro ValidateDataView(context: Context,
+      o: Object, method: String): JSDataView {
+    try {
+      return cast<JSDataView>(o) otherwise CastError;
+    }
+    label CastError {
+      ThrowTypeError(context, kIncompatibleMethodReceiver, method);
+    }
+  }
+
+  // ES6 section 24.2.4.1 get DataView.prototype.buffer
+  javascript builtin DataViewPrototypeGetBuffer(
+      context: Context, receiver: Object, ...arguments): JSArrayBuffer {
+    let data_view: JSDataView = ValidateDataView(
+      context, receiver, 'get DataView.prototype.buffer');
+    return data_view.buffer;
+  }
+
+  // ES6 section 24.2.4.2 get DataView.prototype.byteLength
+  javascript builtin DataViewPrototypeGetByteLength(
+      context: Context, receiver: Object, ...arguments): Number {
+    let data_view: JSDataView = ValidateDataView(
+        context, receiver, 'get DataView.prototype.byte_length');
+    if (WasNeutered(data_view)) {
+      // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
+      // here if the JSArrayBuffer of the {data_view} was neutered.
+      return 0;
+    }
+    return data_view.byte_length;
+  }
+
+  // ES6 section 24.2.4.3 get DataView.prototype.byteOffset
+  javascript builtin DataViewPrototypeGetByteOffset(
+      context: Context, receiver: Object, ...arguments): Number {
+    let data_view: JSDataView = ValidateDataView(
+        context, receiver, 'get DataView.prototype.byte_offset');
+    if (WasNeutered(data_view)) {
+      // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
+      // here if the JSArrayBuffer of the {data_view} was neutered.
+      return 0;
+    }
+    return data_view.byte_offset;
+  }
+
+  extern macro BitcastInt32ToFloat32(uint32): float32;
+  extern macro BitcastFloat32ToInt32(float32): uint32;
+  extern macro Float64ExtractLowWord32(float64): uint32;
+  extern macro Float64ExtractHighWord32(float64): uint32;
+  extern macro Float64InsertLowWord32(float64, uint32): float64;
+  extern macro Float64InsertHighWord32(float64, uint32): float64;
+
+  extern macro LoadUint8(RawPtr, intptr): uint32;
+  extern macro LoadInt8(RawPtr, intptr): int32;
+
+  macro LoadDataView8(buffer: JSArrayBuffer, offset: intptr,
+                          signed: constexpr bool): Smi {
+    if constexpr (signed) {
+      return convert<Smi>(LoadInt8(buffer.backing_store, offset));
+    } else {
+      return convert<Smi>(LoadUint8(buffer.backing_store, offset));
+    }
+  }
+
+  macro LoadDataView16(buffer: JSArrayBuffer, offset: intptr,
+                       requested_little_endian: bool,
+                       signed: constexpr bool): Number {
+    let data_pointer: RawPtr = buffer.backing_store;
+
+    let b0: int32;
+    let b1: int32;
+    let result: int32;
+
+    // Sign-extend the most significant byte by loading it as an Int8.
+    if (requested_little_endian) {
+      b0 = Signed(LoadUint8(data_pointer, offset));
+      b1 = LoadInt8(data_pointer, offset + 1);
+      result = (b1 << 8) + b0;
+    } else {
+      b0 = LoadInt8(data_pointer, offset);
+      b1 = Signed(LoadUint8(data_pointer, offset + 1));
+      result = (b0 << 8) + b1;
+    }
+    if constexpr (signed) {
+      return convert<Smi>(result);
+    } else {
+      // Bit-mask the higher bits to prevent sign extension if we're unsigned.
+      return convert<Smi>(result & 0xFFFF);
+    }
+  }
+
+  macro LoadDataView32(buffer: JSArrayBuffer, offset: intptr,
+                       requested_little_endian: bool,
+                       kind: constexpr ElementsKind): Number {
+    let data_pointer: RawPtr = buffer.backing_store;
+
+    let b0: uint32 = LoadUint8(data_pointer, offset);
+    let b1: uint32 = LoadUint8(data_pointer, offset + 1);
+    let b2: uint32 = LoadUint8(data_pointer, offset + 2);
+    let b3: uint32 = LoadUint8(data_pointer, offset + 3);
+    let result: uint32;
+
+    if (requested_little_endian) {
+      result = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+    } else {
+      result = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+    }
+
+    if constexpr (kind == INT32_ELEMENTS) {
+      return convert<Number>(Signed(result));
+    } else if constexpr (kind == UINT32_ELEMENTS) {
+      return convert<Number>(result);
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      let float_res: float64 = convert<float64>(BitcastInt32ToFloat32(result));
+      return convert<Number>(float_res);
+    } else {
+      unreachable;
+    }
+  }
+
+  macro LoadDataViewFloat64(buffer: JSArrayBuffer, offset: intptr,
+                            requested_little_endian: bool): Number {
+    let data_pointer: RawPtr = buffer.backing_store;
+
+    let b0: uint32 = LoadUint8(data_pointer, offset);
+    let b1: uint32 = LoadUint8(data_pointer, offset + 1);
+    let b2: uint32 = LoadUint8(data_pointer, offset + 2);
+    let b3: uint32 = LoadUint8(data_pointer, offset + 3);
+    let b4: uint32 = LoadUint8(data_pointer, offset + 4);
+    let b5: uint32 = LoadUint8(data_pointer, offset + 5);
+    let b6: uint32 = LoadUint8(data_pointer, offset + 6);
+    let b7: uint32 = LoadUint8(data_pointer, offset + 7);
+    let low_word: uint32;
+    let high_word: uint32;
+
+    if (requested_little_endian) {
+      low_word = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+      high_word = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
+    } else {
+      high_word = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+      low_word = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
+    }
+
+    let result: float64 = 0;
+    result = Float64InsertLowWord32(result, low_word);
+    result = Float64InsertHighWord32(result, high_word);
+
+    return convert<Number>(result);
+  }
+
+  extern macro AllocateBigInt(intptr): BigInt;
+  extern macro StoreBigIntBitfield(BigInt, intptr): void;
+  extern macro StoreBigIntDigit(BigInt, constexpr int31, uintptr): void;
+  extern macro DataViewEncodeBigIntBits(constexpr bool,
+      constexpr int31): intptr;
+
+  const kPositiveBigInt: constexpr bool = false;
+  const kNegativeBigInt: constexpr bool = true;
+  const kZeroDigitBigInt: constexpr int31 = 0;
+  const kOneDigitBigInt: constexpr int31 = 1;
+  const kTwoDigitBigInt: constexpr int31 = 2;
+
+  macro CreateEmptyBigInt(is_positive: bool, length: constexpr int31): BigInt {
+    // Allocate a BigInt with the desired length (number of digits).
+    let result: BigInt = AllocateBigInt(length);
+
+    // Write the desired sign and length to the BigInt bitfield.
+    if (is_positive) {
+      StoreBigIntBitfield(result,
+          DataViewEncodeBigIntBits(kPositiveBigInt, length));
+    } else {
+      StoreBigIntBitfield(result,
+          DataViewEncodeBigIntBits(kNegativeBigInt, length));
+    }
+
+    return result;
+  }
+
+  // Create a BigInt on a 64-bit architecture from two 32-bit values.
+  macro MakeBigIntOn64Bit(low_word: uint32, high_word: uint32,
+                          signed: constexpr bool): BigInt {
+
+    // 0n is represented by a zero-length BigInt.
+    if (low_word == 0 && high_word == 0) {
+      return AllocateBigInt(kZeroDigitBigInt);
+    }
+
+    let is_positive: bool = true;
+    let high_part: intptr = Signed(convert<uintptr>(high_word));
+    let low_part: intptr = Signed(convert<uintptr>(low_word));
+    let raw_value: intptr = (high_part << 32) + low_part;
+
+    if constexpr (signed) {
+      if (raw_value < 0) {
+        is_positive = false;
+        // We have to store the absolute value of raw_value in the digit.
+        raw_value = 0 - raw_value;
+      }
+    }
+
+    // Allocate the BigInt and store the absolute value.
+    let result: BigInt = CreateEmptyBigInt(is_positive, kOneDigitBigInt);
+
+    StoreBigIntDigit(result, 0, Unsigned(raw_value));
+
+    return result;
+  }
+
+  // Create a BigInt on a 32-bit architecture from two 32-bit values.
+  macro MakeBigIntOn32Bit(low_word: uint32, high_word: uint32,
+                          signed: constexpr bool): BigInt {
+
+    // 0n is represented by a zero-length BigInt.
+    if (low_word == 0 && high_word == 0) {
+      return AllocateBigInt(kZeroDigitBigInt);
+    }
+
+    // On a 32-bit platform, we might need 1 or 2 digits to store the number.
+    let need_two_digits: bool = false;
+    let is_positive: bool = true;
+
+    // We need to do some math on low_word and high_word,
+    // so convert them to int32.
+    let low_part: int32 = Signed(low_word);
+    let high_part: int32 = Signed(high_word);
+
+    // If high_word == 0, the number is positive, and we only need 1 digit,
+    // so we don't have anything to do.
+    // Otherwise, all cases are possible.
+    if (high_word != 0) {
+      if constexpr (signed) {
+
+        // If high_part < 0, the number is always negative.
+        if (high_part < 0) {
+          is_positive = false;
+
+          // We have to compute the absolute value by hand.
+          // There will be a negative carry from the low word
+          // to the high word iff low != 0.
+          high_part = 0 - high_part;
+          if (low_part != 0) {
+            high_part = high_part - 1;
+          }
+          low_part = 0 - low_part;
+
+          // Here, high_part could be 0 again so we might have 1 or 2 digits.
+          if (high_part != 0) {
+            need_two_digits = true;
+          }
+
+        } else {
+          // In this case, the number is positive, and we need 2 digits.
+          need_two_digits = true;
+        }
+
+      } else {
+        // In this case, the number is positive (unsigned),
+        // and we need 2 digits.
+        need_two_digits = true;
+      }
+    }
+
+    // Allocate the BigInt with the right sign and length.
+    let result: BigInt;
+    if (need_two_digits) {
+      result = CreateEmptyBigInt(is_positive, kTwoDigitBigInt);
+    } else {
+      result = CreateEmptyBigInt(is_positive, kOneDigitBigInt);
+    }
+
+    // Finally, write the digit(s) to the BigInt.
+    StoreBigIntDigit(result, 0, Unsigned(convert<intptr>(low_part)));
+
+    if (need_two_digits) {
+      StoreBigIntDigit(result, 1, Unsigned(convert<intptr>(high_part)));
+    }
+
+    return result;
+  }
+
+  macro MakeBigInt(low_word: uint32, high_word: uint32,
+                   signed: constexpr bool): BigInt {
+    // A BigInt digit has the platform word size, so we only need one digit
+    // on 64-bit platforms but may need two on 32-bit.
+    if constexpr (Is64()) {
+      return MakeBigIntOn64Bit(low_word, high_word, signed);
+    } else {
+      return MakeBigIntOn32Bit(low_word, high_word, signed);
+    }
+  }
+
+  macro LoadDataViewBigInt(buffer: JSArrayBuffer, offset: intptr,
+                           requested_little_endian: bool,
+                           signed: constexpr bool): BigInt {
+    let data_pointer: RawPtr = buffer.backing_store;
+
+    let b0: uint32 = LoadUint8(data_pointer, offset);
+    let b1: uint32 = LoadUint8(data_pointer, offset + 1);
+    let b2: uint32 = LoadUint8(data_pointer, offset + 2);
+    let b3: uint32 = LoadUint8(data_pointer, offset + 3);
+    let b4: uint32 = LoadUint8(data_pointer, offset + 4);
+    let b5: uint32 = LoadUint8(data_pointer, offset + 5);
+    let b6: uint32 = LoadUint8(data_pointer, offset + 6);
+    let b7: uint32 = LoadUint8(data_pointer, offset + 7);
+    let low_word: uint32;
+    let high_word: uint32;
+
+    if (requested_little_endian) {
+      low_word = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+      high_word = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
+    } else {
+      high_word = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+      low_word = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
+    }
+
+    return MakeBigInt(low_word, high_word, signed);
+  }
+
+  extern macro ToSmiIndex(Object, Context): Smi labels RangeError;
+  extern macro DataViewElementSize(constexpr ElementsKind): constexpr int31;
+
+  macro DataViewGet(context: Context,
+                    receiver: Object,
+                    offset: Object,
+                    requested_little_endian: Object,
+                    kind: constexpr ElementsKind): Numeric {
+
+    let data_view: JSDataView = ValidateDataView(
+        context, receiver, MakeDataViewGetterNameString(kind));
+
+    let getIndex: Number;
+    try {
+      getIndex = ToIndex(offset, context) otherwise RangeError;
+    }
+    label RangeError {
+      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+    }
+
+    let littleEndian: bool = ToBoolean(requested_little_endian);
+    let buffer: JSArrayBuffer = data_view.buffer;
+
+    if (IsDetachedBuffer(buffer)) {
+      ThrowTypeError(context, kDetachedOperation,
+                     MakeDataViewGetterNameString(kind));
+    }
+
+    let viewOffset: Number = data_view.byte_offset;
+    let viewSize: Number = data_view.byte_length;
+    let elementSize: Number = DataViewElementSize(kind);
+
+    if (getIndex + elementSize > viewSize) {
+      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+    }
+
+    let getIndexFloat: float64 = convert<float64>(getIndex);
+    let getIndexIntptr: intptr = Signed(convert<uintptr>(getIndexFloat));
+    let viewOffsetFloat: float64 = convert<float64>(viewOffset);
+    let viewOffsetIntptr: intptr = Signed(convert<uintptr>(viewOffsetFloat));
+
+    let bufferIndex: intptr = getIndexIntptr + viewOffsetIntptr;
+
+    if constexpr (kind == UINT8_ELEMENTS) {
+      return LoadDataView8(buffer, bufferIndex, false);
+    } else if constexpr (kind == INT8_ELEMENTS) {
+      return LoadDataView8(buffer, bufferIndex, true);
+    } else if constexpr (kind == UINT16_ELEMENTS) {
+      return LoadDataView16(buffer, bufferIndex, littleEndian, false);
+    } else if constexpr (kind == INT16_ELEMENTS) {
+      return LoadDataView16(buffer, bufferIndex, littleEndian, true);
+    } else if constexpr (kind == UINT32_ELEMENTS) {
+      return LoadDataView32(buffer, bufferIndex, littleEndian, kind);
+    } else if constexpr (kind == INT32_ELEMENTS) {
+      return LoadDataView32(buffer, bufferIndex, littleEndian, kind);
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      return LoadDataView32(buffer, bufferIndex, littleEndian, kind);
+    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+      return LoadDataViewFloat64(buffer, bufferIndex, littleEndian);
+    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+      return LoadDataViewBigInt(buffer, bufferIndex, littleEndian, false);
+    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      return LoadDataViewBigInt(buffer, bufferIndex, littleEndian, true);
+    } else {
+      unreachable;
+    }
+  }
+
+  javascript builtin DataViewPrototypeGetUint8(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, Undefined, UINT8_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeGetInt8(
+      context: Context, receiver: Object, ...arguments): Object {
+    let offset: Object = arguments.length > 0 ?
+        arguments[0] :
+        Undefined;
+    return DataViewGet(context, receiver, offset, Undefined, INT8_ELEMENTS);
+  }
+
+  javascript builtin DataViewPrototypeGetUint16(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         UINT16_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeGetInt16(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         INT16_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeGetUint32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         UINT32_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeGetInt32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         INT32_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeGetFloat32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         FLOAT32_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeGetFloat64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         FLOAT64_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeGetBigUint64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         BIGUINT64_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeGetBigInt64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewGet(context, receiver, offset, is_little_endian,
+                         BIGINT64_ELEMENTS);
+    }
+
+  extern macro ToNumber(Context, Object): Number;
+  extern macro ToBigInt(Context, Object): BigInt;
+  extern macro TruncateFloat64ToFloat32(float64): float32;
+  extern macro TruncateFloat64ToWord32(float64): uint32;
+
+  extern macro StoreWord8(RawPtr, intptr, uint32): void;
+
+  macro StoreDataView8(buffer: JSArrayBuffer, offset: intptr,
+                       value: uint32) {
+    StoreWord8(buffer.backing_store, offset, value & 0xFF);
+  }
+
+  macro StoreDataView16(buffer: JSArrayBuffer, offset: intptr, value: uint32,
+                        requested_little_endian: bool) {
+    let data_pointer: RawPtr = buffer.backing_store;
+
+    let b0: uint32 = value & 0xFF;
+    let b1: uint32 = (value >>> 8) & 0xFF;
+
+    if (requested_little_endian) {
+      StoreWord8(data_pointer, offset, b0);
+      StoreWord8(data_pointer, offset + 1, b1);
+    } else {
+      StoreWord8(data_pointer, offset, b1);
+      StoreWord8(data_pointer, offset + 1, b0);
+    }
+  }
+
+  macro StoreDataView32(buffer: JSArrayBuffer, offset: intptr, value: uint32,
+                        requested_little_endian: bool) {
+    let data_pointer: RawPtr = buffer.backing_store;
+
+    let b0: uint32 = value & 0xFF;
+    let b1: uint32 = (value >>> 8) & 0xFF;
+    let b2: uint32 = (value >>> 16) & 0xFF;
+    let b3: uint32 = value >>> 24; // We don't need to mask here.
+
+    if (requested_little_endian) {
+      StoreWord8(data_pointer, offset, b0);
+      StoreWord8(data_pointer, offset + 1, b1);
+      StoreWord8(data_pointer, offset + 2, b2);
+      StoreWord8(data_pointer, offset + 3, b3);
+    } else {
+      StoreWord8(data_pointer, offset, b3);
+      StoreWord8(data_pointer, offset + 1, b2);
+      StoreWord8(data_pointer, offset + 2, b1);
+      StoreWord8(data_pointer, offset + 3, b0);
+    }
+  }
+
+  macro StoreDataView64(buffer: JSArrayBuffer, offset: intptr,
+                        low_word: uint32, high_word: uint32,
+                        requested_little_endian: bool) {
+    let data_pointer: RawPtr = buffer.backing_store;
+
+    let b0: uint32 = low_word & 0xFF;
+    let b1: uint32 = (low_word >>> 8) & 0xFF;
+    let b2: uint32 = (low_word >>> 16) & 0xFF;
+    let b3: uint32 = low_word >>> 24;
+
+    let b4: uint32 = high_word & 0xFF;
+    let b5: uint32 = (high_word >>> 8) & 0xFF;
+    let b6: uint32 = (high_word >>> 16) & 0xFF;
+    let b7: uint32 = high_word >>> 24;
+
+
+    if (requested_little_endian) {
+      StoreWord8(data_pointer, offset, b0);
+      StoreWord8(data_pointer, offset + 1, b1);
+      StoreWord8(data_pointer, offset + 2, b2);
+      StoreWord8(data_pointer, offset + 3, b3);
+      StoreWord8(data_pointer, offset + 4, b4);
+      StoreWord8(data_pointer, offset + 5, b5);
+      StoreWord8(data_pointer, offset + 6, b6);
+      StoreWord8(data_pointer, offset + 7, b7);
+    } else {
+      StoreWord8(data_pointer, offset, b7);
+      StoreWord8(data_pointer, offset + 1, b6);
+      StoreWord8(data_pointer, offset + 2, b5);
+      StoreWord8(data_pointer, offset + 3, b4);
+      StoreWord8(data_pointer, offset + 4, b3);
+      StoreWord8(data_pointer, offset + 5, b2);
+      StoreWord8(data_pointer, offset + 6, b1);
+      StoreWord8(data_pointer, offset + 7, b0);
+    }
+  }
+
+  extern macro DataViewDecodeBigIntLength(BigInt): uintptr;
+  extern macro DataViewDecodeBigIntSign(BigInt): uintptr;
+  extern macro LoadBigIntDigit(BigInt, constexpr int31): uintptr;
+
+  // We might get here a BigInt that is bigger than 64 bits, but we're only
+  // interested in the 64 lowest ones. This means the lowest BigInt digit
+  // on 64-bit platforms, and the 2 lowest BigInt digits on 32-bit ones.
+  macro StoreDataViewBigInt(buffer: JSArrayBuffer, offset: intptr,
+                            bigint_value: BigInt,
+                            requested_little_endian: bool) {
+
+    let length: uintptr = DataViewDecodeBigIntLength(bigint_value);
+    let sign: uintptr = DataViewDecodeBigIntSign(bigint_value);
+
+    // The 32-bit words that will hold the BigInt's value in
+    // two's complement representation.
+    let low_word: uint32 = 0;
+    let high_word: uint32 = 0;
+
+    // The length is nonzero if and only if the BigInt's value is nonzero.
+    if (length != 0) {
+      if constexpr (Is64()) {
+        // There is always exactly 1 BigInt digit to load in this case.
+        let value: uintptr = LoadBigIntDigit(bigint_value, 0);
+        low_word = convert<uint32>(value); // Truncates value to 32 bits.
+        high_word = convert<uint32>(value >>> 32);
+      }
+      else { // There might be either 1 or 2 BigInt digits we need to load.
+        low_word = convert<uint32>(LoadBigIntDigit(bigint_value, 0));
+        if (length >= 2) { // Only load the second digit if there is one.
+          high_word = convert<uint32>(LoadBigIntDigit(bigint_value, 1));
+        }
+      }
+    }
+
+    if (sign != 0) { // The number is negative, convert it.
+      high_word = Unsigned(0 - Signed(high_word));
+      if (low_word != 0) {
+        high_word = Unsigned(Signed(high_word) - 1);
+      }
+      low_word = Unsigned(0 - Signed(low_word));
+    }
+
+    StoreDataView64(buffer, offset, low_word, high_word,
+                    requested_little_endian);
+  }
+
+  macro DataViewSet(context: Context,
+                    receiver: Object,
+                    offset: Object,
+                    value: Object,
+                    requested_little_endian: Object,
+                    kind: constexpr ElementsKind): Object {
+
+    let data_view: JSDataView = ValidateDataView(
+        context, receiver, MakeDataViewSetterNameString(kind));
+
+    let getIndex: Number;
+    try {
+      getIndex = ToIndex(offset, context) otherwise RangeError;
+    }
+    label RangeError {
+      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+    }
+
+    let littleEndian: bool = ToBoolean(requested_little_endian);
+    let buffer: JSArrayBuffer = data_view.buffer;
+
+    let bigint_value: BigInt;
+    let num_value: Number;
+    // According to ES6 section 24.2.1.2 SetViewValue, we must perform
+    // the conversion before doing the bounds check.
+    if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
+      bigint_value = ToBigInt(context, value);
+    } else {
+      num_value = ToNumber(context, value);
+    }
+
+    if (IsDetachedBuffer(buffer)) {
+      ThrowTypeError(context, kDetachedOperation,
+                     MakeDataViewSetterNameString(kind));
+    }
+
+    let viewOffset: Number = data_view.byte_offset;
+    let viewSize: Number = data_view.byte_length;
+    let elementSize: Number = DataViewElementSize(kind);
+
+    if (getIndex + elementSize > viewSize) {
+      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+    }
+
+    let getIndexFloat: float64 = convert<float64>(getIndex);
+    let getIndexIntptr: intptr = Signed(convert<uintptr>(getIndexFloat));
+    let viewOffsetFloat: float64 = convert<float64>(viewOffset);
+    let viewOffsetIntptr: intptr = Signed(convert<uintptr>(viewOffsetFloat));
+
+    let bufferIndex: intptr = getIndexIntptr + viewOffsetIntptr;
+
+    if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
+      StoreDataViewBigInt(buffer, bufferIndex, bigint_value,
+                          littleEndian);
+    }
+    else {
+      let double_value: float64 = ChangeNumberToFloat64(num_value);
+
+      if constexpr (kind == UINT8_ELEMENTS || kind == INT8_ELEMENTS) {
+        StoreDataView8(buffer, bufferIndex,
+                      TruncateFloat64ToWord32(double_value));
+      }
+      else if constexpr (kind == UINT16_ELEMENTS || kind == INT16_ELEMENTS) {
+        StoreDataView16(buffer, bufferIndex,
+                        TruncateFloat64ToWord32(double_value), littleEndian);
+      }
+      else if constexpr (kind == UINT32_ELEMENTS || kind == INT32_ELEMENTS) {
+        StoreDataView32(buffer, bufferIndex,
+                        TruncateFloat64ToWord32(double_value), littleEndian);
+      }
+      else if constexpr (kind == FLOAT32_ELEMENTS) {
+        let float_value: float32 = TruncateFloat64ToFloat32(double_value);
+        StoreDataView32(buffer, bufferIndex,
+                        BitcastFloat32ToInt32(float_value), littleEndian);
+      }
+      else if constexpr (kind == FLOAT64_ELEMENTS) {
+        let low_word: uint32 = Float64ExtractLowWord32(double_value);
+        let high_word: uint32 = Float64ExtractHighWord32(double_value);
+        StoreDataView64(buffer, bufferIndex, low_word, high_word,
+                        littleEndian);
+      }
+    }
+    return Undefined;
+  }
+
+  javascript builtin DataViewPrototypeSetUint8(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value, Undefined,
+                         UINT8_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetInt8(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value, Undefined,
+                         INT8_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetUint16(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, UINT16_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetInt16(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, INT16_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetUint32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, UINT32_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetInt32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, INT32_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetFloat32(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, FLOAT32_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetFloat64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, FLOAT64_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetBigUint64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, BIGUINT64_ELEMENTS);
+    }
+
+  javascript builtin DataViewPrototypeSetBigInt64(
+    context: Context, receiver: Object, ...arguments): Object {
+      let offset: Object = arguments.length > 0 ?
+          arguments[0] :
+          Undefined;
+      let value : Object = arguments.length > 1 ?
+          arguments[1] :
+          Undefined;
+      let is_little_endian : Object = arguments.length > 2 ?
+          arguments[2] :
+          Undefined;
+      return DataViewSet(context, receiver, offset, value,
+                         is_little_endian, BIGINT64_ELEMENTS);
+    }
+
+}

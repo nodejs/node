@@ -6,6 +6,8 @@
 
 #include "src/code-stubs.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/objects/data-handler-inl.h"
+#include "src/objects/maybe-object.h"
 #include "src/transitions.h"
 
 namespace v8 {
@@ -26,8 +28,8 @@ Handle<Smi> SetBitFieldValue(Isolate* isolate, Handle<Smi> smi_handler,
 template <typename ICHandler, bool fill_handler = true>
 int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
                             Handle<Smi>* smi_handler, Handle<Map> receiver_map,
-                            Handle<JSReceiver> holder, Handle<Object> data1,
-                            MaybeHandle<Object> maybe_data2) {
+                            Handle<JSReceiver> holder, MaybeObjectHandle data1,
+                            MaybeObjectHandle maybe_data2) {
   int checks_count = 0;
   // Holder-is-receiver case itself does not add entries unless there is an
   // optional data2 value provided.
@@ -43,7 +45,7 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
     // corresponds.
     if (fill_handler) {
       Handle<Context> native_context = isolate->native_context();
-      handler->set_data2(native_context->self_weak_cell());
+      handler->set_data2(HeapObjectReference::Weak(*native_context));
     } else {
       // Enable access checks on receiver.
       typedef typename ICHandler::DoAccessCheckOnReceiverBits Bit;
@@ -61,16 +63,15 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
   if (fill_handler) {
     handler->set_data1(*data1);
   }
-  Handle<Object> data2;
-  if (maybe_data2.ToHandle(&data2)) {
+  if (!maybe_data2.is_null()) {
     if (fill_handler) {
       // This value will go either to data2 or data3 slot depending on whether
       // data2 slot is already occupied by native context.
       if (checks_count == 0) {
-        handler->set_data2(*data2);
+        handler->set_data2(*maybe_data2);
       } else {
         DCHECK_EQ(1, checks_count);
-        handler->set_data3(*data2);
+        handler->set_data3(*maybe_data2);
       }
     }
     checks_count++;
@@ -87,8 +88,8 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
 template <typename ICHandler>
 int GetPrototypeCheckCount(
     Isolate* isolate, Handle<Smi>* smi_handler, Handle<Map> receiver_map,
-    Handle<JSReceiver> holder, Handle<Object> data1,
-    MaybeHandle<Object> maybe_data2 = MaybeHandle<Object>()) {
+    Handle<JSReceiver> holder, MaybeObjectHandle data1,
+    MaybeObjectHandle maybe_data2 = MaybeObjectHandle()) {
   DCHECK_NOT_NULL(smi_handler);
   return InitPrototypeChecksImpl<ICHandler, false>(isolate, Handle<ICHandler>(),
                                                    smi_handler, receiver_map,
@@ -96,10 +97,10 @@ int GetPrototypeCheckCount(
 }
 
 template <typename ICHandler>
-void InitPrototypeChecks(
-    Isolate* isolate, Handle<ICHandler> handler, Handle<Map> receiver_map,
-    Handle<JSReceiver> holder, Handle<Object> data1,
-    MaybeHandle<Object> maybe_data2 = MaybeHandle<Object>()) {
+void InitPrototypeChecks(Isolate* isolate, Handle<ICHandler> handler,
+                         Handle<Map> receiver_map, Handle<JSReceiver> holder,
+                         MaybeObjectHandle data1,
+                         MaybeObjectHandle maybe_data2 = MaybeObjectHandle()) {
   InitPrototypeChecksImpl<ICHandler, true>(
       isolate, handler, nullptr, receiver_map, holder, data1, maybe_data2);
 }
@@ -111,11 +112,13 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
                                               Handle<Map> receiver_map,
                                               Handle<JSReceiver> holder,
                                               Handle<Smi> smi_handler,
-                                              MaybeHandle<Object> maybe_data1,
-                                              MaybeHandle<Object> maybe_data2) {
-  Handle<Object> data1;
-  if (!maybe_data1.ToHandle(&data1)) {
-    data1 = Map::GetOrCreatePrototypeWeakCell(holder, isolate);
+                                              MaybeObjectHandle maybe_data1,
+                                              MaybeObjectHandle maybe_data2) {
+  MaybeObjectHandle data1;
+  if (maybe_data1.is_null()) {
+    data1 = MaybeObjectHandle::Weak(holder);
+  } else {
+    data1 = maybe_data1;
   }
 
   int checks_count = GetPrototypeCheckCount<LoadHandler>(
@@ -137,10 +140,10 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
 // static
 Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
                                           Handle<Map> receiver_map,
-                                          Handle<Object> holder,
+                                          MaybeObjectHandle holder,
                                           Handle<Smi> smi_handler) {
   Handle<JSReceiver> end;  // null handle, means full prototype chain lookup.
-  Handle<Object> data1 = holder;
+  MaybeObjectHandle data1 = holder;
   int checks_count = GetPrototypeCheckCount<LoadHandler>(
       isolate, &smi_handler, receiver_map, end, data1);
 
@@ -162,10 +165,10 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 }
 
 // static
-KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(Object* handler) {
+KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject* handler) {
   DisallowHeapAllocation no_gc;
   if (handler->IsSmi()) {
-    int const raw_handler = Smi::cast(handler)->value();
+    int const raw_handler = Smi::cast(handler->ToSmi())->value();
     Kind const kind = KindBits::decode(raw_handler);
     if ((kind == kElement || kind == kIndexedString) &&
         AllowOutOfBoundsBits::decode(raw_handler)) {
@@ -187,21 +190,21 @@ Handle<Object> StoreHandler::StoreElementTransition(
                           .GetCode();
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
-  Handle<WeakCell> cell = Map::WeakCellForMap(transition);
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);
   handler->set_smi_handler(*stub);
   handler->set_validity_cell(*validity_cell);
-  handler->set_data1(*cell);
+  handler->set_data1(HeapObjectReference::Weak(*transition));
   return handler;
 }
 
-Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
-                                             Handle<Map> transition_map) {
+MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
+                                                Handle<Map> transition_map) {
   bool is_dictionary_map = transition_map->is_dictionary_map();
 #ifdef DEBUG
   if (!is_dictionary_map) {
     int descriptor = transition_map->LastAdded();
-    Handle<DescriptorArray> descriptors(transition_map->instance_descriptors());
+    Handle<DescriptorArray> descriptors(transition_map->instance_descriptors(),
+                                        isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);
     if (descriptors->GetKey(descriptor)->IsPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());
@@ -229,26 +232,27 @@ Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
     int config = KindBits::encode(kNormal) | LookupOnReceiverBits::encode(true);
     handler->set_smi_handler(Smi::FromInt(config));
     handler->set_validity_cell(*validity_cell);
-    return handler;
+    return MaybeObjectHandle(handler);
 
   } else {
     // Ensure the transition map contains a valid prototype validity cell.
     if (!validity_cell.is_null()) {
       transition_map->set_prototype_validity_cell(*validity_cell);
     }
-    Handle<WeakCell> cell = Map::WeakCellForMap(transition_map);
-    return cell;
+    return MaybeObjectHandle::Weak(transition_map);
   }
 }
 
 // static
 Handle<Object> StoreHandler::StoreThroughPrototype(
     Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
-    Handle<Smi> smi_handler, MaybeHandle<Object> maybe_data1,
-    MaybeHandle<Object> maybe_data2) {
-  Handle<Object> data1;
-  if (!maybe_data1.ToHandle(&data1)) {
-    data1 = Map::GetOrCreatePrototypeWeakCell(holder, isolate);
+    Handle<Smi> smi_handler, MaybeObjectHandle maybe_data1,
+    MaybeObjectHandle maybe_data2) {
+  MaybeObjectHandle data1;
+  if (maybe_data1.is_null()) {
+    data1 = MaybeObjectHandle::Weak(holder);
+  } else {
+    data1 = maybe_data1;
   }
 
   int checks_count = GetPrototypeCheckCount<StoreHandler>(
@@ -270,9 +274,8 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
 }
 
 // static
-Handle<Object> StoreHandler::StoreGlobal(Isolate* isolate,
-                                         Handle<PropertyCell> cell) {
-  return isolate->factory()->NewWeakCell(cell);
+MaybeObjectHandle StoreHandler::StoreGlobal(Handle<PropertyCell> cell) {
+  return MaybeObjectHandle::Weak(cell);
 }
 
 // static
@@ -282,39 +285,8 @@ Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
                                         Handle<JSReceiver> receiver) {
   Handle<Smi> smi_handler = StoreProxy(isolate);
   if (receiver.is_identical_to(proxy)) return smi_handler;
-  Handle<WeakCell> holder_cell = isolate->factory()->NewWeakCell(proxy);
   return StoreThroughPrototype(isolate, receiver_map, proxy, smi_handler,
-                               holder_cell);
-}
-
-Object* StoreHandler::ValidHandlerOrNull(Object* raw_handler, Name* name,
-                                         Handle<Map>* out_transition) {
-  Smi* valid = Smi::FromInt(Map::kPrototypeChainValid);
-
-  DCHECK(raw_handler->IsStoreHandler());
-
-  // Check validity cell.
-  StoreHandler* handler = StoreHandler::cast(raw_handler);
-
-  Object* raw_validity_cell = handler->validity_cell();
-  // |raw_valitity_cell| can be Smi::kZero if no validity cell is required
-  // (which counts as valid).
-  if (raw_validity_cell->IsCell() &&
-      Cell::cast(raw_validity_cell)->value() != valid) {
-    return nullptr;
-  }
-  // We use this ValidHandlerOrNull() function only for transitioning store
-  // handlers which are not applicable to receivers that require access checks.
-  DCHECK(handler->smi_handler()->IsSmi());
-  DCHECK(
-      !DoAccessCheckOnReceiverBits::decode(Smi::ToInt(handler->smi_handler())));
-
-  // Check if the transition target is deprecated.
-  WeakCell* target_cell = GetTransitionCell(raw_handler);
-  Map* transition = Map::cast(target_cell->value());
-  if (transition->is_deprecated()) return nullptr;
-  *out_transition = handle(transition);
-  return raw_handler;
+                               MaybeObjectHandle::Weak(proxy));
 }
 
 }  // namespace internal

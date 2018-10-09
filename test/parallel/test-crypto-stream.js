@@ -40,7 +40,7 @@ if (!common.hasFipsCrypto) {
       });
     }
 
-    _write(data, encodeing, done) {
+    _write(data, encoding, done) {
       this._buffers.push(data);
       return done(null);
     }

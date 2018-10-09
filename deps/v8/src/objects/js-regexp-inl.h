@@ -7,6 +7,7 @@
 
 #include "src/objects/js-regexp.h"
 
+#include "src/objects-inl.h"  // Needed for write barriers
 #include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -14,8 +15,6 @@
 
 namespace v8 {
 namespace internal {
-
-TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 
 CAST_ACCESSOR(JSRegExp)
 
@@ -26,7 +25,7 @@ ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 
 JSRegExp::Type JSRegExp::TypeTag() {
   Object* data = this->data();
-  if (data->IsUndefined(GetIsolate())) return JSRegExp::NOT_COMPILED;
+  if (data->IsUndefined()) return JSRegExp::NOT_COMPILED;
   Smi* smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
   return static_cast<JSRegExp::Type>(smi->value());
 }

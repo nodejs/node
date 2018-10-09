@@ -8,6 +8,7 @@
 #include "src/bailout-reason.h"
 #include "src/base/flags.h"
 #include "src/globals.h"
+#include "src/turbo-assembler.h"
 #include "src/x64/assembler-x64.h"
 
 namespace v8 {
@@ -25,11 +26,17 @@ constexpr Register kInterpreterAccumulatorRegister = rax;
 constexpr Register kInterpreterBytecodeOffsetRegister = r9;
 constexpr Register kInterpreterBytecodeArrayRegister = r14;
 constexpr Register kInterpreterDispatchTableRegister = r15;
+
 constexpr Register kJavaScriptCallArgCountRegister = rax;
 constexpr Register kJavaScriptCallCodeStartRegister = rcx;
+constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = rdx;
+constexpr Register kJavaScriptCallExtraArg1Register = rbx;
+
 constexpr Register kRuntimeCallFunctionRegister = rbx;
 constexpr Register kRuntimeCallArgCountRegister = rax;
+constexpr Register kRuntimeCallArgvRegister = r15;
+constexpr Register kWasmInstanceRegister = rsi;
 
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
@@ -37,9 +44,7 @@ constexpr Register kRuntimeCallArgCountRegister = rax;
 constexpr Register kScratchRegister = r10;
 constexpr XMMRegister kScratchDoubleReg = xmm15;
 constexpr Register kRootRegister = r13;  // callee save
-// Actual value of root register is offset from the root array's start
-// to take advantage of negitive 8-bit displacement values.
-constexpr int kRootRegisterBias = 128;
+
 constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 
 // Convenience for platform-independent signatures.
@@ -47,20 +52,6 @@ typedef Operand MemOperand;
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
-
-#ifdef DEBUG
-bool AreAliased(Register reg1,
-                Register reg2,
-                Register reg3 = no_reg,
-                Register reg4 = no_reg,
-                Register reg5 = no_reg,
-                Register reg6 = no_reg,
-                Register reg7 = no_reg,
-                Register reg8 = no_reg);
-#endif
-
-// Forward declaration.
-class JumpTarget;
 
 struct SmiIndex {
   SmiIndex(Register index_register, ScaleFactor scale)
@@ -121,20 +112,13 @@ class StackArgumentsAccessor BASE_EMBEDDED {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
 
-class TurboAssembler : public Assembler {
+class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
-  TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object);
-
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() const { return has_frame_; }
-
-  Isolate* isolate() const { return isolate_; }
-
-  Handle<HeapObject> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
-  }
+  TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int buffer_size,
+                 CodeObjectRequired create_code_object)
+      : TurboAssemblerBase(isolate, options, buffer, buffer_size,
+                           create_code_object) {}
 
   template <typename Dst, typename... Args>
   struct AvxHelper {
@@ -231,7 +215,7 @@ class TurboAssembler : public Assembler {
   void Set(Operand dst, intptr_t x);
 
   // Operations on roots in the root-array.
-  void LoadRoot(Register destination, Heap::RootListIndex index);
+  void LoadRoot(Register destination, Heap::RootListIndex index) override;
   void LoadRoot(Operand destination, Heap::RootListIndex index) {
     LoadRoot(kScratchRegister, index);
     movp(destination, kScratchRegister);
@@ -286,8 +270,18 @@ class TurboAssembler : public Assembler {
   void Cvtqsi2sd(XMMRegister dst, Operand src);
   void Cvtlsi2ss(XMMRegister dst, Register src);
   void Cvtlsi2ss(XMMRegister dst, Operand src);
-  void Cvtqui2ss(XMMRegister dst, Register src, Register tmp);
-  void Cvtqui2sd(XMMRegister dst, Register src, Register tmp);
+  void Cvtlui2ss(XMMRegister dst, Register src);
+  void Cvtlui2ss(XMMRegister dst, Operand src);
+  void Cvtlui2sd(XMMRegister dst, Register src);
+  void Cvtlui2sd(XMMRegister dst, Operand src);
+  void Cvtqui2ss(XMMRegister dst, Register src);
+  void Cvtqui2ss(XMMRegister dst, Operand src);
+  void Cvtqui2sd(XMMRegister dst, Register src);
+  void Cvtqui2sd(XMMRegister dst, Operand src);
+  void Cvttsd2uiq(Register dst, Operand src, Label* fail = nullptr);
+  void Cvttsd2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
+  void Cvttss2uiq(Register dst, Operand src, Label* fail = nullptr);
+  void Cvttss2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
 
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
@@ -316,6 +310,16 @@ class TurboAssembler : public Assembler {
   void JumpIfSmi(Register src, Label* on_smi,
                  Label::Distance near_jump = Label::kFar);
 
+  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+    cmpl(a, Immediate(b));
+    j(equal, dest);
+  }
+
+  void JumpIfLessThan(Register a, int32_t b, Label* dest) {
+    cmpl(a, Immediate(b));
+    j(less, dest);
+  }
+
   void Move(Register dst, Smi* source);
 
   void Move(Operand dst, Smi* source) {
@@ -323,10 +327,7 @@ class TurboAssembler : public Assembler {
     movp(dst, constant);
   }
 
-  void Move(Register dst, ExternalReference ext) {
-    movp(dst, reinterpret_cast<void*>(ext.address()),
-         RelocInfo::EXTERNAL_REFERENCE);
-  }
+  void Move(Register dst, ExternalReference ext);
 
   void Move(XMMRegister dst, uint32_t src);
   void Move(XMMRegister dst, uint64_t src);
@@ -342,21 +343,25 @@ class TurboAssembler : public Assembler {
             RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
 
   // Loads a pointer into a register with a relocation mode.
-  void Move(Register dst, void* ptr, RelocInfo::Mode rmode) {
+  void Move(Register dst, Address ptr, RelocInfo::Mode rmode) {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
     DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
     movp(dst, ptr, rmode);
   }
 
-  // Convert smi to 32-bit integer. I.e., not sign extended into
-  // high 32 bits of destination.
-  void SmiToInteger32(Register dst, Register src);
-  void SmiToInteger32(Register dst, Operand src);
+  // Convert smi to word-size sign-extended value.
+  void SmiUntag(Register dst, Register src);
+  void SmiUntag(Register dst, Operand src);
 
   // Loads the address of the external reference into the destination
   // register.
   void LoadAddress(Register destination, ExternalReference source);
+
+  void LoadFromConstantsTable(Register destination,
+                              int constant_index) override;
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
+  void LoadRootRelative(Register destination, int32_t offset) override;
 
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
@@ -367,6 +372,7 @@ class TurboAssembler : public Assembler {
   Operand ExternalOperand(ExternalReference reference,
                           Register scratch = kScratchRegister);
 
+  void Call(Register reg) { call(reg); }
   void Call(Operand op);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
   void Call(Address destination, RelocInfo::Mode rmode);
@@ -376,31 +382,19 @@ class TurboAssembler : public Assembler {
   void RetpolineCall(Register reg);
   void RetpolineCall(Address destination, RelocInfo::Mode rmode);
 
+  void Jump(Address destination, RelocInfo::Mode rmode);
+  void Jump(ExternalReference ext);
+  void Jump(Operand op);
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
+            Condition cc = always);
+
   void RetpolineJump(Register reg);
 
-  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+  void CallForDeoptimization(Address target, int deopt_id,
+                             RelocInfo::Mode rmode) {
+    USE(deopt_id);
     call(target, rmode);
   }
-
-  // The size of the code generated for different call instructions.
-  int CallSize(ExternalReference ext);
-  int CallSize(Address destination) { return kCallSequenceLength; }
-  int CallSize(Handle<Code> code_object) {
-    // Code calls use 32-bit relative addressing.
-    return kShortCallInstructionLength;
-  }
-  int CallSize(Register target) {
-    // Opcode: REX_opt FF /2 m64
-    return (target.high_bit() != 0) ? 3 : 2;
-  }
-  int CallSize(Operand target) {
-    // Opcode: REX_opt FF /2 m64
-    return (target.requires_rex() ? 2 : 1) + target.operand_size();
-  }
-
-  // Returns the size of the code generated by LoadAddress.
-  // Used by CallSize(ExternalReference) to find the size of a call.
-  int LoadAddressSize(ExternalReference source);
 
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
@@ -458,11 +452,9 @@ class TurboAssembler : public Assembler {
   // HeapObjectRequest that will be fulfilled after code assembly.
   void CallStubDelayed(CodeStub* stub);
 
-  void SlowTruncateToIDelayed(Zone* zone, Register result_reg);
-
-  // Call a runtime routine.
-  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
-                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
+  // builtin for the target runtime function and uses an indirect call.
+  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
 
   void InitializeRootRegister() {
     ExternalReference roots_array_start =
@@ -515,43 +507,23 @@ class TurboAssembler : public Assembler {
   int smi_count = 0;
   int heap_object_count = 0;
 
-  bool root_array_available_ = true;
-
   int64_t RootRegisterDelta(ExternalReference other);
 
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.
   Register GetSmiConstant(Smi* value);
-
- private:
-  bool has_frame_ = false;
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
-  Isolate* const isolate_;
 };
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler : public TurboAssembler {
  public:
+  // TODO(titzer): inline this utility constructor.
   MacroAssembler(Isolate* isolate, void* buffer, int size,
-                 CodeObjectRequired create_code_object);
-
-  // Prevent the use of the RootArray during the lifetime of this
-  // scope object.
-  class NoRootArrayScope BASE_EMBEDDED {
-   public:
-    explicit NoRootArrayScope(MacroAssembler* assembler)
-        : variable_(&assembler->root_array_available_),
-          old_value_(assembler->root_array_available_) {
-      assembler->root_array_available_ = false;
-    }
-    ~NoRootArrayScope() {
-      *variable_ = old_value_;
-    }
-   private:
-    bool* variable_;
-    bool old_value_;
-  };
+                 CodeObjectRequired create_code_object)
+      : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
+                       size, create_code_object) {}
+  MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int size, CodeObjectRequired create_code_object);
 
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of
@@ -677,13 +649,8 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 
-  // Tag an integer value. The result must be known to be a valid smi value.
-  // Only uses the low 32 bits of the src register. Sets the N and Z flags
-  // based on the value of the resulting smi.
-  void Integer32ToSmi(Register dst, Register src);
-
-  // Convert smi to 64-bit integer (sign extended if necessary).
-  void SmiToInteger64(Register dst, Register src);
+  // Tag an word-size value. The result must be known to be a valid smi value.
+  void SmiTag(Register dst, Register src);
 
   // Simple comparison of smis.  Both sides must be known smis to use these,
   // otherwise use Cmp.
@@ -762,13 +729,6 @@ class MacroAssembler : public TurboAssembler {
   void Negps(XMMRegister dst);
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);
-
-  // Control Flow
-  void Jump(Address destination, RelocInfo::Mode rmode);
-  void Jump(ExternalReference ext);
-  void Jump(Operand op);
-  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
-
   // Generates a trampoline to jump to the off-heap instruction stream.
   void JumpToInstructionStream(Address entry);
 
@@ -809,9 +769,6 @@ class MacroAssembler : public TurboAssembler {
   // Abort execution if argument is not a smi, enabled via --debug-code.
   void AssertSmi(Register object);
   void AssertSmi(Operand object);
-
-  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
-  void AssertFixedArray(Register object);
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object);

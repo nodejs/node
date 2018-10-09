@@ -448,16 +448,18 @@ L$016sub:
 	lea	edx,[1+edx]
 	jge	NEAR L$016sub
 	sbb	eax,0
-	and	esi,eax
-	not	eax
-	mov	ebp,edi
-	and	ebp,eax
-	or	esi,ebp
+	mov	edx,-1
+	xor	edx,eax
+	jmp	NEAR L$017copy
 align	16
 L$017copy:
-	mov	eax,DWORD [ebx*4+esi]
-	mov	DWORD [ebx*4+edi],eax
+	mov	esi,DWORD [32+ebx*4+esp]
+	mov	ebp,DWORD [ebx*4+edi]
 	mov	DWORD [32+ebx*4+esp],ecx
+	and	esi,eax
+	and	ebp,edx
+	or	ebp,esi
+	mov	DWORD [ebx*4+edi],ebp
 	dec	ebx
 	jge	NEAR L$017copy
 	mov	esp,DWORD [24+esp]

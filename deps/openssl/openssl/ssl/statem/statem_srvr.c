@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -213,6 +213,21 @@ int ossl_statem_server_read_transition(SSL *s, int mt)
     }
 
     /* No valid transition found */
+    if (SSL_IS_DTLS(s) && mt == SSL3_MT_CHANGE_CIPHER_SPEC) {
+        BIO *rbio;
+
+        /*
+         * CCS messages don't have a message sequence number so this is probably
+         * because of an out-of-order CCS. We'll just drop it.
+         */
+        s->init_num = 0;
+        s->rwstate = SSL_READING;
+        rbio = SSL_get_rbio(s);
+        BIO_clear_retry_flags(rbio);
+        BIO_set_retry_read(rbio);
+        return 0;
+    }
+    ossl_statem_set_error(s);
     ssl3_send_alert(s, SSL3_AL_FATAL, SSL3_AD_UNEXPECTED_MESSAGE);
     SSLerr(SSL_F_OSSL_STATEM_SERVER_READ_TRANSITION, SSL_R_UNEXPECTED_MESSAGE);
     return 0;
@@ -1698,6 +1713,12 @@ int tls_construct_server_key_exchange(SSL *s)
         }
 
         dh = EVP_PKEY_get0_DH(s->s3->tmp.pkey);
+        if (dh == NULL) {
+            al = SSL_AD_INTERNAL_ERROR;
+            SSLerr(SSL_F_TLS_CONSTRUCT_SERVER_KEY_EXCHANGE,
+                   ERR_R_INTERNAL_ERROR);
+            goto err;
+        }
 
         EVP_PKEY_free(pkdh);
         pkdh = NULL;
@@ -1985,6 +2006,11 @@ int tls_construct_certificate_request(SSL *s)
         const unsigned char *psigs;
         unsigned char *etmp = p;
         nl = tls12_get_psigalgs(s, 1, &psigs);
+        if (nl > SSL_MAX_2_BYTE_LEN) {
+            SSLerr(SSL_F_TLS_CONSTRUCT_CERTIFICATE_REQUEST,
+                   SSL_R_LENGTH_TOO_LONG);
+            goto err;
+        }
         /* Skip over length for now */
         p += 2;
         nl = tls12_copy_sigalgs(s, p, psigs, nl);
@@ -2004,6 +2030,11 @@ int tls_construct_certificate_request(SSL *s)
         for (i = 0; i < sk_X509_NAME_num(sk); i++) {
             name = sk_X509_NAME_value(sk, i);
             j = i2d_X509_NAME(name, NULL);
+            if (j > SSL_MAX_2_BYTE_LEN) {
+                SSLerr(SSL_F_TLS_CONSTRUCT_CERTIFICATE_REQUEST,
+                       SSL_R_LENGTH_TOO_LONG);
+                goto err;
+            }
             if (!BUF_MEM_grow_clean(buf, SSL_HM_HEADER_LENGTH(s) + n + j + 2)) {
                 SSLerr(SSL_F_TLS_CONSTRUCT_CERTIFICATE_REQUEST, ERR_R_BUF_LIB);
                 goto err;
@@ -2013,6 +2044,11 @@ int tls_construct_certificate_request(SSL *s)
             i2d_X509_NAME(name, &p);
             n += 2 + j;
             nl += 2 + j;
+            if (nl > SSL_MAX_2_BYTE_LEN) {
+                SSLerr(SSL_F_TLS_CONSTRUCT_CERTIFICATE_REQUEST,
+                       SSL_R_LENGTH_TOO_LONG);
+                goto err;
+            }
         }
     }
     /* else no CA names */
@@ -2303,13 +2339,12 @@ static int tls_process_cke_dhe(SSL *s, PACKET *pkt, int *al)
         SSLerr(SSL_F_TLS_PROCESS_CKE_DHE, SSL_R_BN_LIB);
         goto err;
     }
+
     cdh = EVP_PKEY_get0_DH(ckey);
     pub_key = BN_bin2bn(data, i, NULL);
-
-    if (pub_key == NULL || !DH_set0_key(cdh, pub_key, NULL)) {
+    if (pub_key == NULL || cdh == NULL || !DH_set0_key(cdh, pub_key, NULL)) {
         SSLerr(SSL_F_TLS_PROCESS_CKE_DHE, ERR_R_INTERNAL_ERROR);
-        if (pub_key != NULL)
-            BN_free(pub_key);
+        BN_free(pub_key);
         goto err;
     }
 

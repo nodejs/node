@@ -1,6 +1,6 @@
 'use strict'
 
-var uuid = require('uuid')
+var uuid = require('uuid/v4')
 var CombinedStream = require('combined-stream')
 var isstream = require('isstream')
 var Buffer = require('safe-buffer').Buffer

@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
 
@@ -8,7 +9,7 @@ common.skipIfInspectorDisabled();
 
 // This test verifies that the V8 inspector API is usable in the REPL.
 
-const putIn = new common.ArrayStream();
+const putIn = new ArrayStream();
 let output = '';
 putIn.write = function(data) {
   output += data;

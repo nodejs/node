@@ -119,6 +119,7 @@ symbol_level = 2
 use_goma = {GOMA}
 goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
+v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
 """.replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
@@ -131,6 +132,7 @@ symbol_level = 1
 use_goma = {GOMA}
 goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
+v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
 """.replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
@@ -246,7 +248,7 @@ class Config(object):
 
     return_code, output = _CallWithOutput("autoninja -C %s %s" %
                                           (path, targets))
-    if return_code != 0 and "FAILED: gen/snapshot.cc" in output:
+    if return_code != 0 and "FAILED: snapshot_blob.bin" in output:
       csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
       match = csa_trap.search(output)
       extra_opt = match.group(1) if match else ""

@@ -26,7 +26,7 @@ Variable::Variable(Variable* other)
 bool Variable::IsGlobalObjectProperty() const {
   // Temporaries are never global, they must always be allocated in the
   // activation frame.
-  return (IsDynamicVariableMode(mode()) || mode() == VAR) &&
+  return (IsDynamicVariableMode(mode()) || mode() == VariableMode::kVar) &&
          scope_ != nullptr && scope_->is_script_scope();
 }
 

@@ -164,9 +164,6 @@ class GraphBuilderTester : public HandleAndZoneScope,
   Node* ChangeUint32ToTagged(Node* a) {
     return NewNode(simplified()->ChangeUint32ToTagged(), a);
   }
-  Node* ChangeFloat64ToTagged(Node* a) {
-    return NewNode(simplified()->ChangeFloat64ToTagged(), a);
-  }
   Node* ChangeTaggedToBit(Node* a) {
     return NewNode(simplified()->ChangeTaggedToBit(), a);
   }
@@ -244,18 +241,19 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return result;
   }
 
-  virtual byte* Generate() {
+  Address Generate() override {
     if (code_.is_null()) {
       Zone* zone = graph()->zone();
       auto call_descriptor =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
       OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(),
                                     Code::STUB);
-      code_ = Pipeline::GenerateCodeForTesting(&info, main_isolate(),
-                                               call_descriptor, graph());
+      code_ = Pipeline::GenerateCodeForTesting(
+          &info, main_isolate(), call_descriptor, graph(),
+          AssemblerOptions::Default(main_isolate()));
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {
-        OFStream os(stdout);
+        StdoutStream os;
         code_.ToHandleChecked()->Disassemble("test code", os);
       }
 #endif

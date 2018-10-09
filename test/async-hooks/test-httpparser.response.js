@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -6,16 +7,21 @@ const tick = require('./tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 
-const binding = process.binding('http_parser');
-const HTTPParser = binding.HTTPParser;
+const hooks = initHooks();
+
+hooks.enable();
+
+// The hooks.enable() must come before require('internal/test/binding')
+// because internal/test/binding schedules a process warning on nextTick.
+// If this order is not preserved, the hooks check will fail because it
+// will not be notified about the nextTick creation but will see the
+// callback event.
+const { internalBinding } = require('internal/test/binding');
+const { HTTPParser } = internalBinding('http_parser');
 
 const RESPONSE = HTTPParser.RESPONSE;
 const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
 const kOnBody = HTTPParser.kOnBody | 0;
-
-const hooks = initHooks();
-
-hooks.enable();
 
 const request = Buffer.from(
   'HTTP/1.1 200 OK\r\n' +

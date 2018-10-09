@@ -130,12 +130,15 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: v8.5.0
+    pr-url: https://github.com/nodejs/node/pull/14731
+    description: The `verbatim` option is supported now.
   - version: v1.2.0
     pr-url: https://github.com/nodejs/node/pull/744
     description: The `all` option is supported now.
 -->
-- `hostname` {string}
-- `options` {integer | Object}
+* `hostname` {string}
+* `options` {integer | Object}
   - `family` {integer} The record family. Must be `4` or `6`. IPv4
     and IPv6 addresses are both returned by default.
   - `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
@@ -148,7 +151,7 @@ changes:
     **Default:** currently `false` (addresses are reordered) but this is
     expected to change in the not too distant future.
     New code should use `{ verbatim: true }`.
-- `callback` {Function}
+* `callback` {Function}
   - `err` {Error}
   - `address` {string} A string representation of an IPv4 or IPv6 address.
   - `family` {integer} `4` or `6`, denoting the family of `address`.
@@ -213,9 +216,9 @@ on some operating systems (e.g FreeBSD 10.1).
 <!-- YAML
 added: v0.11.14
 -->
-- `address` {string}
-- `port` {number}
-- `callback` {Function}
+* `address` {string}
+* `port` {number}
+* `callback` {Function}
   - `err` {Error}
   - `hostname` {string} e.g. `example.com`
   - `service` {string} e.g. `http`
@@ -244,9 +247,9 @@ If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 <!-- YAML
 added: v0.1.27
 -->
-- `hostname` {string} Hostname to resolve.
-- `rrtype` {string} Resource record type. **Default:** `'A'`.
-- `callback` {Function}
+* `hostname` {string} Hostname to resolve.
+* `rrtype` {string} Resource record type. **Default:** `'A'`.
+* `callback` {Function}
   - `err` {Error}
   - `records` {string[] | Object[] | Object}
 
@@ -281,13 +284,13 @@ changes:
     description: This method now supports passing `options`,
                  specifically `options.ttl`.
 -->
-- `hostname` {string} Hostname to resolve.
-- `options` {Object}
+* `hostname` {string} Hostname to resolve.
+* `options` {Object}
   - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     When `true`, the callback receives an array of
     `{ address: '1.2.3.4', ttl: 60 }` objects rather than an array of strings,
     with the TTL expressed in seconds.
-- `callback` {Function}
+* `callback` {Function}
   - `err` {Error}
   - `addresses` {string[] | Object[]}
 
@@ -305,13 +308,13 @@ changes:
     description: This method now supports passing `options`,
                  specifically `options.ttl`.
 -->
-- `hostname` {string} Hostname to resolve.
-- `options` {Object}
+* `hostname` {string} Hostname to resolve.
+* `options` {Object}
   - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     When `true`, the callback receives an array of
     `{ address: '0:1:2:3:4:5:6:7', ttl: 60 }` objects rather than an array of
     strings, with the TTL expressed in seconds.
-- `callback` {Function}
+* `callback` {Function}
   - `err` {Error}
   - `addresses` {string[] | Object[]}
 
@@ -321,8 +324,8 @@ will contain an array of IPv6 addresses.
 
 ## dns.resolveAny(hostname, callback)
 
-- `hostname` {string}
-- `callback` {Function}
+* `hostname` {string}
+* `callback` {Function}
   - `err` {Error}
   - `ret` {Object[]}
 
@@ -368,8 +371,8 @@ Here is an example of the `ret` object passed to the callback:
 <!-- YAML
 added: v0.3.2
 -->
-- `hostname` {string}
-- `callback` {Function}
+* `hostname` {string}
+* `callback` {Function}
   - `err` {Error}
   - `addresses` {string[]}
 
@@ -382,8 +385,8 @@ will contain an array of canonical name records available for the `hostname`
 <!-- YAML
 added: v0.1.27
 -->
-- `hostname` {string}
-- `callback` {Function}
+* `hostname` {string}
+* `callback` {Function}
   - `err` {Error}
   - `addresses` {Object[]}
 
@@ -396,8 +399,8 @@ property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 <!-- YAML
 added: v0.9.12
 -->
-- `hostname` {string}
-- `callback` {Function}
+* `hostname` {string}
+* `callback` {Function}
   - `err` {Error}
   - `addresses` {Object[]}
 
@@ -428,8 +431,8 @@ function will contain an array of objects with the following properties:
 <!-- YAML
 added: v0.1.90
 -->
-- `hostname` {string}
-- `callback` {Function}
+* `hostname` {string}
+* `callback` {Function}
   - `err` {Error}
   - `addresses` {string[]}
 
@@ -442,8 +445,8 @@ contain an array of name server records available for `hostname`
 <!-- YAML
 added: v6.0.0
 -->
-- `hostname` {string}
-- `callback` {Function}
+* `hostname` {string}
+* `callback` {Function}
   - `err` {Error}
   - `addresses` {string[]}
 
@@ -455,8 +458,8 @@ be an array of strings containing the reply records.
 <!-- YAML
 added: v0.11.10
 -->
-- `hostname` {string}
-- `callback` {Function}
+* `hostname` {string}
+* `callback` {Function}
   - `err` {Error}
   - `address` {Object}
 
@@ -489,8 +492,8 @@ be an object with the following properties:
 <!-- YAML
 added: v0.1.27
 -->
-- `hostname` {string}
-- `callback` {Function}
+* `hostname` {string}
+* `callback` {Function}
   - `err` {Error}
   - `addresses` {Object[]}
 
@@ -517,8 +520,8 @@ be an array of objects with the following properties:
 <!-- YAML
 added: v0.1.27
 -->
-- `hostname` {string}
-- `callback` {Function}
+* `hostname` {string}
+* `callback` {Function}
   - `err` {Error}
   - `records` {string[][]}
 
@@ -533,8 +536,8 @@ treated separately.
 <!-- YAML
 added: v0.1.16
 -->
-- `ip` {string}
-- `callback` {Function}
+* `ip` {string}
+* `callback` {Function}
   - `err` {Error}
   - `hostnames` {string[]}
 
@@ -548,7 +551,7 @@ one of the [DNS error codes][].
 <!-- YAML
 added: v0.11.3
 -->
-- `servers` {string[]} array of [rfc5952][] formatted addresses
+* `servers` {string[]} array of [rfc5952][] formatted addresses
 
 Sets the IP address and port of servers to be used when performing DNS
 resolution. The `servers` argument is an array of [rfc5952][] formatted
@@ -654,8 +657,8 @@ section if a custom port is used.
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
-- `options` {integer | Object}
+* `hostname` {string}
+* `options` {integer | Object}
   - `family` {integer} The record family. Must be `4` or `6`. IPv4
     and IPv6 addresses are both returned by default.
   - `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
@@ -717,8 +720,8 @@ dnsPromises.lookup('example.com', options).then((result) => {
 <!-- YAML
 added: v10.6.0
 -->
-- `address` {string}
-- `port` {number}
+* `address` {string}
+* `port` {number}
 
 Resolves the given `address` and `port` into a hostname and service using
 the operating system's underlying `getnameinfo` implementation.
@@ -742,8 +745,8 @@ dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string} Hostname to resolve.
-- `rrtype` {string} Resource record type. **Default:** `'A'`.
+* `hostname` {string} Hostname to resolve.
+* `rrtype` {string} Resource record type. **Default:** `'A'`.
 
 Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an array
 of the resource records. When successful, the `Promise` is resolved with an
@@ -771,8 +774,8 @@ is one of the [DNS error codes](#dns_error_codes).
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string} Hostname to resolve.
-- `options` {Object}
+* `hostname` {string} Hostname to resolve.
+* `options` {Object}
   - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     When `true`, the `Promise` is resolved with an array of
     `{ address: '1.2.3.4', ttl: 60 }` objects rather than an array of strings,
@@ -786,8 +789,8 @@ addresses (e.g. `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string} Hostname to resolve.
-- `options` {Object}
+* `hostname` {string} Hostname to resolve.
+* `options` {Object}
   - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     When `true`, the `Promise` is resolved with an array of
     `{ address: '0:1:2:3:4:5:6:7', ttl: 60 }` objects rather than an array of
@@ -801,7 +804,7 @@ addresses.
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
+* `hostname` {string}
 
 Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
 On success, the `Promise` is resolved with an array containing various types of
@@ -845,7 +848,7 @@ Here is an example of the result object:
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
+* `hostname` {string}
 
 Uses the DNS protocol to resolve `CNAME` records for the `hostname`. On success,
 the `Promise` is resolved with an array of canonical name records available for
@@ -855,7 +858,7 @@ the `hostname` (e.g. `['bar.example.com']`).
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
+* `hostname` {string}
 
 Uses the DNS protocol to resolve mail exchange records (`MX` records) for the
 `hostname`. On success, the `Promise` is resolved with an array of objects
@@ -866,7 +869,7 @@ containing both a `priority` and `exchange` property (e.g.
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
+* `hostname` {string}
 
 Uses the DNS protocol to resolve regular expression based records (`NAPTR`
 records) for the `hostname`. On success, the `Promise` is resolved with an array
@@ -895,7 +898,7 @@ of objects with the following properties:
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
+* `hostname` {string}
 
 Uses the DNS protocol to resolve name server records (`NS` records) for the
 `hostname`. On success, the `Promise` is resolved with an array of name server
@@ -906,7 +909,7 @@ records available for `hostname` (e.g.
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
+* `hostname` {string}
 
 Uses the DNS protocol to resolve pointer records (`PTR` records) for the
 `hostname`. On success, the `Promise` is resolved with an array of strings
@@ -916,7 +919,7 @@ containing the reply records.
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
+* `hostname` {string}
 
 Uses the DNS protocol to resolve a start of authority record (`SOA` record) for
 the `hostname`. On success, the `Promise` is resolved with an object with the
@@ -947,7 +950,7 @@ following properties:
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
+* `hostname` {string}
 
 Uses the DNS protocol to resolve service records (`SRV` records) for the
 `hostname`. On success, the `Promise` is resolved with an array of objects with
@@ -972,7 +975,7 @@ the following properties:
 <!-- YAML
 added: v10.6.0
 -->
-- `hostname` {string}
+* `hostname` {string}
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. On success, the `Promise` is resolved with a two-dimensional array
@@ -985,7 +988,7 @@ treated separately.
 <!-- YAML
 added: v10.6.0
 -->
-- `ip` {string}
+* `ip` {string}
 
 Performs a reverse DNS query that resolves an IPv4 or IPv6 address to an
 array of hostnames.
@@ -997,7 +1000,7 @@ is one of the [DNS error codes](#dns_error_codes).
 <!-- YAML
 added: v10.6.0
 -->
-- `servers` {string[]} array of [rfc5952][] formatted addresses
+* `servers` {string[]} array of [rfc5952][] formatted addresses
 
 Sets the IP address and port of servers to be used when performing DNS
 resolution. The `servers` argument is an array of [rfc5952][] formatted
@@ -1078,7 +1081,7 @@ implications for some applications, see the [`UV_THREADPOOL_SIZE`][]
 documentation for more information.
 
 Note that various networking APIs will call `dns.lookup()` internally to resolve
-host names. If that is an issue, consider resolving the hostname to and address
+host names. If that is an issue, consider resolving the hostname to an address
 using `dns.resolve()` and using the address instead of a host name. Also, some
 networking APIs (such as [`socket.connect()`][] and [`dgram.createSocket()`][])
 allow the default resolver, `dns.lookup()`, to be replaced.

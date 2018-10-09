@@ -258,6 +258,12 @@ assertKind(elements_kind.fast, obj);
 obj = newarraycase_list_smiobj(2);
 assertKind(elements_kind.fast, obj);
 
+// Perform a gc because without it the test below can experience an
+// allocation failure at an inconvenient point. Allocation mementos get
+// cleared on gc, and they can't deliver elements kind feedback when that
+// happens.
+gc();
+
 // Case: array constructor calls with out of date feedback.
 // The boilerplate should incorporate all feedback, but the input array
 // should be minimally transitioned based on immediate need.

@@ -29,34 +29,6 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
-# Print FeedbackVector
-define jfv
-call _v8_internal_Print_FeedbackVector((void*)($arg0))
-end
-document jfv
-Print a v8 FeedbackVector object
-Usage: jfv tagged_ptr
-end
-
-# Print FeedbackMetadata
-define jfm
-call _v8_internal_Print_FeedbackMetadata((void*)($arg0))
-end
-document jfm
-Print a v8 FeedbackMetadata object
-Usage: jfm tagged_ptr
-end
-
-
-# Print DescriptorArray.
-define jda
-call _v8_internal_Print_DescriptorArray((void*)($arg0))
-end
-document jda
-Print a v8 DescriptorArray object
-Usage: jda tagged_ptr
-end
-
 # Print LayoutDescriptor.
 define jld
 call _v8_internal_Print_LayoutDescriptor((void*)($arg0))
@@ -64,15 +36,6 @@ end
 document jld
 Print a v8 LayoutDescriptor object
 Usage: jld tagged_ptr
-end
-
-# Print TransitionArray.
-define jta
-call _v8_internal_Print_TransitionArray((void*)($arg0))
-end
-document jta
-Print a v8 TransitionArray object
-Usage: jta tagged_ptr
 end
 
 # Print TransitionTree.
@@ -159,3 +122,23 @@ end
 
 set disassembly-flavor intel
 set disable-randomization off
+
+# Install a handler whenever the debugger stops due to a signal. It walks up the
+# stack looking for V8_Dcheck and moves the frame to the one above it so it's
+# immediately at the line of code that triggered the DCHECK.
+python
+def dcheck_stop_handler(event):
+  orig_frame = gdb.selected_frame()
+  frame = orig_frame
+  select_frame = None
+  while frame is not None:
+    if frame.name() in ('V8_Dcheck', 'V8_Fatal'):
+      select_frame = frame.older()
+    frame = frame.older()
+
+  if select_frame is not None:
+    select_frame.select()
+    gdb.execute('frame')
+
+gdb.events.stop.connect(dcheck_stop_handler)
+end

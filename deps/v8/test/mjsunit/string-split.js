@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 expected = ["A", undefined, "B", "bold", "/", "B", "and", undefined, "CODE", "coded", "/", "CODE", ""];
 result = "A<B>bold</B>and<CODE>coded</CODE>".split(/<(\/)?([^<>]+)>/);
 assertArrayEquals(expected, result);
@@ -134,6 +136,11 @@ assertEquals(["a", "b", "c"], "abc".split("", numberObj(3)));
 assertEquals(["a", "b", "c"], "abc".split("", 4));
 assertEquals(["a", "b", "c"], "abc".split("", numberObj(4)));
 
+// Check if split works also for sliced strings.
+let sliced_string = %ConstructSlicedString("abcdefghijklmnopqrstuvwxyz", 13);
+assertEquals("nopqrstuvwxyz".split(""), sliced_string.split(""));
+// Invoke twice for caching
+assertEquals("nopqrstuvwxyz".split(""), sliced_string.split(""));
 
 var all_ascii_codes = [];
 for (var i = 0; i < 128; i++) all_ascii_codes[i] = i;
@@ -174,3 +181,5 @@ assertArrayEquals(["a", "b"], "a,b,c,d,e,f".split(/,/, -4294967294));
 assertArrayEquals(["a", "b", "c"], "a,b,c,d,e,f".split(/,/, -4294967293));
 assertArrayEquals(["a", "b", "c", "d"], "a,b,c,d,e,f".split(/,/, -4294967292));
 assertArrayEquals(["a", "b", "c", "d", "e", "f"], "a,b,c,d,e,f".split(/,/, -1));
+assertArrayEquals(["a", "b", "c"], "abc".split("", 0xffffffff));
+assertArrayEquals(["\u0427", "\u0427"], "\u0427\u0427".split("", 0xffffffff));

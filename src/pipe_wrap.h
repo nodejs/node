@@ -45,7 +45,9 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
 
-  size_t self_size() const override { return sizeof(*this); }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(PipeWrap)
+  SET_SELF_SIZE(PipeWrap)
 
  private:
   PipeWrap(Environment* env,

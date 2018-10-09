@@ -3,6 +3,11 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-dynamic-import
+// Resources: test/mjsunit/regress/modules-skip-regress-797581-1.js
+// Resources: test/mjsunit/regress/modules-skip-regress-797581-2.js
+// Resources: test/mjsunit/regress/modules-skip-regress-797581-3.js
+// Resources: test/mjsunit/regress/modules-skip-regress-797581-4.js
+// Resources: test/mjsunit/regress/modules-skip-regress-797581-5.js
 
 function TryToLoadModule(filename, expect_error, token) {
   let caught_error;

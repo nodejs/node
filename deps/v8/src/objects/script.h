@@ -15,8 +15,11 @@ namespace v8 {
 namespace internal {
 
 // Script describes a script which has been added to the VM.
-class Script : public Struct {
+class Script : public Struct, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   // Script types.
   enum Type {
     TYPE_NATIVE = 0,
@@ -53,9 +56,6 @@ class Script : public Struct {
 
   // [context_data]: context data for the context this script was compiled in.
   DECL_ACCESSORS(context_data, Object)
-
-  // [wrapper]: the wrapper cache.  This is either undefined or a WeakCell.
-  DECL_ACCESSORS(wrapper, HeapObject)
 
   // [type]: the script type.
   DECL_INT_ACCESSORS(type)
@@ -97,9 +97,9 @@ class Script : public Struct {
   // [source_mapping_url]: sourceMappingURL magic comment
   DECL_ACCESSORS(source_mapping_url, Object)
 
-  // [wasm_compiled_module]: the compiled wasm module this script belongs to.
+  // [wasm_module_object]: the wasm module object this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.
-  DECL_ACCESSORS(wasm_compiled_module, Object)
+  DECL_ACCESSORS(wasm_module_object, Object)
 
   // [host_defined_options]: Options defined by the embedder.
   DECL_ACCESSORS(host_defined_options, FixedArray)
@@ -170,9 +170,6 @@ class Script : public Struct {
   static int GetLineNumber(Handle<Script> script, int code_offset);
   int GetLineNumber(int code_pos) const;
 
-  // Get the JS object wrapping the given script; create it if none exists.
-  static Handle<JSObject> GetWrapper(Handle<Script> script);
-
   // Look through the list of existing shared function infos to find one
   // that matches the function literal.  Return empty handle if not found.
   MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(
@@ -185,7 +182,7 @@ class Script : public Struct {
     Script* Next();
 
    private:
-    FixedArrayOfWeakCells::Iterator iterator_;
+    WeakArrayList::Iterator iterator_;
     DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
@@ -198,8 +195,7 @@ class Script : public Struct {
   static const int kLineOffsetOffset = kNameOffset + kPointerSize;
   static const int kColumnOffsetOffset = kLineOffsetOffset + kPointerSize;
   static const int kContextOffset = kColumnOffsetOffset + kPointerSize;
-  static const int kWrapperOffset = kContextOffset + kPointerSize;
-  static const int kTypeOffset = kWrapperOffset + kPointerSize;
+  static const int kTypeOffset = kContextOffset + kPointerSize;
   static const int kLineEndsOffset = kTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
   static const int kEvalFromSharedOrWrappedArgumentsOffset =

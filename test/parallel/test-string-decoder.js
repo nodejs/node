@@ -97,6 +97,17 @@ assert.strictEqual(decoder.lastTotal, 3);
 
 assert.strictEqual(decoder.end(), '\ufffd');
 
+// ArrayBufferView tests
+const arrayBufferViewStr = 'String for ArrayBufferView tests\n';
+const inputBuffer = Buffer.from(arrayBufferViewStr.repeat(8), 'utf8');
+for (const expectView of common.getArrayBufferViews(inputBuffer)) {
+  assert.strictEqual(
+    decoder.write(expectView),
+    inputBuffer.toString('utf8')
+  );
+  assert.strictEqual(decoder.end(), '');
+}
+
 decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('E18B', 'hex')), '');
 assert.strictEqual(decoder.end(), '\ufffd');
@@ -143,6 +154,25 @@ decoder = new StringDecoder('utf16le');
 assert.strictEqual(decoder.write(Buffer.from('3DD84D', 'hex')), '\ud83d');
 assert.strictEqual(decoder.end(), '');
 
+// Regression test for https://github.com/nodejs/node/issues/22358
+// (unaligned UTF-16 access).
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.alloc(1)), '');
+assert.strictEqual(decoder.write(Buffer.alloc(20)), '\0'.repeat(10));
+assert.strictEqual(decoder.write(Buffer.alloc(48)), '\0'.repeat(24));
+assert.strictEqual(decoder.end(), '');
+
+// Regression tests for https://github.com/nodejs/node/issues/22626
+// (not enough replacement chars when having seen more than one byte of an
+// incomplete multibyte characters).
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('f69b', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('d1', 'hex')), '\ufffd\ufffd');
+assert.strictEqual(decoder.end(), '\ufffd');
+assert.strictEqual(decoder.write(Buffer.from('f4', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('bde5', 'hex')), '\ufffd\ufffd');
+assert.strictEqual(decoder.end(), '\ufffd');
+
 common.expectsError(
   () => new StringDecoder(1),
   {
@@ -158,6 +188,16 @@ common.expectsError(
     code: 'ERR_UNKNOWN_ENCODING',
     type: TypeError,
     message: 'Unknown encoding: test'
+  }
+);
+
+common.expectsError(
+  () => new StringDecoder('utf8').write(null),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "buf" argument must be one of type Buffer, TypedArray,' +
+      ' or DataView. Received type object'
   }
 );
 

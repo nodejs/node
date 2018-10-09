@@ -40,13 +40,14 @@
 namespace v8_inspector {
 
 // Forward declaration.
+class V8InspectorClient;
 class WasmTranslation;
 
 class V8DebuggerScript {
  public:
   static std::unique_ptr<V8DebuggerScript> Create(
       v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
-      bool isLiveEdit);
+      bool isLiveEdit, V8InspectorClient* client);
   static std::unique_ptr<V8DebuggerScript> CreateWasm(
       v8::Isolate* isolate, WasmTranslation* wasmTranslation,
       v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
@@ -55,9 +56,9 @@ class V8DebuggerScript {
   virtual ~V8DebuggerScript();
 
   const String16& scriptId() const { return m_id; }
-  const String16& url() const { return m_url; }
-  bool hasSourceURL() const { return !m_sourceURL.isEmpty(); }
-  const String16& sourceURL() const;
+  bool hasSourceURLComment() const { return m_hasSourceURLComment; }
+  const String16& sourceURL() const { return m_url; }
+
   virtual const String16& sourceMappingURL() const = 0;
   virtual const String16& source() const = 0;
   virtual const String16& hash() const = 0;
@@ -73,7 +74,7 @@ class V8DebuggerScript {
   void setSourceURL(const String16&);
   virtual void setSourceMappingURL(const String16&) = 0;
   virtual void setSource(const String16& source, bool preview,
-                         bool* stackChanged) = 0;
+                         v8::debug::LiveEditResult* result) = 0;
 
   virtual bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
@@ -95,7 +96,7 @@ class V8DebuggerScript {
 
   String16 m_id;
   String16 m_url;
-  String16 m_sourceURL;
+  bool m_hasSourceURLComment = false;
   int m_executionContextId = 0;
 
   v8::Isolate* m_isolate;

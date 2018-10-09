@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -61,7 +61,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            expected: "Expected to return a value in {{name}}.",
+            expectedAlways: "Expected {{name}} to always return a value."
+        }
     },
 
     create(context) {
@@ -93,9 +97,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: getId(node).loc.start,
-                    message: funcInfo.hasReturn
-                        ? "Expected {{name}} to always return a value."
-                        : "Expected to return a value in {{name}}.",
+                    messageId: funcInfo.hasReturn ? "expectedAlways" : "expected",
                     data: {
                         name: astUtils.getFunctionNameWithKind(funcInfo.node)
                     }
@@ -161,7 +163,7 @@ module.exports = {
                     if (!options.allowImplicit && !node.argument) {
                         context.report({
                             node,
-                            message: "Expected to return a value in {{name}}.",
+                            messageId: "expected",
                             data: {
                                 name: astUtils.getFunctionNameWithKind(funcInfo.node)
                             }

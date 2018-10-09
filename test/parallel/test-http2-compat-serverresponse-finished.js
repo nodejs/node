@@ -9,14 +9,14 @@ const net = require('net');
 
 // Http2ServerResponse.finished
 const server = h2.createServer();
-server.listen(0, common.mustCall(function() {
+server.listen(0, common.mustCall(() => {
   const port = server.address().port;
-  server.once('request', common.mustCall(function(request, response) {
+  server.once('request', common.mustCall((request, response) => {
     assert.ok(response.socket instanceof net.Socket);
     assert.ok(response.connection instanceof net.Socket);
     assert.strictEqual(response.socket, response.connection);
 
-    response.on('finish', common.mustCall(function() {
+    response.on('finish', common.mustCall(() => {
       assert.strictEqual(response.socket, undefined);
       assert.strictEqual(response.connection, undefined);
       process.nextTick(common.mustCall(() => {
@@ -30,7 +30,7 @@ server.listen(0, common.mustCall(function() {
   }));
 
   const url = `http://localhost:${port}`;
-  const client = h2.connect(url, common.mustCall(function() {
+  const client = h2.connect(url, common.mustCall(() => {
     const headers = {
       ':path': '/',
       ':method': 'GET',
@@ -38,7 +38,7 @@ server.listen(0, common.mustCall(function() {
       ':authority': `localhost:${port}`
     };
     const request = client.request(headers);
-    request.on('end', common.mustCall(function() {
+    request.on('end', common.mustCall(() => {
       client.close();
     }));
     request.end();

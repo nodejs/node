@@ -252,3 +252,16 @@ function TestNonOwnSlots() {
   }, TypeError);
 }
 TestNonOwnSlots();
+
+function TestForDictionaryArray() {
+  var array = [];
+  array[1024] = 'c';
+  assertTrue(%HasDictionaryElements(array));
+  var iterator = array[Symbol.iterator]();
+  for (var i = 0; i < 1024; ++i) {
+    assertIteratorResult(void 0, false, iterator.next());
+  }
+  assertIteratorResult('c', false, iterator.next());
+  assertIteratorResult(void 0, true, iterator.next());
+}
+TestForDictionaryArray();

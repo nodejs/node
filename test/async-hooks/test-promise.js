@@ -9,8 +9,6 @@ const { checkInvocations } = require('./hook-checks');
 if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different async IDs');
 
-common.crashOnUnhandledRejection();
-
 const hooks = initHooks();
 
 hooks.enable();

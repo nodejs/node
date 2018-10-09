@@ -7,7 +7,7 @@ var Ber = require('./ber/index');
 
 
 
-///--- Exported API
+// --- Exported API
 
 module.exports = {
 

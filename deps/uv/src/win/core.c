@@ -33,6 +33,7 @@
 #include "internal.h"
 #include "queue.h"
 #include "handle-inl.h"
+#include "heap-inl.h"
 #include "req-inl.h"
 
 /* uv_once initialization guards */
@@ -221,6 +222,7 @@ static void uv_init(void) {
 
 
 int uv_loop_init(uv_loop_t* loop) {
+  struct heap* timer_heap;
   int err;
 
   /* Initialize libuv itself first */
@@ -246,7 +248,13 @@ int uv_loop_init(uv_loop_t* loop) {
 
   loop->endgame_handles = NULL;
 
-  RB_INIT(&loop->timers);
+  loop->timer_heap = timer_heap = uv__malloc(sizeof(*timer_heap));
+  if (timer_heap == NULL) {
+    err = UV_ENOMEM;
+    goto fail_timers_alloc;
+  }
+
+  heap_init(timer_heap);
 
   loop->check_handles = NULL;
   loop->prepare_handles = NULL;
@@ -273,7 +281,7 @@ int uv_loop_init(uv_loop_t* loop) {
     goto fail_async_init;
 
   uv__handle_unref(&loop->wq_async);
-  loop->wq_async.flags |= UV__HANDLE_INTERNAL;
+  loop->wq_async.flags |= UV_HANDLE_INTERNAL;
 
   err = uv__loops_add(loop);
   if (err)
@@ -285,10 +293,21 @@ fail_async_init:
   uv_mutex_destroy(&loop->wq_mutex);
 
 fail_mutex_init:
+  uv__free(timer_heap);
+  loop->timer_heap = NULL;
+
+fail_timers_alloc:
   CloseHandle(loop->iocp);
   loop->iocp = INVALID_HANDLE_VALUE;
 
   return err;
+}
+
+
+void uv_update_time(uv_loop_t* loop) {
+  uint64_t new_time = uv__hrtime(1000);
+  assert(new_time >= loop->time);
+  loop->time = new_time;
 }
 
 
@@ -319,6 +338,9 @@ void uv__loop_close(uv_loop_t* loop) {
   assert(!uv__has_active_reqs(loop));
   uv_mutex_unlock(&loop->wq_mutex);
   uv_mutex_destroy(&loop->wq_mutex);
+
+  uv__free(loop->timer_heap);
+  loop->timer_heap = NULL;
 
   CloseHandle(loop->iocp);
 }
@@ -356,6 +378,57 @@ int uv_backend_timeout(const uv_loop_t* loop) {
     return 0;
 
   return uv__next_timeout(loop);
+}
+
+
+static void uv__poll_wine(uv_loop_t* loop, DWORD timeout) {
+  DWORD bytes;
+  ULONG_PTR key;
+  OVERLAPPED* overlapped;
+  uv_req_t* req;
+  int repeat;
+  uint64_t timeout_time;
+
+  timeout_time = loop->time + timeout;
+
+  for (repeat = 0; ; repeat++) {
+    GetQueuedCompletionStatus(loop->iocp,
+                              &bytes,
+                              &key,
+                              &overlapped,
+                              timeout);
+
+    if (overlapped) {
+      /* Package was dequeued */
+      req = uv_overlapped_to_req(overlapped);
+      uv_insert_pending_req(loop, req);
+
+      /* Some time might have passed waiting for I/O,
+       * so update the loop time here.
+       */
+      uv_update_time(loop);
+    } else if (GetLastError() != WAIT_TIMEOUT) {
+      /* Serious error */
+      uv_fatal_error(GetLastError(), "GetQueuedCompletionStatus");
+    } else if (timeout > 0) {
+      /* GetQueuedCompletionStatus can occasionally return a little early.
+       * Make sure that the desired timeout target time is reached.
+       */
+      uv_update_time(loop);
+      if (timeout_time > loop->time) {
+        timeout = (DWORD)(timeout_time - loop->time);
+        /* The first call to GetQueuedCompletionStatus should return very
+         * close to the target time and the second should reach it, but
+         * this is not stated in the documentation. To make sure a busy
+         * loop cannot happen, the timeout is increased exponentially
+         * starting on the third round.
+         */
+        timeout += repeat ? (1 << (repeat - 1)) : 0;
+        continue;
+      }
+    }
+    break;
+  }
 }
 
 
@@ -441,7 +514,7 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
 
   while (r != 0 && loop->stop_flag == 0) {
     uv_update_time(loop);
-    uv_process_timers(loop);
+    uv__run_timers(loop);
 
     ran_pending = uv_process_reqs(loop);
     uv_idle_invoke(loop);
@@ -451,7 +524,11 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     if ((mode == UV_RUN_ONCE && !ran_pending) || mode == UV_RUN_DEFAULT)
       timeout = uv_backend_timeout(loop);
 
-    uv__poll(loop, timeout);
+    if (pGetQueuedCompletionStatusEx)
+      uv__poll(loop, timeout);
+    else
+      uv__poll_wine(loop, timeout);
+
 
     uv_check_invoke(loop);
     uv_process_endgames(loop);
@@ -465,7 +542,7 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
        * UV_RUN_NOWAIT makes no guarantees about progress so it's omitted from
        * the check.
        */
-      uv_process_timers(loop);
+      uv__run_timers(loop);
     }
 
     r = uv__loop_alive(loop);

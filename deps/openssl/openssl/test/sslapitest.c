@@ -1208,6 +1208,61 @@ end:
     return testresult;
 }
 
+static int test_ssl_pending(int tst)
+{
+    SSL_CTX *cctx = NULL, *sctx = NULL;
+    SSL *clientssl = NULL, *serverssl = NULL;
+    int testresult = 0;
+    char msg[] = "A test message";
+    char buf[5];
+    size_t written;
+
+    if (tst == 0) {
+        if (!create_ssl_ctx_pair(TLS_server_method(), TLS_client_method(),
+                                 TLS1_VERSION, TLS_MAX_VERSION,
+                                 &sctx, &cctx, cert, privkey)) {
+            printf("Failed creating SSL_CTX pair\n");
+            goto end;
+        }
+    } else {
+#ifndef OPENSSL_NO_DTLS
+        if (!create_ssl_ctx_pair(DTLS_server_method(), DTLS_client_method(),
+                                 DTLS1_VERSION, DTLS_MAX_VERSION,
+                                 &sctx, &cctx, cert, privkey)) {
+            printf("Failed creating SSL_CTX pair\n");
+            goto end;
+        }
+#else
+        return 1;
+#endif
+    }
+
+    if (!create_ssl_objects(sctx, cctx, &serverssl, &clientssl, NULL, NULL)
+            || !create_ssl_connection(serverssl, clientssl)) {
+            printf("Failed creating connection\n");
+        goto end;
+    }
+
+    written = SSL_write(serverssl, msg, sizeof(msg));
+    if (written != sizeof(msg)
+            || SSL_read(clientssl, buf, sizeof(buf)) != sizeof(buf)
+            || SSL_pending(clientssl) != (int)(written - sizeof(buf))) {
+        printf("Failed checking SSL_pending\n");
+        goto end;
+    }
+
+    testresult = 1;
+
+ end:
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+
+    return testresult;
+}
+
+
 int main(int argc, char *argv[])
 {
     BIO *err = NULL;
@@ -1244,6 +1299,7 @@ int main(int argc, char *argv[])
     ADD_TEST(test_ssl_bio_change_wbio);
     ADD_ALL_TESTS(test_set_sigalgs, OSSL_NELEM(testsigalgs) * 2);
     ADD_ALL_TESTS(test_custom_exts, 2);
+    ADD_ALL_TESTS(test_ssl_pending, 2);
 
     testresult = run_tests(argv[0]);
 

@@ -36,7 +36,7 @@ poly1305_init_int:
 
 .Lno_key:
 	xor	3,3,3
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .size	poly1305_init_int,.-poly1305_init_int
@@ -238,7 +238,7 @@ poly1305_blocks:
 	lwz	31,92(1)
 	addi	1,1,96
 .Labort:
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,4,0
 .size	poly1305_blocks,.-poly1305_blocks
@@ -303,7 +303,7 @@ poly1305_emit:
 	lwz	30,88(1)
 	lwz	31,92(1)
 	addi	1,1,96
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,4,3,0
 .size	poly1305_emit,.-poly1305_emit

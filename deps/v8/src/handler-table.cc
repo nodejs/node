@@ -25,7 +25,8 @@ HandlerTable::HandlerTable(ByteArray* byte_array)
 #ifdef DEBUG
       mode_(kRangeBasedEncoding),
 #endif
-      raw_encoded_data_(byte_array->GetDataStartAddress()) {
+      raw_encoded_data_(
+          reinterpret_cast<Address>(byte_array->GetDataStartAddress())) {
 }
 
 HandlerTable::HandlerTable(Address instruction_start,
@@ -36,7 +37,7 @@ HandlerTable::HandlerTable(Address instruction_start,
 #endif
       raw_encoded_data_(instruction_start + handler_table_offset) {
   if (handler_table_offset > 0) {
-    number_of_entries_ = Memory::int32_at(raw_encoded_data_);
+    number_of_entries_ = Memory<int32_t>(raw_encoded_data_);
     raw_encoded_data_ += sizeof(int32_t);
   }
 }
@@ -45,14 +46,14 @@ int HandlerTable::GetRangeStart(int index) const {
   DCHECK_EQ(kRangeBasedEncoding, mode_);
   DCHECK_LT(index, NumberOfRangeEntries());
   int offset = index * kRangeEntrySize + kRangeStartIndex;
-  return Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t));
+  return Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t));
 }
 
 int HandlerTable::GetRangeEnd(int index) const {
   DCHECK_EQ(kRangeBasedEncoding, mode_);
   DCHECK_LT(index, NumberOfRangeEntries());
   int offset = index * kRangeEntrySize + kRangeEndIndex;
-  return Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t));
+  return Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t));
 }
 
 int HandlerTable::GetRangeHandler(int index) const {
@@ -60,14 +61,14 @@ int HandlerTable::GetRangeHandler(int index) const {
   DCHECK_LT(index, NumberOfRangeEntries());
   int offset = index * kRangeEntrySize + kRangeHandlerIndex;
   return HandlerOffsetField::decode(
-      Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t)));
+      Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t)));
 }
 
 int HandlerTable::GetRangeData(int index) const {
   DCHECK_EQ(kRangeBasedEncoding, mode_);
   DCHECK_LT(index, NumberOfRangeEntries());
   int offset = index * kRangeEntrySize + kRangeDataIndex;
-  return Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t));
+  return Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t));
 }
 
 HandlerTable::CatchPrediction HandlerTable::GetRangePrediction(
@@ -76,14 +77,14 @@ HandlerTable::CatchPrediction HandlerTable::GetRangePrediction(
   DCHECK_LT(index, NumberOfRangeEntries());
   int offset = index * kRangeEntrySize + kRangeHandlerIndex;
   return HandlerPredictionField::decode(
-      Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t)));
+      Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t)));
 }
 
 int HandlerTable::GetReturnOffset(int index) const {
   DCHECK_EQ(kReturnAddressBasedEncoding, mode_);
   DCHECK_LT(index, NumberOfReturnEntries());
   int offset = index * kReturnEntrySize + kReturnOffsetIndex;
-  return Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t));
+  return Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t));
 }
 
 int HandlerTable::GetReturnHandler(int index) const {
@@ -91,17 +92,17 @@ int HandlerTable::GetReturnHandler(int index) const {
   DCHECK_LT(index, NumberOfReturnEntries());
   int offset = index * kReturnEntrySize + kReturnHandlerIndex;
   return HandlerOffsetField::decode(
-      Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t)));
+      Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t)));
 }
 
 void HandlerTable::SetRangeStart(int index, int value) {
   int offset = index * kRangeEntrySize + kRangeStartIndex;
-  Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t)) = value;
+  Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t)) = value;
 }
 
 void HandlerTable::SetRangeEnd(int index, int value) {
   int offset = index * kRangeEntrySize + kRangeEndIndex;
-  Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t)) = value;
+  Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t)) = value;
 }
 
 void HandlerTable::SetRangeHandler(int index, int handler_offset,
@@ -109,12 +110,12 @@ void HandlerTable::SetRangeHandler(int index, int handler_offset,
   int value = HandlerOffsetField::encode(handler_offset) |
               HandlerPredictionField::encode(prediction);
   int offset = index * kRangeEntrySize + kRangeHandlerIndex;
-  Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t)) = value;
+  Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t)) = value;
 }
 
 void HandlerTable::SetRangeData(int index, int value) {
   int offset = index * kRangeEntrySize + kRangeDataIndex;
-  Memory::int32_at(raw_encoded_data_ + offset * sizeof(int32_t)) = value;
+  Memory<int32_t>(raw_encoded_data_ + offset * sizeof(int32_t)) = value;
 }
 
 // static
@@ -205,12 +206,12 @@ void HandlerTable::HandlerTableRangePrint(std::ostream& os) {
 }
 
 void HandlerTable::HandlerTableReturnPrint(std::ostream& os) {
-  os << "   off      hdlr\n";
+  os << "  offset   handler\n";
   for (int i = 0; i < NumberOfReturnEntries(); ++i) {
     int pc_offset = GetReturnOffset(i);
     int handler_offset = GetReturnHandler(i);
-    os << "  " << std::setw(4) << pc_offset << "  ->  " << std::setw(4)
-       << handler_offset << "\n";
+    os << std::hex << "    " << std::setw(4) << pc_offset << "  ->  "
+       << std::setw(4) << handler_offset << std::dec << "\n";
   }
 }
 

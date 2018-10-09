@@ -1,19 +1,7 @@
 "use strict";
-var subscribeOn_1 = require('../operators/subscribeOn');
-/**
- * Asynchronously subscribes Observers to this Observable on the specified IScheduler.
- *
- * <img src="./img/subscribeOn.png" width="100%">
- *
- * @param {Scheduler} scheduler - The IScheduler to perform subscription actions on.
- * @return {Observable<T>} The source Observable modified so that its subscriptions happen on the specified IScheduler.
- .
- * @method subscribeOn
- * @owner Observable
- */
-function subscribeOn(scheduler, delay) {
-    if (delay === void 0) { delay = 0; }
-    return subscribeOn_1.subscribeOn(scheduler, delay)(this);
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.subscribeOn = subscribeOn;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/operator/subscribeOn"));
 //# sourceMappingURL=subscribeOn.js.map

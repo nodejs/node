@@ -40,7 +40,7 @@ package OpenSSL::Template;
 use File::Basename;
 use File::Spec::Functions;
 use lib "$FindBin::Bin/perl";
-use with_fallback qw(Text::Template);
+use with_fallback "Text::Template 1.46";
 
 #use parent qw/Text::Template/;
 use vars qw/@ISA/;
@@ -99,9 +99,9 @@ package main;
 # This adds quotes (") around the given string, and escapes any $, @, \,
 # " and ' by prepending a \ to them.
 sub quotify1 {
-    my $s = my $orig = shift @_;
+    my $s = shift @_;
     $s =~ s/([\$\@\\"'])/\\$1/g;
-    $s ne $orig || $s =~ /\s/ ? '"'.$s.'"' : $s;
+    '"'.$s.'"';
 }
 
 # quotify_l LIST

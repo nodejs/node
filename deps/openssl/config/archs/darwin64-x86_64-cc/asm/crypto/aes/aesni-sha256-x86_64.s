@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	_aesni_cbc_sha256_enc
@@ -4352,3 +4352,4 @@ L$aesenclast4:
 	movdqu	%xmm1,(%r9)
 	movdqu	%xmm2,16(%r9)
 	.byte	0xf3,0xc3
+

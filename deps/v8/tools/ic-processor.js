@@ -32,11 +32,12 @@ function parseState(s) {
 
 
 function IcProcessor() {
-  var propertyICParser = [parseInt, parseInt, parseInt, null, null, parseInt,
-                          null, null, null];
+  var propertyICParser = [parseInt, parseInt, parseInt, parseString,
+      parseString, parseInt, parseString, parseString, parseString];
   LogReader.call(this, {
       'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, parseInt, null, 'var-args'],
+          parsers: [parseString, parseInt, parseInt, parseInt, parseInt,
+              parseString, parseVarArgs],
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
@@ -60,7 +61,6 @@ function IcProcessor() {
         parsers : propertyICParser,
         processor: this.processPropertyIC.bind(this, "StoreInArrayLiteralIC") },
       });
-  this.deserializedEntriesNames_ = [];
   this.profile_ = new Profile();
 
   this.LoadIC = 0;
@@ -117,10 +117,6 @@ IcProcessor.prototype.addEntry = function(entry) {
 
 IcProcessor.prototype.processCodeCreation = function(
     type, kind, timestamp, start, size, name, maybe_func) {
-  name = this.deserializedEntriesNames_[start] || name;
-  if (name.startsWith("onComplete")) {
-    console.log(name);
-  }
   if (maybe_func.length) {
     var funcAddr = parseInt(maybe_func[0]);
     var state = parseState(maybe_func[1]);

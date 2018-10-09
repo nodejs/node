@@ -5,7 +5,7 @@
 
 "use strict";
 
-const util = require("../ast-utils");
+const util = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition

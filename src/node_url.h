@@ -159,9 +159,8 @@ class URL {
 
   std::string path() const {
     std::string ret;
-    for (auto i = context_.path.begin(); i != context_.path.end(); i++) {
-      ret += '/';
-      ret += *i;
+    for (const std::string& element : context_.path) {
+      ret += '/' + element;
     }
     return ret;
   }
@@ -169,6 +168,8 @@ class URL {
   // Get the path of the file: URL in a format consumable by native file system
   // APIs. Returns an empty string if something went wrong.
   std::string ToFilePath() const;
+  // Get the file URL from native file system path.
+  static URL FromFilePath(const std::string& file_path);
 
   const Local<Value> ToObject(Environment* env) const;
 

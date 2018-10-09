@@ -21,7 +21,7 @@ const proc = cp.spawn(process.execPath,
                         '-e', CODE ]);
 
 proc.once('exit', common.mustCall(() => {
-  assert(common.fileExists(FILE_NAME));
+  assert(fs.existsSync(FILE_NAME));
   fs.readFile(FILE_NAME, common.mustCall((err, data) => {
     const traces = JSON.parse(data.toString()).traceEvents;
     assert(traces.length > 0);
@@ -61,8 +61,8 @@ proc.once('exit', common.mustCall(() => {
       return (trace.ph === 'b' && !trace.name.includes('_CALLBACK'));
     });
     assert.ok(initEvents.every((trace) => {
-      return (trace.args.executionAsyncId > 0 &&
-              trace.args.triggerAsyncId > 0);
+      return (trace.args.data.executionAsyncId > 0 &&
+              trace.args.data.triggerAsyncId > 0);
     }), `Unexpected initEvents format: ${util.inspect(initEvents)}`);
   }));
 }));

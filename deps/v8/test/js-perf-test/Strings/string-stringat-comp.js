@@ -2,12 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-function benchy(f, name) {
-  new BenchmarkSuite(name, [1], [
-    new Benchmark(name, true, false, 0, f),
-  ]);
-}
-
 const input = 'äϠ�𝌆 Lorem ipsum test test';
 
 function helper(fn) {
@@ -42,9 +36,9 @@ function stringIndex(str, i) {
   return str[i] === 't';
 }
 
-benchy(() => helper(charCodeAt), "charCodeAt_const");
-benchy(() => helper(charCodeAtBoth), "charCodeAt_both");
-benchy(() => helper(charAt), "charAt_const");
-benchy(() => helper(charAtNever), "charAt_never");
-benchy(() => helper(charAtBoth), "charAt_both");
-benchy(() => helper(stringIndex), "stringIndex_const");
+createSuiteWithWarmup('charCodeAt_const', 1, () => helper(charCodeAt));
+createSuiteWithWarmup('charCodeAt_both', 1, () => helper(charCodeAtBoth));
+createSuiteWithWarmup('charAt_const', 1, () => helper(charAt));
+createSuiteWithWarmup('charAt_never', 1, () => helper(charAtNever));
+createSuiteWithWarmup('charAt_both', 1, () => helper(charAtBoth));
+createSuiteWithWarmup('stringIndex_const', 1, () => helper(stringIndex));

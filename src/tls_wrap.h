@@ -76,7 +76,10 @@ class TLSWrap : public AsyncWrap,
 
   void NewSessionDoneCb();
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
+  SET_MEMORY_INFO_NAME(TLSWrap)
+  SET_SELF_SIZE(TLSWrap)
 
  protected:
   inline StreamBase* underlying_stream() {
@@ -143,8 +146,8 @@ class TLSWrap : public AsyncWrap,
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 
   crypto::SecureContext* sc_;
-  BIO* enc_in_;
-  BIO* enc_out_;
+  BIO* enc_in_ = nullptr;
+  BIO* enc_out_ = nullptr;
   std::vector<uv_buf_t> pending_cleartext_input_;
   size_t write_size_;
   WriteWrap* current_write_ = nullptr;

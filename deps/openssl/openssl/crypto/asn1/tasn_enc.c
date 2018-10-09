@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -528,6 +528,8 @@ static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *putype,
         otmp = (ASN1_OBJECT *)*pval;
         cont = otmp->data;
         len = otmp->length;
+        if (cont == NULL || len == 0)
+            return -1;
         break;
 
     case V_ASN1_NULL:

@@ -58,7 +58,6 @@ test(new Uint8Array(expected.length),
   // Reading beyond file length (3 in this case) should return no data.
   // This is a test for a bug where reads > uint32 would return data
   // from the current position in the file.
-  const fd = fs.openSync(filepath, 'r');
   const pos = 0xffffffff + 1; // max-uint32 + 1
   const nRead = fs.readSync(fd, Buffer.alloc(1), 0, 1, pos);
   assert.strictEqual(nRead, 0);
@@ -68,3 +67,11 @@ test(new Uint8Array(expected.length),
     assert.strictEqual(nRead, 0);
   }));
 }
+
+assert.throws(
+  () => fs.read(fd, Buffer.alloc(1), 0, 1, 0),
+  {
+    message: 'Callback must be a function',
+    code: 'ERR_INVALID_CALLBACK',
+  }
+);

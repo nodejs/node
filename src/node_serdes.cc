@@ -52,6 +52,11 @@ class SerializerContext : public BaseObject,
   static void WriteUint64(const FunctionCallbackInfo<Value>& args);
   static void WriteDouble(const FunctionCallbackInfo<Value>& args);
   static void WriteRawBytes(const FunctionCallbackInfo<Value>& args);
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(SerializerContext)
+  SET_SELF_SIZE(SerializerContext)
+
  private:
   ValueSerializer serializer_;
 };
@@ -76,6 +81,11 @@ class DeserializerContext : public BaseObject,
   static void ReadUint64(const FunctionCallbackInfo<Value>& args);
   static void ReadDouble(const FunctionCallbackInfo<Value>& args);
   static void ReadRawBytes(const FunctionCallbackInfo<Value>& args);
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DeserializerContext)
+  SET_SELF_SIZE(DeserializerContext)
+
  private:
   const uint8_t* data_;
   const size_t length_;
@@ -487,4 +497,4 @@ void Initialize(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(serdes, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(serdes, node::Initialize)

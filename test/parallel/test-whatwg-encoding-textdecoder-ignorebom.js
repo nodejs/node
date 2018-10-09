@@ -5,9 +5,6 @@
 const common = require('../common');
 
 const assert = require('assert');
-const {
-  TextDecoder
-} = require('util');
 
 const cases = [
   {

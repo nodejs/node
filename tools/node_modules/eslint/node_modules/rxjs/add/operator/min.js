@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var min_1 = require('../../operator/min');
-Observable_1.Observable.prototype.min = min_1.min;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/operator/min");
 //# sourceMappingURL=min.js.map

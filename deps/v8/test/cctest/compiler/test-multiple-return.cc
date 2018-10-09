@@ -16,6 +16,7 @@
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -34,18 +35,16 @@ CallDescriptor* CreateCallDescriptor(Zone* zone, int return_count,
   wasm::FunctionSig::Builder builder(zone, return_count, param_count);
 
   for (int i = 0; i < param_count; i++) {
-    builder.AddParam(type.representation());
+    builder.AddParam(wasm::ValueTypes::ValueTypeFor(type));
   }
 
   for (int i = 0; i < return_count; i++) {
-    builder.AddReturn(type.representation());
+    builder.AddReturn(wasm::ValueTypes::ValueTypeFor(type));
   }
   return compiler::GetWasmCallDescriptor(zone, builder.Build());
 }
 
-}  // namespace
-
-Node* Constant(RawMachineAssembler& m, MachineType type, int value) {
+Node* MakeConstant(RawMachineAssembler& m, MachineType type, int value) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Constant(static_cast<int32_t>(value));
@@ -122,96 +121,117 @@ Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
 
 std::unique_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
                                                          size_t code_size) {
+  std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule());
+  module->num_declared_functions = 1;
+  wasm::ModuleEnv env(
+      module.get(), wasm::UseTrapHandler::kNoTrapHandler,
+      wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
-  std::unique_ptr<wasm::NativeModule> module =
-      isolate->wasm_engine()->code_manager()->NewNativeModule(code_size, 1, 0,
-                                                              false);
-  return module;
+  return isolate->wasm_engine()->code_manager()->NewNativeModule(
+      isolate, wasm::kAllWasmFeatures, code_size, false, std::move(module),
+      env);
 }
 
 void TestReturnMultipleValues(MachineType type) {
   const int kMaxCount = 20;
-  for (int count = 0; count < kMaxCount; ++count) {
-    printf("\n==== type = %s, count = %d ====\n\n\n",
-           MachineReprToString(type.representation()), count);
-    v8::internal::AccountingAllocator allocator;
-    Zone zone(&allocator, ZONE_NAME);
-    CallDescriptor* desc = CreateCallDescriptor(&zone, count, 2, type);
-    HandleAndZoneScope handles;
-    RawMachineAssembler m(handles.main_isolate(),
-                          new (handles.main_zone()) Graph(handles.main_zone()),
-                          desc, MachineType::PointerRepresentation(),
-                          InstructionSelector::SupportedMachineOperatorFlags());
+  const int kMaxParamCount = 9;
+  // Use 9 parameters as a regression test or https://crbug.com/838098.
+  for (int param_count : {2, kMaxParamCount}) {
+    for (int count = 0; count < kMaxCount; ++count) {
+      printf("\n==== type = %s, count = %d ====\n\n\n",
+             MachineReprToString(type.representation()), count);
+      v8::internal::AccountingAllocator allocator;
+      Zone zone(&allocator, ZONE_NAME);
+      CallDescriptor* desc =
+          CreateCallDescriptor(&zone, count, param_count, type);
+      HandleAndZoneScope handles;
+      RawMachineAssembler m(
+          handles.main_isolate(),
+          new (handles.main_zone()) Graph(handles.main_zone()), desc,
+          MachineType::PointerRepresentation(),
+          InstructionSelector::SupportedMachineOperatorFlags());
 
-    // m.Parameter(0) is the WasmContext.
-    Node* p0 = m.Parameter(1);
-    Node* p1 = m.Parameter(2);
-    typedef Node* Node_ptr;
-    std::unique_ptr<Node_ptr[]> returns(new Node_ptr[count]);
-    for (int i = 0; i < count; ++i) {
-      if (i % 3 == 0) returns[i] = Add(m, type, p0, p1);
-      if (i % 3 == 1) returns[i] = Sub(m, type, p0, p1);
-      if (i % 3 == 2) returns[i] = Mul(m, type, p0, p1);
-    }
-    m.Return(count, returns.get());
+      // m.Parameter(0) is the WasmContext.
+      Node* p0 = m.Parameter(1);
+      Node* p1 = m.Parameter(2);
+      typedef Node* Node_ptr;
+      std::unique_ptr<Node_ptr[]> returns(new Node_ptr[count]);
+      for (int i = 0; i < count; ++i) {
+        if (i % 3 == 0) returns[i] = Add(m, type, p0, p1);
+        if (i % 3 == 1) returns[i] = Sub(m, type, p0, p1);
+        if (i % 3 == 2) returns[i] = Mul(m, type, p0, p1);
+      }
+      m.Return(count, returns.get());
 
-    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::STUB);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(
-        &info, handles.main_isolate(), desc, m.graph(), m.Export());
+      OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                                    Code::WASM_FUNCTION);
+      Handle<Code> code =
+          Pipeline::GenerateCodeForTesting(
+              &info, handles.main_isolate(), desc, m.graph(),
+              AssemblerOptions::Default(handles.main_isolate()), m.Export())
+              .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
-    if (FLAG_print_code) {
-      OFStream os(stdout);
-      code->Disassemble("multi_value", os);
-    }
+      if (FLAG_print_code) {
+        StdoutStream os;
+        code->Disassemble("multi_value", os);
+      }
 #endif
 
-    const int a = 47, b = 12;
-    int expect = 0;
-    for (int i = 0, sign = +1; i < count; ++i) {
-      if (i % 3 == 0) expect += sign * (a + b);
-      if (i % 3 == 1) expect += sign * (a - b);
-      if (i % 3 == 2) expect += sign * (a * b);
-      if (i % 4 == 0) sign = -sign;
-    }
+      const int a = 47, b = 12;
+      int expect = 0;
+      for (int i = 0, sign = +1; i < count; ++i) {
+        if (i % 3 == 0) expect += sign * (a + b);
+        if (i % 3 == 1) expect += sign * (a - b);
+        if (i % 3 == 2) expect += sign * (a * b);
+        if (i % 4 == 0) sign = -sign;
+      }
 
-    std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
-        handles.main_isolate(), code->raw_instruction_size());
-    byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
-                           ->instructions()
-                           .start();
+      std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+          handles.main_isolate(), code->raw_instruction_size());
+      byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
+                             ->instructions()
+                             .start();
 
-    RawMachineAssemblerTester<int32_t> mt;
-    Node* call_inputs[] = {mt.PointerConstant(code_start),
-                           // WasmContext dummy
-                           mt.PointerConstant(nullptr),
-                           // Inputs
-                           Constant(mt, type, a), Constant(mt, type, b)};
+      RawMachineAssemblerTester<int32_t> mt;
+      const int input_count = 2 + param_count;
+      Node* call_inputs[2 + kMaxParamCount];
+      call_inputs[0] = mt.PointerConstant(code_start);
+      // WasmContext dummy
+      call_inputs[1] = mt.PointerConstant(nullptr);
+      // Special inputs for the test.
+      call_inputs[2] = MakeConstant(mt, type, a);
+      call_inputs[3] = MakeConstant(mt, type, b);
+      for (int i = 2; i < param_count; i++) {
+        call_inputs[2 + i] = MakeConstant(mt, type, i);
+      }
 
-    Node* ret_multi = mt.AddNode(mt.common()->Call(desc),
-                                 arraysize(call_inputs), call_inputs);
-    Node* ret = Constant(mt, type, 0);
-    bool sign = false;
-    for (int i = 0; i < count; ++i) {
-      Node* x = (count == 1)
-                    ? ret_multi
-                    : mt.AddNode(mt.common()->Projection(i), ret_multi);
-      ret = sign ? Sub(mt, type, ret, x) : Add(mt, type, ret, x);
-      if (i % 4 == 0) sign = !sign;
-    }
-    mt.Return(ToInt32(mt, type, ret));
+      Node* ret_multi = mt.AddNode(mt.common()->Call(desc),
+                                   input_count, call_inputs);
+      Node* ret = MakeConstant(mt, type, 0);
+      bool sign = false;
+      for (int i = 0; i < count; ++i) {
+        Node* x = (count == 1)
+                      ? ret_multi
+                      : mt.AddNode(mt.common()->Projection(i), ret_multi);
+        ret = sign ? Sub(mt, type, ret, x) : Add(mt, type, ret, x);
+        if (i % 4 == 0) sign = !sign;
+      }
+      mt.Return(ToInt32(mt, type, ret));
 #ifdef ENABLE_DISASSEMBLER
-    Handle<Code> code2 = mt.GetCode();
-    if (FLAG_print_code) {
-      OFStream os(stdout);
-      code2->Disassemble("multi_value_call", os);
-    }
+      Handle<Code> code2 = mt.GetCode();
+      if (FLAG_print_code) {
+        StdoutStream os;
+        code2->Disassemble("multi_value_call", os);
+      }
 #endif
-    CHECK_EQ(expect, mt.Call());
+      CHECK_EQ(expect, mt.Call());
+    }
   }
 }
+
+}  // namespace
 
 #define TEST_MULTI(Type, type) \
   TEST(ReturnMultiple##Type) { TestReturnMultipleValues(type); }
@@ -245,15 +265,18 @@ void ReturnLastValue(MachineType type) {
     std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
     for (int i = 0; i < return_count; ++i) {
-      returns[i] = Constant(m, type, i);
+      returns[i] = MakeConstant(m, type, i);
     }
 
     m.Return(return_count, returns.get());
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::STUB);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(
-        &info, handles.main_isolate(), desc, m.graph(), m.Export());
+                                  Code::WASM_FUNCTION);
+    Handle<Code> code =
+        Pipeline::GenerateCodeForTesting(
+            &info, handles.main_isolate(), desc, m.graph(),
+            AssemblerOptions::Default(handles.main_isolate()), m.Export())
+            .ToHandleChecked();
 
     std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
@@ -305,15 +328,18 @@ void ReturnSumOfReturns(MachineType type) {
     std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
     for (int i = 0; i < return_count; ++i) {
-      returns[i] = Constant(m, type, i);
+      returns[i] = MakeConstant(m, type, i);
     }
 
     m.Return(return_count, returns.get());
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::STUB);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(
-        &info, handles.main_isolate(), desc, m.graph(), m.Export());
+                                  Code::WASM_FUNCTION);
+    Handle<Code> code =
+        Pipeline::GenerateCodeForTesting(
+            &info, handles.main_isolate(), desc, m.graph(),
+            AssemblerOptions::Default(handles.main_isolate()), m.Export())
+            .ToHandleChecked();
 
     std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());

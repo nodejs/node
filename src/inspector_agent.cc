@@ -1,10 +1,14 @@
 #include "inspector_agent.h"
 
 #include "inspector_io.h"
+#include "inspector/main_thread_interface.h"
 #include "inspector/node_string.h"
 #include "inspector/tracing_agent.h"
+#include "inspector/worker_agent.h"
+#include "inspector/worker_inspector.h"
 #include "node/inspector/protocol/Protocol.h"
 #include "node_internals.h"
+#include "node_url.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
 
@@ -49,7 +53,7 @@ class StartIoTask : public v8::Task {
   explicit StartIoTask(Agent* agent) : agent(agent) {}
 
   void Run() override {
-    agent->StartIoThread(false);
+    agent->StartIoThread();
   }
 
  private:
@@ -64,11 +68,11 @@ std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
 
 // Called on the main thread.
 void StartIoThreadAsyncCallback(uv_async_t* handle) {
-  static_cast<Agent*>(handle->data)->StartIoThread(false);
+  static_cast<Agent*>(handle->data)->StartIoThread();
 }
 
 void StartIoInterrupt(Isolate* isolate, void* agent) {
-  static_cast<Agent*>(agent)->StartIoThread(false);
+  static_cast<Agent*>(agent)->StartIoThread();
 }
 
 
@@ -186,29 +190,40 @@ static int StartDebugSignalHandler() {
 #endif  // _WIN32
 
 
-// Used in NodeInspectorClient::currentTimeMS() below.
-const int NANOS_PER_MSEC = 1000000;
 const int CONTEXT_GROUP_ID = 1;
+
+std::string GetWorkerLabel(node::Environment* env) {
+  std::ostringstream result;
+  result << "Worker[" << env->thread_id() << "]";
+  return result.str();
+}
 
 class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                           public protocol::FrontendChannel {
  public:
   explicit ChannelImpl(Environment* env,
                        const std::unique_ptr<V8Inspector>& inspector,
-                       std::unique_ptr<InspectorSessionDelegate> delegate)
-                       : delegate_(std::move(delegate)) {
+                       std::shared_ptr<WorkerManager> worker_manager,
+                       std::unique_ptr<InspectorSessionDelegate> delegate,
+                       bool prevent_shutdown)
+                       : delegate_(std::move(delegate)),
+                         prevent_shutdown_(prevent_shutdown) {
     session_ = inspector->connect(1, this, StringView());
     node_dispatcher_.reset(new protocol::UberDispatcher(this));
     tracing_agent_.reset(new protocol::TracingAgent(env));
     tracing_agent_->Wire(node_dispatcher_.get());
+    worker_agent_.reset(new protocol::WorkerAgent(worker_manager));
+    worker_agent_->Wire(node_dispatcher_.get());
   }
 
   virtual ~ChannelImpl() {
     tracing_agent_->disable();
     tracing_agent_.reset();  // Dispose before the dispatchers
+    worker_agent_->disable();
+    worker_agent_.reset();  // Dispose before the dispatchers
   }
 
-  void dispatchProtocolMessage(const StringView& message) {
+  std::string dispatchProtocolMessage(const StringView& message) {
     std::unique_ptr<protocol::DictionaryValue> parsed;
     std::string method;
     node_dispatcher_->getCommandName(
@@ -219,11 +234,16 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     } else {
       node_dispatcher_->dispatch(std::move(parsed));
     }
+    return method;
   }
 
   void schedulePauseOnNextStatement(const std::string& reason) {
     std::unique_ptr<StringBuffer> buffer = Utf8ToStringView(reason);
     session_->schedulePauseOnNextStatement(buffer->string(), buffer->string());
+  }
+
+  bool preventShutdown() {
+    return prevent_shutdown_;
   }
 
  private:
@@ -260,9 +280,11 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   }
 
   std::unique_ptr<protocol::TracingAgent> tracing_agent_;
+  std::unique_ptr<protocol::WorkerAgent> worker_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<protocol::UberDispatcher> node_dispatcher_;
+  bool prevent_shutdown_;
 };
 
 class InspectorTimer {
@@ -324,44 +346,91 @@ class InspectorTimerHandle {
  private:
   InspectorTimer* timer_;
 };
+
+class SameThreadInspectorSession : public InspectorSession {
+ public:
+  SameThreadInspectorSession(
+      int session_id, std::shared_ptr<NodeInspectorClient> client)
+      : session_id_(session_id), client_(client) {}
+  ~SameThreadInspectorSession() override;
+  void Dispatch(const v8_inspector::StringView& message) override;
+
+ private:
+  int session_id_;
+  std::weak_ptr<NodeInspectorClient> client_;
+};
+
+void NotifyClusterWorkersDebugEnabled(Environment* env) {
+  v8::Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  auto context = env->context();
+
+  // Send message to enable debug in cluster workers
+  Local<Object> process_object = env->process_object();
+  Local<Value> emit_fn =
+      process_object->Get(context, FIXED_ONE_BYTE_STRING(isolate, "emit"))
+          .ToLocalChecked();
+  // In case the thread started early during the startup
+  if (!emit_fn->IsFunction())
+    return;
+
+  Local<Object> message = Object::New(isolate);
+  message->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cmd"),
+               FIXED_ONE_BYTE_STRING(isolate, "NODE_DEBUG_ENABLED")).FromJust();
+  Local<Value> argv[] = {
+    FIXED_ONE_BYTE_STRING(isolate, "internalMessage"),
+    message
+  };
+  MakeCallback(env->isolate(), process_object, emit_fn.As<Function>(),
+               arraysize(argv), argv, {0, 0});
+}
+
+#ifdef _WIN32
+bool IsFilePath(const std::string& path) {
+  // '\\'
+  if (path.length() > 2 && path[0] == '\\' && path[1] == '\\')
+    return true;
+  // '[A-Z]:[/\\]'
+  if (path.length() < 3)
+    return false;
+  if ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z'))
+    return path[1] == ':' && (path[2] == '/' || path[2] == '\\');
+  return false;
+}
+#else
+bool IsFilePath(const std::string& path) {
+  return path.length() && path[0] == '/';
+}
+#endif  // __POSIX__
+
 }  // namespace
 
 class NodeInspectorClient : public V8InspectorClient {
  public:
-  explicit NodeInspectorClient(node::Environment* env) : env_(env) {
+  explicit NodeInspectorClient(node::Environment* env, bool is_main)
+      : env_(env), is_main_(is_main) {
     client_ = V8Inspector::create(env->isolate(), this);
     // TODO(bnoordhuis) Make name configurable from src/node.cc.
-    ContextInfo info(GetHumanReadableProcessName());
+    std::string name =
+        is_main_ ? GetHumanReadableProcessName() : GetWorkerLabel(env);
+    ContextInfo info(name);
     info.is_default = true;
     contextCreated(env->context(), info);
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
-    runMessageLoop(false);
+    waiting_for_resume_ = true;
+    runMessageLoop();
   }
 
-  void runMessageLoop(bool ignore_terminated) {
-    if (running_nested_loop_)
-      return;
-    terminated_ = false;
-    running_nested_loop_ = true;
-    MultiIsolatePlatform* platform = env_->isolate_data()->platform();
-    while ((ignore_terminated || !terminated_) && waitForFrontendEvent()) {
-      while (platform->FlushForegroundTasks(env_->isolate())) {}
-    }
-    terminated_ = false;
-    running_nested_loop_ = false;
+  void waitForIoShutdown() {
+    waiting_for_io_shutdown_ = true;
+    runMessageLoop();
   }
 
-  bool waitForFrontendEvent() {
-    InspectorIo* io = env_->inspector_agent()->io();
-    if (io == nullptr)
-      return false;
-    return io->WaitForFrontendEvent();
-  }
-
-  double currentTimeMS() override {
-    return uv_hrtime() * 1.0 / NANOS_PER_MSEC;
+  void waitForFrontend() {
+    waiting_for_frontend_ = true;
+    runMessageLoop();
   }
 
   void maxAsyncCallStackDepthChanged(int depth) override {
@@ -398,16 +467,18 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   void quitMessageLoopOnPause() override {
-    terminated_ = true;
+    waiting_for_resume_ = false;
   }
 
-  int connectFrontend(std::unique_ptr<InspectorSessionDelegate> delegate) {
+  int connectFrontend(std::unique_ptr<InspectorSessionDelegate> delegate,
+                      bool prevent_shutdown) {
     events_dispatched_ = true;
     int session_id = next_session_id_++;
     // TODO(addaleax): Revert back to using make_unique once we get issues
     // with CI resolved (i.e. revert the patch that added this comment).
     channels_[session_id].reset(
-        new ChannelImpl(env_, client_, std::move(delegate)));
+        new ChannelImpl(env_, client_, getWorkerManager(),
+                        std::move(delegate), prevent_shutdown));
     return session_id;
   }
 
@@ -418,7 +489,10 @@ class NodeInspectorClient : public V8InspectorClient {
 
   void dispatchMessageFromFrontend(int session_id, const StringView& message) {
     events_dispatched_ = true;
-    channels_[session_id]->dispatchProtocolMessage(message);
+    std::string method =
+        channels_[session_id]->dispatchProtocolMessage(message);
+    if (waiting_for_frontend_)
+      waiting_for_frontend_ = method != "Runtime.runIfWaitingForDebugger";
   }
 
   Local<Context> ensureDefaultContextInGroup(int contextGroupId) override {
@@ -440,21 +514,19 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   void FatalException(Local<Value> error, Local<v8::Message> message) {
+    Isolate* isolate = env_->isolate();
     Local<Context> context = env_->context();
 
     int script_id = message->GetScriptOrigin().ScriptID()->Value();
 
     Local<v8::StackTrace> stack_trace = message->GetStackTrace();
 
-    if (!stack_trace.IsEmpty() &&
-        stack_trace->GetFrameCount() > 0 &&
-        script_id == stack_trace->GetFrame(0)->GetScriptId()) {
+    if (!stack_trace.IsEmpty() && stack_trace->GetFrameCount() > 0 &&
+        script_id == stack_trace->GetFrame(isolate, 0)->GetScriptId()) {
       script_id = 0;
     }
 
     const uint8_t DETAILS[] = "Uncaught";
-
-    Isolate* isolate = context->GetIsolate();
 
     client_->exceptionThrown(
         context,
@@ -509,116 +581,190 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   bool hasConnectedSessions() {
+    for (const auto& id_channel : channels_) {
+      // Other sessions are "invisible" more most purposes
+      if (id_channel.second->preventShutdown())
+        return true;
+    }
+    return false;
+  }
+
+  std::shared_ptr<MainThreadHandle> getThreadHandle() {
+    if (interface_ == nullptr) {
+      interface_.reset(new MainThreadInterface(
+          env_->inspector_agent(), env_->event_loop(), env_->isolate(),
+          env_->isolate_data()->platform()));
+    }
+    return interface_->GetHandle();
+  }
+
+  std::shared_ptr<WorkerManager> getWorkerManager() {
+    if (worker_manager_ == nullptr) {
+      worker_manager_ =
+          std::make_shared<WorkerManager>(getThreadHandle());
+    }
+    return worker_manager_;
+  }
+
+  bool IsActive() {
     return !channels_.empty();
   }
 
  private:
+  bool shouldRunMessageLoop() {
+    if (waiting_for_frontend_)
+      return true;
+    if (waiting_for_io_shutdown_ || waiting_for_resume_)
+      return hasConnectedSessions();
+    return false;
+  }
+
+  void runMessageLoop() {
+    if (running_nested_loop_)
+      return;
+
+    running_nested_loop_ = true;
+
+    MultiIsolatePlatform* platform = env_->isolate_data()->platform();
+    while (shouldRunMessageLoop()) {
+      if (interface_ && hasConnectedSessions())
+        interface_->WaitForFrontendEvent();
+      while (platform->FlushForegroundTasks(env_->isolate())) {}
+    }
+    running_nested_loop_ = false;
+  }
+
+  double currentTimeMS() override {
+    return env_->isolate_data()->platform()->CurrentClockTimeMillis();
+  }
+
+  std::unique_ptr<StringBuffer> resourceNameToUrl(
+      const StringView& resource_name_view) override {
+    std::string resource_name =
+        protocol::StringUtil::StringViewToUtf8(resource_name_view);
+    if (!IsFilePath(resource_name))
+      return nullptr;
+    node::url::URL url = node::url::URL::FromFilePath(resource_name);
+    // TODO(ak239spb): replace this code with url.href().
+    // Refs: https://github.com/nodejs/node/issues/22610
+    return Utf8ToStringView(url.protocol() + "//" + url.path());
+  }
+
   node::Environment* env_;
-  bool terminated_ = false;
+  bool is_main_;
   bool running_nested_loop_ = false;
   std::unique_ptr<V8Inspector> client_;
   std::unordered_map<int, std::unique_ptr<ChannelImpl>> channels_;
   std::unordered_map<void*, InspectorTimerHandle> timers_;
   int next_session_id_ = 1;
   bool events_dispatched_ = false;
+  bool waiting_for_resume_ = false;
+  bool waiting_for_frontend_ = false;
+  bool waiting_for_io_shutdown_ = false;
+  // Allows accessing Inspector from non-main threads
+  std::unique_ptr<MainThreadInterface> interface_;
+  std::shared_ptr<WorkerManager> worker_manager_;
 };
 
-Agent::Agent(Environment* env) : parent_env_(env) {}
+Agent::Agent(Environment* env)
+  : parent_env_(env),
+    debug_options_(env->options()->debug_options) {}
 
-// Destructor needs to be defined here in implementation file as the header
-// does not have full definition of some classes.
 Agent::~Agent() {
+  if (start_io_thread_async.data == this) {
+    start_io_thread_async.data = nullptr;
+    // This is global, will never get freed
+    uv_close(reinterpret_cast<uv_handle_t*>(&start_io_thread_async), nullptr);
+  }
 }
 
-bool Agent::Start(const char* path, const DebugOptions& options) {
-  path_ = path == nullptr ? "" : path;
+bool Agent::Start(const std::string& path,
+                  std::shared_ptr<DebugOptions> options,
+                  bool is_main) {
+  if (options == nullptr) {
+    options = std::make_shared<DebugOptions>();
+  }
+  path_ = path;
   debug_options_ = options;
-  client_ = std::make_shared<NodeInspectorClient>(parent_env_);
-  CHECK_EQ(0, uv_async_init(uv_default_loop(),
-                            &start_io_thread_async,
-                            StartIoThreadAsyncCallback));
-  start_io_thread_async.data = this;
-  uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
+  client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
+  if (parent_env_->is_main_thread()) {
+    CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
+                              &start_io_thread_async,
+                              StartIoThreadAsyncCallback));
+    uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
+    start_io_thread_async.data = this;
+    // Ignore failure, SIGUSR1 won't work, but that should not block node start.
+    StartDebugSignalHandler();
+  }
 
-  // Ignore failure, SIGUSR1 won't work, but that should not block node start.
-  StartDebugSignalHandler();
-  if (options.inspector_enabled()) {
-    // This will return false if listen failed on the inspector port.
-    return StartIoThread(options.wait_for_connect());
+  bool wait_for_connect = options->wait_for_connect();
+  if (parent_handle_) {
+    wait_for_connect = parent_handle_->WaitForConnect();
+    parent_handle_->WorkerStarted(client_->getThreadHandle(), wait_for_connect);
+  } else if (!options->inspector_enabled || !StartIoThread()) {
+    return false;
+  }
+  if (wait_for_connect) {
+    HandleScope scope(parent_env_->isolate());
+    parent_env_->process_object()->DefineOwnProperty(
+        parent_env_->context(),
+        FIXED_ONE_BYTE_STRING(parent_env_->isolate(), "_breakFirstLine"),
+        True(parent_env_->isolate()),
+        static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum))
+        .FromJust();
+    client_->waitForFrontend();
   }
   return true;
 }
 
-bool Agent::StartIoThread(bool wait_for_connect) {
+bool Agent::StartIoThread() {
   if (io_ != nullptr)
     return true;
 
   CHECK_NOT_NULL(client_);
 
-  io_ = std::unique_ptr<InspectorIo>(
-      new InspectorIo(parent_env_, path_, debug_options_, wait_for_connect));
-  if (!io_->Start()) {
-    client_.reset();
+  io_ = InspectorIo::Start(
+      client_->getThreadHandle(), path_, debug_options_);
+  if (io_ == nullptr) {
     return false;
   }
-
-  v8::Isolate* isolate = parent_env_->isolate();
-  HandleScope handle_scope(isolate);
-  auto context = parent_env_->context();
-
-  // Send message to enable debug in workers
-  Local<Object> process_object = parent_env_->process_object();
-  Local<Value> emit_fn =
-      process_object->Get(context, FIXED_ONE_BYTE_STRING(isolate, "emit"))
-          .ToLocalChecked();
-  // In case the thread started early during the startup
-  if (!emit_fn->IsFunction())
-    return true;
-
-  Local<Object> message = Object::New(isolate);
-  message->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cmd"),
-               FIXED_ONE_BYTE_STRING(isolate, "NODE_DEBUG_ENABLED")).FromJust();
-  Local<Value> argv[] = {
-    FIXED_ONE_BYTE_STRING(isolate, "internalMessage"),
-    message
-  };
-  MakeCallback(parent_env_->isolate(), process_object, emit_fn.As<Function>(),
-               arraysize(argv), argv, {0, 0});
-
+  NotifyClusterWorkersDebugEnabled(parent_env_);
   return true;
 }
 
 void Agent::Stop() {
-  if (io_ != nullptr) {
-    io_->Stop();
-    io_.reset();
-  }
+  io_.reset();
 }
 
 std::unique_ptr<InspectorSession> Agent::Connect(
-    std::unique_ptr<InspectorSessionDelegate> delegate) {
-  int session_id = client_->connectFrontend(std::move(delegate));
+    std::unique_ptr<InspectorSessionDelegate> delegate,
+    bool prevent_shutdown) {
+  CHECK_NOT_NULL(client_);
+  int session_id = client_->connectFrontend(std::move(delegate),
+                                            prevent_shutdown);
   return std::unique_ptr<InspectorSession>(
-      new InspectorSession(session_id, client_));
+      new SameThreadInspectorSession(session_id, client_));
 }
 
 void Agent::WaitForDisconnect() {
   CHECK_NOT_NULL(client_);
+  bool is_worker = parent_handle_ != nullptr;
+  parent_handle_.reset();
+  if (client_->hasConnectedSessions() && !is_worker) {
+    fprintf(stderr, "Waiting for the debugger to disconnect...\n");
+    fflush(stderr);
+  }
   // TODO(addaleax): Maybe this should use an at-exit hook for the Environment
   // or something similar?
   client_->contextDestroyed(parent_env_->context());
   if (io_ != nullptr) {
-    io_->WaitForDisconnect();
-    // There is a bug in V8 Inspector (https://crbug.com/834056) that
-    // calls V8InspectorClient::quitMessageLoopOnPause when a session
-    // disconnects. We are using this flag to ignore those calls so the message
-    // loop is spinning as long as there's a reason to expect inspector messages
-    client_->runMessageLoop(true);
+    io_->StopAcceptingNewConnections();
+    client_->waitForIoShutdown();
   }
 }
 
 void Agent::FatalException(Local<Value> error, Local<v8::Message> message) {
-  if (!IsStarted())
+  if (!IsListening())
     return;
   client_->FatalException(error, message);
   WaitForDisconnect();
@@ -718,26 +864,52 @@ void Agent::ContextCreated(Local<Context> context, const ContextInfo& info) {
   client_->contextCreated(context, info);
 }
 
-bool Agent::IsWaitingForConnect() {
-  return debug_options_.wait_for_connect();
+bool Agent::WillWaitForConnect() {
+  if (debug_options_->wait_for_connect())
+    return true;
+  if (parent_handle_)
+    return parent_handle_->WaitForConnect();
+  return false;
 }
 
-bool Agent::HasConnectedSessions() {
+bool Agent::IsActive() {
   if (client_ == nullptr)
     return false;
-  return client_->hasConnectedSessions();
+  return io_ != nullptr || client_->IsActive();
 }
 
-InspectorSession::InspectorSession(int session_id,
-                                   std::shared_ptr<NodeInspectorClient> client)
-                                   : session_id_(session_id), client_(client) {}
-
-InspectorSession::~InspectorSession() {
-  client_->disconnectFrontend(session_id_);
+void Agent::AddWorkerInspector(int thread_id,
+                               const std::string& url,
+                               Agent* agent) {
+  CHECK_NOT_NULL(client_);
+  agent->parent_handle_ =
+      client_->getWorkerManager()->NewParentHandle(thread_id, url);
 }
 
-void InspectorSession::Dispatch(const StringView& message) {
-  client_->dispatchMessageFromFrontend(session_id_, message);
+void Agent::WaitForConnect() {
+  CHECK_NOT_NULL(client_);
+  client_->waitForFrontend();
 }
+
+std::shared_ptr<WorkerManager> Agent::GetWorkerManager() {
+  CHECK_NOT_NULL(client_);
+  return client_->getWorkerManager();
+}
+
+SameThreadInspectorSession::~SameThreadInspectorSession() {
+  auto client = client_.lock();
+  if (client)
+    client->disconnectFrontend(session_id_);
+}
+
+void SameThreadInspectorSession::Dispatch(
+    const v8_inspector::StringView& message) {
+  auto client = client_.lock();
+  if (client)
+    client->dispatchMessageFromFrontend(session_id_, message);
+}
+
+
+
 }  // namespace inspector
 }  // namespace node

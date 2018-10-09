@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const async_hooks = require('async_hooks');
-common.crashOnUnhandledRejection();
 
 if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different AsyncWraps');

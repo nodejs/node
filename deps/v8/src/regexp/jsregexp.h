@@ -73,34 +73,29 @@ class RegExpImpl {
   // the implementation wants to store in the data field.
   // Returns false if compilation fails.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Compile(
-      Handle<JSRegExp> re, Handle<String> pattern, JSRegExp::Flags flags);
+      Isolate* isolate, Handle<JSRegExp> re, Handle<String> pattern,
+      JSRegExp::Flags flags);
 
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Exec(
-      Handle<JSRegExp> regexp, Handle<String> subject, int index,
-      Handle<RegExpMatchInfo> last_match_info);
+      Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
+      int index, Handle<RegExpMatchInfo> last_match_info);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
-  static void IrregexpInitialize(Handle<JSRegExp> re,
-                                 Handle<String> pattern,
-                                 JSRegExp::Flags flags,
+  static void IrregexpInitialize(Isolate* isolate, Handle<JSRegExp> re,
+                                 Handle<String> pattern, JSRegExp::Flags flags,
                                  int capture_register_count);
 
-
-  static void AtomCompile(Handle<JSRegExp> re,
-                          Handle<String> pattern,
-                          JSRegExp::Flags flags,
+  static void AtomCompile(Isolate* isolate, Handle<JSRegExp> re,
+                          Handle<String> pattern, JSRegExp::Flags flags,
                           Handle<String> match_pattern);
 
-
-  static int AtomExecRaw(Handle<JSRegExp> regexp,
-                         Handle<String> subject,
-                         int index,
-                         int32_t* output,
+  static int AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
+                         Handle<String> subject, int index, int32_t* output,
                          int output_size);
 
-  static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
+  static Handle<Object> AtomExec(Isolate* isolate, Handle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
                                  Handle<RegExpMatchInfo> last_match_info);
 
@@ -113,7 +108,7 @@ class RegExpImpl {
   // Returns the number of integer spaces required by IrregexpExecOnce
   // as its "registers" argument.  If the regexp cannot be compiled,
   // an exception is set as pending, and this function returns negative.
-  static int IrregexpPrepare(Handle<JSRegExp> regexp,
+  static int IrregexpPrepare(Isolate* isolate, Handle<JSRegExp> regexp,
                              Handle<String> subject);
 
   // Execute a regular expression on the subject, starting from index.
@@ -122,10 +117,8 @@ class RegExpImpl {
   // The captures and subcaptures are stored into the registers vector.
   // If matching fails, returns RE_FAILURE.
   // If execution fails, sets a pending exception and returns RE_EXCEPTION.
-  static int IrregexpExecRaw(Handle<JSRegExp> regexp,
-                             Handle<String> subject,
-                             int index,
-                             int32_t* output,
+  static int IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
+                             Handle<String> subject, int index, int32_t* output,
                              int output_size);
 
   // Execute an Irregexp bytecode pattern.
@@ -133,14 +126,14 @@ class RegExpImpl {
   // captured positions.  On a failure, the result is the null value.
   // Returns an empty handle in case of an exception.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> IrregexpExec(
-      Handle<JSRegExp> regexp, Handle<String> subject, int index,
-      Handle<RegExpMatchInfo> last_match_info);
+      Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
+      int index, Handle<RegExpMatchInfo> last_match_info);
 
   // Set last match info.  If match is nullptr, then setting captures is
   // omitted.
   static Handle<RegExpMatchInfo> SetLastMatchInfo(
-      Handle<RegExpMatchInfo> last_match_info, Handle<String> subject,
-      int capture_count, int32_t* match);
+      Isolate* isolate, Handle<RegExpMatchInfo> last_match_info,
+      Handle<String> subject, int capture_count, int32_t* match);
 
   class GlobalCache {
    public:
@@ -148,17 +141,17 @@ class RegExpImpl {
                 Handle<String> subject,
                 Isolate* isolate);
 
-    INLINE(~GlobalCache());
+    V8_INLINE ~GlobalCache();
 
     // Fetch the next entry in the cache for global regexp match results.
     // This does not set the last match info.  Upon failure, nullptr is
     // returned. The cause can be checked with Result().  The previous result is
     // still in available in memory when a failure happens.
-    INLINE(int32_t* FetchNext());
+    V8_INLINE int32_t* FetchNext();
 
-    INLINE(int32_t* LastSuccessfulMatch());
+    V8_INLINE int32_t* LastSuccessfulMatch();
 
-    INLINE(bool HasException()) { return num_matches_ < 0; }
+    V8_INLINE bool HasException() { return num_matches_ < 0; }
 
    private:
     int AdvanceZeroLength(int last_index);
@@ -172,6 +165,7 @@ class RegExpImpl {
     int register_array_size_;
     Handle<JSRegExp> regexp_;
     Handle<String> subject_;
+    Isolate* isolate_;
   };
 
   // For acting on the JSRegExp data FixedArray.
@@ -194,9 +188,10 @@ class RegExpImpl {
   static const int kRegExpTooLargeToOptimize = 20 * KB;
 
  private:
-  static bool CompileIrregexp(Handle<JSRegExp> re,
+  static bool CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                               Handle<String> sample_subject, bool is_one_byte);
-  static inline bool EnsureCompiledIrregexp(Handle<JSRegExp> re,
+  static inline bool EnsureCompiledIrregexp(Isolate* isolate,
+                                            Handle<JSRegExp> re,
                                             Handle<String> sample_subject,
                                             bool is_one_byte);
 };
@@ -1519,7 +1514,7 @@ class RegExpEngine: public AllStatic {
   struct CompilationResult {
     CompilationResult(Isolate* isolate, const char* error_message)
         : error_message(error_message),
-          code(isolate->heap()->the_hole_value()),
+          code(ReadOnlyRoots(isolate).the_hole_value()),
           num_registers(0) {}
     CompilationResult(Object* code, int registers)
         : error_message(nullptr), code(code), num_registers(registers) {}
@@ -1535,7 +1530,7 @@ class RegExpEngine: public AllStatic {
                                    Handle<String> sample_subject,
                                    bool is_one_byte);
 
-  static bool TooMuchRegExpCode(Handle<String> pattern);
+  static bool TooMuchRegExpCode(Isolate* isolate, Handle<String> pattern);
 
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
 };

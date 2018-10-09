@@ -6,6 +6,7 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/js-promise.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {
@@ -97,10 +98,9 @@ Node* AsyncBuiltinsAssembler::Await(
   {
     // Add PromiseHooks if needed
     Label next(this);
-    GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &next);
-    CallRuntime(Runtime::kPromiseHookInit, context, wrapped_value,
-                outer_promise);
-    CallRuntime(Runtime::kPromiseHookInit, context, throwaway, wrapped_value);
+    GotoIfNot(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &next);
+    CallRuntime(Runtime::kAwaitPromisesInit, context, wrapped_value,
+                outer_promise, throwaway);
     Goto(&next);
     BIND(&next);
   }
@@ -123,8 +123,8 @@ Node* AsyncBuiltinsAssembler::Await(
       // than a meaningful catch handler
       Node* const key =
           HeapConstant(factory()->promise_forwarding_handler_symbol());
-      CallRuntime(Runtime::kSetProperty, context, on_reject, key,
-                  TrueConstant(), SmiConstant(LanguageMode::kStrict));
+      SetPropertyStrict(CAST(context), CAST(on_reject), CAST(key),
+                        TrueConstant());
 
       GotoIf(IsFalse(is_predicted_as_caught), &common);
       PromiseSetHandledHint(value);
@@ -137,13 +137,127 @@ Node* AsyncBuiltinsAssembler::Await(
     CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
 
     Node* const key = HeapConstant(factory()->promise_handled_by_symbol());
-    CallRuntime(Runtime::kSetProperty, context, throwaway, key, outer_promise,
-                SmiConstant(LanguageMode::kStrict));
+    SetPropertyStrict(CAST(context), CAST(throwaway), CAST(key),
+                      CAST(outer_promise));
   }
 
   Goto(&do_perform_promise_then);
   BIND(&do_perform_promise_then);
   return CallBuiltin(Builtins::kPerformPromiseThen, context, wrapped_value,
+                     on_resolve, on_reject, throwaway);
+}
+
+Node* AsyncBuiltinsAssembler::AwaitOptimized(
+    Node* context, Node* generator, Node* value, Node* outer_promise,
+    int context_length, const ContextInitializer& init_closure_context,
+    Node* on_resolve_context_index, Node* on_reject_context_index,
+    Node* is_predicted_as_caught) {
+  DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
+
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
+  CSA_ASSERT(this, IsConstructor(promise_fun));
+
+  static const int kThrowawayPromiseOffset =
+      FixedArray::SizeFor(context_length);
+  static const int kResolveClosureOffset =
+      kThrowawayPromiseOffset + JSPromise::kSizeWithEmbedderFields;
+  static const int kRejectClosureOffset =
+      kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
+  static const int kTotalSize =
+      kRejectClosureOffset + JSFunction::kSizeWithoutPrototype;
+
+  // 2. Let promise be ? PromiseResolve(« promise »).
+  Node* const promise =
+      CallBuiltin(Builtins::kPromiseResolve, context, promise_fun, value);
+
+  Node* const base = AllocateInNewSpace(kTotalSize);
+  Node* const closure_context = base;
+  {
+    // Initialize closure context
+    InitializeFunctionContext(native_context, closure_context, context_length);
+    init_closure_context(closure_context);
+  }
+
+  Node* const promise_map =
+      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
+  // Assert that the JSPromise map has an instance size is
+  // JSPromise::kSizeWithEmbedderFields.
+  CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(promise_map),
+                             IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
+                                            kPointerSize)));
+  Node* const throwaway = InnerAllocate(base, kThrowawayPromiseOffset);
+  {
+    // Initialize throwawayPromise
+    StoreMapNoWriteBarrier(throwaway, promise_map);
+    InitializeJSObjectFromMap(
+        throwaway, promise_map,
+        IntPtrConstant(JSPromise::kSizeWithEmbedderFields));
+    PromiseInit(throwaway);
+  }
+
+  Node* const on_resolve = InnerAllocate(base, kResolveClosureOffset);
+  {
+    // Initialize resolve handler
+    InitializeNativeClosure(closure_context, native_context, on_resolve,
+                            on_resolve_context_index);
+  }
+
+  Node* const on_reject = InnerAllocate(base, kRejectClosureOffset);
+  {
+    // Initialize reject handler
+    InitializeNativeClosure(closure_context, native_context, on_reject,
+                            on_reject_context_index);
+  }
+
+  {
+    // Add PromiseHooks if needed
+    Label next(this);
+    GotoIfNot(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &next);
+    CallRuntime(Runtime::kAwaitPromisesInit, context, promise, outer_promise,
+                throwaway);
+    Goto(&next);
+    BIND(&next);
+  }
+
+  // The Promise will be thrown away and not handled, but it shouldn't trigger
+  // unhandled reject events as its work is done
+  PromiseSetHasHandler(throwaway);
+
+  Label do_perform_promise_then(this);
+  GotoIfNot(IsDebugActive(), &do_perform_promise_then);
+  {
+    Label common(this);
+    GotoIf(TaggedIsSmi(value), &common);
+    GotoIfNot(HasInstanceType(value, JS_PROMISE_TYPE), &common);
+    {
+      // Mark the reject handler callback to be a forwarding edge, rather
+      // than a meaningful catch handler
+      Node* const key =
+          HeapConstant(factory()->promise_forwarding_handler_symbol());
+      SetPropertyStrict(CAST(context), CAST(on_reject), CAST(key),
+                        TrueConstant());
+
+      GotoIf(IsFalse(is_predicted_as_caught), &common);
+      PromiseSetHandledHint(value);
+    }
+
+    Goto(&common);
+    BIND(&common);
+    // Mark the dependency to outer Promise in case the throwaway Promise is
+    // found on the Promise stack
+    CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
+
+    Node* const key = HeapConstant(factory()->promise_handled_by_symbol());
+    SetPropertyStrict(CAST(context), CAST(throwaway), CAST(key),
+                      CAST(outer_promise));
+  }
+
+  Goto(&do_perform_promise_then);
+  BIND(&do_perform_promise_then);
+  return CallBuiltin(Builtins::kPerformPromiseThen, native_context, promise,
                      on_resolve, on_reject, throwaway);
 }
 

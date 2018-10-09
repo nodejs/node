@@ -14,6 +14,7 @@
 
 #if !UCONFIG_NO_FORMATTING && !UCONFIG_NO_BREAK_ITERATION
 
+#include <cmath>
 #include "unicode/dtfmtsym.h"
 #include "unicode/ucasemap.h"
 #include "unicode/ureldatefmt.h"
@@ -849,7 +850,7 @@ UnicodeString& RelativeDateTimeFormatter::formatNumeric(
             return appendTo;
     }
     UDateDirection direction = UDAT_DIRECTION_NEXT;
-    if (offset < 0) {
+    if (std::signbit(offset)) { // needed to handle -0.0
         direction = UDAT_DIRECTION_LAST;
         offset = -offset;
     }

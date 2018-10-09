@@ -40,67 +40,73 @@ class DigitInterval;
 class PluralRules;
 class VisibleDigits;
 
-static const UChar DOT             = ((UChar)0x002E);
-static const UChar SINGLE_QUOTE    = ((UChar)0x0027);
-static const UChar SLASH           = ((UChar)0x002F);
-static const UChar BACKSLASH       = ((UChar)0x005C);
-static const UChar SPACE           = ((UChar)0x0020);
-static const UChar EXCLAMATION     = ((UChar)0x0021);
-static const UChar QUOTATION_MARK  = ((UChar)0x0022);
-static const UChar NUMBER_SIGN     = ((UChar)0x0023);
-static const UChar PERCENT_SIGN    = ((UChar)0x0025);
-static const UChar ASTERISK        = ((UChar)0x002A);
-static const UChar COMMA           = ((UChar)0x002C);
-static const UChar HYPHEN          = ((UChar)0x002D);
-static const UChar U_ZERO          = ((UChar)0x0030);
-static const UChar U_ONE           = ((UChar)0x0031);
-static const UChar U_TWO           = ((UChar)0x0032);
-static const UChar U_THREE         = ((UChar)0x0033);
-static const UChar U_FOUR          = ((UChar)0x0034);
-static const UChar U_FIVE          = ((UChar)0x0035);
-static const UChar U_SIX           = ((UChar)0x0036);
-static const UChar U_SEVEN         = ((UChar)0x0037);
-static const UChar U_EIGHT         = ((UChar)0x0038);
-static const UChar U_NINE          = ((UChar)0x0039);
-static const UChar COLON           = ((UChar)0x003A);
-static const UChar SEMI_COLON      = ((UChar)0x003B);
-static const UChar EQUALS          = ((UChar)0x003D);
-static const UChar AT              = ((UChar)0x0040);
-static const UChar CAP_A           = ((UChar)0x0041);
-static const UChar CAP_B           = ((UChar)0x0042);
-static const UChar CAP_R           = ((UChar)0x0052);
-static const UChar CAP_Z           = ((UChar)0x005A);
-static const UChar LOWLINE         = ((UChar)0x005F);
-static const UChar LEFTBRACE       = ((UChar)0x007B);
-static const UChar RIGHTBRACE      = ((UChar)0x007D);
-static const UChar TILDE           = ((UChar)0x007E);
-static const UChar ELLIPSIS        = ((UChar)0x2026);
+namespace pluralimpl {
 
-static const UChar LOW_A           = ((UChar)0x0061);
-static const UChar LOW_B           = ((UChar)0x0062);
-static const UChar LOW_C           = ((UChar)0x0063);
-static const UChar LOW_D           = ((UChar)0x0064);
-static const UChar LOW_E           = ((UChar)0x0065);
-static const UChar LOW_F           = ((UChar)0x0066);
-static const UChar LOW_G           = ((UChar)0x0067);
-static const UChar LOW_H           = ((UChar)0x0068);
-static const UChar LOW_I           = ((UChar)0x0069);
-static const UChar LOW_J           = ((UChar)0x006a);
-static const UChar LOW_K           = ((UChar)0x006B);
-static const UChar LOW_L           = ((UChar)0x006C);
-static const UChar LOW_M           = ((UChar)0x006D);
-static const UChar LOW_N           = ((UChar)0x006E);
-static const UChar LOW_O           = ((UChar)0x006F);
-static const UChar LOW_P           = ((UChar)0x0070);
-static const UChar LOW_Q           = ((UChar)0x0071);
-static const UChar LOW_R           = ((UChar)0x0072);
-static const UChar LOW_S           = ((UChar)0x0073);
-static const UChar LOW_T           = ((UChar)0x0074);
-static const UChar LOW_U           = ((UChar)0x0075);
-static const UChar LOW_V           = ((UChar)0x0076);
-static const UChar LOW_W           = ((UChar)0x0077);
-static const UChar LOW_Y           = ((UChar)0x0079);
-static const UChar LOW_Z           = ((UChar)0x007A);
+// TODO: Remove this and replace with u"" literals. Was for EBCDIC compatibility.
+
+static const UChar DOT = ((UChar) 0x002E);
+static const UChar SINGLE_QUOTE = ((UChar) 0x0027);
+static const UChar SLASH = ((UChar) 0x002F);
+static const UChar BACKSLASH = ((UChar) 0x005C);
+static const UChar SPACE = ((UChar) 0x0020);
+static const UChar EXCLAMATION = ((UChar) 0x0021);
+static const UChar QUOTATION_MARK = ((UChar) 0x0022);
+static const UChar NUMBER_SIGN = ((UChar) 0x0023);
+static const UChar PERCENT_SIGN = ((UChar) 0x0025);
+static const UChar ASTERISK = ((UChar) 0x002A);
+static const UChar COMMA = ((UChar) 0x002C);
+static const UChar HYPHEN = ((UChar) 0x002D);
+static const UChar U_ZERO = ((UChar) 0x0030);
+static const UChar U_ONE = ((UChar) 0x0031);
+static const UChar U_TWO = ((UChar) 0x0032);
+static const UChar U_THREE = ((UChar) 0x0033);
+static const UChar U_FOUR = ((UChar) 0x0034);
+static const UChar U_FIVE = ((UChar) 0x0035);
+static const UChar U_SIX = ((UChar) 0x0036);
+static const UChar U_SEVEN = ((UChar) 0x0037);
+static const UChar U_EIGHT = ((UChar) 0x0038);
+static const UChar U_NINE = ((UChar) 0x0039);
+static const UChar COLON = ((UChar) 0x003A);
+static const UChar SEMI_COLON = ((UChar) 0x003B);
+static const UChar EQUALS = ((UChar) 0x003D);
+static const UChar AT = ((UChar) 0x0040);
+static const UChar CAP_A = ((UChar) 0x0041);
+static const UChar CAP_B = ((UChar) 0x0042);
+static const UChar CAP_R = ((UChar) 0x0052);
+static const UChar CAP_Z = ((UChar) 0x005A);
+static const UChar LOWLINE = ((UChar) 0x005F);
+static const UChar LEFTBRACE = ((UChar) 0x007B);
+static const UChar RIGHTBRACE = ((UChar) 0x007D);
+static const UChar TILDE = ((UChar) 0x007E);
+static const UChar ELLIPSIS = ((UChar) 0x2026);
+
+static const UChar LOW_A = ((UChar) 0x0061);
+static const UChar LOW_B = ((UChar) 0x0062);
+static const UChar LOW_C = ((UChar) 0x0063);
+static const UChar LOW_D = ((UChar) 0x0064);
+static const UChar LOW_E = ((UChar) 0x0065);
+static const UChar LOW_F = ((UChar) 0x0066);
+static const UChar LOW_G = ((UChar) 0x0067);
+static const UChar LOW_H = ((UChar) 0x0068);
+static const UChar LOW_I = ((UChar) 0x0069);
+static const UChar LOW_J = ((UChar) 0x006a);
+static const UChar LOW_K = ((UChar) 0x006B);
+static const UChar LOW_L = ((UChar) 0x006C);
+static const UChar LOW_M = ((UChar) 0x006D);
+static const UChar LOW_N = ((UChar) 0x006E);
+static const UChar LOW_O = ((UChar) 0x006F);
+static const UChar LOW_P = ((UChar) 0x0070);
+static const UChar LOW_Q = ((UChar) 0x0071);
+static const UChar LOW_R = ((UChar) 0x0072);
+static const UChar LOW_S = ((UChar) 0x0073);
+static const UChar LOW_T = ((UChar) 0x0074);
+static const UChar LOW_U = ((UChar) 0x0075);
+static const UChar LOW_V = ((UChar) 0x0076);
+static const UChar LOW_W = ((UChar) 0x0077);
+static const UChar LOW_Y = ((UChar) 0x0079);
+static const UChar LOW_Z = ((UChar) 0x007A);
+
+}
 
 
 static const int32_t PLURAL_RANGE_HIGH = 0x7fffffff;
@@ -244,6 +250,9 @@ class U_I18N_API IFixedDecimal {
     virtual bool isNaN() const = 0;
 
     virtual bool isInfinite() const = 0;
+
+    /** Whether the number has no nonzero fraction digits. */
+    virtual bool hasIntegerValue() const = 0;
 };
 
 /**
@@ -263,7 +272,6 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
     FixedDecimal(double  n, int32_t v, int64_t f);
     FixedDecimal(double n, int32_t);
     explicit FixedDecimal(double n);
-    explicit FixedDecimal(const VisibleDigits &n);
     FixedDecimal();
     ~FixedDecimal() U_OVERRIDE;
     FixedDecimal(const UnicodeString &s, UErrorCode &ec);
@@ -272,6 +280,7 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
     double getPluralOperand(PluralOperand operand) const U_OVERRIDE;
     bool isNaN() const U_OVERRIDE;
     bool isInfinite() const U_OVERRIDE;
+    bool hasIntegerValue() const U_OVERRIDE;
 
     bool isNanOrInfinity() const;  // used in decimfmtimpl.cpp
 
@@ -290,7 +299,7 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
     int64_t     decimalDigits;
     int64_t     decimalDigitsWithoutTrailingZeros;
     int64_t     intValue;
-    UBool       hasIntegerValue;
+    UBool       _hasIntegerValue;
     UBool       isNegative;
     UBool       _isNaN;
     UBool       _isInfinite;

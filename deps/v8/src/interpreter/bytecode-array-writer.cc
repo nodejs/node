@@ -4,7 +4,7 @@
 
 #include "src/interpreter/bytecode-array-writer.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
@@ -304,7 +304,8 @@ void BytecodeArrayWriter::PatchJumpWith16BitOperand(size_t jump_location,
     // The jump fits within the range of an Imm16 operand, so cancel
     // the reservation and jump directly.
     constant_array_builder()->DiscardReservedEntry(OperandSize::kShort);
-    WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(delta));
+    WriteUnalignedUInt16(reinterpret_cast<Address>(operand_bytes),
+                         static_cast<uint16_t>(delta));
   } else {
     // The jump does not fit within the range of an Imm16 operand, so
     // commit reservation putting the offset into the constant pool,
@@ -313,7 +314,8 @@ void BytecodeArrayWriter::PatchJumpWith16BitOperand(size_t jump_location,
         OperandSize::kShort, Smi::FromInt(delta));
     jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
     bytecodes()->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
-    WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(entry));
+    WriteUnalignedUInt16(reinterpret_cast<Address>(operand_bytes),
+                         static_cast<uint16_t>(entry));
   }
   DCHECK(bytecodes()->at(operand_location) == k8BitJumpPlaceholder &&
          bytecodes()->at(operand_location + 1) == k8BitJumpPlaceholder);
@@ -327,7 +329,8 @@ void BytecodeArrayWriter::PatchJumpWith32BitOperand(size_t jump_location,
       Bytecodes::FromByte(bytecodes()->at(jump_location))));
   constant_array_builder()->DiscardReservedEntry(OperandSize::kQuad);
   uint8_t operand_bytes[4];
-  WriteUnalignedUInt32(operand_bytes, static_cast<uint32_t>(delta));
+  WriteUnalignedUInt32(reinterpret_cast<Address>(operand_bytes),
+                       static_cast<uint32_t>(delta));
   size_t operand_location = jump_location + 1;
   DCHECK(bytecodes()->at(operand_location) == k8BitJumpPlaceholder &&
          bytecodes()->at(operand_location + 1) == k8BitJumpPlaceholder &&

@@ -7,8 +7,6 @@ const fs = require('fs');
 const path = require('path');
 const { promises } = fs;
 
-common.crashOnUnhandledRejection();
-
 // Validate the path argument.
 [false, 1, {}, [], null, undefined].forEach((i) => {
   const err = { type: TypeError, code: 'ERR_INVALID_ARG_TYPE' };

@@ -1,4 +1,7 @@
 "use strict";
-var BoundCallbackObservable_1 = require('./BoundCallbackObservable');
-exports.bindCallback = BoundCallbackObservable_1.BoundCallbackObservable.create;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/observable/bindCallback"));
 //# sourceMappingURL=bindCallback.js.map

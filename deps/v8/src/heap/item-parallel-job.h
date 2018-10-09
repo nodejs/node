@@ -49,17 +49,18 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
     virtual ~Item() = default;
 
     // Marks an item as being finished.
-    void MarkFinished() { CHECK(state_.TrySetValue(kProcessing, kFinished)); }
+    void MarkFinished() { CHECK_EQ(kProcessing, state_.exchange(kFinished)); }
 
    private:
-    enum ProcessingState { kAvailable, kProcessing, kFinished };
+    enum ProcessingState : uintptr_t { kAvailable, kProcessing, kFinished };
 
     bool TryMarkingAsProcessing() {
-      return state_.TrySetValue(kAvailable, kProcessing);
+      ProcessingState available = kAvailable;
+      return state_.compare_exchange_strong(available, kProcessing);
     }
-    bool IsFinished() { return state_.Value() == kFinished; }
+    bool IsFinished() { return state_ == kFinished; }
 
-    base::AtomicValue<ProcessingState> state_{kAvailable};
+    std::atomic<ProcessingState> state_{kAvailable};
 
     friend class ItemParallelJob;
     friend class ItemParallelJob::Task;

@@ -6,16 +6,13 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
-
-#include "src/compiler/node-properties.h"
-
 #include "src/objects-inl.h"
 #include "src/signature.h"
-
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-module.h"
-
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
@@ -334,8 +331,8 @@ TEST_F(Int64LoweringTest, CallI64Return) {
   int32_t function = 0x9999;
   Node* context_address = Int32Constant(0);
 
-  Signature<MachineRepresentation>::Builder sig_builder(zone(), 1, 0);
-  sig_builder.AddReturn(MachineRepresentation::kWord64);
+  wasm::FunctionSig::Builder sig_builder(zone(), 1, 0);
+  sig_builder.AddReturn(wasm::kWasmI64);
 
   auto call_descriptor =
       compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
@@ -364,11 +361,11 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
   int32_t function = 0x9999;
   Node* context_address = Int32Constant(0);
 
-  Signature<MachineRepresentation>::Builder sig_builder(zone(), 1, 3);
-  sig_builder.AddReturn(MachineRepresentation::kWord32);
-  sig_builder.AddParam(MachineRepresentation::kWord64);
-  sig_builder.AddParam(MachineRepresentation::kWord32);
-  sig_builder.AddParam(MachineRepresentation::kWord64);
+  wasm::FunctionSig::Builder sig_builder(zone(), 1, 3);
+  sig_builder.AddReturn(wasm::kWasmI32);
+  sig_builder.AddParam(wasm::kWasmI64);
+  sig_builder.AddParam(wasm::kWasmI32);
+  sig_builder.AddParam(wasm::kWasmI64);
 
   auto call_descriptor =
       compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
@@ -885,7 +882,7 @@ TEST_F(Int64LoweringTest, I64PhiWord32) {
 }
 
 TEST_F(Int64LoweringTest, I64ReverseBytes) {
-  LowerGraph(graph()->NewNode(machine()->Word64ReverseBytes().placeholder(),
+  LowerGraph(graph()->NewNode(machine()->Word64ReverseBytes(),
                               Int64Constant(value(0))),
              MachineRepresentation::kWord64);
   EXPECT_THAT(

@@ -66,7 +66,7 @@ static const UChar INTL_CURRENCY_SYMBOL_STR[] = {0xa4, 0xa4, 0};
 static const char *gNumberElementKeys[DecimalFormatSymbols::kFormatSymbolCount] = {
     "decimal",
     "group",
-    "list",
+    NULL, /* #11897: the <list> symbol is NOT the pattern separator symbol */
     "percentSign",
     NULL, /* Native zero digit is deprecated from CLDR - get it from the numbering system */
     NULL, /* Pattern digit character is deprecated from CLDR - use # by default always */
@@ -98,7 +98,7 @@ static const char *gNumberElementKeys[DecimalFormatSymbols::kFormatSymbolCount] 
 // Initializes this with the decimal format symbols in the default locale.
 
 DecimalFormatSymbols::DecimalFormatSymbols(UErrorCode& status)
-        : UObject(), locale() {
+        : UObject(), locale(), currPattern(NULL) {
     initialize(locale, status, TRUE);
 }
 
@@ -106,12 +106,12 @@ DecimalFormatSymbols::DecimalFormatSymbols(UErrorCode& status)
 // Initializes this with the decimal format symbols in the desired locale.
 
 DecimalFormatSymbols::DecimalFormatSymbols(const Locale& loc, UErrorCode& status)
-        : UObject(), locale(loc) {
+        : UObject(), locale(loc), currPattern(NULL) {
     initialize(locale, status);
 }
 
 DecimalFormatSymbols::DecimalFormatSymbols(const Locale& loc, const NumberingSystem& ns, UErrorCode& status)
-        : UObject(), locale(loc) {
+        : UObject(), locale(loc), currPattern(NULL) {
     initialize(locale, status, FALSE, &ns);
 }
 
@@ -349,7 +349,6 @@ DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status,
 {
     if (U_FAILURE(status)) { return; }
     *validLocale = *actualLocale = 0;
-    currPattern = NULL;
 
     // First initialize all the symbols to the fallbacks for anything we can't find
     initialize();
@@ -477,6 +476,7 @@ DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status,
     UErrorCode localStatus = U_ZERO_ERROR;
     uccLen = ucurr_forLocale(locName, ucc, uccLen, &localStatus);
 
+    // TODO: Currency pattern data loading is duplicated in number_formatimpl.cpp
     if(U_SUCCESS(localStatus) && uccLen > 0) {
         char cc[4]={0};
         u_UCharsToChars(ucc, cc, uccLen);

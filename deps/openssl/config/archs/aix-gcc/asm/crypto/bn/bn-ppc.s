@@ -227,7 +227,7 @@
 
 	stw	9,24(3)
 	stw	10,28(3)
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -655,7 +655,7 @@
 	stw	9, 60(3)
 
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -809,7 +809,7 @@
 
 	stw	10,24(3)
 	stw	11,28(3)
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -1348,7 +1348,7 @@
 	adde	10,10,9
 	stw	12,56(3)
 	stw	10,60(3)
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -1399,7 +1399,7 @@ Lppcasm_sub_mainloop:
 Lppcasm_sub_adios:
 	subfze	3,0
 	andi.	3,3,1
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,4,0
 .long	0
@@ -1445,7 +1445,7 @@ Lppcasm_add_mainloop:
 	bc	16,0,Lppcasm_add_mainloop
 Lppcasm_add_adios:
 	addze	3,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,4,0
 .long	0
@@ -1474,7 +1474,7 @@ Lppcasm_add_adios:
 	cmplwi	0,5,0
 	bne	Lppcasm_div1
 	li	3,-1
-	blr
+	blr	
 Lppcasm_div1:
 	xor	0,0,0
 	li	8,32
@@ -1561,7 +1561,7 @@ Lppcasm_div8:
 	b	Lppcasm_divouterloop
 Lppcasm_div9:
 	or	3,8,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -1603,7 +1603,7 @@ Lppcasm_sqr_mainloop:
 	stwu	8,4(3)
 	bc	16,0,Lppcasm_sqr_mainloop
 Lppcasm_sqr_adios:
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -1709,7 +1709,7 @@ Lppcasm_mw_REM:
 
 Lppcasm_mw_OVER:
 	addi	3,12,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,4,0
 .long	0
@@ -1835,7 +1835,7 @@ Lppcasm_maw_leftover:
 
 Lppcasm_maw_adios:
 	addi	3,12,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,4,0
 .long	0

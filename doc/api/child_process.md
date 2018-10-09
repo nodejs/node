@@ -415,7 +415,7 @@ changes:
     [Default Windows Shell][]. **Default:** `false` (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
-    when `shell` is specified. **Default:** `false`.
+    when `shell` is specified and is CMD. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `true`.
 * Returns: {ChildProcess}
@@ -536,11 +536,12 @@ process will be made the leader of a new process group and session. Note that
 child processes may continue running after the parent exits regardless of
 whether they are detached or not. See setsid(2) for more information.
 
-By default, the parent will wait for the detached child to exit. To prevent
-the parent from waiting for a given `subprocess`, use the `subprocess.unref()`
-method. Doing so will cause the parent's event loop to not include the child in
-its reference count, allowing the parent to exit independently of the child,
-unless there is an established IPC channel between the child and parent.
+By default, the parent will wait for the detached child to exit. To prevent the
+parent from waiting for a given `subprocess` to exit, use the
+`subprocess.unref()` method. Doing so will cause the parent's event loop to not
+include the child in its reference count, allowing the parent to exit
+independently of the child, unless there is an established IPC channel between
+the child and the parent.
 
 When using the `detached` option to start a long-running process, the process
 will not stay running in the background after the parent exits unless it is
@@ -598,8 +599,7 @@ For convenience, `options.stdio` may be one of the following strings:
 
 * `'pipe'` - equivalent to `['pipe', 'pipe', 'pipe']` (the default)
 * `'ignore'` - equivalent to `['ignore', 'ignore', 'ignore']`
-* `'inherit'` - equivalent to `[process.stdin, process.stdout, process.stderr]`
-   or `[0,1,2]`
+* `'inherit'` - equivalent to `['inherit', 'inherit', 'inherit']` or `[0, 1, 2]`
 
 Otherwise, the value of `options.stdio` is an array where each index corresponds
 to an fd in the child. The fds 0, 1, and 2 correspond to stdin, stdout,
@@ -625,20 +625,22 @@ pipes between the parent and child. The value is one of the following:
    will always open fds 0 - 2 for the processes it spawns, setting the fd to
    `'ignore'` will cause Node.js to open `/dev/null` and attach it to the
    child's fd.
-4. {Stream} object - Share a readable or writable stream that refers to a tty,
+4. `'inherit'` - Pass through the corresponding stdio stream to/from the
+   parent process.  In the first three positions, this is equivalent to
+   `process.stdin`, `process.stdout`, and `process.stderr`, respectively.  In
+   any other position, equivalent to `'ignore'`.
+5. {Stream} object - Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
    file descriptor is duplicated in the child process to the fd that
    corresponds to the index in the `stdio` array. Note that the stream must
    have an underlying descriptor (file streams do not until the `'open'`
    event has occurred).
-5. Positive integer - The integer value is interpreted as a file descriptor
+6. Positive integer - The integer value is interpreted as a file descriptor
    that is currently open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared.
-6. `null`, `undefined` - Use default value. For stdio fds 0, 1, and 2 (in other
+7. `null`, `undefined` - Use default value. For stdio fds 0, 1, and 2 (in other
    words, stdin, stdout, and stderr) a pipe is created. For fd 3 and up, the
    default is `'ignore'`.
-
-Example:
 
 ```js
 const { spawn } = require('child_process');
@@ -684,6 +686,10 @@ configuration at startup.
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v10.10.0
+    pr-url: https://github.com/nodejs/node/pull/22409
+    description: The `input` option can now be any `TypedArray` or a
+                 `DataView`.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
@@ -702,8 +708,9 @@ changes:
 * `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
-  * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
-    to the spawned process. Supplying this value will override `stdio[0]`.
+  * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
+    as stdin to the spawned process. Supplying this value will override
+    `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
@@ -749,6 +756,10 @@ arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v10.10.0
+    pr-url: https://github.com/nodejs/node/pull/22409
+    description: The `input` option can now be any `TypedArray` or a
+                 `DataView`.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
@@ -763,8 +774,9 @@ changes:
 * `command` {string} The command to run.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
-  * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
-    to the spawned process. Supplying this value will override `stdio[0]`.
+  * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
+    as stdin to the spawned process. Supplying this value will override
+    `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
@@ -806,6 +818,10 @@ metacharacters may be used to trigger arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v10.10.0
+    pr-url: https://github.com/nodejs/node/pull/22409
+    description: The `input` option can now be any `TypedArray` or a
+                 `DataView`.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
@@ -827,8 +843,11 @@ changes:
 * `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
-  * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
-    to the spawned process. Supplying this value will override `stdio[0]`.
+  * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
+    as stdin to the spawned process. Supplying this value will override
+    `stdio[0]`.
+  * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
+    process. This will be set to `command` if not specified.
   * `stdio` {string|Array} Child's stdio configuration.
   * `env` {Object} Environment key-value pairs.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
@@ -848,7 +867,7 @@ changes:
     [Default Windows Shell][]. **Default:** `false` (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
-    when `shell` is specified. **Default:** `false`.
+    when `shell` is specified and is CMD. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `true`.
 * Returns: {Object}
@@ -1039,8 +1058,7 @@ See kill(2) for reference.
 
 Also note: on Linux, child processes of child processes will not be terminated
 when attempting to kill their parent. This is likely to happen when running a
-new process in a shell or with use of the `shell` option of `ChildProcess`, such
-as in this example:
+new process in a shell or with use of the `shell` option of `ChildProcess`:
 
 ```js
 'use strict';
@@ -1084,14 +1102,33 @@ added: v0.1.90
 
 Returns the process identifier (PID) of the child process.
 
-Example:
-
 ```js
 const { spawn } = require('child_process');
 const grep = spawn('grep', ['ssh']);
 
 console.log(`Spawned child pid: ${grep.pid}`);
 grep.stdin.end();
+```
+
+### subprocess.ref()
+<!-- YAML
+added: v0.7.10
+-->
+
+Calling `subprocess.ref()` after making a call to `subprocess.unref()` will
+restore the removed reference count for the child process, forcing the parent
+to wait for the child to exit before exiting itself.
+
+```js
+const { spawn } = require('child_process');
+
+const subprocess = spawn(process.argv[0], ['child_program.js'], {
+  detached: true,
+  stdio: 'ignore'
+});
+
+subprocess.unref();
+subprocess.ref();
 ```
 
 ### subprocess.send(message[, sendHandle[, options]][, callback])
@@ -1362,6 +1399,29 @@ then this will be `null`.
 `subprocess.stdout` is an alias for `subprocess.stdio[1]`. Both properties will
 refer to the same value.
 
+### subprocess.unref()
+<!-- YAML
+added: v0.7.10
+-->
+
+By default, the parent will wait for the detached child to exit. To prevent the
+parent from waiting for a given `subprocess` to exit, use the
+`subprocess.unref()` method. Doing so will cause the parent's event loop to not
+include the child in its reference count, allowing the parent to exit
+independently of the child, unless there is an established IPC channel between
+the child and the parent.
+
+```js
+const { spawn } = require('child_process');
+
+const subprocess = spawn(process.argv[0], ['child_program.js'], {
+  detached: true,
+  stdio: 'ignore'
+});
+
+subprocess.unref();
+```
+
 ## `maxBuffer` and Unicode
 
 The `maxBuffer` option specifies the largest number of bytes allowed on `stdout`
@@ -1372,8 +1432,9 @@ to `stdout` although there are only 4 characters.
 
 ## Shell Requirements
 
-The shell should understand the `-c` switch on UNIX or `/d /s /c` on Windows.
-On Windows, command line parsing should be compatible with `'cmd.exe'`.
+The shell should understand the `-c` switch. If the shell is `'cmd.exe'`, it
+should understand the `/d /s /c` switches and command line parsing should be
+compatible.
 
 ## Default Windows Shell
 

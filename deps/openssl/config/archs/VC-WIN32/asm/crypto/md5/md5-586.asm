@@ -26,7 +26,7 @@ L$_md5_block_asm_data_order_begin:
 	mov	ecx,DWORD [8+edi]
 	mov	edx,DWORD [12+edi]
 L$000start:
-	;
+	; 
 	; R0 section
 	mov	edi,ecx
 	mov	ebp,DWORD [esi]
@@ -190,7 +190,7 @@ L$000start:
 	rol	ebx,22
 	mov	edi,ecx
 	add	ebx,ecx
-	;
+	; 
 	; R1 section
 	; R1 16
 	xor	edi,ebx
@@ -352,7 +352,7 @@ L$000start:
 	mov	edi,ecx
 	rol	ebx,20
 	add	ebx,ecx
-	;
+	; 
 	; R2 section
 	; R2 32
 	xor	edi,edx
@@ -498,7 +498,7 @@ L$000start:
 	mov	edi,-1
 	rol	ebx,23
 	add	ebx,ecx
-	;
+	; 
 	; R3 section
 	; R3 48
 	xor	edi,edx

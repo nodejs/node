@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -212,6 +212,8 @@ static int mem_write(BIO *b, const char *in, int inl)
         goto end;
     }
     BIO_clear_retry_flags(b);
+    if (inl == 0)
+        return 0;
     blen = bbm->readp->length;
     mem_buf_sync(b);
     if (BUF_MEM_grow_clean(bbm->buf, blen + inl) == 0)

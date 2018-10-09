@@ -7,10 +7,11 @@ function make_tostring() {
   return new Function("result = array.toString();");
 }
 
-benchy('SmiToString', make_tostring(), SmiToStringSetup);
-benchy('StringToString', make_tostring(), StringToStringSetup);
-benchy('SparseSmiToString', make_tostring(), SparseSmiToStringSetup);
-benchy('SparseStringToString', make_tostring(), SparseStringToStringSetup);
+createSuite('SmiToString', 1000, make_tostring(), SmiToStringSetup);
+createSuite('StringToString', 1000, make_tostring(), StringToStringSetup);
+createSuite('SparseSmiToString', 1000, make_tostring(), SparseSmiToStringSetup);
+createSuite(
+    'SparseStringToString', 1000, make_tostring(), SparseStringToStringSetup);
 
 var array;
 var result;

@@ -178,7 +178,7 @@ sub new
         $decrypt_len,
         $data,
         $decrypt_data) = @_;
-
+    
     my $self = {
         flight => $flight,
         content_type => $content_type,

@@ -4,9 +4,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Module, createContext } = require('vm');
-
-common.crashOnUnhandledRejection();
+const { SourceTextModule, createContext } = require('vm');
 
 (async function test1() {
   const context = createContext({
@@ -14,7 +12,7 @@ common.crashOnUnhandledRejection();
     baz: undefined,
     typeofProcess: undefined,
   });
-  const m = new Module(
+  const m = new SourceTextModule(
     'baz = foo; typeofProcess = typeof process; typeof Object;',
     { context }
   );
@@ -34,7 +32,7 @@ common.crashOnUnhandledRejection();
 }());
 
 (async () => {
-  const m = new Module(
+  const m = new SourceTextModule(
     'global.vmResult = "foo"; Object.prototype.toString.call(process);'
   );
   await m.link(common.mustNotCall());
@@ -46,7 +44,7 @@ common.crashOnUnhandledRejection();
 })();
 
 (async () => {
-  const m = new Module('while (true) {}');
+  const m = new SourceTextModule('while (true) {}');
   await m.link(common.mustNotCall());
   m.instantiate();
   await m.evaluate({ timeout: 500 })

@@ -12,6 +12,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/macro-assembler.h"
 #include "src/objects-body-descriptors-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -56,6 +57,8 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
       return visitor->VisitStruct(map, object);
     case kVisitFreeSpace:
       return visitor->VisitFreeSpace(map, FreeSpace::cast(object));
+    case kVisitWeakArray:
+      return visitor->VisitWeakArray(map, object);
     case kVisitorIdCount:
       UNREACHABLE();
   }
@@ -189,6 +192,18 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitJSApiObject(Map* map,
                                                        JSObject* object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   return visitor->VisitJSObject(map, object);
+}
+
+template <typename ResultType, typename ConcreteVisitor>
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitWeakArray(
+    Map* map, HeapObject* object) {
+  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
+  if (!visitor->ShouldVisit(object)) return ResultType();
+  int size = WeakArrayBodyDescriptor::SizeOf(map, object);
+  if (visitor->ShouldVisitMapPointer())
+    visitor->VisitMapPointer(object, object->map_slot());
+  WeakArrayBodyDescriptor::IterateBody(map, object, size, visitor);
+  return size;
 }
 
 }  // namespace internal

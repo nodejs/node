@@ -25,42 +25,24 @@ class WasmModuleObject;
 namespace wasm {
 namespace fuzzer {
 
-#define ASSIGN(type, var, expr)                      \
-  v8::Local<type> var;                               \
-  do {                                               \
-    if (!expr.ToLocal(&var)) {                       \
-      DCHECK(i_isolate->has_scheduled_exception());  \
-      return 0;                                      \
-    } else {                                         \
-      DCHECK(!i_isolate->has_scheduled_exception()); \
-    }                                                \
-  } while (false)
+class AsyncFuzzerResolver : public i::wasm::CompilationResultResolver {
+ public:
+  AsyncFuzzerResolver(i::Isolate* isolate, bool* done)
+      : isolate_(isolate), done_(done) {}
 
-namespace {
-// We need this helper function because we cannot use
-// Handle<WasmModuleObject>::cast here. To use this function we would have to
-// mark it with V8_EXPORT_PRIVATE, which is quite ugly in this case.
-Handle<WasmModuleObject> ToWasmModuleObjectUnchecked(Handle<Object> that) {
-  return handle(reinterpret_cast<WasmModuleObject*>(*that));
-}
-}
+  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
+    *done_ = true;
+    InterpretAndExecuteModule(isolate_, module);
+  }
 
-void InstantiateCallback(const FunctionCallbackInfo<Value>& args) {
-  DCHECK_GE(args.Length(), 1);
-  v8::Isolate* isolate = args.GetIsolate();
-  MicrotasksScope does_not_run_microtasks(
-      isolate, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+    *done_ = true;
+  }
 
-  v8::HandleScope scope(isolate);
-
-  Local<v8::Value> module = args[0];
-
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
-  Handle<WasmModuleObject> module_obj =
-      ToWasmModuleObjectUnchecked(Utils::OpenHandle(v8::Object::Cast(*module)));
-  InterpretAndExecuteModule(i_isolate, module_obj);
-}
+ private:
+  i::Isolate* isolate_;
+  bool* done_;
+};
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FlagScope<bool> turn_on_async_compile(
@@ -85,31 +67,20 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   TryCatch try_catch(isolate);
   testing::SetupIsolateForWasmModule(i_isolate);
 
-  // Get the promise for async compilation.
-  ASSIGN(Promise::Resolver, resolver,
-         Promise::Resolver::New(support->GetContext()));
-  Local<Promise> promise = resolver->GetPromise();
-
-  i_isolate->wasm_engine()->AsyncCompile(i_isolate, Utils::OpenHandle(*promise),
-                                         ModuleWireBytes(data, data + size),
-                                         false);
-
-  ASSIGN(Function, instantiate_impl,
-         Function::New(support->GetContext(), &InstantiateCallback,
-                       Undefined(isolate)));
-
-  ASSIGN(Promise, result,
-         promise->Then(support->GetContext(), instantiate_impl));
+  bool done = false;
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  i_isolate->wasm_engine()->AsyncCompile(
+      i_isolate, enabled_features,
+      std::make_shared<AsyncFuzzerResolver>(i_isolate, &done),
+      ModuleWireBytes(data, data + size), false);
 
   // Wait for the promise to resolve.
-  while (result->State() == Promise::kPending) {
+  while (!done) {
     support->PumpMessageLoop(platform::MessageLoopBehavior::kWaitForWork);
     isolate->RunMicrotasks();
   }
   return 0;
 }
-
-#undef ASSIGN
 
 }  // namespace fuzzer
 }  // namespace wasm

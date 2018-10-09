@@ -109,6 +109,7 @@ HEAP_TEST(InvalidatedSlotsAllInvalidatedRanges) {
 }
 
 HEAP_TEST(InvalidatedSlotsAfterTrimming) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   std::vector<ByteArray*> byte_arrays;
@@ -119,9 +120,7 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
                                              byte_arrays[i]->Size());
   }
   // Trim byte arrays and check that the slots outside the byte arrays are
-  // considered valid. Free space outside invalidated object can be reused
-  // during evacuation for allocation of the evacuated objects. That can
-  // add new valid slots to evacuation candidates.
+  // considered invalid if the old space page was swept.
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray* byte_array = byte_arrays[i];
@@ -129,7 +128,7 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
     Address end = byte_array->address() + byte_array->Size();
     heap->RightTrimFixedArray(byte_array, byte_array->length());
     for (Address addr = start; addr < end; addr += kPointerSize) {
-      CHECK(filter.IsValid(addr));
+      CHECK_EQ(filter.IsValid(addr), page->SweepingDone());
     }
   }
 }
@@ -182,6 +181,185 @@ HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
       CHECK(!filter.IsValid(addr));
     }
   }
+}
+
+Handle<FixedArray> AllocateArrayOnFreshPage(Isolate* isolate,
+                                            PagedSpace* old_space, int length) {
+  AlwaysAllocateScope always_allocate(isolate);
+  heap::SimulateFullSpace(old_space);
+  return isolate->factory()->NewFixedArray(length, TENURED);
+}
+
+Handle<FixedArray> AllocateArrayOnEvacuationCandidate(Isolate* isolate,
+                                                      PagedSpace* old_space,
+                                                      int length) {
+  Handle<FixedArray> object =
+      AllocateArrayOnFreshPage(isolate, old_space, length);
+  heap::ForceEvacuationCandidate(Page::FromHeapObject(*object));
+  return object;
+}
+
+HEAP_TEST(InvalidatedSlotsRightTrimFixedArray) {
+  FLAG_manual_evacuation_candidates_selection = true;
+  FLAG_parallel_compaction = false;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = CcTest::heap();
+  HandleScope scope(isolate);
+  PagedSpace* old_space = heap->old_space();
+  // Allocate a dummy page to be swept be the sweeper during evacuation.
+  AllocateArrayOnFreshPage(isolate, old_space, 1);
+  Handle<FixedArray> evacuated =
+      AllocateArrayOnEvacuationCandidate(isolate, old_space, 1);
+  Handle<FixedArray> trimmed = AllocateArrayOnFreshPage(isolate, old_space, 10);
+  heap::SimulateIncrementalMarking(heap);
+  for (int i = 1; i < trimmed->length(); i++) {
+    trimmed->set(i, *evacuated);
+  }
+  {
+    HandleScope scope(isolate);
+    Handle<HeapObject> dead = factory->NewFixedArray(1);
+    for (int i = 1; i < trimmed->length(); i++) {
+      trimmed->set(i, *dead);
+    }
+    heap->RightTrimFixedArray(*trimmed, trimmed->length() - 1);
+  }
+  CcTest::CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+}
+
+HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
+  FLAG_manual_evacuation_candidates_selection = true;
+  FLAG_parallel_compaction = false;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = CcTest::heap();
+  HandleScope scope(isolate);
+  PagedSpace* old_space = heap->old_space();
+  // Allocate a dummy page to be swept be the sweeper during evacuation.
+  AllocateArrayOnFreshPage(isolate, old_space, 1);
+  Handle<FixedArray> evacuated =
+      AllocateArrayOnEvacuationCandidate(isolate, old_space, 1);
+  Handle<FixedArray> trimmed;
+  {
+    AlwaysAllocateScope always_allocate(isolate);
+    trimmed =
+        factory->NewFixedArray(kMaxRegularHeapObjectSize / kPointerSize + 100);
+    DCHECK(MemoryChunk::FromHeapObject(*trimmed)->InLargeObjectSpace());
+  }
+  heap::SimulateIncrementalMarking(heap);
+  for (int i = 1; i < trimmed->length(); i++) {
+    trimmed->set(i, *evacuated);
+  }
+  {
+    HandleScope scope(isolate);
+    Handle<HeapObject> dead = factory->NewFixedArray(1);
+    for (int i = 1; i < trimmed->length(); i++) {
+      trimmed->set(i, *dead);
+    }
+    heap->RightTrimFixedArray(*trimmed, trimmed->length() - 1);
+  }
+  CcTest::CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+}
+
+HEAP_TEST(InvalidatedSlotsLeftTrimFixedArray) {
+  FLAG_manual_evacuation_candidates_selection = true;
+  FLAG_parallel_compaction = false;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = CcTest::heap();
+  HandleScope scope(isolate);
+  PagedSpace* old_space = heap->old_space();
+  // Allocate a dummy page to be swept be the sweeper during evacuation.
+  AllocateArrayOnFreshPage(isolate, old_space, 1);
+  Handle<FixedArray> evacuated =
+      AllocateArrayOnEvacuationCandidate(isolate, old_space, 1);
+  Handle<FixedArray> trimmed = AllocateArrayOnFreshPage(isolate, old_space, 10);
+  heap::SimulateIncrementalMarking(heap);
+  for (int i = 0; i + 1 < trimmed->length(); i++) {
+    trimmed->set(i, *evacuated);
+  }
+  {
+    HandleScope scope(isolate);
+    Handle<HeapObject> dead = factory->NewFixedArray(1);
+    for (int i = 1; i < trimmed->length(); i++) {
+      trimmed->set(i, *dead);
+    }
+    heap->LeftTrimFixedArray(*trimmed, trimmed->length() - 1);
+  }
+  CcTest::CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+}
+
+HEAP_TEST(InvalidatedSlotsFastToSlow) {
+  FLAG_manual_evacuation_candidates_selection = true;
+  FLAG_parallel_compaction = false;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = CcTest::heap();
+  PagedSpace* old_space = heap->old_space();
+
+  HandleScope scope(isolate);
+
+  Handle<String> name = factory->InternalizeUtf8String("TestObject");
+  Handle<String> prop_name1 = factory->InternalizeUtf8String("prop1");
+  Handle<String> prop_name2 = factory->InternalizeUtf8String("prop2");
+  Handle<String> prop_name3 = factory->InternalizeUtf8String("prop3");
+  // Allocate a dummy page to be swept be the sweeper during evacuation.
+  AllocateArrayOnFreshPage(isolate, old_space, 1);
+  Handle<FixedArray> evacuated =
+      AllocateArrayOnEvacuationCandidate(isolate, old_space, 1);
+  // Allocate a dummy page to ensure that the JSObject is allocated on
+  // a fresh page.
+  AllocateArrayOnFreshPage(isolate, old_space, 1);
+  Handle<JSObject> obj;
+  {
+    AlwaysAllocateScope always_allocate(isolate);
+    Handle<JSFunction> function = factory->NewFunctionForTest(name);
+    function->shared()->set_expected_nof_properties(3);
+    obj = factory->NewJSObject(function, TENURED);
+  }
+  // Start incremental marking.
+  heap::SimulateIncrementalMarking(heap);
+  // Set properties to point to the evacuation candidate.
+  JSReceiver::SetProperty(isolate, obj, prop_name1, evacuated,
+                          LanguageMode::kSloppy)
+      .Check();
+  JSReceiver::SetProperty(isolate, obj, prop_name2, evacuated,
+                          LanguageMode::kSloppy)
+      .Check();
+  JSReceiver::SetProperty(isolate, obj, prop_name3, evacuated,
+                          LanguageMode::kSloppy)
+      .Check();
+
+  {
+    HandleScope scope(isolate);
+    Handle<HeapObject> dead = factory->NewFixedArray(1);
+    JSReceiver::SetProperty(isolate, obj, prop_name1, dead,
+                            LanguageMode::kSloppy)
+        .Check();
+    JSReceiver::SetProperty(isolate, obj, prop_name2, dead,
+                            LanguageMode::kSloppy)
+        .Check();
+    JSReceiver::SetProperty(isolate, obj, prop_name3, dead,
+                            LanguageMode::kSloppy)
+        .Check();
+    Handle<Map> map(obj->map(), isolate);
+    Handle<Map> normalized_map =
+        Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES, "testing");
+    JSObject::MigrateToMap(obj, normalized_map);
+  }
+  CcTest::CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectGarbage(i::OLD_SPACE);
 }
 
 }  // namespace heap

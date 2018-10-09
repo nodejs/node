@@ -44,6 +44,4 @@ async function test() {
   instance.kill();
 }
 
-common.crashOnUnhandledRejection();
-
 test();

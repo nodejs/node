@@ -685,7 +685,7 @@ static EVP_PKEY *do_PVK_body(const unsigned char **in,
             inlen = cb(psbuf, PEM_BUFSIZE, 0, u);
         else
             inlen = PEM_def_callback(psbuf, PEM_BUFSIZE, 0, u);
-        if (inlen <= 0) {
+        if (inlen < 0) {
             PEMerr(PEM_F_DO_PVK_BODY, PEM_R_BAD_PASSWORD_READ);
             goto err;
         }

@@ -2,11 +2,12 @@
 // Run this program with valgrind or efence with --expose_gc to expose the
 // problem.
 
-// Flags: --expose_gc
+// Flags: --expose_gc --expose-internals
 
 require('../common');
 const assert = require('assert');
-const HTTPParser = process.binding('http_parser').HTTPParser;
+const { internalBinding } = require('internal/test/binding');
+const { HTTPParser } = internalBinding('http_parser');
 
 const kOnHeaders = HTTPParser.kOnHeaders | 0;
 const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
@@ -24,7 +25,7 @@ function flushPool() {
 function demoBug(part1, part2) {
   flushPool();
 
-  const parser = new HTTPParser('REQUEST');
+  const parser = new HTTPParser(0);
 
   parser.headers = [];
   parser.url = '';

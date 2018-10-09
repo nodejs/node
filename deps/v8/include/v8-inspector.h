@@ -99,6 +99,7 @@ class V8_EXPORT V8ContextInfo {
 
 class V8_EXPORT V8StackTrace {
  public:
+  virtual StringView firstNonEmptySourceURL() const = 0;
   virtual bool isEmpty() const = 0;
   virtual StringView topSourceURL() const = 0;
   virtual int topLineNumber() const = 0;
@@ -214,6 +215,11 @@ class V8_EXPORT V8InspectorClient {
   virtual bool canExecuteScripts(int contextGroupId) { return true; }
 
   virtual void maxAsyncCallStackDepthChanged(int depth) {}
+
+  virtual std::unique_ptr<StringBuffer> resourceNameToUrl(
+      const StringView& resourceName) {
+    return nullptr;
+  }
 };
 
 // These stack trace ids are intended to be passed between debuggers and be
@@ -239,6 +245,8 @@ class V8_EXPORT V8Inspector {
   virtual void contextCreated(const V8ContextInfo&) = 0;
   virtual void contextDestroyed(v8::Local<v8::Context>) = 0;
   virtual void resetContextGroup(int contextGroupId) = 0;
+  virtual v8::MaybeLocal<v8::Context> contextById(int groupId,
+                                                  v8::Maybe<int> contextId) = 0;
 
   // Various instrumentation.
   virtual void idleStarted() = 0;

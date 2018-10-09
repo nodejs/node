@@ -638,7 +638,7 @@ protected:
 
 private:
 
-    /** @internal */
+    /** @internal (private) */
     char actualLocale[ULOC_FULLNAME_CAPACITY];
     char validLocale[ULOC_FULLNAME_CAPACITY];
 };

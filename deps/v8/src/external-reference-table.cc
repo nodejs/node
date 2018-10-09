@@ -27,15 +27,16 @@ BUILTIN_LIST_C(FORWARD_DECLARE)
 void ExternalReferenceTable::Init(Isolate* isolate) {
   int index = 0;
 
-  // nullptr is preserved through serialization/deserialization.
-  Add(nullptr, "nullptr", &index);
+  // kNullAddress is preserved through serialization/deserialization.
+  Add(kNullAddress, "nullptr", &index);
   AddReferences(isolate, &index);
-  AddBuiltins(isolate, &index);
-  AddRuntimeFunctions(isolate, &index);
+  AddBuiltins(&index);
+  AddRuntimeFunctions(&index);
   AddIsolateAddresses(isolate, &index);
-  AddAccessors(isolate, &index);
+  AddAccessors(&index);
   AddStubCache(isolate, &index);
-  is_initialized_ = true;
+  is_initialized_ = static_cast<uint32_t>(true);
+  USE(unused_padding_);
 
   CHECK_EQ(kSize, index);
 }
@@ -62,14 +63,19 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate, int* index) {
   CHECK_EQ(kSpecialReferenceCount, *index);
 
 #define ADD_EXTERNAL_REFERENCE(name, desc) \
-  Add(ExternalReference::name(isolate).address(), desc, index);
+  Add(ExternalReference::name().address(), desc, index);
   EXTERNAL_REFERENCE_LIST(ADD_EXTERNAL_REFERENCE)
+#undef ADD_EXTERNAL_REFERENCE
+
+#define ADD_EXTERNAL_REFERENCE(name, desc) \
+  Add(ExternalReference::name(isolate).address(), desc, index);
+  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(ADD_EXTERNAL_REFERENCE)
 #undef ADD_EXTERNAL_REFERENCE
 
   CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount, *index);
 }
 
-void ExternalReferenceTable::AddBuiltins(Isolate* isolate, int* index) {
+void ExternalReferenceTable::AddBuiltins(int* index) {
   CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount, *index);
 
   struct CBuiltinEntry {
@@ -82,7 +88,7 @@ void ExternalReferenceTable::AddBuiltins(Isolate* isolate, int* index) {
 #undef DEF_ENTRY
   };
   for (unsigned i = 0; i < arraysize(c_builtins); ++i) {
-    Add(ExternalReference(c_builtins[i].address, isolate).address(),
+    Add(ExternalReference::Create(c_builtins[i].address).address(),
         c_builtins[i].name, index);
   }
 
@@ -91,7 +97,7 @@ void ExternalReferenceTable::AddBuiltins(Isolate* isolate, int* index) {
            *index);
 }
 
-void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate, int* index) {
+void ExternalReferenceTable::AddRuntimeFunctions(int* index) {
   CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
                kBuiltinsReferenceCount,
            *index);
@@ -108,7 +114,7 @@ void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate, int* index) {
   };
 
   for (unsigned i = 0; i < arraysize(runtime_functions); ++i) {
-    ExternalReference ref(runtime_functions[i].id, isolate);
+    ExternalReference ref = ExternalReference::Create(runtime_functions[i].id);
     Add(ref.address(), runtime_functions[i].name, index);
   }
 
@@ -140,7 +146,7 @@ void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate, int* index) {
            *index);
 }
 
-void ExternalReferenceTable::AddAccessors(Isolate* isolate, int* index) {
+void ExternalReferenceTable::AddAccessors(int* index) {
   CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
                kBuiltinsReferenceCount + kRuntimeReferenceCount +
                kIsolateAddressReferenceCount,

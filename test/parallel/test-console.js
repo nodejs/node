@@ -24,6 +24,13 @@ const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 
+const {
+  hijackStdout,
+  hijackStderr,
+  restoreStdout,
+  restoreStderr
+} = require('../common/hijackstdio');
+
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 // Support legacy API
@@ -35,14 +42,16 @@ if (common.isMainThread) {
 common.expectWarning(
   'Warning',
   [
-    ['No such label \'nolabel\' for console.timeEnd()', common.noWarnCode],
-    ['No such label \'nolabel\' for console.timeLog()', common.noWarnCode],
+    ['Count for \'noLabel\' does not exist', common.noWarnCode],
+    ['No such label \'noLabel\' for console.timeLog()', common.noWarnCode],
+    ['No such label \'noLabel\' for console.timeEnd()', common.noWarnCode],
     ['Label \'test\' already exists for console.time()', common.noWarnCode]
   ]
 );
 
-console.timeEnd('nolabel');
-console.timeLog('nolabel');
+console.countReset('noLabel');
+console.timeLog('noLabel');
+console.timeEnd('noLabel');
 
 console.time('label');
 console.timeEnd('label');
@@ -61,11 +70,11 @@ const custom_inspect = { foo: 'bar', [util.inspect.custom]: () => 'inspect' };
 const strings = [];
 const errStrings = [];
 process.stdout.isTTY = false;
-common.hijackStdout(function(data) {
+hijackStdout(function(data) {
   strings.push(data);
 });
 process.stderr.isTTY = false;
-common.hijackStderr(function(data) {
+hijackStderr(function(data) {
   errStrings.push(data);
 });
 
@@ -133,9 +142,12 @@ console.timeEnd('constructor');
 console.time('hasOwnProperty');
 console.timeEnd('hasOwnProperty');
 
-// verify that values are coerced to strings
+// Verify that values are coerced to strings.
 console.time([]);
 console.timeEnd([]);
+console.time({});
+console.timeEnd({});
+// Repeat the object call to verify that everything really worked.
 console.time({});
 console.timeEnd({});
 console.time(null);
@@ -170,8 +182,8 @@ console.assert(true, 'this should not throw');
 
 assert.strictEqual(strings.length, process.stdout.writeTimes);
 assert.strictEqual(errStrings.length, process.stderr.writeTimes);
-common.restoreStdout();
-common.restoreStderr();
+restoreStdout();
+restoreStderr();
 
 // verify that console.timeEnd() doesn't leave dead links
 const timesMapSize = console._times.size;
@@ -202,11 +214,11 @@ for (const expected of expectedStrings) {
 }
 
 assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar',\n  [Symbol(util.inspect.custom)]: " +
-                    '[Function: [util.inspect.custom]] }\n');
+                   "{ foo: 'bar',\n  [Symbol(nodejs.util.inspect.custom)]: " +
+                    '[Function: [nodejs.util.inspect.custom]] }\n');
 assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar',\n  [Symbol(util.inspect.custom)]: " +
-                    '[Function: [util.inspect.custom]] }\n');
+                   "{ foo: 'bar',\n  [Symbol(nodejs.util.inspect.custom)]: " +
+                    '[Function: [nodejs.util.inspect.custom]] }\n');
 assert.ok(strings.shift().includes('foo: [Object]'));
 assert.strictEqual(strings.shift().includes('baz'), false);
 assert.strictEqual(strings.shift(), 'inspect inspect\n');
@@ -221,6 +233,7 @@ assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
 // verify that console.time() coerces label values to strings as expected
 assert.ok(/^: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^null: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
@@ -240,11 +253,11 @@ assert.strictEqual(errStrings.shift().split('\n').shift(),
 
 // hijack stderr to catch `process.emitWarning` which is using
 // `process.nextTick`
-common.hijackStderr(common.mustCall(function(data) {
-  common.restoreStderr();
+hijackStderr(common.mustCall(function(data) {
+  restoreStderr();
 
   // stderr.write will catch sync error, so use `process.nextTick` here
   process.nextTick(function() {
-    assert.strictEqual(data.includes('nolabel'), true);
+    assert.strictEqual(data.includes('noLabel'), true);
   });
 }));

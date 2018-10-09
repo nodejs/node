@@ -1,4 +1,5 @@
 {
+  "owners": ["jarin@chromium.org", "mvstanston@chromium.org"],
   "name": "JSTests",
   "run_count": 3,
   "run_count_arm": 1,
@@ -57,6 +58,51 @@
       "main": "run.js",
       "resources": ["generators.js"],
       "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "ArrayLiteralInitialSpread",
+      "path": ["ArrayLiteralInitialSpread"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpread\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread-Small"},
+        {"name": "ForLength-Small"},
+        {"name": "ForLengthEmpty-Small"},
+        {"name": "Slice-Small"},
+        {"name": "Slice0-Small"},
+        {"name": "ConcatReceive-Small"},
+        {"name": "ConcatArg-Small"},
+        {"name": "ForOfPush-Small"},
+        {"name": "MapId-Small"},
+        {"name": "Spread-Large"},
+        {"name": "ForLength-Large"},
+        {"name": "ForLengthEmpty-Large"},
+        {"name": "Slice-Large"},
+        {"name": "Slice0-Large"},
+        {"name": "ConcatReceive-Large"},
+        {"name": "ConcatArg-Large"},
+        {"name": "ForOfPush-Large"},
+        {"name": "MapId-Large"},
+        {"name": "Spread-SmallHoley"},
+        {"name": "ForLength-SmallHoley"},
+        {"name": "ForLengthEmpty-SmallHoley"},
+        {"name": "Slice-SmallHoley"},
+        {"name": "Slice0-SmallHoley"},
+        {"name": "ConcatReceive-SmallHoley"},
+        {"name": "ConcatArg-SmallHoley"},
+        {"name": "ForOfPush-SmallHoley"},
+        {"name": "MapId-SmallHoley"},
+        {"name": "Spread-LargeHoley"},
+        {"name": "ForLength-LargeHoley"},
+        {"name": "ForLengthEmpty-LargeHoley"},
+        {"name": "Slice-LargeHoley"},
+        {"name": "Slice0-LargeHoley"},
+        {"name": "ConcatReceive-LargeHoley"},
+        {"name": "ConcatArg-LargeHoley"},
+        {"name": "ForOfPush-LargeHoley"},
+        {"name": "MapId-LargeHoley"}
+      ]
     },
     {
       "name": "ArrayLiteralSpread",
@@ -140,7 +186,7 @@
       "path": ["Closures"],
       "main": "run.js",
       "resources": ["closures.js"],
-      "flags": ["--mark_shared_functions_for_tier_up"],
+      "flags": [],
       "results_regexp": "^%s\\-Closures\\(Score\\): (.+)$",
       "tests": [
         {"name": "Closures"}
@@ -238,6 +284,24 @@
           ]
         },
         {
+          "name": "StringSplit",
+          "main": "run.js",
+          "resources": [ "string-split.js" ],
+          "test_flags": [ "string-split" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "ShortSubjectEmptySeparator"},
+            {"name": "LongSubjectEmptySeparator"},
+            {"name": "ShortTwoBytesSubjectEmptySeparator"},
+            {"name": "LongTwoBytesSubjectEmptySeparator"},
+            {"name": "ShortSubject"},
+            {"name": "LongSubject"},
+            {"name": "ShortTwoBytesSubject"},
+            {"name": "LongTwoBytesSubject"}
+          ]
+        },
+        {
           "name": "StringAt",
           "main": "run.js",
           "resources": [ "string-stringat.js" ],
@@ -290,6 +354,20 @@
             {"name": "StringMatchAllManualRegExp"},
             {"name": "StringMatchAllBuiltinZeroWidth"},
             {"name": "StringMatchAllBuiltinZeroWidthUnicode"}
+          ]
+        },
+        {
+          "name": "StringStartsEndsWithComparison",
+          "main": "run.js",
+          "resources": [ "string-startsendswith-comp.js" ],
+          "test_flags": [ "string-startsendswith-comp" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "startsWith"},
+            {"name": "startsIndex"},
+            {"name": "endsWith"},
+            {"name": "endsIndex"}
           ]
         },
         {
@@ -447,6 +525,21 @@
       ]
     },
     {
+      "name": "DataView",
+      "path": ["DataView"],
+      "main": "run.js",
+      "resources": ["dataviewtest.js"],
+      "results_regexp": "^DataView\\-%s\\(Score\\): (.+)$",
+      "tests": [
+	{"name": "DataViewTest-DataView-BigEndian"},
+	{"name": "DataViewTest-DataView-LittleEndian"},
+	{"name": "DataViewTest-DataView-Floats"},
+	{"name": "DataViewTest-TypedArray-BigEndian"},
+	{"name": "DataViewTest-TypedArray-LittleEndian"},
+	{"name": "DataViewTest-TypedArray-Floats"}
+      ]
+    },
+    {
       "name": "TypedArrays",
       "path": ["TypedArrays"],
       "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",
@@ -520,25 +613,37 @@
         {
           "name": "SortIntTypes",
           "main": "run.js",
-          "resources": ["sort-int.js"],
+          "resources": ["sort.js", "sort-int.js"],
           "test_flags": ["sort-int"]
+        },
+        {
+          "name": "SortBigIntTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-bigint.js"],
+          "test_flags": ["sort-bigint"]
         },
         {
           "name": "SortFloatTypes",
           "main": "run.js",
-          "resources": ["sort-float.js"],
+          "resources": ["sort.js", "sort-float.js"],
           "test_flags": ["sort-float"]
         },
         {
           "name": "SortCustomCompareFnIntTypes",
           "main": "run.js",
-          "resources": ["sort-cmpfn-int.js"],
+          "resources": ["sort.js", "sort-cmpfn-int.js"],
           "test_flags": ["sort-cmpfn-int"]
+        },
+        {
+          "name": "SortCustomCompareFnBigIntTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-cmpfn-bigint.js"],
+          "test_flags": ["sort-cmpfn-bigint"]
         },
         {
           "name": "SortCustomCompareFnFloatTypes",
           "main": "run.js",
-          "resources": ["sort-cmpfn-float.js"],
+          "resources": ["sort.js", "sort-cmpfn-float.js"],
           "test_flags": ["sort-cmpfn-float"]
         },
         {
@@ -554,9 +659,9 @@
       "path": ["Array"],
       "main": "run.js",
       "resources": [
-        "filter.js", "map.js", "every.js", "join.js", "some.js",
-        "reduce.js", "reduce-right.js", "to-string.js", "find.js",
-        "find-index.js", "from.js", "of.js", "for-each.js"
+        "filter.js", "map.js", "every.js", "join.js", "some.js", "reduce.js",
+        "reduce-right.js", "to-string.js", "find.js", "find-index.js",
+        "from.js", "of.js", "for-each.js", "slice.js", "copy-within.js"
       ],
       "flags": [
         "--allow-natives-syntax"
@@ -641,18 +746,33 @@
         {"name": "DoubleFrom"},
         {"name": "StringFrom"},
         {"name": "StringNoMapFrom"},
-        {"name": "MixedFrom"}
+        {"name": "MixedFrom"},
+        {"name": "Array.slice(500)"},
+        {"name": "Array.slice(500,999)"},
+        {"name": "Array.slice(-500)"},
+        {"name": "Array.slice(200,700)"},
+        {"name": "Array.slice(200,-300)"},
+        {"name": "Array.slice(4,1)"},
+        {"name": "Array.slice(500,999)-dict"},
+        {"name": "Array.slice(200,700)-dict"},
+        {"name": "Array.slice(200,-300)-dict"},
+        {"name": "Array.slice(4,1)-dict"},
+        {"name": "SmiCopyWithin"},
+        {"name": "StringCopyWithin"},
+        {"name": "SparseSmiCopyWithin"},
+        {"name": "SparseStringCopyWithin"}
       ]
     },
     {
       "name": "ArraySort",
       "path": ["ArraySort"],
       "main": "run.js",
-      "resources": ["sort.js"],
+      "resources": ["sort-base.js", "sort.js"],
+      "test_flags": ["sort"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
       "flags": [
         "--allow-natives-syntax"
       ],
-      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
       "tests": [
         {"name": "PackedSmi"},
         {"name": "PackedDouble"},
@@ -661,6 +781,107 @@
         {"name": "HoleyDouble"},
         {"name": "HoleyElement"},
         {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFns",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn.js"],
+      "test_flags": ["sort-cmpfn"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmi"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElement"},
+        {"name": "HoleySmi"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElement"},
+        {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFnKindChange",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn-kindchange.js"],
+      "test_flags": ["sort-cmpfn-kindchange"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmiToPackedDouble"},
+        {"name": "HoleySmiToHoleyDouble"},
+        {"name": "PackedDoubleToHoleyDouble"},
+        {"name": "PackedElementToDictionary"},
+        {"name": "HoleyElementToDictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortPreSorted",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-presorted.js"],
+      "test_flags": ["sort-presorted"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "Random"},
+        {"name": "Up"},
+        {"name": "Down"},
+        {"name": "Saw1000"},
+        {"name": "Saw500"},
+        {"name": "Saw200"},
+        {"name": "Saw200Symmetric"},
+        {"name": "Saw200Down"},
+        {"name": "UpDown"},
+        {"name": "UpUp"},
+        {"name": "DownDown"},
+        {"name": "DownUp"}
+      ]
+    },
+    {
+      "name": "ArraySortMegamorphic",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-megamorphic.js"],
+      "test_flags": ["sort-megamorphic"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "Base"},
+        {"name": "MultipleCompareFns"}
+      ]
+    },
+    {
+      "name": "ArraySortDifferentLengths",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-lengths.js"],
+      "test_flags": ["sort-lengths"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "Random10"},
+        {"name": "Sorted10"},
+        {"name": "Random100"},
+        {"name": "Sorted100"},
+        {"name": "Random1000"},
+        {"name": "Sorted1000"},
+        {"name": "Random10000"},
+        {"name": "Sorted10000"},
+        {"name": "Random100000"},
+        {"name": "Sorted100000"}
       ]
     },
     {
@@ -860,12 +1081,45 @@
       "path": ["Parsing"],
       "main": "run.js",
       "flags": ["--no-compilation-cache", "--allow-natives-syntax"],
-      "resources": [ "comments.js"],
+      "resources": [ "comments.js", "strings.js", "arrowfunctions.js"],
       "results_regexp": "^%s\\-Parsing\\(Score\\): (.+)$",
       "tests": [
         {"name": "OneLineComment"},
         {"name": "OneLineComments"},
-        {"name": "MultiLineComment"}
+        {"name": "MultiLineComment"},
+        {"name": "SingleLineString"},
+        {"name": "SingleLineStrings"},
+        {"name": "MultiLineString"},
+        {"name": "ArrowFunctionShort"},
+        {"name": "ArrowFunctionLong"},
+        {"name": "CommaSepExpressionListShort"},
+        {"name": "CommaSepExpressionListLong"},
+        {"name": "CommaSepExpressionListLate"},
+        {"name": "FakeArrowFunction"}
+      ]
+    },
+    {
+      "name": "Numbers",
+      "path": ["Numbers"],
+      "main": "run.js",
+      "flags": ["--allow-natives-syntax"],
+      "resources": [ "toNumber.js"],
+      "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Constructor"},
+        {"name": "UnaryPlus"},
+        {"name": "ParseFloat"}
+      ]
+    },
+    {
+      "name": "TurboFan",
+      "path": ["TurboFan"],
+      "main": "run.js",
+      "flags": [],
+      "resources": [ "typedLowering.js"],
+      "results_regexp": "^%s\\-TurboFan\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "NumberToString"}
       ]
     }
   ]

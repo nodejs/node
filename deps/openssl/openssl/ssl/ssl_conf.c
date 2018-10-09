@@ -222,8 +222,9 @@ static int cmd_ECDHParameters(SSL_CONF_CTX *cctx, const char *value)
     int nid;
 
     /* Ignore values supported by 1.0.2 for the automatic selection */
-    if ((cctx->flags & SSL_CONF_FLAG_FILE) &&
-        strcasecmp(value, "+automatic") == 0)
+    if ((cctx->flags & SSL_CONF_FLAG_FILE)
+            && (strcasecmp(value, "+automatic") == 0
+                || strcasecmp(value, "automatic") == 0))
         return 1;
     if ((cctx->flags & SSL_CONF_FLAG_CMDLINE) &&
         strcmp(value, "auto") == 0)

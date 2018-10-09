@@ -1,4 +1,4 @@
-.TH "NPM" "1" "May 2018" "" ""
+.TH "NPM" "1" "August 2018" "" ""
 .SH "NAME"
 \fBnpm\fR \- javascript package manager
 .SH SYNOPSIS
@@ -10,7 +10,7 @@ npm <command> [args]
 .RE
 .SH VERSION
 .P
-6.1.0
+6.4.1
 .SH DESCRIPTION
 .P
 npm is the package manager for the Node JavaScript platform\.  It puts
@@ -22,6 +22,15 @@ Most commonly, it is used to publish, discover, install, and develop node
 programs\.
 .P
 Run \fBnpm help\fP to get a list of available commands\.
+.SH IMPORTANT
+.P
+npm is configured to use npm, Inc\.'s public registry at
+https:// by default\. Use of the npm public registry is
+subject to terms of use available at https://
+.P
+You can configure npm to use any compatible registry you like, and even run
+your own registry\. Use of someone else's registry may be governed by their
+terms of use\.
 .SH INTRODUCTION
 .P
 You probably got npm because you want to install stuff\.
@@ -54,12 +63,10 @@ In particular, npm has two modes of operation:
 .RS 0
 .IP \(bu 2
 global mode:
-.br
 npm installs packages into the install prefix at
 \fBprefix/lib/node_modules\fP and bins are installed in \fBprefix/bin\fP\|\.
 .IP \(bu 2
 local mode:
-.br
 npm installs packages into the current project directory, which
 defaults to the current working directory\.  Packages are installed to
 \fB\|\./node_modules\fP, and bins are installed to \fB\|\./node_modules/\.bin\fP\|\.
@@ -102,32 +109,27 @@ npm is extremely configurable\.  It reads its configuration options from
 .RS 0
 .IP \(bu 2
 Command line switches:
-.br
 Set a config with \fB\-\-key val\fP\|\.  All keys take a value, even if they
 are booleans (the config parser doesn't know what the options are at
 the time of parsing)\.  If no value is provided, then the option is set
 to boolean \fBtrue\fP\|\.
 .IP \(bu 2
 Environment Variables:
-.br
 Set any config by prefixing the name in an environment variable with
 \fBnpm_config_\fP\|\.  For example, \fBexport npm_config_key=val\fP\|\.
 .IP \(bu 2
 User Configs:
-.br
 The file at $HOME/\.npmrc is an ini\-formatted list of configs\.  If
 present, it is parsed\.  If the \fBuserconfig\fP option is set in the cli
 or env, then that will be used instead\.
 .IP \(bu 2
 Global Configs:
-.br
 The file found at \.\./etc/npmrc (from the node executable, by default
 this resolves to /usr/local/etc/npmrc) will be parsed if it is found\.
 If the \fBglobalconfig\fP option is set in the cli, env, or user config,
 then that file is parsed instead\.
 .IP \(bu 2
 Defaults:
-.br
 npm's default configuration options are defined in
 lib/utils/config\-defs\.js\.  These must not be changed\.
 
@@ -137,28 +139,16 @@ See npm help 7 \fBnpm\-config\fP for much much more information\.
 .SH CONTRIBUTIONS
 .P
 Patches welcome!
-.RS 0
-.IP \(bu 2
-code:
-Read through npm help 7 \fBnpm\-coding\-style\fP if you plan to submit code\.
-You don't have to agree with it, but you do have to follow it\.
-.IP \(bu 2
-docs:
-If you find an error in the documentation, edit the appropriate markdown
-file in the "doc" folder\.  (Don't worry about generating the man page\.)
-
-.RE
-.P
-Contributors are listed in npm's \fBpackage\.json\fP file\.  You can view them
-easily by doing \fBnpm view npm contributors\fP\|\.
 .P
 If you would like to contribute, but don't know what to work on, read
 the contributing guidelines and check the issues list\.
 .RS 0
 .IP \(bu 2
-https://
+CONTRIBUTING\.md \fIhttps://github\.com/npm/cli/blob/latest/CONTRIBUTING\.md\fR
 .IP \(bu 2
-https://github\.com/npm/npm/issues
+Bug tracker \fIhttps://npm\.community/c/bugs\fR
+.IP \(bu 2
+Support tracker \fIhttps://npm\.community/c/support\fR
 
 .RE
 .SH BUGS
@@ -167,20 +157,19 @@ When you find issues, please report them:
 .RS 0
 .IP \(bu 2
 web:
-https://github\.com/npm/npm/issues
+https://npm\.community/c/bugs
 
 .RE
 .P
-Be sure to include \fIall\fR of the output from the npm command that didn't work
-as expected\.  The \fBnpm\-debug\.log\fP file is also helpful to provide\.
-.P
-You can also look for isaacs in #node\.js on irc://irc\.freenode\.net\.  He
-will no doubt tell you to put the output in a gist or email\.
+Be sure to follow the template and bug reporting guidelines\. You can also ask
+for help in the support forum \fIhttps://npm\.community/c/support\fR if you're
+unsure if it's actually a bug or are having trouble coming up with a detailed
+reproduction to report\.
 .SH AUTHOR
 .P
 Isaac Z\. Schlueter \fIhttp://blog\.izs\.me/\fR ::
 isaacs \fIhttps://github\.com/isaacs/\fR ::
-@izs \fIhttp://twitter\.com/izs\fR ::
+@izs \fIhttps://twitter\.com/izs\fR ::
 i@izs\.me
 .SH SEE ALSO
 .RS 0

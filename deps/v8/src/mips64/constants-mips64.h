@@ -82,11 +82,20 @@ const uint32_t kMipsSdlOffset = 0;
 #error Unknown endianness
 #endif
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+const uint32_t kLeastSignificantByteInInt32Offset = 0;
+const uint32_t kLessSignificantWordInDoublewordOffset = 0;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+const uint32_t kLeastSignificantByteInInt32Offset = 3;
+const uint32_t kLessSignificantWordInDoublewordOffset = 4;
+#else
+#error Unknown endianness
+#endif
+
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
 #include <inttypes.h>
-
 
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate MIPS32 instructions.
@@ -97,6 +106,9 @@ const uint32_t kMipsSdlOffset = 0;
 
 namespace v8 {
 namespace internal {
+
+// TODO(sigurds): Change this value once we use relative jumps.
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
 
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
@@ -131,8 +143,8 @@ const int kMSALanesDword = kMSARegSize / 64;
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
-const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1 << 31) - 1;
-const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1 << 31);
+const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1u << 31) - 1;
+const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1u << 31);
 const uint64_t kFPU64InvalidResult =
     static_cast<uint64_t>(static_cast<uint64_t>(1) << 63) - 1;
 const int64_t kFPU64InvalidResultNegative =
@@ -171,6 +183,11 @@ const int32_t kPrefHintLoadRetained = 6;
 const int32_t kPrefHintStoreRetained = 7;
 const int32_t kPrefHintWritebackInvalidate = 25;
 const int32_t kPrefHintPrepareForStore = 30;
+
+// Actual value of root register is offset from the root array's start
+// to take advantage of negative displacement values.
+// TODO(sigurds): Choose best value.
+constexpr int kRootRegisterBias = 256;
 
 // Helper functions for converting between register numbers and names.
 class Registers {
@@ -1137,30 +1154,6 @@ enum MSABranchDF {
   MSA_BRANCH_V
 };
 
-// Commute a condition such that {a cond b == b cond' a}.
-inline Condition CommuteCondition(Condition cc) {
-  switch (cc) {
-    case Uless:
-      return Ugreater;
-    case Ugreater:
-      return Uless;
-    case Ugreater_equal:
-      return Uless_equal;
-    case Uless_equal:
-      return Ugreater_equal;
-    case less:
-      return greater;
-    case greater:
-      return less;
-    case greater_equal:
-      return less_equal;
-    case less_equal:
-      return greater_equal;
-    default:
-      return cc;
-  }
-}
-
 
 // ----- Coprocessor conditions.
 enum FPUCondition {
@@ -1261,11 +1254,12 @@ static constexpr uint64_t OpcodeToBitNumber(Opcode opcode) {
   return 1ULL << (static_cast<uint32_t>(opcode) >> kOpcodeShift);
 }
 
+constexpr uint8_t kInstrSize = 4;
+constexpr uint8_t kInstrSizeLog2 = 2;
+
 class InstructionBase {
  public:
   enum {
-    kInstrSize = 4,
-    kInstrSizeLog2 = 2,
     // On MIPS PC cannot actually be directly accessed. We behave as if PC was
     // always the value of the current instruction being executed.
     kPCReadOffset = 0
@@ -1750,10 +1744,10 @@ const int kCArgSlotCount = 0;
 
 // TODO(plind): below should be based on kPointerSize
 // TODO(plind): find all usages and remove the needless instructions for n64.
-const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize * 2;
+const int kCArgsSlotsSize = kCArgSlotCount * kInstrSize * 2;
 
 const int kInvalidStackOffset = -1;
-const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
+const int kBranchReturnOffset = 2 * kInstrSize;
 
 static const int kNegOffset = 0x00008000;
 

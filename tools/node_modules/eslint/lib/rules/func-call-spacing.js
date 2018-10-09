@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -57,6 +57,10 @@ module.exports = {
                     maxItems: 2
                 }
             ]
+        },
+        messages: {
+            unexpected: "Unexpected newline between function name and paren.",
+            missing: "Missing space between function name and paren."
         }
     },
 
@@ -116,7 +120,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: lastCalleeToken.loc.start,
-                    message: "Unexpected space between function name and paren.",
+                    messageId: "unexpected",
                     fix(fixer) {
 
                         /*
@@ -134,7 +138,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: lastCalleeToken.loc.start,
-                    message: "Missing space between function name and paren.",
+                    messageId: "missing",
                     fix(fixer) {
                         return fixer.insertTextBefore(parenToken, " ");
                     }
@@ -143,7 +147,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: lastCalleeToken.loc.start,
-                    message: "Unexpected newline between function name and paren.",
+                    messageId: "unexpected",
                     fix(fixer) {
                         return fixer.replaceTextRange([prevToken.range[1], parenToken.range[0]], " ");
                     }

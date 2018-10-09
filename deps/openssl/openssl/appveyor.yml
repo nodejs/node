@@ -41,5 +41,5 @@ test_script:
     - cd _build
     - nmake test
     - mkdir ..\_install
-    - nmake install install_docs DESTDIR=..\_install
+    - nmake install DESTDIR=..\_install
     - cd ..

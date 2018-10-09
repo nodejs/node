@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/bigint.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -34,6 +33,18 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToNumber) {
   return *isolate->factory()->ToBoolean(result);
 }
 
+RUNTIME_FUNCTION(Runtime_BigIntCompareToString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Smi, mode, 0);
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, rhs, 2);
+  bool result =
+      ComparisonResultToBool(static_cast<Operation>(mode->value()),
+                             BigInt::CompareToString(isolate, lhs, rhs));
+  return *isolate->factory()->ToBoolean(result);
+}
+
 RUNTIME_FUNCTION(Runtime_BigIntEqualToBigInt) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
@@ -57,7 +68,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToString) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, rhs, 1);
-  bool result = BigInt::EqualToString(lhs, rhs);
+  bool result = BigInt::EqualToString(isolate, lhs, rhs);
   return *isolate->factory()->ToBoolean(result);
 }
 
@@ -72,7 +83,7 @@ RUNTIME_FUNCTION(Runtime_BigIntToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BigInt, x, 0);
-  return *BigInt::ToNumber(x);
+  return *BigInt::ToNumber(isolate, x);
 }
 
 RUNTIME_FUNCTION(Runtime_ToBigInt) {
@@ -99,40 +110,40 @@ RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
   MaybeHandle<BigInt> result;
   switch (op) {
     case Operation::kAdd:
-      result = BigInt::Add(left, right);
+      result = BigInt::Add(isolate, left, right);
       break;
     case Operation::kSubtract:
-      result = BigInt::Subtract(left, right);
+      result = BigInt::Subtract(isolate, left, right);
       break;
     case Operation::kMultiply:
-      result = BigInt::Multiply(left, right);
+      result = BigInt::Multiply(isolate, left, right);
       break;
     case Operation::kDivide:
-      result = BigInt::Divide(left, right);
+      result = BigInt::Divide(isolate, left, right);
       break;
     case Operation::kModulus:
-      result = BigInt::Remainder(left, right);
+      result = BigInt::Remainder(isolate, left, right);
       break;
     case Operation::kExponentiate:
-      result = BigInt::Exponentiate(left, right);
+      result = BigInt::Exponentiate(isolate, left, right);
       break;
     case Operation::kBitwiseAnd:
-      result = BigInt::BitwiseAnd(left, right);
+      result = BigInt::BitwiseAnd(isolate, left, right);
       break;
     case Operation::kBitwiseOr:
-      result = BigInt::BitwiseOr(left, right);
+      result = BigInt::BitwiseOr(isolate, left, right);
       break;
     case Operation::kBitwiseXor:
-      result = BigInt::BitwiseXor(left, right);
+      result = BigInt::BitwiseXor(isolate, left, right);
       break;
     case Operation::kShiftLeft:
-      result = BigInt::LeftShift(left, right);
+      result = BigInt::LeftShift(isolate, left, right);
       break;
     case Operation::kShiftRight:
-      result = BigInt::SignedRightShift(left, right);
+      result = BigInt::SignedRightShift(isolate, left, right);
       break;
     case Operation::kShiftRightLogical:
-      result = BigInt::UnsignedRightShift(left, right);
+      result = BigInt::UnsignedRightShift(isolate, left, right);
       break;
     default:
       UNREACHABLE();
@@ -150,16 +161,16 @@ RUNTIME_FUNCTION(Runtime_BigIntUnaryOp) {
   MaybeHandle<BigInt> result;
   switch (op) {
     case Operation::kBitwiseNot:
-      result = BigInt::BitwiseNot(x);
+      result = BigInt::BitwiseNot(isolate, x);
       break;
     case Operation::kNegate:
-      result = BigInt::UnaryMinus(x);
+      result = BigInt::UnaryMinus(isolate, x);
       break;
     case Operation::kIncrement:
-      result = BigInt::Increment(x);
+      result = BigInt::Increment(isolate, x);
       break;
     case Operation::kDecrement:
-      result = BigInt::Decrement(x);
+      result = BigInt::Decrement(isolate, x);
       break;
     default:
       UNREACHABLE();

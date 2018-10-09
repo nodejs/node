@@ -1,2 +1,1 @@
-import { GenerateObservable } from './GenerateObservable';
-export declare const generate: typeof GenerateObservable.create;
+export * from 'rxjs-compat/observable/generate';

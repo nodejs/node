@@ -9,6 +9,7 @@
 #include "src/feedback-vector.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects/hash-table.h"
+#include "src/objects/js-collection.h"
 #include "src/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -148,6 +149,49 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+template <bool includeWeakNext>
+class AllocationSite::BodyDescriptorImpl final : public BodyDescriptorBase {
+ public:
+  STATIC_ASSERT(AllocationSite::kCommonPointerFieldEndOffset ==
+                AllocationSite::kPretenureDataOffset);
+  STATIC_ASSERT(AllocationSite::kPretenureDataOffset + kInt32Size ==
+                AllocationSite::kPretenureCreateCountOffset);
+  STATIC_ASSERT(AllocationSite::kPretenureCreateCountOffset + kInt32Size ==
+                AllocationSite::kWeakNextOffset);
+
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    if (offset >= AllocationSite::kStartOffset &&
+        offset < AllocationSite::kCommonPointerFieldEndOffset) {
+      return true;
+    }
+    // check for weak_next offset
+    if (includeWeakNext &&
+        map->instance_size() == AllocationSite::kSizeWithWeakNext &&
+        offset == AllocationSite::kWeakNextOffset) {
+      return true;
+    }
+    return false;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    // Iterate over all the common pointer fields
+    IteratePointers(obj, AllocationSite::kStartOffset,
+                    AllocationSite::kCommonPointerFieldEndOffset, v);
+    // Skip PretenureDataOffset and PretenureCreateCount which are Int32 fields
+    // Visit weak_next only for full body descriptor and if it has weak_next
+    // field
+    if (includeWeakNext && object_size == AllocationSite::kSizeWithWeakNext)
+      IteratePointers(obj, AllocationSite::kWeakNextOffset,
+                      AllocationSite::kSizeWithWeakNext, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return map->instance_size();
+  }
+};
+
 class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(kByteLengthOffset + kPointerSize == kBackingStoreOffset);
@@ -181,7 +225,8 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
  public:
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
     Derived* table = reinterpret_cast<Derived*>(obj);
-    if (offset < table->GetDataTableStartOffset()) return false;
+    if (offset < kDataTableStartOffset) return false;
+    if (offset >= table->GetBucketsStartOffset()) return false;
     return IsValidSlotImpl(map, obj, offset);
   }
 
@@ -189,15 +234,20 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     Derived* table = reinterpret_cast<Derived*>(obj);
-    int start = table->GetDataTableStartOffset();
+
+    int offset = kDataTableStartOffset;
+    int entry = 0;
     for (int i = 0; i < table->Capacity(); i++) {
-      IteratePointer(obj, start + (i * kPointerSize), v);
+      for (int j = 0; j < Derived::kEntrySize; j++) {
+        IteratePointer(obj, offset + (entry * kPointerSize), v);
+        entry++;
+      }
     }
   }
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     Derived* table = reinterpret_cast<Derived*>(obj);
-    return table->Size();
+    return table->SizeFor(table->Capacity());
   }
 };
 
@@ -285,16 +335,16 @@ class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class WeakFixedArray::BodyDescriptor final : public BodyDescriptorBase {
+class WeakArrayBodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
-    return offset >= kHeaderSize;
+    return true;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IterateMaybeWeakPointers(obj, kHeaderSize, object_size, v);
+    IterateMaybeWeakPointers(obj, HeapObject::kHeaderSize, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -330,7 +380,7 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     IteratePointer(obj, kSharedFunctionInfoOffset, v);
     IterateMaybeWeakPointer(obj, kOptimizedCodeOffset, v);
-    IteratePointers(obj, kFeedbackSlotsOffset, object_size, v);
+    IterateMaybeWeakPointers(obj, kFeedbackSlotsOffset, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
@@ -338,11 +388,46 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-template <JSWeakCollection::BodyVisitingPolicy body_visiting_policy>
+class PreParsedScopeData::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset == kScopeDataOffset || offset >= kChildDataStartOffset;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointer(obj, kScopeDataOffset, v);
+    IteratePointers(obj, kChildDataStartOffset, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return PreParsedScopeData::SizeFor(PreParsedScopeData::cast(obj)->length());
+  }
+};
+
+class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset >= HeapObject::kHeaderSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, HeapObject::kHeaderSize, kObjectCreateMapOffset, v);
+    IterateMaybeWeakPointer(obj, kObjectCreateMapOffset, v);
+    IteratePointers(obj, kObjectCreateMapOffset + kPointerSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return obj->SizeFromMap(map);
+  }
+};
+
 class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kTableOffset + kPointerSize == kNextOffset);
-  STATIC_ASSERT(kNextOffset + kPointerSize == kSize);
+  STATIC_ASSERT(kTableOffset + kPointerSize == kSize);
 
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
     return IsValidSlotImpl(map, obj, offset);
@@ -351,12 +436,7 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    if (body_visiting_policy == kIgnoreWeakness) {
-      IterateBodyImpl(map, obj, kPropertiesOrHashOffset, object_size, v);
-    } else {
-      IteratePointers(obj, kPropertiesOrHashOffset, kTableOffset, v);
-      IterateBodyImpl(map, obj, kSize, object_size, v);
-    }
+    IterateBodyImpl(map, obj, kPropertiesOrHashOffset, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -424,7 +504,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, ObjectVisitor* v) {
-    int mode_mask = RelocInfo::kCodeTargetMask |
+    int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                     RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                     RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
@@ -436,9 +516,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
     RelocIterator it(Code::cast(obj), mode_mask);
-    for (; !it.done(); it.next()) {
-      it.rinfo()->Visit(v);
-    }
+    v->VisitRelocInfo(&it);
   }
 
   template <typename ObjectVisitor>
@@ -488,7 +566,7 @@ class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
     if (offset < kMemoryStartOffset) return true;
-    if (offset < kCompiledModuleOffset) return false;
+    if (offset < kModuleObjectOffset) return false;
     return IsValidSlotImpl(map, obj, offset);
   }
 
@@ -524,6 +602,28 @@ class Map::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map* map, HeapObject* obj) { return Map::kSize; }
 };
 
+class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset >= HeapObject::kHeaderSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    static_assert(kSmiHandlerOffset < kData1Offset,
+                  "Field order must be in sync with this iteration code");
+    static_assert(kData1Offset < kSizeWithData1,
+                  "Field order must be in sync with this iteration code");
+    IteratePointers(obj, kSmiHandlerOffset, kData1Offset, v);
+    IterateMaybeWeakPointers(obj, kData1Offset, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return object->SizeFromMap(map);
+  }
+};
+
 template <typename Op, typename ReturnType, typename T1, typename T2,
           typename T3, typename T4>
 ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
@@ -551,9 +651,18 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
 
   switch (type) {
     case FIXED_ARRAY_TYPE:
-    case BOILERPLATE_DESCRIPTION_TYPE:
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:
+    case ORDERED_HASH_MAP_TYPE:
+    case ORDERED_HASH_SET_TYPE:
+    case NAME_DICTIONARY_TYPE:
+    case GLOBAL_DICTIONARY_TYPE:
+    case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+    case STRING_TABLE_TYPE:
+    case EPHEMERON_HASH_TABLE_TYPE:
     case SCOPE_INFO_TYPE:
+    case SCRIPT_CONTEXT_TABLE_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:
@@ -566,6 +675,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3, p4);
     case WEAK_FIXED_ARRAY_TYPE:
       return Op::template apply<WeakFixedArray::BodyDescriptor>(p1, p2, p3, p4);
+    case WEAK_ARRAY_LIST_TYPE:
+      return Op::template apply<WeakArrayList::BodyDescriptor>(p1, p2, p3, p4);
     case FIXED_DOUBLE_ARRAY_TYPE:
       return ReturnType();
     case FEEDBACK_METADATA_TYPE:
@@ -614,6 +725,13 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
+#ifdef V8_INTL_SUPPORT
+    case JS_INTL_COLLATOR_TYPE:
+    case JS_INTL_LIST_FORMAT_TYPE:
+    case JS_INTL_LOCALE_TYPE:
+    case JS_INTL_PLURAL_RULES_TYPE:
+    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+#endif  // V8_INTL_SUPPORT
     case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
@@ -644,8 +762,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<Cell::BodyDescriptor>(p1, p2, p3, p4);
     case PROPERTY_CELL_TYPE:
       return Op::template apply<PropertyCell::BodyDescriptor>(p1, p2, p3, p4);
-    case WEAK_CELL_TYPE:
-      return Op::template apply<WeakCell::BodyDescriptor>(p1, p2, p3, p4);
     case SYMBOL_TYPE:
       return Op::template apply<Symbol::BodyDescriptor>(p1, p2, p3, p4);
     case BYTECODE_ARRAY_TYPE:
@@ -661,6 +777,15 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case CODE_DATA_CONTAINER_TYPE:
       return Op::template apply<CodeDataContainer::BodyDescriptor>(p1, p2, p3,
                                                                    p4);
+    case PRE_PARSED_SCOPE_DATA_TYPE:
+      return Op::template apply<PreParsedScopeData::BodyDescriptor>(p1, p2, p3,
+                                                                    p4);
+    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
+      return Op::template apply<
+          UncompiledDataWithoutPreParsedScope::BodyDescriptor>(p1, p2, p3, p4);
+    case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
+      return Op::template apply<
+          UncompiledDataWithPreParsedScope::BodyDescriptor>(p1, p2, p3, p4);
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
@@ -669,7 +794,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case BIGINT_TYPE:
       return ReturnType();
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                              \
   case FIXED_##TYPE##_ARRAY_TYPE:                                              \
     return Op::template apply<FixedTypedArrayBase::BodyDescriptor>(p1, p2, p3, \
                                                                    p4);
@@ -680,20 +805,23 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<SharedFunctionInfo::BodyDescriptor>(p1, p2, p3,
                                                                     p4);
     }
+    case ALLOCATION_SITE_TYPE:
+      return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3, p4);
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-      if (type == ALLOCATION_SITE_TYPE) {
-        return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3,
-                                                                  p4);
+      if (type == PROTOTYPE_INFO_TYPE) {
+        return Op::template apply<PrototypeInfo::BodyDescriptor>(p1, p2, p3,
+                                                                 p4);
       } else {
         return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
       }
     case CALL_HANDLER_INFO_TYPE:
+      return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
-      return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
+      return Op::template apply<DataHandler::BodyDescriptor>(p1, p2, p3, p4);
     default:
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();

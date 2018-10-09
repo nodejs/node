@@ -36,6 +36,7 @@
 /_*
 /build
 /buildtools
+/check-header-includes
 /hydrogen.cfg
 /obj
 /out
@@ -68,6 +69,7 @@
 !/third_party/googletest/src/googletest/include/gtest
 /third_party/googletest/src/googletest/include/gtest/*
 !/third_party/googletest/src/googletest/include/gtest/gtest_prod.h
+!/third_party/v8
 /tools/clang
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz
@@ -105,5 +107,10 @@ turbo*.dot
 turbo*.json
 v8.ignition_dispatches_table.json
 /Default/
+node_modules
+tools/turbolizer/build
+tools/turbolizer/.rpt2_cache
+tools/turbolizer/deploy
+
 !/third_party/jinja2
 !/third_party/markupsafe

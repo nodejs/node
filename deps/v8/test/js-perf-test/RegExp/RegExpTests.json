@@ -25,6 +25,7 @@
         "ctor.js",
         "exec.js",
         "flags.js",
+        "inline_test.js",
         "match.js",
         "replace.js",
         "search.js",
@@ -54,7 +55,8 @@
         {"name": "SlowReplace"},
         {"name": "SlowSearch"},
         {"name": "SlowSplit"},
-        {"name": "SlowTest"}
+        {"name": "SlowTest"},
+        {"name": "InlineTest"}
       ]
     }
   ]

@@ -29,8 +29,9 @@
 #include "test/cctest/cctest.h"
 
 #include "src/accessors.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/property.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -138,16 +139,17 @@ TEST(StressJS) {
   factory->NewJSObject(function);
 
   // Patch the map to have an accessor for "get".
-  Handle<Map> map(function->initial_map());
-  Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
+  Handle<Map> map(function->initial_map(), isolate);
+  Handle<DescriptorArray> instance_descriptors(map->instance_descriptors(),
+                                               isolate);
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
   PropertyAttributes attrs = NONE;
   Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
-  Map::EnsureDescriptorSlack(map, 1);
+  Map::EnsureDescriptorSlack(isolate, map, 1);
 
   Descriptor d = Descriptor::AccessorConstant(
-      Handle<Name>(Name::cast(foreign->name())), foreign, attrs);
+      Handle<Name>(Name::cast(foreign->name()), isolate), foreign, attrs);
   map->AppendDescriptor(&d);
 
   // Add the Foo constructor the global object.
@@ -203,8 +205,8 @@ class Block {
 TEST(CodeRange) {
   const size_t code_range_size = 32*MB;
   CcTest::InitializeVM();
-  CodeRange code_range(reinterpret_cast<Isolate*>(CcTest::isolate()));
-  code_range.SetUp(code_range_size);
+  CodeRange code_range(reinterpret_cast<Isolate*>(CcTest::isolate()),
+                       code_range_size);
   size_t current_allocated = 0;
   size_t total_allocated = 0;
   std::vector<Block> blocks;
@@ -227,7 +229,7 @@ TEST(CodeRange) {
       Address base = code_range.AllocateRawMemory(
           requested, requested - (2 * MemoryAllocator::CodePageGuardSize()),
           &allocated);
-      CHECK_NOT_NULL(base);
+      CHECK_NE(base, kNullAddress);
       blocks.emplace_back(base, static_cast<int>(allocated));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);

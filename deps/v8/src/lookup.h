@@ -44,40 +44,18 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     BEFORE_PROPERTY = INTERCEPTOR
   };
 
-  LookupIterator(Handle<Object> receiver, Handle<Name> name,
-                 Configuration configuration = DEFAULT)
-      : LookupIterator(name->GetIsolate(), receiver, name, configuration) {}
-
   LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
                  Configuration configuration = DEFAULT)
       : LookupIterator(isolate, receiver, name, GetRoot(isolate, receiver),
                        configuration) {}
 
-  LookupIterator(Handle<Object> receiver, Handle<Name> name,
-                 Handle<JSReceiver> holder,
-                 Configuration configuration = DEFAULT)
-      : LookupIterator(name->GetIsolate(), receiver, name, holder,
-                       configuration) {}
+  inline LookupIterator(Handle<Object> receiver, Handle<Name> name,
+                        Handle<JSReceiver> holder,
+                        Configuration configuration = DEFAULT);
 
-  LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-                 Handle<JSReceiver> holder,
-                 Configuration configuration = DEFAULT)
-      : configuration_(ComputeConfiguration(configuration, name)),
-        interceptor_state_(InterceptorState::kUninitialized),
-        property_details_(PropertyDetails::Empty()),
-        isolate_(isolate),
-        name_(isolate_->factory()->InternalizeName(name)),
-        receiver_(receiver),
-        initial_holder_(holder),
-        // kMaxUInt32 isn't a valid index.
-        index_(kMaxUInt32),
-        number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
-#ifdef DEBUG
-    uint32_t index;  // Assert that the name is not an array index.
-    DCHECK(!name->AsArrayIndex(&index));
-#endif  // DEBUG
-    Start<false>();
-  }
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                        Handle<Name> name, Handle<JSReceiver> holder,
+                        Configuration configuration = DEFAULT);
 
   LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
                  Configuration configuration = DEFAULT)
@@ -100,31 +78,13 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     Start<true>();
   }
 
-  static LookupIterator PropertyOrElement(
+  static inline LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-      Configuration configuration = DEFAULT) {
-    uint32_t index;
-    if (name->AsArrayIndex(&index)) {
-      LookupIterator it =
-          LookupIterator(isolate, receiver, index, configuration);
-      it.name_ = name;
-      return it;
-    }
-    return LookupIterator(receiver, name, configuration);
-  }
+      Configuration configuration = DEFAULT);
 
-  static LookupIterator PropertyOrElement(
+  static inline LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-      Handle<JSReceiver> holder, Configuration configuration = DEFAULT) {
-    uint32_t index;
-    if (name->AsArrayIndex(&index)) {
-      LookupIterator it =
-          LookupIterator(isolate, receiver, index, holder, configuration);
-      it.name_ = name;
-      return it;
-    }
-    return LookupIterator(receiver, name, holder, configuration);
-  }
+      Handle<JSReceiver> holder, Configuration configuration = DEFAULT);
 
   static LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
@@ -151,13 +111,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     DCHECK(!IsElement());
     return name_;
   }
-  Handle<Name> GetName() {
-    if (name_.is_null()) {
-      DCHECK(IsElement());
-      name_ = factory()->Uint32ToString(index_);
-    }
-    return name_;
-  }
+  inline Handle<Name> GetName();
   uint32_t index() const { return index_; }
 
   bool IsElement() const { return index_ != kMaxUInt32; }
@@ -174,17 +128,8 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   Handle<Object> GetReceiver() const { return receiver_; }
 
   template <class T>
-  Handle<T> GetStoreTarget() const {
-    DCHECK(receiver_->IsJSReceiver());
-    if (receiver_->IsJSGlobalProxy()) {
-      Map* map = JSGlobalProxy::cast(*receiver_)->map();
-      if (map->has_hidden_prototype()) {
-        return handle(JSGlobalObject::cast(map->prototype()), isolate_);
-      }
-    }
-    return Handle<T>::cast(receiver_);
-  }
-  bool is_dictionary_holder() const { return !holder_->HasFastProperties(); }
+  inline Handle<T> GetStoreTarget() const;
+  inline bool is_dictionary_holder() const;
   Handle<Map> transition_map() const {
     DCHECK_EQ(TRANSITION, state_);
     return Handle<Map>::cast(transition_);
@@ -210,23 +155,13 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   bool HasAccess() const;
 
   /* PROPERTY */
-  bool ExtendingNonExtensible(Handle<JSReceiver> receiver) {
-    DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
-    return !receiver->map()->is_extensible() &&
-           (IsElement() || !name_->IsPrivate());
-  }
+  inline bool ExtendingNonExtensible(Handle<JSReceiver> receiver);
   void PrepareForDataProperty(Handle<Object> value);
   void PrepareTransitionToDataProperty(Handle<JSReceiver> receiver,
                                        Handle<Object> value,
                                        PropertyAttributes attributes,
                                        Object::StoreFromKeyed store_mode);
-  bool IsCacheableTransition() {
-    DCHECK_EQ(TRANSITION, state_);
-    return transition_->IsPropertyCell() ||
-           (transition_map()->is_dictionary_map() &&
-            !GetStoreTarget<JSReceiver>()->HasFastProperties()) ||
-           transition_map()->GetBackPointer()->IsMap();
-  }
+  inline bool IsCacheableTransition();
   void ApplyTransitionToDataProperty(Handle<JSReceiver> receiver);
   void ReconfigureDataProperty(Handle<Object> value,
                                PropertyAttributes attributes);
@@ -259,28 +194,11 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
   Handle<Object> GetAccessors() const;
-  inline Handle<InterceptorInfo> GetInterceptor() const {
-    DCHECK_EQ(INTERCEPTOR, state_);
-    InterceptorInfo* result =
-        IsElement() ? GetInterceptor<true>(JSObject::cast(*holder_))
-                    : GetInterceptor<false>(JSObject::cast(*holder_));
-    return handle(result, isolate_);
-  }
+  inline Handle<InterceptorInfo> GetInterceptor() const;
   Handle<InterceptorInfo> GetInterceptorForFailedAccessCheck() const;
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value, bool initializing_store);
-  inline void UpdateProtector() {
-    if (IsElement()) return;
-    // This list must be kept in sync with
-    // CodeStubAssembler::CheckForAssociatedProtector!
-    if (*name_ == heap()->is_concat_spreadable_symbol() ||
-        *name_ == heap()->constructor_string() ||
-        *name_ == heap()->next_string() || *name_ == heap()->species_symbol() ||
-        *name_ == heap()->iterator_symbol() ||
-        *name_ == heap()->resolve_string() || *name_ == heap()->then_string()) {
-      InternalUpdateProtector();
-    }
-  }
+  inline void UpdateProtector();
 
   // Lookup a 'cached' private property for an accessor.
   // If not found returns false and leaves the LookupIterator unmodified.
@@ -354,19 +272,14 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     return number_;
   }
 
-  static Configuration ComputeConfiguration(
-      Configuration configuration, Handle<Name> name) {
-    return name->IsPrivate() ? OWN_SKIP_INTERCEPTOR : configuration;
-  }
+  static inline Configuration ComputeConfiguration(
+      Configuration configuration, Handle<Name> name);
 
   static Handle<JSReceiver> GetRootForNonJSReceiver(
       Isolate* isolate, Handle<Object> receiver, uint32_t index = kMaxUInt32);
-  inline static Handle<JSReceiver> GetRoot(Isolate* isolate,
+  static inline Handle<JSReceiver> GetRoot(Isolate* isolate,
                                            Handle<Object> receiver,
-                                           uint32_t index = kMaxUInt32) {
-    if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
-    return GetRootForNonJSReceiver(isolate, receiver, index);
-  }
+                                           uint32_t index = kMaxUInt32);
 
   State NotFound(JSReceiver* const holder) const;
 

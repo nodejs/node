@@ -15,7 +15,7 @@
 # ====================================================================
 #
 # October 2015
-#
+# 
 # ChaCha20 for PowerPC/AltiVec.
 #
 # Performance in cycles per byte out of large buffer.
@@ -525,7 +525,7 @@ $code.=<<___;
 	lwz	@d[3],12($ctr)
 	vadduwm	@K[5],@K[4],@K[5]
 
-	vspltisw $twenty,-12			# synthesize constants
+	vspltisw $twenty,-12			# synthesize constants 
 	vspltisw $twelve,12
 	vspltisw $twenty5,-7
 	#vspltisw $seven,7			# synthesized in the loop

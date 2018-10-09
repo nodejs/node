@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const FixTracker = require("../util/fix-tracker");
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition

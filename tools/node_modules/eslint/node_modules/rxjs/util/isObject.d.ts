@@ -1,1 +1,1 @@
-export declare function isObject(x: any): x is Object;
+export * from 'rxjs-compat/util/isObject';

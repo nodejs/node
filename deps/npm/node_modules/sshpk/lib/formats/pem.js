@@ -8,6 +8,7 @@ module.exports = {
 var assert = require('assert-plus');
 var asn1 = require('asn1');
 var crypto = require('crypto');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('../algs');
 var utils = require('../utils');
 var Key = require('../key');
@@ -67,7 +68,7 @@ function read(buf, options, forceType) {
 		var parts = headers['proc-type'].split(',');
 		if (parts[0] === '4' && parts[1] === 'ENCRYPTED') {
 			if (typeof (options.passphrase) === 'string') {
-				options.passphrase = new Buffer(
+				options.passphrase = Buffer.from(
 				    options.passphrase, 'utf-8');
 			}
 			if (!Buffer.isBuffer(options.passphrase)) {
@@ -77,7 +78,7 @@ function read(buf, options, forceType) {
 				parts = headers['dek-info'].split(',');
 				assert.ok(parts.length === 2);
 				cipher = parts[0].toLowerCase();
-				iv = new Buffer(parts[1], 'hex');
+				iv = Buffer.from(parts[1], 'hex');
 				key = utils.opensslKeyDeriv(cipher, iv,
 				    options.passphrase, 1).key;
 			}
@@ -86,7 +87,7 @@ function read(buf, options, forceType) {
 
 	/* Chop off the first and last lines */
 	lines = lines.slice(0, -1).join('');
-	buf = new Buffer(lines, 'base64');
+	buf = Buffer.from(lines, 'base64');
 
 	if (cipher && key && iv) {
 		var cipherStream = crypto.createDecipheriv(cipher, key, iv);
@@ -174,7 +175,7 @@ function write(key, options, type) {
 	var tmp = der.buffer.toString('base64');
 	var len = tmp.length + (tmp.length / 64) +
 	    18 + 16 + header.length*2 + 10;
-	var buf = new Buffer(len);
+	var buf = Buffer.alloc(len);
 	var o = 0;
 	o += buf.write('-----BEGIN ' + header + '-----\n', o);
 	for (var i = 0; i < tmp.length; ) {

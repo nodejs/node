@@ -59,25 +59,25 @@ class NameFilterProc(base.TestProcFilter):
     super(NameFilterProc, self).__init__()
 
     self._globs = defaultdict(list)
+    self._exact_matches = defaultdict(dict)
     for a in args:
       argpath = a.split('/')
       suitename = argpath[0]
       path = '/'.join(argpath[1:]) or '*'
-      self._globs[suitename].append(path)
+      if '*' in path:
+        self._globs[suitename].append(path)
+      else:
+        self._exact_matches[suitename][path] = True
 
     for s, globs in self._globs.iteritems():
       if not globs or '*' in globs:
-        self._globs[s] = []
+        self._globs[s] = ['*']
 
   def _filter(self, test):
-    globs = self._globs.get(test.suite.name)
-    if globs is None:
-      return True
-
-    if not globs:
-      return False
-
+    globs = self._globs.get(test.suite.name, [])
     for g in globs:
+      if g == '*': return False
       if fnmatch.fnmatch(test.path, g):
         return False
-    return True
+    exact_matches = self._exact_matches.get(test.suite.name, {})
+    return test.path not in exact_matches

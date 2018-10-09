@@ -6,7 +6,6 @@
 
 #include <ostream>
 
-#include "src/builtins/constants-table-builder.h"
 #include "src/code-factory.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector.h"
@@ -18,26 +17,12 @@
 #include "src/frames.h"
 #include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/lsan.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/snapshot/serializer-common.h"
 #include "src/utils.h"
 #include "src/zone/zone.h"
-
-#define REPEAT_1_TO_2(V, T) V(T) V(T, T)
-#define REPEAT_1_TO_3(V, T) REPEAT_1_TO_2(V, T) V(T, T, T)
-#define REPEAT_1_TO_4(V, T) REPEAT_1_TO_3(V, T) V(T, T, T, T)
-#define REPEAT_1_TO_5(V, T) REPEAT_1_TO_4(V, T) V(T, T, T, T, T)
-#define REPEAT_1_TO_6(V, T) REPEAT_1_TO_5(V, T) V(T, T, T, T, T, T)
-#define REPEAT_1_TO_7(V, T) REPEAT_1_TO_6(V, T) V(T, T, T, T, T, T, T)
-#define REPEAT_1_TO_8(V, T) REPEAT_1_TO_7(V, T) V(T, T, T, T, T, T, T, T)
-#define REPEAT_1_TO_9(V, T) REPEAT_1_TO_8(V, T) V(T, T, T, T, T, T, T, T, T)
-#define REPEAT_1_TO_10(V, T) REPEAT_1_TO_9(V, T) V(T, T, T, T, T, T, T, T, T, T)
-#define REPEAT_1_TO_11(V, T) \
-  REPEAT_1_TO_10(V, T) V(T, T, T, T, T, T, T, T, T, T, T)
-#define REPEAT_1_TO_12(V, T) \
-  REPEAT_1_TO_11(V, T) V(T, T, T, T, T, T, T, T, T, T, T, T)
 
 namespace v8 {
 namespace internal {
@@ -58,41 +43,40 @@ static_assert(
 
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
-    Code::Kind kind, const char* name,
-    PoisoningMitigationLevel poisoning_enabled, size_t result_size,
+    Code::Kind kind, const char* name, PoisoningMitigationLevel poisoning_level,
     uint32_t stub_key, int32_t builtin_index)
     // TODO(rmcilroy): Should we use Linkage::GetBytecodeDispatchDescriptor for
     // bytecode handlers?
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetStubCallDescriptor(
-              isolate, zone, descriptor, descriptor.GetStackParameterCount(),
-              CallDescriptor::kNoFlags, Operator::kNoProperties,
-              MachineType::AnyTagged(), result_size),
-          kind, name, poisoning_enabled, stub_key, builtin_index) {}
+              zone, descriptor, descriptor.GetStackParameterCount(),
+              CallDescriptor::kNoFlags, Operator::kNoProperties),
+          kind, name, poisoning_level, stub_key, builtin_index) {}
 
-CodeAssemblerState::CodeAssemblerState(
-    Isolate* isolate, Zone* zone, int parameter_count, Code::Kind kind,
-    const char* name, PoisoningMitigationLevel poisoning_enabled,
-    int32_t builtin_index)
+CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
+                                       int parameter_count, Code::Kind kind,
+                                       const char* name,
+                                       PoisoningMitigationLevel poisoning_level,
+                                       int32_t builtin_index)
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetJSCallDescriptor(zone, false, parameter_count,
                                        kind == Code::BUILTIN
                                            ? CallDescriptor::kPushArgumentCount
                                            : CallDescriptor::kNoFlags),
-          kind, name, poisoning_enabled, 0, builtin_index) {}
+          kind, name, poisoning_level, 0, builtin_index) {}
 
-CodeAssemblerState::CodeAssemblerState(
-    Isolate* isolate, Zone* zone, CallDescriptor* call_descriptor,
-    Code::Kind kind, const char* name,
-    PoisoningMitigationLevel poisoning_enabled, uint32_t stub_key,
-    int32_t builtin_index)
+CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
+                                       CallDescriptor* call_descriptor,
+                                       Code::Kind kind, const char* name,
+                                       PoisoningMitigationLevel poisoning_level,
+                                       uint32_t stub_key, int32_t builtin_index)
     : raw_assembler_(new RawMachineAssembler(
           isolate, new (zone) Graph(zone), call_descriptor,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements(), poisoning_enabled)),
+          InstructionSelector::AlignmentRequirements(), poisoning_level)),
       kind_(kind),
       name_(name),
       stub_key_(stub_key),
@@ -178,12 +162,13 @@ bool CodeAssembler::Word32ShiftIsSafe() const {
   return raw_assembler()->machine()->Word32ShiftIsSafe();
 }
 
-PoisoningMitigationLevel CodeAssembler::poisoning_enabled() const {
-  return raw_assembler()->poisoning_enabled();
+PoisoningMitigationLevel CodeAssembler::poisoning_level() const {
+  return raw_assembler()->poisoning_level();
 }
 
 // static
-Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
+Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
+                                         const AssemblerOptions& options) {
   DCHECK(!state->code_generated_);
 
   RawMachineAssembler* rasm = state->raw_assembler_.get();
@@ -193,19 +178,24 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
   bool should_optimize_jumps =
       rasm->isolate()->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
 
-  Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
-      rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-      state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-      should_optimize_jumps ? &jump_opt : nullptr, rasm->poisoning_enabled());
+  Handle<Code> code =
+      Pipeline::GenerateCodeForCodeStub(
+          rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
+          state->kind_, state->name_, state->stub_key_, state->builtin_index_,
+          should_optimize_jumps ? &jump_opt : nullptr, rasm->poisoning_level(),
+          options)
+          .ToHandleChecked();
 
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
 
     // Regenerate machine code
-    code = Pipeline::GenerateCodeForCodeStub(
-        rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-        state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-        &jump_opt, rasm->poisoning_enabled());
+    code =
+        Pipeline::GenerateCodeForCodeStub(
+            rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
+            state->kind_, state->name_, state->stub_key_, state->builtin_index_,
+            &jump_opt, rasm->poisoning_level(), options)
+            .ToHandleChecked();
   }
 
   state->code_generated_ = true;
@@ -243,58 +233,20 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
                 : IsInt32AbsWithOverflowSupported();
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
-TNode<HeapObject> CodeAssembler::LookupConstant(Handle<HeapObject> object) {
-  DCHECK(isolate()->serializer_enabled());
-
-  // Ensure the given object is in the builtins constants table and fetch its
-  // index.
-  BuiltinsConstantsTableBuilder* builder =
-      isolate()->builtins_constants_table_builder();
-  uint32_t index = builder->AddObject(object);
-
-  // The builtins constants table is loaded through the root register on all
-  // supported platforms. This is checked by the
-  // VerifyBuiltinsIsolateIndependence cctest, which disallows embedded objects
-  // in isolate-independent builtins.
-  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
-      Heap::kBuiltinsConstantsTableRootIndex));
-  TNode<FixedArray> builtins_constants_table = UncheckedCast<FixedArray>(
-      LoadRoot(Heap::kBuiltinsConstantsTableRootIndex));
-
-  // Generate the lookup.
-  const int32_t header_size = FixedArray::kHeaderSize - kHeapObjectTag;
-  TNode<IntPtrT> offset = IntPtrConstant(header_size + kPointerSize * index);
-  return UncheckedCast<HeapObject>(
-      Load(MachineType::AnyTagged(), builtins_constants_table, offset));
+#ifdef DEBUG
+void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
+                                                     const char* location) {
+  Label ok(this);
+  GotoIf(WordNotEqual(WordAnd(BitcastMaybeObjectToWord(node),
+                              IntPtrConstant(kHeapObjectTagMask)),
+                      IntPtrConstant(kWeakHeapObjectTag)),
+         &ok);
+  Node* message_node = StringConstant(location);
+  DebugAbort(message_node);
+  Unreachable();
+  Bind(&ok);
 }
-
-// External references are stored in the external reference table.
-TNode<ExternalReference> CodeAssembler::LookupExternalReference(
-    ExternalReference reference) {
-  DCHECK(isolate()->serializer_enabled());
-
-  // Encode as an index into the external reference table stored on the isolate.
-
-  ExternalReferenceEncoder encoder(isolate());
-  ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
-  CHECK(!v.is_from_api());
-  uint32_t index = v.index();
-
-  // Generate code to load from the external reference table.
-
-  const intptr_t roots_to_external_reference_offset =
-      Heap::roots_to_external_reference_table_offset()
-#ifdef V8_TARGET_ARCH_X64
-      - kRootRegisterBias
 #endif
-      + ExternalReferenceTable::OffsetOfEntry(index);
-
-  return UncheckedCast<ExternalReference>(
-      Load(MachineType::Pointer(), LoadRootsPointer(),
-           IntPtrConstant(roots_to_external_reference_offset)));
-}
-#endif  // V8_EMBEDDED_BUILTINS
 
 TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
   return UncheckedCast<Int32T>(raw_assembler()->Int32Constant(value));
@@ -313,7 +265,12 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
   if (DoubleToSmiInteger(value, &smi_value)) {
     return UncheckedCast<Number>(SmiConstant(smi_value));
   } else {
-    return UncheckedCast<Number>(raw_assembler()->NumberConstant(value));
+    // We allocate the heap number constant eagerly at this point instead of
+    // deferring allocation to code generation
+    // (see AllocateAndInstallRequestedHeapObjects) since that makes it easier
+    // to generate constant lookups for embedded builtins.
+    return UncheckedCast<Number>(
+        HeapConstant(isolate()->factory()->NewHeapNumber(value, TENURED)));
   }
 }
 
@@ -328,16 +285,6 @@ TNode<Smi> CodeAssembler::SmiConstant(int value) {
 
 TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
     Handle<HeapObject> object) {
-#ifdef V8_EMBEDDED_BUILTINS
-  // Root constants are simply loaded from the root list, while non-root
-  // constants must be looked up from the builtins constants table.
-  if (ShouldLoadConstantsFromRootList()) {
-    Heap::RootListIndex root_index;
-    if (!isolate()->heap()->IsRootHandle(object, &root_index)) {
-      return LookupConstant(object);
-    }
-  }
-#endif  // V8_EMBEDDED_BUILTINS
   return UncheckedCast<HeapObject>(raw_assembler()->HeapConstant(object));
 }
 
@@ -353,11 +300,6 @@ TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
 
 TNode<ExternalReference> CodeAssembler::ExternalConstant(
     ExternalReference address) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (ShouldLoadConstantsFromRootList()) {
-    return LookupExternalReference(address);
-  }
-#endif  // V8_EMBEDDED_BUILTINS
   return UncheckedCast<ExternalReference>(
       raw_assembler()->ExternalConstant(address));
 }
@@ -371,12 +313,21 @@ TNode<HeapNumber> CodeAssembler::NaNConstant() {
 }
 
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t& out_value) {
-  Int64Matcher m(node);
-  if (m.HasValue() &&
-      m.IsInRange(std::numeric_limits<int32_t>::min(),
-                  std::numeric_limits<int32_t>::max())) {
-    out_value = static_cast<int32_t>(m.Value());
-    return true;
+  {
+    Int64Matcher m(node);
+    if (m.HasValue() && m.IsInRange(std::numeric_limits<int32_t>::min(),
+                                    std::numeric_limits<int32_t>::max())) {
+      out_value = static_cast<int32_t>(m.Value());
+      return true;
+    }
+  }
+
+  {
+    Int32Matcher m(node);
+    if (m.HasValue()) {
+      out_value = m.Value();
+      return true;
+    }
   }
 
   return false;
@@ -413,8 +364,24 @@ bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t& out_value) {
   return m.HasValue();
 }
 
-Node* CodeAssembler::Parameter(int value) {
-  return raw_assembler()->Parameter(value);
+bool CodeAssembler::IsUndefinedConstant(TNode<Object> node) {
+  compiler::HeapObjectMatcher m(node);
+  return m.Is(isolate()->factory()->undefined_value());
+}
+
+bool CodeAssembler::IsNullConstant(TNode<Object> node) {
+  compiler::HeapObjectMatcher m(node);
+  return m.Is(isolate()->factory()->null_value());
+}
+
+Node* CodeAssembler::Parameter(int index) {
+  if (index == kTargetParameterIndex) return raw_assembler()->TargetParameter();
+  return raw_assembler()->Parameter(index);
+}
+
+bool CodeAssembler::IsJSFunctionCall() const {
+  auto call_descriptor = raw_assembler()->call_descriptor();
+  return call_descriptor->IsJSFunctionCall();
 }
 
 TNode<Context> CodeAssembler::GetJSContextParameter() {
@@ -451,6 +418,10 @@ void CodeAssembler::ReturnIf(Node* condition, Node* value) {
   Bind(&if_continue);
 }
 
+void CodeAssembler::ReturnRaw(Node* value) {
+  return raw_assembler()->Return(value);
+}
+
 void CodeAssembler::DebugAbort(Node* message) {
   raw_assembler()->DebugAbort(message);
 }
@@ -476,6 +447,7 @@ void CodeAssembler::Comment(const char* format, ...) {
   const int prefix_len = 2;
   int length = builder.position() + 1;
   char* copy = reinterpret_cast<char*>(malloc(length + prefix_len));
+  LSAN_IGNORE_OBJECT(copy);
   MemCopy(copy + prefix_len, builder.Finalize(), length);
   copy[0] = ';';
   copy[1] = ' ';
@@ -498,22 +470,18 @@ Node* CodeAssembler::LoadParentFramePointer() {
   return raw_assembler()->LoadParentFramePointer();
 }
 
-TNode<IntPtrT> CodeAssembler::LoadRootsPointer() {
-  return UncheckedCast<IntPtrT>(raw_assembler()->LoadRootsPointer());
-}
-
 Node* CodeAssembler::LoadStackPointer() {
   return raw_assembler()->LoadStackPointer();
 }
 
-TNode<Object> CodeAssembler::PoisonOnSpeculationTagged(
+TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(
     SloppyTNode<Object> value) {
   return UncheckedCast<Object>(
-      raw_assembler()->PoisonOnSpeculationTagged(value));
+      raw_assembler()->TaggedPoisonOnSpeculation(value));
 }
 
-TNode<WordT> CodeAssembler::PoisonOnSpeculationWord(SloppyTNode<WordT> value) {
-  return UncheckedCast<WordT>(raw_assembler()->PoisonOnSpeculationWord(value));
+TNode<WordT> CodeAssembler::WordPoisonOnSpeculation(SloppyTNode<WordT> value) {
+  return UncheckedCast<WordT>(raw_assembler()->WordPoisonOnSpeculation(value));
 }
 
 #define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
@@ -912,6 +880,25 @@ TNode<Word64T> CodeAssembler::Word64Sar(SloppyTNode<Word64T> left,
   return UncheckedCast<Word64T>(raw_assembler()->Word64Sar(left, right));
 }
 
+#define CODE_ASSEMBLER_COMPARE(Name, ArgT, VarT, ToConstant, op)     \
+  TNode<BoolT> CodeAssembler::Name(SloppyTNode<ArgT> left,           \
+                                   SloppyTNode<ArgT> right) {        \
+    VarT lhs, rhs;                                                   \
+    if (ToConstant(left, lhs) && ToConstant(right, rhs)) {           \
+      return BoolConstant(lhs op rhs);                               \
+    }                                                                \
+    return UncheckedCast<BoolT>(raw_assembler()->Name(left, right)); \
+  }
+
+CODE_ASSEMBLER_COMPARE(IntPtrEqual, WordT, intptr_t, ToIntPtrConstant, ==)
+CODE_ASSEMBLER_COMPARE(WordEqual, WordT, intptr_t, ToIntPtrConstant, ==)
+CODE_ASSEMBLER_COMPARE(WordNotEqual, WordT, intptr_t, ToIntPtrConstant, !=)
+CODE_ASSEMBLER_COMPARE(Word32Equal, Word32T, int32_t, ToInt32Constant, ==)
+CODE_ASSEMBLER_COMPARE(Word32NotEqual, Word32T, int32_t, ToInt32Constant, !=)
+CODE_ASSEMBLER_COMPARE(Word64Equal, Word64T, int64_t, ToInt64Constant, ==)
+CODE_ASSEMBLER_COMPARE(Word64NotEqual, Word64T, int64_t, ToInt64Constant, !=)
+#undef CODE_ASSEMBLER_COMPARE
+
 TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(SloppyTNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
     return UncheckedCast<UintPtrT>(
@@ -975,6 +962,9 @@ TNode<Object> CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
     }
   }
 
+  // TODO(jgruber): In theory we could generate better code for this by
+  // letting the macro assembler decide how to load from the roots list. In most
+  // cases, it would boil down to loading from a fixed kRootRegister offset.
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), roots_array_start,
@@ -1074,99 +1064,107 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   Bind(&success);
 }
 
-template <class... TArgs>
-TNode<Object> CodeAssembler::CallRuntimeImpl(Runtime::FunctionId function,
-                                             SloppyTNode<Object> context,
-                                             TArgs... args) {
-  int argc = static_cast<int>(sizeof...(args));
+namespace {
+template <size_t kMaxSize>
+class NodeArray {
+ public:
+  void Add(Node* node) {
+    DCHECK_GT(kMaxSize, size());
+    *ptr_++ = node;
+  }
+
+  Node* const* data() const { return arr_; }
+  int size() const { return static_cast<int>(ptr_ - arr_); }
+
+ private:
+  Node* arr_[kMaxSize];
+  Node** ptr_ = arr_;
+};
+}  // namespace
+
+TNode<Object> CodeAssembler::CallRuntimeImpl(
+    Runtime::FunctionId function, TNode<Object> context,
+    std::initializer_list<TNode<Object>> args) {
+  int result_size = Runtime::FunctionForId(function)->result_size;
+  TNode<Code> centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
+  return CallRuntimeWithCEntryImpl(function, centry, context, args);
+}
+
+TNode<Object> CodeAssembler::CallRuntimeWithCEntryImpl(
+    Runtime::FunctionId function, TNode<Code> centry, TNode<Object> context,
+    std::initializer_list<TNode<Object>> args) {
+  constexpr size_t kMaxNumArgs = 6;
+  DCHECK_GE(kMaxNumArgs, args.size());
+  int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
-  int return_count = static_cast<int>(call_descriptor->ReturnCount());
 
-  Node* centry =
-      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
-  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
+  Node* ref = ExternalConstant(ExternalReference::Create(function));
   Node* arity = Int32Constant(argc);
 
-  Node* nodes[] = {centry, args..., ref, arity, context};
+  NodeArray<kMaxNumArgs + 4> inputs;
+  inputs.Add(centry);
+  for (auto arg : args) inputs.Add(arg);
+  inputs.Add(ref);
+  inputs.Add(arity);
+  inputs.Add(context);
 
   CallPrologue();
   Node* return_value =
-      raw_assembler()->CallN(call_descriptor, arraysize(nodes), nodes);
+      raw_assembler()->CallN(call_descriptor, inputs.size(), inputs.data());
   CallEpilogue();
   return UncheckedCast<Object>(return_value);
 }
 
-// Instantiate CallRuntime() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                                   \
-  template V8_EXPORT_PRIVATE TNode<Object> CodeAssembler::CallRuntimeImpl( \
-      Runtime::FunctionId, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
-#undef INSTANTIATE
+void CodeAssembler::TailCallRuntimeImpl(
+    Runtime::FunctionId function, TNode<Int32T> arity, TNode<Object> context,
+    std::initializer_list<TNode<Object>> args) {
+  int result_size = Runtime::FunctionForId(function)->result_size;
+  TNode<Code> centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
+  return TailCallRuntimeWithCEntryImpl(function, arity, centry, context, args);
+}
 
-template <class... TArgs>
-TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
-                                                 SloppyTNode<Object> context,
-                                                 TArgs... args) {
-  int argc = static_cast<int>(sizeof...(args));
+void CodeAssembler::TailCallRuntimeWithCEntryImpl(
+    Runtime::FunctionId function, TNode<Int32T> arity, TNode<Code> centry,
+    TNode<Object> context, std::initializer_list<TNode<Object>> args) {
+  constexpr size_t kMaxNumArgs = 6;
+  DCHECK_GE(kMaxNumArgs, args.size());
+  int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
-  int return_count = static_cast<int>(call_descriptor->ReturnCount());
 
-  Node* centry =
-      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
-  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
-  Node* arity = Int32Constant(argc);
+  Node* ref = ExternalConstant(ExternalReference::Create(function));
 
-  Node* nodes[] = {centry, args..., ref, arity, context};
+  NodeArray<kMaxNumArgs + 4> inputs;
+  inputs.Add(centry);
+  for (auto arg : args) inputs.Add(arg);
+  inputs.Add(ref);
+  inputs.Add(arity);
+  inputs.Add(context);
 
-  return UncheckedCast<Object>(
-      raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes));
+  raw_assembler()->TailCallN(call_descriptor, inputs.size(), inputs.data());
 }
-
-// Instantiate TailCallRuntime() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                                       \
-  template V8_EXPORT_PRIVATE TNode<Object> CodeAssembler::TailCallRuntimeImpl( \
-      Runtime::FunctionId, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
-#undef INSTANTIATE
-
-template <class... TArgs>
-Node* CodeAssembler::CallStubR(const CallInterfaceDescriptor& descriptor,
-                               size_t result_size, Node* target, Node* context,
-                               TArgs... args) {
-  Node* nodes[] = {target, args..., context};
-  int input_count = arraysize(nodes);
-  if (context == nullptr) --input_count;
-  return CallStubN(descriptor, result_size, input_count, nodes,
-                   context != nullptr);
-}
-
-// Instantiate CallStubR() for argument counts used by CSA-generated code.
-#define INSTANTIATE(...)                                     \
-  template V8_EXPORT_PRIVATE Node* CodeAssembler::CallStubR( \
-      const CallInterfaceDescriptor& descriptor, size_t, Node*, __VA_ARGS__);
-REPEAT_1_TO_11(INSTANTIATE, Node*)
-#undef INSTANTIATE
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
                                size_t result_size, int input_count,
-                               Node* const* inputs, bool pass_context) {
+                               Node* const* inputs) {
   // implicit nodes are target and optionally context.
-  int implicit_nodes = pass_context ? 2 : 1;
+  int implicit_nodes = descriptor.HasContextParameter() ? 2 : 1;
   DCHECK_LE(implicit_nodes, input_count);
   int argc = input_count - implicit_nodes;
   DCHECK_LE(descriptor.GetParameterCount(), argc);
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
+  DCHECK_EQ(result_size, descriptor.GetReturnCount());
+
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, stack_parameter_count,
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size,
-      pass_context ? Linkage::kPassContext : Linkage::kNoContext);
+      zone(), descriptor, stack_parameter_count, CallDescriptor::kNoFlags,
+      Operator::kNoProperties);
 
   CallPrologue();
   Node* return_value =
@@ -1175,62 +1173,73 @@ Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
   return return_value;
 }
 
-template <class... TArgs>
-Node* CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
-                                      Node* target, Node* context,
-                                      TArgs... args) {
-  DCHECK_EQ(descriptor.GetParameterCount(), sizeof...(args));
-  size_t result_size = 1;
+void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
+                                     TNode<Code> target, TNode<Object> context,
+                                     std::initializer_list<Node*> args) {
+  constexpr size_t kMaxNumArgs = 11;
+  DCHECK_GE(kMaxNumArgs, args.size());
+  DCHECK_EQ(descriptor.GetParameterCount(), args.size());
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
+      zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties);
 
-  Node* nodes[] = {target, args..., context};
-  CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));
-  return raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
+  NodeArray<kMaxNumArgs + 2> inputs;
+  inputs.Add(target);
+  for (auto arg : args) inputs.Add(arg);
+  if (descriptor.HasContextParameter()) {
+    inputs.Add(context);
+  }
+
+  raw_assembler()->TailCallN(call_descriptor, inputs.size(), inputs.data());
 }
 
-// Instantiate TailCallStub() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                            \
-  template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallStubImpl( \
-      const CallInterfaceDescriptor& descriptor, Node*, __VA_ARGS__);
-REPEAT_1_TO_12(INSTANTIATE, Node*)
-#undef INSTANTIATE
+Node* CodeAssembler::CallStubRImpl(const CallInterfaceDescriptor& descriptor,
+                                   size_t result_size, SloppyTNode<Code> target,
+                                   SloppyTNode<Object> context,
+                                   std::initializer_list<Node*> args) {
+  constexpr size_t kMaxNumArgs = 10;
+  DCHECK_GE(kMaxNumArgs, args.size());
 
-template <class... TArgs>
-Node* CodeAssembler::TailCallStubThenBytecodeDispatch(
+  NodeArray<kMaxNumArgs + 2> inputs;
+  inputs.Add(target);
+  for (auto arg : args) inputs.Add(arg);
+  if (descriptor.HasContextParameter()) {
+    inputs.Add(context);
+  }
+
+  return CallStubN(descriptor, result_size, inputs.size(), inputs.data());
+}
+
+Node* CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
     const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
-    TArgs... args) {
-  DCHECK_LE(descriptor.GetParameterCount(), sizeof...(args));
+    std::initializer_list<Node*> args) {
+  constexpr size_t kMaxNumArgs = 6;
+  DCHECK_GE(kMaxNumArgs, args.size());
+
+  DCHECK_LE(descriptor.GetParameterCount(), args.size());
+  int argc = static_cast<int>(args.size());
   // Extra arguments not mentioned in the descriptor are passed on the stack.
-  int stack_parameter_count =
-      sizeof...(args) - descriptor.GetRegisterParameterCount();
+  int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, stack_parameter_count,
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), 0);
+      zone(), descriptor, stack_parameter_count, CallDescriptor::kNoFlags,
+      Operator::kNoProperties);
 
-  Node* nodes[] = {target, args..., context};
-  return raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
+  NodeArray<kMaxNumArgs + 2> inputs;
+  inputs.Add(target);
+  for (auto arg : args) inputs.Add(arg);
+  inputs.Add(context);
+
+  return raw_assembler()->TailCallN(call_descriptor, inputs.size(),
+                                    inputs.data());
 }
-
-// Instantiate TailCallJSAndBytecodeDispatch() for argument counts used by
-// CSA-generated code
-#define INSTANTIATE(...)                           \
-  template V8_EXPORT_PRIVATE Node*                 \
-  CodeAssembler::TailCallStubThenBytecodeDispatch( \
-      const CallInterfaceDescriptor&, Node*, Node*, Node*, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, Node*)
-#undef INSTANTIATE
 
 template <class... TArgs>
 Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& descriptor, Node* target, TArgs... args) {
   DCHECK_EQ(descriptor.GetParameterCount(), sizeof...(args));
   auto call_descriptor = Linkage::GetBytecodeDispatchCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount());
+      zone(), descriptor, descriptor.GetStackParameterCount());
 
   Node* nodes[] = {target, args...};
   CHECK_EQ(descriptor.GetParameterCount() + 1, arraysize(nodes));
@@ -1242,6 +1251,22 @@ Node* CodeAssembler::TailCallBytecodeDispatch(
 template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
     Node*, Node*);
+
+TNode<Object> CodeAssembler::TailCallJSCode(TNode<Code> code,
+                                            TNode<Context> context,
+                                            TNode<JSFunction> function,
+                                            TNode<Object> new_target,
+                                            TNode<Int32T> arg_count) {
+  JSTrampolineDescriptor descriptor;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kFixedTargetRegister, Operator::kNoProperties);
+
+  Node* nodes[] = {code, function, new_target, arg_count, context};
+  CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));
+  return UncheckedCast<Object>(
+      raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes));
+}
 
 Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
                                     int input_count, Node* const* inputs) {
@@ -1353,10 +1378,62 @@ void CodeAssembler::GotoIfNot(SloppyTNode<IntegralT> condition,
 
 void CodeAssembler::Branch(SloppyTNode<IntegralT> condition, Label* true_label,
                            Label* false_label) {
+  int32_t constant;
+  if (ToInt32Constant(condition, constant)) {
+    if ((true_label->is_used() || true_label->is_bound()) &&
+        (false_label->is_used() || false_label->is_bound())) {
+      return Goto(constant ? true_label : false_label);
+    }
+  }
   true_label->MergeVariables();
   false_label->MergeVariables();
   return raw_assembler()->Branch(condition, true_label->label_,
                                  false_label->label_);
+}
+
+void CodeAssembler::Branch(TNode<BoolT> condition,
+                           std::function<void()> true_body,
+                           std::function<void()> false_body) {
+  int32_t constant;
+  if (ToInt32Constant(condition, constant)) {
+    return constant ? true_body() : false_body();
+  }
+
+  Label vtrue(this), vfalse(this);
+  Branch(condition, &vtrue, &vfalse);
+
+  Bind(&vtrue);
+  true_body();
+
+  Bind(&vfalse);
+  false_body();
+}
+
+void CodeAssembler::Branch(TNode<BoolT> condition, Label* true_label,
+                           std::function<void()> false_body) {
+  int32_t constant;
+  if (ToInt32Constant(condition, constant)) {
+    return constant ? Goto(true_label) : false_body();
+  }
+
+  Label vfalse(this);
+  Branch(condition, true_label, &vfalse);
+  Bind(&vfalse);
+  false_body();
+}
+
+void CodeAssembler::Branch(TNode<BoolT> condition,
+                           std::function<void()> true_body,
+                           Label* false_label) {
+  int32_t constant;
+  if (ToInt32Constant(condition, constant)) {
+    return constant ? true_body() : Goto(false_label);
+  }
+
+  Label vtrue(this);
+  Branch(condition, &vtrue, false_label);
+  Bind(&vtrue);
+  true_body();
 }
 
 void CodeAssembler::Switch(Node* index, Label* default_label,
@@ -1695,15 +1772,3 @@ Smi* CheckObjectType(Object* value, Smi* type, String* location) {
 
 }  // namespace internal
 }  // namespace v8
-
-#undef REPEAT_1_TO_2
-#undef REPEAT_1_TO_3
-#undef REPEAT_1_TO_4
-#undef REPEAT_1_TO_5
-#undef REPEAT_1_TO_6
-#undef REPEAT_1_TO_7
-#undef REPEAT_1_TO_8
-#undef REPEAT_1_TO_9
-#undef REPEAT_1_TO_10
-#undef REPEAT_1_TO_11
-#undef REPEAT_1_TO_12

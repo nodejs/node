@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var merge_1 = require('../../observable/merge');
-Observable_1.Observable.merge = merge_1.merge;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/observable/merge");
 //# sourceMappingURL=merge.js.map

@@ -109,7 +109,7 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
       p1 = *j;
       p2 = *j - 5;
       CHECK_EQ(magic, m.Call());
-      CheckDoubleEq(p1, p2);
+      CHECK_DOUBLE_EQ(p1, p2);
     }
   }
 }
@@ -145,7 +145,7 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
       p1 = *j;
       p2 = *j - 5;
       CHECK_EQ(magic, m.Call());
-      CheckDoubleEq(p1, p2);
+      CHECK_DOUBLE_EQ(p1, p2);
     }
   }
 }

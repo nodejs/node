@@ -6,8 +6,11 @@
 #include <iostream>
 #include <limits>
 
+#include "src/api-inl.h"
+#include "src/compiler.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/objects/hash-table-inl.h"
 #include "test/unittests/test-utils.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -104,49 +107,67 @@ TEST_F(ObjectWithIsolate, DictionaryGrowth) {
   uint32_t i = 1;
   // 3 elements fit into the initial capacity.
   for (; i <= 3; i++) {
-    dict = NumberDictionary::Add(dict, i, value, details);
+    dict = NumberDictionary::Add(isolate(), dict, i, value, details);
     CHECK_EQ(4, dict->Capacity());
   }
   // 4th element triggers growth.
   DCHECK_EQ(4, i);
   for (; i <= 5; i++) {
-    dict = NumberDictionary::Add(dict, i, value, details);
+    dict = NumberDictionary::Add(isolate(), dict, i, value, details);
     CHECK_EQ(8, dict->Capacity());
   }
   // 6th element triggers growth.
   DCHECK_EQ(6, i);
   for (; i <= 11; i++) {
-    dict = NumberDictionary::Add(dict, i, value, details);
+    dict = NumberDictionary::Add(isolate(), dict, i, value, details);
     CHECK_EQ(16, dict->Capacity());
   }
   // 12th element triggers growth.
   DCHECK_EQ(12, i);
   for (; i <= 21; i++) {
-    dict = NumberDictionary::Add(dict, i, value, details);
+    dict = NumberDictionary::Add(isolate(), dict, i, value, details);
     CHECK_EQ(32, dict->Capacity());
   }
   // 22nd element triggers growth.
   DCHECK_EQ(22, i);
   for (; i <= 43; i++) {
-    dict = NumberDictionary::Add(dict, i, value, details);
+    dict = NumberDictionary::Add(isolate(), dict, i, value, details);
     CHECK_EQ(64, dict->Capacity());
   }
   // 44th element triggers growth.
   DCHECK_EQ(44, i);
   for (; i <= 50; i++) {
-    dict = NumberDictionary::Add(dict, i, value, details);
+    dict = NumberDictionary::Add(isolate(), dict, i, value, details);
     CHECK_EQ(128, dict->Capacity());
   }
 
   // If we grow by larger chunks, the next (sufficiently big) power of 2 is
   // chosen as the capacity.
   dict = NumberDictionary::New(isolate(), 1);
-  dict = NumberDictionary::EnsureCapacity(dict, 65);
+  dict = NumberDictionary::EnsureCapacity(isolate(), dict, 65);
   CHECK_EQ(128, dict->Capacity());
 
   dict = NumberDictionary::New(isolate(), 1);
-  dict = NumberDictionary::EnsureCapacity(dict, 30);
+  dict = NumberDictionary::EnsureCapacity(isolate(), dict, 30);
   CHECK_EQ(64, dict->Capacity());
+}
+
+TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
+  // Check that the empty_function has a properly set up ScopeInfo.
+  Handle<JSFunction> function = RunJS<JSFunction>("(function(){})");
+
+  Handle<ScopeInfo> scope_info(function->shared()->scope_info(),
+                               function->GetIsolate());
+  Handle<ScopeInfo> empty_function_scope_info(
+      isolate()->empty_function()->shared()->scope_info(),
+      function->GetIsolate());
+
+  EXPECT_EQ(scope_info->length(), empty_function_scope_info->length());
+  EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
+  EXPECT_EQ(scope_info->ParameterCount(),
+            empty_function_scope_info->ParameterCount());
+  EXPECT_EQ(scope_info->ContextLocalCount(),
+            empty_function_scope_info->ContextLocalCount());
 }
 
 }  // namespace internal

@@ -1,12 +1,13 @@
 'use strict';
 
 const common = require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
 
-common.ArrayStream.prototype.write = () => {};
+ArrayStream.prototype.write = () => {};
 
-const putIn = new common.ArrayStream();
+const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
 
 // https://github.com/nodejs/node/issues/3346

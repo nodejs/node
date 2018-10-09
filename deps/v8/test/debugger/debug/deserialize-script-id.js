@@ -8,10 +8,8 @@
 var Debug = debug.Debug;
 Debug.setListener(function(){});
 
-var scripts = %DebugGetLoadedScripts();
-scripts.sort(function(a, b) { return a.id - b.id; });
-scripts.reduce(function(prev, cur) {
-  assertTrue(prev === undefined || prev.id != cur.id);
-});
+var ids = %DebugGetLoadedScriptIds();
+ids.sort((a, b) => a - b);
+ids.reduce((prev, cur) => assertTrue(prev === undefined || prev != cur));
 
 Debug.setListener(null);

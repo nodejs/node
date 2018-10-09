@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var mapTo_1 = require('../../operator/mapTo');
-Observable_1.Observable.prototype.mapTo = mapTo_1.mapTo;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/operator/mapTo");
 //# sourceMappingURL=mapTo.js.map

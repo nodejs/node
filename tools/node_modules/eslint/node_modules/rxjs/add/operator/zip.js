@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var zip_1 = require('../../operator/zip');
-Observable_1.Observable.prototype.zip = zip_1.zipProto;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/operator/zip");
 //# sourceMappingURL=zip.js.map

@@ -3,13 +3,14 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
 #include <cstdlib>
 #include "number_scientific.h"
 #include "number_utils.h"
 #include "number_stringbuilder.h"
 #include "unicode/unum.h"
+#include "number_microprops.h"
 
 using namespace icu;
 using namespace icu::number;
@@ -64,8 +65,13 @@ int32_t ScientificModifier::apply(NumberStringBuilder &output, int32_t /*leftInd
     int32_t disp = std::abs(fExponent);
     for (int j = 0; j < fHandler->fSettings.fMinExponentDigits || disp > 0; j++, disp /= 10) {
         auto d = static_cast<int8_t>(disp % 10);
-        const UnicodeString &digitString = getDigitFromSymbols(d, *fHandler->fSymbols);
-        i += output.insert(i - j, digitString, UNUM_EXPONENT_FIELD, status);
+        i += utils::insertDigitFromSymbols(
+                output,
+                i - j,
+                d,
+                *fHandler->fSymbols,
+                UNUM_EXPONENT_FIELD,
+                status);
     }
     return i - rightIndex;
 }
@@ -101,22 +107,25 @@ void ScientificHandler::processQuantity(DecimalQuantity &quantity, MicroProps &m
     // Treat zero as if it had magnitude 0
     int32_t exponent;
     if (quantity.isZero()) {
-        if (fSettings.fRequireMinInt && micros.rounding.fType == Rounder::RND_SIGNIFICANT) {
+        if (fSettings.fRequireMinInt && micros.rounder.isSignificantDigits()) {
             // Show "00.000E0" on pattern "00.000E0"
-            micros.rounding.apply(quantity, fSettings.fEngineeringInterval, status);
+            micros.rounder.apply(quantity, fSettings.fEngineeringInterval, status);
             exponent = 0;
         } else {
-            micros.rounding.apply(quantity, status);
+            micros.rounder.apply(quantity, status);
             exponent = 0;
         }
     } else {
-        exponent = -micros.rounding.chooseMultiplierAndApply(quantity, *this, status);
+        exponent = -micros.rounder.chooseMultiplierAndApply(quantity, *this, status);
     }
 
     // Use MicroProps's helper ScientificModifier and save it as the modInner.
     ScientificModifier &mod = micros.helpers.scientificModifier;
     mod.set(exponent, this);
     micros.modInner = &mod;
+
+    // We already performed rounding. Do not perform it again.
+    micros.rounder = RoundingImpl::passThrough();
 }
 
 int32_t ScientificHandler::getMultiplier(int32_t magnitude) const {

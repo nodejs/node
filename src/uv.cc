@@ -43,7 +43,8 @@ using v8::Value;
 // lib/util.getSystemErrorName()
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  int err = args[0]->Int32Value();
+  int err;
+  if (!args[0]->Int32Value(env->context()).To(&err)) return;
   CHECK_LT(err, 0);
   const char* name = uv_err_name(err);
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
@@ -56,7 +57,9 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "errname"),
-              env->NewFunctionTemplate(ErrName)->GetFunction());
+              env->NewFunctionTemplate(ErrName)
+                  ->GetFunction(env->context())
+                  .ToLocalChecked());
 
 #define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
   UV_ERRNO_MAP(V)
@@ -82,4 +85,4 @@ void Initialize(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(uv, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::Initialize)

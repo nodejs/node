@@ -59,9 +59,15 @@ let tmpdirName = '.tmp';
 if (process.env.TEST_THREAD_ID) {
   tmpdirName += `.${process.env.TEST_THREAD_ID}`;
 }
-exports.path = path.join(testRoot, tmpdirName);
 
-exports.refresh = () => {
-  rimrafSync(exports.path);
-  fs.mkdirSync(exports.path);
+const tmpPath = path.join(testRoot, tmpdirName);
+
+function refresh() {
+  rimrafSync(this.path);
+  fs.mkdirSync(this.path);
+}
+
+module.exports = {
+  path: tmpPath,
+  refresh
 };

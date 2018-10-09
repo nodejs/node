@@ -40,6 +40,7 @@
 #include <map>
 
 #include "src/allocation.h"
+#include "src/code-reference.h"
 #include "src/contexts.h"
 #include "src/deoptimize-reason.h"
 #include "src/double.h"
@@ -50,6 +51,7 @@
 #include "src/objects.h"
 #include "src/register-configuration.h"
 #include "src/reglist.h"
+#include "src/reloc-info.h"
 
 namespace v8 {
 
@@ -59,6 +61,7 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
+class EmbeddedData;
 class InstructionStream;
 class Isolate;
 class SCTableReference;
@@ -77,12 +80,57 @@ class JumpOptimizationInfo {
   bool is_optimizable() const { return optimizable_; }
   void set_optimizable() { optimizable_ = true; }
 
+  // Used to verify the instruction sequence is always the same in two stages.
+  size_t hash_code() const { return hash_code_; }
+  void set_hash_code(size_t hash_code) { hash_code_ = hash_code; }
+
   std::vector<uint32_t>& farjmp_bitmap() { return farjmp_bitmap_; }
 
  private:
   enum { kCollection, kOptimization } stage_ = kCollection;
   bool optimizable_ = false;
   std::vector<uint32_t> farjmp_bitmap_;
+  size_t hash_code_ = 0u;
+};
+
+class HeapObjectRequest {
+ public:
+  explicit HeapObjectRequest(double heap_number, int offset = -1);
+  explicit HeapObjectRequest(CodeStub* code_stub, int offset = -1);
+
+  enum Kind { kHeapNumber, kCodeStub };
+  Kind kind() const { return kind_; }
+
+  double heap_number() const {
+    DCHECK_EQ(kind(), kHeapNumber);
+    return value_.heap_number;
+  }
+
+  CodeStub* code_stub() const {
+    DCHECK_EQ(kind(), kCodeStub);
+    return value_.code_stub;
+  }
+
+  // The code buffer offset at the time of the request.
+  int offset() const {
+    DCHECK_GE(offset_, 0);
+    return offset_;
+  }
+  void set_offset(int offset) {
+    DCHECK_LT(offset_, 0);
+    offset_ = offset;
+    DCHECK_GE(offset_, 0);
+  }
+
+ private:
+  Kind kind_;
+
+  union {
+    double heap_number;
+    CodeStub* code_stub;
+  } value_;
+
+  int offset_;
 };
 
 // -----------------------------------------------------------------------------
@@ -90,26 +138,46 @@ class JumpOptimizationInfo {
 
 enum class CodeObjectRequired { kNo, kYes };
 
+struct V8_EXPORT_PRIVATE AssemblerOptions {
+  // Recording reloc info for external references and off-heap targets is
+  // needed whenever code is serialized, e.g. into the snapshot or as a WASM
+  // module. This flag allows this reloc info to be disabled for code that
+  // will not survive process destruction.
+  bool record_reloc_info_for_serialization = true;
+  // Recording reloc info can be disabled wholesale. This is needed when the
+  // assembler is used on existing code directly (e.g. JumpTableAssembler)
+  // without any buffer to hold reloc information.
+  bool disable_reloc_info_for_patching = false;
+  // Enables access to exrefs by computing a delta from the root array.
+  // Only valid if code will not survive the process.
+  bool enable_root_array_delta_access = false;
+  // Enables specific assembler sequences only used for the simulator.
+  bool enable_simulator_code = false;
+  // Enables use of isolate-independent constants, indirected through the
+  // root array.
+  // (macro assembler feature).
+  bool isolate_independent_code = false;
+  // Enables the use of isolate-independent builtins through an off-heap
+  // trampoline. (macro assembler feature).
+  bool inline_offheap_trampolines = false;
+  // On some platforms, all code is within a given range in the process,
+  // and the start of this range is configured here.
+  Address code_range_start = 0;
+  // Enable pc-relative calls/jumps on platforms that support it. When setting
+  // this flag, the code range must be small enough to fit all offsets into
+  // the instruction immediates.
+  bool use_pc_relative_calls_and_jumps = false;
 
-class AssemblerBase: public Malloced {
+  static AssemblerOptions Default(
+      Isolate* isolate, bool explicitly_support_serialization = false);
+};
+
+class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
  public:
-  struct IsolateData {
-    explicit IsolateData(Isolate* isolate);
-    IsolateData(const IsolateData&) = default;
-
-    bool serializer_enabled_;
-#if V8_TARGET_ARCH_X64
-    Address code_range_start_;
-#endif
-  };
-
-  AssemblerBase(IsolateData isolate_data, void* buffer, int buffer_size);
+  AssemblerBase(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~AssemblerBase();
 
-  IsolateData isolate_data() const { return isolate_data_; }
-
-  bool serializer_enabled() const { return isolate_data_.serializer_enabled_; }
-  void enable_serializer() { isolate_data_.serializer_enabled_ = true; }
+  const AssemblerOptions& options() const { return options_; }
 
   bool emit_debug_code() const { return emit_debug_code_; }
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
@@ -162,13 +230,34 @@ class AssemblerBase: public Malloced {
   static const int kMinimalBufferSize = 4*KB;
 
   static void FlushICache(void* start, size_t size);
+  static void FlushICache(Address start, size_t size) {
+    return FlushICache(reinterpret_cast<void*>(start), size);
+  }
+
+  // Used to print the name of some special registers.
+  static const char* GetSpecialRegisterName(int code) { return "UNKNOWN"; }
 
  protected:
+  // Add 'target' to the {code_targets_} vector, if necessary, and return the
+  // offset at which it is stored.
+  int AddCodeTarget(Handle<Code> target);
+  Handle<Code> GetCodeTarget(intptr_t code_target_index) const;
+  // Update to the code target at {code_target_index} to {target}.
+  void UpdateCodeTarget(intptr_t code_target_index, Handle<Code> target);
+  // Reserves space in the code target vector.
+  void ReserveCodeTargetSpace(size_t num_of_code_targets) {
+    code_targets_.reserve(num_of_code_targets);
+  }
+
   // The buffer into which code and relocation info are generated. It could
   // either be owned by the assembler or be provided externally.
   byte* buffer_;
   int buffer_size_;
   bool own_buffer_;
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
+  // The program counter, which points into the buffer above and moves forward.
+  // TODO(jkummerow): This should probably have type {Address}.
+  byte* pc_;
 
   void set_constant_pool_available(bool available) {
     if (FLAG_enable_embedded_constant_pool) {
@@ -179,11 +268,23 @@ class AssemblerBase: public Malloced {
     }
   }
 
-  // The program counter, which points into the buffer above and moves forward.
-  byte* pc_;
+  // {RequestHeapObject} records the need for a future heap number allocation or
+  // code stub generation. After code assembly, each platform's
+  // {Assembler::AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request).
+  void RequestHeapObject(HeapObjectRequest request);
 
  private:
-  IsolateData isolate_data_;
+  // Before we copy code into the code space, we sometimes cannot encode
+  // call/jump code targets as we normally would, as the difference between the
+  // instruction's location in the temporary buffer and the call target is not
+  // guaranteed to fit in the instruction's offset field. We keep track of the
+  // code handles we encounter in calls in this vector, and encode the index of
+  // the code handle in the vector instead.
+  std::vector<Handle<Code>> code_targets_;
+
+  const AssemblerOptions options_;
   uint64_t enabled_cpu_features_;
   bool emit_debug_code_;
   bool predictable_code_size_;
@@ -313,422 +414,6 @@ class CpuFeatures : public AllStatic {
   static unsigned dcache_line_size_;
   static bool initialized_;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
-};
-
-
-enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
-
-enum ArgvMode { kArgvOnStack, kArgvInRegister };
-
-// Specifies whether to perform icache flush operations on RelocInfo updates.
-// If FLUSH_ICACHE_IF_NEEDED, the icache will always be flushed if an
-// instruction was modified. If SKIP_ICACHE_FLUSH the flush will always be
-// skipped (only use this if you will flush the icache manually before it is
-// executed).
-enum ICacheFlushMode { FLUSH_ICACHE_IF_NEEDED, SKIP_ICACHE_FLUSH };
-
-// -----------------------------------------------------------------------------
-// Relocation information
-
-
-// Relocation information consists of the address (pc) of the datum
-// to which the relocation information applies, the relocation mode
-// (rmode), and an optional data field. The relocation mode may be
-// "descriptive" and not indicate a need for relocation, but simply
-// describe a property of the datum. Such rmodes are useful for GC
-// and nice disassembly output.
-
-class RelocInfo {
- public:
-  enum Flag : uint8_t {
-    kNoFlags = 0,
-    kInNativeWasmCode = 1u << 0,  // Reloc info belongs to native wasm code.
-  };
-  typedef base::Flags<Flag> Flags;
-
-  // This string is used to add padding comments to the reloc info in cases
-  // where we are not sure to have enough space for patching in during
-  // lazy deoptimization. This is the case if we have indirect calls for which
-  // we do not normally record relocation info.
-  static const char* const kFillerCommentString;
-
-  // The minimum size of a comment is equal to two bytes for the extra tagged
-  // pc and kPointerSize for the actual pointer to the comment.
-  static const int kMinRelocCommentSize = 2 + kPointerSize;
-
-  // The maximum size for a call instruction including pc-jump.
-  static const int kMaxCallSize = 6;
-
-  // The maximum pc delta that will use the short encoding.
-  static const int kMaxSmallPCDelta;
-
-  enum Mode : int8_t {
-    // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
-    CODE_TARGET,
-    EMBEDDED_OBJECT,
-    WASM_GLOBAL_HANDLE,
-    WASM_CALL,
-    JS_TO_WASM_CALL,
-
-    RUNTIME_ENTRY,
-    COMMENT,
-
-    EXTERNAL_REFERENCE,  // The address of an external C++ function.
-    INTERNAL_REFERENCE,  // An address inside the same function.
-
-    // Encoded internal reference, used only on MIPS, MIPS64 and PPC.
-    INTERNAL_REFERENCE_ENCODED,
-
-    // An off-heap instruction stream target. See http://goo.gl/Z2HUiM.
-    OFF_HEAP_TARGET,
-
-    // Marks constant and veneer pools. Only used on ARM and ARM64.
-    // They use a custom noncompact encoding.
-    CONST_POOL,
-    VENEER_POOL,
-
-    DEOPT_SCRIPT_OFFSET,
-    DEOPT_INLINING_ID,  // Deoptimization source position.
-    DEOPT_REASON,       // Deoptimization reason index.
-    DEOPT_ID,           // Deoptimization inlining id.
-
-    // This is not an actual reloc mode, but used to encode a long pc jump that
-    // cannot be encoded as part of another record.
-    PC_JUMP,
-
-    // Points to a wasm code table entry.
-    WASM_CODE_TABLE_ENTRY,
-
-    // Pseudo-types
-    NUMBER_OF_MODES,
-    NONE,  // never recorded value
-
-    FIRST_REAL_RELOC_MODE = CODE_TARGET,
-    LAST_REAL_RELOC_MODE = VENEER_POOL,
-    LAST_CODE_ENUM = CODE_TARGET,
-    LAST_GCED_ENUM = EMBEDDED_OBJECT,
-    FIRST_SHAREABLE_RELOC_MODE = RUNTIME_ENTRY,
-  };
-
-  STATIC_ASSERT(NUMBER_OF_MODES <= kBitsPerInt);
-
-  RelocInfo() = default;
-
-  RelocInfo(byte* pc, Mode rmode, intptr_t data, Code* host)
-      : pc_(pc), rmode_(rmode), data_(data), host_(host) {}
-
-  static inline bool IsRealRelocMode(Mode mode) {
-    return mode >= FIRST_REAL_RELOC_MODE && mode <= LAST_REAL_RELOC_MODE;
-  }
-  static inline bool IsCodeTarget(Mode mode) {
-    return mode <= LAST_CODE_ENUM;
-  }
-  static inline bool IsEmbeddedObject(Mode mode) {
-    return mode == EMBEDDED_OBJECT;
-  }
-  static inline bool IsRuntimeEntry(Mode mode) {
-    return mode == RUNTIME_ENTRY;
-  }
-  static inline bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
-  // Is the relocation mode affected by GC?
-  static inline bool IsGCRelocMode(Mode mode) {
-    return mode <= LAST_GCED_ENUM;
-  }
-  static inline bool IsComment(Mode mode) {
-    return mode == COMMENT;
-  }
-  static inline bool IsConstPool(Mode mode) {
-    return mode == CONST_POOL;
-  }
-  static inline bool IsVeneerPool(Mode mode) {
-    return mode == VENEER_POOL;
-  }
-  static inline bool IsDeoptPosition(Mode mode) {
-    return mode == DEOPT_SCRIPT_OFFSET || mode == DEOPT_INLINING_ID;
-  }
-  static inline bool IsDeoptReason(Mode mode) {
-    return mode == DEOPT_REASON;
-  }
-  static inline bool IsDeoptId(Mode mode) {
-    return mode == DEOPT_ID;
-  }
-  static inline bool IsExternalReference(Mode mode) {
-    return mode == EXTERNAL_REFERENCE;
-  }
-  static inline bool IsInternalReference(Mode mode) {
-    return mode == INTERNAL_REFERENCE;
-  }
-  static inline bool IsInternalReferenceEncoded(Mode mode) {
-    return mode == INTERNAL_REFERENCE_ENCODED;
-  }
-  static inline bool IsOffHeapTarget(Mode mode) {
-    return mode == OFF_HEAP_TARGET;
-  }
-  static inline bool IsNone(Mode mode) { return mode == NONE; }
-  static inline bool IsWasmReference(Mode mode) {
-    return IsWasmPtrReference(mode);
-  }
-  static inline bool IsWasmPtrReference(Mode mode) {
-    return mode == WASM_GLOBAL_HANDLE || mode == WASM_CALL ||
-           mode == JS_TO_WASM_CALL;
-  }
-
-  static constexpr int ModeMask(Mode mode) { return 1 << mode; }
-
-  // Accessors
-  byte* pc() const { return pc_; }
-  void set_pc(byte* pc) { pc_ = pc; }
-  Mode rmode() const {  return rmode_; }
-  intptr_t data() const { return data_; }
-  Code* host() const { return host_; }
-  Address constant_pool() const { return constant_pool_; }
-  void set_constant_pool(Address constant_pool) {
-    constant_pool_ = constant_pool;
-  }
-
-  // Apply a relocation by delta bytes. When the code object is moved, PC
-  // relative addresses have to be updated as well as absolute addresses
-  // inside the code (internal references).
-  // Do not forget to flush the icache afterwards!
-  INLINE(void apply(intptr_t delta));
-
-  // Is the pointer this relocation info refers to coded like a plain pointer
-  // or is it strange in some way (e.g. relative or patched into a series of
-  // instructions).
-  bool IsCodedSpecially();
-
-  // The static pendant to IsCodedSpecially, just for off-heap targets. Used
-  // during deserialization, when we don't actually have a RelocInfo handy.
-  static bool OffHeapTargetIsCodedSpecially();
-
-  // If true, the pointer this relocation info refers to is an entry in the
-  // constant pool, otherwise the pointer is embedded in the instruction stream.
-  bool IsInConstantPool();
-
-  Address global_handle() const;
-  Address js_to_wasm_address() const;
-  Address wasm_call_address() const;
-
-  void set_target_address(
-      Address target,
-      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-
-  void set_global_handle(Address address, ICacheFlushMode icache_flush_mode =
-                                              FLUSH_ICACHE_IF_NEEDED);
-  void set_wasm_call_address(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  void set_js_to_wasm_address(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-
-  // this relocation applies to;
-  // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
-  INLINE(Address target_address());
-  INLINE(HeapObject* target_object());
-  INLINE(Handle<HeapObject> target_object_handle(Assembler* origin));
-  INLINE(void set_target_object(
-      HeapObject* target,
-      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(Address target_runtime_entry(Assembler* origin));
-  INLINE(void set_target_runtime_entry(
-      Address target,
-      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(Address target_off_heap_target());
-  INLINE(Cell* target_cell());
-  INLINE(Handle<Cell> target_cell_handle());
-  INLINE(void set_target_cell(
-      Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(void set_wasm_code_table_entry(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(void set_target_external_reference(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-
-  // Returns the address of the constant pool entry where the target address
-  // is held.  This should only be called if IsInConstantPool returns true.
-  INLINE(Address constant_pool_entry_address());
-
-  // Read the address of the word containing the target_address in an
-  // instruction stream.  What this means exactly is architecture-independent.
-  // The only architecture-independent user of this function is the serializer.
-  // The serializer uses it to find out how many raw bytes of instruction to
-  // output before the next target.  Architecture-independent code shouldn't
-  // dereference the pointer it gets back from this.
-  INLINE(Address target_address_address());
-
-  // This indicates how much space a target takes up when deserializing a code
-  // stream.  For most architectures this is just the size of a pointer.  For
-  // an instruction like movw/movt where the target bits are mixed into the
-  // instruction bits the size of the target will be zero, indicating that the
-  // serializer should not step forwards in memory after a target is resolved
-  // and written.  In this case the target_address_address function above
-  // should return the end of the instructions to be patched, allowing the
-  // deserializer to deserialize the instructions as raw bytes and put them in
-  // place, ready to be patched with the target.
-  INLINE(int target_address_size());
-
-  // Read the reference in the instruction this relocation
-  // applies to; can only be called if rmode_ is EXTERNAL_REFERENCE.
-  INLINE(Address target_external_reference());
-
-  // Read the reference in the instruction this relocation
-  // applies to; can only be called if rmode_ is INTERNAL_REFERENCE.
-  INLINE(Address target_internal_reference());
-
-  // Return the reference address this relocation applies to;
-  // can only be called if rmode_ is INTERNAL_REFERENCE.
-  INLINE(Address target_internal_reference_address());
-
-  // Wipe out a relocation to a fixed value, used for making snapshots
-  // reproducible.
-  INLINE(void WipeOut());
-
-  template <typename ObjectVisitor>
-  inline void Visit(ObjectVisitor* v);
-
-#ifdef DEBUG
-  // Check whether the given code contains relocation information that
-  // either is position-relative or movable by the garbage collector.
-  static bool RequiresRelocation(const CodeDesc& desc);
-#endif
-
-#ifdef ENABLE_DISASSEMBLER
-  // Printing
-  static const char* RelocModeName(Mode rmode);
-  void Print(Isolate* isolate, std::ostream& os);  // NOLINT
-#endif  // ENABLE_DISASSEMBLER
-#ifdef VERIFY_HEAP
-  void Verify(Isolate* isolate);
-#endif
-
-  static const int kCodeTargetMask = (1 << (LAST_CODE_ENUM + 1)) - 1;
-  static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
-
- private:
-  void set_embedded_address(Address address, ICacheFlushMode flush_mode);
-  void set_embedded_size(uint32_t size, ICacheFlushMode flush_mode);
-
-  uint32_t embedded_size() const;
-  Address embedded_address() const;
-
-  // On ARM, note that pc_ is the address of the constant pool entry
-  // to be relocated and not the address of the instruction
-  // referencing the constant pool entry (except when rmode_ ==
-  // comment).
-  byte* pc_;
-  Mode rmode_;
-  intptr_t data_ = 0;
-  Code* host_;
-  Address constant_pool_ = nullptr;
-  Flags flags_;
-  friend class RelocIterator;
-};
-
-
-// RelocInfoWriter serializes a stream of relocation info. It writes towards
-// lower addresses.
-class RelocInfoWriter BASE_EMBEDDED {
- public:
-  RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
-
-  byte* pos() const { return pos_; }
-  byte* last_pc() const { return last_pc_; }
-
-  void Write(const RelocInfo* rinfo);
-
-  // Update the state of the stream after reloc info buffer
-  // and/or code is moved while the stream is active.
-  void Reposition(byte* pos, byte* pc) {
-    pos_ = pos;
-    last_pc_ = pc;
-  }
-
-  // Max size (bytes) of a written RelocInfo. Longest encoding is
-  // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, data_delta.
-  static constexpr int kMaxSize = 1 + 4 + 1 + 1 + kPointerSize;
-
- private:
-  inline uint32_t WriteLongPCJump(uint32_t pc_delta);
-
-  inline void WriteShortTaggedPC(uint32_t pc_delta, int tag);
-  inline void WriteShortData(intptr_t data_delta);
-
-  inline void WriteMode(RelocInfo::Mode rmode);
-  inline void WriteModeAndPC(uint32_t pc_delta, RelocInfo::Mode rmode);
-  inline void WriteIntData(int data_delta);
-  inline void WriteData(intptr_t data_delta);
-
-  byte* pos_;
-  byte* last_pc_;
-
-  DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
-};
-
-
-// A RelocIterator iterates over relocation information.
-// Typical use:
-//
-//   for (RelocIterator it(code); !it.done(); it.next()) {
-//     // do something with it.rinfo() here
-//   }
-//
-// A mask can be specified to skip unwanted modes.
-class RelocIterator: public Malloced {
- public:
-  // Create a new iterator positioned at
-  // the beginning of the reloc info.
-  // Relocation information with mode k is included in the
-  // iteration iff bit k of mode_mask is set.
-  explicit RelocIterator(Code* code, int mode_mask = -1);
-  explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
-  explicit RelocIterator(Vector<byte> instructions,
-                         Vector<const byte> reloc_info, Address const_pool,
-                         int mode_mask = -1);
-  RelocIterator(RelocIterator&&) = default;
-  RelocIterator& operator=(RelocIterator&&) = default;
-
-  // Iteration
-  bool done() const { return done_; }
-  void next();
-
-  // Return pointer valid until next next().
-  RelocInfo* rinfo() {
-    DCHECK(!done());
-    return &rinfo_;
-  }
-
- private:
-  // Advance* moves the position before/after reading.
-  // *Read* reads from current byte(s) into rinfo_.
-  // *Get* just reads and returns info on current byte.
-  void Advance(int bytes = 1) { pos_ -= bytes; }
-  int AdvanceGetTag();
-  RelocInfo::Mode GetMode();
-
-  void AdvanceReadLongPCJump();
-
-  void ReadShortTaggedPC();
-  void ReadShortData();
-
-  void AdvanceReadPC();
-  void AdvanceReadInt();
-  void AdvanceReadData();
-
-  // If the given mode is wanted, set it in rinfo_ and return true.
-  // Else return false. Used for efficiently skipping unwanted modes.
-  bool SetMode(RelocInfo::Mode mode) {
-    return (mode_mask_ & (1 << mode)) ? (rinfo_.rmode_ = mode, true) : false;
-  }
-
-  const byte* pos_;
-  const byte* end_;
-  RelocInfo rinfo_;
-  bool done_ = false;
-  const int mode_mask_;
-
-  DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 
 // -----------------------------------------------------------------------------
@@ -875,46 +560,6 @@ class ConstantPoolBuilder BASE_EMBEDDED {
   PerTypeEntryInfo info_[ConstantPoolEntry::NUMBER_OF_TYPES];
 };
 
-class HeapObjectRequest {
- public:
-  explicit HeapObjectRequest(double heap_number, int offset = -1);
-  explicit HeapObjectRequest(CodeStub* code_stub, int offset = -1);
-
-  enum Kind { kHeapNumber, kCodeStub };
-  Kind kind() const { return kind_; }
-
-  double heap_number() const {
-    DCHECK_EQ(kind(), kHeapNumber);
-    return value_.heap_number;
-  }
-
-  CodeStub* code_stub() const {
-    DCHECK_EQ(kind(), kCodeStub);
-    return value_.code_stub;
-  }
-
-  // The code buffer offset at the time of the request.
-  int offset() const {
-    DCHECK_GE(offset_, 0);
-    return offset_;
-  }
-  void set_offset(int offset) {
-    DCHECK_LT(offset_, 0);
-    offset_ = offset;
-    DCHECK_GE(offset_, 0);
-  }
-
- private:
-  Kind kind_;
-
-  union {
-    double heap_number;
-    CodeStub* code_stub;
-  } value_;
-
-  int offset_;
-};
-
 // Base type for CPU Registers.
 //
 // 1) We would prefer to use an enum for registers, but enum values are
@@ -958,8 +603,8 @@ class RegisterBase {
   }
 
   template <RegisterCode reg_code>
-  static constexpr int bit() {
-    return 1 << code<reg_code>();
+  static constexpr RegList bit() {
+    return RegList{1} << code<reg_code>();
   }
 
   static SubType from_code(int code) {
@@ -968,9 +613,16 @@ class RegisterBase {
     return SubType{code};
   }
 
+  // Constexpr version (pass registers as template parameters).
   template <RegisterCode... reg_codes>
   static constexpr RegList ListOf() {
     return CombineRegLists(RegisterBase::bit<reg_codes>()...);
+  }
+
+  // Non-constexpr version (pass registers as method parameters).
+  template <typename... Register>
+  static RegList ListOf(Register... regs) {
+    return CombineRegLists(regs.bit()...);
   }
 
   bool is_valid() const { return reg_code_ != kCode_no_reg; }
@@ -980,7 +632,7 @@ class RegisterBase {
     return reg_code_;
   }
 
-  int bit() const { return 1 << code(); }
+  RegList bit() const { return RegList{1} << code(); }
 
   inline constexpr bool operator==(SubType other) const {
     return reg_code_ == other.reg_code_;

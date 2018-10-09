@@ -14,6 +14,7 @@
 #include "src/macro-assembler.h"
 #include "src/safepoint-table.h"
 #include "src/source-position-table.h"
+#include "src/trap-handler/trap-handler.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +28,6 @@ class DeoptimizationExit;
 class FrameAccessState;
 class Linkage;
 class OutOfLineCode;
-class WasmCompilationData;
 
 struct BranchInfo {
   FlagsCondition condition;
@@ -74,12 +74,6 @@ class DeoptimizationLiteral {
   double number_;
 };
 
-enum class CodeGeneratorPoisoningLevel {
-  kDontPoison,
-  kPoisonStackPointerInPrologue,
-  kPoisonAll
-};
-
 // Generates native code for a sequence of instructions.
 class CodeGenerator final : public GapResolver::Assembler {
  public:
@@ -89,16 +83,19 @@ class CodeGenerator final : public GapResolver::Assembler {
                          base::Optional<OsrHelper> osr_helper,
                          int start_source_position,
                          JumpOptimizationInfo* jump_opt,
-                         WasmCompilationData* wasm_compilation_data,
-                         CodeGeneratorPoisoningLevel poisoning_level);
+                         PoisoningMitigationLevel poisoning_level,
+                         const AssemblerOptions& options,
+                         int32_t builtin_index);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
-  // FinalizeCode returns a null handle.
+  // FinalizeCode returns an empty MaybeHandle.
   void AssembleCode();  // Does not need to run on main thread.
-  Handle<Code> FinalizeCode();
+  MaybeHandle<Code> FinalizeCode();
 
-  Handle<ByteArray> GetSourcePositionTable();
+  OwnedVector<byte> GetSourcePositionTable();
+  OwnedVector<trap_handler::ProtectedInstructionData>
+  GetProtectedInstructions();
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
@@ -128,6 +125,11 @@ class CodeGenerator final : public GapResolver::Assembler {
   TurboAssembler* tasm() { return &tasm_; }
   size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
   size_t GetHandlerTableOffset() const { return handler_table_offset_; }
+
+  const ZoneVector<int>& block_starts() const { return block_starts_; }
+  const ZoneVector<int>& instr_starts() const { return instr_starts_; }
+
+  static constexpr int kBinarySearchSwitchMinimalCases = 4;
 
  private:
   GapResolver* resolver() { return &resolver_; }
@@ -182,6 +184,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   // adjusted stack pointer is returned in |slot|.
   bool GetSlotAboveSPBeforeTailCall(Instruction* instr, int* slot);
 
+  // Determines how to call helper stubs depending on the code kind.
+  StubCallMode DetermineStubCallMode() const;
+
   CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
                                         SourcePosition pos);
 
@@ -198,6 +203,10 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
+  void AssembleArchBinarySearchSwitchRange(Register input, RpoNumber def_block,
+                                           std::pair<int32_t, Label*>* begin,
+                                           std::pair<int32_t, Label*>* end);
+  void AssembleArchBinarySearchSwitch(Instruction* instr);
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 
@@ -419,9 +428,11 @@ class CodeGenerator final : public GapResolver::Assembler {
   int osr_pc_offset_;
   int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
-  WasmCompilationData* wasm_compilation_data_;
+  ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;
   CodeGenResult result_;
-  CodeGeneratorPoisoningLevel poisoning_level_;
+  PoisoningMitigationLevel poisoning_level_;
+  ZoneVector<int> block_starts_;
+  ZoneVector<int> instr_starts_;
 };
 
 }  // namespace compiler

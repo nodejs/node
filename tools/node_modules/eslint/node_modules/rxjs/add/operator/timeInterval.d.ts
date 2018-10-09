@@ -1,6 +1,1 @@
-import { timeInterval } from '../../operator/timeInterval';
-declare module '../../Observable' {
-    interface Observable<T> {
-        timeInterval: typeof timeInterval;
-    }
-}
+import 'rxjs-compat/add/operator/timeInterval';

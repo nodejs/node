@@ -14,8 +14,7 @@
 <pre><code>npm link (in package dir)
 npm link [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]
 
-alias: npm ln
-</code></pre><h2 id="description">DESCRIPTION</h2>
+alias: npm ln</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Package linking is a two-step process.</p>
 <p>First, <code>npm link</code> in a package folder will create a symlink in the global folder
 <code>{prefix}/lib/node_modules/&lt;package&gt;</code> that links to the package where the <code>npm
@@ -36,23 +35,21 @@ test it iteratively without having to continually rebuild.</p>
 <pre><code>cd ~/projects/node-redis    # go into the package directory
 npm link                    # creates global link
 cd ~/projects/node-bloggy   # go into some other package directory.
-npm link redis              # link-install the package
-</code></pre><p>Now, any changes to ~/projects/node-redis will be reflected in
+npm link redis              # link-install the package</code></pre><p>Now, any changes to ~/projects/node-redis will be reflected in
 ~/projects/node-bloggy/node_modules/node-redis/. Note that the link should
 be to the package name, not the directory name for that package.</p>
 <p>You may also shortcut the two steps in one.  For example, to do the
 above use-case in a shorter way:</p>
 <pre><code>cd ~/projects/node-bloggy  # go into the dir of your main project
-npm link ../node-redis     # link the dir of your dependency
-</code></pre><p>The second line is the equivalent of doing:</p>
+npm link ../node-redis     # link the dir of your dependency</code></pre><p>The second line is the equivalent of doing:</p>
 <pre><code>(cd ../node-redis; npm link)
-npm link node-redis
-</code></pre><p>That is, it first creates a global link, and then links the global
+npm link redis</code></pre><p>That is, it first creates a global link, and then links the global
 installation target into your project&#39;s <code>node_modules</code> folder.</p>
+<p>Note that in this case, you are referring to the directory name, <code>node-redis</code>,
+rather than the package name <code>redis</code>.</p>
 <p>If your linked package is scoped (see <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>) your link command must
 include that scope, e.g.</p>
-<pre><code>npm link @myorg/privatepackage
-</code></pre><h2 id="see-also">SEE ALSO</h2>
+<pre><code>npm link @myorg/privatepackage</code></pre><h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../misc/npm-developers.html">npm-developers(7)</a></li>
 <li><a href="../files/package.json.html">package.json(5)</a></li>
@@ -74,5 +71,5 @@ include that scope, e.g.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-link &mdash; npm@6.1.0</p>
+<p id="footer">npm-link &mdash; npm@6.4.1</p>
 

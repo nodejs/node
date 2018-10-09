@@ -20,7 +20,10 @@ function runBenchmark(name, args, env) {
 
   const mergedEnv = Object.assign({}, process.env, env);
 
-  const child = fork(runjs, argv, { env: mergedEnv, stdio: 'pipe' });
+  const child = fork(runjs, argv, {
+    env: mergedEnv,
+    stdio: ['inherit', 'pipe', 'inherit', 'ipc']
+  });
   child.stdout.setEncoding('utf8');
 
   let stdout = '';

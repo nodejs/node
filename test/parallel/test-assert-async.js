@@ -5,8 +5,6 @@ const assert = require('assert');
 // Test assert.rejects() and assert.doesNotReject() by checking their
 // expected output and by verifying that they do not work sync
 
-common.crashOnUnhandledRejection();
-
 // Run all tests in parallel and check their outcome at the end.
 const promises = [];
 
@@ -43,7 +41,7 @@ const promises = [];
     name: 'TypeError [ERR_INVALID_RETURN_VALUE]',
     code: 'ERR_INVALID_RETURN_VALUE',
     message: 'Expected instance of Promise to be returned ' +
-             'from the "block" function but got type undefined.'
+             'from the "promiseFn" function but got type undefined.'
   }));
 
   promise = assert.rejects(Promise.resolve(), common.mustNotCall());
@@ -64,7 +62,7 @@ promises.push(assert.rejects(
   assert.rejects('fail', {}),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "block" argument must be one of type ' +
+    message: 'The "promiseFn" argument must be one of type ' +
              'Function or Promise. Received type string'
   }
 ));
@@ -75,7 +73,7 @@ promises.push(assert.rejects(
   const promise = assert.doesNotReject(() => new Map(), common.mustNotCall());
   promises.push(assert.rejects(promise, {
     message: 'Expected instance of Promise to be returned ' +
-             'from the "block" function but got instance of Map.',
+             'from the "promiseFn" function but got instance of Map.',
     code: 'ERR_INVALID_RETURN_VALUE',
     name: 'TypeError [ERR_INVALID_RETURN_VALUE]'
   }));
@@ -118,7 +116,7 @@ promises.push(assert.rejects(
   assert.doesNotReject(123),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "block" argument must be one of type ' +
+    message: 'The "promiseFn" argument must be one of type ' +
              'Function or Promise. Received type number'
   }
 ));

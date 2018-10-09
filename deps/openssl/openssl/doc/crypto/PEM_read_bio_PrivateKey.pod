@@ -294,7 +294,7 @@ for it twice) if B<rwflag> is 1. The B<u> parameter has the same
 value as the B<u> parameter passed to the PEM routine. It allows
 arbitrary data to be passed to the callback by the application
 (for example a window handle in a GUI application). The callback
-B<must> return the number of characters in the passphrase or 0 if
+B<must> return the number of characters in the passphrase or -1 if
 an error occurred.
 
 =head1 EXAMPLES
@@ -348,17 +348,16 @@ Skeleton pass phrase callback:
 
  int pass_cb(char *buf, int size, int rwflag, void *u)
  {
-     int len;
-     char *tmp;
 
      /* We'd probably do something else if 'rwflag' is 1 */
      printf("Enter pass phrase for \"%s\"\n", (char *)u);
 
      /* get pass phrase, length 'len' into 'tmp' */
-     tmp = "hello";
-     len = strlen(tmp);
-     if (len <= 0)
-         return 0;
+     char *tmp = "hello";
+     if (tmp == NULL) /* An error occurred */
+         return -1;
+
+     size_t len = strlen(tmp);
 
      if (len > size)
          len = size;
@@ -471,7 +470,7 @@ L<EVP_EncryptInit(3)>, L<EVP_BytesToKey(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

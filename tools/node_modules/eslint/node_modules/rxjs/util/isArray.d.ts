@@ -1,1 +1,1 @@
-export declare const isArray: (arg: any) => arg is any[];
+export * from 'rxjs-compat/util/isArray';

@@ -27,7 +27,6 @@
 
 #include "src/ast/ast-value-factory.h"
 
-#include "src/api.h"
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
@@ -182,7 +181,7 @@ std::forward_list<const AstRawString*> AstConsString::ToRawStrings() const {
   return result;
 }
 
-AstStringConstants::AstStringConstants(Isolate* isolate, uint32_t hash_seed)
+AstStringConstants::AstStringConstants(Isolate* isolate, uint64_t hash_seed)
     : zone_(isolate->allocator(), ZONE_NAME),
       string_table_(AstRawString::Compare),
       hash_seed_(hash_seed) {
@@ -223,14 +222,12 @@ AstRawString* AstValueFactory::GetOneByteStringInternal(
   return GetString(hash_field, true, literal);
 }
 
-
 AstRawString* AstValueFactory::GetTwoByteStringInternal(
     Vector<const uint16_t> literal) {
   uint32_t hash_field = StringHasher::HashSequentialString<uint16_t>(
       literal.start(), literal.length(), hash_seed_);
   return GetString(hash_field, false, Vector<const byte>::cast(literal));
 }
-
 
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
   AstRawString* result = nullptr;
@@ -279,7 +276,6 @@ void AstValueFactory::Internalize(Isolate* isolate) {
 
   ResetStrings();
 }
-
 
 AstRawString* AstValueFactory::GetString(uint32_t hash_field, bool is_one_byte,
                                          Vector<const byte> literal_bytes) {

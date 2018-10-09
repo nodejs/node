@@ -1,6 +1,1 @@
-import { bufferTime } from '../../operator/bufferTime';
-declare module '../../Observable' {
-    interface Observable<T> {
-        bufferTime: typeof bufferTime;
-    }
-}
+import 'rxjs-compat/add/operator/bufferTime';

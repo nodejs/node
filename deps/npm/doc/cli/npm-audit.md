@@ -3,7 +3,7 @@ npm-audit(1) -- Run a security audit
 
 ## SYNOPSIS
 
-    npm audit [--json]
+    npm audit [--json|--parseable]
     npm audit fix [--force|--package-lock-only|--dry-run|--production|--only=dev]
 
 ## EXAMPLES
@@ -46,6 +46,18 @@ $ npm audit
 Get the detailed audit report in JSON format:
 ```
 $ npm audit --json
+```
+
+Get the detailed audit report in plain text result, separated by tab characters, allowing for
+future reuse in scripting or command line post processing, like for example, selecting
+some of the columns printed:
+```
+$ npm audit --parseable
+```
+
+To parse columns, you can use for example `awk`, and just print some of them:
+```
+$ npm audit --parseable | awk -F $'\t' '{print $1,$4}'
 ```
 
 ## DESCRIPTION

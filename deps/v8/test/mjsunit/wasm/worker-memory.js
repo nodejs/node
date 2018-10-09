@@ -67,3 +67,19 @@ let workerHelpers =
   assertEquals("OK", worker.getMessage());
   worker.terminate();
 })();
+
+(function TestTwoWorkers() {
+  let workerScript = workerHelpers +
+    `onmessage = function(memory) {
+       assertIsWasmMemory(memory, 65536);
+       postMessage("OK");
+     };`;
+
+  let workers = [new Worker(workerScript), new Worker(workerScript)];
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
+  for (let worker of workers) {
+    worker.postMessage(memory);
+    assertEquals("OK", worker.getMessage());
+    worker.terminate();
+  }
+})();

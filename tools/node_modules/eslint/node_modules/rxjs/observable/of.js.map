@@ -1,1 +1,1 @@
-{"version":3,"file":"of.js","sourceRoot":"","sources":["../../src/observable/of.ts"],"names":[],"mappings":";AAAA,gCAAkC,mBAAmB,CAAC,CAAA;AAEzC,UAAE,GAAG,iCAAe,CAAC,EAAE,CAAC","sourcesContent":["import {  ArrayObservable  } from './ArrayObservable';\n\nexport const of = ArrayObservable.of;"]}
+{"version":3,"file":"of.js","sources":["../src/observable/of.ts"],"names":[],"mappings":";;;;;AAAA,+CAA0C"}

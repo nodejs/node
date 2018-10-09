@@ -29,7 +29,7 @@ const bench = common.createBenchmark(main, {
   type: Object.keys(args),
   version: ['native', 'js'],
   argument: ['true', 'false-primitive', 'false-object'],
-  n: [5e6]
+  n: [1e5]
 }, {
   flags: ['--expose-internals']
 });
@@ -38,7 +38,8 @@ function main({ type, argument, version, n }) {
   // For testing, if supplied with an empty type, default to ArrayBufferView.
   type = type || 'ArrayBufferView';
 
-  const util = process.binding('util');
+  const { internalBinding } = require('internal/test/binding');
+  const util = internalBinding('util');
   const types = require('internal/util/types');
 
   const func = { native: util, js: types }[version][`is${type}`];

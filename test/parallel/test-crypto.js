@@ -25,6 +25,13 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+common.expectWarning({
+  DeprecationWarning: [
+    ['crypto.createCipher is deprecated.', 'DEP0106'],
+    ['crypto._toBuf is deprecated.', 'DEP0114']
+  ]
+});
+
 const assert = require('assert');
 const crypto = require('crypto');
 const tls = require('tls');
@@ -294,3 +301,8 @@ testEncoding({
 testEncoding({
   defaultEncoding: 'latin1'
 }, assertionHashLatin1);
+
+{
+  // Test that the exported _toBuf function is deprecated.
+  crypto._toBuf(Buffer.alloc(0));
+}

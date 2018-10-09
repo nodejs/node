@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/api.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/handles.h"
@@ -61,6 +60,7 @@ class TestWithContext : public virtual v8::TestWithIsolate {
   const Local<Context>& context() const { return v8_context(); }
   const Local<Context>& v8_context() const { return context_; }
 
+  v8::Local<v8::String> NewString(const char* string);
   void SetGlobalProperty(const char* name, v8::Local<v8::Value> value);
 
  private:
@@ -85,10 +85,9 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
   Isolate* isolate() const { return i_isolate(); }
   template <typename T = Object>
   Handle<T> RunJS(const char* source) {
-    Handle<Object> result =
-        Utils::OpenHandle(*::v8::TestWithIsolate::RunJS(source));
-    return Handle<T>::cast(result);
+    return Handle<T>::cast(RunJSInternal(source));
   }
+  Handle<Object> RunJSInternal(const char* source);
   base::RandomNumberGenerator* random_number_generator() const;
 
  private:

@@ -50,9 +50,10 @@ v8_source_set("cctest_sources") {
     "$target_gen_dir/resources.cc",
 
     ### gcmole(all) ###
-    "../../test/common/wasm/flag-utils.h",
-    "../../test/common/wasm/test-signatures.h",
-    "../../test/common/wasm/wasm-macro-gen.h",
+    "../common/assembler-tester.h",
+    "../common/wasm/flag-utils.h",
+    "../common/wasm/test-signatures.h",
+    "../common/wasm/wasm-macro-gen.h",
     "cctest.cc",
     "cctest.h",
     "compiler/c-signature.h",
@@ -117,6 +118,7 @@ v8_source_set("cctest_sources") {
     "heap/test-compaction.cc",
     "heap/test-concurrent-marking.cc",
     "heap/test-embedder-tracing.cc",
+    "heap/test-external-string-tracker.cc",
     "heap/test-heap.cc",
     "heap/test-incremental-marking.cc",
     "heap/test-invalidated-slots.cc",
@@ -124,6 +126,7 @@ v8_source_set("cctest_sources") {
     "heap/test-mark-compact.cc",
     "heap/test-page-promotion.cc",
     "heap/test-spaces.cc",
+    "heap/test-unmapper.cc",
     "heap/test-weak-references.cc",
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
@@ -191,6 +194,7 @@ v8_source_set("cctest_sources") {
     "test-heap-profiler.cc",
     "test-identity-map.cc",
     "test-inobject-slack-tracking.cc",
+    "test-inspector.cc",
     "test-intl.cc",
     "test-isolate-independent-builtins.cc",
     "test-liveedit.cc",
@@ -207,6 +211,7 @@ v8_source_set("cctest_sources") {
     "test-random-number-generator.cc",
     "test-regexp.cc",
     "test-representation.cc",
+    "test-roots.cc",
     "test-sampler-api.cc",
     "test-serialize.cc",
     "test-strings.cc",
@@ -228,14 +233,17 @@ v8_source_set("cctest_sources") {
     "test-version.cc",
     "test-weakmaps.cc",
     "test-weaksets.cc",
+    "torque/test-torque.cc",
     "trace-extension.cc",
     "trace-extension.h",
     "types-fuzz.h",
     "unicode-helpers.h",
     "wasm/test-c-wasm-entry.cc",
+    "wasm/test-jump-table-assembler.cc",
     "wasm/test-run-wasm-64.cc",
     "wasm/test-run-wasm-asmjs.cc",
     "wasm/test-run-wasm-atomics.cc",
+    "wasm/test-run-wasm-atomics64.cc",
     "wasm/test-run-wasm-interpreter.cc",
     "wasm/test-run-wasm-js.cc",
     "wasm/test-run-wasm-module.cc",
@@ -246,6 +254,8 @@ v8_source_set("cctest_sources") {
     "wasm/test-wasm-breakpoints.cc",
     "wasm/test-wasm-codegen.cc",
     "wasm/test-wasm-interpreter-entry.cc",
+    "wasm/test-wasm-serialization.cc",
+    "wasm/test-wasm-shared-engine.cc",
     "wasm/test-wasm-stack.cc",
     "wasm/test-wasm-trap-position.cc",
     "wasm/wasm-atomics-utils.h",
@@ -290,7 +300,6 @@ v8_source_set("cctest_sources") {
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
-      "wasm/test-run-wasm-atomics64.cc",
     ]
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
@@ -346,7 +355,6 @@ v8_source_set("cctest_sources") {
       "test-disasm-x64.cc",
       "test-log-stack-tracer.cc",
       "test-macro-assembler-x64.cc",
-      "wasm/test-run-wasm-atomics64.cc",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc) ###
@@ -375,12 +383,13 @@ v8_source_set("cctest_sources") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",
-    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 
   defines = []
-  deps = []
+  deps = [
+    "../..:run_torque",
+  ]
 
   if (is_component_build) {
     # cctest can't be built against a shared library, so we
@@ -393,6 +402,7 @@ v8_source_set("cctest_sources") {
 
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
+    public_deps += [ "//third_party/icu" ]
   } else {
     sources -= [ "test-intl.cc" ]
   }
@@ -470,7 +480,6 @@ v8_executable("generate-bytecode-expectations") {
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 }

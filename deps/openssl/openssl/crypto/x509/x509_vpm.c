@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -410,6 +410,11 @@ void X509_VERIFY_PARAM_set_hostflags(X509_VERIFY_PARAM *param,
                                      unsigned int flags)
 {
     param->hostflags = flags;
+}
+
+unsigned int X509_VERIFY_PARAM_get_hostflags(const X509_VERIFY_PARAM *param)
+{
+    return param->hostflags;
 }
 
 char *X509_VERIFY_PARAM_get0_peername(X509_VERIFY_PARAM *param)

@@ -87,9 +87,10 @@ TEST(SimpleCallRuntime1Arg) {
   CodeAssembler m(asm_tester.state());
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* b = SmiTag(m, m.Int32Constant(0));
-  m.Return(m.CallRuntime(Runtime::kNumberToSmi, context, b));
+  m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(0, ft.CallChecked<Smi>()->value());
+  CHECK(ft.CallChecked<Oddball>().is_identical_to(
+      isolate->factory()->true_value()));
 }
 
 TEST(SimpleTailCallRuntime1Arg) {
@@ -98,9 +99,10 @@ TEST(SimpleTailCallRuntime1Arg) {
   CodeAssembler m(asm_tester.state());
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* b = SmiTag(m, m.Int32Constant(0));
-  m.TailCallRuntime(Runtime::kNumberToSmi, context, b);
+  m.TailCallRuntime(Runtime::kIsSmi, context, b);
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(0, ft.CallChecked<Smi>()->value());
+  CHECK(ft.CallChecked<Oddball>().is_identical_to(
+      isolate->factory()->true_value()));
 }
 
 TEST(SimpleCallRuntime2Arg) {
@@ -467,7 +469,7 @@ TEST(GotoIfException) {
   CHECK(result->IsJSObject());
 
   Handle<Object> constructor =
-      Object::GetPropertyOrElement(result,
+      Object::GetPropertyOrElement(isolate, result,
                                    isolate->factory()->constructor_string())
           .ToHandleChecked();
   CHECK(constructor->SameValue(*isolate->type_error_function()));
@@ -552,7 +554,7 @@ TEST(GotoIfExceptionMultiple) {
   CHECK(result->IsJSObject());
 
   Handle<Object> constructor =
-      Object::GetPropertyOrElement(result,
+      Object::GetPropertyOrElement(isolate, result,
                                    isolate->factory()->constructor_string())
           .ToHandleChecked();
   CHECK(constructor->SameValue(*isolate->type_error_function()));

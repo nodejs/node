@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
-
 #include "src/api-arguments-inl.h"
 #include "src/api-natives.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
+#include "src/builtins/builtins.h"
 #include "src/counters.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
+#include "src/objects/templates.h"
 #include "src/prototype.h"
 #include "src/visitors.h"
 
@@ -63,7 +63,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
         ObjectTemplateInfo::cast(fun_data->instance_template()), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
-        ApiNatives::InstantiateObject(instance_template,
+        ApiNatives::InstantiateObject(isolate, instance_template,
                                       Handle<JSReceiver>::cast(new_target)),
         Object);
     args[0] = *js_receiver;
@@ -79,7 +79,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       // Proxies never need access checks.
       DCHECK(js_receiver->IsJSObject());
       Handle<JSObject> js_obj_receiver = Handle<JSObject>::cast(js_receiver);
-      if (!isolate->MayAccess(handle(isolate->context()), js_obj_receiver)) {
+      if (!isolate->MayAccess(handle(isolate->context(), isolate),
+                              js_obj_receiver)) {
         isolate->ReportFailedAccessCheck(js_obj_receiver);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return isolate->factory()->undefined_value();
@@ -221,7 +222,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
     argv[cursor--] = *args[i];
   }
   DCHECK_EQ(cursor, BuiltinArguments::kPaddingOffset);
-  argv[BuiltinArguments::kPaddingOffset] = isolate->heap()->the_hole_value();
+  argv[BuiltinArguments::kPaddingOffset] =
+      ReadOnlyRoots(isolate).the_hole_value();
   argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc);
   argv[BuiltinArguments::kTargetOffset] = *function;
   argv[BuiltinArguments::kNewTargetOffset] = *new_target;
@@ -259,7 +261,7 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     // right answer.
     new_target = obj;
   } else {
-    new_target = isolate->heap()->undefined_value();
+    new_target = ReadOnlyRoots(isolate).undefined_value();
   }
 
   // Get the invocation callback from the function descriptor that was
@@ -283,7 +285,7 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
                                      args.length() - 1);
     Handle<Object> result_handle = custom.Call(call_data);
     if (result_handle.is_null()) {
-      result = isolate->heap()->undefined_value();
+      result = ReadOnlyRoots(isolate).undefined_value();
     } else {
       result = *result_handle;
     }

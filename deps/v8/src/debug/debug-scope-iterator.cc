@@ -4,11 +4,12 @@
 
 #include "src/debug/debug-scope-iterator.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
 #include "src/isolate.h"
+#include "src/objects/js-generator-inl.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
@@ -75,26 +76,8 @@ void DebugScopeIterator::Advance() {
 }
 
 bool DebugScopeIterator::ShouldIgnore() {
-  // Almost always Script scope will be empty, so just filter out that noise.
-  // Also drop empty Block, Eval and Script scopes, should we get any.
-  DCHECK(!Done());
-  debug::ScopeIterator::ScopeType type = GetType();
-  if (type != debug::ScopeIterator::ScopeTypeBlock &&
-      type != debug::ScopeIterator::ScopeTypeScript &&
-      type != debug::ScopeIterator::ScopeTypeEval &&
-      type != debug::ScopeIterator::ScopeTypeModule) {
-    return false;
-  }
-
-  // TODO(kozyatinskiy): make this function faster.
-  Handle<JSObject> value;
-  if (!iterator_.ScopeObject().ToHandle(&value)) return false;
-  Handle<FixedArray> keys =
-      KeyAccumulator::GetKeys(value, KeyCollectionMode::kOwnOnly,
-                              ENUMERABLE_STRINGS,
-                              GetKeysConversion::kConvertToString)
-          .ToHandleChecked();
-  return keys->length() == 0;
+  if (GetType() == debug::ScopeIterator::ScopeTypeLocal) return false;
+  return !iterator_.DeclaresLocals(i::ScopeIterator::Mode::ALL);
 }
 
 v8::debug::ScopeIterator::ScopeType DebugScopeIterator::GetType() {
@@ -104,37 +87,34 @@ v8::debug::ScopeIterator::ScopeType DebugScopeIterator::GetType() {
 
 v8::Local<v8::Object> DebugScopeIterator::GetObject() {
   DCHECK(!Done());
-  Handle<JSObject> value;
-  if (iterator_.ScopeObject().ToHandle(&value)) {
-    return Utils::ToLocal(value);
-  }
-  return v8::Local<v8::Object>();
+  Handle<JSObject> value = iterator_.ScopeObject(i::ScopeIterator::Mode::ALL);
+  return Utils::ToLocal(value);
 }
 
-v8::Local<v8::Function> DebugScopeIterator::GetFunction() {
+int DebugScopeIterator::GetScriptId() {
   DCHECK(!Done());
-  Handle<JSFunction> closure = iterator_.GetClosure();
-  if (closure.is_null()) return v8::Local<v8::Function>();
-  return Utils::ToLocal(closure);
+  return iterator_.GetScript()->id();
+}
+
+v8::Local<v8::Value> DebugScopeIterator::GetFunctionDebugName() {
+  DCHECK(!Done());
+  Handle<Object> name = iterator_.GetFunctionDebugName();
+  return Utils::ToLocal(name);
+}
+
+bool DebugScopeIterator::HasLocationInfo() {
+  return iterator_.HasPositionInfo();
 }
 
 debug::Location DebugScopeIterator::GetStartLocation() {
   DCHECK(!Done());
-  Handle<JSFunction> closure = iterator_.GetClosure();
-  if (closure.is_null()) return debug::Location();
-  Object* obj = closure->shared()->script();
-  if (!obj->IsScript()) return debug::Location();
-  return ToApiHandle<v8::debug::Script>(handle(Script::cast(obj)))
+  return ToApiHandle<v8::debug::Script>(iterator_.GetScript())
       ->GetSourceLocation(iterator_.start_position());
 }
 
 debug::Location DebugScopeIterator::GetEndLocation() {
   DCHECK(!Done());
-  Handle<JSFunction> closure = iterator_.GetClosure();
-  if (closure.is_null()) return debug::Location();
-  Object* obj = closure->shared()->script();
-  if (!obj->IsScript()) return debug::Location();
-  return ToApiHandle<v8::debug::Script>(handle(Script::cast(obj)))
+  return ToApiHandle<v8::debug::Script>(iterator_.GetScript())
       ->GetSourceLocation(iterator_.end_position());
 }
 
@@ -190,10 +170,17 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
   return v8::Local<v8::Object>();
 }
 
-v8::Local<v8::Function> DebugWasmScopeIterator::GetFunction() {
+int DebugWasmScopeIterator::GetScriptId() {
   DCHECK(!Done());
-  return v8::Local<v8::Function>();
+  return -1;
 }
+
+v8::Local<v8::Value> DebugWasmScopeIterator::GetFunctionDebugName() {
+  DCHECK(!Done());
+  return Utils::ToLocal(isolate_->factory()->empty_string());
+}
+
+bool DebugWasmScopeIterator::HasLocationInfo() { return false; }
 
 debug::Location DebugWasmScopeIterator::GetStartLocation() {
   DCHECK(!Done());

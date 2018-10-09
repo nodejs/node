@@ -14,7 +14,7 @@ Lconsts:
 	mflr	6
 	addi	6,6,-0x48
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .byte	65,69,83,32,102,111,114,32,80,111,119,101,114,73,83,65,32,50,46,48,55,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
@@ -277,7 +277,7 @@ Ldone:
 
 Lenc_key_abort:
 	mr	3,6
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,1,0,0,3,0
 .long	0
@@ -325,7 +325,7 @@ Ldeckey:
 	xor	3,3,3
 Ldec_key_abort:
 	addi	1,1,32
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,0,3,0
 .long	0
@@ -392,7 +392,7 @@ Loop_enc:
 	stvx	0,7,4
 
 	or	12,12,12
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -459,7 +459,7 @@ Loop_dec:
 	stvx	0,7,4
 
 	or	12,12,12
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -620,7 +620,7 @@ Lcbc_done:
 	stvx	2,10,7
 
 	or	12,12,12
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,6,0
 .long	0
@@ -910,8 +910,8 @@ Loop_cbc_dec8x:
 
 	addic.	5,5,128
 	beq	Lcbc_dec8x_done
-	nop
-	nop
+	nop	
+	nop	
 
 Loop_cbc_dec8x_tail:
 	.long	0x11EFC548
@@ -999,15 +999,15 @@ Loop_cbc_dec8x_tail:
 
 	cmplwi	5,32
 	blt	Lcbc_dec8x_one
-	nop
+	nop	
 	beq	Lcbc_dec8x_two
 	cmplwi	5,64
 	blt	Lcbc_dec8x_three
-	nop
+	nop	
 	beq	Lcbc_dec8x_four
 	cmplwi	5,96
 	blt	Lcbc_dec8x_five
-	nop
+	nop	
 	beq	Lcbc_dec8x_six
 
 Lcbc_dec8x_seven:
@@ -1194,7 +1194,7 @@ Lcbc_dec8x_done:
 	lwz	30,384(1)
 	lwz	31,388(1)
 	addi	1,1,392
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,0,0x80,6,6,0
 .long	0
@@ -1301,7 +1301,7 @@ Loop_ctr32_enc:
 	stvx	2,0,4
 
 	or	12,12,12
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,6,0
 .long	0
@@ -1604,15 +1604,15 @@ Loop_ctr32_enc8x_middle:
 Lctr32_enc8x_break:
 	cmpwi	5,-0x60
 	blt	Lctr32_enc8x_one
-	nop
+	nop	
 	beq	Lctr32_enc8x_two
 	cmpwi	5,-0x40
 	blt	Lctr32_enc8x_three
-	nop
+	nop	
 	beq	Lctr32_enc8x_four
 	cmpwi	5,-0x20
 	blt	Lctr32_enc8x_five
-	nop
+	nop	
 	beq	Lctr32_enc8x_six
 	cmpwi	5,0x00
 	blt	Lctr32_enc8x_seven
@@ -1821,7 +1821,7 @@ Lctr32_enc8x_done:
 	lwz	30,384(1)
 	lwz	31,388(1)
 	addi	1,1,392
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,0,0x80,6,6,0
 .long	0
@@ -1958,7 +1958,7 @@ Loop_xts_enc:
 	.long	0x10620509
 
 
-	nop
+	nop	
 
 	.long	0x7C602799
 	addi	4,4,16
@@ -2031,7 +2031,7 @@ Lxts_enc_done:
 Lxts_enc_ret:
 	or	12,12,12
 	li	3,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,0,0x80,6,6,0
 .long	0
@@ -2171,7 +2171,7 @@ Loop_xts_dec:
 	.long	0x10620549
 
 
-	nop
+	nop	
 
 	.long	0x7C602799
 	addi	4,4,16
@@ -2236,7 +2236,7 @@ Loop_xts_dec_short:
 	.long	0x10620549
 
 
-	nop
+	nop	
 
 	.long	0x7C602799
 
@@ -2287,7 +2287,7 @@ Lxts_dec_done:
 Lxts_dec_ret:
 	or	12,12,12
 	li	3,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,0,0x80,6,6,0
 .long	0
@@ -2618,11 +2618,11 @@ Loop_xts_enc6x:
 	beq	Lxts_enc6x_zero
 	cmpwi	5,0x20
 	blt	Lxts_enc6x_one
-	nop
+	nop	
 	beq	Lxts_enc6x_two
 	cmpwi	5,0x40
 	blt	Lxts_enc6x_three
-	nop
+	nop	
 	beq	Lxts_enc6x_four
 
 Lxts_enc6x_five:
@@ -2719,7 +2719,7 @@ Lxts_enc6x_two:
 .align	4
 Lxts_enc6x_one:
 	vxor	7,5,17
-	nop
+	nop	
 Loop_xts_enc1x:
 	.long	0x10E7C508
 	lvx	24,26,7
@@ -2855,7 +2855,7 @@ Lxts_enc6x_ret:
 	lwz	30,384(1)
 	lwz	31,388(1)
 	addi	1,1,392
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,6,6,0
 .long	0
@@ -2940,7 +2940,7 @@ _aesp8_xts_enc5x:
 	.long	0x11AD1509
 	.long	0x11CE1D09
 	.long	0x11EF2509
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -3268,11 +3268,11 @@ Loop_xts_dec6x:
 	beq	Lxts_dec6x_zero
 	cmpwi	5,0x20
 	blt	Lxts_dec6x_one
-	nop
+	nop	
 	beq	Lxts_dec6x_two
 	cmpwi	5,0x40
 	blt	Lxts_dec6x_three
-	nop
+	nop	
 	beq	Lxts_dec6x_four
 
 Lxts_dec6x_five:
@@ -3373,7 +3373,7 @@ Lxts_dec6x_two:
 .align	4
 Lxts_dec6x_one:
 	vxor	7,5,17
-	nop
+	nop	
 Loop_xts_dec1x:
 	.long	0x10E7C548
 	lvx	24,26,7
@@ -3543,7 +3543,7 @@ Lxts_dec6x_ret:
 	lwz	30,384(1)
 	lwz	31,388(1)
 	addi	1,1,392
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,6,6,0
 .long	0
@@ -3628,6 +3628,6 @@ _aesp8_xts_dec5x:
 	.long	0x11CE1D49
 	.long	0x11EF2549
 	mtctr	9
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0

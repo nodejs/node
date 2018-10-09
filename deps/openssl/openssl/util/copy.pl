@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,7 @@ use Fcntl;
 my $stripcr = 0;
 
 my $arg;
+my @excludes = ();
 
 foreach $arg (@ARGV) {
 	if ($arg eq "-stripcr")
@@ -25,11 +26,16 @@ foreach $arg (@ARGV) {
 		$stripcr = 1;
 		next;
 		}
+	if ($arg =~ /^-exclude_re=(.*)$/)
+		{
+		push @excludes, $1;
+		next;
+		}
 	$arg =~ s|\\|/|g;	# compensate for bug/feature in cygwin glob...
 	$arg = qq("$arg") if ($arg =~ /\s/);	# compensate for bug in 5.10...
-	foreach (glob $arg)
+	foreach my $f (glob $arg)
 		{
-		push @filelist, $_;
+		push @filelist, $f unless grep { $f =~ /$_/ } @excludes;
 		}
 }
 

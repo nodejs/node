@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/module.h"
 #include "src/objects/script.h"
@@ -61,7 +61,7 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
   void TracePrologue() final {}
   void TraceEpilogue() final {}
   void AbortTracing() final {}
-  void EnterFinalPause() final {}
+  void EnterFinalPause(EmbedderStackState) final {}
 
   bool IsRegisteredFromV8(void* first_field) const {
     for (auto pair : registered_from_v8_) {
@@ -76,6 +76,22 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
   std::vector<v8::Persistent<v8::Object>*> to_register_with_v8_;
 };
 
+class TemporaryEmbedderHeapTracerScope {
+ public:
+  TemporaryEmbedderHeapTracerScope(v8::Isolate* isolate,
+                                   EmbedderHeapTracer* tracer)
+      : isolate_(isolate) {
+    isolate_->SetEmbedderHeapTracer(tracer);
+  }
+
+  ~TemporaryEmbedderHeapTracerScope() {
+    isolate_->SetEmbedderHeapTracer(nullptr);
+  }
+
+ private:
+  v8::Isolate* const isolate_;
+};
+
 }  // namespace
 
 TEST(V8RegisteringEmbedderReference) {
@@ -85,7 +101,7 @@ TEST(V8RegisteringEmbedderReference) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   TestEmbedderHeapTracer tracer(isolate);
-  isolate->SetEmbedderHeapTracer(&tracer);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -105,7 +121,7 @@ TEST(EmbedderRegisteringV8Reference) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   TestEmbedderHeapTracer tracer(isolate);
-  isolate->SetEmbedderHeapTracer(&tracer);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -139,7 +155,7 @@ TEST(TracingInRevivedSubgraph) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   TestEmbedderHeapTracer tracer(isolate);
-  isolate->SetEmbedderHeapTracer(&tracer);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -167,7 +183,7 @@ TEST(TracingInEphemerons) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   TestEmbedderHeapTracer tracer(isolate);
-  isolate->SetEmbedderHeapTracer(&tracer);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -183,13 +199,70 @@ TEST(TracingInEphemerons) {
         ConstructTraceableJSApiObject(context, first_field, nullptr);
     CHECK(!api_object.IsEmpty());
     Handle<JSObject> js_key =
-        handle(JSObject::cast(*v8::Utils::OpenHandle(*key)));
+        handle(JSObject::cast(*v8::Utils::OpenHandle(*key)), i_isolate);
     Handle<JSReceiver> js_api_object = v8::Utils::OpenHandle(*api_object);
     int32_t hash = js_key->GetOrCreateHash(i_isolate)->value();
     JSWeakCollection::Set(weak_map, js_key, js_api_object, hash);
   }
   CcTest::CollectGarbage(i::OLD_SPACE);
   CHECK(tracer.IsRegisteredFromV8(first_field));
+}
+
+TEST(FinalizeTracingIsNoopWhenNotMarking) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  TestEmbedderHeapTracer tracer(isolate);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  // Finalize a potentially running garbage collection.
+  i_isolate->heap()->CollectGarbage(OLD_SPACE,
+                                    GarbageCollectionReason::kTesting);
+  CHECK(i_isolate->heap()->incremental_marking()->IsStopped());
+
+  int gc_counter = i_isolate->heap()->gc_count();
+  tracer.FinalizeTracing();
+  CHECK(i_isolate->heap()->incremental_marking()->IsStopped());
+  CHECK_EQ(gc_counter, i_isolate->heap()->gc_count());
+}
+
+TEST(FinalizeTracingWhenMarking) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  TestEmbedderHeapTracer tracer(isolate);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  // Finalize a potentially running garbage collection.
+  i_isolate->heap()->CollectGarbage(OLD_SPACE,
+                                    GarbageCollectionReason::kTesting);
+  if (i_isolate->heap()->mark_compact_collector()->sweeping_in_progress()) {
+    i_isolate->heap()->mark_compact_collector()->EnsureSweepingCompleted();
+  }
+  CHECK(i_isolate->heap()->incremental_marking()->IsStopped());
+
+  i::IncrementalMarking* marking = i_isolate->heap()->incremental_marking();
+  marking->Start(i::GarbageCollectionReason::kTesting);
+  // Sweeping is not runing so we should immediately start marking.
+  CHECK(marking->IsMarking());
+  tracer.FinalizeTracing();
+  CHECK(marking->IsStopped());
+}
+
+TEST(GarbageCollectionForTesting) {
+  ManualGCScope manual_gc;
+  i::FLAG_expose_gc = true;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  TestEmbedderHeapTracer tracer(isolate);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  int saved_gc_counter = i_isolate->heap()->gc_count();
+  tracer.GarbageCollectionForTesting(EmbedderHeapTracer::kUnknown);
+  CHECK_GT(i_isolate->heap()->gc_count(), saved_gc_counter);
 }
 
 }  // namespace heap

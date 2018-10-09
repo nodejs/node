@@ -217,7 +217,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
     UNREGISTER_HANDLE_REQ(loop, handle, handle->stream.conn.shutdown_req);
 
     err = 0;
-    if (handle->flags & UV__HANDLE_CLOSING) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
       err = ERROR_OPERATION_ABORTED;
     } else if (shutdown(handle->socket, SD_SEND) == SOCKET_ERROR) {
       err = WSAGetLastError();
@@ -233,7 +233,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
     return;
   }
 
-  if (handle->flags & UV__HANDLE_CLOSING &&
+  if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
 
@@ -680,7 +680,7 @@ int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
   req->next_pending = NULL;
   req->accept_socket = INVALID_SOCKET;
 
-  if (!(server->flags & UV__HANDLE_CLOSING)) {
+  if (!(server->flags & UV_HANDLE_CLOSING)) {
     /* Check if we're in a middle of changing the number of pending accepts. */
     if (!(server->flags & UV_HANDLE_TCP_ACCEPT_STATE_CHANGING)) {
       uv_tcp_queue_accept(server, req);
@@ -1166,7 +1166,7 @@ void uv_process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
 
   err = 0;
   if (REQ_SUCCESS(req)) {
-    if (handle->flags & UV__HANDLE_CLOSING) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
       /* use UV_ECANCELED for consistency with Unix */
       err = ERROR_OPERATION_ABORTED;
     } else if (setsockopt(handle->socket,
@@ -1191,8 +1191,12 @@ void uv_process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
 
 int uv__tcp_xfer_export(uv_tcp_t* handle,
                         int target_pid,
+                        uv__ipc_socket_xfer_type_t* xfer_type,
                         uv__ipc_socket_xfer_info_t* xfer_info) {
-  if (!(handle->flags & UV_HANDLE_CONNECTION)) {
+  if (handle->flags & UV_HANDLE_CONNECTION) {
+    *xfer_type = UV__IPC_SOCKET_XFER_TCP_CONNECTION;
+  } else {
+    *xfer_type = UV__IPC_SOCKET_XFER_TCP_SERVER;
     /* We're about to share the socket with another process. Because this is a
      * listening socket, we assume that the other process will be accepting
      * connections on it. Thus, before sharing the socket with another process,
@@ -1208,12 +1212,9 @@ int uv__tcp_xfer_export(uv_tcp_t* handle,
     }
   }
 
-  if (WSADuplicateSocketW(
-          handle->socket, target_pid, &xfer_info->socket_info)) {
+  if (WSADuplicateSocketW(handle->socket, target_pid, &xfer_info->socket_info))
     return WSAGetLastError();
-  }
   xfer_info->delayed_error = handle->delayed_error;
-  xfer_info->flags = handle->flags & UV_HANDLE_CONNECTION;
 
   /* Mark the local copy of the handle as 'shared' so we behave in a way that's
    * friendly to the process(es) that we share the socket with. */
@@ -1223,14 +1224,21 @@ int uv__tcp_xfer_export(uv_tcp_t* handle,
 }
 
 
-int uv__tcp_xfer_import(uv_tcp_t* tcp, uv__ipc_socket_xfer_info_t* xfer_info) {
+int uv__tcp_xfer_import(uv_tcp_t* tcp,
+                        uv__ipc_socket_xfer_type_t xfer_type,
+                        uv__ipc_socket_xfer_info_t* xfer_info) {
   int err;
-  SOCKET socket = WSASocketW(FROM_PROTOCOL_INFO,
-                             FROM_PROTOCOL_INFO,
-                             FROM_PROTOCOL_INFO,
-                             &xfer_info->socket_info,
-                             0,
-                             WSA_FLAG_OVERLAPPED);
+  SOCKET socket;
+
+  assert(xfer_type == UV__IPC_SOCKET_XFER_TCP_SERVER ||
+         xfer_type == UV__IPC_SOCKET_XFER_TCP_CONNECTION);
+
+  socket = WSASocketW(FROM_PROTOCOL_INFO,
+                      FROM_PROTOCOL_INFO,
+                      FROM_PROTOCOL_INFO,
+                      &xfer_info->socket_info,
+                      0,
+                      WSA_FLAG_OVERLAPPED);
 
   if (socket == INVALID_SOCKET) {
     return WSAGetLastError();
@@ -1246,7 +1254,7 @@ int uv__tcp_xfer_import(uv_tcp_t* tcp, uv__ipc_socket_xfer_info_t* xfer_info) {
   tcp->delayed_error = xfer_info->delayed_error;
   tcp->flags |= UV_HANDLE_BOUND | UV_HANDLE_SHARED_TCP_SOCKET;
 
-  if (xfer_info->flags & UV_HANDLE_CONNECTION) {
+  if (xfer_type == UV__IPC_SOCKET_XFER_TCP_CONNECTION) {
     uv_connection_init((uv_stream_t*)tcp);
     tcp->flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
   }

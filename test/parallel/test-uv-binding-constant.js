@@ -1,10 +1,12 @@
+// Flags: --expose-internals
 'use strict';
 
 require('../common');
 const assert = require('assert');
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const uv = internalBinding('uv');
 
-// Ensures that the `UV_...` values in process.binding('uv')
+// Ensures that the `UV_...` values in internalBinding('uv')
 // are constants.
 
 const keys = Object.keys(uv);

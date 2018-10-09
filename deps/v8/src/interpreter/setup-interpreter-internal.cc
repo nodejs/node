@@ -51,7 +51,7 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
   size_t illegal_index = Interpreter::GetDispatchTableIndex(
       Bytecode::kIllegal, OperandScale::kSingle);
   for (size_t index = 0; index < Interpreter::kDispatchTableSize; ++index) {
-    if (dispatch_table[index] == nullptr) {
+    if (dispatch_table[index] == kNullAddress) {
       dispatch_table[index] = dispatch_table[illegal_index];
     }
   }
@@ -80,10 +80,21 @@ void SetupInterpreter::InstallBytecodeHandler(Isolate* isolate,
   if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
 
   size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
-  Handle<Code> code = GenerateBytecodeHandler(isolate, bytecode, operand_scale);
+  // Here we explicitly set the bytecode handler to not be a builtin with an
+  // index of kNoBuiltinId.
+  // TODO(delphick): Use builtins version instead.
+  Handle<Code> code = GenerateBytecodeHandler(isolate, bytecode, operand_scale,
+                                              Builtins::kNoBuiltinId);
   dispatch_table[index] = code->entry();
 
   if (FLAG_print_builtin_size) PrintBuiltinSize(bytecode, operand_scale, code);
+
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    std::string name = Bytecodes::ToString(bytecode, operand_scale);
+    code->PrintBuiltinCode(isolate, name.c_str());
+  }
+#endif  // ENABLE_DISASSEMBLER
 }
 
 }  // namespace interpreter

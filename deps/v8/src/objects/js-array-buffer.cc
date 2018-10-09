@@ -1,0 +1,310 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "src/objects/js-array-buffer.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/property-descriptor.h"
+
+namespace v8 {
+namespace internal {
+
+namespace {
+
+bool CanonicalNumericIndexString(Isolate* isolate, Handle<Object> s,
+                                 Handle<Object>* index) {
+  DCHECK(s->IsString() || s->IsSmi());
+
+  Handle<Object> result;
+  if (s->IsSmi()) {
+    result = s;
+  } else {
+    result = String::ToNumber(isolate, Handle<String>::cast(s));
+    if (!result->IsMinusZero()) {
+      Handle<String> str = Object::ToString(isolate, result).ToHandleChecked();
+      // Avoid treating strings like "2E1" and "20" as the same key.
+      if (!str->SameValue(*s)) return false;
+    }
+  }
+  *index = result;
+  return true;
+}
+
+inline int ConvertToMb(size_t size) {
+  return static_cast<int>(size / static_cast<size_t>(MB));
+}
+
+}  // anonymous namespace
+
+void JSArrayBuffer::Neuter() {
+  CHECK(is_neuterable());
+  CHECK(!was_neutered());
+  CHECK(is_external());
+  set_backing_store(nullptr);
+  set_byte_length(Smi::kZero);
+  set_was_neutered(true);
+  set_is_neuterable(false);
+  // Invalidate the neutering protector.
+  Isolate* const isolate = GetIsolate();
+  if (isolate->IsArrayBufferNeuteringIntact()) {
+    isolate->InvalidateArrayBufferNeuteringProtector();
+  }
+}
+
+void JSArrayBuffer::StopTrackingWasmMemory(Isolate* isolate) {
+  DCHECK(is_wasm_memory());
+  isolate->wasm_engine()->memory_tracker()->ReleaseAllocation(isolate,
+                                                              backing_store());
+  set_is_wasm_memory(false);
+}
+
+void JSArrayBuffer::FreeBackingStoreFromMainThread() {
+  if (allocation_base() == nullptr) {
+    return;
+  }
+  FreeBackingStore(GetIsolate(), {allocation_base(), allocation_length(),
+                                  backing_store(), is_wasm_memory()});
+  // Zero out the backing store and allocation base to avoid dangling
+  // pointers.
+  set_backing_store(nullptr);
+}
+
+// static
+void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
+  if (allocation.is_wasm_memory) {
+    wasm::WasmMemoryTracker* memory_tracker =
+        isolate->wasm_engine()->memory_tracker();
+    if (!memory_tracker->FreeMemoryIfIsWasmMemory(isolate,
+                                                  allocation.backing_store)) {
+      CHECK(FreePages(allocation.allocation_base, allocation.length));
+    }
+  } else {
+    isolate->array_buffer_allocator()->Free(allocation.allocation_base,
+                                            allocation.length);
+  }
+}
+
+void JSArrayBuffer::set_is_wasm_memory(bool is_wasm_memory) {
+  set_bit_field(IsWasmMemory::update(bit_field(), is_wasm_memory));
+}
+
+void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
+                          bool is_external, void* data, size_t byte_length,
+                          SharedFlag shared, bool is_wasm_memory) {
+  DCHECK_EQ(array_buffer->GetEmbedderFieldCount(),
+            v8::ArrayBuffer::kEmbedderFieldCount);
+  for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
+    array_buffer->SetEmbedderField(i, Smi::kZero);
+  }
+  array_buffer->set_bit_field(0);
+  array_buffer->set_is_external(is_external);
+  array_buffer->set_is_neuterable(shared == SharedFlag::kNotShared);
+  array_buffer->set_is_shared(shared == SharedFlag::kShared);
+  array_buffer->set_is_wasm_memory(is_wasm_memory);
+
+  Handle<Object> heap_byte_length =
+      isolate->factory()->NewNumberFromSize(byte_length);
+  CHECK(heap_byte_length->IsSmi() || heap_byte_length->IsHeapNumber());
+  array_buffer->set_byte_length(*heap_byte_length);
+  // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
+  // are currently being constructed in the |ArrayBufferTracker|. The
+  // registration method below handles the case of registering a buffer that has
+  // already been promoted.
+  array_buffer->set_backing_store(data);
+
+  if (data && !is_external) {
+    isolate->heap()->RegisterNewArrayBuffer(*array_buffer);
+  }
+}
+
+bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
+                                        Isolate* isolate,
+                                        size_t allocated_length,
+                                        bool initialize, SharedFlag shared) {
+  void* data;
+  CHECK_NOT_NULL(isolate->array_buffer_allocator());
+  if (allocated_length != 0) {
+    if (allocated_length >= MB)
+      isolate->counters()->array_buffer_big_allocations()->AddSample(
+          ConvertToMb(allocated_length));
+    if (shared == SharedFlag::kShared)
+      isolate->counters()->shared_array_allocations()->AddSample(
+          ConvertToMb(allocated_length));
+    if (initialize) {
+      data = isolate->array_buffer_allocator()->Allocate(allocated_length);
+    } else {
+      data = isolate->array_buffer_allocator()->AllocateUninitialized(
+          allocated_length);
+    }
+    if (data == nullptr) {
+      isolate->counters()->array_buffer_new_size_failures()->AddSample(
+          ConvertToMb(allocated_length));
+      return false;
+    }
+  } else {
+    data = nullptr;
+  }
+
+  const bool is_external = false;
+  JSArrayBuffer::Setup(array_buffer, isolate, is_external, data,
+                       allocated_length, shared);
+  return true;
+}
+
+Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
+    Handle<JSTypedArray> typed_array) {
+  DCHECK(typed_array->is_on_heap());
+
+  Isolate* isolate = typed_array->GetIsolate();
+
+  DCHECK(IsFixedTypedArrayElementsKind(typed_array->GetElementsKind()));
+
+  Handle<FixedTypedArrayBase> fixed_typed_array(
+      FixedTypedArrayBase::cast(typed_array->elements()), isolate);
+
+  Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(typed_array->buffer()),
+                               isolate);
+  // This code does not know how to materialize from wasm buffers.
+  DCHECK(!buffer->is_wasm_memory());
+
+  void* backing_store =
+      isolate->array_buffer_allocator()->AllocateUninitialized(
+          fixed_typed_array->DataSize());
+  if (backing_store == nullptr) {
+    isolate->heap()->FatalProcessOutOfMemory(
+        "JSTypedArray::MaterializeArrayBuffer");
+  }
+  buffer->set_is_external(false);
+  DCHECK(buffer->byte_length()->IsSmi() ||
+         buffer->byte_length()->IsHeapNumber());
+  DCHECK(NumberToInt32(buffer->byte_length()) == fixed_typed_array->DataSize());
+  // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
+  // are currently being constructed in the |ArrayBufferTracker|. The
+  // registration method below handles the case of registering a buffer that has
+  // already been promoted.
+  buffer->set_backing_store(backing_store);
+  // RegisterNewArrayBuffer expects a valid length for adjusting counters.
+  isolate->heap()->RegisterNewArrayBuffer(*buffer);
+  memcpy(buffer->backing_store(), fixed_typed_array->DataPtr(),
+         fixed_typed_array->DataSize());
+  Handle<FixedTypedArrayBase> new_elements =
+      isolate->factory()->NewFixedTypedArrayWithExternalPointer(
+          fixed_typed_array->length(), typed_array->type(),
+          static_cast<uint8_t*>(buffer->backing_store()));
+
+  typed_array->set_elements(*new_elements);
+  DCHECK(!typed_array->is_on_heap());
+
+  return buffer;
+}
+
+Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
+  if (!is_on_heap()) {
+    Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(buffer()),
+                                       GetIsolate());
+    return array_buffer;
+  }
+  Handle<JSTypedArray> self(this, GetIsolate());
+  return MaterializeArrayBuffer(self);
+}
+
+// ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
+// static
+Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
+                                            Handle<JSTypedArray> o,
+                                            Handle<Object> key,
+                                            PropertyDescriptor* desc,
+                                            ShouldThrow should_throw) {
+  // 1. Assert: IsPropertyKey(P) is true.
+  DCHECK(key->IsName() || key->IsNumber());
+  // 2. Assert: O is an Object that has a [[ViewedArrayBuffer]] internal slot.
+  // 3. If Type(P) is String, then
+  if (key->IsString() || key->IsSmi()) {
+    // 3a. Let numericIndex be ! CanonicalNumericIndexString(P)
+    // 3b. If numericIndex is not undefined, then
+    Handle<Object> numeric_index;
+    if (CanonicalNumericIndexString(isolate, key, &numeric_index)) {
+      // 3b i. If IsInteger(numericIndex) is false, return false.
+      // 3b ii. If numericIndex = -0, return false.
+      // 3b iii. If numericIndex < 0, return false.
+      // FIXME: the standard allows up to 2^53 elements.
+      uint32_t index;
+      if (numeric_index->IsMinusZero() || !numeric_index->ToUint32(&index)) {
+        RETURN_FAILURE(isolate, should_throw,
+                       NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
+      }
+      // 3b iv. Let length be O.[[ArrayLength]].
+      uint32_t length = o->length()->Number();
+      // 3b v. If numericIndex ≥ length, return false.
+      if (index >= length) {
+        RETURN_FAILURE(isolate, should_throw,
+                       NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
+      }
+      // 3b vi. If IsAccessorDescriptor(Desc) is true, return false.
+      if (PropertyDescriptor::IsAccessorDescriptor(desc)) {
+        RETURN_FAILURE(isolate, should_throw,
+                       NewTypeError(MessageTemplate::kRedefineDisallowed, key));
+      }
+      // 3b vii. If Desc has a [[Configurable]] field and if
+      //         Desc.[[Configurable]] is true, return false.
+      // 3b viii. If Desc has an [[Enumerable]] field and if Desc.[[Enumerable]]
+      //          is false, return false.
+      // 3b ix. If Desc has a [[Writable]] field and if Desc.[[Writable]] is
+      //        false, return false.
+      if ((desc->has_configurable() && desc->configurable()) ||
+          (desc->has_enumerable() && !desc->enumerable()) ||
+          (desc->has_writable() && !desc->writable())) {
+        RETURN_FAILURE(isolate, should_throw,
+                       NewTypeError(MessageTemplate::kRedefineDisallowed, key));
+      }
+      // 3b x. If Desc has a [[Value]] field, then
+      //   3b x 1. Let value be Desc.[[Value]].
+      //   3b x 2. Return ? IntegerIndexedElementSet(O, numericIndex, value).
+      if (desc->has_value()) {
+        if (!desc->has_configurable()) desc->set_configurable(false);
+        if (!desc->has_enumerable()) desc->set_enumerable(true);
+        if (!desc->has_writable()) desc->set_writable(true);
+        Handle<Object> value = desc->value();
+        RETURN_ON_EXCEPTION_VALUE(isolate,
+                                  SetOwnElementIgnoreAttributes(
+                                      o, index, value, desc->ToAttributes()),
+                                  Nothing<bool>());
+      }
+      // 3b xi. Return true.
+      return Just(true);
+    }
+  }
+  // 4. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
+  return OrdinaryDefineOwnProperty(isolate, o, key, desc, should_throw);
+}
+
+ExternalArrayType JSTypedArray::type() {
+  switch (elements()->map()->instance_type()) {
+#define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                            \
+    return kExternal##Type##Array;
+
+    TYPED_ARRAYS(INSTANCE_TYPE_TO_ARRAY_TYPE)
+#undef INSTANCE_TYPE_TO_ARRAY_TYPE
+
+    default:
+      UNREACHABLE();
+  }
+}
+
+size_t JSTypedArray::element_size() {
+  switch (elements()->map()->instance_type()) {
+#define INSTANCE_TYPE_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                              \
+    return sizeof(ctype);
+
+    TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENT_SIZE)
+#undef INSTANCE_TYPE_TO_ELEMENT_SIZE
+
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace internal
+}  // namespace v8

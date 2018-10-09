@@ -25,7 +25,8 @@ BUILTIN(MathHypot) {
   abs_values.reserve(length);
   for (int i = 0; i < length; i++) {
     Handle<Object> x = args.at(i + 1);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
+                                       Object::ToNumber(isolate, x));
     double abs_value = std::abs(x->Number());
 
     if (std::isnan(abs_value)) {
@@ -43,7 +44,7 @@ BUILTIN(MathHypot) {
   }
 
   if (one_arg_is_nan) {
-    return isolate->heap()->nan_value();
+    return ReadOnlyRoots(isolate).nan_value();
   }
 
   if (max == 0) {

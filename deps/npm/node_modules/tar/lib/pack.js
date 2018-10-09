@@ -71,6 +71,7 @@ const Pack = warner(class Pack extends MiniPass {
     this.linkCache = opt.linkCache || new Map()
     this.statCache = opt.statCache || new Map()
     this.readdirCache = opt.readdirCache || new Map()
+
     this[WRITEENTRYCLASS] = WriteEntry
     if (typeof opt.onwarn === 'function')
       this.on('warn', opt.onwarn)

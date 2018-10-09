@@ -3051,8 +3051,8 @@ ___
 ########################################################################
 # Convert ecp_nistz256_table.c to layout expected by ecp_nistz_gather_w7
 #
-open TABLE,"<ecp_nistz256_table.c"		or
-open TABLE,"<${dir}../ecp_nistz256_table.c"	or
+open TABLE,"<ecp_nistz256_table.c"		or 
+open TABLE,"<${dir}../ecp_nistz256_table.c"	or 
 die "failed to open ecp_nistz256_table.c:",$!;
 
 use integer;

@@ -253,9 +253,6 @@ void GCTracer::Start(GarbageCollector collector,
     current_.scopes[i] = 0;
   }
 
-  size_t committed_memory = heap_->CommittedMemory() / KB;
-  size_t used_memory = current_.start_object_size / KB;
-
   Counters* counters = heap_->isolate()->counters();
 
   if (Heap::IsYoungGenerationCollector(collector)) {
@@ -263,9 +260,6 @@ void GCTracer::Start(GarbageCollector collector,
   } else {
     counters->mark_compact_reason()->AddSample(static_cast<int>(gc_reason));
   }
-  counters->aggregated_memory_heap_committed()->AddSample(start_time,
-                                                          committed_memory);
-  counters->aggregated_memory_heap_used()->AddSample(start_time, used_memory);
 }
 
 void GCTracer::ResetIncrementalMarkingCounters() {
@@ -283,9 +277,11 @@ void GCTracer::ResetIncrementalMarkingCounters() {
 void GCTracer::Stop(GarbageCollector collector) {
   start_counter_--;
   if (start_counter_ != 0) {
-    heap_->isolate()->PrintWithTimestamp("[Finished reentrant %s during %s.]\n",
-                                         Heap::CollectorName(collector),
-                                         current_.TypeName(false));
+    if (FLAG_trace_gc_verbose) {
+      heap_->isolate()->PrintWithTimestamp(
+          "[Finished reentrant %s during %s.]\n",
+          Heap::CollectorName(collector), current_.TypeName(false));
+    }
     return;
   }
 
@@ -304,13 +300,6 @@ void GCTracer::Stop(GarbageCollector collector) {
   current_.survived_new_space_object_size = heap_->SurvivedNewSpaceObjectSize();
 
   AddAllocation(current_.end_time);
-
-  size_t committed_memory = heap_->CommittedMemory() / KB;
-  size_t used_memory = current_.end_object_size / KB;
-  heap_->isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
-      current_.end_time, committed_memory);
-  heap_->isolate()->counters()->aggregated_memory_heap_used()->AddSample(
-      current_.end_time, used_memory);
 
   double duration = current_.end_time - current_.start_time;
 
@@ -532,6 +521,7 @@ void GCTracer::PrintNVP() const {
           "scavenge.weak_global_handles.identify=%.2f "
           "scavenge.weak_global_handles.process=%.2f "
           "scavenge.parallel=%.2f "
+          "scavenge.update_refs=%.2f "
           "background.scavenge.parallel=%.2f "
           "background.array_buffer_free=%.2f "
           "background.store_buffer=%.2f "
@@ -580,6 +570,7 @@ void GCTracer::PrintNVP() const {
           current_
               .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_PARALLEL],
+          current_.scopes[Scope::SCAVENGER_SCAVENGE_UPDATE_REFS],
           current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL],
           current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
           current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
@@ -674,7 +665,6 @@ void GCTracer::PrintNVP() const {
           "clear.slots_buffer=%.1f "
           "clear.store_buffer=%.1f "
           "clear.string_table=%.1f "
-          "clear.weak_cells=%.1f "
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
           "clear.weak_references=%.1f "
@@ -697,7 +687,9 @@ void GCTracer::PrintNVP() const {
           "mark.roots=%.1f "
           "mark.main=%.1f "
           "mark.weak_closure=%.1f "
-          "mark.weak_closure.ephemeral=%.1f "
+          "mark.weak_closure.ephemeron=%.1f "
+          "mark.weak_closure.ephemeron.marking=%.1f "
+          "mark.weak_closure.ephemeron.linear=%.1f "
           "mark.weak_closure.weak_handles=%.1f "
           "mark.weak_closure.weak_roots=%.1f "
           "mark.weak_closure.harmony=%.1f "
@@ -769,7 +761,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_CLEAR_SLOTS_BUFFER],
           current_.scopes[Scope::MC_CLEAR_STORE_BUFFER],
           current_.scopes[Scope::MC_CLEAR_STRING_TABLE],
-          current_.scopes[Scope::MC_CLEAR_WEAK_CELLS],
           current_.scopes[Scope::MC_CLEAR_WEAK_COLLECTIONS],
           current_.scopes[Scope::MC_CLEAR_WEAK_LISTS],
           current_.scopes[Scope::MC_CLEAR_WEAK_REFERENCES],
@@ -791,7 +782,9 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_MARK_ROOTS],
           current_.scopes[Scope::MC_MARK_MAIN],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE],
-          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL],
+          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON],
+          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING],
+          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_HARMONY],
@@ -1097,6 +1090,28 @@ void GCTracer::AddBackgroundScopeSample(
   counter.total_duration_ms += duration;
   if (runtime_call_counter) {
     counter.runtime_call_counter.Add(runtime_call_counter);
+  }
+}
+
+void GCTracer::RecordMarkCompactHistograms(HistogramTimer* gc_timer) {
+  Counters* counters = heap_->isolate()->counters();
+  if (gc_timer == counters->gc_finalize()) {
+    DCHECK_EQ(Scope::FIRST_TOP_MC_SCOPE, Scope::MC_CLEAR);
+    counters->gc_finalize_clear()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_CLEAR]));
+    counters->gc_finalize_epilogue()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_EPILOGUE]));
+    counters->gc_finalize_evacuate()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_EVACUATE]));
+    counters->gc_finalize_finish()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_FINISH]));
+    counters->gc_finalize_mark()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_MARK]));
+    counters->gc_finalize_prologue()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_PROLOGUE]));
+    counters->gc_finalize_sweep()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_SWEEP]));
+    DCHECK_EQ(Scope::LAST_TOP_MC_SCOPE, Scope::MC_SWEEP);
   }
 }
 

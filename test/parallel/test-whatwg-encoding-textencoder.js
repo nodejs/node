@@ -4,7 +4,6 @@
 const common = require('../common');
 
 const assert = require('assert');
-const { TextDecoder, TextEncoder } = require('util');
 const { customInspectSymbol: inspect } = require('internal/util');
 
 const encoded = Buffer.from([0xef, 0xbb, 0xbf, 0x74, 0x65,

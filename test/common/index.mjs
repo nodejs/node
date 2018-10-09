@@ -3,7 +3,6 @@
 import common from './index.js';
 
 const {
-  PORT,
   isMainThread,
   isWindows,
   isWOW64,
@@ -14,7 +13,6 @@ const {
   isOpenBSD,
   isLinux,
   isOSX,
-  isGlibc,
   enoughTestMem,
   enoughTestCpu,
   rootDir,
@@ -25,16 +23,12 @@ const {
   hasIPv6,
   childShouldThrowAndAbort,
   ddCommand,
-  spawnPwd,
-  spawnSyncPwd,
   platformTimeout,
   allowGlobals,
-  leakedGlobals,
   mustCall,
   mustCallAtLeast,
   mustCallAsync,
   hasMultiLocalhost,
-  fileExists,
   skipIfEslintMissing,
   canCreateSymLink,
   getCallSite,
@@ -52,18 +46,12 @@ const {
   skipIf32Bits,
   getArrayBufferViews,
   getBufferSources,
-  crashOnUnhandledRejection,
+  disableCrashOnUnhandledRejection,
   getTTYfd,
-  runWithInvalidFD,
-  hijackStdout,
-  hijackStderr,
-  restoreStdout,
-  restoreStderr,
-  isCPPSymbolsNotMapped
+  runWithInvalidFD
 } = common;
 
 export {
-  PORT,
   isMainThread,
   isWindows,
   isWOW64,
@@ -74,7 +62,6 @@ export {
   isOpenBSD,
   isLinux,
   isOSX,
-  isGlibc,
   enoughTestMem,
   enoughTestCpu,
   rootDir,
@@ -85,16 +72,12 @@ export {
   hasIPv6,
   childShouldThrowAndAbort,
   ddCommand,
-  spawnPwd,
-  spawnSyncPwd,
   platformTimeout,
   allowGlobals,
-  leakedGlobals,
   mustCall,
   mustCallAtLeast,
   mustCallAsync,
   hasMultiLocalhost,
-  fileExists,
   skipIfEslintMissing,
   canCreateSymLink,
   getCallSite,
@@ -112,12 +95,7 @@ export {
   skipIf32Bits,
   getArrayBufferViews,
   getBufferSources,
-  crashOnUnhandledRejection,
+  disableCrashOnUnhandledRejection,
   getTTYfd,
-  runWithInvalidFD,
-  hijackStdout,
-  hijackStderr,
-  restoreStdout,
-  restoreStderr,
-  isCPPSymbolsNotMapped
+  runWithInvalidFD
 };

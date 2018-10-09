@@ -23,7 +23,7 @@ break aux data: {
     }
   ]
 }
-callback (user.js:31:17)
+callback (user.js:32:2)
 doFrameworkWork (framework.js:16:2)
 frameworkCall (framework.js:9:12)
 testFunction (user.js:27:12)

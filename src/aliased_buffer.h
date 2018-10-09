@@ -1,6 +1,7 @@
-
 #ifndef SRC_ALIASED_BUFFER_H_
 #define SRC_ALIASED_BUFFER_H_
+
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "v8.h"
 #include "util-inl.h"
@@ -13,7 +14,7 @@ namespace node {
  * going through JS, and the data is then available to user's via the exposed
  * JS object.
  *
- * While this technique is computationaly efficient, it is effectively a
+ * While this technique is computationally efficient, it is effectively a
  * write to JS program state w/out going through the standard
  * (monitored) API. Thus any VM capabilities to detect the modification are
  * circumvented.
@@ -234,5 +235,7 @@ class AliasedBuffer {
   bool free_buffer_;
 };
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ALIASED_BUFFER_H_

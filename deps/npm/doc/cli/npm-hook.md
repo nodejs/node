@@ -48,7 +48,7 @@ $ npm hook rm id-deadbeef
 ## DESCRIPTION
 
 Allows you to manage [npm
-hooks](http://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm),
+hooks](https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm),
 including adding, removing, listing, and updating.
 
 Hooks allow you to configure URL endpoints that will be notified whenever a
@@ -69,4 +69,4 @@ request came from your own configured hook.
 
 ## SEE ALSO
 
-* ["Introducing Hooks" blog post](http://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm)
+* ["Introducing Hooks" blog post](https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm)

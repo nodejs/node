@@ -15,7 +15,7 @@
 # ====================================================================
 #
 # June 2015
-#
+# 
 # ChaCha20 for ARMv8.
 #
 # Performance in cycles per byte out of large buffer.
@@ -201,7 +201,7 @@ ChaCha20_ctr32:
 	mov	$ctr,#10
 	subs	$len,$len,#64
 .Loop:
-	sub	$ctr,$ctr,#1
+	sub	$ctr,$ctr,#1	
 ___
 	foreach (&ROUND(0, 4, 8,12)) { eval; }
 	foreach (&ROUND(0, 5,10,15)) { eval; }

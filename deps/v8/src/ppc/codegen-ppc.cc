@@ -37,7 +37,8 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  DCHECK(ABI_USES_FUNCTION_DESCRIPTORS || !RelocInfo::RequiresRelocation(desc));
+  DCHECK(ABI_USES_FUNCTION_DESCRIPTORS ||
+         !RelocInfo::RequiresRelocationAfterCodegen(desc));
 
   Assembler::FlushICache(buffer, allocated);
   CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));

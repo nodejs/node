@@ -58,14 +58,14 @@ sub should_be_tainted {
   if (Text::Template::_is_clean($_[0])) {
     print "not ok $n\n"; $n++; return;
   }
-  print "ok $n\n"; $n++; return;
+  print "ok $n\n"; $n++; return; 
 }
 
 sub should_be_clean {
   unless (Text::Template::_is_clean($_[0])) {
     print "not ok $n\n"; $n++; return;
   }
-  print "ok $n\n"; $n++; return;
+  print "ok $n\n"; $n++; return; 
 }
 
 # Tainted filename should die with and without UNTAINT option
@@ -116,3 +116,4 @@ Text::Template::_unconditionally_untaint($tfile);
 should_be_clean($tfile);
 
 END { unlink $file }
+

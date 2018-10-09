@@ -18,7 +18,6 @@ function PrintError(name, error) {
   success = false;
 }
 
-
 BenchmarkSuite.config.doWarmup = undefined;
 BenchmarkSuite.config.doDeterministic = undefined;
 

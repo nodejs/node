@@ -2213,28 +2213,37 @@ int SSL_set_cipher_list(SSL *s, const char *str)
     return 1;
 }
 
-char *SSL_get_shared_ciphers(const SSL *s, char *buf, int len)
+char *SSL_get_shared_ciphers(const SSL *s, char *buf, int size)
 {
     char *p;
-    STACK_OF(SSL_CIPHER) *sk;
+    STACK_OF(SSL_CIPHER) *clntsk, *srvrsk;
     const SSL_CIPHER *c;
     int i;
 
-    if ((s->session == NULL) || (s->session->ciphers == NULL) || (len < 2))
-        return (NULL);
-
-    p = buf;
-    sk = s->session->ciphers;
-
-    if (sk_SSL_CIPHER_num(sk) == 0)
+    if (!s->server
+            || s->session == NULL
+            || s->session->ciphers == NULL
+            || size < 2)
         return NULL;
 
-    for (i = 0; i < sk_SSL_CIPHER_num(sk); i++) {
+    p = buf;
+    clntsk = s->session->ciphers;
+    srvrsk = SSL_get_ciphers(s);
+    if (clntsk == NULL || srvrsk == NULL)
+        return NULL;
+
+    if (sk_SSL_CIPHER_num(clntsk) == 0 || sk_SSL_CIPHER_num(srvrsk) == 0)
+        return NULL;
+
+    for (i = 0; i < sk_SSL_CIPHER_num(clntsk); i++) {
         int n;
 
-        c = sk_SSL_CIPHER_value(sk, i);
+        c = sk_SSL_CIPHER_value(clntsk, i);
+        if (sk_SSL_CIPHER_find(srvrsk, c) < 0)
+            continue;
+
         n = strlen(c->name);
-        if (n + 1 > len) {
+        if (n + 1 > size) {
             if (p != buf)
                 --p;
             *p = '\0';
@@ -2243,7 +2252,7 @@ char *SSL_get_shared_ciphers(const SSL *s, char *buf, int len)
         memcpy(p, c->name, n + 1);
         p += n;
         *(p++) = ':';
-        len -= n + 1;
+        size -= n + 1;
     }
     p[-1] = '\0';
     return (buf);
@@ -3035,12 +3044,13 @@ void ssl_update_cache(SSL *s, int mode)
     /*
      * If sid_ctx_length is 0 there is no specific application context
      * associated with this session, so when we try to resume it and
-     * SSL_VERIFY_PEER is requested, we have no indication that this is
-     * actually a session for the proper application context, and the
-     * *handshake* will fail, not just the resumption attempt.
-     * Do not cache these sessions that are not resumable.
+     * SSL_VERIFY_PEER is requested to verify the client identity, we have no
+     * indication that this is actually a session for the proper application
+     * context, and the *handshake* will fail, not just the resumption attempt.
+     * Do not cache (on the server) these sessions that are not resumable
+     * (clients can set SSL_VERIFY_PEER without needing a sid_ctx set).
      */
-    if (s->session->sid_ctx_length == 0
+    if (s->server && s->session->sid_ctx_length == 0
             && (s->verify_mode & SSL_VERIFY_PEER) != 0)
         return;
 
@@ -3519,7 +3529,6 @@ void ssl_free_wbio_buffer(SSL *s)
         return;
 
     s->wbio = BIO_pop(s->wbio);
-    assert(s->wbio != NULL);
     BIO_free(s->bbio);
     s->bbio = NULL;
 }

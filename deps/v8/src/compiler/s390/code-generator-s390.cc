@@ -12,6 +12,7 @@
 #include "src/compiler/osr.h"
 #include "src/optimized-compilation-info.h"
 #include "src/s390/macro-assembler-s390.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -605,15 +606,14 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ LoadlW(i.OutputRegister(), r0);          \
   } while (0)
 
-#define ASSEMBLE_FLOAT_MODULO()                                            \
-  do {                                                                     \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                          \
-    __ PrepareCallCFunction(0, 2, kScratchReg);                            \
-    __ MovToFloatParameters(i.InputDoubleRegister(0),                      \
-                            i.InputDoubleRegister(1));                     \
-    __ CallCFunction(                                                      \
-        ExternalReference::mod_two_doubles_operation(__ isolate()), 0, 2); \
-    __ MovFromFloatResult(i.OutputDoubleRegister());                       \
+#define ASSEMBLE_FLOAT_MODULO()                                             \
+  do {                                                                      \
+    FrameScope scope(tasm(), StackFrame::MANUAL);                           \
+    __ PrepareCallCFunction(0, 2, kScratchReg);                             \
+    __ MovToFloatParameters(i.InputDoubleRegister(0),                       \
+                            i.InputDoubleRegister(1));                      \
+    __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2); \
+    __ MovFromFloatResult(i.OutputDoubleRegister());                        \
   } while (0)
 
 #define ASSEMBLE_IEEE754_UNOP(name)                                            \
@@ -623,8 +623,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     FrameScope scope(tasm(), StackFrame::MANUAL);                              \
     __ PrepareCallCFunction(0, 1, kScratchReg);                                \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
-    __ CallCFunction(                                                          \
-        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 1);     \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1);    \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
   } while (0)
@@ -637,8 +636,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ PrepareCallCFunction(0, 2, kScratchReg);                                \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
                             i.InputDoubleRegister(1));                         \
-    __ CallCFunction(                                                          \
-        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 2);     \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 2);    \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
   } while (0)
@@ -899,6 +897,252 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ asm_instr(value, operand);                        \
   } while (0)
 
+#define ATOMIC_COMP_EXCHANGE(start, end, shift_amount, offset)              \
+  {                                                                         \
+    __ LoadlW(temp0, MemOperand(addr, offset));                             \
+    __ llgfr(temp1, temp0);                                                 \
+    __ RotateInsertSelectBits(temp0, old_val, Operand(start),               \
+             Operand(end), Operand(shift_amount), false);                   \
+    __ RotateInsertSelectBits(temp1, new_val, Operand(start),               \
+             Operand(end), Operand(shift_amount), false);                   \
+    __ CmpAndSwap(temp0, temp1, MemOperand(addr, offset));                  \
+    __ RotateInsertSelectBits(output, temp0, Operand(start+shift_amount),   \
+             Operand(end+shift_amount), Operand(64-shift_amount), true);    \
+  }
+
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * idx;                                     \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = (3 - idx) * 8;                             \
+    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx);                   \
+  }
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * idx;                                    \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = (1 - idx) * 16;                            \
+    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx * 2);               \
+  }
+#else
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * (3 - idx);                               \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = idx * 8;                                   \
+    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx);                   \
+  }
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * (1 - idx);                              \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = idx * 16;                                  \
+    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx * 2);               \
+  }
+#endif
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(load_and_ext)            \
+  do {                                                                 \
+    Register old_val = i.InputRegister(0);                             \
+    Register new_val = i.InputRegister(1);                             \
+    Register output = i.OutputRegister();                              \
+    Register addr = kScratchReg;                                       \
+    Register temp0 = r0;                                               \
+    Register temp1 = r1;                                               \
+    size_t index = 2;                                                  \
+    AddressingMode mode = kMode_None;                                  \
+    MemOperand op = i.MemoryOperand(&mode, &index);                    \
+    Label three, two, one, done;                                       \
+    __ lay(addr, op);                                                  \
+    __ tmll(addr, Operand(3));                                         \
+    __ b(Condition(1), &three);                                        \
+    __ b(Condition(2), &two);                                          \
+    __ b(Condition(4), &one);                                          \
+    /* ending with 0b00 */                                             \
+    ATOMIC_COMP_EXCHANGE_BYTE(0);                                      \
+    __ b(&done);                                                       \
+    /* ending with 0b01 */                                             \
+    __ bind(&one);                                                     \
+    ATOMIC_COMP_EXCHANGE_BYTE(1);                                      \
+    __ b(&done);                                                       \
+    /* ending with 0b10 */                                             \
+    __ bind(&two);                                                     \
+    ATOMIC_COMP_EXCHANGE_BYTE(2);                                      \
+    __ b(&done);                                                       \
+    /* ending with 0b11 */                                             \
+    __ bind(&three);                                                   \
+    ATOMIC_COMP_EXCHANGE_BYTE(3);                                      \
+    __ bind(&done);                                                    \
+    __ load_and_ext(output, output);                                   \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(load_and_ext)          \
+  do {                                                                   \
+    Register old_val = i.InputRegister(0);                               \
+    Register new_val = i.InputRegister(1);                               \
+    Register output = i.OutputRegister();                                \
+    Register addr = kScratchReg;                                         \
+    Register temp0 = r0;                                                 \
+    Register temp1 = r1;                                                 \
+    size_t index = 2;                                                    \
+    AddressingMode mode = kMode_None;                                    \
+    MemOperand op = i.MemoryOperand(&mode, &index);                      \
+    Label two, done;                                                     \
+    __ lay(addr, op);                                                    \
+    __ tmll(addr, Operand(3));                                           \
+    __ b(Condition(2), &two);                                            \
+    ATOMIC_COMP_EXCHANGE_HALFWORD(0);                                    \
+    __ b(&done);                                                         \
+    __ bind(&two);                                                       \
+    ATOMIC_COMP_EXCHANGE_HALFWORD(1);                                    \
+    __ bind(&done);                                                      \
+    __ load_and_ext(output, output);                                     \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD()                          \
+  do {                                                                   \
+    Register new_val = i.InputRegister(1);                               \
+    Register output = i.OutputRegister();                                \
+    Register addr = kScratchReg;                                         \
+    size_t index = 2;                                                    \
+    AddressingMode mode = kMode_None;                                    \
+    MemOperand op = i.MemoryOperand(&mode, &index);                      \
+    __ lay(addr, op);                                                    \
+    __ CmpAndSwap(output, new_val, MemOperand(addr));                    \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_BINOP_WORD(load_and_op)                           \
+  do {                                                                    \
+    Register value = i.InputRegister(2);                                  \
+    Register result = i.OutputRegister(0);                                \
+    Register addr = r1;                                                   \
+    AddressingMode mode = kMode_None;                                     \
+    MemOperand op = i.MemoryOperand(&mode);                               \
+    __ lay(addr, op);                                                     \
+    __ load_and_op(result, value, MemOperand(addr));                      \
+    __ LoadlW(result, result);                                            \
+  } while (false)
+
+#define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end)         \
+  do {                                                                    \
+    Label do_cs;                                                          \
+    __ LoadlW(prev, MemOperand(addr, offset));                            \
+    __ bind(&do_cs);                                                      \
+    __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),  \
+             Operand(static_cast<intptr_t>(shift_amount)), true);         \
+    __ bin_inst(new_val, prev, temp);                                     \
+    __ lr(temp, prev);                                                    \
+    __ RotateInsertSelectBits(temp, new_val, Operand(start),              \
+             Operand(end), Operand::Zero(), false);                       \
+    __ CmpAndSwap(prev, temp, MemOperand(addr, offset));                  \
+    __ bne(&do_cs, Label::kNear);                                         \
+  } while (false)
+
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)  \
+  {                                                              \
+    constexpr int offset = -(2 * index);                         \
+    constexpr int shift_amount = 16 - (index * 16);              \
+    constexpr int start = 48 - shift_amount;                     \
+    constexpr int end = start + 15;                              \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
+    extract_result();                                            \
+  }
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)      \
+  {                                                              \
+    constexpr int offset = -(index);                             \
+    constexpr int shift_amount = 24 - (index * 8);               \
+    constexpr int start = 56 - shift_amount;                     \
+    constexpr int end = start + 7;                               \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
+    extract_result();                                            \
+  }
+#else
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)  \
+  {                                                              \
+    constexpr int offset = -(2 * index);                         \
+    constexpr int shift_amount = index * 16;                     \
+    constexpr int start = 48 - shift_amount;                     \
+    constexpr int end = start + 15;                              \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
+    extract_result();                                            \
+  }
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)      \
+  {                                                              \
+    constexpr int offset = -(index);                             \
+    constexpr int shift_amount = index * 8;                      \
+    constexpr int start = 56 - shift_amount;                     \
+    constexpr int end = start + 7;                               \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
+    extract_result();                                            \
+  }
+#endif  // V8_TARGET_BIG_ENDIAN
+
+#define ASSEMBLE_ATOMIC_BINOP_HALFWORD(bin_inst, extract_result)          \
+  do {                                                                    \
+    Register value = i.InputRegister(2);                                  \
+    Register result = i.OutputRegister(0);                                \
+    Register prev = i.TempRegister(0);                                    \
+    Register new_val = r0;                                                \
+    Register addr = r1;                                                   \
+    Register temp = kScratchReg;                                          \
+    AddressingMode mode = kMode_None;                                     \
+    MemOperand op = i.MemoryOperand(&mode);                               \
+    Label two, done;                                                      \
+    __ lay(addr, op);                                                     \
+    __ tmll(addr, Operand(3));                                            \
+    __ b(Condition(2), &two);                                             \
+    /* word boundary */                                                   \
+    ATOMIC_BIN_OP_HALFWORD(bin_inst, 0, extract_result);                  \
+    __ b(&done);                                                          \
+    __ bind(&two);                                                        \
+    /* halfword boundary */                                               \
+    ATOMIC_BIN_OP_HALFWORD(bin_inst, 1, extract_result);                  \
+    __ bind(&done);                                                       \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_BINOP_BYTE(bin_inst, extract_result)              \
+  do {                                                                    \
+    Register value = i.InputRegister(2);                                  \
+    Register result = i.OutputRegister(0);                                \
+    Register addr = i.TempRegister(0);                                    \
+    Register prev = r0;                                                   \
+    Register new_val = r1;                                                \
+    Register temp = kScratchReg;                                          \
+    AddressingMode mode = kMode_None;                                     \
+    MemOperand op = i.MemoryOperand(&mode);                               \
+    Label done, one, two, three;                                          \
+    __ lay(addr, op);                                                     \
+    __ tmll(addr, Operand(3));                                            \
+    __ b(Condition(1), &three);                                           \
+    __ b(Condition(2), &two);                                             \
+    __ b(Condition(4), &one);                                             \
+    /* ending with 0b00 (word boundary) */                                \
+    ATOMIC_BIN_OP_BYTE(bin_inst, 0, extract_result);                      \
+    __ b(&done);                                                          \
+    /* ending with 0b01 */                                                \
+    __ bind(&one);                                                        \
+    ATOMIC_BIN_OP_BYTE(bin_inst, 1, extract_result);                      \
+    __ b(&done);                                                          \
+    /* ending with 0b10 (hw boundary) */                                  \
+    __ bind(&two);                                                        \
+    ATOMIC_BIN_OP_BYTE(bin_inst, 2, extract_result);                      \
+    __ b(&done);                                                          \
+    /* ending with 0b11 */                                                \
+    __ bind(&three);                                                      \
+    ATOMIC_BIN_OP_BYTE(bin_inst, 3, extract_result);                      \
+    __ bind(&done);                                                       \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
 }
@@ -1066,6 +1310,9 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ LoadW(ip,
            FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
+  // Ensure we're not serializing (otherwise we'd need to use an indirection to
+  // access the builtin below).
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
   __ Jump(code, RelocInfo::CODE_TARGET, ne);
@@ -1101,16 +1348,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   ArchOpcode opcode = ArchOpcodeField::decode(instr->opcode());
 
   switch (opcode) {
-    case kArchComment: {
-      Address comment_string = i.InputExternalReference(0).address();
-      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+    case kArchComment:
+#ifdef V8_TARGET_ARCH_S390X
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
+#else
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt32(0)));
+#endif
       break;
-    }
     case kArchCallCodeObject: {
       if (HasRegisterInput(instr, 0)) {
-        __ AddP(ip, i.InputRegister(0),
-                Operand(Code::kHeaderSize - kHeapObjectTag));
-        __ Call(ip);
+        Register reg = i.InputRegister(0);
+        DCHECK_IMPLIES(
+            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            reg == kJavaScriptCallCodeStartRegister);
+        __ AddP(reg, reg, Operand(Code::kHeaderSize - kHeapObjectTag));
+        __ Call(reg);
       } else {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       }
@@ -1121,20 +1373,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallWasmFunction: {
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
-      RelocInfo::Mode rmode = RelocInfo::JS_TO_WASM_CALL;
-      if (info()->IsWasm()) {
-        rmode = RelocInfo::WASM_CALL;
-      }
-
       if (instr->InputAt(0)->IsImmediate()) {
+        Constant constant = i.ToConstant(instr->InputAt(0));
 #ifdef V8_TARGET_ARCH_S390X
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code = static_cast<Address>(constant.ToInt64());
 #else
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt32());
+        Address wasm_code = static_cast<Address>(constant.ToInt32());
 #endif
-        __ Call(wasm_code, rmode);
+        __ Call(wasm_code, constant.rmode());
       } else {
         __ Call(i.InputRegister(0));
       }
@@ -1150,9 +1396,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                          i.TempRegister(2));
       }
       if (HasRegisterInput(instr, 0)) {
-        __ AddP(ip, i.InputRegister(0),
-                Operand(Code::kHeaderSize - kHeapObjectTag));
-        __ Jump(ip);
+        Register reg = i.InputRegister(0);
+        DCHECK_IMPLIES(
+            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            reg == kJavaScriptCallCodeStartRegister);
+        __ AddP(reg, reg, Operand(Code::kHeaderSize - kHeapObjectTag));
+        __ Jump(reg);
       } else {
         // We cannot use the constant pool to load the target since
         // we've already restored the caller's frame.
@@ -1166,15 +1415,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTailCallWasm: {
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
-      RelocInfo::Mode rmode = RelocInfo::JS_TO_WASM_CALL;
-      if (info()->IsWasm()) {
-        rmode = RelocInfo::WASM_CALL;
-      }
-
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt32());
-        __ Jump(wasm_code, rmode);
+        Constant constant = i.ToConstant(instr->InputAt(0));
+#ifdef V8_TARGET_ARCH_S390X
+        Address wasm_code = static_cast<Address>(constant.ToInt64());
+#else
+        Address wasm_code = static_cast<Address>(constant.ToInt32());
+#endif
+        __ Jump(wasm_code, constant.rmode());
       } else {
         __ Jump(i.InputRegister(0));
       }
@@ -1184,7 +1432,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallAddress: {
       CHECK(!instr->InputAt(0)->IsImmediate());
-      __ Jump(i.InputRegister(0));
+      Register reg = i.InputRegister(0);
+      DCHECK_IMPLIES(
+          HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+          reg == kJavaScriptCallCodeStartRegister);
+      __ Jump(reg);
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
       break;
@@ -1272,6 +1524,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
+    case kArchBinarySearchSwitch:
+      AssembleArchBinarySearchSwitch(instr);
+      break;
     case kArchLookupSwitch:
       AssembleArchLookupSwitch(instr);
       break;
@@ -1323,13 +1578,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ LoadRR(i.OutputRegister(), fp);
       }
       break;
-    case kArchRootsPointer:
-      __ LoadRR(i.OutputRegister(), kRootRegister);
-      break;
     case kArchTruncateDoubleToI:
-      // TODO(mbrandy): move slow call to stub out of line.
-      __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
-                                  i.InputDoubleRegister(0));
+      __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
+                           i.InputDoubleRegister(0), DetermineStubCallMode());
       break;
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode =
@@ -1367,7 +1618,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               Operand(offset.offset()));
       break;
     }
-    case kArchPoisonOnSpeculationWord:
+    case kArchWordPoisonOnSpeculation:
       DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
       __ AndP(i.InputRegister(0), kSpeculationPoisonRegister);
       break;
@@ -1559,8 +1810,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int shiftAmount = i.InputInt32(1);
         int endBit = 63 - shiftAmount;
         int startBit = 63 - i.InputInt32(2);
-        __ risbg(i.OutputRegister(), i.InputRegister(0), Operand(startBit),
-                 Operand(endBit), Operand(shiftAmount), true);
+        __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
+               Operand(startBit), Operand(endBit), Operand(shiftAmount), true);
       } else {
         int shiftAmount = i.InputInt32(1);
         int clearBit = 63 - i.InputInt32(2);
@@ -1576,8 +1827,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int shiftAmount = i.InputInt32(1);
         int endBit = 63;
         int startBit = 63 - i.InputInt32(2);
-        __ risbg(i.OutputRegister(), i.InputRegister(0), Operand(startBit),
-                 Operand(endBit), Operand(shiftAmount), true);
+        __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
+                Operand(startBit), Operand(endBit), Operand(shiftAmount), true);
       } else {
         int shiftAmount = i.InputInt32(1);
         int clearBit = 63 - i.InputInt32(2);
@@ -1591,8 +1842,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int shiftAmount = i.InputInt32(1);
         int endBit = 63 - i.InputInt32(2);
         int startBit = 0;
-        __ risbg(i.OutputRegister(), i.InputRegister(0), Operand(startBit),
-                 Operand(endBit), Operand(shiftAmount), true);
+        __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
+                Operand(startBit), Operand(endBit), Operand(shiftAmount), true);
       } else {
         int shiftAmount = i.InputInt32(1);
         int clearBit = i.InputInt32(2);
@@ -1723,16 +1974,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_UNARY_OP(D_DInstr(sqdbr), nullInstr, nullInstr);
       break;
     case kS390_FloorFloat:
-      __ fiebra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF);
+      __ fiebra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_CeilFloat:
-      __ fiebra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF);
+      __ fiebra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_TruncateFloat:
-      __ fiebra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0);
+      __ fiebra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     //  Double operations
     case kS390_ModDouble:
@@ -1799,7 +2050,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
     case kIeee754Float64Pow: {
-      __ CallStubDelayed(new (zone()) MathPowStub());
+      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
       __ Move(d1, d3);
       break;
     }
@@ -1826,20 +2077,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lpdbr(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_FloorDouble:
-      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF);
+      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_CeilDouble:
-      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF);
+      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_TruncateDouble:
-      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0);
+      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_RoundDouble:
-      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                v8::internal::Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0);
+      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0,
+                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_NegFloat:
       ASSEMBLE_UNARY_OP(D_DInstr(lcebr), nullInstr, nullInstr);
@@ -2299,11 +2550,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #define ATOMIC_EXCHANGE(start, end, shift_amount, offset)                    \
   {                                                                          \
     Label do_cs;                                                             \
-    __ LoadlW(output, MemOperand(r1));                                       \
+    __ LoadlW(output, MemOperand(r1, offset));                               \
     __ bind(&do_cs);                                                         \
     __ llgfr(r0, output);                                                    \
-    __ risbg(r0, value, Operand(start), Operand(end), Operand(shift_amount), \
-             false);                                                         \
+    __ RotateInsertSelectBits(r0, value, Operand(start), Operand(end),       \
+             Operand(shift_amount), false);                                  \
     __ csy(output, r0, MemOperand(r1, offset));                              \
     __ bne(&do_cs, Label::kNear);                                            \
     __ srl(output, Operand(shift_amount));                                   \
@@ -2426,6 +2677,73 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bne(&do_cs, Label::kNear);
       break;
     }
+    case kWord32AtomicCompareExchangeInt8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadB);
+      break;
+    case kWord32AtomicCompareExchangeUint8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadlB);
+      break;
+    case kWord32AtomicCompareExchangeInt16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadHalfWordP);
+      break;
+    case kWord32AtomicCompareExchangeUint16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadLogicalHalfWordP);
+      break;
+    case kWord32AtomicCompareExchangeWord32:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD();
+      break;
+#define ATOMIC_BINOP_CASE(op, inst)                                     \
+  case kWord32Atomic##op##Int8:                                         \
+    ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                            \
+          intptr_t shift_right = static_cast<intptr_t>(shift_amount);   \
+          __ srlk(result, prev, Operand(shift_right));                  \
+          __ LoadB(result, result);                                     \
+        });                                                             \
+    break;                                                              \
+  case kWord32Atomic##op##Uint8:                                        \
+    ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                            \
+          int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
+          __ RotateInsertSelectBits(result, prev, Operand(56),          \
+              Operand(63), Operand(static_cast<intptr_t>(rotate_left)), \
+              true);                                                    \
+        });                                                             \
+    break;                                                              \
+  case kWord32Atomic##op##Int16:                                        \
+    ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                        \
+          intptr_t shift_right = static_cast<intptr_t>(shift_amount);   \
+          __ srlk(result, prev, Operand(shift_right));                  \
+          __ LoadHalfWordP(result, result);                             \
+        });                                                             \
+    break;                                                              \
+  case kWord32Atomic##op##Uint16:                                       \
+    ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                        \
+          int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
+          __ RotateInsertSelectBits(result, prev, Operand(48),          \
+              Operand(63), Operand(static_cast<intptr_t>(rotate_left)), \
+              true);                                                    \
+        });                                                             \
+    break;
+      ATOMIC_BINOP_CASE(Add, Add32)
+      ATOMIC_BINOP_CASE(Sub, Sub32)
+      ATOMIC_BINOP_CASE(And, And)
+      ATOMIC_BINOP_CASE(Or, Or)
+      ATOMIC_BINOP_CASE(Xor, Xor)
+#undef ATOMIC_BINOP_CASE
+    case kWord32AtomicAddWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(laa);
+      break;
+    case kWord32AtomicSubWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(LoadAndSub32);
+      break;
+    case kWord32AtomicAndWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(lan);
+      break;
+    case kWord32AtomicOrWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(lao);
+      break;
+    case kWord32AtomicXorWord32:
+      ASSEMBLE_ATOMIC_BINOP_WORD(lax);
+      break;
     default:
       UNREACHABLE();
       break;
@@ -2481,39 +2799,26 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
   class OutOfLineTrap final : public OutOfLineCode {
    public:
-    OutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
-        : OutOfLineCode(gen),
-          frame_elided_(frame_elided),
-          instr_(instr),
-          gen_(gen) {}
+    OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
+        : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
 
     void Generate() final {
       S390OperandConverter i(gen_, instr_);
-
-      Builtins::Name trap_id =
-          static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
-      bool old_has_frame = __ has_frame();
-      if (frame_elided_) {
-        __ set_has_frame(true);
-        __ EnterFrame(StackFrame::WASM_COMPILED);
-      }
+      TrapId trap_id =
+          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
       GenerateCallToTrap(trap_id);
-      if (frame_elided_) {
-        __ set_has_frame(old_has_frame);
-      }
     }
 
    private:
-    void GenerateCallToTrap(Builtins::Name trap_id) {
-      if (trap_id == Builtins::builtin_count) {
+    void GenerateCallToTrap(TrapId trap_id) {
+      if (trap_id == TrapId::kInvalid) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
         // We use the context register as the scratch register, because we do
         // not have a context here.
         __ PrepareCallCFunction(0, 0, cp);
-        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
-                             __ isolate()),
-                         0);
+        __ CallCFunction(
+            ExternalReference::wasm_call_trap_callback_for_testing(), 0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         int pop_count =
@@ -2522,8 +2827,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Ret();
       } else {
         gen_->AssembleSourcePosition(instr_);
-        __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
-                RelocInfo::CODE_TARGET);
+        // A direct call to a wasm runtime stub defined in this module.
+        // Just encode the stub index. This will be patched at relocation.
+        __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
@@ -2534,12 +2840,10 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       }
     }
 
-    bool frame_elided_;
     Instruction* instr_;
     CodeGenerator* gen_;
   };
-  bool frame_elided = !frame_access_state()->has_frame();
-  auto ool = new (zone()) OutOfLineTrap(this, frame_elided, instr);
+  auto ool = new (zone()) OutOfLineTrap(this, instr);
   Label* tlabel = ool->entry();
   Label end;
 
@@ -2587,6 +2891,17 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // locr is sufficient since reg's upper 32 is guarrantee to be 0
   __ locr(cond, reg, kScratchReg);
   __ bind(&done);
+}
+
+void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
+  S390OperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  std::vector<std::pair<int32_t, Label*>> cases;
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
+  }
+  AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
+                                      cases.data() + cases.size());
 }
 
 void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
@@ -2655,6 +2970,9 @@ void CodeGenerator::AssembleConstructFrame() {
       // TODO(mbrandy): Detect cases where ip is the entrypoint (for
       // efficient intialization of the constant pool pointer register).
       __ StubPrologue(type);
+      if (call_descriptor->IsWasmFunctionCall()) {
+        __ Push(kWasmInstanceRegister);
+      }
     }
   }
 
@@ -2674,29 +2992,82 @@ void CodeGenerator::AssembleConstructFrame() {
     ResetSpeculationPoison();
   }
 
-  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
+  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
+
   if (shrink_slots > 0) {
+    if (info()->IsWasm() && shrink_slots > 128) {
+      // For WebAssembly functions with big frames we have to do the stack
+      // overflow check before we construct the frame. Otherwise we may not
+      // have enough space on the stack to call the runtime for the stack
+      // overflow.
+      Label done;
+
+      // If the frame is bigger than the stack, we throw the stack overflow
+      // exception unconditionally. Thereby we can avoid the integer overflow
+      // check in the condition code.
+      if ((shrink_slots * kPointerSize) < (FLAG_stack_size * 1024)) {
+        Register scratch = r1;
+        __ LoadP(scratch, FieldMemOperand(
+                            kWasmInstanceRegister,
+                            WasmInstanceObject::kRealStackLimitAddressOffset));
+        __ LoadP(scratch, MemOperand(scratch));
+        __ AddP(scratch, scratch, Operand(shrink_slots * kPointerSize));
+        __ CmpLogicalP(sp, scratch);
+        __ bge(&done);
+      }
+
+      __ LoadP(r4, FieldMemOperand(kWasmInstanceRegister,
+                                   WasmInstanceObject::kCEntryStubOffset));
+      __ Move(cp, Smi::kZero);
+      __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, r4);
+      // We come from WebAssembly, there are no references for the GC.
+      ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+      RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                      Safepoint::kNoLazyDeopt);
+      if (FLAG_debug_code) {
+        __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromThrow));
+      }
+
+      __ bind(&done);
+    }
+
+    // Skip callee-saved and return slots, which are pushed below.
+    shrink_slots -= base::bits::CountPopulation(saves);
+    shrink_slots -= frame()->GetReturnSlotCount();
+    shrink_slots -=
+        (kDoubleSize / kPointerSize) * base::bits::CountPopulation(saves_fp);
     __ lay(sp, MemOperand(sp, -shrink_slots * kPointerSize));
   }
 
   // Save callee-saved Double registers.
-  if (double_saves != 0) {
-    __ MultiPushDoubles(double_saves);
-    DCHECK_EQ(kNumCalleeSavedDoubles,
-              base::bits::CountPopulation(double_saves));
+  if (saves_fp != 0) {
+    __ MultiPushDoubles(saves_fp);
+    DCHECK_EQ(kNumCalleeSavedDoubles, base::bits::CountPopulation(saves_fp));
   }
 
   // Save callee-saved registers.
-  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     __ MultiPush(saves);
     // register save area does not include the fp or constant pool pointer.
+  }
+
+  const int returns = frame()->GetReturnSlotCount();
+  if (returns != 0) {
+    // Create space for returns.
+    __ lay(sp, MemOperand(sp, -returns * kPointerSize));
   }
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
   int pop_count = static_cast<int>(call_descriptor->StackParameterCount());
+
+  const int returns = frame()->GetReturnSlotCount();
+  if (returns != 0) {
+    // Create space for returns.
+    __ lay(sp, MemOperand(sp, returns * kPointerSize));
+  }
 
   // Restore registers.
   const RegList saves = call_descriptor->CalleeSavedRegisters();
@@ -2729,7 +3100,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     }
   }
   if (pop->IsImmediate()) {
-    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
     pop_count += g.ToConstant(pop).ToInt32();
   } else {
     __ Drop(g.ToRegister(pop));
@@ -2798,7 +3168,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ mov(dst, Operand::EmbeddedNumber(src.ToFloat64().value()));
           break;
         case Constant::kExternalReference:
-          __ mov(dst, Operand(src.ToExternalReference()));
+          __ Move(dst, src.ToExternalReference());
           break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();

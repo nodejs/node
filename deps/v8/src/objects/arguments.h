@@ -6,6 +6,7 @@
 #define V8_OBJECTS_ARGUMENTS_H_
 
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -98,7 +99,7 @@ class SloppyArgumentsElements : public FixedArray {
 
   DECL_CAST(SloppyArgumentsElements)
 #ifdef VERIFY_HEAP
-  void SloppyArgumentsElementsVerify(JSObject* holder);
+  void SloppyArgumentsElementsVerify(Isolate* isolate, JSObject* holder);
 #endif
 
  private:

@@ -51,20 +51,20 @@ class LayoutDescriptor : public ByteArray {
   // Builds layout descriptor optimized for given |map| by |num_descriptors|
   // elements of given descriptors array. The |map|'s descriptors could be
   // different.
-  static Handle<LayoutDescriptor> New(Handle<Map> map,
+  static Handle<LayoutDescriptor> New(Isolate* isolate, Handle<Map> map,
                                       Handle<DescriptorArray> descriptors,
                                       int num_descriptors);
 
   // Modifies |map|'s layout descriptor or creates a new one if necessary by
   // appending property with |details| to it.
-  static Handle<LayoutDescriptor> ShareAppend(Handle<Map> map,
+  static Handle<LayoutDescriptor> ShareAppend(Isolate* isolate, Handle<Map> map,
                                               PropertyDetails details);
 
   // Creates new layout descriptor by appending property with |details| to
   // |map|'s layout descriptor and if it is still fast then returns it.
   // Otherwise the |full_layout_descriptor| is returned.
   static Handle<LayoutDescriptor> AppendIfFastOrUseFull(
-      Handle<Map> map, PropertyDetails details,
+      Isolate* isolate, Handle<Map> map, PropertyDetails details,
       Handle<LayoutDescriptor> full_layout_descriptor);
 
   // Layout descriptor that corresponds to an object all fields of which are
@@ -96,10 +96,15 @@ class LayoutDescriptor : public ByteArray {
   LayoutDescriptor* SetTaggedForTesting(int field_index, bool tagged);
 
  private:
+  // Exclude sign-bit to simplify encoding.
+  static constexpr int kBitsInSmiLayout =
+      SmiValuesAre32Bits() ? 32 : kSmiValueSize - 1;
+
   static const int kBitsPerLayoutWord = 32;
-  int number_of_layout_words() { return length() / kUInt32Size; }
-  uint32_t get_layout_word(int index) const { return get_uint32(index); }
-  void set_layout_word(int index, uint32_t value) { set_uint32(index, value); }
+
+  V8_INLINE int number_of_layout_words();
+  V8_INLINE uint32_t get_layout_word(int index) const;
+  V8_INLINE void set_layout_word(int index, uint32_t value);
 
   V8_INLINE static Handle<LayoutDescriptor> New(Isolate* isolate, int length);
   V8_INLINE static LayoutDescriptor* FromSmi(Smi* smi);

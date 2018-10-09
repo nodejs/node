@@ -43,7 +43,6 @@ template <typename T, size_t N>
 char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif
 
-
 // bit_cast<Dest,Source> is a template function that implements the
 // equivalent of "*reinterpret_cast<Dest*>(&source)".  We need this in
 // very low-level functions like the protobuf library and fast math
@@ -114,6 +113,12 @@ V8_INLINE Dest bit_cast(Source const& source) {
   TypeName(const TypeName&) = delete;      \
   DISALLOW_ASSIGN(TypeName)
 
+// Explicitly declare all copy/move constructors and assignments as deleted.
+#define DISALLOW_COPY_AND_MOVE_AND_ASSIGN(TypeName) \
+  TypeName(TypeName&&) = delete;                    \
+  TypeName& operator=(TypeName&&) = delete;         \
+  DISALLOW_COPY_AND_ASSIGN(TypeName)
+
 // Explicitly declare all implicit constructors as deleted, namely the
 // default constructor, copy constructor and operator= functions.
 // This is especially useful for classes containing only static methods.
@@ -129,9 +134,9 @@ V8_INLINE Dest bit_cast(Source const& source) {
 
 // Disallow copying a type, and only provide move construction and move
 // assignment. Especially useful for move-only structs.
-#define MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName) \
-  TypeName(TypeName&&) = default;                  \
-  TypeName& operator=(TypeName&&) = default;       \
+#define MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName)       \
+  TypeName(TypeName&&) V8_NOEXCEPT = default;            \
+  TypeName& operator=(TypeName&&) V8_NOEXCEPT = default; \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 // A macro to disallow the dynamic allocation.
@@ -146,22 +151,25 @@ V8_INLINE Dest bit_cast(Source const& source) {
   void operator delete(void*, size_t) { base::OS::Abort(); } \
   void operator delete[](void*, size_t) { base::OS::Abort(); }
 
-// Newly written code should use V8_INLINE and V8_NOINLINE directly.
-#define INLINE(declarator)    V8_INLINE declarator
-#define NO_INLINE(declarator) V8_NOINLINE declarator
-
-// Define V8_USE_ADDRESS_SANITIZER macros.
+// Define V8_USE_ADDRESS_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
 #define V8_USE_ADDRESS_SANITIZER 1
 #endif
 #endif
 
-// Define DISABLE_ASAN macros.
+// Define DISABLE_ASAN macro.
 #ifdef V8_USE_ADDRESS_SANITIZER
 #define DISABLE_ASAN __attribute__((no_sanitize_address))
 #else
 #define DISABLE_ASAN
+#endif
+
+// Define V8_USE_MEMORY_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#define V8_USE_MEMORY_SANITIZER 1
+#endif
 #endif
 
 // Helper macro to define no_sanitize attributes only with clang.
@@ -271,6 +279,14 @@ struct Use {
 }  // namespace base
 }  // namespace v8
 
+// implicit_cast<A>(x) triggers an implicit cast from {x} to type {A}. This is
+// useful in situations where static_cast<A>(x) would do too much.
+// Only use this for cheap-to-copy types, or use move semantics explicitly.
+template <class A>
+V8_INLINE A implicit_cast(A x) {
+  return x;
+}
+
 // Define our own macros for writing 64-bit constants.  This is less fragile
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
 // works on compilers that don't have it (like MSVC).
@@ -295,6 +311,14 @@ struct Use {
 #define V8PRIxPTR V8_PTR_PREFIX "x"
 #define V8PRIdPTR V8_PTR_PREFIX "d"
 #define V8PRIuPTR V8_PTR_PREFIX "u"
+
+#ifdef V8_TARGET_ARCH_64_BIT
+#define V8_PTR_HEX_DIGITS 12
+#define V8PRIxPTR_FMT "0x%012" V8PRIxPTR
+#else
+#define V8_PTR_HEX_DIGITS 8
+#define V8PRIxPTR_FMT "0x%08" V8PRIxPTR
+#endif
 
 // ptrdiff_t is 't' according to the standard, but MSVC uses 'I'.
 #if V8_CC_MSVC
@@ -391,5 +415,31 @@ bool is_inbounds(float_t v) {
   return (kLowerBoundIsMin ? (kLowerBound <= v) : (kLowerBound < v)) &&
          (kUpperBoundIsMax ? (v <= kUpperBound) : (v < kUpperBound));
 }
+
+#ifdef V8_OS_WIN
+
+// Setup for Windows shared library export.
+#ifdef BUILDING_V8_SHARED
+#define V8_EXPORT_PRIVATE __declspec(dllexport)
+#elif USING_V8_SHARED
+#define V8_EXPORT_PRIVATE __declspec(dllimport)
+#else
+#define V8_EXPORT_PRIVATE
+#endif  // BUILDING_V8_SHARED
+
+#else  // V8_OS_WIN
+
+// Setup for Linux shared library export.
+#if V8_HAS_ATTRIBUTE_VISIBILITY
+#ifdef BUILDING_V8_SHARED
+#define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
+#else
+#define V8_EXPORT_PRIVATE
+#endif
+#else
+#define V8_EXPORT_PRIVATE
+#endif
+
+#endif  // V8_OS_WIN
 
 #endif  // V8_BASE_MACROS_H_

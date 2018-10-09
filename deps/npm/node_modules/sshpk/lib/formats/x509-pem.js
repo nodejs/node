@@ -11,6 +11,7 @@ module.exports = {
 
 var assert = require('assert-plus');
 var asn1 = require('asn1');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('../algs');
 var utils = require('../utils');
 var Key = require('../key');
@@ -48,7 +49,7 @@ function read(buf, options) {
 
 	/* Chop off the first and last lines */
 	lines = lines.slice(0, -1).join('');
-	buf = new Buffer(lines, 'base64');
+	buf = Buffer.from(lines, 'base64');
 
 	return (x509.read(buf, options));
 }
@@ -60,7 +61,7 @@ function write(cert, options) {
 	var tmp = dbuf.toString('base64');
 	var len = tmp.length + (tmp.length / 64) +
 	    18 + 16 + header.length*2 + 10;
-	var buf = new Buffer(len);
+	var buf = Buffer.alloc(len);
 	var o = 0;
 	o += buf.write('-----BEGIN ' + header + '-----\n', o);
 	for (var i = 0; i < tmp.length; ) {

@@ -4,14 +4,17 @@
 
 #include <ostream>
 
-#include "src/accessors.h"
-#include "src/compilation-dependencies.h"
 #include "src/compiler/access-info.h"
+
+#include "src/accessors.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/type-cache.h"
 #include "src/field-index-inl.h"
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
+#include "src/objects/module-inl.h"
+#include "src/objects/templates.h"
 
 namespace v8 {
 namespace internal {
@@ -85,9 +88,10 @@ PropertyAccessInfo PropertyAccessInfo::DataConstant(
 PropertyAccessInfo PropertyAccessInfo::DataField(
     PropertyConstness constness, MapHandles const& receiver_maps,
     FieldIndex field_index, MachineRepresentation field_representation,
-    Type* field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
+    Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
-  Kind kind = constness == kConst ? kDataConstantField : kDataField;
+  Kind kind =
+      constness == PropertyConstness::kConst ? kDataConstantField : kDataField;
   return PropertyAccessInfo(kind, holder, transition_map, field_index,
                             field_representation, field_type, field_map,
                             receiver_maps);
@@ -133,7 +137,7 @@ PropertyAccessInfo::PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
 PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, MachineRepresentation field_representation,
-    Type* field_type, MaybeHandle<Map> field_map,
+    Type field_type, MaybeHandle<Map> field_map,
     MapHandles const& receiver_maps)
     : kind_(kind),
       receiver_maps_(receiver_maps),
@@ -233,9 +237,11 @@ Handle<Cell> PropertyAccessInfo::export_cell() const {
   return Handle<Cell>::cast(constant_);
 }
 
-AccessInfoFactory::AccessInfoFactory(CompilationDependencies* dependencies,
+AccessInfoFactory::AccessInfoFactory(JSHeapBroker* js_heap_broker,
+                                     CompilationDependencies* dependencies,
                                      Handle<Context> native_context, Zone* zone)
-    : dependencies_(dependencies),
+    : js_heap_broker_(js_heap_broker),
+      dependencies_(dependencies),
       native_context_(native_context),
       isolate_(native_context->GetIsolate()),
       type_cache_(TypeCache::Get()),
@@ -272,7 +278,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
   for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(map).ToHandle(&map)) {
+    if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
       if (CanInlineElementAccess(map) &&
           IsFastElementsKind(map->elements_kind()) &&
           GetInitialFastElementsKind() != map->elements_kind()) {
@@ -286,16 +292,17 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   receiver_maps.reserve(maps.size());
   MapTransitionList transitions(maps.size());
   for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(map).ToHandle(&map)) {
+    if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
       // Don't generate elements kind transitions from stable maps.
-      Map* transition_target = map->is_stable()
-                                   ? nullptr
-                                   : map->FindElementsKindTransitionedMap(
-                                         possible_transition_targets);
+      Map* transition_target =
+          map->is_stable() ? nullptr
+                           : map->FindElementsKindTransitionedMap(
+                                 isolate(), possible_transition_targets);
       if (transition_target == nullptr) {
         receiver_maps.push_back(map);
       } else {
-        transitions.push_back(std::make_pair(map, handle(transition_target)));
+        transitions.push_back(
+            std::make_pair(map, handle(transition_target, isolate())));
       }
     }
   }
@@ -343,7 +350,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
   do {
     // Lookup the named property on the {map}.
     Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-    int const number = descriptors->SearchWithCache(isolate(), *name, *map);
+    int const number = descriptors->Search(*name, *map);
     if (number != DescriptorArray::kNotFound) {
       PropertyDetails const details = descriptors->GetDetails(number);
       if (access_mode == AccessMode::kStore ||
@@ -366,7 +373,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           Representation details_representation = details.representation();
           FieldIndex field_index =
               FieldIndex::ForPropertyIndex(*map, index, details_representation);
-          Type* field_type = Type::NonInternal();
+          Type field_type = Type::NonInternal();
           MachineRepresentation field_representation =
               MachineRepresentation::kTagged;
           MaybeHandle<Map> field_map;
@@ -389,14 +396,12 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               // The field type was cleared by the GC, so we don't know anything
               // about the contents now.
             } else if (descriptors_field_type->IsClass()) {
-              // Add proper code dependencies in case of stable field map(s).
-              Handle<Map> field_owner_map(map->FindFieldOwner(number),
-                                          isolate());
-              dependencies()->AssumeFieldOwner(field_owner_map);
-
+              dependencies()->DependOnFieldType(MapRef(js_heap_broker(), map),
+                                                number);
               // Remember the field map, and try to infer a useful type.
-              field_type = Type::For(descriptors_field_type->AsClass());
-              field_map = descriptors_field_type->AsClass();
+              Handle<Map> map(descriptors_field_type->AsClass(), isolate());
+              field_type = Type::For(js_heap_broker(), map);
+              field_map = MaybeHandle<Map>(map);
             }
           }
           *access_info = PropertyAccessInfo::DataField(
@@ -415,7 +420,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           DCHECK(!FLAG_track_constant_fields);
           *access_info = PropertyAccessInfo::DataConstant(
               MapHandles{receiver_map},
-              handle(descriptors->GetValue(number), isolate()), holder);
+              handle(descriptors->GetStrongValue(number), isolate()), holder);
           return true;
         } else {
           DCHECK_EQ(kAccessor, details.kind());
@@ -423,14 +428,13 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             DCHECK(map->is_prototype_map());
             Handle<PrototypeInfo> proto_info =
                 Map::GetOrCreatePrototypeInfo(map, isolate());
-            DCHECK(proto_info->weak_cell()->IsWeakCell());
             Handle<JSModuleNamespace> module_namespace(
-                JSModuleNamespace::cast(
-                    WeakCell::cast(proto_info->weak_cell())->value()),
+                JSModuleNamespace::cast(proto_info->module_namespace()),
                 isolate());
             Handle<Cell> cell(
                 Cell::cast(module_namespace->module()->exports()->Lookup(
-                    isolate(), name, Smi::ToInt(name->GetHash()))),
+                    ReadOnlyRoots(isolate()), name,
+                    Smi::ToInt(name->GetHash()))),
                 isolate());
             if (cell->value()->IsTheHole(isolate())) {
               // This module has not been fully initialized yet.
@@ -440,7 +444,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
                 MapHandles{receiver_map}, cell);
             return true;
           }
-          Handle<Object> accessors(descriptors->GetValue(number), isolate());
+          Handle<Object> accessors(descriptors->GetStrongValue(number),
+                                   isolate());
           if (!accessors->IsAccessorPair()) return false;
           Handle<Object> accessor(
               access_mode == AccessMode::kLoad
@@ -448,7 +453,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
                   : Handle<AccessorPair>::cast(accessors)->setter(),
               isolate());
           if (!accessor->IsJSFunction()) {
-            CallOptimization optimization(accessor);
+            CallOptimization optimization(isolate(), accessor);
             if (!optimization.is_simple_api_call()) return false;
             if (optimization.IsCrossContextLazyAccessorPair(*native_context_,
                                                             *map)) {
@@ -553,7 +558,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfos(
     MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* access_infos) {
   for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(map).ToHandle(&map)) {
+    if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
       PropertyAccessInfo access_info;
       if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
         return false;
@@ -576,9 +581,9 @@ namespace {
 
 Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
                                            ElementsKind that_kind) {
-  if (IsHoleyOrDictionaryElementsKind(this_kind)) {
+  if (IsHoleyElementsKind(this_kind)) {
     that_kind = GetHoleyElementsKind(that_kind);
-  } else if (IsHoleyOrDictionaryElementsKind(that_kind)) {
+  } else if (IsHoleyElementsKind(that_kind)) {
     this_kind = GetHoleyElementsKind(this_kind);
   }
   if (this_kind == that_kind) return Just(this_kind);
@@ -617,17 +622,17 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
   // Check for special JSObject field accessors.
   FieldIndex field_index;
-  if (Accessors::IsJSObjectFieldAccessor(map, name, &field_index)) {
-    Type* field_type = Type::NonInternal();
+  if (Accessors::IsJSObjectFieldAccessor(isolate(), map, name, &field_index)) {
+    Type field_type = Type::NonInternal();
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (map->IsStringMap()) {
-      DCHECK(Name::Equals(factory()->length_string(), name));
+      DCHECK(Name::Equals(isolate(), factory()->length_string(), name));
       // The String::length property is always a smi in the range
       // [0, String::kMaxLength].
       field_type = type_cache_.kStringLengthType;
       field_representation = MachineRepresentation::kTaggedSigned;
     } else if (map->IsJSArrayMap()) {
-      DCHECK(Name::Equals(factory()->length_string(), name));
+      DCHECK(Name::Equals(isolate(), factory()->length_string(), name));
       // The JSArray::length property is a smi in the range
       // [0, FixedDoubleArray::kMaxLength] in case of fast double
       // elements, a smi in the range [0, FixedArray::kMaxLength]
@@ -644,9 +649,9 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
       }
     }
     // Special fields are always mutable.
-    *access_info =
-        PropertyAccessInfo::DataField(kMutable, MapHandles{map}, field_index,
-                                      field_representation, field_type);
+    *access_info = PropertyAccessInfo::DataField(
+        PropertyConstness::kMutable, MapHandles{map}, field_index,
+        field_representation, field_type);
     return true;
   }
   return false;
@@ -658,10 +663,10 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
                                          PropertyAccessInfo* access_info) {
   // Check if the {map} has a data transition with the given {name}.
   Map* transition =
-      TransitionsAccessor(map).SearchTransition(*name, kData, NONE);
+      TransitionsAccessor(isolate(), map).SearchTransition(*name, kData, NONE);
   if (transition == nullptr) return false;
 
-  Handle<Map> transition_map(transition);
+  Handle<Map> transition_map(transition, isolate());
   int const number = transition_map->LastAdded();
   PropertyDetails const details =
       transition_map->instance_descriptors()->GetDetails(number);
@@ -673,7 +678,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
   Representation details_representation = details.representation();
   FieldIndex field_index = FieldIndex::ForPropertyIndex(*transition_map, index,
                                                         details_representation);
-  Type* field_type = Type::NonInternal();
+  Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
   MachineRepresentation field_representation = MachineRepresentation::kTagged;
   if (details_representation.IsSmi()) {
@@ -693,21 +698,19 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       // Store is not safe if the field type was cleared.
       return false;
     } else if (descriptors_field_type->IsClass()) {
-      // Add proper code dependencies in case of stable field map(s).
-      Handle<Map> field_owner_map(transition_map->FindFieldOwner(number),
-                                  isolate());
-      dependencies()->AssumeFieldOwner(field_owner_map);
-
+      dependencies()->DependOnFieldType(
+          MapRef(js_heap_broker(), transition_map), number);
       // Remember the field map, and try to infer a useful type.
-      field_type = Type::For(descriptors_field_type->AsClass());
-      field_map = descriptors_field_type->AsClass();
+      Handle<Map> map(descriptors_field_type->AsClass(), isolate());
+      field_type = Type::For(js_heap_broker(), map);
+      field_map = MaybeHandle<Map>(map);
     }
   }
-  dependencies()->AssumeMapNotDeprecated(transition_map);
+  dependencies()->DependOnTransition(MapRef(js_heap_broker(), transition_map));
   // Transitioning stores are never stores to constant fields.
   *access_info = PropertyAccessInfo::DataField(
-      kMutable, MapHandles{map}, field_index, field_representation, field_type,
-      field_map, holder, transition_map);
+      PropertyConstness::kMutable, MapHandles{map}, field_index,
+      field_representation, field_type, field_map, holder, transition_map);
   return true;
 }
 

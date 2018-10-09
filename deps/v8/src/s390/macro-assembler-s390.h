@@ -9,6 +9,7 @@
 #include "src/bailout-reason.h"
 #include "src/globals.h"
 #include "src/s390/assembler-s390.h"
+#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -25,12 +26,18 @@ constexpr Register kInterpreterAccumulatorRegister = r2;
 constexpr Register kInterpreterBytecodeOffsetRegister = r6;
 constexpr Register kInterpreterBytecodeArrayRegister = r7;
 constexpr Register kInterpreterDispatchTableRegister = r8;
+
 constexpr Register kJavaScriptCallArgCountRegister = r2;
-constexpr Register kJavaScriptCallNewTargetRegister = r5;
 constexpr Register kJavaScriptCallCodeStartRegister = r4;
+constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
+constexpr Register kJavaScriptCallNewTargetRegister = r5;
+constexpr Register kJavaScriptCallExtraArg1Register = r4;
+
 constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r3;
 constexpr Register kRuntimeCallArgCountRegister = r2;
+constexpr Register kRuntimeCallArgvRegister = r4;
+constexpr Register kWasmInstanceRegister = r6;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -50,14 +57,6 @@ inline MemOperand RootMemOperand(Heap::RootListIndex index) {
   return MemOperand(kRootRegister, index << kPointerSizeLog2);
 }
 
-// Flags used for AllocateHeapNumber
-enum TaggingMode {
-  // Tag the result.
-  TAG_RESULT,
-  // Don't tag
-  DONT_TAG_RESULT
-};
-
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
@@ -68,22 +67,8 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
                                    Register reg5 = no_reg,
                                    Register reg6 = no_reg);
 
-#ifdef DEBUG
-bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
-                Register reg4 = no_reg, Register reg5 = no_reg,
-                Register reg6 = no_reg, Register reg7 = no_reg,
-                Register reg8 = no_reg, Register reg9 = no_reg,
-                Register reg10 = no_reg);
-bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
-                DoubleRegister reg3 = no_dreg, DoubleRegister reg4 = no_dreg,
-                DoubleRegister reg5 = no_dreg, DoubleRegister reg6 = no_dreg,
-                DoubleRegister reg7 = no_dreg, DoubleRegister reg8 = no_dreg,
-                DoubleRegister reg9 = no_dreg, DoubleRegister reg10 = no_dreg);
-#endif
-
 // These exist to provide portability between 32 and 64bit
 #if V8_TARGET_ARCH_S390X
-#define Div divd
 
 // The length of the arithmetic operation is the length
 // of the register.
@@ -166,43 +151,41 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
 
 #endif
 
-class TurboAssembler : public Assembler {
+class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
-  TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object);
+  TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int buffer_size,
+                 CodeObjectRequired create_code_object)
+      : TurboAssemblerBase(isolate, options, buffer, buffer_size,
+                           create_code_object) {}
 
-  Isolate* isolate() const { return isolate_; }
-
-  Handle<HeapObject> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
-  }
-
-  // Returns the size of a call in instructions.
-  static int CallSize(Register target);
-  int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
+  void LoadFromConstantsTable(Register destination,
+                              int constant_index) override;
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
+  void LoadRootRelative(Register destination, int32_t offset) override;
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
-  void Jump(Register target);
-  void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al,
-            CRegister cr = cr7);
+  void Jump(Register target, Condition cond = al);
+  void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
     TestIfSmi(value);
     beq(smi_label /*, cr0*/);  // branch if SMI
   }
+  void JumpIfEqual(Register x, int32_t y, Label* dest);
+  void JumpIfLessThan(Register x, int32_t y, Label* dest);
+
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(Handle<Code> code,
-               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-               Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             Condition cond = al);
   void Ret() { b(r14); }
   void Ret(Condition cond) { b(cond, r14); }
 
-  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+  void CallForDeoptimization(Address target, int deopt_id,
+                             RelocInfo::Mode rmode) {
+    USE(deopt_id);
     Call(target, rmode);
   }
 
@@ -221,8 +204,24 @@ class TurboAssembler : public Assembler {
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
+
+  void MoveChar(const MemOperand& opnd1, const MemOperand& opnd2,
+                   const Operand& length);
+
+  void CompareLogicalChar(const MemOperand& opnd1, const MemOperand& opnd2,
+                   const Operand& length);
+
+  void ExclusiveOrChar(const MemOperand& opnd1, const MemOperand& opnd2,
+                   const Operand& length);
+
+  void RotateInsertSelectBits(Register dst, Register src,
+                     const Operand& startBit, const Operand& endBit,
+                     const Operand& shiftAmt, bool zeroBits);
+
+  void BranchRelativeOnIdxHighP(Register dst, Register inc, Label* L);
 
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
@@ -256,8 +255,11 @@ class TurboAssembler : public Assembler {
                      Register exclusion3 = no_reg);
 
   // Load an object from the root table.
+  void LoadRoot(Register destination, Heap::RootListIndex index) override {
+    LoadRoot(destination, index, al);
+  }
   void LoadRoot(Register destination, Heap::RootListIndex index,
-                Condition cond = al);
+                Condition cond);
   //--------------------------------------------------------------------------
   // S390 Macro Assemblers for Instructions
   //--------------------------------------------------------------------------
@@ -325,6 +327,7 @@ class TurboAssembler : public Assembler {
   void Sub32(Register dst, const MemOperand& opnd);
   void SubP(Register dst, const MemOperand& opnd);
   void SubP_ExtendSrc(Register dst, const MemOperand& opnd);
+  void LoadAndSub32(Register dst, Register src, const MemOperand& opnd);
 
   // Subtract Logical (Register - Mem)
   void SubLogical(Register dst, const MemOperand& opnd);
@@ -391,6 +394,7 @@ class TurboAssembler : public Assembler {
   void CmpP(Register dst, const Operand& opnd);
   void Cmp32(Register dst, const MemOperand& opnd);
   void CmpP(Register dst, const MemOperand& opnd);
+  void CmpAndSwap(Register old_val, Register new_val, const MemOperand& opnd);
 
   // Compare Logical
   void CmpLogical32(Register src1, Register src2);
@@ -646,12 +650,8 @@ class TurboAssembler : public Assembler {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
     mov(kRootRegister, Operand(roots_array_start));
+    AddP(kRootRegister, kRootRegister, Operand(kRootRegisterBias));
   }
-
-  // Flush the I-cache from asm code. You should use CpuFeatures::FlushICache
-  // from C.
-  // Does not handle errors.
-  void FlushICache(Register address, size_t size, Register scratch);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
   void CanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
@@ -759,6 +759,8 @@ class TurboAssembler : public Assembler {
 
   void StoreW(Register src, const MemOperand& mem, Register scratch = no_reg);
 
+  void LoadHalfWordP(Register dst, Register src);
+
   void LoadHalfWordP(Register dst, const MemOperand& mem,
                      Register scratch = no_reg);
 
@@ -823,9 +825,9 @@ class TurboAssembler : public Assembler {
   // Call a code stub.
   void CallStubDelayed(CodeStub* stub);
 
-  // Call a runtime routine.
-  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
-                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
+  // builtin for the target runtime function and uses an indirect call.
+  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored in
@@ -866,8 +868,8 @@ class TurboAssembler : public Assembler {
 
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged and ip gets clobbered. Dividend and result must be different.
-  void TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                DoubleRegister double_input);
+  void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
+                         DoubleRegister double_input, StubCallMode stub_mode);
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister double_input,
                                   Label* done);
 
@@ -884,8 +886,6 @@ class TurboAssembler : public Assembler {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason reason);
 
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
 
   // ---------------------------------------------------------------------------
@@ -905,8 +905,8 @@ class TurboAssembler : public Assembler {
       int shiftAmount = (64 - rangeEnd) % 64;  // Convert to shift left.
       int endBit = 63;  // End is always LSB after shifting.
       int startBit = 63 - rangeStart + rangeEnd;
-      risbg(dst, src, Operand(startBit), Operand(endBit), Operand(shiftAmount),
-            true);
+      RotateInsertSelectBits(dst, src, Operand(startBit), Operand(endBit),
+            Operand(shiftAmount), true);
     } else {
       if (rangeEnd > 0)  // Don't need to shift if rangeEnd is zero.
         ShiftRightP(dst, src, Operand(rangeEnd));
@@ -1019,22 +1019,20 @@ class TurboAssembler : public Assembler {
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
 
-  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
-            CRegister cr = cr7);
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
-
-  bool has_frame_ = false;
-  Isolate* isolate_;
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
 };
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
-                 CodeObjectRequired create_code_object);
+                 CodeObjectRequired create_code_object)
+      : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
+                       size, create_code_object) {}
+  MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int size, CodeObjectRequired create_code_object);
 
   // Call a code stub.
   void TailCallStub(CodeStub* stub, Condition cond = al);
@@ -1236,9 +1234,6 @@ class MacroAssembler : public TurboAssembler {
 #define SmiWordOffset(offset) offset
 #endif
 
-  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
-  void AssertFixedArray(Register object);
-
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object, Register scratch);
 
@@ -1272,13 +1267,6 @@ class MacroAssembler : public TurboAssembler {
 
   void IncrementalMarkingRecordWriteHelper(Register object, Register value,
                                            Register address);
-
-  // Record in the remembered set the fact that we have a pointer to new space
-  // at the address pointed to by the addr register.  Only works if addr is not
-  // in new space.
-  void RememberedSetHelper(Register object,  // Used for debug code.
-                           Register addr, Register scratch,
-                           SaveFPRegsMode save_fp);
 
   void CallJSEntry(Register target);
   static int CallSizeNotPredictableCodeSize(Address target,

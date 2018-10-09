@@ -7,8 +7,6 @@ const common = require('../../common');
 const assert = require('assert');
 const test_promise = require(`./build/${common.buildType}/test_promise`);
 
-common.crashOnUnhandledRejection();
-
 // A resolution
 {
   const expected_result = 42;

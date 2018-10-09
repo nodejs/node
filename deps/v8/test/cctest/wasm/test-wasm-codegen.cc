@@ -58,10 +58,10 @@ void BuildTrivialModule(Zone* zone, ZoneBuffer* buffer) {
 }
 
 bool TestModule(Isolate* isolate,
-                v8::WasmCompiledModule::CallerOwnedBuffer wire_bytes) {
+                v8::WasmCompiledModule::BufferReference wire_bytes) {
   HandleScope scope(isolate);
 
-  v8::WasmCompiledModule::CallerOwnedBuffer serialized_module(nullptr, 0);
+  v8::WasmCompiledModule::BufferReference serialized_module(nullptr, 0);
   MaybeLocal<v8::WasmCompiledModule> module =
       v8::WasmCompiledModule::DeserializeOrCompile(
           reinterpret_cast<v8::Isolate*>(isolate), serialized_module,
@@ -76,8 +76,8 @@ TEST(PropertiesOfCodegenCallbacks) {
   Zone zone(&allocator, ZONE_NAME);
   ZoneBuffer buffer(&zone);
   BuildTrivialModule(&zone, &buffer);
-  v8::WasmCompiledModule::CallerOwnedBuffer wire_bytes = {buffer.begin(),
-                                                          buffer.size()};
+  v8::WasmCompiledModule::BufferReference wire_bytes = {buffer.begin(),
+                                                        buffer.size()};
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
   testing::SetupIsolateForWasmModule(isolate);

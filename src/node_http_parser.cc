@@ -57,6 +57,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Local;
 using v8::MaybeLocal;
@@ -155,10 +156,12 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  size_t self_size() const override {
-    return sizeof(*this);
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackField("current_buffer", current_buffer_);
   }
 
+  SET_MEMORY_INFO_NAME(Parser)
+  SET_SELF_SIZE(Parser)
 
   int on_message_begin() {
     num_fields_ = num_values_ = 0;
@@ -286,12 +289,16 @@ class Parser : public AsyncWrap, public StreamListener {
     MaybeLocal<Value> head_response =
         MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
-    if (head_response.IsEmpty()) {
+    int64_t val;
+
+    if (head_response.IsEmpty() || !head_response.ToLocalChecked()
+                                        ->IntegerValue(env()->context())
+                                        .To(&val)) {
       got_exception_ = true;
       return -1;
     }
 
-    return head_response.ToLocalChecked()->IntegerValue();
+    return val;
   }
 
 
@@ -359,8 +366,9 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+    CHECK(args[0]->IsInt32());
     http_parser_type type =
-        static_cast<http_parser_type>(args[0]->Int32Value());
+        static_cast<http_parser_type>(args[0].As<Int32>()->Value());
     CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
     new Parser(env, args.This(), type);
   }
@@ -456,8 +464,9 @@ class Parser : public AsyncWrap, public StreamListener {
   static void Reinitialize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
 
+    CHECK(args[0]->IsInt32());
     http_parser_type type =
-        static_cast<http_parser_type>(args[0]->Int32Value());
+        static_cast<http_parser_type>(args[0].As<Int32>()->Value());
 
     CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
     Parser* parser;
@@ -754,7 +763,7 @@ void Initialize(Local<Object> target,
 #undef V
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
-  AsyncWrap::AddWrapMethods(env, t);
+  t->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "free", Parser::Free);
   env->SetProtoMethod(t, "execute", Parser::Execute);
@@ -767,10 +776,10 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(t, "getCurrentBuffer", Parser::GetCurrentBuffer);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
-              t->GetFunction());
+              t->GetFunction(env->context()).ToLocalChecked());
 }
 
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(http_parser, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(http_parser, node::Initialize)

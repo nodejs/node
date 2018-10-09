@@ -5,12 +5,12 @@ const constants = process.binding('constants');
 const assert = require('assert');
 
 assert.deepStrictEqual(
-  Object.keys(constants).sort(), ['crypto', 'fs', 'os', 'zlib']
+  Object.keys(constants).sort(), ['crypto', 'fs', 'os', 'trace', 'zlib']
 );
 
 assert.deepStrictEqual(
   Object.keys(constants.os).sort(), ['UV_UDP_REUSEADDR', 'dlopen', 'errno',
-                                     'signals']
+                                     'priority', 'signals']
 );
 
 // Make sure all the constants objects don't inherit from Object.prototype
@@ -26,6 +26,6 @@ function test(obj) {
 }
 
 [
-  constants, constants.crypto, constants.fs, constants.os, constants.zlib,
-  constants.os.dlopen, constants.os.errno, constants.os.signals
+  constants, constants.crypto, constants.fs, constants.os, constants.trace,
+  constants.zlib, constants.os.dlopen, constants.os.errno, constants.os.signals
 ].forEach(test);

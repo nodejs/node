@@ -83,15 +83,18 @@
 # define NODE_GNUC_AT_LEAST(major, minor, patch) (0)
 #endif
 
-#if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
-# define NODE_DEPRECATED(message, declarator)                                 \
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# define NODE_DEPRECATED(message, declarator) declarator
+#else  // NODE_WANT_INTERNALS
+# if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
+#  define NODE_DEPRECATED(message, declarator)                                 \
     __attribute__((deprecated(message))) declarator
-#elif defined(_MSC_VER)
-# define NODE_DEPRECATED(message, declarator)                                 \
+# elif defined(_MSC_VER)
+#  define NODE_DEPRECATED(message, declarator)                                 \
     __declspec(deprecated) declarator
-#else
-# define NODE_DEPRECATED(message, declarator)                                 \
-    declarator
+# else
+#  define NODE_DEPRECATED(message, declarator) declarator
+# endif
 #endif
 
 // Forward-declare libuv loop
@@ -115,13 +118,8 @@ NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
                                              int errorno,
                                              const char* syscall = nullptr,
                                              const char* message = nullptr,
-                                             const char* path = nullptr);
-NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
-                                             int errorno,
-                                             const char* syscall,
-                                             const char* message,
-                                             const char* path,
-                                             const char* dest);
+                                             const char* path = nullptr,
+                                             const char* dest = nullptr);
 
 NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
                 inline v8::Local<v8::Value> ErrnoException(
@@ -136,7 +134,8 @@ NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
                         path);
 })
 
-inline v8::Local<v8::Value> UVException(int errorno,
+NODE_DEPRECATED("Use UVException(isolate, ...)",
+                inline v8::Local<v8::Value> UVException(int errorno,
                                         const char* syscall = nullptr,
                                         const char* message = nullptr,
                                         const char* path = nullptr) {
@@ -145,7 +144,7 @@ inline v8::Local<v8::Value> UVException(int errorno,
                      syscall,
                      message,
                      path);
-}
+})
 
 /*
  * These methods need to be called in a HandleScope.
@@ -199,16 +198,12 @@ typedef intptr_t ssize_t;
 
 namespace node {
 
-NODE_EXTERN extern bool no_deprecation;
-#if HAVE_OPENSSL
-NODE_EXTERN extern bool ssl_openssl_cert_store;
-# if NODE_FIPS_MODE
-NODE_EXTERN extern bool enable_fips_crypto;
-NODE_EXTERN extern bool force_fips_crypto;
-# endif
-#endif
-
+// TODO(addaleax): Officially deprecate this and replace it with something
+// better suited for a public embedder API.
 NODE_EXTERN int Start(int argc, char* argv[]);
+
+// TODO(addaleax): Officially deprecate this and replace it with something
+// better suited for a public embedder API.
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
@@ -222,24 +217,25 @@ NODE_EXTERN void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator);
 class IsolateData;
 class Environment;
 
-class MultiIsolatePlatform : public v8::Platform {
+class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
  public:
   virtual ~MultiIsolatePlatform() { }
   // Returns true if work was dispatched or executed. New tasks that are
   // posted during flushing of the queue are postponed until the next
   // flushing.
   virtual bool FlushForegroundTasks(v8::Isolate* isolate) = 0;
-  virtual void DrainBackgroundTasks(v8::Isolate* isolate) = 0;
+  virtual void DrainTasks(v8::Isolate* isolate) = 0;
   virtual void CancelPendingDelayedTasks(v8::Isolate* isolate) = 0;
 
   // These will be called by the `IsolateData` creation/destruction functions.
-  virtual void RegisterIsolate(IsolateData* isolate_data,
+  virtual void RegisterIsolate(v8::Isolate* isolate,
                                struct uv_loop_s* loop) = 0;
-  virtual void UnregisterIsolate(IsolateData* isolate_data) = 0;
+  virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
 };
 
 // Creates a new isolate with Node.js-specific settings.
-NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator);
+NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
+                                    struct uv_loop_s* event_loop);
 
 // Creates a new context with Node.js-specific tweaks.
 NODE_EXTERN v8::Local<v8::Context> NewContext(
@@ -250,21 +246,15 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
 // Environments that use this `IsolateData` will not work.
-// TODO(helloshuangzi): switch to default parameters.
-NODE_EXTERN IsolateData* CreateIsolateData(
-    v8::Isolate* isolate,
-    struct uv_loop_s* loop);
 NODE_EXTERN IsolateData* CreateIsolateData(
     v8::Isolate* isolate,
     struct uv_loop_s* loop,
-    MultiIsolatePlatform* platform);
-NODE_EXTERN IsolateData* CreateIsolateData(
-    v8::Isolate* isolate,
-    struct uv_loop_s* loop,
-    MultiIsolatePlatform* platform,
-    ArrayBufferAllocator* allocator);
+    MultiIsolatePlatform* platform = nullptr,
+    ArrayBufferAllocator* allocator = nullptr);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
+// TODO(addaleax): Add an official variant using STL containers, and move
+// per-Environment options parsing here.
 NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
                                            v8::Local<v8::Context> context,
                                            int argc,
@@ -283,6 +273,7 @@ NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform();
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     v8::TracingController* tracing_controller);
+MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size);
 NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
 
 NODE_EXTERN void EmitBeforeExit(Environment* env);
@@ -294,16 +285,24 @@ NODE_EXTERN void RunAtExit(Environment* env);
 NODE_EXTERN struct uv_loop_s* GetCurrentEventLoop(v8::Isolate* isolate);
 
 /* Converts a unixtime to V8 Date */
-#define NODE_UNIXTIME_V8(t) v8::Date::New(v8::Isolate::GetCurrent(),          \
-    1000 * static_cast<double>(t))
-#define NODE_V8_UNIXTIME(v) (static_cast<double>((v)->NumberValue())/1000.0);
+NODE_DEPRECATED("Use v8::Date::New() directly",
+                inline v8::Local<v8::Value> NODE_UNIXTIME_V8(double time) {
+  return v8::Date::New(v8::Isolate::GetCurrent(), 1000 * time);
+})
+#define NODE_UNIXTIME_V8 node::NODE_UNIXTIME_V8
+NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
+                inline double NODE_V8_UNIXTIME(v8::Local<v8::Date> date) {
+  return date->ValueOf() / 1000;
+})
+#define NODE_V8_UNIXTIME node::NODE_V8_UNIXTIME
 
 #define NODE_DEFINE_CONSTANT(target, constant)                                \
   do {                                                                        \
     v8::Isolate* isolate = target->GetIsolate();                              \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();            \
     v8::Local<v8::String> constant_name =                                     \
-        v8::String::NewFromUtf8(isolate, #constant);                          \
+        v8::String::NewFromUtf8(isolate, #constant,                           \
+            v8::NewStringType::kInternalized).ToLocalChecked();               \
     v8::Local<v8::Number> constant_value =                                    \
         v8::Number::New(isolate, static_cast<double>(constant));              \
     v8::PropertyAttribute constant_attributes =                               \
@@ -344,7 +343,8 @@ inline void NODE_SET_METHOD(v8::Local<v8::Template> recv,
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate,
                                                                 callback);
-  v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name);
+  v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name,
+      v8::NewStringType::kInternalized).ToLocalChecked();
   t->SetClassName(fn_name);
   recv->Set(fn_name, t);
 }
@@ -355,10 +355,12 @@ inline void NODE_SET_METHOD(v8::Local<v8::Object> recv,
                             v8::FunctionCallback callback) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate,
                                                                 callback);
-  v8::Local<v8::Function> fn = t->GetFunction();
-  v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name);
+  v8::Local<v8::Function> fn = t->GetFunction(context).ToLocalChecked();
+  v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name,
+      v8::NewStringType::kInternalized).ToLocalChecked();
   fn->SetName(fn_name);
   recv->Set(fn_name, fn);
 }
@@ -374,7 +376,8 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Local<v8::FunctionTemplate> recv,
   v8::Local<v8::Signature> s = v8::Signature::New(isolate, recv);
   v8::Local<v8::FunctionTemplate> t =
       v8::FunctionTemplate::New(isolate, callback, v8::Local<v8::Value>(), s);
-  v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name);
+  v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name,
+      v8::NewStringType::kInternalized).ToLocalChecked();
   t->SetClassName(fn_name);
   recv->PrototypeTemplate()->Set(fn_name, t);
 }
@@ -387,72 +390,31 @@ NODE_EXTERN enum encoding ParseEncoding(
     v8::Isolate* isolate,
     v8::Local<v8::Value> encoding_v,
     enum encoding default_encoding = LATIN1);
-NODE_DEPRECATED("Use ParseEncoding(isolate, ...)",
-                inline enum encoding ParseEncoding(
-      v8::Local<v8::Value> encoding_v,
-      enum encoding default_encoding = LATIN1) {
-  return ParseEncoding(v8::Isolate::GetCurrent(), encoding_v, default_encoding);
-})
 
 NODE_EXTERN void FatalException(v8::Isolate* isolate,
                                 const v8::TryCatch& try_catch);
 
-NODE_DEPRECATED("Use FatalException(isolate, ...)",
-                inline void FatalException(const v8::TryCatch& try_catch) {
-  return FatalException(v8::Isolate::GetCurrent(), try_catch);
-})
-
-// Don't call with encoding=UCS2.
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                         const char* buf,
                                         size_t len,
                                         enum encoding encoding = LATIN1);
 
-// The input buffer should be in host endianness.
+// Warning: This reverses endianness on Big Endian platforms, even though the
+// signature using uint16_t implies that it should not.
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                         const uint16_t* buf,
                                         size_t len);
-
-NODE_DEPRECATED("Use Encode(isolate, ...)",
-                inline v8::Local<v8::Value> Encode(
-    const void* buf,
-    size_t len,
-    enum encoding encoding = LATIN1) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  if (encoding == UCS2) {
-    assert(reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t) == 0 &&
-           "UCS2 buffer must be aligned on two-byte boundary.");
-    const uint16_t* that = static_cast<const uint16_t*>(buf);
-    return Encode(isolate, that, len / sizeof(*that));
-  }
-  return Encode(isolate, static_cast<const char*>(buf), len, encoding);
-})
 
 // Returns -1 if the handle was not valid for decoding
 NODE_EXTERN ssize_t DecodeBytes(v8::Isolate* isolate,
                                 v8::Local<v8::Value>,
                                 enum encoding encoding = LATIN1);
-NODE_DEPRECATED("Use DecodeBytes(isolate, ...)",
-                inline ssize_t DecodeBytes(
-    v8::Local<v8::Value> val,
-    enum encoding encoding = LATIN1) {
-  return DecodeBytes(v8::Isolate::GetCurrent(), val, encoding);
-})
-
 // returns bytes written.
 NODE_EXTERN ssize_t DecodeWrite(v8::Isolate* isolate,
                                 char* buf,
                                 size_t buflen,
                                 v8::Local<v8::Value>,
                                 enum encoding encoding = LATIN1);
-NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
-                inline ssize_t DecodeWrite(char* buf,
-                                           size_t buflen,
-                                           v8::Local<v8::Value> val,
-                                           enum encoding encoding = LATIN1) {
-  return DecodeWrite(v8::Isolate::GetCurrent(), buf, buflen, val, encoding);
-})
-
 #ifdef _WIN32
 NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
     v8::Isolate* isolate,
@@ -460,17 +422,6 @@ NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
     const char* syscall = nullptr,
     const char* msg = "",
     const char* path = nullptr);
-
-NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
-                inline v8::Local<v8::Value> WinapiErrnoException(int errorno,
-    const char* syscall = nullptr,  const char* msg = "",
-    const char* path = nullptr) {
-  return WinapiErrnoException(v8::Isolate::GetCurrent(),
-                              errorno,
-                              syscall,
-                              msg,
-                              path);
-})
 #endif
 
 const char* signo_string(int errorno);
@@ -683,6 +634,10 @@ class InternalCallbackScope;
  *
  * This object should be stack-allocated to ensure that it is contained in a
  * valid HandleScope.
+ *
+ * Exceptions happening within this scope will be treated like uncaught
+ * exceptions. If this behaviour is undesirable, a new `v8::TryCatch` scope
+ * needs to be created inside of this scope.
  */
 class NODE_EXTERN CallbackScope {
  public:
@@ -737,84 +692,84 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
  * `AsyncResource::MakeCallback()` is used, then all four callbacks will be
  * called automatically. */
 class AsyncResource {
-  public:
-    AsyncResource(v8::Isolate* isolate,
-                  v8::Local<v8::Object> resource,
-                  const char* name,
-                  async_id trigger_async_id = -1)
-        : isolate_(isolate),
-          resource_(isolate, resource) {
-      async_context_ = EmitAsyncInit(isolate, resource, name,
-                                     trigger_async_id);
-    }
+ public:
+  AsyncResource(v8::Isolate* isolate,
+                v8::Local<v8::Object> resource,
+                const char* name,
+                async_id trigger_async_id = -1)
+      : isolate_(isolate),
+        resource_(isolate, resource) {
+    async_context_ = EmitAsyncInit(isolate, resource, name,
+                                   trigger_async_id);
+  }
 
-    AsyncResource(v8::Isolate* isolate,
-                  v8::Local<v8::Object> resource,
-                  v8::Local<v8::String> name,
-                  async_id trigger_async_id = -1)
-        : isolate_(isolate),
-          resource_(isolate, resource) {
-      async_context_ = EmitAsyncInit(isolate, resource, name,
-                                     trigger_async_id);
-    }
+  AsyncResource(v8::Isolate* isolate,
+                v8::Local<v8::Object> resource,
+                v8::Local<v8::String> name,
+                async_id trigger_async_id = -1)
+      : isolate_(isolate),
+        resource_(isolate, resource) {
+    async_context_ = EmitAsyncInit(isolate, resource, name,
+                                   trigger_async_id);
+  }
 
-    virtual ~AsyncResource() {
-      EmitAsyncDestroy(isolate_, async_context_);
-      resource_.Reset();
-    }
+  virtual ~AsyncResource() {
+    EmitAsyncDestroy(isolate_, async_context_);
+    resource_.Reset();
+  }
 
-    v8::MaybeLocal<v8::Value> MakeCallback(
-        v8::Local<v8::Function> callback,
-        int argc,
-        v8::Local<v8::Value>* argv) {
-      return node::MakeCallback(isolate_, get_resource(),
-                                callback, argc, argv,
-                                async_context_);
-    }
+  v8::MaybeLocal<v8::Value> MakeCallback(
+      v8::Local<v8::Function> callback,
+      int argc,
+      v8::Local<v8::Value>* argv) {
+    return node::MakeCallback(isolate_, get_resource(),
+                              callback, argc, argv,
+                              async_context_);
+  }
 
-    v8::MaybeLocal<v8::Value> MakeCallback(
-        const char* method,
-        int argc,
-        v8::Local<v8::Value>* argv) {
-      return node::MakeCallback(isolate_, get_resource(),
-                                method, argc, argv,
-                                async_context_);
-    }
+  v8::MaybeLocal<v8::Value> MakeCallback(
+      const char* method,
+      int argc,
+      v8::Local<v8::Value>* argv) {
+    return node::MakeCallback(isolate_, get_resource(),
+                              method, argc, argv,
+                              async_context_);
+  }
 
-    v8::MaybeLocal<v8::Value> MakeCallback(
-        v8::Local<v8::String> symbol,
-        int argc,
-        v8::Local<v8::Value>* argv) {
-      return node::MakeCallback(isolate_, get_resource(),
-                                symbol, argc, argv,
-                                async_context_);
-    }
+  v8::MaybeLocal<v8::Value> MakeCallback(
+      v8::Local<v8::String> symbol,
+      int argc,
+      v8::Local<v8::Value>* argv) {
+    return node::MakeCallback(isolate_, get_resource(),
+                              symbol, argc, argv,
+                              async_context_);
+  }
 
-    v8::Local<v8::Object> get_resource() {
-      return resource_.Get(isolate_);
-    }
+  v8::Local<v8::Object> get_resource() {
+    return resource_.Get(isolate_);
+  }
 
-    async_id get_async_id() const {
-      return async_context_.async_id;
-    }
+  async_id get_async_id() const {
+    return async_context_.async_id;
+  }
 
-    async_id get_trigger_async_id() const {
-      return async_context_.trigger_async_id;
-    }
+  async_id get_trigger_async_id() const {
+    return async_context_.trigger_async_id;
+  }
 
-  protected:
-    class CallbackScope : public node::CallbackScope {
-     public:
-      explicit CallbackScope(AsyncResource* res)
-        : node::CallbackScope(res->isolate_,
-                              res->resource_.Get(res->isolate_),
-                              res->async_context_) {}
-    };
+ protected:
+  class CallbackScope : public node::CallbackScope {
+   public:
+    explicit CallbackScope(AsyncResource* res)
+      : node::CallbackScope(res->isolate_,
+                            res->resource_.Get(res->isolate_),
+                            res->async_context_) {}
+  };
 
-  private:
-    v8::Isolate* isolate_;
-    v8::Persistent<v8::Object> resource_;
-    async_context async_context_;
+ private:
+  v8::Isolate* isolate_;
+  v8::Persistent<v8::Object> resource_;
+  async_context async_context_;
 };
 
 }  // namespace node

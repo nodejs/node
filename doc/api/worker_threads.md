@@ -20,8 +20,6 @@ Workers, unlike child processes or when using the `cluster` module, can also
 share memory efficiently by transferring `ArrayBuffer` instances or sharing
 `SharedArrayBuffer` instances between them.
 
-## Example
-
 ```js
 const {
   Worker, isMainThread, parentPort, workerData
@@ -281,12 +279,10 @@ See [`port.postMessage()`][] for more information on how messages are passed,
 and what kind of JavaScript values can be successfully transported through
 the thread barrier.
 
-For example:
-
 ```js
 const assert = require('assert');
 const {
-  Worker, MessageChannel, MessagePort, isMainThread
+  Worker, MessageChannel, MessagePort, isMainThread, parentPort
 } = require('worker_threads');
 if (isMainThread) {
   const worker = new Worker(__filename);
@@ -296,7 +292,7 @@ if (isMainThread) {
     console.log('received:', value);
   });
 } else {
-  require('worker_threads').once('message', (value) => {
+  parentPort.once('message', (value) => {
     assert(value.hereIsYourPort instanceof MessagePort);
     value.hereIsYourPort.postMessage('the worker is sending this');
     value.hereIsYourPort.close();
@@ -377,7 +373,7 @@ added: v10.5.0
 * `transferList` {Object[]}
 
 Send a message to the worker that will be received via
-[`require('worker_threads').on('message')`][].
+[`require('worker_threads').parentPort.on('message')`][].
 See [`port.postMessage()`][] for more details.
 
 ### worker.ref()
@@ -431,6 +427,8 @@ added: v10.5.0
 -->
 
 * `callback` {Function}
+  * `err` {Error}
+  * `exitCode` {integer}
 
 Stop all JavaScript execution in the worker thread as soon as possible.
 `callback` is an optional function that is invoked once this operation is known
@@ -480,7 +478,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`process.stdout`]: process.html#process_process_stdout
 [`process.title`]: process.html#process_process_title
 [`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
-[`require('worker_threads').on('message')`]: #worker_threads_event_message_1
+[`require('worker_threads').parentPort.on('message')`]: #worker_threads_event_message
 [`require('worker_threads').postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`require('worker_threads').isMainThread`]: #worker_threads_worker_ismainthread
 [`require('worker_threads').parentPort`]: #worker_threads_worker_parentport

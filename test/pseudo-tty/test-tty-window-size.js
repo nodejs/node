@@ -1,8 +1,10 @@
+// Flags: --expose-internals --no-warnings
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const { WriteStream } = require('tty');
-const { TTY } = process.binding('tty_wrap');
+const { internalBinding } = require('internal/test/binding');
+const { TTY } = internalBinding('tty_wrap');
 const getWindowSize = TTY.prototype.getWindowSize;
 
 function monkeyPatchGetWindowSize(fn) {

@@ -8,6 +8,7 @@
 #include "src/elements-kind.h"
 #include "src/field-index.h"
 #include "src/globals.h"
+#include "src/maybe-handles.h"
 #include "src/objects.h"
 #include "src/objects/data-handler.h"
 #include "src/utils.h"
@@ -17,6 +18,8 @@
 
 namespace v8 {
 namespace internal {
+
+class JSProxy;
 
 // A set of bit fields representing Smi handlers for loads and a HeapObject
 // that represents load handlers that can't be encoded in a Smi.
@@ -147,7 +150,7 @@ class LoadHandler final : public DataHandler {
   // needed (e.g., for "nonexistent"), null_value() may be passed in.
   static Handle<Object> LoadFullChain(Isolate* isolate,
                                       Handle<Map> receiver_map,
-                                      Handle<Object> holder,
+                                      MaybeObjectHandle holder,
                                       Handle<Smi> smi_handler);
 
   // Creates a data handler that represents a prototype chain check followed
@@ -156,8 +159,8 @@ class LoadHandler final : public DataHandler {
   static Handle<Object> LoadFromPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
       Handle<Smi> smi_handler,
-      MaybeHandle<Object> maybe_data1 = MaybeHandle<Object>(),
-      MaybeHandle<Object> maybe_data2 = MaybeHandle<Object>());
+      MaybeObjectHandle maybe_data1 = MaybeObjectHandle(),
+      MaybeObjectHandle maybe_data2 = MaybeObjectHandle());
 
   // Creates a Smi-handler for loading a non-existent property. Works only as
   // a part of prototype chain check.
@@ -175,7 +178,7 @@ class LoadHandler final : public DataHandler {
                                               KeyedAccessLoadMode load_mode);
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
-  static KeyedAccessLoadMode GetKeyedAccessLoadMode(Object* handler);
+  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject* handler);
 };
 
 // A set of bit fields representing Smi handlers for stores and a HeapObject
@@ -243,18 +246,14 @@ class StoreHandler final : public DataHandler {
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
 
-  static inline WeakCell* GetTransitionCell(Object* handler);
-  static Object* ValidHandlerOrNull(Object* handler, Name* name,
-                                    Handle<Map>* out_transition);
-
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,
                                        FieldIndex field_index,
                                        PropertyConstness constness,
                                        Representation representation);
 
-  static Handle<Object> StoreTransition(Isolate* isolate,
-                                        Handle<Map> transition_map);
+  static MaybeObjectHandle StoreTransition(Isolate* isolate,
+                                           Handle<Map> transition_map);
 
   // Creates a Smi-handler for storing a native data property on a fast object.
   static inline Handle<Smi> StoreNativeDataProperty(Isolate* isolate,
@@ -270,8 +269,8 @@ class StoreHandler final : public DataHandler {
   static Handle<Object> StoreThroughPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
       Handle<Smi> smi_handler,
-      MaybeHandle<Object> maybe_data1 = MaybeHandle<Object>(),
-      MaybeHandle<Object> maybe_data2 = MaybeHandle<Object>());
+      MaybeObjectHandle maybe_data1 = MaybeObjectHandle(),
+      MaybeObjectHandle maybe_data2 = MaybeObjectHandle());
 
   static Handle<Object> StoreElementTransition(Isolate* isolate,
                                                Handle<Map> receiver_map,
@@ -284,8 +283,7 @@ class StoreHandler final : public DataHandler {
 
   // Creates a handler for storing a property to the property cell of a global
   // object.
-  static Handle<Object> StoreGlobal(Isolate* isolate,
-                                    Handle<PropertyCell> cell);
+  static MaybeObjectHandle StoreGlobal(Handle<PropertyCell> cell);
 
   // Creates a Smi-handler for storing a property to a global proxy object.
   static inline Handle<Smi> StoreGlobalProxy(Isolate* isolate);

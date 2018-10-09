@@ -29,6 +29,4 @@ async function runTest() {
   return child.kill();
 }
 
-common.crashOnUnhandledRejection();
-
 runTest();

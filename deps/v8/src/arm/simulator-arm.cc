@@ -285,7 +285,7 @@ void ArmDebugger::Debug() {
                  || (strcmp(cmd, "printobject") == 0)) {
         if (argc == 2) {
           int32_t value;
-          OFStream os(stdout);
+          StdoutStream os;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";
@@ -359,7 +359,7 @@ void ArmDebugger::Debug() {
 
         if (argc == 1) {
           cur = reinterpret_cast<byte*>(sim_->get_pc());
-          end = cur + (10 * Instruction::kInstrSize);
+          end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int regnum = Registers::Number(arg1);
           if (regnum != kNoRegister || strncmp(arg1, "0x", 2) == 0) {
@@ -368,7 +368,7 @@ void ArmDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(value);
               // Disassemble 10 instructions at <arg1>.
-              end = cur + (10 * Instruction::kInstrSize);
+              end = cur + (10 * kInstrSize);
             }
           } else {
             // The argument is the number of instructions.
@@ -376,7 +376,7 @@ void ArmDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(sim_->get_pc());
               // Disassemble <arg1> instructions.
-              end = cur + (value * Instruction::kInstrSize);
+              end = cur + (value * kInstrSize);
             }
           }
         } else {
@@ -384,7 +384,7 @@ void ArmDebugger::Debug() {
           int32_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
             cur = reinterpret_cast<byte*>(value1);
-            end = cur + (value2 * Instruction::kInstrSize);
+            end = cur + (value2 * kInstrSize);
           }
         }
 
@@ -427,7 +427,7 @@ void ArmDebugger::Debug() {
         PrintF("INEXACT flag: %d;\n", sim_->inexact_vfp_flag_);
       } else if (strcmp(cmd, "stop") == 0) {
         int32_t value;
-        intptr_t stop_pc = sim_->get_pc() - Instruction::kInstrSize;
+        intptr_t stop_pc = sim_->get_pc() - kInstrSize;
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
@@ -514,7 +514,7 @@ void ArmDebugger::Debug() {
         PrintF("    Stops are debug instructions inserted by\n");
         PrintF("    the Assembler::stop() function.\n");
         PrintF("    When hitting a stop, the Simulator will\n");
-        PrintF("    stop and and give control to the ArmDebugger.\n");
+        PrintF("    stop and give control to the ArmDebugger.\n");
         PrintF("    The first %d stop codes are watched:\n",
                Simulator::kNumOfWatchedStops);
         PrintF("    - They can be enabled / disabled: the Simulator\n");
@@ -632,9 +632,8 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
   char* cached_line = cache_page->CachedData(offset & ~CachePage::kLineMask);
   if (cache_hit) {
     // Check that the data in memory matches the contents of the I-cache.
-    CHECK_EQ(0,
-             memcmp(reinterpret_cast<void*>(instr),
-                    cache_page->CachedData(offset), Instruction::kInstrSize));
+    CHECK_EQ(0, memcmp(reinterpret_cast<void*>(instr),
+                       cache_page->CachedData(offset), kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
     memcpy(cached_line, line, CachePage::kLineLength);
@@ -736,7 +735,7 @@ int32_t Simulator::get_register(int reg) const {
   // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
   if (reg >= num_registers) return 0;
   // End stupid code.
-  return registers_[reg] + ((reg == pc) ? Instruction::kPCReadOffset : 0);
+  return registers_[reg] + ((reg == pc) ? Instruction::kPcLoadDelta : 0);
 }
 
 
@@ -931,8 +930,7 @@ void Simulator::TrashCallerSaveRegisters() {
   registers_[12] = 0x50BAD4U;
 }
 
-
-int Simulator::ReadW(int32_t addr, Instruction* instr) {
+int Simulator::ReadW(int32_t addr) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -941,7 +939,7 @@ int Simulator::ReadW(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-int Simulator::ReadExW(int32_t addr, Instruction* instr) {
+int Simulator::ReadExW(int32_t addr) {
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
   local_monitor_.NotifyLoadExcl(addr, TransactionSize::Word);
   global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
@@ -950,7 +948,7 @@ int Simulator::ReadExW(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
+void Simulator::WriteW(int32_t addr, int value) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -961,7 +959,7 @@ void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
   *ptr = value;
 }
 
-int Simulator::WriteExW(int32_t addr, int value, Instruction* instr) {
+int Simulator::WriteExW(int32_t addr, int value) {
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
   if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::Word) &&
       global_monitor_.Pointer()->NotifyStoreExcl_Locked(
@@ -974,7 +972,7 @@ int Simulator::WriteExW(int32_t addr, int value, Instruction* instr) {
   }
 }
 
-uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
+uint16_t Simulator::ReadHU(int32_t addr) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -983,7 +981,7 @@ uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
+int16_t Simulator::ReadH(int32_t addr) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -992,7 +990,7 @@ int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-uint16_t Simulator::ReadExHU(int32_t addr, Instruction* instr) {
+uint16_t Simulator::ReadExHU(int32_t addr) {
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
   local_monitor_.NotifyLoadExcl(addr, TransactionSize::HalfWord);
   global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
@@ -1001,7 +999,7 @@ uint16_t Simulator::ReadExHU(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
+void Simulator::WriteH(int32_t addr, uint16_t value) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -1012,7 +1010,7 @@ void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
   *ptr = value;
 }
 
-void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
+void Simulator::WriteH(int32_t addr, int16_t value) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -1023,7 +1021,7 @@ void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
   *ptr = value;
 }
 
-int Simulator::WriteExH(int32_t addr, uint16_t value, Instruction* instr) {
+int Simulator::WriteExH(int32_t addr, uint16_t value) {
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
   if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::HalfWord) &&
       global_monitor_.Pointer()->NotifyStoreExcl_Locked(
@@ -1099,6 +1097,14 @@ int32_t* Simulator::ReadDW(int32_t addr) {
   return ptr;
 }
 
+int32_t* Simulator::ReadExDW(int32_t addr) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoadExcl(addr, TransactionSize::DoubleWord);
+  global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
+                                                   &global_monitor_processor_);
+  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
+  return ptr;
+}
 
 void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
@@ -1112,6 +1118,19 @@ void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
   *ptr = value2;
 }
 
+int Simulator::WriteExDW(int32_t addr, int32_t value1, int32_t value2) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::DoubleWord) &&
+      global_monitor_.Pointer()->NotifyStoreExcl_Locked(
+          addr, &global_monitor_processor_)) {
+    intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
+    *ptr++ = value1;
+    *ptr = value2;
+    return 0;
+  } else {
+    return 1;
+  }
+}
 
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
@@ -1561,25 +1580,23 @@ void Simulator::HandleVList(Instruction* instr) {
   for (int reg = vd; reg < vd + num_regs; reg++) {
     if (precision == kSinglePrecision) {
       if (load) {
-        set_s_register_from_sinteger(
-            reg, ReadW(reinterpret_cast<int32_t>(address), instr));
+        set_s_register_from_sinteger(reg,
+                                     ReadW(reinterpret_cast<int32_t>(address)));
       } else {
         WriteW(reinterpret_cast<int32_t>(address),
-               get_sinteger_from_s_register(reg), instr);
+               get_sinteger_from_s_register(reg));
       }
       address += 1;
     } else {
       if (load) {
-        int32_t data[] = {
-          ReadW(reinterpret_cast<int32_t>(address), instr),
-          ReadW(reinterpret_cast<int32_t>(address + 1), instr)
-        };
+        int32_t data[] = {ReadW(reinterpret_cast<int32_t>(address)),
+                          ReadW(reinterpret_cast<int32_t>(address + 1))};
         set_d_register(reg, reinterpret_cast<uint32_t*>(data));
       } else {
         uint32_t data[2];
         get_d_register(reg, data);
-        WriteW(reinterpret_cast<int32_t>(address), data[0], instr);
-        WriteW(reinterpret_cast<int32_t>(address + 1), data[1], instr);
+        WriteW(reinterpret_cast<int32_t>(address), data[0]);
+        WriteW(reinterpret_cast<int32_t>(address + 1), data[1]);
       }
       address += 2;
     }
@@ -1666,17 +1683,18 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
             PrintF("Call to host function at %p with args %f, %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   dval1);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
             PrintF("Call to host function at %p with arg %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
             PrintF("Call to host function at %p with args %f, %d",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   ival);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, ival);
             break;
           default:
             UNREACHABLE();
@@ -1803,8 +1821,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF(
               "Call to host function at %p "
               "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x",
-              static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
-              arg4, arg5, arg6, arg7, arg8);
+              reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
+              arg3, arg4, arg5, arg6, arg7, arg8);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
@@ -2053,8 +2071,14 @@ void Simulator::DecodeType01(Instruction* instr) {
             switch (instr->Bits(22, 21)) {
               case 0: {
                 // Format(instr, "ldrex'cond 'rt, ['rn]");
-                int value = ReadExW(addr, instr);
+                int value = ReadExW(addr);
                 set_register(rt, value);
+                break;
+              }
+              case 1: {
+                // Format(instr, "ldrexd'cond 'rt, ['rn]");
+                int* rn_data = ReadExDW(addr);
+                set_dw_register(rt, rn_data);
                 break;
               }
               case 2: {
@@ -2065,7 +2089,7 @@ void Simulator::DecodeType01(Instruction* instr) {
               }
               case 3: {
                 // Format(instr, "ldrexh'cond 'rt, ['rn]");
-                uint16_t value = ReadExHU(addr, instr);
+                uint16_t value = ReadExHU(addr);
                 set_register(rt, value);
                 break;
               }
@@ -2086,7 +2110,16 @@ void Simulator::DecodeType01(Instruction* instr) {
               case 0: {
                 // Format(instr, "strex'cond 'rd, 'rm, ['rn]");
                 int value = get_register(rt);
-                int status = WriteExW(addr, value, instr);
+                int status = WriteExW(addr, value);
+                set_register(rd, status);
+                break;
+              }
+              case 1: {
+                // Format(instr, "strexd'cond 'rd, 'rm, ['rn]");
+                DCHECK_EQ(rt % 2, 0);
+                int32_t value1 = get_register(rt);
+                int32_t value2 = get_register(rt + 1);
+                int status = WriteExDW(addr, value1, value2);
                 set_register(rd, status);
                 break;
               }
@@ -2100,7 +2133,7 @@ void Simulator::DecodeType01(Instruction* instr) {
               case 3: {
                 // Format(instr, "strexh'cond 'rd, 'rm, ['rn]");
                 uint16_t value = get_register(rt);
-                int status = WriteExH(addr, value, instr);
+                int status = WriteExH(addr, value);
                 set_register(rd, status);
                 break;
               }
@@ -2222,19 +2255,19 @@ void Simulator::DecodeType01(Instruction* instr) {
       } else if (instr->HasH()) {
         if (instr->HasSign()) {
           if (instr->HasL()) {
-            int16_t val = ReadH(addr, instr);
+            int16_t val = ReadH(addr);
             set_register(rd, val);
           } else {
             int16_t val = get_register(rd);
-            WriteH(addr, val, instr);
+            WriteH(addr, val);
           }
         } else {
           if (instr->HasL()) {
-            uint16_t val = ReadHU(addr, instr);
+            uint16_t val = ReadHU(addr);
             set_register(rd, val);
           } else {
             uint16_t val = get_register(rd);
-            WriteH(addr, val, instr);
+            WriteH(addr, val);
           }
         }
       } else {
@@ -2271,7 +2304,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         case BLX: {
           uint32_t old_pc = get_pc();
           set_pc(get_register(rm));
-          set_register(lr, old_pc + Instruction::kInstrSize);
+          set_register(lr, old_pc + kInstrSize);
           break;
         }
         case BKPT: {
@@ -2603,9 +2636,9 @@ void Simulator::DecodeType2(Instruction* instr) {
     }
   } else {
     if (instr->HasL()) {
-      set_register(rd, ReadW(addr, instr));
+      set_register(rd, ReadW(addr));
     } else {
-      WriteW(addr, get_register(rd), instr);
+      WriteW(addr, get_register(rd));
     }
   }
 }
@@ -2771,6 +2804,11 @@ void Simulator::DecodeType3(Instruction* instr) {
                     set_register(rd, rn_val + static_cast<int16_t>(rm_val));
                   }
                 }
+              } else if (instr->Bits(27, 16) == 0x6BF &&
+                         instr->Bits(11, 4) == 0xF3) {
+                // Rev.
+                uint32_t rm_val = get_register(instr->RmValue());
+                set_register(rd, ByteReverse(rm_val));
               } else {
                 UNREACHABLE();
               }
@@ -3020,9 +3058,9 @@ void Simulator::DecodeType3(Instruction* instr) {
     }
   } else {
     if (instr->HasL()) {
-      set_register(rd, ReadW(addr, instr));
+      set_register(rd, ReadW(addr));
     } else {
-      WriteW(addr, get_register(rd), instr);
+      WriteW(addr, get_register(rd));
     }
   }
 }
@@ -3045,7 +3083,7 @@ void Simulator::DecodeType5(Instruction* instr) {
   int off = (instr->SImmed24Value() << 2);
   intptr_t pc_address = get_pc();
   if (instr->HasLink()) {
-    set_register(lr, pc_address + Instruction::kInstrSize);
+    set_register(lr, pc_address + kInstrSize);
   }
   int pc_reg = get_register(pc);
   set_pc(pc_reg + off);
@@ -3651,6 +3689,8 @@ int VFPConversionSaturate(double val, bool unsigned_res) {
 
 int32_t Simulator::ConvertDoubleToInt(double val, bool unsigned_integer,
                                       VFPRoundingMode mode) {
+  // TODO(jkummerow): These casts are undefined behavior if the integral
+  // part of {val} does not fit into the destination type.
   int32_t result =
       unsigned_integer ? static_cast<uint32_t>(val) : static_cast<int32_t>(val);
 
@@ -3787,10 +3827,10 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         DCHECK_EQ(address % 4, 0);
         if (instr->HasL()) {
           // Load single from memory: vldr.
-          set_s_register_from_sinteger(vd, ReadW(address, instr));
+          set_s_register_from_sinteger(vd, ReadW(address));
         } else {
           // Store single to memory: vstr.
-          WriteW(address, get_sinteger_from_s_register(vd), instr);
+          WriteW(address, get_sinteger_from_s_register(vd));
         }
         break;
       }
@@ -3843,17 +3883,14 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         DCHECK_EQ(address % 4, 0);
         if (instr->HasL()) {
           // Load double from memory: vldr.
-          int32_t data[] = {
-            ReadW(address, instr),
-            ReadW(address + 4, instr)
-          };
+          int32_t data[] = {ReadW(address), ReadW(address + 4)};
           set_d_register(vd, reinterpret_cast<uint32_t*>(data));
         } else {
           // Store double to memory: vstr.
           uint32_t data[2];
           get_d_register(vd, data);
-          WriteW(address, data[0], instr);
-          WriteW(address + 4, data[1], instr);
+          WriteW(address, data[0]);
+          WriteW(address + 4, data[1]);
         }
         break;
       }
@@ -5400,8 +5437,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         while (r < regs) {
           uint32_t data[2];
           get_d_register(Vd + r, data);
-          WriteW(address, data[0], instr);
-          WriteW(address + 4, data[1], instr);
+          WriteW(address, data[0]);
+          WriteW(address + 4, data[1]);
           address += 8;
           r++;
         }
@@ -5440,8 +5477,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         int r = 0;
         while (r < regs) {
           uint32_t data[2];
-          data[0] = ReadW(address, instr);
-          data[1] = ReadW(address + 4, instr);
+          data[0] = ReadW(address);
+          data[1] = ReadW(address + 4);
           set_d_register(Vd + r, data);
           address += 8;
           r++;
@@ -5694,11 +5731,9 @@ void Simulator::InstructionDecode(Instruction* instr) {
     }
   }
   if (!pc_modified_) {
-    set_register(pc, reinterpret_cast<int32_t>(instr)
-                         + Instruction::kInstrSize);
+    set_register(pc, reinterpret_cast<int32_t>(instr) + kInstrSize);
   }
 }
-
 
 void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
@@ -5731,13 +5766,12 @@ void Simulator::Execute() {
   }
 }
 
-
-void Simulator::CallInternal(byte* entry) {
+void Simulator::CallInternal(Address entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
   // Prepare to execute the code at entry
-  set_register(pc, reinterpret_cast<int32_t>(entry));
+  set_register(pc, static_cast<int32_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
   // the LR the simulation stops when returning to this call point.
@@ -5791,7 +5825,7 @@ void Simulator::CallInternal(byte* entry) {
   set_register(r11, r11_val);
 }
 
-intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+intptr_t Simulator::CallImpl(Address entry, int argument_count,
                              const intptr_t* arguments) {
   // Set up arguments
 
@@ -5823,7 +5857,7 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(r0);
 }
 
-intptr_t Simulator::CallFPImpl(byte* entry, double d0, double d1) {
+intptr_t Simulator::CallFPImpl(Address entry, double d0, double d1) {
   if (use_eabi_hardfloat()) {
     set_d_register_from_double(0, d0);
     set_d_register_from_double(1, d1);

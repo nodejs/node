@@ -35,6 +35,7 @@ class BundleWalker extends EE {
       this.packageJsonCache = opt.packageJsonCache || new Map()
     }
 
+    this.seen = new Set()
     this.didDone = false
     this.children = 0
     this.node_modules = []
@@ -114,7 +115,8 @@ class BundleWalker extends EE {
   }
 
   childDep (dep) {
-    if (this.node_modules.indexOf(dep) !== -1) {
+    if (this.node_modules.indexOf(dep) !== -1 && !this.seen.has(dep)) {
+      this.seen.add(dep)
       this.child(dep)
     } else if (this.parent) {
       this.parent.childDep(dep)

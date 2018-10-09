@@ -73,8 +73,7 @@ void PPCDebugger::Stop(Instruction* instr) {
   // use of kStopCodeMask not right on PowerPC
   uint32_t code = instr->SvcValue() & kStopCodeMask;
   // Retrieve the encoded address, which comes just after this stop.
-  char* msg =
-      *reinterpret_cast<char**>(sim_->get_pc() + Instruction::kInstrSize);
+  char* msg = *reinterpret_cast<char**>(sim_->get_pc() + kInstrSize);
   // Update this stop description.
   if (sim_->isWatchedStop(code) && !sim_->watched_stops_[code].desc) {
     sim_->watched_stops_[code].desc = msg;
@@ -85,7 +84,7 @@ void PPCDebugger::Stop(Instruction* instr) {
   } else {
     PrintF("Simulator hit %s\n", msg);
   }
-  sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize + kPointerSize);
+  sim_->set_pc(sim_->get_pc() + kInstrSize + kPointerSize);
   Debug();
 }
 
@@ -233,7 +232,7 @@ void PPCDebugger::Debug() {
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
                 ->InstructionBits() == 0x7D821008) {
-          sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
+          sim_->set_pc(sim_->get_pc() + kInstrSize);
         } else {
           sim_->ExecuteInstruction(
               reinterpret_cast<Instruction*>(sim_->get_pc()));
@@ -257,7 +256,7 @@ void PPCDebugger::Debug() {
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
                 ->InstructionBits() == 0x7D821008) {
-          sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
+          sim_->set_pc(sim_->get_pc() + kInstrSize);
         } else {
           // Execute the one instruction we broke at with breakpoints disabled.
           sim_->ExecuteInstruction(
@@ -348,7 +347,7 @@ void PPCDebugger::Debug() {
                  (strcmp(cmd, "printobject") == 0)) {
         if (argc == 2) {
           intptr_t value;
-          OFStream os(stdout);
+          StdoutStream os;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";
@@ -430,7 +429,7 @@ void PPCDebugger::Debug() {
 
         if (argc == 1) {
           cur = reinterpret_cast<byte*>(sim_->get_pc());
-          end = cur + (10 * Instruction::kInstrSize);
+          end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int regnum = Registers::Number(arg1);
           if (regnum != kNoRegister || strncmp(arg1, "0x", 2) == 0) {
@@ -439,7 +438,7 @@ void PPCDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(value);
               // Disassemble 10 instructions at <arg1>.
-              end = cur + (10 * Instruction::kInstrSize);
+              end = cur + (10 * kInstrSize);
             }
           } else {
             // The argument is the number of instructions.
@@ -447,7 +446,7 @@ void PPCDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(sim_->get_pc());
               // Disassemble <arg1> instructions.
-              end = cur + (value * Instruction::kInstrSize);
+              end = cur + (value * kInstrSize);
             }
           }
         } else {
@@ -455,7 +454,7 @@ void PPCDebugger::Debug() {
           intptr_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
             cur = reinterpret_cast<byte*>(value1);
-            end = cur + (value2 * Instruction::kInstrSize);
+            end = cur + (value2 * kInstrSize);
           }
         }
 
@@ -498,11 +497,10 @@ void PPCDebugger::Debug() {
         PrintF("FPSCR: %08x\n", sim_->fp_condition_reg_);
       } else if (strcmp(cmd, "stop") == 0) {
         intptr_t value;
-        intptr_t stop_pc =
-            sim_->get_pc() - (Instruction::kInstrSize + kPointerSize);
+        intptr_t stop_pc = sim_->get_pc() - (kInstrSize + kPointerSize);
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         Instruction* msg_address =
-            reinterpret_cast<Instruction*>(stop_pc + Instruction::kInstrSize);
+            reinterpret_cast<Instruction*>(stop_pc + kInstrSize);
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
           if (sim_->isStopInstruction(stop_instr)) {
@@ -604,7 +602,7 @@ void PPCDebugger::Debug() {
         PrintF("    Stops are debug instructions inserted by\n");
         PrintF("    the Assembler::stop() function.\n");
         PrintF("    When hitting a stop, the Simulator will\n");
-        PrintF("    stop and and give control to the PPCDebugger.\n");
+        PrintF("    stop and give control to the PPCDebugger.\n");
         PrintF("    The first %d stop codes are watched:\n",
                Simulator::kNumOfWatchedStops);
         PrintF("    - They can be enabled / disabled: the Simulator\n");
@@ -725,9 +723,8 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
   char* cached_line = cache_page->CachedData(offset & ~CachePage::kLineMask);
   if (cache_hit) {
     // Check that the data in memory matches the contents of the I-cache.
-    CHECK_EQ(0,
-             memcmp(reinterpret_cast<void*>(instr),
-                    cache_page->CachedData(offset), Instruction::kInstrSize));
+    CHECK_EQ(0, memcmp(reinterpret_cast<void*>(instr),
+                       cache_page->CachedData(offset), kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
     memcpy(cached_line, line, CachePage::kLineLength);
@@ -1254,17 +1251,17 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             case ExternalReference::BUILTIN_FP_FP_CALL:
             case ExternalReference::BUILTIN_COMPARE_CALL:
               PrintF("Call to host function at %p with args %f, %f",
-                     static_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                      dval0, dval1);
               break;
             case ExternalReference::BUILTIN_FP_CALL:
               PrintF("Call to host function at %p with arg %f",
-                     static_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                      dval0);
               break;
             case ExternalReference::BUILTIN_FP_INT_CALL:
               PrintF("Call to host function at %p with args %f, %" V8PRIdPTR,
-                     static_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                      dval0, ival);
               break;
             default:
@@ -1408,8 +1405,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               "\t\t\t\targs %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR,
-              static_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1], arg[2],
-              arg[3], arg[4], arg[5], arg[6], arg[7], arg[8]);
+              reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1],
+              arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8]);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
                    get_register(sp));
@@ -1469,7 +1466,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PPCDebugger dbg(this);
           dbg.Stop(instr);
         } else {
-          set_pc(get_pc() + Instruction::kInstrSize + kPointerSize);
+          set_pc(get_pc() + kInstrSize + kPointerSize);
         }
       } else {
         // This is not a valid svc code.
@@ -3922,10 +3919,9 @@ void Simulator::ExecuteInstruction(Instruction* instr) {
     ExecuteGeneric(instr);
   }
   if (!pc_modified_) {
-    set_pc(reinterpret_cast<intptr_t>(instr) + Instruction::kInstrSize);
+    set_pc(reinterpret_cast<intptr_t>(instr) + kInstrSize);
   }
 }
-
 
 void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
@@ -3958,8 +3954,7 @@ void Simulator::Execute() {
   }
 }
 
-
-void Simulator::CallInternal(byte* entry) {
+void Simulator::CallInternal(Address entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
@@ -3969,7 +3964,7 @@ void Simulator::CallInternal(byte* entry) {
     set_pc(*(reinterpret_cast<intptr_t*>(entry)));
   } else {
     // entry is the instruction address
-    set_pc(reinterpret_cast<intptr_t>(entry));
+    set_pc(static_cast<intptr_t>(entry));
   }
 
   if (ABI_CALL_VIA_IP) {
@@ -4080,7 +4075,7 @@ void Simulator::CallInternal(byte* entry) {
   set_register(fp, r31_val);
 }
 
-intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+intptr_t Simulator::CallImpl(Address entry, int argument_count,
                              const intptr_t* arguments) {
   // Set up arguments
 
@@ -4117,22 +4112,19 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(r3);
 }
 
-
-void Simulator::CallFP(byte* entry, double d0, double d1) {
+void Simulator::CallFP(Address entry, double d0, double d1) {
   set_d_register_from_double(1, d0);
   set_d_register_from_double(2, d1);
   CallInternal(entry);
 }
 
-
-int32_t Simulator::CallFPReturnsInt(byte* entry, double d0, double d1) {
+int32_t Simulator::CallFPReturnsInt(Address entry, double d0, double d1) {
   CallFP(entry, d0, d1);
   int32_t result = get_register(r3);
   return result;
 }
 
-
-double Simulator::CallFPReturnsDouble(byte* entry, double d0, double d1) {
+double Simulator::CallFPReturnsDouble(Address entry, double d0, double d1) {
   CallFP(entry, d0, d1);
   return get_double_from_d_register(1);
 }

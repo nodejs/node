@@ -29,9 +29,16 @@
 
 {
   'variables': {
-    'variables': {
-      'v8_target_arch%': '<(target_arch)',
-    },
+    'v8_target_arch%': '<(target_arch)',
+
+    # Emulate GN variables
+    'conditions': [
+      ['OS=="android"', { # GYP reverts OS to linux so use `-D OS=android`
+        'is_android': 1,
+      }, {
+        'is_android': 0,
+      }],
+    ],
 
     # Allows the embedder to add a custom suffix to the version string.
     'v8_embedder_string%': '',
@@ -95,6 +102,8 @@
 
     # Enable mitigations for executing untrusted code.
     'v8_untrusted_code_mitigations%': 'true',
+
+    'v8_enable_handle_zapping%': 1,
   },
   'target_defaults': {
     'conditions': [
@@ -105,7 +114,7 @@
         'defines': ['ENABLE_DISASSEMBLER',],
       }],
       ['v8_promise_internal_field_count!=0', {
-        'defines': ['V8_PROMISE_INTERNAL_FIELD_COUNT','v8_promise_internal_field_count'],
+        'defines': ['V8_PROMISE_INTERNAL_FIELD_COUNT=<(v8_promise_internal_field_count)'],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
@@ -155,30 +164,10 @@
       ['v8_untrusted_code_mitigations=="false"', {
         'defines': ['DISABLE_UNTRUSTED_CODE_MITIGATIONS',],
       }],
+      ['v8_enable_handle_zapping==1', {
+        'defines': ['ENABLE_HANDLE_ZAPPING',],
+      }],
     ],  # conditions
-    'configurations': {
-      'DebugBaseCommon': {
-        'abstract': 1,
-        'variables': {
-          'v8_enable_handle_zapping%': 1,
-        },
-        'conditions': [
-          ['v8_enable_handle_zapping==1', {
-            'defines': ['ENABLE_HANDLE_ZAPPING',],
-          }],
-        ],
-      },  # Debug
-      'Release': {
-        'variables': {
-          'v8_enable_handle_zapping%': 1,
-        },
-        'conditions': [
-          ['v8_enable_handle_zapping==1', {
-            'defines': ['ENABLE_HANDLE_ZAPPING',],
-          }],
-        ],  # conditions
-      },  # Release
-    },  # configurations
     'defines': [
       'V8_GYP_BUILD',
       'V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=<(v8_typed_array_max_size_in_heap)',

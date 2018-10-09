@@ -47,33 +47,12 @@ namespace internal {
 static void DummyStaticFunction(Object* result) {
 }
 
-void Disassemble(FILE* f, byte* begin, byte* end) {
-  disasm::NameConverter converter;
-  disasm::Disassembler d(converter);
-  for (byte* pc = begin; pc < end;) {
-    v8::internal::EmbeddedVector<char, 128> buffer;
-    buffer[0] = '\0';
-    byte* prev_pc = pc;
-    pc += d.InstructionDecodeForTesting(buffer, pc);
-    fprintf(f, "%p", static_cast<void*>(prev_pc));
-    fprintf(f, "    ");
-
-    for (byte* bp = prev_pc; bp < pc; bp++) {
-      fprintf(f, "%02x", *bp);
-    }
-    for (int i = 6 - static_cast<int>(pc - prev_pc); i >= 0; i--) {
-      fprintf(f, "  ");
-    }
-    fprintf(f, "  %s\n", buffer.start());
-  }
-}
-
 TEST(DisasmX64) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
-  Assembler assm(isolate, buffer, sizeof buffer);
+  Assembler assm(AssemblerOptions{}, buffer, sizeof buffer);
   DummyStaticFunction(nullptr);  // just bloody use it (DELETE; debugging)
 
   // Short immediate instructions
@@ -110,6 +89,8 @@ TEST(DisasmX64) {
   __ addq(rdi, Operand(rbp, rcx, times_4, -3999));
   __ addq(Operand(rbp, rcx, times_4, 12), Immediate(12));
 
+  __ bswapl(rax);
+  __ bswapq(rdi);
   __ bsrl(rax, r15);
   __ bsrl(r9, Operand(rcx, times_8, 91919));
 
@@ -405,6 +386,8 @@ TEST(DisasmX64) {
     __ cvttss2si(rdx, xmm1);
     __ cvtsd2ss(xmm0, xmm1);
     __ cvtsd2ss(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ cvttps2dq(xmm0, xmm1);
+    __ cvttps2dq(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movaps(xmm0, xmm1);
     __ movdqa(xmm0, Operand(rsp, 12));
     __ movdqa(Operand(rsp, 12), xmm0);
@@ -545,6 +528,8 @@ TEST(DisasmX64) {
   {
     if (CpuFeatures::IsSupported(SSSE3)) {
       CpuFeatureScope scope(&assm, SSSE3);
+      __ palignr(xmm5, xmm1, 5);
+      __ palignr(xmm5, Operand(rdx, 4), 5);
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
   }
@@ -560,6 +545,8 @@ TEST(DisasmX64) {
       __ pextrd(r12, xmm0, 1);
       __ pinsrd(xmm9, r9, 0);
       __ pinsrd(xmm5, Operand(rax, 4), 1);
+      __ pblendw(xmm5, xmm1, 1);
+      __ pblendw(xmm9, Operand(rax, 4), 1);
 
       __ cmpps(xmm5, xmm1, 1);
       __ cmpps(xmm5, Operand(rbx, rcx, times_4, 10000), 1);
@@ -976,6 +963,7 @@ TEST(DisasmX64) {
     __ Nop(i);
   }
 
+  __ pause();
   __ ret(0);
 
   CodeDesc desc;
@@ -984,11 +972,12 @@ TEST(DisasmX64) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   USE(code);
 #ifdef OBJECT_PRINT
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
-  byte* begin = code->raw_instruction_start();
-  byte* end = begin + code->raw_instruction_size();
-  Disassemble(stdout, begin, end);
+  Address begin = code->raw_instruction_start();
+  Address end = code->raw_instruction_end();
+  disasm::Disassembler::Disassemble(stdout, reinterpret_cast<byte*>(begin),
+                                    reinterpret_cast<byte*>(end));
 #endif
 }
 

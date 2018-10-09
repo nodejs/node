@@ -1,3 +1,1 @@
-import {  IfObservable  } from './IfObservable';
-
-export const _if = IfObservable.create;
+export * from 'rxjs-compat/observable/if';

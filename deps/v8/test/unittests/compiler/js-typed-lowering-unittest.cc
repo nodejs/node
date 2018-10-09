@@ -29,8 +29,8 @@ namespace {
 
 const size_t kIndices[] = {0, 1, 42, 100, 1024};
 
-Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
-                          Type::Number(),    Type::String(), Type::Object()};
+Type const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
+                         Type::Number(),    Type::String(), Type::Object()};
 
 }  // namespace
 
@@ -48,7 +48,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, zone());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, js_heap_broker(), zone());
     return reducer.Reduce(node);
   }
 
@@ -175,7 +175,7 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FOREACH(Type*, type, kJSTypes) {
+  TRACED_FOREACH(Type, type, kJSTypes) {
     Node* const lhs = Parameter(type);
     Reduction r = Reduce(
         graph()->NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
@@ -341,7 +341,7 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FOREACH(size_t, index, kIndices) {
-    TRACED_FOREACH(Type*, type, kJSTypes) {
+    TRACED_FOREACH(Type, type, kJSTypes) {
       Node* const value = Parameter(type);
 
       Reduction const r1 =

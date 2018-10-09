@@ -21,304 +21,267 @@
 
 'use strict';
 
-module.exports = doJSON;
-
-// Take the lexed input, and return a JSON-encoded object.
-// A module looks like this: https://gist.github.com/1777387.
-
+const unified = require('unified');
 const common = require('./common.js');
-const marked = require('marked');
+const html = require('remark-html');
+const select = require('unist-util-select');
 
-// Customized heading without id attribute.
-const renderer = new marked.Renderer();
-renderer.heading = (text, level) => `<h${level}>${text}</h${level}>\n`;
-marked.setOptions({ renderer });
+module.exports = { jsonAPI };
 
+// Unified processor: input is https://github.com/syntax-tree/mdast,
+// output is: https://gist.github.com/1777387.
+function jsonAPI({ filename }) {
+  return (tree, file) => {
 
-function doJSON(input, filename, cb) {
-  const root = { source: filename };
-  const stack = [root];
-  let depth = 0;
-  let current = root;
-  let state = null;
+    const exampleHeading = /^example/i;
+    const metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
+    const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/s;
 
-  const exampleHeading = /^example/i;
-  const metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
-  const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/;
+    // Extract definitions.
+    const definitions = select(tree, 'definition');
 
-  const lexed = marked.lexer(input);
-  lexed.forEach((tok) => {
-    const { type } = tok;
-    let { text } = tok;
-
-    // <!-- name=module -->
-    // This is for cases where the markdown semantic structure is lacking.
-    if (type === 'paragraph' || type === 'html') {
-      text = text.replace(metaExpr, (_0, key, value) => {
-        current[key.trim()] = value.trim();
-        return '';
-      });
-      text = text.trim();
-      if (!text) return;
-    }
-
-    if (type === 'heading' && !exampleHeading.test(text.trim())) {
-      if (tok.depth - depth > 1) {
-        return cb(
-          new Error(`Inappropriate heading level\n${JSON.stringify(tok)}`));
+    // Determine the start, stop, and depth of each section.
+    const sections = [];
+    let section = null;
+    tree.children.forEach((node, i) => {
+      if (node.type === 'heading' &&
+          !exampleHeading.test(textJoin(node.children, file))) {
+        if (section) section.stop = i - 1;
+        section = { start: i, stop: tree.children.length, depth: node.depth };
+        sections.push(section);
       }
+    });
+
+    // Collect and capture results.
+    const result = { type: 'module', source: filename };
+    while (sections.length > 0) {
+      doSection(sections.shift(), result);
+    }
+    file.json = result;
+
+    // Process a single section (recursively, including subsections).
+    function doSection(section, parent) {
+      if (section.depth - parent.depth > 1) {
+        throw new Error('Inappropriate heading level\n' +
+                        JSON.stringify(section));
+      }
+
+      const current = newSection(tree.children[section.start], file);
+      let nodes = tree.children.slice(section.start + 1, section.stop + 1);
 
       // Sometimes we have two headings with a single blob of description.
       // Treat as a clone.
-      if (state === 'AFTERHEADING' && depth === tok.depth) {
-        const clone = current;
-        current = newSection(tok);
-        current.clone = clone;
-        // Don't keep it around on the stack.
-        stack.pop();
-      } else {
-        // If the level is greater than the current depth,
-        // then it's a child, so we should just leave the stack as it is.
-        // However, if it's a sibling or higher, then it implies
-        // the closure of the other sections that came before.
-        // root is always considered the level=0 section,
-        // and the lowest heading is 1, so this should always
-        // result in having a valid parent node.
-        let closingDepth = tok.depth;
-        while (closingDepth <= depth) {
-          finishSection(stack.pop(), stack[stack.length - 1]);
-          closingDepth++;
+      if (
+        nodes.length === 0 && sections.length > 0 &&
+        section.depth === sections[0].depth
+      ) {
+        nodes = tree.children.slice(sections[0].start + 1,
+                                    sections[0].stop + 1);
+      }
+
+      // Extract (and remove) metadata that is not directly inferable
+      // from the markdown itself.
+      nodes.forEach((node, i) => {
+        // Input: <!-- name=module -->; output: {name: module}.
+        if (node.type === 'html') {
+          node.value = node.value.replace(metaExpr, (_0, key, value) => {
+            current[key.trim()] = value.trim();
+            return '';
+          });
+          if (!node.value.trim()) delete nodes[i];
         }
-        current = newSection(tok);
-      }
 
-      ({ depth } = tok);
-      stack.push(current);
-      state = 'AFTERHEADING';
-      return;
-    }
-
-    // Immediately after a heading, we can expect the following:
-    //
-    // { type: 'blockquote_start' },
-    // { type: 'paragraph', text: 'Stability: ...' },
-    // { type: 'blockquote_end' },
-    //
-    // A list: starting with list_start, ending with list_end,
-    // maybe containing other nested lists in each item.
-    //
-    // A metadata:
-    // <!-- YAML
-    // added: v1.0.0
-    // -->
-    //
-    // If one of these isn't found, then anything that comes
-    // between here and the next heading should be parsed as the desc.
-    if (state === 'AFTERHEADING') {
-      if (type === 'blockquote_start') {
-        state = 'AFTERHEADING_BLOCKQUOTE';
-        return;
-      } else if (type === 'list_start' && !tok.ordered) {
-        state = 'AFTERHEADING_LIST';
-        current.list = current.list || [];
-        current.list.push(tok);
-        current.list.level = 1;
-      } else if (type === 'html' && common.isYAMLBlock(tok.text)) {
-        current.meta = common.extractAndParseYAML(tok.text);
-      } else {
-        current.desc = current.desc || [];
-        if (!Array.isArray(current.desc)) {
-          current.shortDesc = current.desc;
-          current.desc = [];
+        // Process metadata:
+        // <!-- YAML
+        // added: v1.0.0
+        // -->
+        if (node.type === 'html' && common.isYAMLBlock(node.value)) {
+          current.meta = common.extractAndParseYAML(node.value);
+          delete nodes[i];
         }
-        current.desc.links = lexed.links;
-        current.desc.push(tok);
-        state = 'DESC';
-      }
-      return;
-    }
 
-    if (state === 'AFTERHEADING_LIST') {
-      current.list.push(tok);
-      if (type === 'list_start') {
-        current.list.level++;
-      } else if (type === 'list_end') {
-        current.list.level--;
-      }
-      if (current.list.level === 0) {
-        state = 'AFTERHEADING';
-        processList(current);
-      }
-      return;
-    }
-
-    if (state === 'AFTERHEADING_BLOCKQUOTE') {
-      if (type === 'blockquote_end') {
-        state = 'AFTERHEADING';
-        return;
-      }
-
-      let stability;
-      if (type === 'paragraph' && (stability = text.match(stabilityExpr))) {
-        current.stability = parseInt(stability[1], 10);
-        current.stabilityText = stability[2].trim();
-        return;
-      }
-    }
-
-    current.desc = current.desc || [];
-    current.desc.links = lexed.links;
-    current.desc.push(tok);
-  });
-
-  // Finish any sections left open.
-  while (root !== (current = stack.pop())) {
-    finishSection(current, stack[stack.length - 1]);
-  }
-
-  return cb(null, root);
-}
-
-
-// Go from something like this:
-//
-// [ { type: "list_item_start" },
-//   { type: "text",
-//     text: "`options` {Object|string}" },
-//   { type: "list_start",
-//     ordered: false },
-//   { type: "list_item_start" },
-//   { type: "text",
-//     text: "`encoding` {string|null} **Default:** `'utf8'`" },
-//   { type: "list_item_end" },
-//   { type: "list_item_start" },
-//   { type: "text",
-//     text: "`mode` {integer} **Default:** `0o666`" },
-//   { type: "list_item_end" },
-//   { type: "list_item_start" },
-//   { type: "text",
-//     text: "`flag` {string} **Default:** `'a'`" },
-//   { type: "space" },
-//   { type: "list_item_end" },
-//   { type: "list_end" },
-//   { type: "list_item_end" } ]
-//
-// to something like:
-//
-// [ { textRaw: "`options` {Object|string} ",
-//     options: [
-//       { textRaw: "`encoding` {string|null} **Default:** `'utf8'` ",
-//         name: "encoding",
-//         type: "string|null",
-//         default: "`'utf8'`" },
-//       { textRaw: "`mode` {integer} **Default:** `0o666` ",
-//         name: "mode",
-//         type: "integer",
-//         default: "`0o666`" },
-//       { textRaw: "`flag` {string} **Default:** `'a'` ",
-//         name: "flag",
-//         type: "string",
-//         default: "`'a'`" } ],
-//     name: "options",
-//     type: "Object|string",
-//     optional: true } ]
-
-function processList(section) {
-  const { list } = section;
-  const values = [];
-  const stack = [];
-  let current;
-
-  // For now, *just* build the hierarchical list.
-  list.forEach((tok) => {
-    const { type } = tok;
-    if (type === 'space') return;
-    if (type === 'list_item_start' || type === 'loose_item_start') {
-      const item = {};
-      if (!current) {
-        values.push(item);
-        current = item;
-      } else {
-        current.options = current.options || [];
-        stack.push(current);
-        current.options.push(item);
-        current = item;
-      }
-    } else if (type === 'list_item_end') {
-      if (!current) {
-        throw new Error('invalid list - end without current item\n' +
-                        `${JSON.stringify(tok)}\n` +
-                        JSON.stringify(list));
-      }
-      current = stack.pop();
-    } else if (type === 'text') {
-      if (!current) {
-        throw new Error('invalid list - text without current item\n' +
-                        `${JSON.stringify(tok)}\n` +
-                        JSON.stringify(list));
-      }
-      current.textRaw = `${current.textRaw || ''}${tok.text} `;
-    }
-  });
-
-  // Shove the name in there for properties,
-  // since they are always just going to be the value etc.
-  if (section.type === 'property' && values[0]) {
-    values[0].textRaw = `\`${section.name}\` ${values[0].textRaw}`;
-  }
-
-  // Now pull the actual values out of the text bits.
-  values.forEach(parseListItem);
-
-  // Now figure out what this list actually means.
-  // Depending on the section type, the list could be different things.
-
-  switch (section.type) {
-    case 'ctor':
-    case 'classMethod':
-    case 'method': {
-      // Each item is an argument, unless the name is 'return',
-      // in which case it's the return value.
-      section.signatures = section.signatures || [];
-      const sig = {};
-      section.signatures.push(sig);
-      sig.params = values.filter((value) => {
-        if (value.name === 'return') {
-          sig.return = value;
-          return false;
+        // Stability marker: > Stability: ...
+        if (
+          node.type === 'blockquote' && node.children.length === 1 &&
+          node.children[0].type === 'paragraph' &&
+          nodes.slice(0, i).every((node) => node.type === 'list')
+        ) {
+          const text = textJoin(node.children[0].children, file);
+          const stability = text.match(stabilityExpr);
+          if (stability) {
+            current.stability = parseInt(stability[1], 10);
+            current.stabilityText = stability[2].trim();
+            delete nodes[i];
+          }
         }
-        return true;
       });
-      parseSignature(section.textRaw, sig);
-      break;
-    }
 
-    case 'property': {
-      // There should be only one item, which is the value.
-      // Copy the data up to the section.
-      const value = values[0] || {};
-      delete value.name;
-      section.typeof = value.type || section.typeof;
-      delete value.type;
-      Object.keys(value).forEach((key) => {
-        section[key] = value[key];
-      });
-      break;
-    }
+      // Compress the node array.
+      nodes = nodes.filter(() => true);
 
-    case 'event':
-      // Event: each item is an argument.
-      section.params = values;
-      break;
+      // If the first node is a list, extract it.
+      const list = nodes[0] && nodes[0].type === 'list' ?
+        nodes.shift() : null;
 
-    default:
-      if (section.list.length > 0) {
-        section.desc = section.desc || [];
-        section.desc.push(...section.list);
+      // Now figure out what this list actually means.
+      // Depending on the section type, the list could be different things.
+      const values = list ?
+        list.children.map((child) => parseListItem(child, file)) : [];
+
+      switch (current.type) {
+        case 'ctor':
+        case 'classMethod':
+        case 'method':
+          // Each item is an argument, unless the name is 'return',
+          // in which case it's the return value.
+          const sig = {};
+          sig.params = values.filter((value) => {
+            if (value.name === 'return') {
+              sig.return = value;
+              return false;
+            }
+            return true;
+          });
+          parseSignature(current.textRaw, sig);
+          current.signatures = [sig];
+          break;
+
+        case 'property':
+          // There should be only one item, which is the value.
+          // Copy the data up to the section.
+          if (values.length) {
+            const signature = values[0];
+
+            // Shove the name in there for properties,
+            // since they are always just going to be the value etc.
+            signature.textRaw = `\`${current.name}\` ${signature.textRaw}`;
+
+            for (const key in signature) {
+              if (signature[key]) {
+                if (key === 'type') {
+                  current.typeof = signature.type;
+                } else {
+                  current[key] = signature[key];
+                }
+              }
+            }
+          }
+          break;
+
+        case 'event':
+          // Event: each item is an argument.
+          current.params = values;
+          break;
+
+        default:
+          // If list wasn't consumed, put it back in the nodes list.
+          if (list) nodes.unshift(list);
       }
-  }
 
-  delete section.list;
+      // Convert remaining nodes to a 'desc'.
+      // Unified expects to process a string; but we ignore that as we
+      // already have pre-parsed input that we can inject.
+      if (nodes.length) {
+        if (current.desc) current.shortDesc = current.desc;
+
+        current.desc = unified()
+          .use(function() {
+            this.Parser = () => (
+              { type: 'root', children: nodes.concat(definitions) }
+            );
+          })
+          .use(html)
+          .processSync('').toString().trim();
+        if (!current.desc) delete current.desc;
+      }
+
+      // Process subsections.
+      while (sections.length > 0 && sections[0].depth > section.depth) {
+        doSection(sections.shift(), current);
+      }
+
+      // If type is not set, default type based on parent type, and
+      // set displayName and name properties.
+      if (!current.type) {
+        current.type = (parent.type === 'misc' ? 'misc' : 'module');
+        current.displayName = current.name;
+        current.name = current.name.toLowerCase()
+          .trim().replace(/\s+/g, '_');
+      }
+
+      // Pluralize type to determine which 'bucket' to put this section in.
+      let plur;
+      if (current.type.slice(-1) === 's') {
+        plur = `${current.type}es`;
+      } else if (current.type.slice(-1) === 'y') {
+        plur = current.type.replace(/y$/, 'ies');
+      } else {
+        plur = `${current.type}s`;
+      }
+
+      // Classes sometimes have various 'ctor' children
+      // which are actually just descriptions of a constructor class signature.
+      // Merge them into the parent.
+      if (current.type === 'class' && current.ctors) {
+        current.signatures = current.signatures || [];
+        const sigs = current.signatures;
+        current.ctors.forEach((ctor) => {
+          ctor.signatures = ctor.signatures || [{}];
+          ctor.signatures.forEach((sig) => {
+            sig.desc = ctor.desc;
+          });
+          sigs.push(...ctor.signatures);
+        });
+        delete current.ctors;
+      }
+
+      // Properties are a bit special.
+      // Their "type" is the type of object, not "property".
+      if (current.type === 'property') {
+        if (current.typeof) {
+          current.type = current.typeof;
+          delete current.typeof;
+        } else {
+          delete current.type;
+        }
+      }
+
+      // If the parent's type is 'misc', then it's just a random
+      // collection of stuff, like the "globals" section.
+      // Make the children top-level items.
+      if (current.type === 'misc') {
+        Object.keys(current).forEach((key) => {
+          switch (key) {
+            case 'textRaw':
+            case 'name':
+            case 'type':
+            case 'desc':
+            case 'miscs':
+              return;
+            default:
+              if (parent.type === 'misc') {
+                return;
+              }
+              if (parent[key] && Array.isArray(parent[key])) {
+                parent[key] = parent[key].concat(current[key]);
+              } else if (!parent[key]) {
+                parent[key] = current[key];
+              }
+          }
+        });
+      }
+
+      // Add this section to the parent. Sometimes we have two headings with a
+      // single blob of description. If the preceding entry at this level
+      // shares a name and is lacking a description, copy it backwards.
+      if (!parent[plur]) parent[plur] = [];
+      const prev = parent[plur].slice(-1)[0];
+      if (prev && prev.name === current.name && !prev.desc) {
+        prev.desc = current.desc;
+      }
+      parent[plur].push(current);
+    }
+  };
 }
 
 
@@ -326,6 +289,8 @@ const paramExpr = /\((.+)\);?$/;
 
 // text: "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
+  const list = [];
+
   let [, sigParams] = text.match(paramExpr) || [];
   if (!sigParams) return;
   sigParams = sigParams.split(',');
@@ -361,20 +326,45 @@ function parseSignature(text, sig) {
       defaultValue = sigParam.substr(eq + 1);
       sigParam = sigParam.substr(0, eq);
     }
-    if (!listParam) {
-      listParam = sig.params[i] = { name: sigParam };
+
+    // At this point, the name should match. If it doesn't find one that does.
+    // Example: shared signatures for:
+    //   ### new Console(stdout[, stderr][, ignoreErrors])
+    //   ### new Console(options)
+    if (!listParam || sigParam !== listParam.name) {
+      listParam = null;
+      for (const param of sig.params) {
+        if (param.name === sigParam) {
+          listParam = param;
+        } else if (param.options) {
+          for (const option of param.options) {
+            if (option.name === sigParam) {
+              listParam = Object.assign({}, option);
+            }
+          }
+        }
+      }
+
+      if (!listParam) {
+        if (sigParam.startsWith('...')) {
+          listParam = { name: sigParam };
+        } else {
+          throw new Error(
+            `Invalid param "${sigParam}"\n` +
+            ` > ${JSON.stringify(listParam)}\n` +
+            ` > ${text}`
+          );
+        }
+      }
     }
-    // At this point, the name should match.
-    if (sigParam !== listParam.name) {
-      throw new Error(
-        `Warning: invalid param "${sigParam}"\n` +
-        ` > ${JSON.stringify(listParam)}\n` +
-        ` > ${text}`
-      );
-    }
+
     if (optional) listParam.optional = true;
     if (defaultValue !== undefined) listParam.default = defaultValue.trim();
+
+    list.push(listParam);
   });
+
+  sig.params = list;
 }
 
 
@@ -384,30 +374,37 @@ const typeExpr = /^\{([^}]+)\}\s*/;
 const leadingHyphen = /^-\s*/;
 const defaultExpr = /\s*\*\*Default:\*\*\s*([^]+)$/i;
 
-function parseListItem(item) {
-  if (item.options) item.options.forEach(parseListItem);
-  if (!item.textRaw) {
+function parseListItem(item, file) {
+  const current = {};
+
+  current.textRaw = item.children.filter((node) => node.type !== 'list')
+    .map((node) => (
+      file.contents.slice(node.position.start.offset, node.position.end.offset))
+    )
+    .join('').replace(/\s+/g, ' ').replace(/<!--.*?-->/sg, '');
+  let text = current.textRaw;
+
+  if (!text) {
     throw new Error(`Empty list item: ${JSON.stringify(item)}`);
   }
 
-  // The goal here is to find the name, type, default, and optional.
+  // The goal here is to find the name, type, default.
   // Anything left over is 'desc'.
-  let text = item.textRaw.trim();
 
   if (returnExpr.test(text)) {
-    item.name = 'return';
+    current.name = 'return';
     text = text.replace(returnExpr, '');
   } else {
     const [, name] = text.match(nameExpr) || [];
     if (name) {
-      item.name = name;
+      current.name = name;
       text = text.replace(nameExpr, '');
     }
   }
 
   const [, type] = text.match(typeExpr) || [];
   if (type) {
-    item.type = type;
+    current.type = type;
     text = text.replace(typeExpr, '');
   }
 
@@ -415,147 +412,25 @@ function parseListItem(item) {
 
   const [, defaultValue] = text.match(defaultExpr) || [];
   if (defaultValue) {
-    item.default = defaultValue.replace(/\.$/, '');
+    current.default = defaultValue.replace(/\.$/, '');
     text = text.replace(defaultExpr, '');
   }
 
-  if (text) item.desc = text;
+  if (text) current.desc = text;
+
+  const options = item.children.find((child) => child.type === 'list');
+  if (options) {
+    current.options = options.children.map((child) => (
+      parseListItem(child, file)
+    ));
+  }
+
+  return current;
 }
 
+// This section parses out the contents of an H# tag.
 
-function finishSection(section, parent) {
-  if (!section || !parent) {
-    throw new Error('Invalid finishSection call\n' +
-                    `${JSON.stringify(section)}\n` +
-                    JSON.stringify(parent));
-  }
-
-  if (!section.type) {
-    section.type = 'module';
-    if (parent.type === 'misc') {
-      section.type = 'misc';
-    }
-    section.displayName = section.name;
-    section.name = section.name.toLowerCase()
-      .trim().replace(/\s+/g, '_');
-  }
-
-  if (section.desc && Array.isArray(section.desc)) {
-    section.desc.links = section.desc.links || [];
-    section.desc = marked.parser(section.desc);
-  }
-
-  if (!section.list) section.list = [];
-  processList(section);
-
-  // Classes sometimes have various 'ctor' children
-  // which are actually just descriptions of a constructor class signature.
-  // Merge them into the parent.
-  if (section.type === 'class' && section.ctors) {
-    section.signatures = section.signatures || [];
-    const sigs = section.signatures;
-    section.ctors.forEach((ctor) => {
-      ctor.signatures = ctor.signatures || [{}];
-      ctor.signatures.forEach((sig) => {
-        sig.desc = ctor.desc;
-      });
-      sigs.push(...ctor.signatures);
-    });
-    delete section.ctors;
-  }
-
-  // Properties are a bit special.
-  // Their "type" is the type of object, not "property".
-  if (section.properties) {
-    section.properties.forEach((prop) => {
-      if (prop.typeof) {
-        prop.type = prop.typeof;
-        delete prop.typeof;
-      } else {
-        delete prop.type;
-      }
-    });
-  }
-
-  // Handle clones.
-  if (section.clone) {
-    const { clone } = section;
-    delete section.clone;
-    delete clone.clone;
-    deepCopy(section, clone);
-    finishSection(clone, parent);
-  }
-
-  let plur;
-  if (section.type.slice(-1) === 's') {
-    plur = `${section.type}es`;
-  } else if (section.type.slice(-1) === 'y') {
-    plur = section.type.replace(/y$/, 'ies');
-  } else {
-    plur = `${section.type}s`;
-  }
-
-  // If the parent's type is 'misc', then it's just a random
-  // collection of stuff, like the "globals" section.
-  // Make the children top-level items.
-  if (section.type === 'misc') {
-    Object.keys(section).forEach((key) => {
-      switch (key) {
-        case 'textRaw':
-        case 'name':
-        case 'type':
-        case 'desc':
-        case 'miscs':
-          return;
-        default:
-          if (parent.type === 'misc') {
-            return;
-          }
-          if (parent[key] && Array.isArray(parent[key])) {
-            parent[key] = parent[key].concat(section[key]);
-          } else if (!parent[key]) {
-            parent[key] = section[key];
-          }
-      }
-    });
-  }
-
-  parent[plur] = parent[plur] || [];
-  parent[plur].push(section);
-}
-
-
-// Not a general purpose deep copy.
-// But sufficient for these basic things.
-function deepCopy(src, dest) {
-  Object.keys(src)
-    .filter((key) => !dest.hasOwnProperty(key))
-    .forEach((key) => { dest[key] = cloneValue(src[key]); });
-}
-
-function cloneValue(src) {
-  if (!src) return src;
-  if (Array.isArray(src)) {
-    const clone = new Array(src.length);
-    src.forEach((value, i) => {
-      clone[i] = cloneValue(value);
-    });
-    return clone;
-  }
-  if (typeof src === 'object') {
-    const clone = {};
-    Object.keys(src).forEach((key) => {
-      clone[key] = cloneValue(src[key]);
-    });
-    return clone;
-  }
-  return src;
-}
-
-
-// This section parse out the contents of an H# tag.
-
-// To reduse escape slashes in RegExp string components.
+// To reduce escape slashes in RegExp string components.
 const r = String.raw;
 
 const eventPrefix = '^Event: +';
@@ -603,7 +478,9 @@ const headingExpressions = [
     `^${maybeClassPropertyPrefix}${ancestors}(${id})${noCallOrProp}$`, 'i') },
 ];
 
-function newSection({ text }) {
+function newSection(header, file) {
+  const text = textJoin(header.children, file);
+
   // Infer the type from the text.
   for (const { type, re } of headingExpressions) {
     const [, name] = text.match(re) || [];
@@ -612,4 +489,23 @@ function newSection({ text }) {
     }
   }
   return { textRaw: text, name: text };
+}
+
+function textJoin(nodes, file) {
+  return nodes.map((node) => {
+    if (node.type === 'linkReference') {
+      return file.contents.slice(node.position.start.offset,
+                                 node.position.end.offset);
+    } else if (node.type === 'inlineCode') {
+      return `\`${node.value}\``;
+    } else if (node.type === 'strong') {
+      return `**${textJoin(node.children, file)}**`;
+    } else if (node.type === 'emphasis') {
+      return `_${textJoin(node.children, file)}_`;
+    } else if (node.children) {
+      return textJoin(node.children, file);
+    } else {
+      return node.value;
+    }
+  }).join('');
 }

@@ -16,7 +16,7 @@ const inputs = {
 };
 
 const bench = common.createBenchmark(main, {
-  n: [4e6],
+  n: [1e5],
   type: Object.keys(inputs)
 });
 

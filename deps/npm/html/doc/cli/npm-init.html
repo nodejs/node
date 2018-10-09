@@ -13,20 +13,15 @@
 <h2 id="synopsis">SYNOPSIS</h2>
 <pre><code>npm init [--force|-f|--yes|-y|--scope]
 npm init &lt;@scope&gt; (same as `npx &lt;@scope&gt;/create`)
-npm init [&lt;@scope&gt;/]&lt;name&gt; (same as `npx [&lt;@scope&gt;/]create-&lt;name&gt;`)
-</code></pre><h2 id="examples">EXAMPLES</h2>
+npm init [&lt;@scope&gt;/]&lt;name&gt; (same as `npx [&lt;@scope&gt;/]create-&lt;name&gt;`)</code></pre><h2 id="examples">EXAMPLES</h2>
 <p>Create a new React-based project using <a href="https://npm.im/create-react-app"><code>create-react-app</code></a>:</p>
-<pre><code>$ npm init react-app ./my-react-app
-</code></pre><p>Create a new <code>esm</code>-compatible package using <a href="https://npm.im/create-esm"><code>create-esm</code></a>:</p>
+<pre><code>$ npm init react-app ./my-react-app</code></pre><p>Create a new <code>esm</code>-compatible package using <a href="https://npm.im/create-esm"><code>create-esm</code></a>:</p>
 <pre><code>$ mkdir my-esm-lib &amp;&amp; cd my-esm-lib
-$ npm init esm --yes
-</code></pre><p>Generate a plain old package.json using legacy init:</p>
+$ npm init esm --yes</code></pre><p>Generate a plain old package.json using legacy init:</p>
 <pre><code>$ mkdir my-npm-pkg &amp;&amp; cd my-npm-pkg
 $ git init
-$ npm init
-</code></pre><p>Generate it without having it ask any questions:</p>
-<pre><code>$ npm init -y
-</code></pre><h2 id="description">DESCRIPTION</h2>
+$ npm init</code></pre><p>Generate it without having it ask any questions:</p>
+<pre><code>$ npm init -y</code></pre><h2 id="description">DESCRIPTION</h2>
 <p><code>npm init &lt;initializer&gt;</code> can be used to set up a new or existing npm package.</p>
 <p><code>initializer</code> in this case is an npm package named <code>create-&lt;initializer&gt;</code>, which
 will be installed by <a href="https://npm.im/npx"><code><a href="../cli/npx.html">npx(1)</a></code></a>, and then have its main bin
@@ -66,5 +61,5 @@ will create a scoped package.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-init &mdash; npm@6.1.0</p>
+<p id="footer">npm-init &mdash; npm@6.4.1</p>
 

@@ -35,18 +35,22 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 
     BIND(&if_xissmi);
     {
-      Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
-      Node* pair = nullptr;
+      Label if_overflow(this, Label::kDeferred);
 
       // check if support abs function
       if (IsIntPtrAbsWithOverflowSupported()) {
-        pair = IntPtrAbsWithOverflow(x);
+        Node* pair = IntPtrAbsWithOverflow(x);
         Node* overflow = Projection(1, pair);
-        Branch(overflow, &if_overflow, &if_notoverflow);
+        GotoIf(overflow, &if_overflow);
+
+        // There is a Smi representation for negated {x}.
+        Node* result = Projection(0, pair);
+        Return(BitcastWordToTagged(result));
+
       } else {
         // Check if {x} is already positive.
         Label if_xispositive(this), if_xisnotpositive(this);
-        BranchIfSmiLessThanOrEqual(SmiConstant(0), x, &if_xispositive,
+        BranchIfSmiLessThanOrEqual(SmiConstant(0), CAST(x), &if_xispositive,
                                    &if_xisnotpositive);
 
         BIND(&if_xispositive);
@@ -58,18 +62,9 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
         BIND(&if_xisnotpositive);
         {
           // Try to negate the {x} value.
-          pair =
-              IntPtrSubWithOverflow(IntPtrConstant(0), BitcastTaggedToWord(x));
-          Node* overflow = Projection(1, pair);
-          Branch(overflow, &if_overflow, &if_notoverflow);
+          TNode<Smi> result = TrySmiSub(SmiConstant(0), CAST(x), &if_overflow);
+          Return(result);
         }
-      }
-
-      BIND(&if_notoverflow);
-      {
-        // There is a Smi representation for negated {x}.
-        Node* result = Projection(0, pair);
-        Return(BitcastWordToTagged(result));
       }
 
       BIND(&if_overflow);
@@ -409,8 +404,8 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
   Node* native_context = LoadNativeContext(context);
 
   // Load cache index.
-  VARIABLE(smi_index, MachineRepresentation::kTagged);
-  smi_index.Bind(
+  TVARIABLE(Smi, smi_index);
+  smi_index = CAST(
       LoadContextElement(native_context, Context::MATH_RANDOM_INDEX_INDEX));
 
   // Cached random numbers are exhausted if index is 0. Go to slow path.
@@ -418,12 +413,12 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
   GotoIf(SmiAbove(smi_index.value(), SmiConstant(0)), &if_cached);
 
   // Cache exhausted, populate the cache. Return value is the new index.
-  smi_index.Bind(CallRuntime(Runtime::kGenerateRandomNumbers, context));
+  smi_index = CAST(CallRuntime(Runtime::kGenerateRandomNumbers, context));
   Goto(&if_cached);
 
   // Compute next index by decrement.
   BIND(&if_cached);
-  Node* new_smi_index = SmiSub(smi_index.value(), SmiConstant(1));
+  TNode<Smi> new_smi_index = SmiSub(smi_index.value(), SmiConstant(1));
   StoreContextElement(native_context, Context::MATH_RANDOM_INDEX_INDEX,
                       new_smi_index);
 
@@ -508,8 +503,8 @@ TF_BUILTIN(MathTrunc, MathBuiltinsAssembler) {
 TF_BUILTIN(MathMax, MathBuiltinsAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
   MathMaxMin(context, argc, &CodeStubAssembler::Float64Max, -1.0 * V8_INFINITY);
 }
 
@@ -517,8 +512,8 @@ TF_BUILTIN(MathMax, MathBuiltinsAssembler) {
 TF_BUILTIN(MathMin, MathBuiltinsAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
   MathMaxMin(context, argc, &CodeStubAssembler::Float64Min, V8_INFINITY);
 }
 

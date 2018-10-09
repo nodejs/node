@@ -14,11 +14,10 @@
 namespace v8 {
 namespace {
 
-bool IsSamePage(i::byte* ptr1, i::byte* ptr2) {
+bool IsSamePage(i::Address ptr1, i::Address ptr2) {
   const uint32_t kPageSize = 4096;
-  uintptr_t mask = ~static_cast<uintptr_t>(kPageSize - 1);
-  return (reinterpret_cast<uintptr_t>(ptr1) & mask) ==
-         (reinterpret_cast<uintptr_t>(ptr2) & mask);
+  i::Address mask = ~static_cast<i::Address>(kPageSize - 1);
+  return (ptr1 & mask) == (ptr2 & mask);
 }
 
 // Check if the code at specified address could potentially be a
@@ -29,7 +28,6 @@ bool IsNoFrameRegion(i::Address address) {
     i::byte bytes[8];
     int offsets[4];
   };
-  i::byte* pc = reinterpret_cast<i::byte*>(address);
   static Pattern patterns[] = {
 #if V8_HOST_ARCH_IA32
     // push %ebp
@@ -54,10 +52,11 @@ bool IsNoFrameRegion(i::Address address) {
 #endif
     {0, {}, {}}
   };
+  i::byte* pc = reinterpret_cast<i::byte*>(address);
   for (Pattern* pattern = patterns; pattern->bytes_count; ++pattern) {
     for (int* offset_ptr = pattern->offsets; *offset_ptr != -1; ++offset_ptr) {
       int offset = *offset_ptr;
-      if (!offset || IsSamePage(pc, pc - offset)) {
+      if (!offset || IsSamePage(address, address - offset)) {
         MSAN_MEMORY_IS_INITIALIZED(pc - offset, pattern->bytes_count);
         if (!memcmp(pc - offset, pattern->bytes, pattern->bytes_count))
           return true;
@@ -95,33 +94,32 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
   if (simulator == nullptr) return false;
 #if V8_TARGET_ARCH_ARM
   if (!simulator->has_bad_pc()) {
-    state->pc = reinterpret_cast<Address>(simulator->get_pc());
+    state->pc = reinterpret_cast<void*>(simulator->get_pc());
   }
-  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
-  state->fp =
-      reinterpret_cast<Address>(simulator->get_register(Simulator::r11));
+  state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::r11));
 #elif V8_TARGET_ARCH_ARM64
-  state->pc = reinterpret_cast<Address>(simulator->pc());
-  state->sp = reinterpret_cast<Address>(simulator->sp());
-  state->fp = reinterpret_cast<Address>(simulator->fp());
+  state->pc = reinterpret_cast<void*>(simulator->pc());
+  state->sp = reinterpret_cast<void*>(simulator->sp());
+  state->fp = reinterpret_cast<void*>(simulator->fp());
 #elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   if (!simulator->has_bad_pc()) {
-    state->pc = reinterpret_cast<Address>(simulator->get_pc());
+    state->pc = reinterpret_cast<void*>(simulator->get_pc());
   }
-  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
-  state->fp = reinterpret_cast<Address>(simulator->get_register(Simulator::fp));
+  state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
 #elif V8_TARGET_ARCH_PPC
   if (!simulator->has_bad_pc()) {
-    state->pc = reinterpret_cast<Address>(simulator->get_pc());
+    state->pc = reinterpret_cast<void*>(simulator->get_pc());
   }
-  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
-  state->fp = reinterpret_cast<Address>(simulator->get_register(Simulator::fp));
+  state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
 #elif V8_TARGET_ARCH_S390
   if (!simulator->has_bad_pc()) {
-    state->pc = reinterpret_cast<Address>(simulator->get_pc());
+    state->pc = reinterpret_cast<void*>(simulator->get_pc());
   }
-  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
-  state->fp = reinterpret_cast<Address>(simulator->get_register(Simulator::fp));
+  state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
 #endif
   if (state->sp == 0 || state->fp == 0) {
     // It possible that the simulator is interrupted while it is updating
@@ -175,7 +173,8 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
     MSAN_MEMORY_IS_INITIALIZED(regs.sp, sizeof(void*));
     // Sample potential return address value for frameless invocation of
     // stubs (we'll figure out later, if this value makes sense).
-    tos = i::Memory::Address_at(reinterpret_cast<i::Address>(regs.sp));
+    tos = reinterpret_cast<void*>(
+        i::Memory<i::Address>(reinterpret_cast<i::Address>(regs.sp)));
   } else {
     tos = nullptr;
   }
@@ -193,7 +192,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   if (sample_info->vm_state == GC) return true;
 
   i::Address js_entry_sp = isolate->js_entry_sp();
-  if (js_entry_sp == nullptr) return true;  // Not executing JS now.
+  if (js_entry_sp == 0) return true;  // Not executing JS now.
 
 #if defined(USE_SIMULATOR)
   if (use_simulator_reg_state) {
@@ -208,8 +207,8 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // Avoid this check for C++ code, as that would trigger false positives.
   if (regs->pc &&
       isolate->heap()->memory_allocator()->code_range()->contains(
-          static_cast<i::Address>(regs->pc)) &&
-      IsNoFrameRegion(static_cast<i::Address>(regs->pc))) {
+          reinterpret_cast<i::Address>(regs->pc)) &&
+      IsNoFrameRegion(reinterpret_cast<i::Address>(regs->pc))) {
     // The frame is not setup, so it'd be hard to iterate the stack. Bailout.
     return false;
   }
@@ -223,8 +222,9 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
     i::Address* external_callback_entry_ptr =
         scope->callback_entrypoint_address();
     sample_info->external_callback_entry =
-        external_callback_entry_ptr == nullptr ? nullptr
-                                               : *external_callback_entry_ptr;
+        external_callback_entry_ptr == nullptr
+            ? nullptr
+            : reinterpret_cast<void*>(*external_callback_entry_ptr);
   }
 
   i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs->fp),
@@ -236,14 +236,14 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   if (record_c_entry_frame == kIncludeCEntryFrame &&
       (it.top_frame_type() == internal::StackFrame::EXIT ||
        it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
-    frames[i++] = isolate->c_function();
+    frames[i++] = reinterpret_cast<void*>(isolate->c_function());
   }
   i::RuntimeCallTimer* timer =
       isolate->counters()->runtime_call_stats()->current_timer();
   for (; !it.done() && i < frames_limit; it.Advance()) {
     while (timer && reinterpret_cast<i::Address>(timer) < it.frame()->fp() &&
            i < frames_limit) {
-      frames[i++] = reinterpret_cast<i::Address>(timer->counter());
+      frames[i++] = reinterpret_cast<void*>(timer->counter());
       timer = timer->parent();
     }
     if (i == frames_limit) break;
@@ -255,20 +255,21 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
       // bytecode_array might be garbage, so don't actually dereference it. We
       // avoid the frame->GetXXX functions since they call BytecodeArray::cast,
       // which has a heap access in its DCHECK.
-      i::Object* bytecode_array = i::Memory::Object_at(
+      i::Object* bytecode_array = i::Memory<i::Object*>(
           frame->fp() + i::InterpreterFrameConstants::kBytecodeArrayFromFp);
-      i::Object* bytecode_offset = i::Memory::Object_at(
+      i::Object* bytecode_offset = i::Memory<i::Object*>(
           frame->fp() + i::InterpreterFrameConstants::kBytecodeOffsetFromFp);
 
       // If the bytecode array is a heap object and the bytecode offset is a
       // Smi, use those, otherwise fall back to using the frame's pc.
       if (HAS_HEAP_OBJECT_TAG(bytecode_array) && HAS_SMI_TAG(bytecode_offset)) {
-        frames[i++] = reinterpret_cast<i::Address>(bytecode_array) +
-                      i::Internals::SmiValue(bytecode_offset);
+        frames[i++] = reinterpret_cast<void*>(
+            reinterpret_cast<i::Address>(bytecode_array) +
+            i::Internals::SmiValue(bytecode_offset));
         continue;
       }
     }
-    frames[i++] = it.frame()->pc();
+    frames[i++] = reinterpret_cast<void*>(it.frame()->pc());
   }
   sample_info->frames_count = i;
   return true;

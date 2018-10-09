@@ -1,2 +1,1 @@
-import { IfObservable } from './IfObservable';
-export declare const _if: typeof IfObservable.create;
+export * from 'rxjs-compat/observable/if';

@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#endif
 #include "src/regexp/regexp-utils.h"
-#include "src/string-builder.h"
+#include "src/string-builder-inl.h"
 #include "src/string-case.h"
 #include "src/unicode-inl.h"
 #include "src/unicode.h"
@@ -19,7 +22,8 @@ namespace internal {
 namespace {  // for String.fromCodePoint
 
 bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
-  if (!value->IsNumber() && !Object::ToNumber(value).ToHandle(&value)) {
+  if (!value->IsNumber() &&
+      !Object::ToNumber(isolate, value).ToHandle(&value)) {
     return false;
   }
 
@@ -37,7 +41,8 @@ bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
 
 uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
   Handle<Object> value = args.at(1 + index);
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value, Object::ToNumber(value), -1);
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value,
+                                   Object::ToNumber(isolate, value), -1);
   if (!IsValidCodePoint(isolate, value)) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidCodePoint, value));
@@ -52,7 +57,7 @@ uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
 BUILTIN(StringFromCodePoint) {
   HandleScope scope(isolate);
   int const length = args.length() - 1;
-  if (length == 0) return isolate->heap()->empty_string();
+  if (length == 0) return ReadOnlyRoots(isolate).empty_string();
   DCHECK_LT(0, length);
 
   // Optimistically assume that the resulting String contains only one byte
@@ -64,7 +69,7 @@ BUILTIN(StringFromCodePoint) {
   for (index = 0; index < length; index++) {
     code = NextCodePoint(isolate, args, index);
     if (code < 0) {
-      return isolate->heap()->exception();
+      return ReadOnlyRoots(isolate).exception();
     }
     if (code > String::kMaxOneByteCharCode) {
       break;
@@ -94,7 +99,7 @@ BUILTIN(StringFromCodePoint) {
     }
     code = NextCodePoint(isolate, args, index);
     if (code < 0) {
-      return isolate->heap()->exception();
+      return ReadOnlyRoots(isolate).exception();
     }
   }
 
@@ -122,7 +127,7 @@ BUILTIN(StringPrototypeEndsWith) {
   Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
   if (is_reg_exp.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   if (is_reg_exp.FromJust()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -146,10 +151,10 @@ BUILTIN(StringPrototypeEndsWith) {
   }
 
   int start = end - search_string->length();
-  if (start < 0) return isolate->heap()->false_value();
+  if (start < 0) return ReadOnlyRoots(isolate).false_value();
 
-  str = String::Flatten(str);
-  search_string = String::Flatten(search_string);
+  str = String::Flatten(isolate, str);
+  search_string = String::Flatten(isolate, search_string);
 
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
   String::FlatContent str_content = str->GetFlatContent();
@@ -169,10 +174,10 @@ BUILTIN(StringPrototypeEndsWith) {
 
   for (int i = 0; i < search_string->length(); i++) {
     if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return isolate->heap()->false_value();
+      return ReadOnlyRoots(isolate).false_value();
     }
   }
-  return isolate->heap()->true_value();
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 // ES6 section 21.1.3.9
@@ -188,10 +193,18 @@ BUILTIN(StringPrototypeLastIndexOf) {
 //
 // This function is implementation specific.  For now, we do not
 // do anything locale specific.
-// If internationalization is enabled, then intl.js will override this function
-// and provide the proper functionality, so this is just a fallback.
 BUILTIN(StringPrototypeLocaleCompare) {
   HandleScope handle_scope(isolate);
+#ifdef V8_INTL_SUPPORT
+  TO_THIS_STRING(str1, "String.prototype.localeCompare");
+  Handle<String> str2;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, str2, Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Intl::StringLocaleCompare(isolate, str1, str2,
+                                         args.atOrUndefined(isolate, 2),
+                                         args.atOrUndefined(isolate, 3)));
+#else
   DCHECK_EQ(2, args.length());
 
   TO_THIS_STRING(str1, "String.prototype.localeCompare");
@@ -219,8 +232,8 @@ BUILTIN(StringPrototypeLocaleCompare) {
   int d = str1->Get(0) - str2->Get(0);
   if (d != 0) return Smi::FromInt(d);
 
-  str1 = String::Flatten(str1);
-  str2 = String::Flatten(str2);
+  str1 = String::Flatten(isolate, str1);
+  str2 = String::Flatten(isolate, str2);
 
   DisallowHeapAllocation no_gc;
   String::FlatContent flat1 = str1->GetFlatContent();
@@ -233,6 +246,7 @@ BUILTIN(StringPrototypeLocaleCompare) {
   }
 
   return Smi::FromInt(str1_length - str2_length);
+#endif  // !V8_INTL_SUPPORT
 }
 
 #ifndef V8_INTL_SUPPORT
@@ -252,13 +266,13 @@ BUILTIN(StringPrototypeNormalize) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
                                      Object::ToString(isolate, form_input));
 
-  if (!(String::Equals(form,
+  if (!(String::Equals(isolate, form,
                        isolate->factory()->NewStringFromStaticChars("NFC")) ||
-        String::Equals(form,
+        String::Equals(isolate, form,
                        isolate->factory()->NewStringFromStaticChars("NFD")) ||
-        String::Equals(form,
+        String::Equals(isolate, form,
                        isolate->factory()->NewStringFromStaticChars("NFKC")) ||
-        String::Equals(form,
+        String::Equals(isolate, form,
                        isolate->factory()->NewStringFromStaticChars("NFKD")))) {
     Handle<String> valid_forms =
         isolate->factory()->NewStringFromStaticChars("NFC, NFD, NFKC, NFKD");
@@ -280,7 +294,7 @@ BUILTIN(StringPrototypeStartsWith) {
   Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
   if (is_reg_exp.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   if (is_reg_exp.FromJust()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -304,18 +318,19 @@ BUILTIN(StringPrototypeStartsWith) {
   }
 
   if (start + search_string->length() > str->length()) {
-    return isolate->heap()->false_value();
+    return ReadOnlyRoots(isolate).false_value();
   }
 
-  FlatStringReader str_reader(isolate, String::Flatten(str));
-  FlatStringReader search_reader(isolate, String::Flatten(search_string));
+  FlatStringReader str_reader(isolate, String::Flatten(isolate, str));
+  FlatStringReader search_reader(isolate,
+                                 String::Flatten(isolate, search_string));
 
   for (int i = 0; i < search_string->length(); i++) {
     if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return isolate->heap()->false_value();
+      return ReadOnlyRoots(isolate).false_value();
     }
   }
-  return isolate->heap()->true_value();
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 #ifndef V8_INTL_SUPPORT
@@ -430,7 +445,7 @@ template <class Converter>
 V8_WARN_UNUSED_RESULT static Object* ConvertCase(
     Handle<String> s, Isolate* isolate,
     unibrow::Mapping<Converter, 128>* mapping) {
-  s = String::Flatten(s);
+  s = String::Flatten(isolate, s);
   int length = s->length();
   // Assume that the string is not empty; we need this assumption later
   if (length == 0) return *s;
@@ -525,14 +540,14 @@ BUILTIN(StringRaw) {
                                      Object::ToObject(isolate, templ));
 
   Handle<Object> raw;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw,
-                                     Object::GetProperty(cooked, raw_string));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, raw, Object::GetProperty(isolate, cooked, raw_string));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw,
                                      Object::ToObject(isolate, raw));
   Handle<Object> raw_len;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, raw_len,
-      Object::GetProperty(raw, isolate->factory()->length_string()));
+      Object::GetProperty(isolate, raw, isolate->factory()->length_string()));
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw_len,
                                      Object::ToLength(isolate, raw_len));

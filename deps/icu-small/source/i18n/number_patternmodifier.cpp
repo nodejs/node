@@ -3,21 +3,27 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
 #include "cstring.h"
 #include "number_patternmodifier.h"
 #include "unicode/dcfmtsym.h"
 #include "unicode/ucurr.h"
 #include "unicode/unistr.h"
+#include "number_microprops.h"
 
 using namespace icu;
 using namespace icu::number;
 using namespace icu::number::impl;
 
-MutablePatternModifier::MutablePatternModifier(bool isStrong) : fStrong(isStrong) {}
 
-void MutablePatternModifier::setPatternInfo(const AffixPatternProvider *patternInfo) {
+AffixPatternProvider::~AffixPatternProvider() = default;
+
+
+MutablePatternModifier::MutablePatternModifier(bool isStrong)
+        : fStrong(isStrong) {}
+
+void MutablePatternModifier::setPatternInfo(const AffixPatternProvider* patternInfo) {
     this->patternInfo = patternInfo;
 }
 
@@ -26,14 +32,12 @@ void MutablePatternModifier::setPatternAttributes(UNumberSignDisplay signDisplay
     this->perMilleReplacesPercent = perMille;
 }
 
-void
-MutablePatternModifier::setSymbols(const DecimalFormatSymbols *symbols, const CurrencyUnit &currency,
-                                   const UNumberUnitWidth unitWidth, const PluralRules *rules) {
+void MutablePatternModifier::setSymbols(const DecimalFormatSymbols* symbols,
+                                        const CurrencySymbols* currencySymbols,
+                                        const UNumberUnitWidth unitWidth, const PluralRules* rules) {
     U_ASSERT((rules != nullptr) == needsPlurals());
     this->symbols = symbols;
-    uprv_memcpy(static_cast<char16_t *>(this->currencyCode),
-            currency.getISOCurrency(),
-            sizeof(char16_t) * 4);
+    this->currencySymbols = currencySymbols;
     this->unitWidth = unitWidth;
     this->rules = rules;
 }
@@ -49,12 +53,12 @@ bool MutablePatternModifier::needsPlurals() const {
     // Silently ignore any error codes.
 }
 
-ImmutablePatternModifier *MutablePatternModifier::createImmutable(UErrorCode &status) {
+ImmutablePatternModifier* MutablePatternModifier::createImmutable(UErrorCode& status) {
     return createImmutableAndChain(nullptr, status);
 }
 
-ImmutablePatternModifier *
-MutablePatternModifier::createImmutableAndChain(const MicroPropsGenerator *parent, UErrorCode &status) {
+ImmutablePatternModifier*
+MutablePatternModifier::createImmutableAndChain(const MicroPropsGenerator* parent, UErrorCode& status) {
 
     // TODO: Move StandardPlural VALUES to standardplural.h
     static const StandardPlural::Form STANDARD_PLURAL_VALUES[] = {
@@ -89,11 +93,11 @@ MutablePatternModifier::createImmutableAndChain(const MicroPropsGenerator *paren
     } else {
         // Faster path when plural keyword is not needed.
         setNumberProperties(1, StandardPlural::Form::COUNT);
-        Modifier *positive = createConstantModifier(status);
+        Modifier* positive = createConstantModifier(status);
         setNumberProperties(0, StandardPlural::Form::COUNT);
-        Modifier *zero = createConstantModifier(status);
+        Modifier* zero = createConstantModifier(status);
         setNumberProperties(-1, StandardPlural::Form::COUNT);
-        Modifier *negative = createConstantModifier(status);
+        Modifier* negative = createConstantModifier(status);
         pm->adoptPositiveNegativeModifiers(positive, zero, negative);
         if (U_FAILURE(status)) {
             delete pm;
@@ -103,77 +107,91 @@ MutablePatternModifier::createImmutableAndChain(const MicroPropsGenerator *paren
     }
 }
 
-ConstantMultiFieldModifier *MutablePatternModifier::createConstantModifier(UErrorCode &status) {
+ConstantMultiFieldModifier* MutablePatternModifier::createConstantModifier(UErrorCode& status) {
     NumberStringBuilder a;
     NumberStringBuilder b;
     insertPrefix(a, 0, status);
     insertSuffix(b, 0, status);
     if (patternInfo->hasCurrencySign()) {
-        return new CurrencySpacingEnabledModifier(a, b, !patternInfo->hasBody(), fStrong, *symbols, status);
+        return new CurrencySpacingEnabledModifier(
+                a, b, !patternInfo->hasBody(), fStrong, *symbols, status);
     } else {
         return new ConstantMultiFieldModifier(a, b, !patternInfo->hasBody(), fStrong);
     }
 }
 
-ImmutablePatternModifier::ImmutablePatternModifier(ParameterizedModifier *pm, const PluralRules *rules,
-                                                   const MicroPropsGenerator *parent)
+ImmutablePatternModifier::ImmutablePatternModifier(ParameterizedModifier* pm, const PluralRules* rules,
+                                                   const MicroPropsGenerator* parent)
         : pm(pm), rules(rules), parent(parent) {}
 
-void ImmutablePatternModifier::processQuantity(DecimalQuantity &quantity, MicroProps &micros,
-                                               UErrorCode &status) const {
+void ImmutablePatternModifier::processQuantity(DecimalQuantity& quantity, MicroProps& micros,
+                                               UErrorCode& status) const {
     parent->processQuantity(quantity, micros, status);
     applyToMicros(micros, quantity);
 }
 
-void ImmutablePatternModifier::applyToMicros(MicroProps &micros, DecimalQuantity &quantity) const {
+void ImmutablePatternModifier::applyToMicros(MicroProps& micros, DecimalQuantity& quantity) const {
     if (rules == nullptr) {
         micros.modMiddle = pm->getModifier(quantity.signum());
     } else {
         // TODO: Fix this. Avoid the copy.
         DecimalQuantity copy(quantity);
         copy.roundToInfinity();
-        StandardPlural::Form plural = copy.getStandardPlural(rules);
+        StandardPlural::Form plural = utils::getStandardPlural(rules, copy);
         micros.modMiddle = pm->getModifier(quantity.signum(), plural);
     }
 }
 
+const Modifier* ImmutablePatternModifier::getModifier(int8_t signum, StandardPlural::Form plural) const {
+    if (rules == nullptr) {
+        return pm->getModifier(signum);
+    } else {
+        return pm->getModifier(signum, plural);
+    }
+}
+
+
 /** Used by the unsafe code path. */
-MicroPropsGenerator &MutablePatternModifier::addToChain(const MicroPropsGenerator *parent) {
+MicroPropsGenerator& MutablePatternModifier::addToChain(const MicroPropsGenerator* parent) {
     this->parent = parent;
     return *this;
 }
 
-void MutablePatternModifier::processQuantity(DecimalQuantity &fq, MicroProps &micros,
-                                             UErrorCode &status) const {
+void MutablePatternModifier::processQuantity(DecimalQuantity& fq, MicroProps& micros,
+                                             UErrorCode& status) const {
     parent->processQuantity(fq, micros, status);
     // The unsafe code path performs self-mutation, so we need a const_cast.
     // This method needs to be const because it overrides a const method in the parent class.
-    auto nonConstThis = const_cast<MutablePatternModifier *>(this);
+    auto nonConstThis = const_cast<MutablePatternModifier*>(this);
     if (needsPlurals()) {
         // TODO: Fix this. Avoid the copy.
         DecimalQuantity copy(fq);
-        micros.rounding.apply(copy, status);
-        nonConstThis->setNumberProperties(fq.signum(), copy.getStandardPlural(rules));
+        micros.rounder.apply(copy, status);
+        nonConstThis->setNumberProperties(fq.signum(), utils::getStandardPlural(rules, copy));
     } else {
         nonConstThis->setNumberProperties(fq.signum(), StandardPlural::Form::COUNT);
     }
     micros.modMiddle = this;
 }
 
-int32_t MutablePatternModifier::apply(NumberStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
-                                      UErrorCode &status) const {
+int32_t MutablePatternModifier::apply(NumberStringBuilder& output, int32_t leftIndex, int32_t rightIndex,
+                                      UErrorCode& status) const {
     // The unsafe code path performs self-mutation, so we need a const_cast.
     // This method needs to be const because it overrides a const method in the parent class.
-    auto nonConstThis = const_cast<MutablePatternModifier *>(this);
+    auto nonConstThis = const_cast<MutablePatternModifier*>(this);
     int32_t prefixLen = nonConstThis->insertPrefix(output, leftIndex, status);
     int32_t suffixLen = nonConstThis->insertSuffix(output, rightIndex + prefixLen, status);
     // If the pattern had no decimal stem body (like #,##0.00), overwrite the value.
     int32_t overwriteLen = 0;
     if (!patternInfo->hasBody()) {
         overwriteLen = output.splice(
-            leftIndex + prefixLen, rightIndex + prefixLen,
-            UnicodeString(), 0, 0, UNUM_FIELD_COUNT,
-            status);
+                leftIndex + prefixLen,
+                rightIndex + prefixLen,
+                UnicodeString(),
+                0,
+                0,
+                UNUM_FIELD_COUNT,
+                status);
     }
     CurrencySpacingEnabledModifier::applyCurrencySpacing(
             output,
@@ -186,30 +204,27 @@ int32_t MutablePatternModifier::apply(NumberStringBuilder &output, int32_t leftI
     return prefixLen + overwriteLen + suffixLen;
 }
 
-int32_t MutablePatternModifier::getPrefixLength(UErrorCode &status) const {
+int32_t MutablePatternModifier::getPrefixLength(UErrorCode& status) const {
     // The unsafe code path performs self-mutation, so we need a const_cast.
     // This method needs to be const because it overrides a const method in the parent class.
-    auto nonConstThis = const_cast<MutablePatternModifier *>(this);
+    auto nonConstThis = const_cast<MutablePatternModifier*>(this);
 
     // Enter and exit CharSequence Mode to get the length.
-    nonConstThis->enterCharSequenceMode(true);
-    int result = AffixUtils::unescapedCodePointCount(*this, *this, status);  // prefix length
-    nonConstThis->exitCharSequenceMode();
+    nonConstThis->prepareAffix(true);
+    int result = AffixUtils::unescapedCodePointCount(currentAffix, *this, status);  // prefix length
     return result;
 }
 
-int32_t MutablePatternModifier::getCodePointCount(UErrorCode &status) const {
+int32_t MutablePatternModifier::getCodePointCount(UErrorCode& status) const {
     // The unsafe code path performs self-mutation, so we need a const_cast.
     // This method needs to be const because it overrides a const method in the parent class.
-    auto nonConstThis = const_cast<MutablePatternModifier *>(this);
+    auto nonConstThis = const_cast<MutablePatternModifier*>(this);
 
-    // Enter and exit CharSequence Mode to get the length.
-    nonConstThis->enterCharSequenceMode(true);
-    int result = AffixUtils::unescapedCodePointCount(*this, *this, status);  // prefix length
-    nonConstThis->exitCharSequenceMode();
-    nonConstThis->enterCharSequenceMode(false);
-    result += AffixUtils::unescapedCodePointCount(*this, *this, status);  // suffix length
-    nonConstThis->exitCharSequenceMode();
+    // Render the affixes to get the length
+    nonConstThis->prepareAffix(true);
+    int result = AffixUtils::unescapedCodePointCount(currentAffix, *this, status);  // prefix length
+    nonConstThis->prepareAffix(false);
+    result += AffixUtils::unescapedCodePointCount(currentAffix, *this, status);  // suffix length
     return result;
 }
 
@@ -217,21 +232,26 @@ bool MutablePatternModifier::isStrong() const {
     return fStrong;
 }
 
-int32_t MutablePatternModifier::insertPrefix(NumberStringBuilder &sb, int position, UErrorCode &status) {
-    enterCharSequenceMode(true);
-    int length = AffixUtils::unescape(*this, sb, position, *this, status);
-    exitCharSequenceMode();
+int32_t MutablePatternModifier::insertPrefix(NumberStringBuilder& sb, int position, UErrorCode& status) {
+    prepareAffix(true);
+    int length = AffixUtils::unescape(currentAffix, sb, position, *this, status);
     return length;
 }
 
-int32_t MutablePatternModifier::insertSuffix(NumberStringBuilder &sb, int position, UErrorCode &status) {
-    enterCharSequenceMode(false);
-    int length = AffixUtils::unescape(*this, sb, position, *this, status);
-    exitCharSequenceMode();
+int32_t MutablePatternModifier::insertSuffix(NumberStringBuilder& sb, int position, UErrorCode& status) {
+    prepareAffix(false);
+    int length = AffixUtils::unescape(currentAffix, sb, position, *this, status);
     return length;
+}
+
+/** This method contains the heart of the logic for rendering LDML affix strings. */
+void MutablePatternModifier::prepareAffix(bool isPrefix) {
+    PatternStringUtils::patternInfoToStringBuilder(
+            *patternInfo, isPrefix, signum, signDisplay, plural, perMilleReplacesPercent, currentAffix);
 }
 
 UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
+    UErrorCode localStatus = U_ZERO_ERROR;
     switch (type) {
         case AffixPatternType::TYPE_MINUS_SIGN:
             return symbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kMinusSignSymbol);
@@ -244,45 +264,23 @@ UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
         case AffixPatternType::TYPE_CURRENCY_SINGLE: {
             // UnitWidth ISO and HIDDEN overrides the singular currency symbol.
             if (unitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_ISO_CODE) {
-                return UnicodeString(currencyCode, 3);
+                return currencySymbols->getIntlCurrencySymbol(localStatus);
             } else if (unitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_HIDDEN) {
                 return UnicodeString();
+            } else if (unitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW) {
+                return currencySymbols->getNarrowCurrencySymbol(localStatus);
             } else {
-                UCurrNameStyle selector = (unitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW)
-                        ? UCurrNameStyle::UCURR_NARROW_SYMBOL_NAME
-                        : UCurrNameStyle::UCURR_SYMBOL_NAME;
-                UErrorCode status = U_ZERO_ERROR;
-                UBool isChoiceFormat = FALSE;
-                int32_t symbolLen = 0;
-                const char16_t *symbol = ucurr_getName(
-                        currencyCode,
-                        symbols->getLocale().getName(),
-                        selector,
-                        &isChoiceFormat,
-                        &symbolLen,
-                        &status);
-                return UnicodeString(symbol, symbolLen);
+                return currencySymbols->getCurrencySymbol(localStatus);
             }
         }
         case AffixPatternType::TYPE_CURRENCY_DOUBLE:
-            return UnicodeString(currencyCode, 3);
-        case AffixPatternType::TYPE_CURRENCY_TRIPLE: {
+            return currencySymbols->getIntlCurrencySymbol(localStatus);
+        case AffixPatternType::TYPE_CURRENCY_TRIPLE:
             // NOTE: This is the code path only for patterns containing "¤¤¤".
             // Plural currencies set via the API are formatted in LongNameHandler.
             // This code path is used by DecimalFormat via CurrencyPluralInfo.
             U_ASSERT(plural != StandardPlural::Form::COUNT);
-            UErrorCode status = U_ZERO_ERROR;
-            UBool isChoiceFormat = FALSE;
-            int32_t symbolLen = 0;
-            const char16_t *symbol = ucurr_getPluralName(
-                    currencyCode,
-                    symbols->getLocale().getName(),
-                    &isChoiceFormat,
-                    StandardPlural::getKeyword(plural),
-                    &symbolLen,
-                    &status);
-            return UnicodeString(symbol, symbolLen);
-        }
+            return currencySymbols->getPluralName(plural, localStatus);
         case AffixPatternType::TYPE_CURRENCY_QUAD:
             return UnicodeString(u"\uFFFD");
         case AffixPatternType::TYPE_CURRENCY_QUINT:
@@ -291,79 +289,6 @@ UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
             U_ASSERT(false);
             return UnicodeString();
     }
-}
-
-/** This method contains the heart of the logic for rendering LDML affix strings. */
-void MutablePatternModifier::enterCharSequenceMode(bool isPrefix) {
-    U_ASSERT(!inCharSequenceMode);
-    inCharSequenceMode = true;
-
-    // Should the output render '+' where '-' would normally appear in the pattern?
-    plusReplacesMinusSign = signum != -1
-            && (signDisplay == UNUM_SIGN_ALWAYS
-                    || signDisplay == UNUM_SIGN_ACCOUNTING_ALWAYS
-                    || (signum == 1
-                            && (signDisplay == UNUM_SIGN_EXCEPT_ZERO
-                                    || signDisplay == UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO)))
-            && patternInfo->positiveHasPlusSign() == false;
-
-    // Should we use the affix from the negative subpattern? (If not, we will use the positive subpattern.)
-    bool useNegativeAffixPattern = patternInfo->hasNegativeSubpattern() && (
-            signum == -1 || (patternInfo->negativeHasMinusSign() && plusReplacesMinusSign));
-
-    // Resolve the flags for the affix pattern.
-    fFlags = 0;
-    if (useNegativeAffixPattern) {
-        fFlags |= AffixPatternProvider::AFFIX_NEGATIVE_SUBPATTERN;
-    }
-    if (isPrefix) {
-        fFlags |= AffixPatternProvider::AFFIX_PREFIX;
-    }
-    if (plural != StandardPlural::Form::COUNT) {
-        U_ASSERT(plural == (AffixPatternProvider::AFFIX_PLURAL_MASK & plural));
-        fFlags |= plural;
-    }
-
-    // Should we prepend a sign to the pattern?
-    if (!isPrefix || useNegativeAffixPattern) {
-        prependSign = false;
-    } else if (signum == -1) {
-        prependSign = signDisplay != UNUM_SIGN_NEVER;
-    } else {
-        prependSign = plusReplacesMinusSign;
-    }
-
-    // Finally, compute the length of the affix pattern.
-    fLength = patternInfo->length(fFlags) + (prependSign ? 1 : 0);
-}
-
-void MutablePatternModifier::exitCharSequenceMode() {
-    U_ASSERT(inCharSequenceMode);
-    inCharSequenceMode = false;
-}
-
-int32_t MutablePatternModifier::length() const {
-    U_ASSERT(inCharSequenceMode);
-    return fLength;
-}
-
-char16_t MutablePatternModifier::charAt(int32_t index) const {
-    U_ASSERT(inCharSequenceMode);
-    char16_t candidate;
-    if (prependSign && index == 0) {
-        candidate = u'-';
-    } else if (prependSign) {
-        candidate = patternInfo->charAt(fFlags, index - 1);
-    } else {
-        candidate = patternInfo->charAt(fFlags, index);
-    }
-    if (plusReplacesMinusSign && candidate == u'-') {
-        return u'+';
-    }
-    if (perMilleReplacesPercent && candidate == u'%') {
-        return u'‰';
-    }
-    return candidate;
 }
 
 UnicodeString MutablePatternModifier::toUnicodeString() const {

@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-arguments-gen.h"
 
+#include "src/arguments.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
@@ -11,6 +12,7 @@
 #include "src/frame-constants.h"
 #include "src/interface-descriptors.h"
 #include "src/objects-inl.h"
+#include "src/objects/arguments.h"
 
 namespace v8 {
 namespace internal {
@@ -43,7 +45,7 @@ ArgumentsBuiltinsAssembler::GetArgumentsFrameAndCount(Node* function,
   CSA_SLOW_ASSERT(this, HasInstanceType(shared, SHARED_FUNCTION_INFO_TYPE));
   Node* formal_parameter_count =
       LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Int32());
+                      MachineType::Uint16());
   formal_parameter_count = Int32ToParameter(formal_parameter_count, mode);
 
   argument_count.Bind(formal_parameter_count);
@@ -303,8 +305,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
                                 JSSloppyArgumentsObject::kSize);
     StoreObjectFieldNoWriteBarrier(
         argument_object, JSSloppyArgumentsObject::kCalleeOffset, function);
-    StoreFixedArrayElement(map_array, 0, context, SKIP_WRITE_BARRIER);
-    StoreFixedArrayElement(map_array, 1, elements, SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(CAST(map_array), 0, context, SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(CAST(map_array), 1, elements, SKIP_WRITE_BARRIER);
 
     Comment("Fill in non-mapped parameters");
     Node* argument_offset =

@@ -6,8 +6,6 @@ const assert = require('assert');
 const dgram = require('dgram');
 const dnsPromises = dns.promises;
 
-common.crashOnUnhandledRejection();
-
 const server = dgram.createSocket('udp4');
 
 server.on('message', common.mustCall((msg, { address, port }) => {
@@ -42,8 +40,8 @@ server.bind(0, common.mustCall(async () => {
     assert.strictEqual(err.syscall, 'queryAny');
     assert.strictEqual(err.hostname, 'example.org');
     const descriptor = Object.getOwnPropertyDescriptor(err, 'message');
-    assert.strictEqual(descriptor.enumerable,
-                       false, 'The error message should be non-enumerable');
+    // The error message should be non-enumerable.
+    assert.strictEqual(descriptor.enumerable, false);
     server.close();
   }));
 }));

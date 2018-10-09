@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/builtins/builtins-utils.h"
-
 #include "src/counters.h"
 #include "src/keys.h"
 #include "src/lookup.h"
@@ -38,12 +37,12 @@ BUILTIN(ReflectDefineProperty) {
 
   PropertyDescriptor desc;
   if (!PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
 
   Maybe<bool> result = JSReceiver::DefineOwnProperty(
       isolate, Handle<JSReceiver>::cast(target), name, &desc, kDontThrow);
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
@@ -67,7 +66,7 @@ BUILTIN(ReflectDeleteProperty) {
 
   Maybe<bool> result = JSReceiver::DeletePropertyOrElement(
       Handle<JSReceiver>::cast(target), name, LanguageMode::kSloppy);
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
@@ -115,8 +114,8 @@ BUILTIN(ReflectGetOwnPropertyDescriptor) {
   PropertyDescriptor desc;
   Maybe<bool> found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, Handle<JSReceiver>::cast(target), name, &desc);
-  MAYBE_RETURN(found, isolate->heap()->exception());
-  if (!found.FromJust()) return isolate->heap()->undefined_value();
+  MAYBE_RETURN(found, ReadOnlyRoots(isolate).exception());
+  if (!found.FromJust()) return ReadOnlyRoots(isolate).undefined_value();
   return *desc.ToObject(isolate);
 }
 
@@ -152,7 +151,7 @@ BUILTIN(ReflectIsExtensible) {
 
   Maybe<bool> result =
       JSReceiver::IsExtensible(Handle<JSReceiver>::cast(target));
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
@@ -193,7 +192,7 @@ BUILTIN(ReflectPreventExtensions) {
 
   Maybe<bool> result = JSReceiver::PreventExtensions(
       Handle<JSReceiver>::cast(target), kDontThrow);
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
@@ -220,7 +219,7 @@ BUILTIN(ReflectSet) {
       isolate, receiver, name, Handle<JSReceiver>::cast(target));
   Maybe<bool> result = Object::SetSuperProperty(
       &it, value, LanguageMode::kSloppy, Object::MAY_BE_STORE_FROM_KEYED);
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
@@ -245,7 +244,7 @@ BUILTIN(ReflectSetPrototypeOf) {
 
   Maybe<bool> result = JSReceiver::SetPrototype(
       Handle<JSReceiver>::cast(target), proto, true, kDontThrow);
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 

@@ -11,10 +11,10 @@ ASN1_INTEGER_get_int64, ASN1_INTEGER_get, ASN1_INTEGER_set_int64, ASN1_INTEGER_s
  #include <openssl/asn1.h>
 
  int ASN1_INTEGER_get_int64(int64_t *pr, const ASN1_INTEGER *a);
- int ASN1_INTEGER_get(const ASN1_INTEGER *a, long v);
+ long ASN1_INTEGER_get(const ASN1_INTEGER *a);
 
  int ASN1_INTEGER_set_int64(ASN1_INTEGER *a, int64_t r);
- long ASN1_INTEGER_set(const ASN1_INTEGER *a);
+ int ASN1_INTEGER_set(const ASN1_INTEGER *a, long v);
 
  int ASN1_INTEGER_get_uint64(uint64_t *pr, const ASN1_INTEGER *a);
  int ASN1_INTEGER_set_uint64(ASN1_INTEGER *a, uint64_t r);
@@ -123,7 +123,7 @@ were added to OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -4,6 +4,7 @@
 !test/fixtures/**/.*
 !tools/node_modules/**/.*
 !tools/doc/node_modules/**/.*
+!.clang-format
 !.editorconfig
 !.eslintignore
 !.eslintrc.js
@@ -13,8 +14,8 @@
 !.gitkeep
 !.mailmap
 !.nycrc
-!.remarkrc
 !.travis.yml
+!.eslintrc.yaml
 
 core
 vgcore.*
@@ -38,14 +39,15 @@ icu_config.gypi
 .eslintcache
 node_trace.*.log
 coverage/
+!**/node_modules/**/coverage
 
 /out
 
 # various stuff that VC++ produces/uses
 Debug/
 !**/node_modules/debug/
-!deps/v8/src/debug/
 Release/
+!**/node_modules/**/release
 !doc/blog/**
 *.sln
 !nodemsi.sln
@@ -64,7 +66,6 @@ ipch/
 *.VC.opendb
 .vs/
 .vscode/
-/deps/v8/src/debug/obj
 /*.exe
 
 /config.mk
@@ -98,6 +99,7 @@ deps/openssl/openssl.xml
 deps/openssl/openssl.target.mk
 deps/zlib/zlib.target.mk
 
+!deps/npm/node_modules
 # not needed and causes issues for distro packagers
 deps/npm/node_modules/.bin/
 
@@ -106,9 +108,13 @@ deps/npm/node_modules/.bin/
 /*.pkg
 /SHASUMS*.txt*
 
+# api docs artifacts
+tools/doc/node_modules
+
+# clang-format artifacts
+tools/clang-format/node_modules
+
 # test artifacts
-tools/remark-cli/node_modules
-tools/remark-preset-lint-node/node_modules
 icu_config.gypi
 *.tap
 
@@ -126,8 +132,4 @@ deps/uv/docs/src/guide/
 # ignore VS compiler output unhandled by V8's .gitignore
 deps/v8/gypfiles/Debug/
 deps/v8/gypfiles/Release/
-deps/v8/src/Debug/
-deps/v8/src/Release/
-deps/v8/src/inspector/Debug/
-deps/v8/src/inspector/Release/
 deps/v8/third_party/eu-strip/

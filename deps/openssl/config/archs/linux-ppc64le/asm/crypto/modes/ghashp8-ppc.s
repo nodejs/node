@@ -125,7 +125,7 @@ gcm_init_p8:
 	.long	0x7E4A1F99
 
 	or	12,12,12
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -176,7 +176,7 @@ gcm_gmult_p8:
 	.long	0x7C001F99
 
 	or	12,12,12
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -294,7 +294,7 @@ gcm_ghash_p8:
 	.long	0x7C001F99
 
 	or	12,12,12
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,4,0
 .long	0
@@ -561,7 +561,7 @@ gcm_ghash_p8:
 	lvx	30,10,1
 	lvx	31,11,1
 	addi	1,1,256
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,0,0x80,0,4,0
 .long	0

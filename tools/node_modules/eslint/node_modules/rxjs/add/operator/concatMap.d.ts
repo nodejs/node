@@ -1,6 +1,1 @@
-import { concatMap } from '../../operator/concatMap';
-declare module '../../Observable' {
-    interface Observable<T> {
-        concatMap: typeof concatMap;
-    }
-}
+import 'rxjs-compat/add/operator/concatMap';

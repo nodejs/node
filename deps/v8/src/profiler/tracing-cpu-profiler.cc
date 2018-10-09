@@ -9,14 +9,6 @@
 #include "src/v8.h"
 
 namespace v8 {
-
-std::unique_ptr<TracingCpuProfiler> TracingCpuProfiler::Create(
-    v8::Isolate* isolate) {
-  return std::unique_ptr<TracingCpuProfiler>(
-      new internal::TracingCpuProfilerImpl(
-          reinterpret_cast<internal::Isolate*>(isolate)));
-}
-
 namespace internal {
 
 TracingCpuProfilerImpl::TracingCpuProfilerImpl(Isolate* isolate)

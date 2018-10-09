@@ -75,20 +75,24 @@ inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
                          env->name_string(),
                          String::NewFromUtf8(isolate,
                                              entry.name().c_str(),
-                                             String::kNormalString),
-                         attr).FromJust();
+                                             v8::NewStringType::kNormal)
+                             .ToLocalChecked(),
+                         attr)
+      .FromJust();
   obj->DefineOwnProperty(context,
-                         FIXED_ONE_BYTE_STRING(isolate, "entryType"),
+                         env->entry_type_string(),
                          String::NewFromUtf8(isolate,
                                              entry.type().c_str(),
-                                             String::kNormalString),
-                         attr).FromJust();
+                                             v8::NewStringType::kNormal)
+                             .ToLocalChecked(),
+                         attr)
+      .FromJust();
   obj->DefineOwnProperty(context,
-                         FIXED_ONE_BYTE_STRING(isolate, "startTime"),
+                         env->start_time_string(),
                          Number::New(isolate, entry.startTime()),
                          attr).FromJust();
   obj->DefineOwnProperty(context,
-                         FIXED_ONE_BYTE_STRING(isolate, "duration"),
+                         env->duration_string(),
                          Number::New(isolate, entry.duration()),
                          attr).FromJust();
 }
@@ -245,7 +249,7 @@ void PerformanceGCCallback(Environment* env, void* ptr) {
     v8::PropertyAttribute attr =
         static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
     obj->DefineOwnProperty(context,
-                           FIXED_ONE_BYTE_STRING(env->isolate(), "kind"),
+                           env->kind_string(),
                            Integer::New(env->isolate(), entry->gckind()),
                            attr).FromJust();
     PerformanceEntry::Notify(env, entry->kind(), obj);
@@ -268,6 +272,9 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                               v8::GCCallbackFlags flags,
                               void* data) {
   Environment* env = static_cast<Environment*>(data);
+  // If no one is listening to gc performance entries, do not create them.
+  if (!env->performance_state()->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC])
+    return;
   GCPerformanceEntry* entry =
       new GCPerformanceEntry(env,
                              static_cast<PerformanceGCKind>(type),
@@ -303,6 +310,7 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);  // TODO(addaleax): Verify that this is correct.
   Local<Context> context = env->context();
   Local<Function> fn = args.Data().As<Function>();
   size_t count = args.Length();
@@ -397,7 +405,7 @@ void Initialize(Local<Object> target,
 
   Local<FunctionTemplate> pe = FunctionTemplate::New(isolate);
   pe->SetClassName(performanceEntryString);
-  Local<Function> fn = pe->GetFunction();
+  Local<Function> fn = pe->GetFunction(context).ToLocalChecked();
   target->Set(context, performanceEntryString, fn).FromJust();
   env->set_performance_entry_template(fn);
 
@@ -450,4 +458,4 @@ void Initialize(Local<Object> target,
 }  // namespace performance
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(performance, node::performance::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)
