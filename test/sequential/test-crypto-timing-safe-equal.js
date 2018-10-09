@@ -19,7 +19,7 @@ assert.strictEqual(
 );
 
 {
-  const ab32 = new ArrayBuffer(32)
+  const ab32 = new ArrayBuffer(32);
   const dv32 = new DataView(ab32);
   dv32.setUint32(0, 1);
   dv32.setUint32(4, 1, true);
