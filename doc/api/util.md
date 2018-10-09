@@ -365,8 +365,8 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/22846
-    description: The `depth` default changed to `20`.
+    pr-url: https://github.com/nodejs/node/pull/23350
+    description: The `depth` default changed to `5`.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22788
     description: The `sorted` option is supported now.
@@ -408,7 +408,7 @@ changes:
   * `depth` {number} Specifies the number of times to recurse while formatting
     the `object`. This is useful for inspecting large complicated objects. To
     make it recurse up to the maximum call stack size pass `Infinity` or `null`.
-    **Default:** `20`.
+    **Default:** `5`.
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
     codes. Colors are customizable, see [Customizing `util.inspect` colors][].
     **Default:** `false`.
