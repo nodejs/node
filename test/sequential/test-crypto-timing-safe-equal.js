@@ -19,8 +19,7 @@ assert.strictEqual(
 );
 
 {
-  const ab32 = new ArrayBuffer(32),
-        dv32 = new DataView(ab32);
+  const ab32 = new ArrayBuffer(32), dv32 = new DataView(ab32);
   dv32.setUint32(0, 1);
   dv32.setUint32(4, 1, true);
   dv32.setBigUint64(8, 1n);
@@ -29,7 +28,7 @@ assert.strictEqual(
   dv32.setUint16(26, 1, true);
   dv32.setUint8(28, 1);
   dv32.setUint8(29, 1);
-  
+
   // 'should consider equal buffers to be equal'
   assert.strictEqual(
     crypto.timingSafeEqual(Buffer.from(ab32), dv32),
@@ -60,7 +59,7 @@ assert.strictEqual(
     ),
     true
   );
-  
+
   // 'should consider unequal buffer views to be unequal'
   assert.strictEqual(
     crypto.timingSafeEqual(
@@ -92,7 +91,8 @@ assert.strictEqual(
   );
   // 'buffers with differing byteLength must throw an equal length error'
   common.expectsError(
-    () => crypto.timingSafeEqual(Buffer.from(ab32, 0, 8), Buffer.from(ab32, 0, 9)),
+    () => crypto.timingSafeEqual(Buffer.from(ab32, 0, 8),
+                                 Buffer.from(ab32, 0, 9)),
     {
       code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
       type: RangeError,
