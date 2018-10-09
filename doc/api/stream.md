@@ -1205,9 +1205,8 @@ added: v0.9.4
 * `stream` {Stream} An "old style" readable stream
 * Returns: {this}
 
-Versions of Node.js prior to v0.10 had streams that did not implement the
-entire `stream` module API as it is currently defined. (See [Compatibility][]
-for more information.)
+Prior to Node.js 0.10, streams did not implement the entire `stream` module API
+as it is currently defined. (See [Compatibility][] for more information.)
 
 When using an older Node.js library that emits [`'data'`][] events and has a
 [`stream.pause()`][stream-pause] method that is advisory only, the
@@ -2325,10 +2324,10 @@ primarily for examples and testing, but there are some use cases where
 
 <!--type=misc-->
 
-In versions of Node.js prior to v0.10, the `Readable` stream interface was
-simpler, but also less powerful and less useful.
+Prior to Node.js 0.10, the `Readable` stream interface was simpler, but also
+less powerful and less useful.
 
-* Rather than waiting for calls the [`stream.read()`][stream-read] method,
+* Rather than waiting for calls to the [`stream.read()`][stream-read] method,
   [`'data'`][] events would begin emitting immediately. Applications that
   would need to perform some amount of work to decide how to handle data
   were required to store read data into buffers so the data would not be lost.
@@ -2336,7 +2335,7 @@ simpler, but also less powerful and less useful.
   guaranteed. This meant that it was still necessary to be prepared to receive
   [`'data'`][] events *even when the stream was in a paused state*.
 
-In Node.js v0.10, the [`Readable`][] class was added. For backwards
+In Node.js 0.10, the [`Readable`][] class was added. For backwards
 compatibility with older Node.js programs, `Readable` streams switch into
 "flowing mode" when a [`'data'`][] event handler is added, or when the
 [`stream.resume()`][stream-resume] method is called. The effect is that, even
@@ -2366,9 +2365,8 @@ net.createServer((socket) => {
 }).listen(1337);
 ```
 
-In versions of Node.js prior to v0.10, the incoming message data would be
-simply discarded. However, in Node.js v0.10 and beyond, the socket remains
-paused forever.
+Prior to Node.js 0.10, the incoming message data would be simply discarded.
+However, in Node.js 0.10 and beyond, the socket remains paused forever.
 
 The workaround in this situation is to call the
 [`stream.resume()`][stream-resume] method to begin the flow of data:
@@ -2386,7 +2384,7 @@ net.createServer((socket) => {
 ```
 
 In addition to new `Readable` streams switching into flowing mode,
-pre-v0.10 style streams can be wrapped in a `Readable` class using the
+pre-0.10 style streams can be wrapped in a `Readable` class using the
 [`readable.wrap()`][`stream.wrap()`] method.
 
 ### `readable.read(0)`
