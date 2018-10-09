@@ -24,8 +24,6 @@
     clause — a subject, verb, and an object.
   * Outside of the wrapping element if the wrapping element contains only a
     fragment of a clause.
-* Place end-of-sentence punctuation inside wrapping elements — periods go
-  inside parentheses and quotes, not after.
 * Documents must start with a level-one heading.
 * Prefer affixing links to inlining links — prefer `[a link][]` to
   `[a link](http://example.com)`.
