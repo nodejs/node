@@ -38,7 +38,7 @@ Domain error handlers are not a substitute for closing down a
 process when an error occurs.
 
 By the very nature of how [`throw`][] works in JavaScript, there is almost
-never any way to safely "pick up where you left off", without leaking
+never any way to safely "pick up where it left off", without leaking
 references, or creating some other sort of undefined brittle state.
 
 The safest way to respond to a thrown error is to shut down the
