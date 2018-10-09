@@ -90,7 +90,7 @@ function wrap(fn, callback) {
        * pipeline), but later also threw an error.
        * We’re not about to restart the pipeline again,
        * so the only thing left to do is to throw the
-       * thing instead. */
+       * thing instea. */
       if (callback && invoked) {
         throw err
       }
@@ -901,7 +901,7 @@ function representYamlFloat(object, style) {
   res = object.toString(10);
 
   // JS stringifier can build scientific format without dots: 5e-100,
-  // while YAML requires dot: 5.e-100. Fix it with simple hack
+  // while YAML requres dot: 5.e-100. Fix it with simple hack
 
   return SCIENTIFIC_WITHOUT_DOT.test(res) ? res.replace('e', '.e') : res;
 }
@@ -2322,7 +2322,7 @@ function readBlockScalar(state, nodeIndent) {
         }
       }
 
-      // Break this `while` cycle and go to the function's epilogue.
+      // Break this `while` cycle and go to the funciton's epilogue.
       break;
     }
 
@@ -4201,6 +4201,7 @@ var s = 1000;
 var m = s * 60;
 var h = m * 60;
 var d = h * 24;
+var w = d * 7;
 var y = d * 365.25;
 
 /**
@@ -4244,7 +4245,7 @@ function parse$1(str) {
   if (str.length > 100) {
     return;
   }
-  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(
+  var match = /^((?:\d+)?\-?\d?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
     str
   );
   if (!match) {
@@ -4259,6 +4260,10 @@ function parse$1(str) {
     case 'yr':
     case 'y':
       return n * y;
+    case 'weeks':
+    case 'week':
+    case 'w':
+      return n * w;
     case 'days':
     case 'day':
     case 'd':
@@ -4301,16 +4306,17 @@ function parse$1(str) {
  */
 
 function fmtShort(ms) {
-  if (ms >= d) {
+  var msAbs = Math.abs(ms);
+  if (msAbs >= d) {
     return Math.round(ms / d) + 'd';
   }
-  if (ms >= h) {
+  if (msAbs >= h) {
     return Math.round(ms / h) + 'h';
   }
-  if (ms >= m) {
+  if (msAbs >= m) {
     return Math.round(ms / m) + 'm';
   }
-  if (ms >= s) {
+  if (msAbs >= s) {
     return Math.round(ms / s) + 's';
   }
   return ms + 'ms';
@@ -4325,300 +4331,297 @@ function fmtShort(ms) {
  */
 
 function fmtLong(ms) {
-  return plural(ms, d, 'day') ||
-    plural(ms, h, 'hour') ||
-    plural(ms, m, 'minute') ||
-    plural(ms, s, 'second') ||
-    ms + ' ms';
+  var msAbs = Math.abs(ms);
+  if (msAbs >= d) {
+    return plural(ms, msAbs, d, 'day');
+  }
+  if (msAbs >= h) {
+    return plural(ms, msAbs, h, 'hour');
+  }
+  if (msAbs >= m) {
+    return plural(ms, msAbs, m, 'minute');
+  }
+  if (msAbs >= s) {
+    return plural(ms, msAbs, s, 'second');
+  }
+  return ms + ' ms';
 }
 
 /**
  * Pluralization helper.
  */
 
-function plural(ms, n, name) {
-  if (ms < n) {
-    return;
-  }
-  if (ms < n * 1.5) {
-    return Math.floor(ms / n) + ' ' + name;
-  }
-  return Math.ceil(ms / n) + ' ' + name + 's';
+function plural(ms, msAbs, n, name) {
+  var isPlural = msAbs >= n * 1.5;
+  return Math.round(ms / n) + ' ' + name + (isPlural ? 's' : '');
 }
 
-var debug = createCommonjsModule(function (module, exports) {
 /**
  * This is the common logic for both the Node.js and web browser
  * implementations of `debug()`.
- *
- * Expose `debug()` as the module.
  */
+function setup(env) {
+  createDebug.debug = createDebug;
+  createDebug.default = createDebug;
+  createDebug.coerce = coerce;
+  createDebug.disable = disable;
+  createDebug.enable = enable;
+  createDebug.enabled = enabled;
+  createDebug.humanize = ms;
+  Object.keys(env).forEach(function (key) {
+    createDebug[key] = env[key];
+  });
+  /**
+  * Active `debug` instances.
+  */
 
-exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
-exports.coerce = coerce;
-exports.disable = disable;
-exports.enable = enable;
-exports.enabled = enabled;
-exports.humanize = ms;
+  createDebug.instances = [];
+  /**
+  * The currently active debug mode names, and names to skip.
+  */
 
-/**
- * Active `debug` instances.
- */
-exports.instances = [];
+  createDebug.names = [];
+  createDebug.skips = [];
+  /**
+  * Map of special "%n" handling functions, for the debug "format" argument.
+  *
+  * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
+  */
 
-/**
- * The currently active debug mode names, and names to skip.
- */
+  createDebug.formatters = {};
+  /**
+  * Selects a color for a debug namespace
+  * @param {String} namespace The namespace string for the for the debug instance to be colored
+  * @return {Number|String} An ANSI color code for the given namespace
+  * @api private
+  */
 
-exports.names = [];
-exports.skips = [];
+  function selectColor(namespace) {
+    var hash = 0;
 
-/**
- * Map of special "%n" handling functions, for the debug "format" argument.
- *
- * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
- */
+    for (var i = 0; i < namespace.length; i++) {
+      hash = (hash << 5) - hash + namespace.charCodeAt(i);
+      hash |= 0; // Convert to 32bit integer
+    }
 
-exports.formatters = {};
-
-/**
- * Select a color.
- * @param {String} namespace
- * @return {Number}
- * @api private
- */
-
-function selectColor(namespace) {
-  var hash = 0, i;
-
-  for (i in namespace) {
-    hash  = ((hash << 5) - hash) + namespace.charCodeAt(i);
-    hash |= 0; // Convert to 32bit integer
+    return createDebug.colors[Math.abs(hash) % createDebug.colors.length];
   }
 
-  return exports.colors[Math.abs(hash) % exports.colors.length];
-}
+  createDebug.selectColor = selectColor;
+  /**
+  * Create a debugger with the given `namespace`.
+  *
+  * @param {String} namespace
+  * @return {Function}
+  * @api public
+  */
 
-/**
- * Create a debugger with the given `namespace`.
- *
- * @param {String} namespace
- * @return {Function}
- * @api public
- */
+  function createDebug(namespace) {
+    var prevTime;
 
-function createDebug(namespace) {
-
-  var prevTime;
-
-  function debug() {
-    // disabled?
-    if (!debug.enabled) return;
-
-    var self = debug;
-
-    // set `diff` timestamp
-    var curr = +new Date();
-    var ms$$1 = curr - (prevTime || curr);
-    self.diff = ms$$1;
-    self.prev = prevTime;
-    self.curr = curr;
-    prevTime = curr;
-
-    // turn the `arguments` into a proper Array
-    var args = new Array(arguments.length);
-    for (var i = 0; i < args.length; i++) {
-      args[i] = arguments[i];
-    }
-
-    args[0] = exports.coerce(args[0]);
-
-    if ('string' !== typeof args[0]) {
-      // anything else let's inspect with %O
-      args.unshift('%O');
-    }
-
-    // apply any `formatters` transformations
-    var index = 0;
-    args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
-      // if we encounter an escaped % then don't increase the array index
-      if (match === '%%') return match;
-      index++;
-      var formatter = exports.formatters[format];
-      if ('function' === typeof formatter) {
-        var val = args[index];
-        match = formatter.call(self, val);
-
-        // now we need to remove `args[index]` since it's inlined in the `format`
-        args.splice(index, 1);
-        index--;
+    function debug() {
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
       }
-      return match;
-    });
 
-    // apply env-specific formatting (colors, etc.)
-    exports.formatArgs.call(self, args);
+      // Disabled?
+      if (!debug.enabled) {
+        return;
+      }
 
-    var logFn = debug.log || exports.log || console.log.bind(console);
-    logFn.apply(self, args);
-  }
+      var self = debug; // Set `diff` timestamp
 
-  debug.namespace = namespace;
-  debug.enabled = exports.enabled(namespace);
-  debug.useColors = exports.useColors();
-  debug.color = selectColor(namespace);
-  debug.destroy = destroy;
+      var curr = Number(new Date());
+      var ms$$1 = curr - (prevTime || curr);
+      self.diff = ms$$1;
+      self.prev = prevTime;
+      self.curr = curr;
+      prevTime = curr;
+      args[0] = createDebug.coerce(args[0]);
 
-  // env-specific initialization logic for debug instances
-  if ('function' === typeof exports.init) {
-    exports.init(debug);
-  }
+      if (typeof args[0] !== 'string') {
+        // Anything else let's inspect with %O
+        args.unshift('%O');
+      } // Apply any `formatters` transformations
 
-  exports.instances.push(debug);
 
-  return debug;
-}
+      var index = 0;
+      args[0] = args[0].replace(/%([a-zA-Z%])/g, function (match, format) {
+        // If we encounter an escaped % then don't increase the array index
+        if (match === '%%') {
+          return match;
+        }
 
-function destroy () {
-  var index = exports.instances.indexOf(this);
-  if (index !== -1) {
-    exports.instances.splice(index, 1);
-    return true;
-  } else {
-    return false;
-  }
-}
+        index++;
+        var formatter = createDebug.formatters[format];
 
-/**
- * Enables a debug mode by namespaces. This can include modes
- * separated by a colon and wildcards.
- *
- * @param {String} namespaces
- * @api public
- */
+        if (typeof formatter === 'function') {
+          var val = args[index];
+          match = formatter.call(self, val); // Now we need to remove `args[index]` since it's inlined in the `format`
 
-function enable(namespaces) {
-  exports.save(namespaces);
+          args.splice(index, 1);
+          index--;
+        }
 
-  exports.names = [];
-  exports.skips = [];
+        return match;
+      }); // Apply env-specific formatting (colors, etc.)
 
-  var i;
-  var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
-  var len = split.length;
-
-  for (i = 0; i < len; i++) {
-    if (!split[i]) continue; // ignore empty strings
-    namespaces = split[i].replace(/\*/g, '.*?');
-    if (namespaces[0] === '-') {
-      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
-    } else {
-      exports.names.push(new RegExp('^' + namespaces + '$'));
+      createDebug.formatArgs.call(self, args);
+      var logFn = self.log || createDebug.log;
+      logFn.apply(self, args);
     }
-  }
 
-  for (i = 0; i < exports.instances.length; i++) {
-    var instance = exports.instances[i];
-    instance.enabled = exports.enabled(instance.namespace);
-  }
-}
+    debug.namespace = namespace;
+    debug.enabled = createDebug.enabled(namespace);
+    debug.useColors = createDebug.useColors();
+    debug.color = selectColor(namespace);
+    debug.destroy = destroy;
+    debug.extend = extend; // Debug.formatArgs = formatArgs;
+    // debug.rawLog = rawLog;
+    // env-specific initialization logic for debug instances
 
-/**
- * Disable debug output.
- *
- * @api public
- */
-
-function disable() {
-  exports.enable('');
-}
-
-/**
- * Returns true if the given mode name is enabled, false otherwise.
- *
- * @param {String} name
- * @return {Boolean}
- * @api public
- */
-
-function enabled(name) {
-  if (name[name.length - 1] === '*') {
-    return true;
-  }
-  var i, len;
-  for (i = 0, len = exports.skips.length; i < len; i++) {
-    if (exports.skips[i].test(name)) {
-      return false;
+    if (typeof createDebug.init === 'function') {
+      createDebug.init(debug);
     }
+
+    createDebug.instances.push(debug);
+    return debug;
   }
-  for (i = 0, len = exports.names.length; i < len; i++) {
-    if (exports.names[i].test(name)) {
+
+  function destroy() {
+    var index = createDebug.instances.indexOf(this);
+
+    if (index !== -1) {
+      createDebug.instances.splice(index, 1);
       return true;
     }
+
+    return false;
   }
-  return false;
+
+  function extend(namespace, delimiter) {
+    return createDebug(this.namespace + (typeof delimiter === 'undefined' ? ':' : delimiter) + namespace);
+  }
+  /**
+  * Enables a debug mode by namespaces. This can include modes
+  * separated by a colon and wildcards.
+  *
+  * @param {String} namespaces
+  * @api public
+  */
+
+
+  function enable(namespaces) {
+    createDebug.save(namespaces);
+    createDebug.names = [];
+    createDebug.skips = [];
+    var i;
+    var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
+    var len = split.length;
+
+    for (i = 0; i < len; i++) {
+      if (!split[i]) {
+        // ignore empty strings
+        continue;
+      }
+
+      namespaces = split[i].replace(/\*/g, '.*?');
+
+      if (namespaces[0] === '-') {
+        createDebug.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
+      } else {
+        createDebug.names.push(new RegExp('^' + namespaces + '$'));
+      }
+    }
+
+    for (i = 0; i < createDebug.instances.length; i++) {
+      var instance = createDebug.instances[i];
+      instance.enabled = createDebug.enabled(instance.namespace);
+    }
+  }
+  /**
+  * Disable debug output.
+  *
+  * @api public
+  */
+
+
+  function disable() {
+    createDebug.enable('');
+  }
+  /**
+  * Returns true if the given mode name is enabled, false otherwise.
+  *
+  * @param {String} name
+  * @return {Boolean}
+  * @api public
+  */
+
+
+  function enabled(name) {
+    if (name[name.length - 1] === '*') {
+      return true;
+    }
+
+    var i;
+    var len;
+
+    for (i = 0, len = createDebug.skips.length; i < len; i++) {
+      if (createDebug.skips[i].test(name)) {
+        return false;
+      }
+    }
+
+    for (i = 0, len = createDebug.names.length; i < len; i++) {
+      if (createDebug.names[i].test(name)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+  /**
+  * Coerce `val`.
+  *
+  * @param {Mixed} val
+  * @return {Mixed}
+  * @api private
+  */
+
+
+  function coerce(val) {
+    if (val instanceof Error) {
+      return val.stack || val.message;
+    }
+
+    return val;
+  }
+
+  createDebug.enable(createDebug.load());
+  return createDebug;
 }
 
-/**
- * Coerce `val`.
- *
- * @param {Mixed} val
- * @return {Mixed}
- * @api private
- */
-
-function coerce(val) {
-  if (val instanceof Error) return val.stack || val.message;
-  return val;
-}
-});
-
-var debug_1 = debug.coerce;
-var debug_2 = debug.disable;
-var debug_3 = debug.enable;
-var debug_4 = debug.enabled;
-var debug_5 = debug.humanize;
-var debug_6 = debug.instances;
-var debug_7 = debug.names;
-var debug_8 = debug.skips;
-var debug_9 = debug.formatters;
+var common$3 = setup;
 
 var browser = createCommonjsModule(function (module, exports) {
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+/* eslint-env browser */
+
 /**
  * This is the web browser implementation of `debug()`.
- *
- * Expose `debug()` as the module.
  */
-
-exports = module.exports = debug;
 exports.log = log;
 exports.formatArgs = formatArgs;
 exports.save = save;
 exports.load = load;
 exports.useColors = useColors;
-exports.storage = 'undefined' != typeof chrome
-               && 'undefined' != typeof chrome.storage
-                  ? chrome.storage.local
-                  : localstorage();
-
+exports.storage = localstorage();
 /**
  * Colors.
  */
 
-exports.colors = [
-  '#0000CC', '#0000FF', '#0033CC', '#0033FF', '#0066CC', '#0066FF', '#0099CC',
-  '#0099FF', '#00CC00', '#00CC33', '#00CC66', '#00CC99', '#00CCCC', '#00CCFF',
-  '#3300CC', '#3300FF', '#3333CC', '#3333FF', '#3366CC', '#3366FF', '#3399CC',
-  '#3399FF', '#33CC00', '#33CC33', '#33CC66', '#33CC99', '#33CCCC', '#33CCFF',
-  '#6600CC', '#6600FF', '#6633CC', '#6633FF', '#66CC00', '#66CC33', '#9900CC',
-  '#9900FF', '#9933CC', '#9933FF', '#99CC00', '#99CC33', '#CC0000', '#CC0033',
-  '#CC0066', '#CC0099', '#CC00CC', '#CC00FF', '#CC3300', '#CC3333', '#CC3366',
-  '#CC3399', '#CC33CC', '#CC33FF', '#CC6600', '#CC6633', '#CC9900', '#CC9933',
-  '#CCCC00', '#CCCC33', '#FF0000', '#FF0033', '#FF0066', '#FF0099', '#FF00CC',
-  '#FF00FF', '#FF3300', '#FF3333', '#FF3366', '#FF3399', '#FF33CC', '#FF33FF',
-  '#FF6600', '#FF6633', '#FF9900', '#FF9933', '#FFCC00', '#FFCC33'
-];
-
+exports.colors = ['#0000CC', '#0000FF', '#0033CC', '#0033FF', '#0066CC', '#0066FF', '#0099CC', '#0099FF', '#00CC00', '#00CC33', '#00CC66', '#00CC99', '#00CCCC', '#00CCFF', '#3300CC', '#3300FF', '#3333CC', '#3333FF', '#3366CC', '#3366FF', '#3399CC', '#3399FF', '#33CC00', '#33CC33', '#33CC66', '#33CC99', '#33CCCC', '#33CCFF', '#6600CC', '#6600FF', '#6633CC', '#6633FF', '#66CC00', '#66CC33', '#9900CC', '#9900FF', '#9933CC', '#9933FF', '#99CC00', '#99CC33', '#CC0000', '#CC0033', '#CC0066', '#CC0099', '#CC00CC', '#CC00FF', '#CC3300', '#CC3333', '#CC3366', '#CC3399', '#CC33CC', '#CC33FF', '#CC6600', '#CC6633', '#CC9900', '#CC9933', '#CCCC00', '#CCCC33', '#FF0000', '#FF0033', '#FF0066', '#FF0099', '#FF00CC', '#FF00FF', '#FF3300', '#FF3333', '#FF3366', '#FF3399', '#FF33CC', '#FF33FF', '#FF6600', '#FF6633', '#FF9900', '#FF9933', '#FFCC00', '#FFCC33'];
 /**
  * Currently only WebKit-based Web Inspectors, Firefox >= v31,
  * and the Firebug extension (any Firefox version) are known
@@ -4626,84 +4629,65 @@ exports.colors = [
  *
  * TODO: add a `localStorage` variable to explicitly enable/disable colors
  */
+// eslint-disable-next-line complexity
 
 function useColors() {
   // NB: In an Electron preload script, document will be defined but not fully
   // initialized. Since we know we're in Chrome, we'll just detect this case
   // explicitly
-  if (typeof window !== 'undefined' && window.process && window.process.type === 'renderer') {
+  if (typeof window !== 'undefined' && window.process && (window.process.type === 'renderer' || window.process.__nwjs)) {
     return true;
-  }
+  } // Internet Explorer and Edge do not support colors.
 
-  // Internet Explorer and Edge do not support colors.
+
   if (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/(edge|trident)\/(\d+)/)) {
     return false;
-  }
-
-  // is webkit? http://stackoverflow.com/a/16459606/376773
+  } // Is webkit? http://stackoverflow.com/a/16459606/376773
   // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
-  return (typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance) ||
-    // is firebug? http://stackoverflow.com/a/398120/376773
-    (typeof window !== 'undefined' && window.console && (window.console.firebug || (window.console.exception && window.console.table))) ||
-    // is firefox >= v31?
-    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
-    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
-    // double check webkit in userAgent just in case we are in a worker
-    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
+
+
+  return typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || // Is firebug? http://stackoverflow.com/a/398120/376773
+  typeof window !== 'undefined' && window.console && (window.console.firebug || window.console.exception && window.console.table) || // Is firefox >= v31?
+  // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+  typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31 || // Double check webkit in userAgent just in case we are in a worker
+  typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
 }
-
-/**
- * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
- */
-
-exports.formatters.j = function(v) {
-  try {
-    return JSON.stringify(v);
-  } catch (err) {
-    return '[UnexpectedJSONParseError]: ' + err.message;
-  }
-};
-
-
 /**
  * Colorize log arguments if enabled.
  *
  * @api public
  */
 
+
 function formatArgs(args) {
-  var useColors = this.useColors;
+  args[0] = (this.useColors ? '%c' : '') + this.namespace + (this.useColors ? ' %c' : ' ') + args[0] + (this.useColors ? '%c ' : ' ') + '+' + module.exports.humanize(this.diff);
 
-  args[0] = (useColors ? '%c' : '')
-    + this.namespace
-    + (useColors ? ' %c' : ' ')
-    + args[0]
-    + (useColors ? '%c ' : ' ')
-    + '+' + exports.humanize(this.diff);
-
-  if (!useColors) return;
+  if (!this.useColors) {
+    return;
+  }
 
   var c = 'color: ' + this.color;
-  args.splice(1, 0, c, 'color: inherit');
-
-  // the final "%c" is somewhat tricky, because there could be other
+  args.splice(1, 0, c, 'color: inherit'); // The final "%c" is somewhat tricky, because there could be other
   // arguments passed either before or after the %c, so we need to
   // figure out the correct index to insert the CSS into
+
   var index = 0;
   var lastC = 0;
-  args[0].replace(/%[a-zA-Z%]/g, function(match) {
-    if ('%%' === match) return;
+  args[0].replace(/%[a-zA-Z%]/g, function (match) {
+    if (match === '%%') {
+      return;
+    }
+
     index++;
-    if ('%c' === match) {
-      // we only are interested in the *last* %c
+
+    if (match === '%c') {
+      // We only are interested in the *last* %c
       // (the user may have provided their own)
       lastC = index;
     }
   });
-
   args.splice(lastC, 0, c);
 }
-
 /**
  * Invokes `console.log()` when available.
  * No-op when `console.log` is not a "function".
@@ -4711,14 +4695,14 @@ function formatArgs(args) {
  * @api public
  */
 
-function log() {
-  // this hackery is required for IE8/9, where
-  // the `console.log` function doesn't have 'apply'
-  return 'object' === typeof console
-    && console.log
-    && Function.prototype.apply.call(console.log, console, arguments);
-}
 
+function log() {
+  var _console;
+
+  // This hackery is required for IE8/9, where
+  // the `console.log` function doesn't have 'apply'
+  return (typeof console === "undefined" ? "undefined" : _typeof(console)) === 'object' && console.log && (_console = console).log.apply(_console, arguments);
+}
 /**
  * Save `namespaces`.
  *
@@ -4726,16 +4710,18 @@ function log() {
  * @api private
  */
 
+
 function save(namespaces) {
   try {
-    if (null == namespaces) {
-      exports.storage.removeItem('debug');
+    if (namespaces) {
+      exports.storage.setItem('debug', namespaces);
     } else {
-      exports.storage.debug = namespaces;
+      exports.storage.removeItem('debug');
     }
-  } catch(e) {}
+  } catch (error) {// Swallow
+    // XXX (@Qix-) should we be logging these?
+  }
 }
-
 /**
  * Load `namespaces`.
  *
@@ -4743,26 +4729,23 @@ function save(namespaces) {
  * @api private
  */
 
+
 function load() {
   var r;
-  try {
-    r = exports.storage.debug;
-  } catch(e) {}
 
+  try {
+    r = exports.storage.getItem('debug');
+  } catch (error) {} // Swallow
+  // XXX (@Qix-) should we be logging these?
   // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
+
+
   if (!r && typeof process !== 'undefined' && 'env' in process) {
     r = process.env.DEBUG;
   }
 
   return r;
 }
-
-/**
- * Enable namespaces listed in `localStorage.debug` initially.
- */
-
-exports.enable(load());
-
 /**
  * Localstorage attempts to return the localstorage.
  *
@@ -4774,11 +4757,30 @@ exports.enable(load());
  * @api private
  */
 
+
 function localstorage() {
   try {
-    return window.localStorage;
-  } catch (e) {}
+    // TVMLKit (Apple TV JS Runtime) does not have a window object, just localStorage in the global context
+    // The Browser also has localStorage in the global context.
+    return localStorage;
+  } catch (error) {// Swallow
+    // XXX (@Qix-) should we be logging these?
+  }
 }
+
+module.exports = common$3(exports);
+var formatters = module.exports.formatters;
+/**
+ * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+ */
+
+formatters.j = function (v) {
+  try {
+    return JSON.stringify(v);
+  } catch (error) {
+    return '[UnexpectedJSONParseError]: ' + error.message;
+  }
+};
 });
 
 var browser_1 = browser.log;
@@ -4914,47 +4916,27 @@ module.exports = process && support(supportLevel);
 });
 
 var node = createCommonjsModule(function (module, exports) {
-/**
- * Module dependencies.
- */
-
-
-
-
-/**
- * This is the Node.js implementation of `debug()`.
- *
- * Expose `debug()` as the module.
- */
-
-exports = module.exports = debug;
 exports.init = init;
 exports.log = log;
 exports.formatArgs = formatArgs;
 exports.save = save;
 exports.load = load;
 exports.useColors = useColors;
-
 /**
  * Colors.
  */
 
-exports.colors = [ 6, 2, 3, 4, 5, 1 ];
+exports.colors = [6, 2, 3, 4, 5, 1];
 
 try {
+  // Optional dependency (as in, doesn't need to be installed, NOT like optionalDependencies in package.json)
+  // eslint-disable-next-line import/no-extraneous-dependencies
   var supportsColor$$1 = supportsColor;
-  if (supportsColor$$1 && supportsColor$$1.level >= 2) {
-    exports.colors = [
-      20, 21, 26, 27, 32, 33, 38, 39, 40, 41, 42, 43, 44, 45, 56, 57, 62, 63, 68,
-      69, 74, 75, 76, 77, 78, 79, 80, 81, 92, 93, 98, 99, 112, 113, 128, 129, 134,
-      135, 148, 149, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171,
-      172, 173, 178, 179, 184, 185, 196, 197, 198, 199, 200, 201, 202, 203, 204,
-      205, 206, 207, 208, 209, 214, 215, 220, 221
-    ];
+
+  if (supportsColor$$1 && (supportsColor$$1.stderr || supportsColor$$1).level >= 2) {
+    exports.colors = [20, 21, 26, 27, 32, 33, 38, 39, 40, 41, 42, 43, 44, 45, 56, 57, 62, 63, 68, 69, 74, 75, 76, 77, 78, 79, 80, 81, 92, 93, 98, 99, 112, 113, 128, 129, 134, 135, 148, 149, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 178, 179, 184, 185, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 214, 215, 220, 221];
   }
-} catch (err) {
-  // swallow - we only care if `supports-color` is available; it doesn't have to be.
-}
+} catch (error) {} // Swallow - we only care if `supports-color` is available; it doesn't have to be.
 
 /**
  * Build up the default `inspectOpts` object from the environment variables.
@@ -4962,74 +4944,54 @@ try {
  *   $ DEBUG_COLORS=no DEBUG_DEPTH=10 DEBUG_SHOW_HIDDEN=enabled node script.js
  */
 
+
 exports.inspectOpts = Object.keys(process.env).filter(function (key) {
   return /^debug_/i.test(key);
 }).reduce(function (obj, key) {
-  // camel-case
-  var prop = key
-    .substring(6)
-    .toLowerCase()
-    .replace(/_([a-z])/g, function (_, k) { return k.toUpperCase() });
+  // Camel-case
+  var prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, function (_, k) {
+    return k.toUpperCase();
+  }); // Coerce string value into JS value
 
-  // coerce string value into JS value
   var val = process.env[key];
-  if (/^(yes|on|true|enabled)$/i.test(val)) val = true;
-  else if (/^(no|off|false|disabled)$/i.test(val)) val = false;
-  else if (val === 'null') val = null;
-  else val = Number(val);
+
+  if (/^(yes|on|true|enabled)$/i.test(val)) {
+    val = true;
+  } else if (/^(no|off|false|disabled)$/i.test(val)) {
+    val = false;
+  } else if (val === 'null') {
+    val = null;
+  } else {
+    val = Number(val);
+  }
 
   obj[prop] = val;
   return obj;
 }, {});
-
 /**
  * Is stdout a TTY? Colored output is enabled when `true`.
  */
 
 function useColors() {
-  return 'colors' in exports.inspectOpts
-    ? Boolean(exports.inspectOpts.colors)
-    : tty.isatty(process.stderr.fd);
+  return 'colors' in exports.inspectOpts ? Boolean(exports.inspectOpts.colors) : tty.isatty(process.stderr.fd);
 }
-
-/**
- * Map %o to `util.inspect()`, all on a single line.
- */
-
-exports.formatters.o = function(v) {
-  this.inspectOpts.colors = this.useColors;
-  return util.inspect(v, this.inspectOpts)
-    .split('\n').map(function(str) {
-      return str.trim()
-    }).join(' ');
-};
-
-/**
- * Map %o to `util.inspect()`, allowing multiple lines if needed.
- */
-
-exports.formatters.O = function(v) {
-  this.inspectOpts.colors = this.useColors;
-  return util.inspect(v, this.inspectOpts);
-};
-
 /**
  * Adds ANSI color escape codes if enabled.
  *
  * @api public
  */
 
+
 function formatArgs(args) {
-  var name = this.namespace;
-  var useColors = this.useColors;
+  var name = this.namespace,
+      useColors = this.useColors;
 
   if (useColors) {
     var c = this.color;
-    var colorCode = '\u001b[3' + (c < 8 ? c : '8;5;' + c);
-    var prefix = '  ' + colorCode + ';1m' + name + ' ' + '\u001b[0m';
-
+    var colorCode = "\x1B[3" + (c < 8 ? c : '8;5;' + c);
+    var prefix = "  ".concat(colorCode, ";1m").concat(name, " \x1B[0m");
     args[0] = prefix + args[0].split('\n').join('\n' + prefix);
-    args.push(colorCode + 'm+' + exports.humanize(this.diff) + '\u001b[0m');
+    args.push(colorCode + 'm+' + module.exports.humanize(this.diff) + "\x1B[0m");
   } else {
     args[0] = getDate() + name + ' ' + args[0];
   }
@@ -5038,19 +5000,18 @@ function formatArgs(args) {
 function getDate() {
   if (exports.inspectOpts.hideDate) {
     return '';
-  } else {
-    return new Date().toISOString() + ' ';
   }
-}
 
+  return new Date().toISOString() + ' ';
+}
 /**
  * Invokes `util.format()` with the specified arguments and writes to stderr.
  */
 
+
 function log() {
   return process.stderr.write(util.format.apply(util, arguments) + '\n');
 }
-
 /**
  * Save `namespaces`.
  *
@@ -5058,16 +5019,16 @@ function log() {
  * @api private
  */
 
+
 function save(namespaces) {
-  if (null == namespaces) {
+  if (namespaces) {
+    process.env.DEBUG = namespaces;
+  } else {
     // If you set a process.env field to null or undefined, it gets cast to the
     // string 'null' or 'undefined'. Just delete instead.
     delete process.env.DEBUG;
-  } else {
-    process.env.DEBUG = namespaces;
   }
 }
-
 /**
  * Load `namespaces`.
  *
@@ -5075,10 +5036,10 @@ function save(namespaces) {
  * @api private
  */
 
+
 function load() {
   return process.env.DEBUG;
 }
-
 /**
  * Init logic for `debug` instances.
  *
@@ -5086,20 +5047,35 @@ function load() {
  * differently for a particular `debug` instance.
  */
 
-function init (debug$$1) {
-  debug$$1.inspectOpts = {};
 
+function init(debug) {
+  debug.inspectOpts = {};
   var keys = Object.keys(exports.inspectOpts);
+
   for (var i = 0; i < keys.length; i++) {
-    debug$$1.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
+    debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
   }
 }
 
+module.exports = common$3(exports);
+var formatters = module.exports.formatters;
 /**
- * Enable namespaces listed in `process.env.DEBUG` initially.
+ * Map %o to `util.inspect()`, all on a single line.
  */
 
-exports.enable(load());
+formatters.o = function (v) {
+  this.inspectOpts.colors = this.useColors;
+  return util.inspect(v, this.inspectOpts).replace(/\s*\n\s*/g, ' ');
+};
+/**
+ * Map %O to `util.inspect()`, allowing multiple lines if needed.
+ */
+
+
+formatters.O = function (v) {
+  this.inspectOpts.colors = this.useColors;
+  return util.inspect(v, this.inspectOpts);
+};
 });
 
 var node_1 = node.init;
@@ -5112,12 +5088,7 @@ var node_7 = node.colors;
 var node_8 = node.inspectOpts;
 
 var src = createCommonjsModule(function (module) {
-/**
- * Detect Electron renderer process, which is node, but we should
- * treat as a browser.
- */
-
-if (typeof process === 'undefined' || process.type === 'renderer') {
+if (typeof process === 'undefined' || process.type === 'renderer' || process.browser === true || process.__nwjs) {
   module.exports = browser;
 } else {
   module.exports = node;
@@ -6322,7 +6293,7 @@ var xIsFunction = function isFunction (fn) {
   return Object.prototype.toString.call(fn) === '[object Function]'
 };
 
-var debug$2 = src('unified-engine:find-up');
+var debug = src('unified-engine:find-up');
 
 
 
@@ -6367,7 +6338,7 @@ function load$2(filePath, callback) {
     } else {
       givenFile = [callback];
       self.givenFile = givenFile;
-      debug$2('Checking given file `%s`', givenFilePath);
+      debug('Checking given file `%s`', givenFilePath);
       read(givenFilePath, loadGiven);
     }
 
@@ -6400,10 +6371,10 @@ function load$2(filePath, callback) {
     } else {
       try {
         result = create(buf, givenFilePath);
-        debug$2('Read given file `%s`', givenFilePath);
+        debug('Read given file `%s`', givenFilePath);
       } catch (err) {
         result = fault_1('Cannot parse given file `%s`\n%s', relative(cwd, givenFilePath), err.stack);
-        debug$2(err.message);
+        debug(err.message);
       }
     }
 
@@ -6429,7 +6400,7 @@ function load$2(filePath, callback) {
         parent = dirname(directory);
 
         if (directory === parent) {
-          debug$2('No files found for `%s`', filePath);
+          debug('No files found for `%s`', filePath);
           found();
         } else if (parent in cache) {
           apply(found, cache[parent]);
@@ -6452,7 +6423,7 @@ function load$2(filePath, callback) {
         }
 
         err = fault_1('Cannot read file `%s`\n%s', relative(cwd, fp), err.message);
-        debug$2(err.message);
+        debug(err.message);
         return found(err);
       }
 
@@ -6464,7 +6435,7 @@ function load$2(filePath, callback) {
 
       /* istanbul ignore else - maybe used in the future. */
       if (contents) {
-        debug$2('Read file `%s`', fp);
+        debug('Read file `%s`', fp);
         found(null, contents);
       } else {
         next();
@@ -9111,7 +9082,7 @@ function childrenIgnored (self, path$$1) {
   })
 }
 
-var common$3 = {
+var common$5 = {
 	alphasort: alphasort_1,
 	alphasorti: alphasorti_1,
 	setopts: setopts_1,
@@ -9129,10 +9100,10 @@ globSync.GlobSync = GlobSync;
 
 
 
-var setopts$1 = common$3.setopts;
-var ownProp$1 = common$3.ownProp;
-var childrenIgnored$1 = common$3.childrenIgnored;
-var isIgnored$1 = common$3.isIgnored;
+var setopts$1 = common$5.setopts;
+var ownProp$1 = common$5.ownProp;
+var childrenIgnored$1 = common$5.childrenIgnored;
+var isIgnored$1 = common$5.isIgnored;
 
 function globSync (pattern, options) {
   if (typeof options === 'function' || arguments.length === 3)
@@ -9186,7 +9157,7 @@ GlobSync.prototype._finish = function () {
       }
     });
   }
-  common$3.finish(this);
+  common$5.finish(this);
 };
 
 
@@ -9590,11 +9561,11 @@ GlobSync.prototype._stat = function (f) {
 };
 
 GlobSync.prototype._mark = function (p) {
-  return common$3.mark(this, p)
+  return common$5.mark(this, p)
 };
 
 GlobSync.prototype._makeAbs = function (f) {
-  return common$3.makeAbs(this, f)
+  return common$5.makeAbs(this, f)
 };
 
 // Returns a wrapper function that returns a wrapped callback
@@ -9780,12 +9751,12 @@ var EE = events.EventEmitter;
 
 
 
-var setopts$2 = common$3.setopts;
-var ownProp$2 = common$3.ownProp;
+var setopts$2 = common$5.setopts;
+var ownProp$2 = common$5.ownProp;
 
 
-var childrenIgnored$2 = common$3.childrenIgnored;
-var isIgnored$2 = common$3.isIgnored;
+var childrenIgnored$2 = common$5.childrenIgnored;
+var isIgnored$2 = common$5.isIgnored;
 
 
 
@@ -9920,7 +9891,7 @@ Glob$1.prototype._finish = function () {
   if (this.realpath && !this._didRealpath)
     return this._realpath()
 
-  common$3.finish(this);
+  common$5.finish(this);
   this.emit('end', this.found);
 };
 
@@ -9979,11 +9950,11 @@ Glob$1.prototype._realpathSet = function (index, cb) {
 };
 
 Glob$1.prototype._mark = function (p) {
-  return common$3.mark(this, p)
+  return common$5.mark(this, p)
 };
 
 Glob$1.prototype._makeAbs = function (f) {
-  return common$3.makeAbs(this, f)
+  return common$5.makeAbs(this, f)
 };
 
 Glob$1.prototype.abort = function () {
@@ -12164,7 +12135,7 @@ function u8Concat (parts) {
   return u8
 }
 
-var debug$3 = src('unified-engine:file-set-pipeline:stdin');
+var debug$1 = src('unified-engine:file-set-pipeline:stdin');
 
 
 
@@ -12175,7 +12146,7 @@ function stdin(context, settings, next) {
   var err;
 
   if (settings.files && settings.files.length !== 0) {
-    debug$3('Ignoring `streamIn`');
+    debug$1('Ignoring `streamIn`');
 
     if (settings.filePath) {
       err = new Error(
@@ -12190,20 +12161,20 @@ function stdin(context, settings, next) {
   }
 
   if (streamIn.isTTY) {
-    debug$3('Cannot read from `tty` stream');
+    debug$1('Cannot read from `tty` stream');
     next(new Error('No input'));
 
     return;
   }
 
-  debug$3('Reading from `streamIn`');
+  debug$1('Reading from `streamIn`');
 
   streamIn.pipe(concatStream({encoding: 'string'}, read));
 
   function read(value) {
     var file = toVfile(settings.filePath || undefined);
 
-    debug$3('Read from `streamIn`');
+    debug$1('Read from `streamIn`');
 
     file.cwd = settings.cwd;
     file.contents = value;
@@ -12333,7 +12304,7 @@ function one() {
   }
 }
 
-var debug$4 = src('unified-engine:file-pipeline:read');
+var debug$2 = src('unified-engine:file-pipeline:read');
 
 
 var read_1 = read$2;
@@ -12346,18 +12317,18 @@ function read$2(context, file, fileSet, next) {
   var filePath = file.path;
 
   if (file.contents || file.data.unifiedEngineStreamIn) {
-    debug$4('Not reading file `%s` with contents', filePath);
+    debug$2('Not reading file `%s` with contents', filePath);
     next();
   } else if (vfileStatistics(file).fatal) {
-    debug$4('Not reading failed file `%s`', filePath);
+    debug$2('Not reading failed file `%s`', filePath);
     next();
   } else {
     filePath = resolve$4(context.cwd, filePath);
 
-    debug$4('Reading `%s` in `%s`', filePath, 'utf8');
+    debug$2('Reading `%s` in `%s`', filePath, 'utf8');
 
     readFile(filePath, 'utf8', function (err, contents) {
-      debug$4('Read `%s` (err: %s)', filePath, err);
+      debug$2('Read `%s` (err: %s)', filePath, err);
 
       file.contents = contents || '';
 
@@ -12453,7 +12424,7 @@ function isEmpty(val) {
 
 var lib = isEmpty;
 
-var debug$5 = src('unified-engine:file-pipeline:configure');
+var debug$3 = src('unified-engine:file-pipeline:configure');
 
 
 
@@ -12485,14 +12456,14 @@ function configure$1(context, file, fileSet, next) {
     }
 
     /* Store configuration on the context object. */
-    debug$5('Using settings `%j`', configuration.settings);
+    debug$3('Using settings `%j`', configuration.settings);
     processor.data('settings', configuration.settings);
 
     plugins = configuration.plugins;
     length = plugins.length;
     index = -1;
 
-    debug$5('Using `%d` plugins', length);
+    debug$3('Using `%d` plugins', length);
 
     while (++index < length) {
       plugin = plugins[index][0];
@@ -12508,7 +12479,7 @@ function configure$1(context, file, fileSet, next) {
       }
 
       name = fnName(plugin) || 'function';
-      debug$5('Using plug-in `%s`, with options `%j`', name, options);
+      debug$3('Using plug-in `%s`, with options `%j`', name, options);
 
       try {
         processor.use(plugin, options, fileSet);
@@ -12522,7 +12493,7 @@ function configure$1(context, file, fileSet, next) {
   }
 }
 
-var debug$6 = src('unified-engine:file-pipeline:parse');
+var debug$4 = src('unified-engine:file-pipeline:parse');
 
 
 
@@ -12537,7 +12508,7 @@ function parse$3(context, file) {
   }
 
   if (context.treeIn) {
-    debug$6('Not parsing already parsed document');
+    debug$4('Not parsing already parsed document');
 
     try {
       context.tree = parseJson$1(file.toString());
@@ -12558,14 +12529,14 @@ function parse$3(context, file) {
     return;
   }
 
-  debug$6('Parsing `%s`', file.path);
+  debug$4('Parsing `%s`', file.path);
 
   context.tree = context.processor.parse(file);
 
-  debug$6('Parsed document');
+  debug$4('Parsed document');
 }
 
-var debug$7 = src('unified-engine:file-pipeline:transform');
+var debug$5 = src('unified-engine:file-pipeline:transform');
 
 
 var transform_1 = transform;
@@ -12578,16 +12549,16 @@ function transform(context, file, fileSet, next) {
     return;
   }
 
-  debug$7('Transforming document `%s`', file.path);
+  debug$5('Transforming document `%s`', file.path);
 
   context.processor.run(context.tree, file, function (err, node) {
-    debug$7('Transformed document (error: %s)', err);
+    debug$5('Transformed document (error: %s)', err);
     context.tree = node;
     next(err);
   });
 }
 
-var debug$8 = src('unified-engine:file-pipeline:queue');
+var debug$6 = src('unified-engine:file-pipeline:queue');
 
 
 
@@ -12606,14 +12577,14 @@ function queue(context, file, fileSet, next) {
     fileSet.complete = map;
   }
 
-  debug$8('Queueing `%s`', origin);
+  debug$6('Queueing `%s`', origin);
 
   map[origin] = next;
 
   fileSet.valueOf().forEach(each);
 
   if (!complete) {
-    debug$8('Not flushing: some files cannot be flushed');
+    debug$6('Not flushing: some files cannot be flushed');
     return;
   }
 
@@ -12629,15 +12600,15 @@ function queue(context, file, fileSet, next) {
     }
 
     if (xIsFunction(map[key])) {
-      debug$8('`%s` can be flushed', key);
+      debug$6('`%s` can be flushed', key);
     } else {
-      debug$8('Interupting flush: `%s` is not finished', key);
+      debug$6('Interupting flush: `%s` is not finished', key);
       complete = false;
     }
   }
 
   function done(err) {
-    debug$8('Flushing: all files can be flushed');
+    debug$6('Flushing: all files can be flushed');
 
     /* Flush. */
     for (origin in map) {
@@ -12850,7 +12821,7 @@ function ansiColor(open, close) {
   }
 }
 
-var debug$9 = src('unified-engine:file-pipeline:stringify');
+var debug$7 = src('unified-engine:file-pipeline:stringify');
 
 
 
@@ -12863,16 +12834,16 @@ function stringify$3(context, file) {
   var value;
 
   if (vfileStatistics(file).fatal) {
-    debug$9('Not compiling failed document');
+    debug$7('Not compiling failed document');
     return;
   }
 
   if (!context.output && !context.out && !context.alwaysStringify) {
-    debug$9('Not compiling document without output settings');
+    debug$7('Not compiling document without output settings');
     return;
   }
 
-  debug$9('Compiling `%s`', file.path);
+  debug$7('Compiling `%s`', file.path);
 
   if (context.inspect) {
     /* Add a `txt` extension if there’s a path. */
@@ -12896,10 +12867,10 @@ function stringify$3(context, file) {
 
   file.contents = value;
 
-  debug$9('Compiled document');
+  debug$7('Compiled document');
 }
 
-var debug$10 = src('unified-engine:file-pipeline:copy');
+var debug$8 = src('unified-engine:file-pipeline:copy');
 
 
 var copy_1 = copy;
@@ -12917,13 +12888,13 @@ function copy(context, file, fileSet, next) {
   var currentPath = file.path;
 
   if (!xIsString(outpath)) {
-    debug$10('Not copying');
+    debug$8('Not copying');
     return next();
   }
 
   outpath = resolve$5(context.cwd, outpath);
 
-  debug$10('Copying `%s`', currentPath);
+  debug$8('Copying `%s`', currentPath);
 
   stat$1(outpath, onstatfile);
 
@@ -12957,13 +12928,13 @@ function copy(context, file, fileSet, next) {
 
     file[directory ? 'dirname' : 'path'] = relative$3(file.cwd, outpath);
 
-    debug$10('Copying document from %s to %s', currentPath, file.path);
+    debug$8('Copying document from %s to %s', currentPath, file.path);
 
     next();
   }
 }
 
-var debug$11 = src('unified-engine:file-pipeline:stdout');
+var debug$9 = src('unified-engine:file-pipeline:stdout');
 
 
 var stdout_1 = stdout;
@@ -12973,18 +12944,18 @@ var stdout_1 = stdout;
  * was processed, or `out` is false. */
 function stdout(context, file, fileSet, next) {
   if (!file.data.unifiedEngineGiven) {
-    debug$11('Ignoring programmatically added file');
+    debug$9('Ignoring programmatically added file');
     next();
   } else if (vfileStatistics(file).fatal || context.output || !context.out) {
-    debug$11('Ignoring writing to `streamOut`');
+    debug$9('Ignoring writing to `streamOut`');
     next();
   } else {
-    debug$11('Writing document to `streamOut`');
+    debug$9('Writing document to `streamOut`');
     context.streamOut.write(file.toString(), next);
   }
 }
 
-var debug$12 = src('unified-engine:file-pipeline:file-system');
+var debug$10 = src('unified-engine:file-pipeline:file-system');
 
 var fileSystem_1$2 = fileSystem$1;
 
@@ -12997,24 +12968,24 @@ function fileSystem$1(context, file, fileSet, next) {
   var destinationPath;
 
   if (!context.output) {
-    debug$12('Ignoring writing to file-system');
+    debug$10('Ignoring writing to file-system');
     return next();
   }
 
   if (!file.data.unifiedEngineGiven) {
-    debug$12('Ignoring programmatically added file');
+    debug$10('Ignoring programmatically added file');
     return next();
   }
 
   destinationPath = file.path;
 
   if (!destinationPath) {
-    debug$12('Cannot write file without a `destinationPath`');
+    debug$10('Cannot write file without a `destinationPath`');
     return next(new Error('Cannot write file without an output path '));
   }
 
   destinationPath = resolve$6(context.cwd, destinationPath);
-  debug$12('Writing document to `%s`', destinationPath);
+  debug$10('Writing document to `%s`', destinationPath);
 
   file.stored = true;
 
@@ -14438,9 +14409,9 @@ var markdownExtensions$1 = Object.freeze({
 	default: markdownExtensions
 });
 
-var require$$0$15 = ( markdownExtensions$1 && markdownExtensions ) || markdownExtensions$1;
+var require$$0$14 = ( markdownExtensions$1 && markdownExtensions ) || markdownExtensions$1;
 
-var markdownExtensions$2 = require$$0$15;
+var markdownExtensions$2 = require$$0$14;
 
 var hasOwn = Object.prototype.hasOwnProperty;
 var toStr = Object.prototype.toString;
@@ -15213,19 +15184,424 @@ function factory$2(ctx, key) {
   }
 }
 
-const AEli = "Æ";
 const AElig = "Æ";
-const AM = "&";
 const AMP = "&";
-const Aacut = "Á";
 const Aacute = "Á";
+const Acirc = "Â";
+const Agrave = "À";
+const Aring = "Å";
+const Atilde = "Ã";
+const Auml = "Ä";
+const COPY = "©";
+const Ccedil = "Ç";
+const ETH = "Ð";
+const Eacute = "É";
+const Ecirc = "Ê";
+const Egrave = "È";
+const Euml = "Ë";
+const GT = ">";
+const Iacute = "Í";
+const Icirc = "Î";
+const Igrave = "Ì";
+const Iuml = "Ï";
+const LT = "<";
+const Ntilde = "Ñ";
+const Oacute = "Ó";
+const Ocirc = "Ô";
+const Ograve = "Ò";
+const Oslash = "Ø";
+const Otilde = "Õ";
+const Ouml = "Ö";
+const QUOT = "\"";
+const REG = "®";
+const THORN = "Þ";
+const Uacute = "Ú";
+const Ucirc = "Û";
+const Ugrave = "Ù";
+const Uuml = "Ü";
+const Yacute = "Ý";
+const aacute = "á";
+const acirc = "â";
+const acute = "´";
+const aelig = "æ";
+const agrave = "à";
+const amp = "&";
+const aring = "å";
+const atilde = "ã";
+const auml = "ä";
+const brvbar = "¦";
+const ccedil = "ç";
+const cedil = "¸";
+const cent = "¢";
+const copy$2 = "©";
+const curren = "¤";
+const deg = "°";
+const divide = "÷";
+const eacute = "é";
+const ecirc = "ê";
+const egrave = "è";
+const eth = "ð";
+const euml = "ë";
+const frac12 = "½";
+const frac14 = "¼";
+const frac34 = "¾";
+const gt = ">";
+const iacute = "í";
+const icirc = "î";
+const iexcl = "¡";
+const igrave = "ì";
+const iquest = "¿";
+const iuml = "ï";
+const laquo = "«";
+const lt = "<";
+const macr = "¯";
+const micro = "µ";
+const middot = "·";
+const nbsp = " ";
+const not = "¬";
+const ntilde = "ñ";
+const oacute = "ó";
+const ocirc = "ô";
+const ograve = "ò";
+const ordf = "ª";
+const ordm = "º";
+const oslash = "ø";
+const otilde = "õ";
+const ouml = "ö";
+const para = "¶";
+const plusmn = "±";
+const pound = "£";
+const quot = "\"";
+const raquo = "»";
+const reg = "®";
+const sect = "§";
+const shy = "­";
+const sup1 = "¹";
+const sup2 = "²";
+const sup3 = "³";
+const szlig = "ß";
+const thorn = "þ";
+const times = "×";
+const uacute = "ú";
+const ucirc = "û";
+const ugrave = "ù";
+const uml = "¨";
+const uuml = "ü";
+const yacute = "ý";
+const yen = "¥";
+const yuml = "ÿ";
+var index$2 = {
+	AElig: AElig,
+	AMP: AMP,
+	Aacute: Aacute,
+	Acirc: Acirc,
+	Agrave: Agrave,
+	Aring: Aring,
+	Atilde: Atilde,
+	Auml: Auml,
+	COPY: COPY,
+	Ccedil: Ccedil,
+	ETH: ETH,
+	Eacute: Eacute,
+	Ecirc: Ecirc,
+	Egrave: Egrave,
+	Euml: Euml,
+	GT: GT,
+	Iacute: Iacute,
+	Icirc: Icirc,
+	Igrave: Igrave,
+	Iuml: Iuml,
+	LT: LT,
+	Ntilde: Ntilde,
+	Oacute: Oacute,
+	Ocirc: Ocirc,
+	Ograve: Ograve,
+	Oslash: Oslash,
+	Otilde: Otilde,
+	Ouml: Ouml,
+	QUOT: QUOT,
+	REG: REG,
+	THORN: THORN,
+	Uacute: Uacute,
+	Ucirc: Ucirc,
+	Ugrave: Ugrave,
+	Uuml: Uuml,
+	Yacute: Yacute,
+	aacute: aacute,
+	acirc: acirc,
+	acute: acute,
+	aelig: aelig,
+	agrave: agrave,
+	amp: amp,
+	aring: aring,
+	atilde: atilde,
+	auml: auml,
+	brvbar: brvbar,
+	ccedil: ccedil,
+	cedil: cedil,
+	cent: cent,
+	copy: copy$2,
+	curren: curren,
+	deg: deg,
+	divide: divide,
+	eacute: eacute,
+	ecirc: ecirc,
+	egrave: egrave,
+	eth: eth,
+	euml: euml,
+	frac12: frac12,
+	frac14: frac14,
+	frac34: frac34,
+	gt: gt,
+	iacute: iacute,
+	icirc: icirc,
+	iexcl: iexcl,
+	igrave: igrave,
+	iquest: iquest,
+	iuml: iuml,
+	laquo: laquo,
+	lt: lt,
+	macr: macr,
+	micro: micro,
+	middot: middot,
+	nbsp: nbsp,
+	not: not,
+	ntilde: ntilde,
+	oacute: oacute,
+	ocirc: ocirc,
+	ograve: ograve,
+	ordf: ordf,
+	ordm: ordm,
+	oslash: oslash,
+	otilde: otilde,
+	ouml: ouml,
+	para: para,
+	plusmn: plusmn,
+	pound: pound,
+	quot: quot,
+	raquo: raquo,
+	reg: reg,
+	sect: sect,
+	shy: shy,
+	sup1: sup1,
+	sup2: sup2,
+	sup3: sup3,
+	szlig: szlig,
+	thorn: thorn,
+	times: times,
+	uacute: uacute,
+	ucirc: ucirc,
+	ugrave: ugrave,
+	uml: uml,
+	uuml: uuml,
+	yacute: yacute,
+	yen: yen,
+	yuml: yuml
+};
+
+var characterEntitiesLegacy = Object.freeze({
+	AElig: AElig,
+	AMP: AMP,
+	Aacute: Aacute,
+	Acirc: Acirc,
+	Agrave: Agrave,
+	Aring: Aring,
+	Atilde: Atilde,
+	Auml: Auml,
+	COPY: COPY,
+	Ccedil: Ccedil,
+	ETH: ETH,
+	Eacute: Eacute,
+	Ecirc: Ecirc,
+	Egrave: Egrave,
+	Euml: Euml,
+	GT: GT,
+	Iacute: Iacute,
+	Icirc: Icirc,
+	Igrave: Igrave,
+	Iuml: Iuml,
+	LT: LT,
+	Ntilde: Ntilde,
+	Oacute: Oacute,
+	Ocirc: Ocirc,
+	Ograve: Ograve,
+	Oslash: Oslash,
+	Otilde: Otilde,
+	Ouml: Ouml,
+	QUOT: QUOT,
+	REG: REG,
+	THORN: THORN,
+	Uacute: Uacute,
+	Ucirc: Ucirc,
+	Ugrave: Ugrave,
+	Uuml: Uuml,
+	Yacute: Yacute,
+	aacute: aacute,
+	acirc: acirc,
+	acute: acute,
+	aelig: aelig,
+	agrave: agrave,
+	amp: amp,
+	aring: aring,
+	atilde: atilde,
+	auml: auml,
+	brvbar: brvbar,
+	ccedil: ccedil,
+	cedil: cedil,
+	cent: cent,
+	copy: copy$2,
+	curren: curren,
+	deg: deg,
+	divide: divide,
+	eacute: eacute,
+	ecirc: ecirc,
+	egrave: egrave,
+	eth: eth,
+	euml: euml,
+	frac12: frac12,
+	frac14: frac14,
+	frac34: frac34,
+	gt: gt,
+	iacute: iacute,
+	icirc: icirc,
+	iexcl: iexcl,
+	igrave: igrave,
+	iquest: iquest,
+	iuml: iuml,
+	laquo: laquo,
+	lt: lt,
+	macr: macr,
+	micro: micro,
+	middot: middot,
+	nbsp: nbsp,
+	not: not,
+	ntilde: ntilde,
+	oacute: oacute,
+	ocirc: ocirc,
+	ograve: ograve,
+	ordf: ordf,
+	ordm: ordm,
+	oslash: oslash,
+	otilde: otilde,
+	ouml: ouml,
+	para: para,
+	plusmn: plusmn,
+	pound: pound,
+	quot: quot,
+	raquo: raquo,
+	reg: reg,
+	sect: sect,
+	shy: shy,
+	sup1: sup1,
+	sup2: sup2,
+	sup3: sup3,
+	szlig: szlig,
+	thorn: thorn,
+	times: times,
+	uacute: uacute,
+	ucirc: ucirc,
+	ugrave: ugrave,
+	uml: uml,
+	uuml: uuml,
+	yacute: yacute,
+	yen: yen,
+	yuml: yuml,
+	default: index$2
+});
+
+var index$3 = {
+	"0": "�",
+	"128": "€",
+	"130": "‚",
+	"131": "ƒ",
+	"132": "„",
+	"133": "…",
+	"134": "†",
+	"135": "‡",
+	"136": "ˆ",
+	"137": "‰",
+	"138": "Š",
+	"139": "‹",
+	"140": "Œ",
+	"142": "Ž",
+	"145": "‘",
+	"146": "’",
+	"147": "“",
+	"148": "”",
+	"149": "•",
+	"150": "–",
+	"151": "—",
+	"152": "˜",
+	"153": "™",
+	"154": "š",
+	"155": "›",
+	"156": "œ",
+	"158": "ž",
+	"159": "Ÿ"
+};
+
+var characterReferenceInvalid = Object.freeze({
+	default: index$3
+});
+
+var isDecimal = decimal;
+
+/* Check if the given character code, or the character
+ * code at the first character, is decimal. */
+function decimal(character) {
+  var code = typeof character === 'string' ? character.charCodeAt(0) : character;
+
+  return code >= 48 && code <= 57 /* 0-9 */
+}
+
+var isHexadecimal = hexadecimal;
+
+/* Check if the given character code, or the character
+ * code at the first character, is hexadecimal. */
+function hexadecimal(character) {
+  var code = typeof character === 'string' ? character.charCodeAt(0) : character;
+
+  return (
+    (code >= 97 /* a */ && code <= 102) /* z */ ||
+    (code >= 65 /* A */ && code <= 70) /* Z */ ||
+    (code >= 48 /* A */ && code <= 57) /* Z */
+  )
+}
+
+var isAlphabetical = alphabetical;
+
+/* Check if the given character code, or the character
+ * code at the first character, is alphabetical. */
+function alphabetical(character) {
+  var code = typeof character === 'string' ? character.charCodeAt(0) : character;
+
+  return (
+    (code >= 97 && code <= 122) /* a-z */ ||
+    (code >= 65 && code <= 90) /* A-Z */
+  )
+}
+
+var isAlphanumerical = alphanumerical;
+
+/* Check if the given character code, or the character
+ * code at the first character, is alphanumerical. */
+function alphanumerical(character) {
+  return isAlphabetical(character) || isDecimal(character)
+}
+
+const AEli = "Æ";
+const AElig$1 = "Æ";
+const AM = "&";
+const AMP$1 = "&";
+const Aacut = "Á";
+const Aacute$1 = "Á";
 const Abreve = "Ă";
 const Acir = "Â";
-const Acirc = "Â";
+const Acirc$1 = "Â";
 const Acy = "А";
 const Afr = "𝔄";
 const Agrav = "À";
-const Agrave = "À";
+const Agrave$1 = "À";
 const Alpha = "Α";
 const Amacr = "Ā";
 const And = "⩓";
@@ -15233,13 +15609,13 @@ const Aogon = "Ą";
 const Aopf = "𝔸";
 const ApplyFunction = "⁡";
 const Arin = "Å";
-const Aring = "Å";
+const Aring$1 = "Å";
 const Ascr = "𝒜";
 const Assign = "≔";
 const Atild = "Ã";
-const Atilde = "Ã";
+const Atilde$1 = "Ã";
 const Aum = "Ä";
-const Auml = "Ä";
+const Auml$1 = "Ä";
 const Backslash = "∖";
 const Barv = "⫧";
 const Barwed = "⌆";
@@ -15254,14 +15630,14 @@ const Bscr = "ℬ";
 const Bumpeq = "≎";
 const CHcy = "Ч";
 const COP = "©";
-const COPY = "©";
+const COPY$1 = "©";
 const Cacute = "Ć";
 const Cap = "⋒";
 const CapitalDifferentialD = "ⅅ";
 const Cayleys = "ℭ";
 const Ccaron = "Č";
 const Ccedi = "Ç";
-const Ccedil = "Ç";
+const Ccedil$1 = "Ç";
 const Ccirc = "Ĉ";
 const Cconint = "∰";
 const Cdot = "Ċ";
@@ -15344,17 +15720,17 @@ const Dscr = "𝒟";
 const Dstrok = "Đ";
 const ENG = "Ŋ";
 const ET = "Ð";
-const ETH = "Ð";
+const ETH$1 = "Ð";
 const Eacut = "É";
-const Eacute = "É";
+const Eacute$1 = "É";
 const Ecaron = "Ě";
 const Ecir = "Ê";
-const Ecirc = "Ê";
+const Ecirc$1 = "Ê";
 const Ecy = "Э";
 const Edot = "Ė";
 const Efr = "𝔈";
 const Egrav = "È";
-const Egrave = "È";
+const Egrave$1 = "È";
 const Element = "∈";
 const Emacr = "Ē";
 const EmptySmallSquare = "◻";
@@ -15369,7 +15745,7 @@ const Escr = "ℰ";
 const Esim = "⩳";
 const Eta = "Η";
 const Eum = "Ë";
-const Euml = "Ë";
+const Euml$1 = "Ë";
 const Exists = "∃";
 const ExponentialE = "ⅇ";
 const Fcy = "Ф";
@@ -15382,7 +15758,7 @@ const Fouriertrf = "ℱ";
 const Fscr = "ℱ";
 const GJcy = "Ѓ";
 const G = ">";
-const GT = ">";
+const GT$1 = ">";
 const Gamma = "Γ";
 const Gammad = "Ϝ";
 const Gbreve = "Ğ";
@@ -15418,14 +15794,14 @@ const IEcy = "Е";
 const IJlig = "Ĳ";
 const IOcy = "Ё";
 const Iacut = "Í";
-const Iacute = "Í";
+const Iacute$1 = "Í";
 const Icir = "Î";
-const Icirc = "Î";
+const Icirc$1 = "Î";
 const Icy = "И";
 const Idot = "İ";
 const Ifr = "ℑ";
 const Igrav = "Ì";
-const Igrave = "Ì";
+const Igrave$1 = "Ì";
 const Im = "ℑ";
 const Imacr = "Ī";
 const ImaginaryI = "ⅈ";
@@ -15442,7 +15818,7 @@ const Iscr = "ℐ";
 const Itilde = "Ĩ";
 const Iukcy = "І";
 const Ium = "Ï";
-const Iuml = "Ï";
+const Iuml$1 = "Ï";
 const Jcirc = "Ĵ";
 const Jcy = "Й";
 const Jfr = "𝔍";
@@ -15460,7 +15836,7 @@ const Kopf = "𝕂";
 const Kscr = "𝒦";
 const LJcy = "Љ";
 const L = "<";
-const LT = "<";
+const LT$1 = "<";
 const Lacute = "Ĺ";
 const Lambda = "Λ";
 const Lang = "⟪";
@@ -15596,18 +15972,18 @@ const NotTildeTilde = "≉";
 const NotVerticalBar = "∤";
 const Nscr = "𝒩";
 const Ntild = "Ñ";
-const Ntilde = "Ñ";
+const Ntilde$1 = "Ñ";
 const Nu = "Ν";
 const OElig = "Œ";
 const Oacut = "Ó";
-const Oacute = "Ó";
+const Oacute$1 = "Ó";
 const Ocir = "Ô";
-const Ocirc = "Ô";
+const Ocirc$1 = "Ô";
 const Ocy = "О";
 const Odblac = "Ő";
 const Ofr = "𝔒";
 const Ograv = "Ò";
-const Ograve = "Ò";
+const Ograve$1 = "Ò";
 const Omacr = "Ō";
 const Omega = "Ω";
 const Omicron = "Ο";
@@ -15617,12 +15993,12 @@ const OpenCurlyQuote = "‘";
 const Or = "⩔";
 const Oscr = "𝒪";
 const Oslas = "Ø";
-const Oslash = "Ø";
+const Oslash$1 = "Ø";
 const Otild = "Õ";
-const Otilde = "Õ";
+const Otilde$1 = "Õ";
 const Otimes = "⨷";
 const Oum = "Ö";
-const Ouml = "Ö";
+const Ouml$1 = "Ö";
 const OverBar = "‾";
 const OverBrace = "⏞";
 const OverBracket = "⎴";
@@ -15647,13 +16023,13 @@ const Proportional = "∝";
 const Pscr = "𝒫";
 const Psi = "Ψ";
 const QUO = "\"";
-const QUOT = "\"";
+const QUOT$1 = "\"";
 const Qfr = "𝔔";
 const Qopf = "ℚ";
 const Qscr = "𝒬";
 const RBarr = "⤐";
 const RE = "®";
-const REG = "®";
+const REG$1 = "®";
 const Racute = "Ŕ";
 const Rang = "⟫";
 const Rarr = "↠";
@@ -15737,7 +16113,7 @@ const Superset = "⊃";
 const SupersetEqual = "⊇";
 const Supset = "⋑";
 const THOR = "Þ";
-const THORN = "Þ";
+const THORN$1 = "Þ";
 const TRADE = "™";
 const TSHcy = "Ћ";
 const TScy = "Ц";
@@ -15760,18 +16136,18 @@ const TripleDot = "⃛";
 const Tscr = "𝒯";
 const Tstrok = "Ŧ";
 const Uacut = "Ú";
-const Uacute = "Ú";
+const Uacute$1 = "Ú";
 const Uarr = "↟";
 const Uarrocir = "⥉";
 const Ubrcy = "Ў";
 const Ubreve = "Ŭ";
 const Ucir = "Û";
-const Ucirc = "Û";
+const Ucirc$1 = "Û";
 const Ucy = "У";
 const Udblac = "Ű";
 const Ufr = "𝔘";
 const Ugrav = "Ù";
-const Ugrave = "Ù";
+const Ugrave$1 = "Ù";
 const Umacr = "Ū";
 const UnderBar = "_";
 const UnderBrace = "⏟";
@@ -15798,7 +16174,7 @@ const Uring = "Ů";
 const Uscr = "𝒰";
 const Utilde = "Ũ";
 const Uum = "Ü";
-const Uuml = "Ü";
+const Uuml$1 = "Ü";
 const VDash = "⊫";
 const Vbar = "⫫";
 const Vcy = "В";
@@ -15829,7 +16205,7 @@ const YAcy = "Я";
 const YIcy = "Ї";
 const YUcy = "Ю";
 const Yacut = "Ý";
-const Yacute = "Ý";
+const Yacute$1 = "Ý";
 const Ycirc = "Ŷ";
 const Ycy = "Ы";
 const Yfr = "𝔜";
@@ -15847,29 +16223,29 @@ const Zfr = "ℨ";
 const Zopf = "ℤ";
 const Zscr = "𝒵";
 const aacut = "á";
-const aacute = "á";
+const aacute$1 = "á";
 const abreve = "ă";
 const ac = "∾";
 const acE = "∾̳";
 const acd = "∿";
 const acir = "â";
-const acirc = "â";
+const acirc$1 = "â";
 const acut = "´";
-const acute = "´";
+const acute$1 = "´";
 const acy = "а";
 const aeli = "æ";
-const aelig = "æ";
+const aelig$1 = "æ";
 const af = "⁡";
 const afr = "𝔞";
 const agrav = "à";
-const agrave = "à";
+const agrave$1 = "à";
 const alefsym = "ℵ";
 const aleph = "ℵ";
 const alpha = "α";
 const amacr = "ā";
 const amalg = "⨿";
 const am = "&";
-const amp = "&";
+const amp$1 = "&";
 const and = "∧";
 const andand = "⩕";
 const andd = "⩜";
@@ -15904,15 +16280,15 @@ const apos = "'";
 const approx = "≈";
 const approxeq = "≊";
 const arin = "å";
-const aring = "å";
+const aring$1 = "å";
 const ascr = "𝒶";
 const ast = "*";
 const asymp = "≈";
 const asympeq = "≍";
 const atild = "ã";
-const atilde = "ã";
+const atilde$1 = "ã";
 const aum = "ä";
-const auml = "ä";
+const auml$1 = "ä";
 const awconint = "∳";
 const awint = "⨑";
 const bNot = "⫭";
@@ -16017,7 +16393,7 @@ const boxvr = "├";
 const bprime = "‵";
 const breve = "˘";
 const brvba = "¦";
-const brvbar = "¦";
+const brvbar$1 = "¦";
 const bscr = "𝒷";
 const bsemi = "⁏";
 const bsim = "∽";
@@ -16044,16 +16420,16 @@ const caron = "ˇ";
 const ccaps = "⩍";
 const ccaron = "č";
 const ccedi = "ç";
-const ccedil = "ç";
+const ccedil$1 = "ç";
 const ccirc = "ĉ";
 const ccups = "⩌";
 const ccupssm = "⩐";
 const cdot = "ċ";
 const cedi = "¸";
-const cedil = "¸";
+const cedil$1 = "¸";
 const cemptyv = "⦲";
 const cen = "¢";
-const cent = "¢";
+const cent$1 = "¢";
 const centerdot = "·";
 const cfr = "𝔠";
 const chcy = "ч";
@@ -16092,7 +16468,7 @@ const conint = "∮";
 const copf = "𝕔";
 const coprod = "∐";
 const cop = "©";
-const copy$2 = "©";
+const copy$3 = "©";
 const copysr = "℗";
 const crarr = "↵";
 const cross = "✗";
@@ -16122,7 +16498,7 @@ const curlyeqsucc = "⋟";
 const curlyvee = "⋎";
 const curlywedge = "⋏";
 const curre = "¤";
-const curren = "¤";
+const curren$1 = "¤";
 const curvearrowleft = "↶";
 const curvearrowright = "↷";
 const cuvee = "⋎";
@@ -16146,7 +16522,7 @@ const ddagger = "‡";
 const ddarr = "⇊";
 const ddotseq = "⩷";
 const de = "°";
-const deg = "°";
+const deg$1 = "°";
 const delta = "δ";
 const demptyv = "⦱";
 const dfisht = "⥿";
@@ -16162,7 +16538,7 @@ const digamma = "ϝ";
 const disin = "⋲";
 const div = "÷";
 const divid = "÷";
-const divide = "÷";
+const divide$1 = "÷";
 const divideontimes = "⋇";
 const divonx = "⋇";
 const djcy = "ђ";
@@ -16199,11 +16575,11 @@ const dzigrarr = "⟿";
 const eDDot = "⩷";
 const eDot = "≑";
 const eacut = "é";
-const eacute = "é";
+const eacute$1 = "é";
 const easter = "⩮";
 const ecaron = "ě";
 const ecir = "ê";
-const ecirc = "ê";
+const ecirc$1 = "ê";
 const ecolon = "≕";
 const ecy = "э";
 const edot = "ė";
@@ -16212,7 +16588,7 @@ const efDot = "≒";
 const efr = "𝔢";
 const eg = "⪚";
 const egrav = "è";
-const egrave = "è";
+const egrave$1 = "è";
 const egs = "⪖";
 const egsdot = "⪘";
 const el = "⪙";
@@ -16254,9 +16630,9 @@ const esdot = "≐";
 const esim = "≂";
 const eta = "η";
 const et = "ð";
-const eth = "ð";
+const eth$1 = "ð";
 const eum = "ë";
-const euml = "ë";
+const euml$1 = "ë";
 const euro = "€";
 const excl = "!";
 const exist = "∃";
@@ -16281,16 +16657,16 @@ const fork = "⋔";
 const forkv = "⫙";
 const fpartint = "⨍";
 const frac1 = "¼";
-const frac12 = "½";
+const frac12$1 = "½";
 const frac13 = "⅓";
-const frac14 = "¼";
+const frac14$1 = "¼";
 const frac15 = "⅕";
 const frac16 = "⅙";
 const frac18 = "⅛";
 const frac23 = "⅔";
 const frac25 = "⅖";
 const frac3 = "¾";
-const frac34 = "¾";
+const frac34$1 = "¾";
 const frac35 = "⅗";
 const frac38 = "⅜";
 const frac45 = "⅘";
@@ -16345,7 +16721,7 @@ const gsim = "≳";
 const gsime = "⪎";
 const gsiml = "⪐";
 const g = ">";
-const gt = ">";
+const gt$1 = ">";
 const gtcc = "⪧";
 const gtcir = "⩺";
 const gtdot = "⋗";
@@ -16389,18 +16765,18 @@ const hstrok = "ħ";
 const hybull = "⁃";
 const hyphen = "‐";
 const iacut = "í";
-const iacute = "í";
+const iacute$1 = "í";
 const ic = "⁣";
 const icir = "î";
-const icirc = "î";
+const icirc$1 = "î";
 const icy = "и";
 const iecy = "е";
 const iexc = "¡";
-const iexcl = "¡";
+const iexcl$1 = "¡";
 const iff = "⇔";
 const ifr = "𝔦";
 const igrav = "ì";
-const igrave = "ì";
+const igrave$1 = "ì";
 const ii = "ⅈ";
 const iiiint = "⨌";
 const iiint = "∭";
@@ -16430,7 +16806,7 @@ const iopf = "𝕚";
 const iota = "ι";
 const iprod = "⨼";
 const iques = "¿";
-const iquest = "¿";
+const iquest$1 = "¿";
 const iscr = "𝒾";
 const isin = "∈";
 const isinE = "⋹";
@@ -16442,7 +16818,7 @@ const it = "⁢";
 const itilde = "ĩ";
 const iukcy = "і";
 const ium = "ï";
-const iuml = "ï";
+const iuml$1 = "ï";
 const jcirc = "ĵ";
 const jcy = "й";
 const jfr = "𝔧";
@@ -16477,7 +16853,7 @@ const langd = "⦑";
 const langle = "⟨";
 const lap = "⪅";
 const laqu = "«";
-const laquo = "«";
+const laquo$1 = "«";
 const larr = "←";
 const larrb = "⇤";
 const larrbfs = "⤟";
@@ -16599,7 +16975,7 @@ const lsquo = "‘";
 const lsquor = "‚";
 const lstrok = "ł";
 const l = "<";
-const lt = "<";
+const lt$1 = "<";
 const ltcc = "⪦";
 const ltcir = "⩹";
 const ltdot = "⋖";
@@ -16617,7 +16993,7 @@ const lvertneqq = "≨︀";
 const lvnE = "≨︀";
 const mDDot = "∺";
 const mac = "¯";
-const macr = "¯";
+const macr$1 = "¯";
 const male = "♂";
 const malt = "✠";
 const maltese = "✠";
@@ -16634,12 +17010,12 @@ const measuredangle = "∡";
 const mfr = "𝔪";
 const mho = "℧";
 const micr = "µ";
-const micro = "µ";
+const micro$1 = "µ";
 const mid = "∣";
 const midast = "*";
 const midcir = "⫰";
 const middo = "·";
-const middot = "·";
+const middot$1 = "·";
 const minus = "−";
 const minusb = "⊟";
 const minusd = "∸";
@@ -16678,7 +17054,7 @@ const natur = "♮";
 const natural = "♮";
 const naturals = "ℕ";
 const nbs = " ";
-const nbsp = " ";
+const nbsp$1 = " ";
 const nbump = "≎̸";
 const nbumpe = "≏̸";
 const ncap = "⩃";
@@ -16737,7 +17113,7 @@ const nltrie = "⋬";
 const nmid = "∤";
 const nopf = "𝕟";
 const no = "¬";
-const not = "¬";
+const not$1 = "¬";
 const notin = "∉";
 const notinE = "⋹̸";
 const notindot = "⋵̸";
@@ -16794,7 +17170,7 @@ const nsupseteq = "⊉";
 const nsupseteqq = "⫆̸";
 const ntgl = "≹";
 const ntild = "ñ";
-const ntilde = "ñ";
+const ntilde$1 = "ñ";
 const ntlg = "≸";
 const ntriangleleft = "⋪";
 const ntrianglelefteq = "⋬";
@@ -16825,10 +17201,10 @@ const nwarrow = "↖";
 const nwnear = "⤧";
 const oS = "Ⓢ";
 const oacut = "ó";
-const oacute = "ó";
+const oacute$1 = "ó";
 const oast = "⊛";
 const ocir = "ô";
-const ocirc = "ô";
+const ocirc$1 = "ô";
 const ocy = "о";
 const odash = "⊝";
 const odblac = "ő";
@@ -16840,7 +17216,7 @@ const ofcir = "⦿";
 const ofr = "𝔬";
 const ogon = "˛";
 const ograv = "ò";
-const ograve = "ò";
+const ograve$1 = "ò";
 const ogt = "⧁";
 const ohbar = "⦵";
 const ohm = "Ω";
@@ -16864,25 +17240,25 @@ const orarr = "↻";
 const ord = "º";
 const order$1 = "ℴ";
 const orderof = "ℴ";
-const ordf = "ª";
-const ordm = "º";
+const ordf$1 = "ª";
+const ordm$1 = "º";
 const origof = "⊶";
 const oror = "⩖";
 const orslope = "⩗";
 const orv = "⩛";
 const oscr = "ℴ";
 const oslas = "ø";
-const oslash = "ø";
+const oslash$1 = "ø";
 const osol = "⊘";
 const otild = "õ";
-const otilde = "õ";
+const otilde$1 = "õ";
 const otimes = "⊗";
 const otimesas = "⨶";
 const oum = "ö";
-const ouml = "ö";
+const ouml$1 = "ö";
 const ovbar = "⌽";
 const par = "¶";
-const para = "¶";
+const para$1 = "¶";
 const parallel = "∥";
 const parsim = "⫳";
 const parsl = "⫽";
@@ -16912,14 +17288,14 @@ const plusdo = "∔";
 const plusdu = "⨥";
 const pluse = "⩲";
 const plusm = "±";
-const plusmn = "±";
+const plusmn$1 = "±";
 const plussim = "⨦";
 const plustwo = "⨧";
 const pm = "±";
 const pointint = "⨕";
 const popf = "𝕡";
 const poun = "£";
-const pound = "£";
+const pound$1 = "£";
 const pr = "≺";
 const prE = "⪳";
 const prap = "⪷";
@@ -16959,7 +17335,7 @@ const quatint = "⨖";
 const quest = "?";
 const questeq = "≟";
 const quo = "\"";
-const quot = "\"";
+const quot$1 = "\"";
 const rAarr = "⇛";
 const rArr = "⇒";
 const rAtail = "⤜";
@@ -16974,7 +17350,7 @@ const rangd = "⦒";
 const range$1 = "⦥";
 const rangle = "⟩";
 const raqu = "»";
-const raquo = "»";
+const raquo$1 = "»";
 const rarr = "→";
 const rarrap = "⥵";
 const rarrb = "⇥";
@@ -17013,7 +17389,7 @@ const realpart = "ℜ";
 const reals = "ℝ";
 const rect = "▭";
 const re = "®";
-const reg = "®";
+const reg$1 = "®";
 const rfisht = "⥽";
 const rfloor = "⌋";
 const rfr = "𝔯";
@@ -17088,7 +17464,7 @@ const searhk = "⤥";
 const searr = "↘";
 const searrow = "↘";
 const sec = "§";
-const sect = "§";
+const sect$1 = "§";
 const semi = ";";
 const seswar = "⤩";
 const setminus = "∖";
@@ -17102,7 +17478,7 @@ const shcy = "ш";
 const shortmid = "∣";
 const shortparallel = "∥";
 const sh = "­";
-const shy = "­";
+const shy$1 = "­";
 const sigma = "σ";
 const sigmaf = "ς";
 const sigmav = "ς";
@@ -17189,9 +17565,9 @@ const succsim = "≿";
 const sum = "∑";
 const sung = "♪";
 const sup = "⊃";
-const sup1 = "¹";
-const sup2 = "²";
-const sup3 = "³";
+const sup1$1 = "¹";
+const sup2$1 = "²";
+const sup3$1 = "³";
 const supE = "⫆";
 const supdot = "⪾";
 const supdsub = "⫘";
@@ -17218,7 +17594,7 @@ const swarr = "↙";
 const swarrow = "↙";
 const swnwar = "⤪";
 const szli = "ß";
-const szlig = "ß";
+const szlig$1 = "ß";
 const target = "⌖";
 const tau = "τ";
 const tbrk = "⎴";
@@ -17239,10 +17615,10 @@ const thinsp = " ";
 const thkap = "≈";
 const thksim = "∼";
 const thor = "þ";
-const thorn = "þ";
+const thorn$1 = "þ";
 const tilde = "˜";
 const time = "×";
-const times = "×";
+const times$1 = "×";
 const timesb = "⊠";
 const timesbar = "⨱";
 const timesd = "⨰";
@@ -17280,12 +17656,12 @@ const twoheadrightarrow = "↠";
 const uArr = "⇑";
 const uHar = "⥣";
 const uacut = "ú";
-const uacute = "ú";
+const uacute$1 = "ú";
 const uarr = "↑";
 const ubrcy = "ў";
 const ubreve = "ŭ";
 const ucir = "û";
-const ucirc = "û";
+const ucirc$1 = "û";
 const ucy = "у";
 const udarr = "⇅";
 const udblac = "ű";
@@ -17293,7 +17669,7 @@ const udhar = "⥮";
 const ufisht = "⥾";
 const ufr = "𝔲";
 const ugrav = "ù";
-const ugrave = "ù";
+const ugrave$1 = "ù";
 const uharl = "↿";
 const uharr = "↾";
 const uhblk = "▀";
@@ -17303,7 +17679,7 @@ const ulcrop = "⌏";
 const ultri = "◸";
 const umacr = "ū";
 const um = "¨";
-const uml = "¨";
+const uml$1 = "¨";
 const uogon = "ų";
 const uopf = "𝕦";
 const uparrow = "↑";
@@ -17327,7 +17703,7 @@ const utri = "▵";
 const utrif = "▴";
 const uuarr = "⇈";
 const uum = "ü";
-const uuml = "ü";
+const uuml$1 = "ü";
 const uwangle = "⦧";
 const vArr = "⇕";
 const vBar = "⫨";
@@ -17407,19 +17783,19 @@ const xutri = "△";
 const xvee = "⋁";
 const xwedge = "⋀";
 const yacut = "ý";
-const yacute = "ý";
+const yacute$1 = "ý";
 const yacy = "я";
 const ycirc = "ŷ";
 const ycy = "ы";
 const ye = "¥";
-const yen = "¥";
+const yen$1 = "¥";
 const yfr = "𝔶";
 const yicy = "ї";
 const yopf = "𝕪";
 const yscr = "𝓎";
 const yucy = "ю";
 const yum = "ÿ";
-const yuml = "ÿ";
+const yuml$1 = "ÿ";
 const zacute = "ź";
 const zcaron = "ž";
 const zcy = "з";
@@ -17433,20 +17809,20 @@ const zopf = "𝕫";
 const zscr = "𝓏";
 const zwj = "‍";
 const zwnj = "‌";
-var index$2 = {
+var index$4 = {
 	AEli: AEli,
-	AElig: AElig,
+	AElig: AElig$1,
 	AM: AM,
-	AMP: AMP,
+	AMP: AMP$1,
 	Aacut: Aacut,
-	Aacute: Aacute,
+	Aacute: Aacute$1,
 	Abreve: Abreve,
 	Acir: Acir,
-	Acirc: Acirc,
+	Acirc: Acirc$1,
 	Acy: Acy,
 	Afr: Afr,
 	Agrav: Agrav,
-	Agrave: Agrave,
+	Agrave: Agrave$1,
 	Alpha: Alpha,
 	Amacr: Amacr,
 	And: And,
@@ -17454,13 +17830,13 @@ var index$2 = {
 	Aopf: Aopf,
 	ApplyFunction: ApplyFunction,
 	Arin: Arin,
-	Aring: Aring,
+	Aring: Aring$1,
 	Ascr: Ascr,
 	Assign: Assign,
 	Atild: Atild,
-	Atilde: Atilde,
+	Atilde: Atilde$1,
 	Aum: Aum,
-	Auml: Auml,
+	Auml: Auml$1,
 	Backslash: Backslash,
 	Barv: Barv,
 	Barwed: Barwed,
@@ -17475,14 +17851,14 @@ var index$2 = {
 	Bumpeq: Bumpeq,
 	CHcy: CHcy,
 	COP: COP,
-	COPY: COPY,
+	COPY: COPY$1,
 	Cacute: Cacute,
 	Cap: Cap,
 	CapitalDifferentialD: CapitalDifferentialD,
 	Cayleys: Cayleys,
 	Ccaron: Ccaron,
 	Ccedi: Ccedi,
-	Ccedil: Ccedil,
+	Ccedil: Ccedil$1,
 	Ccirc: Ccirc,
 	Cconint: Cconint,
 	Cdot: Cdot,
@@ -17565,17 +17941,17 @@ var index$2 = {
 	Dstrok: Dstrok,
 	ENG: ENG,
 	ET: ET,
-	ETH: ETH,
+	ETH: ETH$1,
 	Eacut: Eacut,
-	Eacute: Eacute,
+	Eacute: Eacute$1,
 	Ecaron: Ecaron,
 	Ecir: Ecir,
-	Ecirc: Ecirc,
+	Ecirc: Ecirc$1,
 	Ecy: Ecy,
 	Edot: Edot,
 	Efr: Efr,
 	Egrav: Egrav,
-	Egrave: Egrave,
+	Egrave: Egrave$1,
 	Element: Element,
 	Emacr: Emacr,
 	EmptySmallSquare: EmptySmallSquare,
@@ -17590,7 +17966,7 @@ var index$2 = {
 	Esim: Esim,
 	Eta: Eta,
 	Eum: Eum,
-	Euml: Euml,
+	Euml: Euml$1,
 	Exists: Exists,
 	ExponentialE: ExponentialE,
 	Fcy: Fcy,
@@ -17603,7 +17979,7 @@ var index$2 = {
 	Fscr: Fscr,
 	GJcy: GJcy,
 	G: G,
-	GT: GT,
+	GT: GT$1,
 	Gamma: Gamma,
 	Gammad: Gammad,
 	Gbreve: Gbreve,
@@ -17639,14 +18015,14 @@ var index$2 = {
 	IJlig: IJlig,
 	IOcy: IOcy,
 	Iacut: Iacut,
-	Iacute: Iacute,
+	Iacute: Iacute$1,
 	Icir: Icir,
-	Icirc: Icirc,
+	Icirc: Icirc$1,
 	Icy: Icy,
 	Idot: Idot,
 	Ifr: Ifr,
 	Igrav: Igrav,
-	Igrave: Igrave,
+	Igrave: Igrave$1,
 	Im: Im,
 	Imacr: Imacr,
 	ImaginaryI: ImaginaryI,
@@ -17663,7 +18039,7 @@ var index$2 = {
 	Itilde: Itilde,
 	Iukcy: Iukcy,
 	Ium: Ium,
-	Iuml: Iuml,
+	Iuml: Iuml$1,
 	Jcirc: Jcirc,
 	Jcy: Jcy,
 	Jfr: Jfr,
@@ -17681,7 +18057,7 @@ var index$2 = {
 	Kscr: Kscr,
 	LJcy: LJcy,
 	L: L,
-	LT: LT,
+	LT: LT$1,
 	Lacute: Lacute,
 	Lambda: Lambda,
 	Lang: Lang,
@@ -17817,18 +18193,18 @@ var index$2 = {
 	NotVerticalBar: NotVerticalBar,
 	Nscr: Nscr,
 	Ntild: Ntild,
-	Ntilde: Ntilde,
+	Ntilde: Ntilde$1,
 	Nu: Nu,
 	OElig: OElig,
 	Oacut: Oacut,
-	Oacute: Oacute,
+	Oacute: Oacute$1,
 	Ocir: Ocir,
-	Ocirc: Ocirc,
+	Ocirc: Ocirc$1,
 	Ocy: Ocy,
 	Odblac: Odblac,
 	Ofr: Ofr,
 	Ograv: Ograv,
-	Ograve: Ograve,
+	Ograve: Ograve$1,
 	Omacr: Omacr,
 	Omega: Omega,
 	Omicron: Omicron,
@@ -17838,12 +18214,12 @@ var index$2 = {
 	Or: Or,
 	Oscr: Oscr,
 	Oslas: Oslas,
-	Oslash: Oslash,
+	Oslash: Oslash$1,
 	Otild: Otild,
-	Otilde: Otilde,
+	Otilde: Otilde$1,
 	Otimes: Otimes,
 	Oum: Oum,
-	Ouml: Ouml,
+	Ouml: Ouml$1,
 	OverBar: OverBar,
 	OverBrace: OverBrace,
 	OverBracket: OverBracket,
@@ -17868,13 +18244,13 @@ var index$2 = {
 	Pscr: Pscr,
 	Psi: Psi,
 	QUO: QUO,
-	QUOT: QUOT,
+	QUOT: QUOT$1,
 	Qfr: Qfr,
 	Qopf: Qopf,
 	Qscr: Qscr,
 	RBarr: RBarr,
 	RE: RE,
-	REG: REG,
+	REG: REG$1,
 	Racute: Racute,
 	Rang: Rang,
 	Rarr: Rarr,
@@ -17958,7 +18334,7 @@ var index$2 = {
 	SupersetEqual: SupersetEqual,
 	Supset: Supset,
 	THOR: THOR,
-	THORN: THORN,
+	THORN: THORN$1,
 	TRADE: TRADE,
 	TSHcy: TSHcy,
 	TScy: TScy,
@@ -17981,18 +18357,18 @@ var index$2 = {
 	Tscr: Tscr,
 	Tstrok: Tstrok,
 	Uacut: Uacut,
-	Uacute: Uacute,
+	Uacute: Uacute$1,
 	Uarr: Uarr,
 	Uarrocir: Uarrocir,
 	Ubrcy: Ubrcy,
 	Ubreve: Ubreve,
 	Ucir: Ucir,
-	Ucirc: Ucirc,
+	Ucirc: Ucirc$1,
 	Ucy: Ucy,
 	Udblac: Udblac,
 	Ufr: Ufr,
 	Ugrav: Ugrav,
-	Ugrave: Ugrave,
+	Ugrave: Ugrave$1,
 	Umacr: Umacr,
 	UnderBar: UnderBar,
 	UnderBrace: UnderBrace,
@@ -18019,7 +18395,7 @@ var index$2 = {
 	Uscr: Uscr,
 	Utilde: Utilde,
 	Uum: Uum,
-	Uuml: Uuml,
+	Uuml: Uuml$1,
 	VDash: VDash,
 	Vbar: Vbar,
 	Vcy: Vcy,
@@ -18050,7 +18426,7 @@ var index$2 = {
 	YIcy: YIcy,
 	YUcy: YUcy,
 	Yacut: Yacut,
-	Yacute: Yacute,
+	Yacute: Yacute$1,
 	Ycirc: Ycirc,
 	Ycy: Ycy,
 	Yfr: Yfr,
@@ -18068,29 +18444,29 @@ var index$2 = {
 	Zopf: Zopf,
 	Zscr: Zscr,
 	aacut: aacut,
-	aacute: aacute,
+	aacute: aacute$1,
 	abreve: abreve,
 	ac: ac,
 	acE: acE,
 	acd: acd,
 	acir: acir,
-	acirc: acirc,
+	acirc: acirc$1,
 	acut: acut,
-	acute: acute,
+	acute: acute$1,
 	acy: acy,
 	aeli: aeli,
-	aelig: aelig,
+	aelig: aelig$1,
 	af: af,
 	afr: afr,
 	agrav: agrav,
-	agrave: agrave,
+	agrave: agrave$1,
 	alefsym: alefsym,
 	aleph: aleph,
 	alpha: alpha,
 	amacr: amacr,
 	amalg: amalg,
 	am: am,
-	amp: amp,
+	amp: amp$1,
 	and: and,
 	andand: andand,
 	andd: andd,
@@ -18125,15 +18501,15 @@ var index$2 = {
 	approx: approx,
 	approxeq: approxeq,
 	arin: arin,
-	aring: aring,
+	aring: aring$1,
 	ascr: ascr,
 	ast: ast,
 	asymp: asymp,
 	asympeq: asympeq,
 	atild: atild,
-	atilde: atilde,
+	atilde: atilde$1,
 	aum: aum,
-	auml: auml,
+	auml: auml$1,
 	awconint: awconint,
 	awint: awint,
 	bNot: bNot,
@@ -18238,7 +18614,7 @@ var index$2 = {
 	bprime: bprime,
 	breve: breve,
 	brvba: brvba,
-	brvbar: brvbar,
+	brvbar: brvbar$1,
 	bscr: bscr,
 	bsemi: bsemi,
 	bsim: bsim,
@@ -18265,16 +18641,16 @@ var index$2 = {
 	ccaps: ccaps,
 	ccaron: ccaron,
 	ccedi: ccedi,
-	ccedil: ccedil,
+	ccedil: ccedil$1,
 	ccirc: ccirc,
 	ccups: ccups,
 	ccupssm: ccupssm,
 	cdot: cdot,
 	cedi: cedi,
-	cedil: cedil,
+	cedil: cedil$1,
 	cemptyv: cemptyv,
 	cen: cen,
-	cent: cent,
+	cent: cent$1,
 	centerdot: centerdot,
 	cfr: cfr,
 	chcy: chcy,
@@ -18313,7 +18689,7 @@ var index$2 = {
 	copf: copf,
 	coprod: coprod,
 	cop: cop,
-	copy: copy$2,
+	copy: copy$3,
 	copysr: copysr,
 	crarr: crarr,
 	cross: cross,
@@ -18343,7 +18719,7 @@ var index$2 = {
 	curlyvee: curlyvee,
 	curlywedge: curlywedge,
 	curre: curre,
-	curren: curren,
+	curren: curren$1,
 	curvearrowleft: curvearrowleft,
 	curvearrowright: curvearrowright,
 	cuvee: cuvee,
@@ -18367,7 +18743,7 @@ var index$2 = {
 	ddarr: ddarr,
 	ddotseq: ddotseq,
 	de: de,
-	deg: deg,
+	deg: deg$1,
 	delta: delta,
 	demptyv: demptyv,
 	dfisht: dfisht,
@@ -18383,7 +18759,7 @@ var index$2 = {
 	disin: disin,
 	div: div,
 	divid: divid,
-	divide: divide,
+	divide: divide$1,
 	divideontimes: divideontimes,
 	divonx: divonx,
 	djcy: djcy,
@@ -18420,11 +18796,11 @@ var index$2 = {
 	eDDot: eDDot,
 	eDot: eDot,
 	eacut: eacut,
-	eacute: eacute,
+	eacute: eacute$1,
 	easter: easter,
 	ecaron: ecaron,
 	ecir: ecir,
-	ecirc: ecirc,
+	ecirc: ecirc$1,
 	ecolon: ecolon,
 	ecy: ecy,
 	edot: edot,
@@ -18433,7 +18809,7 @@ var index$2 = {
 	efr: efr,
 	eg: eg,
 	egrav: egrav,
-	egrave: egrave,
+	egrave: egrave$1,
 	egs: egs,
 	egsdot: egsdot,
 	el: el,
@@ -18475,9 +18851,9 @@ var index$2 = {
 	esim: esim,
 	eta: eta,
 	et: et,
-	eth: eth,
+	eth: eth$1,
 	eum: eum,
-	euml: euml,
+	euml: euml$1,
 	euro: euro,
 	excl: excl,
 	exist: exist,
@@ -18502,16 +18878,16 @@ var index$2 = {
 	forkv: forkv,
 	fpartint: fpartint,
 	frac1: frac1,
-	frac12: frac12,
+	frac12: frac12$1,
 	frac13: frac13,
-	frac14: frac14,
+	frac14: frac14$1,
 	frac15: frac15,
 	frac16: frac16,
 	frac18: frac18,
 	frac23: frac23,
 	frac25: frac25,
 	frac3: frac3,
-	frac34: frac34,
+	frac34: frac34$1,
 	frac35: frac35,
 	frac38: frac38,
 	frac45: frac45,
@@ -18566,7 +18942,7 @@ var index$2 = {
 	gsime: gsime,
 	gsiml: gsiml,
 	g: g,
-	gt: gt,
+	gt: gt$1,
 	gtcc: gtcc,
 	gtcir: gtcir,
 	gtdot: gtdot,
@@ -18610,18 +18986,18 @@ var index$2 = {
 	hybull: hybull,
 	hyphen: hyphen,
 	iacut: iacut,
-	iacute: iacute,
+	iacute: iacute$1,
 	ic: ic,
 	icir: icir,
-	icirc: icirc,
+	icirc: icirc$1,
 	icy: icy,
 	iecy: iecy,
 	iexc: iexc,
-	iexcl: iexcl,
+	iexcl: iexcl$1,
 	iff: iff,
 	ifr: ifr,
 	igrav: igrav,
-	igrave: igrave,
+	igrave: igrave$1,
 	ii: ii,
 	iiiint: iiiint,
 	iiint: iiint,
@@ -18651,7 +19027,7 @@ var index$2 = {
 	iota: iota,
 	iprod: iprod,
 	iques: iques,
-	iquest: iquest,
+	iquest: iquest$1,
 	iscr: iscr,
 	isin: isin,
 	isinE: isinE,
@@ -18663,7 +19039,7 @@ var index$2 = {
 	itilde: itilde,
 	iukcy: iukcy,
 	ium: ium,
-	iuml: iuml,
+	iuml: iuml$1,
 	jcirc: jcirc,
 	jcy: jcy,
 	jfr: jfr,
@@ -18698,7 +19074,7 @@ var index$2 = {
 	langle: langle,
 	lap: lap,
 	laqu: laqu,
-	laquo: laquo,
+	laquo: laquo$1,
 	larr: larr,
 	larrb: larrb,
 	larrbfs: larrbfs,
@@ -18820,7 +19196,7 @@ var index$2 = {
 	lsquor: lsquor,
 	lstrok: lstrok,
 	l: l,
-	lt: lt,
+	lt: lt$1,
 	ltcc: ltcc,
 	ltcir: ltcir,
 	ltdot: ltdot,
@@ -18838,7 +19214,7 @@ var index$2 = {
 	lvnE: lvnE,
 	mDDot: mDDot,
 	mac: mac,
-	macr: macr,
+	macr: macr$1,
 	male: male,
 	malt: malt,
 	maltese: maltese,
@@ -18855,12 +19231,12 @@ var index$2 = {
 	mfr: mfr,
 	mho: mho,
 	micr: micr,
-	micro: micro,
+	micro: micro$1,
 	mid: mid,
 	midast: midast,
 	midcir: midcir,
 	middo: middo,
-	middot: middot,
+	middot: middot$1,
 	minus: minus,
 	minusb: minusb,
 	minusd: minusd,
@@ -18899,7 +19275,7 @@ var index$2 = {
 	natural: natural,
 	naturals: naturals,
 	nbs: nbs,
-	nbsp: nbsp,
+	nbsp: nbsp$1,
 	nbump: nbump,
 	nbumpe: nbumpe,
 	ncap: ncap,
@@ -18958,7 +19334,7 @@ var index$2 = {
 	nmid: nmid,
 	nopf: nopf,
 	no: no,
-	not: not,
+	not: not$1,
 	notin: notin,
 	notinE: notinE,
 	notindot: notindot,
@@ -19015,7 +19391,7 @@ var index$2 = {
 	nsupseteqq: nsupseteqq,
 	ntgl: ntgl,
 	ntild: ntild,
-	ntilde: ntilde,
+	ntilde: ntilde$1,
 	ntlg: ntlg,
 	ntriangleleft: ntriangleleft,
 	ntrianglelefteq: ntrianglelefteq,
@@ -19046,10 +19422,10 @@ var index$2 = {
 	nwnear: nwnear,
 	oS: oS,
 	oacut: oacut,
-	oacute: oacute,
+	oacute: oacute$1,
 	oast: oast,
 	ocir: ocir,
-	ocirc: ocirc,
+	ocirc: ocirc$1,
 	ocy: ocy,
 	odash: odash,
 	odblac: odblac,
@@ -19061,7 +19437,7 @@ var index$2 = {
 	ofr: ofr,
 	ogon: ogon,
 	ograv: ograv,
-	ograve: ograve,
+	ograve: ograve$1,
 	ogt: ogt,
 	ohbar: ohbar,
 	ohm: ohm,
@@ -19085,25 +19461,25 @@ var index$2 = {
 	ord: ord,
 	order: order$1,
 	orderof: orderof,
-	ordf: ordf,
-	ordm: ordm,
+	ordf: ordf$1,
+	ordm: ordm$1,
 	origof: origof,
 	oror: oror,
 	orslope: orslope,
 	orv: orv,
 	oscr: oscr,
 	oslas: oslas,
-	oslash: oslash,
+	oslash: oslash$1,
 	osol: osol,
 	otild: otild,
-	otilde: otilde,
+	otilde: otilde$1,
 	otimes: otimes,
 	otimesas: otimesas,
 	oum: oum,
-	ouml: ouml,
+	ouml: ouml$1,
 	ovbar: ovbar,
 	par: par,
-	para: para,
+	para: para$1,
 	parallel: parallel,
 	parsim: parsim,
 	parsl: parsl,
@@ -19133,14 +19509,14 @@ var index$2 = {
 	plusdu: plusdu,
 	pluse: pluse,
 	plusm: plusm,
-	plusmn: plusmn,
+	plusmn: plusmn$1,
 	plussim: plussim,
 	plustwo: plustwo,
 	pm: pm,
 	pointint: pointint,
 	popf: popf,
 	poun: poun,
-	pound: pound,
+	pound: pound$1,
 	pr: pr,
 	prE: prE,
 	prap: prap,
@@ -19180,7 +19556,7 @@ var index$2 = {
 	quest: quest,
 	questeq: questeq,
 	quo: quo,
-	quot: quot,
+	quot: quot$1,
 	rAarr: rAarr,
 	rArr: rArr,
 	rAtail: rAtail,
@@ -19195,7 +19571,7 @@ var index$2 = {
 	range: range$1,
 	rangle: rangle,
 	raqu: raqu,
-	raquo: raquo,
+	raquo: raquo$1,
 	rarr: rarr,
 	rarrap: rarrap,
 	rarrb: rarrb,
@@ -19234,7 +19610,7 @@ var index$2 = {
 	reals: reals,
 	rect: rect,
 	re: re,
-	reg: reg,
+	reg: reg$1,
 	rfisht: rfisht,
 	rfloor: rfloor,
 	rfr: rfr,
@@ -19309,7 +19685,7 @@ var index$2 = {
 	searr: searr,
 	searrow: searrow,
 	sec: sec,
-	sect: sect,
+	sect: sect$1,
 	semi: semi,
 	seswar: seswar,
 	setminus: setminus,
@@ -19323,7 +19699,7 @@ var index$2 = {
 	shortmid: shortmid,
 	shortparallel: shortparallel,
 	sh: sh,
-	shy: shy,
+	shy: shy$1,
 	sigma: sigma,
 	sigmaf: sigmaf,
 	sigmav: sigmav,
@@ -19410,9 +19786,9 @@ var index$2 = {
 	sum: sum,
 	sung: sung,
 	sup: sup,
-	sup1: sup1,
-	sup2: sup2,
-	sup3: sup3,
+	sup1: sup1$1,
+	sup2: sup2$1,
+	sup3: sup3$1,
 	supE: supE,
 	supdot: supdot,
 	supdsub: supdsub,
@@ -19439,7 +19815,7 @@ var index$2 = {
 	swarrow: swarrow,
 	swnwar: swnwar,
 	szli: szli,
-	szlig: szlig,
+	szlig: szlig$1,
 	target: target,
 	tau: tau,
 	tbrk: tbrk,
@@ -19460,10 +19836,10 @@ var index$2 = {
 	thkap: thkap,
 	thksim: thksim,
 	thor: thor,
-	thorn: thorn,
+	thorn: thorn$1,
 	tilde: tilde,
 	time: time,
-	times: times,
+	times: times$1,
 	timesb: timesb,
 	timesbar: timesbar,
 	timesd: timesd,
@@ -19501,12 +19877,12 @@ var index$2 = {
 	uArr: uArr,
 	uHar: uHar,
 	uacut: uacut,
-	uacute: uacute,
+	uacute: uacute$1,
 	uarr: uarr,
 	ubrcy: ubrcy,
 	ubreve: ubreve,
 	ucir: ucir,
-	ucirc: ucirc,
+	ucirc: ucirc$1,
 	ucy: ucy,
 	udarr: udarr,
 	udblac: udblac,
@@ -19514,7 +19890,7 @@ var index$2 = {
 	ufisht: ufisht,
 	ufr: ufr,
 	ugrav: ugrav,
-	ugrave: ugrave,
+	ugrave: ugrave$1,
 	uharl: uharl,
 	uharr: uharr,
 	uhblk: uhblk,
@@ -19524,7 +19900,7 @@ var index$2 = {
 	ultri: ultri,
 	umacr: umacr,
 	um: um,
-	uml: uml,
+	uml: uml$1,
 	uogon: uogon,
 	uopf: uopf,
 	uparrow: uparrow,
@@ -19548,7 +19924,7 @@ var index$2 = {
 	utrif: utrif,
 	uuarr: uuarr,
 	uum: uum,
-	uuml: uuml,
+	uuml: uuml$1,
 	uwangle: uwangle,
 	vArr: vArr,
 	vBar: vBar,
@@ -19628,19 +20004,19 @@ var index$2 = {
 	xvee: xvee,
 	xwedge: xwedge,
 	yacut: yacut,
-	yacute: yacute,
+	yacute: yacute$1,
 	yacy: yacy,
 	ycirc: ycirc,
 	ycy: ycy,
 	ye: ye,
-	yen: yen,
+	yen: yen$1,
 	yfr: yfr,
 	yicy: yicy,
 	yopf: yopf,
 	yscr: yscr,
 	yucy: yucy,
 	yum: yum,
-	yuml: yuml,
+	yuml: yuml$1,
 	zacute: zacute,
 	zcaron: zcaron,
 	zcy: zcy,
@@ -19660,18 +20036,18 @@ var index$2 = {
 
 var characterEntities = Object.freeze({
 	AEli: AEli,
-	AElig: AElig,
+	AElig: AElig$1,
 	AM: AM,
-	AMP: AMP,
+	AMP: AMP$1,
 	Aacut: Aacut,
-	Aacute: Aacute,
+	Aacute: Aacute$1,
 	Abreve: Abreve,
 	Acir: Acir,
-	Acirc: Acirc,
+	Acirc: Acirc$1,
 	Acy: Acy,
 	Afr: Afr,
 	Agrav: Agrav,
-	Agrave: Agrave,
+	Agrave: Agrave$1,
 	Alpha: Alpha,
 	Amacr: Amacr,
 	And: And,
@@ -19679,13 +20055,13 @@ var characterEntities = Object.freeze({
 	Aopf: Aopf,
 	ApplyFunction: ApplyFunction,
 	Arin: Arin,
-	Aring: Aring,
+	Aring: Aring$1,
 	Ascr: Ascr,
 	Assign: Assign,
 	Atild: Atild,
-	Atilde: Atilde,
+	Atilde: Atilde$1,
 	Aum: Aum,
-	Auml: Auml,
+	Auml: Auml$1,
 	Backslash: Backslash,
 	Barv: Barv,
 	Barwed: Barwed,
@@ -19700,14 +20076,14 @@ var characterEntities = Object.freeze({
 	Bumpeq: Bumpeq,
 	CHcy: CHcy,
 	COP: COP,
-	COPY: COPY,
+	COPY: COPY$1,
 	Cacute: Cacute,
 	Cap: Cap,
 	CapitalDifferentialD: CapitalDifferentialD,
 	Cayleys: Cayleys,
 	Ccaron: Ccaron,
 	Ccedi: Ccedi,
-	Ccedil: Ccedil,
+	Ccedil: Ccedil$1,
 	Ccirc: Ccirc,
 	Cconint: Cconint,
 	Cdot: Cdot,
@@ -19790,17 +20166,17 @@ var characterEntities = Object.freeze({
 	Dstrok: Dstrok,
 	ENG: ENG,
 	ET: ET,
-	ETH: ETH,
+	ETH: ETH$1,
 	Eacut: Eacut,
-	Eacute: Eacute,
+	Eacute: Eacute$1,
 	Ecaron: Ecaron,
 	Ecir: Ecir,
-	Ecirc: Ecirc,
+	Ecirc: Ecirc$1,
 	Ecy: Ecy,
 	Edot: Edot,
 	Efr: Efr,
 	Egrav: Egrav,
-	Egrave: Egrave,
+	Egrave: Egrave$1,
 	Element: Element,
 	Emacr: Emacr,
 	EmptySmallSquare: EmptySmallSquare,
@@ -19815,7 +20191,7 @@ var characterEntities = Object.freeze({
 	Esim: Esim,
 	Eta: Eta,
 	Eum: Eum,
-	Euml: Euml,
+	Euml: Euml$1,
 	Exists: Exists,
 	ExponentialE: ExponentialE,
 	Fcy: Fcy,
@@ -19828,7 +20204,7 @@ var characterEntities = Object.freeze({
 	Fscr: Fscr,
 	GJcy: GJcy,
 	G: G,
-	GT: GT,
+	GT: GT$1,
 	Gamma: Gamma,
 	Gammad: Gammad,
 	Gbreve: Gbreve,
@@ -19864,14 +20240,14 @@ var characterEntities = Object.freeze({
 	IJlig: IJlig,
 	IOcy: IOcy,
 	Iacut: Iacut,
-	Iacute: Iacute,
+	Iacute: Iacute$1,
 	Icir: Icir,
-	Icirc: Icirc,
+	Icirc: Icirc$1,
 	Icy: Icy,
 	Idot: Idot,
 	Ifr: Ifr,
 	Igrav: Igrav,
-	Igrave: Igrave,
+	Igrave: Igrave$1,
 	Im: Im,
 	Imacr: Imacr,
 	ImaginaryI: ImaginaryI,
@@ -19888,7 +20264,7 @@ var characterEntities = Object.freeze({
 	Itilde: Itilde,
 	Iukcy: Iukcy,
 	Ium: Ium,
-	Iuml: Iuml,
+	Iuml: Iuml$1,
 	Jcirc: Jcirc,
 	Jcy: Jcy,
 	Jfr: Jfr,
@@ -19906,7 +20282,7 @@ var characterEntities = Object.freeze({
 	Kscr: Kscr,
 	LJcy: LJcy,
 	L: L,
-	LT: LT,
+	LT: LT$1,
 	Lacute: Lacute,
 	Lambda: Lambda,
 	Lang: Lang,
@@ -20042,18 +20418,18 @@ var characterEntities = Object.freeze({
 	NotVerticalBar: NotVerticalBar,
 	Nscr: Nscr,
 	Ntild: Ntild,
-	Ntilde: Ntilde,
+	Ntilde: Ntilde$1,
 	Nu: Nu,
 	OElig: OElig,
 	Oacut: Oacut,
-	Oacute: Oacute,
+	Oacute: Oacute$1,
 	Ocir: Ocir,
-	Ocirc: Ocirc,
+	Ocirc: Ocirc$1,
 	Ocy: Ocy,
 	Odblac: Odblac,
 	Ofr: Ofr,
 	Ograv: Ograv,
-	Ograve: Ograve,
+	Ograve: Ograve$1,
 	Omacr: Omacr,
 	Omega: Omega,
 	Omicron: Omicron,
@@ -20063,12 +20439,12 @@ var characterEntities = Object.freeze({
 	Or: Or,
 	Oscr: Oscr,
 	Oslas: Oslas,
-	Oslash: Oslash,
+	Oslash: Oslash$1,
 	Otild: Otild,
-	Otilde: Otilde,
+	Otilde: Otilde$1,
 	Otimes: Otimes,
 	Oum: Oum,
-	Ouml: Ouml,
+	Ouml: Ouml$1,
 	OverBar: OverBar,
 	OverBrace: OverBrace,
 	OverBracket: OverBracket,
@@ -20093,13 +20469,13 @@ var characterEntities = Object.freeze({
 	Pscr: Pscr,
 	Psi: Psi,
 	QUO: QUO,
-	QUOT: QUOT,
+	QUOT: QUOT$1,
 	Qfr: Qfr,
 	Qopf: Qopf,
 	Qscr: Qscr,
 	RBarr: RBarr,
 	RE: RE,
-	REG: REG,
+	REG: REG$1,
 	Racute: Racute,
 	Rang: Rang,
 	Rarr: Rarr,
@@ -20183,7 +20559,7 @@ var characterEntities = Object.freeze({
 	SupersetEqual: SupersetEqual,
 	Supset: Supset,
 	THOR: THOR,
-	THORN: THORN,
+	THORN: THORN$1,
 	TRADE: TRADE,
 	TSHcy: TSHcy,
 	TScy: TScy,
@@ -20206,18 +20582,18 @@ var characterEntities = Object.freeze({
 	Tscr: Tscr,
 	Tstrok: Tstrok,
 	Uacut: Uacut,
-	Uacute: Uacute,
+	Uacute: Uacute$1,
 	Uarr: Uarr,
 	Uarrocir: Uarrocir,
 	Ubrcy: Ubrcy,
 	Ubreve: Ubreve,
 	Ucir: Ucir,
-	Ucirc: Ucirc,
+	Ucirc: Ucirc$1,
 	Ucy: Ucy,
 	Udblac: Udblac,
 	Ufr: Ufr,
 	Ugrav: Ugrav,
-	Ugrave: Ugrave,
+	Ugrave: Ugrave$1,
 	Umacr: Umacr,
 	UnderBar: UnderBar,
 	UnderBrace: UnderBrace,
@@ -20244,7 +20620,7 @@ var characterEntities = Object.freeze({
 	Uscr: Uscr,
 	Utilde: Utilde,
 	Uum: Uum,
-	Uuml: Uuml,
+	Uuml: Uuml$1,
 	VDash: VDash,
 	Vbar: Vbar,
 	Vcy: Vcy,
@@ -20275,7 +20651,7 @@ var characterEntities = Object.freeze({
 	YIcy: YIcy,
 	YUcy: YUcy,
 	Yacut: Yacut,
-	Yacute: Yacute,
+	Yacute: Yacute$1,
 	Ycirc: Ycirc,
 	Ycy: Ycy,
 	Yfr: Yfr,
@@ -20293,29 +20669,29 @@ var characterEntities = Object.freeze({
 	Zopf: Zopf,
 	Zscr: Zscr,
 	aacut: aacut,
-	aacute: aacute,
+	aacute: aacute$1,
 	abreve: abreve,
 	ac: ac,
 	acE: acE,
 	acd: acd,
 	acir: acir,
-	acirc: acirc,
+	acirc: acirc$1,
 	acut: acut,
-	acute: acute,
+	acute: acute$1,
 	acy: acy,
 	aeli: aeli,
-	aelig: aelig,
+	aelig: aelig$1,
 	af: af,
 	afr: afr,
 	agrav: agrav,
-	agrave: agrave,
+	agrave: agrave$1,
 	alefsym: alefsym,
 	aleph: aleph,
 	alpha: alpha,
 	amacr: amacr,
 	amalg: amalg,
 	am: am,
-	amp: amp,
+	amp: amp$1,
 	and: and,
 	andand: andand,
 	andd: andd,
@@ -20350,15 +20726,15 @@ var characterEntities = Object.freeze({
 	approx: approx,
 	approxeq: approxeq,
 	arin: arin,
-	aring: aring,
+	aring: aring$1,
 	ascr: ascr,
 	ast: ast,
 	asymp: asymp,
 	asympeq: asympeq,
 	atild: atild,
-	atilde: atilde,
+	atilde: atilde$1,
 	aum: aum,
-	auml: auml,
+	auml: auml$1,
 	awconint: awconint,
 	awint: awint,
 	bNot: bNot,
@@ -20463,7 +20839,7 @@ var characterEntities = Object.freeze({
 	bprime: bprime,
 	breve: breve,
 	brvba: brvba,
-	brvbar: brvbar,
+	brvbar: brvbar$1,
 	bscr: bscr,
 	bsemi: bsemi,
 	bsim: bsim,
@@ -20490,16 +20866,16 @@ var characterEntities = Object.freeze({
 	ccaps: ccaps,
 	ccaron: ccaron,
 	ccedi: ccedi,
-	ccedil: ccedil,
+	ccedil: ccedil$1,
 	ccirc: ccirc,
 	ccups: ccups,
 	ccupssm: ccupssm,
 	cdot: cdot,
 	cedi: cedi,
-	cedil: cedil,
+	cedil: cedil$1,
 	cemptyv: cemptyv,
 	cen: cen,
-	cent: cent,
+	cent: cent$1,
 	centerdot: centerdot,
 	cfr: cfr,
 	chcy: chcy,
@@ -20538,7 +20914,7 @@ var characterEntities = Object.freeze({
 	copf: copf,
 	coprod: coprod,
 	cop: cop,
-	copy: copy$2,
+	copy: copy$3,
 	copysr: copysr,
 	crarr: crarr,
 	cross: cross,
@@ -20568,7 +20944,7 @@ var characterEntities = Object.freeze({
 	curlyvee: curlyvee,
 	curlywedge: curlywedge,
 	curre: curre,
-	curren: curren,
+	curren: curren$1,
 	curvearrowleft: curvearrowleft,
 	curvearrowright: curvearrowright,
 	cuvee: cuvee,
@@ -20592,7 +20968,7 @@ var characterEntities = Object.freeze({
 	ddarr: ddarr,
 	ddotseq: ddotseq,
 	de: de,
-	deg: deg,
+	deg: deg$1,
 	delta: delta,
 	demptyv: demptyv,
 	dfisht: dfisht,
@@ -20608,7 +20984,7 @@ var characterEntities = Object.freeze({
 	disin: disin,
 	div: div,
 	divid: divid,
-	divide: divide,
+	divide: divide$1,
 	divideontimes: divideontimes,
 	divonx: divonx,
 	djcy: djcy,
@@ -20645,11 +21021,11 @@ var characterEntities = Object.freeze({
 	eDDot: eDDot,
 	eDot: eDot,
 	eacut: eacut,
-	eacute: eacute,
+	eacute: eacute$1,
 	easter: easter,
 	ecaron: ecaron,
 	ecir: ecir,
-	ecirc: ecirc,
+	ecirc: ecirc$1,
 	ecolon: ecolon,
 	ecy: ecy,
 	edot: edot,
@@ -20658,7 +21034,7 @@ var characterEntities = Object.freeze({
 	efr: efr,
 	eg: eg,
 	egrav: egrav,
-	egrave: egrave,
+	egrave: egrave$1,
 	egs: egs,
 	egsdot: egsdot,
 	el: el,
@@ -20700,9 +21076,9 @@ var characterEntities = Object.freeze({
 	esim: esim,
 	eta: eta,
 	et: et,
-	eth: eth,
+	eth: eth$1,
 	eum: eum,
-	euml: euml,
+	euml: euml$1,
 	euro: euro,
 	excl: excl,
 	exist: exist,
@@ -20727,16 +21103,16 @@ var characterEntities = Object.freeze({
 	forkv: forkv,
 	fpartint: fpartint,
 	frac1: frac1,
-	frac12: frac12,
+	frac12: frac12$1,
 	frac13: frac13,
-	frac14: frac14,
+	frac14: frac14$1,
 	frac15: frac15,
 	frac16: frac16,
 	frac18: frac18,
 	frac23: frac23,
 	frac25: frac25,
 	frac3: frac3,
-	frac34: frac34,
+	frac34: frac34$1,
 	frac35: frac35,
 	frac38: frac38,
 	frac45: frac45,
@@ -20791,7 +21167,7 @@ var characterEntities = Object.freeze({
 	gsime: gsime,
 	gsiml: gsiml,
 	g: g,
-	gt: gt,
+	gt: gt$1,
 	gtcc: gtcc,
 	gtcir: gtcir,
 	gtdot: gtdot,
@@ -20835,18 +21211,18 @@ var characterEntities = Object.freeze({
 	hybull: hybull,
 	hyphen: hyphen,
 	iacut: iacut,
-	iacute: iacute,
+	iacute: iacute$1,
 	ic: ic,
 	icir: icir,
-	icirc: icirc,
+	icirc: icirc$1,
 	icy: icy,
 	iecy: iecy,
 	iexc: iexc,
-	iexcl: iexcl,
+	iexcl: iexcl$1,
 	iff: iff,
 	ifr: ifr,
 	igrav: igrav,
-	igrave: igrave,
+	igrave: igrave$1,
 	ii: ii,
 	iiiint: iiiint,
 	iiint: iiint,
@@ -20876,7 +21252,7 @@ var characterEntities = Object.freeze({
 	iota: iota,
 	iprod: iprod,
 	iques: iques,
-	iquest: iquest,
+	iquest: iquest$1,
 	iscr: iscr,
 	isin: isin,
 	isinE: isinE,
@@ -20888,7 +21264,7 @@ var characterEntities = Object.freeze({
 	itilde: itilde,
 	iukcy: iukcy,
 	ium: ium,
-	iuml: iuml,
+	iuml: iuml$1,
 	jcirc: jcirc,
 	jcy: jcy,
 	jfr: jfr,
@@ -20923,7 +21299,7 @@ var characterEntities = Object.freeze({
 	langle: langle,
 	lap: lap,
 	laqu: laqu,
-	laquo: laquo,
+	laquo: laquo$1,
 	larr: larr,
 	larrb: larrb,
 	larrbfs: larrbfs,
@@ -21045,7 +21421,7 @@ var characterEntities = Object.freeze({
 	lsquor: lsquor,
 	lstrok: lstrok,
 	l: l,
-	lt: lt,
+	lt: lt$1,
 	ltcc: ltcc,
 	ltcir: ltcir,
 	ltdot: ltdot,
@@ -21063,7 +21439,7 @@ var characterEntities = Object.freeze({
 	lvnE: lvnE,
 	mDDot: mDDot,
 	mac: mac,
-	macr: macr,
+	macr: macr$1,
 	male: male,
 	malt: malt,
 	maltese: maltese,
@@ -21080,12 +21456,12 @@ var characterEntities = Object.freeze({
 	mfr: mfr,
 	mho: mho,
 	micr: micr,
-	micro: micro,
+	micro: micro$1,
 	mid: mid,
 	midast: midast,
 	midcir: midcir,
 	middo: middo,
-	middot: middot,
+	middot: middot$1,
 	minus: minus,
 	minusb: minusb,
 	minusd: minusd,
@@ -21124,7 +21500,7 @@ var characterEntities = Object.freeze({
 	natural: natural,
 	naturals: naturals,
 	nbs: nbs,
-	nbsp: nbsp,
+	nbsp: nbsp$1,
 	nbump: nbump,
 	nbumpe: nbumpe,
 	ncap: ncap,
@@ -21183,7 +21559,7 @@ var characterEntities = Object.freeze({
 	nmid: nmid,
 	nopf: nopf,
 	no: no,
-	not: not,
+	not: not$1,
 	notin: notin,
 	notinE: notinE,
 	notindot: notindot,
@@ -21240,7 +21616,7 @@ var characterEntities = Object.freeze({
 	nsupseteqq: nsupseteqq,
 	ntgl: ntgl,
 	ntild: ntild,
-	ntilde: ntilde,
+	ntilde: ntilde$1,
 	ntlg: ntlg,
 	ntriangleleft: ntriangleleft,
 	ntrianglelefteq: ntrianglelefteq,
@@ -21271,10 +21647,10 @@ var characterEntities = Object.freeze({
 	nwnear: nwnear,
 	oS: oS,
 	oacut: oacut,
-	oacute: oacute,
+	oacute: oacute$1,
 	oast: oast,
 	ocir: ocir,
-	ocirc: ocirc,
+	ocirc: ocirc$1,
 	ocy: ocy,
 	odash: odash,
 	odblac: odblac,
@@ -21286,7 +21662,7 @@ var characterEntities = Object.freeze({
 	ofr: ofr,
 	ogon: ogon,
 	ograv: ograv,
-	ograve: ograve,
+	ograve: ograve$1,
 	ogt: ogt,
 	ohbar: ohbar,
 	ohm: ohm,
@@ -21310,25 +21686,25 @@ var characterEntities = Object.freeze({
 	ord: ord,
 	order: order$1,
 	orderof: orderof,
-	ordf: ordf,
-	ordm: ordm,
+	ordf: ordf$1,
+	ordm: ordm$1,
 	origof: origof,
 	oror: oror,
 	orslope: orslope,
 	orv: orv,
 	oscr: oscr,
 	oslas: oslas,
-	oslash: oslash,
+	oslash: oslash$1,
 	osol: osol,
 	otild: otild,
-	otilde: otilde,
+	otilde: otilde$1,
 	otimes: otimes,
 	otimesas: otimesas,
 	oum: oum,
-	ouml: ouml,
+	ouml: ouml$1,
 	ovbar: ovbar,
 	par: par,
-	para: para,
+	para: para$1,
 	parallel: parallel,
 	parsim: parsim,
 	parsl: parsl,
@@ -21358,14 +21734,14 @@ var characterEntities = Object.freeze({
 	plusdu: plusdu,
 	pluse: pluse,
 	plusm: plusm,
-	plusmn: plusmn,
+	plusmn: plusmn$1,
 	plussim: plussim,
 	plustwo: plustwo,
 	pm: pm,
 	pointint: pointint,
 	popf: popf,
 	poun: poun,
-	pound: pound,
+	pound: pound$1,
 	pr: pr,
 	prE: prE,
 	prap: prap,
@@ -21405,7 +21781,7 @@ var characterEntities = Object.freeze({
 	quest: quest,
 	questeq: questeq,
 	quo: quo,
-	quot: quot,
+	quot: quot$1,
 	rAarr: rAarr,
 	rArr: rArr,
 	rAtail: rAtail,
@@ -21420,7 +21796,7 @@ var characterEntities = Object.freeze({
 	range: range$1,
 	rangle: rangle,
 	raqu: raqu,
-	raquo: raquo,
+	raquo: raquo$1,
 	rarr: rarr,
 	rarrap: rarrap,
 	rarrb: rarrb,
@@ -21459,7 +21835,7 @@ var characterEntities = Object.freeze({
 	reals: reals,
 	rect: rect,
 	re: re,
-	reg: reg,
+	reg: reg$1,
 	rfisht: rfisht,
 	rfloor: rfloor,
 	rfr: rfr,
@@ -21534,7 +21910,7 @@ var characterEntities = Object.freeze({
 	searr: searr,
 	searrow: searrow,
 	sec: sec,
-	sect: sect,
+	sect: sect$1,
 	semi: semi,
 	seswar: seswar,
 	setminus: setminus,
@@ -21548,7 +21924,7 @@ var characterEntities = Object.freeze({
 	shortmid: shortmid,
 	shortparallel: shortparallel,
 	sh: sh,
-	shy: shy,
+	shy: shy$1,
 	sigma: sigma,
 	sigmaf: sigmaf,
 	sigmav: sigmav,
@@ -21635,9 +22011,9 @@ var characterEntities = Object.freeze({
 	sum: sum,
 	sung: sung,
 	sup: sup,
-	sup1: sup1,
-	sup2: sup2,
-	sup3: sup3,
+	sup1: sup1$1,
+	sup2: sup2$1,
+	sup3: sup3$1,
 	supE: supE,
 	supdot: supdot,
 	supdsub: supdsub,
@@ -21664,7 +22040,7 @@ var characterEntities = Object.freeze({
 	swarrow: swarrow,
 	swnwar: swnwar,
 	szli: szli,
-	szlig: szlig,
+	szlig: szlig$1,
 	target: target,
 	tau: tau,
 	tbrk: tbrk,
@@ -21685,10 +22061,10 @@ var characterEntities = Object.freeze({
 	thkap: thkap,
 	thksim: thksim,
 	thor: thor,
-	thorn: thorn,
+	thorn: thorn$1,
 	tilde: tilde,
 	time: time,
-	times: times,
+	times: times$1,
 	timesb: timesb,
 	timesbar: timesbar,
 	timesd: timesd,
@@ -21726,12 +22102,12 @@ var characterEntities = Object.freeze({
 	uArr: uArr,
 	uHar: uHar,
 	uacut: uacut,
-	uacute: uacute,
+	uacute: uacute$1,
 	uarr: uarr,
 	ubrcy: ubrcy,
 	ubreve: ubreve,
 	ucir: ucir,
-	ucirc: ucirc,
+	ucirc: ucirc$1,
 	ucy: ucy,
 	udarr: udarr,
 	udblac: udblac,
@@ -21739,7 +22115,7 @@ var characterEntities = Object.freeze({
 	ufisht: ufisht,
 	ufr: ufr,
 	ugrav: ugrav,
-	ugrave: ugrave,
+	ugrave: ugrave$1,
 	uharl: uharl,
 	uharr: uharr,
 	uhblk: uhblk,
@@ -21749,7 +22125,7 @@ var characterEntities = Object.freeze({
 	ultri: ultri,
 	umacr: umacr,
 	um: um,
-	uml: uml,
+	uml: uml$1,
 	uogon: uogon,
 	uopf: uopf,
 	uparrow: uparrow,
@@ -21773,7 +22149,7 @@ var characterEntities = Object.freeze({
 	utrif: utrif,
 	uuarr: uuarr,
 	uum: uum,
-	uuml: uuml,
+	uuml: uuml$1,
 	uwangle: uwangle,
 	vArr: vArr,
 	vBar: vBar,
@@ -21853,19 +22229,19 @@ var characterEntities = Object.freeze({
 	xvee: xvee,
 	xwedge: xwedge,
 	yacut: yacut,
-	yacute: yacute,
+	yacute: yacute$1,
 	yacy: yacy,
 	ycirc: ycirc,
 	ycy: ycy,
 	ye: ye,
-	yen: yen,
+	yen: yen$1,
 	yfr: yfr,
 	yicy: yicy,
 	yopf: yopf,
 	yscr: yscr,
 	yucy: yucy,
 	yum: yum,
-	yuml: yuml,
+	yuml: yuml$1,
 	zacute: zacute,
 	zcaron: zcaron,
 	zcy: zcy,
@@ -21879,423 +22255,28 @@ var characterEntities = Object.freeze({
 	zscr: zscr,
 	zwj: zwj,
 	zwnj: zwnj,
-	default: index$2
-});
-
-const AElig$1 = "Æ";
-const AMP$1 = "&";
-const Aacute$1 = "Á";
-const Acirc$1 = "Â";
-const Agrave$1 = "À";
-const Aring$1 = "Å";
-const Atilde$1 = "Ã";
-const Auml$1 = "Ä";
-const COPY$1 = "©";
-const Ccedil$1 = "Ç";
-const ETH$1 = "Ð";
-const Eacute$1 = "É";
-const Ecirc$1 = "Ê";
-const Egrave$1 = "È";
-const Euml$1 = "Ë";
-const GT$1 = ">";
-const Iacute$1 = "Í";
-const Icirc$1 = "Î";
-const Igrave$1 = "Ì";
-const Iuml$1 = "Ï";
-const LT$1 = "<";
-const Ntilde$1 = "Ñ";
-const Oacute$1 = "Ó";
-const Ocirc$1 = "Ô";
-const Ograve$1 = "Ò";
-const Oslash$1 = "Ø";
-const Otilde$1 = "Õ";
-const Ouml$1 = "Ö";
-const QUOT$1 = "\"";
-const REG$1 = "®";
-const THORN$1 = "Þ";
-const Uacute$1 = "Ú";
-const Ucirc$1 = "Û";
-const Ugrave$1 = "Ù";
-const Uuml$1 = "Ü";
-const Yacute$1 = "Ý";
-const aacute$1 = "á";
-const acirc$1 = "â";
-const acute$1 = "´";
-const aelig$1 = "æ";
-const agrave$1 = "à";
-const amp$1 = "&";
-const aring$1 = "å";
-const atilde$1 = "ã";
-const auml$1 = "ä";
-const brvbar$1 = "¦";
-const ccedil$1 = "ç";
-const cedil$1 = "¸";
-const cent$1 = "¢";
-const copy$3 = "©";
-const curren$1 = "¤";
-const deg$1 = "°";
-const divide$1 = "÷";
-const eacute$1 = "é";
-const ecirc$1 = "ê";
-const egrave$1 = "è";
-const eth$1 = "ð";
-const euml$1 = "ë";
-const frac12$1 = "½";
-const frac14$1 = "¼";
-const frac34$1 = "¾";
-const gt$1 = ">";
-const iacute$1 = "í";
-const icirc$1 = "î";
-const iexcl$1 = "¡";
-const igrave$1 = "ì";
-const iquest$1 = "¿";
-const iuml$1 = "ï";
-const laquo$1 = "«";
-const lt$1 = "<";
-const macr$1 = "¯";
-const micro$1 = "µ";
-const middot$1 = "·";
-const nbsp$1 = " ";
-const not$1 = "¬";
-const ntilde$1 = "ñ";
-const oacute$1 = "ó";
-const ocirc$1 = "ô";
-const ograve$1 = "ò";
-const ordf$1 = "ª";
-const ordm$1 = "º";
-const oslash$1 = "ø";
-const otilde$1 = "õ";
-const ouml$1 = "ö";
-const para$1 = "¶";
-const plusmn$1 = "±";
-const pound$1 = "£";
-const quot$1 = "\"";
-const raquo$1 = "»";
-const reg$1 = "®";
-const sect$1 = "§";
-const shy$1 = "­";
-const sup1$1 = "¹";
-const sup2$1 = "²";
-const sup3$1 = "³";
-const szlig$1 = "ß";
-const thorn$1 = "þ";
-const times$1 = "×";
-const uacute$1 = "ú";
-const ucirc$1 = "û";
-const ugrave$1 = "ù";
-const uml$1 = "¨";
-const uuml$1 = "ü";
-const yacute$1 = "ý";
-const yen$1 = "¥";
-const yuml$1 = "ÿ";
-var index$3 = {
-	AElig: AElig$1,
-	AMP: AMP$1,
-	Aacute: Aacute$1,
-	Acirc: Acirc$1,
-	Agrave: Agrave$1,
-	Aring: Aring$1,
-	Atilde: Atilde$1,
-	Auml: Auml$1,
-	COPY: COPY$1,
-	Ccedil: Ccedil$1,
-	ETH: ETH$1,
-	Eacute: Eacute$1,
-	Ecirc: Ecirc$1,
-	Egrave: Egrave$1,
-	Euml: Euml$1,
-	GT: GT$1,
-	Iacute: Iacute$1,
-	Icirc: Icirc$1,
-	Igrave: Igrave$1,
-	Iuml: Iuml$1,
-	LT: LT$1,
-	Ntilde: Ntilde$1,
-	Oacute: Oacute$1,
-	Ocirc: Ocirc$1,
-	Ograve: Ograve$1,
-	Oslash: Oslash$1,
-	Otilde: Otilde$1,
-	Ouml: Ouml$1,
-	QUOT: QUOT$1,
-	REG: REG$1,
-	THORN: THORN$1,
-	Uacute: Uacute$1,
-	Ucirc: Ucirc$1,
-	Ugrave: Ugrave$1,
-	Uuml: Uuml$1,
-	Yacute: Yacute$1,
-	aacute: aacute$1,
-	acirc: acirc$1,
-	acute: acute$1,
-	aelig: aelig$1,
-	agrave: agrave$1,
-	amp: amp$1,
-	aring: aring$1,
-	atilde: atilde$1,
-	auml: auml$1,
-	brvbar: brvbar$1,
-	ccedil: ccedil$1,
-	cedil: cedil$1,
-	cent: cent$1,
-	copy: copy$3,
-	curren: curren$1,
-	deg: deg$1,
-	divide: divide$1,
-	eacute: eacute$1,
-	ecirc: ecirc$1,
-	egrave: egrave$1,
-	eth: eth$1,
-	euml: euml$1,
-	frac12: frac12$1,
-	frac14: frac14$1,
-	frac34: frac34$1,
-	gt: gt$1,
-	iacute: iacute$1,
-	icirc: icirc$1,
-	iexcl: iexcl$1,
-	igrave: igrave$1,
-	iquest: iquest$1,
-	iuml: iuml$1,
-	laquo: laquo$1,
-	lt: lt$1,
-	macr: macr$1,
-	micro: micro$1,
-	middot: middot$1,
-	nbsp: nbsp$1,
-	not: not$1,
-	ntilde: ntilde$1,
-	oacute: oacute$1,
-	ocirc: ocirc$1,
-	ograve: ograve$1,
-	ordf: ordf$1,
-	ordm: ordm$1,
-	oslash: oslash$1,
-	otilde: otilde$1,
-	ouml: ouml$1,
-	para: para$1,
-	plusmn: plusmn$1,
-	pound: pound$1,
-	quot: quot$1,
-	raquo: raquo$1,
-	reg: reg$1,
-	sect: sect$1,
-	shy: shy$1,
-	sup1: sup1$1,
-	sup2: sup2$1,
-	sup3: sup3$1,
-	szlig: szlig$1,
-	thorn: thorn$1,
-	times: times$1,
-	uacute: uacute$1,
-	ucirc: ucirc$1,
-	ugrave: ugrave$1,
-	uml: uml$1,
-	uuml: uuml$1,
-	yacute: yacute$1,
-	yen: yen$1,
-	yuml: yuml$1
-};
-
-var characterEntitiesLegacy = Object.freeze({
-	AElig: AElig$1,
-	AMP: AMP$1,
-	Aacute: Aacute$1,
-	Acirc: Acirc$1,
-	Agrave: Agrave$1,
-	Aring: Aring$1,
-	Atilde: Atilde$1,
-	Auml: Auml$1,
-	COPY: COPY$1,
-	Ccedil: Ccedil$1,
-	ETH: ETH$1,
-	Eacute: Eacute$1,
-	Ecirc: Ecirc$1,
-	Egrave: Egrave$1,
-	Euml: Euml$1,
-	GT: GT$1,
-	Iacute: Iacute$1,
-	Icirc: Icirc$1,
-	Igrave: Igrave$1,
-	Iuml: Iuml$1,
-	LT: LT$1,
-	Ntilde: Ntilde$1,
-	Oacute: Oacute$1,
-	Ocirc: Ocirc$1,
-	Ograve: Ograve$1,
-	Oslash: Oslash$1,
-	Otilde: Otilde$1,
-	Ouml: Ouml$1,
-	QUOT: QUOT$1,
-	REG: REG$1,
-	THORN: THORN$1,
-	Uacute: Uacute$1,
-	Ucirc: Ucirc$1,
-	Ugrave: Ugrave$1,
-	Uuml: Uuml$1,
-	Yacute: Yacute$1,
-	aacute: aacute$1,
-	acirc: acirc$1,
-	acute: acute$1,
-	aelig: aelig$1,
-	agrave: agrave$1,
-	amp: amp$1,
-	aring: aring$1,
-	atilde: atilde$1,
-	auml: auml$1,
-	brvbar: brvbar$1,
-	ccedil: ccedil$1,
-	cedil: cedil$1,
-	cent: cent$1,
-	copy: copy$3,
-	curren: curren$1,
-	deg: deg$1,
-	divide: divide$1,
-	eacute: eacute$1,
-	ecirc: ecirc$1,
-	egrave: egrave$1,
-	eth: eth$1,
-	euml: euml$1,
-	frac12: frac12$1,
-	frac14: frac14$1,
-	frac34: frac34$1,
-	gt: gt$1,
-	iacute: iacute$1,
-	icirc: icirc$1,
-	iexcl: iexcl$1,
-	igrave: igrave$1,
-	iquest: iquest$1,
-	iuml: iuml$1,
-	laquo: laquo$1,
-	lt: lt$1,
-	macr: macr$1,
-	micro: micro$1,
-	middot: middot$1,
-	nbsp: nbsp$1,
-	not: not$1,
-	ntilde: ntilde$1,
-	oacute: oacute$1,
-	ocirc: ocirc$1,
-	ograve: ograve$1,
-	ordf: ordf$1,
-	ordm: ordm$1,
-	oslash: oslash$1,
-	otilde: otilde$1,
-	ouml: ouml$1,
-	para: para$1,
-	plusmn: plusmn$1,
-	pound: pound$1,
-	quot: quot$1,
-	raquo: raquo$1,
-	reg: reg$1,
-	sect: sect$1,
-	shy: shy$1,
-	sup1: sup1$1,
-	sup2: sup2$1,
-	sup3: sup3$1,
-	szlig: szlig$1,
-	thorn: thorn$1,
-	times: times$1,
-	uacute: uacute$1,
-	ucirc: ucirc$1,
-	ugrave: ugrave$1,
-	uml: uml$1,
-	uuml: uuml$1,
-	yacute: yacute$1,
-	yen: yen$1,
-	yuml: yuml$1,
-	default: index$3
-});
-
-var index$4 = {
-	"0": "�",
-	"128": "€",
-	"130": "‚",
-	"131": "ƒ",
-	"132": "„",
-	"133": "…",
-	"134": "†",
-	"135": "‡",
-	"136": "ˆ",
-	"137": "‰",
-	"138": "Š",
-	"139": "‹",
-	"140": "Œ",
-	"142": "Ž",
-	"145": "‘",
-	"146": "’",
-	"147": "“",
-	"148": "”",
-	"149": "•",
-	"150": "–",
-	"151": "—",
-	"152": "˜",
-	"153": "™",
-	"154": "š",
-	"155": "›",
-	"156": "œ",
-	"158": "ž",
-	"159": "Ÿ"
-};
-
-var characterReferenceInvalid = Object.freeze({
 	default: index$4
 });
 
-var isDecimal = decimal;
+var characterEntities$1 = ( characterEntities && index$4 ) || characterEntities;
 
-/* Check if the given character code, or the character
- * code at the first character, is decimal. */
-function decimal(character) {
-  var code = typeof character === 'string' ? character.charCodeAt(0) : character;
+var decodeEntity_1 = decodeEntity;
 
-  return code >= 48 && code <= 57 /* 0-9 */
+var own$3 = {}.hasOwnProperty;
+
+function decodeEntity(characters) {
+  return own$3.call(characterEntities$1, characters)
+    ? characterEntities$1[characters]
+    : false
 }
 
-var isHexadecimal = hexadecimal;
+var legacy = ( characterEntitiesLegacy && index$2 ) || characterEntitiesLegacy;
 
-/* Check if the given character code, or the character
- * code at the first character, is hexadecimal. */
-function hexadecimal(character) {
-  var code = typeof character === 'string' ? character.charCodeAt(0) : character;
-
-  return (
-    (code >= 97 /* a */ && code <= 102) /* z */ ||
-    (code >= 65 /* A */ && code <= 70) /* Z */ ||
-    (code >= 48 /* A */ && code <= 57) /* Z */
-  )
-}
-
-var isAlphabetical = alphabetical;
-
-/* Check if the given character code, or the character
- * code at the first character, is alphabetical. */
-function alphabetical(character) {
-  var code = typeof character === 'string' ? character.charCodeAt(0) : character;
-
-  return (
-    (code >= 97 && code <= 122) /* a-z */ ||
-    (code >= 65 && code <= 90) /* A-Z */
-  )
-}
-
-var isAlphanumerical = alphanumerical;
-
-/* Check if the given character code, or the character
- * code at the first character, is alphanumerical. */
-function alphanumerical(character) {
-  return isAlphabetical(character) || isDecimal(character)
-}
-
-var characterEntities$1 = ( characterEntities && index$2 ) || characterEntities;
-
-var legacy = ( characterEntitiesLegacy && index$3 ) || characterEntitiesLegacy;
-
-var invalid = ( characterReferenceInvalid && index$4 ) || characterReferenceInvalid;
+var invalid = ( characterReferenceInvalid && index$3 ) || characterReferenceInvalid;
 
 var parseEntities_1 = parseEntities;
 
-var own$3 = {}.hasOwnProperty;
+var own$4 = {}.hasOwnProperty;
 var fromCharCode = String.fromCharCode;
 var noop$1 = Function.prototype;
 
@@ -22401,6 +22382,7 @@ function parse$7(value, settings) {
   var queue = '';
   var result = [];
   var entityCharacters;
+  var namedEntity;
   var terminated;
   var characters;
   var character;
@@ -22521,7 +22503,7 @@ function parse$7(value, settings) {
          * last viable named reference.  This
          * ensures we do not need to walk backwards
          * later. */
-        if (type === NAMED && own$3.call(legacy, characters)) {
+        if (type === NAMED && own$4.call(legacy, characters)) {
           entityCharacters = characters;
           entity = legacy[characters];
         }
@@ -22532,9 +22514,11 @@ function parse$7(value, settings) {
       if (terminated) {
         end++;
 
-        if (type === NAMED && own$3.call(characterEntities$1, characters)) {
+        namedEntity = type === NAMED ? decodeEntity_1(characters) : false;
+
+        if (namedEntity) {
           entityCharacters = characters;
-          entity = characterEntities$1[characters];
+          entity = namedEntity;
         }
       }
 
@@ -23249,7 +23233,7 @@ var blockElements$1 = Object.freeze({
 	default: blockElements
 });
 
-var require$$0$16 = ( blockElements$1 && blockElements ) || blockElements$1;
+var require$$0$15 = ( blockElements$1 && blockElements ) || blockElements$1;
 
 var defaults$2 = {
   position: true,
@@ -23257,7 +23241,7 @@ var defaults$2 = {
   commonmark: false,
   footnotes: false,
   pedantic: false,
-  blocks: require$$0$16
+  blocks: require$$0$15
 };
 
 var setOptions_1 = setOptions;
@@ -26430,7 +26414,7 @@ function locate$6(value, fromIndex) {
 var link_1 = link$2;
 link$2.locator = link;
 
-var own$4 = {}.hasOwnProperty;
+var own$5 = {}.hasOwnProperty;
 
 var C_BACKSLASH$3 = '\\';
 var C_BRACKET_OPEN$3 = '[';
@@ -26641,7 +26625,7 @@ function link$2(eat, value, silent) {
     while (index < length) {
       character = value.charAt(index);
 
-      if (subqueue && own$4.call(markers, character)) {
+      if (subqueue && own$5.call(markers, character)) {
         break;
       }
 
@@ -26699,7 +26683,7 @@ function link$2(eat, value, silent) {
   subvalue += queue;
 
   /* Eat the title. */
-  if (queue && own$4.call(markers, character)) {
+  if (queue && own$5.call(markers, character)) {
     index++;
     subvalue += character;
     queue = '';
@@ -28510,7 +28494,7 @@ var dangerous$2 = ( dangerous$1 && dangerous ) || dangerous$1;
 var stringifyEntities = encode;
 encode.escape = escape$1;
 
-var own$5 = {}.hasOwnProperty;
+var own$6 = {}.hasOwnProperty;
 
 /* List of enforced escapes. */
 var escapes$2 = ['"', "'", '<', '>', '&', '`'];
@@ -28579,7 +28563,7 @@ function one$1(char, next, options) {
   var named;
   var numeric;
 
-  if ((shortest || options.useNamedReferences) && own$5.call(characters$1, char)) {
+  if ((shortest || options.useNamedReferences) && own$6.call(characters$1, char)) {
     named = toNamed(characters$1[char], next, omit, options.attribute);
   }
 
@@ -28600,7 +28584,7 @@ function toNamed(name, next, omit, attribute) {
 
   if (
     omit &&
-    own$5.call(legacy, name) &&
+    own$6.call(legacy, name) &&
     dangerous$2.indexOf(name) === -1 &&
     (!attribute || (next && next !== '=' && !isAlphanumerical(next)))
   ) {
@@ -30309,6 +30293,7 @@ function stringify$7(options) {
 
 var remark = unified_1().use(remarkParse).use(remarkStringify).freeze();
 
+const _args = [["remark@8.0.0","D:\\code\\prws\\tools\\node-lint-md-cli-rollup"]];
 const _from = "remark@8.0.0";
 const _id = "remark@8.0.0";
 const _inBundle = false;
@@ -30316,17 +30301,14 @@ const _integrity = "sha512-K0PTsaZvJlXTl9DN6qYlvjTkqSZBFELhROZMrblm2rB+085flN84n
 const _location = "/remark";
 const _phantomChildren = {};
 const _requested = {"type":"version","registry":true,"raw":"remark@8.0.0","name":"remark","escapedName":"remark","rawSpec":"8.0.0","saveSpec":null,"fetchSpec":"8.0.0"};
-const _requiredBy = ["#USER","/"];
+const _requiredBy = ["/"];
 const _resolved = "https://registry.npmjs.org/remark/-/remark-8.0.0.tgz";
-const _shasum = "287b6df2fe1190e263c1d15e486d3fa835594d6d";
-const _spec = "remark@8.0.0";
-const _where = "/mnt/d/code/node/tools/node-lint-md-cli-rollup";
+const _spec = "8.0.0";
+const _where = "D:\\code\\prws\\tools\\node-lint-md-cli-rollup";
 const author = {"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"};
 const bugs = {"url":"https://github.com/wooorm/remark/issues"};
-const bundleDependencies = false;
 const contributors = [{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"}];
 const dependencies = {"remark-parse":"^4.0.0","remark-stringify":"^4.0.0","unified":"^6.0.0"};
-const deprecated$1 = false;
 const description = "Markdown processor powered by plugins";
 const files = ["index.js"];
 const homepage = "http://remark.js.org";
@@ -30338,6 +30320,7 @@ const scripts = {};
 const version$1 = "8.0.0";
 const xo = false;
 var _package = {
+	_args: _args,
 	_from: _from,
 	_id: _id,
 	_inBundle: _inBundle,
@@ -30347,15 +30330,12 @@ var _package = {
 	_requested: _requested,
 	_requiredBy: _requiredBy,
 	_resolved: _resolved,
-	_shasum: _shasum,
 	_spec: _spec,
 	_where: _where,
 	author: author,
 	bugs: bugs,
-	bundleDependencies: bundleDependencies,
 	contributors: contributors,
 	dependencies: dependencies,
-	deprecated: deprecated$1,
 	description: description,
 	files: files,
 	homepage: homepage,
@@ -30369,6 +30349,7 @@ var _package = {
 };
 
 var _package$1 = Object.freeze({
+	_args: _args,
 	_from: _from,
 	_id: _id,
 	_inBundle: _inBundle,
@@ -30378,15 +30359,12 @@ var _package$1 = Object.freeze({
 	_requested: _requested,
 	_requiredBy: _requiredBy,
 	_resolved: _resolved,
-	_shasum: _shasum,
 	_spec: _spec,
 	_where: _where,
 	author: author,
 	bugs: bugs,
-	bundleDependencies: bundleDependencies,
 	contributors: contributors,
 	dependencies: dependencies,
-	deprecated: deprecated$1,
 	description: description,
 	files: files,
 	homepage: homepage,
@@ -30404,7 +30382,7 @@ const name$1 = "node-lint-md-cli-rollup";
 const description$1 = "remark packaged for node markdown linting";
 const version$2 = "1.0.0";
 const devDependencies = {"rollup":"^0.55.5","rollup-plugin-commonjs":"^8.0.2","rollup-plugin-json":"^2.3.1","rollup-plugin-node-resolve":"^3.4.0"};
-const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^8.0.0","remark-lint":"^6.0.2","remark-preset-lint-node":"./remark-preset-lint-node","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
+const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^8.0.0","remark-lint":"^6.0.2","remark-preset-lint-node":"^1.0.3","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
 const scripts$1 = {"build":"rollup -c","build-node":"npm run build && cp dist/* .."};
 var _package$2 = {
 	name: name$1,
@@ -30424,308 +30402,6 @@ var _package$3 = Object.freeze({
 	scripts: scripts$1,
 	default: _package$2
 });
-
-var trim_1$2 = createCommonjsModule(function (module, exports) {
-exports = module.exports = trim;
-
-function trim(str){
-  return str.replace(/^\s*|\s*$/g, '');
-}
-
-exports.left = function(str){
-  return str.replace(/^\s*/, '');
-};
-
-exports.right = function(str){
-  return str.replace(/\s*$/, '');
-};
-});
-
-var trim_2$1 = trim_1$2.left;
-var trim_3$1 = trim_1$2.right;
-
-/* Expose. */
-var vfileLocation$3 = factory$6;
-
-/* Factory. */
-function factory$6(file) {
-  var contents = indices$1(String(file));
-
-  return {
-    toPosition: offsetToPositionFactory$1(contents),
-    toOffset: positionToOffsetFactory$1(contents)
-  }
-}
-
-/* Factory to get the line and column-based `position` for
- * `offset` in the bound indices. */
-function offsetToPositionFactory$1(indices) {
-  return offsetToPosition
-
-  /* Get the line and column-based `position` for
-   * `offset` in the bound indices. */
-  function offsetToPosition(offset) {
-    var index = -1;
-    var length = indices.length;
-
-    if (offset < 0) {
-      return {}
-    }
-
-    while (++index < length) {
-      if (indices[index] > offset) {
-        return {
-          line: index + 1,
-          column: offset - (indices[index - 1] || 0) + 1,
-          offset: offset
-        }
-      }
-    }
-
-    return {}
-  }
-}
-
-/* Factory to get the `offset` for a line and column-based
- * `position` in the bound indices. */
-function positionToOffsetFactory$1(indices) {
-  return positionToOffset
-
-  /* Get the `offset` for a line and column-based
-   * `position` in the bound indices. */
-  function positionToOffset(position) {
-    var line = position && position.line;
-    var column = position && position.column;
-
-    if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
-      return (indices[line - 2] || 0) + column - 1 || 0
-    }
-
-    return -1
-  }
-}
-
-/* Get indices of line-breaks in `value`. */
-function indices$1(value) {
-  var result = [];
-  var index = value.indexOf('\n');
-
-  while (index !== -1) {
-    result.push(index + 1);
-    index = value.indexOf('\n', index + 1);
-  }
-
-  result.push(value.length + 1);
-
-  return result
-}
-
-/* eslint-disable max-params */
-
-/* Expose. */
-var unistUtilIs$2 = is$2;
-
-/* Assert if `test` passes for `node`.
- * When a `parent` node is known the `index` of node */
-function is$2(test, node, index, parent, context) {
-  var hasParent = parent !== null && parent !== undefined;
-  var hasIndex = index !== null && index !== undefined;
-  var check = convert$1(test);
-
-  if (
-    hasIndex &&
-    (typeof index !== 'number' || index < 0 || index === Infinity)
-  ) {
-    throw new Error('Expected positive finite index or child node')
-  }
-
-  if (hasParent && (!is$2(null, parent) || !parent.children)) {
-    throw new Error('Expected parent node')
-  }
-
-  if (!node || !node.type || typeof node.type !== 'string') {
-    return false
-  }
-
-  if (hasParent !== hasIndex) {
-    throw new Error('Expected both parent and index')
-  }
-
-  return Boolean(check.call(context, node, index, parent))
-}
-
-function convert$1(test) {
-  if (typeof test === 'string') {
-    return typeFactory$1(test)
-  }
-
-  if (test === null || test === undefined) {
-    return ok$2
-  }
-
-  if (typeof test === 'object') {
-    return ('length' in test ? anyFactory$1 : matchesFactory$1)(test)
-  }
-
-  if (typeof test === 'function') {
-    return test
-  }
-
-  throw new Error('Expected function, string, or object as test')
-}
-
-function convertAll$1(tests) {
-  var results = [];
-  var length = tests.length;
-  var index = -1;
-
-  while (++index < length) {
-    results[index] = convert$1(tests[index]);
-  }
-
-  return results
-}
-
-/* Utility assert each property in `test` is represented
- * in `node`, and each values are strictly equal. */
-function matchesFactory$1(test) {
-  return matches
-
-  function matches(node) {
-    var key;
-
-    for (key in test) {
-      if (node[key] !== test[key]) {
-        return false
-      }
-    }
-
-    return true
-  }
-}
-
-function anyFactory$1(tests) {
-  var checks = convertAll$1(tests);
-  var length = checks.length;
-
-  return matches
-
-  function matches() {
-    var index = -1;
-
-    while (++index < length) {
-      if (checks[index].apply(this, arguments)) {
-        return true
-      }
-    }
-
-    return false
-  }
-}
-
-/* Utility to convert a string into a function which checks
- * a given node’s type for said string. */
-function typeFactory$1(test) {
-  return type
-
-  function type(node) {
-    return Boolean(node && node.type === test)
-  }
-}
-
-/* Utility to return true. */
-function ok$2() {
-  return true
-}
-
-var unistUtilVisitParents$2 = visitParents$2;
-
-
-
-var CONTINUE$2 = true;
-var SKIP$2 = 'skip';
-var EXIT$2 = false;
-
-visitParents$2.CONTINUE = CONTINUE$2;
-visitParents$2.SKIP = SKIP$2;
-visitParents$2.EXIT = EXIT$2;
-
-function visitParents$2(tree, test, visitor, reverse) {
-  if (typeof test === 'function' && typeof visitor !== 'function') {
-    reverse = visitor;
-    visitor = test;
-    test = null;
-  }
-
-  one(tree, null, []);
-
-  // Visit a single node.
-  function one(node, index, parents) {
-    var result;
-
-    if (!test || unistUtilIs$2(test, node, index, parents[parents.length - 1] || null)) {
-      result = visitor(node, parents);
-
-      if (result === EXIT$2) {
-        return result
-      }
-    }
-
-    if (node.children && result !== SKIP$2) {
-      return all(node.children, parents.concat(node)) === EXIT$2 ? EXIT$2 : result
-    }
-
-    return result
-  }
-
-  // Visit children in `parent`.
-  function all(children, parents) {
-    var min = -1;
-    var step = reverse ? -1 : 1;
-    var index = (reverse ? children.length : min) + step;
-    var child;
-    var result;
-
-    while (index > min && index < children.length) {
-      child = children[index];
-      result = child && one(child, index, parents);
-
-      if (result === EXIT$2) {
-        return result
-      }
-
-      index = typeof result === 'number' ? result : index + step;
-    }
-  }
-}
-
-var unistUtilVisit$2 = visit$2;
-
-
-
-var CONTINUE$3 = unistUtilVisitParents$2.CONTINUE;
-var SKIP$3 = unistUtilVisitParents$2.SKIP;
-var EXIT$3 = unistUtilVisitParents$2.EXIT;
-
-visit$2.CONTINUE = CONTINUE$3;
-visit$2.SKIP = SKIP$3;
-visit$2.EXIT = EXIT$3;
-
-function visit$2(tree, test, visitor, reverse) {
-  if (typeof test === 'function' && typeof visitor !== 'function') {
-    reverse = visitor;
-    visitor = test;
-    test = null;
-  }
-
-  unistUtilVisitParents$2(tree, test, overload, reverse);
-
-  function overload(node, parents) {
-    var parent = parents[parents.length - 1];
-    var index = parent ? parent.children.indexOf(node) : null;
-    return visitor(node, index, parent)
-  }
-}
 
 /* Map of allowed verbs. */
 var ALLOWED_VERBS = {
@@ -30773,13 +30449,13 @@ function messageControl(options) {
   return transformer
 
   function transformer(tree, file) {
-    var toOffset = vfileLocation$3(file).toOffset;
+    var toOffset = vfileLocation(file).toOffset;
     var initial = !reset;
     var gaps = detectGaps(tree, file);
     var scope = {};
     var globals = [];
 
-    unistUtilVisit$2(tree, test, visitor);
+    unistUtilVisit(tree, test, visitor);
 
     file.messages = file.messages.filter(filter);
 
@@ -30974,7 +30650,7 @@ function detectGaps(tree, file) {
   var gaps = [];
 
   /* Find all gaps. */
-  unistUtilVisit$2(tree, one);
+  unistUtilVisit(tree, one);
 
   /* Get the end of the document.
    * This detects if the last node was the last node.
@@ -30985,7 +30661,7 @@ function detectGaps(tree, file) {
     lastNode.position &&
     lastNode.position.end &&
     offset === lastNode.position.end.offset &&
-    trim_1$2(file.toString().slice(offset)) !== ''
+    trim_1(file.toString().slice(offset)) !== ''
   ) {
     update();
 
@@ -31145,32 +30821,12 @@ function parameters(value) {
   }
 }
 
-var immutable$2 = extend$6;
-
-var hasOwnProperty$1 = Object.prototype.hasOwnProperty;
-
-function extend$6() {
-    var target = {};
-
-    for (var i = 0; i < arguments.length; i++) {
-        var source = arguments[i];
-
-        for (var key in source) {
-            if (hasOwnProperty$1.call(source, key)) {
-                target[key] = source[key];
-            }
-        }
-    }
-
-    return target
-}
-
 var remarkMessageControl = messageControl$1;
 
 function messageControl$1(options) {
   var settings = options || {};
 
-  return unifiedMessageControl(immutable$2(options, {
+  return unifiedMessageControl(immutable(options, {
     marker: settings.marker || mdastCommentMarker,
     test: settings.test || 'html'
   }));
@@ -31628,9 +31284,9 @@ function promise(value) {
   return value && 'function' == typeof value.then;
 }
 
-var unifiedLintRule = factory$7;
+var unifiedLintRule = factory$6;
 
-function factory$7(id, rule) {
+function factory$6(id, rule) {
   var parts = id.split(':');
   var source = parts[0];
   var ruleId = parts[1];
@@ -31796,9 +31452,9 @@ var reason = 'Checkboxes should be followed by a single character';
 
 function checkboxContentIndent(tree, file) {
   var contents = String(file);
-  var location = vfileLocation$3(file);
+  var location = vfileLocation(file);
 
-  unistUtilVisit$2(tree, 'listItem', visitor);
+  unistUtilVisit(tree, 'listItem', visitor);
 
   function visitor(node) {
     var initial;
@@ -31840,7 +31496,7 @@ var reason$1 = 'Do not use consecutive white-space in definition labels';
 function definitionSpacing(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit$2(tree, ['definition', 'footnoteDefinition'], validate);
+  unistUtilVisit(tree, ['definition', 'footnoteDefinition'], validate);
 
   function validate(node) {
     var start = unistUtilPosition.start(node).offset;
@@ -31878,7 +31534,7 @@ function fencedCodeFlag(tree, file, pref) {
     flags = String(pref).split(',');
   }
 
-  unistUtilVisit$2(tree, 'code', visitor);
+  unistUtilVisit(tree, 'code', visitor);
 
   function visitor(node) {
     var value;
@@ -31906,7 +31562,7 @@ var start$2 = unistUtilPosition.start;
 function finalDefinition(tree, file) {
   var last = null;
 
-  unistUtilVisit$2(tree, visitor, true);
+  unistUtilVisit(tree, visitor, true);
 
   function visitor(node) {
     var line = start$2(node).line;
@@ -31949,7 +31605,7 @@ var reason$2 = 'Use two spaces for hard line breaks';
 function hardBreakSpaces(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit$2(tree, 'break', visitor);
+  unistUtilVisit(tree, 'break', visitor);
 
   function visitor(node) {
     var value;
@@ -32003,7 +31659,7 @@ var protocol$1 = /^[a-z][a-z+.-]+:\/?/i;
 var reason$3 = 'All automatic links must start with a protocol';
 
 function noAutoLinkWithoutProtocol(tree, file) {
-  unistUtilVisit$2(tree, 'link', visitor);
+  unistUtilVisit(tree, 'link', visitor);
 
   function visitor(node) {
     var children;
@@ -32026,10 +31682,10 @@ var remarkLintNoBlockquoteWithoutCaret = unifiedLintRule('remark-lint:no-blockqu
 
 function noBlockquoteWithoutCaret(ast, file) {
   var contents = file.toString();
-  var location = vfileLocation$3(file);
+  var location = vfileLocation(file);
   var last = contents.length;
 
-  unistUtilVisit$2(ast, 'blockquote', visitor);
+  unistUtilVisit(ast, 'blockquote', visitor);
 
   function visitor(node) {
     var start = unistUtilPosition.start(node).line;
@@ -32070,55 +31726,6 @@ function noBlockquoteWithoutCaret(ast, file) {
   }
 }
 
-var own$6 = {}.hasOwnProperty;
-
-var unistUtilStringifyPosition$2 = stringify$9;
-
-function stringify$9(value) {
-  /* Nothing. */
-  if (!value || typeof value !== 'object') {
-    return null
-  }
-
-  /* Node. */
-  if (own$6.call(value, 'position') || own$6.call(value, 'type')) {
-    return position$2(value.position)
-  }
-
-  /* Position. */
-  if (own$6.call(value, 'start') || own$6.call(value, 'end')) {
-    return position$2(value)
-  }
-
-  /* Point. */
-  if (own$6.call(value, 'line') || own$6.call(value, 'column')) {
-    return point$1(value)
-  }
-
-  /* ? */
-  return null
-}
-
-function point$1(point) {
-  if (!point || typeof point !== 'object') {
-    point = {};
-  }
-
-  return index$6(point.line) + ':' + index$6(point.column)
-}
-
-function position$2(pos) {
-  if (!pos || typeof pos !== 'object') {
-    pos = {};
-  }
-
-  return point$1(pos.start) + '-' + point$1(pos.end)
-}
-
-function index$6(value) {
-  return value && typeof value === 'number' ? value : 1
-}
-
 var remarkLintNoDuplicateDefinitions = unifiedLintRule(
   'remark-lint:no-duplicate-definitions',
   noDuplicateDefinitions
@@ -32129,7 +31736,7 @@ var reason$4 = 'Do not use definitions with the same identifier';
 function noDuplicateDefinitions(tree, file) {
   var map = {};
 
-  unistUtilVisit$2(tree, ['definition', 'footnoteDefinition'], validate);
+  unistUtilVisit(tree, ['definition', 'footnoteDefinition'], validate);
 
   function validate(node) {
     var identifier;
@@ -32141,7 +31748,7 @@ function noDuplicateDefinitions(tree, file) {
 
       if (duplicate && duplicate.type) {
         file.message(
-          reason$4 + ' (' + unistUtilStringifyPosition$2(unistUtilPosition.start(duplicate)) + ')',
+          reason$4 + ' (' + unistUtilStringifyPosition(unistUtilPosition.start(duplicate)) + ')',
           node
         );
       }
@@ -32296,7 +31903,7 @@ const hero = "heroes";
 const hoof = "hooves";
 const hovercraft = "hovercraft";
 const hypothesis = "hypotheses";
-const index$7 = "indices";
+const index$6 = "indices";
 const kakapo = "kakapo";
 const knife = "knives";
 const larva = "larvae";
@@ -32438,7 +32045,7 @@ var irregularPlurals = {
 	hoof: hoof,
 	hovercraft: hovercraft,
 	hypothesis: hypothesis,
-	index: index$7,
+	index: index$6,
 	kakapo: kakapo,
 	knife: knife,
 	larva: larva,
@@ -32585,7 +32192,7 @@ var irregularPlurals$1 = Object.freeze({
 	hoof: hoof,
 	hovercraft: hovercraft,
 	hypothesis: hypothesis,
-	index: index$7,
+	index: index$6,
 	kakapo: kakapo,
 	knife: knife,
 	larva: larva,
@@ -32724,7 +32331,7 @@ var end$3 = unistUtilPosition.end;
 function noHeadingContentIndent(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit$2(tree, 'heading', visitor);
+  unistUtilVisit(tree, 'heading', visitor);
 
   function visitor(node) {
     var depth;
@@ -32812,7 +32419,7 @@ function noHeadingIndent(tree, file) {
   var contents = String(file);
   var length = contents.length;
 
-  unistUtilVisit$2(tree, 'heading', visitor);
+  unistUtilVisit(tree, 'heading', visitor);
 
   function visitor(node) {
     var initial;
@@ -32854,7 +32461,7 @@ function noHeadingIndent(tree, file) {
 var remarkLintNoInlinePadding = unifiedLintRule('remark-lint:no-inline-padding', noInlinePadding);
 
 function noInlinePadding(tree, file) {
-  unistUtilVisit$2(tree, ['emphasis', 'strong', 'delete', 'image', 'link'], visitor);
+  unistUtilVisit(tree, ['emphasis', 'strong', 'delete', 'image', 'link'], visitor);
 
   function visitor(node) {
     var contents;
@@ -32885,7 +32492,7 @@ function noMultipleToplevelHeadings(tree, file, pref) {
   var style = pref ? pref : 1;
   var duplicate;
 
-  unistUtilVisit$2(tree, 'heading', visitor);
+  unistUtilVisit(tree, 'heading', visitor);
 
   function visitor(node) {
     if (!unistUtilGenerated(node) && node.depth === style) {
@@ -32895,7 +32502,7 @@ function noMultipleToplevelHeadings(tree, file, pref) {
           node
         );
       } else {
-        duplicate = unistUtilStringifyPosition$2(start$6(node));
+        duplicate = unistUtilStringifyPosition(start$6(node));
       }
     }
   }
@@ -32923,7 +32530,7 @@ var flags = [
 ];
 
 function noShellDollars(tree, file) {
-  unistUtilVisit$2(tree, 'code', visitor);
+  unistUtilVisit(tree, 'code', visitor);
 
   function visitor(node) {
     var lines;
@@ -32962,7 +32569,7 @@ var remarkLintNoShortcutReferenceImage = unifiedLintRule(
 var reason$8 = 'Use the trailing [] on reference images';
 
 function noShortcutReferenceImage(tree, file) {
-  unistUtilVisit$2(tree, 'imageReference', visitor);
+  unistUtilVisit(tree, 'imageReference', visitor);
 
   function visitor(node) {
     if (!unistUtilGenerated(node) && node.referenceType === 'shortcut') {
@@ -32978,14 +32585,14 @@ var reason$9 = 'Do not indent table rows';
 function noTableIndentation(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit$2(tree, 'table', visitor);
+  unistUtilVisit(tree, 'table', visitor);
 
   function visitor(node) {
     if (!unistUtilGenerated(node)) {
       node.children.forEach(each);
     }
 
-    return unistUtilVisit$2.SKIP
+    return unistUtilVisit.SKIP
   }
 
   function each(row) {
@@ -33006,7 +32613,7 @@ var reason$10 = 'Use spaces instead of hard-tabs';
 
 function noTabs(tree, file) {
   var content = String(file);
-  var position = vfileLocation$3(file).toPosition;
+  var position = vfileLocation(file).toPosition;
   var index = content.indexOf('\t');
 
   while (index !== -1) {
@@ -33024,8 +32631,8 @@ function noUnusedDefinitions(tree, file) {
   var identifier;
   var entry;
 
-  unistUtilVisit$2(tree, ['definition', 'footnoteDefinition'], find);
-  unistUtilVisit$2(tree, ['imageReference', 'linkReference', 'footnoteReference'], mark);
+  unistUtilVisit(tree, ['definition', 'footnoteDefinition'], find);
+  unistUtilVisit(tree, ['imageReference', 'linkReference', 'footnoteReference'], mark);
 
   for (identifier in map) {
     entry = map[identifier];
@@ -33071,7 +32678,7 @@ function ruleStyle(tree, file, pref) {
     );
   }
 
-  unistUtilVisit$2(tree, 'thematicBreak', visitor);
+  unistUtilVisit(tree, 'thematicBreak', visitor);
 
   function visitor(node) {
     var initial = start$7(node).offset;
@@ -33103,7 +32710,7 @@ var reasonEnd = 'Missing final pipe in table fence';
 function tablePipes(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit$2(tree, 'table', visitor);
+  unistUtilVisit(tree, 'table', visitor);
 
   function visitor(node) {
     var rows = node.children;
@@ -33146,7 +32753,7 @@ var remarkLintBlockquoteIndentation = unifiedLintRule(
 function blockquoteIndentation(tree, file, pref) {
   pref = typeof pref === 'number' && !isNaN(pref) ? pref : null;
 
-  unistUtilVisit$2(tree, 'blockquote', visitor);
+  unistUtilVisit(tree, 'blockquote', visitor);
 
   function visitor(node) {
     var diff;
@@ -33202,7 +32809,7 @@ var types = {true: 'checked', false: 'unchecked'};
 
 function checkboxCharacterStyle(tree, file, pref) {
   var contents = String(file);
-  var location = vfileLocation$3(file);
+  var location = vfileLocation(file);
 
   pref = typeof pref === 'object' ? pref : {};
 
@@ -33222,7 +32829,7 @@ function checkboxCharacterStyle(tree, file, pref) {
     );
   }
 
-  unistUtilVisit$2(tree, 'listItem', visitor);
+  unistUtilVisit(tree, 'listItem', visitor);
 
   function visitor(node) {
     var type;
@@ -33292,7 +32899,7 @@ function codeBlockStyle(tree, file, pref) {
     );
   }
 
-  unistUtilVisit$2(tree, 'code', visitor);
+  unistUtilVisit(tree, 'code', visitor);
 
   function visitor(node) {
     var current = check(node);
@@ -33342,7 +32949,7 @@ function fencedCodeMarker(tree, file, pref) {
     );
   }
 
-  unistUtilVisit$2(tree, 'code', visitor);
+  unistUtilVisit(tree, 'code', visitor);
 
   function visitor(node) {
     var marker;
@@ -33389,7 +32996,7 @@ var re$4 = /<h([1-6])/;
 function firstHeadingLevel(tree, file, pref) {
   var style = pref && pref !== true ? pref : 1;
 
-  unistUtilVisit$2(tree, visitor);
+  unistUtilVisit(tree, visitor);
 
   function visitor(node) {
     var depth;
@@ -33406,7 +33013,7 @@ function firstHeadingLevel(tree, file, pref) {
           file.message('First heading level should be `' + style + '`', node);
         }
 
-        return unistUtilVisit$2.EXIT
+        return unistUtilVisit.EXIT
       }
     }
   }
@@ -33424,7 +33031,7 @@ var types$1 = ['atx', 'atx-closed', 'setext'];
 function headingStyle(tree, file, pref) {
   pref = types$1.indexOf(pref) === -1 ? null : pref;
 
-  unistUtilVisit$2(tree, 'heading', visitor);
+  unistUtilVisit(tree, 'heading', visitor);
 
   function visitor(node) {
     if (!unistUtilGenerated(node)) {
@@ -33455,7 +33062,7 @@ function testProhibited(val, content) {
 }
 
 function prohibitedStrings(ast, file, strings) {
-  unistUtilVisit$2(ast, 'text', checkText);
+  unistUtilVisit(ast, 'text', checkText);
 
   function checkText(node) {
     const content = node.value;
@@ -33485,7 +33092,7 @@ function strongMarker(tree, file, pref) {
     );
   }
 
-  unistUtilVisit$2(tree, 'strong', visitor);
+  unistUtilVisit(tree, 'strong', visitor);
 
   function visitor(node) {
     var marker = contents.charAt(unistUtilPosition.start(node).offset);
@@ -33518,7 +33125,7 @@ function tableCellPadding(tree, file, pref) {
     file.fail('Invalid table-cell-padding style `' + pref + '`');
   }
 
-  unistUtilVisit$2(tree, 'table', visitor);
+  unistUtilVisit(tree, 'table', visitor);
 
   function visitor(node) {
     var rows = node.children;
@@ -33591,7 +33198,7 @@ function tableCellPadding(tree, file, pref) {
       checkSide('end', entry, style, sizes);
     }
 
-    return unistUtilVisit$2.SKIP
+    return unistUtilVisit.SKIP
   }
 
   function checkSide(side, entry, style, sizes) {
@@ -33632,83 +33239,6 @@ function tableCellPadding(tree, file, pref) {
 
 function size(node) {
   return end$8(node).offset - start$11(node).offset
-}
-
-var remarkLintMaximumLineLength = unifiedLintRule('remark-lint:maximum-line-length', maximumLineLength);
-
-var start$12 = unistUtilPosition.start;
-var end$9 = unistUtilPosition.end;
-
-function maximumLineLength(tree, file, pref) {
-  var style = typeof pref === 'number' && !isNaN(pref) ? pref : 80;
-  var content = String(file);
-  var lines = content.split(/\r?\n/);
-  var length = lines.length;
-  var index = -1;
-  var lineLength;
-
-  unistUtilVisit$2(tree, ['heading', 'table', 'code', 'definition'], ignore);
-  unistUtilVisit$2(tree, ['link', 'image', 'inlineCode'], inline);
-
-  /* Iterate over every line, and warn for violating lines. */
-  while (++index < length) {
-    lineLength = lines[index].length;
-
-    if (lineLength > style) {
-      file.message('Line must be at most ' + style + ' characters', {
-        line: index + 1,
-        column: lineLength + 1
-      });
-    }
-  }
-
-  /* Finally, whitelist some inline spans, but only if they occur at or after
-   * the wrap.  However, when they do, and there’s white-space after it, they
-   * are not whitelisted. */
-  function inline(node, pos, parent) {
-    var next = parent.children[pos + 1];
-    var initial;
-    var final;
-
-    /* istanbul ignore if - Nothing to whitelist when generated. */
-    if (unistUtilGenerated(node)) {
-      return
-    }
-
-    initial = start$12(node);
-    final = end$9(node);
-
-    /* No whitelisting when starting after the border, or ending before it. */
-    if (initial.column > style || final.column < style) {
-      return
-    }
-
-    /* No whitelisting when there’s white-space after
-     * the link. */
-    if (
-      next &&
-      start$12(next).line === initial.line &&
-      (!next.value || /^(.+?[ \t].+?)/.test(next.value))
-    ) {
-      return
-    }
-
-    whitelist(initial.line - 1, final.line);
-  }
-
-  function ignore(node) {
-    /* istanbul ignore else - Hard to test, as we only run this case on `position: true` */
-    if (!unistUtilGenerated(node)) {
-      whitelist(start$12(node).line - 1, end$9(node).line);
-    }
-  }
-
-  /* Whitelist from `initial` to `final`, zero-based. */
-  function whitelist(initial, final) {
-    while (initial < final) {
-      lines[initial++] = '';
-    }
-  }
 }
 
 var plugins$1 = [
@@ -33758,8 +33288,7 @@ var plugins$1 = [
     ]
   ],
   [remarkLintStrongMarker, '*'],
-  [remarkLintTableCellPadding, 'padded'],
-  [remarkLintMaximumLineLength, 80]
+  [remarkLintTableCellPadding, 'padded']
 ];
 
 var remarkPresetLintNode = {
