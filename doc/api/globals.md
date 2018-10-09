@@ -28,19 +28,6 @@ added: v0.1.103
 
 Used to handle binary data. See the [buffer section][].
 
-## Class: WebAssembly
-<!-- YAML
-added: v8.0.0
--->
-
-<!-- type=global -->
-
-* {Object}
-
-The object that acts as the namespace for all W3C
-[WebAssembly][webassembly-org] related functionality. See the
-[Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
-
 ## \_\_dirname
 
 This variable may appear to be global but is not. See [`__dirname`].
@@ -227,6 +214,19 @@ added: v10.0.0
 <!-- type=global -->
 
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
+
+## WebAssembly
+<!-- YAML
+added: v8.0.0
+-->
+
+<!-- type=global -->
+
+* {Object}
+
+The object that acts as the namespace for all W3C
+[WebAssembly][webassembly-org] related functionality. See the
+[Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
 [`__dirname`]: modules.html#modules_dirname
 [`__filename`]: modules.html#modules_filename
