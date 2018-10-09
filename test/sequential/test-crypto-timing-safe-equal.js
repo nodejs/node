@@ -40,7 +40,7 @@ assert.strictEqual(
     true
   );
   assert.strictEqual(
-    crypto.timingSafeEqal(
+    crypto.timingSafeEqual(
       new Uint8Array(ab32, 0, 16),
       Buffer.from(ab32, 0, 16)
     ),
