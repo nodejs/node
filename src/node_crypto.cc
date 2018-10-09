@@ -378,7 +378,8 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 
-  target->Set(secureContextString, t->GetFunction());
+  target->Set(secureContextString,
+              t->GetFunction(env->context()).ToLocalChecked());
   env->set_secure_context_constructor_template(t);
 }
 
