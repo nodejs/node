@@ -1,4 +1,4 @@
-'use strict'; // eslint-disable-line required-modules
+'use strict';
 let invocations = 0;
 const interval = setInterval(() => {}, 1000);
 
