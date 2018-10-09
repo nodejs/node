@@ -31,7 +31,7 @@ function connect() {
   const externalMemoryUsage = process.memoryUsage().external;
   assert(externalMemoryUsage >= 0, `${externalMemoryUsage} < 0`);
   if (runs++ === 512) {
-    // Make sure at least half the TLS sockets have been gargbage collected
+    // Make sure at least half the TLS sockets have been garbage collected
     // (so that this test can actually check what it's testing):
     assert(gced >= 256, `${gced} < 256`);
     return;

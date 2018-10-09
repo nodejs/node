@@ -15,15 +15,15 @@ const {
   HTTP_STATUS_NOT_MODIFIED
 } = h2.constants;
 
-const statusWithouBody = [
+const statusWithoutBody = [
   HTTP_STATUS_NO_CONTENT,
   HTTP_STATUS_RESET_CONTENT,
   HTTP_STATUS_NOT_MODIFIED,
 ];
-const STATUS_CODES_COUNT = statusWithouBody.length;
+const STATUS_CODES_COUNT = statusWithoutBody.length;
 
 const server = h2.createServer(common.mustCall(function(req, res) {
-  res.writeHead(statusWithouBody.pop());
+  res.writeHead(statusWithoutBody.pop());
   res.end();
 }, STATUS_CODES_COUNT));
 

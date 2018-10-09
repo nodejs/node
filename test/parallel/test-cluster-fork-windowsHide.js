@@ -45,7 +45,7 @@ if (!process.argv[2]) {
 
 } else if (cluster.isMaster) {
   cluster.setupMaster({
-    silient: true,
+    silent: true,
     windowsHide: true
   });
 

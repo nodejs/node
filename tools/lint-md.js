@@ -90,7 +90,7 @@ function wrap(fn, callback) {
        * pipeline), but later also threw an error.
        * We’re not about to restart the pipeline again,
        * so the only thing left to do is to throw the
-       * thing instea. */
+       * thing instead. */
       if (callback && invoked) {
         throw err
       }
@@ -901,7 +901,7 @@ function representYamlFloat(object, style) {
   res = object.toString(10);
 
   // JS stringifier can build scientific format without dots: 5e-100,
-  // while YAML requres dot: 5.e-100. Fix it with simple hack
+  // while YAML requires dot: 5.e-100. Fix it with simple hack
 
   return SCIENTIFIC_WITHOUT_DOT.test(res) ? res.replace('e', '.e') : res;
 }
@@ -2322,7 +2322,7 @@ function readBlockScalar(state, nodeIndent) {
         }
       }
 
-      // Break this `while` cycle and go to the funciton's epilogue.
+      // Break this `while` cycle and go to the function's epilogue.
       break;
     }
 
