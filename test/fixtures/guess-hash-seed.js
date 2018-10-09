@@ -1,4 +1,3 @@
-/* eslint-disable required-modules */
 'use strict';
 function min(arr) {
   let res = arr[0];
