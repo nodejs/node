@@ -139,30 +139,26 @@ the CI outcome.
 
 ### Consensus Seeking
 
-If there is no disagreement amongst Collaborators, a pull request should be
-landed given appropriate review, a green CI, and the minimum
-[waiting time](#waiting-for-approvals) for a PR. If it is still awaiting the
-[minimum time to land](#waiting-for-approvals), please add the `author ready`
-label to it so it is obvious that the PR can land as soon as the time ends.
+If there are no objecting Collaborators, a pull request may land if it has the
+needed [approvals](#code-reviews), [CI](#testing-and-ci), and
+[wait time](#waiting-for-approvals). If a pull request meets all requirements
+except the [wait time](#waiting-for-approvals), please add the
+[`author ready`](#author-ready-pull-requests) label.
 
-Where there is discussion amongst Collaborators, consensus should be sought if
-possible. The lack of consensus may indicate the need to elevate discussion to
-the TSC for resolution.
+Where there is disagreement among Collaborators, consensus should be sought if
+possible. If reaching consensus is not possible, a Collaborator may escalate the
+issue to the TSC.
 
-If any Collaborator objects to a change *without giving any additional
-explanation or context*, and the objecting Collaborator fails to respond to
-explicit requests for explanation or context within a reasonable period of
-time, the objection may be dismissed. Note that this does not apply to
-objections that are explained.
+Collaborators should not block a pull request without providing a reason.
+Another Collaborator may ask an objecting Collaborator to explain their
+objection. If the objector is unresponsive, another Collaborator may dismiss the
+objection.
 
-Note that breaking changes (that is, pull requests that require an increase in
-the major version number, known as `semver-major` changes) must be [elevated for
-review by the TSC](#involving-the-tsc). This does not necessarily mean that the
-PR must be put onto the TSC meeting agenda. If multiple TSC members approve
-(`LGTM`) the PR and no Collaborators oppose the PR, it should be landed. Where
-there is disagreement among TSC members or objections from one or more
-Collaborators, `semver-major` pull requests may be put on the TSC meeting
-agenda.
+[Breaking changes](#breaking-changes) must receive
+[TSC review](#involving-the-tsc). If two TSC members approve the pull request
+and no Collaborators object, then it may land. If there are objections, a
+Collaborator may apply the `tsc-agenda` label. That will put the pull request on
+the TSC meeting agenda.
 
 #### Helpful resources
 
