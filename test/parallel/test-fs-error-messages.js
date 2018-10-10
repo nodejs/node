@@ -32,7 +32,7 @@ tmpdir.refresh();
 const nonexistentFile = fixtures.path('non-existent');
 const nonexistentDir = fixtures.path('non-existent', 'foo', 'bar');
 const existingFile = fixtures.path('exit.js');
-const existingFile2 = fixtures.path('create-file.js');
+const existingFile2 = fixtures.path('a.js');
 const existingDir = tmpdir.path;
 const existingDir2 = fixtures.path('keys');
 const { COPYFILE_EXCL } = fs.constants;
