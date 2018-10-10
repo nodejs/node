@@ -562,7 +562,7 @@ parser.add_option('--build-v8-with-gn',
 parser.add_option('--verbose',
     action='store_true',
     dest='verbose',
-    default=False,
+    default=True,
     help='get more output from this script')
 
 # Create compile_commands.json in out/Debug and out/Release.
