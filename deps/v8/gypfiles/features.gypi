@@ -51,9 +51,20 @@
 
     'v8_enable_gdbjit%': 0,
 
+    # Build-time flag for enabling nojit mode.
+    # TODO(v8:7777): Remove the build-time flag once the --jitless runtime flag
+    # does everything we need.
+    'v8_enable_jitless_mode%': 0,
+
+    # Enable code-generation-time checking of types in the CodeStubAssembler.
     'v8_enable_verify_csa%': 0,
 
     'v8_object_print%': 0,
+
+    # Lite mode disables a number of performance optimizations to reduce memory
+    # at the cost of performance.
+    # Sets --DV8_LITE_MODE.
+    'v8_enable_lite_mode%': 0,
 
     'v8_enable_verify_heap%': 0,
 
@@ -111,17 +122,17 @@
 
     'v8_enable_pointer_compression%': 'false',
 
-    'v8_enable_embedded_builtins%': 'true',
+    'v8_enable_31bit_smis_on_64bit_arch%': 'false',
 
-    'v8_perf_prof_unwinding_info%': 0,
+    'v8_enable_embedded_builtins%': 'true',
 
     'v8_enable_fast_mksnapshot%': 0,
   },
 
   'conditions': [
     # V8's predicate inverted since we default to 'true' and set 'false' for unsupported cases.
-    #      v8_use_snapshot         &&  v8_current_cpu != "x86" &&    !is_aix &&  (  !is_win || is_clang)
-    ['not (v8_use_snapshot=="true" and v8_target_arch !="ia32" and OS!="aix" and (OS!="win" or clang==1))', {
+    #      !is_aix
+    ['not (OS!="aix")', {
       'variables': {
         'v8_enable_embedded_builtins': 'false',
       }
@@ -137,6 +148,9 @@
       }],
       ['v8_promise_internal_field_count!=0', {
         'defines': ['V8_PROMISE_INTERNAL_FIELD_COUNT=<(v8_promise_internal_field_count)'],
+      }],
+      ['v8_enable_lite_mode==1', {
+        'defines': ['V8_LITE_MODE',],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
@@ -197,11 +211,16 @@
       ['v8_enable_pointer_compression=="true"', {
         'defines': ['V8_COMPRESS_POINTERS',],
       }],
+      ['v8_enable_31bit_smis_on_64bit_arch=="true"', {
+        'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
+      }],
       ['v8_enable_embedded_builtins=="true"', {
         'defines': [
           'V8_EMBEDDED_BUILTINS',
-          'V8_EMBEDDED_BYTECODE_HANDLERS',
         ],
+      }],
+      ['v8_enable_jitless_mode==1', {
+        'defines': ['V8_JITLESS_MODE',],
       }],
     ],  # conditions
     'defines': [

@@ -69,6 +69,9 @@
     # Still WIP in V8 7.1
     'v8_enable_pointer_compression': 'false',
 
+    # Explicitly set to false to copy V8's default
+    'v8_enable_31bit_smis_on_64bit_arch': 'false',
+
     # New in V8 7.1
     'v8_enable_embedded_builtins': 'true',
 

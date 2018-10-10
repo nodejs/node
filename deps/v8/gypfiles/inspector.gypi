@@ -28,12 +28,11 @@
       '<(SHARED_INTERMEDIATE_DIR)/include/inspector/Schema.h',
     ],
 
-    'inspector_injected_script_source': '../src/inspector/injected-script-source.js',
-    'inspector_generated_injected_script': '<(SHARED_INTERMEDIATE_DIR)/src/inspector/injected-script-source.h',
-
     'inspector_all_sources': [
       '../include/v8-inspector.h',
       '../include/v8-inspector-protocol.h',
+      '../src/inspector/custom-preview.cc',
+      '../src/inspector/custom-preview.h',
       '../src/inspector/injected-script.cc',
       '../src/inspector/injected-script.h',
       '../src/inspector/inspected-context.cc',
@@ -60,18 +59,12 @@
       '../src/inspector/v8-debugger-agent-impl.h',
       '../src/inspector/v8-debugger-script.cc',
       '../src/inspector/v8-debugger-script.h',
-      '../src/inspector/v8-function-call.cc',
-      '../src/inspector/v8-function-call.h',
       '../src/inspector/v8-heap-profiler-agent-impl.cc',
       '../src/inspector/v8-heap-profiler-agent-impl.h',
-      '../src/inspector/v8-injected-script-host.cc',
-      '../src/inspector/v8-injected-script-host.h',
       '../src/inspector/v8-inspector-impl.cc',
       '../src/inspector/v8-inspector-impl.h',
       '../src/inspector/v8-inspector-session-impl.cc',
       '../src/inspector/v8-inspector-session-impl.h',
-      '../src/inspector/v8-internal-value-type.cc',
-      '../src/inspector/v8-internal-value-type.h',
       '../src/inspector/v8-profiler-agent-impl.cc',
       '../src/inspector/v8-profiler-agent-impl.h',
       '../src/inspector/v8-regex.cc',
@@ -84,6 +77,8 @@
       '../src/inspector/v8-stack-trace-impl.h',
       '../src/inspector/v8-value-utils.cc',
       '../src/inspector/v8-value-utils.h',
+      '../src/inspector/value-mirror.cc',
+      '../src/inspector/value-mirror.h',
       '../src/inspector/wasm-translation.cc',
       '../src/inspector/wasm-translation.h',
     ]
@@ -102,7 +97,7 @@
       ],
       'action': [
         'python',
-        '<(protocol_path)/CheckProtocolCompatibility.py',
+        '<(protocol_path)/check_protocol_compatibility.py',
         '--stamp', '<@(_outputs)',
         '<(inspector_path)/js_protocol.json',
       ],
@@ -127,24 +122,6 @@
         '--config', '<(inspector_path)/inspector_protocol_config.json',
       ],
       'message': 'Generating inspector protocol sources from protocol json',
-    },
-    {
-      'action_name': 'convert_js_to_cpp_char_array',
-      'inputs': [
-        '<(inspector_path)/build/xxd.py',
-        '<(inspector_injected_script_source)',
-      ],
-      'outputs': [
-        '<(inspector_generated_injected_script)',
-      ],
-      'process_outputs_as_sources': 1,
-      'action': [
-        'python',
-        '<(inspector_path)/build/xxd.py',
-        'InjectedScriptSource_js',
-        '<(inspector_path)/injected-script-source.js',
-        '<@(_outputs)'
-      ],
     },
   ],
 }
