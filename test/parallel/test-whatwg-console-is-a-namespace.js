@@ -5,9 +5,6 @@ require('../common');
 const { test, assert_equals, assert_true, assert_false } =
   require('../common/wpt');
 
-// Assigning to itself should not throw.
-global.console = global.console; // eslint-disable-line no-self-assign
-
 const self = global;
 
 /* eslint-disable quotes, max-len */
