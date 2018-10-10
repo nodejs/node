@@ -175,7 +175,7 @@ function childShouldThrowAndAbort() {
 
 function createZeroFilledFile(filename) {
   const fd = fs.openSync(filename, 'w');
-  fs.ftruncateSync(fd, 10240 * 1024);
+  fs.ftruncateSync(fd, 10 * 1024 * 1024);
   fs.closeSync(fd);
 }
 
