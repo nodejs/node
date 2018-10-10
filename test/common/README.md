@@ -52,10 +52,9 @@ symlinks
 ([SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
 On non-Windows platforms, this always returns `true`.
 
-### ddCommand(filename, kilobytes)
-* return [&lt;Object>]
+### ddCommand(filename)
 
-Platform normalizes the `dd` command
+Creates a 10Mb file of all null characters.
 
 ### disableCrashOnUnhandledRejection()
 
