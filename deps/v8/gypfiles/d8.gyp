@@ -31,6 +31,8 @@
         '../src/async-hooks-wrapper.h',
         '../src/d8-console.cc',
         '../src/d8-console.h',
+        '../src/d8-platforms.cc',
+        '../src/d8-platforms.h',
         '../src/d8.cc',
         '../src/d8.h',
       ],
