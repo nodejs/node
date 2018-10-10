@@ -173,7 +173,7 @@ function childShouldThrowAndAbort() {
   });
 }
 
-function ddCommand(filename) {
+function createZeroFilledFile(filename) {
   const fd = fs.openSync(filename, 'w');
   fs.ftruncateSync(fd, 10 * 1024 * 1024);
   fs.closeSync(fd);
@@ -697,7 +697,7 @@ module.exports = {
   busyLoop,
   canCreateSymLink,
   childShouldThrowAndAbort,
-  ddCommand,
+  createZeroFilledFile,
   disableCrashOnUnhandledRejection,
   enoughTestCpu,
   enoughTestMem,
