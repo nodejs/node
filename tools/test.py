@@ -850,15 +850,15 @@ class TestRepository(TestSuite):
 
 
 class LiteralTestSuite(TestSuite):
-
-  def __init__(self, tests):
+  def __init__(self, tests_repos, test_root):
     super(LiteralTestSuite, self).__init__('root')
-    self.tests = tests
+    self.tests_repos = tests_repos
+    self.test_root = test_root
 
   def GetBuildRequirements(self, path, context):
     (name, rest) = CarCdr(path)
     result = [ ]
-    for test in self.tests:
+    for test in self.tests_repos:
       if not name or name.match(test.GetName()):
         result += test.GetBuildRequirements(rest, context)
     return result
@@ -866,7 +866,7 @@ class LiteralTestSuite(TestSuite):
   def ListTests(self, current_path, path, context, arch, mode):
     (name, rest) = CarCdr(path)
     result = [ ]
-    for test in self.tests:
+    for test in self.tests_repos:
       test_name = test.GetName()
       if not name or name.match(test_name):
         full_path = current_path + [test_name]
@@ -875,8 +875,11 @@ class LiteralTestSuite(TestSuite):
     return result
 
   def GetTestStatus(self, context, sections, defs):
-    for test in self.tests:
-      test.GetTestStatus(context, sections, defs)
+    # Just read the test configuration from root_path/root.status.
+    root = TestConfiguration(context, self.test_root, 'root')
+    root.GetTestStatus(sections, defs)
+    for tests_repos in self.tests_repos:
+      tests_repos.GetTestStatus(context, sections, defs)
 
 
 TIMEOUT_SCALEFACTOR = {
@@ -1198,23 +1201,18 @@ class Configuration(object):
     self.defs = defs
 
   def ClassifyTests(self, cases, env):
-    sections = [s for s in self.sections if s.condition.Evaluate(env, self.defs)]
+    sections = [ s for s in self.sections if s.condition.Evaluate(env, self.defs) ]
     all_rules = reduce(list.__add__, [s.rules for s in sections], [])
     unused_rules = set(all_rules)
-    result = [ ]
-    all_outcomes = set([])
+    result = []
     for case in cases:
       matches = [ r for r in all_rules if r.Contains(case.path) ]
-      outcomes = set([])
-      for rule in matches:
-        outcomes = outcomes.union(rule.GetOutcomes(env, self.defs))
-        unused_rules.discard(rule)
-      if not outcomes:
-        outcomes = [PASS]
-      case.outcomes = outcomes
-      all_outcomes = all_outcomes.union(outcomes)
-      result.append(ClassifiedTest(case, outcomes))
-    return (result, list(unused_rules), all_outcomes)
+      outcomes_list = [ r.GetOutcomes(env, self.defs) for r in matches ]
+      outcomes = reduce(set.union, outcomes_list, set())
+      unused_rules.difference_update(matches)
+      case.outcomes = set(outcomes) or set([PASS])
+      result.append(case)
+    return result, unused_rules
 
 
 class Section(object):
@@ -1552,7 +1550,7 @@ def Main():
   repositories = [TestRepository(join(workspace, 'test', name)) for name in suites]
   repositories += [TestRepository(a) for a in options.suite]
 
-  root = LiteralTestSuite(repositories)
+  root = LiteralTestSuite(repositories, test_root)
   paths = ArgsToTestPaths(test_root, args, suites)
 
   # Check for --valgrind option. If enabled, we overwrite the special
@@ -1623,8 +1621,7 @@ def Main():
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list
-        (cases, unused_rules, _) = (
-            config.ClassifyTests(test_list, env))
+        cases, unused_rules = config.ClassifyTests(test_list, env)
         if globally_unused_rules is None:
           globally_unused_rules = set(unused_rules)
         else:
@@ -1671,7 +1668,7 @@ def Main():
       return False
     elif SKIP in case.outcomes:
       return False
-    elif (options.flaky_tests == SKIP) and (set([FLAKY]) & case.outcomes):
+    elif (options.flaky_tests == SKIP) and (set([SLOW, FLAKY]) & case.outcomes):
       return False
     else:
       return True
