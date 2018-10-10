@@ -563,6 +563,7 @@ AsyncWrap::AsyncWrap(Environment* env,
   CHECK_NE(provider, PROVIDER_NONE);
   CHECK_GE(object->InternalFieldCount(), 1);
 
+  async_id_ = -1;
   // Use AsyncReset() call to execute the init() callbacks.
   AsyncReset(execution_async_id, silent);
 }
@@ -606,6 +607,14 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
 // and reused over their lifetime. This way a new uid can be assigned when
 // the resource is pulled out of the pool and put back into use.
 void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
+  if (async_id_ != -1) {
+    // This instance was in use before, we have already emitted an init with
+    // its previous async_id and need to emit a matching destroy for that
+    // before generating a new async_id.
+    EmitDestroy(env(), async_id_);
+  }
+
+  // Now we can assign a new async_id_ to this instance.
   async_id_ =
     execution_async_id == -1 ? env()->new_async_id() : execution_async_id;
   trigger_async_id_ = env()->get_default_trigger_async_id();
