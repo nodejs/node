@@ -126,6 +126,7 @@
       'lib/internal/fs/utils.js',
       'lib/internal/fs/watchers.js',
       'lib/internal/http.js',
+      'lib/internal/idna.js',
       'lib/internal/inspector_async_hook.js',
       'lib/internal/js_stream_socket.js',
       'lib/internal/linkedlist.js',
