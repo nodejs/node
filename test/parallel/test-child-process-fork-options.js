@@ -10,7 +10,7 @@ const { fork } = require('child_process');
 
 const expectedEnv = { foo: 'bar' };
 const cp = fork(fixtures.path('child-process-echo-options.js'), undefined,
-                { env: Object.assign({}, expectedEnv) });
+                { env: Object.assign({}, process.env, expectedEnv) });
 
 cp.on('message', common.mustCall(({ env }) => {
   assert.strictEqual(env.foo, expectedEnv.foo);
