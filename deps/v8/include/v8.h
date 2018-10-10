@@ -4362,13 +4362,6 @@ class V8_EXPORT WasmCompiledModule : public Object {
  public:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
 
-// The COMMA macro allows us to use ',' inside of the V8_DEPRECATED macro.
-#define COMMA ,
-  V8_DEPRECATED(
-      "Use BufferReference.",
-      typedef std::pair<const uint8_t * COMMA size_t> CallerOwnedBuffer);
-#undef COMMA
-
   /**
    * A unowned reference to a byte buffer.
    */
@@ -4377,12 +4370,6 @@ class V8_EXPORT WasmCompiledModule : public Object {
     size_t size;
     BufferReference(const uint8_t* start, size_t size)
         : start(start), size(size) {}
-    // Temporarily allow conversion to and from CallerOwnedBuffer.
-    V8_DEPRECATED(
-        "Use BufferReference directly.",
-        inline BufferReference(CallerOwnedBuffer));  // NOLINT(runtime/explicit)
-    V8_DEPRECATED("Use BufferReference directly.",
-                      inline operator CallerOwnedBuffer());
   };
 
   /**
@@ -4429,8 +4416,6 @@ class V8_EXPORT WasmCompiledModule : public Object {
    * Get the wasm-encoded bytes that were used to compile this module.
    */
   BufferReference GetWasmWireBytesRef();
-  V8_DEPRECATED("Use GetWasmWireBytesRef version.",
-                    Local<String> GetWasmWireBytes());
 
   /**
    * Serialize the compiled module. The serialized data does not include the
@@ -4462,15 +4447,6 @@ class V8_EXPORT WasmCompiledModule : public Object {
   WasmCompiledModule();
   static void CheckCast(Value* obj);
 };
-
-// TODO(clemensh): Remove after M70 branch.
-WasmCompiledModule::BufferReference::BufferReference(
-    WasmCompiledModule::CallerOwnedBuffer buf)
-    : BufferReference(buf.first, buf.second) {}
-WasmCompiledModule::BufferReference::
-operator WasmCompiledModule::CallerOwnedBuffer() {
-  return {start, size};
-}
 
 /**
  * The V8 interface for WebAssembly streaming compilation. When streaming
