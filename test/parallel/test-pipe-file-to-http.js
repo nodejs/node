@@ -56,7 +56,7 @@ const server = http.createServer(function(req, res) {
 server.listen(0);
 
 server.on('listening', function() {
-  common.ddCommand(filename);
+  common.createZeroFilledFile(filename);
   makeRequest();
 });
 
