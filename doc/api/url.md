@@ -1286,7 +1286,7 @@ const myURL = new URL('https://%CF%80.example.com/foo');
 console.log(myURL.href);
 // Prints https://xn--1xa.example.com/foo
 console.log(myURL.origin);
-// Prints https://π.example.com
+// Prints https://xn--1xa.example.com
 ```
 
 [`Error`]: errors.html#errors_class_error
