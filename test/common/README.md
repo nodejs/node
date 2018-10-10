@@ -54,7 +54,7 @@ On non-Windows platforms, this always returns `true`.
 
 ### ddCommand(filename)
 
-Creates a 10Mb file of all null characters.
+Creates a 10 MB file of all null characters.
 
 ### disableCrashOnUnhandledRejection()
 
