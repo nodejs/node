@@ -141,6 +141,7 @@
       '../test/unittests/libplatform/task-queue-unittest.cc',
       '../test/unittests/libplatform/worker-thread-unittest.cc',
       '../test/unittests/locked-queue-unittest.cc',
+      '../test/unittests/microtask-queue-unittest.cc',
       '../test/unittests/object-unittest.cc',
       '../test/unittests/parser/ast-value-unittest.cc',
       '../test/unittests/parser/preparser-unittest.cc',
