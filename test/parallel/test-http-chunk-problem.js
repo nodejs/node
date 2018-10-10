@@ -63,7 +63,7 @@ function executeRequest(cb) {
 
 tmpdir.refresh();
 
-common.ddCommand(filename);
+common.createZeroFilledFile(filename);
 
 server = http.createServer(function(req, res) {
   res.writeHead(200);

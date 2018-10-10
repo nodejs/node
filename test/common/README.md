@@ -52,7 +52,7 @@ symlinks
 ([SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
 On non-Windows platforms, this always returns `true`.
 
-### ddCommand(filename)
+### createZeroFilledFile(filename)
 
 Creates a 10 MB file of all null characters.
 
