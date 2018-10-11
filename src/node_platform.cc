@@ -14,7 +14,7 @@ using v8::Local;
 using v8::Object;
 using v8::Platform;
 using v8::Task;
-using v8::TracingController;
+using node::tracing::TracingController;
 
 namespace {
 
