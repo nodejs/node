@@ -125,28 +125,28 @@ run `node benchmark/run.js`. Again this does not provide the statistical
 information to make any conclusions.
 
 ```console
-$ node benchmark/run.js arrays
+$ node benchmark/run.js assert
 
-arrays/var-int.js
-arrays/var-int.js n=25 type=Array: 71.90148040747789
-arrays/var-int.js n=25 type=Buffer: 92.89648382795582
+assert/deepequal-buffer.js
+assert/deepequal-buffer.js method="deepEqual" strict=0 len=100 n=20000: 728,895.4340459331
+assert/deepequal-buffer.js method="notDeepEqual" strict=0 len=100 n=20000: 662,598.9057245331
 ...
 
-arrays/zero-float.js
-arrays/zero-float.js n=25 type=Array: 75.46208316171496
-arrays/zero-float.js n=25 type=Buffer: 101.62785630273159
+assert/deepequal-map.js
+assert/deepequal-map.js method="deepEqual_primitiveOnly" strict=0 len=500 n=500: 17,258.209635403407
+assert/deepequal-map.js method="deepEqual_objectOnly" strict=0 len=500 n=500: 1,228.016433561517
 ...
 
-arrays/zero-int.js
-arrays/zero-int.js n=25 type=Array: 72.31023859816062
-arrays/zero-int.js n=25 type=Buffer: 90.49906662339653
+assert/deepequal-object.js
+assert/deepequal-object.js method="deepEqual" strict=0 size=100 n=5000: 788.7928625604555
+assert/deepequal-object.js method="notDeepEqual" strict=0 size=100 n=5000: 8,025.179804153511
 ...
 ```
 
 It is possible to execute more groups by adding extra process arguments.
 
 ```console
-$ node benchmark/run.js arrays buffers
+$ node benchmark/run.js assert buffers
 ```
 
 ### Comparing Node.js versions
