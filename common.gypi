@@ -150,10 +150,6 @@
             'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
             'BasicRuntimeChecks': 3, # /RTC1
-            'MultiProcessorCompilation': 'true',
-            'AdditionalOptions': [
-              '/bigobj', # prevent error C1128 in VS2015
-            ],
           },
           'VCLinkerTool': {
             'LinkIncremental': 2, # enable incremental linking
@@ -257,9 +253,6 @@
             'EnableFunctionLevelLinking': 'true',
             'EnableIntrinsicFunctions': 'true',
             'RuntimeTypeInfo': 'false',
-            'MultiProcessorCompilation': 'true',
-            'AdditionalOptions': [
-            ],
           }
         }
       }
@@ -274,9 +267,10 @@
         'DebugInformationFormat': 1, # /Z7 embed info in .obj files
         'WarningLevel': 3,
         'BufferSecurityCheck': 'true',
-        'ExceptionHandling': 0, # /EHsc
+        'ExceptionHandling': 0, # no /EHsc
         'SuppressStartupBanner': 'true',
         'WarnAsError': 'false',
+        'MultiProcessorCompilation': 'true',
       },
       'VCLinkerTool': {
         'conditions': [
@@ -297,9 +291,10 @@
             ],
           }],
         ],
-        'GenerateDebugInformation': 'true',
-        'GenerateMapFile': 'true', # /MAP
-        'MapExports': 'true', # /MAPINFO:EXPORTS
+        'GenerateDebugInformation': 'false',  # Use explicit `/debug:fastlink`
+        'AdditionalOptions': [ '/debug:fastlink' ],
+        'GenerateMapFile': 'false', # no /MAP
+        'MapExports': 'false', # no /MAPINFO:EXPORTS
         'RandomizedBaseAddress': 2, # enable ASLR
         'DataExecutionPrevention': 2, # enable DEP
         'AllowIsolation': 'true',
