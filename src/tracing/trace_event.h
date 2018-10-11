@@ -310,8 +310,9 @@ const uint64_t kNoId = 0;
 
 class TraceEventHelper {
  public:
-  static v8::TracingController* GetTracingController();
-  static void SetTracingController(v8::TracingController* controller);
+  static TracingController* GetTracingController();
+  static Agent* GetAgent();
+  static void SetAgent(Agent* agent);
 };
 
 // TraceID encapsulates an ID that can either be an integer or pointer. Pointers
@@ -487,6 +488,26 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
       arg_names, arg_types, arg_values, arg_convertables, flags, timestamp);
 }
 
+static V8_INLINE void AddMetadataEventImpl(
+    const uint8_t* category_group_enabled, const char* name, int32_t num_args,
+    const char** arg_names, const uint8_t* arg_types,
+    const uint64_t* arg_values, unsigned int flags) {
+  std::unique_ptr<v8::ConvertableToTraceFormat> arg_convertibles[2];
+  if (num_args > 0 && arg_types[0] == TRACE_VALUE_TYPE_CONVERTABLE) {
+    arg_convertibles[0].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
+        static_cast<intptr_t>(arg_values[0])));
+  }
+  if (num_args > 1 && arg_types[1] == TRACE_VALUE_TYPE_CONVERTABLE) {
+    arg_convertibles[1].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
+        static_cast<intptr_t>(arg_values[1])));
+  }
+  node::tracing::TracingController* controller =
+      node::tracing::TraceEventHelper::GetTracingController();
+  return controller->AddMetadataEvent(
+      category_group_enabled, name, num_args, arg_names, arg_types, arg_values,
+      arg_convertibles, flags);
+}
+
 // Define SetTraceValue for each allowed type. It stores the type and
 // value in the return arguments. This allows this API to avoid declaring any
 // structures so that it is portable to third_party libraries.
@@ -632,23 +653,16 @@ static V8_INLINE uint64_t AddTraceEventWithTimestamp(
 }
 
 template <class ARG1_TYPE>
-static V8_INLINE uint64_t AddMetadataEvent(
+static V8_INLINE void AddMetadataEvent(
     const uint8_t* category_group_enabled, const char* name,
     const char* arg1_name, ARG1_TYPE&& arg1_val) {
   const int num_args = 1;
   uint8_t arg_type;
   uint64_t arg_value;
   SetTraceValue(std::forward<ARG1_TYPE>(arg1_val), &arg_type, &arg_value);
-  // TODO(ofrobots): It would be good to add metadata events to a separate
-  // buffer so that they can be periodically reemitted. For now, we have a
-  // single buffer, so we just add them to the main buffer.
-  return TRACE_EVENT_API_ADD_TRACE_EVENT(
-      TRACE_EVENT_PHASE_METADATA,
-      category_group_enabled, name,
-      node::tracing::kGlobalScope,  // scope
-      node::tracing::kNoId,         // id
-      node::tracing::kNoId,         // bind_id
-      num_args, &arg1_name, &arg_type, &arg_value, TRACE_EVENT_FLAG_NONE);
+  AddMetadataEventImpl(
+      category_group_enabled, name, num_args, &arg1_name, &arg_type, &arg_value,
+      TRACE_EVENT_FLAG_NONE);
 }
 
 // Used by TRACE_EVENTx macros. Do not use directly.

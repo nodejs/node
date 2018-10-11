@@ -25,9 +25,12 @@ function post(message, data) {
 async function test() {
   session.connect();
 
-  let traceNotification = null;
+  const events = [];
   let tracingComplete = false;
-  session.on('NodeTracing.dataCollected', (n) => traceNotification = n);
+  session.on('NodeTracing.dataCollected', (n) => {
+    assert.ok(n && n.data && n.data.value);
+    events.push(...n.data.value);  // append the events.
+  });
   session.on('NodeTracing.tracingComplete', () => tracingComplete = true);
 
   // Generate a node.perf event before tracing is enabled.
@@ -47,10 +50,7 @@ async function test() {
   session.disconnect();
 
   assert.ok(tracingComplete);
-  assert.ok(traceNotification);
-  assert.ok(traceNotification.data && traceNotification.data.value);
 
-  const events = traceNotification.data.value;
   const marks = events.filter((t) => null !== /node\.perf\.usertim/.exec(t.cat));
   assert.strictEqual(marks.length, 1);
   assert.strictEqual(marks[0].name, 'mark2');

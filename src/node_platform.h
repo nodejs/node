@@ -11,6 +11,7 @@
 #include "libplatform/libplatform.h"
 #include "node.h"
 #include "node_mutex.h"
+#include "tracing/agent.h"
 #include "uv.h"
 
 namespace node {
@@ -126,7 +127,8 @@ class BackgroundTaskRunner : public v8::TaskRunner {
 
 class NodePlatform : public MultiIsolatePlatform {
  public:
-  NodePlatform(int thread_pool_size, v8::TracingController* tracing_controller);
+  NodePlatform(int thread_pool_size,
+               node::tracing::TracingController* tracing_controller);
   virtual ~NodePlatform() {}
 
   void DrainBackgroundTasks(v8::Isolate* isolate) override;
@@ -143,7 +145,7 @@ class NodePlatform : public MultiIsolatePlatform {
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
   double CurrentClockTimeMillis() override;
-  v8::TracingController* GetTracingController() override;
+  node::tracing::TracingController* GetTracingController() override;
   bool FlushForegroundTasks(v8::Isolate* isolate) override;
 
   void RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) override;
@@ -161,8 +163,7 @@ class NodePlatform : public MultiIsolatePlatform {
   std::unordered_map<v8::Isolate*,
                      std::shared_ptr<PerIsolatePlatformData>> per_isolate_;
 
-
-  v8::TracingController* tracing_controller_;
+  node::tracing::TracingController* tracing_controller_;
   std::shared_ptr<BackgroundTaskRunner> background_task_runner_;
 };
 
