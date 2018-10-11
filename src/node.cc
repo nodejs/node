@@ -279,9 +279,9 @@ static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
     tracing_agent_.reset(new tracing::Agent());
+    node::tracing::TraceEventHelper::SetAgent(tracing_agent_.get());
     auto controller = tracing_agent_->GetTracingController();
     controller->AddTraceStateObserver(new NodeTraceStateObserver(controller));
-    tracing::TraceEventHelper::SetTracingController(controller);
     StartTracingAgent();
     // Tracing must be initialized before platform threads are created.
     platform_ = new NodePlatform(thread_pool_size, controller);
@@ -2805,7 +2805,7 @@ MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
 
 MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
-    TracingController* tracing_controller) {
+    node::tracing::TracingController* tracing_controller) {
   return new NodePlatform(thread_pool_size, tracing_controller);
 }
 

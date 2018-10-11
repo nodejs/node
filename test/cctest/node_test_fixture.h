@@ -55,22 +55,22 @@ struct Argv {
 
 using ArrayBufferUniquePtr = std::unique_ptr<node::ArrayBufferAllocator,
       decltype(&node::FreeArrayBufferAllocator)>;
-using TracingControllerUniquePtr = std::unique_ptr<v8::TracingController>;
+using TracingAgentUniquePtr = std::unique_ptr<node::tracing::Agent>;
 using NodePlatformUniquePtr = std::unique_ptr<node::NodePlatform>;
 
 class NodeTestFixture : public ::testing::Test {
  protected:
   static ArrayBufferUniquePtr allocator;
-  static TracingControllerUniquePtr tracing_controller;
+  static TracingAgentUniquePtr tracing_agent;
   static NodePlatformUniquePtr platform;
   static uv_loop_t current_loop;
   v8::Isolate* isolate_;
 
   static void SetUpTestCase() {
-    tracing_controller.reset(new v8::TracingController());
-    node::tracing::TraceEventHelper::SetTracingController(
-        tracing_controller.get());
-    platform.reset(new node::NodePlatform(4, nullptr));
+    tracing_agent.reset(new node::tracing::Agent());
+    node::tracing::TraceEventHelper::SetAgent(tracing_agent.get());
+    platform.reset(
+        new node::NodePlatform(4, tracing_agent->GetTracingController()));
     CHECK_EQ(0, uv_loop_init(&current_loop));
     v8::V8::InitializePlatform(platform.get());
     v8::V8::Initialize();
