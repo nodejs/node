@@ -72,7 +72,6 @@ function CLI(usage, settings) {
     } else {
       // Bad case, abort
       this.abort(usage);
-      return;
     }
   }
 }
