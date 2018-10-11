@@ -149,8 +149,8 @@ bool String::IsOneByteRepresentationUnderneath() {
       return true;
     case kTwoByteStringTag:
       return false;
-    default:  // Cons or sliced string.  Need to go deeper.
-      return GetUnderlying()->IsOneByteRepresentation();
+    default:  // Cons, sliced, thin, strings need to go deeper.
+      return GetUnderlying()->IsOneByteRepresentationUnderneath();
   }
 }
 
@@ -164,8 +164,8 @@ bool String::IsTwoByteRepresentationUnderneath() {
       return false;
     case kTwoByteStringTag:
       return true;
-    default:  // Cons or sliced string.  Need to go deeper.
-      return GetUnderlying()->IsTwoByteRepresentation();
+    default:  // Cons, sliced, thin, strings need to go deeper.
+      return GetUnderlying()->IsTwoByteRepresentationUnderneath();
   }
 }
 

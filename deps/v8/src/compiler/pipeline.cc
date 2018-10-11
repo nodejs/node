@@ -1142,10 +1142,11 @@ struct GraphBuilderPhase {
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= JSTypeHintLowering::kBailoutOnUninitialized;
     }
+    CallFrequency frequency = CallFrequency(1.0f);
     BytecodeGraphBuilder graph_builder(
         temp_zone, data->info()->shared_info(),
         handle(data->info()->closure()->feedback_vector(), data->isolate()),
-        data->info()->osr_offset(), data->jsgraph(), CallFrequency(1.0f),
+        data->info()->osr_offset(), data->jsgraph(), frequency,
         data->source_positions(), data->native_context(),
         SourcePosition::kNotInlined, flags, true,
         data->info()->is_analyze_environment_liveness());

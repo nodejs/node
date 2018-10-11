@@ -1693,6 +1693,64 @@ TEST(StringEquals) {
   CHECK(!bar_str->StringEquals(foo_str2));
 }
 
+class OneByteStringResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  // Takes ownership of |data|.
+  OneByteStringResource(char* data, size_t length)
+      : data_(data), length_(length) {}
+  ~OneByteStringResource() override { delete[] data_; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
+
+ private:
+  char* data_;
+  size_t length_;
+};
+
+TEST(Regress876759) {
+  v8::V8::Initialize();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+
+  HandleScope handle_scope(isolate);
+
+  const int kLength = 30;
+  uc16 two_byte_buf[kLength];
+  char* external_one_byte_buf = new char[kLength];
+  for (int j = 0; j < kLength; j++) {
+    char c = '0' + (j % 10);
+    two_byte_buf[j] = c;
+    external_one_byte_buf[j] = c;
+  }
+
+  Handle<String> parent;
+  {
+    Handle<SeqTwoByteString> raw =
+        factory->NewRawTwoByteString(kLength).ToHandleChecked();
+    CopyChars(raw->GetChars(), two_byte_buf, kLength);
+    parent = raw;
+  }
+  CHECK(parent->IsTwoByteRepresentation());
+  Handle<String> sliced = factory->NewSubString(parent, 1, 20);
+  CHECK(sliced->IsSlicedString());
+  factory->InternalizeString(parent);
+  CHECK(parent->IsThinString());
+  Handle<String> grandparent =
+      handle(ThinString::cast(*parent)->actual(), isolate);
+  CHECK_EQ(*parent, SlicedString::cast(*sliced)->parent());
+  OneByteStringResource* resource =
+      new OneByteStringResource(external_one_byte_buf, kLength);
+  grandparent->MakeExternal(resource);
+  // The grandparent string becomes one-byte, but the child strings are still
+  // two-byte.
+  CHECK(grandparent->IsOneByteRepresentation());
+  CHECK(parent->IsTwoByteRepresentation());
+  CHECK(sliced->IsTwoByteRepresentation());
+  // The *Underneath versions return the correct representation.
+  CHECK(sliced->IsOneByteRepresentationUnderneath());
+  CHECK(!sliced->IsTwoByteRepresentationUnderneath());
+}
+
 }  // namespace test_strings
 }  // namespace internal
 }  // namespace v8
