@@ -149,10 +149,10 @@ Where there is disagreement among Collaborators, consensus should be sought if
 possible. If reaching consensus is not possible, a Collaborator may escalate the
 issue to the TSC.
 
-Collaborators should not block pull requests without providing a reason. Other
-Collaborators may ask objecting Collaborators questions about their objections.
-If an objecting Collaborator is unresponsive, another Collaborator may dismiss
-their objection.
+Collaborators should not block a pull request without providing a reason.
+Another Collaborator may ask an objecting Collaborator to explain their
+objection. If the objector is unresponsive, another Collaborator may dismiss the
+objection.
 
 Note that [breaking changes](#breaking-changes) must receive
 [TSC reviews](#involving-the-tsc). This does not mean that a Collaborator must
