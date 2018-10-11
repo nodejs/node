@@ -70,7 +70,7 @@ assert.strictEqual(util.format('%d %d', 42, 43), '42 43');
 assert.strictEqual(util.format('%d %d', 42), '42 %d');
 assert.strictEqual(
   util.format('%d', 1180591620717411303424),
-  '1.1805916207174113e+21'
+  '1'
 );
 assert.strictEqual(
   util.format('%d', 1180591620717411303424n),
