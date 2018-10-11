@@ -3517,36 +3517,38 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
   sign->CheckThrow(err);
 }
 
-static int Node_SignFinal(EVPMDPointer&& mdctx, unsigned char* md,
-                          unsigned int* sig_len,
-                          const EVPKeyPointer& pkey, int padding,
-                          int pss_salt_len) {
+static MallocedBuffer<unsigned char> Node_SignFinal(EVPMDPointer&& mdctx,
+                                                    const EVPKeyPointer& pkey,
+                                                    int padding,
+                                                    int pss_salt_len) {
   unsigned char m[EVP_MAX_MD_SIZE];
   unsigned int m_len;
 
-  *sig_len = 0;
   if (!EVP_DigestFinal_ex(mdctx.get(), m, &m_len))
-    return 0;
+    return MallocedBuffer<unsigned char>();
 
-  size_t sltmp = static_cast<size_t>(EVP_PKEY_size(pkey.get()));
+  int signed_sig_len = EVP_PKEY_size(pkey.get());
+  CHECK_GE(signed_sig_len, 0);
+  size_t sig_len = static_cast<size_t>(signed_sig_len);
+  MallocedBuffer<unsigned char> sig(sig_len);
+
   EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
   if (pkctx &&
       EVP_PKEY_sign_init(pkctx.get()) > 0 &&
       ApplyRSAOptions(pkey, pkctx.get(), padding, pss_salt_len) &&
       EVP_PKEY_CTX_set_signature_md(pkctx.get(),
                                     EVP_MD_CTX_md(mdctx.get())) > 0 &&
-      EVP_PKEY_sign(pkctx.get(), md, &sltmp, m, m_len) > 0) {
-    *sig_len = sltmp;
-    return 1;
+      EVP_PKEY_sign(pkctx.get(), sig.data, &sig_len, m, m_len) > 0) {
+    return MallocedBuffer<unsigned char>(sig.release(), sig_len);
   }
-  return 0;
+
+  return MallocedBuffer<unsigned char>();
 }
 
 SignBase::Error Sign::SignFinal(const char* key_pem,
                                 int key_pem_len,
                                 const char* passphrase,
-                                unsigned char* sig,
-                                unsigned int* sig_len,
+                                MallocedBuffer<unsigned char>* buffer,
                                 int padding,
                                 int salt_len) {
   if (!mdctx_)
@@ -3591,10 +3593,8 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
   }
 #endif  // NODE_FIPS_MODE
 
-  if (Node_SignFinal(std::move(mdctx), sig, sig_len, pkey, padding, salt_len))
-    return kSignOk;
-  else
-    return kSignPrivateKey;
+  *buffer = Node_SignFinal(std::move(mdctx), pkey, padding, salt_len);
+  return buffer->is_empty() ? kSignPrivateKey : kSignOk;
 }
 
 
@@ -3618,22 +3618,20 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   int salt_len = args[3].As<Int32>()->Value();
 
   ClearErrorOnReturn clear_error_on_return;
-  unsigned char md_value[8192];
-  unsigned int md_len = sizeof(md_value);
+  MallocedBuffer<unsigned char> sig;
 
   Error err = sign->SignFinal(
       buf,
       buf_len,
       len >= 2 && !args[1]->IsNull() ? *passphrase : nullptr,
-      md_value,
-      &md_len,
+      &sig,
       padding,
       salt_len);
   if (err != kSignOk)
     return sign->CheckThrow(err);
 
   Local<Object> rc =
-      Buffer::Copy(env, reinterpret_cast<char*>(md_value), md_len)
+      Buffer::New(env, reinterpret_cast<char*>(sig.data), sig.size)
       .ToLocalChecked();
   args.GetReturnValue().Set(rc);
 }
