@@ -87,7 +87,7 @@ function convertDERToPEM(label, der) {
   // with a relatively small key.
   const ret = generateKeyPairSync('rsa', {
     publicExponent: 0x10001,
-    modulusLength: 1024,
+    modulusLength: 512,
     publicKeyEncoding: {
       type: 'pkcs1',
       format: 'pem'
@@ -103,10 +103,10 @@ function convertDERToPEM(label, der) {
 
   assert.strictEqual(typeof publicKey, 'string');
   assert(pkcs1PubExp.test(publicKey));
-  assertApproximateSize(publicKey, 272);
+  assertApproximateSize(publicKey, 162);
   assert.strictEqual(typeof privateKey, 'string');
   assert(pkcs8Exp.test(privateKey));
-  assertApproximateSize(privateKey, 912);
+  assertApproximateSize(privateKey, 512);
 
   testEncryptDecrypt(publicKey, privateKey);
   testSignVerify(publicKey, privateKey);
@@ -116,7 +116,7 @@ function convertDERToPEM(label, der) {
   // Test async RSA key generation.
   generateKeyPair('rsa', {
     publicExponent: 0x10001,
-    modulusLength: 4096,
+    modulusLength: 512,
     publicKeyEncoding: {
       type: 'pkcs1',
       format: 'der'
@@ -132,11 +132,11 @@ function convertDERToPEM(label, der) {
     // will still need to convert it to PEM for testing.
     assert(Buffer.isBuffer(publicKeyDER));
     const publicKey = convertDERToPEM('RSA PUBLIC KEY', publicKeyDER);
-    assertApproximateSize(publicKey, 720);
+    assertApproximateSize(publicKey, 180);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1PrivExp.test(privateKey));
-    assertApproximateSize(privateKey, 3272);
+    assertApproximateSize(privateKey, 512);
 
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);
@@ -145,7 +145,7 @@ function convertDERToPEM(label, der) {
   // Now do the same with an encrypted private key.
   generateKeyPair('rsa', {
     publicExponent: 0x10001,
-    modulusLength: 4096,
+    modulusLength: 512,
     publicKeyEncoding: {
       type: 'pkcs1',
       format: 'der'
@@ -163,7 +163,7 @@ function convertDERToPEM(label, der) {
     // will still need to convert it to PEM for testing.
     assert(Buffer.isBuffer(publicKeyDER));
     const publicKey = convertDERToPEM('RSA PUBLIC KEY', publicKeyDER);
-    assertApproximateSize(publicKey, 720);
+    assertApproximateSize(publicKey, 180);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1EncExp('AES-256-CBC').test(privateKey));
@@ -182,7 +182,7 @@ function convertDERToPEM(label, der) {
 {
   // Test async DSA key generation.
   generateKeyPair('dsa', {
-    modulusLength: 2048,
+    modulusLength: 256,
     divisorLength: 256,
     publicKeyEncoding: {
       type: 'spki',
@@ -203,8 +203,8 @@ function convertDERToPEM(label, der) {
     assert(Buffer.isBuffer(privateKeyDER));
     const privateKey = convertDERToPEM('ENCRYPTED PRIVATE KEY', privateKeyDER);
 
-    assertApproximateSize(publicKey, 1194);
-    assertApproximateSize(privateKey, 1054);
+    assertApproximateSize(publicKey, 440);
+    assertApproximateSize(privateKey, 512);
 
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => {
@@ -279,7 +279,7 @@ function convertDERToPEM(label, der) {
   // Test async elliptic curve key generation, e.g. for ECDSA, with an encrypted
   // private key.
   generateKeyPair('ec', {
-    namedCurve: 'P-256',
+    namedCurve: 'P-192',
     paramEncoding: 'named',
     publicKeyEncoding: {
       type: 'spki',
@@ -315,7 +315,7 @@ function convertDERToPEM(label, der) {
   // Test the util.promisified API with async RSA key generation.
   promisify(generateKeyPair)('rsa', {
     publicExponent: 0x10001,
-    modulusLength: 3072,
+    modulusLength: 512,
     publicKeyEncoding: {
       type: 'pkcs1',
       format: 'pem'
@@ -328,15 +328,15 @@ function convertDERToPEM(label, der) {
     const { publicKey, privateKey } = keys;
     assert.strictEqual(typeof publicKey, 'string');
     assert(pkcs1PubExp.test(publicKey));
-    assertApproximateSize(publicKey, 600);
+    assertApproximateSize(publicKey, 180);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1PrivExp.test(privateKey));
-    assertApproximateSize(privateKey, 2455);
+    assertApproximateSize(privateKey, 512);
 
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);
-  })).catch(common.mustNotCall());
+  }));
 }
 
 {
@@ -545,7 +545,7 @@ function convertDERToPEM(label, der) {
   // Test invalid callbacks.
   for (const cb of [undefined, null, 0, {}]) {
     common.expectsError(() => generateKeyPair('rsa', {
-      modulusLength: 4096,
+      modulusLength: 512,
       publicKeyEncoding: { type: 'pkcs1', format: 'pem' },
       privateKeyEncoding: { type: 'pkcs1', format: 'pem' }
     }, cb), {
@@ -627,7 +627,7 @@ function convertDERToPEM(label, der) {
 
   // It should recognize both NIST and standard curve names.
   generateKeyPair('ec', {
-    namedCurve: 'P-256',
+    namedCurve: 'P-192',
     publicKeyEncoding: { type: 'spki', format: 'pem' },
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
   }, common.mustCall((err, publicKey, privateKey) => {
