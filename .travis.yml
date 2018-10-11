@@ -3,10 +3,10 @@ compiler:
   - clang
 sudo: false
 cache: ccache
-os: linux
 matrix:
   include:
     - name: "Linter"
+      os: linux
       node_js: "latest"
       env:
         - NODE=$(which node)
@@ -15,6 +15,10 @@ matrix:
         # Lint the first commit in the PR.
         - git log $TRAVIS_COMMIT_RANGE --pretty=format:'%h' --no-merges | tail -1 | xargs npx core-validate-commit --no-validate-metadata
     - name: "Test Suite"
+      os:
+        - linux
+        - windows
+        - osx
       install:
         - ./configure
         - make -j2 V=
