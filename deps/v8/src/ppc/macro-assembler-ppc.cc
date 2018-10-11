@@ -1768,11 +1768,8 @@ void TurboAssembler::Abort(AbortReason reason) {
     // We don't care if we constructed a frame. Just pretend we did.
     FrameScope assume_frame(this, StackFrame::NONE);
     mov(r3, Operand(static_cast<int>(reason)));
-    PrepareCallCFunction(1, 0, r4);
-    Move(ip, ExternalReference::abort_with_reason());
-    // Use Call directly to avoid any unneeded overhead. The function won't
-    // return anyway.
-    Call(ip);
+    PrepareCallCFunction(1, r4);
+    CallCFunction(ExternalReference::abort_with_reason(), 1);
     return;
   }
 

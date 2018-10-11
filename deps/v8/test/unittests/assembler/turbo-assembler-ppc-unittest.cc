@@ -25,6 +25,9 @@ TEST_F(TurboAssemblerTest, TestHardAbort) {
   byte* buffer = AllocateAssemblerBuffer(&allocated);
   TurboAssembler tasm(nullptr, AssemblerOptions{}, buffer,
                       static_cast<int>(allocated), CodeObjectRequired::kNo);
+  // Called from C
+  __ function_descriptor();
+
   __ set_abort_hard(true);
 
   __ Abort(AbortReason::kNoReason);
@@ -43,6 +46,9 @@ TEST_F(TurboAssemblerTest, TestCheck) {
   byte* buffer = AllocateAssemblerBuffer(&allocated);
   TurboAssembler tasm(nullptr, AssemblerOptions{}, buffer,
                       static_cast<int>(allocated), CodeObjectRequired::kNo);
+  // Called from C
+  __ function_descriptor();
+
   __ set_abort_hard(true);
 
   // Fail if the first parameter is 17.
