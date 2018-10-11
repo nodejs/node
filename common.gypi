@@ -20,12 +20,14 @@
     'node_module_version%': '',
     'node_with_ltcg%': '',
     'node_use_pch%': 'false',
+    'node_shared_openssl%': 'false',
 
     'node_tag%': '',
     'uv_library%': 'static_library',
 
     'clang%': 0,
 
+    'openssl_no_asm%': 0,
     'openssl_fips%': '',
 
     # Reset this number to 0 on major V8 upgrades.
@@ -261,6 +263,14 @@
         }
       }
     },
+
+    # Defines these mostly for node-gyp to pickup, and warn addon authors of
+    # imminent V8 deprecations, also to sync how dependencies are configured.
+    'defines': [
+      'V8_DEPRECATION_WARNINGS',
+      'V8_IMMINENT_DEPRECATION_WARNINGS',
+    ],
+
     # Forcibly disable -Werror.  We support a wide range of compilers, it's
     # simply not feasible to squelch all warnings, never mind that the
     # libraries in deps/ are not under our control.
@@ -503,7 +513,18 @@
         'ldflags': [
           '-Wl,--export-dynamic',
         ],
-      }]
+      }],
+      ['node_shared_openssl!="true"', {
+        # `OPENSSL_THREADS` is defined via GYP for openSSL for all architectures.
+        'defines': [
+          'OPENSSL_THREADS',
+        ],
+      }],
+      ['node_shared_openssl!="true" and openssl_no_asm==1', {
+        'defines': [
+          'OPENSSL_NO_ASM',
+        ],
+      }],
     ],
   }
 }
