@@ -154,12 +154,11 @@ Another Collaborator may ask an objecting Collaborator to explain their
 objection. If the objector is unresponsive, another Collaborator may dismiss the
 objection.
 
-Note that [breaking changes](#breaking-changes) must receive
-[TSC reviews](#involving-the-tsc). This does not mean that a Collaborator must
-put the pull request on the TSC meeting agenda. If two TSC members approve the
-pull request and no Collaborators object to the pull request, it may land. If
-there are objections, a Collaborator may put the pull request on the TSC meeting
-agenda.
+[Breaking changes](#breaking-changes) must receive
+[TSC review](#involving-the-tsc). If two TSC members approve the pull request
+and no Collaborators object, then it may land. If there are objections, a
+Collaborator may apply the `tsc-agenda` label. That will put the pull request on
+the TSC meeting agenda.
 
 #### Helpful resources
 
