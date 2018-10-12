@@ -171,8 +171,8 @@ function test(keyfn, certfn, check, next) {
 
 
   process.on('exit', function() {
-    assert.strictEqual(0, serverExitCode);
-    assert.strictEqual('WAIT-SERVER-CLOSE', state);
+    assert.strictEqual(serverExitCode, 0);
+    assert.strictEqual(state, 'WAIT-SERVER-CLOSE');
     assert.ok(gotWriteCallback);
   });
 }
