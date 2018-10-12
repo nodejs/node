@@ -36,7 +36,7 @@ server.on('upgrade', function(req, socket, upgradeHead) {
 });
 
 process.on('uncaughtException', common.mustCall(function(e) {
-  assert.strictEqual('upgrade error', e.message);
+  assert.strictEqual(e.message, 'upgrade error');
   process.exit(0);
 }));
 
