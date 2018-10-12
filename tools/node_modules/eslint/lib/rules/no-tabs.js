@@ -8,7 +8,9 @@
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
-const regex = /\t/;
+
+const tabRegex = /\t+/g;
+const anyNonWhitespaceRegex = /\S/;
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -22,21 +24,36 @@ module.exports = {
             recommended: false,
             url: "https://eslint.org/docs/rules/no-tabs"
         },
-        schema: []
+        schema: [{
+            type: "object",
+            properties: {
+                allowIndentationTabs: {
+                    type: "boolean"
+                }
+            },
+            additionalProperties: false
+        }]
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
+        const allowIndentationTabs = context.options && context.options[0] && context.options[0].allowIndentationTabs;
+
         return {
             Program(node) {
-                context.getSourceCode().getLines().forEach((line, index) => {
-                    const match = regex.exec(line);
+                sourceCode.getLines().forEach((line, index) => {
+                    let match;
 
-                    if (match) {
+                    while ((match = tabRegex.exec(line)) !== null) {
+                        if (allowIndentationTabs && !anyNonWhitespaceRegex.test(line.slice(0, match.index))) {
+                            continue;
+                        }
+
                         context.report({
                             node,
                             loc: {
                                 line: index + 1,
-                                column: match.index + 1
+                                column: match.index
                             },
                             message: "Unexpected tab character."
                         });
