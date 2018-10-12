@@ -11,6 +11,7 @@ if (!common.enoughTestCpu)
 
 const processes = [];
 const gatherStderr = new stream.PassThrough();
+const timeout = 30000;
 gatherStderr.setEncoding('utf8');
 gatherStderr.setMaxListeners(Infinity);
 
@@ -27,7 +28,6 @@ function spawnProcesses() {
     proc.stderr.pipe(gatherStderr);
     processes.push(proc);
   }
-
   setTimeout(() => {
     if (!finished && processes.length < 200)
       spawnProcesses();
@@ -36,6 +36,16 @@ function spawnProcesses() {
 
 spawnProcesses();
 
+setTimeout(() => {
+  const timeoutStream = new stream.PassThrough();
+  timeoutStream.write('Error: timeout');
+  timeoutStream.end();
+  timeoutStream.pipe(gatherStderr);
+
+  finished = true;
+  processes.forEach((proc) => proc.kill());
+}, timeout);
+
 let accumulated = '';
 gatherStderr.on('data', common.mustCallAtLeast((chunk) => {
   accumulated += chunk;
@@ -43,7 +53,8 @@ gatherStderr.on('data', common.mustCallAtLeast((chunk) => {
     assert(
       accumulated.includes('ENOSPC: System limit for number ' +
                            'of file watchers reached') ||
-      accumulated.includes('EMFILE: '),
+      accumulated.includes('EMFILE: ') ||
+      accumulated.includes('Timeout'),
       accumulated);
     console.log(`done after ${processes.length} processes, cleaning up`);
     finished = true;
