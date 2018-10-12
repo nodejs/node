@@ -149,19 +149,19 @@ class TLSWrap : public AsyncWrap,
   BIO* enc_in_ = nullptr;
   BIO* enc_out_ = nullptr;
   std::vector<uv_buf_t> pending_cleartext_input_;
-  size_t write_size_;
+  size_t write_size_ = 0;
   WriteWrap* current_write_ = nullptr;
   WriteWrap* current_empty_write_ = nullptr;
   bool write_callback_scheduled_ = false;
-  bool started_;
-  bool established_;
-  bool shutdown_;
+  bool started_ = false;
+  bool established_ = false;
+  bool shutdown_ = false;
   std::string error_;
-  int cycle_depth_;
+  int cycle_depth_ = 0;
 
   // If true - delivered EOF to the js-land, either after `close_notify`, or
   // after the `UV_EOF` on socket.
-  bool eof_;
+  bool eof_ = false;
 
  private:
   static void GetWriteQueueSize(
