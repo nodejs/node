@@ -66,7 +66,7 @@ echo_server.listen(common.PORT, function() {
   });
 
   client.on('data', function(chunk) {
-    assert.strictEqual('hello\r\n', chunk);
+    assert.strictEqual(chunk, 'hello\r\n');
     if (exchanges++ < 5) {
       setTimeout(function() {
         console.log('client write "hello"');
