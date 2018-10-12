@@ -50,9 +50,7 @@ using v8::String;
 using v8::Value;
 
 
-SyncProcessOutputBuffer::SyncProcessOutputBuffer()
-    : used_(0),
-      next_(nullptr) {
+SyncProcessOutputBuffer::SyncProcessOutputBuffer() {
 }
 
 
