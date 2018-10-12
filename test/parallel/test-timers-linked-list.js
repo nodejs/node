@@ -41,47 +41,47 @@ L.init(C);
 L.init(D);
 
 assert.ok(L.isEmpty(list));
-assert.strictEqual(null, L.peek(list));
+assert.strictEqual(L.peek(list), null);
 
 L.append(list, A);
 // list -> A
-assert.strictEqual(A, L.peek(list));
+assert.strictEqual(L.peek(list), A);
 
 L.append(list, B);
 // list -> A -> B
-assert.strictEqual(A, L.peek(list));
+assert.strictEqual(L.peek(list), A);
 
 L.append(list, C);
 // list -> A -> B -> C
-assert.strictEqual(A, L.peek(list));
+assert.strictEqual(L.peek(list), A);
 
 L.append(list, D);
 // list -> A -> B -> C -> D
-assert.strictEqual(A, L.peek(list));
+assert.strictEqual(L.peek(list), A);
 
 L.remove(A);
 L.remove(B);
 // B is already removed, so removing it again shouldn't hurt.
 L.remove(B);
 // list -> C -> D
-assert.strictEqual(C, L.peek(list));
+assert.strictEqual(L.peek(list), C);
 
 // Put B back on the list
 L.append(list, B);
 // list -> C -> D -> B
-assert.strictEqual(C, L.peek(list));
+assert.strictEqual(L.peek(list), C);
 
 L.remove(C);
 // list -> D -> B
-assert.strictEqual(D, L.peek(list));
+assert.strictEqual(L.peek(list), D);
 
 L.remove(B);
 // list -> D
-assert.strictEqual(D, L.peek(list));
+assert.strictEqual(L.peek(list), D);
 
 L.remove(D);
 // list
-assert.strictEqual(null, L.peek(list));
+assert.strictEqual(L.peek(list), null);
 
 
 assert.ok(L.isEmpty(list));
@@ -89,7 +89,7 @@ assert.ok(L.isEmpty(list));
 
 L.append(list, D);
 // list -> D
-assert.strictEqual(D, L.peek(list));
+assert.strictEqual(L.peek(list), D);
 
 L.append(list, C);
 L.append(list, B);
@@ -100,8 +100,8 @@ L.append(list, A);
 L.append(list, C);
 // list -> D -> B -> A -> C
 
-assert.strictEqual(D, L.peek(list));
-assert.strictEqual(B, L.peek(D));
-assert.strictEqual(A, L.peek(B));
-assert.strictEqual(C, L.peek(A));
-assert.strictEqual(list, L.peek(C));
+assert.strictEqual(L.peek(list), D);
+assert.strictEqual(L.peek(D), B);
+assert.strictEqual(L.peek(B), A);
+assert.strictEqual(L.peek(A), C);
+assert.strictEqual(L.peek(C), list);
