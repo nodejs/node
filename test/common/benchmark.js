@@ -32,6 +32,8 @@ function runBenchmark(name, args, env) {
   });
 
   child.on('exit', (code, signal) => {
+    console.log('---------------------------------------------------- here is code ----------------------------------------------------')
+    console.log(code)
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
     // This bit makes sure that each benchmark file is being sent settings such
