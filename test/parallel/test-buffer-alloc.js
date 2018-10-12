@@ -7,7 +7,7 @@ const SlowBuffer = require('buffer').SlowBuffer;
 
 
 const b = Buffer.allocUnsafe(1024);
-assert.strictEqual(1024, b.length);
+assert.strictEqual(b.length, 1024);
 
 b[0] = -1;
 assert.strictEqual(b[0], 255);
@@ -21,17 +21,17 @@ for (let i = 0; i < 1024; i++) {
 }
 
 const c = Buffer.allocUnsafe(512);
-assert.strictEqual(512, c.length);
+assert.strictEqual(c.length, 512);
 
 const d = Buffer.from([]);
-assert.strictEqual(0, d.length);
+assert.strictEqual(d.length, 0);
 
 // Test offset properties
 {
   const b = Buffer.alloc(128);
-  assert.strictEqual(128, b.length);
-  assert.strictEqual(0, b.byteOffset);
-  assert.strictEqual(0, b.offset);
+  assert.strictEqual(b.length, 128);
+  assert.strictEqual(b.byteOffset, 0);
+  assert.strictEqual(b.offset, 0);
 }
 
 // Test creating a Buffer from a Uint32Array
@@ -176,7 +176,7 @@ Buffer.alloc(1).write('', 1, 0);
 
 {
   const slice = b.slice(100, 150);
-  assert.strictEqual(50, slice.length);
+  assert.strictEqual(slice.length, 50);
   for (let i = 0; i < 50; i++) {
     assert.strictEqual(b[100 + i], slice[i]);
   }
@@ -213,13 +213,13 @@ Buffer.alloc(1).write('', 1, 0);
   const a = Buffer.allocUnsafe(8);
   for (let i = 0; i < 8; i++) a[i] = i;
   const b = a.slice(4, 8);
-  assert.strictEqual(4, b[0]);
-  assert.strictEqual(5, b[1]);
-  assert.strictEqual(6, b[2]);
-  assert.strictEqual(7, b[3]);
+  assert.strictEqual(b[0], 4);
+  assert.strictEqual(b[1], 5);
+  assert.strictEqual(b[2], 6);
+  assert.strictEqual(b[3], 7);
   const c = b.slice(2, 4);
-  assert.strictEqual(6, c[0]);
-  assert.strictEqual(7, c[1]);
+  assert.strictEqual(c[0], 6);
+  assert.strictEqual(c[1], 7);
 }
 
 {
@@ -287,7 +287,7 @@ Buffer.alloc(1).write('', 1, 0);
 //
 // Test toString('base64')
 //
-assert.strictEqual('TWFu', (Buffer.from('Man')).toString('base64'));
+assert.strictEqual((Buffer.from('Man')).toString('base64'), 'TWFu');
 
 {
   // test that regular and URL-safe base64 both work
@@ -487,7 +487,7 @@ assert.deepStrictEqual(Buffer.from(' YWJvcnVtLg', 'base64'),
   const b = Buffer.from(s);
 
   for (let i = 0; i < l; i++) {
-    assert.strictEqual('h'.charCodeAt(0), b[i]);
+    assert.strictEqual(b[i], 'h'.charCodeAt(0));
   }
 
   const sb = b.toString();
@@ -557,16 +557,16 @@ function buildBuffer(data) {
 
 const x = buildBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
 
-assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
+assert.strictEqual(x.inspect(), '<Buffer 81 a3 66 6f 6f a3 62 61 72>');
 
 {
   const z = x.slice(4);
-  assert.strictEqual(5, z.length);
-  assert.strictEqual(0x6f, z[0]);
-  assert.strictEqual(0xa3, z[1]);
-  assert.strictEqual(0x62, z[2]);
-  assert.strictEqual(0x61, z[3]);
-  assert.strictEqual(0x72, z[4]);
+  assert.strictEqual(z.length, 5);
+  assert.strictEqual(z[0], 0x6f);
+  assert.strictEqual(z[1], 0xa3);
+  assert.strictEqual(z[2], 0x62);
+  assert.strictEqual(z[3], 0x61);
+  assert.strictEqual(z[4], 0x72);
 }
 
 {
@@ -576,27 +576,27 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
 
 {
   const z = x.slice(0, 4);
-  assert.strictEqual(4, z.length);
-  assert.strictEqual(0x81, z[0]);
-  assert.strictEqual(0xa3, z[1]);
+  assert.strictEqual(z.length, 4);
+  assert.strictEqual(z[0], 0x81);
+  assert.strictEqual(z[1], 0xa3);
 }
 
 {
   const z = x.slice(0, 9);
-  assert.strictEqual(9, z.length);
+  assert.strictEqual(z.length, 9);
 }
 
 {
   const z = x.slice(1, 4);
-  assert.strictEqual(3, z.length);
-  assert.strictEqual(0xa3, z[0]);
+  assert.strictEqual(z.length, 3);
+  assert.strictEqual(z[0], 0xa3);
 }
 
 {
   const z = x.slice(2, 4);
-  assert.strictEqual(2, z.length);
-  assert.strictEqual(0x66, z[0]);
-  assert.strictEqual(0x6f, z[1]);
+  assert.strictEqual(z.length, 2);
+  assert.strictEqual(z[0], 0x66);
+  assert.strictEqual(z[1], 0x6f);
 }
 
 ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach((encoding) => {
@@ -616,16 +616,16 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
   const b = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
   let s = String.fromCharCode(0xffff);
   b.write(s, 0, 'latin1');
-  assert.strictEqual(0xff, b[0]);
-  assert.strictEqual(0xad, b[1]);
-  assert.strictEqual(0xbe, b[2]);
-  assert.strictEqual(0xef, b[3]);
+  assert.strictEqual(b[0], 0xff);
+  assert.strictEqual(b[1], 0xad);
+  assert.strictEqual(b[2], 0xbe);
+  assert.strictEqual(b[3], 0xef);
   s = String.fromCharCode(0xaaee);
   b.write(s, 0, 'latin1');
-  assert.strictEqual(0xee, b[0]);
-  assert.strictEqual(0xad, b[1]);
-  assert.strictEqual(0xbe, b[2]);
-  assert.strictEqual(0xef, b[3]);
+  assert.strictEqual(b[0], 0xee);
+  assert.strictEqual(b[1], 0xad);
+  assert.strictEqual(b[2], 0xbe);
+  assert.strictEqual(b[3], 0xef);
 }
 
 {
@@ -633,16 +633,16 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
   const b = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
   let s = String.fromCharCode(0xffff);
   b.write(s, 0, 'latin1');
-  assert.strictEqual(0xff, b[0]);
-  assert.strictEqual(0xad, b[1]);
-  assert.strictEqual(0xbe, b[2]);
-  assert.strictEqual(0xef, b[3]);
+  assert.strictEqual(b[0], 0xff);
+  assert.strictEqual(b[1], 0xad);
+  assert.strictEqual(b[2], 0xbe);
+  assert.strictEqual(b[3], 0xef);
   s = String.fromCharCode(0xaaee);
   b.write(s, 0, 'latin1');
-  assert.strictEqual(0xee, b[0]);
-  assert.strictEqual(0xad, b[1]);
-  assert.strictEqual(0xbe, b[2]);
-  assert.strictEqual(0xef, b[3]);
+  assert.strictEqual(b[0], 0xee);
+  assert.strictEqual(b[1], 0xad);
+  assert.strictEqual(b[2], 0xbe);
+  assert.strictEqual(b[3], 0xef);
 }
 
 {
@@ -715,11 +715,11 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
 {
   // test offset returns are correct
   const b = Buffer.allocUnsafe(16);
-  assert.strictEqual(4, b.writeUInt32LE(0, 0));
-  assert.strictEqual(6, b.writeUInt16LE(0, 4));
-  assert.strictEqual(7, b.writeUInt8(0, 6));
-  assert.strictEqual(8, b.writeInt8(0, 7));
-  assert.strictEqual(16, b.writeDoubleLE(0, 8));
+  assert.strictEqual(b.writeUInt32LE(0, 0), 4);
+  assert.strictEqual(b.writeUInt16LE(0, 4), 6);
+  assert.strictEqual(b.writeUInt8(0, 6), 7);
+  assert.strictEqual(b.writeInt8(0, 7), 8);
+  assert.strictEqual(b.writeDoubleLE(0, 8), 16);
 }
 
 {
