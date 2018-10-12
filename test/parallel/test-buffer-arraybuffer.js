@@ -40,7 +40,12 @@ assert.throws(function() {
   Object.setPrototypeOf(AB, ArrayBuffer);
   Object.setPrototypeOf(AB.prototype, ArrayBuffer.prototype);
   Buffer.from(new AB());
-}, TypeError);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+  message: 'The first argument must be one of type string, Buffer,' +
+  ' ArrayBuffer, Array, or Array-like Object. Received type object'
+});
 
 // Test the byteOffset and length arguments
 {
