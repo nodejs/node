@@ -313,12 +313,6 @@ function mustCallAtLeast(fn, minimum) {
   return _mustCallInner(fn, minimum, 'minimum');
 }
 
-function mustCallAsync(fn, exact) {
-  return mustCall((...args) => {
-    return Promise.resolve(fn(...args)).then(mustCall((val) => val));
-  }, exact);
-}
-
 function _mustCallInner(fn, criteria = 1, field) {
   if (process._exiting)
     throw new Error('Cannot use common.mustCall*() in process exit handler');
@@ -728,7 +722,6 @@ module.exports = {
   isWOW64,
   localIPv6Hosts,
   mustCall,
-  mustCallAsync,
   mustCallAtLeast,
   mustNotCall,
   nodeProcessAborted,
