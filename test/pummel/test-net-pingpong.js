@@ -32,8 +32,8 @@ function pingPongTest(port, host, on_complete) {
   let sent_final_ping = false;
 
   const server = net.createServer({ allowHalfOpen: true }, function(socket) {
-    assert.strictEqual(true, socket.remoteAddress !== null);
-    assert.strictEqual(true, socket.remoteAddress !== undefined);
+    assert.strictEqual(socket.remoteAddress !== null, true);
+    assert.strictEqual(socket.remoteAddress !== undefined, true);
     const address = socket.remoteAddress;
     if (host === '127.0.0.1') {
       assert.strictEqual(address, '127.0.0.1');
@@ -50,21 +50,21 @@ function pingPongTest(port, host, on_complete) {
 
     socket.on('data', function(data) {
       console.log(`server got: ${JSON.stringify(data)}`);
-      assert.strictEqual('open', socket.readyState);
-      assert.strictEqual(true, count <= N);
+      assert.strictEqual(socket.readyState, 'open');
+      assert.strictEqual(count <= N, true);
       if (/PING/.test(data)) {
         socket.write('PONG');
       }
     });
 
     socket.on('end', function() {
-      assert.strictEqual('writeOnly', socket.readyState);
+      assert.strictEqual(socket.readyState, 'writeOnly');
       socket.end();
     });
 
     socket.on('close', function(had_error) {
-      assert.strictEqual(false, had_error);
-      assert.strictEqual('closed', socket.readyState);
+      assert.strictEqual(had_error, false);
+      assert.strictEqual(socket.readyState, 'closed');
       socket.server.close();
     });
   });
@@ -75,21 +75,21 @@ function pingPongTest(port, host, on_complete) {
     client.setEncoding('utf8');
 
     client.on('connect', function() {
-      assert.strictEqual('open', client.readyState);
+      assert.strictEqual(client.readyState, 'open');
       client.write('PING');
     });
 
     client.on('data', function(data) {
       console.log(`client got: ${data}`);
 
-      assert.strictEqual('PONG', data);
+      assert.strictEqual(data, 'PONG');
       count += 1;
 
       if (sent_final_ping) {
-        assert.strictEqual('readOnly', client.readyState);
+        assert.strictEqual(client.readyState, 'readOnly');
         return;
       } else {
-        assert.strictEqual('open', client.readyState);
+        assert.strictEqual(client.readyState, 'open');
       }
 
       if (count < N) {
@@ -102,8 +102,8 @@ function pingPongTest(port, host, on_complete) {
     });
 
     client.on('close', function() {
-      assert.strictEqual(N + 1, count);
-      assert.strictEqual(true, sent_final_ping);
+      assert.strictEqual(count, N + 1);
+      assert.strictEqual(sent_final_ping, true);
       if (on_complete) on_complete();
       tests_run += 1;
     });
@@ -118,5 +118,5 @@ pingPongTest(common.PORT + 1, null);
 if (!common.isSunOS) pingPongTest(common.PORT + 2, '::1');
 
 process.on('exit', function() {
-  assert.strictEqual(common.isSunOS ? 2 : 3, tests_run);
+  assert.strictEqual(tests_run, common.isSunOS ? 2 : 3);
 });
