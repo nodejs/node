@@ -53,7 +53,7 @@ server.on('listening', function() {
   setTimeout(function() {
     chars_recved = recv.length;
     console.log(`pause at: ${chars_recved}`);
-    assert.strictEqual(true, chars_recved > 1);
+    assert.strictEqual(chars_recved > 1, true);
     client.pause();
     setTimeout(function() {
       console.log(`resume at: ${chars_recved}`);
@@ -86,6 +86,6 @@ server.on('listening', function() {
 server.listen(common.PORT);
 
 process.on('exit', function() {
-  assert.strictEqual(N, recv.length);
+  assert.strictEqual(recv.length, N);
   console.error('Exit');
 });
