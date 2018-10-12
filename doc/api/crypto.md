@@ -1923,6 +1923,14 @@ generateKeyPair('rsa', {
 On completion, `callback` will be called with `err` set to `undefined` and
 `publicKey` / `privateKey` representing the generated key pair.
 
+Private keys can be encrypted if the `type` is PKCS#8 or the `format` is PEM.
+If a `cipher` is specified and PKCS#8 was selected, an `EncryptedPrivateKeyInfo`
+structure will be produced. If PKCS#1 or SEC1 was selected and the `format` is
+PEM, RFC1421-style PEM-level encryption will be used. For maximum compatibility,
+it is recommended to use PKCS#8 for encrypted private keys. Since PKCS#8
+defines its own encryption mechanism, PEM-level encryption is not supported when
+encrypting a PKCS#8 key.
+
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 
@@ -1983,6 +1991,14 @@ const { publicKey, privateKey } = generateKeyPairSync('rsa', {
 The return value `{ publicKey, privateKey }` represents the generated key pair.
 When PEM encoding was selected, the respective key will be a string, otherwise
 it will be a buffer containing the data encoded as DER.
+
+Private keys can be encrypted if the `type` is PKCS#8 or the `format` is PEM.
+If a `cipher` is specified and PKCS#8 was selected, an `EncryptedPrivateKeyInfo`
+structure will be produced. If PKCS#1 or SEC1 was selected and the `format` is
+PEM, RFC1421-style PEM-level encryption will be used. For maximum compatibility,
+it is recommended to use PKCS#8 for encrypted private keys. Since PKCS#8
+defines its own encryption mechanism, PEM-level encryption is not supported when
+encrypting a PKCS#8 key.
 
 ### crypto.getCiphers()
 <!-- YAML
