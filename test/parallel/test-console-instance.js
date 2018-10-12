@@ -72,7 +72,7 @@ c.log('test');
 c.error('test');
 
 out.write = common.mustCall((d) => {
-  assert.strictEqual('{ foo: 1 }\n', d);
+  assert.strictEqual(d, '{ foo: 1 }\n');
 });
 
 c.dir({ foo: 1 });
