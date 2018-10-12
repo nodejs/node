@@ -25,15 +25,12 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
 assert.strictEqual(
-  fixtures.path('a.js').toLowerCase(),
-  require.resolve(fixtures.path('a')).toLowerCase());
+  require.resolve(fixtures.path('a')).toLowerCase(),
+  fixtures.path('a.js').toLowerCase());
 assert.strictEqual(
-  fixtures.path('a.js').toLowerCase(),
-  require.resolve(fixtures.path('a')).toLowerCase());
-assert.strictEqual(
-  fixtures.path('nested-index', 'one', 'index.js').toLowerCase(),
-  require.resolve(fixtures.path('nested-index', 'one')).toLowerCase());
-assert.strictEqual('path', require.resolve('path'));
+  require.resolve(fixtures.path('nested-index', 'one')).toLowerCase(),
+  fixtures.path('nested-index', 'one', 'index.js').toLowerCase());
+assert.strictEqual(require.resolve('path'), 'path');
 
 // Test configurable resolve() paths.
 require(fixtures.path('require-resolve.js'));
