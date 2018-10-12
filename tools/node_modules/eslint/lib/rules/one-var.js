@@ -314,6 +314,11 @@ module.exports = {
         function splitDeclarations(declaration) {
             return fixer => declaration.declarations.map(declarator => {
                 const tokenAfterDeclarator = sourceCode.getTokenAfter(declarator);
+
+                if (tokenAfterDeclarator === null) {
+                    return null;
+                }
+
                 const afterComma = sourceCode.getTokenAfter(tokenAfterDeclarator, { includeComments: true });
 
                 if (tokenAfterDeclarator.value !== ",") {

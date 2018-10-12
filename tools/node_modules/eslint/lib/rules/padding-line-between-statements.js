@@ -353,6 +353,9 @@ const StatementTypes = {
             node.type === "ExpressionStatement" &&
             !isDirectivePrologue(node, sourceCode)
     },
+    iife: {
+        test: isIIFEStatement
+    },
     "multiline-block-like": {
         test: (node, sourceCode) =>
             node.loc.start.line !== node.loc.end.line &&

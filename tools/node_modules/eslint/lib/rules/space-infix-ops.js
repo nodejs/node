@@ -34,37 +34,25 @@ module.exports = {
 
     create(context) {
         const int32Hint = context.options[0] ? context.options[0].int32Hint === true : false;
-
-        const OPERATORS = [
-            "*", "/", "%", "+", "-", "<<", ">>", ">>>", "<", "<=", ">", ">=", "in",
-            "instanceof", "==", "!=", "===", "!==", "&", "^", "|", "&&", "||", "=",
-            "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", ">>>=", "&=", "^=", "|=",
-            "?", ":", ",", "**"
-        ];
-
         const sourceCode = context.getSourceCode();
 
         /**
          * Returns the first token which violates the rule
          * @param {ASTNode} left - The left node of the main node
          * @param {ASTNode} right - The right node of the main node
+         * @param {string} op - The operator of the main node
          * @returns {Object} The violator token or null
          * @private
          */
-        function getFirstNonSpacedToken(left, right) {
-            const tokens = sourceCode.getTokensBetween(left, right, 1);
+        function getFirstNonSpacedToken(left, right, op) {
+            const operator = sourceCode.getFirstTokenBetween(left, right, token => token.value === op);
+            const prev = sourceCode.getTokenBefore(operator);
+            const next = sourceCode.getTokenAfter(operator);
 
-            for (let i = 1, l = tokens.length - 1; i < l; ++i) {
-                const op = tokens[i];
-
-                if (
-                    (op.type === "Punctuator" || op.type === "Keyword") &&
-                    OPERATORS.indexOf(op.value) >= 0 &&
-                    (tokens[i - 1].range[1] >= op.range[0] || op.range[1] >= tokens[i + 1].range[0])
-                ) {
-                    return op;
-                }
+            if (!sourceCode.isSpaceBetweenTokens(prev, operator) || !sourceCode.isSpaceBetweenTokens(operator, next)) {
+                return operator;
             }
+
             return null;
         }
 
@@ -110,7 +98,10 @@ module.exports = {
             const leftNode = (node.left.typeAnnotation) ? node.left.typeAnnotation : node.left;
             const rightNode = node.right;
 
-            const nonSpacedNode = getFirstNonSpacedToken(leftNode, rightNode);
+            // search for = in AssignmentPattern nodes
+            const operator = node.operator || "=";
+
+            const nonSpacedNode = getFirstNonSpacedToken(leftNode, rightNode, operator);
 
             if (nonSpacedNode) {
                 if (!(int32Hint && sourceCode.getText(node).endsWith("|0"))) {
@@ -126,8 +117,8 @@ module.exports = {
          * @private
          */
         function checkConditional(node) {
-            const nonSpacedConsequesntNode = getFirstNonSpacedToken(node.test, node.consequent);
-            const nonSpacedAlternateNode = getFirstNonSpacedToken(node.consequent, node.alternate);
+            const nonSpacedConsequesntNode = getFirstNonSpacedToken(node.test, node.consequent, "?");
+            const nonSpacedAlternateNode = getFirstNonSpacedToken(node.consequent, node.alternate, ":");
 
             if (nonSpacedConsequesntNode) {
                 report(node, nonSpacedConsequesntNode);
@@ -147,7 +138,7 @@ module.exports = {
             const rightNode = node.init;
 
             if (rightNode) {
-                const nonSpacedNode = getFirstNonSpacedToken(leftNode, rightNode);
+                const nonSpacedNode = getFirstNonSpacedToken(leftNode, rightNode, "=");
 
                 if (nonSpacedNode) {
                     report(node, nonSpacedNode);

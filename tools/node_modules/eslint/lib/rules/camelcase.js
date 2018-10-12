@@ -27,6 +27,16 @@ module.exports = {
                     },
                     properties: {
                         enum: ["always", "never"]
+                    },
+                    allow: {
+                        type: "array",
+                        items: [
+                            {
+                                type: "string"
+                            }
+                        ],
+                        minItems: 0,
+                        uniqueItems: true
                     }
                 },
                 additionalProperties: false
@@ -39,6 +49,15 @@ module.exports = {
     },
 
     create(context) {
+
+        const options = context.options[0] || {};
+        let properties = options.properties || "";
+        const ignoreDestructuring = options.ignoreDestructuring || false;
+        const allow = options.allow || [];
+
+        if (properties !== "always" && properties !== "never") {
+            properties = "always";
+        }
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -58,6 +77,18 @@ module.exports = {
 
             // if there's an underscore, it might be A_CONSTANT, which is okay
             return name.indexOf("_") > -1 && name !== name.toUpperCase();
+        }
+
+        /**
+         * Checks if a string match the ignore list
+         * @param {string} name The string to check.
+         * @returns {boolean} if the string is ignored
+         * @private
+         */
+        function isAllowed(name) {
+            return allow.findIndex(
+                entry => name === entry || name.match(new RegExp(entry))
+            ) !== -1;
         }
 
         /**
@@ -93,14 +124,6 @@ module.exports = {
             }
         }
 
-        const options = context.options[0] || {};
-        let properties = options.properties || "";
-        const ignoreDestructuring = options.ignoreDestructuring || false;
-
-        if (properties !== "always" && properties !== "never") {
-            properties = "always";
-        }
-
         return {
 
             Identifier(node) {
@@ -111,6 +134,11 @@ module.exports = {
                  */
                 const name = node.name.replace(/^_+|_+$/g, ""),
                     effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
+
+                // First, we ignore the node if it match the ignore list
+                if (isAllowed(name)) {
+                    return;
+                }
 
                 // MemberExpressions get special rules
                 if (node.parent.type === "MemberExpression") {
