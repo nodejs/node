@@ -58,13 +58,7 @@ TLSWrap::TLSWrap(Environment* env,
                 AsyncWrap::PROVIDER_TLSWRAP),
       SSLWrap<TLSWrap>(env, sc, kind),
       StreamBase(env),
-      sc_(sc),
-      write_size_(0),
-      started_(false),
-      established_(false),
-      shutdown_(false),
-      cycle_depth_(0),
-      eof_(false) {
+      sc_(sc) {
   MakeWeak();
 
   // sc comes from an Unwrap. Make sure it was assigned.
