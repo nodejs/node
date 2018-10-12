@@ -200,7 +200,7 @@ class AsyncWrap : public BaseObject {
   inline AsyncWrap();
   const ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
-  double async_id_;
+  double async_id_ = -1;
   double trigger_async_id_;
 };
 
