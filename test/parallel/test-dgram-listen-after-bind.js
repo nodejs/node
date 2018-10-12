@@ -29,16 +29,16 @@ const socket = dgram.createSocket('udp4');
 socket.bind();
 
 let fired = false;
-const timer = setTimeout(function() {
+const timer = setTimeout(() => {
   socket.close();
 }, 100);
 
-socket.on('listening', function() {
+socket.on('listening', () => {
   clearTimeout(timer);
   fired = true;
   socket.close();
 });
 
-socket.on('close', function() {
+socket.on('close', () => {
   assert(fired, 'listening should fire after bind');
 });
