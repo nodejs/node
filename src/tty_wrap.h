@@ -36,8 +36,6 @@ class TTYWrap : public LibuvStreamWrap {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
 
-  uv_tty_t* UVHandle();
-
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(TTYWrap)
   SET_SELF_SIZE(TTYWrap)
