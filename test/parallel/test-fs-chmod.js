@@ -86,14 +86,14 @@ fs.chmod(file1, mode_async.toString(8), common.mustCall((err) => {
   if (common.isWindows) {
     assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
   } else {
-    assert.strictEqual(mode_async, fs.statSync(file1).mode & 0o777);
+    assert.strictEqual(fs.statSync(file1).mode & 0o777, mode_async);
   }
 
   fs.chmodSync(file1, mode_sync);
   if (common.isWindows) {
     assert.ok((fs.statSync(file1).mode & 0o777) & mode_sync);
   } else {
-    assert.strictEqual(mode_sync, fs.statSync(file1).mode & 0o777);
+    assert.strictEqual(fs.statSync(file1).mode & 0o777, mode_sync);
   }
 }));
 
@@ -106,7 +106,7 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
     if (common.isWindows) {
       assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
     } else {
-      assert.strictEqual(mode_async, fs.fstatSync(fd).mode & 0o777);
+      assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode_async);
     }
 
     common.expectsError(
@@ -123,7 +123,7 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
     if (common.isWindows) {
       assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
     } else {
-      assert.strictEqual(mode_sync, fs.fstatSync(fd).mode & 0o777);
+      assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode_sync);
     }
 
     fs.close(fd, assert.ifError);
@@ -139,10 +139,10 @@ if (fs.lchmod) {
   fs.lchmod(link, mode_async, common.mustCall((err) => {
     assert.ifError(err);
 
-    assert.strictEqual(mode_async, fs.lstatSync(link).mode & 0o777);
+    assert.strictEqual(fs.lstatSync(link).mode & 0o777, mode_async);
 
     fs.lchmodSync(link, mode_sync);
-    assert.strictEqual(mode_sync, fs.lstatSync(link).mode & 0o777);
+    assert.strictEqual(fs.lstatSync(link).mode & 0o777, mode_sync);
 
   }));
 }
@@ -170,5 +170,5 @@ if (fs.lchmod) {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(0, openCount);
+  assert.strictEqual(openCount, 0);
 });
