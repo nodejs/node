@@ -41,7 +41,7 @@ function serialFork() {
       if (code === 12) {
         return assert.fail(`worker ${worker.id} failed to bind port`);
       }
-      assert.strictEqual(0, code);
+      assert.strictEqual(code, 0);
     }));
     worker.on('disconnect', common.mustCall(res));
   });
