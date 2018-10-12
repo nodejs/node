@@ -102,3 +102,16 @@ common.expectsError(
     assert(out.ALPNProtocols.equals(Buffer.from(expectView)));
   }
 }
+
+{
+  const protocols = [(new String('a')).repeat(500)];
+  const out = {};
+  common.expectsError(
+    () => tls.convertALPNProtocols(protocols, out),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'The byte length of the protocol at index 0 exceeds the ' +
+        'maximum length. It must be <= 255. Received 500'
+    }
+  );
+}
