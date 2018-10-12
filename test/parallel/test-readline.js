@@ -143,7 +143,7 @@ const assert = require('assert');
     ''
   ].forEach(function(expectedLine) {
     rl.write.apply(rl, key.xterm.metad);
-    assert.strictEqual(0, rl.cursor);
-    assert.strictEqual(expectedLine, rl.line);
+    assert.strictEqual(rl.cursor, 0);
+    assert.strictEqual(rl.line, expectedLine);
   });
 }
