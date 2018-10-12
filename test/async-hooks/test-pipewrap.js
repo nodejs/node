@@ -5,7 +5,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const tick = require('./tick');
+const tick = require('../common/tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 const spawn = require('child_process').spawn;
