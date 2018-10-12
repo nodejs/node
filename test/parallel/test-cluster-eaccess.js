@@ -47,7 +47,7 @@ if (cluster.isMaster && process.argv.length !== 3) {
   worker.on('message', common.mustCall(function(err) {
     // disconnect first, so that we will not leave zombies
     worker.disconnect();
-    assert.strictEqual('EADDRINUSE', err.code);
+    assert.strictEqual(err.code, 'EADDRINUSE');
   }));
 } else if (process.argv.length !== 3) {
   // cluster.worker
