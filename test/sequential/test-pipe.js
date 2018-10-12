@@ -75,7 +75,7 @@ const tcp = net.Server(common.mustCall((s) => {
   s.on('data', (d) => {
     tcpLengthSeen += d.length;
     for (let j = 0; j < d.length; j++) {
-      assert.strictEqual(buffer[i], d[j]);
+      assert.strictEqual(d[j], buffer[i]);
       i++;
     }
   });
@@ -103,7 +103,7 @@ function startClient() {
   }, common.mustCall((res) => {
     res.setEncoding('utf8');
     res.on('data', common.mustCall((string) => {
-      assert.strictEqual('thanks', string);
+      assert.strictEqual(string, 'thanks');
       gotThanks = true;
     }));
   }));
@@ -113,5 +113,5 @@ function startClient() {
 
 process.on('exit', () => {
   assert.ok(gotThanks);
-  assert.strictEqual(bufferSize, tcpLengthSeen);
+  assert.strictEqual(tcpLengthSeen, bufferSize);
 });
