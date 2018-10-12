@@ -26,7 +26,7 @@ for (const allocator of allocators) {
       // These allocations are known to fail. If they do,
       // Uint32Array should still produce a zeroed out result.
       allocator(size);
-    } catch (e) {
+    } catch {
       assert.deepStrictEqual(new Uint32Array(10), zeroArray);
     }
   }
