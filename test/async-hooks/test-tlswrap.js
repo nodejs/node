@@ -8,7 +8,7 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const tls = require('tls');
 
-const tick = require('./tick');
+const tick = require('../common/tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 
