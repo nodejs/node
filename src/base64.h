@@ -10,8 +10,9 @@
 
 namespace node {
 //// Base 64 ////
-#define base64_encoded_size(size) ((size + 2 - ((size + 2) % 3)) / 3 * 4)
-
+static inline constexpr size_t base64_encoded_size(size_t size) {
+  return ((size + 2 - ((size + 2) % 3)) / 3 * 4);
+}
 
 // Doesn't check for padding at the end.  Can be 1-2 bytes over.
 static inline size_t base64_decoded_size_fast(size_t size) {
@@ -48,8 +49,9 @@ size_t base64_decoded_size(const TypeName* src, size_t size) {
 extern const int8_t unbase64_table[256];
 
 
-#define unbase64(x)                                                           \
-  static_cast<uint8_t>(unbase64_table[static_cast<uint8_t>(x)])
+inline static int8_t unbase64(uint8_t x) {
+  return unbase64_table[x];
+}
 
 
 template <typename TypeName>
