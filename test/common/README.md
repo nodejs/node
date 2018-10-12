@@ -765,7 +765,7 @@ should not be in scope when `listener.ongc()` is created.
 ## tick Module
 
 The `tick` module provides a helper function that can be used to call a callback
-after a given number of eevnt loop "ticks".
+after a given number of event loop "ticks".
 
 ## tmpdir Module
 
