@@ -50,7 +50,8 @@ static napi_value CallWithArray(napi_env env, napi_callback_info info) {
     status = napi_get_array_length(env, array, &length);
     assert(status == napi_ok);
 
-    for (uint32_t i = 0; i < length; ++i) {
+    uint32_t i;
+    for (i = 0; i < length; ++i) {
       napi_value v;
       status = napi_get_element(env, array, i, &v);
       assert(status == napi_ok);
@@ -173,7 +174,8 @@ static napi_value CallWithArguments(napi_env env, napi_callback_info info) {
     status = napi_get_value_uint32(env, args[0], &loop);
     assert(status == napi_ok);
 
-    for (uint32_t i = 1; i < loop; ++i) {
+    uint32_t i;
+    for (i = 1; i < loop; ++i) {
       assert(i < argc);
       status = napi_typeof(env, args[i], types);
       assert(status == napi_ok);
