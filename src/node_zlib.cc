@@ -850,4 +850,4 @@ void DefineZlibConstants(Local<Object> target) {
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(zlib, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(zlib, node::Initialize)
