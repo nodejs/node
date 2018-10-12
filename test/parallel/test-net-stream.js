@@ -69,5 +69,5 @@ const server = net.createServer(function(socket) {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(server.connections, 0);
+  assert.strictEqual(0, server.connections);
 });
