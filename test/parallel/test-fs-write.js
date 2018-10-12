@@ -79,10 +79,10 @@ common.allowGlobals(externalizeString, isOneByteString, x);
 }
 /* eslint-enable no-undef */
 
-fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
+fs.open(fn, 'w', 0o644, common.mustCall((err, fd) => {
   assert.ifError(err);
 
-  const done = common.mustCall(function(err, written) {
+  const done = common.mustCall((err, written) => {
     assert.ifError(err);
     assert.strictEqual(written, Buffer.byteLength(expected));
     fs.closeSync(fd);
@@ -91,7 +91,7 @@ fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
     assert.strictEqual(found, expected);
   });
 
-  const written = common.mustCall(function(err, written) {
+  const written = common.mustCall((err, written) => {
     assert.ifError(err);
     assert.strictEqual(written, 0);
     fs.write(fd, expected, 0, 'utf8', done);
@@ -113,7 +113,7 @@ fs.open(fn2, args, 0o644, common.mustCall((err, fd) => {
     assert.strictEqual(found, expected);
   });
 
-  const written = common.mustCall(function(err, written) {
+  const written = common.mustCall((err, written) => {
     assert.ifError(err);
     assert.strictEqual(written, 0);
     fs.write(fd, expected, 0, 'utf8', done);
@@ -122,10 +122,10 @@ fs.open(fn2, args, 0o644, common.mustCall((err, fd) => {
   fs.write(fd, '', 0, 'utf8', written);
 }));
 
-fs.open(fn3, 'w', 0o644, common.mustCall(function(err, fd) {
+fs.open(fn3, 'w', 0o644, common.mustCall((err, fd) => {
   assert.ifError(err);
 
-  const done = common.mustCall(function(err, written) {
+  const done = common.mustCall((err, written) => {
     assert.ifError(err);
     assert.strictEqual(written, Buffer.byteLength(expected));
     fs.closeSync(fd);
