@@ -48,7 +48,7 @@ server.listen(0, function() {
   });
 
   client.on('exit', function(code) {
-    assert.strictEqual(0, code);
+    assert.strictEqual(code, 0);
     server.close();
   });
 
