@@ -44,12 +44,12 @@ class ClientHelloParser {
     inline int ocsp_request() const { return ocsp_request_; }
 
    private:
-    uint8_t session_size_ = 0;
-    const uint8_t* session_id_ = nullptr;
+    uint8_t session_size_;
+    const uint8_t* session_id_;
     bool has_ticket_;
-    uint8_t servername_size_ = 0;
-    const uint8_t* servername_ = nullptr;
-    int ocsp_request_ = 0;
+    uint8_t servername_size_;
+    const uint8_t* servername_;
+    int ocsp_request_;
 
     friend class ClientHelloParser;
   };
@@ -111,11 +111,11 @@ class ClientHelloParser {
   size_t frame_len_ = 0;
   size_t body_offset_ = 0;
   size_t extension_offset_ = 0;
-  uint8_t session_size_;
-  const uint8_t* session_id_;
-  uint16_t servername_size_;
-  const uint8_t* servername_;
-  uint8_t ocsp_request_;
+  uint8_t session_size_ = 0;
+  const uint8_t* session_id_ = nullptr;
+  uint16_t servername_size_ = 0;
+  const uint8_t* servername_ = nullptr;
+  uint8_t ocsp_request_ = 0;
   uint16_t tls_ticket_size_ = -1;
   const uint8_t* tls_ticket_ = nullptr;
 };
