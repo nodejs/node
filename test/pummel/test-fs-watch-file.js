@@ -50,10 +50,10 @@ process.on('exit', function() {
   fs.unlinkSync(filepathTwoAbs);
   fs.unlinkSync(filenameThree);
   fs.unlinkSync(filenameFour);
-  assert.strictEqual(1, watchSeenOne);
-  assert.strictEqual(2, watchSeenTwo);
-  assert.strictEqual(1, watchSeenThree);
-  assert.strictEqual(1, watchSeenFour);
+  assert.strictEqual(watchSeenOne, 1);
+  assert.strictEqual(watchSeenTwo, 2);
+  assert.strictEqual(watchSeenThree, 1);
+  assert.strictEqual(watchSeenFour, 1);
 });
 
 
@@ -134,7 +134,7 @@ setTimeout(function() {
 { // Does not throw.
   function a() {
     ++watchSeenFour;
-    assert.strictEqual(1, watchSeenFour);
+    assert.strictEqual(watchSeenFour, 1);
     fs.unwatchFile(`.${path.sep}${filenameFour}`, a);
   }
   fs.watchFile(filenameFour, a);
