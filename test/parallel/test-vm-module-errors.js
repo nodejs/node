@@ -132,6 +132,14 @@ async function checkModuleState() {
   });
 
   await expectsRejection(async () => {
+    const m = new SourceTextModule('');
+    await m.evaluate(false);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of type Object. Received type boolean'
+  });
+
+  await expectsRejection(async () => {
     const m = await createEmptyLinkedModule();
     await m.evaluate();
   }, {
