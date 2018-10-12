@@ -56,9 +56,9 @@ class SyncProcessOutputBuffer {
  private:
   // Use unsigned int because that's what `uv_buf_init` takes.
   mutable char data_[kBufferSize];
-  unsigned int used_;
+  unsigned int used_ = 0;
 
-  SyncProcessOutputBuffer* next_;
+  SyncProcessOutputBuffer* next_ = nullptr;
 };
 
 
