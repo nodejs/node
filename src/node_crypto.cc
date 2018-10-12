@@ -5756,7 +5756,7 @@ std::string GetOpenSSLVersion() {
   const int start = search(OPENSSL_VERSION_TEXT, 0, ' ') + 1;
   const int end = search(OPENSSL_VERSION_TEXT + start, start, ' ') + 1;
   const int len = end - start;
-  snprintf(buf, len, "%.*s\n", len, &OPENSSL_VERSION_TEXT[start]);
+  snprintf(buf, sizeof(buf), "%.*s\n", len, &OPENSSL_VERSION_TEXT[start]);
   return std::string(buf);
 }
 
