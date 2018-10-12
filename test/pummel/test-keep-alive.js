@@ -104,7 +104,20 @@ server.listen(common.PORT, () => {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(true, normalReqSec > 50);
-  assert.strictEqual(true, keepAliveReqSec > 50);
-  assert.strictEqual(true, normalReqSec < keepAliveReqSec);
+  assert.strictEqual(
+    normalReqSec > 50,
+    true,
+    `normalReqSec should be greater than 50, but got ${normalReqSec}`
+  );
+  assert.strictEqual(
+    keepAliveReqSec > 50,
+    true,
+    `keepAliveReqSec should be greater than 50, but got ${keepAliveReqSec}`
+  );
+  assert.strictEqual(
+    normalReqSec < keepAliveReqSec,
+    true,
+    'normalReqSec should be less than keepAliveReqSec, ' +
+    `but ${normalReqSec} is greater than ${keepAliveReqSec}`
+  );
 });
