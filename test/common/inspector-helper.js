@@ -63,7 +63,7 @@ function parseWSFrame(buffer) {
   if (buffer[0] === 0x88 && buffer[1] === 0x00) {
     return { length: 2, message, closed: true };
   }
-  assert.strictEqual(0x81, buffer[0]);
+  assert.strictEqual(buffer[0], 0x81);
   let dataLen = 0x7F & buffer[1];
   let bodyOffset = 2;
   if (buffer.length < bodyOffset + dataLen)
@@ -251,7 +251,7 @@ class InspectorSession {
       assert.strictEqual(scriptPath.toString(),
                          expectedScriptPath.toString(),
                          `${scriptPath} !== ${expectedScriptPath}`);
-      assert.strictEqual(line, location.lineNumber);
+      assert.strictEqual(location.lineNumber, line);
       return true;
     }
   }
