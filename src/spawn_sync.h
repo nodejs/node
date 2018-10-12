@@ -203,7 +203,7 @@ class SyncProcessRunner {
 
   uint32_t stdio_count_;
   uv_stdio_container_t* uv_stdio_containers_;
-  std::unique_ptr<std::unique_ptr<SyncProcessStdioPipe>[]> stdio_pipes_;
+  std::vector<std::unique_ptr<SyncProcessStdioPipe>> stdio_pipes_;
   bool stdio_pipes_initialized_;
 
   uv_process_options_t uv_process_options_;
