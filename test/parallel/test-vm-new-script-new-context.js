@@ -30,8 +30,8 @@ const Script = require('vm').Script;
   const script = new Script('\'passed\';');
   const result1 = script.runInNewContext();
   const result2 = script.runInNewContext();
-  assert.strictEqual('passed', result1);
-  assert.strictEqual('passed', result2);
+  assert.strictEqual(result1, 'passed');
+  assert.strictEqual(result2, 'passed');
 }
 
 {
@@ -52,7 +52,7 @@ const Script = require('vm').Script;
   global.hello = 5;
   const script = new Script('hello = 2');
   script.runInNewContext();
-  assert.strictEqual(5, global.hello);
+  assert.strictEqual(global.hello, 5);
 
   // Cleanup
   delete global.hello;
@@ -68,9 +68,9 @@ const Script = require('vm').Script;
   /* eslint-disable no-unused-vars */
   const baz = script.runInNewContext(global.obj);
   /* eslint-enable no-unused-vars */
-  assert.strictEqual(1, global.obj.foo);
-  assert.strictEqual(2, global.obj.bar);
-  assert.strictEqual(2, global.foo);
+  assert.strictEqual(global.obj.foo, 1);
+  assert.strictEqual(global.obj.bar, 2);
+  assert.strictEqual(global.foo, 2);
 
   // cleanup
   delete global.code;
