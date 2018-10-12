@@ -1156,6 +1156,7 @@
         '../src/interpreter/interpreter.h',
         '../src/intl.cc',
         '../src/intl.h',
+        '../src/isolate-data.h',
         '../src/isolate-inl.h',
         '../src/isolate.cc',
         '../src/isolate.h',
@@ -1193,6 +1194,7 @@
         '../src/math-random.h',
         '../src/maybe-handles-inl.h',
         '../src/maybe-handles.h',
+        '../src/message-template.h',
         '../src/messages.cc',
         '../src/messages.h',
         '../src/msan.h',
@@ -1585,6 +1587,8 @@
         '../src/wasm/function-body-decoder.h',
         '../src/wasm/function-compiler.cc',
         '../src/wasm/function-compiler.h',
+        '../src/wasm/graph-builder-interface.cc',
+        '../src/wasm/graph-builder-interface.h',
         '../src/wasm/jump-table-assembler.cc',
         '../src/wasm/jump-table-assembler.h',
         '../src/wasm/leb-helper.h',
@@ -2598,7 +2602,7 @@
       'variables': {
         'library_files': [
           '../src/js/macros.py',
-          '../src/messages.h',
+          '../src/message-template.h',
           '../src/js/prologue.js',
           '../src/js/array.js',
           '../src/js/typedarray.js',
