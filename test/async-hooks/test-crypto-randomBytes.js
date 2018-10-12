@@ -7,7 +7,7 @@ if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different async IDs');
 
 const assert = require('assert');
-const tick = require('./tick');
+const tick = require('../common/tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 const crypto = require('crypto');

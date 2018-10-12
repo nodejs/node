@@ -3,7 +3,7 @@ const common = require('../common');
 
 const assert = require('assert');
 const initHooks = require('./init-hooks');
-const tick = require('./tick');
+const tick = require('../common/tick');
 const { checkInvocations } = require('./hook-checks');
 const fs = require('fs');
 
