@@ -21,6 +21,10 @@
 
 'use strict';
 const common = require('../common');
+
+if (common.isOSXMojave)
+  common.skip('bypass test for Mojave due to OSX issue');
+
 if (common.isWindows)
   common.skip('not reliable on Windows.');
 
