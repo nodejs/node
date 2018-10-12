@@ -842,6 +842,11 @@ class Environment {
     emit_env_nonstring_warning_ = false;
     return current_value;
   }
+  inline bool EmitErrNameWarning() {
+    bool current_value = emit_err_name_warning_;
+    emit_err_name_warning_ = false;
+    return current_value;
+  }
 
   typedef void (*native_immediate_callback)(Environment* env, void* data);
   // cb will be called as cb(env, data) on the next event loop iteration.
@@ -929,6 +934,7 @@ class Environment {
   bool printed_error_;
   bool abort_on_uncaught_exception_;
   bool emit_env_nonstring_warning_;
+  bool emit_err_name_warning_;
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
 

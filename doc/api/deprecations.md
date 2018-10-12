@@ -2230,6 +2230,13 @@ like `dns.lookup(false)` due to backward compatibility.
 This behavior is undocumented and is thought to be unused in real world apps.
 It will become an error in future versions of Node.js.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: process.binding('uv').errname() private API
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
