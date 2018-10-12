@@ -37,6 +37,7 @@ function spawnProcesses() {
 spawnProcesses();
 
 setTimeout(() => {
+<<<<<<< HEAD
   if (!finished) {
     const timeoutStream = new stream.PassThrough();
     timeoutStream.write('Error: timeout');
@@ -46,6 +47,15 @@ setTimeout(() => {
     finished = true;
     processes.forEach((proc) => proc.kill());
   }
+=======
+  const timeoutStream = new stream.PassThrough();
+  timeoutStream.write('Error: timeout');
+  timeoutStream.end();
+  timeoutStream.pipe(gatherStderr);
+
+  finished = true;
+  processes.forEach((proc) => proc.kill());
+>>>>>>> test: fix timeout when running sequential/test-fs-watch-system-limit.js
 }, timeout);
 
 let accumulated = '';
