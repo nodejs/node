@@ -1,16 +1,6 @@
 'use strict';
 const common = require('../common');
+const captureSym = Symbol('foo');
 
-process.setUncaughtExceptionCaptureCallback(common.mustNotCall());
-
-common.expectsError(
-  () => require('domain'),
-  {
-    code: 'ERR_DOMAIN_CALLBACK_NOT_AVAILABLE',
-    type: Error,
-    message: /^A callback was registered.*with using the `domain` module/
-  }
-);
-
-process.setUncaughtExceptionCaptureCallback(null);
+process.setUncaughtExceptionCaptureCallback(captureSym, common.mustNotCall());
 require('domain'); // Should not throw.

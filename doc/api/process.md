@@ -1807,11 +1807,12 @@ This function is only available on POSIX platforms (i.e. not Windows or
 Android).
 This feature is not available in [`Worker`][] threads.
 
-## process.setUncaughtExceptionCaptureCallback(fn)
+## process.setUncaughtExceptionCaptureCallback(owner, fn)
 <!-- YAML
 added: v9.3.0
 -->
 
+* `owner` {symbol}
 * `fn` {Function|null}
 
 The `process.setUncaughtExceptionCaptureCallback()` function sets a function
@@ -1824,12 +1825,7 @@ command line or set through [`v8.setFlagsFromString()`][], the process will
 not abort.
 
 To unset the capture function,
-`process.setUncaughtExceptionCaptureCallback(null)` may be used. Calling this
-method with a non-`null` argument while another capture function is set will
-throw an error.
-
-Using this function is mutually exclusive with using the deprecated
-[`domain`][] built-in module.
+`process.setUncaughtExceptionCaptureCallback(owner, null)` may be used.
 
 ## process.stderr
 
@@ -2137,7 +2133,6 @@ cases:
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
-[`domain`]: domain.html
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`NODE_OPTIONS`]: cli.html#cli_node_options_options
@@ -2150,7 +2145,7 @@ cases:
 [`process.hrtime()`]: #process_process_hrtime_time
 [`process.hrtime.bigint()`]: #process_process_hrtime_bigint
 [`process.kill()`]: #process_process_kill_pid_signal
-[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_owner_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
