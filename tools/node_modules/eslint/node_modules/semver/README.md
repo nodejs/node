@@ -29,8 +29,6 @@ As a command-line utility:
 ```
 $ semver -h
 
-SemVer 5.3.0
-
 A JavaScript implementation of the http://semver.org/ specification
 Copyright Isaac Z. Schlueter
 
@@ -53,6 +51,9 @@ Options:
 
 -l --loose
         Interpret versions and ranges loosely
+
+-p --include-prerelease
+        Always include prerelease versions in range matching
 
 -c --coerce
         Coerce a string into SemVer if possible
@@ -289,9 +290,19 @@ part       ::= nr | [-0-9A-Za-z]+
 
 ## Functions
 
-All methods and classes take a final `loose` boolean argument that, if
-true, will be more forgiving about not-quite-valid semver strings.
-The resulting output will always be 100% strict, of course.
+All methods and classes take a final `options` object argument.  All
+options in this object are `false` by default.  The options supported
+are:
+
+- `loose`  Be more forgiving about not-quite-valid semver strings.
+  (Any resulting output will always be 100% strict compliant, of
+  course.)  For backwards compatibility reasons, if the `options`
+  argument is a boolean value instead of an object, it is interpreted
+  to be the `loose` param.
+- `includePrerelease`  Set to suppress the [default
+  behavior](https://github.com/npm/node-semver#prerelease-tags) of
+  excluding prerelease tagged versions from ranges unless they are
+  explicitly opted into.
 
 Strict-mode Comparators and Ranges will be strict about the SemVer
 strings that they parse.
