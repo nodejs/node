@@ -275,29 +275,28 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
 
   Local<Signature> signature = Signature::New(env->isolate(), t);
 
-  // TODO(TimothyGu): None of these should have ConstructorBehavior::kAllow.
   Local<FunctionTemplate> get_fd_templ =
       env->NewFunctionTemplate(GetFD<Base>,
                                signature,
-                               v8::ConstructorBehavior::kAllow,
+                               v8::ConstructorBehavior::kThrow,
                                v8::SideEffectType::kHasNoSideEffect);
 
   Local<FunctionTemplate> get_external_templ =
       env->NewFunctionTemplate(GetExternal<Base>,
                                signature,
-                               v8::ConstructorBehavior::kAllow,
+                               v8::ConstructorBehavior::kThrow,
                                v8::SideEffectType::kHasNoSideEffect);
 
   Local<FunctionTemplate> get_bytes_read_templ =
       env->NewFunctionTemplate(GetBytesRead<Base>,
                                signature,
-                               v8::ConstructorBehavior::kAllow,
+                               v8::ConstructorBehavior::kThrow,
                                v8::SideEffectType::kHasNoSideEffect);
 
   Local<FunctionTemplate> get_bytes_written_templ =
       env->NewFunctionTemplate(GetBytesWritten<Base>,
                                signature,
-                               v8::ConstructorBehavior::kAllow,
+                               v8::ConstructorBehavior::kThrow,
                                v8::SideEffectType::kHasNoSideEffect);
 
   t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
