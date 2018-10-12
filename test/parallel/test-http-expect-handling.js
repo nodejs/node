@@ -51,5 +51,5 @@ function nextTest() {
 
 
 process.on('exit', function() {
-  assert.strictEqual(2, testsComplete);
+  assert.strictEqual(testsComplete, 2);
 });
