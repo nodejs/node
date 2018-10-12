@@ -17,7 +17,7 @@ async function runTests() {
   ]);
   await session.waitForBreakOnLine(0, '[eval]');
   await session.runToCompletion();
-  assert.strictEqual(0, (await instance.expectShutdown()).exitCode);
+  assert.strictEqual((await instance.expectShutdown()).exitCode, 0);
 }
 
 runTests();
