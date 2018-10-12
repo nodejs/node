@@ -64,15 +64,15 @@ server.listen(0, function() {
     // readyState is deprecated but we want to make
     // sure this isn't triggering an assert in lib/net.js
     // See https://github.com/nodejs/node-v0.x-archive/issues/1069.
-    assert.strictEqual('closed', client.readyState);
+    assert.strictEqual(client.readyState, 'closed');
 
     // Confirming the buffer string is encoded in ASCII
     // and thus does NOT match the UTF8 string
-    assert.notStrictEqual(buffer, messageUtf8);
+    assert.notStrictEqual(messageUtf8, buffer);
 
     // Confirming the buffer string is encoded in ASCII
     // and thus does equal the ASCII string representation
-    assert.strictEqual(buffer, messageAscii);
+    assert.strictEqual(messageAscii, buffer);
 
     server.close();
   });
