@@ -57,12 +57,12 @@ const proxy = net.createServer((clientSocket) => {
   clientSocket.on('data', (chunk) => {
     if (!serverSocket) {
       // Verify the CONNECT request
-      assert.strictEqual(`CONNECT localhost:${server.address().port} ` +
+      assert.strictEqual(chunk.toString(),
+                         `CONNECT localhost:${server.address().port} ` +
                          'HTTP/1.1\r\n' +
                          'Proxy-Connections: keep-alive\r\n' +
                          `Host: localhost:${proxy.address().port}\r\n` +
-                         'Connection: close\r\n\r\n',
-                         chunk.toString());
+                         'Connection: close\r\n\r\n');
 
       console.log('PROXY: got CONNECT request');
       console.log('PROXY: creating a tunnel');
@@ -126,7 +126,7 @@ proxy.listen(0, common.mustCall(() => {
   }
 
   function onConnect(res, socket, header) {
-    assert.strictEqual(200, res.statusCode);
+    assert.strictEqual(res.statusCode, 200);
     console.log('CLIENT: got CONNECT response');
 
     // detach the socket
@@ -149,10 +149,10 @@ proxy.listen(0, common.mustCall(() => {
       agent: false,
       rejectUnauthorized: false
     }, (res) => {
-      assert.strictEqual(200, res.statusCode);
+      assert.strictEqual(res.statusCode, 200);
 
       res.on('data', common.mustCall((chunk) => {
-        assert.strictEqual('hello world\n', chunk.toString());
+        assert.strictEqual(chunk.toString(), 'hello world\n');
         console.log('CLIENT: got HTTPS response');
         gotRequest = true;
       }));
