@@ -9,7 +9,7 @@ const opts = { shell: common.isWindows };
 
 const p = cp.spawn('echo', [], opts);
 
-p.on('close', common.mustCall(function(code, signal) {
+p.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
   spawnWithReadable();
@@ -17,17 +17,17 @@ p.on('close', common.mustCall(function(code, signal) {
 
 p.stdout.read();
 
-function spawnWithReadable() {
+const spawnWithReadable = () => {
   const buffer = [];
   const p = cp.spawn('echo', ['123'], opts);
-  p.on('close', common.mustCall(function(code, signal) {
+  p.on('close', common.mustCall((code, signal) => {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
     assert.strictEqual(Buffer.concat(buffer).toString().trim(), '123');
   }));
-  p.stdout.on('readable', function() {
+  p.stdout.on('readable', () => {
     let buf;
-    while (buf = this.read())
+    while (buf = p.stdout.read())
       buffer.push(buf);
   });
-}
+};
