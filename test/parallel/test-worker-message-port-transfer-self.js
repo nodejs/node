@@ -5,6 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const { MessageChannel } = require('worker_threads');
+const tick = require('../common/tick');
 
 const { port1, port2 } = new MessageChannel();
 
@@ -42,10 +43,3 @@ port2.onmessage = common.mustCall((message) => {
   });
 });
 port1.postMessage(2);
-
-function tick(n, cb) {
-  if (n > 0)
-    setImmediate(() => tick(n - 1, cb));
-  else
-    cb();
-}
