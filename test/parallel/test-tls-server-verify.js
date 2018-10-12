@@ -226,14 +226,14 @@ function runClient(prefix, port, options, cb) {
   client.on('exit', function(code) {
     if (options.shouldReject) {
       assert.strictEqual(
-        true, rejected,
+        rejected, true,
         `${prefix}${options.name} NOT rejected, but should have been`);
     } else {
       assert.strictEqual(
-        false, rejected,
+        rejected, false,
         `${prefix}${options.name} rejected, but should NOT have been`);
       assert.strictEqual(
-        options.shouldAuth, authed,
+        authed, options.shouldAuth,
         `${prefix}${options.name} authed is ${authed} but should have been ${
           options.shouldAuth}`);
     }
