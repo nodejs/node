@@ -3919,8 +3919,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
                             env->as_external(),
                             Signature::New(env->isolate(), t),
                             /* length */ 0,
-                            // TODO(TimothyGu): should be deny
-                            ConstructorBehavior::kAllow,
+                            ConstructorBehavior::kThrow,
                             SideEffectType::kHasNoSideEffect);
 
   t->InstanceTemplate()->SetAccessorProperty(
@@ -3948,8 +3947,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
                             env->as_external(),
                             Signature::New(env->isolate(), t2),
                             /* length */ 0,
-                            // TODO(TimothyGu): should be deny
-                            ConstructorBehavior::kAllow,
+                            ConstructorBehavior::kThrow,
                             SideEffectType::kHasNoSideEffect);
 
   t2->InstanceTemplate()->SetAccessorProperty(
