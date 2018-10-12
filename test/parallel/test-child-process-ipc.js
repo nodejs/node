@@ -44,13 +44,13 @@ child.stdout.on('data', function(data) {
   console.log(`child said: ${JSON.stringify(data)}`);
   if (!gotHelloWorld) {
     console.error('testing for hello world');
-    assert.strictEqual('hello world\r\n', data);
+    assert.strictEqual(data, 'hello world\r\n');
     gotHelloWorld = true;
     console.error('writing echo me');
     child.stdin.write('echo me\r\n');
   } else {
     console.error('testing for echo me');
-    assert.strictEqual('echo me\r\n', data);
+    assert.strictEqual(data, 'echo me\r\n');
     gotEcho = true;
     child.stdin.end();
   }
