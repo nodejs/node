@@ -1157,6 +1157,16 @@ For private keys, the following encoding options can be used:
 When PEM encoding was selected, the result will be a string, otherwise it will
 be a buffer containing the data encoded as DER.
 
+PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
+the `cipher` and `format` options. The PKCS#8 `type` can be used with any
+`format` to encrypt any key algorithm (RSA, EC, or DH) by specifying a
+`cipher`. PKCS#1 and SEC1 can only be encrypted by specifying a `cipher`
+when the PEM `format` is used. For maximum compatibility, use PKCS#8 for
+encrypted private keys. Since PKCS#8 defines its own
+encryption mechanism, PEM-level encryption is not supported when encrypting
+a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption and [RFC 1421][] for
+PKCS#1 and SEC1 encryption.
+
 ### keyObject.symmetricSize
 <!-- YAML
 added: v11.6.0
@@ -3127,10 +3137,12 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
+[RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
+[RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [encoding]: buffer.html#buffer_buffers_and_character_encodings
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [scrypt]: https://en.wikipedia.org/wiki/Scrypt
