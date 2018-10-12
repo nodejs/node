@@ -11,6 +11,12 @@
 const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const SIDE_EFFECT_FREE_NODE_TYPES = new Set(["Literal", "Identifier", "ThisExpression", "FunctionExpression"]);
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -36,6 +42,18 @@ module.exports = {
         let scopeInfo = null;
 
         /**
+         * Checks if a node is free of side effects.
+         *
+         * This check is stricter than it needs to be, in order to keep the implementation simple.
+         *
+         * @param {ASTNode} node A node to check.
+         * @returns {boolean} True if the node is known to be side-effect free, false otherwise.
+         */
+        function isSideEffectFree(node) {
+            return SIDE_EFFECT_FREE_NODE_TYPES.has(node.type);
+        }
+
+        /**
          * Reports a given function node.
          *
          * @param {ASTNode} node - A node to report. This is a FunctionExpression or
@@ -48,6 +66,10 @@ module.exports = {
                 messageId: "unexpected",
                 loc: node.parent.property.loc.start,
                 fix(fixer) {
+                    if (node.parent.parent.arguments.length && !isSideEffectFree(node.parent.parent.arguments[0])) {
+                        return null;
+                    }
+
                     const firstTokenToRemove = context.getSourceCode()
                         .getFirstTokenBetween(node.parent.object, node.parent.property, astUtils.isNotClosingParenToken);
 
