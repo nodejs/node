@@ -244,7 +244,8 @@ dns.lookup('', {
   const err = {
     code: 'ERR_MISSING_ARGS',
     type: TypeError,
-    message: 'The "hostname", "port", and "callback" arguments must be specified'
+    message: 'The "hostname", "port", and "callback" arguments must be ' +
+    'specified'
   };
 
   common.expectsError(() => dns.lookupService('0.0.0.0'), err);
