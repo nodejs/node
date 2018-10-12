@@ -47,7 +47,7 @@ exec(
       console.log(`error!: ${err.code}`);
       console.log(`stdout: ${JSON.stringify(stdout)}`);
       console.log(`stderr: ${JSON.stringify(stderr)}`);
-      assert.strictEqual(false, err.killed);
+      assert.strictEqual(err.killed, false);
     } else {
       success_count++;
       console.dir(stdout);
@@ -59,11 +59,11 @@ exec(
 exec('thisisnotavalidcommand', function(err, stdout, stderr) {
   if (err) {
     error_count++;
-    assert.strictEqual('', stdout);
+    assert.strictEqual(stdout, '');
     assert.strictEqual(typeof err.code, 'number');
     assert.notStrictEqual(err.code, 0);
-    assert.strictEqual(false, err.killed);
-    assert.strictEqual(null, err.signal);
+    assert.strictEqual(err.killed, false);
+    assert.strictEqual(err.signal, null);
     console.log(`error code: ${err.code}`);
     console.log(`stdout: ${JSON.stringify(stdout)}`);
     console.log(`stderr: ${JSON.stringify(stderr)}`);
@@ -97,7 +97,7 @@ process.nextTick(function() {
   console.log(`kill pid ${killMeTwice.pid}`);
   // make sure there is no race condition in starting the process
   // the PID SHOULD exist directly following the exec() call.
-  assert.strictEqual('number', typeof killMeTwice._handle.pid);
+  assert.strictEqual(typeof killMeTwice._handle.pid, 'number');
   // Kill the process
   killMeTwice.kill();
 });
@@ -128,6 +128,6 @@ exec('python -c "print 200000*\'C\'"', { maxBuffer: 1000 },
 
 
 process.on('exit', function() {
-  assert.strictEqual(1, success_count);
-  assert.strictEqual(1, error_count);
+  assert.strictEqual(success_count, 1);
+  assert.strictEqual(error_count, 1);
 });
