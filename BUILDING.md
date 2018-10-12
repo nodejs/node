@@ -10,40 +10,42 @@ file a new issue.
 
 ## Table of Contents
 
-* [Supported platforms](#supported-platforms)
-  * [Input](#input)
-  * [Strategy](#strategy)
-  * [Supported platforms](#supported-platforms-1)
-  * [Supported toolchains](#supported-toolchains)
-    * [Unix](#unix)
-    * [AIX](#aix)
-    * [Windows](#windows)
-    * [OpenSSL asm support](#openssl-asm-support)
-* [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-  * [Unix/macOS](#unixmacos)
-    * [Prerequisites](#prerequisites)
-    * [Building Node.js](#building-nodejs-1)
-    * [Running Tests](#running-tests)
-    * [Building the documentation](#building-the-documentation)
-    * [Building a debug build](#building-a-debug-build)
-  * [Windows](#windows-1)
-  * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
-  * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
-    * [Default: `small-icu` (English only) support](#default-small-icu-english-only-support)
-    * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
-      * [Unix/macOS](#unixmacos-1)
-      * [Windows](#windows-2)
-    * [Building without Intl support](#building-without-intl-support)
-      * [Unix/macOS](#unixmacos-2)
-      * [Windows](#windows-3)
-    * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
-    * [Build with a specific ICU](#build-with-a-specific-icu)
-      * [Unix/macOS](#unixmacos-3)
-      * [Windows](#windows-4)
-* [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
-* [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
-  * [Unix/macOS](#unixmacos-4)
-  * [Windows](#windows-5)
+- [Building Node.js](#building-nodejs)
+  - [Table of Contents](#table-of-contents)
+  - [Supported platforms](#supported-platforms)
+    - [Input](#input)
+    - [Strategy](#strategy)
+    - [Supported platforms](#supported-platforms)
+    - [Supported toolchains](#supported-toolchains)
+      - [Unix](#unix)
+      - [AIX](#aix)
+      - [Windows](#windows)
+      - [OpenSSL asm support](#openssl-asm-support)
+  - [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
+    - [Unix/macOS](#unixmacos)
+      - [Prerequisites](#prerequisites)
+      - [Building Node.js](#building-nodejs)
+      - [Running Tests](#running-tests)
+      - [Building the documentation](#building-the-documentation)
+      - [Building a debug build](#building-a-debug-build)
+    - [Windows](#windows)
+    - [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
+    - [`Intl` (ECMA-402) support:](#intl-ecma-402-support)
+      - [Default: `small-icu` (English only) support](#default-small-icu-english-only-support)
+      - [Build with full ICU support (all locales supported by ICU):](#build-with-full-icu-support-all-locales-supported-by-icu)
+        - [Unix/macOS:](#unixmacos)
+        - [Windows:](#windows)
+      - [Building without Intl support](#building-without-intl-support)
+        - [Unix/macOS:](#unixmacos)
+        - [Windows:](#windows)
+      - [Use existing installed ICU (Unix/macOS only):](#use-existing-installed-icu-unixmacos-only)
+      - [Build with a specific ICU:](#build-with-a-specific-icu)
+        - [Unix/macOS](#unixmacos)
+        - [Windows](#windows)
+  - [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
+  - [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
+    - [Unix/macOS](#unixmacos)
+    - [Windows](#windows)
 
 ## Supported platforms
 
@@ -73,19 +75,19 @@ The community does not build or test against end-of-life distributions (EoL).
 Thus, we do not recommend that you use Node on end-of-life or unsupported
 platforms in production.
 
-|  System      | Support type | Version                          | Architectures        | Notes            |
-|--------------|--------------|----------------------------------|----------------------|------------------|
-| GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x64, arm             |                  |
-| GNU/Linux    | Tier 1       | kernel >= 3.10, glibc >= 2.17    | arm64                |                  |
-| macOS/OS X   | Tier 1       | >= 10.11                         | x64                  |                  |
-| Windows      | Tier 1       | >= Windows 7/2008 R2/2012 R2     | x86, x64             | [2](#fn2),[3](#fn3),[4](#fn4) |
-| SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | [1](#fn1) |
-| FreeBSD      | Tier 2       | >= 11                            | x64                  |                  |
-| GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                  |
-| AIX          | Tier 2       | >= 7.1 TL04                      | ppc64be >=power7     |                  |
-| GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
-| GNU/Linux    | Experimental | kernel >= 2.6.32, glibc >= 2.12  | x86                  | limited CI       |
-| Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                  |
+| System       | Support type | Version                         | Architectures    | Notes                         |
+| ------------ | ------------ | ------------------------------- | ---------------- | ----------------------------- |
+| GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12 | x64, arm         |                               |
+| GNU/Linux    | Tier 1       | kernel >= 3.10, glibc >= 2.17   | arm64            |                               |
+| macOS/OS X   | Tier 1       | >= 10.11                        | x64              |                               |
+| Windows      | Tier 1       | >= Windows 7/2008 R2/2012 R2    | x86, x64         | [2](#fn2),[3](#fn3),[4](#fn4) |
+| SmartOS      | Tier 2       | >= 15 < 16.4                    | x86, x64         | [1](#fn1)                     |
+| FreeBSD      | Tier 2       | >= 11                           | x64              |                               |
+| GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19 | ppc64le >=power8 |                               |
+| AIX          | Tier 2       | >= 7.1 TL04                     | ppc64be >=power7 |                               |
+| GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17   | s390x            |                               |
+| GNU/Linux    | Experimental | kernel >= 2.6.32, glibc >= 2.12 | x86              | limited CI                    |
+| Linux (musl) | Experimental | musl >= 1.0                     | x64              |                               |
 
 <em id="fn1">1</em>: The gcc4.8-libs package needs to be installed, because node
   binaries have been built with GCC 4.8, for which runtime libraries are not
@@ -222,6 +224,32 @@ $ make -j4 test
 
 `make -j4 test` does a full check on the codebase, including running linters and
 documentation tests.
+
+If you are updating tests and just want to run a single test to check it:
+
+```text
+$ python tools/test.py -J --mode=release parallel/test-stream2-transform
+```
+
+You can execute the entire suite of tests for a given subsystem
+by providing the name of a subsystem:
+
+```text
+$ python tools/test.py -J --mode=release child-process
+```
+
+If you want to check the other options, please refer to the help by using
+the `--help` option
+
+```text
+$ python tools/test.py --help
+```
+
+You can usually run tests directly with node:
+
+```text
+$ ./node ./test/parallel/test-stream2-transform.js
+```
 
 Optionally, continue below.
 
