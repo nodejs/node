@@ -111,7 +111,7 @@ common.expectsError(
     {
       code: 'ERR_OUT_OF_RANGE',
       message: 'The value of "byte length of a protocol" is out ' +
-        'of range. It must be < 255. Received 500'
+        'of range. It must be <= 255. Received 500'
     }
   );
 }
