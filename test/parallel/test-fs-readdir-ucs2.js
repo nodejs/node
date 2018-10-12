@@ -25,8 +25,8 @@ try {
 
 fs.readdir(tmpdir.path, 'ucs2', common.mustCall((err, list) => {
   assert.ifError(err);
-  assert.strictEqual(1, list.length);
+  assert.strictEqual(list.length, 1);
   const fn = list[0];
-  assert.deepStrictEqual(filebuff, Buffer.from(fn, 'ucs2'));
+  assert.deepStrictEqual(Buffer.from(fn, 'ucs2'), filebuff);
   assert.strictEqual(fn, filename);
 }));
