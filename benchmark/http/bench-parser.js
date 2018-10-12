@@ -10,8 +10,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ len, n }) {
-  const { internalBinding } = require('internal/test/binding');
-  const { HTTPParser } = internalBinding('http_parser');
+  const { HTTPParser } = common.binding('http_parser');
   const REQUEST = HTTPParser.REQUEST;
   const kOnHeaders = HTTPParser.kOnHeaders | 0;
   const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;

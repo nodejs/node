@@ -242,3 +242,13 @@ Benchmark.prototype.report = function(rate, elapsed) {
     type: 'report'
   });
 };
+
+exports.binding = function(bindingName) {
+  try {
+    const { internalBinding } = require('internal/test/binding');
+
+    return internalBinding(bindingName);
+  } catch {
+    return process.binding(bindingName);
+  }
+};

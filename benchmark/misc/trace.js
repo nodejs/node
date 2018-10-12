@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
 
 const {
   TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent
-} = process.binding('constants').trace;
+} = common.binding('constants').trace;
 
 function doTrace(n, trace) {
   bench.start();
@@ -31,12 +31,10 @@ function doIsTraceCategoryEnabled(n, isTraceCategoryEnabled) {
 }
 
 function main({ n, method }) {
-  const { internalBinding } = require('internal/test/binding');
-
   const {
     trace,
     isTraceCategoryEnabled
-  } = internalBinding('trace_events');
+  } = common.binding('trace_events');
 
   switch (method) {
     case '':
