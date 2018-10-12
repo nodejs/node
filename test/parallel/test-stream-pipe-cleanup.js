@@ -65,8 +65,8 @@ for (i = 0; i < limit; i++) {
   r.pipe(w);
   r.emit('end');
 }
-assert.strictEqual(0, r.listeners('end').length);
-assert.strictEqual(limit, w.endCalls);
+assert.strictEqual(r.listeners('end').length, 0);
+assert.strictEqual(w.endCalls, limit);
 
 w.endCalls = 0;
 
@@ -75,8 +75,8 @@ for (i = 0; i < limit; i++) {
   r.pipe(w);
   r.emit('close');
 }
-assert.strictEqual(0, r.listeners('close').length);
-assert.strictEqual(limit, w.endCalls);
+assert.strictEqual(r.listeners('close').length, 0);
+assert.strictEqual(w.endCalls, limit);
 
 w.endCalls = 0;
 
@@ -87,7 +87,7 @@ for (i = 0; i < limit; i++) {
   r.pipe(w);
   w.emit('close');
 }
-assert.strictEqual(0, w.listeners('close').length);
+assert.strictEqual(w.listeners('close').length, 0);
 
 r = new Readable();
 w = new Writable();
