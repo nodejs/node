@@ -37,10 +37,8 @@ const SENTINEL = 42;
 // 3 disconnect worker with child_process's disconnect, confirm
 //   no sentinel value
 if (cluster.isWorker) {
-  process.on('disconnect', function(msg) {
-    setTimeout(function() {
-      process.exit(SENTINEL);
-    }, 10);
+  process.on('disconnect', (msg) => {
+    setTimeout(() => process.exit(SENTINEL), 10);
   });
   return;
 }
@@ -49,17 +47,17 @@ checkUnforced();
 checkForced();
 
 function checkUnforced() {
-  cluster.fork()
-    .on('online', function() { this.disconnect(); })
-    .on('exit', common.mustCall(function(status) {
+  const worker = cluster.fork();
+  worker
+    .on('online', common.mustCall(() => worker.disconnect()))
+    .on('exit', common.mustCall((status) => {
       assert.strictEqual(status, SENTINEL);
     }));
 }
 
 function checkForced() {
-  cluster.fork()
-    .on('online', function() { this.process.disconnect(); })
-    .on('exit', common.mustCall(function(status) {
-      assert.strictEqual(status, 0);
-    }));
+  const worker = cluster.fork();
+  worker
+    .on('online', common.mustCall(() => worker.process.disconnect()))
+    .on('exit', common.mustCall((status) => assert.strictEqual(status, 0)));
 }
