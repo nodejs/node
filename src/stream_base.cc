@@ -8,6 +8,7 @@
 #include "env-inl.h"
 #include "js_stream.h"
 #include "string_bytes.h"
+#include "util.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -35,11 +36,6 @@ template int StreamBase::WriteString<UCS2>(
     const FunctionCallbackInfo<Value>& args);
 template int StreamBase::WriteString<LATIN1>(
     const FunctionCallbackInfo<Value>& args);
-
-
-struct Free {
-  void operator()(char* ptr) const { free(ptr); }
-};
 
 
 int StreamBase::ReadStartJS(const FunctionCallbackInfo<Value>& args) {
@@ -127,9 +123,9 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  std::unique_ptr<char[], Free> storage;
+  MallocedBuffer<char> storage;
   if (storage_size > 0)
-    storage = std::unique_ptr<char[], Free>(Malloc(storage_size));
+    storage = MallocedBuffer<char>(storage_size);
 
   offset = 0;
   if (!all_buffers) {
@@ -145,7 +141,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
       // Write string
       CHECK_LE(offset, storage_size);
-      char* str_storage = storage.get() + offset;
+      char* str_storage = storage.data + offset;
       size_t str_size = storage_size - offset;
 
       Local<String> string = chunk->ToString(env->context()).ToLocalChecked();
@@ -164,7 +160,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
   SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res);
-  if (res.wrap != nullptr && storage) {
+  if (res.wrap != nullptr && storage_size > 0) {
     res.wrap->SetAllocatedStorage(storage.release(), storage_size);
   }
   return res.err;
@@ -263,18 +259,18 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(count, 1);
   }
 
-  std::unique_ptr<char[], Free> data;
+  MallocedBuffer<char> data;
 
   if (try_write) {
     // Copy partial data
-    data = std::unique_ptr<char[], Free>(Malloc(buf.len));
-    memcpy(data.get(), buf.base, buf.len);
+    data = MallocedBuffer<char>(buf.len);
+    memcpy(data.data, buf.base, buf.len);
     data_size = buf.len;
   } else {
     // Write it
-    data = std::unique_ptr<char[], Free>(Malloc(storage_size));
+    data = MallocedBuffer<char>(storage_size);
     data_size = StringBytes::Write(env->isolate(),
-                                   data.get(),
+                                   data.data,
                                    storage_size,
                                    string,
                                    enc);
@@ -282,7 +278,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_LE(data_size, storage_size);
 
-  buf = uv_buf_init(data.get(), data_size);
+  buf = uv_buf_init(data.data, data_size);
 
   uv_stream_t* send_handle = nullptr;
 
