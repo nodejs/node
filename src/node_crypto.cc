@@ -3631,7 +3631,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
     return sign->CheckThrow(err);
 
   Local<Object> rc =
-      Buffer::New(env, reinterpret_cast<char*>(sig.data), sig.size)
+      Buffer::New(env, reinterpret_cast<char*>(sig.release()), sig.size)
       .ToLocalChecked();
   args.GetReturnValue().Set(rc);
 }
