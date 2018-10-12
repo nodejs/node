@@ -275,7 +275,6 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
 
   Local<Signature> signature = Signature::New(env->isolate(), t);
 
-  // TODO(TimothyGu): None of these should have ConstructorBehavior::kAllow.
   Local<FunctionTemplate> get_fd_templ =
       env->NewFunctionTemplate(GetFD<Base>,
                                signature,
