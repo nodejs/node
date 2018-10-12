@@ -53,8 +53,8 @@ function executeRequest(cb) {
            'shasum' ].join(' '),
           (err, stdout, stderr) => {
             assert.ifError(err);
-            assert.strictEqual('8c206a1a87599f532ce68675536f0b1546900d7a',
-                               stdout.slice(0, 40));
+            assert.strictEqual(stdout.slice(0, 40),
+                               '8c206a1a87599f532ce68675536f0b1546900d7a');
             cb();
           }
   );
