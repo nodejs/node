@@ -18,12 +18,12 @@ const v8TestsDirExists = fs.existsSync(v8TestsDir);
 // See for instance deps/v8/test/mjsunit/instanceof.js
 // eslint-disable-next-line no-unused-vars
 function assertTrue(assertion) {
-  return assert.strictEqual(true, assertion);
+  return assert.strictEqual(assertion, true);
 }
 
 // eslint-disable-next-line no-unused-vars
 function assertFalse(assertion) {
-  assert.strictEqual(false, assertion);
+  assert.strictEqual(assertion, false);
 }
 
 // eslint-disable-next-line no-unused-vars
