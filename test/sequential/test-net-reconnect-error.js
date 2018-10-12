@@ -33,7 +33,7 @@ c.on('connect', common.mustNotCall('client should not have connected'));
 
 c.on('error', common.mustCall((e) => {
   client_error_count++;
-  assert.strictEqual('ECONNREFUSED', e.code);
+  assert.strictEqual(e.code, 'ECONNREFUSED');
 }, N + 1));
 
 c.on('close', common.mustCall(() => {
@@ -42,6 +42,6 @@ c.on('close', common.mustCall(() => {
 }, N + 1));
 
 process.on('exit', function() {
-  assert.strictEqual(N + 1, disconnect_count);
-  assert.strictEqual(N + 1, client_error_count);
+  assert.strictEqual(disconnect_count, N + 1);
+  assert.strictEqual(client_error_count, N + 1);
 });
