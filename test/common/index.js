@@ -46,7 +46,6 @@ const isMainThread = (() => {
 })();
 
 const isWindows = process.platform === 'win32';
-const isWOW64 = isWindows && (process.env.PROCESSOR_ARCHITEW6432 !== undefined);
 const isAIX = process.platform === 'aix';
 const isLinuxPPCBE = (process.platform === 'linux') &&
                      (process.arch === 'ppc64') &&
@@ -721,7 +720,6 @@ module.exports = {
   isOSX,
   isSunOS,
   isWindows,
-  isWOW64,
   localIPv6Hosts,
   mustCall,
   mustCallAsync,
