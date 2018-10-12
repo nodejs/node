@@ -47,37 +47,37 @@ const assert = require('assert');
 // Test 8 bit unsigned integers
 {
   const data = Buffer.from([0xff, 0x2a, 0x2a, 0x2a]);
-  assert.strictEqual(255, data.readUInt8(0));
-  assert.strictEqual(42, data.readUInt8(1));
-  assert.strictEqual(42, data.readUInt8(2));
-  assert.strictEqual(42, data.readUInt8(3));
+  assert.strictEqual(data.readUInt8(0), 255);
+  assert.strictEqual(data.readUInt8(1), 42);
+  assert.strictEqual(data.readUInt8(2), 42);
+  assert.strictEqual(data.readUInt8(3), 42);
 }
 
 // Test 16 bit unsigned integers
 {
   const data = Buffer.from([0x00, 0x2a, 0x42, 0x3f]);
-  assert.strictEqual(0x2a, data.readUInt16BE(0));
-  assert.strictEqual(0x2a42, data.readUInt16BE(1));
-  assert.strictEqual(0x423f, data.readUInt16BE(2));
-  assert.strictEqual(0x2a00, data.readUInt16LE(0));
-  assert.strictEqual(0x422a, data.readUInt16LE(1));
-  assert.strictEqual(0x3f42, data.readUInt16LE(2));
+  assert.strictEqual(data.readUInt16BE(0), 0x2a);
+  assert.strictEqual(data.readUInt16BE(1), 0x2a42);
+  assert.strictEqual(data.readUInt16BE(2), 0x423f);
+  assert.strictEqual(data.readUInt16LE(0), 0x2a00);
+  assert.strictEqual(data.readUInt16LE(1), 0x422a);
+  assert.strictEqual(data.readUInt16LE(2), 0x3f42);
 
   data[0] = 0xfe;
   data[1] = 0xfe;
-  assert.strictEqual(0xfefe, data.readUInt16BE(0));
-  assert.strictEqual(0xfefe, data.readUInt16LE(0));
+  assert.strictEqual(data.readUInt16BE(0), 0xfefe);
+  assert.strictEqual(data.readUInt16LE(0), 0xfefe);
 }
 
 // Test 32 bit unsigned integers
 {
   const data = Buffer.from([0x32, 0x65, 0x42, 0x56, 0x23, 0xff]);
-  assert.strictEqual(0x32654256, data.readUInt32BE(0));
-  assert.strictEqual(0x65425623, data.readUInt32BE(1));
-  assert.strictEqual(0x425623ff, data.readUInt32BE(2));
-  assert.strictEqual(0x56426532, data.readUInt32LE(0));
-  assert.strictEqual(0x23564265, data.readUInt32LE(1));
-  assert.strictEqual(0xff235642, data.readUInt32LE(2));
+  assert.strictEqual(data.readUInt32BE(0), 0x32654256);
+  assert.strictEqual(data.readUInt32BE(1), 0x65425623);
+  assert.strictEqual(data.readUInt32BE(2), 0x425623ff);
+  assert.strictEqual(data.readUInt32LE(0), 0x56426532);
+  assert.strictEqual(data.readUInt32LE(1), 0x23564265);
+  assert.strictEqual(data.readUInt32LE(2), 0xff235642);
 }
 
 // Test UInt
