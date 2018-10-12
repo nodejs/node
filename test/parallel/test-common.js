@@ -29,8 +29,8 @@ const { execFile } = require('child_process');
 // test for leaked global detection
 {
   const p = fixtures.path('leakedGlobal.js');
-  execFile(process.argv[0], [p], common.mustCall((ex, stdout, stderr) => {
-    assert.notStrictEqual(ex.code, 0);
+  execFile(process.execPath, [p], common.mustCall((err, stdout, stderr) => {
+    assert.notStrictEqual(err.code, 0);
     assert.ok(/\bAssertionError\b.*\bUnexpected global\b.*\bgc\b/.test(stderr));
   }));
 }
@@ -85,8 +85,8 @@ const failFixtures = [
 ];
 for (const p of failFixtures) {
   const [file, expected] = p;
-  execFile(process.argv[0], [file], common.mustCall((ex, stdout, stderr) => {
-    assert.ok(ex);
+  execFile(process.execPath, [file], common.mustCall((err, stdout, stderr) => {
+    assert.ok(err);
     assert.strictEqual(stderr, '');
     const firstLine = stdout.split('\n').shift();
     assert.strictEqual(firstLine, expected);
