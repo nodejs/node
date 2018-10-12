@@ -34,6 +34,32 @@ using v8::Local;
 using v8::String;
 using v8::Value;
 
+Local<String> OneByteString(Isolate* isolate, const char* data, int length) {
+  return String::NewFromOneByte(isolate,
+                                reinterpret_cast<const uint8_t*>(data),
+                                v8::NewStringType::kNormal,
+                                length).ToLocalChecked();
+}
+
+Local<String> OneByteString(Isolate* isolate,
+                            const signed char* data,
+                            int length) {
+  return String::NewFromOneByte(isolate,
+                                reinterpret_cast<const uint8_t*>(data),
+                                v8::NewStringType::kNormal,
+                                length).ToLocalChecked();
+}
+
+Local<String> OneByteString(Isolate* isolate,
+                            const unsigned char* data,
+                            int length) {
+  return String::NewFromOneByte(isolate,
+                                reinterpret_cast<const uint8_t*>(data),
+                                v8::NewStringType::kNormal,
+                                length).ToLocalChecked();
+}
+
+
 template <typename T>
 static void MakeUtf8String(Isolate* isolate,
                            Local<Value> value,

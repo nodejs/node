@@ -876,4 +876,14 @@ bool BaseObject::IsRootNode() const {
   return !persistent_handle_.IsWeak();
 }
 
+#define V1(PropertyName, TypeName)                                            \
+  v8::Local<TypeName> Environment::PropertyName() const {                     \
+    return StrongPersistentToLocal(PropertyName ## _);                        \
+  }                                                                           \
+  void Environment::set_ ## PropertyName(v8::Local<TypeName> value) {         \
+    PropertyName ## _.Reset(isolate(), value);                                \
+  }
+  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V1)
+#undef V1
+
 }  // namespace node

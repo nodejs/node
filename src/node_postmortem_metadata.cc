@@ -1,7 +1,6 @@
 #include "env.h"
-#include "base_object-inl.h"
 #include "handle_wrap.h"
-#include "util-inl.h"
+#include "util.h"
 #include "req_wrap.h"
 #include "v8abbr.h"
 #include "node_context_data.h"

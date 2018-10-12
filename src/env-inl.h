@@ -330,10 +330,6 @@ inline bool Environment::profiler_idle_notifier_started() const {
   return profiler_idle_notifier_started_;
 }
 
-inline v8::Isolate* Environment::isolate() const {
-  return isolate_;
-}
-
 inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
   return ContainerOf(&Environment::timer_handle_, handle);
 }
@@ -892,16 +888,6 @@ void Environment::ForEachBaseObject(T&& iterator) {
 #undef VS
 #undef VY
 #undef VP
-
-#define V(PropertyName, TypeName)                                             \
-  inline v8::Local<TypeName> Environment::PropertyName() const {              \
-    return StrongPersistentToLocal(PropertyName ## _);                        \
-  }                                                                           \
-  inline void Environment::set_ ## PropertyName(v8::Local<TypeName> value) {  \
-    PropertyName ## _.Reset(isolate(), value);                                \
-  }
-  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
-#undef V
 
 }  // namespace node
 

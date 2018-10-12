@@ -33,6 +33,8 @@
 #include "v8.h"
 #include "tracing/trace_event.h"
 #include "node_api.h"
+#include "util.h"
+
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -182,14 +184,6 @@ extern std::shared_ptr<PerProcessOptions> per_process_opts;
 // Forward declaration
 class Environment;
 
-// If persistent.IsWeak() == false, then do not call persistent.Reset()
-// while the returned Local<T> is still in scope, it will destroy the
-// reference to the object.
-template <class TypeName>
-inline v8::Local<TypeName> PersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent);
-
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
 // If |info| is omitted, a new object is returned.
@@ -230,9 +224,6 @@ bool SafeGetenv(const char* key, std::string* text);
 
 std::string GetHumanReadableProcessName();
 void GetHumanReadableProcessName(char (*name)[1024]);
-
-template <typename T, size_t N>
-constexpr size_t arraysize(const T(&)[N]) { return N; }
 
 #ifndef ROUND_UP
 # define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))

@@ -11,6 +11,8 @@
 namespace node {
 namespace tracing {
 
+constexpr size_t kTracesPerFile = 1 << 19;
+
 using v8::platform::tracing::TraceObject;
 using v8::platform::tracing::TraceWriter;
 
@@ -23,7 +25,6 @@ class NodeTraceWriter : public AsyncTraceWriter {
   void AppendTraceEvent(TraceObject* trace_event) override;
   void Flush(bool blocking) override;
 
-  static const int kTracesPerFile = 1 << 19;
 
  private:
   struct WriteRequest {
@@ -61,7 +62,7 @@ class NodeTraceWriter : public AsyncTraceWriter {
   int highest_request_id_completed_ = 0;
   int total_traces_ = 0;
   int file_num_ = 0;
-  const std::string& log_file_pattern_;
+  std::string log_file_pattern_;
   std::ostringstream stream_;
   std::unique_ptr<TraceWriter> json_trace_writer_;
   bool exited_ = false;
