@@ -92,6 +92,17 @@ server.on('stream', common.mustCall(function(stream, headers) {
 
   stream.end();
 
+  // Setting socket properties sets the session properties correctly.
+  const fn = () => {};
+  socket.setTimeout = fn;
+  assert.strictEqual(session.setTimeout, fn);
+
+  socket.ref = fn;
+  assert.strictEqual(session.ref, fn);
+
+  socket.unref = fn;
+  assert.strictEqual(session.unref, fn);
+
   stream.session.on('close', common.mustCall(() => {
     assert.strictEqual(session.socket, undefined);
   }));
