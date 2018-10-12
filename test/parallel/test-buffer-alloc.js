@@ -967,12 +967,16 @@ common.expectsError(
     message: 'argument must be a buffer'
   });
 
-const regErrorMsg =
-  new RegExp('The first argument must be one of type string, Buffer, ' +
-             'ArrayBuffer, Array, or Array-like Object\\.');
-
-assert.throws(() => Buffer.from(), regErrorMsg);
-assert.throws(() => Buffer.from(null), regErrorMsg);
+assert.throws(() => Buffer.from(), {
+  name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+  message: 'The first argument must be one of type string, Buffer, ' +
+  'ArrayBuffer, Array, or Array-like Object. Received type undefined'
+});
+assert.throws(() => Buffer.from(null), {
+  name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+  message: 'The first argument must be one of type string, Buffer, ' +
+  'ArrayBuffer, Array, or Array-like Object. Received type object'
+});
 
 // Test prototype getters don't throw
 assert.strictEqual(Buffer.prototype.parent, undefined);
