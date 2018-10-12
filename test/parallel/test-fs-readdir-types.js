@@ -49,6 +49,19 @@ function assertDirents(dirents) {
 // Check the readdir Sync version
 assertDirents(fs.readdirSync(readdirDir, { withFileTypes: true }));
 
+fs.readdir(__filename, {
+  withFileTypes: true
+}, common.mustCall((err) => {
+  assert.throws(
+    () => { throw err; },
+    {
+      code: 'ENOTDIR',
+      name: 'Error',
+      message: `ENOTDIR: not a directory, scandir '${__filename}'`
+    }
+  );
+}));
+
 // Check the readdir async version
 fs.readdir(readdirDir, {
   withFileTypes: true
