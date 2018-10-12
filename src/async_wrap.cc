@@ -563,7 +563,6 @@ AsyncWrap::AsyncWrap(Environment* env,
   CHECK_NE(provider, PROVIDER_NONE);
   CHECK_GE(object->InternalFieldCount(), 1);
 
-  async_id_ = -1;
   // Use AsyncReset() call to execute the init() callbacks.
   AsyncReset(execution_async_id, silent);
 }
