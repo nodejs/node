@@ -359,6 +359,16 @@ function convertDERToPEM(label, der) {
 }
 
 {
+  // Test keygen without options object.
+  common.expectsError(() => generateKeyPair('rsa', common.mustNotCall()), {
+    type: TypeError,
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of ' +
+      'type object. Received type undefined'
+  });
+}
+
+{
   // Missing / invalid publicKeyEncoding.
   for (const enc of [undefined, null, 0, 'a', true]) {
     common.expectsError(() => generateKeyPairSync('rsa', {
