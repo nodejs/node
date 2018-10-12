@@ -47,8 +47,8 @@ server.on('listening', function() {
   http.get({ port: this.address().port, path: '/one' }, function(res) {
     // set-cookie headers are always return in an array.
     // even if there is only one.
-    assert.deepStrictEqual(['A'], res.headers['set-cookie']);
-    assert.strictEqual('text/plain', res.headers['content-type']);
+    assert.deepStrictEqual(res.headers['set-cookie'], ['A']);
+    assert.strictEqual(res.headers['content-type'], 'text/plain');
 
     res.on('data', function(chunk) {
       console.log(chunk.toString());
@@ -62,8 +62,8 @@ server.on('listening', function() {
   // two set-cookie headers
 
   http.get({ port: this.address().port, path: '/two' }, function(res) {
-    assert.deepStrictEqual(['A', 'B'], res.headers['set-cookie']);
-    assert.strictEqual('text/plain', res.headers['content-type']);
+    assert.deepStrictEqual(res.headers['set-cookie'], ['A', 'B']);
+    assert.strictEqual(res.headers['content-type'], 'text/plain');
 
     res.on('data', function(chunk) {
       console.log(chunk.toString());
