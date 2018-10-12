@@ -2233,6 +2233,21 @@ like `dns.lookup(false)` due to backward compatibility.
 This behavior is undocumented and is thought to be unused in real world apps.
 It will become an error in future versions of Node.js.
 
+<a id="DEP0119"></a>
+### DEP0119: process.binding('uv').errname() private API
+<!--
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23597
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Directly calling `process.binding('uv').errname(<val>)` is deprecated.
+Please make sure to use [`util.getSystemErrorName()`][] instead.
+
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -2300,6 +2315,7 @@ It will become an error in future versions of Node.js.
 [`util._extend()`]: util.html#util_util_extend_target_source
 [`util.debug()`]: util.html#util_util_debug_string
 [`util.error()`]: util.html#util_util_error_strings
+[`util.getSystemErrorName()`]: util.html#util_util_getsystemerrorname_err
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [`util.inspect.custom`]: util.html#util_util_inspect_custom
 [`util.isArray()`]: util.html#util_util_isarray_object
