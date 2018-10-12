@@ -136,7 +136,8 @@ async function checkModuleState() {
     await m.evaluate(false);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be of type Object. Received type boolean'
+    message: 'The "options" argument must be of type Object. ' +
+                    'Received type boolean'
   });
 
   await expectsRejection(async () => {
