@@ -50,7 +50,7 @@ if (process.argv[2] === 'child') {
       if (process.argv.includes('useTryCatch')) {
         try {
           throw new Error(domainErrHandlerExMessage);
-        } catch (e) {
+        } catch {
         }
       } else {
         throw new Error(domainErrHandlerExMessage);
