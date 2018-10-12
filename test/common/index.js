@@ -56,6 +56,8 @@ const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isOSX = process.platform === 'darwin';
 
+const isOSXMojave = isOSX && (os.release().startsWith('18'));
+
 const enoughTestMem = os.totalmem() > 0x70000000; /* 1.75 Gb */
 const cpus = os.cpus();
 const enoughTestCpu = Array.isArray(cpus) &&
@@ -712,6 +714,7 @@ module.exports = {
   isMainThread,
   isOpenBSD,
   isOSX,
+  isOSXMojave,
   isSunOS,
   isWindows,
   localIPv6Hosts,
