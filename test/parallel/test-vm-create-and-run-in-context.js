@@ -33,13 +33,13 @@ assert.strictEqual('passed', result);
 
 // Create a new pre-populated context
 context = vm.createContext({ 'foo': 'bar', 'thing': 'lala' });
-assert.strictEqual('bar', context.foo);
-assert.strictEqual('lala', context.thing);
+assert.strictEqual(context.foo, 'bar');
+assert.strictEqual(context.thing, 'lala');
 
 // Test updating context
 result = vm.runInContext('var foo = 3;', context);
-assert.strictEqual(3, context.foo);
-assert.strictEqual('lala', context.thing);
+assert.strictEqual(context.foo, 3);
+assert.strictEqual(context.thing, 'lala');
 
 // https://github.com/nodejs/node/issues/5768
 // Run in contextified sandbox without referencing the context
