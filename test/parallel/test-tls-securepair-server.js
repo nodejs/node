@@ -137,7 +137,7 @@ server.listen(0, common.mustCall(function() {
   client.stdout.pipe(process.stdout, { end: false });
 
   client.on('exit', common.mustCall(function(code) {
-    assert.strictEqual(0, code);
+    assert.strictEqual(code, 0);
     server.close();
   }));
 }));
