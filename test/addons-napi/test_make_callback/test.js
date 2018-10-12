@@ -13,22 +13,21 @@ function myMultiArgFunc(arg1, arg2, arg3) {
   return 42;
 }
 
-assert.strictEqual(42, makeCallback(process, common.mustCall(function() {
+assert.strictEqual(makeCallback(process, common.mustCall(function() {
   assert.strictEqual(0, arguments.length);
   assert.strictEqual(this, process);
   return 42;
-})));
+})), 42);
 
-assert.strictEqual(42, makeCallback(process, common.mustCall(function(x) {
-  assert.strictEqual(1, arguments.length);
+assert.strictEqual(makeCallback(process, common.mustCall(function(x) {
+  assert.strictEqual(arguments.length, 1);
   assert.strictEqual(this, process);
   assert.strictEqual(x, 1337);
   return 42;
-}), 1337));
+}), 1337), 42);
 
-assert.strictEqual(42,
-                   makeCallback(this,
-                                common.mustCall(myMultiArgFunc), 1, 2, 3));
+assert.strictEqual(makeCallback(this,
+                                common.mustCall(myMultiArgFunc), 1, 2, 3), 42);
 
 // TODO(node-api): napi_make_callback needs to support
 // strings passed for the func argument
@@ -47,12 +46,12 @@ const recv = {
   }),
 };
 
-assert.strictEqual(42, makeCallback(recv, 'one'));
-assert.strictEqual(42, makeCallback(recv, 'two', 1337));
+assert.strictEqual(makeCallback(recv, 'one'), 42);
+assert.strictEqual(makeCallback(recv, 'two', 1337), 42);
 
 // Check that callbacks on a receiver from a different context works.
 const foreignObject = vm.runInNewContext('({ fortytwo() { return 42; } })');
-assert.strictEqual(42, makeCallback(foreignObject, 'fortytwo'));
+assert.strictEqual(makeCallback(foreignObject, 'fortytwo'), 42);
 */
 
 // Check that the callback is made in the context of the receiver.
@@ -63,7 +62,7 @@ const target = vm.runInNewContext(`
       return Object;
     })
 `);
-assert.notStrictEqual(Object, makeCallback(process, target, Object));
+assert.notStrictEqual(makeCallback(process, target, Object), Object);
 
 // Runs in inner context.
 const forward = vm.runInNewContext(`
@@ -79,4 +78,4 @@ function endpoint($Object) {
   return Object;
 }
 
-assert.strictEqual(Object, makeCallback(process, forward, endpoint));
+assert.strictEqual(makeCallback(process, forward, endpoint), Object);
