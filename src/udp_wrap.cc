@@ -27,8 +27,6 @@
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 
-
-
 namespace node {
 
 using v8::Array;
@@ -523,11 +521,6 @@ Local<Object> UDPWrap::Instantiate(Environment* env,
   Local<Object> instance = env->udp_constructor_function()
       ->NewInstance(env->context()).ToLocalChecked();
   return scope.Escape(instance);
-}
-
-
-uv_udp_t* UDPWrap::UVHandle() {
-  return &handle_;
 }
 
 
