@@ -44,12 +44,12 @@ class ClientHelloParser {
     inline int ocsp_request() const { return ocsp_request_; }
 
    private:
-    uint8_t session_size_;
-    const uint8_t* session_id_;
+    uint8_t session_size_ = 0;
+    const uint8_t* session_id_ = nullptr;
     bool has_ticket_;
-    uint8_t servername_size_;
-    const uint8_t* servername_;
-    int ocsp_request_;
+    uint8_t servername_size_ = 0;
+    const uint8_t* servername_ = nullptr;
+    int ocsp_request_ = 0;
 
     friend class ClientHelloParser;
   };
@@ -108,16 +108,16 @@ class ClientHelloParser {
   OnHelloCb onhello_cb_;
   OnEndCb onend_cb_;
   void* cb_arg_;
-  size_t frame_len_;
-  size_t body_offset_;
-  size_t extension_offset_;
+  size_t frame_len_ = 0;
+  size_t body_offset_ = 0;
+  size_t extension_offset_ = 0;
   uint8_t session_size_;
   const uint8_t* session_id_;
   uint16_t servername_size_;
   const uint8_t* servername_;
   uint8_t ocsp_request_;
-  uint16_t tls_ticket_size_;
-  const uint8_t* tls_ticket_;
+  uint16_t tls_ticket_size_ = -1;
+  const uint8_t* tls_ticket_ = nullptr;
 };
 
 }  // namespace crypto
