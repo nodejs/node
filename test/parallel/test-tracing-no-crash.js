@@ -4,8 +4,8 @@ const assert = require('assert');
 const { spawn } = require('child_process');
 
 function CheckNoSignalAndErrorCodeOne(code, signal) {
-  assert.strictEqual(null, signal);
-  assert.strictEqual(1, code);
+  assert.strictEqual(signal, null);
+  assert.strictEqual(code, 1);
 }
 
 const child = spawn(process.execPath,
