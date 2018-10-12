@@ -143,7 +143,6 @@ enum ws_decode_result {
   FRAME_OK, FRAME_INCOMPLETE, FRAME_CLOSE, FRAME_ERROR
 };
 
-
 static void generate_accept_string(const std::string& client_key,
                                    char (*buffer)[ACCEPT_KEY_LENGTH]) {
   // Magic string from websockets spec.
