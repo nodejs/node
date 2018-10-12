@@ -390,7 +390,6 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
 
       stdio_count_(0),
       uv_stdio_containers_(nullptr),
-      stdio_pipes_(nullptr),
       stdio_pipes_initialized_(false),
 
       uv_process_options_(),
@@ -421,7 +420,7 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
 SyncProcessRunner::~SyncProcessRunner() {
   CHECK_EQ(lifecycle_, kHandlesClosed);
 
-  stdio_pipes_.reset();
+  stdio_pipes_.clear();
   delete[] file_buffer_;
   delete[] args_buffer_;
   delete[] cwd_buffer_;
@@ -500,10 +499,9 @@ Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   }
   uv_process_.data = this;
 
-  for (uint32_t i = 0; i < stdio_count_; i++) {
-    SyncProcessStdioPipe* h = stdio_pipes_[i].get();
-    if (h != nullptr) {
-      r = h->Start();
+  for (const auto& pipe : stdio_pipes_) {
+    if (pipe != nullptr) {
+      r = pipe->Start();
       if (r < 0) {
         SetPipeError(r);
         return Just(false);
@@ -563,12 +561,12 @@ void SyncProcessRunner::CloseStdioPipes() {
   CHECK_LT(lifecycle_, kHandlesClosed);
 
   if (stdio_pipes_initialized_) {
-    CHECK(stdio_pipes_);
+    CHECK(!stdio_pipes_.empty());
     CHECK_NOT_NULL(uv_loop_);
 
-    for (uint32_t i = 0; i < stdio_count_; i++) {
-      if (stdio_pipes_[i])
-        stdio_pipes_[i]->Close();
+    for (const auto& pipe : stdio_pipes_) {
+      if (pipe)
+        pipe->Close();
     }
 
     stdio_pipes_initialized_ = false;
@@ -723,13 +721,13 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
 
 Local<Array> SyncProcessRunner::BuildOutputArray() {
   CHECK_GE(lifecycle_, kInitialized);
-  CHECK(stdio_pipes_);
+  CHECK(!stdio_pipes_.empty());
 
   EscapableHandleScope scope(env()->isolate());
   Local<Context> context = env()->context();
   Local<Array> js_output = Array::New(env()->isolate(), stdio_count_);
 
-  for (uint32_t i = 0; i < stdio_count_; i++) {
+  for (uint32_t i = 0; i < stdio_pipes_.size(); i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i].get();
     if (h != nullptr && h->writable())
       js_output->Set(context, i, h->GetOutputAsBuffer(env())).FromJust();
@@ -857,8 +855,8 @@ int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
   stdio_count_ = js_stdio_options->Length();
   uv_stdio_containers_ = new uv_stdio_container_t[stdio_count_];
 
-  stdio_pipes_.reset(
-      new std::unique_ptr<SyncProcessStdioPipe>[stdio_count_]());
+  stdio_pipes_.clear();
+  stdio_pipes_.resize(stdio_count_);
   stdio_pipes_initialized_ = true;
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
