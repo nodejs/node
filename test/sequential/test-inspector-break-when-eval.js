@@ -63,7 +63,7 @@ async function runTests() {
   await breakOnLine(session);
   await stepOverConsoleStatement(session);
   await session.runToCompletion();
-  assert.strictEqual(0, (await child.expectShutdown()).exitCode);
+  assert.strictEqual((await child.expectShutdown()).exitCode, 0);
 }
 
 runTests();
