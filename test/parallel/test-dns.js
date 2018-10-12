@@ -258,7 +258,7 @@ dns.lookup('', {
   const err = {
     code: 'ERR_INVALID_OPT_VALUE',
     type: TypeError,
-    message: `The value "${invalidHost}" is invalid for option "host"`
+    message: `The value "${invalidHost}" is invalid for option "hostname"`
   };
 
   common.expectsError(() => {
