@@ -213,11 +213,6 @@ Platform check for SunOS.
 
 Platform check for Windows.
 
-### isWOW64
-* [&lt;boolean>]
-
-Platform check for Windows 32-bit on Windows 64-bit.
-
 ### localhostIPv4
 * [&lt;string>]
 
