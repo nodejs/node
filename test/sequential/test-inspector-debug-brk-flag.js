@@ -34,7 +34,7 @@ async function runTests() {
   await testBreakpointOnStart(session);
   await session.runToCompletion();
 
-  assert.strictEqual(55, (await child.expectShutdown()).exitCode);
+  assert.strictEqual((await child.expectShutdown()).exitCode, 55);
 }
 
 runTests();
