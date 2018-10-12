@@ -176,11 +176,8 @@ def ReadMacros(lines):
 
 
 TEMPLATE = """
-#include "node.h"
 #include "node_javascript.h"
-#include "v8.h"
-#include "env.h"
-#include "env-inl.h"
+#include "util.h"
 
 namespace node {{
 
@@ -340,12 +337,19 @@ def JS2C(source, target):
       initializers.append(INITIALIZER.format(key=key, value=value))
       hash_initializers.append(HASH_INITIALIZER.format(key=name, value=hash_value))
 
-  # Emit result
-  output = open(str(target[0]), "w")
-  output.write(TEMPLATE.format(definitions=''.join(definitions),
-                               initializers=''.join(initializers),
-                               hash_initializers=''.join(hash_initializers)))
-  output.close()
+  content = TEMPLATE.format(definitions=''.join(definitions),
+                            initializers=''.join(initializers),
+                            hash_initializers=''.join(hash_initializers))
+  # Emit result if changed
+  filename = str(target[0])
+  old_content = ''
+  if os.path.isfile(filename):
+    with open(filename, "r") as fr:
+        old_content = fr.read()
+  if old_content == content:
+    return
+  with open(filename, "w") as fw:
+    fw.write(content)
 
 def main():
   natives = sys.argv[1]
