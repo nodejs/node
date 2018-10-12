@@ -784,8 +784,8 @@ function startTCPRepl() {
     client.setEncoding('utf8');
 
     client.on('connect', common.mustCall(() => {
-      assert.strictEqual(true, client.readable);
-      assert.strictEqual(true, client.writable);
+      assert.strictEqual(client.readable, true);
+      assert.strictEqual(client.writable, true);
 
       resolveSocket(client);
     }));
@@ -827,8 +827,8 @@ function startUnixRepl() {
     client.setEncoding('utf8');
 
     client.on('connect', common.mustCall(() => {
-      assert.strictEqual(true, client.readable);
-      assert.strictEqual(true, client.writable);
+      assert.strictEqual(client.readable, true);
+      assert.strictEqual(client.writable, true);
 
       resolveSocket(client);
     }));
