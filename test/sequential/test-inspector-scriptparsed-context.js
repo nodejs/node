@@ -81,7 +81,7 @@ async function runTests() {
   await session.waitForBreakOnLine(0, 'evalmachine.<anonymous>');
 
   await session.runToCompletion();
-  assert.strictEqual(0, (await instance.expectShutdown()).exitCode);
+  assert.strictEqual((await instance.expectShutdown()).exitCode, 0);
 }
 
 runTests();
