@@ -59,7 +59,7 @@ function makeRequest() {
 
   child.on('exit', function(code) {
     assert.ok(/DONE/.test(stderrBuffer));
-    assert.strictEqual(0, code);
+    assert.strictEqual(code, 0);
   });
 
   // The following two lines forward the stdio from the child
@@ -95,7 +95,7 @@ const server = https.Server(serverOptions, function(req, res) {
   });
 
   req.on('end', function() {
-    assert.strictEqual(bytesExpected, uploadCount);
+    assert.strictEqual(uploadCount, bytesExpected);
     res.writeHead(200, { 'content-type': 'text/plain' });
     res.end('successful upload\n');
   });
