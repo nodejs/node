@@ -38,9 +38,7 @@ test(() => {
   const prototype1 = Object.getPrototypeOf(console);
   const prototype2 = Object.getPrototypeOf(prototype1);
 
-  // This got commented out from the original test because in Node.js all
-  // functions are declared on the prototype.
-  // assert_equals(Object.getOwnPropertyNames(prototype1).length, 0, "The [[Prototype]] must have no properties");
+  assert_equals(Object.getOwnPropertyNames(prototype1).length, 0, "The [[Prototype]] must have no properties");
   assert_equals(prototype2, Object.prototype, "The [[Prototype]]'s [[Prototype]] must be %ObjectPrototype%");
 }, "The prototype chain must be correct");
 
