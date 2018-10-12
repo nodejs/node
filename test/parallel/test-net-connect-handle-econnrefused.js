@@ -31,6 +31,6 @@ server.close(common.mustCall(() => {
   const c = net.createConnection(port);
   c.on('connect', common.mustNotCall());
   c.on('error', common.mustCall((e) => {
-    assert.strictEqual('ECONNREFUSED', e.code);
+    assert.strictEqual(e.code, 'ECONNREFUSED');
   }));
 }));
