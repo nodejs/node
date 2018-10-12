@@ -68,3 +68,11 @@ test(new Uint8Array(expected.length),
     assert.strictEqual(nRead, 0);
   }));
 }
+
+assert.throws(
+  () => fs.read(null, Buffer.alloc(1), 0, 1, 0),
+  {
+    message: 'The "fd" argument must be of type number. Received type object',
+    code: 'ERR_INVALID_ARG_TYPE',
+  }
+);
