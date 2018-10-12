@@ -26,7 +26,7 @@ function runTest() {
     };
     // Will fail with ECONNREFUSED if the address family is not honored.
     tls.connect(options).once('secureConnect', common.mustCall(function() {
-      assert.strictEqual('::1', this.remoteAddress);
+      assert.strictEqual(this.remoteAddress, '::1');
       this.destroy();
     }));
   }));
