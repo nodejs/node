@@ -50,3 +50,16 @@ const { SourceTextModule, createContext } = require('vm');
   await m.evaluate({ timeout: 500 })
     .then(() => assert(false), () => {});
 })();
+
+// Check the generated url for each module
+(async () => {
+  const context1 = createContext({ });
+  const context2 = createContext({ });
+
+  const m1 = new SourceTextModule('1', { context: context1 });
+  assert.strictEqual(m1.url, 'vm:module(0)');
+  const m2 = new SourceTextModule('2', { context: context1 });
+  assert.strictEqual(m2.url, 'vm:module(1)');
+  const m3 = new SourceTextModule('3', { context: context2 });
+  assert.strictEqual(m3.url, 'vm:module(0)');
+})();
