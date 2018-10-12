@@ -804,20 +804,52 @@ assert.strictEqual(Buffer.from('13.37').length, 5);
 Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 
 // issue GH-5587
-assert.throws(() => Buffer.alloc(8).writeFloatLE(0, 5), RangeError);
-assert.throws(() => Buffer.alloc(16).writeDoubleLE(0, 9), RangeError);
+common.expectsError(
+  () => Buffer.alloc(8).writeFloatLE(0, 5),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError
+  }
+);
+common.expectsError(
+  () => Buffer.alloc(16).writeDoubleLE(0, 9),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError
+  }
+);
 
 // attempt to overflow buffers, similar to previous bug in array buffers
-assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
-              RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
-              RangeError);
-
+common.expectsError(
+  () => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError
+  }
+);
+common.expectsError(
+  () => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError
+  }
+);
 
 // ensure negative values can't get past offset
-assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
-
+common.expectsError(
+  () => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError
+  }
+);
+common.expectsError(
+  () => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError
+  }
+);
 
 // test for common write(U)IntLE/BE
 {
