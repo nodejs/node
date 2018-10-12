@@ -36,5 +36,5 @@ childProcess.exec(cmd, common.mustCall(function(err, stdout, stderr) {
 
   assert.ifError(err);
   assert.strictEqual(stdout, `hello world\r\n${string}`);
-  assert.strictEqual('', stderr);
+  assert.strictEqual(stderr, '');
 }));
