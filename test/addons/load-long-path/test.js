@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../../common');
-if (common.isWOW64)
+if (common.isWindows && (process.env.PROCESSOR_ARCHITEW6432 !== undefined))
   common.skip('doesn\'t work on WOW64');
 
 const fs = require('fs');

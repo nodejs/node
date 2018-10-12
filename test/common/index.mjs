@@ -5,7 +5,6 @@ import common from './index.js';
 const {
   isMainThread,
   isWindows,
-  isWOW64,
   isAIX,
   isLinuxPPCBE,
   isSunOS,
@@ -54,7 +53,6 @@ const {
 export {
   isMainThread,
   isWindows,
-  isWOW64,
   isAIX,
   isLinuxPPCBE,
   isSunOS,
