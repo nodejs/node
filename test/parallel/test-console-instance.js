@@ -23,7 +23,8 @@
 const common = require('../common');
 const assert = require('assert');
 const Stream = require('stream');
-const Console = require('console').Console;
+const requiredConsole = require('console');
+const Console = requiredConsole.Console;
 
 const out = new Stream();
 const err = new Stream();
@@ -34,6 +35,11 @@ process.stdout.write = process.stderr.write = common.mustNotCall();
 
 // Make sure that the "Console" function exists.
 assert.strictEqual('function', typeof Console);
+
+assert.strictEqual(requiredConsole, global.console);
+// Make sure the custom instanceof of Console works
+assert.ok(global.console instanceof Console);
+assert.ok(!({} instanceof Console));
 
 // Make sure that the Console constructor throws
 // when not given a writable stream instance.
@@ -62,46 +68,57 @@ common.expectsError(
 
 out.write = err.write = (d) => {};
 
-const c = new Console(out, err);
+{
+  const c = new Console(out, err);
+  assert.ok(c instanceof Console);
 
-out.write = err.write = common.mustCall((d) => {
-  assert.strictEqual(d, 'test\n');
-}, 2);
+  out.write = err.write = common.mustCall((d) => {
+    assert.strictEqual(d, 'test\n');
+  }, 2);
 
-c.log('test');
-c.error('test');
+  c.log('test');
+  c.error('test');
 
-out.write = common.mustCall((d) => {
-  assert.strictEqual(d, '{ foo: 1 }\n');
-});
+  out.write = common.mustCall((d) => {
+    assert.strictEqual(d, '{ foo: 1 }\n');
+  });
 
-c.dir({ foo: 1 });
+  c.dir({ foo: 1 });
 
-// Ensure that the console functions are bound to the console instance.
-let called = 0;
-out.write = common.mustCall((d) => {
-  called++;
-  assert.strictEqual(d, `${called} ${called - 1} [ 1, 2, 3 ]\n`);
-}, 3);
+  // Ensure that the console functions are bound to the console instance.
+  let called = 0;
+  out.write = common.mustCall((d) => {
+    called++;
+    assert.strictEqual(d, `${called} ${called - 1} [ 1, 2, 3 ]\n`);
+  }, 3);
 
-[1, 2, 3].forEach(c.log);
-
-// Console() detects if it is called without `new` keyword.
-Console(out, err);
-
-// Extending Console works.
-class MyConsole extends Console {
-  hello() {}
+  [1, 2, 3].forEach(c.log);
 }
-const myConsole = new MyConsole(process.stdout);
-assert.strictEqual(typeof myConsole.hello, 'function');
+
+// Test calling Console without the `new` keyword.
+{
+  const withoutNew = Console(out, err);
+  assert.ok(withoutNew instanceof Console);
+}
+
+// Test extending Console
+{
+  class MyConsole extends Console {
+    hello() {}
+  }
+  const myConsole = new MyConsole(process.stdout);
+  assert.strictEqual(typeof myConsole.hello, 'function');
+  assert.ok(myConsole instanceof Console);
+}
 
 // Instance that does not ignore the stream errors.
-const c2 = new Console(out, err, false);
+{
+  const c2 = new Console(out, err, false);
 
-out.write = () => { throw new Error('out'); };
-err.write = () => { throw new Error('err'); };
+  out.write = () => { throw new Error('out'); };
+  err.write = () => { throw new Error('err'); };
 
-assert.throws(() => c2.log('foo'), /^Error: out$/);
-assert.throws(() => c2.warn('foo'), /^Error: err$/);
-assert.throws(() => c2.dir('foo'), /^Error: out$/);
+  assert.throws(() => c2.log('foo'), /^Error: out$/);
+  assert.throws(() => c2.warn('foo'), /^Error: err$/);
+  assert.throws(() => c2.dir('foo'), /^Error: out$/);
+}
