@@ -30,14 +30,12 @@ assert(cluster.isMaster);
 // makes that unnecessary. This is to make the test less fragile if the
 // implementation ever changes such that cluster.settings is mutated instead of
 // replaced.
-function cheapClone(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}
+const cheapClone = (obj) => JSON.parse(JSON.stringify(obj));
 
 const configs = [];
 
 // Capture changes
-cluster.on('setup', function() {
+cluster.on('setup', () => {
   console.log('"setup" emitted', cluster.settings);
   configs.push(cheapClone(cluster.settings));
 });
@@ -48,7 +46,7 @@ const execs = [
   'node-next-3',
 ];
 
-process.on('exit', function assertTests() {
+process.on('exit', () => {
   // Tests that "setup" is emitted for every call to setupMaster
   assert.strictEqual(configs.length, execs.length);
 
@@ -58,14 +56,14 @@ process.on('exit', function assertTests() {
 });
 
 // Make changes to cluster settings
-execs.forEach(function(v, i) {
-  setTimeout(function() {
+execs.forEach((v, i) => {
+  setTimeout(() => {
     cluster.setupMaster({ exec: v });
   }, i * 100);
 });
 
 // cluster emits 'setup' asynchronously, so we must stay alive long
 // enough for that to happen
-setTimeout(function() {
+setTimeout(() => {
   console.log('cluster setup complete');
 }, (execs.length + 1) * 100);
