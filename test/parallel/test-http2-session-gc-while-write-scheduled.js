@@ -6,6 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
 const makeDuplexPair = require('../common/duplexpair');
+const tick = require('../common/tick');
 
 // This tests that running garbage collection while an Http2Session has
 // a write *scheduled*, it will survive that garbage collection.
@@ -24,9 +25,4 @@ const makeDuplexPair = require('../common/duplexpair');
     client = null;
     global.gc();
   });
-}
-
-function tick(n, cb) {
-  if (n--) setImmediate(tick, n, cb);
-  else cb();
 }
