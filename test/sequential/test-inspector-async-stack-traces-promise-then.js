@@ -45,7 +45,7 @@ async function runTests() {
                    'break2', 'runTest:8');
 
   await session.runToCompletion();
-  assert.strictEqual(0, (await instance.expectShutdown()).exitCode);
+  assert.strictEqual((await instance.expectShutdown()).exitCode, 0);
 }
 
 function debuggerPausedAt(msg, functionName, previousTickLocation) {
