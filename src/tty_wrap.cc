@@ -64,11 +64,6 @@ void TTYWrap::Initialize(Local<Object> target,
 }
 
 
-uv_tty_t* TTYWrap::UVHandle() {
-  return &handle_;
-}
-
-
 void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int fd;
