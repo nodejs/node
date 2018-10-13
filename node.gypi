@@ -36,7 +36,7 @@
     ],
   },
   'conditions': [
-    ['clang==1', {
+    [ 'clang==1', {
       'cflags': [ '-Werror=undefined-inline', ]
     }],
     [ 'node_shared=="false"', {
@@ -68,7 +68,14 @@
     }, { # POSIX
       'defines': [ '__POSIX__' ],
     }],
-
+    [ 'node_use_pch=="true"', {
+      'msvs_precompiled_header': 'tools/msvs/pch/node_pch.h',
+      'msvs_precompiled_source': 'tools/msvs/pch/node_pch.cc',
+      'sources': [
+        '<(_msvs_precompiled_header)',
+        '<(_msvs_precompiled_source)',
+      ],
+    }],
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'deps/v8/gypfiles/d8.gyp:d8' ],
     }],
