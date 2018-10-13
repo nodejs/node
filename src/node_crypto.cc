@@ -4198,10 +4198,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
       0));
 
   size_t dh_size = DH_size(diffieHellman->dh_.get());
-  struct Free {
-    void operator()(char* ptr) const { free(ptr); }
-  };
-  std::unique_ptr<char, Free> data(Malloc(dh_size));
+  malloced_unique_ptr<char> data = make_malloced_unique<char>(dh_size);
 
   int size = DH_compute_key(reinterpret_cast<unsigned char*>(data.get()),
                             key.get(),

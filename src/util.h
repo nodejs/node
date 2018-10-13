@@ -456,6 +456,22 @@ template <typename T, typename U>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            const std::unordered_map<T, U>& map);
 
+// Helper for `malloced_unique_ptr`
+template<typename T>
+struct Free {
+  void operator()(T* ptr) const { free(ptr); }
+};
+
+// Specialization of `std::unique_ptr` that used `Malloc<t>`
+template<typename T>
+using malloced_unique_ptr = std::unique_ptr<T, Free<T>>;
+
+// Factory of `malloced_unique_ptr`
+template<typename T>
+malloced_unique_ptr<T> make_malloced_unique(size_t number_of_t) {
+  return malloced_unique_ptr<T>(Malloc<T>(number_of_t));
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
