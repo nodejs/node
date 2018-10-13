@@ -767,6 +767,11 @@ should not be in scope when `listener.ongc()` is created.
 The `tick` module provides a helper function that can be used to call a callback
 after a given number of event loop "ticks".
 
+### tick(x, cb)
+
+* `x` [&lt;number>] Number of event loop "ticks".
+* `cb` [&lt;Function>] A callback function.
+
 ## tmpdir Module
 
 The `tmpdir` module supports the use of a temporary directory for testing.
