@@ -111,7 +111,7 @@ common.expectsError(
     {
       code: 'ERR_OUT_OF_RANGE',
       message: 'The byte length of the protocol at index 0 exceeds the ' +
-        'maximum. It must be <= 255. Received 500'
+        'maximum length. It must be <= 255. Received 500'
     }
   );
 }
