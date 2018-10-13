@@ -79,6 +79,11 @@ const outOfBoundsError = {
   type: RangeError
 };
 
+const outOfRangeError = {
+  code: 'ERR_OUT_OF_RANGE',
+  type: RangeError
+};
+
 // try to write a 0-length string beyond the end of b
 common.expectsError(() => b.write('', 2048), outOfBoundsError);
 
@@ -787,31 +792,31 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 // issue GH-5587
 common.expectsError(
   () => Buffer.alloc(8).writeFloatLE(0, 5),
-  outOfBoundsError
+  outOfRangeError
 );
 common.expectsError(
   () => Buffer.alloc(16).writeDoubleLE(0, 9),
-  outOfBoundsError
+  outOfRangeError
 );
 
 // attempt to overflow buffers, similar to previous bug in array buffers
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
-  outOfBoundsError
+  outOfRangeError
 );
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
-  outOfBoundsError
+  outOfRangeError
 );
 
 // ensure negative values can't get past offset
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1),
-  outOfBoundsError
+  outOfRangeError
 );
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1),
-  outOfBoundsError
+  outOfRangeError
 );
 
 // test for common write(U)IntLE/BE
@@ -1005,7 +1010,7 @@ common.expectsError(() => {
   const a = Buffer.alloc(1);
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
-}, outOfBoundsError);
+}, outOfRangeError);
 
 // Unpooled buffer (replaces SlowBuffer)
 {
