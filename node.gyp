@@ -248,8 +248,7 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
-        [ 'node_intermediate_lib_type=="static_library" and '
-            'node_shared=="true" and OS=="aix"', {
+        [ 'node_intermediate_lib_type=="static_library" and node_shared=="true" and OS=="aix"', {
           # For AIX, shared lib is linked by static lib and .exp. In the
           # case here, the executable needs to link to shared lib.
           # Therefore, use 'node_aix_shared' target to generate the
@@ -258,26 +257,28 @@
         }, {
           'dependencies': [ '<(node_lib_target_name)' ],
         }],
-        [ 'node_intermediate_lib_type=="static_library" and '
-            'node_shared=="false"', {
+        [ 'node_intermediate_lib_type=="static_library" and node_shared=="false"', {
           'xcode_settings': {
             'OTHER_LDFLAGS': [
-              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)'
-                  '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)node_base<(STATIC_LIB_SUFFIX)',
             ],
           },
           'msvs_settings': {
             'VCLinkerTool': {
+              'ShowProgress': 2,  # /VERBOSE:LIB
               'AdditionalOptions': [
-                '/WHOLEARCHIVE:<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:lib<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:node_base<(STATIC_LIB_SUFFIX)',
               ],
             },
           },
           'conditions': [
             ['OS!="aix"', {
               'ldflags': [
-                '-Wl,--whole-archive,<(obj_dir)/<(STATIC_LIB_PREFIX)'
-                    '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                '-Wl,--whole-archive,'
+                '<(obj_dir)/<(STATIC_LIB_PREFIX)<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                '<(obj_dir)/<(STATIC_LIB_PREFIX)node_base<(STATIC_LIB_SUFFIX)',
                 '-Wl,--no-whole-archive',
               ],
             }],
@@ -298,18 +299,11 @@
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
           },
         }],
-        [ 'node_intermediate_lib_type=="shared_library" and OS=="win"', {
-          # On Windows, having the same name for both executable and shared
-          # lib causes filename collision. Need a different PRODUCT_NAME for
-          # the executable and rename it back to node.exe later
-          'product_name': '<(node_core_target_name)-win',
-        }],
       ],
     }, # node_core_target_name
     {
       'target_name': '<(node_lib_target_name)',
       'type': '<(node_intermediate_lib_type)',
-      'product_name': '<(node_core_target_name)',
       'includes': [
         'node.gypi'
       ],
@@ -317,6 +311,237 @@
       'include_dirs': [
         'src',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
+      ],
+
+      'sources': [
+        # javascript files to make for an even more pleasant IDE experience
+        '<@(library_files)',
+        # node.gyp is added to the project by default.
+        'common.gypi',
+      ],
+
+      'variables': {
+        'openssl_system_ca_path%': '',
+      },
+
+      'defines': [
+        'NODE_ARCH="<(target_arch)"',
+        'NODE_PLATFORM="<(OS)"',
+        'NODE_WANT_INTERNALS=1',
+        # Warn when using deprecated V8 APIs.
+        'V8_DEPRECATION_WARNINGS=1',
+        'NODE_OPENSSL_SYSTEM_CERT_PATH="<(openssl_system_ca_path)"',
+      ],
+
+      'dependencies': [
+        'node_base'
+      ],
+      # - "C4244: conversion from 'type1' to 'type2', possible loss of data"
+      #   Ususaly safe. Disable for `dep`, enable for `src`
+      'msvs_disabled_warnings!': [4244],
+
+      'conditions': [
+        [ 'node_intermediate_lib_type=="static_library" and node_shared=="false"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)node_base<(STATIC_LIB_SUFFIX)',
+            ],
+          },
+          'conditions': [
+            ['OS!="aix"', {
+              'ldflags': [
+                '-Wl,--whole-archive,'
+                '<(obj_dir)/<(STATIC_LIB_PREFIX)node_base<(STATIC_LIB_SUFFIX)'
+                '-Wl,--no-whole-archive',
+              ],
+            }],
+          ]
+        }],
+        [ 'node_code_cache_path!=""', {
+          'sources': [ '<(node_code_cache_path)' ]
+        }, {
+          'sources': [ 'src/node_code_cache_stub.cc' ]
+        }],
+        [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
+          'product_extension': '<(shlib_suffix)',
+          'xcode_settings': {
+            'LD_DYLIB_INSTALL_NAME':
+              '@rpath/lib<(node_core_target_name).<(shlib_suffix)'
+          },
+        }],
+        ['node_shared=="true" and OS=="aix"', {
+          'product_name': 'node_base',
+        }],
+        [ 'OS=="win"', {
+          'product_name': 'lib<(node_core_target_name)',
+          'conditions': [
+            [ 'node_intermediate_lib_type!="static_library"', {
+              'sources': [
+                'src/res/node.rc',
+              ],
+            }],
+          ],
+          'libraries': [ '-lpsapi.lib' ]
+        }, {
+          'product_name': '<(node_core_target_name)',
+        }],
+        [ 'node_use_etw=="true"', {
+          'defines': [ 'HAVE_ETW=1' ],
+          'dependencies': [ 'node_etw' ],
+          'include_dirs': [
+            'src',
+            'tools/msvs/genfiles',
+            '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
+          ],
+          'sources': [
+            'src/node_win32_etw_provider.h',
+            'src/node_win32_etw_provider-inl.h',
+            'src/node_win32_etw_provider.cc',
+            'src/node_dtrace.cc',
+            'tools/msvs/genfiles/node_etw_provider.h',
+          ],
+          'conditions': [
+            ['node_intermediate_lib_type != "static_library"', {
+              'sources': [
+                'tools/msvs/genfiles/node_etw_provider.rc',
+              ],
+            }],
+          ],
+        }],
+        [ 'node_use_dtrace=="true"', {
+          'defines': [ 'HAVE_DTRACE=1' ],
+          'dependencies': [
+            'node_dtrace_header',
+            'specialize_node_d',
+          ],
+          'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
+          #
+          # DTrace is supported on linux, solaris, mac, and bsd.  There are
+          # three object files associated with DTrace support, but they're
+          # not all used all the time:
+          #
+          #   node_dtrace.o           all configurations
+          #   node_dtrace_ustack.o    not supported on mac and linux
+          #   node_dtrace_provider.o  All except OS X.  "dtrace -G" is not
+          #                           used on OS X.
+          #
+          # Note that node_dtrace_provider.cc and node_dtrace_ustack.cc do not
+          # actually exist.  They're listed here to trick GYP into linking the
+          # corresponding object files into the final "node" executable.  These
+          # object files are generated by "dtrace -G" using custom actions
+          # below, and the GYP-generated Makefiles will properly build them when
+          # needed.
+          #
+          'sources': [ 'src/node_dtrace.cc' ],
+          'conditions': [
+            [ 'OS=="linux"', {
+              'sources': [
+                '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o'
+              ],
+            }],
+            [ 'OS!="mac" and OS!="linux"', {
+              'sources': [
+                'src/node_dtrace_ustack.cc',
+                'src/node_dtrace_provider.cc',
+              ]
+            }
+          ] ]
+        } ],
+        [ 'use_openssl_def==1', {
+          # TODO(bnoordhuis) Make all platforms export the same list of symbols.
+          # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
+          'variables': {
+            'mkssldef_flags': [
+              # Categories to export.
+              '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
+              'PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,STDIO,TLSEXT,'
+              'FP_API,TLS1_METHOD,TLS1_1_METHOD,TLS1_2_METHOD,SCRYPT,OCSP,'
+              'NEXTPROTONEG,RMD160,CAST',
+              # Defines.
+              '-DWIN32',
+              # Symbols to filter from the export list.
+              '-X^DSO',
+              '-X^_',
+              '-X^private_',
+              # Base generated DEF on zlib.def
+              '-Bdeps/zlib/win32/zlib.def'
+            ],
+          },
+          'conditions': [
+            ['openssl_fips!=""', {
+              'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
+            }],
+          ],
+          'actions': [
+            {
+              'action_name': 'mkssldef',
+              'inputs': [
+                'deps/openssl/openssl/util/libcrypto.num',
+                'deps/openssl/openssl/util/libssl.num',
+              ],
+              'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
+              'process_outputs_as_sources': 1,
+              'action': [
+                'python',
+                'tools/mkssldef.py',
+                '<@(mkssldef_flags)',
+                '-o',
+                '<@(_outputs)',
+                '<@(_inputs)',
+              ],
+            },
+          ],
+        }],
+      ],
+      'actions': [
+        {
+          'action_name': 'node_js2c',
+          'process_outputs_as_sources': 1,
+          'inputs': [
+            '<@(library_files)',
+            'config.gypi',
+            'tools/check_macros.py'
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
+          ],
+          'conditions': [
+            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
+              'inputs': [ 'src/notrace_macros.py' ]
+            }],
+            [ 'node_debug_lib=="false"', {
+              'inputs': [ 'tools/nodcheck_macros.py' ]
+            }],
+            [ 'node_debug_lib=="true"', {
+              'inputs': [ 'tools/dcheck_macros.py' ]
+            }]
+          ],
+          'action': [
+            'python', 'tools/js2c.py',
+            '<@(_outputs)',
+            '<@(_inputs)',
+          ],
+        },
+      ],
+    }, # node_lib_target_name
+    {
+      'target_name': 'node_base',
+      'type': 'static_library',
+
+      'include_dirs': [
+        'src',
+        'deps/cares/include',
+        'deps/http_parser',
+        'deps/icu-small/source/i18n',
+        'deps/icu-small/source/common',
+        'deps/nghttp2/lib/includes',
+        'deps/openssl/openssl/include',
+        'deps/uv/include',
+        'deps/v8/include',
+        'deps/zlib',
+        '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
+        '<(SHARED_INTERMEDIATE_DIR)/include', # for node_natives.h
+        '<(SHARED_INTERMEDIATE_DIR)/src', # for node_natives.h
       ],
 
       'sources': [
@@ -450,15 +675,13 @@
         'src/util-inl.h',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
-        # javascript files to make for an even more pleasant IDE experience
-        '<@(library_files)',
-        # node.gyp is added to the project by default.
-        'common.gypi',
       ],
 
       'variables': {
         'openssl_system_ca_path%': '',
       },
+
+      'cflags': [ '-Wno-unknown-pragmas', ],
 
       'defines': [
         'NODE_ARCH="<(target_arch)"',
@@ -466,117 +689,31 @@
         'NODE_WANT_INTERNALS=1',
         # Warn when using deprecated V8 APIs.
         'V8_DEPRECATION_WARNINGS=1',
+        # 'V8_IMMINENT_DEPRECATION_WARNINGS=1',
         'NODE_OPENSSL_SYSTEM_CERT_PATH="<(openssl_system_ca_path)"',
       ],
 
-      # - "C4244: conversion from 'type1' to 'type2', possible loss of data"
-      #   Ususaly safe. Disable for `dep`, enable for `src`
-      'msvs_disabled_warnings!': [4244],
+      # - "C4068: Unknown Pragma
+      'msvs_disabled_warnings=': [4068, 4267, 4244, 4251, 4275],
 
       'conditions': [
-        [ 'node_code_cache_path!=""', {
-          'sources': [ '<(node_code_cache_path)' ]
-        }, {
-          'sources': [ 'src/node_code_cache_stub.cc' ]
-        }],
-        [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
-          'product_extension': '<(shlib_suffix)',
-          'xcode_settings': {
-            'LD_DYLIB_INSTALL_NAME':
-              '@rpath/lib<(node_core_target_name).<(shlib_suffix)'
-          },
-        }],
-        ['node_shared=="true" and OS=="aix"', {
-          'product_name': 'node_base',
-        }],
         [ 'v8_enable_inspector==1', {
           'includes' : [ 'src/inspector/node_inspector.gypi' ],
         }, {
-          'defines': [ 'HAVE_INSPECTOR=0' ]
-        }],
-        [ 'OS=="win"', {
-          'conditions': [
-            [ 'node_intermediate_lib_type!="static_library"', {
-              'sources': [
-                'src/res/node.rc',
-              ],
-            }],
-          ],
-          'libraries': [ '-lpsapi.lib' ]
-        }],
-        [ 'node_use_etw=="true"', {
-          'defines': [ 'HAVE_ETW=1' ],
-          'dependencies': [ 'node_etw' ],
-          'include_dirs': [
-            'src',
-            'tools/msvs/genfiles',
-            '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
-          ],
-          'sources': [
-            'src/node_win32_etw_provider.h',
-            'src/node_win32_etw_provider-inl.h',
-            'src/node_win32_etw_provider.cc',
-            'src/node_dtrace.cc',
-            'tools/msvs/genfiles/node_etw_provider.h',
-          ],
-          'conditions': [
-            ['node_intermediate_lib_type != "static_library"', {
-              'sources': [
-                'tools/msvs/genfiles/node_etw_provider.rc',
-              ],
-            }],
-          ],
-        }],
-        [ 'node_use_dtrace=="true"', {
-          'defines': [ 'HAVE_DTRACE=1' ],
-          'dependencies': [
-            'node_dtrace_header',
-            'specialize_node_d',
-          ],
-          'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
-          #
-          # DTrace is supported on linux, solaris, mac, and bsd.  There are
-          # three object files associated with DTrace support, but they're
-          # not all used all the time:
-          #
-          #   node_dtrace.o           all configurations
-          #   node_dtrace_ustack.o    not supported on mac and linux
-          #   node_dtrace_provider.o  All except OS X.  "dtrace -G" is not
-          #                           used on OS X.
-          #
-          # Note that node_dtrace_provider.cc and node_dtrace_ustack.cc do not
-          # actually exist.  They're listed here to trick GYP into linking the
-          # corresponding object files into the final "node" executable.  These
-          # object files are generated by "dtrace -G" using custom actions
-          # below, and the GYP-generated Makefiles will properly build them when
-          # needed.
-          #
-          'sources': [ 'src/node_dtrace.cc' ],
-          'conditions': [
-            [ 'OS=="linux"', {
-              'sources': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o'
-              ],
-            }],
-            [ 'OS!="mac" and OS!="linux"', {
-              'sources': [
-                'src/node_dtrace_ustack.cc',
-                'src/node_dtrace_provider.cc',
-              ]
-            }
-          ] ]
-        } ],
+            'defines': [ 'HAVE_INSPECTOR=0' ]
+          }],
         [ 'node_use_openssl=="true"', {
           'sources': [
             'src/node_crypto.cc',
-            'src/node_crypto_bio.cc',
-            'src/node_crypto_clienthello.cc',
             'src/node_crypto.h',
+            'src/node_crypto_bio.cc',
             'src/node_crypto_bio.h',
+            'src/node_crypto_clienthello.cc',
             'src/node_crypto_clienthello.h',
             'src/tls_wrap.cc',
             'src/tls_wrap.h'
           ],
+          'defines': [ 'HAVE_OPENSSL=1', ],
         }],
         [ 'node_use_large_pages=="true" and OS=="linux"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
@@ -587,83 +724,52 @@
             'src/large_pages/node_large_page.h'
           ],
         }],
-        [ 'use_openssl_def==1', {
-          # TODO(bnoordhuis) Make all platforms export the same list of symbols.
-          # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
-          'variables': {
-            'mkssldef_flags': [
-              # Categories to export.
-              '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
-              'PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,STDIO,TLSEXT,'
-              'FP_API,TLS1_METHOD,TLS1_1_METHOD,TLS1_2_METHOD,SCRYPT,OCSP,'
-              'NEXTPROTONEG,RMD160,CAST',
-              # Defines.
-              '-DWIN32',
-              # Symbols to filter from the export list.
-              '-X^DSO',
-              '-X^_',
-              '-X^private_',
-              # Base generated DEF on zlib.def
-              '-Bdeps/zlib/win32/zlib.def'
-            ],
-          },
-          'conditions': [
-            ['openssl_fips!=""', {
-              'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
-            }],
-          ],
-          'actions': [
-            {
-              'action_name': 'mkssldef',
-              'inputs': [
-                'deps/openssl/openssl/util/libcrypto.num',
-                'deps/openssl/openssl/util/libssl.num',
-              ],
-              'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
-              'process_outputs_as_sources': 1,
-              'action': [
-                'python',
-                'tools/mkssldef.py',
-                '<@(mkssldef_flags)',
-                '-o',
-                '<@(_outputs)',
-                '<@(_inputs)',
-              ],
-            },
+        [ 'v8_enable_i18n_support==1', {
+          'defines': [
+            'NODE_HAVE_I18N_SUPPORT=1',
+            'UCONFIG_NO_SERVICE=1',
+            'U_ENABLE_DYLOAD=0',
+            'U_STATIC_IMPLEMENTATION=1',
+            'U_HAVE_STD_STRING=1',
+            'UCONFIG_NO_BREAK_ITERATION=0',
           ],
         }],
+        [ 'icu_small=="true"', {
+          'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
+        }],
+        [ 'node_use_v8_platform=="true"', {
+          'defines': [ 'NODE_USE_V8_PLATFORM=1', ],
+        }, {
+          'defines': [ 'NODE_USE_V8_PLATFORM=0', ],
+        }],
+        [ 'OS=="win"', {
+          'dependencies=': [],
+          'defines!': [ 'NODE_PLATFORM="win"', ],
+          'defines': [
+            'FD_SETSIZE=1024',
+            # we need to use node's preferred "win32" rather than gyp's preferred "win"
+            'NODE_PLATFORM="win32"',
+            # Stop <windows.h> from defining macros that conflict with
+            # std::min() and std::max().  We don't use <windows.h> (much)
+            # but we still inherit it from uv.h.
+            'NOMINMAX',
+            '_UNICODE=1',
+          ],
+        }, { # POSIX
+          'defines': [
+            '__POSIX__',
+            '_LARGEFILE_SOURCE',
+            '_FILE_OFFSET_BITS=64',
+          ],
+        }],
+        [ 'node_shared_nghttp2=="false"', {
+          'defines': [ 'NGHTTP2_STATICLIB', ],
+        }],
+        [ 'node_shared_http_parser=="false"', {
+          'defines': [ 'HTTP_PARSER_STRICT=0', ],
+        }],
       ],
-      'actions': [
-        {
-          'action_name': 'node_js2c',
-          'process_outputs_as_sources': 1,
-          'inputs': [
-            '<@(library_files)',
-            'config.gypi',
-            'tools/check_macros.py'
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
-          ],
-          'conditions': [
-            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
-              'inputs': [ 'src/notrace_macros.py' ]
-            }],
-            [ 'node_debug_lib=="false"', {
-              'inputs': [ 'tools/nodcheck_macros.py' ]
-            }],
-            [ 'node_debug_lib=="true"', {
-              'inputs': [ 'tools/dcheck_macros.py' ]
-            }]
-          ],
-          'action': [
-            'python', 'tools/js2c.py',
-            '<@(_outputs)',
-            '<@(_inputs)',
-          ],
-        },
-      ],
-    }, # node_lib_target_name
+    }, # node_base
     {
        # generate ETW header and resource files
       'target_name': 'node_etw',
@@ -823,40 +929,11 @@
       ]
     }, # specialize_node_d
     {
-      # When using shared lib to build executable in Windows, in order to avoid
-      # filename collision, the executable name is node-win.exe. Need to rename
-      # it back to node.exe
-      'target_name': 'rename_node_bin_win',
-      'type': 'none',
-      'dependencies': [
-        '<(node_core_target_name)',
-      ],
-      'conditions': [
-        [ 'OS=="win" and node_intermediate_lib_type=="shared_library"', {
-          'actions': [
-            {
-              'action_name': 'rename_node_bin_win',
-              'inputs': [
-                '<(PRODUCT_DIR)/<(node_core_target_name)-win.exe'
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/<(node_core_target_name).exe',
-              ],
-              'action': [
-                'mv', '<@(_inputs)', '<@(_outputs)',
-              ],
-            },
-          ],
-        } ],
-      ]
-    }, # rename_node_bin_win
-    {
       'target_name': 'cctest',
       'type': 'executable',
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'rename_node_bin_win',
         'deps/gtest/gtest.gyp:gtest',
         'node_dtrace_header',
         'node_dtrace_ustack',
