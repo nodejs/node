@@ -4339,7 +4339,7 @@ void ECDH::New(const FunctionCallbackInfo<Value>& args) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   // TODO(indutny): Support raw curves?
-  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "ECDH curve name");
+  CHECK(args[0]->IsString());
   node::Utf8Value curve(env->isolate(), args[0]);
 
   int nid = OBJ_sn2nid(*curve);
