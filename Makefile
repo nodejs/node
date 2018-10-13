@@ -413,7 +413,7 @@ clear-stalled:
 		echo $${PS_OUT} | xargs kill -9; \
 	fi
 
-test-build: | all build-addons build-addons-napi
+test-build: | all build-addons build-addons-napi bench-addons-build
 
 test-build-addons-napi: all build-addons-napi
 
@@ -443,7 +443,7 @@ test-ci-native: | test/addons/.buildstamp test/addons-napi/.buildstamp
 test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) $(CI_JS_SUITES)
+		$(TEST_CI_ARGS) $(CI_JS_SUITES) --skip-tests=sequential/test-benchmark-napi
 	@echo "Clean up any leftover processes, error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -454,7 +454,7 @@ test-ci-js: | clear-stalled
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled build-addons build-addons-napi doc-only
+test-ci: | clear-stalled build-addons build-addons-napi doc-only bench-addons-build
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
@@ -492,7 +492,7 @@ test-debug: test-build
 test-message: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) message
 
-test-simple: | cctest  # Depends on 'all'.
+test-simple: | cctest bench-addons-build  # Depends on 'all'.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) parallel sequential
 
 test-pummel: all
