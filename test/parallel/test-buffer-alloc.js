@@ -74,41 +74,22 @@ new Buffer('', 'latin1');
 new Buffer('', 'binary');
 Buffer(0);
 
+const outOfBoundsError = {
+  code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+  type: RangeError
+};
+
 // try to write a 0-length string beyond the end of b
-common.expectsError(
-  () => b.write('', 2048),
-  {
-    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError
-  }
-);
+common.expectsError(() => b.write('', 2048), outOfBoundsError);
 
 // throw when writing to negative offset
-common.expectsError(
-  () => b.write('a', -1),
-  {
-    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError
-  }
-);
+common.expectsError(() => b.write('a', -1), outOfBoundsError);
 
 // throw when writing past bounds from the pool
-common.expectsError(
-  () => b.write('a', 2048),
-  {
-    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError
-  }
-);
+common.expectsError(() => b.write('a', 2048), outOfBoundsError);
 
 // throw when writing to negative offset
-common.expectsError(
-  () => b.write('a', -1),
-  {
-    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError
-  }
-);
+common.expectsError(() => b.write('a', -1), outOfBoundsError);
 
 // try to copy 0 bytes worth of data into an empty buffer
 b.copy(Buffer.alloc(0), 0, 0, 0);
@@ -806,49 +787,31 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 // issue GH-5587
 common.expectsError(
   () => Buffer.alloc(8).writeFloatLE(0, 5),
-  {
-    code: 'ERR_OUT_OF_RANGE',
-    type: RangeError
-  }
+  outOfBoundsError
 );
 common.expectsError(
   () => Buffer.alloc(16).writeDoubleLE(0, 9),
-  {
-    code: 'ERR_OUT_OF_RANGE',
-    type: RangeError
-  }
+  outOfBoundsError
 );
 
 // attempt to overflow buffers, similar to previous bug in array buffers
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
-  {
-    code: 'ERR_OUT_OF_RANGE',
-    type: RangeError
-  }
+  outOfBoundsError
 );
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
-  {
-    code: 'ERR_OUT_OF_RANGE',
-    type: RangeError
-  }
+  outOfBoundsError
 );
 
 // ensure negative values can't get past offset
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1),
-  {
-    code: 'ERR_OUT_OF_RANGE',
-    type: RangeError
-  }
+  outOfBoundsError
 );
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1),
-  {
-    code: 'ERR_OUT_OF_RANGE',
-    type: RangeError
-  }
+  outOfBoundsError
 );
 
 // test for common write(U)IntLE/BE
@@ -1042,10 +1005,7 @@ common.expectsError(() => {
   const a = Buffer.alloc(1);
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
-}, {
-  code: 'ERR_OUT_OF_RANGE',
-  type: RangeError
-});
+}, outOfBoundsError);
 
 // Unpooled buffer (replaces SlowBuffer)
 {
