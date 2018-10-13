@@ -46,20 +46,20 @@ const dnsPromises = dns.promises;
 
 dns.lookup(null, common.mustCall((error, result, addressType) => {
   assert.ifError(error);
-  assert.strictEqual(null, result);
-  assert.strictEqual(4, addressType);
+  assert.strictEqual(result, null);
+  assert.strictEqual(addressType, 4);
 }));
 
 dns.lookup('127.0.0.1', common.mustCall((error, result, addressType) => {
   assert.ifError(error);
-  assert.strictEqual('127.0.0.1', result);
-  assert.strictEqual(4, addressType);
+  assert.strictEqual(result, '127.0.0.1');
+  assert.strictEqual(addressType, 4);
 }));
 
 dns.lookup('::1', common.mustCall((error, result, addressType) => {
   assert.ifError(error);
-  assert.strictEqual('::1', result);
-  assert.strictEqual(6, addressType);
+  assert.strictEqual(result, '::1');
+  assert.strictEqual(addressType, 6);
 }));
 
 [
