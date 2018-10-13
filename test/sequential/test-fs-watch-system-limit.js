@@ -37,13 +37,15 @@ function spawnProcesses() {
 spawnProcesses();
 
 setTimeout(() => {
-  const timeoutStream = new stream.PassThrough();
-  timeoutStream.write('Error: timeout');
-  timeoutStream.end();
-  timeoutStream.pipe(gatherStderr);
+  if (!finished) {
+    const timeoutStream = new stream.PassThrough();
+    timeoutStream.write('Error: timeout');
+    timeoutStream.end();
+    timeoutStream.pipe(gatherStderr);
 
-  finished = true;
-  processes.forEach((proc) => proc.kill());
+    finished = true;
+    processes.forEach((proc) => proc.kill());
+  }
 }, timeout);
 
 let accumulated = '';
