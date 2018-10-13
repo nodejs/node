@@ -192,13 +192,6 @@ void MemoryTracker::TrackField(const char* edge_name,
     graph_->AddEdge(CurrentNode(), graph_->V8Node(value), edge_name);
 }
 
-template <typename T>
-void MemoryTracker::TrackField(const char* edge_name,
-                               const MallocedBuffer<T>& value,
-                               const char* node_name) {
-  TrackFieldWithSize(edge_name, value.size, "MallocedBuffer");
-}
-
 void MemoryTracker::TrackField(const char* name,
                                const uv_buf_t& value,
                                const char* node_name) {

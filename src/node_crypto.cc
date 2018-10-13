@@ -4197,9 +4197,13 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
       Buffer::Length(args[0]),
       0));
 
-  MallocedBuffer<char> data(DH_size(diffieHellman->dh_.get()));
+  size_t dh_size = DH_size(diffieHellman->dh_.get());
+  struct Free {
+    void operator()(char* ptr) const { free(ptr); }
+  };
+  std::unique_ptr<char, Free> data(Malloc(dh_size));
 
-  int size = DH_compute_key(reinterpret_cast<unsigned char*>(data.data),
+  int size = DH_compute_key(reinterpret_cast<unsigned char*>(data.get()),
                             key.get(),
                             diffieHellman->dh_.get());
 
@@ -4234,14 +4238,14 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   // DH_compute_key returns number of bytes in a remainder of exponent, which
   // may have less bytes than a prime number. Therefore add 0-padding to the
   // allocated buffer.
-  if (static_cast<size_t>(size) != data.size) {
-    CHECK_GT(data.size, static_cast<size_t>(size));
-    memmove(data.data + data.size - size, data.data, size);
-    memset(data.data, 0, data.size - size);
+  if (static_cast<size_t>(size) != dh_size) {
+    CHECK_GT(dh_size, static_cast<size_t>(size));
+    memmove(data.get() + dh_size - size, data.get(), size);
+    memset(data.get(), 0, dh_size - size);
   }
 
   args.GetReturnValue().Set(
-      Buffer::New(env->isolate(), data.release(), data.size).ToLocalChecked());
+      Buffer::New(env->isolate(), data.release(), dh_size).ToLocalChecked());
 }
 
 void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<Value>& args,

@@ -11,6 +11,37 @@
 namespace node {
 namespace worker {
 
+// Simple RAII wrapper for contiguous data that uses malloc()/free().
+template <typename T>
+struct MallocedBuffer {
+  T* data;
+  size_t size;
+
+  T* release() {
+    T* ret = data;
+    data = nullptr;
+    return ret;
+  }
+
+  inline bool is_empty() const { return data == nullptr; }
+
+  MallocedBuffer() : data(nullptr) {}
+  explicit MallocedBuffer(size_t size) : data(Malloc<T>(size)), size(size) {}
+  MallocedBuffer(T* data, size_t size) : data(data), size(size) {}
+  MallocedBuffer(MallocedBuffer&& other) : data(other.data), size(other.size) {
+    other.data = nullptr;
+  }
+  MallocedBuffer& operator=(MallocedBuffer&& other) {
+    this->~MallocedBuffer();
+    return *new(this) MallocedBuffer(std::move(other));
+  }
+  ~MallocedBuffer() {
+    free(data);
+  }
+  MallocedBuffer(const MallocedBuffer&) = delete;
+  MallocedBuffer& operator=(const MallocedBuffer&) = delete;
+};
+
 class MessagePortData;
 class MessagePort;
 

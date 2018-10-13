@@ -174,10 +174,6 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const v8::Local<T>& value,
                          const char* node_name = nullptr);
-  template <typename T>
-  inline void TrackField(const char* edge_name,
-                         const MallocedBuffer<T>& value,
-                         const char* node_name = nullptr);
   inline void TrackField(const char* edge_name,
                          const uv_buf_t& value,
                          const char* node_name = nullptr);

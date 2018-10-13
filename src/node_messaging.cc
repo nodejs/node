@@ -326,7 +326,7 @@ Maybe<bool> Message::Serialize(Environment* env,
 }
 
 void Message::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("array_buffer_contents", array_buffer_contents_);
+  tracker->TrackFieldWithSize("array_buffer_contents", array_buffer_contents_.size(), "MallocedBuffer");
   tracker->TrackFieldWithSize("shared_array_buffers",
       shared_array_buffers_.size() * sizeof(shared_array_buffers_[0]));
   tracker->TrackField("message_ports", message_ports_);
