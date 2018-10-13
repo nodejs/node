@@ -43,6 +43,9 @@ started.
 If wait is `true`, will block until a client has connected to the inspect port
 and flow control has been passed to the debugger client.
 
+See the [security warning](cli.html#inspector_security) regarding the `host`
+parameter usage.
+
 ## inspector.url()
 
 * Returns: {string|undefined}
