@@ -10,8 +10,8 @@ const runBenchmark = require('../common/benchmark');
 
 runBenchmark('napi',
              [
-               "n=1",
-               "engine=v8",
-               "type=String"
+               'n=1',
+               'engine=v8',
+               'type=String'
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
