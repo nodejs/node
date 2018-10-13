@@ -117,10 +117,6 @@ class WorkerThreadsTaskRunner {
   std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
 
   std::vector<std::unique_ptr<uv_thread_t>> threads_;
-
-  Mutex platform_workers_mutex_;
-  ConditionVariable platform_workers_ready_;
-  int pending_platform_workers_;
 };
 
 class NodePlatform : public MultiIsolatePlatform {
