@@ -768,6 +768,14 @@
         [ 'node_shared_http_parser=="false"', {
           'defines': [ 'HTTP_PARSER_STRICT=0', ],
         }],
+        ['node_use_pch=="true"', {
+          'msvs_precompiled_header': 'src/node_pch.h',
+          'msvs_precompiled_source': 'src/node_pch.cc',
+          'sources': [
+            '<(_msvs_precompiled_header)',
+            '<(_msvs_precompiled_source)',
+          ],
+        }],
       ],
     }, # node_base
     {
