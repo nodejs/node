@@ -38,7 +38,17 @@ spawnProcesses();
 
 setTimeout(() => {
   if (!finished) {
+<<<<<<< HEAD
     gatherStderr.write('Error: Timeout');
+=======
+    const timeoutStream = new stream.PassThrough();
+    timeoutStream.write('Error: timeout');
+    timeoutStream.end();
+    timeoutStream.pipe(gatherStderr);
+
+    finished = true;
+    processes.forEach((proc) => proc.kill());
+>>>>>>> test: don't write to stream if test passed successfully
   }
 }, timeout);
 
