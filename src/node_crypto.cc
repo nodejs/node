@@ -4115,10 +4115,7 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
 
   DiffieHellman* diffieHellman;
   ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
+  CHECK(diffieHellman->initialised_);
 
   if (!DH_generate_key(diffieHellman->dh_.get())) {
     return ThrowCryptoError(env, ERR_get_error(), "Key generation failed");
@@ -4140,7 +4137,7 @@ void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
 
   DiffieHellman* dh;
   ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
-  if (!dh->initialised_) return env->ThrowError("Not initialized");
+  CHECK(dh->initialised_);
 
   const BIGNUM* num = get_field(dh->dh_.get());
   if (num == nullptr) return env->ThrowError(err_if_null);
@@ -4192,10 +4189,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 
   DiffieHellman* diffieHellman;
   ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
+  CHECK(diffieHellman->initialised_);
 
   ClearErrorOnReturn clear_error_on_return;
 
@@ -4263,7 +4257,7 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<Value>& args,
 
   DiffieHellman* dh;
   ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
-  if (!dh->initialised_) return env->ThrowError("Not initialized");
+  CHECK(dh->initialised_);
 
   char errmsg[64];
 
@@ -4309,10 +4303,7 @@ void DiffieHellman::VerifyErrorGetter(const FunctionCallbackInfo<Value>& args) {
 
   DiffieHellman* diffieHellman;
   ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  if (!diffieHellman->initialised_)
-    return ThrowCryptoError(diffieHellman->env(), ERR_get_error(),
-                            "Not initialized");
+  CHECK(diffieHellman->initialised_);
 
   args.GetReturnValue().Set(diffieHellman->verifyError_);
 }
