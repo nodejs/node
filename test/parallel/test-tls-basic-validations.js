@@ -110,8 +110,8 @@ common.expectsError(
     () => tls.convertALPNProtocols(protocols, out),
     {
       code: 'ERR_OUT_OF_RANGE',
-      message: 'The value of "byte length of a protocol" is out ' +
-        'of range. It must be <= 255. Received 500'
+      message: 'The byte length of the protocol at index 0 exceeds the ' +
+        'maximum. It must be <= 255. Received 500'
     }
   );
 }
