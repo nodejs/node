@@ -7,6 +7,7 @@
 #include "node_context_data.h"
 #include "node_worker.h"
 #include "tracing/agent.h"
+#include "tracing/traced_value.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -32,6 +33,25 @@ using v8::Value;
 using worker::Worker;
 
 #define kTraceCategoryCount 1
+
+// TODO(@jasnell): Likely useful to move this to util or node_internal to
+// allow reuse. But since we're not reusing it yet...
+class TraceEventScope {
+ public:
+  TraceEventScope(const char* category,
+                  const char* name,
+                  void* id) : category_(category), name_(name), id_(id) {
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(category_, name_, id_);
+  }
+  ~TraceEventScope() {
+    TRACE_EVENT_NESTABLE_ASYNC_END0(category_, name_, id_);
+  }
+
+ private:
+  const char* category_;
+  const char* name_;
+  void* id_;
+};
 
 int const Environment::kNodeContextTag = 0x6e6f64;
 void* Environment::kNodeContextTagPtr = const_cast<void*>(
@@ -224,6 +244,9 @@ Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
+
+  TRACE_EVENT_NESTABLE_ASYNC_END0(
+    TRACING_CATEGORY_NODE1(environment), "Environment", this);
 }
 
 void Environment::Start(const std::vector<std::string>& args,
@@ -231,6 +254,23 @@ void Environment::Start(const std::vector<std::string>& args,
                         bool start_profiler_idle_notifier) {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
+
+  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+      TRACING_CATEGORY_NODE1(environment)) != 0) {
+    auto traced_value = tracing::TracedValue::Create();
+    traced_value->BeginArray("args");
+    for (const std::string& arg : args)
+      traced_value->AppendString(arg);
+    traced_value->EndArray();
+    traced_value->BeginArray("exec_args");
+    for (const std::string& arg : exec_args)
+      traced_value->AppendString(arg);
+    traced_value->EndArray();
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
+      TRACING_CATEGORY_NODE1(environment),
+      "Environment", this,
+      "args", std::move(traced_value));
+  }
 
   CHECK_EQ(0, uv_timer_init(event_loop(), timer_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
@@ -401,6 +441,8 @@ void Environment::PrintSyncTrace() const {
 }
 
 void Environment::RunCleanup() {
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "RunCleanup", this);
   CleanupHandles();
 
   while (!cleanup_hooks_.empty()) {
@@ -432,6 +474,8 @@ void Environment::RunCleanup() {
 }
 
 void Environment::RunBeforeExitCallbacks() {
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "BeforeExit", this);
   for (ExitCallback before_exit : before_exit_functions_) {
     before_exit.cb_(before_exit.arg_);
   }
@@ -443,6 +487,8 @@ void Environment::BeforeExit(void (*cb)(void* arg), void* arg) {
 }
 
 void Environment::RunAtExitCallbacks() {
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "AtExit", this);
   for (ExitCallback at_exit : at_exit_functions_) {
     at_exit.cb_(at_exit.arg_);
   }
@@ -496,13 +542,16 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
 
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return;
-
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "EnvPromiseHook", env);
   for (const PromiseHookCallback& hook : env->promise_hooks_) {
     hook.cb_(type, promise, parent, hook.arg_);
   }
 }
 
 void Environment::RunAndClearNativeImmediates() {
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "RunAndClearNativeImmediates", this);
   size_t count = native_immediate_callbacks_.size();
   if (count > 0) {
     size_t ref_count = 0;
@@ -555,6 +604,8 @@ void Environment::ToggleTimerRef(bool ref) {
 
 void Environment::RunTimers(uv_timer_t* handle) {
   Environment* env = Environment::from_timer_handle(handle);
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "RunTimers", env);
 
   if (!env->can_call_into_js())
     return;
@@ -615,6 +666,8 @@ void Environment::RunTimers(uv_timer_t* handle) {
 
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "CheckImmediate", env);
 
   if (env->immediate_info()->count() == 0)
     return;
