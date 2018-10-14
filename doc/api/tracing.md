@@ -18,6 +18,7 @@ The available categories are:
   The [`async_hooks`] events have a unique `asyncId` and a special `triggerId`
   `triggerAsyncId` property.
 * `node.bootstrap` - Enables capture of Node.js bootstrap milestones.
+* `node.environment` - Enables capture of Node.js Environment milestones.
 * `node.fs.sync` - Enables capture of trace data for file system sync methods.
 * `node.perf` - Enables capture of [Performance API] measurements.
   * `node.perf.usertiming` - Enables capture of only Performance API User Timing
