@@ -504,7 +504,12 @@ void ContextifyContext::PropertyEnumeratorCallback(
   if (ctx->context_.IsEmpty())
     return;
 
-  args.GetReturnValue().Set(ctx->sandbox()->GetPropertyNames());
+  Local<Array> properties;
+
+  if (!ctx->sandbox()->GetPropertyNames(ctx->context()).ToLocal(&properties))
+    return;
+
+  args.GetReturnValue().Set(properties);
 }
 
 // static
