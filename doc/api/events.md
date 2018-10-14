@@ -244,6 +244,56 @@ console.log(EventEmitter.listenerCount(myEmitter, 'event'));
 // Prints: 2
 ```
 
+### EventEmitter.customDestroySymbol
+<!-- YAML
+added: REPLACEME
+-->
+
+Sub-classes of `EventEmitter` may wish to implement their own logic for
+destroying the emitter. To do so, provide an implementation of the
+`emitter[EventEmitter.customDestroySymbol]()` function:
+
+```js
+const EventEmitter = require('events');
+
+class MyEmitter extends EventEmitter {
+  [EventEmitter.customDestroySymbol](err) {
+    // Do some cleanup here. The destroy() method will only call
+    // this if this.destroyed is false.
+    this._isDestroyed = true;
+  }
+  [EventEmitter.customDestroyedSymbol]() {
+    return this._isDestroyed;
+  }
+}
+```
+
+### EventEmitter.customDestroyedSymbol
+<!-- YAML
+added: REPLACEME
+-->
+
+Sub-classes of `EventEmitter` may wish to implement their own logic for
+destroying the emitter, and for tracking the destroyed state. To do so,
+provide an implementation of the `emitter[EventEmitter.customDestroyedSymbol]()`
+function:
+
+```js
+const EventEmitter = require('events');
+
+class MyEmitter extends EventEmitter {
+  [EventEmitter.customDestroySymbol](err) {
+    if (this._isDestroyed)
+      return;
+    // Do some cleanup here.
+    this._isDestroyed = true;
+  }
+  [EventEmitter.customDestroyedSymbol]() {
+    return this._isDestroyed;
+  }
+}
+```
+
 ### EventEmitter.defaultMaxListeners
 <!-- YAML
 added: v0.11.2
@@ -292,6 +342,33 @@ added: v0.1.26
 * `listener` {Function}
 
 Alias for `emitter.on(eventName, listener)`.
+
+#### emitter.destroy([error])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `error` {Error}
+* Returns: {this}
+
+Destroy the EventEmitter, and emit the passed `'error'` and a `'close'` event
+on `nextTick`. After this call, the `emitter.destroyed` property will be set to
+`true`. However, the `emitter.emit()` function will continue to operate.
+Implementors should not override this method,
+but instead implement [`emitter[EventEmitter.customDestroySymbol]()`][].
+
+#### emitter.destroyed
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Set to `true` if the `emitter.destroy()` method has been called. Sub-classes
+may implement [`emitter[EventEmitter.customDestroyedSymbol]()`][] to override
+the default method of determining if an `EventEmitter` has been destroyed
+(this would only be necessary when implementing a custom
+[`emitter[EventEmitter.customDestroySymbol]()`][]).
 
 ### emitter.emit(eventName[, ...args])
 <!-- YAML
