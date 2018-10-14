@@ -44,7 +44,7 @@ server.listen(common.PIPE, function() {
 
 function test() {
 
-  d.on('error', common.mustCall(function(err) {
+  d.on('error', common.mustCall((err) => {
     assert.strictEqual(err.message, 'should be caught by domain');
   }));
 
