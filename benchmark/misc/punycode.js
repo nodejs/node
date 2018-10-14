@@ -3,7 +3,7 @@
 const common = require('../common.js');
 let icu;
 try {
-  icu = process.binding('icu');
+  icu = common.binding('icu');
 } catch (err) {}
 const punycode = require('punycode');
 

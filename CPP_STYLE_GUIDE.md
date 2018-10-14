@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+* [Guides and References](#guides-and-references)
 * [Formatting](#formatting)
   * [Left-leaning (C++ style) asterisks for pointer declarations](#left-leaning-c-style-asterisks-for-pointer-declarations)
   * [C++ style comments](#c-style-comments)
@@ -25,13 +26,29 @@
   * [Avoid throwing JavaScript errors in C++ methods](#avoid-throwing-javascript-errors-in-c)
     * [Avoid throwing JavaScript errors in nested C++ methods](#avoid-throwing-javascript-errors-in-nested-c-methods)
 
-Unfortunately, the C++ linter (based on
-[Google’s `cpplint`](https://github.com/google/styleguide)), which can be run
-explicitly via `make lint-cpp`, does not currently catch a lot of rules that are
-specific to the Node.js C++ code base. This document explains the most common of
-these rules:
+
+## Guides and References
+
+The Node.js C++ codebase strives to be consistent in its use of language
+features and idioms, as well as have some specific guidelines for the use of
+runtime features.
+
+Coding guidelines are based on the following guides (highest priority first):
+1. This document
+2. The [Google C++ Style Guide][]
+3. The ISO [C++ Core Guidelines][]
+
+In general code should follow the C++ Core Guidelines, unless overridden by the
+Google C++ Style Guide or this document. At the moment these guidelines are
+checked manually by reviewers, with the goal to validate this with automatic
+tools.
 
 ## Formatting
+
+Unfortunately, the C++ linter (based on [Google’s `cpplint`][]), which can be
+run explicitly via `make lint-cpp`, does not currently catch a lot of rules that
+are specific to the Node.js C++ code base. This document explains the most
+common of these rules:
 
 ### Left-leaning (C++ style) asterisks for pointer declarations
 
@@ -304,4 +321,8 @@ not inside of nested calls.
 
 Using C++ `throw` is not allowed.
 
+
+[C++ Core Guidelines]: http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines
+[Google C++ Style Guide]: https://google.github.io/styleguide/cppguide.html
+[Google’s `cpplint`]: https://github.com/google/styleguide
 [errors]: https://github.com/nodejs/node/blob/master/doc/guides/using-internal-errors.md

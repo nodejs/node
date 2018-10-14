@@ -1,16 +1,10 @@
 'use strict';
 // Flags: --expose-gc
 // just like test-gc-http-client.js,
-// but with an on('error') handler that does nothing.
+// but aborting every connection that comes in.
 
-require('../common');
+const common = require('../common');
 const onGC = require('../common/ongc');
-
-function serverHandler(req, res) {
-  req.resume();
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Hello World\n');
-}
 
 const http = require('http');
 const todo = 500;
@@ -20,38 +14,34 @@ let countGC = 0;
 
 console.log(`We should do ${todo} requests`);
 
+function serverHandler(req, res) {
+  res.connection.destroy();
+}
+
 const server = http.createServer(serverHandler);
-server.listen(0, runTest);
+server.listen(0, common.mustCall(() => {
+  for (let i = 0; i < 10; i++)
+    getall();
+}));
 
 function getall() {
   if (count >= todo)
     return;
 
-  (function() {
-    function cb(res) {
-      res.resume();
-      done += 1;
-    }
-    function onerror(er) {
-      throw er;
-    }
+  const req = http.get({
+    hostname: 'localhost',
+    pathname: '/',
+    port: server.address().port
+  }, cb).on('error', cb);
 
-    const req = http.get({
-      hostname: 'localhost',
-      pathname: '/',
-      port: server.address().port
-    }, cb).on('error', onerror);
-
-    count++;
-    onGC(req, { ongc });
-  })();
+  count++;
+  onGC(req, { ongc });
 
   setImmediate(getall);
 }
 
-function runTest() {
-  for (let i = 0; i < 10; i++)
-    getall();
+function cb(res) {
+  done += 1;
 }
 
 function ongc() {

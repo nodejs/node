@@ -100,7 +100,8 @@ As soon as the PR is ready to land, please do so. Landing your own pull requests
 allows other Collaborators to focus on other pull requests. If your pull request
 is still awaiting the [minimum time to land](#waiting-for-approvals), add the
 `author ready` label so other Collaborators know it can land as soon as the time
-ends.
+ends. If instead you wish to land the PR yourself, indicate this intent by using
+the "assign yourself" button, to self-assign the PR.
 
 ## Accepting Modifications
 
@@ -501,12 +502,16 @@ The TSC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
+1. Avoid landing PRs that are assigned to someone else. Authors who wish to land
+   their own PRs will self-assign them, or delegate to someone else. If in
+   doubt, ask the assignee whether it is okay to land.
 1. Never use GitHub's green ["Merge Pull Request"][] button. Reasons for not
    using the web interface button:
-   * The merge method will add an unnecessary merge commit.
-   * The squash & merge method can add metadata (the PR #) to the commit title.
-   * If more than one author has contributed to the PR, keep the most recent
-     author when squashing.
+   * The "Create a merge commit" method will add an unnecessary merge commit.
+   * The "Squash and merge" method will add metadata (the PR #) to the commit
+     title. If more than one author has contributed to the PR, squashing will
+     only keep the most recent author.
+   * The "Rebase and merge" method has no way of adding metadata to the commit.
 1. Make sure the CI is done and the result is green. If the CI is not green,
    check for flaky tests and infrastructure failures. Please check if those were
    already reported in the appropriate repository ([node][flaky tests] and
@@ -517,13 +522,12 @@ The TSC should serve as the final arbiter where required.
    present.
 1. Review the commit message to ensure that it adheres to the guidelines
    outlined in the [contributing][] guide.
-1. Add all necessary [metadata](#metadata) to commit messages before landing.
-   See the commit log for examples such as [this
-   one](https://github.com/nodejs/node/commit/b636ba8186) if unsure exactly how
-   to format your commit messages.
+1. Add all necessary [metadata](#metadata) to commit messages before landing. If
+   you are unsure exactly how to format the commit messages, use the commit log
+   as a reference. See [this commit][commit-example] as an example.
 
-Check PRs from new contributors to make sure the person's name and email address
-are correct before merging.
+For PRs from first time contributors, be [welcoming](#welcoming-first-time-contributors).
+Also, verify that their git settings are to their liking.
 
 All commits should be self-contained, meaning every commit should pass all
 tests. This makes it much easier when bisecting to find a breaking change.
@@ -901,6 +905,7 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: doc/guides/backporting-to-release-lines.md
 [contributing]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
+[commit-example]: https://github.com/nodejs/node/commit/b636ba8186
 [flaky tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22y
 [git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata

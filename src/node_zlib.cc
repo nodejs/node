@@ -46,8 +46,8 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
+using v8::Integer;
 using v8::Local;
-using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -55,6 +55,24 @@ using v8::Uint32Array;
 using v8::Value;
 
 namespace {
+
+#define ZLIB_ERROR_CODES(V)      \
+  V(Z_OK)                        \
+  V(Z_STREAM_END)                \
+  V(Z_NEED_DICT)                 \
+  V(Z_ERRNO)                     \
+  V(Z_STREAM_ERROR)              \
+  V(Z_DATA_ERROR)                \
+  V(Z_MEM_ERROR)                 \
+  V(Z_BUF_ERROR)                 \
+  V(Z_VERSION_ERROR)             \
+
+inline const char* ZlibStrerror(int err) {
+#define V(code) if (err == code) return #code;
+  ZLIB_ERROR_CODES(V)
+#undef V
+  return "Z_UNKNOWN_ERROR";
+}
 
 enum node_zlib_mode {
   NONE,
@@ -404,9 +422,10 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     }
 
     HandleScope scope(env()->isolate());
-    Local<Value> args[2] = {
+    Local<Value> args[3] = {
       OneByteString(env()->isolate(), message),
-      Number::New(env()->isolate(), err_)
+      Integer::New(env()->isolate(), err_),
+      OneByteString(env()->isolate(), ZlibStrerror(err_))
     };
     MakeCallback(env()->onerror_string(), arraysize(args), args);
 
@@ -831,4 +850,4 @@ void DefineZlibConstants(Local<Object> target) {
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(zlib, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(zlib, node::Initialize)

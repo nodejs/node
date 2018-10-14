@@ -359,6 +359,19 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyIVIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
 
+  Local<FunctionTemplate> ctx_getter_templ =
+      FunctionTemplate::New(env->isolate(),
+                            CtxGetter,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t));
+
+
+  t->PrototypeTemplate()->SetAccessorProperty(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
+      ctx_getter_templ,
+      Local<FunctionTemplate>(),
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
+
   target->Set(secureContextString,
               t->GetFunction(env->context()).ToLocalChecked());
   env->set_secure_context_constructor_template(t);
@@ -1328,6 +1341,14 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
     return -1;
   }
   return 1;
+}
+
+
+void SecureContext::CtxGetter(const FunctionCallbackInfo<Value>& info) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, info.This());
+  Local<External> ext = External::New(info.GetIsolate(), sc->ctx_.get());
+  info.GetReturnValue().Set(ext);
 }
 
 
@@ -5711,6 +5732,21 @@ void Initialize(Local<Object> target,
 #ifndef OPENSSL_NO_SCRYPT
   env->SetMethod(target, "scrypt", Scrypt);
 #endif  // OPENSSL_NO_SCRYPT
+}
+
+constexpr int search(const char* s, int n, int c) {
+  return *s == c ? n : search(s + 1, n + 1, c);
+}
+
+std::string GetOpenSSLVersion() {
+  // sample openssl version string format
+  // for reference: "OpenSSL 1.1.0i 14 Aug 2018"
+  char buf[128];
+  const int start = search(OPENSSL_VERSION_TEXT, 0, ' ') + 1;
+  const int end = search(OPENSSL_VERSION_TEXT + start, start, ' ') + 1;
+  const int len = end - start;
+  snprintf(buf, sizeof(buf), "%.*s\n", len, &OPENSSL_VERSION_TEXT[start]);
+  return std::string(buf);
 }
 
 }  // namespace crypto

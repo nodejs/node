@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -8,7 +9,8 @@ const { checkInvocations } = require('./hook-checks');
 const hooks = initHooks();
 
 hooks.enable();
-const Zlib = process.binding('zlib').Zlib;
+const { internalBinding } = require('internal/test/binding');
+const { Zlib } = internalBinding('zlib');
 const constants = process.binding('constants').zlib;
 
 const handle = new Zlib(constants.DEFLATE);

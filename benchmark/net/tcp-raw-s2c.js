@@ -17,10 +17,12 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ dur, len, type }) {
-  const { internalBinding } = require('internal/test/binding');
-  const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
-  const { TCPConnectWrap } = process.binding('tcp_wrap');
-  const { WriteWrap } = internalBinding('stream_wrap');
+  const {
+    TCP,
+    TCPConnectWrap,
+    constants: TCPConstants
+  } = common.binding('tcp_wrap');
+  const { WriteWrap } = common.binding('stream_wrap');
   const PORT = common.PORT;
 
   const serverHandle = new TCP(TCPConstants.SERVER);
