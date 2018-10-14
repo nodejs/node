@@ -509,7 +509,7 @@ function isWarned(emitter) {
     });
     try {
       fi.emit('data', 'fooX');
-    } catch (e) { }
+    } catch { }
     fi.emit('data', 'bar');
     assert.strictEqual(keys.join(''), 'fooXbar');
     rli.close();
