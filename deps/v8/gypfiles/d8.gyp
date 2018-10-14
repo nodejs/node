@@ -23,6 +23,7 @@
       'include_dirs+': [
         '..',
         '<(DEPTH)',
+        '<(SHARED_INTERMEDIATE_DIR)',
       ],
       'sources': [
         '../src/d8.h',
