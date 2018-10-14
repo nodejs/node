@@ -169,6 +169,10 @@ const EventEmitter = require('events');
 All `EventEmitter`s emit the event `'newListener'` when new listeners are
 added and `'removeListener'` when existing listeners are removed.
 
+All `EventEmitter`'s emit the `'close'` event on `nextTick` when the
+`emitter.destroy()` method is called. If an `err` argument is passed to
+`emitter.destroy()`, an `'error'` event will be emitted.
+
 ### Event: 'newListener'
 <!-- YAML
 added: v0.1.26
@@ -355,7 +359,8 @@ Destroy the EventEmitter, and emit the passed `'error'` and a `'close'` event
 on `nextTick`. After this call, the `emitter.destroyed` property will be set to
 `true`. However, the `emitter.emit()` function will continue to operate.
 Implementors should not override this method,
-but instead implement [`emitter[EventEmitter.customDestroySymbol]()`][].
+but instead implement the `emitter[EventEmitter.customDestroySymbol](err)`
+function.
 
 #### emitter.destroyed
 <!-- YAML
@@ -365,10 +370,10 @@ added: REPLACEME
 * {boolean}
 
 Set to `true` if the `emitter.destroy()` method has been called. Sub-classes
-may implement [`emitter[EventEmitter.customDestroyedSymbol]()`][] to override
+may implement `emitter[EventEmitter.customDestroyedSymbol]()` to override
 the default method of determining if an `EventEmitter` has been destroyed
 (this would only be necessary when implementing a custom
-[`emitter[EventEmitter.customDestroySymbol]()`][]).
+`emitter[EventEmitter.customDestroySymbol]()`).
 
 ### emitter.emit(eventName[, ...args])
 <!-- YAML
