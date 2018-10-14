@@ -1,13 +1,15 @@
 'use strict';
 // Flags: --expose-gc
 // just like test-gc-http-client.js,
-// but aborting every connection that comes in.
+// but with an on('error') handler that does nothing.
 
-require('../common');
+const common = require('../common');
 const onGC = require('../common/ongc');
 
 function serverHandler(req, res) {
-  res.connection.destroy();
+  req.resume();
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Hello World\n');
 }
 
 const http = require('http');
@@ -19,32 +21,35 @@ let countGC = 0;
 console.log(`We should do ${todo} requests`);
 
 const server = http.createServer(serverHandler);
-server.listen(0, getall);
+server.listen(0, common.mustCall(() => {
+  for (let i = 0; i < 10; i++)
+    getall();
+}));
 
 function getall() {
   if (count >= todo)
     return;
 
-  (function() {
-    function cb(res) {
-      done += 1;
-    }
+  const req = http.get({
+    hostname: 'localhost',
+    pathname: '/',
+    port: server.address().port
+  }, cb).on('error', onerror);
 
-    const req = http.get({
-      hostname: 'localhost',
-      pathname: '/',
-      port: server.address().port
-    }, cb).on('error', cb);
-
-    count++;
-    onGC(req, { ongc });
-  })();
+  count++;
+  onGC(req, { ongc });
 
   setImmediate(getall);
 }
 
-for (let i = 0; i < 10; i++)
-  getall();
+function cb(res) {
+  res.resume();
+  done += 1;
+}
+
+function onerror(err) {
+  throw err;
+}
 
 function ongc() {
   countGC++;

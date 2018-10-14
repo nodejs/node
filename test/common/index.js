@@ -28,7 +28,6 @@ const assert = require('assert');
 const os = require('os');
 const { exec, execSync, spawnSync } = require('child_process');
 const util = require('util');
-const { fixturesDir } = require('./fixtures');
 const tmpdir = require('./tmpdir');
 const {
   bits,
@@ -174,13 +173,10 @@ function childShouldThrowAndAbort() {
   });
 }
 
-function ddCommand(filename, kilobytes) {
-  if (isWindows) {
-    const p = path.resolve(fixturesDir, 'create-file.js');
-    return `"${process.argv[0]}" "${p}" "${filename}" ${kilobytes * 1024}`;
-  } else {
-    return `dd if=/dev/zero of="${filename}" bs=1024 count=${kilobytes}`;
-  }
+function createZeroFilledFile(filename) {
+  const fd = fs.openSync(filename, 'w');
+  fs.ftruncateSync(fd, 10 * 1024 * 1024);
+  fs.closeSync(fd);
 }
 
 
@@ -701,7 +697,7 @@ module.exports = {
   busyLoop,
   canCreateSymLink,
   childShouldThrowAndAbort,
-  ddCommand,
+  createZeroFilledFile,
   disableCrashOnUnhandledRejection,
   enoughTestCpu,
   enoughTestMem,

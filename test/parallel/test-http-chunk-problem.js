@@ -63,34 +63,31 @@ function executeRequest(cb) {
 
 tmpdir.refresh();
 
-const ddcmd = common.ddCommand(filename, 10240);
+common.createZeroFilledFile(filename);
 
-cp.exec(ddcmd, function(err, stdout, stderr) {
-  assert.ifError(err);
-  server = http.createServer(function(req, res) {
-    res.writeHead(200);
+server = http.createServer(function(req, res) {
+  res.writeHead(200);
 
-    // Create the subprocess
-    const cat = cp.spawn('cat', [filename]);
+  // Create the subprocess
+  const cat = cp.spawn('cat', [filename]);
 
-    // Stream the data through to the response as binary chunks
-    cat.stdout.on('data', (data) => {
-      res.write(data);
-    });
-
-    cat.stdout.on('end', () => res.end());
-
-    // End the response on exit (and log errors)
-    cat.on('exit', (code) => {
-      if (code !== 0) {
-        console.error(`subprocess exited with code ${code}`);
-        process.exit(1);
-      }
-    });
-
+  // Stream the data through to the response as binary chunks
+  cat.stdout.on('data', (data) => {
+    res.write(data);
   });
 
-  server.listen(0, () => {
-    executeRequest(() => server.close());
+  cat.stdout.on('end', () => res.end());
+
+  // End the response on exit (and log errors)
+  cat.on('exit', (code) => {
+    if (code !== 0) {
+      console.error(`subprocess exited with code ${code}`);
+      process.exit(1);
+    }
   });
+
+});
+
+server.listen(0, () => {
+  executeRequest(() => server.close());
 });

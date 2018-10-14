@@ -7382,14 +7382,6 @@ WasmCompiledModule::BufferReference WasmCompiledModule::GetWasmWireBytesRef() {
   return {bytes_vec.start(), bytes_vec.size()};
 }
 
-Local<String> WasmCompiledModule::GetWasmWireBytes() {
-  BufferReference ref = GetWasmWireBytesRef();
-  CHECK_LE(ref.size, String::kMaxLength);
-  return String::NewFromOneByte(GetIsolate(), ref.start, NewStringType::kNormal,
-                                static_cast<int>(ref.size))
-      .ToLocalChecked();
-}
-
 WasmCompiledModule::TransferrableModule
 WasmCompiledModule::GetTransferrableModule() {
   if (i::FLAG_wasm_shared_code) {

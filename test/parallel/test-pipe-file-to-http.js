@@ -25,7 +25,6 @@ const assert = require('assert');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
-const cp = require('child_process');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -57,12 +56,8 @@ const server = http.createServer(function(req, res) {
 server.listen(0);
 
 server.on('listening', function() {
-  const cmd = common.ddCommand(filename, 10240);
-
-  cp.exec(cmd, function(err) {
-    assert.ifError(err);
-    makeRequest();
-  });
+  common.createZeroFilledFile(filename);
+  makeRequest();
 });
 
 function makeRequest() {

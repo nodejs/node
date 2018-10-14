@@ -6,18 +6,18 @@ const vm = require('vm');
 const binding = require(`./build/${common.buildType}/binding`);
 const makeCallback = binding.makeCallback;
 
-assert.strictEqual(42, makeCallback(process, common.mustCall(function() {
+assert.strictEqual(makeCallback(process, common.mustCall(function() {
   assert.strictEqual(arguments.length, 0);
   assert.strictEqual(process, this);
   return 42;
-})));
+})), 42);
 
-assert.strictEqual(42, makeCallback(process, common.mustCall(function(x) {
+assert.strictEqual(makeCallback(process, common.mustCall(function(x) {
   assert.strictEqual(arguments.length, 1);
   assert.strictEqual(process, this);
   assert.strictEqual(x, 1337);
   return 42;
-}), 1337));
+}), 1337), 42);
 
 const recv = {
   one: common.mustCall(function() {
@@ -48,7 +48,7 @@ const target = vm.runInNewContext(`
       return Object;
     })
 `);
-assert.notStrictEqual(Object, makeCallback(process, target, Object));
+assert.notStrictEqual(makeCallback(process, target, Object), Object);
 
 // Runs in inner context.
 const forward = vm.runInNewContext(`
@@ -62,4 +62,4 @@ function endpoint($Object) {
     throw new Error('bad');
   return Object;
 }
-assert.strictEqual(Object, makeCallback(process, forward, endpoint));
+assert.strictEqual(makeCallback(process, forward, endpoint), Object);

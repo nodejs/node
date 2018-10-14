@@ -5,19 +5,8 @@ prefix sequential
 # sample-test                       : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# This test will be flaky until https://github.com/libuv/libuv/pull/1742 lands
-# on Node.js.
-test-fs-readfile-tostring-fail: PASS, FLAKY
-# https://github.com/nodejs/node/issues/23066
-test-gc-http-client-timeout: PASS, FLAKY
 # https://github.com/nodejs/node/issues/22336
 test-gc-http-client: PASS,FLAKY
-# https://github.com/nodejs/node/issues/23067
-test-gc-net-timeout: PASS,FLAKY
-# https://github.com/nodejs/node/issues/23089
-test-gc-http-client-onerror: PASS,FLAKY
-# https://github.com/nodejs/node/issues/23219
-test-gc-http-client-connaborted: PASS,FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/22327
@@ -32,3 +21,7 @@ test-http2-large-file: PASS, FLAKY
 [$system==freebsd]
 
 [$system==aix]
+
+[$arch==arm]
+# https://github.com/nodejs/node/issues/20628
+test-http2-session-timeout: PASS,FLAKY
