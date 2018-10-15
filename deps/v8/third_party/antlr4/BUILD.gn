@@ -9,6 +9,9 @@ config("antlr-compatibility") {
       "-Wno-unused-but-set-variable",
     ]
   }
+  if (current_os == "aix") {
+    cflags += [ "-fdollars-in-identifiers" ]
+  }
 }
 
 source_set("antlr4") {
