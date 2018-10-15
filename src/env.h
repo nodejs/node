@@ -951,7 +951,7 @@ class Environment {
   uint64_t thread_id_ = 0;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
 
-  static void* kNodeContextTagPtr;
+  NODE_EXTERN static void* kNodeContextTagPtr;
   static int const kNodeContextTag;
 
 #if HAVE_INSPECTOR
