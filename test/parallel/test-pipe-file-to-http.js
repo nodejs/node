@@ -34,7 +34,7 @@ let count = 0;
 
 const server = http.createServer(function(req, res) {
   let timeoutId;
-  assert.strictEqual('POST', req.method);
+  assert.strictEqual(req.method,'POST');
   req.pause();
 
   setTimeout(function() {
@@ -82,5 +82,5 @@ function makeRequest() {
 }
 
 process.on('exit', function() {
-  assert.strictEqual(1024 * 10240, count);
+  assert.strictEqual(count, 1024 * 10240);
 });
