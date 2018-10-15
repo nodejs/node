@@ -2539,23 +2539,10 @@
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
       ],
-      # This is defined trough `configurations` for GYP+ninja compatibility
-      'configurations': {
-        'Debug': {
-          'msvs_settings': {
-            'VCCLCompilerTool': {
-              'RuntimeTypeInfo': 'true',
-              'ExceptionHandling': 1,
-            },
-          }
-        },
-        'Release': {
-          'msvs_settings': {
-            'VCCLCompilerTool': {
-              'RuntimeTypeInfo': 'true',
-              'ExceptionHandling': 1,
-            },
-          }
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'RuntimeTypeInfo': 'true',
+          'ExceptionHandling': 1,
         },
       },
       'sources': [
