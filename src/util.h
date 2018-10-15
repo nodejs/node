@@ -439,6 +439,11 @@ struct MallocedBuffer {
     return ret;
   }
 
+  void Truncate(size_t new_size) {
+    CHECK(new_size <= size);
+    size = new_size;
+  }
+
   inline bool is_empty() const { return data == nullptr; }
 
   MallocedBuffer() : data(nullptr) {}

@@ -43,6 +43,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 #include <vector>
 
 static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
@@ -3539,26 +3540,29 @@ static MallocedBuffer<unsigned char> Node_SignFinal(EVPMDPointer&& mdctx,
       EVP_PKEY_CTX_set_signature_md(pkctx.get(),
                                     EVP_MD_CTX_md(mdctx.get())) > 0 &&
       EVP_PKEY_sign(pkctx.get(), sig.data, &sig_len, m, m_len) > 0) {
-    return MallocedBuffer<unsigned char>(sig.release(), sig_len);
+    sig.Truncate(sig_len);
+    return sig;
   }
 
   return MallocedBuffer<unsigned char>();
 }
 
-SignBase::Error Sign::SignFinal(const char* key_pem,
-                                int key_pem_len,
-                                const char* passphrase,
-                                MallocedBuffer<unsigned char>* buffer,
-                                int padding,
-                                int salt_len) {
+std::pair<SignBase::Error, MallocedBuffer<unsigned char>> Sign::SignFinal(
+    const char* key_pem,
+    int key_pem_len,
+    const char* passphrase,
+    int padding,
+    int salt_len) {
+  MallocedBuffer<unsigned char> buffer;
+
   if (!mdctx_)
-    return kSignNotInitialised;
+    return std::make_pair(kSignNotInitialised, std::move(buffer));
 
   EVPMDPointer mdctx = std::move(mdctx_);
 
   BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
   if (!bp)
-    return kSignPrivateKey;
+    return std::make_pair(kSignPrivateKey, std::move(buffer));
 
   EVPKeyPointer pkey(PEM_read_bio_PrivateKey(bp.get(),
                                              nullptr,
@@ -3569,7 +3573,7 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
   // without `pkey` being set to nullptr;
   // cf. the test of `test_bad_rsa_privkey.pem` for an example.
   if (!pkey || 0 != ERR_peek_error())
-    return kSignPrivateKey;
+    return std::make_pair(kSignPrivateKey, std::move(buffer));
 
 #ifdef NODE_FIPS_MODE
   /* Validate DSA2 parameters from FIPS 186-4 */
@@ -3593,8 +3597,9 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
   }
 #endif  // NODE_FIPS_MODE
 
-  *buffer = Node_SignFinal(std::move(mdctx), pkey, padding, salt_len);
-  return buffer->is_empty() ? kSignPrivateKey : kSignOk;
+  buffer = Node_SignFinal(std::move(mdctx), pkey, padding, salt_len);
+  Error error = buffer.is_empty() ? kSignPrivateKey : kSignOk;
+  return std::make_pair(error, std::move(buffer));
 }
 
 
@@ -3618,17 +3623,19 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   int salt_len = args[3].As<Int32>()->Value();
 
   ClearErrorOnReturn clear_error_on_return;
-  MallocedBuffer<unsigned char> sig;
 
-  Error err = sign->SignFinal(
+  std::pair<Error, MallocedBuffer<unsigned char>> ret = sign->SignFinal(
       buf,
       buf_len,
       len >= 2 && !args[1]->IsNull() ? *passphrase : nullptr,
-      &sig,
       padding,
       salt_len);
-  if (err != kSignOk)
-    return sign->CheckThrow(err);
+
+  if (std::get<Error>(ret) != kSignOk)
+    return sign->CheckThrow(std::get<Error>(ret));
+
+  MallocedBuffer<unsigned char> sig =
+      std::get<MallocedBuffer<unsigned char>>(std::move(ret));
 
   Local<Object> rc =
       Buffer::New(env, reinterpret_cast<char*>(sig.release()), sig.size)

@@ -518,12 +518,12 @@ class Sign : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  Error SignFinal(const char* key_pem,
-                  int key_pem_len,
-                  const char* passphrase,
-                  MallocedBuffer<unsigned char>* sig,
-                  int padding,
-                  int saltlen);
+  std::pair<Error, MallocedBuffer<unsigned char>> SignFinal(
+      const char* key_pem,
+      int key_pem_len,
+      const char* passphrase,
+      int padding,
+      int saltlen);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
