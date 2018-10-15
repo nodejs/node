@@ -10,7 +10,7 @@ const writeStream = new WriteStream(fd);
 
 {
   const depth = writeStream.getColorDepth();
-  assert.equal(typeof depth, 'number');
+  assert.strictEqual(typeof depth, 'number');
   assert(depth >= 1 && depth <= 24);
 }
 
@@ -44,7 +44,7 @@ const writeStream = new WriteStream(fd);
   [{ TERM: 'dumb', COLORTERM: '1' }, 4],
 ].forEach(([env, depth], i) => {
   const actual = writeStream.getColorDepth(env);
-  assert.equal(
+  assert.strictEqual(
     actual,
     depth,
     `i: ${i}, expected: ${depth}, actual: ${actual}, env: ${env}`
@@ -57,8 +57,8 @@ const writeStream = new WriteStream(fd);
   const [ value, depth1, depth2 ] = process.platform !== 'win32' ?
     ['win32', 1, 4] : ['linux', 4, 1];
 
-  assert.equal(writeStream.getColorDepth({}), depth1);
+  assert.strictEqual(writeStream.getColorDepth({}), depth1);
   Object.defineProperty(process, 'platform', { value });
-  assert.equal(writeStream.getColorDepth({}), depth2);
+  assert.strictEqual(writeStream.getColorDepth({}), depth2);
   Object.defineProperty(process, 'platform', platform);
 }
