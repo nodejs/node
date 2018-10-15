@@ -390,6 +390,7 @@
   # TODO(ppc): Implement load/store reverse byte instructions
   'test-run-wasm-simd/RunWasmCompiled_SimdLoadStoreLoad': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
+  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
 
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
