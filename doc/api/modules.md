@@ -552,7 +552,20 @@ added: v0.1.13
 
 * {Function}
 
-To require modules.
+Used to import modules, `JSON` and local files. Modules can be imported from
+`node_modules`. Local modules and JSON files can be imported using the pattern
+`'./'`.
+
+```js
+// importing localModule
+const myLocalModule = require('./path/myLocalModule');
+
+// importing JSON file
+const jsonData = require('./path/filename.json');
+
+// importing module from node_modules or Node.js internals
+const crypto = require('crypto');
+```
 
 #### require.cache
 <!-- YAML

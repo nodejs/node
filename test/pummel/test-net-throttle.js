@@ -37,7 +37,7 @@ console.log(`start server on port ${common.PORT}`);
 const server = net.createServer(function(connection) {
   connection.write(body.slice(0, part_N));
   connection.write(body.slice(part_N, 2 * part_N));
-  assert.strictEqual(false, connection.write(body.slice(2 * part_N, N)));
+  assert.strictEqual(connection.write(body.slice(2 * part_N, N)), false);
   console.log(`bufferSize: ${connection.bufferSize}`, 'expecting', N);
   assert.ok(connection.bufferSize >= 0 &&
             connection.writableLength <= N);
@@ -58,7 +58,7 @@ server.listen(common.PORT, function() {
       console.log('pause');
       const x = chars_recved;
       setTimeout(function() {
-        assert.strictEqual(chars_recved, x);
+        assert.strictEqual(x, chars_recved);
         client.resume();
         console.log('resume');
         paused = false;
@@ -74,6 +74,6 @@ server.listen(common.PORT, function() {
 
 
 process.on('exit', function() {
-  assert.strictEqual(N, chars_recved);
-  assert.strictEqual(true, npauses > 2);
+  assert.strictEqual(chars_recved, N);
+  assert.strictEqual(npauses > 2, true);
 });

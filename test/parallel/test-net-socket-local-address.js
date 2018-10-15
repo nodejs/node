@@ -18,8 +18,8 @@ const server = net.createServer((socket) => {
 
 server.on('close', common.mustCall(() => {
   // client and server should agree on the ports used
-  assert.deepStrictEqual(clientLocalPorts, serverRemotePorts);
-  assert.strictEqual(2, conns);
+  assert.deepStrictEqual(serverRemotePorts, clientLocalPorts);
+  assert.strictEqual(conns, 2);
 }));
 
 server.listen(0, common.localhostIPv4, connect);
