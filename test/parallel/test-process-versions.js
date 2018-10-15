@@ -34,7 +34,24 @@ assert(/^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
 assert(/^\d+$/.test(process.versions.modules));
 
 if (common.hasCrypto) {
+  // example: 1.1.0i
   assert(/^\d+\.\d+\.\d+[a-z]?$/.test(process.versions.openssl));
+}
+
+// example: 3
+assert(/^\d+$/.test(process.versions.napi));
+// example: 1.34.0
+assert(/^\d+\.\d+\.\d+$/.test(process.versions.nghttp2));
+
+if (common.hasIntl) {
+  // example: 2018e
+  assert(/^\d{4}[a-z]$/.test(process.versions.tz));
+  // example: 33.1
+  assert(/^\d+\.\d+$/.test(process.versions.cldr));
+  // example: 62.1
+  assert(/^\d+\.\d+$/.test(process.versions.icu));
+  // example: 11.0
+  assert(/^\d+\.\d+$/.test(process.versions.unicode));
 }
 
 for (let i = 0; i < expected_keys.length; i++) {
