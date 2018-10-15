@@ -61,6 +61,7 @@ using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::External;
+using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -3923,67 +3924,44 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  auto make = [&] (Local<String> name, FunctionCallback callback) {
+    Local<FunctionTemplate> t = env->NewFunctionTemplate(callback);
 
-  const PropertyAttribute attributes =
-      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+    const PropertyAttribute attributes =
+        static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
 
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+    t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  env->SetProtoMethod(t, "generateKeys", GenerateKeys);
-  env->SetProtoMethod(t, "computeSecret", ComputeSecret);
-  env->SetProtoMethodNoSideEffect(t, "getPrime", GetPrime);
-  env->SetProtoMethodNoSideEffect(t, "getGenerator", GetGenerator);
-  env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
-  env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
-  env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
-  env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
+    env->SetProtoMethod(t, "generateKeys", GenerateKeys);
+    env->SetProtoMethod(t, "computeSecret", ComputeSecret);
+    env->SetProtoMethodNoSideEffect(t, "getPrime", GetPrime);
+    env->SetProtoMethodNoSideEffect(t, "getGenerator", GetGenerator);
+    env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
+    env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
+    env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
+    env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
-  Local<FunctionTemplate> verify_error_getter_templ =
-      FunctionTemplate::New(env->isolate(),
-                            DiffieHellman::VerifyErrorGetter,
-                            env->as_external(),
-                            Signature::New(env->isolate(), t),
-                            /* length */ 0,
-                            ConstructorBehavior::kThrow,
-                            SideEffectType::kHasNoSideEffect);
+    Local<FunctionTemplate> verify_error_getter_templ =
+        FunctionTemplate::New(env->isolate(),
+                              DiffieHellman::VerifyErrorGetter,
+                              env->as_external(),
+                              Signature::New(env->isolate(), t),
+                              /* length */ 0,
+                              ConstructorBehavior::kThrow,
+                              SideEffectType::kHasNoSideEffect);
 
-  t->InstanceTemplate()->SetAccessorProperty(
-      env->verify_error_string(),
-      verify_error_getter_templ,
-      Local<FunctionTemplate>(),
-      attributes);
+    t->InstanceTemplate()->SetAccessorProperty(
+        env->verify_error_string(),
+        verify_error_getter_templ,
+        Local<FunctionTemplate>(),
+        attributes);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"),
-              t->GetFunction(env->context()).ToLocalChecked());
+    target->Set(name, t->GetFunction(env->context()).ToLocalChecked());
+  };
 
-  Local<FunctionTemplate> t2 = env->NewFunctionTemplate(DiffieHellmanGroup);
-  t2->InstanceTemplate()->SetInternalFieldCount(1);
-
-  env->SetProtoMethod(t2, "generateKeys", GenerateKeys);
-  env->SetProtoMethod(t2, "computeSecret", ComputeSecret);
-  env->SetProtoMethodNoSideEffect(t2, "getPrime", GetPrime);
-  env->SetProtoMethodNoSideEffect(t2, "getGenerator", GetGenerator);
-  env->SetProtoMethodNoSideEffect(t2, "getPublicKey", GetPublicKey);
-  env->SetProtoMethodNoSideEffect(t2, "getPrivateKey", GetPrivateKey);
-
-  Local<FunctionTemplate> verify_error_getter_templ2 =
-      FunctionTemplate::New(env->isolate(),
-                            DiffieHellman::VerifyErrorGetter,
-                            env->as_external(),
-                            Signature::New(env->isolate(), t2),
-                            /* length */ 0,
-                            ConstructorBehavior::kThrow,
-                            SideEffectType::kHasNoSideEffect);
-
-  t2->InstanceTemplate()->SetAccessorProperty(
-      env->verify_error_string(),
-      verify_error_getter_templ2,
-      Local<FunctionTemplate>(),
-      attributes);
-
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),
-              t2->GetFunction(env->context()).ToLocalChecked());
+  make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"), New);
+  make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),
+       DiffieHellmanGroup);
 }
 
 
