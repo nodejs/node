@@ -1391,6 +1391,8 @@
             ],
           }],
         ],  # conditions
+        # Temporary refs: https://github.com/nodejs/node/pull/23801
+        'defines!': ['ENABLE_HANDLE_ZAPPING',],
       },  # Release
     },  # configurations
     'msvs_disabled_warnings': [
