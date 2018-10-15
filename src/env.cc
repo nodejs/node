@@ -262,7 +262,7 @@ void Environment::Start(const std::vector<std::string>& args,
       traced_value->AppendString(arg);
     traced_value->EndArray();
     traced_value->BeginArray("exec_args");
-    for (std::string arg : exec_args)
+    for (const std::string& arg : exec_args)
       traced_value->AppendString(arg);
     traced_value->EndArray();
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
