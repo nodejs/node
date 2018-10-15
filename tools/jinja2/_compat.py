@@ -10,6 +10,8 @@
     :copyright: Copyright 2013 by the Jinja team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
+# flake8: noqa
+
 import sys
 
 PY2 = sys.version_info[0] == 2

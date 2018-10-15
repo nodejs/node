@@ -14,6 +14,13 @@ try:
 except ImportError:
     import simplejson as json
 
+
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
+
 # Path handling for libraries and templates
 # Paths have to be normalized because Jinja uses the exact template path to
 # determine the hash used in the cache filename, and we need a pre-caching step

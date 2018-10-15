@@ -28,7 +28,7 @@ def _WriteWorkspace(main_gyp, sources_gyp, params):
     workspace_path = os.path.join(options.generator_output, workspace_path)
   try:
     os.makedirs(workspace_path)
-  except OSError, e:
+  except OSError as e:
     if e.errno != errno.EEXIST:
       raise
   output_string = '<?xml version="1.0" encoding="UTF-8"?>\n' + \

@@ -154,6 +154,23 @@ except ImportError:
   import sha
   _new_sha1 = sha.new
 
+try:
+    cmp             # Python 2
+except NameError:
+    def cmp(x, y):  # Python 3
+        return (x > y) - (x < y)
+
+try:
+    unicode         # Python 2
+except NameError:
+    unicode = str   # Python 3
+
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
+
 
 # See XCObject._EncodeString.  This pattern is used to determine when a string
 # can be printed unquoted.  Strings that match this pattern may be printed
@@ -691,7 +708,7 @@ class XCObject(object):
           printable_value[0] == '"' and printable_value[-1] == '"':
         printable_value = printable_value[1:-1]
       printable += printable_key + ' = ' + printable_value + ';' + after_kv
-    except TypeError, e:
+    except TypeError as e:
       gyp.common.ExceptionAppend(e,
                                  'while printing key "%s"' % key)
       raise

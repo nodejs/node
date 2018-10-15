@@ -9,6 +9,10 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details about the presubmit API built into gcl.
 """
 
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
 
 PYLINT_BLACKLIST = [
     # TODO: fix me.

@@ -1,3 +1,4 @@
+from __future__ import print_function
 import json
 import sys
 import errno
@@ -588,7 +589,7 @@ def print_verbose(x):
   if not options.verbose:
     return
   if type(x) is str:
-    print x
+    print(x)
   else:
     pprint.pprint(x, indent=2)
 

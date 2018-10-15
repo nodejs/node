@@ -20,6 +20,11 @@ except ImportError:
   import md5
   _new_md5 = md5.new
 
+try:
+  cmp             # Python 2
+except NameError:
+  def cmp(x, y):  # Python 3
+    return (x > y) - (x < y)
 
 # Initialize random number generator
 random.seed()

@@ -8,6 +8,8 @@
     :copyright: (c) 2013 by Armin Ronacher.
     :license: BSD, see LICENSE for more details.
 """
+# flake8: noqa
+
 import sys
 
 PY2 = sys.version_info[0] == 2

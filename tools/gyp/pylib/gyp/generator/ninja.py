@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2013 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -455,8 +456,8 @@ class NinjaWriter(object):
     try:
       sources = extra_sources + spec.get('sources', [])
     except TypeError:
-      print 'extra_sources: ', str(extra_sources)
-      print 'spec.get("sources"): ', str(spec.get('sources'))
+      print('extra_sources: ', str(extra_sources))
+      print('spec.get("sources"): ', str(spec.get('sources')))
       raise
     if sources:
       if self.flavor == 'mac' and len(self.archs) > 1:
@@ -485,8 +486,8 @@ class NinjaWriter(object):
         if self.flavor != 'mac' or len(self.archs) == 1:
           link_deps += [self.GypPathToNinja(o) for o in obj_outputs]
         else:
-          print "Warning: Actions/rules writing object files don't work with " \
-                "multiarch targets, dropping. (target %s)" % spec['target_name']
+          print("Warning: Actions/rules writing object files don't work with " \
+                "multiarch targets, dropping. (target %s)" % spec['target_name'])
     elif self.flavor == 'mac' and len(self.archs) > 1:
       link_deps = collections.defaultdict(list)
 
@@ -2442,7 +2443,7 @@ def PerformBuild(data, configurations, params):
   for config in configurations:
     builddir = os.path.join(options.toplevel_dir, 'out', config)
     arguments = ['ninja', '-C', builddir]
-    print 'Building [%s]: %s' % (config, arguments)
+    print('Building [%s]: %s' % (config, arguments))
     subprocess.check_call(arguments)
 
 
@@ -2479,7 +2480,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
           arglists.append(
               (target_list, target_dicts, data, params, config_name))
         pool.map(CallGenerateOutputForConfig, arglists)
-      except KeyboardInterrupt, e:
+      except KeyboardInterrupt as e:
         pool.terminate()
         raise e
     else:
