@@ -1,6 +1,8 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../../common');
+const { internalBinding } = require('internal/test/binding');
 const skipMessage = 'intensive toString tests due to memory confinements';
 if (!common.enoughTestMem)
   common.skip(skipMessage);
@@ -10,7 +12,7 @@ const assert = require('assert');
 
 // v8 fails silently if string length > v8::String::kMaxLength
 // v8::String::kMaxLength defined in v8.h
-const kStringMaxLength = process.binding('buffer').kStringMaxLength;
+const kStringMaxLength = internalBinding('buffer').kStringMaxLength;
 
 let buf;
 try {
