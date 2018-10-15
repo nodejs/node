@@ -453,7 +453,7 @@ Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 added: v0.1.91
 changes:
   - version: v10.0.0
-    pr-url: https://github.com/nodejs/node/pull/v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19187
     description: The `REPL_MAGIC_MODE` `replMode` was removed.
   - version: v5.8.0
     pr-url: https://github.com/nodejs/node/pull/5388
@@ -619,10 +619,10 @@ possible to connect to a long-running Node.js process without restarting it.
 
 For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see:
-[https://gist.github.com/TooTallNate/2209310](https://gist.github.com/TooTallNate/2209310).
+<https://gist.github.com/TooTallNate/2209310>.
 
 For an example of running a REPL instance over [curl(1)][], see:
-[https://gist.github.com/TooTallNate/2053342](https://gist.github.com/TooTallNate/2053342).
+<https://gist.github.com/TooTallNate/2053342>.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
