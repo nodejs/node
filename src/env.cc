@@ -46,6 +46,7 @@ class TraceEventScope {
   ~TraceEventScope() {
     TRACE_EVENT_NESTABLE_ASYNC_END0(category_, name_, id_);
   }
+
  private:
   const char* category_;
   const char* name_;
@@ -257,7 +258,7 @@ void Environment::Start(const std::vector<std::string>& args,
       TRACING_CATEGORY_NODE1(environment))) {
     auto traced_value = tracing::TracedValue::Create();
     traced_value->BeginArray("args");
-    for (std::string arg : args)
+    for (const std::string& arg : args)
       traced_value->AppendString(arg);
     traced_value->EndArray();
     traced_value->BeginArray("exec_args");
