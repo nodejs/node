@@ -120,8 +120,7 @@ class ActivityCollector {
     }
     if (violations.length) {
       console.error(violations.join('\n\n') + '\n');
-      assert.fail(violations.length, 0,
-                  `${violations.length} failed sanity checks`);
+      assert.fail(`${violations.length} failed sanity checks`);
     }
   }
 

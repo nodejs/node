@@ -2,7 +2,6 @@
 
 const common = require('../common');
 const assert = require('assert').strict;
-/* eslint-disable no-restricted-properties */
 const { WriteStream } = require('tty');
 
 const fd = common.getTTYfd();

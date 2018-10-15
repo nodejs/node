@@ -68,7 +68,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
   })
   .on('error', function(err) {
     console.error(err);
-    assert.fail(null, null, `[Pipe server]${err}`);
+    assert.fail(`[Pipe server]${err}`);
   })
   .listen({ path: serverPath }, common.mustCall(function serverOnListen() {
     const getSocketOpt = (index) => {
@@ -92,7 +92,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
       console.error(`[Pipe]Sending data through fd ${oldHandle.fd}`);
       this.on('error', function(err) {
         console.error(err);
-        assert.fail(null, null, `[Pipe Client]${err}`);
+        assert.fail(`[Pipe Client]${err}`);
       });
     });
 
