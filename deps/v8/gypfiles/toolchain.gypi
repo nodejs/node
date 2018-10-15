@@ -1134,121 +1134,7 @@
       }],
     ],  # conditions
     'configurations': {
-      # Abstract configuration for v8_optimized_debug == 0.
-      'DebugBase0': {
-        'abstract': 1,
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'Optimization': '0',
-            'conditions': [
-              ['component=="shared_library" or force_dynamic_crt==1', {
-                'RuntimeLibrary': '3',  # /MDd
-              }, {
-                'RuntimeLibrary': '1',  # /MTd
-              }],
-            ],
-          },
-          'VCLinkerTool': {
-            'LinkIncremental': '2',
-          },
-        },
-        'variables': {
-          'v8_enable_slow_dchecks%': 1,
-        },
-        'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
-            'cflags!': [
-              '-O3',
-              '-O2',
-              '-O1',
-              '-Os',
-            ],
-            'cflags': [
-              '-fdata-sections',
-              '-ffunction-sections',
-            ],
-          }],
-          ['OS=="mac"', {
-            'xcode_settings': {
-               'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
-            },
-          }],
-          ['v8_enable_slow_dchecks==1', {
-            'defines': [
-              'ENABLE_SLOW_DCHECKS',
-            ],
-          }],
-        ],
-      },  # DebugBase0
-      # Abstract configuration for v8_optimized_debug == 1.
-      'DebugBase1': {
-        'abstract': 1,
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'Optimization': '2',
-            'InlineFunctionExpansion': '2',
-            'EnableIntrinsicFunctions': 'true',
-            'FavorSizeOrSpeed': '0',
-            'StringPooling': 'true',
-            'BasicRuntimeChecks': '0',
-            'conditions': [
-              ['component=="shared_library" or force_dynamic_crt==1', {
-                'RuntimeLibrary': '3',  #/MDd
-              }, {
-                'RuntimeLibrary': '1',  #/MTd
-              }],
-            ],
-          },
-          'VCLinkerTool': {
-            'LinkIncremental': '1',
-            'OptimizeReferences': '2',
-            'EnableCOMDATFolding': '2',
-          },
-        },
-        'variables': {
-          'v8_enable_slow_dchecks%': 0,
-        },
-        'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
-            'cflags!': [
-              '-O0',
-              '-O1',
-              '-Os',
-            ],
-            'cflags': [
-              '-fdata-sections',
-              '-ffunction-sections',
-            ],
-            'conditions': [
-              # Don't use -O3 with sanitizers.
-              ['asan==0 and msan==0 and lsan==0 \
-                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
-                'cflags': ['-O3'],
-                'cflags!': ['-O2'],
-                }, {
-                'cflags': ['-O2'],
-                'cflags!': ['-O3'],
-              }],
-            ],
-          }],
-          ['OS=="mac"', {
-            'xcode_settings': {
-              'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
-              'GCC_STRICT_ALIASING': 'YES',
-            },
-          }],
-          ['v8_enable_slow_dchecks==1', {
-            'defines': [
-              'ENABLE_SLOW_DCHECKS',
-            ],
-          }],
-        ],
-      },  # DebugBase1
-      # Common settings for the Debug configuration.
-      'DebugBaseCommon': {
-        'abstract': 1,
+      'Debug': {
         'defines': [
           'ENABLE_DISASSEMBLER',
           'V8_ENABLE_CHECKS',
@@ -1311,27 +1197,126 @@
               }],
             ],
           }],
-        ],
-      },  # DebugBaseCommon
-      'Debug': {
-        'inherit_from': ['DebugBaseCommon'],
-        'conditions': [
           ['v8_optimized_debug==0', {
-            'inherit_from': ['DebugBase0'],
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'Optimization': '0',
+                'conditions': [
+                  ['component=="shared_library" or force_dynamic_crt==1', {
+                    'RuntimeLibrary': '3',  # /MDd
+                  }, {
+                     'RuntimeLibrary': '1',  # /MTd
+                   }],
+                ],
+              },
+              'VCLinkerTool': {
+                'LinkIncremental': '2',
+              },
+            },
+            'variables': {
+              'v8_enable_slow_dchecks%': 1,
+            },
+            'conditions': [
+              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
+            OS=="qnx" or OS=="aix"', {
+                'cflags!': [
+                  '-O3',
+                  '-O2',
+                  '-O1',
+                  '-Os',
+                ],
+                'cflags': [
+                  '-fdata-sections',
+                  '-ffunction-sections',
+                ],
+              }],
+              ['OS=="mac"', {
+                'xcode_settings': {
+                  'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
+                },
+              }],
+              ['v8_enable_slow_dchecks==1', {
+                'defines': [
+                  'ENABLE_SLOW_DCHECKS',
+                ],
+              }],
+            ],
           }, {
-            'inherit_from': ['DebugBase1'],
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'Optimization': '2',
+                'InlineFunctionExpansion': '2',
+                'EnableIntrinsicFunctions': 'true',
+                'FavorSizeOrSpeed': '0',
+                'StringPooling': 'true',
+                'BasicRuntimeChecks': '0',
+                'conditions': [
+                  ['component=="shared_library" or force_dynamic_crt==1', {
+                    'RuntimeLibrary': '3',  #/MDd
+                  }, {
+                     'RuntimeLibrary': '1',  #/MTd
+                   }],
+                ],
+              },
+              'VCLinkerTool': {
+                'LinkIncremental': '1',
+                'OptimizeReferences': '2',
+                'EnableCOMDATFolding': '2',
+              },
+            },
+            'variables': {
+              'v8_enable_slow_dchecks%': 0,
+            },
+            'conditions': [
+              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
+            OS=="qnx" or OS=="aix"', {
+                'cflags!': [
+                  '-O0',
+                  '-O1',
+                  '-Os',
+                ],
+                'cflags': [
+                  '-fdata-sections',
+                  '-ffunction-sections',
+                ],
+                'conditions': [
+                  # Don't use -O3 with sanitizers.
+                  ['asan==0 and msan==0 and lsan==0 \
+                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
+                    'cflags': ['-O3'],
+                    'cflags!': ['-O2'],
+                  }, {
+                     'cflags': ['-O2'],
+                     'cflags!': ['-O3'],
+                   }],
+                ],
+              }],
+              ['OS=="mac"', {
+                'xcode_settings': {
+                  'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
+                  'GCC_STRICT_ALIASING': 'YES',
+                },
+              }],
+              ['v8_enable_slow_dchecks==1', {
+                'defines': [
+                  'ENABLE_SLOW_DCHECKS',
+                ],
+              }],
+            ],
           }],
           # Temporary refs: https://github.com/nodejs/node/pull/23801
           ['v8_enable_handle_zapping==1', {
             'defines': ['ENABLE_HANDLE_ZAPPING',],
           }],
         ],
-      },  # Debug
-      'ReleaseBase': {
-        'abstract': 1,
+
+      },  # DebugBaseCommon
+      'Release': {
         'variables': {
           'v8_enable_slow_dchecks%': 0,
         },
+         # Temporary refs: https://github.com/nodejs/node/pull/23801
+        'defines!': ['ENABLE_HANDLE_ZAPPING',],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
             or OS=="aix"', {
@@ -1407,29 +1392,6 @@
           }],
         ],  # conditions
       },  # Release
-      'Release': {
-        'inherit_from': ['ReleaseBase'],
-        # Temporary refs: https://github.com/nodejs/node/pull/23801
-        'defines!': ['ENABLE_HANDLE_ZAPPING',],
-      },  # Debug
-      'conditions': [
-        [ 'OS=="win"', {
-          # TODO(bradnelson): add a gyp mechanism to make this more graceful.
-          'Debug_x64': {
-            'inherit_from': ['DebugBaseCommon'],
-            'conditions': [
-              ['v8_optimized_debug==0', {
-                'inherit_from': ['DebugBase0'],
-              }, {
-                'inherit_from': ['DebugBase1'],
-              }],
-            ],
-          },
-          'Release_x64': {
-            'inherit_from': ['ReleaseBase'],
-          },
-        }],
-      ],
     },  # configurations
     'msvs_disabled_warnings': [
       4245,  # Conversion with signed/unsigned mismatch.
