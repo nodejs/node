@@ -84,6 +84,11 @@ using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
+#ifdef OPENSSL_NO_OCB
+# define IS_OCB_MODE(mode) false
+#else
+# define IS_OCB_MODE(mode) ((mode) == EVP_CIPH_OCB_MODE)
+#endif
 
 struct StackOfX509Deleter {
   void operator()(STACK_OF(X509)* p) const { sk_X509_pop_free(p, X509_free); }
@@ -2540,7 +2545,7 @@ int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
 static bool IsSupportedAuthenticatedMode(int mode) {
   return mode == EVP_CIPH_CCM_MODE ||
          mode == EVP_CIPH_GCM_MODE ||
-         mode == EVP_CIPH_OCB_MODE;
+         IS_OCB_MODE(mode);
 }
 
 void CipherBase::Initialize(Environment* env, Local<Object> target) {
@@ -2765,7 +2770,7 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
   }
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  if (mode == EVP_CIPH_CCM_MODE || mode == EVP_CIPH_OCB_MODE) {
+  if (mode == EVP_CIPH_CCM_MODE || IS_OCB_MODE(mode)) {
     if (auth_tag_len == kNoAuthTagLength) {
       char msg[128];
       snprintf(msg, sizeof(msg), "authTagLength required for %s", cipher_type);
@@ -2893,7 +2898,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   } else if (mode == EVP_CIPH_OCB_MODE) {
     // At this point, the tag length is already known and must match the
     // length of the given authentication tag.
-    CHECK(mode == EVP_CIPH_CCM_MODE || mode == EVP_CIPH_OCB_MODE);
+    CHECK(mode == EVP_CIPH_CCM_MODE || IS_OCB_MODE(mode));
     CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
     if (cipher->auth_tag_len_ != tag_len) {
       char msg[50];
