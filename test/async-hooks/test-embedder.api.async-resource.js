@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const tick = require('./tick');
+const tick = require('../common/tick');
 const async_hooks = require('async_hooks');
 const { AsyncResource } = async_hooks;
 
