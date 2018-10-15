@@ -832,14 +832,12 @@ class MetaBuildWrapper(object):
       subdir, exe = 'linux64', 'gn'
     elif self.platform == 'darwin':
       subdir, exe = 'mac', 'gn'
-    elif self.platform == 'aix6':
-      subdir, exe = 'aix', 'gn'
     else:
       subdir, exe = 'win', 'gn.exe'
 
     arch = platform.machine()
-    if (self.platform == 'linux2' and
-       (arch.startswith('s390') or arch.startswith('ppc'))):
+    if (arch.startswith('s390') or arch.startswith('ppc') or
+        self.platform.startswith('aix')):
       # use gn in PATH
       gn_path = 'gn'
     else:
