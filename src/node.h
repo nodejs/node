@@ -29,7 +29,7 @@
 #   define NODE_EXTERN __declspec(dllimport)
 # endif
 #else
-# define NODE_EXTERN /* nothing */
+# define NODE_EXTERN __attribute__((visibility("default")))
 #endif
 
 #ifdef BUILDING_NODE_EXTENSION
