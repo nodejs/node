@@ -244,19 +244,10 @@
       ],
 
       # - "C4244: conversion from 'type1' to 'type2', possible loss of data"
-      #   Ususaly safe. Disable for `dep`, enable for `src`
+      #   Disabled for `/deps/`, so re-enable for `/src/`.
       'msvs_disabled_warnings!': [4244],
-
+      'dependencies': [ '<(node_lib_target_name)' ],
       'conditions': [
-        [ 'node_intermediate_lib_type=="static_library" and node_shared=="true" and OS=="aix"', {
-          # For AIX, shared lib is linked by static lib and .exp. In the
-          # case here, the executable needs to link to shared lib.
-          # Therefore, use 'node_aix_shared' target to generate the
-          # shared lib and then executable.
-          'dependencies': [ 'node_aix_shared' ],
-        }, {
-          'dependencies': [ '<(node_lib_target_name)' ],
-        }],
         [ 'node_intermediate_lib_type=="static_library" and node_shared=="false"', {
           'xcode_settings': {
             'OTHER_LDFLAGS': [
