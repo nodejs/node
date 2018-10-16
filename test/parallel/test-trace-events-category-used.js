@@ -3,9 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
-
 const CODE = `
   const { internalBinding } = require('internal/test/binding');
   const { isTraceCategoryEnabled } = internalBinding('trace_events');
@@ -16,7 +13,6 @@ const CODE = `
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
-process.chdir(tmpdir.path);
 
 const procEnabled = cp.spawn(
   process.execPath,
@@ -25,7 +21,8 @@ const procEnabled = cp.spawn(
     // emits a warning.
     '--no-warnings',
     '--expose-internals',
-    '-e', CODE ]
+    '-e', CODE ],
+  { cwd: tmpdir.path }
 );
 let procEnabledOutput = '';
 
@@ -42,7 +39,8 @@ const procDisabled = cp.spawn(
     // emits a warning.
     '--no-warnings',
     '--expose-internals',
-    '-e', CODE ]
+    '-e', CODE ],
+  { cwd: tmpdir.path }
 );
 let procDisabledOutput = '';
 
