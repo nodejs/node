@@ -5,13 +5,11 @@ const common = require('../common');
 
 if (!process.binding('config').hasTracing)
   common.skip('missing trace events');
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
 
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const {
   createTracing,
@@ -109,7 +107,6 @@ if (isChild) {
   }
 
   tmpdir.refresh();
-  process.chdir(tmpdir.path);
 
   const expectedMarks = ['A', 'B'];
   const expectedBegins = [
@@ -123,7 +120,8 @@ if (isChild) {
 
   const proc = cp.fork(__filename,
                        ['child'],
-                       { execArgv: [ '--expose-gc',
+                       { cwd: tmpdir.path,
+                         execArgv: [ '--expose-gc',
                                      '--trace-event-categories',
                                      'foo' ] });
 
