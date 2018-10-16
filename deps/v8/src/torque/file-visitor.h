@@ -21,6 +21,10 @@ namespace torque {
 
 class FileVisitor {
  public:
+#if defined(__GNUC__) && V8_OS_AIX
+  // prevent non-virtual-dtor gcc error on Aix
+  virtual ~FileVisitor() = default;
+#endif
   explicit FileVisitor(GlobalContext& global_context)
       : global_context_(global_context),
         declarations_(global_context.declarations()),
