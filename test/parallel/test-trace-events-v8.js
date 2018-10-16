@@ -3,22 +3,20 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
-
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
+const path = require('path');
 
 const CODE =
   'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1)';
-const FILE_NAME = 'node_trace.1.log';
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
-process.chdir(tmpdir.path);
+const FILE_NAME = path.join(tmpdir.path, 'node_trace.1.log');
 
 const proc = cp.spawn(process.execPath,
                       [ '--trace-events-enabled',
                         '--trace-event-categories', 'v8',
-                        '-e', CODE ]);
+                        '-e', CODE ],
+                      { cwd: tmpdir.path });
 
 proc.once('exit', common.mustCall(() => {
   assert(fs.existsSync(FILE_NAME));
