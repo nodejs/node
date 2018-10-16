@@ -2,12 +2,9 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 const tmpdir = require('../common/tmpdir');
-
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
 
 if (process.argv[2] === 'child') {
   const { performance } = require('perf_hooks');
@@ -25,7 +22,6 @@ if (process.argv[2] === 'child') {
   ff();  // Will emit a timerify trace event
 } else {
   tmpdir.refresh();
-  process.chdir(tmpdir.path);
 
   const expectedMarks = ['A', 'B'];
   const expectedBegins = [
@@ -41,6 +37,7 @@ if (process.argv[2] === 'child') {
                        [
                          'child'
                        ], {
+                         cwd: tmpdir.path,
                          execArgv: [
                            '--trace-event-categories',
                            'node.perf'
