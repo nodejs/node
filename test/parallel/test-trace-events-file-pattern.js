@@ -4,12 +4,9 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
-
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
+const path = require('path');
 
 tmpdir.refresh();
-process.chdir(tmpdir.path);
 
 const CODE =
   'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1)';
@@ -20,10 +17,11 @@ const proc = cp.spawn(process.execPath, [
   // eslint-disable-next-line no-template-curly-in-string
   '${pid}-${rotation}-${pid}-${rotation}.tracing.log',
   '-e', CODE
-]);
+], { cwd: tmpdir.path });
 
 proc.once('exit', common.mustCall(() => {
-  const expectedFilename = `${proc.pid}-1-${proc.pid}-1.tracing.log`;
+  const expectedFilename = path.join(tmpdir.path,
+                                     `${proc.pid}-1-${proc.pid}-1.tracing.log`);
 
   assert(fs.existsSync(expectedFilename));
   fs.readFile(expectedFilename, common.mustCall((err, data) => {
