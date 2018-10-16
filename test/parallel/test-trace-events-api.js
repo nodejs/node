@@ -5,11 +5,12 @@ const common = require('../common');
 
 if (!process.binding('config').hasTracing)
   common.skip('missing trace events');
+common.skipIfWorker(); // https://github.com/nodejs/node/issues/22767
 
 const assert = require('assert');
 const cp = require('child_process');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const {
   createTracing,
@@ -107,6 +108,7 @@ if (isChild) {
   }
 
   tmpdir.refresh();
+  process.chdir(tmpdir.path);
 
   const expectedMarks = ['A', 'B'];
   const expectedBegins = [
@@ -120,8 +122,7 @@ if (isChild) {
 
   const proc = cp.fork(__filename,
                        ['child'],
-                       { cwd: tmpdir.path,
-                         execArgv: [ '--expose-gc',
+                       { execArgv: [ '--expose-gc',
                                      '--trace-event-categories',
                                      'foo' ] });
 
