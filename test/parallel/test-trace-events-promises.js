@@ -2,14 +2,11 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 common.disableCrashOnUnhandledRejection();
-
-if (!common.isMainThread)
-  common.skip('process.chdir is not available in Workers');
 
 if (process.argv[2] === 'child') {
   const p = Promise.reject(1);  // Handled later
@@ -19,10 +16,10 @@ if (process.argv[2] === 'child') {
   });
 } else {
   tmpdir.refresh();
-  process.chdir(tmpdir.path);
 
   const proc = cp.fork(__filename,
                        [ 'child' ], {
+                         cwd: tmpdir.path,
                          execArgv: [
                            '--no-warnings',
                            '--trace-event-categories',
