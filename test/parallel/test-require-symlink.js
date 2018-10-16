@@ -60,7 +60,7 @@ const linkScriptTarget = path.join(dirName, 'symlinked.js');
 test();
 
 function test() {
-  fs.symlinkSync(linkTarget, linkDir);
+  fs.symlinkSync(linkTarget, linkDir, 'dir');
   fs.symlinkSync(linkScriptTarget, linkScript);
 
   // load symlinked-module
