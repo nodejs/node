@@ -13,7 +13,7 @@ const tmpdir = require('../common/tmpdir');
 if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
 
-const names = [
+const names = new Set([
   'Environment',
   'RunAndClearNativeImmediates',
   'CheckImmediate',
@@ -21,7 +21,7 @@ const names = [
   'BeforeExit',
   'RunCleanup',
   'AtExit'
-];
+]);
 
 if (process.argv[2] === 'child') {
   // This is just so that the child has something to do.
@@ -52,12 +52,10 @@ if (process.argv[2] === 'child') {
       .filter((trace) => trace.cat !== '__metadata')
       .forEach((trace) => {
         assert.strictEqual(trace.pid, proc.pid);
-        assert(names.includes(trace.name));
+        assert(names.has(trace.name));
         checkSet.add(trace.name);
       });
 
-    let name;
-    while (name = names.shift())
-      assert(checkSet.has(name));
+    assert.deepStrictEqual(names, checkSet);
   }));
 }
