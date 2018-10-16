@@ -18,16 +18,32 @@ static
 napi_status napi_clear_last_error(napi_env env);
 
 struct napi_env__ {
-  explicit napi_env__(v8::Isolate* _isolate, uv_loop_t* _loop)
-      : isolate(_isolate),
-        last_error(),
-        loop(_loop) {}
-  v8::Isolate* isolate;
+  explicit napi_env__(v8::Local<v8::Context> context)
+      : isolate(context->GetIsolate()),
+        context_persistent(isolate, context) {
+    CHECK_EQ(isolate, context->GetIsolate());
+    CHECK_NOT_NULL(node_env());
+  }
+
+  v8::Isolate* isolate;  // Shortcut for context()->GetIsolate()
+  node::Persistent<v8::Context> context_persistent;
+
+  inline v8::Local<v8::Context> context() const {
+    return StrongPersistentToLocal(context_persistent);
+  }
+
+  inline node::Environment* node_env() const {
+    return node::Environment::GetCurrent(context());
+  }
+
+  inline void Ref() { refs++; }
+  inline void Unref() { if (--refs == 0) delete this; }
+
   node::Persistent<v8::Value> last_exception;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;
-  uv_loop_t* loop = nullptr;
+  int refs = 1;
 };
 
 #define NAPI_PRIVATE_KEY(context, suffix) \
@@ -720,10 +736,6 @@ v8::Local<v8::Value> CreateAccessorCallbackData(napi_env env,
   return cbdata;
 }
 
-static void DeleteEnv(napi_env env, void* data, void* hint) {
-  delete env;
-}
-
 static
 napi_env GetEnv(v8::Local<v8::Context> context) {
   napi_env result;
@@ -742,7 +754,7 @@ napi_env GetEnv(v8::Local<v8::Context> context) {
   if (value->IsExternal()) {
     result = static_cast<napi_env>(value.As<v8::External>()->Value());
   } else {
-    result = new napi_env__(isolate, node::GetCurrentEventLoop(isolate));
+    result = new napi_env__(context);
     auto external = v8::External::New(isolate, result);
 
     // We must also stop hard if the result of assigning the env to the global
@@ -750,9 +762,18 @@ napi_env GetEnv(v8::Local<v8::Context> context) {
     CHECK(global->SetPrivate(context, NAPI_PRIVATE_KEY(context, env), external)
         .FromJust());
 
-    // Create a self-destructing reference to external that will get rid of the
-    // napi_env when external goes out of scope.
-    Reference::New(result, external, 0, true, DeleteEnv, nullptr, nullptr);
+    // TODO(addaleax): There was previously code that tried to delete the
+    // napi_env when its v8::Context was garbage collected;
+    // However, as long as N-API addons using this napi_env are in place,
+    // the Context needs to be accessible and alive.
+    // Ideally, we’d want an on-addon-unload hook that takes care of this
+    // once all N-API addons using this napi_env are unloaded.
+    // For now, a per-Environment cleanup hook is the best we can do.
+    result->node_env()->AddCleanupHook(
+        [](void* arg) {
+          static_cast<napi_env>(arg)->Unref();
+        },
+        static_cast<void*>(result));
   }
 
   return result;
@@ -774,8 +795,7 @@ napi_status Unwrap(napi_env env,
     CHECK_ARG(env, result);
   }
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(js_object);
   RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
@@ -808,7 +828,7 @@ napi_status ConcludeDeferred(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   node::Persistent<v8::Value>* deferred_ref =
       NodePersistentFromJsDeferred(deferred);
   v8::Local<v8::Value> v8_deferred =
@@ -853,10 +873,12 @@ class ThreadSafeFunction : public node::AsyncResource {
       handles_closing(false) {
     ref.Reset(env->isolate, func);
     node::AddEnvironmentCleanupHook(env->isolate, Cleanup, this);
+    env->Ref();
   }
 
   ~ThreadSafeFunction() {
     node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
+    env->Unref();
   }
 
   // These methods can be called from any thread.
@@ -935,18 +957,21 @@ class ThreadSafeFunction : public node::AsyncResource {
   // These methods must only be called from the loop thread.
 
   napi_status Init() {
+    uv_loop_t* loop = nullptr;
+    CHECK_EQ(napi_get_uv_event_loop(env, &loop), napi_ok);
+
     ThreadSafeFunction* ts_fn = this;
 
-    if (uv_async_init(env->loop, &async, AsyncCb) == 0) {
+    if (uv_async_init(loop, &async, AsyncCb) == 0) {
       if (max_queue_size > 0) {
         cond.reset(new node::ConditionVariable);
       }
       if ((max_queue_size == 0 || cond.get() != nullptr) &&
-          uv_idle_init(env->loop, &idle) == 0) {
+          uv_idle_init(loop, &idle) == 0) {
         return napi_ok;
       }
 
-      NodeEnv()->CloseHandle(
+      env->node_env()->CloseHandle(
           reinterpret_cast<uv_handle_t*>(&async),
           [](uv_handle_t* handle) -> void {
             ThreadSafeFunction* ts_fn =
@@ -1035,15 +1060,6 @@ class ThreadSafeFunction : public node::AsyncResource {
     }
   }
 
-  node::Environment* NodeEnv() {
-    // Grabbing the Node.js environment requires a handle scope because it
-    // looks up fields on the current context.
-    v8::HandleScope scope(env->isolate);
-    node::Environment* node_env = node::Environment::GetCurrent(env->isolate);
-    CHECK_NOT_NULL(node_env);
-    return node_env;
-  }
-
   void MaybeStartIdle() {
     if (uv_idle_start(&idle, IdleCb) != 0) {
       v8::HandleScope scope(env->isolate);
@@ -1079,13 +1095,13 @@ class ThreadSafeFunction : public node::AsyncResource {
       return;
     }
     handles_closing = true;
-    NodeEnv()->CloseHandle(
+    env->node_env()->CloseHandle(
         reinterpret_cast<uv_handle_t*>(&async),
         [](uv_handle_t* handle) -> void {
           ThreadSafeFunction* ts_fn =
               node::ContainerOf(&ThreadSafeFunction::async,
                                 reinterpret_cast<uv_async_t*>(handle));
-          ts_fn->NodeEnv()->CloseHandle(
+          ts_fn->env->node_env()->CloseHandle(
               reinterpret_cast<uv_handle_t*>(&ts_fn->idle),
               [](uv_handle_t* handle) -> void {
                 ThreadSafeFunction* ts_fn =
@@ -1175,8 +1191,7 @@ napi_status Wrap(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, js_object);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(js_object);
   RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
@@ -1211,7 +1226,7 @@ napi_status Wrap(napi_env env,
 
   if (wrap_type == retrievable) {
     CHECK(obj->SetPrivate(context, NAPI_PRIVATE_KEY(context, wrapper),
-          v8::External::New(isolate, reference)).FromJust());
+          v8::External::New(env->isolate, reference)).FromJust());
   }
 
   return GET_RETURN_STATUS(env);
@@ -1418,7 +1433,7 @@ napi_status napi_create_function(napi_env env,
 
   RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
 
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::MaybeLocal<v8::Function> maybe_function =
       v8::Function::New(context,
                         v8impl::FunctionCallbackWrapper::Invoke,
@@ -1518,7 +1533,7 @@ napi_status napi_define_class(napi_env env,
     }
   }
 
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   *result = v8impl::JsValueFromV8LocalValue(
       scope.Escape(tpl->GetFunction(context).ToLocalChecked()));
 
@@ -1550,8 +1565,7 @@ napi_status napi_get_property_names(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
   CHECK_TO_OBJECT(env, context, obj, object);
 
@@ -1572,8 +1586,7 @@ napi_status napi_set_property(napi_env env,
   CHECK_ARG(env, key);
   CHECK_ARG(env, value);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
 
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1595,8 +1608,7 @@ napi_status napi_has_property(napi_env env,
   CHECK_ARG(env, result);
   CHECK_ARG(env, key);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
 
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1618,8 +1630,7 @@ napi_status napi_get_property(napi_env env,
   CHECK_ARG(env, key);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Value> k = v8impl::V8LocalValueFromJsValue(key);
   v8::Local<v8::Object> obj;
 
@@ -1641,8 +1652,7 @@ napi_status napi_delete_property(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, key);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Value> k = v8impl::V8LocalValueFromJsValue(key);
   v8::Local<v8::Object> obj;
 
@@ -1663,8 +1673,7 @@ napi_status napi_has_own_property(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, key);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
 
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1684,8 +1693,7 @@ napi_status napi_set_named_property(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, value);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
 
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1708,8 +1716,7 @@ napi_status napi_has_named_property(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
 
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1732,8 +1739,7 @@ napi_status napi_get_named_property(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Name> key;
   CHECK_NEW_FROM_UTF8(env, key, utf8name);
@@ -1758,8 +1764,7 @@ napi_status napi_set_element(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, value);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
 
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1779,8 +1784,7 @@ napi_status napi_has_element(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
 
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1800,8 +1804,7 @@ napi_status napi_get_element(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
 
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1820,8 +1823,7 @@ napi_status napi_delete_element(napi_env env,
                                 bool* result) {
   NAPI_PREAMBLE(env);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
 
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1843,8 +1845,7 @@ napi_status napi_define_properties(napi_env env,
     CHECK_ARG(env, properties);
   }
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Object> obj;
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -1965,8 +1966,7 @@ napi_status napi_get_prototype(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Object> obj;
   CHECK_TO_OBJECT(env, context, obj, object);
@@ -2141,7 +2141,7 @@ napi_status napi_create_bigint_words(napi_env env,
   CHECK_ARG(env, words);
   CHECK_ARG(env, result);
 
-  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   if (word_count > INT_MAX) {
     napi_throw_range_error(env, nullptr, "Maximum BigInt size exceeded");
@@ -2202,7 +2202,7 @@ static napi_status set_error_code(napi_env env,
                                   const char* code_cstring) {
   if ((code != nullptr) || (code_cstring != nullptr)) {
     v8::Isolate* isolate = env->isolate;
-    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::Local<v8::Context> context = env->context();
     v8::Local<v8::Object> err_object = error.As<v8::Object>();
 
     v8::Local<v8::Value> code_value = v8impl::V8LocalValueFromJsValue(code);
@@ -2435,8 +2435,7 @@ napi_status napi_call_function(napi_env env,
     CHECK_ARG(env, argv);
   }
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Value> v8recv = v8impl::V8LocalValueFromJsValue(recv);
 
@@ -2461,11 +2460,7 @@ napi_status napi_get_global(napi_env env, napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  // TODO(ianhall): what if we need the global object from a different
-  // context in the same isolate?
-  // Should napi_env be the current context rather than the current isolate?
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   *result = v8impl::JsValueFromV8LocalValue(context->Global());
 
   return napi_clear_last_error(env);
@@ -2857,8 +2852,7 @@ napi_status napi_coerce_to_object(napi_env env,
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
   CHECK_TO_OBJECT(env, context, obj, value);
 
@@ -2873,8 +2867,7 @@ napi_status napi_coerce_to_bool(napi_env env,
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Boolean> b;
 
   CHECK_TO_BOOL(env, context, b, value);
@@ -2890,8 +2883,7 @@ napi_status napi_coerce_to_number(napi_env env,
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Number> num;
 
   CHECK_TO_NUMBER(env, context, num, value);
@@ -2907,8 +2899,7 @@ napi_status napi_coerce_to_string(napi_env env,
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
   v8::Local<v8::String> str;
 
   CHECK_TO_STRING(env, context, str, value);
@@ -3169,7 +3160,7 @@ napi_status napi_open_callback_scope(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, result);
 
-  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   node::async_context* node_async_context =
       reinterpret_cast<node::async_context*>(async_context_handle);
@@ -3212,8 +3203,7 @@ napi_status napi_new_instance(napi_env env,
   }
   CHECK_ARG(env, result);
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Function> ctor;
   CHECK_TO_FUNCTION(env, ctor, constructor);
@@ -3238,8 +3228,7 @@ napi_status napi_instanceof(napi_env env,
   *result = false;
 
   v8::Local<v8::Object> ctor;
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   CHECK_TO_OBJECT(env, context, ctor, constructor);
 
@@ -3269,7 +3258,7 @@ napi_status napi_async_init(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Object> v8_resource;
   if (async_resource != nullptr) {
@@ -3319,8 +3308,7 @@ napi_status napi_make_callback(napi_env env,
     CHECK_ARG(env, argv);
   }
 
-  v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Object> v8recv;
   CHECK_TO_OBJECT(env, context, v8recv, recv);
@@ -3336,7 +3324,7 @@ napi_status napi_make_callback(napi_env env,
   }
 
   v8::MaybeLocal<v8::Value> callback_result = node::MakeCallback(
-      isolate, v8recv, v8func, argc,
+      env->isolate, v8recv, v8func, argc,
       reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)),
       *node_async_context);
 
@@ -3848,7 +3836,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
     : AsyncResource(env->isolate,
                     async_resource,
                     *v8::String::Utf8Value(env->isolate, async_resource_name)),
-      ThreadPoolWork(node::Environment::GetCurrent(env->isolate)),
+      ThreadPoolWork(env->node_env()),
       _env(env),
       _data(data),
       _execute(execute),
@@ -3935,7 +3923,7 @@ napi_status napi_create_async_work(napi_env env,
   CHECK_ARG(env, execute);
   CHECK_ARG(env, result);
 
-  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Object> resource;
   if (async_resource != nullptr) {
@@ -3968,7 +3956,7 @@ napi_status napi_delete_async_work(napi_env env, napi_async_work work) {
 napi_status napi_get_uv_event_loop(napi_env env, uv_loop_t** loop) {
   CHECK_ENV(env);
   CHECK_ARG(env, loop);
-  *loop = env->loop;
+  *loop = env->node_env()->event_loop();
   return napi_clear_last_error(env);
 }
 
@@ -4007,7 +3995,7 @@ napi_status napi_create_promise(napi_env env,
   CHECK_ARG(env, deferred);
   CHECK_ARG(env, promise);
 
-  auto maybe = v8::Promise::Resolver::New(env->isolate->GetCurrentContext());
+  auto maybe = v8::Promise::Resolver::New(env->context());
   CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
 
   auto v8_resolver = maybe.ToLocalChecked();
@@ -4056,7 +4044,7 @@ napi_status napi_run_script(napi_env env,
     return napi_set_last_error(env, napi_string_expected);
   }
 
-  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+  v8::Local<v8::Context> context = env->context();
 
   auto maybe_script = v8::Script::Compile(context,
       v8::Local<v8::String>::Cast(v8_script));
@@ -4093,7 +4081,7 @@ napi_create_threadsafe_function(napi_env env,
   v8::Local<v8::Function> v8_func;
   CHECK_TO_FUNCTION(env, v8_func, func);
 
-  v8::Local<v8::Context> v8_context = env->isolate->GetCurrentContext();
+  v8::Local<v8::Context> v8_context = env->context();
 
   v8::Local<v8::Object> v8_resource;
   if (async_resource == nullptr) {
