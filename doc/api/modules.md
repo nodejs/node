@@ -552,16 +552,20 @@ added: v0.1.13
 
 * {Function}
 
-Used to import modules, `JSON` and local files. Modules can be imported from `node_modules`. Local modules and JSON files can be imported using the pattern `'./'`.
+Used to import modules, `JSON`, and local files. Modules can be imported
+from `node_modules`. Local modules and JSON files can be imported using
+a relative path (e.g. `./`, `./foo`, `./bar/baz`, `../foo`) that will be
+resolved against the directory named by [`__dirname`][] (if defined) or
+the current working directory.
 
 ```js
-// importing localModule
+// Importing a local module:
 const myLocalModule = require('./path/myLocalModule');
 
-// importing JSON file
+// Importing a JSON file:
 const jsonData = require('./path/filename.json');
 
-// importing module from node_modules or Node.js internals
+// Importing a module from node_modules or Node.js built-in module:
 const crypto = require('crypto');
 ```
 
