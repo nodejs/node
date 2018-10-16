@@ -26,6 +26,7 @@ try {
 
 const processes = [];
 const gatherStderr = new stream.PassThrough();
+const timeout = 30000;
 gatherStderr.setEncoding('utf8');
 gatherStderr.setMaxListeners(Infinity);
 
@@ -51,6 +52,12 @@ function spawnProcesses() {
 
 spawnProcesses();
 
+setTimeout(() => {
+  if (!finished) {
+    gatherStderr.write('Error: Timeout');
+  }
+}, timeout);
+
 let accumulated = '';
 gatherStderr.on('data', common.mustCallAtLeast((chunk) => {
   accumulated += chunk;
@@ -58,7 +65,8 @@ gatherStderr.on('data', common.mustCallAtLeast((chunk) => {
     assert(
       accumulated.includes('ENOSPC: System limit for number ' +
                            'of file watchers reached') ||
-      accumulated.includes('EMFILE: '),
+      accumulated.includes('EMFILE: ') ||
+      accumulated.includes('Timeout'),
       accumulated);
     console.log(`done after ${processes.length} processes, cleaning up`);
     finished = true;
