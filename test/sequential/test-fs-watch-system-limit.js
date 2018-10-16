@@ -38,13 +38,7 @@ spawnProcesses();
 
 setTimeout(() => {
   if (!finished) {
-    const timeoutStream = new stream.PassThrough();
-    timeoutStream.write('Error: timeout');
-    timeoutStream.end();
-    timeoutStream.pipe(gatherStderr);
-
-    finished = true;
-    processes.forEach((proc) => proc.kill());
+    gatherStderr.write('Error: Timeout');
   }
 }, timeout);
 
