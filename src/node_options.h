@@ -61,6 +61,14 @@ class DebugOptions : public Options {
   int port() {
     return host_port.port < 0 ? kDefaultInspectorPort : host_port.port;
   }
+
+  void Reset() {
+    inspector_enabled = false;
+    deprecated_debug = false;
+    break_first_line = false;
+    break_node_first_line = false;
+    host_port = {"127.0.0.1", -1};
+  }
 };
 
 class EnvironmentOptions : public Options {
@@ -98,6 +106,7 @@ class EnvironmentOptions : public Options {
 
   inline DebugOptions* get_debug_options();
   void CheckOptions(std::vector<std::string>* errors);
+  void Reset();
 };
 
 class PerIsolateOptions : public Options {
@@ -107,6 +116,7 @@ class PerIsolateOptions : public Options {
 
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors);
+  void Reset();
 };
 
 class PerProcessOptions : public Options {
@@ -148,6 +158,7 @@ class PerProcessOptions : public Options {
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors);
+  void Reset();
 };
 
 // The actual options parser, as opposed to the structs containing them:

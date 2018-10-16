@@ -208,7 +208,7 @@ NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
                       const char*** exec_argv);
-NODE_EXTERN void ResetArgumentsToDefault();
+NODE_EXTERN void ResetOptions();
 
 class ArrayBufferAllocator;
 

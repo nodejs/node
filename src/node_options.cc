@@ -27,8 +27,49 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
   per_isolate->CheckOptions(errors);
 }
 
+void PerProcessOptions::Reset() {
+  per_isolate->Reset();
+  title = "";
+  trace_event_categories = "";
+  trace_event_file_pattern = "node_trace.${rotation}.log";
+  v8_thread_pool_size = 4;
+  zero_fill_all_buffers = false;
+
+  security_reverts.clear();
+  print_bash_completion = false;
+  print_help = false;
+  print_v8_help = false;
+  print_version = false;
+
+#ifdef NODE_HAVE_I18N_SUPPORT
+  icu_data_dir = "";
+#endif
+
+  // TODO(addaleax): Some of these could probably be per-Environment.
+#if HAVE_OPENSSL
+  openssl_config = "";
+  tls_cipher_list = DEFAULT_CIPHER_LIST_CORE;
+#ifdef NODE_OPENSSL_CERT_STORE
+  ssl_openssl_cert_store = true;
+#else
+  ssl_openssl_cert_store = false;
+#endif
+  use_openssl_ca = false;
+  use_bundled_ca = false;
+#if NODE_FIPS_MODE
+  enable_fips_crypto = false;
+  force_fips_crypto = false;
+#endif
+#endif
+}
+
 void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
   per_env->CheckOptions(errors);
+}
+
+void PerIsolateOptions::Reset() {
+  per_env->Reset();
+  track_heap_objects = false;
 }
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
@@ -40,6 +81,39 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     errors->push_back("either --check or --eval can be used, not both");
   }
   debug_options->CheckOptions(errors);
+}
+
+void EnvironmentOptions::Reset() {
+  debug_options->Reset();
+  abort_on_uncaught_exception = false;
+  experimental_modules = false;
+  experimental_repl_await = false;
+  experimental_vm_modules = false;
+  experimental_worker = false;
+  expose_internals = false;
+  no_deprecation = false;
+  no_force_async_hooks_checks = false;
+  no_warnings = false;
+  pending_deprecation = false;
+  preserve_symlinks = false;
+  preserve_symlinks_main = false;
+  prof_process = false;
+  redirect_warnings = "";
+  throw_deprecation = false;
+  trace_deprecation = false;
+  trace_sync_io = false;
+  trace_warnings = false;
+  userland_loader = "";
+
+  syntax_check_only = false;
+  has_eval_string = false;
+  eval_string = "";
+  print_eval = false;
+  force_repl = false;
+
+  preload_modules.clear();
+
+  user_argv.clear();
 }
 
 namespace options_parser {
