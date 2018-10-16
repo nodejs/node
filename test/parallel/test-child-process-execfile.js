@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const execFile = require('child_process').execFile;
+const { execFile, execFileSync } = require('child_process');
 const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
 
@@ -46,4 +46,43 @@ const execOpts = { encoding: 'utf8', shell: true };
   execFile(process.execPath, [fixture, 0], execOpts, common.mustCall((err) => {
     assert.ifError(err);
   }));
+}
+
+{
+  // Verify the shell option is only passed explicitly
+  // in the options object and not inherited from the
+  // object prototype
+  Object.prototype.shell = true;
+
+  execFile(
+    'date',
+    ['; echo baz'],
+    common.mustCall((e, stdout) => {
+      assert.notStrictEqual(e, null);
+      assert.strictEqual(stdout.trim().indexOf('baz'), -1);
+    })
+  );
+
+  Reflect.deleteProperty(Object.prototype, 'shell');
+}
+
+{
+  // Verify the shell option is only passed explicitly
+  // in the options object and not inherited from the
+  // object prototype
+  Object.prototype.shell = true;
+
+  let assertionExpected = 0;
+  try {
+    execFileSync(
+      'date',
+      ['; echo baz']
+    );
+  } catch (err) {
+    assertionExpected++;
+    assert.strictEqual(err.status, 1);
+  }
+
+  assert.strictEqual(assertionExpected, 1);
+  Reflect.deleteProperty(Object.prototype, 'shell');
 }
