@@ -166,15 +166,10 @@ team has addressed the vulnerability.
 The security team will acknowledge your email within 24 hours. You will receive
 a more detailed response within 48 hours.
 
-There are no hard and fast rules to determine if a bug is worth reporting as
-a security issue. The general rule is an issue worth reporting should allow an
-attacker to compromise the confidentiality, integrity, or availability of the
-Node.js application or its system for which the attacker does not already have
-the capability.
-
-To illustrate the point, here are some examples of past issues and what the
-Security Response Team thinks of them. When in doubt, however, please do send
-us a report nonetheless.
+There are no hard and fast rules to determine if a bug is worth reporting as a
+security issue. Here are some examples of past issues and what the Security
+Response Team thinks of them. When in doubt, please do send us a report
+nonetheless.
 
 
 ### Public disclosure preferred
