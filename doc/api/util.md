@@ -248,7 +248,7 @@ util.format('%s:%s', 'foo', 'bar', 'baz');
 ```
 
 If the first argument does not contain a valid format specifier, `util.format()`
-returns a string that is the concatenation of all arguments separated by spaces.
+returns a string that is the concatenation of all arguments separated by spaces:
 
 ```js
 util.format(1, 2, 3);
@@ -256,7 +256,7 @@ util.format(1, 2, 3);
 ```
 
 If only one argument is passed to `util.format()`, it is returned as it is
-without any formatting.
+without any formatting:
 
 ```js
 util.format('%% %s');
