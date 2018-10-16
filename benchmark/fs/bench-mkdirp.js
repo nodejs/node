@@ -16,7 +16,7 @@ function main({ n }) {
     if (cntr-- <= 0)
       return bench.end(n);
     const pathname = `${tmpdir.path}/${++dirc}/${++dirc}/${++dirc}/${++dirc}`;
-    fs.mkdir(pathname, { createParents: true }, (err) => {
+    fs.mkdir(pathname, { recursive: true }, (err) => {
       r(cntr);
     });
   }(n));
