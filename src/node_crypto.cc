@@ -348,16 +348,16 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate<true>);
   env->SetProtoMethodNoSideEffect(t, "getIssuer", GetCertificate<false>);
 
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyReturnIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyReturnIndex));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyHMACIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyHMACIndex));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyAESIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyAESIndex));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyNameIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyNameIndex));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyIVIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
+#define SET_INTEGER_CONSTANTS(name, value)                                     \
+    t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), name),                        \
+           Integer::NewFromUnsigned(env->isolate(), value));
+  SET_INTEGER_CONSTANTS("kTicketKeyReturnIndex", kTicketKeyReturnIndex);
+  SET_INTEGER_CONSTANTS("kTicketKeyHMACIndex", kTicketKeyHMACIndex);
+  SET_INTEGER_CONSTANTS("kTicketKeyAESIndex", kTicketKeyAESIndex);
+  SET_INTEGER_CONSTANTS("kTicketKeyNameIndex", kTicketKeyNameIndex);
+  SET_INTEGER_CONSTANTS("kTicketKeyIVIndex", kTicketKeyIVIndex);
+
+#undef SET_INTEGER_CONSTANTS
 
   Local<FunctionTemplate> ctx_getter_templ =
       FunctionTemplate::New(env->isolate(),
