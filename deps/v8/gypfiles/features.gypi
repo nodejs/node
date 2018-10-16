@@ -55,6 +55,11 @@
 
     'v8_object_print%': 0,
 
+    # Lite mode disables a number of performance optimizations to reduce memory
+    # at the cost of performance.
+    # Sets --DV8_LITE_MODE.
+    'v8_enable_lite_mode%': 0,
+
     'v8_enable_verify_heap%': 0,
 
     'v8_trace_maps%': 0,
@@ -135,6 +140,9 @@
       }],
       ['v8_promise_internal_field_count!=0', {
         'defines': ['V8_PROMISE_INTERNAL_FIELD_COUNT=<(v8_promise_internal_field_count)'],
+      }],
+      ['v8_enable_lite_mode==1', {
+        'defines': ['V8_LITE_MODE',],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
