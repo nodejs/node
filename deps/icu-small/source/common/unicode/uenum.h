@@ -190,8 +190,6 @@ U_STABLE UEnumeration* U_EXPORT2
 uenum_openUCharStringsEnumeration(const UChar* const strings[], int32_t count,
                                  UErrorCode* ec);
 
-/* Note:  next function is not hidden as draft, as it is used internally (it was formerly an internal function). */
-
 /**
  * Given an array of const char* strings (invariant chars only), return a UEnumeration.  String pointers from 0..count-1 must not be null.
  * Do not free or modify either the string array or the characters it points to until this object has been destroyed with uenum_close.

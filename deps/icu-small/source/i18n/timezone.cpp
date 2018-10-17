@@ -1031,8 +1031,8 @@ TimeZone::getEquivalentID(const UnicodeString& id, int32_t index) {
         UResourceBundle *ares = ures_getByKey(top, kNAMES, NULL, &ec); // dereference Zones section
         if (U_SUCCESS(ec)) {
             int32_t idLen = 0;
-            const UChar* id = ures_getStringByIndex(ares, zone, &idLen, &ec);
-            result.fastCopyFrom(UnicodeString(TRUE, id, idLen));
+            const UChar* id2 = ures_getStringByIndex(ares, zone, &idLen, &ec);
+            result.fastCopyFrom(UnicodeString(TRUE, id2, idLen));
             U_DEBUG_TZ_MSG(("gei(%d) -> %d, len%d, %s\n", index, zone, result.length(), u_errorName(ec)));
         }
         ures_close(ares);
@@ -1199,7 +1199,7 @@ TimeZone::getDisplayName(UBool daylight, EDisplayType style, const Locale& local
 {
     UErrorCode status = U_ZERO_ERROR;
     UDate date = Calendar::getNow();
-    UTimeZoneFormatTimeType timeType;
+    UTimeZoneFormatTimeType timeType = UTZFMT_TIME_TYPE_UNKNOWN;
     int32_t offset;
 
     if (style == GENERIC_LOCATION || style == LONG_GENERIC || style == SHORT_GENERIC) {
@@ -1612,7 +1612,7 @@ TimeZone::getWindowsID(const UnicodeString& id, UnicodeString& winid, UErrorCode
                     end = tzids + len;
                     hasNext = FALSE;
                 }
-                if (canonicalID.compare(start, end - start) == 0) {
+                if (canonicalID.compare(start, static_cast<int32_t>(end - start)) == 0) {
                     winid = UnicodeString(ures_getKey(winzone), -1 , US_INV);
                     found = TRUE;
                     break;
@@ -1673,7 +1673,7 @@ TimeZone::getIDForWindowsID(const UnicodeString& winid, const char* region, Unic
             if (end == NULL) {
                 id.setTo(tzids, -1);
             } else {
-                id.setTo(tzids, end - tzids);
+                id.setTo(tzids, static_cast<int32_t>(end - tzids));
             }
             gotID = TRUE;
         }

@@ -106,6 +106,8 @@ class U_I18N_API NumberStringBuilder : public UMemory {
 
     void getAllFieldPositions(FieldPositionIteratorHandler& fpih, UErrorCode& status) const;
 
+    bool containsField(Field field) const;
+
   private:
     bool fUsingHeap = false;
     ValueOrHeapArray<char16_t> fChars;

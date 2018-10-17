@@ -498,7 +498,7 @@ inline void setShiftTable(int16_t   shift[], int16_t backshift[],
     for (count = 0; count < cesize; count ++) {
         // number of ces from right of array to the count
         int temp = defaultforward - count - 1;
-        shift[hashFromCE32(cetable[count])] = temp > 1 ? temp : 1;
+        shift[hashFromCE32(cetable[count])] = temp > 1 ? static_cast<int16_t>(temp) : 1;
     }
     shift[hashFromCE32(cetable[cesize])] = 1;
     // for ignorables we just shift by one. see test examples.

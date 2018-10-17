@@ -143,14 +143,14 @@ void Scale::applyReciprocalTo(impl::DecimalQuantity& quantity) const {
 
 void
 MultiplierFormatHandler::setAndChain(const Scale& multiplier, const MicroPropsGenerator* parent) {
-    this->multiplier = multiplier;
-    this->parent = parent;
+    fMultiplier = multiplier;
+    fParent = parent;
 }
 
 void MultiplierFormatHandler::processQuantity(DecimalQuantity& quantity, MicroProps& micros,
                                               UErrorCode& status) const {
-    parent->processQuantity(quantity, micros, status);
-    multiplier.applyTo(quantity);
+    fParent->processQuantity(quantity, micros, status);
+    fMultiplier.applyTo(quantity);
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

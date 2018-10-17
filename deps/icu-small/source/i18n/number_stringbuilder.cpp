@@ -241,6 +241,9 @@ NumberStringBuilder::insert(int32_t index, const NumberStringBuilder &other, UEr
 }
 
 int32_t NumberStringBuilder::prepareForInsert(int32_t index, int32_t count, UErrorCode &status) {
+    U_ASSERT(index >= 0);
+    U_ASSERT(index <= fLength);
+    U_ASSERT(count >= 0);
     if (index == 0 && fZero - count >= 0) {
         // Append to start
         fZero -= count;
@@ -483,6 +486,15 @@ void NumberStringBuilder::getAllFieldPositions(FieldPositionIteratorHandler& fpi
     if (current != UNUM_FIELD_COUNT) {
         fpih.addAttribute(current, currentStart, fLength);
     }
+}
+
+bool NumberStringBuilder::containsField(Field field) const {
+    for (int32_t i = 0; i < fLength; i++) {
+        if (field == fieldAt(i)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

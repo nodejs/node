@@ -403,13 +403,13 @@ CollationKeys::writeSortKeyUpToQuaternary(CollationIterator &iter,
                     uint8_t *secs = secondaries.data();
                     int32_t last = secondaries.length() - 1;
                     if(secSegmentStart < last) {
-                        uint8_t *p = secs + secSegmentStart;
-                        uint8_t *q = secs + last;
+                        uint8_t *q = secs + secSegmentStart;
+                        uint8_t *r = secs + last;
                         do {
-                            uint8_t b = *p;
-                            *p++ = *q;
-                            *q-- = b;
-                        } while(p < q);
+                            uint8_t b = *q;
+                            *q++ = *r;
+                            *r-- = b;
+                        } while(q < r);
                     }
                     secondaries.appendByte(p == Collation::NO_CE_PRIMARY ?
                         Collation::LEVEL_SEPARATOR_BYTE : Collation::MERGE_SEPARATOR_BYTE);

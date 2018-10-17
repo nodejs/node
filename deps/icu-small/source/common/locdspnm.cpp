@@ -45,9 +45,9 @@ static int32_t ncat(char *buffer, uint32_t buflen, ...) {
   }
 
   va_start(args, buflen);
-  while ((str = va_arg(args, char *))) {
+  while ((str = va_arg(args, char *)) != 0) {
     char c;
-    while (p != e && (c = *str++)) {
+    while (p != e && (c = *str++) != 0) {
       *p++ = c;
     }
   }
@@ -98,7 +98,7 @@ ICUDataTable::ICUDataTable(const char* path, const Locale& locale)
     : path(NULL), locale(Locale::getRoot())
 {
   if (path) {
-    int32_t len = uprv_strlen(path);
+    int32_t len = static_cast<int32_t>(uprv_strlen(path));
     this->path = (const char*) uprv_malloc(len + 1);
     if (this->path) {
       uprv_strcpy((char *)this->path, path);
@@ -560,21 +560,21 @@ LocaleDisplayNamesImpl::adjustForUsageAndContext(CapContextUsage usage,
 }
 
 UnicodeString&
-LocaleDisplayNamesImpl::localeDisplayName(const Locale& locale,
+LocaleDisplayNamesImpl::localeDisplayName(const Locale& loc,
                                           UnicodeString& result) const {
-  if (locale.isBogus()) {
+  if (loc.isBogus()) {
     result.setToBogus();
     return result;
   }
   UnicodeString resultName;
 
-  const char* lang = locale.getLanguage();
+  const char* lang = loc.getLanguage();
   if (uprv_strlen(lang) == 0) {
     lang = "root";
   }
-  const char* script = locale.getScript();
-  const char* country = locale.getCountry();
-  const char* variant = locale.getVariant();
+  const char* script = loc.getScript();
+  const char* country = loc.getCountry();
+  const char* variant = loc.getVariant();
 
   UBool hasScript = uprv_strlen(script) > 0;
   UBool hasCountry = uprv_strlen(country) > 0;
@@ -630,14 +630,14 @@ LocaleDisplayNamesImpl::localeDisplayName(const Locale& locale,
   resultRemainder.findAndReplace(formatOpenParen, formatReplaceOpenParen);
   resultRemainder.findAndReplace(formatCloseParen, formatReplaceCloseParen);
 
-  LocalPointer<StringEnumeration> e(locale.createKeywords(status));
+  LocalPointer<StringEnumeration> e(loc.createKeywords(status));
   if (e.isValid() && U_SUCCESS(status)) {
     UnicodeString temp2;
     char value[ULOC_KEYWORD_AND_VALUES_CAPACITY]; // sigh, no ULOC_VALUE_CAPACITY
     const char* key;
     while ((key = e->next((int32_t *)0, status)) != NULL) {
       value[0] = 0;
-      locale.getKeywordValue(key, value, ULOC_KEYWORD_AND_VALUES_CAPACITY, status);
+      loc.getKeywordValue(key, value, ULOC_KEYWORD_AND_VALUES_CAPACITY, status);
       if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
         return result;
       }

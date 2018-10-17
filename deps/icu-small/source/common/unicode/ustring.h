@@ -895,34 +895,31 @@ u_memrchr32(const UChar *s, UChar32 c, int32_t count);
  * parameters.
  * The string parameter must be a C string literal.
  * The length of the string, not including the terminating
- * <code>NUL</code>, must be specified as a constant.
+ * `NUL`, must be specified as a constant.
  * The U_STRING_DECL macro should be invoked exactly once for one
  * such string variable before it is used.
  *
  * Usage:
- * <pre>
- *    U_STRING_DECL(ustringVar1, "Quick-Fox 2", 11);
- *    U_STRING_DECL(ustringVar2, "jumps 5%", 8);
- *    static UBool didInit=FALSE;
  *
- *    int32_t function() {
- *        if(!didInit) {
- *            U_STRING_INIT(ustringVar1, "Quick-Fox 2", 11);
- *            U_STRING_INIT(ustringVar2, "jumps 5%", 8);
- *            didInit=TRUE;
- *        }
- *        return u_strcmp(ustringVar1, ustringVar2);
- *    }
- * </pre>
+ *     U_STRING_DECL(ustringVar1, "Quick-Fox 2", 11);
+ *     U_STRING_DECL(ustringVar2, "jumps 5%", 8);
+ *     static UBool didInit=FALSE;
  *
- * Note that the macros will NOT consistently work if their argument is another <code>#define</code>.
- *  The following will not work on all platforms, don't use it.
+ *     int32_t function() {
+ *         if(!didInit) {
+ *             U_STRING_INIT(ustringVar1, "Quick-Fox 2", 11);
+ *             U_STRING_INIT(ustringVar2, "jumps 5%", 8);
+ *             didInit=TRUE;
+ *         }
+ *         return u_strcmp(ustringVar1, ustringVar2);
+ *     }
  *
- * <pre>
+ * Note that the macros will NOT consistently work if their argument is another #`define`.
+ * The following will not work on all platforms, don't use it.
+ *
  *     #define GLUCK "Mr. Gluck"
  *     U_STRING_DECL(var, GLUCK, 9)
  *     U_STRING_INIT(var, GLUCK, 9)
- * </pre>
  *
  * Instead, use the string literal "Mr. Gluck"  as the argument to both macro
  * calls.

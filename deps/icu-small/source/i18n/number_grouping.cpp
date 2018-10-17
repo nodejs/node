@@ -80,7 +80,7 @@ void Grouper::setLocaleData(const impl::ParsedPatternInfo &patternInfo, const Lo
     if (fMinGrouping == -2) {
         fMinGrouping = getMinGroupingForLocale(locale);
     } else if (fMinGrouping == -3) {
-        fMinGrouping = uprv_max(2, getMinGroupingForLocale(locale));
+        fMinGrouping = static_cast<int16_t>(uprv_max(2, getMinGroupingForLocale(locale)));
     } else {
         // leave fMinGrouping alone
     }

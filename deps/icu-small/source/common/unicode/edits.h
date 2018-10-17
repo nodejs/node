@@ -24,8 +24,8 @@ class UnicodeString;
  * in linear progression. Does not support moving/reordering of text.
  *
  * There are two types of edits: <em>change edits</em> and <em>no-change edits</em>. Add edits to
- * instances of this class using {@link #addReplace(int, int)} (for change edits) and
- * {@link #addUnchanged(int)} (for no-change edits). Change edits are retained with full granularity,
+ * instances of this class using {@link #addReplace(int32_t, int32_t)} (for change edits) and
+ * {@link #addUnchanged(int32_t)} (for no-change edits). Change edits are retained with full granularity,
  * whereas adjacent no-change edits are always merged together. In no-change edits, there is a one-to-one
  * mapping between code points in the source and destination strings.
  *
@@ -62,11 +62,11 @@ class UnicodeString;
  * </ul>
  *
  * The "fine changes" and "coarse changes" iterators will step through only the change edits when their
- * {@link Edits::Iterator#next()} methods are called. They are identical to the non-change iterators when
- * their {@link Edits::Iterator#findSourceIndex(int)} or {@link Edits::Iterator#findDestinationIndex(int)}
+ * `Edits::Iterator::next()` methods are called. They are identical to the non-change iterators when
+ * their `Edits::Iterator::findSourceIndex()` or `Edits::Iterator::findDestinationIndex()`
  * methods are used to walk through the string.
  *
- * For examples of how to use this class, see the test <code>TestCaseMapEditsIteratorDocs</code> in
+ * For examples of how to use this class, see the test `TestCaseMapEditsIteratorDocs` in
  * UCharacterCaseTest.java.
  *
  * An Edits object tracks a separate UErrorCode, but ICU string transformation functions
@@ -86,7 +86,7 @@ public:
     /**
      * Copy constructor.
      * @param other source edits
-     * @draft ICU 60
+     * @stable ICU 60
      */
     Edits(const Edits &other) :
             array(stackArray), capacity(STACK_CAPACITY), length(other.length),
@@ -98,7 +98,7 @@ public:
      * Move constructor, might leave src empty.
      * This object will have the same contents that the source object had.
      * @param src source edits
-     * @draft ICU 60
+     * @stable ICU 60
      */
     Edits(Edits &&src) U_NOEXCEPT :
             array(stackArray), capacity(STACK_CAPACITY), length(src.length),
@@ -117,7 +117,7 @@ public:
      * Assignment operator.
      * @param other source edits
      * @return *this
-     * @draft ICU 60
+     * @stable ICU 60
      */
     Edits &operator=(const Edits &other);
 
@@ -127,7 +127,7 @@ public:
      * The behavior is undefined if *this and src are the same object.
      * @param src source edits
      * @return *this
-     * @draft ICU 60
+     * @stable ICU 60
      */
     Edits &operator=(Edits &&src) U_NOEXCEPT;
 
@@ -173,13 +173,11 @@ public:
      */
     UBool hasChanges() const { return numChanges != 0; }
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * @return the number of change edits
-     * @draft ICU 60
+     * @stable ICU 60
      */
     int32_t numberOfChanges() const { return numChanges; }
-#endif  // U_HIDE_DRAFT_API
 
     /**
      * Access to the list of edits.
@@ -189,9 +187,9 @@ public:
      * starts at {@link #sourceIndex()} and runs for {@link #oldLength()} chars; the destination string
      * span starts at {@link #destinationIndex()} and runs for {@link #newLength()} chars.
      *
-     * The iterator can be moved between edits using the {@link #next()}, {@link #findSourceIndex(int)},
-     * and {@link #findDestinationIndex(int)} methods. Calling any of these methods mutates the iterator
-     * to make it point to the corresponding edit.
+     * The iterator can be moved between edits using the `next()`, `findSourceIndex(int32_t, UErrorCode &)`,
+     * and `findDestinationIndex(int32_t, UErrorCode &)` methods.
+     * Calling any of these methods mutates the iterator to make it point to the corresponding edit.
      *
      * For more information, see the documentation for {@link Edits}.
      *
@@ -202,7 +200,7 @@ public:
     struct U_COMMON_API Iterator U_FINAL : public UMemory {
         /**
          * Default constructor, empty iterator.
-         * @draft ICU 60
+         * @stable ICU 60
          */
         Iterator() :
                 array(nullptr), index(0), length(0),
@@ -253,7 +251,6 @@ public:
             return findIndex(i, TRUE, errorCode) == 0;
         }
 
-#ifndef U_HIDE_DRAFT_API
         /**
          * Moves the iterator to the edit that contains the destination index.
          * The destination index may be found in a no-change edit
@@ -271,7 +268,7 @@ public:
          *                  or else the function returns immediately. Check for U_FAILURE()
          *                  on output or use with function chaining. (See User Guide for details.)
          * @return TRUE if the edit for the destination index was found
-         * @draft ICU 60
+         * @stable ICU 60
          */
         UBool findDestinationIndex(int32_t i, UErrorCode &errorCode) {
             return findIndex(i, FALSE, errorCode) == 0;
@@ -297,7 +294,7 @@ public:
          *                  or else the function returns immediately. Check for U_FAILURE()
          *                  on output or use with function chaining. (See User Guide for details.)
          * @return destination index; undefined if i is not 0..string length
-         * @draft ICU 60
+         * @stable ICU 60
          */
         int32_t destinationIndexFromSourceIndex(int32_t i, UErrorCode &errorCode);
 
@@ -321,10 +318,9 @@ public:
          *                  or else the function returns immediately. Check for U_FAILURE()
          *                  on output or use with function chaining. (See User Guide for details.)
          * @return source index; undefined if i is not 0..string length
-         * @draft ICU 60
+         * @stable ICU 60
          */
         int32_t sourceIndexFromDestinationIndex(int32_t i, UErrorCode &errorCode);
-#endif  // U_HIDE_DRAFT_API
 
         /**
          * Returns whether the edit currently represented by the iterator is a change edit.
@@ -366,13 +362,13 @@ public:
         /**
          * The start index of the current span in the replacement string; the span has length
          * {@link #newLength}. Well-defined only if the current edit is a change edit.
-         * <p>
-         * The <em>replacement string</em> is the concatenation of all substrings of the destination
+         *
+         * The *replacement string* is the concatenation of all substrings of the destination
          * string corresponding to change edits.
-         * <p>
+         *
          * This method is intended to be used together with operations that write only replacement
-         * characters (e.g., {@link CaseMap#omitUnchangedText()}). The source string can then be modified
-         * in-place.
+         * characters (e.g. operations specifying the \ref U_OMIT_UNCHANGED_TEXT option).
+         * The source string can then be modified in-place.
          *
          * @return the current index into the replacement-characters-only string,
          *         not counting unchanged spans
@@ -475,7 +471,6 @@ public:
         return Iterator(array, length, FALSE, FALSE);
     }
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Merges the two input Edits and appends the result to this object.
      *
@@ -501,10 +496,9 @@ public:
      *                  or else the function returns immediately. Check for U_FAILURE()
      *                  on output or use with function chaining. (See User Guide for details.)
      * @return *this, with the merged edits appended
-     * @draft ICU 60
+     * @stable ICU 60
      */
     Edits &mergeAndAppend(const Edits &ab, const Edits &bc, UErrorCode &errorCode);
-#endif  // U_HIDE_DRAFT_API
 
 private:
     void releaseArray() U_NOEXCEPT;

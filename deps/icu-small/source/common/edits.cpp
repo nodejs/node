@@ -276,7 +276,7 @@ Edits &Edits::mergeAndAppend(const Edits &ab, const Edits &bc, UErrorCode &error
         // ab deletions meet bc insertions at the same intermediate-string index.
         // Some users expect the bc insertions to come first, so we fetch from bc first.
         if (bc_bLength == 0) {
-            if (bcHasNext && (bcHasNext = bcIter.next(errorCode))) {
+            if (bcHasNext && (bcHasNext = bcIter.next(errorCode)) != 0) {
                 bc_bLength = bcIter.oldLength();
                 cLength = bcIter.newLength();
                 if (bc_bLength == 0) {
@@ -293,7 +293,7 @@ Edits &Edits::mergeAndAppend(const Edits &ab, const Edits &bc, UErrorCode &error
             // else see if the other iterator is done, too.
         }
         if (ab_bLength == 0) {
-            if (abHasNext && (abHasNext = abIter.next(errorCode))) {
+            if (abHasNext && (abHasNext = abIter.next(errorCode)) != 0) {
                 aLength = abIter.oldLength();
                 ab_bLength = abIter.newLength();
                 if (ab_bLength == 0) {

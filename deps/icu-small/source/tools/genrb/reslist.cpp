@@ -1395,7 +1395,7 @@ SRBRoot::compactKeys(UErrorCode &errorCode) {
                 int32_t offset;
                 suffix = keys + map[j].oldpos;
                 for (suffixLimit = suffix; *suffixLimit != 0; ++suffixLimit) {}
-                offset = (int32_t)(keyLimit - key) - (suffixLimit - suffix);
+                offset = static_cast<int32_t>((keyLimit - key) - (suffixLimit - suffix));
                 if (offset < 0) {
                     break;  /* suffix cannot be longer than the original */
                 }

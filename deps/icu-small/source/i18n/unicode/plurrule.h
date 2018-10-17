@@ -118,7 +118,6 @@ class SharedPluralRules;
  * Examples are in the following table:
  * </p>
  * <table border='1' style="border-collapse:collapse">
- * <tbody>
  * <tr>
  * <th>n</th>
  * <th>i</th>
@@ -155,7 +154,6 @@ class SharedPluralRules;
  * <td align="right">23</td>
  * <td>2</td>
  * </tr>
- * </tbody>
  * </table>
  * <p>
  * The difference between 'in' and 'within' is that 'in' only includes integers in the specified range, while 'within'
@@ -498,6 +496,12 @@ private:
     int32_t         getNumberValue(const UnicodeString& token) const;
     UnicodeString   getRuleFromResource(const Locale& locale, UPluralType type, UErrorCode& status);
     RuleChain      *rulesForKeyword(const UnicodeString &keyword) const;
+
+    /**
+    * An internal status variable used to indicate that the object is in an 'invalid' state.
+    * Used by copy constructor, the assignment operator and the clone method.
+    */
+    UErrorCode mInternalStatus;
 
     friend class PluralRuleParser;
 };
