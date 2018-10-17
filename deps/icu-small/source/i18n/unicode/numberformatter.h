@@ -144,11 +144,31 @@ class MultiplierFormatHandler;
 class CurrencySymbols;
 class GeneratorHelpers;
 class DecNum;
+class NumberRangeFormatterImpl;
+struct RangeMacroProps;
+
+/**
+ * Used for NumberRangeFormatter and implemented in numrange_fluent.cpp.
+ * Declared here so it can be friended.
+ *
+ * @internal
+ */
+void touchRangeLocales(impl::RangeMacroProps& macros);
 
 } // namespace impl
 
-// Reserve extra names in case they are added as classes in the future:
+/**
+ * Extra name reserved in case it is needed in the future.
+ *
+ * @draft ICU 63
+ */
 typedef Notation CompactNotation;
+
+/**
+ * Extra name reserved in case it is needed in the future.
+ *
+ * @draft ICU 63
+ */
 typedef Notation SimpleNotation;
 
 /**
@@ -308,10 +328,15 @@ class U_I18N_API Notation : public UMemory {
 
     union NotationUnion {
         // For NTN_SCIENTIFIC
+        /** @internal */
         struct ScientificSettings {
+            /** @internal */
             int8_t fEngineeringInterval;
+            /** @internal */
             bool fRequireMinInt;
+            /** @internal */
             impl::digits_t fMinExponentDigits;
+            /** @internal */
             UNumberSignDisplay fExponentSignDisplay;
         } scientific;
 
@@ -407,15 +432,39 @@ class U_I18N_API ScientificNotation : public Notation {
     friend class impl::NumberPropertyMapper;
 };
 
-// Reserve extra names in case they are added as classes in the future:
+/**
+ * Extra name reserved in case it is needed in the future.
+ *
+ * @draft ICU 63
+ */
 typedef Precision SignificantDigitsPrecision;
 
 // Typedefs for ICU 60/61 compatibility.
 // These will be removed in ICU 64.
 // See http://bugs.icu-project.org/trac/ticket/13746
+
+/**
+ * This will be removed in ICU 64.  See ICU-13746.
+ * @deprecated ICU 63
+ */
 typedef Precision Rounder;
+
+/**
+ * This will be removed in ICU 64.  See ICU-13746.
+ * @deprecated ICU 63
+ */
 typedef FractionPrecision FractionRounder;
+
+/**
+ * This will be removed in ICU 64.  See ICU-13746.
+ * @deprecated ICU 63
+ */
 typedef IncrementPrecision IncrementRounder;
+
+/**
+ * This will be removed in ICU 64.  See ICU-13746.
+ * @deprecated ICU 63
+ */
 typedef CurrencyPrecision CurrencyRounder;
 
 /**
@@ -672,16 +721,25 @@ class U_I18N_API Precision : public UMemory {
     } fType;
 
     union PrecisionUnion {
+        /** @internal */
         struct FractionSignificantSettings {
             // For RND_FRACTION, RND_SIGNIFICANT, and RND_FRACTION_SIGNIFICANT
+            /** @internal */
             impl::digits_t fMinFrac;
+            /** @internal */
             impl::digits_t fMaxFrac;
+            /** @internal */
             impl::digits_t fMinSig;
+            /** @internal */
             impl::digits_t fMaxSig;
         } fracSig;
+        /** @internal */
         struct IncrementSettings {
+            /** @internal */
             double fIncrement;
+            /** @internal */
             impl::digits_t fMinFrac;
+            /** @internal */
             impl::digits_t fMaxFrac;
         } increment; // For RND_INCREMENT
         UCurrencyUsage currencyUsage; // For RND_CURRENCY
@@ -1205,7 +1263,7 @@ class U_I18N_API Grouper : public UMemory {
   public:
 #ifndef U_HIDE_INTERNAL_API
     /** @internal */
-    static Grouper forStrategy(UGroupingStrategy grouping);
+    static Grouper forStrategy(UNumberGroupingStrategy grouping);
 
     /**
      * Resolve the values in Properties to a Grouper object.
@@ -1216,7 +1274,7 @@ class U_I18N_API Grouper : public UMemory {
     // Future: static Grouper forProperties(DecimalFormatProperties& properties);
 
     /** @internal */
-    Grouper(int16_t grouping1, int16_t grouping2, int16_t minGrouping, UGroupingStrategy strategy)
+    Grouper(int16_t grouping1, int16_t grouping2, int16_t minGrouping, UNumberGroupingStrategy strategy)
             : fGrouping1(grouping1),
               fGrouping2(grouping2),
               fMinGrouping(minGrouping),
@@ -1251,10 +1309,10 @@ class U_I18N_API Grouper : public UMemory {
     int16_t fMinGrouping;
 
     /**
-     * The UGroupingStrategy that was used to create this Grouper, or UNUM_GROUPING_COUNT if this
-     * was not created from a UGroupingStrategy.
+     * The UNumberGroupingStrategy that was used to create this Grouper, or UNUM_GROUPING_COUNT if this
+     * was not created from a UNumberGroupingStrategy.
      */
-    UGroupingStrategy fStrategy;
+    UNumberGroupingStrategy fStrategy;
 
     Grouper() : fGrouping1(-3) {};
 
@@ -1423,7 +1481,8 @@ struct U_I18N_API MacroProps : public UMemory {
 
 /**
  * An abstract base class for specifying settings related to number formatting. This class is implemented by
- * {@link UnlocalizedNumberFormatter} and {@link LocalizedNumberFormatter}.
+ * {@link UnlocalizedNumberFormatter} and {@link LocalizedNumberFormatter}. This class is not intended for
+ * public subclassing.
  */
 template<typename Derived>
 class U_I18N_API NumberFormatterSettings {
@@ -1710,7 +1769,7 @@ class U_I18N_API NumberFormatterSettings {
      * The exact grouping widths will be chosen based on the locale.
      *
      * <p>
-     * Pass this method an element from the {@link UGroupingStrategy} enum. For example:
+     * Pass this method an element from the {@link UNumberGroupingStrategy} enum. For example:
      *
      * <pre>
      * NumberFormatter::with().grouping(UNUM_GROUPING_MIN2)
@@ -1724,7 +1783,7 @@ class U_I18N_API NumberFormatterSettings {
      * @return The fluent chain.
      * @draft ICU 61
      */
-    Derived grouping(UGroupingStrategy strategy) const &;
+    Derived grouping(UNumberGroupingStrategy strategy) const &;
 
     /**
      * Overload of grouping() for use on an rvalue reference.
@@ -1733,10 +1792,9 @@ class U_I18N_API NumberFormatterSettings {
      *            The grouping strategy to use.
      * @return The fluent chain.
      * @see #grouping
-     * @provisional This API might change or be removed in a future release.
      * @draft ICU 62
      */
-    Derived grouping(UGroupingStrategy strategy) &&;
+    Derived grouping(UNumberGroupingStrategy strategy) &&;
 
     /**
      * Specifies the minimum and maximum number of digits to render before the decimal mark.
@@ -1748,7 +1806,7 @@ class U_I18N_API NumberFormatterSettings {
      * </ul>
      *
      * <p>
-     * Pass this method the return value of {@link IntegerWidth#zeroFillTo(int)}. For example:
+     * Pass this method the return value of {@link IntegerWidth#zeroFillTo}. For example:
      *
      * <pre>
      * NumberFormatter::with().integerWidth(IntegerWidth::zeroFillTo(2))
@@ -2099,15 +2157,18 @@ class U_I18N_API NumberFormatterSettings {
 
     // NOTE: Uses default copy and move constructors.
 
-  protected:
+  private:
     impl::MacroProps fMacros;
 
-  private:
     // Don't construct me directly!  Use (Un)LocalizedNumberFormatter.
     NumberFormatterSettings() = default;
 
     friend class LocalizedNumberFormatter;
     friend class UnlocalizedNumberFormatter;
+
+    // Give NumberRangeFormatter access to the MacroProps
+    friend void impl::touchRangeLocales(impl::RangeMacroProps& macros);
+    friend class impl::NumberRangeFormatterImpl;
 };
 
 /**
@@ -2123,13 +2184,6 @@ class U_I18N_API UnlocalizedNumberFormatter
     /**
      * Associate the given locale with the number formatter. The locale is used for picking the appropriate symbols,
      * formats, and other data for number display.
-     *
-     * <p>
-     * To use the Java default locale, call Locale::getDefault():
-     *
-     * <pre>
-     * NumberFormatter::with(). ... .locale(Locale::getDefault())
-     * </pre>
      *
      * @param locale
      *            The locale to use when loading data for number formatting.
@@ -2156,7 +2210,6 @@ class U_I18N_API UnlocalizedNumberFormatter
      */
     UnlocalizedNumberFormatter() = default;
 
-    // Make default copy constructor call the NumberFormatterSettings copy constructor.
     /**
      * Returns a copy of this UnlocalizedNumberFormatter.
      * @draft ICU 60
@@ -2271,7 +2324,7 @@ class U_I18N_API LocalizedNumberFormatter
      */
     int32_t getCallCount() const;
 
-#endif
+#endif  /* U_HIDE_INTERNAL_API */
 
     /**
      * Creates a representation of this LocalizedNumberFormat as an icu::Format, enabling the use
@@ -2295,7 +2348,6 @@ class U_I18N_API LocalizedNumberFormatter
      */
     LocalizedNumberFormatter() = default;
 
-    // Make default copy constructor call the NumberFormatterSettings copy constructor.
     /**
      * Returns a copy of this LocalizedNumberFormatter.
      * @draft ICU 60
@@ -2333,11 +2385,12 @@ class U_I18N_API LocalizedNumberFormatter
      *
      * @param results
      *            The results object. This method will mutate it to save the results.
+     * @param status
      * @internal
      */
     void formatImpl(impl::UFormattedNumberData *results, UErrorCode &status) const;
 
-#endif
+#endif  /* U_HIDE_INTERNAL_API */
 
     /**
      * Destruct this LocalizedNumberFormatter, cleaning up any memory it might own.
@@ -2358,6 +2411,8 @@ class U_I18N_API LocalizedNumberFormatter
     LocalizedNumberFormatter(const impl::MacroProps &macros, const Locale &locale);
 
     LocalizedNumberFormatter(impl::MacroProps &&macros, const Locale &locale);
+
+    void clear();
 
     void lnfMoveHelper(LocalizedNumberFormatter&& src);
 
@@ -2430,7 +2485,7 @@ class U_I18N_API FormattedNumber : public UMemory {
      * @draft ICU 62
      * @see Appendable
      */
-    Appendable &appendTo(Appendable &appendable, UErrorCode& status);
+    Appendable &appendTo(Appendable &appendable, UErrorCode& status) const;
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -2457,9 +2512,9 @@ class U_I18N_API FormattedNumber : public UMemory {
 #endif  /* U_HIDE_DEPRECATED_API */
 
     /**
-     * Determines the start and end indices of the next occurrence of the given <em>field</em> in the
-     * output string. This allows you to determine the locations of, for example, the integer part,
-     * fraction part, or symbols.
+     * Determines the start (inclusive) and end (exclusive) indices of the next occurrence of the given
+     * <em>field</em> in the output string. This allows you to determine the locations of, for example,
+     * the integer part, fraction part, or symbols.
      *
      * If a field occurs just once, calling this method will find that occurrence and return it. If a
      * field occurs multiple times, this method may be called repeatedly with the following pattern:
@@ -2478,7 +2533,7 @@ class U_I18N_API FormattedNumber : public UMemory {
      *            Input+output variable. On input, the "field" property determines which field to look
      *            up, and the "beginIndex" and "endIndex" properties determine where to begin the search.
      *            On output, the "beginIndex" is set to the beginning of the first occurrence of the
-     *            field with either begin or end indices after the input indices, "endIndex" is set to
+     *            field with either begin or end indices after the input indices; "endIndex" is set to
      *            the end of that occurrence of the field (exclusive index). If a field position is not
      *            found, the method returns FALSE and the FieldPosition may or may not be changed.
      * @param status
@@ -2537,7 +2592,7 @@ class U_I18N_API FormattedNumber : public UMemory {
      */
     void getAllFieldPositionsImpl(FieldPositionIteratorHandler& fpih, UErrorCode& status) const;
 
-#endif
+#endif  /* U_HIDE_INTERNAL_API */
 
     /**
      * Copying not supported; use move constructor instead.

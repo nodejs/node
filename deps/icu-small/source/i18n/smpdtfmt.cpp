@@ -244,9 +244,9 @@ SimpleDateFormat::NSOverride::~NSOverride() {
 void SimpleDateFormat::NSOverride::free() {
     NSOverride *cur = this;
     while (cur) {
-        NSOverride *next = cur->next;
+        NSOverride *next_temp = cur->next;
         delete cur;
-        cur = next;
+        cur = next_temp;
     }
 }
 
@@ -1304,15 +1304,15 @@ SimpleDateFormat::processOverrideString(const Locale &locale, const UnicodeStrin
 
         int32_t nsNameHash = nsName.hashCode();
         // See if the numbering system is in the override list, if not, then add it.
-        NSOverride *cur = overrideList;
+        NSOverride *curr = overrideList;
         const SharedNumberFormat *snf = NULL;
         UBool found = FALSE;
-        while ( cur && !found ) {
-            if ( cur->hash == nsNameHash ) {
-                snf = cur->snf;
+        while ( curr && !found ) {
+            if ( curr->hash == nsNameHash ) {
+                snf = curr->snf;
                 found = TRUE;
             }
-            cur = cur->next;
+            curr = curr->next;
         }
 
         if (!found) {
@@ -1824,14 +1824,14 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
             // Stealing am/pm value to use as our array index.
             // It works out: am/midnight are both 0, pm/noon are both 1,
             // 12 am is 12 midnight, and 12 pm is 12 noon.
-            int32_t value = cal.get(UCAL_AM_PM, status);
+            int32_t val = cal.get(UCAL_AM_PM, status);
 
             if (count <= 3) {
-                toAppend = &fSymbols->fAbbreviatedDayPeriods[value];
+                toAppend = &fSymbols->fAbbreviatedDayPeriods[val];
             } else if (count == 4 || count > 5) {
-                toAppend = &fSymbols->fWideDayPeriods[value];
+                toAppend = &fSymbols->fWideDayPeriods[val];
             } else { // count == 5
-                toAppend = &fSymbols->fNarrowDayPeriods[value];
+                toAppend = &fSymbols->fNarrowDayPeriods[val];
             }
         }
 
@@ -2281,10 +2281,10 @@ SimpleDateFormat::parse(const UnicodeString& text, Calendar& cal, ParsePosition&
 
                     if (i+1 < fPattern.length()) {
                         // move to next pattern character
-                        UChar ch = fPattern.charAt(i+1);
+                        UChar c = fPattern.charAt(i+1);
 
                         // check for whitespace
-                        if (PatternProps::isWhiteSpace(ch)) {
+                        if (PatternProps::isWhiteSpace(c)) {
                             i++;
                             // Advance over run in pattern
                             while ((i+1)<fPattern.length() &&
@@ -3162,8 +3162,8 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, UC
             if (!strcmp(cal.getType(),"hebrew")) {
                 HebrewCalendar *hc = (HebrewCalendar*)&cal;
                 if (cal.isSet(UCAL_YEAR)) {
-                   UErrorCode status = U_ZERO_ERROR;
-                   if (!hc->isLeapYear(hc->get(UCAL_YEAR,status)) && value >= 6) {
+                   UErrorCode monthStatus = U_ZERO_ERROR;
+                   if (!hc->isLeapYear(hc->get(UCAL_YEAR, monthStatus)) && value >= 6) {
                        cal.set(UCAL_MONTH, value);
                    } else {
                        cal.set(UCAL_MONTH, value - 1);
@@ -3571,21 +3571,21 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, UC
             static const UChar alt_sep = DateFormatSymbols::ALTERNATE_TIME_SEPARATOR;
 
             // Try matching a time separator.
-            int32_t count = 1;
+            int32_t count_sep = 1;
             UnicodeString data[3];
             fSymbols->getTimeSeparatorString(data[0]);
 
             // Add the default, if different from the locale.
             if (data[0].compare(&def_sep, 1) != 0) {
-                data[count++].setTo(def_sep);
+                data[count_sep++].setTo(def_sep);
             }
 
             // If lenient, add also the alternate, if different from the locale.
             if (isLenient() && data[0].compare(&alt_sep, 1) != 0) {
-                data[count++].setTo(alt_sep);
+                data[count_sep++].setTo(alt_sep);
             }
 
-            return matchString(text, start, UCAL_FIELD_COUNT /* => nothing to set */, data, count, NULL, cal);
+            return matchString(text, start, UCAL_FIELD_COUNT /* => nothing to set */, data, count_sep, NULL, cal);
         }
 
     case UDAT_AM_PM_MIDNIGHT_NOON_FIELD:
@@ -3674,7 +3674,7 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, UC
     }
     parseInt(*src, number, pos, allowNegative,currentNumberFormat);
     if (pos.getIndex() != parseStart) {
-        int32_t value = number.getLong();
+        int32_t val = number.getLong();
 
         // Don't need suffix processing here (as in number processing at the beginning of the function);
         // the new fields being handled as numeric values (month, weekdays, quarters) should not have suffixes.
@@ -3682,7 +3682,7 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, UC
         if (!getBooleanAttribute(UDAT_PARSE_ALLOW_NUMERIC, status)) {
             // Check the range of the value
             int32_t bias = gFieldRangeBias[patternCharIndex];
-            if (bias >= 0 && (value > cal.getMaximum(field) + bias || value < cal.getMinimum(field) + bias)) {
+            if (bias >= 0 && (val > cal.getMaximum(field) + bias || val < cal.getMinimum(field) + bias)) {
                 return -start;
             }
         }
@@ -3696,35 +3696,35 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, UC
             if (!strcmp(cal.getType(),"hebrew")) {
                 HebrewCalendar *hc = (HebrewCalendar*)&cal;
                 if (cal.isSet(UCAL_YEAR)) {
-                   UErrorCode status = U_ZERO_ERROR;
-                   if (!hc->isLeapYear(hc->get(UCAL_YEAR,status)) && value >= 6) {
-                       cal.set(UCAL_MONTH, value);
+                   UErrorCode monthStatus = U_ZERO_ERROR;
+                   if (!hc->isLeapYear(hc->get(UCAL_YEAR, monthStatus)) && val >= 6) {
+                       cal.set(UCAL_MONTH, val);
                    } else {
-                       cal.set(UCAL_MONTH, value - 1);
+                       cal.set(UCAL_MONTH, val - 1);
                    }
                 } else {
-                    saveHebrewMonth = value;
+                    saveHebrewMonth = val;
                 }
             } else {
-                cal.set(UCAL_MONTH, value - 1);
+                cal.set(UCAL_MONTH, val - 1);
             }
             break;
         case UDAT_STANDALONE_MONTH_FIELD:
-            cal.set(UCAL_MONTH, value - 1);
+            cal.set(UCAL_MONTH, val - 1);
             break;
         case UDAT_DOW_LOCAL_FIELD:
         case UDAT_STANDALONE_DAY_FIELD:
-            cal.set(UCAL_DOW_LOCAL, value);
+            cal.set(UCAL_DOW_LOCAL, val);
             break;
         case UDAT_QUARTER_FIELD:
         case UDAT_STANDALONE_QUARTER_FIELD:
-             cal.set(UCAL_MONTH, (value - 1) * 3);
+             cal.set(UCAL_MONTH, (val - 1) * 3);
              break;
         case UDAT_RELATED_YEAR_FIELD:
-            cal.setRelatedYear(value);
+            cal.setRelatedYear(val);
             break;
         default:
-            cal.set(field, value);
+            cal.set(field, val);
             break;
         }
         return pos.getIndex();
@@ -3971,7 +3971,7 @@ SimpleDateFormat::setContext(UDisplayContext value, UErrorCode& status)
     if (U_SUCCESS(status)) {
         if ( fCapitalizationBrkIter == NULL && (value==UDISPCTX_CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE ||
                 value==UDISPCTX_CAPITALIZATION_FOR_UI_LIST_OR_MENU || value==UDISPCTX_CAPITALIZATION_FOR_STANDALONE) ) {
-            UErrorCode status = U_ZERO_ERROR;
+            status = U_ZERO_ERROR;
             fCapitalizationBrkIter = BreakIterator::createSentenceInstance(fLocale, status);
             if (U_FAILURE(status)) {
                 delete fCapitalizationBrkIter;

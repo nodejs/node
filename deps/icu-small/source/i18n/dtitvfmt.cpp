@@ -877,8 +877,7 @@ DateIntervalFormat::getDateTimeSkeleton(const UnicodeString& skeleton,
         if ( MCount < 3 ) {
             normalizedDateSkeleton.append(CAP_M);
         } else {
-            int32_t i;
-            for ( i = 0; i < MCount && i < MAX_M_COUNT; ++i ) {
+            for ( int32_t j = 0; j < MCount && j < MAX_M_COUNT; ++j) {
                  normalizedDateSkeleton.append(CAP_M);
             }
         }
@@ -887,8 +886,7 @@ DateIntervalFormat::getDateTimeSkeleton(const UnicodeString& skeleton,
         if ( ECount <= 3 ) {
             normalizedDateSkeleton.append(CAP_E);
         } else {
-            int32_t i;
-            for ( i = 0; i < ECount && i < MAX_E_COUNT; ++i ) {
+            for ( int32_t j = 0; j < ECount && j < MAX_E_COUNT; ++j ) {
                  normalizedDateSkeleton.append(CAP_E);
             }
         }

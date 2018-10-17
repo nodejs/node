@@ -30,30 +30,31 @@ U_NAMESPACE_BEGIN
 class PluralRules;
 
 /**
- * <p><strong>IMPORTANT:</strong> New users are strongly encouraged to see if
+ * **IMPORTANT:** New users are strongly encouraged to see if
  * numberformatter.h fits their use case.  Although not deprecated, this header
  * is provided for backwards compatibility only.
- * <hr/>
+ *
+ * -----------------------------------------------------------------------------
  *
  * The CompactDecimalFormat produces abbreviated numbers, suitable for display in
  * environments will limited real estate. For example, 'Hits: 1.2B' instead of
  * 'Hits: 1,200,000,000'. The format will be appropriate for the given language,
  * such as "1,2 Mrd." for German.
- * <p>
+ *
  * For numbers under 1000 trillion (under 10^15, such as 123,456,789,012,345),
  * the result will be short for supported languages. However, the result may
  * sometimes exceed 7 characters, such as when there are combining marks or thin
  * characters. In such cases, the visual width in fonts should still be short.
- * <p>
+ *
  * By default, there are 3 significant digits. After creation, if more than
  * three significant digits are set (with setMaximumSignificantDigits), or if a
  * fixed number of digits are set (with setMaximumIntegerDigits or
  * setMaximumFractionDigits), then result may be wider.
- * <p>
+ *
  * At this time, parsing is not supported, and will produce a U_UNSUPPORTED_ERROR.
  * Resetting the pattern prefixes or suffixes is not supported; the method calls
  * are ignored.
- * <p>
+ *
  * @stable ICU 51
  */
 class U_I18N_API CompactDecimalFormat : public DecimalFormat {
@@ -61,9 +62,9 @@ public:
 
      /**
       * Returns a compact decimal instance for specified locale.
-     * <p>
-     * <strong>NOTE:</strong> New users are strongly encouraged to use
-     * {@link NumberFormatter} instead of NumberFormat.
+      *
+      * **NOTE:** New users are strongly encouraged to use
+      * `number::NumberFormatter` instead of NumberFormat.
       * @param inLocale the given locale.
       * @param style whether to use short or long style.
       * @param status error code returned  here.

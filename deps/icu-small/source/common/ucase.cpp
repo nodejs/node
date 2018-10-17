@@ -270,6 +270,7 @@ ucase_addCaseClosure(UChar32 c, const USetAdder *sa) {
             }
         }
         if(HAS_SLOT(excWord, UCASE_EXC_DELTA)) {
+            pe=pe0;
             int32_t delta;
             GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
             sa->add(sa->set, (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta);
@@ -1167,7 +1168,7 @@ ucase_toFullLower(UChar32 c,
 
         if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_IS_UPPER_OR_TITLE(props)) {
             int32_t delta;
-            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe2, delta);
             return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
         }
         if(HAS_SLOT(excWord, UCASE_EXC_LOWER)) {
@@ -1261,7 +1262,7 @@ toUpperOrTitle(UChar32 c,
 
         if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_GET_TYPE(props)==UCASE_LOWER) {
             int32_t delta;
-            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe2, delta);
             return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
         }
         if(!upperNotTitle && HAS_SLOT(excWord, UCASE_EXC_TITLE)) {
@@ -1469,7 +1470,7 @@ ucase_toFullFolding(UChar32 c,
         }
         if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_IS_UPPER_OR_TITLE(props)) {
             int32_t delta;
-            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe2, delta);
             return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
         }
         if(HAS_SLOT(excWord, UCASE_EXC_FOLD)) {

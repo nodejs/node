@@ -16,14 +16,19 @@
 *   created by: Umesh P. Nair
 */
 
+#include "cmemory.h"
+#include "unicode/fpositer.h"  // FieldPositionIterator
 #include "unicode/listformatter.h"
 #include "unicode/simpleformatter.h"
+#include "unicode/ulistformatter.h"
+#include "fphdlimp.h"
 #include "mutex.h"
 #include "hash.h"
 #include "cstring.h"
+#include "uarrsort.h"
 #include "ulocimp.h"
 #include "charstr.h"
-#include "ucln_cmn.h"
+#include "ucln_in.h"
 #include "uresimp.h"
 #include "resource.h"
 
@@ -61,14 +66,14 @@ ListFormatInternal(const ListFormatInternal &other) :
 
 
 
-static Hashtable* listPatternHash = NULL;
+static Hashtable* listPatternHash = nullptr;
 static UMutex listFormatterMutex = U_MUTEX_INITIALIZER;
 static const char STANDARD_STYLE[] = "standard";
 
 U_CDECL_BEGIN
 static UBool U_CALLCONV uprv_listformatter_cleanup() {
     delete listPatternHash;
-    listPatternHash = NULL;
+    listPatternHash = nullptr;
     return TRUE;
 }
 
@@ -81,7 +86,7 @@ U_CDECL_END
 
 ListFormatter::ListFormatter(const ListFormatter& other) :
         owned(other.owned), data(other.data) {
-    if (other.owned != NULL) {
+    if (other.owned != nullptr) {
         owned = new ListFormatInternal(*other.owned);
         data = owned;
     }
@@ -96,7 +101,7 @@ ListFormatter& ListFormatter::operator=(const ListFormatter& other) {
         owned = new ListFormatInternal(*other.owned);
         data = owned;
     } else {
-        owned = NULL;
+        owned = nullptr;
         data = other.data;
     }
     return *this;
@@ -108,53 +113,53 @@ void ListFormatter::initializeHash(UErrorCode& errorCode) {
     }
 
     listPatternHash = new Hashtable();
-    if (listPatternHash == NULL) {
+    if (listPatternHash == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
 
     listPatternHash->setValueDeleter(uprv_deleteListFormatInternal);
-    ucln_common_registerCleanup(UCLN_COMMON_LIST_FORMATTER, uprv_listformatter_cleanup);
+    ucln_i18n_registerCleanup(UCLN_I18N_LIST_FORMATTER, uprv_listformatter_cleanup);
 
 }
 
 const ListFormatInternal* ListFormatter::getListFormatInternal(
         const Locale& locale, const char *style, UErrorCode& errorCode) {
     if (U_FAILURE(errorCode)) {
-        return NULL;
+        return nullptr;
     }
     CharString keyBuffer(locale.getName(), errorCode);
     keyBuffer.append(':', errorCode).append(style, errorCode);
     UnicodeString key(keyBuffer.data(), -1, US_INV);
-    ListFormatInternal* result = NULL;
+    ListFormatInternal* result = nullptr;
     {
         Mutex m(&listFormatterMutex);
-        if (listPatternHash == NULL) {
+        if (listPatternHash == nullptr) {
             initializeHash(errorCode);
             if (U_FAILURE(errorCode)) {
-                return NULL;
+                return nullptr;
             }
         }
         result = static_cast<ListFormatInternal*>(listPatternHash->get(key));
     }
-    if (result != NULL) {
+    if (result != nullptr) {
         return result;
     }
     result = loadListFormatInternal(locale, style, errorCode);
     if (U_FAILURE(errorCode)) {
-        return NULL;
+        return nullptr;
     }
 
     {
         Mutex m(&listFormatterMutex);
         ListFormatInternal* temp = static_cast<ListFormatInternal*>(listPatternHash->get(key));
-        if (temp != NULL) {
+        if (temp != nullptr) {
             delete result;
             result = temp;
         } else {
             listPatternHash->put(key, result, errorCode);
             if (U_FAILURE(errorCode)) {
-                return NULL;
+                return nullptr;
             }
         }
     }
@@ -235,11 +240,11 @@ ListFormatter::ListPatternsSink::~ListPatternsSink() {}
 
 ListFormatInternal* ListFormatter::loadListFormatInternal(
         const Locale& locale, const char * style, UErrorCode& errorCode) {
-    UResourceBundle* rb = ures_open(NULL, locale.getName(), &errorCode);
+    UResourceBundle* rb = ures_open(nullptr, locale.getName(), &errorCode);
     rb = ures_getByKeyWithFallback(rb, "listPattern", rb, &errorCode);
     if (U_FAILURE(errorCode)) {
         ures_close(rb);
-        return NULL;
+        return nullptr;
     }
     ListFormatter::ListPatternsSink sink;
     char currentStyle[kStyleLenMax+1];
@@ -255,20 +260,20 @@ ListFormatInternal* ListFormatter::loadListFormatInternal(
     }
     ures_close(rb);
     if (U_FAILURE(errorCode)) {
-        return NULL;
+        return nullptr;
     }
     if (sink.two.isEmpty() || sink.start.isEmpty() || sink.middle.isEmpty() || sink.end.isEmpty()) {
         errorCode = U_MISSING_RESOURCE_ERROR;
-        return NULL;
+        return nullptr;
     }
     ListFormatInternal* result = new ListFormatInternal(sink.two, sink.start, sink.middle, sink.end, errorCode);
-    if (result == NULL) {
+    if (result == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
     if (U_FAILURE(errorCode)) {
         delete result;
-        return NULL;
+        return nullptr;
     }
     return result;
 }
@@ -283,15 +288,14 @@ ListFormatter* ListFormatter::createInstance(const Locale& locale, UErrorCode& e
 }
 
 ListFormatter* ListFormatter::createInstance(const Locale& locale, const char *style, UErrorCode& errorCode) {
-    Locale tempLocale = locale;
-    const ListFormatInternal* listFormatInternal = getListFormatInternal(tempLocale, style, errorCode);
+    const ListFormatInternal* listFormatInternal = getListFormatInternal(locale, style, errorCode);
     if (U_FAILURE(errorCode)) {
-        return NULL;
+        return nullptr;
     }
     ListFormatter* p = new ListFormatter(listFormatInternal);
-    if (p == NULL) {
+    if (p == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
     return p;
 }
@@ -301,7 +305,7 @@ ListFormatter::ListFormatter(const ListFormatData& listFormatData, UErrorCode &e
     data = owned;
 }
 
-ListFormatter::ListFormatter(const ListFormatInternal* listFormatterInternal) : owned(NULL), data(listFormatterInternal) {
+ListFormatter::ListFormatter(const ListFormatInternal* listFormatterInternal) : owned(nullptr), data(listFormatterInternal) {
 }
 
 ListFormatter::~ListFormatter() {
@@ -323,6 +327,8 @@ static void joinStringsAndReplace(
         UnicodeString &result,
         UBool recordOffset,
         int32_t &offset,
+        int32_t *offsetFirst,
+        int32_t *offsetSecond,
         UErrorCode& errorCode) {
     if (U_FAILURE(errorCode)) {
         return;
@@ -348,6 +354,8 @@ static void joinStringsAndReplace(
     } else if (offset >= 0) {
         offset += offsets[0];
     }
+    if (offsetFirst != nullptr) *offsetFirst = offsets[0];
+    if (offsetSecond != nullptr) *offsetSecond = offsets[1];
 }
 
 UnicodeString& ListFormatter::format(
@@ -359,6 +367,19 @@ UnicodeString& ListFormatter::format(
     return format(items, nItems, appendTo, -1, offset, errorCode);
 }
 
+#if !UCONFIG_NO_FORMATTING
+UnicodeString& ListFormatter::format(
+        const UnicodeString items[],
+        int32_t nItems,
+        UnicodeString & appendTo,
+        FieldPositionIterator* posIter,
+        UErrorCode& errorCode) const {
+  int32_t offset;
+  FieldPositionIteratorHandler handler(posIter, errorCode);
+  return format_(items, nItems, appendTo, -1, offset, &handler, errorCode);
+};
+#endif
+
 UnicodeString& ListFormatter::format(
         const UnicodeString items[],
         int32_t nItems,
@@ -366,11 +387,23 @@ UnicodeString& ListFormatter::format(
         int32_t index,
         int32_t &offset,
         UErrorCode& errorCode) const {
+  return format_(items, nItems, appendTo, index, offset, nullptr, errorCode);
+}
+
+UnicodeString& ListFormatter::format_(
+        const UnicodeString items[],
+        int32_t nItems,
+        UnicodeString& appendTo,
+        int32_t index,
+        int32_t &offset,
+        FieldPositionHandler* handler,
+        UErrorCode& errorCode) const {
+#if !UCONFIG_NO_FORMATTING
     offset = -1;
     if (U_FAILURE(errorCode)) {
         return appendTo;
     }
-    if (data == NULL) {
+    if (data == nullptr) {
         errorCode = U_INVALID_STATE_ERROR;
         return appendTo;
     }
@@ -382,6 +415,11 @@ UnicodeString& ListFormatter::format(
         if (index == 0) {
             offset = appendTo.length();
         }
+        if (handler != nullptr) {
+            handler->addAttribute(ULISTFMT_ELEMENT_FIELD,
+                                  appendTo.length(),
+                                  appendTo.length() + items[0].length());
+        }
         appendTo.append(items[0]);
         return appendTo;
     }
@@ -389,6 +427,12 @@ UnicodeString& ListFormatter::format(
     if (index == 0) {
         offset = 0;
     }
+    int32_t offsetFirst;
+    int32_t offsetSecond;
+    int32_t prefixLength = 0;
+    // for n items, there are 2 * (n + 1) boundary including 0 and the upper
+    // edge.
+    MaybeStackArray<int32_t, 10> offsets((handler != nullptr) ? 2 * (nItems + 1): 0);
     joinStringsAndReplace(
             nItems == 2 ? data->twoPattern : data->startPattern,
             result,
@@ -396,7 +440,14 @@ UnicodeString& ListFormatter::format(
             result,
             index == 1,
             offset,
+            &offsetFirst,
+            &offsetSecond,
             errorCode);
+    if (handler != nullptr) {
+        offsets[0] = 0;
+        prefixLength += offsetFirst;
+        offsets[1] = offsetSecond - prefixLength;
+    }
     if (nItems > 2) {
         for (int32_t i = 2; i < nItems - 1; ++i) {
              joinStringsAndReplace(
@@ -406,7 +457,13 @@ UnicodeString& ListFormatter::format(
                      result,
                      index == i,
                      offset,
+                     &offsetFirst,
+                     &offsetSecond,
                      errorCode);
+            if (handler != nullptr) {
+                prefixLength += offsetFirst;
+                offsets[i] = offsetSecond - prefixLength;
+            }
         }
         joinStringsAndReplace(
                 data->endPattern,
@@ -415,7 +472,45 @@ UnicodeString& ListFormatter::format(
                 result,
                 index == nItems - 1,
                 offset,
+                &offsetFirst,
+                &offsetSecond,
                 errorCode);
+        if (handler != nullptr) {
+            prefixLength += offsetFirst;
+            offsets[nItems - 1] = offsetSecond - prefixLength;
+        }
+    }
+    if (handler != nullptr) {
+        // If there are already some data in appendTo, we need to adjust the index
+        // by shifting that lenght while insert into handler.
+        int32_t shift = appendTo.length() + prefixLength;
+        // Output the ULISTFMT_ELEMENT_FIELD in the order of the input elements
+        for (int32_t i = 0; i < nItems; ++i) {
+            offsets[i + nItems] = offsets[i] + items[i].length() + shift;
+            offsets[i] += shift;
+            handler->addAttribute(
+                ULISTFMT_ELEMENT_FIELD,  // id
+                offsets[i],  // index
+                offsets[i + nItems]);  // limit
+        }
+        // The locale pattern may reorder the items (such as in ur-IN locale),
+        // so we cannot assume the array is in accendning order.
+        // To handle the edging case, just insert the two ends into the array
+        // and sort. Then we output ULISTFMT_LITERAL_FIELD if the indecies
+        // between the even and odd position are not the same in the sorted array.
+        offsets[2 * nItems] = shift - prefixLength;
+        offsets[2 * nItems + 1] = result.length() + shift - prefixLength;
+        uprv_sortArray(offsets.getAlias(), 2 * (nItems + 1), sizeof(int32_t),
+               uprv_int32Comparator, nullptr,
+               false, &errorCode);
+        for (int32_t i = 0; i <= nItems; ++i) {
+          if (offsets[i * 2] != offsets[i * 2 + 1]) {
+            handler->addAttribute(
+                ULISTFMT_LITERAL_FIELD,  // id
+                offsets[i * 2],  // index
+                offsets[i * 2 + 1]);  // limit
+          }
+        }
     }
     if (U_SUCCESS(errorCode)) {
         if (offset >= 0) {
@@ -423,6 +518,7 @@ UnicodeString& ListFormatter::format(
         }
         appendTo += result;
     }
+#endif
     return appendTo;
 }
 

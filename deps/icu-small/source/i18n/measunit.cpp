@@ -39,23 +39,23 @@ static const int32_t gOffsets[] = {
     2,
     7,
     16,
-    20,
-    24,
-    321,
-    331,
-    342,
-    346,
-    352,
-    356,
-    376,
-    377,
-    388,
-    391,
-    397,
+    22,
+    26,
+    325,
+    336,
+    347,
+    351,
+    357,
+    361,
+    381,
+    382,
+    393,
+    396,
     402,
-    406,
-    410,
-    435
+    408,
+    412,
+    416,
+    441
 };
 
 static const int32_t gIndexes[] = {
@@ -63,23 +63,23 @@ static const int32_t gIndexes[] = {
     2,
     7,
     16,
-    20,
-    24,
-    24,
-    34,
-    45,
-    49,
-    55,
-    59,
-    79,
-    80,
-    91,
+    22,
+    26,
+    26,
+    37,
+    48,
+    52,
+    58,
+    62,
+    82,
+    83,
     94,
-    100,
-    105,
+    97,
+    103,
     109,
     113,
-    138
+    117,
+    142
 };
 
 // Must be sorted alphabetically.
@@ -128,6 +128,8 @@ static const char * const gSubTypes[] = {
     "milligram-per-deciliter",
     "millimole-per-liter",
     "part-per-million",
+    "percent",
+    "permille",
     "liter-per-100kilometers",
     "liter-per-kilometer",
     "mile-per-gallon",
@@ -388,9 +390,11 @@ static const char * const gSubTypes[] = {
     "UYN",
     "UYP",
     "UYU",
+    "UYW",
     "UZS",
     "VEB",
     "VEF",
+    "VES",
     "VNC",
     "VND",
     "VUV",
@@ -437,6 +441,7 @@ static const char * const gSubTypes[] = {
     "kilobyte",
     "megabit",
     "megabyte",
+    "petabyte",
     "terabit",
     "terabyte",
     "century",
@@ -505,6 +510,7 @@ static const char * const gSubTypes[] = {
     "megawatt",
     "milliwatt",
     "watt",
+    "atmosphere",
     "hectopascal",
     "inch-hg",
     "millibar",
@@ -547,14 +553,14 @@ static const char * const gSubTypes[] = {
 
 // Must be sorted by first value and then second value.
 static int32_t unitPerUnitToSingleUnit[][4] = {
-        {363, 333, 17, 0},
-        {365, 339, 17, 2},
-        {367, 333, 17, 3},
-        {367, 424, 4, 2},
-        {367, 425, 4, 3},
-        {382, 422, 3, 1},
-        {385, 11, 16, 4},
-        {427, 363, 4, 1}
+        {368, 338, 17, 0},
+        {370, 344, 17, 2},
+        {372, 338, 17, 3},
+        {372, 430, 4, 2},
+        {372, 431, 4, 3},
+        {387, 428, 3, 1},
+        {390, 11, 16, 5},
+        {433, 368, 4, 1}
 };
 
 // Shortcuts to the base unit in order to make the default constructor fast
@@ -641,6 +647,14 @@ MeasureUnit *MeasureUnit::createPartPerMillion(UErrorCode &status) {
     return MeasureUnit::create(3, 3, status);
 }
 
+MeasureUnit *MeasureUnit::createPercent(UErrorCode &status) {
+    return MeasureUnit::create(3, 4, status);
+}
+
+MeasureUnit *MeasureUnit::createPermille(UErrorCode &status) {
+    return MeasureUnit::create(3, 5, status);
+}
+
 MeasureUnit *MeasureUnit::createLiterPer100Kilometers(UErrorCode &status) {
     return MeasureUnit::create(4, 0, status);
 }
@@ -689,12 +703,16 @@ MeasureUnit *MeasureUnit::createMegabyte(UErrorCode &status) {
     return MeasureUnit::create(6, 7, status);
 }
 
-MeasureUnit *MeasureUnit::createTerabit(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createPetabyte(UErrorCode &status) {
     return MeasureUnit::create(6, 8, status);
 }
 
-MeasureUnit *MeasureUnit::createTerabyte(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createTerabit(UErrorCode &status) {
     return MeasureUnit::create(6, 9, status);
+}
+
+MeasureUnit *MeasureUnit::createTerabyte(UErrorCode &status) {
+    return MeasureUnit::create(6, 10, status);
 }
 
 MeasureUnit *MeasureUnit::createCentury(UErrorCode &status) {
@@ -949,24 +967,28 @@ MeasureUnit *MeasureUnit::createWatt(UErrorCode &status) {
     return MeasureUnit::create(15, 5, status);
 }
 
-MeasureUnit *MeasureUnit::createHectopascal(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createAtmosphere(UErrorCode &status) {
     return MeasureUnit::create(16, 0, status);
 }
 
-MeasureUnit *MeasureUnit::createInchHg(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createHectopascal(UErrorCode &status) {
     return MeasureUnit::create(16, 1, status);
 }
 
-MeasureUnit *MeasureUnit::createMillibar(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createInchHg(UErrorCode &status) {
     return MeasureUnit::create(16, 2, status);
 }
 
-MeasureUnit *MeasureUnit::createMillimeterOfMercury(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMillibar(UErrorCode &status) {
     return MeasureUnit::create(16, 3, status);
 }
 
-MeasureUnit *MeasureUnit::createPoundPerSquareInch(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMillimeterOfMercury(UErrorCode &status) {
     return MeasureUnit::create(16, 4, status);
+}
+
+MeasureUnit *MeasureUnit::createPoundPerSquareInch(UErrorCode &status) {
+    return MeasureUnit::create(16, 5, status);
 }
 
 MeasureUnit *MeasureUnit::createKilometerPerHour(UErrorCode &status) {

@@ -1330,12 +1330,12 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
             int32_t passNumber = 1;
             for (int32_t i = 0; U_SUCCESS(status) && i < entry->u.dataVector->size(); i++) {
                 // TODO: Should passNumber be turned into a decimal-string representation (1 -> "1")?
-                Transliterator* t = new RuleBasedTransliterator(UnicodeString(CompoundTransliterator::PASS_STRING) + UnicodeString(passNumber++),
+                Transliterator* tl = new RuleBasedTransliterator(UnicodeString(CompoundTransliterator::PASS_STRING) + UnicodeString(passNumber++),
                     (TransliterationRuleData*)(entry->u.dataVector->elementAt(i)), FALSE);
-                if (t == 0)
+                if (tl == 0)
                     status = U_MEMORY_ALLOCATION_ERROR;
                 else
-                    rbts->addElement(t, status);
+                    rbts->addElement(tl, status);
             }
             if (U_FAILURE(status)) {
                 delete rbts;

@@ -16,6 +16,7 @@
 #include "uassert.h"
 #include "unicode/platform.h"
 #include "unicode/uniset.h"
+#include "standardplural.h"
 
 U_NAMESPACE_BEGIN namespace number {
 namespace impl {
@@ -45,6 +46,7 @@ class Modifier;
 class MutablePatternModifier;
 class DecimalQuantity;
 class NumberStringBuilder;
+class ModifierStore;
 struct MicroProps;
 
 
@@ -127,12 +129,13 @@ class U_I18N_API AffixPatternProvider {
     virtual bool hasBody() const = 0;
 };
 
+
 /**
  * A Modifier is an object that can be passed through the formatting pipeline until it is finally applied to the string
  * builder. A Modifier usually contains a prefix and a suffix that are applied, but it could contain something else,
  * like a {@link com.ibm.icu.text.SimpleFormatter} pattern.
  *
- * A Modifier is usually immutable, except in cases such as {@link MurkyModifier}, which are mutable for performance
+ * A Modifier is usually immutable, except in cases such as {@link MutablePatternModifier}, which are mutable for performance
  * reasons.
  *
  * Exported as U_I18N_API because it is a base class for other exported types
@@ -162,12 +165,12 @@ class U_I18N_API Modifier {
      *
      * @return The number of characters (UTF-16 code units) in the prefix.
      */
-    virtual int32_t getPrefixLength(UErrorCode& status) const = 0;
+    virtual int32_t getPrefixLength() const = 0;
 
     /**
      * Returns the number of code points in the modifier, prefix plus suffix.
      */
-    virtual int32_t getCodePointCount(UErrorCode& status) const = 0;
+    virtual int32_t getCodePointCount() const = 0;
 
     /**
      * Whether this modifier is strong. If a modifier is strong, it should always be applied immediately and not allowed
@@ -177,7 +180,56 @@ class U_I18N_API Modifier {
      * @return Whether the modifier is strong.
      */
     virtual bool isStrong() const = 0;
+
+    /**
+     * Whether the modifier contains at least one occurrence of the given field.
+     */
+    virtual bool containsField(UNumberFormatFields field) const = 0;
+
+    /**
+     * A fill-in for getParameters(). obj will always be set; if non-null, the other
+     * two fields are also safe to read.
+     */
+    struct U_I18N_API Parameters {
+        const ModifierStore* obj = nullptr;
+        int8_t signum;
+        StandardPlural::Form plural;
+
+        Parameters();
+        Parameters(const ModifierStore* _obj, int8_t _signum, StandardPlural::Form _plural);
+    };
+
+    /**
+     * Gets a set of "parameters" for this Modifier.
+     *
+     * TODO: Make this return a `const Parameters*` more like Java?
+     */
+    virtual void getParameters(Parameters& output) const = 0;
+
+    /**
+     * Returns whether this Modifier is *semantically equivalent* to the other Modifier;
+     * in many cases, this is the same as equal, but parameters should be ignored.
+     */
+    virtual bool semanticallyEquivalent(const Modifier& other) const = 0;
 };
+
+
+/**
+ * This is *not* a modifier; rather, it is an object that can return modifiers
+ * based on given parameters.
+ *
+ * Exported as U_I18N_API because it is a base class for other exported types.
+ */
+class U_I18N_API ModifierStore {
+  public:
+    virtual ~ModifierStore();
+
+    /**
+     * Returns a Modifier with the given parameters (best-effort).
+     */
+    virtual const Modifier* getModifier(int8_t signum, StandardPlural::Form plural) const = 0;
+};
+
 
 /**
  * This interface is used when all number formatting settings, including the locale, are known, except for the quantity

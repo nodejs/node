@@ -313,7 +313,6 @@ enum URBNFRuleSetTag {
  *     <td>The rule for an IEEE 754 NaN (not a number).</td>
  *   </tr>
  *   <tr>
- *   <tr>
  *     <td><em>nothing</em></td>
  *     <td>If the rule's rule descriptor is left out, the base value is one plus the
  *     preceding rule's base value (or zero if this is the first rule in the list) in a normal
@@ -1013,14 +1012,14 @@ public:
     /**
      * Get the rounding mode.
      * @return A rounding mode
-     * @draft ICU 60
+     * @stable ICU 60
      */
     virtual ERoundingMode getRoundingMode(void) const;
 
     /**
      * Set the rounding mode.
      * @param roundingMode A rounding mode
-     * @draft ICU 60
+     * @stable ICU 60
      */
     virtual void setRoundingMode(ERoundingMode roundingMode);
 
@@ -1095,7 +1094,7 @@ private:
     void format(double number, NFRuleSet& rs, UnicodeString& toAppendTo, UErrorCode& status) const;
 
 private:
-    NFRuleSet **ruleSets;
+    NFRuleSet **fRuleSets;
     UnicodeString* ruleSetDescriptions;
     int32_t numRuleSets;
     NFRuleSet *defaultRuleSet;
@@ -1104,7 +1103,7 @@ private:
     DecimalFormatSymbols* decimalFormatSymbols;
     NFRule *defaultInfinityRule;
     NFRule *defaultNaNRule;
-    ERoundingMode roundingMode;
+    ERoundingMode fRoundingMode;
     UBool lenient;
     UnicodeString* lenientParseRules;
     LocalizationInfo* localizations;

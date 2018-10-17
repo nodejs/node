@@ -1654,8 +1654,8 @@ int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
         } else if (UTEXT_USES_U16(m->fInputText)) {
             srcIdx = (int32_t)nativeIdx;
         } else {
-            UErrorCode status = U_ZERO_ERROR;
-            srcIdx = utext_extract(m->fInputText, 0, nativeIdx, NULL, 0, &status);
+            UErrorCode newStatus = U_ZERO_ERROR;
+            srcIdx = utext_extract(m->fInputText, 0, nativeIdx, NULL, 0, &newStatus);
         }
 
         for (;;) {

@@ -2,7 +2,7 @@
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
- * Copyright (C) 2009-2015, International Business Machines Corporation and         *
+ * Copyright (C) 2009-2015, International Business Machines Corporation and    *
  * others. All Rights Reserved.                                                *
  *******************************************************************************
  */
@@ -240,18 +240,27 @@ private:
     /*
      * The plural rule is used to format currency plural name,
      * for example: "3.00 US Dollars".
-     * If there are 3 currency signs in the currency patttern,
+     * If there are 3 currency signs in the currency pattern,
      * the 3 currency signs will be replaced by currency plural name.
      */
     PluralRules* fPluralRules;
 
     // locale
     Locale* fLocale;
+
+private:
+    /**
+    * An internal status variable used to indicate that the object is in an 'invalid' state.
+    * Used by copy constructor, the assignment operator and the clone method.
+    */
+    UErrorCode fInternalStatus;
 };
 
 
 inline UBool
-CurrencyPluralInfo::operator!=(const CurrencyPluralInfo& info) const {              return !operator==(info);                                                   }
+CurrencyPluralInfo::operator!=(const CurrencyPluralInfo& info) const {
+    return !operator==(info);
+}
 
 U_NAMESPACE_END
 

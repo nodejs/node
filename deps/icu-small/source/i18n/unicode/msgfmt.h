@@ -124,7 +124,7 @@ class NumberFormat;
  * argNumber = '0' | ('1'..'9' ('0'..'9')*)
  *
  * argType = "number" | "date" | "time" | "spellout" | "ordinal" | "duration"
- * argStyle = "short" | "medium" | "long" | "full" | "integer" | "currency" | "percent" | argStyleText
+ * argStyle = "short" | "medium" | "long" | "full" | "integer" | "currency" | "percent" | argStyleText | "::" argSkeletonText
  * </pre>
  *
  * <ul>
@@ -166,7 +166,7 @@ class NumberFormat;
  *       <td colspan=2><i>(none)</i>
  *       <td><code>null</code>
  *    <tr>
- *       <td rowspan=5><code>number</code>
+ *       <td rowspan=6><code>number</code>
  *       <td><i>(none)</i>
  *       <td><code>NumberFormat.createInstance(getLocale(), status)</code>
  *    <tr>
@@ -181,6 +181,9 @@ class NumberFormat;
  *    <tr>
  *       <td><i>argStyleText</i>
  *       <td><code>new DecimalFormat(argStyleText, new DecimalFormatSymbols(getLocale(), status), status)</code>
+ *    <tr>
+ *       <td><i>argSkeletonText</i>
+ *       <td><code>NumberFormatter::forSkeleton(argSkeletonText, status).locale(getLocale()).toFormat(status)</code>
  *    <tr>
  *       <td rowspan=6><code>date</code>
  *       <td><i>(none)</i>
@@ -199,7 +202,7 @@ class NumberFormat;
  *       <td><code>DateFormat.createDateInstance(kFull, getLocale(), status)</code>
  *    <tr>
  *       <td><i>argStyleText</i>
- *       <td><code>new SimpleDateFormat(argStyleText, getLocale(), status)
+ *       <td><code>new SimpleDateFormat(argStyleText, getLocale(), status)</code>
  *    <tr>
  *       <td rowspan=6><code>time</code>
  *       <td><i>(none)</i>
@@ -218,7 +221,7 @@ class NumberFormat;
  *       <td><code>DateFormat.createTimeInstance(kFull, getLocale(), status)</code>
  *    <tr>
  *       <td><i>argStyleText</i>
- *       <td><code>new SimpleDateFormat(argStyleText, getLocale(), status)
+ *       <td><code>new SimpleDateFormat(argStyleText, getLocale(), status)</code>
  *    <tr>
  *       <td><code>spellout</code>
  *       <td><i>argStyleText (optional)</i>

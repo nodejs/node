@@ -218,7 +218,7 @@ int32_t toLower(int32_t caseLocale, uint32_t options,
     int32_t srcIndex = srcStart;
     for (;;) {
         // fast path for simple cases
-        UChar lead;
+        UChar lead = 0;
         while (srcIndex < srcLimit) {
             lead = src[srcIndex];
             int32_t delta;
@@ -238,7 +238,7 @@ int32_t toLower(int32_t caseLocale, uint32_t options,
                     continue;
                 }
             }
-            lead += delta;
+            lead += static_cast<UChar>(delta);
             destIndex = appendUnchanged(dest, destIndex, destCapacity,
                                         src + prev, srcIndex - 1 - prev, options, edits);
             if (destIndex >= 0) {
@@ -313,7 +313,7 @@ int32_t toUpper(int32_t caseLocale, uint32_t options,
     int32_t srcIndex = 0;
     for (;;) {
         // fast path for simple cases
-        UChar lead;
+        UChar lead = 0;
         while (srcIndex < srcLength) {
             lead = src[srcIndex];
             int32_t delta;
@@ -333,7 +333,7 @@ int32_t toUpper(int32_t caseLocale, uint32_t options,
                     continue;
                 }
             }
-            lead += delta;
+            lead += static_cast<UChar>(delta);
             destIndex = appendUnchanged(dest, destIndex, destCapacity,
                                         src + prev, srcIndex - 1 - prev, options, edits);
             if (destIndex >= 0) {
@@ -1747,8 +1747,8 @@ static int32_t _cmpFold(
     }
 
     if(matchLen1) {
-        *matchLen1=m1-org1;
-        *matchLen2=m2-org2;
+        *matchLen1=static_cast<int32_t>(m1-org1);
+        *matchLen2=static_cast<int32_t>(m2-org2);
     }
     return cmpRes;
 }

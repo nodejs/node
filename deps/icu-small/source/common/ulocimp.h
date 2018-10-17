@@ -62,6 +62,38 @@ ulocimp_getCountry(const char *localeID,
                    const char **pEnd);
 
 /**
+ * Returns a locale ID for the specified BCP47 language tag string.
+ * If the specified language tag contains any ill-formed subtags,
+ * the first such subtag and all following subtags are ignored.
+ * <p>
+ * This implements the 'Language-Tag' production of BCP47, and so
+ * supports grandfathered (regular and irregular) as well as private
+ * use language tags.  Private use tags are represented as 'x-whatever',
+ * and grandfathered tags are converted to their canonical replacements
+ * where they exist.  Note that a few grandfathered tags have no modern
+ * replacement, these will be converted using the fallback described in
+ * the first paragraph, so some information might be lost.
+ * @param langtag   the input BCP47 language tag.
+ * @param tagLen    the length of langtag, or -1 to call uprv_strlen().
+ * @param localeID  the output buffer receiving a locale ID for the
+ *                  specified BCP47 language tag.
+ * @param localeIDCapacity  the size of the locale ID output buffer.
+ * @param parsedLength  if not NULL, successfully parsed length
+ *                      for the input language tag is set.
+ * @param err       error information if receiving the locald ID
+ *                  failed.
+ * @return          the length of the locale ID.
+ * @internal ICU 63
+ */
+U_CAPI int32_t U_EXPORT2
+ulocimp_forLanguageTag(const char* langtag,
+                       int32_t tagLen,
+                       char* localeID,
+                       int32_t localeIDCapacity,
+                       int32_t* parsedLength,
+                       UErrorCode* err);
+
+/**
  * Get the region to use for supplemental data lookup. Uses
  * (1) any region specified by locale tag "rg"; if none then
  * (2) any unicode_region_tag in the locale ID; if none then

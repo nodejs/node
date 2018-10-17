@@ -27,6 +27,7 @@ UnicodeSet* gUnicodeSets[COUNT] = {};
 
 // Save the empty instance in static memory to have well-defined behavior if a
 // regular UnicodeSet cannot be allocated.
+alignas(UnicodeSet)
 char gEmptyUnicodeSet[sizeof(UnicodeSet)];
 
 // Whether the gEmptyUnicodeSet is initialized and ready to use.
