@@ -599,13 +599,13 @@ The type of the return value depends on the arguments provided to
 ```js
 request.setHeader('content-type', 'text/html');
 request.setHeader('Content-Length', Buffer.byteLength(body));
-request.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
+request.setHeader('Cookie', ['type=ninja', 'language=javascript']);
 const contentType = request.getHeader('Content-Type');
 // contentType is 'text/html'
 const contentLength = request.getHeader('Content-Length');
 // contentLength is of type number
-const setCookie = request.getHeader('set-cookie');
-// setCookie is of type string[]
+const cookie = request.getHeader('Cookie');
+// cookie is of type string[]
 ```
 
 ### request.maxHeadersCount
@@ -649,7 +649,7 @@ request.setHeader('Content-Type', 'application/json');
 or
 
 ```js
-request.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
+request.setHeader('Cookie', ['type=ninja', 'language=javascript']);
 ```
 
 ### request.setNoDelay([noDelay])
