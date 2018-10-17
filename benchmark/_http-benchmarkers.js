@@ -8,7 +8,7 @@ const requirementsURL =
   'https://github.com/nodejs/node/blob/master/doc/guides/writing-and-running-benchmarks.md#http-benchmark-requirements';
 
 // The port used by servers and wrk
-exports.PORT = process.env.PORT || 12346;
+exports.PORT = Number(process.env.PORT) || 12346;
 
 class AutocannonBenchmarker {
   constructor() {
