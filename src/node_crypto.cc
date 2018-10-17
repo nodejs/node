@@ -3635,7 +3635,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
     return sign->CheckThrow(std::get<Error>(ret));
 
   MallocedBuffer<unsigned char> sig =
-      std::get<MallocedBuffer<unsigned char>>(std::move(ret));
+      std::move(std::get<MallocedBuffer<unsigned char>>(ret));
 
   Local<Object> rc =
       Buffer::New(env, reinterpret_cast<char*>(sig.release()), sig.size)
