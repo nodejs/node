@@ -2554,13 +2554,17 @@ fs.readFile('<directory>', (err, data) => {
 });
 ```
 
-Any specified file descriptor has to support reading.
-
-If a file descriptor is specified as the `path`, it will not be closed
-automatically.
-
 The `fs.readFile()` function buffers the entire file. To minimize memory costs,
 when possible prefer streaming via `fs.createReadStream()`.
+
+### File Descriptors
+1. Any specified file descriptor has to support reading.
+2. If a file descriptor is specified as the `path`, it will not be closed
+automatically.
+3. The reading will begin at the current position. For example, if the file
+already had `'Hello World`' and six bytes are read with the file descriptor,
+the call to `fs.readFile()` with the same file descriptor, would give
+`'World'`, rather than `'Hello World'`.
 
 ## fs.readFileSync(path[, options])
 <!-- YAML
@@ -3547,14 +3551,19 @@ If `options` is a string, then it specifies the encoding:
 fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 ```
 
-Any specified file descriptor has to support writing.
-
 It is unsafe to use `fs.writeFile()` multiple times on the same file without
 waiting for the callback. For this scenario, [`fs.createWriteStream()`][] is
 recommended.
 
-If a file descriptor is specified as the `file`, it will not be closed
+### File Descriptors
+1. Any specified file descriptor has to support writing.
+2. If a file descriptor is specified as the `file`, it will not be closed
 automatically.
+3. The writing will begin at the beginning of the file. For example, if the
+file already had `'Hello World'` and the newly written content is `'Aloha'`,
+then the contents of the file would be `'Aloha World'`, rather than just
+`'Aloha'`.
+
 
 ## fs.writeFileSync(file, data[, options])
 <!-- YAML
@@ -3787,6 +3796,11 @@ returned.
 
 The `FileHandle` has to support reading.
 
+If one or more `filehandle.read()` calls are made on a file handle and then a
+`filehandle.readFile()` call is made, the data will be read from the current
+position till the end of the file. It doesn't always read from the beginning
+of the file.
+
 #### filehandle.stat([options])
 <!-- YAML
 added: v10.0.0
@@ -3948,6 +3962,11 @@ The `FileHandle` has to support writing.
 
 It is unsafe to use `filehandle.writeFile()` multiple times on the same file
 without waiting for the `Promise` to be resolved (or rejected).
+
+If one or more `filehandle.write()` calls are made on a file handle and then a
+`filehandle.writeFile()` call is made, the data will be written from the
+current position till the end of the file. It doesn't always write from the
+beginning of the file.
 
 ### fsPromises.access(path[, mode])
 <!-- YAML
