@@ -391,12 +391,12 @@ void AnyTransliterator::registerIDs() {
                 UnicodeString id;
                 TransliteratorIDParser::STVtoID(UnicodeString(TRUE, ANY, 3), target, variant, id);
                 ec = U_ZERO_ERROR;
-                AnyTransliterator* t = new AnyTransliterator(id, target, variant,
+                AnyTransliterator* tl = new AnyTransliterator(id, target, variant,
                                                              targetScript, ec);
                 if (U_FAILURE(ec)) {
-                    delete t;
+                    delete tl;
                 } else {
-                    Transliterator::_registerInstance(t);
+                    Transliterator::_registerInstance(tl);
                     Transliterator::_registerSpecialInverse(target, UnicodeString(TRUE, NULL_ID, 4), FALSE);
                 }
             }

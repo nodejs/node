@@ -333,6 +333,43 @@ uprv_compareInvEbcdic(const UDataSwapper *ds,
 #   error Unknown charset family!
 #endif
 
+// utrie_swap.cpp -----------------------------------------------------------***
+
+/**
+ * Swaps a serialized UTrie.
+ * @internal
+ */
+U_CAPI int32_t U_EXPORT2
+utrie_swap(const UDataSwapper *ds,
+           const void *inData, int32_t length, void *outData,
+           UErrorCode *pErrorCode);
+
+/**
+ * Swaps a serialized UTrie2.
+ * @internal
+ */
+U_CAPI int32_t U_EXPORT2
+utrie2_swap(const UDataSwapper *ds,
+            const void *inData, int32_t length, void *outData,
+            UErrorCode *pErrorCode);
+
+/**
+ * Swaps a serialized UCPTrie.
+ * @internal
+ */
+U_CAPI int32_t U_EXPORT2
+ucptrie_swap(const UDataSwapper *ds,
+             const void *inData, int32_t length, void *outData,
+             UErrorCode *pErrorCode);
+
+/**
+ * Swaps a serialized UTrie, UTrie2, or UCPTrie.
+ * @internal
+ */
+U_CAPI int32_t U_EXPORT2
+utrie_swapAnyVersion(const UDataSwapper *ds,
+                     const void *inData, int32_t length, void *outData,
+                     UErrorCode *pErrorCode);
 
 /* material... -------------------------------------------------------------- */
 

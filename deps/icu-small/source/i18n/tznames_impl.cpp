@@ -1285,7 +1285,7 @@ static void mergeTimeZoneKey(const UnicodeString& mzID, char* result) {
 
     char mzIdChar[ZID_KEY_MAX + 1];
     int32_t keyLen;
-    int32_t prefixLen = uprv_strlen(gMZPrefix);
+    int32_t prefixLen = static_cast<int32_t>(uprv_strlen(gMZPrefix));
     keyLen = mzID.extract(0, mzID.length(), mzIdChar, ZID_KEY_MAX + 1, US_INV);
     uprv_memcpy((void *)result, (void *)gMZPrefix, prefixLen);
     uprv_memcpy((void *)(result + prefixLen), (void *)mzIdChar, keyLen);
@@ -1453,7 +1453,7 @@ struct TimeZoneNamesImpl::ZoneStringsLoader : public ResourceSink {
     virtual ~ZoneStringsLoader();
 
     void* createKey(const char* key, UErrorCode& status) {
-        int32_t len = sizeof(char) * (uprv_strlen(key) + 1);
+        int32_t len = sizeof(char) * (static_cast<int32_t>(uprv_strlen(key)) + 1);
         char* newKey = (char*) uprv_malloc(len);
         if (newKey == NULL) {
             status = U_MEMORY_ALLOCATION_ERROR;
@@ -1469,7 +1469,7 @@ struct TimeZoneNamesImpl::ZoneStringsLoader : public ResourceSink {
     }
 
     UnicodeString mzIDFromKey(const char* key) {
-        return UnicodeString(key + MZ_PREFIX_LEN, uprv_strlen(key) - MZ_PREFIX_LEN, US_INV);
+        return UnicodeString(key + MZ_PREFIX_LEN, static_cast<int32_t>(uprv_strlen(key)) - MZ_PREFIX_LEN, US_INV);
     }
 
     UnicodeString tzIDFromKey(const char* key) {
@@ -1944,8 +1944,8 @@ TZDBNameSearchHandler::handleMatch(int32_t matchLength, const CharacterNode *nod
                     // metazone mapping for "CST" is America_Central,
                     // but if region is one of CN/MO/TW, "CST" is parsed
                     // as metazone China (China Standard Time).
-                    for (int32_t i = 0; i < ninfo->nRegions; i++) {
-                        const char *region = ninfo->parseRegions[i];
+                    for (int32_t j = 0; j < ninfo->nRegions; j++) {
+                        const char *region = ninfo->parseRegions[j];
                         if (uprv_strcmp(fRegion, region) == 0) {
                             match = ninfo;
                             matchRegion = TRUE;
@@ -2059,7 +2059,7 @@ static void U_CALLCONV prepareFind(UErrorCode &status) {
     const UnicodeString *mzID;
     StringEnumeration *mzIDs = TimeZoneNamesImpl::_getAvailableMetaZoneIDs(status);
     if (U_SUCCESS(status)) {
-        while ((mzID = mzIDs->snext(status)) && U_SUCCESS(status)) {
+        while ((mzID = mzIDs->snext(status)) != 0 && U_SUCCESS(status)) {
             const TZDBNames *names = TZDBTimeZoneNames::getMetaZoneNames(*mzID, status);
             if (U_FAILURE(status)) {
                 break;
@@ -2128,7 +2128,7 @@ TZDBTimeZoneNames::TZDBTimeZoneNames(const Locale& locale)
 : fLocale(locale) {
     UBool useWorld = TRUE;
     const char* region = fLocale.getCountry();
-    int32_t regionLen = uprv_strlen(region);
+    int32_t regionLen = static_cast<int32_t>(uprv_strlen(region));
     if (regionLen == 0) {
         UErrorCode status = U_ZERO_ERROR;
         char loc[ULOC_FULLNAME_CAPACITY];

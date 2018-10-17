@@ -10,9 +10,10 @@
 #ifndef FPHDLIMP_H
 #define FPHDLIMP_H
 
+#include "unicode/utypes.h"
+
 #if !UCONFIG_NO_FORMATTING
 
-#include "unicode/utypes.h"
 #include "unicode/fieldpos.h"
 #include "unicode/fpositer.h"
 

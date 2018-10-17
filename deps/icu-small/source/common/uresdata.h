@@ -475,7 +475,7 @@ U_NAMESPACE_BEGIN
 
 class ResourceDataValue : public ResourceValue {
 public:
-    ResourceDataValue() : pResData(NULL), res(URES_NONE) {}
+    ResourceDataValue() : pResData(NULL), res(static_cast<Resource>(URES_NONE)) {}
     virtual ~ResourceDataValue();
 
     void setData(const ResourceData *data) { pResData = data; }

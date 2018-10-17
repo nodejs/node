@@ -13,6 +13,7 @@
 #ifndef UNICODESET_H
 #define UNICODESET_H
 
+#include "unicode/ucpmap.h"
 #include "unicode/unifilt.h"
 #include "unicode/unistr.h"
 #include "unicode/uset.h"
@@ -25,9 +26,8 @@
 U_NAMESPACE_BEGIN
 
 // Forward Declarations.
-void U_CALLCONV UnicodeSet_initInclusion(int32_t src, UErrorCode &status); /**< @internal */
-
 class BMPSet;
+class CharacterProperties;
 class ParsePosition;
 class RBBIRuleScanner;
 class SymbolTable;
@@ -584,9 +584,8 @@ public:
     //----------------------------------------------------------------
 
     /**
-     * Make this object represent the range <code>start - end</code>.
-     * If <code>end > start</code> then this object is set to an
-     * an empty range.
+     * Make this object represent the range `start - end`.
+     * If `end > start` then this object is set to an empty range.
      * A frozen set will not be modified.
      *
      * @param start first character in the set, inclusive
@@ -1506,6 +1505,7 @@ private:
     //----------------------------------------------------------------
 
     UnicodeSet(const UnicodeSet& o, UBool /* asThawed */);
+    UnicodeSet& copyFrom(const UnicodeSet& o, UBool asThawed);
 
     //----------------------------------------------------------------
     // Implementation: Pattern parsing
@@ -1614,7 +1614,7 @@ private:
                               UnicodeString& rebuiltPat,
                               UErrorCode& ec);
 
-    friend void U_CALLCONV UnicodeSet_initInclusion(int32_t src, UErrorCode &status);
+    friend class CharacterProperties;
     static const UnicodeSet* getInclusions(int32_t src, UErrorCode &status);
 
     /**
@@ -1634,8 +1634,14 @@ private:
      */
     void applyFilter(Filter filter,
                      void* context,
-                     int32_t src,
+                     const UnicodeSet* inclusions,
                      UErrorCode &status);
+
+#ifndef U_HIDE_DRAFT_API   // Skipped: ucpmap.h is draft only.
+    void applyIntPropertyValue(const UCPMap *map,
+                               UCPMapValueFilter *filter, const void *context,
+                               UErrorCode &errorCode);
+#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * Set the new pattern to cache.

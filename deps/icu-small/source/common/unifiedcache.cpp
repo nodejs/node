@@ -251,7 +251,7 @@ UBool UnifiedCache::_flush(UBool all) const {
         if (all || _isEvictable(element)) {
             const SharedObject *sharedObject =
                     (const SharedObject *) element->value.pointer;
-            U_ASSERT(sharedObject->cachePtr = this);
+            U_ASSERT(sharedObject->cachePtr == this);
             uhash_removeElement(fHashtable, element);
             removeSoftRef(sharedObject);    // Deletes the sharedObject when softRefCount goes to zero.
             result = TRUE;

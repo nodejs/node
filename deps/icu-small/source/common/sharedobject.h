@@ -104,7 +104,7 @@ public:
     /**
      * Deletes this object if it has no references.
      * Available for non-cached SharedObjects only. Ownership of cached objects
-     * is with the UnifiedCache, which is soley responsible for eviction and deletion.
+     * is with the UnifiedCache, which is solely responsible for eviction and deletion.
      */
     void deleteIfZeroRefCount() const;
 

@@ -21,7 +21,6 @@
 
 #include "unicode/utypes.h"
 #include "unicode/utf16.h"
-#include "udataswp.h"
 
 U_CDECL_BEGIN
 
@@ -732,16 +731,12 @@ utrie_serialize(UNewTrie *trie, void *data, int32_t capacity,
                 UBool reduceTo16Bits,
                 UErrorCode *pErrorCode);
 
-/**
- * Swap a serialized UTrie.
- * @internal
- */
-U_CAPI int32_t U_EXPORT2
-utrie_swap(const UDataSwapper *ds,
-           const void *inData, int32_t length, void *outData,
-           UErrorCode *pErrorCode);
-
 /* serialization ------------------------------------------------------------ */
+
+// UTrie signature values, in platform endianness and opposite endianness.
+// The UTrie signature ASCII byte values spell "Trie".
+#define UTRIE_SIG       0x54726965
+#define UTRIE_OE_SIG    0x65697254
 
 /**
  * Trie data structure in serialized form:

@@ -428,8 +428,8 @@ void RBBITableBuilder::calcChainedFollowPos(RBBINode *tree) {
     addRuleRootNodes(&ruleRootNodes, tree);
 
     UVector matchStartNodes(*fStatus);
-    for (int i=0; i<ruleRootNodes.size(); ++i) {
-        RBBINode *node = static_cast<RBBINode *>(ruleRootNodes.elementAt(i));
+    for (int j=0; j<ruleRootNodes.size(); ++j) {
+        RBBINode *node = static_cast<RBBINode *>(ruleRootNodes.elementAt(j));
         if (node->fChainIn) {
             setAdd(&matchStartNodes, node->fFirstPosSet);
         }
@@ -1082,21 +1082,22 @@ bool RBBITableBuilder::findDuplCharClassFrom(IntPair *categories) {
     int32_t numStates = fDStates->size();
     int32_t numCols = fRB->fSetBuilder->getNumCharCategories();
 
-    uint16_t table_base;
-    uint16_t table_dupl;
     for (; categories->first < numCols-1; categories->first++) {
         for (categories->second=categories->first+1; categories->second < numCols; categories->second++) {
-             for (int32_t state=0; state<numStates; state++) {
-                 RBBIStateDescriptor *sd = (RBBIStateDescriptor *)fDStates->elementAt(state);
-                 table_base = (uint16_t)sd->fDtran->elementAti(categories->first);
-                 table_dupl = (uint16_t)sd->fDtran->elementAti(categories->second);
-                 if (table_base != table_dupl) {
-                     break;
-                 }
-             }
-             if (table_base == table_dupl) {
-                 return true;
-             }
+            // Initialized to different values to prevent returning true if numStates = 0 (implies no duplicates).
+            uint16_t table_base = 0;
+            uint16_t table_dupl = 1;
+            for (int32_t state=0; state<numStates; state++) {
+                RBBIStateDescriptor *sd = (RBBIStateDescriptor *)fDStates->elementAt(state);
+                table_base = (uint16_t)sd->fDtran->elementAti(categories->first);
+                table_dupl = (uint16_t)sd->fDtran->elementAti(categories->second);
+                if (table_base != table_dupl) {
+                    break;
+                }
+            }
+            if (table_base == table_dupl) {
+                return true;
+            }
         }
     }
     return false;
@@ -1236,7 +1237,7 @@ void RBBITableBuilder::removeSafeState(IntPair duplStates) {
             } else if (existingVal > duplState) {
                 newVal = existingVal - 1;
             }
-            sd->setCharAt(col, newVal);
+            sd->setCharAt(col, static_cast<char16_t>(newVal));
         }
     }
 }
@@ -1245,12 +1246,16 @@ void RBBITableBuilder::removeSafeState(IntPair duplStates) {
 /*
  * RemoveDuplicateStates
  */
-void RBBITableBuilder::removeDuplicateStates() {
+int32_t RBBITableBuilder::removeDuplicateStates() {
     IntPair dupls = {3, 0};
+    int32_t numStatesRemoved = 0;
+
     while (findDuplicateState(&dupls)) {
         // printf("Removing duplicate states (%d, %d)\n", dupls.first, dupls.second);
         removeState(dupls);
+        ++numStatesRemoved;
     }
+    return numStatesRemoved;
 }
 
 
@@ -1411,7 +1416,7 @@ void RBBITableBuilder::buildSafeReverseTable(UErrorCode &status) {
     UnicodeString &startState = *static_cast<UnicodeString *>(fSafeTable->elementAt(1));
     for (int32_t charClass=0; charClass < numCharClasses; ++charClass) {
         // Note: +2 for the start & stop state.
-        startState.setCharAt(charClass, charClass+2);
+        startState.setCharAt(charClass, static_cast<char16_t>(charClass+2));
     }
 
     // Initially make every other state table row look like the start state row,

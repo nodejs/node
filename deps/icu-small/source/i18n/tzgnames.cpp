@@ -407,7 +407,7 @@ TZGNCore::initialize(const Locale& locale, UErrorCode& status) {
 
     // target region
     const char* region = fLocale.getCountry();
-    int32_t regionLen = uprv_strlen(region);
+    int32_t regionLen = static_cast<int32_t>(uprv_strlen(region));
     if (regionLen == 0) {
         char loc[ULOC_FULLNAME_CAPACITY];
         uloc_addLikelySubtags(fLocale.getName(), loc, sizeof(loc), &status);

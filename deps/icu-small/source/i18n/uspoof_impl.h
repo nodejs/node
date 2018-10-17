@@ -20,7 +20,7 @@
 #include "unicode/uspoof.h"
 #include "unicode/uscript.h"
 #include "unicode/udata.h"
-
+#include "udataswp.h"
 #include "utrie2.h"
 
 #if !UCONFIG_NO_NORMALIZATION

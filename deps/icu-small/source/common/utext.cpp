@@ -1196,9 +1196,9 @@ fillForward:
         // Swap the UText buffers.
         //  We want to fill what was previously the alternate buffer,
         //  and make what was the current buffer be the new alternate.
-        UTF8Buf *u8b = (UTF8Buf *)ut->q;
+        UTF8Buf *u8b_swap = (UTF8Buf *)ut->q;
         ut->q = ut->p;
-        ut->p = u8b;
+        ut->p = u8b_swap;
 
         int32_t strLen = ut->b;
         UBool   nulTerminated = FALSE;
@@ -1207,9 +1207,9 @@ fillForward:
             nulTerminated = TRUE;
         }
 
-        UChar   *buf = u8b->buf;
-        uint8_t *mapToNative  = u8b->mapToNative;
-        uint8_t *mapToUChars  = u8b->mapToUChars;
+        UChar   *buf = u8b_swap->buf;
+        uint8_t *mapToNative  = u8b_swap->mapToNative;
+        uint8_t *mapToUChars  = u8b_swap->mapToUChars;
         int32_t  destIx       = 0;
         int32_t  srcIx        = ix;
         UBool    seenNonAscii = FALSE;
@@ -1230,7 +1230,7 @@ fillForward:
                 // General case, handle everything.
                 if (seenNonAscii == FALSE) {
                     seenNonAscii = TRUE;
-                    u8b->bufNILimit = destIx;
+                    u8b_swap->bufNILimit = destIx;
                 }
 
                 int32_t  cIx      = srcIx;
@@ -1263,22 +1263,22 @@ fillForward:
         mapToUChars[srcIx - ix] = (uint8_t)destIx;
 
         //  fill in Buffer descriptor
-        u8b->bufNativeStart     = ix;
-        u8b->bufNativeLimit     = srcIx;
-        u8b->bufStartIdx        = 0;
-        u8b->bufLimitIdx        = destIx;
+        u8b_swap->bufNativeStart     = ix;
+        u8b_swap->bufNativeLimit     = srcIx;
+        u8b_swap->bufStartIdx        = 0;
+        u8b_swap->bufLimitIdx        = destIx;
         if (seenNonAscii == FALSE) {
-            u8b->bufNILimit     = destIx;
+            u8b_swap->bufNILimit     = destIx;
         }
-        u8b->toUCharsMapStart   = u8b->bufNativeStart;
+        u8b_swap->toUCharsMapStart   = u8b_swap->bufNativeStart;
 
         // Set UText chunk to refer to this buffer.
         ut->chunkContents       = buf;
         ut->chunkOffset         = 0;
-        ut->chunkLength         = u8b->bufLimitIdx;
-        ut->chunkNativeStart    = u8b->bufNativeStart;
-        ut->chunkNativeLimit    = u8b->bufNativeLimit;
-        ut->nativeIndexingLimit = u8b->bufNILimit;
+        ut->chunkLength         = u8b_swap->bufLimitIdx;
+        ut->chunkNativeStart    = u8b_swap->bufNativeStart;
+        ut->chunkNativeLimit    = u8b_swap->bufNativeLimit;
+        ut->nativeIndexingLimit = u8b_swap->bufNILimit;
 
         // For zero terminated strings, keep track of the maximum point
         //   scanned so far.
@@ -1311,13 +1311,13 @@ fillReverse:
         // Swap the UText buffers.
         //  We want to fill what was previously the alternate buffer,
         //  and make what was the current buffer be the new alternate.
-        UTF8Buf *u8b = (UTF8Buf *)ut->q;
+        UTF8Buf *u8b_swap = (UTF8Buf *)ut->q;
         ut->q = ut->p;
-        ut->p = u8b;
+        ut->p = u8b_swap;
 
-        UChar   *buf = u8b->buf;
-        uint8_t *mapToNative = u8b->mapToNative;
-        uint8_t *mapToUChars = u8b->mapToUChars;
+        UChar   *buf = u8b_swap->buf;
+        uint8_t *mapToNative = u8b_swap->mapToNative;
+        uint8_t *mapToUChars = u8b_swap->mapToUChars;
         int32_t  toUCharsMapStart = ix - sizeof(UTF8Buf::mapToUChars) + 1;
         // Note that toUCharsMapStart can be negative. Happens when the remaining
         // text from current position to the beginning is less than the buffer size.
@@ -1387,19 +1387,19 @@ fillReverse:
                 bufNILimit = destIx;
             }
         }
-        u8b->bufNativeStart     = srcIx;
-        u8b->bufNativeLimit     = ix;
-        u8b->bufStartIdx        = destIx;
-        u8b->bufLimitIdx        = UTF8_TEXT_CHUNK_SIZE+2;
-        u8b->bufNILimit         = bufNILimit - u8b->bufStartIdx;
-        u8b->toUCharsMapStart   = toUCharsMapStart;
+        u8b_swap->bufNativeStart     = srcIx;
+        u8b_swap->bufNativeLimit     = ix;
+        u8b_swap->bufStartIdx        = destIx;
+        u8b_swap->bufLimitIdx        = UTF8_TEXT_CHUNK_SIZE+2;
+        u8b_swap->bufNILimit         = bufNILimit - u8b_swap->bufStartIdx;
+        u8b_swap->toUCharsMapStart   = toUCharsMapStart;
 
-        ut->chunkContents       = &buf[u8b->bufStartIdx];
-        ut->chunkLength         = u8b->bufLimitIdx - u8b->bufStartIdx;
+        ut->chunkContents       = &buf[u8b_swap->bufStartIdx];
+        ut->chunkLength         = u8b_swap->bufLimitIdx - u8b_swap->bufStartIdx;
         ut->chunkOffset         = ut->chunkLength;
-        ut->chunkNativeStart    = u8b->bufNativeStart;
-        ut->chunkNativeLimit    = u8b->bufNativeLimit;
-        ut->nativeIndexingLimit = u8b->bufNILimit;
+        ut->chunkNativeStart    = u8b_swap->bufNativeStart;
+        ut->chunkNativeLimit    = u8b_swap->bufNativeLimit;
+        ut->nativeIndexingLimit = u8b_swap->bufNILimit;
         return TRUE;
     }
 
