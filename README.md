@@ -606,7 +606,7 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273
 See the section above on [Verifying Binaries](#verifying-binaries) for how to
 use these keys to verify a downloaded file.
 
-Other keys used to sign some previous releases include:
+Other keys used to sign some previous releases:
 
 * **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 `9554F04D7259F04124DE6B476D5A82AC7E37093B`
