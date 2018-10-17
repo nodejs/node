@@ -213,9 +213,7 @@ When in doubt, please do send us a report.
 
 ## Current Project Team Members
 
-The Node.js project team comprises a group of core collaborators and a sub-group
-that forms the _Technical Steering Committee_ (TSC) which governs the project.
-For more information about the governance of the Node.js project, see
+For information about the governance of the Node.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
 ### TSC (Technical Steering Committee)
@@ -592,7 +590,7 @@ Node.js releases are signed with one of the following GPG keys:
 * **Rod Vagg** &lt;rod@vagg.org&gt;
 `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
 
-The full set of trusted release keys can be imported by running:
+To import the full set of trusted release keys:
 
 ```shell
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
@@ -608,7 +606,7 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273
 See the section above on [Verifying Binaries](#verifying-binaries) for how to
 use these keys to verify a downloaded file.
 
-Previous releases may also have been signed with one of the following GPG keys:
+Other keys used to sign some previous releases include:
 
 * **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 `9554F04D7259F04124DE6B476D5A82AC7E37093B`
