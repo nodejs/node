@@ -511,8 +511,8 @@ BucketList *AlphabeticIndex::createBucketList(UErrorCode &errorCode) const {
                                           ces, errorCode) &&
                 current.charAt(current.length() - 1) != 0xFFFF /* !current.endsWith("\uffff") */) {
             // "AE-ligature" or "Sch" etc.
-            for (int32_t i = bucketList->size() - 2;; --i) {
-                Bucket *singleBucket = getBucket(*bucketList, i);
+            for (int32_t j = bucketList->size() - 2;; --j) {
+                Bucket *singleBucket = getBucket(*bucketList, j);
                 if (singleBucket->labelType_ != U_ALPHAINDEX_NORMAL) {
                     // There is no single-character bucket since the last
                     // underflow or inflow label.
@@ -608,8 +608,8 @@ BucketList *AlphabeticIndex::createBucketList(UErrorCode &errorCode) const {
     }
     // Do not call publicBucketList->setDeleter():
     // This vector shares its objects with the bucketList.
-    for (int32_t i = 0; i < bucketList->size(); ++i) {
-        bucket = getBucket(*bucketList, i);
+    for (int32_t j = 0; j < bucketList->size(); ++j) {
+        bucket = getBucket(*bucketList, j);
         if (bucket->displayBucket_ == NULL) {
             publicBucketList->addElement(bucket, errorCode);
         }

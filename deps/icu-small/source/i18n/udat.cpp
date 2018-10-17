@@ -603,7 +603,7 @@ udat_getSymbols(const   UDateFormat     *fmt,
     } else {
         return -1;
     }
-    int32_t count;
+    int32_t count = 0;
     const UnicodeString *res = NULL;
 
     switch(type) {

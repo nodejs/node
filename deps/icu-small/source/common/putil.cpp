@@ -102,9 +102,8 @@
 #   define NOMCX
 #   include <windows.h>
 #   include "unicode/uloc.h"
-#if U_PLATFORM_HAS_WINUWP_API == 0
 #   include "wintz.h"
-#else // U_PLATFORM_HAS_WINUWP_API
+#if U_PLATFORM_HAS_WINUWP_API
 typedef PVOID LPMSG; // TODO: figure out how to get rid of this typedef
 #include <Windows.Globalization.h>
 #include <windows.system.userprofile.h>
@@ -1062,53 +1061,13 @@ uprv_tzname_clear_cache()
 #endif
 }
 
-// With the Universal Windows Platform we can just ask Windows for the name
-#if U_PLATFORM_HAS_WINUWP_API
-U_CAPI const char* U_EXPORT2
-uprv_getWindowsTimeZone()
-{
-    // Get default Windows timezone.
-    ComPtr<IInspectable> calendar;
-    HRESULT hr = RoActivateInstance(
-        HStringReference(RuntimeClass_Windows_Globalization_Calendar).Get(),
-        &calendar);
-    if (SUCCEEDED(hr))
-    {
-        ComPtr<ABI::Windows::Globalization::ITimeZoneOnCalendar> timezone;
-        hr = calendar.As(&timezone);
-        if (SUCCEEDED(hr))
-        {
-            HString timezoneString;
-            hr = timezone->GetTimeZone(timezoneString.GetAddressOf());
-            if (SUCCEEDED(hr))
-            {
-                int32_t length = static_cast<int32_t>(wcslen(timezoneString.GetRawBuffer(NULL)));
-                char* asciiId = (char*)uprv_calloc(length + 1, sizeof(char));
-                if (asciiId != nullptr)
-                {
-                    u_UCharsToChars((UChar*)timezoneString.GetRawBuffer(NULL), asciiId, length);
-                    return asciiId;
-                }
-            }
-        }
-    }
-
-    // Failed
-    return nullptr;
-}
-#endif
-
 U_CAPI const char* U_EXPORT2
 uprv_tzname(int n)
 {
     (void)n; // Avoid unreferenced parameter warning.
     const char *tzid = NULL;
 #if U_PLATFORM_USES_ONLY_WIN32_API
-#if U_PLATFORM_HAS_WINUWP_API > 0
-    tzid = uprv_getWindowsTimeZone();
-#else
     tzid = uprv_detectWindowsTimeZone();
-#endif
 
     if (tzid != NULL) {
         return tzid;
@@ -1366,6 +1325,43 @@ uprv_pathIsAbsolute(const char *path)
 # endif
 #endif
 
+#if U_PLATFORM_HAS_WINUWP_API != 0
+// Helper function to get the ICU Data Directory under the Windows directory location.
+static BOOL U_CALLCONV getIcuDataDirectoryUnderWindowsDirectory(char* directoryBuffer, UINT bufferLength)
+{
+#if defined(ICU_DATA_DIR_WINDOWS)
+    wchar_t windowsPath[MAX_PATH];
+    char windowsPathUtf8[MAX_PATH];
+
+    UINT length = GetSystemWindowsDirectoryW(windowsPath, UPRV_LENGTHOF(windowsPath));
+    if ((length > 0) && (length < (UPRV_LENGTHOF(windowsPath) - 1))) {
+        // Convert UTF-16 to a UTF-8 string.
+        UErrorCode status = U_ZERO_ERROR;
+        int32_t windowsPathUtf8Len = 0;
+        u_strToUTF8(windowsPathUtf8, static_cast<int32_t>(UPRV_LENGTHOF(windowsPathUtf8)),
+            &windowsPathUtf8Len, reinterpret_cast<const UChar*>(windowsPath), -1, &status);
+
+        if (U_SUCCESS(status) && (status != U_STRING_NOT_TERMINATED_WARNING) &&
+            (windowsPathUtf8Len < (UPRV_LENGTHOF(windowsPathUtf8) - 1))) {
+            // Ensure it always has a separator, so we can append the ICU data path.
+            if (windowsPathUtf8[windowsPathUtf8Len - 1] != U_FILE_SEP_CHAR) {
+                windowsPathUtf8[windowsPathUtf8Len++] = U_FILE_SEP_CHAR;
+                windowsPathUtf8[windowsPathUtf8Len] = '\0';
+            }
+            // Check if the concatenated string will fit.
+            if ((windowsPathUtf8Len + UPRV_LENGTHOF(ICU_DATA_DIR_WINDOWS)) < bufferLength) {
+                uprv_strcpy(directoryBuffer, windowsPathUtf8);
+                uprv_strcat(directoryBuffer, ICU_DATA_DIR_WINDOWS);
+                return TRUE;
+            }
+        }
+    }
+#endif
+
+    return FALSE;
+}
+#endif
+
 static void U_CALLCONV dataDirectoryInitFn() {
     /* If we already have the directory, then return immediately. Will happen if user called
      * u_setDataDirectory().
@@ -1425,24 +1421,10 @@ static void U_CALLCONV dataDirectoryInitFn() {
     }
 #endif
 
-#if defined(ICU_DATA_DIR_WINDOWS) && U_PLATFORM_HAS_WINUWP_API != 0
-    // Use data from the %windir%\globalization\icu directory
-    // This is only available if ICU is built as a system component
+#if U_PLATFORM_HAS_WINUWP_API != 0  && defined(ICU_DATA_DIR_WINDOWS)
     char datadir_path_buffer[MAX_PATH];
-    UINT length = GetWindowsDirectoryA(datadir_path_buffer, UPRV_LENGTHOF(datadir_path_buffer));
-    if (length > 0 && length < (UPRV_LENGTHOF(datadir_path_buffer) - sizeof(ICU_DATA_DIR_WINDOWS) - 1))
-    {
-        if (datadir_path_buffer[length - 1] != '\\')
-        {
-            datadir_path_buffer[length++] = '\\';
-            datadir_path_buffer[length] = '\0';
-        }
-
-        if ((length + 1 + sizeof(ICU_DATA_DIR_WINDOWS)) < UPRV_LENGTHOF(datadir_path_buffer))
-        {
-            uprv_strcat(datadir_path_buffer, ICU_DATA_DIR_WINDOWS);
-            path = datadir_path_buffer;
-        }
+    if (getIcuDataDirectoryUnderWindowsDirectory(datadir_path_buffer, UPRV_LENGTHOF(datadir_path_buffer))) {
+        path = datadir_path_buffer;
     }
 #endif
 
@@ -1491,20 +1473,30 @@ static void U_CALLCONV TimeZoneDataDirInitFn(UErrorCode &status) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
-#if U_PLATFORM_HAS_WINUWP_API == 0
-    const char *dir = getenv("ICU_TIMEZONE_FILES_DIR");
-#else
-    // TODO: UWP does not support alternate timezone data directories at this time
+
     const char *dir = "";
+
+#if U_PLATFORM_HAS_WINUWP_API != 0
+    // The UWP version does not support the environment variable setting, but can possibly pick them up from the Windows directory.
+    char datadir_path_buffer[MAX_PATH];
+    if (getIcuDataDirectoryUnderWindowsDirectory(datadir_path_buffer, UPRV_LENGTHOF(datadir_path_buffer))) {
+        dir = datadir_path_buffer;
+    }
+#else
+    dir = getenv("ICU_TIMEZONE_FILES_DIR");
 #endif // U_PLATFORM_HAS_WINUWP_API
+
 #if defined(U_TIMEZONE_FILES_DIR)
     if (dir == NULL) {
+        // Build time configuration setting.
         dir = TO_STRING(U_TIMEZONE_FILES_DIR);
     }
 #endif
+
     if (dir == NULL) {
         dir = "";
     }
+
     setTimeZoneFilesDir(dir, status);
 }
 
@@ -1676,7 +1668,8 @@ The leftmost codepage (.xxx) wins.
     /* Note that we scan the *uncorrected* ID. */
     if ((p = uprv_strrchr(posixID, '@')) != NULL) {
         if (correctedPOSIXLocale == NULL) {
-            correctedPOSIXLocale = static_cast<char *>(uprv_malloc(uprv_strlen(posixID)+1));
+            /* new locale can be 1 char longer than old one if @ -> __ */
+            correctedPOSIXLocale = static_cast<char *>(uprv_malloc(uprv_strlen(posixID)+2));
             /* Exit on memory allocation error. */
             if (correctedPOSIXLocale == NULL) {
                 return NULL;
@@ -1693,7 +1686,7 @@ The leftmost codepage (.xxx) wins.
         }
 
         if (uprv_strchr(correctedPOSIXLocale,'_') == NULL) {
-            uprv_strcat(correctedPOSIXLocale, "__"); /* aa@b -> aa__b */
+            uprv_strcat(correctedPOSIXLocale, "__"); /* aa@b -> aa__b (note this can make the new locale 1 char longer) */
         }
         else {
             uprv_strcat(correctedPOSIXLocale, "_"); /* aa_CC@b -> aa_CC_b */
@@ -1747,70 +1740,22 @@ The leftmost codepage (.xxx) wins.
 #elif U_PLATFORM_USES_ONLY_WIN32_API
 #define POSIX_LOCALE_CAPACITY 64
     UErrorCode status = U_ZERO_ERROR;
-    char *correctedPOSIXLocale = 0;
+    char *correctedPOSIXLocale = nullptr;
 
     // If we have already figured this out just use the cached value
-    if (gCorrectedPOSIXLocale != NULL) {
+    if (gCorrectedPOSIXLocale != nullptr) {
         return gCorrectedPOSIXLocale;
     }
 
     // No cached value, need to determine the current value
-    static WCHAR windowsLocale[LOCALE_NAME_MAX_LENGTH];
-#if U_PLATFORM_HAS_WINUWP_API == 0
-    // If not a Universal Windows App, we'll need user default language.
-    // Vista and above should use Locale Names instead of LCIDs
-    int length = GetUserDefaultLocaleName(windowsLocale, UPRV_LENGTHOF(windowsLocale));
-#else
-    // In a UWP app, we want the top language that the application and user agreed upon
-    ComPtr<ABI::Windows::Foundation::Collections::IVectorView<HSTRING>> languageList;
+    static WCHAR windowsLocale[LOCALE_NAME_MAX_LENGTH] = {};
+    int length = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNAME, windowsLocale, LOCALE_NAME_MAX_LENGTH);
 
-    ComPtr<ABI::Windows::Globalization::IApplicationLanguagesStatics> applicationLanguagesStatics;
-    HRESULT hr = GetActivationFactory(
-        HStringReference(RuntimeClass_Windows_Globalization_ApplicationLanguages).Get(),
-        &applicationLanguagesStatics);
-    if (SUCCEEDED(hr))
-    {
-        hr = applicationLanguagesStatics->get_Languages(&languageList);
-    }
-
-    if (FAILED(hr))
-    {
-        // If there is no application context, then use the top language from the user language profile
-        ComPtr<ABI::Windows::System::UserProfile::IGlobalizationPreferencesStatics> globalizationPreferencesStatics;
-        hr = GetActivationFactory(
-            HStringReference(RuntimeClass_Windows_System_UserProfile_GlobalizationPreferences).Get(),
-            &globalizationPreferencesStatics);
-        if (SUCCEEDED(hr))
-        {
-            hr = globalizationPreferencesStatics->get_Languages(&languageList);
-        }
-    }
-
-    // We have a list of languages, ICU knows one, so use the top one for our locale
-    HString topLanguage;
-    if (SUCCEEDED(hr))
-    {
-        hr = languageList->GetAt(0, topLanguage.GetAddressOf());
-    }
-
-    if (FAILED(hr))
-    {
-        // Unexpected, use en-US by default
-        if (gCorrectedPOSIXLocale == NULL) {
-            gCorrectedPOSIXLocale = "en_US";
-        }
-
-        return gCorrectedPOSIXLocale;
-    }
-
-    // ResolveLocaleName will get a likely subtags form consistent with Windows behavior.
-    int length = ResolveLocaleName(topLanguage.GetRawBuffer(NULL), windowsLocale, UPRV_LENGTHOF(windowsLocale));
-#endif
-    // Now we should have a Windows locale name that needs converted to the POSIX style,
-    if (length > 0)
+    // Now we should have a Windows locale name that needs converted to the POSIX style.
+    if (length > 0) // If length is 0, then the GetLocaleInfoEx failed.
     {
         // First we need to go from UTF-16 to char (and also convert from _ to - while we're at it.)
-        char modifiedWindowsLocale[LOCALE_NAME_MAX_LENGTH];
+        char modifiedWindowsLocale[LOCALE_NAME_MAX_LENGTH] = {};
 
         int32_t i;
         for (i = 0; i < UPRV_LENGTHOF(modifiedWindowsLocale); i++)
@@ -1858,7 +1803,7 @@ The leftmost codepage (.xxx) wins.
     }
 
     // If unable to find a locale we can agree upon, use en-US by default
-    if (gCorrectedPOSIXLocale == NULL) {
+    if (gCorrectedPOSIXLocale == nullptr) {
         gCorrectedPOSIXLocale = "en_US";
     }
     return gCorrectedPOSIXLocale;

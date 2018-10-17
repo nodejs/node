@@ -53,19 +53,18 @@
 #include "unicode/uenum.h"
 #include "unicode/localpointer.h"
 
-#ifndef __USET_H__
+#if !defined(USET_DEFINED) && !defined(U_IN_DOXYGEN)
+
+#define USET_DEFINED
 
 /**
- * USet is the C API type for Unicode sets.
- * It is forward-declared here to avoid including the header file if related
+ * USet is the C API type corresponding to C++ class UnicodeSet.
+ * It is forward-declared here to avoid including unicode/uset.h file if related
  * conversion APIs are not used.
- * See unicode/uset.h
  *
  * @see ucnv_getUnicodeSet
- * @stable ICU 2.6
+ * @stable ICU 2.4
  */
-struct USet;
-/** @stable ICU 2.6 */
 typedef struct USet USet;
 
 #endif

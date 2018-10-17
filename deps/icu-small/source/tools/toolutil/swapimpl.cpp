@@ -243,7 +243,7 @@ uprops_swap(const UDataSwapper *ds,
          * swap the main properties UTrie
          * PT serialized properties trie, see utrie.h (byte size: 4*(i0-16))
          */
-        utrie2_swapAnyVersion(ds,
+        utrie_swapAnyVersion(ds,
             inData32+UPROPS_INDEX_COUNT,
             4*(dataIndexes[UPROPS_PROPS32_INDEX]-UPROPS_INDEX_COUNT),
             outData32+UPROPS_INDEX_COUNT,
@@ -274,7 +274,7 @@ uprops_swap(const UDataSwapper *ds,
          * swap the additional UTrie
          * i3 additionalTrieIndex; -- 32-bit unit index to the additional trie for more properties
          */
-        utrie2_swapAnyVersion(ds,
+        utrie_swapAnyVersion(ds,
             inData32+dataIndexes[UPROPS_ADDITIONAL_TRIE_INDEX],
             4*(dataIndexes[UPROPS_ADDITIONAL_VECTORS_INDEX]-dataIndexes[UPROPS_ADDITIONAL_TRIE_INDEX]),
             outData32+dataIndexes[UPROPS_ADDITIONAL_TRIE_INDEX],
@@ -336,7 +336,7 @@ ucase_swap(const UDataSwapper *ds,
         ((pInfo->formatVersion[0]==1 &&
           pInfo->formatVersion[2]==UTRIE_SHIFT &&
           pInfo->formatVersion[3]==UTRIE_INDEX_SHIFT) ||
-         2<=pInfo->formatVersion[0] || pInfo->formatVersion[0]<=4)
+         (2<=pInfo->formatVersion[0] && pInfo->formatVersion[0]<=4))
     )) {
         udata_printError(ds, "ucase_swap(): data format %02x.%02x.%02x.%02x (format version %02x) is not recognized as case mapping data\n",
                          pInfo->dataFormat[0], pInfo->dataFormat[1],
@@ -391,7 +391,7 @@ ucase_swap(const UDataSwapper *ds,
 
         /* swap the UTrie */
         count=indexes[UCASE_IX_TRIE_SIZE];
-        utrie2_swapAnyVersion(ds, inBytes+offset, count, outBytes+offset, pErrorCode);
+        utrie_swapAnyVersion(ds, inBytes+offset, count, outBytes+offset, pErrorCode);
         offset+=count;
 
         /* swap the uint16_t exceptions[] and unfold[] */
@@ -493,7 +493,7 @@ ubidi_swap(const UDataSwapper *ds,
 
         /* swap the UTrie */
         count=indexes[UBIDI_IX_TRIE_SIZE];
-        utrie2_swapAnyVersion(ds, inBytes+offset, count, outBytes+offset, pErrorCode);
+        utrie_swapAnyVersion(ds, inBytes+offset, count, outBytes+offset, pErrorCode);
         offset+=count;
 
         /* swap the uint32_t mirrors[] */

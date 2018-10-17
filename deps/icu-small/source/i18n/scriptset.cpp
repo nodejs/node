@@ -298,7 +298,7 @@ uhash_compareScriptSet(UElement key0, UElement key1) {
     icu::ScriptSet *s0 = static_cast<icu::ScriptSet *>(key0.pointer);
     icu::ScriptSet *s1 = static_cast<icu::ScriptSet *>(key1.pointer);
     int32_t diff = s0->countMembers() - s1->countMembers();
-    if (diff != 0) return diff;
+    if (diff != 0) return static_cast<UBool>(diff);
     int32_t i0 = s0->nextSetBit(0);
     int32_t i1 = s1->nextSetBit(0);
     while ((diff = i0-i1) == 0 && i0 > 0) {

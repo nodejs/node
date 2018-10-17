@@ -1323,7 +1323,7 @@ shapeUnicode(UChar *dest, int32_t sourceLength,
                         /* to ensure the array index is within the range */
                         U_ASSERT(dest[i] >= 0x064Bu
                             && dest[i]-0x064Bu < UPRV_LENGTHOF(IrrelevantPos));
-                        dest[i] =  0xFE70 + IrrelevantPos[(dest[i] - 0x064B)] + Shape;
+                        dest[i] =  0xFE70 + IrrelevantPos[(dest[i] - 0x064B)] + static_cast<UChar>(Shape);
                     }
                 }else if ((currLink & APRESENT) > 0) {
                     dest[i] = (UChar)(0xFB50 + (currLink >> 8) + Shape);

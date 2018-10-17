@@ -1311,7 +1311,7 @@ DateFormatSymbols::initZoneStringsArray(void) {
         UDate now = Calendar::getNow();
         UnicodeString tzDispName;
 
-        while ((tzid = tzids->snext(status))) {
+        while ((tzid = tzids->snext(status)) != 0) {
             if (U_FAILURE(status)) {
                 break;
             }
@@ -2224,8 +2224,8 @@ DateFormatSymbols::initializeData(const Locale& locale, const char *type, UError
                             ++typeMapPtr;
                         }
                         if (typeMapPtr->usageTypeName != NULL && compResult == 0) {
-                            fCapitalization[typeMapPtr->usageTypeEnumValue][0] = intVector[0];
-                            fCapitalization[typeMapPtr->usageTypeEnumValue][1] = intVector[1];
+                            fCapitalization[typeMapPtr->usageTypeEnumValue][0] = static_cast<UBool>(intVector[0]);
+                            fCapitalization[typeMapPtr->usageTypeEnumValue][1] = static_cast<UBool>(intVector[1]);
                         }
                     }
                 }

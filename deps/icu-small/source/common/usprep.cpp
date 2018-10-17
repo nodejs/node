@@ -112,7 +112,9 @@ hashEntry(const UHashTok parm) {
     UHashTok namekey, pathkey;
     namekey.pointer = b->name;
     pathkey.pointer = b->path;
-    return uhash_hashChars(namekey)+37*uhash_hashChars(pathkey);
+    uint32_t unsignedHash = static_cast<uint32_t>(uhash_hashChars(namekey)) +
+            37u * static_cast<uint32_t>(uhash_hashChars(pathkey));
+    return static_cast<int32_t>(unsignedHash);
 }
 
 /* compares two entries */
@@ -351,9 +353,9 @@ usprep_getProfile(const char* path,
         LocalMemory<char> keyName;
         LocalMemory<char> keyPath;
         if( key.allocateInsteadAndReset() == NULL ||
-            keyName.allocateInsteadAndCopy(uprv_strlen(name)+1) == NULL ||
+            keyName.allocateInsteadAndCopy(static_cast<int32_t>(uprv_strlen(name)+1)) == NULL ||
             (path != NULL &&
-             keyPath.allocateInsteadAndCopy(uprv_strlen(path)+1) == NULL)
+             keyPath.allocateInsteadAndCopy(static_cast<int32_t>(uprv_strlen(path)+1)) == NULL)
          ) {
             *status = U_MEMORY_ALLOCATION_ERROR;
             usprep_unload(newProfile.getAlias());
@@ -726,7 +728,7 @@ usprep_prepare(   const UStringPrepProfile* profile,
             ((result < _SPREP_TYPE_THRESHOLD) && (result & 0x01) /* first bit says it the code point is prohibited*/)
            ){
             *status = U_STRINGPREP_PROHIBITED_ERROR;
-            uprv_syntaxError(b1, b2Index-U16_LENGTH(ch), b2Len, parseError);
+            uprv_syntaxError(b2, b2Index-U16_LENGTH(ch), b2Len, parseError);
             return 0;
         }
 

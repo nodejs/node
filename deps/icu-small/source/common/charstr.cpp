@@ -79,7 +79,7 @@ CharString &CharString::append(const char *s, int32_t sLength, UErrorCode &error
         return *this;
     }
     if(sLength<0) {
-        sLength=uprv_strlen(s);
+        sLength= static_cast<int32_t>(uprv_strlen(s));
     }
     if(sLength>0) {
         if(s==(buffer.getAlias()+len)) {
@@ -126,15 +126,21 @@ char *CharString::getAppendBuffer(int32_t minCapacity,
 }
 
 CharString &CharString::appendInvariantChars(const UnicodeString &s, UErrorCode &errorCode) {
+    return appendInvariantChars(s.getBuffer(), s.length(), errorCode);
+}
+
+CharString &CharString::appendInvariantChars(const UChar* uchars, int32_t ucharsLen, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
         return *this;
     }
-    if (!uprv_isInvariantUnicodeString(s)) {
+    if (!uprv_isInvariantUString(uchars, ucharsLen)) {
         errorCode = U_INVARIANT_CONVERSION_ERROR;
         return *this;
     }
-    if(ensureCapacity(len+s.length()+1, 0, errorCode)) {
-        len+=s.extract(0, 0x7fffffff, buffer.getAlias()+len, buffer.getCapacity()-len, US_INV);
+    if(ensureCapacity(len+ucharsLen+1, 0, errorCode)) {
+        u_UCharsToChars(uchars, buffer.getAlias()+len, ucharsLen);
+        len += ucharsLen;
+        buffer[len] = 0;
     }
     return *this;
 }

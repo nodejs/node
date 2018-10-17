@@ -2648,12 +2648,12 @@ TimeZoneFormat::checkAbuttingHoursAndMinutes() {
         UVector *items = fGMTOffsetPatternItems[type];
         for (int32_t i = 0; i < items->size(); i++) {
             const GMTOffsetField* item = (GMTOffsetField*)items->elementAt(i);
-            GMTOffsetField::FieldType type = item->getType();
-            if (type != GMTOffsetField::TEXT) {
+            GMTOffsetField::FieldType fieldType = item->getType();
+            if (fieldType != GMTOffsetField::TEXT) {
                 if (afterH) {
                     fAbuttingOffsetHoursAndMinutes = TRUE;
                     break;
-                } else if (type == GMTOffsetField::HOUR) {
+                } else if (fieldType == GMTOffsetField::HOUR) {
                     afterH = TRUE;
                 }
             } else if (afterH) {

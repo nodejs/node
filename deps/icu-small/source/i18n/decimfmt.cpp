@@ -1057,12 +1057,19 @@ UBool DecimalFormat::areSignificantDigitsUsed() const {
 
 void DecimalFormat::setSignificantDigitsUsed(UBool useSignificantDigits) {
     // These are the default values from the old implementation.
+    if (useSignificantDigits) {
+        if (fields->properties->minimumSignificantDigits != -1 ||
+            fields->properties->maximumSignificantDigits != -1) {
+            return;
+        }
+    } else {
+        if (fields->properties->minimumSignificantDigits == -1 &&
+            fields->properties->maximumSignificantDigits == -1) {
+            return;
+        }
+    }
     int32_t minSig = useSignificantDigits ? 1 : -1;
     int32_t maxSig = useSignificantDigits ? 6 : -1;
-    if (fields->properties->minimumSignificantDigits == minSig &&
-        fields->properties->maximumSignificantDigits == maxSig) {
-        return;
-    }
     fields->properties->minimumSignificantDigits = minSig;
     fields->properties->maximumSignificantDigits = maxSig;
     touchNoError();
@@ -1175,7 +1182,12 @@ void DecimalFormat::setPropertiesFromPattern(const UnicodeString& pattern, int32
 }
 
 const numparse::impl::NumberParserImpl* DecimalFormat::getParser(UErrorCode& status) const {
-    if (U_FAILURE(status)) { return nullptr; }
+    // TODO: Move this into umutex.h? (similar logic also in numrange_fluent.cpp)
+    // See ICU-20146
+
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
 
     // First try to get the pre-computed parser
     auto* ptr = fields->atomicParser.load();
@@ -1185,13 +1197,17 @@ const numparse::impl::NumberParserImpl* DecimalFormat::getParser(UErrorCode& sta
 
     // Try computing the parser on our own
     auto* temp = NumberParserImpl::createParserFromProperties(*fields->properties, *fields->symbols, false, status);
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
     if (temp == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
-        // although we may still dereference, call sites should be guarded
+        return nullptr;
     }
 
-    // Note: ptr starts as nullptr; during compare_exchange, it is set to what is actually stored in the
-    // atomic if another thread beat us to computing the parser object.
+    // Note: ptr starts as nullptr; during compare_exchange,
+    // it is set to what is actually stored in the atomic
+    // if another thread beat us to computing the parser object.
     auto* nonConstThis = const_cast<DecimalFormat*>(this);
     if (!nonConstThis->fields->atomicParser.compare_exchange_strong(ptr, temp)) {
         // Another thread beat us to computing the parser

@@ -27,7 +27,6 @@
  */
 
 /**
- * @{
  * \def U_NO_THROW
  *         Define this to define the throw() specification so
  *                 certain functions do not throw any exceptions
@@ -43,8 +42,6 @@
 #ifndef U_NO_THROW
 #define U_NO_THROW throw()
 #endif
-
-/** @} */
 
 /*===========================================================================*/
 /* UClassID-based RTTI */

@@ -180,7 +180,7 @@ _CompoundTextgetName(const UConverter* cnv);
 
 
 static int32_t findNextEsc(const char *source, const char *sourceLimit) {
-    int32_t length = sourceLimit - source;
+    int32_t length = static_cast<int32_t>(sourceLimit - source);
     int32_t i;
     for (i = 1; i < length; i++) {
         if (*(source + i) == 0x1B) {

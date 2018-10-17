@@ -400,7 +400,7 @@ U_CAPI  int32_t
 paramStatic(const USystemParams *param, char *target, int32_t targetCapacity, UErrorCode *status) {
   if(param->paramStr==NULL) return paramEmpty(param,target,targetCapacity,status);
   if(U_FAILURE(*status))return 0;
-  int32_t len = uprv_strlen(param->paramStr);
+  int32_t len = static_cast<int32_t>(uprv_strlen(param->paramStr));
   if(target!=NULL) {
     uprv_strncpy(target,param->paramStr,uprv_min(len,targetCapacity));
   }
@@ -412,14 +412,14 @@ static const char *nullString = "(null)";
 static int32_t stringToStringBuffer(char *target, int32_t targetCapacity, const char *str, UErrorCode *status) {
   if(str==NULL) str=nullString;
 
-  int32_t len = uprv_strlen(str);
+  int32_t len = static_cast<int32_t>(uprv_strlen(str));
   if (U_SUCCESS(*status)) {
     if(target!=NULL) {
       uprv_strncpy(target,str,uprv_min(len,targetCapacity));
     }
   } else {
     const char *s = u_errorName(*status);
-    len = uprv_strlen(s);
+    len = static_cast<int32_t>(uprv_strlen(s));
     if(target!=NULL) {
       uprv_strncpy(target,s,uprv_min(len,targetCapacity));
     }

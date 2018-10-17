@@ -181,7 +181,6 @@ public:
      */
     DecimalFormatSymbols(const Locale& locale, UErrorCode& status);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Creates a DecimalFormatSymbols instance for the given locale with digits and symbols
      * corresponding to the given NumberingSystem.
@@ -196,10 +195,9 @@ public:
      * @param ns        The numbering system.
      * @param status    Input/output parameter, set to success or
      *                  failure code upon return.
-     * @draft ICU 60
+     * @stable ICU 60
      */
     DecimalFormatSymbols(const Locale& locale, const NumberingSystem& ns, UErrorCode& status);
-#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * Create a DecimalFormatSymbols object for the default locale.
@@ -406,7 +404,7 @@ public:
      * returning a const reference to one of the symbol strings.
      * The returned reference becomes invalid when the symbol is changed
      * or when the DecimalFormatSymbols are destroyed.
-     * Note: moved #ifndef U_HIDE_INTERNAL_API after this, since this is needed for inline in DecimalFormat
+     * Note: moved \#ifndef U_HIDE_INTERNAL_API after this, since this is needed for inline in DecimalFormat
      *
      * This is not currently stable API, but if you think it should be stable,
      * post a comment on the following ticket and the ICU team will take a look:
@@ -531,7 +529,7 @@ inline const UnicodeString& DecimalFormatSymbols::getConstDigitSymbol(int32_t di
     ENumberFormatSymbol key = static_cast<ENumberFormatSymbol>(kOneDigitSymbol + digit - 1);
     return fSymbols[key];
 }
-#endif
+#endif /* U_HIDE_INTERNAL_API */
 
 // -------------------------------------
 

@@ -60,6 +60,7 @@ enum UCurrencyUsage {
     UCURR_USAGE_COUNT=2
 #endif  // U_HIDE_DEPRECATED_API
 };
+/** Currency Usage used for Decimal Format */
 typedef enum UCurrencyUsage UCurrencyUsage;
 
 /**

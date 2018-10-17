@@ -228,7 +228,7 @@ T_UConverter_fromUnicode_UTF32_BE(UConverterFromUnicodeArgs * args,
 
     /* write the BOM if necessary */
     if(args->converter->fromUnicodeStatus==UCNV_NEED_TO_WRITE_BOM) {
-        static const char bom[]={ 0, 0, (char)0xfe, (char)0xff };
+        static const char bom[]={ 0, 0, (char)0xfeu, (char)0xffu };
         ucnv_fromUWriteBytes(args->converter,
                              bom, 4,
                              &args->target, args->targetLimit,
@@ -331,7 +331,7 @@ T_UConverter_fromUnicode_UTF32_BE_OFFSET_LOGIC(UConverterFromUnicodeArgs * args,
 
     /* write the BOM if necessary */
     if(args->converter->fromUnicodeStatus==UCNV_NEED_TO_WRITE_BOM) {
-        static const char bom[]={ 0, 0, (char)0xfe, (char)0xff };
+        static const char bom[]={ 0, 0, (char)0xfeu, (char)0xffu };
         ucnv_fromUWriteBytes(args->converter,
                              bom, 4,
                              &args->target, args->targetLimit,
@@ -706,7 +706,7 @@ T_UConverter_fromUnicode_UTF32_LE(UConverterFromUnicodeArgs * args,
 
     /* write the BOM if necessary */
     if(args->converter->fromUnicodeStatus==UCNV_NEED_TO_WRITE_BOM) {
-        static const char bom[]={ (char)0xff, (char)0xfe, 0, 0 };
+        static const char bom[]={ (char)0xffu, (char)0xfeu, 0, 0 };
         ucnv_fromUWriteBytes(args->converter,
                              bom, 4,
                              &args->target, args->targetLimit,
@@ -817,7 +817,7 @@ T_UConverter_fromUnicode_UTF32_LE_OFFSET_LOGIC(UConverterFromUnicodeArgs * args,
 
     /* write the BOM if necessary */
     if(args->converter->fromUnicodeStatus==UCNV_NEED_TO_WRITE_BOM) {
-        static const char bom[]={ (char)0xff, (char)0xfe, 0, 0 };
+        static const char bom[]={ (char)0xffu, (char)0xfeu, 0, 0 };
         ucnv_fromUWriteBytes(args->converter,
                              bom, 4,
                              &args->target, args->targetLimit,
@@ -1043,7 +1043,7 @@ _UTF32Open(UConverter *cnv,
     _UTF32Reset(cnv, UCNV_RESET_BOTH);
 }
 
-static const char utf32BOM[8]={ 0, 0, (char)0xfe, (char)0xff,    (char)0xff, (char)0xfe, 0, 0 };
+static const char utf32BOM[8]={ 0, 0, (char)0xfeu, (char)0xffu, (char)0xffu, (char)0xfeu, 0, 0 };
 
 static void U_CALLCONV
 _UTF32ToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
@@ -1071,7 +1071,7 @@ _UTF32ToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
             b=*source;
             if(b==0) {
                 state=1; /* could be 00 00 FE FF */
-            } else if(b==(char)0xff) {
+            } else if(b==(char)0xffu) {
                 state=5; /* could be FF FE 00 00 */
             } else {
                 state=8; /* default to UTF-32BE */

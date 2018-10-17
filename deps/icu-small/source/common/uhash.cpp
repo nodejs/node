@@ -218,7 +218,7 @@ _uhash_allocate(UHashtable *hash,
 
     U_ASSERT(primeIndex >= 0 && primeIndex < PRIMES_LENGTH);
 
-    hash->primeIndex = primeIndex;
+    hash->primeIndex = static_cast<int8_t>(primeIndex);
     hash->length = PRIMES[primeIndex];
 
     p = hash->elements = (UHashElement*)
@@ -860,13 +860,13 @@ uhash_hashUChars(const UHashTok key) {
 U_CAPI int32_t U_EXPORT2
 uhash_hashChars(const UHashTok key) {
     const char *s = (const char *)key.pointer;
-    return s == NULL ? 0 : static_cast<int32_t>(ustr_hashCharsN(s, uprv_strlen(s)));
+    return s == NULL ? 0 : static_cast<int32_t>(ustr_hashCharsN(s, static_cast<int32_t>(uprv_strlen(s))));
 }
 
 U_CAPI int32_t U_EXPORT2
 uhash_hashIChars(const UHashTok key) {
     const char *s = (const char *)key.pointer;
-    return s == NULL ? 0 : ustr_hashICharsN(s, uprv_strlen(s));
+    return s == NULL ? 0 : ustr_hashICharsN(s, static_cast<int32_t>(uprv_strlen(s)));
 }
 
 U_CAPI UBool U_EXPORT2
