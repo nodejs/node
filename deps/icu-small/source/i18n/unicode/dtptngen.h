@@ -498,27 +498,23 @@ public:
 private:
     /**
      * Constructor.
-     * @stable ICU 3.8
      */
     DateTimePatternGenerator(UErrorCode & status);
 
     /**
      * Constructor.
-     * @stable ICU 3.8
      */
     DateTimePatternGenerator(const Locale& locale, UErrorCode & status);
 
     /**
      * Copy constructor.
      * @param other DateTimePatternGenerator to copy
-     * @stable ICU 3.8
      */
     DateTimePatternGenerator(const DateTimePatternGenerator& other);
 
     /**
      * Default assignment operator.
      * @param other DateTimePatternGenerator to copy
-     * @stable ICU 3.8
      */
     DateTimePatternGenerator& operator=(const DateTimePatternGenerator& other);
 
@@ -541,6 +537,11 @@ private:
     char16_t fDefaultHourFormatChar;
 
     int32_t fAllowedHourFormats[7];  // Actually an array of AllowedHourFormat enum type, ending with UNKNOWN.
+
+    // Internal error code used for recording/reporting errors that occur during methods that do not
+    // have a UErrorCode parameter. For example: the Copy Constructor, or the ::clone() method.
+    // When this is set to an error the object is in an invalid state.
+    UErrorCode internalErrorCode;
 
     /* internal flags masks for adjustFieldTypes etc. */
     enum {
@@ -569,11 +570,10 @@ private:
 #endif  // U_HIDE_DRAFT_API
     void getAppendName(UDateTimePatternField field, UnicodeString& value);
     UnicodeString mapSkeletonMetacharacters(const UnicodeString& patternForm, int32_t* flags, UErrorCode& status);
-    int32_t getCanonicalIndex(const UnicodeString& field);
-    const UnicodeString* getBestRaw(DateTimeMatcher& source, int32_t includeMask, DistanceInfo* missingFields, const PtnSkeleton** specifiedSkeletonPtr = 0);
+    const UnicodeString* getBestRaw(DateTimeMatcher& source, int32_t includeMask, DistanceInfo* missingFields, UErrorCode& status, const PtnSkeleton** specifiedSkeletonPtr = 0);
     UnicodeString adjustFieldTypes(const UnicodeString& pattern, const PtnSkeleton* specifiedSkeleton, int32_t flags, UDateTimePatternMatchOptions options = UDATPG_MATCH_NO_OPTIONS);
-    UnicodeString getBestAppending(int32_t missingFields, int32_t flags, UDateTimePatternMatchOptions options = UDATPG_MATCH_NO_OPTIONS);
-    int32_t getTopBitNumber(int32_t foundMask);
+    UnicodeString getBestAppending(int32_t missingFields, int32_t flags, UErrorCode& status, UDateTimePatternMatchOptions options = UDATPG_MATCH_NO_OPTIONS);
+    int32_t getTopBitNumber(int32_t foundMask) const;
     void setAvailableFormat(const UnicodeString &key, UErrorCode& status);
     UBool isAvailableFormatSet(const UnicodeString &key) const;
     void copyHashtable(Hashtable *other, UErrorCode &status);

@@ -62,7 +62,7 @@ Padder Padder::forProperties(const DecimalFormatProperties& properties) {
 int32_t Padder::padAndApply(const Modifier &mod1, const Modifier &mod2,
                             NumberStringBuilder &string, int32_t leftIndex, int32_t rightIndex,
                             UErrorCode &status) const {
-    int32_t modLength = mod1.getCodePointCount(status) + mod2.getCodePointCount(status);
+    int32_t modLength = mod1.getCodePointCount() + mod2.getCodePointCount();
     int32_t requiredPadding = fWidth - modLength - string.codePointCount();
     U_ASSERT(leftIndex == 0 &&
              rightIndex == string.length()); // fix the previous line to remove this assertion

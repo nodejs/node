@@ -39,7 +39,7 @@ static int32_t getIndex(const char* pluralKeyword, UErrorCode& status) {
 
 static UnicodeString getWithPlural(
         const UnicodeString* strings,
-        int32_t plural,
+        StandardPlural::Form plural,
         UErrorCode& status) {
     UnicodeString result = strings[plural];
     if (result.isBogus()) {
@@ -156,7 +156,7 @@ UnicodeString getPerUnitFormat(const Locale& locale, const UNumberUnitWidth &wid
 
 } // namespace
 
-LongNameHandler
+LongNameHandler*
 LongNameHandler::forMeasureUnit(const Locale &loc, const MeasureUnit &unitRef, const MeasureUnit &perUnit,
                                 const UNumberUnitWidth &width, const PluralRules *rules,
                                 const MicroPropsGenerator *parent, UErrorCode &status) {
@@ -173,20 +173,28 @@ LongNameHandler::forMeasureUnit(const Locale &loc, const MeasureUnit &unitRef, c
         }
     }
 
-    LongNameHandler result(rules, parent);
+    auto* result = new LongNameHandler(rules, parent);
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
     UnicodeString simpleFormats[ARRAY_LENGTH];
     getMeasureData(loc, unit, width, simpleFormats, status);
     if (U_FAILURE(status)) { return result; }
     // TODO: What field to use for units?
-    simpleFormatsToModifiers(simpleFormats, UNUM_FIELD_COUNT, result.fModifiers, status);
+    result->simpleFormatsToModifiers(simpleFormats, UNUM_FIELD_COUNT, status);
     return result;
 }
 
-LongNameHandler
+LongNameHandler*
 LongNameHandler::forCompoundUnit(const Locale &loc, const MeasureUnit &unit, const MeasureUnit &perUnit,
                                  const UNumberUnitWidth &width, const PluralRules *rules,
                                  const MicroPropsGenerator *parent, UErrorCode &status) {
-    LongNameHandler result(rules, parent);
+    auto* result = new LongNameHandler(rules, parent);
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
     UnicodeString primaryData[ARRAY_LENGTH];
     getMeasureData(loc, unit, width, primaryData, status);
     if (U_FAILURE(status)) { return result; }
@@ -213,46 +221,52 @@ LongNameHandler::forCompoundUnit(const Locale &loc, const MeasureUnit &unit, con
         if (U_FAILURE(status)) { return result; }
     }
     // TODO: What field to use for units?
-    multiSimpleFormatsToModifiers(primaryData, perUnitFormat, UNUM_FIELD_COUNT, result.fModifiers, status);
+    result->multiSimpleFormatsToModifiers(primaryData, perUnitFormat, UNUM_FIELD_COUNT, status);
     return result;
 }
 
-LongNameHandler LongNameHandler::forCurrencyLongNames(const Locale &loc, const CurrencyUnit &currency,
+LongNameHandler* LongNameHandler::forCurrencyLongNames(const Locale &loc, const CurrencyUnit &currency,
                                                       const PluralRules *rules,
                                                       const MicroPropsGenerator *parent,
                                                       UErrorCode &status) {
-    LongNameHandler result(rules, parent);
+    auto* result = new LongNameHandler(rules, parent);
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
     UnicodeString simpleFormats[ARRAY_LENGTH];
     getCurrencyLongNameData(loc, currency, simpleFormats, status);
-    if (U_FAILURE(status)) { return result; }
-    simpleFormatsToModifiers(simpleFormats, UNUM_CURRENCY_FIELD, result.fModifiers, status);
+    if (U_FAILURE(status)) { return nullptr; }
+    result->simpleFormatsToModifiers(simpleFormats, UNUM_CURRENCY_FIELD, status);
     return result;
 }
 
 void LongNameHandler::simpleFormatsToModifiers(const UnicodeString *simpleFormats, Field field,
-                                               SimpleModifier *output, UErrorCode &status) {
+                                               UErrorCode &status) {
     for (int32_t i = 0; i < StandardPlural::Form::COUNT; i++) {
-        UnicodeString simpleFormat = getWithPlural(simpleFormats, i, status);
+        StandardPlural::Form plural = static_cast<StandardPlural::Form>(i);
+        UnicodeString simpleFormat = getWithPlural(simpleFormats, plural, status);
         if (U_FAILURE(status)) { return; }
         SimpleFormatter compiledFormatter(simpleFormat, 0, 1, status);
         if (U_FAILURE(status)) { return; }
-        output[i] = SimpleModifier(compiledFormatter, field, false);
+        fModifiers[i] = SimpleModifier(compiledFormatter, field, false, {this, 0, plural});
     }
 }
 
 void LongNameHandler::multiSimpleFormatsToModifiers(const UnicodeString *leadFormats, UnicodeString trailFormat,
-                                                    Field field, SimpleModifier *output, UErrorCode &status) {
+                                                    Field field, UErrorCode &status) {
     SimpleFormatter trailCompiled(trailFormat, 1, 1, status);
     if (U_FAILURE(status)) { return; }
     for (int32_t i = 0; i < StandardPlural::Form::COUNT; i++) {
-        UnicodeString leadFormat = getWithPlural(leadFormats, i, status);
+        StandardPlural::Form plural = static_cast<StandardPlural::Form>(i);
+        UnicodeString leadFormat = getWithPlural(leadFormats, plural, status);
         if (U_FAILURE(status)) { return; }
         UnicodeString compoundFormat;
         trailCompiled.format(leadFormat, compoundFormat, status);
         if (U_FAILURE(status)) { return; }
         SimpleFormatter compoundCompiled(compoundFormat, 0, 1, status);
         if (U_FAILURE(status)) { return; }
-        output[i] = SimpleModifier(compoundCompiled, field, false);
+        fModifiers[i] = SimpleModifier(compoundCompiled, field, false, {this, 0, plural});
     }
 }
 
@@ -263,6 +277,10 @@ void LongNameHandler::processQuantity(DecimalQuantity &quantity, MicroProps &mic
     DecimalQuantity copy(quantity);
     micros.rounder.apply(copy, status);
     micros.modOuter = &fModifiers[utils::getStandardPlural(rules, copy)];
+}
+
+const Modifier* LongNameHandler::getModifier(int8_t /*signum*/, StandardPlural::Form plural) const {
+    return &fModifiers[plural];
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

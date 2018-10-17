@@ -108,7 +108,7 @@ morebytes:
                 if (mySource < sourceLimit)
                 {
                     toUBytes[i] = (char) (ch2 = *mySource);
-                    if (!icu::UTF8::isValidTrail(ch, ch2, i, inBytes) &&
+                    if (!icu::UTF8::isValidTrail(ch, static_cast<uint8_t>(ch2), i, inBytes) &&
                             !(isCESU8 && i == 1 && ch == 0xed && U8_IS_TRAIL(ch2)))
                     {
                         break; /* i < inBytes */
@@ -225,7 +225,7 @@ morebytes:
                 if (mySource < sourceLimit)
                 {
                     toUBytes[i] = (char) (ch2 = *mySource);
-                    if (!icu::UTF8::isValidTrail(ch, ch2, i, inBytes) &&
+                    if (!icu::UTF8::isValidTrail(ch, static_cast<uint8_t>(ch2), i, inBytes) &&
                             !(isCESU8 && i == 1 && ch == 0xed && U8_IS_TRAIL(ch2)))
                     {
                         break; /* i < inBytes */

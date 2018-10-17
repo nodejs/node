@@ -24,11 +24,10 @@
 *   This file contains only the runtime and enumeration code, for read-only access.
 *   See utrie2_builder.c for the builder code.
 */
-#ifdef UTRIE2_DEBUG
-#   include <stdio.h>
-#endif
-
 #include "unicode/utypes.h"
+#ifdef UCPTRIE_DEBUG
+#include "unicode/umutablecptrie.h"
+#endif
 #include "unicode/utf.h"
 #include "unicode/utf8.h"
 #include "unicode/utf16.h"
@@ -202,6 +201,9 @@ utrie2_openFromSerialized(UTrie2ValueBits valueBits,
     trie->memory=(uint32_t *)data;
     trie->length=actualLength;
     trie->isMemoryOwned=FALSE;
+#ifdef UTRIE2_DEBUG
+    trie->name="fromSerialized";
+#endif
 
     /* set the pointers to its index and data arrays */
     p16=(const uint16_t *)(header+1);
@@ -294,6 +296,9 @@ utrie2_openDummy(UTrie2ValueBits valueBits,
     trie->errorValue=errorValue;
     trie->highStart=0;
     trie->highValueIndex=dataMove+UTRIE2_DATA_START_OFFSET;
+#ifdef UTRIE2_DEBUG
+    trie->name="dummy";
+#endif
 
     /* set the header fields */
     header=(UTrie2Header *)trie->memory;
@@ -373,32 +378,13 @@ utrie2_close(UTrie2 *trie) {
         }
         if(trie->newTrie!=NULL) {
             uprv_free(trie->newTrie->data);
+#ifdef UCPTRIE_DEBUG
+            umutablecptrie_close(trie->newTrie->t3);
+#endif
             uprv_free(trie->newTrie);
         }
         uprv_free(trie);
     }
-}
-
-U_CAPI int32_t U_EXPORT2
-utrie2_getVersion(const void *data, int32_t length, UBool anyEndianOk) {
-    uint32_t signature;
-    if(length<16 || data==NULL || (U_POINTER_MASK_LSB(data, 3)!=0)) {
-        return 0;
-    }
-    signature=*(const uint32_t *)data;
-    if(signature==UTRIE2_SIG) {
-        return 2;
-    }
-    if(anyEndianOk && signature==UTRIE2_OE_SIG) {
-        return 2;
-    }
-    if(signature==UTRIE_SIG) {
-        return 1;
-    }
-    if(anyEndianOk && signature==UTRIE_OE_SIG) {
-        return 1;
-    }
-    return 0;
 }
 
 U_CAPI UBool U_EXPORT2
@@ -429,96 +415,6 @@ utrie2_serialize(const UTrie2 *trie,
     }
     return trie->length;
 }
-
-U_CAPI int32_t U_EXPORT2
-utrie2_swap(const UDataSwapper *ds,
-            const void *inData, int32_t length, void *outData,
-            UErrorCode *pErrorCode) {
-    const UTrie2Header *inTrie;
-    UTrie2Header trie;
-    int32_t dataLength, size;
-    UTrie2ValueBits valueBits;
-
-    if(U_FAILURE(*pErrorCode)) {
-        return 0;
-    }
-    if(ds==NULL || inData==NULL || (length>=0 && outData==NULL)) {
-        *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return 0;
-    }
-
-    /* setup and swapping */
-    if(length>=0 && length<(int32_t)sizeof(UTrie2Header)) {
-        *pErrorCode=U_INDEX_OUTOFBOUNDS_ERROR;
-        return 0;
-    }
-
-    inTrie=(const UTrie2Header *)inData;
-    trie.signature=ds->readUInt32(inTrie->signature);
-    trie.options=ds->readUInt16(inTrie->options);
-    trie.indexLength=ds->readUInt16(inTrie->indexLength);
-    trie.shiftedDataLength=ds->readUInt16(inTrie->shiftedDataLength);
-
-    valueBits=(UTrie2ValueBits)(trie.options&UTRIE2_OPTIONS_VALUE_BITS_MASK);
-    dataLength=(int32_t)trie.shiftedDataLength<<UTRIE2_INDEX_SHIFT;
-
-    if( trie.signature!=UTRIE2_SIG ||
-        valueBits<0 || UTRIE2_COUNT_VALUE_BITS<=valueBits ||
-        trie.indexLength<UTRIE2_INDEX_1_OFFSET ||
-        dataLength<UTRIE2_DATA_START_OFFSET
-    ) {
-        *pErrorCode=U_INVALID_FORMAT_ERROR; /* not a UTrie */
-        return 0;
-    }
-
-    size=sizeof(UTrie2Header)+trie.indexLength*2;
-    switch(valueBits) {
-    case UTRIE2_16_VALUE_BITS:
-        size+=dataLength*2;
-        break;
-    case UTRIE2_32_VALUE_BITS:
-        size+=dataLength*4;
-        break;
-    default:
-        *pErrorCode=U_INVALID_FORMAT_ERROR;
-        return 0;
-    }
-
-    if(length>=0) {
-        UTrie2Header *outTrie;
-
-        if(length<size) {
-            *pErrorCode=U_INDEX_OUTOFBOUNDS_ERROR;
-            return 0;
-        }
-
-        outTrie=(UTrie2Header *)outData;
-
-        /* swap the header */
-        ds->swapArray32(ds, &inTrie->signature, 4, &outTrie->signature, pErrorCode);
-        ds->swapArray16(ds, &inTrie->options, 12, &outTrie->options, pErrorCode);
-
-        /* swap the index and the data */
-        switch(valueBits) {
-        case UTRIE2_16_VALUE_BITS:
-            ds->swapArray16(ds, inTrie+1, (trie.indexLength+dataLength)*2, outTrie+1, pErrorCode);
-            break;
-        case UTRIE2_32_VALUE_BITS:
-            ds->swapArray16(ds, inTrie+1, trie.indexLength*2, outTrie+1, pErrorCode);
-            ds->swapArray32(ds, (const uint16_t *)(inTrie+1)+trie.indexLength, dataLength*4,
-                                     (uint16_t *)(outTrie+1)+trie.indexLength, pErrorCode);
-            break;
-        default:
-            *pErrorCode=U_INVALID_FORMAT_ERROR;
-            return 0;
-        }
-    }
-
-    return size;
-}
-
-// utrie2_swapAnyVersion() should be defined here but lives in utrie2_builder.c
-// to avoid a dependency from utrie2.cpp on utrie.c.
 
 /* enumeration -------------------------------------------------------------- */
 
@@ -746,7 +642,7 @@ uint16_t BackwardUTrie2StringIterator::previous16() {
     codePointLimit=codePointStart;
     if(start>=codePointStart) {
         codePoint=U_SENTINEL;
-        return trie->errorValue;
+        return static_cast<uint16_t>(trie->errorValue);
     }
     uint16_t result;
     UTRIE2_U16_PREV16(trie, start, codePointStart, codePoint, result);
@@ -757,7 +653,7 @@ uint16_t ForwardUTrie2StringIterator::next16() {
     codePointStart=codePointLimit;
     if(codePointLimit==limit) {
         codePoint=U_SENTINEL;
-        return trie->errorValue;
+        return static_cast<uint16_t>(trie->errorValue);
     }
     uint16_t result;
     UTRIE2_U16_NEXT16(trie, codePointLimit, limit, codePoint, result);

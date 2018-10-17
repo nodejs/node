@@ -380,7 +380,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             // with the current rule expression (on the Node Stack)
             //  with the resulting OR expression going to *destRules
             //
-            RBBINode  *thisRule    = fNodeStack[fNodeStackPtr];
+                       thisRule    = fNodeStack[fNodeStackPtr];
             RBBINode  *prevRules   = *destRules;
             RBBINode  *orNode      = pushNewNode(RBBINode::opOr);
             if (U_FAILURE(*fRB->fStatus)) {

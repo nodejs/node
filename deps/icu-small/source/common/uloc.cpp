@@ -798,7 +798,7 @@ _getKeywords(const char *localeID,
             }
             keywordsLen += keywordList[i].keywordLen + 1;
             if(valuesToo) {
-                if(keywordsLen + keywordList[i].valueLen < keywordCapacity) {
+                if(keywordsLen + keywordList[i].valueLen <= keywordCapacity) {
                     uprv_strncpy(keywords+keywordsLen, keywordList[i].valueStart, keywordList[i].valueLen);
                 }
                 keywordsLen += keywordList[i].valueLen;
@@ -1133,7 +1133,7 @@ uloc_setKeywordValue(const char* keywordName,
             keyValuePrefix = ';'; /* for any subsequent key-value pair */
             updatedKeysAndValues.append(localeKeywordNameBuffer, keyValueLen, *status);
             updatedKeysAndValues.append('=', *status);
-            updatedKeysAndValues.append(nextEqualsign, keyValueTail-nextEqualsign, *status);
+            updatedKeysAndValues.append(nextEqualsign, static_cast<int32_t>(keyValueTail-nextEqualsign), *status);
         }
         if (!nextSeparator && keywordValueLen > 0 && !handledInputKeyAndValue) {
             /* append new entry at the end, it sorts later than existing entries */
@@ -1500,7 +1500,7 @@ _deleteVariant(char* variants, int32_t variantsLen,
         }
         if (uprv_strncmp(variants, toDelete, toDeleteLen) == 0 &&
             (variantsLen == toDeleteLen ||
-             (flag=(variants[toDeleteLen] == '_'))))
+             (flag=(variants[toDeleteLen] == '_')) != 0))
         {
             int32_t d = toDeleteLen + (flag?1:0);
             variantsLen -= d;
@@ -2412,7 +2412,7 @@ uloc_acceptLanguageFromHTTP(char *result, int32_t resultAvailable, UAcceptResult
         /* eat spaces prior to semi */
         for(t=(paramEnd-1);(paramEnd>s)&&isspace(*t);t--)
             ;
-        int32_t slen = ((t+1)-s);
+        int32_t slen = static_cast<int32_t>(((t+1)-s));
         if(slen > ULOC_FULLNAME_CAPACITY) {
           *status = U_BUFFER_OVERFLOW_ERROR;
           return -1; // too big

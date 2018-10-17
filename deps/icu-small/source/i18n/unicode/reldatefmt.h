@@ -165,12 +165,20 @@ typedef enum UDateAbsoluteUnit {
      */
     UDAT_ABSOLUTE_NOW,
 
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Quarter
+     * @draft ICU 63
+     */
+    UDAT_ABSOLUTE_QUARTER,
+#endif // U_HIDE_DRAFT_API
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UDateAbsoluteUnit value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UDAT_ABSOLUTE_UNIT_COUNT
+    UDAT_ABSOLUTE_UNIT_COUNT = UDAT_ABSOLUTE_NOW + 2
 #endif  // U_HIDE_DEPRECATED_API
 } UDateAbsoluteUnit;
 
@@ -328,7 +336,7 @@ public:
      * @param nfToAdopt Constructed object takes ownership of this pointer.
      *   It is an error for caller to delete this pointer or change its
      *   contents after calling this constructor.
-     * @status Any error is returned here.
+     * @param status Any error is returned here.
      * @stable ICU 53
      */
     RelativeDateTimeFormatter(
@@ -346,7 +354,7 @@ public:
      * @param style the format style. The UDAT_RELATIVE bit field has no effect.
      * @param capitalizationContext A value from UDisplayContext that pertains to
      * capitalization.
-     * @status Any error is returned here.
+     * @param status Any error is returned here.
      * @stable ICU 54
      */
     RelativeDateTimeFormatter(

@@ -135,7 +135,7 @@ static UnicodeString& appendAsciiDigits(int32_t number, uint8_t length, UnicodeS
             digits[i++] = number % 10;
             number /= 10;
         } while (number != 0);
-        length = i;
+        length = static_cast<uint8_t>(i);
     } else {
         // fixed digits
         for (i = 0; i < length; i++) {

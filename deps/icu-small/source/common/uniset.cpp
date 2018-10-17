@@ -152,6 +152,7 @@ UnicodeSet::UnicodeSet() :
     UErrorCode status = U_ZERO_ERROR;
     allocateStrings(status);
     if (U_FAILURE(status)) {
+        setToBogus(); // If memory allocation failed, set to bogus state.
         return;
     }
     list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
@@ -179,6 +180,7 @@ UnicodeSet::UnicodeSet(UChar32 start, UChar32 end) :
     UErrorCode status = U_ZERO_ERROR;
     allocateStrings(status);
     if (U_FAILURE(status)) {
+        setToBogus(); // If memory allocation failed, set to bogus state.
         return;
     }
     list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
@@ -206,6 +208,7 @@ UnicodeSet::UnicodeSet(const UnicodeSet& o) :
     UErrorCode status = U_ZERO_ERROR;
     allocateStrings(status);
     if (U_FAILURE(status)) {
+        setToBogus(); // If memory allocation failed, set to bogus state.
         return;
     }
     list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
@@ -230,6 +233,7 @@ UnicodeSet::UnicodeSet(const UnicodeSet& o, UBool /* asThawed */) :
     UErrorCode status = U_ZERO_ERROR;
     allocateStrings(status);
     if (U_FAILURE(status)) {
+        setToBogus(); // If memory allocation failed, set to bogus state.
         return;
     }
     list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
@@ -272,6 +276,10 @@ UnicodeSet::~UnicodeSet() {
  * Assigns this object to be a copy of another.
  */
 UnicodeSet& UnicodeSet::operator=(const UnicodeSet& o) {
+    return copyFrom(o, FALSE);
+}
+
+UnicodeSet& UnicodeSet::copyFrom(const UnicodeSet& o, UBool asThawed) {
     if (this == &o) {
         return *this;
     }
@@ -285,11 +293,12 @@ UnicodeSet& UnicodeSet::operator=(const UnicodeSet& o) {
     UErrorCode ec = U_ZERO_ERROR;
     ensureCapacity(o.len, ec);
     if (U_FAILURE(ec)) {
-        return *this; // There is no way to report this error :-(
+        // ensureCapacity will mark the UnicodeSet as Bogus if OOM failure happens.
+        return *this;
     }
     len = o.len;
     uprv_memcpy(list, o.list, (size_t)len*sizeof(UChar32));
-    if (o.bmpSet == NULL) {
+    if (o.bmpSet == NULL || asThawed) {
         bmpSet = NULL;
     } else {
         bmpSet = new BMPSet(*o.bmpSet, list, len);
@@ -304,7 +313,7 @@ UnicodeSet& UnicodeSet::operator=(const UnicodeSet& o) {
         setToBogus();
         return *this;
     }
-    if (o.stringSpan == NULL) {
+    if (o.stringSpan == NULL || asThawed) {
         stringSpan = NULL;
     } else {
         stringSpan = new UnicodeSetStringSpan(*o.stringSpan, *strings);
@@ -359,12 +368,12 @@ UBool UnicodeSet::operator==(const UnicodeSet& o) const {
  * @see Object#hashCode()
  */
 int32_t UnicodeSet::hashCode(void) const {
-    int32_t result = len;
+    uint32_t result = static_cast<uint32_t>(len);
     for (int32_t i = 0; i < len; ++i) {
-        result *= 1000003;
+        result *= 1000003u;
         result += list[i];
     }
-    return result;
+    return static_cast<int32_t>(result);
 }
 
 //----------------------------------------------------------------
@@ -912,7 +921,8 @@ UnicodeSet& UnicodeSet::add(UChar32 c) {
             UErrorCode status = U_ZERO_ERROR;
             ensureCapacity(len+1, status);
             if (U_FAILURE(status)) {
-                return *this; // There is no way to report this error :-(
+                // ensureCapacity will mark the object as Bogus if OOM failure happens.
+                return *this;
             }
             list[len++] = UNICODESET_HIGH;
         }
@@ -957,7 +967,8 @@ UnicodeSet& UnicodeSet::add(UChar32 c) {
         UErrorCode status = U_ZERO_ERROR;
         ensureCapacity(len+2, status);
         if (U_FAILURE(status)) {
-            return *this; // There is no way to report this error :-(
+            // ensureCapacity will mark the object as Bogus if OOM failure happens.
+            return *this;
         }
 
         //for (int32_t k=len-1; k>=i; --k) {
@@ -1654,12 +1665,13 @@ UBool UnicodeSet::allocateStrings(UErrorCode &status) {
 }
 
 void UnicodeSet::ensureCapacity(int32_t newLen, UErrorCode& ec) {
-    if (newLen <= capacity)
+    if (newLen <= capacity) {
         return;
+    }
     UChar32* temp = (UChar32*) uprv_realloc(list, sizeof(UChar32) * (newLen + GROW_EXTRA));
     if (temp == NULL) {
         ec = U_MEMORY_ALLOCATION_ERROR;
-        setToBogus();
+        setToBogus(); // set the object to bogus state if an OOM failure occurred.
         return;
     }
     list = temp;

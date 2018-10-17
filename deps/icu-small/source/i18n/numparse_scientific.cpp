@@ -56,6 +56,11 @@ bool ScientificMatcher::match(StringSegment& segment, ParsedNumber& result, UErr
         return false;
     }
 
+    // Only accept one exponent per string.
+    if (0 != (result.flags & FLAG_HAS_EXPONENT)) {
+        return false;
+    }
+
     // First match the scientific separator, and then match another number after it.
     // NOTE: This is guarded by the smoke test; no need to check fExponentSeparatorString length again.
     int overlap1 = segment.getCommonPrefixLength(fExponentSeparatorString);

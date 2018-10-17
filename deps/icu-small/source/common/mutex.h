@@ -35,7 +35,7 @@ U_NAMESPACE_BEGIN
 
 // For example:
 //
-// UMutex myMutex;
+// UMutex myMutex = U_MUTEX_INITIALIZER;
 //
 // void Function(int arg1, int arg2)
 // {

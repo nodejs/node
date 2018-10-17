@@ -194,9 +194,9 @@ const UnicodeFunctor* ParseData::lookupMatcher(UChar32 ch) const {
     const UnicodeFunctor* set = NULL;
     int32_t i = ch - data->variablesBase;
     if (i >= 0 && i < variablesVector->size()) {
-        int32_t i = ch - data->variablesBase;
-        set = (i < variablesVector->size()) ?
-            (UnicodeFunctor*) variablesVector->elementAt(i) : 0;
+        int32_t j = ch - data->variablesBase;
+        set = (j < variablesVector->size()) ?
+            (UnicodeFunctor*) variablesVector->elementAt(j) : 0;
     }
     return set;
 }
@@ -1108,8 +1108,8 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
             }
 
             data->variableNames.removeAll();
-            int32_t pos = UHASH_FIRST;
-            const UHashElement* he = variableNames.nextElement(pos);
+            int32_t p = UHASH_FIRST;
+            const UHashElement* he = variableNames.nextElement(p);
             while (he != NULL) {
                 UnicodeString* tempus = (UnicodeString*)(((UnicodeString*)(he->value.pointer))->clone());
                 if (tempus == NULL) {
@@ -1118,7 +1118,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
                 }
                 data->variableNames.put(*((UnicodeString*)(he->key.pointer)),
                     tempus, status);
-                he = variableNames.nextElement(pos);
+                he = variableNames.nextElement(p);
             }
         }
         variablesVector.removeAllElements();   // keeps them from getting deleted when we succeed

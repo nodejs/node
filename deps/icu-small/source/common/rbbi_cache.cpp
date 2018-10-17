@@ -603,7 +603,7 @@ void RuleBasedBreakIterator::BreakCache::addFollowing(int32_t position, int32_t 
         fStartBufIdx = modChunkSize(fStartBufIdx + 6);    // TODO: experiment. Probably revert to 1.
     }
     fBoundaries[nextIdx] = position;
-    fStatuses[nextIdx] = ruleStatusIdx;
+    fStatuses[nextIdx] = static_cast<uint16_t>(ruleStatusIdx);
     fEndBufIdx = nextIdx;
     if (update == UpdateCachePosition) {
         // Set current position to the newly added boundary.
@@ -631,7 +631,7 @@ bool RuleBasedBreakIterator::BreakCache::addPreceding(int32_t position, int32_t 
         fEndBufIdx = modChunkSize(fEndBufIdx - 1);
     }
     fBoundaries[nextIdx] = position;
-    fStatuses[nextIdx] = ruleStatusIdx;
+    fStatuses[nextIdx] = static_cast<uint16_t>(ruleStatusIdx);
     fStartBufIdx = nextIdx;
     if (update == UpdateCachePosition) {
         fBufIdx = nextIdx;

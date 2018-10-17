@@ -1077,11 +1077,11 @@ collectCurrencyNames(const char* locale,
         }
 
         // currency plurals
-        UErrorCode ec3 = U_ZERO_ERROR;
-        UResourceBundle* curr_p = ures_getByKey(rb, CURRENCYPLURALS, NULL, &ec3);
+        UErrorCode ec5 = U_ZERO_ERROR;
+        UResourceBundle* curr_p = ures_getByKey(rb, CURRENCYPLURALS, NULL, &ec5);
         n = ures_getSize(curr_p);
         for (int32_t i=0; i<n; ++i) {
-            UResourceBundle* names = ures_getByIndex(curr_p, i, NULL, &ec3);
+            UResourceBundle* names = ures_getByIndex(curr_p, i, NULL, &ec5);
             iso = (char*)ures_getKey(names);
             // Using hash to remove duplicated ISO codes in fallback chain.
             if (localeLevel == 0) {
@@ -1099,7 +1099,7 @@ collectCurrencyNames(const char* locale,
             for (int32_t j = 0; j < num; ++j) {
                 // TODO: remove duplicates between singular name and
                 // currency long name?
-                s = ures_getStringByIndex(names, j, &len, &ec3);
+                s = ures_getStringByIndex(names, j, &len, &ec5);
                 (*currencyNames)[*total_currency_name_count].IsoCode = iso;
                 UChar* upperName = toUpperCase(s, len, locale);
                 (*currencyNames)[*total_currency_name_count].currencyName = upperName;
@@ -1449,7 +1449,7 @@ getCacheEntry(const char* locale, UErrorCode& ec) {
     umtx_lock(&gCurrencyCacheMutex);
     // in order to handle racing correctly,
     // not putting 'search' in a separate function.
-    int8_t  found = -1;
+    int8_t found = -1;
     for (int8_t i = 0; i < CURRENCY_NAME_CACHE_NUM; ++i) {
         if (currCache[i]!= NULL &&
             uprv_strcmp(locale, currCache[i]->locale) == 0) {
@@ -1469,7 +1469,6 @@ getCacheEntry(const char* locale, UErrorCode& ec) {
         }
         umtx_lock(&gCurrencyCacheMutex);
         // check again.
-        int8_t  found = -1;
         for (int8_t i = 0; i < CURRENCY_NAME_CACHE_NUM; ++i) {
             if (currCache[i]!= NULL &&
                 uprv_strcmp(locale, currCache[i]->locale) == 0) {

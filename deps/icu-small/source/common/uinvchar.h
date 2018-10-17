@@ -53,22 +53,6 @@ uprv_isInvariantString(const char *s, int32_t length);
 U_INTERNAL UBool U_EXPORT2
 uprv_isInvariantUString(const UChar *s, int32_t length);
 
-#ifdef __cplusplus
-
-/**
- * Check if a UnicodeString only contains invariant characters.
- * See utypes.h for details.
- *
- * @param s Input string.
- * @return TRUE if s contains only invariant characters.
- */
-U_INTERNAL inline UBool U_EXPORT2
-uprv_isInvariantUnicodeString(const icu::UnicodeString &s) {
-    return uprv_isInvariantUString(icu::toUCharPtr(s.getBuffer()), s.length());
-}
-
-#endif  /* __cplusplus */
-
 /**
  * \def U_UPPER_ORDINAL
  * Get the ordinal number of an uppercase invariant character

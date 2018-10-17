@@ -368,6 +368,26 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     static MeasureUnit *createPartPerMillion(UErrorCode &status);
 
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns unit of concentr: percent.
+     * Caller owns returned value and must free it.
+     * @param status ICU error code.
+     * @draft ICU 63
+     */
+    static MeasureUnit *createPercent(UErrorCode &status);
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns unit of concentr: permille.
+     * Caller owns returned value and must free it.
+     * @param status ICU error code.
+     * @draft ICU 63
+     */
+    static MeasureUnit *createPermille(UErrorCode &status);
+#endif /* U_HIDE_DRAFT_API */
+
     /**
      * Returns unit of consumption: liter-per-100kilometers.
      * Caller owns returned value and must free it.
@@ -463,6 +483,16 @@ class U_I18N_API MeasureUnit: public UObject {
      * @stable ICU 54
      */
     static MeasureUnit *createMegabyte(UErrorCode &status);
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns unit of digital: petabyte.
+     * Caller owns returned value and must free it.
+     * @param status ICU error code.
+     * @draft ICU 63
+     */
+    static MeasureUnit *createPetabyte(UErrorCode &status);
+#endif /* U_HIDE_DRAFT_API */
 
     /**
      * Returns unit of digital: terabit.
@@ -983,6 +1013,16 @@ class U_I18N_API MeasureUnit: public UObject {
      * @stable ICU 53
      */
     static MeasureUnit *createWatt(UErrorCode &status);
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns unit of pressure: atmosphere.
+     * Caller owns returned value and must free it.
+     * @param status ICU error code.
+     * @draft ICU 63
+     */
+    static MeasureUnit *createAtmosphere(UErrorCode &status);
+#endif /* U_HIDE_DRAFT_API */
 
     /**
      * Returns unit of pressure: hectopascal.

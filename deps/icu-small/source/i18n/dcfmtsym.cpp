@@ -436,7 +436,7 @@ DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status,
     sink.resolveMissingMonetarySeparators(fSymbols);
 
     // Resolve codePointZero
-    UChar32 tempCodePointZero;
+    UChar32 tempCodePointZero = -1;
     for (int32_t i=0; i<=9; i++) {
         const UnicodeString& stringDigit = getConstDigitSymbol(i);
         if (stringDigit.countChar32() != 1) {
