@@ -184,6 +184,10 @@ property take precedence over `--trace-deprecation` and
 added: v0.5.3
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23708
+    description: The `%d`, `%f` and `%i` specifiers now support Symbols
+                 properly.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/23162
     description: The `format` argument is now only taken as such if it actually
                  contains format specifiers.
