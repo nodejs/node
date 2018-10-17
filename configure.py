@@ -1287,8 +1287,8 @@ def configure_intl(o):
         if (md5 == gotmd5):
           return targetfile
         else:
-          error('Expected: %s      *MISMATCH*' % md5)
-          error('\n ** Corrupted ZIP? Delete %s to retry download.\n' % targetfile)
+          warn('Expected: %s      *MISMATCH*' % md5)
+          warn('\n ** Corrupted ZIP? Delete %s to retry download.\n' % targetfile)
     return None
   icu_config = {
     'variables': {}
@@ -1432,11 +1432,12 @@ def configure_intl(o):
   # ICU source dir relative to tools/icu (for .gyp file)
   o['variables']['icu_path'] = icu_full_path
   if not os.path.isdir(icu_full_path):
-    warn('* ECMA-402 (Intl) support didn\'t find ICU in %s..' % icu_full_path)
     # can we download (or find) a zipfile?
     localzip = icu_download(icu_full_path)
     if localzip:
       nodedownload.unpack(localzip, icu_parent_path)
+    else:
+      warn('* ECMA-402 (Intl) support didn\'t find ICU in %s..' % icu_full_path)
   if not os.path.isdir(icu_full_path):
     error('''Cannot build Intl without ICU in %s.
        Fix, or disable with "--with-intl=none"''' % icu_full_path)
