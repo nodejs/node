@@ -3028,20 +3028,26 @@ changes:
     description: The `target` and `path` parameters can be WHATWG `URL` objects
                  using `file:` protocol. Support is currently still
                  *experimental*.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23724
+    description: If the `type` argument is left undefined, Node will autodetect
+                 `target` type and automatically select `dir` or `file`
 -->
 
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
-* `type` {string} **Default:** `'file'`
+* `type` {string}
 * `callback` {Function}
   * `err` {Error}
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
-to the completion callback. The `type` argument can be set to `'dir'`,
-`'file'`, or `'junction'` and is only available on
-Windows (ignored on other platforms). Windows junction points require the
-destination path to be absolute. When using `'junction'`, the `target` argument
-will automatically be normalized to absolute path.
+to the completion callback. The `type` argument is only available on Windows
+and ignored on other platforms. It can be set to `'dir'`, `'file'`, or
+`'junction'`. If the `type` argument is not set, Node will autodetect `target`
+type and use `'file'` or `'dir'`. If the `target` does not exist, `'file'` will
+be used. Windows junction points require the destination path to be absolute.
+When using `'junction'`, the `target` argument will automatically be normalized
+to absolute path.
 
 Here is an example below:
 
@@ -3060,11 +3066,15 @@ changes:
     description: The `target` and `path` parameters can be WHATWG `URL` objects
                  using `file:` protocol. Support is currently still
                  *experimental*.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23724
+    description: If the `type` argument is left undefined, Node will autodetect
+                 `target` type and automatically select `dir` or `file`
 -->
 
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
-* `type` {string} **Default:** `'file'`
+* `type` {string}
 
 Returns `undefined`.
 
