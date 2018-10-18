@@ -182,7 +182,7 @@ function convertDERToPEM(label, der) {
 {
   // Test async DSA key generation.
   generateKeyPair('dsa', {
-    modulusLength: 256,
+    modulusLength: 512,
     divisorLength: 256,
     publicKeyEncoding: {
       type: 'spki',
