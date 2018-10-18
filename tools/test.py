@@ -1381,8 +1381,8 @@ def ProcessOptions(options):
   options.arch = options.arch.split(',')
   options.mode = options.mode.split(',')
   options.run = options.run.split(',')
-  options.skip_tests = options.skip_tests.split(',')
-  options.skip_tests.remove("")
+  # Split at commas and filter out all the empty strings.
+  options.skip_tests = filter(bool, options.skip_tests.split(','))
   if options.run == [""]:
     options.run = None
   elif len(options.run) != 2:
