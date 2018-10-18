@@ -204,7 +204,8 @@ Never use `std::auto_ptr`. Instead, use `std::unique_ptr`.
 ### Avoid non-const references
 
 Using non-const references often obscures which values are changed by an
-assignment. A pointer is almost always a better choice.
+assignment. Consider using a pointer instead, which requires more explicit
+syntax to indicate that modifications take place.
 
 ```c++
 class ExampleClass {
