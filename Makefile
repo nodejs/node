@@ -480,8 +480,11 @@ build-ci:
 #   of tests. See `test-ci-native` and `test-ci-js`.
 # - node-test-commit-linux-coverage: where the build and the tests need
 #   to be instrumented, see `coverage`.
+#
+# Using -j1 as the sub target in `test-ci` already have internal parallelism.
+# Refs: https://github.com/nodejs/node/pull/23733
 run-ci: build-ci
-	$(MAKE) test-ci
+	$(MAKE) test-ci -j1
 
 test-release: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
