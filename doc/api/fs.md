@@ -3547,12 +3547,23 @@ fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 1. Any specified file descriptor has to support writing.
 2. If a file descriptor is specified as the `file`, it will not be closed
 automatically.
-3. The writing will begin at the beginning of the file. If the file size is 10
-bytes and if six bytes are written with this file descriptor, then the file
-contents would be six newly written bytes and four bytes which were already
-there in the file from position seven to ten. For example, if the file already
-had `'Hello World'` and the newly written content is `'Aloha'`, then the
-contents of the file would be `'Aloha World'`, rather than just `'Aloha'`.
+3. The writing will begin at the current position. Basically, if there are
+multiple write calls to a file descriptor and then a `writeFile()` call is
+made with the same file descriptor, the data would have been appended.
+For example, if we did something like this
+```js
+fs.writeFile(fd, 'Hello', function(err) {
+  if (err) {
+    throw err;
+  }
+  fs.writeFile(fd, 'World', function(err) {
+    if (err) {
+      throw err;
+    }
+    // At this point, file will have `HelloWorld`.
+  });
+});
+```
 
 It is unsafe to use `fs.writeFile()` multiple times on the same file without
 waiting for the callback. For this scenario, [`fs.createWriteStream()`][] is
