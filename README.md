@@ -166,7 +166,8 @@ team has addressed the vulnerability.
 The security team will acknowledge your email within 24 hours. You will receive
 a more detailed response within 48 hours.
 
-There are no hard and fast rules to determine if a bug is worth reporting as a security issue. If in doubt, please report the bug to security@nodejs.org.
+There are no hard and fast rules to determine if a bug is worth reporting as a
+security issue. If in doubt, please report the bug to security@nodejs.org.
 
 ## Current Project Team Members
 
