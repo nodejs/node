@@ -2547,6 +2547,9 @@ fs.readFile('<directory>', (err, data) => {
 });
 ```
 
+The `fs.readFile()` function buffers the entire file. To minimize memory costs,
+when possible prefer streaming via `fs.createReadStream()`.
+
 ### File Descriptors
 1. Any specified file descriptor has to support reading.
 2. If a file descriptor is specified as the `path`, it will not be closed
@@ -2554,9 +2557,6 @@ automatically.
 3. The reading will begin at the current position. If the file size is
 10 bytes and if six bytes are already read with this file descriptor, then
 `readFile()` will return only the rest of the four bytes.
-
-The `fs.readFile()` function buffers the entire file. To minimize memory costs,
-when possible prefer streaming via `fs.createReadStream()`.
 
 ## fs.readFileSync(path[, options])
 <!-- YAML
@@ -3543,6 +3543,10 @@ If `options` is a string, then it specifies the encoding:
 fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 ```
 
+It is unsafe to use `fs.writeFile()` multiple times on the same file without
+waiting for the callback. For this scenario, [`fs.createWriteStream()`][] is
+recommended.
+
 ### File Descriptors
 1. Any specified file descriptor has to support writing.
 2. If a file descriptor is specified as the `file`, it will not be closed
@@ -3564,10 +3568,6 @@ fs.writeFile(fd, 'Hello', function(err) {
   });
 });
 ```
-
-It is unsafe to use `fs.writeFile()` multiple times on the same file without
-waiting for the callback. For this scenario, [`fs.createWriteStream()`][] is
-recommended.
 
 
 ## fs.writeFileSync(file, data[, options])
