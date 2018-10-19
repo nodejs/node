@@ -82,7 +82,7 @@ demoBug('POST /1/22 HTTP/1.1\r\n' +
         'pong');
 
 process.on('exit', function() {
-  assert.strictEqual(2, headersComplete);
-  assert.strictEqual(2, messagesComplete);
+  assert.strictEqual(headersComplete, 2);
+  assert.strictEqual(messagesComplete, 2);
   console.log('done!');
 });
