@@ -1936,6 +1936,14 @@ buf2.swap16();
 // Throws ERR_INVALID_BUFFER_SIZE
 ```
 
+One convenient use of `buf.swap16()` is to perform a fast in-place conversion
+between UTF-16 little-endian and UTF-16 big-endian:
+
+```js
+const buf = Buffer.from('This is little-endian UTF-16', 'utf16le');
+buf.swap16(); // Convert to big-endian UTF-16 text.
+```
+
 ### buf.swap32()
 <!-- YAML
 added: v5.10.0
