@@ -6,6 +6,10 @@ if (common.isWindows) {
   common.skip('vcbuild.bat doesn\'t build the n-api benchmarks yet');
 }
 
+if (!common.isMainThread) {
+  common.skip('addons are not supported in workers');
+}
+
 const runBenchmark = require('../common/benchmark');
 
 runBenchmark('napi',
