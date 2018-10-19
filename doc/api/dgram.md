@@ -104,7 +104,7 @@ const cluster = require('cluster');
 const dgram = require('dgram');
 if (cluster.isMaster) {
   cluster.fork(); // Works ok
-  cluster.fork(); // Fails with EADDRINUSE
+  cluster.fork(); // Fails with EADDRINUSE.
 } else {
   const s = dgram.createSocket('udp4');
   s.bind(1234, () => {
