@@ -94,6 +94,10 @@
                   'action????': ['$(TargetPath)', '--gtest_print_time'],
                 },
               }],
+              ['OS=="aix"', {
+               'cflags': [ '-Wno-nonnull-compare',
+                           '-Wno-address' ],
+              }],
             ],
           }],
         ],
