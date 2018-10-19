@@ -19,7 +19,9 @@ function test(arg, port = '') {
   proc.stdout.on('close', (hadErr) => assert(!hadErr));
   proc.stderr.on('close', (hadErr) => assert(!hadErr));
   proc.stderr.on('data', () => {
-    if (!stderr.includes('\n')) return;
+    if (!stderr.includes('\n') ||
+     (stderr.includes('Warning: Inspector'))) return;
+
     assert(/Debugger listening on (.+)/.test(stderr));
     port = new URL(RegExp.$1).port;
     assert(+port > 0);
