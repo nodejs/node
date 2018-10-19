@@ -96,7 +96,7 @@ one interface and will add membership to it. To add membership to every
 available interface, call `addMembership` multiple times, once per interface.
 
 When sharing a UDP socket across multiple `cluster` workers, the
-`socket.addMembership()` function must only be called *only once* or an
+`socket.addMembership()` function must be called only once or an
 `EADDRINUSE` error will occur:
 
 ```js
