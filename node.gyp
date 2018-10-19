@@ -221,9 +221,9 @@
       [ 'OS=="win" and '
         'node_use_openssl=="true" and '
         'node_shared_openssl=="false"', {
-        'use_openssl_def': 1,
+        'use_openssl_def%': 1,
       }, {
-        'use_openssl_def': 0,
+        'use_openssl_def%': 0,
       }],
     ],
   },
