@@ -74,31 +74,37 @@ async function getHandle(dest) {
 {
   async function doTest() {
     tmpdir.refresh();
+
     const dest = path.resolve(tmpDir, 'baz.js');
-    await copyFile(fixtures.path('baz.js'), dest);
-    await access(dest, 'r');
 
-    const handle = await open(dest, 'r+');
-    assert.strictEqual(typeof handle, 'object');
+    // handle is object
+    {
+      const handle = await getHandle(dest);
+      assert.strictEqual(typeof handle, 'object');
+    }
 
-    let stats = await handle.stat();
-    verifyStatObject(stats);
-    assert.strictEqual(stats.size, 35);
+    // file stats
+    {
+      const handle = await getHandle(dest);
+      let stats = await handle.stat();
+      verifyStatObject(stats);
+      assert.strictEqual(stats.size, 35);
 
-    await handle.truncate(1);
+      await handle.truncate(1);
 
-    stats = await handle.stat();
-    verifyStatObject(stats);
-    assert.strictEqual(stats.size, 1);
+      stats = await handle.stat();
+      verifyStatObject(stats);
+      assert.strictEqual(stats.size, 1);
 
-    stats = await stat(dest);
-    verifyStatObject(stats);
+      stats = await stat(dest);
+      verifyStatObject(stats);
 
-    stats = await handle.stat();
-    verifyStatObject(stats);
+      stats = await handle.stat();
+      verifyStatObject(stats);
 
-    await handle.datasync();
-    await handle.sync();
+      await handle.datasync();
+      await handle.sync();
+    }
 
     // test fs.read promises when length to read is zero bytes
     {
@@ -113,115 +119,140 @@ async function getHandle(dest) {
       await unlink(dest);
     }
 
-    const buf = Buffer.from('hello fsPromises');
-    const bufLen = buf.length;
-    await handle.write(buf);
-    const ret = await handle.read(Buffer.alloc(bufLen), 0, bufLen, 0);
-    assert.strictEqual(ret.bytesRead, bufLen);
-    assert.deepStrictEqual(ret.buffer, buf);
-
-    const buf2 = Buffer.from('hello FileHandle');
-    const buf2Len = buf2.length;
-    await handle.write(buf2, 0, buf2Len, 0);
-    const ret2 = await handle.read(Buffer.alloc(buf2Len), 0, buf2Len, 0);
-    assert.strictEqual(ret2.bytesRead, buf2Len);
-    assert.deepStrictEqual(ret2.buffer, buf2);
-    await truncate(dest, 5);
-    assert.deepStrictEqual((await readFile(dest)).toString(), 'hello');
-
-    await chmod(dest, 0o666);
-    await handle.chmod(0o666);
-
-    await chmod(dest, (0o10777));
-    await handle.chmod(0o10777);
-
-    if (!common.isWindows) {
-      await chown(dest, process.getuid(), process.getgid());
-      await handle.chown(process.getuid(), process.getgid());
+    // bytes written to file match buffer
+    {
+      const handle = await getHandle(dest);
+      const buf = Buffer.from('hello fsPromises');
+      const bufLen = buf.length;
+      await handle.write(buf);
+      const ret = await handle.read(Buffer.alloc(bufLen), 0, bufLen, 0);
+      assert.strictEqual(ret.bytesRead, bufLen);
+      assert.deepStrictEqual(ret.buffer, buf);
     }
 
-    assert.rejects(
-      async () => {
-        await chown(dest, 1, -1);
-      },
-      {
-        code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError [ERR_OUT_OF_RANGE]',
-        message: 'The value of "gid" is out of range. ' +
-                 'It must be >= 0 && < 4294967296. Received -1'
-      });
-
-    assert.rejects(
-      async () => {
-        await handle.chown(1, -1);
-      },
-      {
-        code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError [ERR_OUT_OF_RANGE]',
-        message: 'The value of "gid" is out of range. ' +
-                  'It must be >= 0 && < 4294967296. Received -1'
-      });
-
-    await utimes(dest, new Date(), new Date());
-
-    try {
-      await handle.utimes(new Date(), new Date());
-    } catch (err) {
-      // Some systems do not have futimes. If there is an error,
-      // expect it to be ENOSYS
-      common.expectsError({
-        code: 'ENOSYS',
-        type: Error
-      })(err);
+    // truncate file to specified length
+    {
+      const handle = await getHandle(dest);
+      const buf = Buffer.from('hello FileHandle');
+      const bufLen = buf.length;
+      await handle.write(buf, 0, bufLen, 0);
+      const ret = await handle.read(Buffer.alloc(bufLen), 0, bufLen, 0);
+      assert.strictEqual(ret.bytesRead, bufLen);
+      assert.deepStrictEqual(ret.buffer, buf);
+      await truncate(dest, 5);
+      assert.deepStrictEqual((await readFile(dest)).toString(), 'hello');
     }
 
-    await handle.close();
+    // invalid change of ownership
+    {
+      const handle = await getHandle(dest);
 
-    const newPath = path.resolve(tmpDir, 'baz2.js');
-    await rename(dest, newPath);
-    stats = await stat(newPath);
-    verifyStatObject(stats);
+      await chmod(dest, 0o666);
+      await handle.chmod(0o666);
 
-    if (common.canCreateSymLink()) {
-      const newLink = path.resolve(tmpDir, 'baz3.js');
-      await symlink(newPath, newLink);
+      await chmod(dest, (0o10777));
+      await handle.chmod(0o10777);
+
       if (!common.isWindows) {
-        await lchown(newLink, process.getuid(), process.getgid());
+        await chown(dest, process.getuid(), process.getgid());
+        await handle.chown(process.getuid(), process.getgid());
       }
-      stats = await lstat(newLink);
+
+      assert.rejects(
+        async () => {
+          await chown(dest, 1, -1);
+        },
+        {
+          code: 'ERR_OUT_OF_RANGE',
+          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          message: 'The value of "gid" is out of range. ' +
+                  'It must be >= 0 && < 4294967296. Received -1'
+        });
+
+      assert.rejects(
+        async () => {
+          await handle.chown(1, -1);
+        },
+        {
+          code: 'ERR_OUT_OF_RANGE',
+          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          message: 'The value of "gid" is out of range. ' +
+                    'It must be >= 0 && < 4294967296. Received -1'
+        });
+    }
+
+    // set modification times
+    {
+      const handle = await getHandle(dest);
+
+      await utimes(dest, new Date(), new Date());
+
+      try {
+        await handle.utimes(new Date(), new Date());
+      } catch (err) {
+        // Some systems do not have futimes. If there is an error,
+        // expect it to be ENOSYS
+        common.expectsError({
+          code: 'ENOSYS',
+          type: Error
+        })(err);
+      }
+
+      await handle.close();
+    }
+
+    // create symlink
+    {
+      const newPath = path.resolve(tmpDir, 'baz2.js');
+      await rename(dest, newPath);
+      let stats = await stat(newPath);
       verifyStatObject(stats);
 
-      assert.strictEqual(newPath.toLowerCase(),
-                         (await realpath(newLink)).toLowerCase());
-      assert.strictEqual(newPath.toLowerCase(),
-                         (await readlink(newLink)).toLowerCase());
-
-      const newMode = 0o666;
-      if (common.isOSX) {
-        // lchmod is only available on macOS
-        await lchmod(newLink, newMode);
+      if (common.canCreateSymLink()) {
+        const newLink = path.resolve(tmpDir, 'baz3.js');
+        await symlink(newPath, newLink);
+        if (!common.isWindows) {
+          await lchown(newLink, process.getuid(), process.getgid());
+        }
         stats = await lstat(newLink);
-        assert.strictEqual(stats.mode & 0o777, newMode);
-      } else {
-        await Promise.all([
-          assert.rejects(
-            lchmod(newLink, newMode),
-            common.expectsError({
-              code: 'ERR_METHOD_NOT_IMPLEMENTED',
-              type: Error,
-              message: 'The lchmod() method is not implemented'
-            })
-          )
-        ]);
+        verifyStatObject(stats);
+
+        assert.strictEqual(newPath.toLowerCase(),
+                           (await realpath(newLink)).toLowerCase());
+        assert.strictEqual(newPath.toLowerCase(),
+                           (await readlink(newLink)).toLowerCase());
+
+        const newMode = 0o666;
+        if (common.isOSX) {
+          // lchmod is only available on macOS
+          await lchmod(newLink, newMode);
+          stats = await lstat(newLink);
+          assert.strictEqual(stats.mode & 0o777, newMode);
+        } else {
+          await Promise.all([
+            assert.rejects(
+              lchmod(newLink, newMode),
+              common.expectsError({
+                code: 'ERR_METHOD_NOT_IMPLEMENTED',
+                type: Error,
+                message: 'The lchmod() method is not implemented'
+              })
+            )
+          ]);
+        }
+
+        await unlink(newLink);
       }
+    }
+
+    // create hard link
+    {
+      const newPath = path.resolve(tmpDir, 'baz2.js');
+      const newLink = path.resolve(tmpDir, 'baz4.js');
+      await link(newPath, newLink);
 
       await unlink(newLink);
     }
-
-    const newLink2 = path.resolve(tmpDir, 'baz4.js');
-    await link(newPath, newLink2);
-
-    await unlink(newLink2);
 
     // testing readdir lists both files and directories
     {
@@ -231,7 +262,7 @@ async function getHandle(dest) {
       await mkdir(newDir);
       await writeFile(newFile, 'DAWGS WIN!', 'utf8');
 
-      stats = await stat(newDir);
+      const stats = await stat(newDir);
       assert(stats.isDirectory());
       const list = await readdir(tmpDir);
       assert.notStrictEqual(list.indexOf('dir'), -1);
@@ -244,7 +275,7 @@ async function getHandle(dest) {
     {
       const dir = path.join(tmpDir, nextdir());
       await mkdir(dir, 777);
-      stats = await stat(dir);
+      const stats = await stat(dir);
       assert(stats.isDirectory());
     }
 
@@ -252,7 +283,7 @@ async function getHandle(dest) {
     {
       const dir = path.join(tmpDir, nextdir());
       await mkdir(dir, '777');
-      stats = await stat(dir);
+      const stats = await stat(dir);
       assert(stats.isDirectory());
     }
 
@@ -260,7 +291,7 @@ async function getHandle(dest) {
     {
       const dir = path.join(tmpDir, nextdir(), nextdir());
       await mkdir(dir, { recursive: true });
-      stats = await stat(dir);
+      const stats = await stat(dir);
       assert(stats.isDirectory());
     }
 
@@ -283,7 +314,7 @@ async function getHandle(dest) {
     {
       const dir = path.resolve(tmpDir, `${nextdir()}/./${nextdir()}`);
       await mkdir(dir, { recursive: true });
-      stats = await stat(dir);
+      const stats = await stat(dir);
       assert(stats.isDirectory());
     }
 
@@ -291,7 +322,7 @@ async function getHandle(dest) {
     {
       const dir = path.resolve(tmpDir, `${nextdir()}/../${nextdir()}`);
       await mkdir(dir, { recursive: true });
-      stats = await stat(dir);
+      const stats = await stat(dir);
       assert(stats.isDirectory());
     }
 
@@ -313,15 +344,18 @@ async function getHandle(dest) {
       });
     }
 
-    await mkdtemp(path.resolve(tmpDir, 'FOO'));
-    assert.rejects(
-      // mkdtemp() expects to get a string prefix.
-      async () => mkdtemp(1),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
-      }
-    );
+    // mkdtemp with invalid numeric prefix
+    {
+      await mkdtemp(path.resolve(tmpDir, 'FOO'));
+      assert.rejects(
+        // mkdtemp() expects to get a string prefix.
+        async () => mkdtemp(1),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+        }
+      );
+    }
 
   }
 
