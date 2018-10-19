@@ -692,6 +692,9 @@ added: v0.5.9
 Once a socket is assigned to this request and is connected
 [`socket.setTimeout()`][] will be called.
 
+Emitted when the underlying socket times out from inactivity.
+This only notifies that the socket has been idle. The request must be aborted manually.
+
 ### request.socket
 <!-- YAML
 added: v0.3.0

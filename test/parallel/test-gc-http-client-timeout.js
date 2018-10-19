@@ -5,6 +5,7 @@
 
 const common = require('../common');
 const onGC = require('../common/ongc');
+const assert = require('assert');
 
 function serverHandler(req, res) {
   setTimeout(function() {
@@ -37,6 +38,11 @@ function getall() {
 
   req.setTimeout(10, function() {
     console.log('timeout (expected)');
+  });
+  req.on('error', (err) => {
+    // only allow Socket timeout error
+    assert.strictEqual(err.code, 'ERR_SOCKET_TIMEOUT');
+    assert.strictEqual(err.message, 'Socket timeout');
   });
 
   count++;
