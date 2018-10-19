@@ -265,6 +265,9 @@ NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
+// This may return nullptr if context is not associated with a Node instance.
+NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
+
 // This returns the MultiIsolatePlatform used in the main thread of Node.js.
 // If NODE_USE_V8_PLATFORM haven't been defined when Node.js was built,
 // it returns nullptr.
