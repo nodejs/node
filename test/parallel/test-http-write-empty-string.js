@@ -42,13 +42,13 @@ server.listen(0, common.mustCall(function() {
   http.get({ port: this.address().port }, common.mustCall(function(res) {
     let response = '';
 
-    assert.strictEqual(200, res.statusCode);
+    assert.strictEqual(res.statusCode, 200);
     res.setEncoding('ascii');
     res.on('data', function(chunk) {
       response += chunk;
     });
     res.on('end', common.mustCall(function() {
-      assert.strictEqual('1\n2\n3\n', response);
+      assert.strictEqual(response, '1\n2\n3\n');
     }));
   }));
 }));
