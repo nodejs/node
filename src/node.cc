@@ -2801,6 +2801,11 @@ void FreeEnvironment(Environment* env) {
 }
 
 
+Environment* GetCurrentEnvironment(Local<Context> context) {
+  return Environment::GetCurrent(context);
+}
+
+
 MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
   return v8_platform.Platform();
 }
