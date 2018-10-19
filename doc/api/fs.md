@@ -980,6 +980,11 @@ In general, check for the accessibility of a file only if the file will not be
 used directly, for example when its accessibility is a signal from another
 process.
 
+On Windows, access-control policies (ACLs) on a directory may limit access to
+a file or directory. The `fs.access()` function, however, does not check the
+ACL and therefore may report that a path is accessible even if the ACL restricts
+the user from reading or writing to it.
+
 ## fs.accessSync(path[, mode])
 <!-- YAML
 added: v0.11.15
