@@ -153,3 +153,25 @@ const { promisify } = require('util');
   rs.push(null);
   rs.resume();
 }
+
+// Test that calling returned function removes listeners
+{
+  const ws = new Writable({
+    write(data, env, cb) {
+      cb();
+    }
+  });
+  const removeListener = finished(ws, common.mustNotCall());
+  removeListener();
+  ws.end();
+}
+
+{
+  const rs = new Readable();
+  const removeListeners = finished(rs, common.mustNotCall());
+  removeListeners();
+
+  rs.emit('close');
+  rs.push(null);
+  rs.resume();
+}
