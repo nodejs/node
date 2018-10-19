@@ -2264,6 +2264,20 @@ undocumented `COUNTER_NET_SERVER_CONNECTION()`,
 `COUNTER_HTTP_SERVER_RESPONSE()`, `COUNTER_HTTP_CLIENT_REQUEST()`, and
 `COUNTER_HTTP_CLIENT_RESPONSE()` functions have been deprecated.
 
+<a id="DEP00XX"></a>
+### DEP00XX: net._setSimultaneousAccepts()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23760
+    description: Runtime deprecation.
+-->
+
+The undocumented `net._setSimultaneousAccepts()` function was originally
+intended for debugging and performance tuning when using the `child_process`
+and `cluster` modules on Windows. The function is not generally useful and
+is being removed. See discussion here:
+https://github.com/nodejs/node/issues/18391
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
