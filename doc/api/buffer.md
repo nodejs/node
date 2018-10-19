@@ -1940,7 +1940,7 @@ One convenient use of `buf.swap16()` is to perform a fast *in-place* conversion
 between UTF-16 little-endian and UTF16 big-endian:
 
 ```js
-const buf1 = Buffer.from('This is little-endian UTF-16', 'utf16le');
+const buf = Buffer.from('This is little-endian UTF-16', 'utf16le');
 buf.swap16(); // Convert to big-endian UTF-16 text.
 ```
 
