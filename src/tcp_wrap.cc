@@ -276,6 +276,29 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[2]->IsUint32());
+  int port = args[2].As<Uint32>()->Value();
+  Connect<sockaddr_in>(args,
+                       [port](const char* ip_address, sockaddr_in* addr) {
+      return uv_ip4_addr(ip_address, port, addr);
+  });
+}
+
+
+void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[2]->IsUint32());
+  int port;
+  if (!args[2]->Int32Value(env->context()).To(&port)) return;
+  Connect<sockaddr_in6>(args,
+                        [port](const char* ip_address, sockaddr_in6* addr) {
+      return uv_ip6_addr(ip_address, port, addr);
+  });
+}
+
+template <typename T>
+void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
+    std::function<int(const char* ip_address, T* addr)> uv_ip_addr) {
   Environment* env = Environment::GetCurrent(args);
 
   TCPWrap* wrap;
@@ -285,49 +308,12 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
-  CHECK(args[2]->IsUint32());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip_address(env->isolate(), args[1]);
-  int port = args[2].As<Uint32>()->Value();
 
-  sockaddr_in addr;
-  int err = uv_ip4_addr(*ip_address, port, &addr);
-
-  if (err == 0) {
-    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
-    ConnectWrap* req_wrap =
-        new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = req_wrap->Dispatch(uv_tcp_connect,
-                             &wrap->handle_,
-                             reinterpret_cast<const sockaddr*>(&addr),
-                             AfterConnect);
-    if (err)
-      delete req_wrap;
-  }
-
-  args.GetReturnValue().Set(err);
-}
-
-
-void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
-  Environment* env = wrap->env();
-
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsString());
-  CHECK(args[2]->IsUint32());
-
-  Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip_address(env->isolate(), args[1]);
-  int port;
-  if (!args[2]->Int32Value(env->context()).To(&port)) return;
-
-  sockaddr_in6 addr;
-  int err = uv_ip6_addr(*ip_address, port, &addr);
+  T addr;
+  int err = uv_ip_addr(*ip_address, &addr);
 
   if (err == 0) {
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
