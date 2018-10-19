@@ -155,6 +155,65 @@ available to the module code.
 
 \* Indicates that the N-API version was released as experimental
 
+The N-APIs associated strictly with accessing ECMAScript features from native
+code can be found separately in `js_native_api.h` and `js_native_api_types.h`.
+The APIs defined in these headers are included in `node_api.h` and
+`node_api_types.h`. The headers are structured in this way in order to allow
+implementations of N-API outside of Node.js. For those implementations the
+Node.js specific APIs may not be applicable.
+
+The Node.js-specific parts of an addon can be separated from the code that
+exposes the actual functionality to the JavaScript environment so that the
+latter may be used with multiple implementations of N-API. In the example below,
+`addon.c` and `addon.h` refer only to `js_native_api.h`. This ensures that
+`addon.c` can be reused to compile against either the Node.js implementation of
+N-API or any implementation of N-API outside of Node.js.
+
+`addon_node.c` is a separate file that contains the Node.js specific entry point
+to the addon and which instantiates the addon by calling into `addon.c` when the
+addon is loaded into a Node.js environment.
+
+```C
+// addon.h
+#ifndef _ADDON_H_
+#define _ADDON_H_
+#include <js_native_api.h>
+napi_value create_addon(napi_env env);
+#endif  // _ADDON_H_
+```
+
+```C
+// addon.c
+#include "addon.h"
+napi_value create_addon(napi_env env) {
+  napi_value result;
+  assert(napi_create_object(env, &result) == napi_ok);
+  napi_value exported_function;
+  assert(napi_create_function(env,
+                              "doSomethingUseful",
+                              NAPI_AUTO_LENGTH,
+                              DoSomethingUseful,
+                              NULL,
+                              &exported_function) == napi_ok);
+  assert(napi_set_named_property(env,
+                                 result,
+                                 "doSomethingUseful",
+                                 exported_function) == napi_ok);
+  return result;
+}
+```
+
+```C
+// addon_node.c
+#include <node_api.h>
+
+static napi_value Init(napi_env env, napi_value exports) {
+  return create_addon(env);
+}
+
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
+```
+
 ## Basic N-API Data Types
 
 N-API exposes the following fundamental datatypes as abstractions that are

@@ -1,7 +1,7 @@
 #ifndef TEST_ADDONS_NAPI_7_FACTORY_WRAP_MYOBJECT_H_
 #define TEST_ADDONS_NAPI_7_FACTORY_WRAP_MYOBJECT_H_
 
-#include <node_api.h>
+#include <js_native_api.h>
 
 class MyObject {
  public:

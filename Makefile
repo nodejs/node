@@ -393,7 +393,8 @@ ADDONS_NAPI_BINDING_SOURCES := \
 # Implicitly depends on $(NODE_EXE), see the build-addons-napi rule for rationale.
 test/addons-napi/.buildstamp: $(ADDONS_PREREQS) \
 	$(ADDONS_NAPI_BINDING_GYPS) $(ADDONS_NAPI_BINDING_SOURCES) \
-	src/node_api.h src/node_api_types.h
+	src/node_api.h src/node_api_types.h src/js_native_api.h \
+	src/js_native_api_types.h src/js_native_api_v8.h src/js_native_api_v8_internals.h
 	@$(call run_build_addons,"$$PWD/test/addons-napi",$@)
 
 .PHONY: build-addons-napi
