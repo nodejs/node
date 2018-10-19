@@ -187,7 +187,9 @@ Collaborators that previously approved the pull request. If someone disagrees
 with the fast-tracking request, remove the label and leave a comment indicating
 why the pull request should not be fast-tracked. The pull request can be landed
 once two or more Collaborators approve both the pull request and the
-fast-tracking request, and the necessary CI testing is done.
+fast-tracking request, and the necessary CI testing is done. A request to
+fast-track a PR made by a different Collaborator than the pull-request author
+counts as a fast-track approval.
 
 ### Testing and CI
 
