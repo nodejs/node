@@ -751,10 +751,7 @@
         'cflags': [
           '-Wall',
           '<(werror)',
-          '-Wno-nonnull-compare',
-          '-Wno-address',
           '-Wno-unused-parameter',
-          '-Wno-unused-function',
           '-pthread',
           '-pedantic',
           '-Wno-missing-field-initializers',
