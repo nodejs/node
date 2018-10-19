@@ -1936,7 +1936,7 @@ buf2.swap16();
 // Throws ERR_INVALID_BUFFER_SIZE
 ```
 
-One convenient use of `buf.swap16()` is to perform a fast *in-place* conversion
+One convenient use of `buf.swap16()` is to perform a fast in-place conversion
 between UTF-16 little-endian and UTF-16 big-endian:
 
 ```js
