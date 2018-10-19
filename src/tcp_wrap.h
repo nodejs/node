@@ -75,6 +75,9 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
   static void Listen(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Connect6(const v8::FunctionCallbackInfo<v8::Value>& args);
+  template <typename T>
+  static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args,
+      std::function<int(const char* ip_address, T* addr)> uv_ip_addr);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef _WIN32
