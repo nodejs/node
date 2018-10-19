@@ -1941,7 +1941,7 @@ between UTF-16 little-endian and UTF16 big-endian:
 
 ```js
 const buf1 = Buffer.from('This is little-endian UTF-16', 'utf16le');
-buf1.swap16(); // Convert to big-endian UTF-16 text
+buf.swap16(); // Convert to big-endian UTF-16 text.
 ```
 
 ### buf.swap32()
