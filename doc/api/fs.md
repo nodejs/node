@@ -3801,6 +3801,11 @@ returned.
 
 The `FileHandle` has to support reading.
 
+**Note:** If one or more `filehandle.read()` calls are made on a file handle
+and then a `filehandle.readFile()` call is made, the data will be read from
+the current position till the end of the file. It doesn't always read from the
+beginning of the file.
+
 #### filehandle.stat([options])
 <!-- YAML
 added: v10.0.0
@@ -3962,6 +3967,11 @@ The `FileHandle` has to support writing.
 
 It is unsafe to use `filehandle.writeFile()` multiple times on the same file
 without waiting for the `Promise` to be resolved (or rejected).
+
+**Note:** If one or more `filehandle.write()` calls are made on a file handle
+and then a `filehandle.writeFile()` call is made, the data will be written from
+the current position till the end of the file. It doesn't always write from the
+beginning of the file.
 
 ### fsPromises.access(path[, mode])
 <!-- YAML
