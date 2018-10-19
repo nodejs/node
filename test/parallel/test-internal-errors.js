@@ -242,7 +242,7 @@ assert.strictEqual(
 }
 
 // Test that `message` is mutable and that changing it alters `toString()` but
-// not `console.log()` results, which is the behavior of `Error` objects in the
+// not `stack` property, which is the behavior of `Error` objects in the
 // browser. Note that `message` remains non-enumerable after being assigned.
 {
   let initialConsoleLog = '';
