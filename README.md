@@ -175,17 +175,15 @@ nonetheless.
 ### Public disclosure preferred
 
 - [#14519](https://github.com/nodejs/node/issues/14519): _Internal domain
-  function can be used to cause segfaults_. Causing program termination using
-  either the public JavaScript APIs or the private bindings layer APIs requires
-  the ability to execute arbitrary JavaScript code, which is already the highest
-  level of privilege possible.
+  function can be used to cause segfaults_. Requires the ability to execute
+  arbitrary JavaScript code. That is already the highest level of privilege
+  possible.
 
 - [#12141](https://github.com/nodejs/node/pull/12141): _buffer: zero fill
-  Buffer(num) by default_. The buffer constructor behavior was documented,
-  but found to be prone to [mis-use](https://snyk.io/blog/exploiting-buffer/).
-  It has since been changed, but despite much debate, was not considered misuse
-  prone enough to justify fixing in older release lines and breaking our
-  API stability contract.
+  Buffer(num) by default_. The documented `Buffer()` behavior was prone to
+  [misuse](https://snyk.io/blog/exploiting-buffer/). It has since changed. It
+  was not deemed serious enough to fix in older releases and breaking API
+  stability.
 
 ### Private disclosure preferred
 
