@@ -102,9 +102,9 @@ When sharing a UDP socket across multiple `cluster` workers, the
 ```js
 const cluster = require('cluster');
 const dgram = require('dgram');
- if (cluster.isMaster) {
-   cluster.fork(); // Works ok
-   cluster.fork(); // Fails with EADDRINUSE
+if (cluster.isMaster) {
+  cluster.fork(); // Works ok
+  cluster.fork(); // Fails with EADDRINUSE
 } else {
   const s = dgram.createSocket('udp4');
   s.bind(1234, () => {
