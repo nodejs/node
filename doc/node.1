@@ -302,6 +302,9 @@ If
 is missing or misformatted, a message will be emitted once using
 .Sy process.emitWarning() ,
 but any errors are otherwise ignored.
+.Pp
+This environment variable is ignored when `node` runs as setuid root or
+has Linux file capabilities set.
 .
 .It Ev NODE_ICU_DATA Ar file
 Data path for ICU (Intl object) data.
