@@ -143,11 +143,9 @@ void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
 }
 
 Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context,
-                         tracing::AgentWriterHandle* tracing_agent_writer)
+                         Local<Context> context)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
-      tracing_agent_writer_(tracing_agent_writer),
       immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
@@ -183,10 +181,9 @@ Environment::Environment(IsolateData* isolate_data,
 
   AssignToContext(context, ContextInfo(""));
 
-  if (tracing_agent_writer_ != nullptr) {
+  if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
     trace_state_observer_.reset(new TrackingTraceStateObserver(this));
-    v8::TracingController* tracing_controller =
-        tracing_agent_writer_->GetTracingController();
+    v8::TracingController* tracing_controller = writer->GetTracingController();
     if (tracing_controller != nullptr)
       tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
   }
@@ -235,9 +232,10 @@ Environment::~Environment() {
   context()->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kEnvironment, nullptr);
 
-  if (tracing_agent_writer_ != nullptr) {
-    v8::TracingController* tracing_controller =
-        tracing_agent_writer_->GetTracingController();
+  if (trace_state_observer_) {
+    tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
+    CHECK_NOT_NULL(writer);
+    v8::TracingController* tracing_controller = writer->GetTracingController();
     if (tracing_controller != nullptr)
       tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
   }
