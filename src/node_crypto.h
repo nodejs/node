@@ -522,7 +522,7 @@ class Sign : public SignBase {
     Error error;
     MallocedBuffer<unsigned char> signature;
 
-    explicit inline SignResult(
+    explicit SignResult(
         Error err,
         MallocedBuffer<unsigned char>&& sig = MallocedBuffer<unsigned char>())
       : error(err), signature(std::move(sig)) {}

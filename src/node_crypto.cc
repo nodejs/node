@@ -3601,8 +3601,8 @@ Sign::SignResult Sign::SignFinal(
   }
 #endif  // NODE_FIPS_MODE
 
-  MallocedBuffer<unsigned char> buffer;
-  buffer = Node_SignFinal(std::move(mdctx), pkey, padding, salt_len);
+  MallocedBuffer<unsigned char> buffer =
+      Node_SignFinal(std::move(mdctx), pkey, padding, salt_len);
   Error error = buffer.is_empty() ? kSignPrivateKey : kSignOk;
   return SignResult(error, std::move(buffer));
 }
