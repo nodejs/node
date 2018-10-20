@@ -128,11 +128,22 @@ void InitThreadLocalOnce() {
 }
 
 void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
+  if (!env_->is_main_thread()) {
+    // Ideally, we’d have a consistent story that treats all threads/Environment
+    // instances equally here. However, tracing is essentially global, and this
+    // callback is callback from whichever thread calls `StartTracing()` or
+    // `StopTracing()`. The only way to do this in a threadsafe fashion
+    // seems to be only tracking this from the main thread, and only allowing
+    // these state modifications from the main thread.
+    return;
+  }
+
   env_->trace_category_state()[0] =
       *TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(async_hooks));
 
   Isolate* isolate = env_->isolate();
+  HandleScope handle_scope(isolate);
   Local<Function> cb = env_->trace_category_state_function();
   if (cb.IsEmpty())
     return;
