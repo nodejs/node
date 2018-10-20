@@ -317,48 +317,29 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   size_t idx;
   SlicedArguments call_args(args);
   Utf8Value name(isolate, GetName(fn));
+  bool is_construct_call = args.IsConstructCall();
 
-  uint64_t start;
-  uint64_t end;
-  v8::TryCatch try_catch(isolate);
-  if (args.IsConstructCall()) {
-    start = PERFORMANCE_NOW();
-    TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
-        TRACING_CATEGORY_NODE2(perf, timerify),
-        *name, *name, start / 1000);
-    v8::MaybeLocal<Object> ret = fn->NewInstance(context,
-                                                 call_args.size(),
-                                                 call_args.data());
-    end = PERFORMANCE_NOW();
-    TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-        TRACING_CATEGORY_NODE2(perf, timerify),
-        *name, *name, end / 1000);
+  uint64_t start = PERFORMANCE_NOW();
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
+      TRACING_CATEGORY_NODE2(perf, timerify),
+      *name, *name, start / 1000);
+  v8::MaybeLocal<Value> ret;
 
-    if (ret.IsEmpty()) {
-      try_catch.ReThrow();
-      return;
-    }
-    args.GetReturnValue().Set(ret.ToLocalChecked());
+  if (is_construct_call) {
+    ret = fn->NewInstance(context, call_args.size(), call_args.data())
+        .FromMaybe(Local<Object>());
   } else {
-    start = PERFORMANCE_NOW();
-    TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
-        TRACING_CATEGORY_NODE2(perf, timerify),
-        *name, *name, start / 1000);
-    v8::MaybeLocal<Value> ret = fn->Call(context,
-                                         args.This(),
-                                         call_args.size(),
-                                         call_args.data());
-    end = PERFORMANCE_NOW();
-    TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-        TRACING_CATEGORY_NODE2(perf, timerify),
-        *name, *name, end / 1000);
-
-    if (ret.IsEmpty()) {
-      try_catch.ReThrow();
-      return;
-    }
-    args.GetReturnValue().Set(ret.ToLocalChecked());
+    ret = fn->Call(context, args.This(), call_args.size(), call_args.data());
   }
+
+  uint64_t end = PERFORMANCE_NOW();
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
+      TRACING_CATEGORY_NODE2(perf, timerify),
+      *name, *name, end / 1000);
+
+  if (ret.IsEmpty())
+    return;
+  args.GetReturnValue().Set(ret.ToLocalChecked());
 
   AliasedBuffer<uint32_t, v8::Uint32Array>& observers =
       env->performance_state()->observers;
