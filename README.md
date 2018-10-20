@@ -439,8 +439,6 @@ For more information about the governance of the Node.js project, see
 **Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [othiym23](https://github.com/othiym23) -
 **Forrest L Norvell** &lt;ogd@aoaioxxysz.net&gt; (he/him)
-* [phillipj](https://github.com/phillipj) -
-**Phillip Johnsen** &lt;johphi@gmail.com&gt;
 * [pmq20](https://github.com/pmq20) -
 **Minqi Pan** &lt;pmq2001@gmail.com&gt;
 * [princejwesley](https://github.com/princejwesley) -
@@ -538,6 +536,8 @@ For more information about the governance of the Node.js project, see
 **Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
 * [petkaantonov](https://github.com/petkaantonov) -
 **Petka Antonov** &lt;petka_antonov@hotmail.com&gt;
+* [phillipj](https://github.com/phillipj) -
+**Phillip Johnsen** &lt;johphi@gmail.com&gt;
 * [piscisaureus](https://github.com/piscisaureus) -
 **Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [rlidwka](https://github.com/rlidwka) -
