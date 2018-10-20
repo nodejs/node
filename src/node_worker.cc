@@ -116,9 +116,7 @@ Worker::Worker(Environment* env, Local<Object> wrap, const std::string& url)
     Context::Scope context_scope(context);
 
     // TODO(addaleax): Use CreateEnvironment(), or generally another public API.
-    env_.reset(new Environment(isolate_data_.get(),
-                               context,
-                               nullptr));
+    env_.reset(new Environment(isolate_data_.get(), context));
     CHECK_NE(env_, nullptr);
     env_->set_abort_on_uncaught_exception(false);
     env_->set_worker_context(this);
