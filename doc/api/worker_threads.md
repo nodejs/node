@@ -253,6 +253,7 @@ Notable differences inside a Worker environment are:
 - Execution may stop at any point as a result of [`worker.terminate()`][]
   being invoked.
 - IPC channels from parent processes are not accessible.
+- The [`trace_events`][] module is not supported.
 
 Currently, the following differences also exist until they are addressed:
 
@@ -489,6 +490,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [Signals events]: process.html#process_signal_events
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
+[`trace_events`]: tracing.html
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [child processes]: child_process.html
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm

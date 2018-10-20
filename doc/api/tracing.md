@@ -82,6 +82,8 @@ as the one used by `process.hrtime()`
 however the trace-event timestamps are expressed in microseconds,
 unlike `process.hrtime()` which returns nanoseconds.
 
+The features from this module are not available in [`Worker`][] threads.
+
 ## The `trace_events` module
 <!-- YAML
 added: v10.0.0
@@ -205,3 +207,4 @@ console.log(trace_events.getEnabledCategories());
 [Performance API]: perf_hooks.html
 [V8]: v8.html
 [`async_hooks`]: async_hooks.html
+[`Worker`]: worker_threads.html#worker_threads_class_worker
