@@ -518,7 +518,17 @@ class Sign : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  std::pair<Error, MallocedBuffer<unsigned char>> SignFinal(
+  struct SignResult {
+    Error error;
+    MallocedBuffer<unsigned char> signature;
+
+    explicit inline SignResult(
+        Error err,
+        MallocedBuffer<unsigned char>&& sig = MallocedBuffer<unsigned char>())
+      : error(err), signature(std::move(sig)) {}
+  };
+
+  SignResult SignFinal(
       const char* key_pem,
       int key_pem_len,
       const char* passphrase,
