@@ -3572,22 +3572,20 @@ static MallocedBuffer<unsigned char> Node_SignFinal(EVPMDPointer&& mdctx,
   return MallocedBuffer<unsigned char>();
 }
 
-std::pair<SignBase::Error, MallocedBuffer<unsigned char>> Sign::SignFinal(
+Sign::SignResult Sign::SignFinal(
     const char* key_pem,
     int key_pem_len,
     const char* passphrase,
     int padding,
     int salt_len) {
-  MallocedBuffer<unsigned char> buffer;
-
   if (!mdctx_)
-    return std::make_pair(kSignNotInitialised, std::move(buffer));
+    return SignResult(kSignNotInitialised);
 
   EVPMDPointer mdctx = std::move(mdctx_);
 
   BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
   if (!bp)
-    return std::make_pair(kSignPrivateKey, std::move(buffer));
+    return SignResult(kSignPrivateKey);
 
   EVPKeyPointer pkey(PEM_read_bio_PrivateKey(bp.get(),
                                              nullptr,
@@ -3598,7 +3596,7 @@ std::pair<SignBase::Error, MallocedBuffer<unsigned char>> Sign::SignFinal(
   // without `pkey` being set to nullptr;
   // cf. the test of `test_bad_rsa_privkey.pem` for an example.
   if (!pkey || 0 != ERR_peek_error())
-    return std::make_pair(kSignPrivateKey, std::move(buffer));
+    return SignResult(kSignPrivateKey);
 
 #ifdef NODE_FIPS_MODE
   /* Validate DSA2 parameters from FIPS 186-4 */
@@ -3622,9 +3620,10 @@ std::pair<SignBase::Error, MallocedBuffer<unsigned char>> Sign::SignFinal(
   }
 #endif  // NODE_FIPS_MODE
 
-  buffer = Node_SignFinal(std::move(mdctx), pkey, padding, salt_len);
+  MallocedBuffer<unsigned char> buffer =
+      Node_SignFinal(std::move(mdctx), pkey, padding, salt_len);
   Error error = buffer.is_empty() ? kSignPrivateKey : kSignOk;
-  return std::make_pair(error, std::move(buffer));
+  return SignResult(error, std::move(buffer));
 }
 
 
@@ -3649,18 +3648,18 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
   ClearErrorOnReturn clear_error_on_return;
 
-  std::pair<Error, MallocedBuffer<unsigned char>> ret = sign->SignFinal(
+  SignResult ret = sign->SignFinal(
       buf,
       buf_len,
       len >= 2 && !args[1]->IsNull() ? *passphrase : nullptr,
       padding,
       salt_len);
 
-  if (std::get<Error>(ret) != kSignOk)
-    return sign->CheckThrow(std::get<Error>(ret));
+  if (ret.error != kSignOk)
+    return sign->CheckThrow(ret.error);
 
   MallocedBuffer<unsigned char> sig =
-      std::move(std::get<MallocedBuffer<unsigned char>>(ret));
+      std::move(ret.signature);
 
   Local<Object> rc =
       Buffer::New(env, reinterpret_cast<char*>(sig.release()), sig.size)
