@@ -310,7 +310,7 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);  // TODO(addaleax): Verify that this is correct.
+  CHECK_NOT_NULL(env);
   Local<Context> context = env->context();
   Local<Function> fn = args.Data().As<Function>();
   size_t count = args.Length();
