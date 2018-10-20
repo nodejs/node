@@ -237,7 +237,7 @@ $ python tools/test.py -J --mode=release child-process
 ```
 
 If you want to check the other options, please refer to the help by using
-the `--help` option
+the `--help` option:
 
 ```text
 $ python tools/test.py --help
