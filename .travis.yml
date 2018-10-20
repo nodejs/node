@@ -1,6 +1,4 @@
 language: cpp
-compiler:
-  - clang
 sudo: false
 cache: ccache
 os: linux
@@ -15,12 +13,15 @@ matrix:
         # Lint the first commit in the PR.
         - \[ -z "$TRAVIS_COMMIT_RANGE" \] || (echo -e '\nLinting the commit message according to the guidelines at https://goo.gl/p2fr5Q\n' && git log $TRAVIS_COMMIT_RANGE --pretty=format:'%h' --no-merges | tail -1 | xargs npx -q core-validate-commit --no-validate-metadata)
     - name: "Test Suite"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.9
       install:
+        - export CC='ccache gcc-4.9' CXX='ccache g++-4.9' JOBS=2
         - ./configure
         - make -j2 V=
       script:
-        - make -j2 test
-      before_install:
-        - export CXX="ccache clang++ -Qunused-arguments"
-        - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
-        - export JOBS=2
+        - PARALLEL_ARGS='--flaky-tests=skip' make -j1 test
