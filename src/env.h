@@ -593,8 +593,7 @@ class Environment {
   static inline Environment* GetThreadLocalEnv();
 
   Environment(IsolateData* isolate_data,
-              v8::Local<v8::Context> context,
-              tracing::AgentWriterHandle* tracing_agent_writer);
+              v8::Local<v8::Context> context);
   ~Environment();
 
   void Start(const std::vector<std::string>& args,
@@ -630,7 +629,6 @@ class Environment {
   inline bool profiler_idle_notifier_started() const;
 
   inline v8::Isolate* isolate() const;
-  inline tracing::AgentWriterHandle* tracing_agent_writer() const;
   inline uv_loop_t* event_loop() const;
   inline uint32_t watched_providers() const;
 
@@ -921,7 +919,6 @@ class Environment {
 
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
-  tracing::AgentWriterHandle* const tracing_agent_writer_;
   uv_timer_t timer_handle_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;

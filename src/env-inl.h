@@ -334,10 +334,6 @@ inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
-inline tracing::AgentWriterHandle* Environment::tracing_agent_writer() const {
-  return tracing_agent_writer_;
-}
-
 inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
   return ContainerOf(&Environment::timer_handle_, handle);
 }
