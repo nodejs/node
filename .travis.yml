@@ -22,6 +22,7 @@ matrix:
         - make -j2 test
       before_install:
         - export LD_LIBRARY_PATH="/usr/local/clang-5.0.0/lib":$LD_LIBRARY_PATH
+        - export CPATH="/usr/local/clang-5.0.0/include/c++/v1"
         - export CXX="ccache clang++ -Qunused-arguments"
         - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
         - export JOBS=2
