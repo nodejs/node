@@ -40,17 +40,18 @@
 
 #define THROW_AND_RETURN_IF_OOB(r)                                          \
   do {                                                                      \
-    if (!(r))                                                               \
+    if ((r).IsNothing()) return;                                            \
+    if (!(r).FromJust())                                                    \
       return node::THROW_ERR_OUT_OF_RANGE(env, "Index out of range");       \
   } while (0)                                                               \
 
-#define SLICE_START_END(start_arg, end_arg, end_max)                        \
+#define SLICE_START_END(env, start_arg, end_arg, end_max)                   \
   size_t start;                                                             \
   size_t end;                                                               \
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(start_arg, 0, &start));           \
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(end_arg, end_max, &end));         \
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, start_arg, 0, &start));      \
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, end_arg, end_max, &end));    \
   if (end < start) end = start;                                             \
-  THROW_AND_RETURN_IF_OOB(end <= end_max);                                  \
+  THROW_AND_RETURN_IF_OOB(Just(end <= end_max));                            \
   size_t length = end - start;
 
 namespace node {
@@ -75,9 +76,11 @@ using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Nothing;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -160,29 +163,32 @@ void CallbackInfo::WeakCallback(Isolate* isolate) {
 }
 
 
-// Parse index for external array data.
-inline MUST_USE_RESULT bool ParseArrayIndex(Local<Value> arg,
-                                            size_t def,
-                                            size_t* ret) {
+// Parse index for external array data. An empty Maybe indicates
+// a pending exception. `false` indicates that the index is out-of-bounds.
+inline MUST_USE_RESULT Maybe<bool> ParseArrayIndex(Environment* env,
+                                                   Local<Value> arg,
+                                                   size_t def,
+                                                   size_t* ret) {
   if (arg->IsUndefined()) {
     *ret = def;
-    return true;
+    return Just(true);
   }
 
-  CHECK(arg->IsNumber());
-  int64_t tmp_i = arg.As<Integer>()->Value();
+  int64_t tmp_i;
+  if (!arg->IntegerValue(env->context()).To(&tmp_i))
+    return Nothing<bool>();
 
   if (tmp_i < 0)
-    return false;
+    return Just(false);
 
   // Check that the result fits in a size_t.
   const uint64_t kSizeMax = static_cast<uint64_t>(static_cast<size_t>(-1));
   // coverity[pointless_expression]
   if (static_cast<uint64_t>(tmp_i) > kSizeMax)
-    return false;
+    return Just(false);
 
   *ret = static_cast<size_t>(tmp_i);
-  return true;
+  return Just(true);
 }
 
 }  // anonymous namespace
@@ -467,7 +473,7 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   if (ts_obj_length == 0)
     return args.GetReturnValue().SetEmptyString();
 
-  SLICE_START_END(args[0], args[1], ts_obj_length)
+  SLICE_START_END(env, args[0], args[1], ts_obj_length)
 
   Local<Value> error;
   MaybeLocal<Value> ret =
@@ -500,9 +506,10 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
   size_t source_start;
   size_t source_end;
 
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], 0, &target_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[3], 0, &source_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[4], ts_obj_length, &source_end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], ts_obj_length,
+                                          &source_end));
 
   // Copy 0 bytes; we're done
   if (target_start >= target_length || source_start >= source_end)
@@ -633,13 +640,13 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   size_t offset;
   size_t max_length;
 
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[1], 0, &offset));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], 0, &offset));
   if (offset > ts_obj_length) {
     return node::THROW_ERR_BUFFER_OUT_OF_BOUNDS(
         env, "\"offset\" is outside of buffer bounds");
   }
 
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], ts_obj_length - offset,
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], ts_obj_length - offset,
                                           &max_length));
 
   max_length = MIN(ts_obj_length - offset, max_length);
@@ -694,10 +701,12 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
   size_t source_end;
   size_t target_end;
 
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], 0, &target_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[3], 0, &source_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[4], target_length, &target_end));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], target_length,
+                                          &target_end));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[5], ts_obj_length,
+                                          &source_end));
 
   if (source_start > ts_obj_length)
     return THROW_ERR_OUT_OF_RANGE(

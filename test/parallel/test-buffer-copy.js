@@ -26,6 +26,17 @@ let cntr = 0;
 }
 
 {
+  // Current behavior is to coerce values to integers.
+  b.fill(++cntr);
+  c.fill(++cntr);
+  const copied = b.copy(c, '0', '0', '512');
+  assert.strictEqual(copied, 512);
+  for (let i = 0; i < c.length; i++) {
+    assert.strictEqual(c[i], b[i]);
+  }
+}
+
+{
   // copy c into b, without specifying sourceEnd
   b.fill(++cntr);
   c.fill(++cntr);
@@ -151,4 +162,19 @@ assert.strictEqual(b.copy(c, 512, 0, 10), 0);
   for (let i = 0; i < c.length; i++) {
     assert.strictEqual(c[i], e[i]);
   }
+}
+
+// https://github.com/nodejs/node/issues/23668: Do not crash for invalid input.
+c.fill('c');
+b.copy(c, 'not a valid offset');
+// Make sure this acted like a regular copy with `0` offset.
+assert.deepStrictEqual(c, b.slice(0, c.length));
+
+{
+  c.fill('C');
+  assert.throws(() => {
+    b.copy(c, { [Symbol.toPrimitive]() { throw new Error('foo'); } });
+  }, /foo/);
+  // No copying took place:
+  assert.deepStrictEqual(c.toString(), 'C'.repeat(c.length));
 }
