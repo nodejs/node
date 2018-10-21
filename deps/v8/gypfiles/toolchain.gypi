@@ -1321,6 +1321,10 @@
           }, {
             'inherit_from': ['DebugBase1'],
           }],
+          # Temporary refs: https://github.com/nodejs/node/pull/23801
+          ['v8_enable_handle_zapping==1', {
+            'defines': ['ENABLE_HANDLE_ZAPPING',],
+          }],
         ],
       },  # Debug
       'ReleaseBase': {
@@ -1405,6 +1409,8 @@
       },  # Release
       'Release': {
         'inherit_from': ['ReleaseBase'],
+        # Temporary refs: https://github.com/nodejs/node/pull/23801
+        'defines!': ['ENABLE_HANDLE_ZAPPING',],
       },  # Debug
       'conditions': [
         [ 'OS=="win"', {
