@@ -2235,7 +2235,7 @@ It will become an error in future versions of Node.js.
 
 <a id="DEP0119"></a>
 ### DEP0119: process.binding('uv').errname() private API
-<!--
+<!-- YAML
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/23597
@@ -2246,6 +2246,23 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 
 Directly calling `process.binding('uv').errname(<val>)` is deprecated.
 Please make sure to use [`util.getSystemErrorName()`][] instead.
+
+<a id="DEP0120"></a>
+### DEP0120: Windows Performance Counter Support
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22485
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Windows Performance Counter support has been removed from Node.js. The
+undocumented `COUNTER_NET_SERVER_CONNECTION()`,
+`COUNTER_NET_SERVER_CONNECTION_CLOSE()`, `COUNTER_HTTP_SERVER_REQUEST()`,
+`COUNTER_HTTP_SERVER_RESPONSE()`, `COUNTER_HTTP_CLIENT_REQUEST()`, and
+`COUNTER_HTTP_CLIENT_RESPONSE()` functions have been deprecated.
 
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
