@@ -15,13 +15,15 @@ matrix:
         # Lint the first commit in the PR.
         - \[ -z "$TRAVIS_COMMIT_RANGE" \] || (echo -e '\nLinting the commit message according to the guidelines at https://goo.gl/p2fr5Q\n' && git log $TRAVIS_COMMIT_RANGE --pretty=format:'%h' --no-merges | tail -1 | xargs npx -q core-validate-commit --no-validate-metadata)
     - name: "Test Suite"
+      env:
+       - CC="ccache clang"
+       - CFLAGS="-Qunused-arguments -Wno-unknown-warning-option"
+       - CXX="ccache clang++"
+       - CXXFLAGS="-Qunused-arguments -stdlib=libc++"
+       - JOBS=2
+       - LD_LIBRARY_PATH="/usr/local/clang-5.0.0/lib":$LD_LIBRARY_PATH
       install:
         - ./configure
         - make -j2 V=
       script:
         - make -j2 test
-      before_install:
-        - export LD_LIBRARY_PATH="/usr/local/clang-5.0.0/lib":$LD_LIBRARY_PATH
-        - export CXX="ccache clang++ -stdlib=libc++ -Qunused-arguments"
-        - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
-        - export JOBS=2
