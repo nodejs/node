@@ -156,7 +156,7 @@ and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome DevTools Protocol][].
 
 ### `--loader=file`
-<!--
+<!-- YAML
 added: v9.0.0
 -->
 
