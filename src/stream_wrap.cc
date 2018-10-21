@@ -80,6 +80,11 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   target->Set(writeWrapString,
               ww->GetFunction(env->context()).ToLocalChecked());
   env->set_write_wrap_template(ww->InstanceTemplate());
+
+  NODE_DEFINE_CONSTANT(target, kReadBytesOrError);
+  NODE_DEFINE_CONSTANT(target, kArrayBufferOffset);
+  target->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "streamBaseState"),
+              env->stream_base_state().GetJSArray()).FromJust();
 }
 
 
