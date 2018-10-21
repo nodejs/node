@@ -518,13 +518,22 @@ class Sign : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  Error SignFinal(const char* key_pem,
-                  int key_pem_len,
-                  const char* passphrase,
-                  unsigned char* sig,
-                  unsigned int* sig_len,
-                  int padding,
-                  int saltlen);
+  struct SignResult {
+    Error error;
+    MallocedBuffer<unsigned char> signature;
+
+    explicit SignResult(
+        Error err,
+        MallocedBuffer<unsigned char>&& sig = MallocedBuffer<unsigned char>())
+      : error(err), signature(std::move(sig)) {}
+  };
+
+  SignResult SignFinal(
+      const char* key_pem,
+      int key_pem_len,
+      const char* passphrase,
+      int padding,
+      int saltlen);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -615,7 +624,6 @@ class DiffieHellman : public BaseObject {
 
   DiffieHellman(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        initialised_(false),
         verifyError_(0) {
     MakeWeak();
   }
@@ -633,7 +641,6 @@ class DiffieHellman : public BaseObject {
                      int (*set_field)(DH*, BIGNUM*), const char* what);
   bool VerifyContext();
 
-  bool initialised_;
   int verifyError_;
   DHPointer dh_;
 };

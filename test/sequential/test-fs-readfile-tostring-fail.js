@@ -1,6 +1,8 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../common');
+const { internalBinding } = require('internal/test/binding');
 
 if (!common.enoughTestMem)
   common.skip('intensive toString tests due to memory confinements');
@@ -9,7 +11,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
-const kStringMaxLength = process.binding('buffer').kStringMaxLength;
+const kStringMaxLength = internalBinding('buffer').kStringMaxLength;
 if (common.isAIX && (Number(cp.execSync('ulimit -f')) * 512) < kStringMaxLength)
   common.skip('intensive toString tests due to file size confinements');
 

@@ -39,10 +39,17 @@ using v8::String;
 using v8::Value;
 
 
-// TODO(joyeecheung): deprecate this function in favor of
-// lib/util.getSystemErrorName()
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (env->options()->pending_deprecation && env->EmitErrNameWarning()) {
+    if (ProcessEmitDeprecationWarning(
+        env,
+        "Directly calling process.binding('uv').errname(<val>) is being"
+        " deprecated. "
+        "Please make sure to use util.getSystemErrorName() instead.",
+        "DEP0119").IsNothing())
+    return;
+  }
   int err;
   if (!args[0]->Int32Value(env->context()).To(&err)) return;
   CHECK_LT(err, 0);

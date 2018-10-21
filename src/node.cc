@@ -69,6 +69,10 @@
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
 #endif
 
+#ifdef NODE_ENABLE_LARGE_CODE_PAGES
+#include "large_pages/node_large_page.h"
+#endif
+
 #include <errno.h>
 #include <fcntl.h>  // _O_RDWR
 #include <limits.h>  // PATH_MAX
@@ -1538,14 +1542,6 @@ static void GetBinding(const FunctionCallbackInfo<Value>& args) {
   Local<Object> exports;
   if (mod != nullptr) {
     exports = InitModule(env, mod, module);
-  } else if (!strcmp(*module_v, "constants")) {
-    exports = Object::New(env->isolate());
-    CHECK(exports->SetPrototype(env->context(),
-                                Null(env->isolate())).FromJust());
-    DefineConstants(env->isolate(), exports);
-  } else if (!strcmp(*module_v, "natives")) {
-    exports = Object::New(env->isolate());
-    DefineJavaScript(env, exports);
   } else {
     return ThrowIfNoSuchModule(env, *module_v);
   }
@@ -1565,6 +1561,14 @@ static void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   node_module* mod = get_internal_module(*module_v);
   if (mod != nullptr) {
     exports = InitModule(env, mod, module);
+  } else if (!strcmp(*module_v, "constants")) {
+    exports = Object::New(env->isolate());
+    CHECK(exports->SetPrototype(env->context(),
+                                Null(env->isolate())).FromJust());
+    DefineConstants(env->isolate(), exports);
+  } else if (!strcmp(*module_v, "natives")) {
+    exports = Object::New(env->isolate());
+    DefineJavaScript(env, exports);
   } else if (!strcmp(*module_v, "code_cache")) {
     // internalBinding('code_cache')
     exports = Object::New(env->isolate());
@@ -2756,6 +2760,11 @@ void FreeEnvironment(Environment* env) {
 }
 
 
+Environment* GetCurrentEnvironment(Local<Context> context) {
+  return Environment::GetCurrent(context);
+}
+
+
 MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
   return v8_platform.Platform();
 }
@@ -2958,6 +2967,14 @@ int Start(int argc, char** argv) {
   performance::performance_node_start = PERFORMANCE_NOW();
 
   CHECK_GT(argc, 0);
+
+#ifdef NODE_ENABLE_LARGE_CODE_PAGES
+  if (node::IsLargePagesEnabled()) {
+    if (node::MapStaticCodeToLargePages() != 0) {
+      fprintf(stderr, "Reverting to default page size\n");
+    }
+  }
+#endif
 
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);

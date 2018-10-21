@@ -5,6 +5,8 @@ const {
   hijackStdout,
   restoreStdout,
 } = require('../common/hijackstdio');
+
+const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');
 const errors = require('internal/errors');
 
@@ -183,7 +185,7 @@ assert.strictEqual(
   'Invalid asyncId value: undefined');
 
 {
-  const { kMaxLength } = process.binding('buffer');
+  const { kMaxLength } = internalBinding('buffer');
   const error = new errors.codes.ERR_BUFFER_TOO_LARGE();
   assert.strictEqual(
     error.message,

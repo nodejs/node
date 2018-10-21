@@ -23,6 +23,7 @@
       'include_dirs+': [
         '..',
         '<(DEPTH)',
+        '<(SHARED_INTERMEDIATE_DIR)',
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',

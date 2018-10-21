@@ -239,6 +239,41 @@ function testFtruncate(cb) {
   }));
 }
 
+{
+  const file7 = path.resolve(tmp, 'truncate-file-7.txt');
+  fs.writeFileSync(file7, 'Hi');
+  fs.truncate(file7, undefined, common.mustCall(function(err) {
+    assert.ifError(err);
+    assert(fs.readFileSync(file7).equals(Buffer.from('')));
+  }));
+}
+
+{
+  const file8 = path.resolve(tmp, 'non-existent-truncate-file.txt');
+  const validateError = (err) => {
+    assert.strictEqual(file8, err.path);
+    assert.strictEqual(
+      err.message,
+      `ENOENT: no such file or directory, open '${file8}'`);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'open');
+    return true;
+  };
+  fs.truncate(file8, 0, common.mustCall(validateError));
+}
+
+['', false, null, {}, []].forEach((input) => {
+  assert.throws(
+    () => fs.truncate('/foo/bar', input),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      message: 'The "len" argument must be of type number. ' +
+               `Received type ${typeof input}`
+    }
+  );
+});
+
 ['', false, null, undefined, {}, []].forEach((input) => {
   ['ftruncate', 'ftruncateSync'].forEach((fnName) => {
     assert.throws(

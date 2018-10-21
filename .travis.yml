@@ -13,7 +13,7 @@ matrix:
       script:
         - make lint
         # Lint the first commit in the PR.
-        - git log $TRAVIS_COMMIT_RANGE --pretty=format:'%h' --no-merges | tail -1 | xargs npx core-validate-commit --no-validate-metadata
+        - \[ -z "$TRAVIS_COMMIT_RANGE" \] || (echo -e '\nLinting the commit message according to the guidelines at https://goo.gl/p2fr5Q\n' && git log $TRAVIS_COMMIT_RANGE --pretty=format:'%h' --no-merges | tail -1 | xargs npx -q core-validate-commit --no-validate-metadata)
     - name: "Test Suite"
       install:
         - ./configure

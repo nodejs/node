@@ -33,11 +33,14 @@ const assert = require('assert');
 let ticked = false;
 
 let hit = 0;
-const QUEUE = 1000;
+const QUEUE = 10;
 
 function run() {
-  if (hit === 0)
-    process.nextTick(function() { ticked = true; });
+  if (hit === 0) {
+    setTimeout(() => { ticked = true; }, 1);
+    const now = Date.now();
+    while (Date.now() - now < 2);
+  }
 
   if (ticked) return;
 

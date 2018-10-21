@@ -185,16 +185,13 @@ class PromiseWrap : public AsyncWrap {
   SET_MEMORY_INFO_NAME(PromiseWrap)
   SET_SELF_SIZE(PromiseWrap)
 
-  static constexpr int kPromiseField = 1;
-  static constexpr int kIsChainedPromiseField = 2;
-  static constexpr int kInternalFieldCount = 3;
+  static constexpr int kIsChainedPromiseField = 1;
+  static constexpr int kInternalFieldCount = 2;
 
   static PromiseWrap* New(Environment* env,
                           Local<Promise> promise,
                           PromiseWrap* parent_wrap,
                           bool silent);
-  static void GetPromise(Local<String> property,
-                         const PropertyCallbackInfo<Value>& info);
   static void getIsChainedPromise(Local<String> property,
                                   const PropertyCallbackInfo<Value>& info);
 };
@@ -205,7 +202,6 @@ PromiseWrap* PromiseWrap::New(Environment* env,
                               bool silent) {
   Local<Object> object = env->promise_wrap_template()
                             ->NewInstance(env->context()).ToLocalChecked();
-  object->SetInternalField(PromiseWrap::kPromiseField, promise);
   object->SetInternalField(PromiseWrap::kIsChainedPromiseField,
                            parent_wrap != nullptr ?
                               v8::True(env->isolate()) :
@@ -213,11 +209,6 @@ PromiseWrap* PromiseWrap::New(Environment* env,
   CHECK_EQ(promise->GetAlignedPointerFromInternalField(0), nullptr);
   promise->SetInternalField(0, object);
   return new PromiseWrap(env, object, silent);
-}
-
-void PromiseWrap::GetPromise(Local<String> property,
-                             const PropertyCallbackInfo<Value>& info) {
-  info.GetReturnValue().Set(info.Holder()->GetInternalField(kPromiseField));
 }
 
 void PromiseWrap::getIsChainedPromise(Local<String> property,
@@ -315,9 +306,6 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
     Local<ObjectTemplate> promise_wrap_template = ctor->InstanceTemplate();
     promise_wrap_template->SetInternalFieldCount(
         PromiseWrap::kInternalFieldCount);
-    promise_wrap_template->SetAccessor(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "promise"),
-        PromiseWrap::GetPromise);
     promise_wrap_template->SetAccessor(
         FIXED_ONE_BYTE_STRING(env->isolate(), "isChainedPromise"),
         PromiseWrap::getIsChainedPromise);

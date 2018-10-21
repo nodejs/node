@@ -166,15 +166,10 @@ team has addressed the vulnerability.
 The security team will acknowledge your email within 24 hours. You will receive
 a more detailed response within 48 hours.
 
-There are no hard and fast rules to determine if a bug is worth reporting as
-a security issue. The general rule is an issue worth reporting should allow an
-attacker to compromise the confidentiality, integrity, or availability of the
-Node.js application or its system for which the attacker does not already have
-the capability.
-
-To illustrate the point, here are some examples of past issues and what the
-Security Response Team thinks of them. When in doubt, however, please do send
-us a report nonetheless.
+There are no hard and fast rules to determine if a bug is worth reporting as a
+security issue. Here are some examples of past issues and what the Security
+Response Team thinks of them. When in doubt, please do send us a report
+nonetheless.
 
 
 ### Public disclosure preferred
@@ -213,9 +208,7 @@ When in doubt, please do send us a report.
 
 ## Current Project Team Members
 
-The Node.js project team comprises a group of core collaborators and a sub-group
-that forms the _Technical Steering Committee_ (TSC) which governs the project.
-For more information about the governance of the Node.js project, see
+For information about the governance of the Node.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
 ### TSC (Technical Steering Committee)
@@ -592,7 +585,7 @@ Node.js releases are signed with one of the following GPG keys:
 * **Rod Vagg** &lt;rod@vagg.org&gt;
 `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
 
-The full set of trusted release keys can be imported by running:
+To import the full set of trusted release keys:
 
 ```shell
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
@@ -608,7 +601,7 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273
 See the section above on [Verifying Binaries](#verifying-binaries) for how to
 use these keys to verify a downloaded file.
 
-Previous releases may also have been signed with one of the following GPG keys:
+Other keys used to sign some previous releases:
 
 * **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 `9554F04D7259F04124DE6B476D5A82AC7E37093B`
