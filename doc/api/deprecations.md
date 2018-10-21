@@ -2235,7 +2235,7 @@ It will become an error in future versions of Node.js.
 
 <a id="DEP0119"></a>
 ### DEP0119: process.binding('uv').errname() private API
-<!--
+<!-- YAML
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/23597
