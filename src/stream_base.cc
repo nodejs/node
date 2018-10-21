@@ -17,6 +17,7 @@
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -303,16 +304,28 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void StreamBase::CallJSOnreadMethod(ssize_t nread, Local<Object> buf) {
+void StreamBase::CallJSOnreadMethod(ssize_t nread,
+                                    Local<ArrayBuffer> ab,
+                                    size_t offset) {
   Environment* env = env_;
 
-  Local<Value> argv[] = {
-    Integer::New(env->isolate(), nread),
-    buf
-  };
+#ifdef DEBUG
+  CHECK_EQ(static_cast<int32_t>(nread), nread);
+  CHECK_EQ(static_cast<int32_t>(offset), offset);
 
-  if (argv[1].IsEmpty())
-    argv[1] = Undefined(env->isolate());
+  if (ab.IsEmpty()) {
+    CHECK_EQ(offset, 0);
+    CHECK_LE(nread, 0);
+  } else {
+    CHECK_GE(nread, 0);
+  }
+#endif
+  env->stream_base_state()[kReadBytesOrError] = nread;
+  env->stream_base_state()[kArrayBufferOffset] = offset;
+
+  Local<Value> argv[] = {
+    ab.IsEmpty() ? Undefined(env->isolate()).As<Value>() : ab.As<Value>()
+  };
 
   AsyncWrap* wrap = GetAsyncWrap();
   CHECK_NOT_NULL(wrap);
@@ -366,14 +379,18 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   if (nread <= 0)  {
     free(buf.base);
     if (nread < 0)
-      stream->CallJSOnreadMethod(nread, Local<Object>());
+      stream->CallJSOnreadMethod(nread, Local<ArrayBuffer>());
     return;
   }
 
   CHECK_LE(static_cast<size_t>(nread), buf.len);
   char* base = Realloc(buf.base, nread);
 
-  Local<Object> obj = Buffer::New(env, base, nread).ToLocalChecked();
+  Local<ArrayBuffer> obj = ArrayBuffer::New(
+      env->isolate(),
+      base,
+      nread,
+      v8::ArrayBufferCreationMode::kInternalized);  // Transfer ownership to V8.
   stream->CallJSOnreadMethod(nread, obj);
 }
 

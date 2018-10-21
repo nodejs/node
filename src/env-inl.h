@@ -446,6 +446,11 @@ Environment::trace_category_state() {
   return trace_category_state_;
 }
 
+inline AliasedBuffer<int32_t, v8::Int32Array>&
+Environment::stream_base_state() {
+  return stream_base_state_;
+}
+
 inline uint32_t Environment::get_next_module_id() {
   return module_id_counter_++;
 }
