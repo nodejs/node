@@ -109,15 +109,15 @@ function main({ dur, len, type }) {
 
     connectReq.oncomplete = function() {
       var bytes = 0;
-      clientHandle.onread = function(nread, buffer) {
+      clientHandle.onread = function(buffer) {
         // we're not expecting to ever get an EOF from the client.
         // just lots of data forever.
-        if (nread < 0)
-          fail(nread, 'read');
+        if (!buffer)
+          fail('read');
 
         // don't slice the buffer.  the point of this is to isolate, not
         // simulate real traffic.
-        bytes += buffer.length;
+        bytes += buffer.byteLength;
       };
 
       clientHandle.readStart();
