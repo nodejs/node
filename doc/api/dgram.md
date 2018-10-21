@@ -601,6 +601,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/13623
     description: The `recvBufferSize` and `sendBufferSize` options are
                  supported now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23798
+    description: The `ipv6Only` option is supported.
 -->
 
 * `options` {Object} Available options are:
@@ -609,6 +612,9 @@ changes:
   * `reuseAddr` {boolean} When `true` [`socket.bind()`][] will reuse the
     address, even if another process has already bound a socket on it.
     **Default:** `false`.
+  * `ipv6Only` {boolean} Setting `ipv6Only` to `true` will
+    disable dual-stack support, i.e., binding to address `::` won't make
+    `0.0.0.0` be bound. **Default:** `false`.
   * `recvBufferSize` {number} - Sets the `SO_RCVBUF` socket value.
   * `sendBufferSize` {number} - Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].

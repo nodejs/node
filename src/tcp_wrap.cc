@@ -127,6 +127,7 @@ void TCPWrap::Initialize(Local<Object> target,
   Local<Object> constants = Object::New(env->isolate());
   NODE_DEFINE_CONSTANT(constants, SOCKET);
   NODE_DEFINE_CONSTANT(constants, SERVER);
+  NODE_DEFINE_CONSTANT(constants, UV_TCP_IPV6ONLY);
   target->Set(context,
               env->constants_string(),
               constants).FromJust();
@@ -252,13 +253,15 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   Environment* env = wrap->env();
   node::Utf8Value ip6_address(env->isolate(), args[0]);
   int port;
+  unsigned int flags;
   if (!args[1]->Int32Value(env->context()).To(&port)) return;
+  if (!args[2]->Uint32Value(env->context()).To(&flags)) return;
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip6_address, port, &addr);
   if (err == 0) {
     err = uv_tcp_bind(&wrap->handle_,
                       reinterpret_cast<const sockaddr*>(&addr),
-                      0);
+                      flags);
   }
   args.GetReturnValue().Set(err);
 }

@@ -252,6 +252,10 @@ Listening on a file descriptor is not supported on Windows.
 #### server.listen(options[, callback])
 <!-- YAML
 added: v0.11.14
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23798
+    description: The `ipv6Only` option is supported.
 -->
 
 * `options` {Object} Required. Supports the following properties:
@@ -266,6 +270,9 @@ added: v0.11.14
     for all users. **Default:** `false`
   * `writableAll` {boolean} For IPC servers makes the pipe writable
     for all users. **Default:** `false`
+  * `ipv6Only` {boolean} For TCP servers, setting `ipv6Only` to `true` will
+    disable dual-stack support, i.e., binding to host `::` won't make
+    `0.0.0.0` be bound. **Default:** `false`.
 * `callback` {Function} Common parameter of [`server.listen()`][]
   functions.
 * Returns: {net.Server}
