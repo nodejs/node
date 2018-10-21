@@ -4,6 +4,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+// This test verifies the behavior of the tls setSecureContext() method.
+// It also verifies that existing connections are not disrupted when the
+// secure context is changed.
+
 const assert = require('assert');
 const https = require('https');
 const fixtures = require('../common/fixtures');
@@ -19,54 +23,63 @@ const credentialOptions = [
     ca: fixtures.readKey('ca2-cert.pem')
   }
 ];
-let requestsCount = 0;
 let firstResponse;
 
 const server = https.createServer(credentialOptions[0], (req, res) => {
-  requestsCount++;
+  const id = +req.headers.id;
 
-  if (requestsCount === 1) {
+  if (id === 1) {
     firstResponse = res;
     firstResponse.write('multi-');
     return;
-  } else if (requestsCount === 3) {
+  } else if (id === 4) {
     firstResponse.write('success-');
   }
 
   res.end('success');
 });
 
-server.listen(0, common.mustCall(async () => {
+server.listen(0, common.mustCall(() => {
   const { port } = server.address();
-  const firstRequest = makeRequest(port);
+  const firstRequest = makeRequest(port, 1);
 
-  assert.strictEqual(await makeRequest(port), 'success');
+  async function makeRemainingRequests() {
+    // Wait until the first request is guaranteed to have been handled.
+    if (!firstResponse) {
+      return setImmediate(makeRemainingRequests);
+    }
 
-  server.setSecureContext(credentialOptions[1]);
-  firstResponse.write('request-');
-  await assert.rejects(async () => {
-    await makeRequest(port);
-  }, /^Error: self signed certificate$/);
+    assert.strictEqual(await makeRequest(port, 2), 'success');
 
-  server.setSecureContext(credentialOptions[0]);
-  assert.strictEqual(await makeRequest(port), 'success');
+    server.setSecureContext(credentialOptions[1]);
+    firstResponse.write('request-');
+    await assert.rejects(async () => {
+      await makeRequest(port, 3);
+    }, /^Error: self signed certificate$/);
 
-  server.setSecureContext(credentialOptions[1]);
-  firstResponse.end('fun!');
-  await assert.rejects(async () => {
-    await makeRequest(port);
-  }, /^Error: self signed certificate$/);
+    server.setSecureContext(credentialOptions[0]);
+    assert.strictEqual(await makeRequest(port, 4), 'success');
 
-  assert.strictEqual(await firstRequest, 'multi-request-success-fun!');
-  server.close();
+    server.setSecureContext(credentialOptions[1]);
+    firstResponse.end('fun!');
+    await assert.rejects(async () => {
+      await makeRequest(port, 5);
+    }, /^Error: self signed certificate$/);
+
+    assert.strictEqual(await firstRequest, 'multi-request-success-fun!');
+    server.close();
+  }
+
+  makeRemainingRequests();
 }));
 
-function makeRequest(port) {
+function makeRequest(port, id) {
   return new Promise((resolve, reject) => {
     const options = {
       rejectUnauthorized: true,
       ca: credentialOptions[0].ca,
-      servername: 'agent1'
+      servername: 'agent1',
+      headers: { id }
     };
 
     https.get(`https://localhost:${port}`, options, (res) => {
