@@ -25,7 +25,7 @@ struct napi_env__ {
     CHECK_NOT_NULL(node_env());
   }
 
-  v8::Isolate* isolate;  // Shortcut for context()->GetIsolate()
+  v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   node::Persistent<v8::Context> context_persistent;
 
   inline v8::Local<v8::Context> context() const {
