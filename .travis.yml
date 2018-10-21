@@ -21,7 +21,7 @@ matrix:
        - CXX="ccache clang++"
        - CXXFLAGS="-Qunused-arguments -stdlib=libc++"
        - JOBS=2
-       - LD_LIBRARY_PATH="/usr/local/clang-5.0.0/lib":$LD_LIBRARY_PATH
+       - LD_LIBRARY_PATH="/usr/local/clang-5.0.0/lib"
       install:
         - ./configure
         - make -j2 V=
