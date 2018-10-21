@@ -1,5 +1,6 @@
 #include "node.h"
 #include "node_internals.h"
+#include "node_errors.h"
 #include "base_object.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
@@ -626,8 +627,13 @@ void EnvGetter(Local<Name> property,
   if ((result > 0 || GetLastError() == ERROR_SUCCESS) &&
       result < arraysize(buffer)) {
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(buffer);
-    Local<String> rc = String::NewFromTwoByte(isolate, two_byte_buffer);
-    return info.GetReturnValue().Set(rc);
+    v8::MaybeLocal<String> rc = String::NewFromTwoByte(
+        isolate, two_byte_buffer, v8::NewStringType::kNormal);
+    if (rc.IsEmpty()) {
+      isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+      return;
+    }
+    return info.GetReturnValue().Set(rc.ToLocalChecked());
   }
 #endif
 }
@@ -768,10 +774,17 @@ void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     }
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
     const size_t two_byte_buffer_len = s - p;
-    argv[idx] = String::NewFromTwoByte(isolate,
-                                       two_byte_buffer,
-                                       String::kNormalString,
-                                       two_byte_buffer_len);
+    v8::MaybeLocal<String> rc =
+        String::NewFromTwoByte(isolate,
+                               two_byte_buffer,
+                               v8::NewStringType::kNormal,
+                               two_byte_buffer_len);
+    if (rc.IsEmpty()) {
+      isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+      FreeEnvironmentStringsW(environment);
+      return;
+    }
+    argv[idx] = rc.ToLocalChecked();
     if (++idx >= arraysize(argv)) {
       fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
       idx = 0;
