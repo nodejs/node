@@ -42,7 +42,7 @@ queueMicrotask(common.mustCall(function() {
 }
 
 const eq = [];
-process.on('error', (e) => {
+process.on('uncaughtException', (e) => {
   eq.push(e);
 });
 

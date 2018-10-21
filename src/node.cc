@@ -1423,6 +1423,18 @@ void FatalException(Isolate* isolate, const TryCatch& try_catch) {
 }
 
 
+static void FatalException(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(isolate);
+  if (env != nullptr && env->abort_on_uncaught_exception()) {
+    Abort();
+  }
+  Local<Value> exception = args[0];
+  Local<Message> message = Exception::CreateMessage(isolate, exception);
+  FatalException(isolate, exception, message);
+}
+
+
 static void OnMessage(Local<Message> message, Local<Value> error) {
   // The current version of V8 sends messages for errors only
   // (thus `error` is always set).
@@ -2161,6 +2173,10 @@ void LoadEnvironment(Environment* env) {
     return;
   }
 
+  Local<Function> trigger_fatal_exception =
+      env->NewFunctionTemplate(FatalException)->GetFunction(env->context())
+          .ToLocalChecked();
+
   // Bootstrap Node.js
   Local<Object> bootstrapper = Object::New(env->isolate());
   SetupBootstrapObject(env, bootstrapper);
@@ -2168,7 +2184,8 @@ void LoadEnvironment(Environment* env) {
   Local<Value> node_bootstrapper_args[] = {
     env->process_object(),
     bootstrapper,
-    bootstrapped_loaders
+    bootstrapped_loaders,
+    trigger_fatal_exception,
   };
   if (!ExecuteBootstrapper(env, node_bootstrapper.ToLocalChecked(),
                            arraysize(node_bootstrapper_args),
