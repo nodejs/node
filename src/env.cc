@@ -131,7 +131,7 @@ void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
   if (!env_->is_main_thread()) {
     // Ideally, we’d have a consistent story that treats all threads/Environment
     // instances equally here. However, tracing is essentially global, and this
-    // callback is callback from whichever thread calls `StartTracing()` or
+    // callback is called from whichever thread calls `StartTracing()` or
     // `StopTracing()`. The only way to do this in a threadsafe fashion
     // seems to be only tracking this from the main thread, and only allowing
     // these state modifications from the main thread.
@@ -192,7 +192,7 @@ Environment::Environment(IsolateData* isolate_data,
   AssignToContext(context, ContextInfo(""));
 
   if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
-    trace_state_observer_.reset(new TrackingTraceStateObserver(this));
+    trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
     v8::TracingController* tracing_controller = writer->GetTracingController();
     if (tracing_controller != nullptr)
       tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
