@@ -119,8 +119,8 @@ added: v11.0.0
 * `callback` {Function} Function to be queued.
 
 The `queueMicrotask()` method queues a microtask to invoke `callback`. If
-`callback` throws an exception, the [`process` object][] `'error'` event will
-be emitted.
+`callback` throws an exception, the [`process` object][] `'uncaughtException'`
+event will be emitted.
 
 In general, `queueMicrotask` is the idiomatic choice over `process.nextTick()`.
 `process.nextTick()` will always run before the microtask queue, and so
