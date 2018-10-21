@@ -18,6 +18,7 @@
 * [Memory Management](#memory-management)
   * [Memory allocation](#memory-allocation)
   * [Use `nullptr` instead of `NULL` or `0`](#use-nullptr-instead-of-null-or-0)
+  * [Use explicit pointer comparisons](#use-explicit-pointer-comparisons)
   * [Ownership and Smart Pointers](#ownership-and-smart-pointers)
   * [Avoid non-const references](#avoid-non-const-references)
 * [Others](#others)
@@ -194,6 +195,12 @@ class FancyContainer {
 ### Use `nullptr` instead of `NULL` or `0`
 
 Further reading in the [C++ Core Guidelines][ES.47].
+
+### Use explicit pointer comparisons
+
+Use explicit comparisons to `nullptr` when testing pointers, i.e.
+`if (foo == nullptr)` instead of `if (foo)` and
+`foo != nullptr` instead of `!foo`.
 
 ### Ownership and Smart Pointers
 
