@@ -21,6 +21,7 @@ matrix:
       script:
         - make -j2 test
       before_install:
+        - export CXX_host="ccache clang++ -Qunused-arguments"
         - export CXX="ccache clang++ -Qunused-arguments"
         - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
         - export JOBS=2
