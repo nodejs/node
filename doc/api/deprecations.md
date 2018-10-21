@@ -2235,7 +2235,7 @@ It will become an error in future versions of Node.js.
 
 <a id="DEP0119"></a>
 ### DEP0119: process.binding('uv').errname() private API
-<!--
+<!-- YAML
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/23597
@@ -2249,12 +2249,14 @@ Please make sure to use [`util.getSystemErrorName()`][] instead.
 
 <a id="DEP0120"></a>
 ### DEP0120: Windows Performance Counter Support
-<!--
+<!-- YAML
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22485
     description: Runtime deprecation.
 -->
+
+Type: Runtime
 
 Windows Performance Counter support has been removed from Node.js. The
 undocumented  `COUNTER_NET_SERVER_CONNECTION()`,
