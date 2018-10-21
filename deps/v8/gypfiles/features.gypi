@@ -123,8 +123,8 @@
 
   'conditions': [
     # V8's predicate inverted since we default to 'true' and set 'false' for unsupported cases.
-    #      v8_use_snapshot         &&  v8_current_cpu != "x86" &&    !is_aix &&  (  !is_win || is_clang)
-    ['not (v8_use_snapshot=="true" and v8_target_arch !="ia32" and OS!="aix" and (OS!="win" or clang==1))', {
+    #      v8_use_snapshot         &&  !is_aix &&  (  !is_win || is_clang)
+    ['not (v8_use_snapshot=="true" and OS!="aix" and (OS!="win" or clang==1))', {
       'variables': {
         'v8_enable_embedded_builtins': 'false',
       }
