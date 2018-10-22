@@ -368,8 +368,11 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   // Disable logging when using the new implementation.
   saved_is_logging_ = logger->is_logging_;
   logger->is_logging_ = false;
+
+  bool codemap_needs_initialization = false;
   if (!generator_) {
     generator_.reset(new ProfileGenerator(profiles_.get()));
+    codemap_needs_initialization = true;
     CreateEntriesForRuntimeCallStats();
   }
   processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
@@ -382,12 +385,14 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
   DCHECK(isolate_->heap()->HasBeenSetUp());
-  if (!FLAG_prof_browser_mode) {
-    logger->LogCodeObjects();
+  if (codemap_needs_initialization) {
+    if (!FLAG_prof_browser_mode) {
+      logger->LogCodeObjects();
+    }
+    logger->LogCompiledFunctions();
+    logger->LogAccessorCallbacks();
+    LogBuiltins();
   }
-  logger->LogCompiledFunctions();
-  logger->LogAccessorCallbacks();
-  LogBuiltins();
   // Enable stack sampling.
   processor_->AddCurrentStack(isolate_);
   processor_->StartSynchronously();
