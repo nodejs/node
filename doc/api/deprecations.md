@@ -2279,6 +2279,20 @@ and `cluster` modules on Windows. The function is not generally useful and
 is being removed. See discussion here:
 https://github.com/nodejs/node/issues/18391
 
+<a id="DEP0122"></a>
+### DEP0122: tls Server.prototype.setOptions()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23820
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Please use `Server.prototype.setSecureContext()` instead.
+
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
