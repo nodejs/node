@@ -2259,7 +2259,7 @@ changes:
 Type: Runtime
 
 Windows Performance Counter support has been removed from Node.js. The
-undocumented  `COUNTER_NET_SERVER_CONNECTION()`,
+undocumented `COUNTER_NET_SERVER_CONNECTION()`,
 `COUNTER_NET_SERVER_CONNECTION_CLOSE()`, `COUNTER_HTTP_SERVER_REQUEST()`,
 `COUNTER_HTTP_SERVER_RESPONSE()`, `COUNTER_HTTP_CLIENT_REQUEST()`, and
 `COUNTER_HTTP_CLIENT_RESPONSE()` functions have been deprecated.
