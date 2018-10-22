@@ -179,12 +179,6 @@ nonetheless.
   arbitrary JavaScript code. That is already the highest level of privilege
   possible.
 
-- [#12141](https://github.com/nodejs/node/pull/12141): _buffer: zero fill
-  Buffer(num) by default_. The documented `Buffer()` behavior was prone to
-  [misuse](https://snyk.io/blog/exploiting-buffer/). It has since changed. It
-  was not deemed serious enough to fix in older releases and breaking API
-  stability.
-
 ### Private disclosure preferred
 
 - [CVE-2016-7099](https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/):
