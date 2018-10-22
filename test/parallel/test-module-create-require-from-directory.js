@@ -6,7 +6,7 @@ const path = require('path');
 
 const { createRequireFromPath } = require('module');
 
-const p = path.join(path.resolve(__dirname, '..', 'fixtures'), '/');
+const p = path.join(path.resolve(__dirname, '..', 'fixtures'), path.sep);
 
 const req = createRequireFromPath(p);
 assert.strictEqual(req('./baz'), 'perhaps I work');
