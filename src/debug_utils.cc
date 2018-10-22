@@ -100,35 +100,104 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
     USE(SymInitialize(current_process_, nullptr, true));
   }
 
-  ~Win32SymbolDebuggingContext() {
+  ~Win32SymbolDebuggingContext() override {
     USE(SymCleanup(current_process_));
   }
 
-  SymbolInfo LookupSymbol(void* address) override {
-    // Ref: https://msdn.microsoft.com/en-en/library/windows/desktop/ms680578(v=vs.85).aspx
-    char info_buf[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
-    SYMBOL_INFO* info = reinterpret_cast<SYMBOL_INFO*>(info_buf);
-    char demangled[MAX_SYM_NAME];
+  using NameAndDisplacement = std::pair<std::string, DWORD64>;
+  NameAndDisplacement WrappedSymFromAddr(DWORD64 dwAddress) const {
+    // Refs: https://docs.microsoft.com/en-us/windows/desktop/Debug/retrieving-symbol-information-by-address
+    // Patches:
+    // Use `fprintf(stderr, ` instead of `printf`
+    // `sym.filename = pSymbol->Name` on success
+    // `current_process_` instead of `hProcess.
+    DWORD64 dwDisplacement = 0;
+    // Patch: made into arg - DWORD64  dwAddress = SOME_ADDRESS;
 
-    info->MaxNameLen = MAX_SYM_NAME;
-    info->SizeOfStruct = sizeof(SYMBOL_INFO);
+    char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+    const auto pSymbol = reinterpret_cast<PSYMBOL_INFO>(buffer);
 
-    SymbolInfo ret;
-    const bool have_info = SymFromAddr(current_process_,
-                                       reinterpret_cast<DWORD64>(address),
-                                       nullptr,
-                                       info);
-    if (have_info && strlen(info->Name) == 0) {
-      if (UnDecorateSymbolName(info->Name,
-                               demangled,
-                               sizeof(demangled),
-                               UNDNAME_COMPLETE)) {
-        ret.name = demangled;
-      } else {
-        ret.name = info->Name;
-      }
+    pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+    pSymbol->MaxNameLen = MAX_SYM_NAME;
+
+    if (SymFromAddr(current_process_, dwAddress, &dwDisplacement, pSymbol)) {
+      // SymFromAddr returned success
+      return NameAndDisplacement(pSymbol->Name, dwDisplacement);
+    } else {
+      // SymFromAddr failed
+      const DWORD error = GetLastError();  // "eat" the error anyway
+#ifdef DEBUG
+      fprintf(stderr, "SymFromAddr returned error : %lu\n", error);
+#endif
     }
+    // End MSDN code
 
+    return NameAndDisplacement();
+  }
+
+  SymbolInfo WrappedGetLine(DWORD64 dwAddress) const {
+    SymbolInfo sym{};
+
+    // Refs: https://docs.microsoft.com/en-us/windows/desktop/Debug/retrieving-symbol-information-by-address
+    // Patches:
+    // Use `fprintf(stderr, ` instead of `printf`.
+    // Assign values to `sym` on success.
+    // `current_process_` instead of `hProcess.
+
+    // Patch: made into arg - DWORD64  dwAddress;
+    DWORD dwDisplacement;
+    IMAGEHLP_LINE64 line;
+
+    SymSetOptions(SYMOPT_LOAD_LINES);
+
+    line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+    // Patch: made into arg - dwAddress = 0x1000000;
+
+    if (SymGetLineFromAddr64(current_process_, dwAddress,
+                             &dwDisplacement, &line)) {
+      // SymGetLineFromAddr64 returned success
+      sym.filename = line.FileName;
+      sym.line = line.LineNumber;
+    } else {
+      // SymGetLineFromAddr64 failed
+      const DWORD error = GetLastError();  // "eat" the error anyway
+#ifdef DEBUG
+      fprintf(stderr, "SymGetLineFromAddr64 returned error : %lu\n", error);
+#endif
+    }
+    // End MSDN code
+
+    return sym;
+  }
+
+  // Fills the SymbolInfo::name of the io/out argument `sym`
+  std::string WrappedUnDecorateSymbolName(const char* name) const {
+    // Refs: https://docs.microsoft.com/en-us/windows/desktop/Debug/retrieving-undecorated-symbol-names
+    // Patches:
+    // Use `fprintf(stderr, ` instead of `printf`.
+    // return `szUndName` instead of `printf` on success
+    char szUndName[MAX_SYM_NAME];
+    if (UnDecorateSymbolName(name, szUndName, sizeof(szUndName),
+                             UNDNAME_COMPLETE)) {
+      // UnDecorateSymbolName returned success
+      return szUndName;
+    } else {
+      // UnDecorateSymbolName failed
+      const DWORD error = GetLastError();  // "eat" the error anyway
+#ifdef DEBUG
+      fprintf(stderr, "UnDecorateSymbolName returned error %lu\n", error);
+#endif
+    }
+    return nullptr;
+  }
+
+  SymbolInfo LookupSymbol(void* address) override {
+    const DWORD64 dw_address = reinterpret_cast<DWORD64>(address);
+    SymbolInfo ret = WrappedGetLine(dw_address);
+    std::tie(ret.name, ret.dis) = WrappedSymFromAddr(dw_address);
+    if (!ret.name.empty()) {
+      ret.name = WrappedUnDecorateSymbolName(ret.name.c_str());
+    }
     return ret;
   }
 
@@ -145,6 +214,13 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
     return CaptureStackBackTrace(0, count, frames, nullptr);
   }
 
+  Win32SymbolDebuggingContext(const Win32SymbolDebuggingContext&) = delete;
+  Win32SymbolDebuggingContext(Win32SymbolDebuggingContext&&) = delete;
+  Win32SymbolDebuggingContext operator=(const Win32SymbolDebuggingContext&)
+    = delete;
+  Win32SymbolDebuggingContext operator=(Win32SymbolDebuggingContext&&)
+    = delete;
+
  private:
   HANDLE current_process_;
 };
@@ -158,13 +234,18 @@ NativeSymbolDebuggingContext::New() {
 #endif  // __POSIX__
 
 std::string NativeSymbolDebuggingContext::SymbolInfo::Display() const {
-  std::string ret = name;
-  if (!filename.empty()) {
-    ret += " [";
-    ret += filename;
-    ret += ']';
+  std::ostringstream oss;
+  oss << name;
+  if (dis != 0) {
+    oss << "+" << dis;
   }
-  return ret;
+  if (!filename.empty()) {
+    oss << " [" << filename << ']';
+  }
+  if (line != 0) {
+    oss << ":L" << line;
+  }
+  return oss.str();
 }
 
 void DumpBacktrace(FILE* fp) {
@@ -173,8 +254,8 @@ void DumpBacktrace(FILE* fp) {
   const int size = sym_ctx->GetStackTrace(frames, arraysize(frames));
   for (int i = 1; i < size; i += 1) {
     void* frame = frames[i];
-    fprintf(fp, "%2d: %p %s\n",
-            i, frame, sym_ctx->LookupSymbol(frame).Display().c_str());
+    NativeSymbolDebuggingContext::SymbolInfo s = sym_ctx->LookupSymbol(frame);
+    fprintf(fp, "%2d: %p %s\n", i, frame, s.Display().c_str());
   }
 }
 
