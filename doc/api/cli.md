@@ -342,6 +342,22 @@ added: v4.0.0
 Specify an alternative default TLS cipher list. Requires Node.js to be built
 with crypto support (default).
 
+### `--tls-v1.0`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable TLSv1.0. This should only be used for compatibility with old TLS
+clients or servers.
+
+### `--tls-v1.1`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable TLSv1.1. This should only be used for compatibility with old TLS
+clients or servers.
+
 ### `--trace-deprecation`
 <!-- YAML
 added: v0.8.0

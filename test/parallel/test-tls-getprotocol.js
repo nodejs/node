@@ -17,6 +17,7 @@ const clientConfigs = [
 ];
 
 const serverConfig = {
+  secureProtocol: 'TLS_method',
   key: fixtures.readSync('/keys/agent2-key.pem'),
   cert: fixtures.readSync('/keys/agent2-cert.pem')
 };

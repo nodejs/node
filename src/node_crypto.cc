@@ -396,9 +396,12 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   Environment* env = sc->env();
 
-  int min_version = 0;
+  int min_version = TLS1_2_VERSION;
   int max_version = 0;
   const SSL_METHOD* method = TLS_method();
+
+  if (env->options()->tls_v1_1) min_version = TLS1_1_VERSION;
+  if (env->options()->tls_v1_0) min_version = TLS1_VERSION;
 
   if (args.Length() == 1 && args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
@@ -425,6 +428,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       method = TLS_server_method();
     } else if (strcmp(*sslmethod, "SSLv23_client_method") == 0) {
       method = TLS_client_method();
+    } else if (strcmp(*sslmethod, "TLS_method") == 0) {
+      min_version = 0;
+      max_version = 0;
     } else if (strcmp(*sslmethod, "TLSv1_method") == 0) {
       min_version = TLS1_VERSION;
       max_version = TLS1_VERSION;
