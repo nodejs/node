@@ -48,7 +48,8 @@ function doTest(testOptions, callback) {
     cert,
     ca: [cert],
     requestCert: true,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    secureProtocol: 'TLS_method',
   };
   let requestCount = 0;
   let resumeCount = 0;

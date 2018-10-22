@@ -1119,7 +1119,8 @@ changes:
     [OpenSSL Options][].
   * `secureProtocol` {string} SSL method to use. The possible values are listed
     as [SSL_METHODS][], use the function names as strings. For example,
-    `'TLSv1_2_method'` to force TLS version 1.2. **Default:** `'TLS_method'`.
+    `'TLSv1_2_method'` to force TLS version 1.2.
+    **Default:** `'TLSv1_2_method'`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
 

@@ -54,7 +54,8 @@ function faultyServer(port) {
 function second(server, session) {
   const req = https.request({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    secureProtocol: 'TLS_method',
   }, function(res) {
     res.resume();
   });
