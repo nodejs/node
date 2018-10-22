@@ -916,7 +916,7 @@ added: v10.12.0
 
 ```js
 const { createRequireFromPath } = require('module');
-const requireUtil = createRequireFromPath('../src/utils');
+const requireUtil = createRequireFromPath('../src/utils/');
 
 // Require `../src/utils/some-tool`
 requireUtil('./some-tool');
