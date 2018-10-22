@@ -42,7 +42,7 @@ function testProduceConsume() {
   const data = produce(source);
 
   for (const parsedData of common.getArrayBufferViews(data)) {
-    // It should consume code cache
+    // It should consume code cache 
     const script = new vm.Script(source, {
       cachedData: parsedData
     });
