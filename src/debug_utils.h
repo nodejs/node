@@ -6,6 +6,7 @@
 #include "async_wrap.h"
 #include "env.h"
 #include <string>
+#include <sstream>
 
 // Use FORCE_INLINE on functions that have a debug-category-enabled check first
 // and then ideally only a single function call following it, to maintain
@@ -93,14 +94,25 @@ class NativeSymbolDebuggingContext {
    public:
     std::string name;
     std::string filename;
+    size_t line = 0;
+    size_t dis = 0;
 
     std::string Display() const;
   };
 
+  NativeSymbolDebuggingContext() = default;
   virtual ~NativeSymbolDebuggingContext() {}
-  virtual SymbolInfo LookupSymbol(void* address) { return { "", "" }; }
+
+  virtual SymbolInfo LookupSymbol(void* address) { return {}; }
   virtual bool IsMapped(void* address) { return false; }
   virtual int GetStackTrace(void** frames, int count) { return 0; }
+
+  NativeSymbolDebuggingContext(const NativeSymbolDebuggingContext&) = delete;
+  NativeSymbolDebuggingContext(NativeSymbolDebuggingContext&&) = delete;
+  NativeSymbolDebuggingContext operator=(NativeSymbolDebuggingContext&)
+    = delete;
+  NativeSymbolDebuggingContext operator=(NativeSymbolDebuggingContext&&)
+    = delete;
 };
 
 // Variant of `uv_loop_close` that tries to be as helpful as possible
