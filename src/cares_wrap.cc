@@ -1796,14 +1796,16 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<String> string = args[1].As<String>();
-  Wrap* wrap = new Wrap(channel, req_wrap_obj);
+  auto wrap = std::make_unique<Wrap>(channel, req_wrap_obj);
 
   node::Utf8Value name(env->isolate(), string);
   channel->ModifyActivityQueryCount(1);
   int err = wrap->Send(*name);
   if (err) {
     channel->ModifyActivityQueryCount(-1);
-    delete wrap;
+  } else {
+    // Release ownership of the pointer allowing the ownership to be transferred
+    USE(wrap.release());
   }
 
   args.GetReturnValue().Set(err);
@@ -1811,7 +1813,8 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
 
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
-  GetAddrInfoReqWrap* req_wrap = static_cast<GetAddrInfoReqWrap*>(req->data);
+  std::unique_ptr<GetAddrInfoReqWrap> req_wrap {
+      static_cast<GetAddrInfoReqWrap*>(req->data)};
   Environment* env = req_wrap->env();
 
   HandleScope handle_scope(env->isolate());
@@ -1868,13 +1871,11 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   uv_freeaddrinfo(res);
 
   TRACE_EVENT_NESTABLE_ASYNC_END2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap,
+      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
       "count", n, "verbatim", verbatim);
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
-
-  delete req_wrap;
 }
 
 
@@ -1882,7 +1883,8 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
                       int status,
                       const char* hostname,
                       const char* service) {
-  GetNameInfoReqWrap* req_wrap = static_cast<GetNameInfoReqWrap*>(req->data);
+  std::unique_ptr<GetNameInfoReqWrap> req_wrap {
+      static_cast<GetNameInfoReqWrap*>(req->data)};
   Environment* env = req_wrap->env();
 
   HandleScope handle_scope(env->isolate());
@@ -1903,14 +1905,12 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   }
 
   TRACE_EVENT_NESTABLE_ASYNC_END2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap,
+      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "hostname", TRACE_STR_COPY(hostname),
       "service", TRACE_STR_COPY(service));
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
-
-  delete req_wrap;
 }
 
 using ParseIPResult = decltype(static_cast<ares_addr_port_node*>(0)->addr);
@@ -1970,7 +1970,9 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
       CHECK(0 && "bad address family");
   }
 
-  auto req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj, args[4]->IsTrue());
+  auto req_wrap = std::make_unique<GetAddrInfoReqWrap>(env,
+                                                       req_wrap_obj,
+                                                       args[4]->IsTrue());
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
@@ -1979,7 +1981,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   hints.ai_flags = flags;
 
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap,
+      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
       "hostname", TRACE_STR_COPY(*hostname),
       "family",
       family == AF_INET ? "ipv4" : family == AF_INET6 ? "ipv6" : "unspec");
@@ -1989,8 +1991,9 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
                                *hostname,
                                nullptr,
                                &hints);
-  if (err)
-    delete req_wrap;
+  if (err == 0)
+    // Release ownership of the pointer allowing the ownership to be transferred
+    USE(req_wrap.release());
 
   args.GetReturnValue().Set(err);
 }
@@ -2010,18 +2013,19 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(uv_ip4_addr(*ip, port, reinterpret_cast<sockaddr_in*>(&addr)) == 0 ||
         uv_ip6_addr(*ip, port, reinterpret_cast<sockaddr_in6*>(&addr)) == 0);
 
-  GetNameInfoReqWrap* req_wrap = new GetNameInfoReqWrap(env, req_wrap_obj);
+  auto req_wrap = std::make_unique<GetNameInfoReqWrap>(env, req_wrap_obj);
 
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap,
+      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "ip", TRACE_STR_COPY(*ip), "port", port);
 
   int err = req_wrap->Dispatch(uv_getnameinfo,
                                AfterGetNameInfo,
                                reinterpret_cast<struct sockaddr*>(&addr),
                                NI_NAMEREQD);
-  if (err)
-    delete req_wrap;
+  if (err == 0)
+    // Release ownership of the pointer allowing the ownership to be transferred
+    USE(req_wrap.release());
 
   args.GetReturnValue().Set(err);
 }
