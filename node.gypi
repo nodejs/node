@@ -29,6 +29,7 @@
     'deps/v8/include',
     'src',
   ],
+  'defines': [ 'GSL_TERMINATE_ON_CONTRACT_VIOLATION', ],
   # Putting these explicitly here so not to be dependant on common.gypi.
   'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
   'xcode_settings': {

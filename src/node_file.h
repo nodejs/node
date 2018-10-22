@@ -6,6 +6,7 @@
 #include "node.h"
 #include "stream_base.h"
 #include "req_wrap-inl.h"
+#include <gsl/gsl_util>
 
 namespace node {
 
@@ -193,24 +194,24 @@ constexpr uint64_t ToNative(uv_timespec_t ts) {
 template <typename NativeT, typename V8T>
 constexpr void FillStatsArray(AliasedBuffer<NativeT, V8T>* fields,
                               const uv_stat_t* s, const size_t offset = 0) {
-  fields->SetValue(offset + 0, s->st_dev);
-  fields->SetValue(offset + 1, s->st_mode);
-  fields->SetValue(offset + 2, s->st_nlink);
-  fields->SetValue(offset + 3, s->st_uid);
-  fields->SetValue(offset + 4, s->st_gid);
-  fields->SetValue(offset + 5, s->st_rdev);
+  fields->SetValue(offset + 0, gsl::narrow<NativeT>(s->st_dev));
+  fields->SetValue(offset + 1, gsl::narrow<NativeT>(s->st_mode));
+  fields->SetValue(offset + 2, gsl::narrow<NativeT>(s->st_nlink));
+  fields->SetValue(offset + 3, gsl::narrow<NativeT>(s->st_uid));
+  fields->SetValue(offset + 4, gsl::narrow<NativeT>(s->st_gid));
+  fields->SetValue(offset + 5, gsl::narrow<NativeT>(s->st_rdev));
 #if defined(__POSIX__)
-  fields->SetValue(offset + 6, s->st_blksize);
+  fields->SetValue(offset + 6, gsl::narrow<NativeT>(s->st_blksize));
+  fields->SetValue(offset + 7, gsl::narrow<NativeT>(s->st_ino));
+  fields->SetValue(offset + 8, gsl::narrow<NativeT>(s->st_size));
+  fields->SetValue(offset + 9, gsl::narrow<NativeT>(s->st_blocks));
 #else
   fields->SetValue(offset + 6, 0);
-#endif
-  fields->SetValue(offset + 7, s->st_ino);
-  fields->SetValue(offset + 8, s->st_size);
-#if defined(__POSIX__)
-  fields->SetValue(offset + 9, s->st_blocks);
-#else
+  fields->SetValue(offset + 7, gsl::narrow<NativeT>(s->st_ino));
+  fields->SetValue(offset + 8, gsl::narrow<NativeT>(s->st_size));
   fields->SetValue(offset + 9, 0);
 #endif
+
 // Dates.
   fields->SetValue(offset + 10, ToNative<NativeT>(s->st_atim));
   fields->SetValue(offset + 11, ToNative<NativeT>(s->st_mtim));

@@ -125,9 +125,15 @@ namespace details
 #if defined(GSL_TERMINATE_ON_CONTRACT_VIOLATION)
 
     template <typename Exception>
-    [[noreturn]] void throw_exception(Exception&&) noexcept
+    [[noreturn]] void throw_exception(Exception&& ex) noexcept
     {
-        gsl::details::terminate();
+      static const char* const args[] = {
+        __FILE__,
+        STRINGIFY(__LINE__),
+        ex.what(),
+        PRETTY_FUNCTION_NAME
+      };
+      node::Assert(&args);
     }
 
 #else
