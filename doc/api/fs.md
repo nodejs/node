@@ -2318,8 +2318,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `flags` {string|number} **Default:** `'r'`
-   See [support of file system `flags`][].
+* `flags` {string|number} See [support of file system `flags`][].
+  **Default:** `'r'`.
 * `mode` {integer} **Default:** `0o666` (readable and writable)
 * `callback` {Function}
   * `err` {Error}
@@ -2352,7 +2352,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `flags` {string|number} **Default:** `'r'`
+* `flags` {string|number} **Default:** `'r'`.
    See [support of file system `flags`][].
 * `mode` {integer} **Default:** `0o666`
 * Returns: {number}
