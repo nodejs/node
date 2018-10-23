@@ -1990,7 +1990,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
                                *hostname,
                                nullptr,
                                &hints);
-  if (!err)
+  if (err == 0)
     req_wrap.release();
 
   args.GetReturnValue().Set(err);
@@ -2022,7 +2022,7 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
                                AfterGetNameInfo,
                                reinterpret_cast<struct sockaddr*>(&addr),
                                NI_NAMEREQD);
-  if (!err)
+  if (err == 0)
     req_wrap.release();
 
   args.GetReturnValue().Set(err);
