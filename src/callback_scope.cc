@@ -114,7 +114,8 @@ void InternalCallbackScope::Close() {
 
   if (!env_->can_call_into_js()) return;
 
-  if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
+  if (env_->tick_callback_function()
+      ->Call(env_->context(), process, 0, nullptr).IsEmpty()) {
     failed_ = true;
   }
 }
