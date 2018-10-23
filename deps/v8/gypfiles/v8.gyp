@@ -138,6 +138,7 @@
               'v8_use_snapshot=<(v8_use_snapshot)',
               'v8_enable_embedded_builtins=<(v8_enable_embedded_builtins)',
               'v8_enable_verify_csa=<(v8_enable_verify_csa)',
+              'v8_enable_lite_mode=<(v8_enable_lite_mode)',
             ]
           },
           'conditions': [
@@ -1159,8 +1160,6 @@
         '../src/interpreter/interpreter-intrinsics.h',
         '../src/interpreter/interpreter.cc',
         '../src/interpreter/interpreter.h',
-        '../src/intl.cc',
-        '../src/intl.h',
         '../src/isolate-data.h',
         '../src/isolate-inl.h',
         '../src/isolate.cc',
@@ -1594,6 +1593,7 @@
         '../src/wasm/baseline/liftoff-compiler.cc',
         '../src/wasm/baseline/liftoff-compiler.h',
         '../src/wasm/baseline/liftoff-register.h',
+        '../src/wasm/compilation-environment.h',
         '../src/wasm/decoder.h',
         '../src/wasm/function-body-decoder-impl.h',
         '../src/wasm/function-body-decoder.cc',
@@ -2007,8 +2007,6 @@
           'sources!': [
             '../src/builtins/builtins-intl.cc',
             '../src/char-predicates.cc',
-            '../src/intl.cc',
-            '../src/intl.h',
             '../src/objects/intl-objects.cc',
             '../src/objects/intl-objects.h',
             '../src/objects/js-break-iterator-inl.h',
