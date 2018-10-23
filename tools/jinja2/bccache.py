@@ -14,8 +14,6 @@
     :copyright: (c) 2017 by the Jinja Team.
     :license: BSD.
 """
-# flake8: noqa
-
 from os import path, listdir
 import os
 import sys
