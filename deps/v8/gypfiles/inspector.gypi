@@ -34,6 +34,8 @@
     'inspector_all_sources': [
       '../include/v8-inspector.h',
       '../include/v8-inspector-protocol.h',
+      '../src/inspector/custom-preview.cc',
+      '../src/inspector/custom-preview.h',
       '../src/inspector/injected-script.cc',
       '../src/inspector/injected-script.h',
       '../src/inspector/inspected-context.cc',
