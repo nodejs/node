@@ -332,12 +332,16 @@ class StreamBase : public StreamResource {
   enum StreamBaseStateFields {
     kReadBytesOrError,
     kArrayBufferOffset,
+    kBytesWritten,
+    kLastWriteWasAsync,
     kNumStreamBaseStateFields
   };
 
  private:
   Environment* env_;
   EmitToJSStreamListener default_listener_;
+
+  void SetWriteResult(const StreamWriteResult& res);
 
   friend class WriteWrap;
   friend class ShutdownWrap;

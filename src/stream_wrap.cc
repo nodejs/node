@@ -83,6 +83,8 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
 
   NODE_DEFINE_CONSTANT(target, kReadBytesOrError);
   NODE_DEFINE_CONSTANT(target, kArrayBufferOffset);
+  NODE_DEFINE_CONSTANT(target, kBytesWritten);
+  NODE_DEFINE_CONSTANT(target, kLastWriteWasAsync);
   target->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "streamBaseState"),
               env->stream_base_state().GetJSArray()).FromJust();
 }

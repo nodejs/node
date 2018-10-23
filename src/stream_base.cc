@@ -18,13 +18,11 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
-using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -56,18 +54,9 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
   return Shutdown(req_wrap_obj);
 }
 
-inline void SetWriteResultPropertiesOnWrapObject(
-    Environment* env,
-    Local<Object> req_wrap_obj,
-    const StreamWriteResult& res) {
-  req_wrap_obj->Set(
-      env->context(),
-      env->bytes_string(),
-      Number::New(env->isolate(), res.bytes)).FromJust();
-  req_wrap_obj->Set(
-      env->context(),
-      env->async(),
-      Boolean::New(env->isolate(), res.async)).FromJust();
+void StreamBase::SetWriteResult(const StreamWriteResult& res) {
+  env_->stream_base_state()[kBytesWritten] = res.bytes;
+  env_->stream_base_state()[kLastWriteWasAsync] = res.async;
 }
 
 int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
@@ -160,7 +149,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   }
 
   StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
-  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res);
+  SetWriteResult(res);
   if (res.wrap != nullptr && storage_size > 0) {
     res.wrap->SetAllocatedStorage(storage.release(), storage_size);
   }
@@ -185,10 +174,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   buf.len = Buffer::Length(args[1]);
 
   StreamWriteResult res = Write(&buf, 1, nullptr, req_wrap_obj);
-
-  if (res.async)
-    req_wrap_obj->Set(env->context(), env->buffer_string(), args[1]).FromJust();
-  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res);
+  SetWriteResult(res);
 
   return res.err;
 }
@@ -247,12 +233,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
     // Immediate failure or success
     if (err != 0 || count == 0) {
-      req_wrap_obj->Set(env->context(), env->async(), False(env->isolate()))
-          .FromJust();
-      req_wrap_obj->Set(env->context(),
-                        env->bytes_string(),
-                        Integer::NewFromUnsigned(env->isolate(), data_size))
-          .FromJust();
+      SetWriteResult(StreamWriteResult { false, err, nullptr, data_size });
       return err;
     }
 
@@ -295,7 +276,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);
   res.bytes += synchronously_written;
 
-  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res);
+  SetWriteResult(res);
   if (res.wrap != nullptr) {
     res.wrap->SetAllocatedStorage(data.release(), data_size);
   }
