@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#10.13.0">10.13.0</a><br/>
 <a href="#10.12.0">10.12.0</a><br/>
 <a href="#10.11.0">10.11.0</a><br/>
 <a href="#10.10.0">10.10.0</a><br/>
@@ -40,6 +41,25 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.13.0"></a>
+## 2018-10-30, Version 10.13.0 'Dubnium' (LTS), @MylesBorins
+
+This release marks the transition of Node.js 10.x into Long Term
+Support (LTS) with the codename 'Dubnium'. The 10.x release line
+now moves in to "Active LTS" and will remain so until April 2020.
+After that time it will move in to "Maintenance" until end of
+life in April 2021.
+
+### Notable Changes
+
+This release only includes minimal changes necessary to fix known regressions prior to LTS.
+
+### Commits
+
+* [[`2ba6010082`](https://github.com/nodejs/node/commit/2ba6010082)] - **buffer**: fix crash for invalid index types (Anna Henningsen)
+* [[`2cd68be69d`](https://github.com/nodejs/node/commit/2cd68be69d)] - **build**: spawn `make test-ci` with `-j1` (Refael Ackermann) [#23733](https://github.com/nodejs/node/pull/23733)
+* [[`1003f4c975`](https://github.com/nodejs/node/commit/1003f4c975)] - **deps**: fix wrong default for v8 handle zapping (Refael Ackermann) [#23801](https://github.com/nodejs/node/pull/23801)
 
 <a id="10.12.0"></a>
 ## 2018-10-10, Version 10.12.0 (Current), @targos
