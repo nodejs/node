@@ -239,7 +239,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
       const err = handle.writeLatin1String(wreq, 'hi'.repeat(100000));
       if (err)
         throw new Error(`write failed: ${getSystemErrorName(err)}`);
-      if (!wreq.async) {
+      if (!stream_wrap.streamBaseState[stream_wrap.kLastWriteWasAsync]) {
         testUninitialized(wreq, 'WriteWrap');
         // Synchronous finish. Write more data until we hit an
         // asynchronous write.

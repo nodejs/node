@@ -128,10 +128,8 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(address_string, "address")                                                \
   V(aliases_string, "aliases")                                                \
   V(args_string, "args")                                                      \
-  V(async, "async")                                                           \
   V(async_ids_stack_string, "async_ids_stack")                                \
   V(buffer_string, "buffer")                                                  \
-  V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
   V(bytes_read_string, "bytesRead")                                           \
   V(bytes_written_string, "bytesWritten")                                     \
