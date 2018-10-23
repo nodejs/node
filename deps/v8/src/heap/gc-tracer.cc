@@ -196,7 +196,7 @@ void GCTracer::ResetForTesting() {
   average_mark_compact_duration_ = 0;
   current_mark_compact_mutator_utilization_ = 1.0;
   previous_mark_compact_end_time_ = 0;
-  base::LockGuard<base::Mutex> guard(&background_counter_mutex_);
+  base::MutexGuard guard(&background_counter_mutex_);
   for (int i = 0; i < BackgroundScope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
     background_counter_[i].runtime_call_counter.Reset();
@@ -326,6 +326,7 @@ void GCTracer::Stop(GarbageCollector collector) {
                                     current_.incremental_marking_duration);
       recorded_incremental_mark_compacts_.Push(
           MakeBytesAndDuration(current_.start_object_size, duration));
+      RecordGCSumCounters(duration);
       ResetIncrementalMarkingCounters();
       combined_mark_compact_speed_cache_ = 0.0;
       FetchBackgroundMarkCompactCounters();
@@ -337,6 +338,7 @@ void GCTracer::Stop(GarbageCollector collector) {
           current_.end_time, duration + current_.incremental_marking_duration);
       recorded_mark_compacts_.Push(
           MakeBytesAndDuration(current_.start_object_size, duration));
+      RecordGCSumCounters(duration);
       ResetIncrementalMarkingCounters();
       combined_mark_compact_speed_cache_ = 0.0;
       FetchBackgroundMarkCompactCounters();
@@ -1060,7 +1062,7 @@ void GCTracer::FetchBackgroundCounters(int first_global_scope,
                                        int last_background_scope) {
   DCHECK_EQ(last_global_scope - first_global_scope,
             last_background_scope - first_background_scope);
-  base::LockGuard<base::Mutex> guard(&background_counter_mutex_);
+  base::MutexGuard guard(&background_counter_mutex_);
   int background_mc_scopes = last_background_scope - first_background_scope + 1;
   for (int i = 0; i < background_mc_scopes; i++) {
     current_.scopes[first_global_scope + i] +=
@@ -1085,7 +1087,7 @@ void GCTracer::FetchBackgroundCounters(int first_global_scope,
 void GCTracer::AddBackgroundScopeSample(
     BackgroundScope::ScopeId scope, double duration,
     RuntimeCallCounter* runtime_call_counter) {
-  base::LockGuard<base::Mutex> guard(&background_counter_mutex_);
+  base::MutexGuard guard(&background_counter_mutex_);
   BackgroundCounter& counter = background_counter_[scope];
   counter.total_duration_ms += duration;
   if (runtime_call_counter) {
@@ -1093,7 +1095,7 @@ void GCTracer::AddBackgroundScopeSample(
   }
 }
 
-void GCTracer::RecordMarkCompactHistograms(HistogramTimer* gc_timer) {
+void GCTracer::RecordGCPhasesHistograms(HistogramTimer* gc_timer) {
   Counters* counters = heap_->isolate()->counters();
   if (gc_timer == counters->gc_finalize()) {
     DCHECK_EQ(Scope::FIRST_TOP_MC_SCOPE, Scope::MC_CLEAR);
@@ -1112,7 +1114,32 @@ void GCTracer::RecordMarkCompactHistograms(HistogramTimer* gc_timer) {
     counters->gc_finalize_sweep()->AddSample(
         static_cast<int>(current_.scopes[Scope::MC_SWEEP]));
     DCHECK_EQ(Scope::LAST_TOP_MC_SCOPE, Scope::MC_SWEEP);
+  } else if (gc_timer == counters->gc_scavenger()) {
+    counters->gc_scavenger_scavenge_main()->AddSample(
+        static_cast<int>(current_.scopes[Scope::SCAVENGER_SCAVENGE_PARALLEL]));
+    counters->gc_scavenger_scavenge_roots()->AddSample(
+        static_cast<int>(current_.scopes[Scope::SCAVENGER_SCAVENGE_ROOTS]));
   }
+}
+
+void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
+  // Emit UMA counters.
+  const double overall_duration =
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_START]
+          .duration +
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_SWEEPING]
+          .duration +
+      incremental_marking_duration_ +
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE]
+          .duration +
+      atomic_pause_duration;
+  heap_->isolate()->counters()->gc_mark_compactor()->AddSample(
+      static_cast<int>(overall_duration));
+
+  // Emit trace event counters.
+  TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                       "V8.GCMarkCompactorSummary", TRACE_EVENT_SCOPE_THREAD,
+                       "duration", overall_duration);
 }
 
 }  // namespace internal

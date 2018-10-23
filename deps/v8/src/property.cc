@@ -25,7 +25,7 @@ std::ostream& operator<<(std::ostream& os,
 
 Descriptor::Descriptor() : details_(Smi::kZero) {}
 
-Descriptor::Descriptor(Handle<Name> key, MaybeObjectHandle value,
+Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
                        PropertyKind kind, PropertyAttributes attributes,
                        PropertyLocation location, PropertyConstness constness,
                        Representation representation, int field_index)
@@ -37,7 +37,7 @@ Descriptor::Descriptor(Handle<Name> key, MaybeObjectHandle value,
   DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
 }
 
-Descriptor::Descriptor(Handle<Name> key, MaybeObjectHandle value,
+Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
                        PropertyDetails details)
     : key_(key), value_(value), details_(details) {
   DCHECK(key->IsUniqueName());
@@ -55,8 +55,8 @@ Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
                                  PropertyAttributes attributes,
                                  PropertyConstness constness,
                                  Representation representation,
-                                 MaybeObjectHandle wrapped_field_type) {
-  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakHeapObject());
+                                 const MaybeObjectHandle& wrapped_field_type) {
+  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeak());
   PropertyDetails details(kData, attributes, kField, constness, representation,
                           field_index);
   return Descriptor(key, wrapped_field_type, details);

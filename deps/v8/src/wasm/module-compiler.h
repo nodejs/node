@@ -63,7 +63,8 @@ void CompileJsToWasmWrappers(Isolate* isolate,
                              Handle<WasmModuleObject> module_object);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
-    Isolate* isolate, const ModuleWireBytes& wire_bytes);
+    Isolate* isolate, const ModuleWireBytes& wire_bytes,
+    const std::string& source_map_url);
 
 // Triggered by the WasmCompileLazy builtin.
 // Returns the instruction start of the compiled code object.
@@ -110,7 +111,7 @@ class AsyncCompileJob {
   }
   Counters* counters() const { return async_counters().get(); }
 
-  void FinishCompile();
+  void FinishCompile(bool compile_wrappers);
 
   void AsyncCompileFailed(Handle<Object> error_reason);
 

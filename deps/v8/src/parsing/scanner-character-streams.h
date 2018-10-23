@@ -24,8 +24,7 @@ class V8_EXPORT_PRIVATE ScannerStream {
                                    int start_pos, int end_pos);
   static Utf16CharacterStream* For(
       ScriptCompiler::ExternalSourceStream* source_stream,
-      ScriptCompiler::StreamedSource::Encoding encoding,
-      RuntimeCallStats* stats);
+      ScriptCompiler::StreamedSource::Encoding encoding);
 
   static std::unique_ptr<Utf16CharacterStream> ForTesting(const char* data);
   static std::unique_ptr<Utf16CharacterStream> ForTesting(const char* data,

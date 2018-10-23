@@ -69,11 +69,24 @@ void RestoreRegList(MacroAssembler* masm, const CPURegList& reg_list,
   Register src = temps.AcquireX();
   masm->Add(src, src_base, src_offset);
 
+#if defined(V8_OS_WIN)
+  // x18 is reserved as platform register on Windows.
+  restore_list.Remove(x18);
+#endif
+
   // Restore every register in restore_list from src.
   while (!restore_list.IsEmpty()) {
     CPURegister reg0 = restore_list.PopLowestIndex();
     CPURegister reg1 = restore_list.PopLowestIndex();
     int offset0 = reg0.code() * reg_size;
+
+#if defined(V8_OS_WIN)
+    if (reg1 == NoCPUReg) {
+      masm->Ldr(reg0, MemOperand(src, offset0));
+      break;
+    }
+#endif
+
     int offset1 = reg1.code() * reg_size;
 
     // Pair up adjacent loads, otherwise read them separately.
@@ -271,7 +284,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Ldr(continuation, MemOperand(last_output_frame,
                                   FrameDescription::continuation_offset()));
   __ Ldr(lr, MemOperand(last_output_frame, FrameDescription::pc_offset()));
-  __ InitializeRootRegister();
   __ Br(continuation);
 }
 

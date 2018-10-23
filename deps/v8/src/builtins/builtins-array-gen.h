@@ -72,6 +72,66 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   void FillFixedArrayWithSmiZero(TNode<FixedArray> array,
                                  TNode<Smi> smi_length);
 
+  TNode<String> CallJSArrayArrayJoinConcatToSequentialString(
+      TNode<FixedArray> fixed_array, TNode<IntPtrT> length, TNode<String> sep,
+      TNode<String> dest) {
+    TNode<ExternalReference> func = ExternalConstant(
+        ExternalReference::jsarray_array_join_concat_to_sequential_string());
+    TNode<ExternalReference> isolate_ptr =
+        ExternalConstant(ExternalReference::isolate_address(isolate()));
+    return UncheckedCast<String>(
+        CallCFunction5(MachineType::AnyTagged(),  // <return> String*
+                       MachineType::Pointer(),    // Isolate*
+                       MachineType::AnyTagged(),  // FixedArray* fixed_array
+                       MachineType::IntPtr(),     // intptr_t length
+                       MachineType::AnyTagged(),  // String* sep
+                       MachineType::AnyTagged(),  // String* dest
+                       func, isolate_ptr, fixed_array, length, sep, dest));
+  }
+
+  // Temporary Torque support for Array.prototype.join().
+  // TODO(pwong): Remove this when Torque supports exception handlers.
+  TNode<Object> CallLoadJoinElement(TNode<Context> context,
+                                    TNode<Code> loadJoinElement,
+                                    TNode<JSReceiver> receiver, TNode<Number> k,
+                                    Label* if_exception,
+                                    TVariable<Object>* var_exception) {
+    // Calling a specialization of LoadJoinElement (see array-join.tq), requires
+    // a descriptor.  We arbitrarily use one of specialization's descriptor, as
+    // all specializations share the same interface.
+    TNode<Object> result = CallStub(
+        Builtins::CallableFor(isolate(),
+                              Builtins::kLoadJoinElement20ATDictionaryElements)
+            .descriptor(),
+        loadJoinElement, context, receiver, k);
+    GotoIfException(result, if_exception, var_exception);
+    return result;
+  }
+
+  // Temporary Torque support for Array.prototype.join().
+  // TODO(pwong): Remove this when Torque supports exception handlers.
+  TNode<String> CallConvertToLocaleString(TNode<Context> context,
+                                          TNode<Object> element,
+                                          TNode<Object> locales,
+                                          TNode<Object> options,
+                                          Label* if_exception,
+                                          TVariable<Object>* var_exception) {
+    TNode<Object> result = CallBuiltin(Builtins::kConvertToLocaleString,
+                                       context, element, locales, options);
+    GotoIfException(result, if_exception, var_exception);
+    return CAST(result);
+  }
+
+  // Temporary Torque support for Array.prototype.join().
+  // TODO(pwong): Remove this when Torque supports exception handlers.
+  TNode<String> CallToString(TNode<Context> context, TNode<Object> obj,
+                             Label* if_exception,
+                             TVariable<Object>* var_exception) {
+    TNode<Object> result = CallBuiltin(Builtins::kToString, context, obj);
+    GotoIfException(result, if_exception, var_exception);
+    return CAST(result);
+  }
+
  protected:
   TNode<Context> context() { return context_; }
   TNode<Object> receiver() { return receiver_; }

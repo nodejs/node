@@ -14,7 +14,6 @@
 #include "src/frames-inl.h"
 #include "src/frames.h"
 #include "src/global-handles.h"
-#include "src/messages.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
 #include "src/snapshot/natives.h"
@@ -41,7 +40,7 @@ typedef ELF DebugObject;
 typedef ELFSection DebugSection;
 #endif
 
-class Writer BASE_EMBEDDED {
+class Writer {
  public:
   explicit Writer(DebugObject* debug_object)
       : debug_object_(debug_object),
@@ -177,7 +176,7 @@ class ELFStringTable;
 template<typename THeader>
 class DebugSectionBase : public ZoneObject {
  public:
-  virtual ~DebugSectionBase() { }
+  virtual ~DebugSectionBase() = default;
 
   virtual void WriteBody(Writer::Slot<THeader> header, Writer* writer) {
     uintptr_t start = writer->position();
@@ -238,7 +237,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
     }
   }
 
-  virtual ~MachOSection() { }
+  ~MachOSection() override = default;
 
   virtual void PopulateHeader(Writer::Slot<Header> header) {
     header->addr = 0;
@@ -314,11 +313,11 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
   ELFSection(const char* name, Type type, uintptr_t align)
       : name_(name), type_(type), align_(align) { }
 
-  virtual ~ELFSection() { }
+  ~ELFSection() override = default;
 
   void PopulateHeader(Writer::Slot<Header> header, ELFStringTable* strtab);
 
-  virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
+  void WriteBody(Writer::Slot<Header> header, Writer* w) override {
     uintptr_t start = w->position();
     if (WriteBodyInternal(w)) {
       uintptr_t end = w->position();
@@ -327,9 +326,7 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
     }
   }
 
-  virtual bool WriteBodyInternal(Writer* w) {
-    return false;
-  }
+  bool WriteBodyInternal(Writer* w) override { return false; }
 
   uint16_t index() const { return index_; }
   void set_index(uint16_t index) { index_ = index; }
@@ -396,7 +393,7 @@ class FullHeaderELFSection : public ELFSection {
         flags_(flags) { }
 
  protected:
-  virtual void PopulateHeader(Writer::Slot<Header> header) {
+  void PopulateHeader(Writer::Slot<Header> header) override {
     ELFSection::PopulateHeader(header);
     header->address = addr_;
     header->offset = offset_;
@@ -438,7 +435,7 @@ class ELFStringTable : public ELFSection {
 
   void DetachWriter() { writer_ = nullptr; }
 
-  virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
+  void WriteBody(Writer::Slot<Header> header, Writer* w) override {
     DCHECK_NULL(writer_);
     header->offset = offset_;
     header->size = size_;
@@ -472,7 +469,7 @@ void ELFSection::PopulateHeader(Writer::Slot<ELFSection::Header> header,
 
 
 #if defined(__MACH_O)
-class MachO BASE_EMBEDDED {
+class MachO {
  public:
   explicit MachO(Zone* zone) : sections_(zone) {}
 
@@ -604,7 +601,7 @@ class MachO BASE_EMBEDDED {
 
 
 #if defined(__ELF)
-class ELF BASE_EMBEDDED {
+class ELF {
  public:
   explicit ELF(Zone* zone) : sections_(zone) {
     sections_.push_back(new (zone) ELFSection("", ELFSection::TYPE_NULL, 0));
@@ -746,8 +743,7 @@ class ELF BASE_EMBEDDED {
   ZoneChunkList<ELFSection*> sections_;
 };
 
-
-class ELFSymbol BASE_EMBEDDED {
+class ELFSymbol {
  public:
   enum Type {
     TYPE_NOTYPE = 0,
@@ -862,7 +858,7 @@ class ELFSymbolTable : public ELFSection {
         locals_(zone),
         globals_(zone) {}
 
-  virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
+  void WriteBody(Writer::Slot<Header> header, Writer* w) override {
     w->Align(header->alignment);
     size_t total_symbols = locals_.size() + globals_.size() + 1;
     header->offset = w->position();
@@ -899,7 +895,7 @@ class ELFSymbolTable : public ELFSection {
   }
 
  protected:
-  virtual void PopulateHeader(Writer::Slot<Header> header) {
+  void PopulateHeader(Writer::Slot<Header> header) override {
     ELFSection::PopulateHeader(header);
     // We are assuming that string table will follow symbol table.
     header->link = index() + 1;
@@ -946,8 +942,7 @@ class LineInfo : public Malloced {
   std::vector<PCInfo> pc_info_;
 };
 
-
-class CodeDescription BASE_EMBEDDED {
+class CodeDescription {
  public:
 #if V8_TARGET_ARCH_X64
   enum StackState {
@@ -1115,7 +1110,7 @@ class DebugInfoSection : public DebugSection {
     DW_ATE_SIGNED = 0x5
   };
 
-  bool WriteBodyInternal(Writer* w) {
+  bool WriteBodyInternal(Writer* w) override {
     uintptr_t cu_start = w->position();
     Writer::Slot<uint32_t> size = w->CreateSlotHere<uint32_t>();
     uintptr_t start = w->position();
@@ -1318,7 +1313,7 @@ class DebugAbbrevSection : public DebugSection {
     w->WriteULEB128(0);
   }
 
-  bool WriteBodyInternal(Writer* w) {
+  bool WriteBodyInternal(Writer* w) override {
     int current_abbreviation = 1;
     bool extra_info = desc_->has_scope_info();
     DCHECK(desc_->IsLineInfoAvailable());
@@ -1435,7 +1430,7 @@ class DebugLineSection : public DebugSection {
     DW_LNE_DEFINE_FILE = 3
   };
 
-  bool WriteBodyInternal(Writer* w) {
+  bool WriteBodyInternal(Writer* w) override {
     // Write prologue.
     Writer::Slot<uint32_t> total_length = w->CreateSlotHere<uint32_t>();
     uintptr_t start = w->position();
@@ -1571,7 +1566,7 @@ class DebugLineSection : public DebugSection {
 class UnwindInfoSection : public DebugSection {
  public:
   explicit UnwindInfoSection(CodeDescription* desc);
-  virtual bool WriteBodyInternal(Writer* w);
+  bool WriteBodyInternal(Writer* w) override;
 
   int WriteCIE(Writer* w);
   void WriteFDE(Writer* w, int);
@@ -1840,7 +1835,7 @@ extern "C" {
   // GDB will inspect contents of this descriptor.
   // Static initialization is necessary to prevent GDB from seeing
   // uninitialized descriptor.
-  JITDescriptor __jit_debug_descriptor = { 1, 0, 0, 0 };
+  JITDescriptor __jit_debug_descriptor = {1, 0, nullptr, nullptr};
 
 #ifdef OBJECT_PRINT
   void __gdb_print_v8_object(Object* object) {
@@ -2129,7 +2124,7 @@ static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
 void EventHandler(const v8::JitCodeEvent* event) {
   if (!FLAG_gdbjit) return;
   if (event->code_type != v8::JitCodeEvent::JIT_CODE) return;
-  base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
+  base::MutexGuard lock_guard(mutex.Pointer());
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
       Address addr = reinterpret_cast<Address>(event->code_start);

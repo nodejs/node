@@ -22,13 +22,9 @@ class LiftoffCompilationUnit final {
       : wasm_unit_(wasm_unit) {}
 
   bool ExecuteCompilation(WasmFeatures* detected);
-  WasmCode* FinishCompilation(ErrorThrower*);
 
  private:
   WasmCompilationUnit* const wasm_unit_;
-
-  // Result of compilation:
-  WasmCode* code_;
 
   DISALLOW_COPY_AND_ASSIGN(LiftoffCompilationUnit);
 };

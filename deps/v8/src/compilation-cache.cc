@@ -34,8 +34,6 @@ CompilationCache::CompilationCache(Isolate* isolate)
   }
 }
 
-CompilationCache::~CompilationCache() {}
-
 Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   DCHECK(generation < generations_);
   Handle<CompilationCacheTable> result;

@@ -60,7 +60,7 @@ class EvaluateCallback {
       protocol::Maybe<protocol::Runtime::ExceptionDetails>
           exceptionDetails) = 0;
   virtual void sendFailure(const protocol::DispatchResponse& response) = 0;
-  virtual ~EvaluateCallback() {}
+  virtual ~EvaluateCallback() = default;
 };
 
 class InjectedScript final {
@@ -84,6 +84,11 @@ class InjectedScript final {
   Response wrapObject(
       v8::Local<v8::Value>, const String16& groupName, bool forceValueType,
       bool generatePreview,
+      std::unique_ptr<protocol::Runtime::RemoteObject>* result) const;
+  Response wrapObject(
+      v8::Local<v8::Value>, const String16& groupName, bool forceValueType,
+      bool generatePreview, v8::MaybeLocal<v8::Value> customPreviewConfig,
+      int maxCustomPreviewDepth,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result) const;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapTable(
       v8::Local<v8::Value> table, v8::Local<v8::Value> columns) const;
@@ -153,7 +158,7 @@ class InjectedScript final {
   class ContextScope : public Scope {
    public:
     ContextScope(V8InspectorSessionImpl*, int executionContextId);
-    ~ContextScope();
+    ~ContextScope() override;
 
    private:
     Response findInjectedScript(V8InspectorSessionImpl*) override;
@@ -165,7 +170,7 @@ class InjectedScript final {
   class ObjectScope : public Scope {
    public:
     ObjectScope(V8InspectorSessionImpl*, const String16& remoteObjectId);
-    ~ObjectScope();
+    ~ObjectScope() override;
     const String16& objectGroupName() const { return m_objectGroupName; }
     v8::Local<v8::Value> object() const { return m_object; }
 
@@ -181,7 +186,7 @@ class InjectedScript final {
   class CallFrameScope : public Scope {
    public:
     CallFrameScope(V8InspectorSessionImpl*, const String16& remoteCallFrameId);
-    ~CallFrameScope();
+    ~CallFrameScope() override;
     size_t frameOrdinal() const { return m_frameOrdinal; }
 
    private:
@@ -216,6 +221,7 @@ class InjectedScript final {
   std::unordered_map<int, String16> m_idToObjectGroupName;
   std::unordered_map<String16, std::vector<int>> m_nameToObjectGroup;
   std::unordered_set<EvaluateCallback*> m_evaluateCallbacks;
+  bool m_customPreviewEnabled = false;
 
   DISALLOW_COPY_AND_ASSIGN(InjectedScript);
 };

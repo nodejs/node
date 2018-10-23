@@ -4,8 +4,6 @@
 
 #include "src/snapshot/code-serializer.h"
 
-#include <memory>
-
 #include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
@@ -126,11 +124,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                      WhereToPoint where_to_point, int skip) {
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  int root_index = root_index_map()->Lookup(obj);
-  if (root_index != RootIndexMap::kInvalidRootIndex) {
-    PutRoot(root_index, obj, how_to_code, where_to_point, skip);
-    return;
-  }
+  if (SerializeRoot(obj, how_to_code, where_to_point, skip)) return;
 
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
@@ -336,44 +330,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   return scope.CloseAndEscape(result);
 }
 
-class Checksum {
- public:
-  explicit Checksum(Vector<const byte> payload) {
-#ifdef MEMORY_SANITIZER
-    // Computing the checksum includes padding bytes for objects like strings.
-    // Mark every object as initialized in the code serializer.
-    MSAN_MEMORY_IS_INITIALIZED(payload.start(), payload.length());
-#endif  // MEMORY_SANITIZER
-    // Fletcher's checksum. Modified to reduce 64-bit sums to 32-bit.
-    uintptr_t a = 1;
-    uintptr_t b = 0;
-    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.start());
-    DCHECK(IsAligned(payload.length(), kIntptrSize));
-    const uintptr_t* end = cur + payload.length() / kIntptrSize;
-    while (cur < end) {
-      // Unsigned overflow expected and intended.
-      a += *cur++;
-      b += a;
-    }
-#if V8_HOST_ARCH_64_BIT
-    a ^= a >> 32;
-    b ^= b >> 32;
-#endif  // V8_HOST_ARCH_64_BIT
-    a_ = static_cast<uint32_t>(a);
-    b_ = static_cast<uint32_t>(b);
-  }
-
-  bool Check(uint32_t a, uint32_t b) const { return a == a_ && b == b_; }
-
-  uint32_t a() const { return a_; }
-  uint32_t b() const { return b_; }
-
- private:
-  uint32_t a_;
-  uint32_t b_;
-
-  DISALLOW_COPY_AND_ASSIGN(Checksum);
-};
 
 SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
@@ -390,9 +346,13 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   uint32_t padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
   uint32_t size =
       padded_payload_offset + static_cast<uint32_t>(payload->size());
+  DCHECK(IsAligned(size, kPointerAlignment));
 
   // Allocate backing store and create result data.
   AllocateData(size);
+
+  // Zero out pre-payload data. Part of that is only used for padding.
+  memset(data_, 0, padded_payload_offset);
 
   // Set header values.
   SetMagicNumber(cs->isolate());
@@ -418,16 +378,13 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   CopyBytes(data_ + kHeaderSize + reservation_size,
             reinterpret_cast<const byte*>(stub_keys->data()), stub_keys_size);
 
-  // Zero out any padding before the payload.
-  memset(data_ + payload_offset, 0, padded_payload_offset - payload_offset);
-
   // Copy serialized data.
   CopyBytes(data_ + padded_payload_offset, payload->data(),
             static_cast<size_t>(payload->size()));
 
-  Checksum checksum(DataWithoutHeader());
-  SetHeaderValue(kChecksum1Offset, checksum.a());
-  SetHeaderValue(kChecksum2Offset, checksum.b());
+  Checksum checksum(ChecksummedContent());
+  SetHeaderValue(kChecksumPartAOffset, checksum.a());
+  SetHeaderValue(kChecksumPartBOffset, checksum.b());
 }
 
 SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
@@ -440,8 +397,8 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
-  uint32_t c1 = GetHeaderValue(kChecksum1Offset);
-  uint32_t c2 = GetHeaderValue(kChecksum2Offset);
+  uint32_t c1 = GetHeaderValue(kChecksumPartAOffset);
+  uint32_t c2 = GetHeaderValue(kChecksumPartBOffset);
   if (version_hash != Version::Hash()) return VERSION_MISMATCH;
   if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
   if (cpu_features != static_cast<uint32_t>(CpuFeatures::SupportedFeatures())) {
@@ -454,7 +411,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
                          GetHeaderValue(kNumReservationsOffset) * kInt32Size +
                          GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size);
   if (payload_length > max_payload_length) return LENGTH_MISMATCH;
-  if (!Checksum(DataWithoutHeader()).Check(c1, c2)) return CHECKSUM_MISMATCH;
+  if (!Checksum(ChecksummedContent()).Check(c1, c2)) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
 }
 

@@ -22,8 +22,8 @@ using ToBooleanMode = interpreter::BytecodeArrayBuilder::ToBooleanMode;
 
 class BytecodeAnalysisTest : public TestWithIsolateAndZone {
  public:
-  BytecodeAnalysisTest() {}
-  ~BytecodeAnalysisTest() override {}
+  BytecodeAnalysisTest() = default;
+  ~BytecodeAnalysisTest() override = default;
 
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);

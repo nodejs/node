@@ -9,7 +9,6 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
 #include "src/runtime-profiler.h"
 #include "src/vm-state-inl.h"
 
@@ -111,6 +110,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
       isolate->ReportPendingMessages();
     }
     return MaybeHandle<Object>();
+  }
+  if (!DumpOnJavascriptExecution::IsAllowed(isolate)) {
+    V8::GetCurrentPlatform()->DumpWithoutCrashing();
+    return isolate->factory()->undefined_value();
   }
 
   // Placeholder for return value.

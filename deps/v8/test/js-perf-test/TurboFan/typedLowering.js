@@ -7,7 +7,9 @@ function NumberToString() {
   var num = 10240;
   var obj = {};
 
-  for ( var i = 0; i < num; i++ )
+  for ( var i = 0; i < num; i++ ) {
     ret = obj["test" + num];
+  }
 }
+
 createSuite('NumberToString', 1000, NumberToString);

@@ -14,6 +14,7 @@ Usage:
 
 All arguments are optional. Most combinations should work, e.g.:
     gm.py ia32.debug x64.release d8
+    gm.py android_arm.release.check
     gm.py x64 mjsunit/foo cctest/test-bar/*
 """
 # See HELP below for additional documentation.
@@ -31,7 +32,7 @@ BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
 ARCHES = ["ia32", "x64", "arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-          "s390", "s390x"]
+          "s390", "s390x", "android_arm", "android_arm64"]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
 # Modes that this script understands.
@@ -214,20 +215,30 @@ class Config(object):
     self.tests.update(tests)
 
   def GetTargetCpu(self):
+    if self.arch == "android_arm": return "target_cpu = \"arm\""
+    if self.arch == "android_arm64": return "target_cpu = \"arm64\""
     cpu = "x86"
     if "64" in self.arch or self.arch == "s390x":
       cpu = "x64"
     return "target_cpu = \"%s\"" % cpu
 
   def GetV8TargetCpu(self):
+    if self.arch == "android_arm": return "\nv8_target_cpu = \"arm\""
+    if self.arch == "android_arm64": return "\nv8_target_cpu = \"arm64\""
     if self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
                      "s390", "s390x"):
       return "\nv8_target_cpu = \"%s\"" % self.arch
     return ""
 
+  def GetTargetOS(self):
+    if self.arch in ("android_arm", "android_arm64"):
+      return "\ntarget_os = \"android\""
+    return ""
+
   def GetGnArgs(self):
     template = ARGS_TEMPLATES[self.mode]
-    arch_specific = self.GetTargetCpu() + self.GetV8TargetCpu()
+    arch_specific = (self.GetTargetCpu() + self.GetV8TargetCpu() +
+                     self.GetTargetOS())
     return template % arch_specific
 
   def Build(self):
@@ -267,8 +278,8 @@ class Config(object):
       tests = ""
     else:
       tests = " ".join(self.tests)
-    return _Call("tools/run-tests.py --arch=%s --mode=%s %s" %
-                 (self.arch, self.mode, tests))
+    return _Call("tools/run-tests.py --outdir=%s %s" %
+                   (GetPath(self.arch, self.mode), tests))
 
 def GetTestBinary(argstring):
   for suite in TESTSUITES_TARGETS:

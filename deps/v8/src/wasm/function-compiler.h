@@ -86,21 +86,28 @@ class WasmCompilationUnit final {
   // If used exclusively from a foreground thread, Isolate::counters() may be
   // used by callers to pass Counters.
   WasmCompilationUnit(WasmEngine* wasm_engine, ModuleEnv*, NativeModule*,
-                      FunctionBody, WasmName, int index, Counters*,
+                      FunctionBody, int index, Counters*,
                       ExecutionTier = GetDefaultExecutionTier());
 
   ~WasmCompilationUnit();
 
   void ExecuteCompilation(WasmFeatures* detected);
-  WasmCode* FinishCompilation(ErrorThrower* thrower);
+
+  NativeModule* native_module() const { return native_module_; }
+  ExecutionTier mode() const { return mode_; }
+  bool failed() const { return result_.failed(); }
+  WasmCode* result() const {
+    DCHECK(!failed());
+    DCHECK_NOT_NULL(result_.value());
+    return result_.value();
+  }
+
+  void ReportError(ErrorThrower* thrower) const;
 
   static WasmCode* CompileWasmFunction(
       Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
       ErrorThrower* thrower, ModuleEnv* env, const WasmFunction* function,
       ExecutionTier = GetDefaultExecutionTier());
-
-  NativeModule* native_module() const { return native_module_; }
-  ExecutionTier mode() const { return mode_; }
 
  private:
   friend class LiftoffCompilationUnit;
@@ -109,17 +116,21 @@ class WasmCompilationUnit final {
   ModuleEnv* env_;
   WasmEngine* wasm_engine_;
   FunctionBody func_body_;
-  WasmName func_name_;
   Counters* counters_;
   int func_index_;
   NativeModule* native_module_;
   ExecutionTier mode_;
+  wasm::Result<WasmCode*> result_;
+
   // LiftoffCompilationUnit, set if {mode_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;
   // TurbofanWasmCompilationUnit, set if {mode_ == kTurbofan}.
   std::unique_ptr<compiler::TurbofanWasmCompilationUnit> turbofan_unit_;
 
   void SwitchMode(ExecutionTier new_mode);
+
+  // Called from {ExecuteCompilation} to set the result of compilation.
+  void SetResult(WasmCode*);
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };

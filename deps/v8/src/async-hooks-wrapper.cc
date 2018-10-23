@@ -142,8 +142,13 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
     Local<Integer> async_id =
         Integer::New(hooks->isolate_, hooks->current_async_id);
 
+    CHECK(!promise
+               ->HasPrivate(currentContext,
+                            hooks->async_id_smb.Get(hooks->isolate_))
+               .ToChecked());
     promise->SetPrivate(currentContext,
                         hooks->async_id_smb.Get(hooks->isolate_), async_id);
+
     if (parent->IsPromise()) {
       Local<Promise> parent_promise = parent.As<Promise>();
       Local<Value> parent_async_id =

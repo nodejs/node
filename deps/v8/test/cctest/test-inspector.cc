@@ -20,7 +20,7 @@ namespace {
 
 class NoopChannel : public V8Inspector::Channel {
  public:
-  virtual ~NoopChannel() {}
+  ~NoopChannel() override = default;
   void sendResponse(int callId,
                     std::unique_ptr<StringBuffer> message) override {}
   void sendNotification(std::unique_ptr<StringBuffer> message) override {}

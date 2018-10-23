@@ -61,12 +61,6 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   // Creates a NumberConstant node, usually canonicalized.
   Node* Constant(double value);
 
-  // Creates a NumberConstant node, usually canonicalized.
-  Node* Constant(int32_t value);
-
-  // Creates a NumberConstant node, usually canonicalized.
-  Node* Constant(uint32_t value);
-
   // Creates a HeapConstant node for either true or false.
   Node* BooleanConstant(bool is_true) {
     return is_true ? TrueConstant() : FalseConstant();

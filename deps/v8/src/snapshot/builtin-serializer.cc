@@ -26,42 +26,24 @@ BuiltinSerializer::~BuiltinSerializer() {
 void BuiltinSerializer::SerializeBuiltinsAndHandlers() {
   // Serialize builtins.
 
-  STATIC_ASSERT(0 == BSU::kFirstBuiltinIndex);
-
-  for (int i = 0; i < BSU::kNumberOfBuiltins; i++) {
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    Code* code = isolate()->builtins()->builtin(i);
+    DCHECK_IMPLIES(Builtins::IsLazyDeserializer(code),
+                   Builtins::IsLazyDeserializer(i));
     SetBuiltinOffset(i, sink_.Position());
-    SerializeBuiltin(isolate()->builtins()->builtin(i));
+    SerializeBuiltin(code);
   }
-
-  // Serialize bytecode handlers.
-
-  STATIC_ASSERT(BSU::kNumberOfBuiltins == BSU::kFirstHandlerIndex);
-
-  BSU::ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
-    SetHandlerOffset(bytecode, operand_scale, sink_.Position());
-    if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
-
-    SerializeHandler(
-        isolate()->interpreter()->GetBytecodeHandler(bytecode, operand_scale));
-  });
-
-  STATIC_ASSERT(BSU::kFirstHandlerIndex + BSU::kNumberOfHandlers ==
-                BSU::kNumberOfCodeObjects);
-
-  // The DeserializeLazy handlers are serialized by the StartupSerializer
-  // during strong root iteration.
-
-  DCHECK(isolate()->heap()->deserialize_lazy_handler()->IsCode());
-  DCHECK(isolate()->heap()->deserialize_lazy_handler_wide()->IsCode());
-  DCHECK(isolate()->heap()->deserialize_lazy_handler_extra_wide()->IsCode());
-
-  // Pad with kNop since GetInt() might read too far.
-  Pad();
 
   // Append the offset table. During deserialization, the offset table is
   // extracted by BuiltinSnapshotData.
   const byte* data = reinterpret_cast<const byte*>(&code_offsets_[0]);
   int data_length = static_cast<int>(sizeof(code_offsets_));
+
+  // Pad with kNop since GetInt() might read too far.
+  Pad(data_length);
+
+  // Append the offset table. During deserialization, the offset table is
+  // extracted by BuiltinSnapshotData.
   sink_.PutRaw(data, data_length, "BuiltinOffsets");
 }
 
@@ -83,31 +65,20 @@ void BuiltinSerializer::SerializeBuiltin(Code* code) {
   object_serializer.Serialize();
 }
 
-void BuiltinSerializer::SerializeHandler(Code* code) {
-  DCHECK(ObjectIsBytecodeHandler(code));
-  ObjectSerializer object_serializer(this, code, &sink_, kPlain,
-                                     kStartOfObject);
-  object_serializer.Serialize();
-}
-
 void BuiltinSerializer::SerializeObject(HeapObject* o, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!o->IsSmi());
 
   // Roots can simply be serialized as root references.
-  int root_index = root_index_map()->Lookup(o);
-  if (root_index != RootIndexMap::kInvalidRootIndex) {
-    DCHECK(startup_serializer_->root_has_been_serialized(root_index));
-    PutRoot(root_index, o, how_to_code, where_to_point, skip);
-    return;
-  }
+  if (SerializeRoot(o, how_to_code, where_to_point, skip)) return;
 
   // Builtins are serialized using a dedicated bytecode. We only reach this
   // point if encountering a Builtin e.g. while iterating the body of another
   // builtin.
   if (SerializeBuiltinReference(o, how_to_code, where_to_point, skip)) return;
 
-  // Embedded objects are serialized as part of the partial snapshot cache.
+  // Embedded objects are serialized as part of the read-only object and partial
+  // snapshot caches.
   // Currently we expect to see:
   // * Code: Jump targets.
   // * ByteArrays: Relocation infos.
@@ -115,29 +86,20 @@ void BuiltinSerializer::SerializeObject(HeapObject* o, HowToCode how_to_code,
   // * Strings: CSA_ASSERTs in debug builds, various other string constants.
   // * HeapNumbers: Embedded constants.
   // TODO(6624): Jump targets should never trigger content serialization, it
-  // should always result in a reference instead. Reloc infos and handler
-  // tables should not end up in the partial snapshot cache.
+  // should always result in a reference instead. Reloc infos and handler tables
+  // should not end up in the partial snapshot cache.
+  if (startup_serializer_->SerializeUsingReadOnlyObjectCache(
+          &sink_, o, how_to_code, where_to_point, skip)) {
+    return;
+  }
 
-  FlushSkip(skip);
-
-  int cache_index = startup_serializer_->PartialSnapshotCacheIndex(o);
-  sink_.Put(kPartialSnapshotCache + how_to_code + where_to_point,
-            "PartialSnapshotCache");
-  sink_.PutInt(cache_index, "partial_snapshot_cache_index");
+  startup_serializer_->SerializeUsingPartialSnapshotCache(
+      &sink_, o, how_to_code, where_to_point, skip);
 }
 
 void BuiltinSerializer::SetBuiltinOffset(int builtin_id, uint32_t offset) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK(BSU::IsBuiltinIndex(builtin_id));
   code_offsets_[builtin_id] = offset;
-}
-
-void BuiltinSerializer::SetHandlerOffset(Bytecode bytecode,
-                                         OperandScale operand_scale,
-                                         uint32_t offset) {
-  const int index = BSU::BytecodeToIndex(bytecode, operand_scale);
-  DCHECK(BSU::IsHandlerIndex(index));
-  code_offsets_[index] = offset;
 }
 
 }  // namespace internal

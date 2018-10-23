@@ -9,6 +9,8 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/handles-inl.h"
+#include "src/objects/map-inl.h"
 
 #ifdef DEBUG
 #define TRACE(...)                                    \
@@ -282,7 +284,7 @@ EffectGraphReducer::EffectGraphReducer(
       state_(graph, kNumStates),
       revisit_(zone),
       stack_(zone),
-      reduce_(reduce) {}
+      reduce_(std::move(reduce)) {}
 
 void EffectGraphReducer::ReduceFrom(Node* node) {
   // Perform DFS and eagerly trigger revisitation as soon as possible.
@@ -498,6 +500,14 @@ int OffsetOfFieldAccess(const Operator* op) {
   return access.offset;
 }
 
+int OffsetOfElementAt(ElementAccess const& access, int index) {
+  DCHECK_GE(index, 0);
+  DCHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
+            kPointerSizeLog2);
+  return access.header_size +
+         (index << ElementSizeLog2Of(access.machine_type.representation()));
+}
+
 Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   DCHECK(op->opcode() == IrOpcode::kLoadElement ||
          op->opcode() == IrOpcode::kStoreElement);
@@ -507,11 +517,7 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   double min = index_type.Min();
   int index = static_cast<int>(min);
   if (!(index == min && index == max)) return Nothing<int>();
-  ElementAccess access = ElementAccessOf(op);
-  DCHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
-            kPointerSizeLog2);
-  return Just(access.header_size + (index << ElementSizeLog2Of(
-                                        access.machine_type.representation())));
+  return Just(OffsetOfElementAt(ElementAccessOf(op), index));
 }
 
 Node* LowerCompareMapsWithoutLoad(Node* checked_map,
@@ -616,9 +622,56 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           OffsetOfElementsAccess(op, index).To(&offset) &&
           vobject->FieldAt(offset).To(&var) && current->Get(var).To(&value)) {
         current->SetReplacement(value);
-      } else {
-        current->SetEscaped(object);
+      } else if (vobject && !vobject->HasEscaped()) {
+        // Compute the known length (aka the number of elements) of {object}
+        // based on the virtual object information.
+        ElementAccess const& access = ElementAccessOf(op);
+        int const length =
+            (vobject->size() - access.header_size) >>
+            ElementSizeLog2Of(access.machine_type.representation());
+        Variable var0, var1;
+        Node* value0;
+        Node* value1;
+        if (length == 1 &&
+            vobject->FieldAt(OffsetOfElementAt(access, 0)).To(&var) &&
+            current->Get(var).To(&value)) {
+          // The {object} has no elements, and we know that the LoadElement
+          // {index} must be within bounds, thus it must always yield this
+          // one element of {object}.
+          current->SetReplacement(value);
+          break;
+        } else if (length == 2 &&
+                   vobject->FieldAt(OffsetOfElementAt(access, 0)).To(&var0) &&
+                   current->Get(var0).To(&value0) &&
+                   vobject->FieldAt(OffsetOfElementAt(access, 1)).To(&var1) &&
+                   current->Get(var1).To(&value1)) {
+          if (value0 && value1) {
+            // The {object} has exactly two elements, so the LoadElement
+            // must return one of them (i.e. either the element at index
+            // 0 or the one at index 1). So we can turn the LoadElement
+            // into a Select operation instead (still allowing the {object}
+            // to be scalar replaced). We must however mark the elements
+            // of the {object} itself as escaping.
+            Node* check =
+                jsgraph->graph()->NewNode(jsgraph->simplified()->NumberEqual(),
+                                          index, jsgraph->ZeroConstant());
+            NodeProperties::SetType(check, Type::Boolean());
+            Node* select = jsgraph->graph()->NewNode(
+                jsgraph->common()->Select(access.machine_type.representation()),
+                check, value0, value1);
+            NodeProperties::SetType(select, access.type);
+            current->SetReplacement(select);
+            current->SetEscaped(value0);
+            current->SetEscaped(value1);
+            break;
+          } else {
+            // If the variables have no values, we have
+            // not reached the fixed-point yet.
+            break;
+          }
+        }
       }
+      current->SetEscaped(object);
       break;
     }
     case IrOpcode::kTypeGuard: {
@@ -669,9 +722,10 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           current->Get(map_field).To(&map)) {
         if (map) {
           Type const map_type = NodeProperties::GetType(map);
+          AllowHandleDereference handle_dereference;
           if (map_type.IsHeapConstant() &&
               params.maps().contains(
-                  bit_cast<Handle<Map>>(map_type.AsHeapConstant()->Value()))) {
+                  Handle<Map>::cast(map_type.AsHeapConstant()->Value()))) {
             current->MarkForDeletion();
             break;
           }

@@ -450,8 +450,8 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
 RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
-                                     GarbageCollectionReason::kRuntime);
+  isolate->heap()->PreciseCollectAllGarbage(Heap::kNoGCFlags,
+                                            GarbageCollectionReason::kRuntime);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -641,11 +641,6 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugIsActive) {
-  SealHandleScope shs(isolate);
-  return Smi::FromInt(isolate->debug()->is_active());
-}
-
 namespace {
 Handle<JSObject> MakeRangeObject(Isolate* isolate, const CoverageBlock& range) {
   Factory* factory = isolate->factory();
@@ -769,7 +764,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
     isolate->OnAsyncFunctionStateChanged(promise,
                                          debug::kAsyncFunctionFinished);
   }
-  return ReadOnlyRoots(isolate).undefined_value();
+  return *promise;
 }
 
 RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
@@ -810,5 +805,19 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
+
+RUNTIME_FUNCTION(Runtime_PerformSideEffectCheckForObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+
+  DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kSideEffects);
+  if (!isolate->debug()->PerformSideEffectCheckForObject(object)) {
+    DCHECK(isolate->has_pending_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

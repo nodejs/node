@@ -17,7 +17,7 @@ builder.addFunction('main', kSig_i_ii).addBody([
     sig_index1,
     kTableZero
 ]).exportAs('main');
-builder.setFunctionTableBounds(kTableSize, kTableSize);
+builder.setTableBounds(kTableSize, kTableSize);
 var m1_bytes = builder.toBuffer();
 var m1 = new WebAssembly.Module(m1_bytes);
 

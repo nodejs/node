@@ -13,18 +13,11 @@
 
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
-var MathMax = global.Math.max;
-var MathMin = global.Math.min;
-var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
 var ObjectToString = global.Object.prototype.toString;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 // -------------------------------------------------------------------
-
-macro IS_PROXY(arg)
-(%_IsJSProxy(arg))
-endmacro
 
 macro INVERT_NEG_ZERO(arg)
 ((arg) + 0)
@@ -36,11 +29,12 @@ function ArraySpeciesCreate(array, length) {
   return new constructor(length);
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function KeySortCompare(a, b) {
   return a - b;
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function GetSortedArrayKeys(array, indices) {
   if (IS_NUMBER(indices)) {
     // It's an interval
@@ -57,7 +51,7 @@ function GetSortedArrayKeys(array, indices) {
   return InnerArraySort(indices, indices.length, KeySortCompare);
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function SparseJoinWithSeparatorJS(
     array, keys, length, use_locale, separator, locales, options) {
   var keys_length = keys.length;
@@ -71,7 +65,7 @@ function SparseJoinWithSeparatorJS(
   return %SparseJoinWithSeparator(elements, length, separator);
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 // Optimized for sparse arrays if separator is ''.
 function SparseJoin(array, keys, use_locale, locales, options) {
   var keys_length = keys.length;
@@ -82,7 +76,7 @@ function SparseJoin(array, keys, use_locale, locales, options) {
   return %StringBuilderConcat(elements, keys_length, '');
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function UseSparseVariant(array, length, is_array, touched) {
   // Only use the sparse variant on arrays that are likely to be sparse and the
   // number of elements touched in the operation is relatively small compared to
@@ -99,6 +93,7 @@ function UseSparseVariant(array, length, is_array, touched) {
     (touched > estimated_elements * 4);
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function Stack() {
   this.length = 0;
   this.values = new InternalArray();
@@ -130,6 +125,7 @@ function StackHas(stack, v) {
 // join invocations.
 var visited_arrays = new Stack();
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function DoJoin(
     array, length, is_array, separator, use_locale, locales, options) {
   if (UseSparseVariant(array, length, is_array, length)) {
@@ -162,6 +158,7 @@ function DoJoin(
   }
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function Join(array, length, separator, use_locale, locales, options) {
   if (length === 0) return '';
 
@@ -185,7 +182,7 @@ function Join(array, length, separator, use_locale, locales, options) {
   }
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function ConvertToString(use_locale, x, locales, options) {
   if (IS_NULL_OR_UNDEFINED(x)) return '';
   if (use_locale) {
@@ -201,184 +198,15 @@ function ConvertToString(use_locale, x, locales, options) {
 }
 
 
-// This function implements the optimized splice implementation that can use
-// special array operations to handle sparse arrays in a sensible fashion.
-function SparseSlice(array, start_i, del_count, len, deleted_elements) {
-  // Move deleted elements to a new array (the return value from splice).
-  var indices = %GetArrayKeys(array, start_i + del_count);
-  if (IS_NUMBER(indices)) {
-    var limit = indices;
-    for (var i = start_i; i < limit; ++i) {
-      var current = array[i];
-      if (!IS_UNDEFINED(current) || i in array) {
-        %CreateDataProperty(deleted_elements, i - start_i, current);
-      }
-    }
-  } else {
-    var length = indices.length;
-    for (var k = 0; k < length; ++k) {
-      var key = indices[k];
-      if (key >= start_i) {
-        var current = array[key];
-        if (!IS_UNDEFINED(current) || key in array) {
-          %CreateDataProperty(deleted_elements, key - start_i, current);
-        }
-      }
-    }
-  }
-}
-
-
-// This function implements the optimized splice implementation that can use
-// special array operations to handle sparse arrays in a sensible fashion.
-function SparseMove(array, start_i, del_count, len, num_additional_args) {
-  // Bail out if no moving is necessary.
-  if (num_additional_args === del_count) return;
-  // Move data to new array.
-  var new_array = new InternalArray(
-      // Clamp array length to 2^32-1 to avoid early RangeError.
-      MathMin(len - del_count + num_additional_args, 0xffffffff));
-  var big_indices;
-  var indices = %GetArrayKeys(array, len);
-  if (IS_NUMBER(indices)) {
-    var limit = indices;
-    for (var i = 0; i < start_i && i < limit; ++i) {
-      var current = array[i];
-      if (!IS_UNDEFINED(current) || i in array) {
-        new_array[i] = current;
-      }
-    }
-    for (var i = start_i + del_count; i < limit; ++i) {
-      var current = array[i];
-      if (!IS_UNDEFINED(current) || i in array) {
-        new_array[i - del_count + num_additional_args] = current;
-      }
-    }
-  } else {
-    var length = indices.length;
-    for (var k = 0; k < length; ++k) {
-      var key = indices[k];
-      if (key < start_i) {
-        var current = array[key];
-        if (!IS_UNDEFINED(current) || key in array) {
-          new_array[key] = current;
-        }
-      } else if (key >= start_i + del_count) {
-        var current = array[key];
-        if (!IS_UNDEFINED(current) || key in array) {
-          var new_key = key - del_count + num_additional_args;
-          new_array[new_key] = current;
-          if (new_key > 0xfffffffe) {
-            big_indices = big_indices || new InternalArray();
-            big_indices.push(new_key);
-          }
-        }
-      }
-    }
-  }
-  // Move contents of new_array into this array
-  %MoveArrayContents(new_array, array);
-  // Add any moved values that aren't elements anymore.
-  if (!IS_UNDEFINED(big_indices)) {
-    var length = big_indices.length;
-    for (var i = 0; i < length; ++i) {
-      var key = big_indices[i];
-      array[key] = new_array[key];
-    }
-  }
-}
-
-
-// This is part of the old simple-minded splice.  We are using it either
-// because the receiver is not an array (so we have no choice) or because we
-// know we are not deleting or moving a lot of elements.
-function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
-  for (var i = 0; i < del_count; i++) {
-    var index = start_i + i;
-    if (index in array) {
-      var current = array[index];
-      %CreateDataProperty(deleted_elements, i, current);
-    }
-  }
-}
-
-
-function SimpleMove(array, start_i, del_count, len, num_additional_args) {
-  if (num_additional_args !== del_count) {
-    // Move the existing elements after the elements to be deleted
-    // to the right position in the resulting array.
-    if (num_additional_args > del_count) {
-      for (var i = len - del_count; i > start_i; i--) {
-        var from_index = i + del_count - 1;
-        var to_index = i + num_additional_args - 1;
-        if (from_index in array) {
-          array[to_index] = array[from_index];
-        } else {
-          delete array[to_index];
-        }
-      }
-    } else {
-      for (var i = start_i; i < len - del_count; i++) {
-        var from_index = i + del_count;
-        var to_index = i + num_additional_args;
-        if (from_index in array) {
-          array[to_index] = array[from_index];
-        } else {
-          delete array[to_index];
-        }
-      }
-      for (var i = len; i > len - del_count + num_additional_args; i--) {
-        delete array[i - 1];
-      }
-    }
-  }
-}
-
-
 // -------------------------------------------------------------------
 
-var ArrayJoin;
-DEFINE_METHOD(
-  GlobalArray.prototype,
-  toString() {
-    var array;
-    var func;
-    if (IS_ARRAY(this)) {
-      func = this.join;
-      if (func === ArrayJoin) {
-        return Join(this, this.length, ',', false);
-      }
-      array = this;
-    } else {
-      array = TO_OBJECT(this);
-      func = array.join;
-    }
-    if (!IS_CALLABLE(func)) {
-      return %_Call(ObjectToString, array);
-    }
-    return %_Call(func, array);
-  }
-);
-
 // ecma402 #sup-array.prototype.tolocalestring
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function InnerArrayToLocaleString(array, length, locales, options) {
   return Join(array, TO_LENGTH(length), ',', true, locales, options);
 }
 
-
-DEFINE_METHOD(
-  GlobalArray.prototype,
-  // ecma402 #sup-array.prototype.tolocalestring
-  toLocaleString() {
-    var array = TO_OBJECT(this);
-    var arrayLen = array.length;
-    var locales = arguments[0];
-    var options = arguments[1];
-    return InnerArrayToLocaleString(array, arrayLen, locales, options);
-  }
-);
-
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function InnerArrayJoin(separator, array, length) {
   if (IS_UNDEFINED(separator)) {
     separator = ',';
@@ -397,64 +225,6 @@ function InnerArrayJoin(separator, array, length) {
 }
 
 
-DEFINE_METHOD(
-  GlobalArray.prototype,
-  join(separator) {
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(array.length);
-
-    return InnerArrayJoin(separator, array, length);
-  }
-);
-
-
-function ArrayShiftFallback() {
-  var array = TO_OBJECT(this);
-  var len = TO_LENGTH(array.length);
-
-  if (len === 0) {
-    array.length = 0;
-    return;
-  }
-
-  var first = array[0];
-
-  if (UseSparseVariant(array, len, IS_ARRAY(array), len)) {
-    SparseMove(array, 0, 1, len, 0);
-  } else {
-    SimpleMove(array, 0, 1, len, 0);
-  }
-
-  array.length = len - 1;
-
-  return first;
-}
-
-
-function ArrayUnshiftFallback(arg1) {  // length == 1
-  var array = TO_OBJECT(this);
-  var len = TO_LENGTH(array.length);
-  var num_arguments = arguments.length;
-
-  const new_len = len + num_arguments;
-  if (num_arguments > 0) {
-    if (new_len >= 2**53) throw %make_type_error(kInvalidArrayLength);
-
-    if (len > 0 && UseSparseVariant(array, len, IS_ARRAY(array), len) &&
-        !%object_is_sealed(array)) {
-      SparseMove(array, 0, 0, len, num_arguments);
-    } else {
-      SimpleMove(array, 0, 0, len, num_arguments);
-    }
-
-    for (var i = 0; i < num_arguments; i++) {
-      array[i] = arguments[i];
-    }
-  }
-
-  array.length = new_len;
-  return new_len;
-}
 
 
 // Oh the humanity... don't remove the following function because js2c for some
@@ -465,83 +235,7 @@ function ArraySliceFallback(start, end) {
   return null;
 }
 
-function ComputeSpliceStartIndex(start_i, len) {
-  if (start_i < 0) {
-    start_i += len;
-    return start_i < 0 ? 0 : start_i;
-  }
-
-  return start_i > len ? len : start_i;
-}
-
-
-function ComputeSpliceDeleteCount(delete_count, num_arguments, len, start_i) {
-  // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
-  // given as a request to delete all the elements from the start.
-  // And it differs from the case of undefined delete count.
-  // This does not follow ECMA-262, but we do the same for
-  // compatibility.
-  var del_count = 0;
-  if (num_arguments == 1)
-    return len - start_i;
-
-  del_count = TO_INTEGER(delete_count);
-  if (del_count < 0)
-    return 0;
-
-  if (del_count > len - start_i)
-    return len - start_i;
-
-  return del_count;
-}
-
-
-function ArraySpliceFallback(start, delete_count) {
-  var num_arguments = arguments.length;
-  var array = TO_OBJECT(this);
-  var len = TO_LENGTH(array.length);
-  var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
-  var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
-                                           start_i);
-  var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
-
-  const new_len = len - del_count + num_elements_to_add;
-  if (new_len >= 2**53) throw %make_type_error(kInvalidArrayLength);
-
-  var deleted_elements = ArraySpeciesCreate(array, del_count);
-  deleted_elements.length = del_count;
-
-  var changed_elements = del_count;
-  if (num_elements_to_add != del_count) {
-    // If the slice needs to do a actually move elements after the insertion
-    // point, then include those in the estimate of changed elements.
-    changed_elements += len - start_i - del_count;
-  }
-  if (UseSparseVariant(array, len, IS_ARRAY(array), changed_elements)) {
-    %NormalizeElements(array);
-    if (IS_ARRAY(deleted_elements)) %NormalizeElements(deleted_elements);
-    SparseSlice(array, start_i, del_count, len, deleted_elements);
-    SparseMove(array, start_i, del_count, len, num_elements_to_add);
-  } else {
-    SimpleSlice(array, start_i, del_count, len, deleted_elements);
-    SimpleMove(array, start_i, del_count, len, num_elements_to_add);
-  }
-
-  // Insert the arguments into the resulting array in
-  // place of the deleted elements.
-  var i = start_i;
-  var arguments_index = 2;
-  var arguments_length = arguments.length;
-  while (arguments_index < arguments_length) {
-    array[i++] = arguments[arguments_index++];
-  }
-  array.length = new_len;
-
-  // Return the deleted elements.
-  return deleted_elements;
-}
-
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function InnerArraySort(array, length, comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 10) arrays, insertion sort is used for efficiency.
@@ -700,56 +394,6 @@ function InnerArraySort(array, length, comparefn) {
 }
 
 
-DEFINE_METHOD_LEN(
-  GlobalArray.prototype,
-  lastIndexOf(element, index) {
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(this.length);
-
-    if (length == 0) return -1;
-    if (arguments.length < 2) {
-      index = length - 1;
-    } else {
-      index = INVERT_NEG_ZERO(TO_INTEGER(index));
-      // If index is negative, index from end of the array.
-      if (index < 0) index += length;
-      // If index is still negative, do not search the array.
-      if (index < 0) return -1;
-      else if (index >= length) index = length - 1;
-    }
-    var min = 0;
-    var max = index;
-    if (UseSparseVariant(array, length, IS_ARRAY(array), index)) {
-      %NormalizeElements(array);
-      var indices = %GetArrayKeys(array, index + 1);
-      if (IS_NUMBER(indices)) {
-        // It's an interval.
-        max = indices;  // Capped by index already.
-        // Fall through to loop below.
-      } else {
-        if (indices.length == 0) return -1;
-        // Get all the keys in sorted order.
-        var sortedKeys = GetSortedArrayKeys(array, indices);
-        var i = sortedKeys.length - 1;
-        while (i >= 0) {
-          var key = sortedKeys[i];
-          if (array[key] === element) return key;
-          i--;
-        }
-        return -1;
-      }
-    }
-    // Lookup through the array.
-    for (var i = max; i >= min; i--) {
-      if (i in array && array[i] === element) return i;
-    }
-    return -1;
-  },
-  1  /* Set function length */
-);
-
-
-
 // Set up unscopable properties on the Array.prototype object.
 var unscopables = {
   __proto__: null,
@@ -818,7 +462,9 @@ utils.Export(function(to) {
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
   to.ArrayValues = ArrayValues;
+  // TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
   to.InnerArrayJoin = InnerArrayJoin;
+  // TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
 });
 
@@ -827,10 +473,6 @@ utils.Export(function(to) {
   "array_for_each_iterator", ArrayForEach,
   "array_keys_iterator", ArrayKeys,
   "array_values_iterator", ArrayValues,
-  // Fallback implementations of Array builtins.
-  "array_shift", ArrayShiftFallback,
-  "array_splice", ArraySpliceFallback,
-  "array_unshift", ArrayUnshiftFallback,
 ]);
 
 });

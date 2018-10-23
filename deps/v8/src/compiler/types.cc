@@ -132,8 +132,11 @@ Type::bitset Type::BitsetLub() const {
   UNREACHABLE();
 }
 
-Type::bitset BitsetType::Lub(HeapObjectType const& type) {
-  switch (type.instance_type()) {
+// TODO(neis): Once the broker mode kDisabled is gone, change the input type to
+// MapRef and get rid of the HeapObjectType class.
+template <typename MapRefLike>
+Type::bitset BitsetType::Lub(const MapRefLike& map) {
+  switch (map.instance_type()) {
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
     case THIN_STRING_TYPE:
@@ -143,18 +146,18 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case EXTERNAL_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-    case SHORT_EXTERNAL_STRING_TYPE:
-    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case UNCACHED_EXTERNAL_STRING_TYPE:
+    case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case STRING_TYPE:
     case ONE_BYTE_STRING_TYPE:
       return kString;
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
-    case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
       return kInternalizedString;
@@ -163,7 +166,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case BIGINT_TYPE:
       return kBigInt;
     case ODDBALL_TYPE:
-      switch (type.oddball_type()) {
+      switch (map.oddball_type()) {
         case OddballType::kNone:
           break;
         case OddballType::kHole:
@@ -189,15 +192,15 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
-      if (type.is_undetectable()) {
+      if (map.is_undetectable()) {
         // Currently we assume that every undetectable receiver is also
         // callable, which is what we need to support document.all.  We
         // could add another Type bit to support other use cases in the
         // future if necessary.
-        DCHECK(type.is_callable());
+        DCHECK(map.is_callable());
         return kOtherUndetectable;
       }
-      if (type.is_callable()) {
+      if (map.is_callable()) {
         return kOtherCallable;
       }
       return kOtherObject;
@@ -207,14 +210,20 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
     case JS_INTL_COLLATOR_TYPE:
+    case JS_INTL_DATE_TIME_FORMAT_TYPE:
     case JS_INTL_LIST_FORMAT_TYPE:
     case JS_INTL_LOCALE_TYPE:
+    case JS_INTL_NUMBER_FORMAT_TYPE:
     case JS_INTL_PLURAL_RULES_TYPE:
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_INTL_SEGMENT_ITERATOR_TYPE:
+    case JS_INTL_SEGMENTER_TYPE:
 #endif  // V8_INTL_SUPPORT
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
@@ -232,26 +241,30 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
+    case JS_WEAK_CELL_TYPE:
+    case JS_WEAK_FACTORY_TYPE:
+    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
-    case WASM_MODULE_TYPE:
+    case WASM_EXCEPTION_TYPE:
     case WASM_GLOBAL_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
+    case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
-      DCHECK(!type.is_callable());
-      DCHECK(!type.is_undetectable());
+      DCHECK(!map.is_callable());
+      DCHECK(!map.is_undetectable());
       return kOtherObject;
     case JS_BOUND_FUNCTION_TYPE:
-      DCHECK(!type.is_undetectable());
+      DCHECK(!map.is_undetectable());
       return kBoundFunction;
     case JS_FUNCTION_TYPE:
-      DCHECK(!type.is_undetectable());
+      DCHECK(!map.is_undetectable());
       return kFunction;
     case JS_PROXY_TYPE:
-      DCHECK(!type.is_undetectable());
-      if (type.is_callable()) return kCallableProxy;
+      DCHECK(!map.is_undetectable());
+      if (map.is_callable()) return kCallableProxy;
       return kOtherProxy;
     case MAP_TYPE:
     case ALLOCATION_SITE_TYPE:
@@ -285,6 +298,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case FOREIGN_TYPE:
     case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
+    case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:
@@ -299,6 +313,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
+    case MICROTASK_QUEUE_TYPE:
     case CELL_TYPE:
     case PRE_PARSED_SCOPE_DATA_TYPE:
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
@@ -346,6 +361,9 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
   }
   UNREACHABLE();
 }
+
+// Explicit instantiation.
+template Type::bitset BitsetType::Lub<MapRef>(const MapRef& map);
 
 Type::bitset BitsetType::Lub(double value) {
   DisallowHeapAllocation no_allocation;
@@ -465,7 +483,7 @@ HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
     : TypeBase(kHeapConstant), bitset_(bitset), heap_ref_(heap_ref) {}
 
 Handle<HeapObject> HeapConstantType::Value() const {
-  return heap_ref_.object<HeapObject>();
+  return heap_ref_.object();
 }
 
 // -----------------------------------------------------------------------------
@@ -822,9 +840,9 @@ Type Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type Type::NewConstant(JSHeapBroker* js_heap_broker, Handle<i::Object> value,
+Type Type::NewConstant(JSHeapBroker* broker, Handle<i::Object> value,
                        Zone* zone) {
-  ObjectRef ref(js_heap_broker, value);
+  ObjectRef ref(broker, value);
   if (ref.IsSmi()) {
     return NewConstant(static_cast<double>(ref.AsSmi()), zone);
   }
@@ -1009,14 +1027,16 @@ void Type::PrintTo(std::ostream& os) const {
     os << "(";
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
       Type type_i = this->AsUnion()->Get(i);
-      if (i > 0) os << " | " << type_i;
+      if (i > 0) os << " | ";
+      os << type_i;
     }
     os << ")";
   } else if (this->IsTuple()) {
     os << "<";
     for (int i = 0, n = this->AsTuple()->Arity(); i < n; ++i) {
       Type type_i = this->AsTuple()->Element(i);
-      if (i > 0) os << ", " << type_i;
+      if (i > 0) os << ", ";
+      os << type_i;
     }
     os << ">";
   } else {
@@ -1060,10 +1080,10 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(JSHeapBroker* js_heap_broker, Handle<i::Object> value,
+Type Type::HeapConstant(JSHeapBroker* broker, Handle<i::Object> value,
                         Zone* zone) {
   return FromTypeBase(
-      HeapConstantType::New(HeapObjectRef(js_heap_broker, value), zone));
+      HeapConstantType::New(HeapObjectRef(broker, value), zone));
 }
 
 // static

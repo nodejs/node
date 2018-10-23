@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --no-enable-one-shot-optimization
+
 Debug = debug.Debug
 
 var exception = null;
@@ -71,8 +73,8 @@ function listener(event, exec_state, event_data, data) {
       "flatMap", "forEach", "every", "some", "reduce", "reduceRight", "find",
       "filter", "map", "findIndex"
     ];
-    var fails = ["toString", "join", "toLocaleString", "pop", "push", "reverse",
-      "shift", "unshift", "splice", "sort", "copyWithin", "fill"];
+    var fails = ["toLocaleString", "pop", "push", "reverse", "shift", "unshift",
+      "splice", "sort", "copyWithin", "fill"];
     for (f of Object.getOwnPropertyNames(Array.prototype)) {
       if (typeof Array.prototype[f] === "function") {
         if (fails.includes(f)) {

@@ -5,7 +5,6 @@
 #ifndef V8_IC_STUB_CACHE_H_
 #define V8_IC_STUB_CACHE_H_
 
-#include "src/macro-assembler.h"
 #include "src/objects/name.h"
 
 namespace v8 {

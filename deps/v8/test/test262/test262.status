@@ -178,15 +178,148 @@
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=896
-  'built-ins/RegExp/property-escapes/binary-properties-with-value': [FAIL],
-  'built-ins/RegExp/property-escapes/character-class': [FAIL],
-  'built-ins/RegExp/property-escapes/grammar-extensions': [FAIL],
-  'built-ins/RegExp/property-escapes/loose-matching': [FAIL],
-  'built-ins/RegExp/property-escapes/non-binary-properties-without-value': [FAIL],
-  'built-ins/RegExp/property-escapes/non-existent-properties': [FAIL],
-  'built-ins/RegExp/property-escapes/non-existent-property-values': [FAIL],
-  'built-ins/RegExp/property-escapes/unsupported-binary-properties': [FAIL],
-  'built-ins/RegExp/property-escapes/unsupported-properties': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_N': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_N-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_No': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_No-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_T': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_T-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Y': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Y-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Yes': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Yes-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/character-class-range-end': [FAIL],
+  'built-ins/RegExp/property-escapes/character-class-range-no-dash-end': [FAIL],
+  'built-ins/RegExp/property-escapes/character-class-range-no-dash-start': [FAIL],
+  'built-ins/RegExp/property-escapes/character-class-range-start': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Block-implicit': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Block-implicit-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-implicit': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-implicit-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-Is-prefix-Script': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-Is-prefix-Script-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-circumflex-negation': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-circumflex-negation-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-empty': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-empty-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-invalid': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-invalid-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-no-braces': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-no-braces-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-no-braces-value': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-no-braces-value-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-separator': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-separator-and-value-only': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-separator-and-value-only-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-separator-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-separator-only': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-separator-only-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-unclosed': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-unclosed-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-unopened': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extension-unopened-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-01': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-01-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-02': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-02-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-03': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-03-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-04': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-04-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-05': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-05-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-06': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-06-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-07': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-07-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-08': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-08-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-09': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-09-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-10': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-10-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-11': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-11-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-12': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-12-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-13': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-13-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-14': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching-14-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category-equals': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category-equals-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-Script': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-Script-equals': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-Script-equals-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-Script-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions-equals': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions-equals-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-binary-property': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-binary-property-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-and-value': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-and-value-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-existing-value': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-existing-value-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-value-General_Category-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-value-Script': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-value-Script-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-value-Script_Extensions': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-value-Script_Extensions-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-value-general-category': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Composition_Exclusion': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Composition_Exclusion-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFC': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFC-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFD': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFD-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKC': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKC-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKD': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKD-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-FC_NFKC_Closure': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-FC_NFKC_Closure-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Full_Composition_Exclusion': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Full_Composition_Exclusion-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Grapheme_Link': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Grapheme_Link-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Hyphen': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Hyphen-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Alphabetic': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Alphabetic-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Default_Ignorable_Code_Point': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Default_Ignorable_Code_Point-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Grapheme_Extend': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Grapheme_Extend-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Continue': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Continue-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Start': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Start-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Lowercase': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Lowercase-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Math': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Math-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Uppercase': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Uppercase-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Prepended_Concatenation_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-property-Prepended_Concatenation_Mark-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-property-Block-with-value': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-property-Block-with-value-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-property-FC_NFKC_Closure': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-property-FC_NFKC_Closure-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-property-Line_Break': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-property-Line_Break-negated': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-property-Line_Break-with-value': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-property-Line_Break-with-value-negated': [FAIL],
   'language/literals/regexp/early-err-pattern': [FAIL],
   'language/literals/regexp/invalid-braced-quantifier-exact': [FAIL],
   'language/literals/regexp/invalid-braced-quantifier-lower': [FAIL],
@@ -230,9 +363,6 @@
   'language/eval-code/indirect/non-definable-function-with-variable': [FAIL],
   'language/global-code/script-decl-func-err-non-configurable': [FAIL],
   'language/global-code/script-decl-var-collision': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4958
-  'built-ins/Function/prototype/toString/*': ['--harmony-function-tostring'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5116
   'built-ins/TypedArray/prototype/fill/fill-values-conversion-operations-consistent-nan': [PASS, FAIL],
@@ -313,9 +443,6 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-no-skip-try': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-no-skip-try': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5537
-  'built-ins/global/*': [SKIP],
-
   # PreParser doesn't produce early errors
   # https://bugs.chromium.org/p/v8/issues/detail?id=2728
   'language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate': [FAIL],
@@ -371,18 +498,9 @@
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
 
-  # 64-bit Atomics are not implemented yet.
-  'built-ins/Atomics/wake/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/xor/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/load/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/compareExchange/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/wait/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/exchange/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/sub/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/store/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/or/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/and/bad-range': ['--noharmony-bigint'],
-  'built-ins/Atomics/add/bad-range': ['--noharmony-bigint'],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8100
+  'built-ins/Atomics/notify/bigint/*': [SKIP],
+  'built-ins/Atomics/wait/bigint/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
@@ -439,43 +557,43 @@
   'intl402/Collator/prototype/compare/bound-to-collator-instance': [SKIP],
   'intl402/Collator/ignore-invalid-unicode-ext-values': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7684
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8260
+  'intl402/Locale/constructor-non-iana-canon': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8261
+  'intl402/Locale/constructor-options-language-valid': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8262
+  'intl402/Locale/constructor-parse-twice': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8246
+  'intl402/Locale/constructor-tag': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8244
   'intl402/Locale/constructor-getter-order': [FAIL],
   'intl402/Locale/constructor-locale-object': [FAIL],
-  'intl402/Locale/constructor-non-iana-canon': [FAIL],
   'intl402/Locale/constructor-options-language-grandfathered': [FAIL],
   'intl402/Locale/constructor-options-language-invalid': [FAIL],
-  'intl402/Locale/constructor-options-language-valid': [FAIL],
   'intl402/Locale/constructor-options-region-invalid': [FAIL],
   'intl402/Locale/constructor-options-region-valid': [FAIL],
   'intl402/Locale/constructor-options-script-invalid': [FAIL],
   'intl402/Locale/constructor-options-script-valid': [FAIL],
-  'intl402/Locale/constructor-parse-twice': [FAIL],
-  'intl402/Locale/constructor-tag': [FAIL],
-  'intl402/Locale/constructor-unicode-ext-invalid': [FAIL],
-  'intl402/Locale/constructor-unicode-ext-valid': [FAIL],
-  'intl402/Locale/extensions-grandfathered': [FAIL],
-  'intl402/Locale/extensions-private': [FAIL],
   'intl402/Locale/getters': [FAIL],
-  'intl402/Locale/getters-grandfathered': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8243
+  'intl402/Locale/extensions-private': [FAIL],
   'intl402/Locale/getters-privateuse': [FAIL],
-  'intl402/Locale/invalid-tag-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8236
   'intl402/Locale/likely-subtags': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8242
+  'intl402/Locale/extensions-grandfathered': [FAIL],
+  'intl402/Locale/getters-grandfathered': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-  'intl402/Locale/prototype/toStringTag/toStringTag': [FAIL],
-  'intl402/Locale/prototype/toStringTag/toString': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7869
-  'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/branding': [FAIL],
-  'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/length': [FAIL],
-  'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/name': [FAIL],
-  'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/prop-desc': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7993
-  'intl402/RelativeTimeFormat/prototype/toStringTag/toStringTag': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7814
-  'built-ins/Array/prototype/splice/property-traps-order-with-species': [FAIL],
+  # Wrong test see https://github.com/tc39/test262/pull/1835
+  'intl402/Locale/constructor-options-numeric-valid': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
   'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
@@ -489,6 +607,21 @@
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8099
+  'intl402/NumberFormat/prototype/format/format-negative-numbers': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7871
+  'intl402/ListFormat/prototype/formatToParts/en-us-disjunction': [FAIL],
+
+  # The following is due to spec changes in
+  # https://github.com/tc39/proposal-intl-list-format/pull/27
+  # and will be addressed after pulling new test262 which include the tests fixes in
+  # https://github.com/tc39/test262/pull/1860
+  # see https://bugs.chromium.org/p/v8/issues/detail?id=8302
+  'intl402/ListFormat/constructor/constructor/options-style-valid': [FAIL],
+  'intl402/ListFormat/prototype/format/en-us-narrow': [FAIL],
+  'intl402/ListFormat/prototype/formatToParts/en-us-narrow': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -500,15 +633,21 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
-  'built-ins/Atomics/wait/waiterlist-order-of-operations-is-fifo': [SKIP],
-  'built-ins/Atomics/wake/count-defaults-to-infinity-missing': [SKIP],
-  'built-ins/Atomics/wake/count-defaults-to-infinity-undefined': [SKIP],
-  'built-ins/Atomics/wake/undefined-index-defaults-to-zero': [SKIP],
 
-  # Flaky failure
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7876
-  'built-ins/Atomics/wait/waiterlist-block-indexedposition-wake': [SKIP],
-  'built-ins/Atomics/wake/wake-in-order': [SKIP],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6890#c12
+  'built-ins/RegExp/prototype/Symbol.matchAll/isregexp-called-once': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.matchAll/species-constructor': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.matchAll/species-regexp-get-global-throws': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.matchAll/species-regexp-get-unicode-throws': [FAIL],
+  'built-ins/String/prototype/matchAll/regexp-prototype-has-no-matchAll': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8258
+  'intl402/Locale/constructor-options-language-valid-undefined': [FAIL],
+  'intl402/Locale/constructor-options-throwing-getters': [FAIL],
+  'intl402/Locale/constructor-tag-tostring': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-fraction-digits-precision': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-significant-digits-precision': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/value-tonumber': [FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
@@ -516,9 +655,6 @@
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6538
-  'built-ins/Array/prototype/unshift/throws-if-integer-limit-exceeded': [SKIP],
-  'built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit': [FAIL],
-  'built-ins/Array/prototype/splice/throws-if-integer-limit-exceeded': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6541
   'language/export/escaped-as-export-specifier': [FAIL],
@@ -568,7 +704,6 @@
   'built-ins/decodeURIComponent/S15.1.3.2_A1.11_T1': [SKIP],
   'built-ins/decodeURIComponent/S15.1.3.2_A1.12_T1': [SKIP],
   'built-ins/decodeURIComponent/S15.1.3.2_A2.5_T1': [SKIP],
-  'built-ins/RegExp/S15.10.2.12_A3_T1': [SKIP],
   'language/literals/regexp/S7.8.5_A1.1_T2': [SKIP],
   'language/literals/regexp/S7.8.5_A1.4_T2': [SKIP],
   'language/literals/regexp/S7.8.5_A2.1_T2': [SKIP],
@@ -578,6 +713,18 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7187
   'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': [SKIP],
+  'language/expressions/class/fields-private-derived-cls-direct-eval-err-contains-supercall': [FAIL],
+  'language/expressions/class/fields-private-derived-cls-direct-eval-err-contains-supercall-1': [FAIL],
+  'language/expressions/class/fields-private-derived-cls-direct-eval-err-contains-supercall-2': [FAIL],
+  'language/expressions/class/fields-private-derived-cls-indirect-eval-err-contains-supercall': [FAIL],
+  'language/expressions/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-1': [FAIL],
+  'language/expressions/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-2': [FAIL],
+  'language/statements/class/fields-private-derived-cls-direct-eval-err-contains-supercall': [FAIL],
+  'language/statements/class/fields-private-derived-cls-direct-eval-err-contains-supercall-1': [FAIL],
+  'language/statements/class/fields-private-derived-cls-direct-eval-err-contains-supercall-2': [FAIL],
+  'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall': [FAIL],
+  'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-1': [FAIL],
+  'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-2': [FAIL],
 
   ############################ SLOW TESTS #############################
 
@@ -586,8 +733,6 @@
   'language/comments/S7.4_A5': [PASS, SLOW],
   'language/comments/S7.4_A6': [PASS, SLOW],
 
-  # https://crbug.com/v8/7841
-  'built-ins/Atomics/wake/wake-rewake-noop': [SKIP],
 }],  # ALWAYS
 
 ['no_i18n == True', {
@@ -652,6 +797,59 @@
   # BUG(v8:4653): Test262 tests which rely on quit() are not compatible with
   # asan's --omit-quit flag.
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-cls-anon': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-cls-named': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-cls-name-meth': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-expr-cls-anon': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-expr-cls-named': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-expr-cls-name-meth': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-expr-fn-anon': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-expr-fn-named': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-expr-gen-anon': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-expr-gen-named': [SKIP],
+  'language/module-code/dynamic-import/eval-export-dflt-expr-in': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-arrow-assignment-expression-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-arrow-assignment-expression-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-arrow-assignment-expression-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-arrow-import-then-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-arrow-import-then-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-arrow-import-then-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-async-function-await-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-async-function-await-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-async-function-await-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-async-function-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-async-function-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-async-function-return-await-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-async-function-return-await-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-async-function-return-await-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-async-function-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-block-import-then-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-block-import-then-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-block-import-then-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-do-while-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-do-while-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-do-while-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-else-import-then-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-else-import-then-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-else-import-then-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-function-import-then-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-function-import-then-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-function-import-then-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-if-braceless-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-if-braceless-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-if-braceless-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-if-import-then-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-if-import-then-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-if-import-then-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-while-import-then-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-while-import-then-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/nested-while-import-then-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/syntax-nested-block-labeled-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/syntax-nested-block-labeled-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/syntax-nested-block-labeled-returns-promise': [SKIP],
+  'language/module-code/dynamic-import/usage/top-level-import-then-eval-gtbndng-indirect-update-dflt': [SKIP],
+  'language/module-code/dynamic-import/usage/top-level-import-then-eval-gtbndng-indirect-update': [SKIP],
+  'language/module-code/dynamic-import/usage/top-level-import-then-returns-promise': [SKIP],
 }],  # asan == True
 
 ['asan == True or msan == True or tsan == True', {

@@ -13,7 +13,7 @@
 #include "src/base/macros.h"
 #include "src/identity-map.h"
 #include "src/maybe-handles.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/vector.h"
 #include "src/zone/zone.h"
 
@@ -151,18 +151,18 @@ class ValueSerializer {
    * Asks the delegate to handle an error that occurred during data cloning, by
    * throwing an exception appropriate for the host.
    */
-  void ThrowDataCloneError(MessageTemplate::Template template_index);
-  V8_NOINLINE void ThrowDataCloneError(MessageTemplate::Template template_index,
+  void ThrowDataCloneError(MessageTemplate template_index);
+  V8_NOINLINE void ThrowDataCloneError(MessageTemplate template_index,
                                        Handle<Object> arg0);
 
   Maybe<bool> ThrowIfOutOfMemory();
 
   Isolate* const isolate_;
   v8::ValueSerializer::Delegate* const delegate_;
-  bool treat_array_buffer_views_as_host_objects_ = false;
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
+  bool treat_array_buffer_views_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
 

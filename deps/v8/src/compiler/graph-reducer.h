@@ -46,7 +46,7 @@ class Reduction final {
 // phase.
 class V8_EXPORT_PRIVATE Reducer {
  public:
-  virtual ~Reducer() {}
+  virtual ~Reducer() = default;
 
   // Only used for tracing, when using the --trace_turbo_reduction flag.
   virtual const char* reducer_name() const = 0;
@@ -73,7 +73,7 @@ class AdvancedReducer : public Reducer {
   // Observe the actions of this reducer.
   class Editor {
    public:
-    virtual ~Editor() {}
+    virtual ~Editor() = default;
 
     // Replace {node} with {replacement}.
     virtual void Replace(Node* node, Node* replacement) = 0;
@@ -130,7 +130,7 @@ class V8_EXPORT_PRIVATE GraphReducer
     : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
   GraphReducer(Zone* zone, Graph* graph, Node* dead = nullptr);
-  ~GraphReducer();
+  ~GraphReducer() override;
 
   Graph* graph() const { return graph_; }
 

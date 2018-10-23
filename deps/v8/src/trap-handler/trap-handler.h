@@ -23,9 +23,9 @@ namespace trap_handler {
 
 // TODO(eholk): Support trap handlers on other platforms.
 #if V8_TARGET_ARCH_X64 && V8_OS_LINUX && !V8_OS_ANDROID
-#define V8_TRAP_HANDLER_SUPPORTED 1
+#define V8_TRAP_HANDLER_SUPPORTED true
 #else
-#define V8_TRAP_HANDLER_SUPPORTED 0
+#define V8_TRAP_HANDLER_SUPPORTED false
 #endif
 
 struct ProtectedInstructionData {
@@ -99,12 +99,6 @@ inline void ClearThreadInWasm() {
     g_thread_in_wasm_code = false;
   }
 }
-
-class ThreadInWasmScope {
- public:
-  ThreadInWasmScope() { SetThreadInWasm(); }
-  ~ThreadInWasmScope() { ClearThreadInWasm(); }
-};
 
 bool RegisterDefaultTrapHandler();
 V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler();

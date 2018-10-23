@@ -40,7 +40,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
                    public v8::debug::AsyncEventDelegate {
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
-  ~V8Debugger();
+  ~V8Debugger() override;
 
   bool enabled() const;
   v8::Isolate* isolate() const { return m_isolate; }
@@ -145,7 +145,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void handleProgramBreak(
       v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
       const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
-      bool isPromiseRejection = false, bool isUncaught = false);
+      v8::debug::ExceptionType exception_type = v8::debug::kException,
+      bool isUncaught = false);
 
   enum ScopeTargetKind {
     FUNCTION,
@@ -181,13 +182,17 @@ class V8Debugger : public v8::debug::DebugDelegate,
       const std::vector<v8::debug::BreakpointId>& break_points_hit) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Value> exception,
-                       v8::Local<v8::Value> promise, bool is_uncaught) override;
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType exception_type) override;
   bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                             const v8::debug::Location& start,
                             const v8::debug::Location& end) override;
 
   int currentContextGroupId();
   bool asyncStepOutOfFunction(int targetContextGroupId, bool onlyAtReturn);
+
+  v8::MaybeLocal<v8::Uint32> stableObjectId(v8::Local<v8::Context>,
+                                            v8::Local<v8::Value>);
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
@@ -244,6 +249,9 @@ class V8Debugger : public v8::debug::DebugDelegate,
       m_serializedDebuggerIdToDebuggerId;
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
+
+  uint32_t m_lastStableObjectId = 0;
+  v8::Global<v8::debug::WeakMap> m_stableObjectId;
 
   WasmTranslation m_wasmTranslation;
 

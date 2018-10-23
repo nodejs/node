@@ -15,6 +15,7 @@
 #include "src/handles.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-character-streams.h"
@@ -119,7 +120,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
 }
 
 void Report(Handle<Script> script, int position, Vector<const char> text,
-            MessageTemplate::Template message_template,
+            MessageTemplate message_template,
             v8::Isolate::MessageErrorLevel level) {
   Isolate* isolate = script->GetIsolate();
   MessageLocation location(script, position, position);
@@ -391,7 +392,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       return MaybeHandle<Object>();
     }
     memory->set_is_growable(false);
-    size_t size = NumberToSize(memory->byte_length());
+    size_t size = memory->byte_length();
     // Check the asm.js heap size against the valid limits.
     if (!IsValidAsmjsMemorySize(size)) {
       ReportInstantiationFailure(script, position, "Invalid heap size");

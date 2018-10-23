@@ -39,9 +39,10 @@ TEST(ConcurrentMarking) {
   }
 
   ConcurrentMarking::MarkingWorklist shared, bailout, on_hold;
+  ConcurrentMarking::EmbedderTracingWorklist embedder_objects;
   WeakObjects weak_objects;
-  ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout, &on_hold, &weak_objects);
+  ConcurrentMarking* concurrent_marking = new ConcurrentMarking(
+      heap, &shared, &bailout, &on_hold, &weak_objects, &embedder_objects);
   PublishSegment(&shared, ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->Stop(
@@ -61,9 +62,10 @@ TEST(ConcurrentMarkingReschedule) {
   }
 
   ConcurrentMarking::MarkingWorklist shared, bailout, on_hold;
+  ConcurrentMarking::EmbedderTracingWorklist embedder_objects;
   WeakObjects weak_objects;
-  ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout, &on_hold, &weak_objects);
+  ConcurrentMarking* concurrent_marking = new ConcurrentMarking(
+      heap, &shared, &bailout, &on_hold, &weak_objects, &embedder_objects);
   PublishSegment(&shared, ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->Stop(
@@ -87,9 +89,10 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
   }
 
   ConcurrentMarking::MarkingWorklist shared, bailout, on_hold;
+  ConcurrentMarking::EmbedderTracingWorklist embedder_objects;
   WeakObjects weak_objects;
-  ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout, &on_hold, &weak_objects);
+  ConcurrentMarking* concurrent_marking = new ConcurrentMarking(
+      heap, &shared, &bailout, &on_hold, &weak_objects, &embedder_objects);
   for (int i = 0; i < 5000; i++)
     PublishSegment(&shared, ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleTasks();

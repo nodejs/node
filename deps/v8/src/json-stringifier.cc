@@ -7,7 +7,7 @@
 #include "src/conversions.h"
 #include "src/heap/heap-inl.h"
 #include "src/lookup.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/string-builder-inl.h"
@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-class JsonStringifier BASE_EMBEDDED {
+class JsonStringifier {
  public:
   explicit JsonStringifier(Isolate* isolate);
 
@@ -755,11 +755,49 @@ void JsonStringifier::SerializeStringUnchecked_(
   // Assert that uc16 character is not truncated down to 8 bit.
   // The <uc16, char> version of this method must not be called.
   DCHECK(sizeof(DestChar) >= sizeof(SrcChar));
-
   for (int i = 0; i < src.length(); i++) {
     SrcChar c = src[i];
     if (DoNotEscape(c)) {
       dest->Append(c);
+    } else if (FLAG_harmony_json_stringify && c >= 0xD800 && c <= 0xDFFF) {
+      // The current character is a surrogate.
+      if (c <= 0xDBFF) {
+        // The current character is a leading surrogate.
+        if (i + 1 < src.length()) {
+          // There is a next character.
+          SrcChar next = src[i + 1];
+          if (next >= 0xDC00 && next <= 0xDFFF) {
+            // The next character is a trailing surrogate, meaning this is a
+            // surrogate pair.
+            dest->Append(c);
+            dest->Append(next);
+            i++;
+          } else {
+            // The next character is not a trailing surrogate. Thus, the
+            // current character is a lone leading surrogate.
+            dest->AppendCString("\\u");
+            char* const hex = DoubleToRadixCString(c, 16);
+            dest->AppendCString(hex);
+            DeleteArray(hex);
+          }
+        } else {
+          // There is no next character. Thus, the current character is a lone
+          // leading surrogate.
+          dest->AppendCString("\\u");
+          char* const hex = DoubleToRadixCString(c, 16);
+          dest->AppendCString(hex);
+          DeleteArray(hex);
+        }
+      } else {
+        // The current character is a lone trailing surrogate. (If it had been
+        // preceded by a leading surrogate, we would've ended up in the other
+        // branch earlier on, and the current character would've been handled
+        // as part of the surrogate pair already.)
+        dest->AppendCString("\\u");
+        char* const hex = DoubleToRadixCString(c, 16);
+        dest->AppendCString(hex);
+        DeleteArray(hex);
+      }
     } else {
       dest->AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
     }
@@ -784,6 +822,45 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
       SrcChar c = reader.Get<SrcChar>(i);
       if (DoNotEscape(c)) {
         builder_.Append<SrcChar, DestChar>(c);
+      } else if (FLAG_harmony_json_stringify && c >= 0xD800 && c <= 0xDFFF) {
+        // The current character is a surrogate.
+        if (c <= 0xDBFF) {
+          // The current character is a leading surrogate.
+          if (i + 1 < reader.length()) {
+            // There is a next character.
+            SrcChar next = reader.Get<SrcChar>(i + 1);
+            if (next >= 0xDC00 && next <= 0xDFFF) {
+              // The next character is a trailing surrogate, meaning this is a
+              // surrogate pair.
+              builder_.Append<SrcChar, DestChar>(c);
+              builder_.Append<SrcChar, DestChar>(next);
+              i++;
+            } else {
+              // The next character is not a trailing surrogate. Thus, the
+              // current character is a lone leading surrogate.
+              builder_.AppendCString("\\u");
+              char* const hex = DoubleToRadixCString(c, 16);
+              builder_.AppendCString(hex);
+              DeleteArray(hex);
+            }
+          } else {
+            // There is no next character. Thus, the current character is a
+            // lone leading surrogate.
+            builder_.AppendCString("\\u");
+            char* const hex = DoubleToRadixCString(c, 16);
+            builder_.AppendCString(hex);
+            DeleteArray(hex);
+          }
+        } else {
+          // The current character is a lone trailing surrogate. (If it had
+          // been preceded by a leading surrogate, we would've ended up in the
+          // other branch earlier on, and the current character would've been
+          // handled as part of the surrogate pair already.)
+          builder_.AppendCString("\\u");
+          char* const hex = DoubleToRadixCString(c, 16);
+          builder_.AppendCString(hex);
+          DeleteArray(hex);
+        }
       } else {
         builder_.AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
       }
@@ -794,12 +871,15 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
 
 template <>
 bool JsonStringifier::DoNotEscape(uint8_t c) {
-  return c >= '#' && c <= '~' && c != '\\';
+  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
+  return c >= 0x23 && c <= 0x7E && c != 0x5C;
 }
 
 template <>
 bool JsonStringifier::DoNotEscape(uint16_t c) {
-  return c >= '#' && c != '\\' && c != 0x7F;
+  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
+  return c >= 0x23 && c != 0x5C && c != 0x7F &&
+         (!FLAG_harmony_json_stringify || (c < 0xD800 || c > 0xDFFF));
 }
 
 void JsonStringifier::NewLine() {

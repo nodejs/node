@@ -47,6 +47,9 @@ class GlobalHandles {
 
   // Creates a new global handle that is alive until Destroy is called.
   Handle<Object> Create(Object* value);
+  // TODO(jkummerow): This and the other Object*/Address overloads below are
+  // temporary. Eventually the respective Object* version should go away.
+  Handle<Object> Create(Address value);
 
   template <typename T>
   Handle<T> Create(T* value) {
@@ -57,10 +60,11 @@ class GlobalHandles {
   }
 
   // Copy a global handle
-  static Handle<Object> CopyGlobal(Object** location);
+  static Handle<Object> CopyGlobal(Address* location);
 
   // Destroy a global handle.
   static void Destroy(Object** location);
+  static void Destroy(Address* location);
 
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
@@ -74,10 +78,15 @@ class GlobalHandles {
   static void MakeWeak(Object** location, void* parameter,
                        WeakCallbackInfo<void>::Callback weak_callback,
                        v8::WeakCallbackType type);
+  static void MakeWeak(Address* location, void* parameter,
+                       WeakCallbackInfo<void>::Callback weak_callback,
+                       v8::WeakCallbackType type);
 
   static void MakeWeak(Object*** location_addr);
+  static void MakeWeak(Address** location_addr);
 
   static void AnnotateStrongRetainer(Object** location, const char* label);
+  static void AnnotateStrongRetainer(Address* location, const char* label);
 
   void RecordStats(HeapStats* stats);
 
@@ -97,12 +106,14 @@ class GlobalHandles {
   size_t NumberOfNewSpaceNodes() { return new_space_nodes_.size(); }
 
   // Clear the weakness of a global handle.
-  static void* ClearWeakness(Object** location);
+  static void* ClearWeakness(Address* location);
 
   // Tells whether global handle is near death.
+  // TODO(jkummerow): This seems to be unused.
   static bool IsNearDeath(Object** location);
 
   // Tells whether global handle is weak.
+  // TODO(jkummerow): This seems to be unused.
   static bool IsWeak(Object** location);
 
   // Process pending weak handles.
@@ -184,7 +195,6 @@ class GlobalHandles {
   class NodeBlock;
   class NodeIterator;
   class PendingPhantomCallback;
-  class PendingPhantomCallbacksSecondPassTask;
 
   explicit GlobalHandles(Isolate* isolate);
 
@@ -198,9 +208,6 @@ class GlobalHandles {
 
   Isolate* isolate_;
 
-  // Field always containing the number of handles to global objects.
-  int number_of_global_handles_;
-
   // List of all allocated node blocks.
   NodeBlock* first_block_;
 
@@ -213,6 +220,9 @@ class GlobalHandles {
   // Contains all nodes holding new space objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
   std::vector<Node*> new_space_nodes_;
+
+  // Field always containing the number of handles to global objects.
+  int number_of_global_handles_;
 
   int post_gc_processing_count_;
 

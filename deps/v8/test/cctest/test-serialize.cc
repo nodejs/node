@@ -49,6 +49,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/partial-serializer.h"
+#include "src/snapshot/read-only-serializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/snapshot/startup-serializer.h"
@@ -129,15 +130,17 @@ static Vector<const byte> WritePayload(const Vector<const byte>& payload) {
   return Vector<const byte>(const_cast<const byte*>(blob), length);
 }
 
-// A convenience struct to simplify management of the two blobs required to
+// A convenience struct to simplify management of the blobs required to
 // deserialize an isolate.
 struct StartupBlobs {
   Vector<const byte> startup;
   Vector<const byte> builtin;
+  Vector<const byte> read_only;
 
   void Dispose() {
     startup.Dispose();
     builtin.Dispose();
+    read_only.Dispose();
   }
 };
 
@@ -237,17 +240,24 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
   internal_isolate->heap()->CollectAllAvailableGarbage(
       i::GarbageCollectionReason::kTesting);
-  StartupSerializer ser(internal_isolate);
+
+  ReadOnlySerializer read_only_serializer(internal_isolate);
+  read_only_serializer.SerializeReadOnlyRoots();
+
+  StartupSerializer ser(internal_isolate, &read_only_serializer);
   ser.SerializeStrongReferences();
 
   i::BuiltinSerializer builtin_serializer(internal_isolate, &ser);
   builtin_serializer.SerializeBuiltinsAndHandlers();
 
   ser.SerializeWeakReferencesAndDeferred();
+  read_only_serializer.FinalizeSerialization();
   SnapshotData startup_snapshot(&ser);
+  SnapshotData read_only_snapshot(&read_only_serializer);
   BuiltinSnapshotData builtin_snapshot(&builtin_serializer);
   return {WritePayload(startup_snapshot.RawData()),
-          WritePayload(builtin_snapshot.RawData())};
+          WritePayload(builtin_snapshot.RawData()),
+          WritePayload(read_only_snapshot.RawData())};
 }
 
 
@@ -271,8 +281,10 @@ v8::Isolate* InitializeFromBlob(StartupBlobs& blobs) {
   v8::Isolate* v8_isolate = nullptr;
   {
     SnapshotData startup_snapshot(blobs.startup);
+    SnapshotData read_only_snapshot(blobs.read_only);
     BuiltinSnapshotData builtin_snapshot(blobs.builtin);
-    StartupDeserializer deserializer(&startup_snapshot, &builtin_snapshot);
+    StartupDeserializer deserializer(&startup_snapshot, &builtin_snapshot,
+                                     &read_only_snapshot);
     const bool kEnableSerializer = false;
     const bool kGenerateHeap = false;
     TestIsolate* isolate = new TestIsolate(kEnableSerializer, kGenerateHeap);
@@ -484,6 +496,7 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
 
 static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
                                       Vector<const byte>* builtin_blob_out,
+                                      Vector<const byte>* read_only_blob_out,
                                       Vector<const byte>* partial_blob_out) {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
@@ -515,8 +528,12 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 
     env.Reset();
 
+    SnapshotByteSink read_only_sink;
+    ReadOnlySerializer read_only_serializer(isolate);
+    read_only_serializer.SerializeReadOnlyRoots();
+
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(isolate);
+    StartupSerializer startup_serializer(isolate, &read_only_serializer);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;
@@ -529,6 +546,9 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
+    read_only_serializer.FinalizeSerialization();
+
+    SnapshotData read_only_snapshot(&read_only_serializer);
     SnapshotData startup_snapshot(&startup_serializer);
     BuiltinSnapshotData builtin_snapshot(&builtin_serializer);
     SnapshotData partial_snapshot(&partial_serializer);
@@ -536,6 +556,7 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
     *builtin_blob_out = WritePayload(builtin_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
+    *read_only_blob_out = WritePayload(read_only_snapshot.RawData());
   }
   v8_isolate->Dispose();
 }
@@ -545,10 +566,12 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> builtin_blob;
+  Vector<const byte> read_only_blob;
   Vector<const byte> partial_blob;
-  PartiallySerializeContext(&startup_blob, &builtin_blob, &partial_blob);
+  PartiallySerializeContext(&startup_blob, &builtin_blob, &read_only_blob,
+                            &partial_blob);
 
-  StartupBlobs blobs = {startup_blob, builtin_blob};
+  StartupBlobs blobs = {startup_blob, builtin_blob, read_only_blob};
   v8::Isolate* v8_isolate = InitializeFromBlob(blobs);
   CHECK(v8_isolate);
   {
@@ -588,6 +611,7 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
 
 static void PartiallySerializeCustomContext(
     Vector<const byte>* startup_blob_out, Vector<const byte>* builtin_blob_out,
+    Vector<const byte>* read_only_blob_out,
     Vector<const byte>* partial_blob_out) {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
@@ -639,8 +663,12 @@ static void PartiallySerializeCustomContext(
 
     env.Reset();
 
+    SnapshotByteSink read_only_sink;
+    ReadOnlySerializer read_only_serializer(isolate);
+    read_only_serializer.SerializeReadOnlyRoots();
+
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(isolate);
+    StartupSerializer startup_serializer(isolate, &read_only_serializer);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;
@@ -653,6 +681,9 @@ static void PartiallySerializeCustomContext(
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
+    read_only_serializer.FinalizeSerialization();
+
+    SnapshotData read_only_snapshot(&read_only_serializer);
     SnapshotData startup_snapshot(&startup_serializer);
     BuiltinSnapshotData builtin_snapshot(&builtin_serializer);
     SnapshotData partial_snapshot(&partial_serializer);
@@ -660,6 +691,7 @@ static void PartiallySerializeCustomContext(
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
     *builtin_blob_out = WritePayload(builtin_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
+    *read_only_blob_out = WritePayload(read_only_snapshot.RawData());
   }
   v8_isolate->Dispose();
 }
@@ -669,10 +701,12 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> builtin_blob;
+  Vector<const byte> read_only_blob;
   Vector<const byte> partial_blob;
-  PartiallySerializeCustomContext(&startup_blob, &builtin_blob, &partial_blob);
+  PartiallySerializeCustomContext(&startup_blob, &builtin_blob, &read_only_blob,
+                                  &partial_blob);
 
-  StartupBlobs blobs = {startup_blob, builtin_blob};
+  StartupBlobs blobs = {startup_blob, builtin_blob, read_only_blob};
   v8::Isolate* v8_isolate = InitializeFromBlob(blobs);
   CHECK(v8_isolate);
   {
@@ -782,6 +816,17 @@ TEST(CustomSnapshotDataBlob1) {
     CHECK(CompileRun("this.g")->IsUndefined());
   }
   isolate1->Dispose();
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
+}
+
+TEST(SnapshotChecksum) {
+  DisableAlwaysOpt();
+  const char* source1 = "function f() { return 42; }";
+
+  v8::StartupData data1 = CreateSnapshotDataBlob(source1);
+  CHECK(i::Snapshot::VerifyChecksum(&data1));
+  const_cast<char*>(data1.data)[142] = data1.data[142] ^ 4;  // Flip a bit.
+  CHECK(!i::Snapshot::VerifyChecksum(&data1));
   delete[] data1.data;  // We can dispose of the snapshot blob now.
 }
 
@@ -1301,7 +1346,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
     CHECK(IsCompiled("String.raw"));
-    CHECK(!IsCompiled("Array.prototype.lastIndexOf"));
+    CHECK(IsCompiled("Array.prototype.lastIndexOf"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
@@ -1821,9 +1866,9 @@ class SerializerOneByteResource
  public:
   SerializerOneByteResource(const char* data, size_t length)
       : data_(data), length_(length), dispose_count_(0) {}
-  virtual const char* data() const { return data_; }
-  virtual size_t length() const { return length_; }
-  virtual void Dispose() { dispose_count_++; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  void Dispose() override { dispose_count_++; }
   int dispose_count() { return dispose_count_; }
 
  private:
@@ -1837,11 +1882,11 @@ class SerializerTwoByteResource : public v8::String::ExternalStringResource {
  public:
   SerializerTwoByteResource(const char* data, size_t length)
       : data_(AsciiToTwoByteString(data)), length_(length), dispose_count_(0) {}
-  ~SerializerTwoByteResource() { DeleteArray<const uint16_t>(data_); }
+  ~SerializerTwoByteResource() override { DeleteArray<const uint16_t>(data_); }
 
-  virtual const uint16_t* data() const { return data_; }
-  virtual size_t length() const { return length_; }
-  virtual void Dispose() { dispose_count_++; }
+  const uint16_t* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  void Dispose() override { dispose_count_++; }
   int dispose_count() { return dispose_count_; }
 
  private:
@@ -2189,10 +2234,8 @@ TEST(CodeSerializerIsolatesEager) {
 TEST(CodeSerializerAfterExecute) {
   // We test that no compilations happen when running this code. Forcing
   // to always optimize breaks this test.
-  bool prev_opt_value = FLAG_opt;
   bool prev_always_opt_value = FLAG_always_opt;
   FLAG_always_opt = false;
-  FLAG_opt = false;
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache =
       CompileRunAndProduceCache(source, CodeCacheType::kAfterExecute);
@@ -2245,7 +2288,6 @@ TEST(CodeSerializerAfterExecute) {
 
   // Restore the flags.
   FLAG_always_opt = prev_always_opt_value;
-  FLAG_opt = prev_opt_value;
 }
 
 TEST(CodeSerializerFlagChange) {
@@ -3582,11 +3624,10 @@ void CheckSFIsAreWeak(WeakFixedArray* sfis, Isolate* isolate) {
   for (int i = 0; i < sfis->length(); ++i) {
     MaybeObject* maybe_object = sfis->Get(i);
     HeapObject* heap_object;
-    CHECK(maybe_object->IsWeakHeapObject() ||
-          maybe_object->IsClearedWeakHeapObject() ||
-          (maybe_object->ToStrongHeapObject(&heap_object) &&
+    CHECK(maybe_object->IsWeakOrCleared() ||
+          (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
            heap_object->IsUndefined(isolate)));
-    if (maybe_object->IsWeakHeapObject()) {
+    if (maybe_object->IsWeak()) {
       ++no_of_weak;
     }
   }

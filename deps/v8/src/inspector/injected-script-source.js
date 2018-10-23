@@ -252,14 +252,13 @@ InjectedScript.prototype = {
      * @param {?Array.<string>=} columnNames
      * @param {boolean=} isTable
      * @param {boolean=} doNotBind
-     * @param {*=} customObjectConfig
      * @return {!RuntimeAgent.RemoteObject}
      * @suppress {checkTypes}
      */
-    _wrapObject: function(object, objectGroupName, forceValueType, generatePreview, columnNames, isTable, doNotBind, customObjectConfig)
+    _wrapObject: function(object, objectGroupName, forceValueType, generatePreview, columnNames, isTable, doNotBind)
     {
         try {
-            return new InjectedScript.RemoteObject(object, objectGroupName, doNotBind, forceValueType, generatePreview, columnNames, isTable, undefined, customObjectConfig);
+            return new InjectedScript.RemoteObject(object, objectGroupName, doNotBind, forceValueType, generatePreview, columnNames, isTable, undefined);
         } catch (e) {
             try {
                 var description = injectedScript._describe(e);
@@ -504,40 +503,6 @@ InjectedScript.prototype = {
     },
 
     /**
-     * @param {string|undefined} objectGroupName
-     * @param {*} jsonMLObject
-     * @throws {string} error message
-     */
-    _substituteObjectTagsInCustomPreview: function(objectGroupName, jsonMLObject)
-    {
-        var maxCustomPreviewRecursionDepth = 20;
-        this._customPreviewRecursionDepth = (this._customPreviewRecursionDepth || 0) + 1
-        try {
-            if (this._customPreviewRecursionDepth >= maxCustomPreviewRecursionDepth)
-                throw new Error("Too deep hierarchy of inlined custom previews");
-
-            if (!isArrayLike(jsonMLObject))
-                return;
-
-            if (jsonMLObject[0] === "object") {
-                var attributes = jsonMLObject[1];
-                var originObject = attributes["object"];
-                var config = attributes["config"];
-                if (typeof originObject === "undefined")
-                    throw new Error("Illegal format: obligatory attribute \"object\" isn't specified");
-
-                jsonMLObject[1] = this._wrapObject(originObject, objectGroupName, false, false, null, false, false, config);
-                return;
-            }
-
-            for (var i = 0; i < jsonMLObject.length; ++i)
-                this._substituteObjectTagsInCustomPreview(objectGroupName, jsonMLObject[i]);
-        } finally {
-            this._customPreviewRecursionDepth--;
-        }
-    },
-
-    /**
      * @param {*} object
      * @return {boolean}
      */
@@ -661,16 +626,15 @@ InjectedScript.prototype = {
 
         if (InjectedScriptHost.subtype(obj) === "error") {
             try {
-                var stack = obj.stack;
-                var message = obj.message && obj.message.length ? ": " + obj.message : "";
-                var firstCallFrame = /^\s+at\s/m.exec(stack);
-                var stackMessageEnd = firstCallFrame ? firstCallFrame.index : -1;
-                if (stackMessageEnd !== -1) {
-                    var stackTrace = stack.substr(stackMessageEnd);
-                    return className + message + "\n" + stackTrace;
-                }
-                return className + message;
+                const stack = obj.stack;
+                if (stack.substr(0, className.length) === className)
+                    return stack;
+                const message = obj.message;
+                const index = /* suppressBlacklist */ stack.indexOf(message);
+                const messageWithStack = index !== -1 ? stack.substr(index) : message;
+                return className + ': ' + messageWithStack;
             } catch(e) {
+                return className;
             }
         }
 
@@ -700,14 +664,6 @@ InjectedScript.prototype = {
         if (value === null)
             return "" + value;
         return this.isPrimitiveValue(value) ? toStringDescription(value) : (this._describe(value) || "");
-    },
-
-    /**
-     * @param {boolean} enabled
-     */
-    setCustomObjectFormatterEnabled: function(enabled)
-    {
-        this._customObjectFormatterEnabled = enabled;
     }
 }
 
@@ -727,9 +683,8 @@ var injectedScript = new InjectedScript();
  * @param {?Array.<string>=} columnNames
  * @param {boolean=} isTable
  * @param {boolean=} skipEntriesPreview
- * @param {*=} customObjectConfig
  */
-InjectedScript.RemoteObject = function(object, objectGroupName, doNotBind, forceValueType, generatePreview, columnNames, isTable, skipEntriesPreview, customObjectConfig)
+InjectedScript.RemoteObject = function(object, objectGroupName, doNotBind, forceValueType, generatePreview, columnNames, isTable, skipEntriesPreview)
 {
     this.type = typeof object;
     if (this.type === "undefined" && injectedScript._isHTMLAllCollection(object))
@@ -793,72 +748,9 @@ InjectedScript.RemoteObject = function(object, objectGroupName, doNotBind, force
         else
             this.preview = this._generatePreview(object, undefined, columnNames, isTable, skipEntriesPreview);
     }
-
-    if (injectedScript._customObjectFormatterEnabled) {
-        var customPreview = this._customPreview(object, objectGroupName, customObjectConfig);
-        if (customPreview)
-            this.customPreview = customPreview;
-    }
 }
 
 InjectedScript.RemoteObject.prototype = {
-
-    /**
-     * @param {*} object
-     * @param {string=} objectGroupName
-     * @param {*=} customObjectConfig
-     * @return {?RuntimeAgent.CustomPreview}
-     */
-    _customPreview: function(object, objectGroupName, customObjectConfig)
-    {
-        /**
-         * @param {!Error} error
-         */
-        function logError(error)
-        {
-            // We use user code to generate custom output for object, we can use user code for reporting error too.
-            Promise.resolve().then(/* suppressBlacklist */ inspectedGlobalObject.console.error.bind(inspectedGlobalObject.console, "Custom Formatter Failed: " + error.message));
-        }
-
-        /**
-         * @param {*} object
-         * @param {*=} customObjectConfig
-         * @return {*}
-         */
-        function wrap(object, customObjectConfig)
-        {
-            return injectedScript._wrapObject(object, objectGroupName, false, false, null, false, false, customObjectConfig);
-        }
-
-        try {
-            var formatters = inspectedGlobalObject["devtoolsFormatters"];
-            if (!formatters || !isArrayLike(formatters))
-                return null;
-
-            for (var i = 0; i < formatters.length; ++i) {
-                try {
-                    var formatted = formatters[i].header(object, customObjectConfig);
-                    if (!formatted)
-                        continue;
-
-                    var hasBody = formatters[i].hasBody(object, customObjectConfig);
-                    injectedScript._substituteObjectTagsInCustomPreview(objectGroupName, formatted);
-                    var formatterObjectId = injectedScript._bind(formatters[i], objectGroupName);
-                    var bindRemoteObjectFunctionId = injectedScript._bind(wrap, objectGroupName);
-                    var result = {header: JSON.stringify(formatted), hasBody: !!hasBody, formatterObjectId: formatterObjectId, bindRemoteObjectFunctionId: bindRemoteObjectFunctionId};
-                    if (customObjectConfig)
-                        result["configObjectId"] = injectedScript._bind(customObjectConfig, objectGroupName);
-                    return result;
-                } catch (e) {
-                    logError(e);
-                }
-            }
-        } catch (e) {
-            logError(e);
-        }
-        return null;
-    },
-
     /**
      * @return {!RuntimeAgent.ObjectPreview} preview
      */

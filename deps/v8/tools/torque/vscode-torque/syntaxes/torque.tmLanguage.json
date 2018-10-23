@@ -30,7 +30,7 @@
 		},
 		{
 			"name": "support.function.torque",
-			"match": "\\b(min|max|assert|check|debug|unreachable)\\b"
+			"match": "\\b(assert|check|debug|unreachable|Cast|Convert|FromConstexpr|UnsafeCast)\\b"
 		},
     {
       "name": "support.variable.torque",
@@ -65,7 +65,7 @@
 			},
 			{
 				"name": "keyword.other.torque",
-				"match": "\\b(constexpr|module|macro|builtin|runtime|javascript|implicit|deferred|cast|convert|label|labels|tail|isnt|is|let|generates|type|extends|extern|const)\\b"
+				"match": "\\b(constexpr|module|macro|builtin|runtime|javascript|implicit|deferred|label|labels|tail|let|generates|type|extends|extern|const|typeswitch|case)\\b"
 			},
 			{
 				"name": "keyword.operator.torque",

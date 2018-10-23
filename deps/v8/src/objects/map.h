@@ -37,9 +37,11 @@ namespace internal {
   V(FreeSpace)                           \
   V(JSApiObject)                         \
   V(JSArrayBuffer)                       \
-  V(JSFunction)                          \
+  V(JSDataView)                          \
   V(JSObject)                            \
   V(JSObjectFast)                        \
+  V(JSTypedArray)                        \
+  V(JSWeakCell)                          \
   V(JSWeakCollection)                    \
   V(Map)                                 \
   V(NativeContext)                       \
@@ -403,9 +405,6 @@ class Map : public HeapObject {
   inline bool has_fixed_typed_array_elements() const;
   inline bool has_dictionary_elements() const;
 
-  static bool IsValidElementsTransition(ElementsKind from_kind,
-                                        ElementsKind to_kind);
-
   // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
   // map with DICTIONARY_ELEMENTS was found in the prototype chain.
   bool DictionaryElementsInPrototypeChainOnly(Isolate* isolate);
@@ -471,8 +470,6 @@ class Map : public HeapObject {
   bool InstancesNeedRewriting(Map* target, int target_number_of_fields,
                               int target_inobject, int target_unused,
                               int* old_number_of_fields) const;
-  // TODO(ishell): moveit!
-  static Handle<Map> GeneralizeAllFields(Isolate* isolate, Handle<Map> map);
   V8_WARN_UNUSED_RESULT static Handle<FieldType> GeneralizeFieldType(
       Representation rep1, Handle<FieldType> type1, Representation rep2,
       Handle<FieldType> type2, Isolate* isolate);
@@ -693,13 +690,13 @@ class Map : public HeapObject {
   // Maximal number of fast properties. Used to restrict the number of map
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
-  inline bool TooManyFastProperties(StoreFromKeyed store_mode) const;
+  inline bool TooManyFastProperties(StoreOrigin store_origin) const;
   static Handle<Map> TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                               Handle<Name> name,
                                               Handle<Object> value,
                                               PropertyAttributes attributes,
                                               PropertyConstness constness,
-                                              StoreFromKeyed store_mode);
+                                              StoreOrigin store_origin);
   static Handle<Map> TransitionToAccessorProperty(
       Isolate* isolate, Handle<Map> map, Handle<Name> name, int descriptor,
       Handle<Object> getter, Handle<Object> setter,
@@ -756,27 +753,14 @@ class Map : public HeapObject {
   Map* FindElementsKindTransitionedMap(Isolate* isolate,
                                        MapHandles const& candidates);
 
-  inline static bool IsJSObject(InstanceType type);
-
   inline bool CanTransition() const;
 
+#define DECL_TESTER(Type, ...) inline bool Is##Type##Map() const;
+  INSTANCE_TYPE_CHECKERS(DECL_TESTER)
+#undef DECL_TESTER
   inline bool IsBooleanMap() const;
-  inline bool IsNullMap() const;
-  inline bool IsUndefinedMap() const;
   inline bool IsNullOrUndefinedMap() const;
   inline bool IsPrimitiveMap() const;
-  inline bool IsJSReceiverMap() const;
-  inline bool IsJSObjectMap() const;
-  inline bool IsJSPromiseMap() const;
-  inline bool IsJSArrayMap() const;
-  inline bool IsJSFunctionMap() const;
-  inline bool IsStringMap() const;
-  inline bool IsJSProxyMap() const;
-  inline bool IsModuleMap() const;
-  inline bool IsJSGlobalProxyMap() const;
-  inline bool IsJSGlobalObjectMap() const;
-  inline bool IsJSTypedArrayMap() const;
-  inline bool IsJSDataViewMap() const;
   inline bool IsSpecialReceiverMap() const;
   inline bool IsCustomElementsReceiverMap() const;
 
@@ -945,7 +929,7 @@ class Map : public HeapObject {
   void UpdateFieldType(Isolate* isolate, int descriptor_number,
                        Handle<Name> name, PropertyConstness new_constness,
                        Representation new_representation,
-                       MaybeObjectHandle new_wrapped_type);
+                       const MaybeObjectHandle& new_wrapped_type);
 
   // TODO(ishell): Move to MapUpdater.
   void PrintReconfiguration(Isolate* isolate, FILE* file, int modify_index,
@@ -971,9 +955,6 @@ class Map : public HeapObject {
 class NormalizedMapCache : public WeakFixedArray,
                            public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   static Handle<NormalizedMapCache> New(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,

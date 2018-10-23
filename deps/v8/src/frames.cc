@@ -29,7 +29,7 @@ ReturnAddressLocationResolver StackFrame::return_address_location_resolver_ =
 
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
-class StackHandlerIterator BASE_EMBEDDED {
+class StackHandlerIterator {
  public:
   StackHandlerIterator(const StackFrame* frame, StackHandler* handler)
       : limit_(frame->fp()), handler_(handler) {

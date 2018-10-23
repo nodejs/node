@@ -111,8 +111,7 @@ template <class AllocatorT>
 void Serializer<AllocatorT>::VisitRootPointers(Root root,
                                                const char* description,
                                                Object** start, Object** end) {
-  // Builtins and bytecode handlers are serialized in a separate pass by the
-  // BuiltinSerializer.
+  // Builtins are serialized in a separate pass by the BuiltinSerializer.
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
 
   for (Object** current = start; current < end; current++) {
@@ -138,6 +137,21 @@ void Serializer<AllocatorT>::PrintStack() {
   }
 }
 #endif  // DEBUG
+
+template <class AllocatorT>
+bool Serializer<AllocatorT>::SerializeRoot(HeapObject* obj,
+                                           HowToCode how_to_code,
+                                           WhereToPoint where_to_point,
+                                           int skip) {
+  RootIndex root_index;
+  // Derived serializers are responsible for determining if the root has
+  // actually been serialized before calling this.
+  if (root_index_map()->Lookup(obj, &root_index)) {
+    PutRoot(root_index, obj, how_to_code, where_to_point, skip);
+    return true;
+  }
+  return false;
+}
 
 template <class AllocatorT>
 bool Serializer<AllocatorT>::SerializeHotObject(HeapObject* obj,
@@ -233,16 +247,15 @@ bool Serializer<AllocatorT>::SerializeBuiltinReference(
 template <class AllocatorT>
 bool Serializer<AllocatorT>::ObjectIsBytecodeHandler(HeapObject* obj) const {
   if (!obj->IsCode()) return false;
-  Code* code = Code::cast(obj);
-  if (isolate()->heap()->IsDeserializeLazyHandler(code)) return false;
-  return (code->kind() == Code::BYTECODE_HANDLER);
+  return (Code::cast(obj)->kind() == Code::BYTECODE_HANDLER);
 }
 
 template <class AllocatorT>
 void Serializer<AllocatorT>::PutRoot(
-    int root_index, HeapObject* object,
+    RootIndex root, HeapObject* object,
     SerializerDeserializer::HowToCode how_to_code,
     SerializerDeserializer::WhereToPoint where_to_point, int skip) {
+  int root_index = static_cast<int>(root);
   if (FLAG_trace_serializer) {
     PrintF(" Encoding root %d:", root_index);
     object->ShortPrint();
@@ -251,7 +264,7 @@ void Serializer<AllocatorT>::PutRoot(
 
   // Assert that the first 32 root array items are a conscious choice. They are
   // chosen so that the most common ones can be encoded more efficiently.
-  STATIC_ASSERT(Heap::kArgumentsMarkerRootIndex ==
+  STATIC_ASSERT(static_cast<int>(RootIndex::kArgumentsMarker) ==
                 kNumberOfRootArrayConstants - 1);
 
   if (how_to_code == kPlain && where_to_point == kStartOfObject &&
@@ -330,14 +343,14 @@ void Serializer<AllocatorT>::PutNextChunk(int space) {
 }
 
 template <class AllocatorT>
-void Serializer<AllocatorT>::Pad() {
+void Serializer<AllocatorT>::Pad(int padding_offset) {
   // The non-branching GetInt will read up to 3 bytes too far, so we need
   // to pad the snapshot to make sure we don't read over the end.
   for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) {
     sink_.Put(kNop, "Padding");
   }
   // Pad up to pointer size for checksum.
-  while (!IsAligned(sink_.Position(), kPointerAlignment)) {
+  while (!IsAligned(sink_.Position() + padding_offset, kPointerAlignment)) {
     sink_.Put(kNop, "Padding");
   }
 }
@@ -436,10 +449,10 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeJSTypedArray() {
     if (!typed_array->is_on_heap()) {
       // Explicitly serialize the backing store now.
       JSArrayBuffer* buffer = JSArrayBuffer::cast(typed_array->buffer());
-      CHECK(buffer->byte_length()->IsSmi());
-      CHECK(typed_array->byte_offset()->IsSmi());
-      int32_t byte_length = NumberToInt32(buffer->byte_length());
-      int32_t byte_offset = NumberToInt32(typed_array->byte_offset());
+      CHECK_LE(buffer->byte_length(), Smi::kMaxValue);
+      CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
+      int32_t byte_length = static_cast<int32_t>(buffer->byte_length());
+      int32_t byte_offset = static_cast<int32_t>(typed_array->byte_offset());
 
       // We need to calculate the backing store from the external pointer
       // because the ArrayBuffer may already have been serialized.
@@ -469,9 +482,8 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeJSArrayBuffer() {
   JSArrayBuffer* buffer = JSArrayBuffer::cast(object_);
   void* backing_store = buffer->backing_store();
   // We cannot store byte_length larger than Smi range in the snapshot.
-  // Attempt to make sure that NumberToInt32 produces something sensible.
-  CHECK(buffer->byte_length()->IsSmi());
-  int32_t byte_length = NumberToInt32(buffer->byte_length());
+  CHECK_LE(buffer->byte_length(), Smi::kMaxValue);
+  int32_t byte_length = static_cast<int32_t>(buffer->byte_length());
 
   // The embedder-allocated backing store only exists for the off-heap case.
   if (backing_store != nullptr) {
@@ -505,7 +517,7 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeExternalString() {
     }
   } else {
     ExternalOneByteString* string = ExternalOneByteString::cast(object_);
-    DCHECK(string->is_short());
+    DCHECK(string->is_uncached());
     const NativesExternalStringResource* resource =
         reinterpret_cast<const NativesExternalStringResource*>(
             string->resource());
@@ -581,7 +593,8 @@ class UnlinkWeakNextScope {
  public:
   explicit UnlinkWeakNextScope(Heap* heap, HeapObject* object)
       : object_(nullptr) {
-    if (object->IsAllocationSite()) {
+    if (object->IsAllocationSite() &&
+        AllocationSite::cast(object)->HasWeakNext()) {
       object_ = object;
       next_ = AllocationSite::cast(object)->weak_next();
       AllocationSite::cast(object)->set_weak_next(
@@ -599,7 +612,7 @@ class UnlinkWeakNextScope {
  private:
   HeapObject* object_;
   Object* next_;
-  DisallowHeapAllocation no_gc_;
+  DISALLOW_HEAP_ALLOCATION(no_gc_);
 };
 
 template <class AllocatorT>
@@ -729,8 +742,7 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
     HeapObject* host, MaybeObject** start, MaybeObject** end) {
   MaybeObject** current = start;
   while (current < end) {
-    while (current < end &&
-           ((*current)->IsSmi() || (*current)->IsClearedWeakHeapObject())) {
+    while (current < end && ((*current)->IsSmi() || (*current)->IsCleared())) {
       current++;
     }
     if (current < end) {
@@ -738,13 +750,15 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
     }
     HeapObject* current_contents;
     HeapObjectReferenceType reference_type;
-    while (current < end && (*current)->ToStrongOrWeakHeapObject(
-                                &current_contents, &reference_type)) {
-      int root_index = serializer_->root_index_map()->Lookup(current_contents);
+    while (current < end &&
+           (*current)->GetHeapObject(&current_contents, &reference_type)) {
+      RootIndex root_index;
       // Repeats are not subject to the write barrier so we can only use
       // immortal immovable root members. They are never in new space.
-      if (current != start && root_index != RootIndexMap::kInvalidRootIndex &&
-          Heap::RootIsImmortalImmovable(root_index) &&
+      if (current != start &&
+          serializer_->root_index_map()->Lookup(current_contents,
+                                                &root_index) &&
+          RootsTable::IsImmortalImmovable(root_index) &&
           *current == current[-1]) {
         DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
         DCHECK(!Heap::InNewSpace(current_contents));

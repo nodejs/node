@@ -1288,7 +1288,7 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
 
 TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
   TRACED_FORRANGE(int, bit, 0, 63) {
-    uint64_t mask = 1L << bit;
+    uint64_t mask = 1LL << bit;
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     RawMachineLabel a, b;
     m.Branch(m.Word64And(m.Parameter(0), m.Int64Constant(mask)), &a, &b);
@@ -1309,7 +1309,7 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
 
 TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnLeft) {
   TRACED_FORRANGE(int, bit, 0, 63) {
-    uint64_t mask = 1L << bit;
+    uint64_t mask = 1LL << bit;
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     RawMachineLabel a, b;
     m.Branch(m.Word64And(m.Int64Constant(mask), m.Parameter(0)), &a, &b);
@@ -4543,8 +4543,8 @@ TEST_F(InstructionSelectorTest, ExternalReferenceLoad1) {
   TRACED_FOREACH(int64_t, offset, kOffsets) {
     StreamBuilder m(this, MachineType::Int64());
     ExternalReference reference = bit_cast<ExternalReference>(
-        reinterpret_cast<intptr_t>(isolate()->heap()->roots_array_start()) +
-        offset + kRootRegisterBias);
+        reinterpret_cast<intptr_t>(isolate()->roots_array_start()) + offset +
+        kRootRegisterBias);
     Node* const value =
         m.Load(MachineType::Int64(), m.ExternalConstant(reference));
     m.Return(value);
@@ -4565,8 +4565,8 @@ TEST_F(InstructionSelectorTest, ExternalReferenceLoad2) {
   StreamBuilder m(this, MachineType::Int64());
   int64_t offset = 0x100000000;
   ExternalReference reference = bit_cast<ExternalReference>(
-      reinterpret_cast<intptr_t>(isolate()->heap()->roots_array_start()) +
-      offset + kRootRegisterBias);
+      reinterpret_cast<intptr_t>(isolate()->roots_array_start()) + offset +
+      kRootRegisterBias);
   Node* const value =
       m.Load(MachineType::Int64(), m.ExternalConstant(reference));
   m.Return(value);

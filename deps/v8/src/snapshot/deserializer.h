@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 
+class AllocationSite;
 class HeapObject;
 class Object;
 
@@ -71,6 +72,9 @@ class Deserializer : public SerializerDeserializer {
 
   Isolate* isolate() const { return isolate_; }
   SnapshotByteSource* source() { return &source_; }
+  const std::vector<AllocationSite*>& new_allocation_sites() const {
+    return new_allocation_sites_;
+  }
   const std::vector<Code*>& new_code_objects() const {
     return new_code_objects_;
   }
@@ -148,6 +152,7 @@ class Deserializer : public SerializerDeserializer {
 
   ExternalReferenceTable* external_reference_table_;
 
+  std::vector<AllocationSite*> new_allocation_sites_;
   std::vector<Code*> new_code_objects_;
   std::vector<AccessorInfo*> accessor_infos_;
   std::vector<CallHandlerInfo*> call_handler_infos_;
@@ -185,7 +190,7 @@ class StringTableInsertionKey : public StringTableKey {
   uint32_t ComputeHashField(String* string);
 
   String* string_;
-  DisallowHeapAllocation no_gc;
+  DISALLOW_HEAP_ALLOCATION(no_gc);
 };
 
 }  // namespace internal

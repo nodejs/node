@@ -6,7 +6,7 @@
 #include "src/elements.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/runtime/runtime-utils.h"
@@ -30,14 +30,14 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   if (array_buffer->backing_store() == nullptr) {
-    CHECK_EQ(Smi::kZero, array_buffer->byte_length());
+    CHECK_EQ(0, array_buffer->byte_length());
     return ReadOnlyRoots(isolate).undefined_value();
   }
   // Shared array buffers should never be neutered.
   CHECK(!array_buffer->is_shared());
   DCHECK(!array_buffer->is_external());
   void* backing_store = array_buffer->backing_store();
-  size_t byte_length = NumberToSize(array_buffer->byte_length());
+  size_t byte_length = array_buffer->byte_length();
   array_buffer->set_is_external(true);
   isolate->heap()->UnregisterArrayBuffer(*array_buffer);
   array_buffer->Neuter();

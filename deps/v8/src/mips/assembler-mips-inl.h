@@ -70,12 +70,15 @@ void RelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
     Assembler::RelocateInternalReference(rmode_, pc_, delta);
+  } else if (IsRelativeCodeTarget(rmode_)) {
+    Assembler::RelocateRelativeReference(rmode_, pc_, delta);
   }
 }
 
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  DCHECK(IsCodeTargetMode(rmode_) || IsRuntimeEntry(rmode_) ||
+         IsWasmCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
@@ -158,9 +161,8 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
     Assembler::instr_at_put(pc + 1 * kInstrSize, instr2 | jic_offset_u);
   } else {
     // Encoded internal references are lui/ori load of 32-bit absolute address.
-    Assembler::instr_at_put(pc + 0 * kInstrSize,
-                            instr1 | ((imm >> kLuiShift) & kImm16Mask));
-    Assembler::instr_at_put(pc + 1 * kInstrSize, instr2 | (imm & kImm16Mask));
+    PatchLuiOriImmediate(pc, imm, instr1, 0 * kInstrSize, instr2,
+                         1 * kInstrSize);
   }
 
   // Currently used only by deserializer, and all code will be flushed
@@ -169,31 +171,34 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
 
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
-  if (mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
+  if (RelocInfo::IsInternalReferenceEncoded(mode)) {
     DCHECK(IsLui(instr_at(pc)));
     set_target_internal_reference_encoded_at(pc, target);
   } else {
-    DCHECK(mode == RelocInfo::INTERNAL_REFERENCE);
+    DCHECK(RelocInfo::IsInternalReference(mode));
     Memory<Address>(pc) = target;
   }
 }
 
 HeapObject* RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObject(rmode_));
   return HeapObject::cast(reinterpret_cast<Object*>(
       Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
-      Assembler::target_address_at(pc_, constant_pool_)));
+  if (IsCodeTarget(rmode_) || IsEmbeddedObject(rmode_)) {
+    return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
+        Assembler::target_address_at(pc_, constant_pool_)));
+  }
+  DCHECK(IsRelativeCodeTarget(rmode_));
+  return origin->relative_code_target_object_handle_at(pc_);
 }
 
 void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObject(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
@@ -204,24 +209,24 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
 
 
 Address RelocInfo::target_external_reference() {
-  DCHECK(rmode_ == EXTERNAL_REFERENCE);
+  DCHECK(IsExternalReference(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 void RelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
+  DCHECK(IsExternalReference(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
 }
 
 Address RelocInfo::target_internal_reference() {
-  if (rmode_ == INTERNAL_REFERENCE) {
+  if (IsInternalReference(rmode_)) {
     return Memory<Address>(pc_);
   } else {
     // Encoded internal references are lui/ori or lui/jic load of 32-bit
     // absolute address.
-    DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
+    DCHECK(IsInternalReferenceEncoded(rmode_));
     Instr instr1 = Assembler::instr_at(pc_ + 0 * kInstrSize);
     Instr instr2 = Assembler::instr_at(pc_ + 1 * kInstrSize);
     DCHECK(Assembler::IsLui(instr1));
@@ -230,15 +235,13 @@ Address RelocInfo::target_internal_reference() {
       return static_cast<Address>(
           Assembler::CreateTargetAddress(instr1, instr2));
     }
-    int32_t imm = (instr1 & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
-    imm |= (instr2 & static_cast<int32_t>(kImm16Mask));
-    return static_cast<Address>(imm);
+    return static_cast<Address>(Assembler::GetLuiOriImmediate(instr1, instr2));
   }
 }
 
 
 Address RelocInfo::target_internal_reference_address() {
-  DCHECK(rmode_ == INTERNAL_REFERENCE || rmode_ == INTERNAL_REFERENCE_ENCODED);
+  DCHECK(IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
   return pc_;
 }
 
@@ -274,21 +277,34 @@ void RelocInfo::WipeOut() {
   }
 }
 
+Handle<Code> Assembler::relative_code_target_object_handle_at(
+    Address pc) const {
+  Instr instr1 = instr_at(pc);
+  Instr instr2 = instr_at(pc + kInstrSize);
+  if (IsNal(instr2)) {
+    instr2 = instr_at(pc + 2 * kInstrSize);
+  }
+  // Interpret 2 instructions generated by li (lui/ori).
+  DCHECK(IsLui(instr1));
+  DCHECK(IsOri(instr2));
+  int code_target_index = GetLuiOriImmediate(instr1, instr2);
+  return GetCodeTarget(code_target_index);
+}
+
 template <typename ObjectVisitor>
 void RelocInfo::Visit(ObjectVisitor* visitor) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
+  Mode mode = rmode();
+  if (IsEmbeddedObject(mode)) {
     visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTargetMode(mode)) {
+  } else if (IsCodeTargetMode(mode)) {
     visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
+  } else if (IsExternalReference(mode)) {
     visitor->VisitExternalReference(host(), this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE ||
-             mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
+  } else if (IsInternalReference(mode) || IsInternalReferenceEncoded(mode)) {
     visitor->VisitInternalReference(host(), this);
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
+  } else if (IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
+  } else if (IsOffHeapTarget(mode)) {
     visitor->VisitOffHeapTarget(host(), this);
   }
 }

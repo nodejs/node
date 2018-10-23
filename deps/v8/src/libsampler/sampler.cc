@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <atomic>
 
 #if !V8_OS_QNX && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
@@ -21,19 +22,11 @@
 #include <mach/mach.h>
 // OpenBSD doesn't have <ucontext.h>. ucontext_t lives in <signal.h>
 // and is a typedef for struct sigcontext. There is no uc_mcontext.
-#elif(!V8_OS_ANDROID || defined(__BIONIC_HAVE_UCONTEXT_T)) && !V8_OS_OPENBSD
+#elif !V8_OS_OPENBSD
 #include <ucontext.h>
 #endif
 
 #include <unistd.h>
-
-// GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
-// Old versions of the C library <signal.h> didn't define the type.
-#if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    (defined(__arm__) || defined(__aarch64__)) && \
-    !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
-#include <asm/sigcontext.h>  // NOLINT
-#endif
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
 
@@ -183,16 +176,15 @@ namespace {
 #if defined(USE_SIGNALS)
 typedef std::vector<Sampler*> SamplerList;
 typedef SamplerList::iterator SamplerListIterator;
-typedef base::AtomicValue<bool> AtomicMutex;
+typedef std::atomic_bool AtomicMutex;
 
 class AtomicGuard {
  public:
   explicit AtomicGuard(AtomicMutex* atomic, bool is_blocking = true)
       : atomic_(atomic), is_success_(false) {
     do {
-      // Use Acquire_Load to gain mutual exclusion.
-      USE(atomic_->Value());
-      is_success_ = atomic_->TrySetValue(false, true);
+      bool expected = false;
+      is_success_ = atomic->compare_exchange_weak(expected, true);
     } while (is_blocking && !is_success_);
   }
 
@@ -200,7 +192,7 @@ class AtomicGuard {
 
   ~AtomicGuard() {
     if (!is_success_) return;
-    atomic_->SetValue(false);
+    atomic_->store(false);
   }
 
  private:
@@ -393,17 +385,17 @@ class SignalHandler {
   }
 
   static void IncreaseSamplerCount() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_);
     if (++client_count_ == 1) Install();
   }
 
   static void DecreaseSamplerCount() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_);
     if (--client_count_ == 0) Restore();
   }
 
   static bool Installed() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_);
     return signal_handler_installed_;
   }
 
@@ -423,7 +415,7 @@ class SignalHandler {
 
   static void Restore() {
     if (signal_handler_installed_) {
-      sigaction(SIGPROF, &old_signal_handler_, 0);
+      sigaction(SIGPROF, &old_signal_handler_, nullptr);
       signal_handler_installed_ = false;
     }
   }
@@ -698,6 +690,10 @@ void Sampler::DoSample() {
     state.pc = reinterpret_cast<void*>(context.Rip);
     state.sp = reinterpret_cast<void*>(context.Rsp);
     state.fp = reinterpret_cast<void*>(context.Rbp);
+#elif V8_HOST_ARCH_ARM64
+    state.pc = reinterpret_cast<void*>(context.Pc);
+    state.sp = reinterpret_cast<void*>(context.Sp);
+    state.fp = reinterpret_cast<void*>(context.Fp);
 #else
     state.pc = reinterpret_cast<void*>(context.Eip);
     state.sp = reinterpret_cast<void*>(context.Esp);

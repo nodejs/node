@@ -485,6 +485,11 @@ text {
     margin-left: -80px;
 }
 
+#sequence {
+    font-family: monospace;
+    margin-top: 50px;
+}
+
 #schedule {
     font-family: monospace;
     margin-top: 50px;
@@ -579,6 +584,52 @@ text {
     display: inline;
 }
 
+.instruction * {
+    padding-right: .5ex;
+}
+
+.phi-label, .instruction-id {
+    display: inline-block;
+    padding-right: .5ex;
+    padding-left: .5ex;
+    min-width: 1ex;
+    vertical-align: top;
+}
+
+.instruction-id:after {
+    content: ":";
+}
+
+.instruction-node, .gap, .instruction {
+    display: block;
+}
+
+.phi-contents, .instruction-contents, .gap *, .instruction * {
+    display: inline-block;
+}
+
+.phi * {
+    padding-right: 1ex;
+    display: inline-block;
+}
+
+.gap .gap-move {
+    padding-left: .5ex;
+    padding-right: .5ex;
+}
+
+.gap > *:before {
+    content: "(";
+}
+
+.gap > *:after {
+    content: ")";
+}
+
+.parameter.constant {
+    outline: 1px dotted red;
+}
+
 .clickable:hover {
     text-decoration: underline;
 }
@@ -601,4 +652,13 @@ text {
 
 .comma-sep-list > *:last-child {
     padding-right: 0ex;
+}
+
+.temps:before {
+    content: "temps: ";
+}
+
+.temps {
+    padding-left: .5ex;
+    outline: 1px dotted grey;
 }

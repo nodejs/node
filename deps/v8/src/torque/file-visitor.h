@@ -51,10 +51,6 @@ class FileVisitor {
   };
 
  protected:
-  static constexpr const char* kReturnValueVariable = "_return";
-  static constexpr const char* kDoneLabelName = "_done";
-  static constexpr const char* kForIndexValueVariable = "_for_index";
-
   Module* CurrentModule() const { return module_; }
 
   friend class ScopedModuleActivator;

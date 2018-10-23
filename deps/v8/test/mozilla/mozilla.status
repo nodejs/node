@@ -158,6 +158,11 @@
   'js1_5/Regress/regress-462292': [SKIP],
   'js1_5/decompilation/regress-443071-01': [SKIP],
 
+  # This test checks that 'unshift' doesn't cause a OOM. Since the range error
+  # will get thrown at the end of the operation, this test runs for a long time.
+  # https://crbug.com/v8/8120
+  'ecma_3/Array/regress-322135-04': [SKIP],
+
   ##################### SLOW TESTS #####################
 
   # Compiles a long chain of && or || operations, can time out under slower
@@ -184,6 +189,11 @@
   # characters. This takes a long time to run (~32 seconds).
   'js1_5/GC/regress-348532': [SKIP],
 
+  # Takes a really long time to run, creating an Array of length
+  # 2^32 - 1. Related to removal of "sparse" array support for
+  # splice and friends:
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8131.
+  'ecma_3/Array/regress-322135-03': [SKIP],
 
   # Runs for too long: huge array with getters and setters. As it says
   # in the test: "This test will probably run out of memory".
@@ -1012,6 +1022,11 @@
   #BUG(3152): Avoid C stack overflow.
   'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run'
+
+['system == android', {
+  # https://crbug.com/v8/8146
+  'ecma/Array/15.4.4.5-3': [FAIL],
+}],  # 'system == android'
 
 ['tsan', {
   # https://crbug.com/v8/7632

@@ -6,6 +6,7 @@
 #include "src/snapshot/startup-serializer.h"
 
 #include "src/api-inl.h"
+#include "src/math-random.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -40,8 +41,7 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
                 ReadOnlyRoots(isolate()).undefined_value());
   DCHECK(!context_->global_object()->IsUndefined());
   // Reset math random cache to get fresh random numbers.
-  context_->set_math_random_index(Smi::kZero);
-  context_->set_math_random_cache(ReadOnlyRoots(isolate()).undefined_value());
+  MathRandom::ResetContext(context_);
 
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
                    reinterpret_cast<Object**>(o));
@@ -59,21 +59,18 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  int root_index = root_index_map()->Lookup(obj);
-  if (root_index != RootIndexMap::kInvalidRootIndex) {
-    PutRoot(root_index, obj, how_to_code, where_to_point, skip);
-    return;
-  }
+  if (SerializeRoot(obj, how_to_code, where_to_point, skip)) return;
 
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
-  if (ShouldBeInThePartialSnapshotCache(obj)) {
-    FlushSkip(skip);
+  if (startup_serializer_->SerializeUsingReadOnlyObjectCache(
+          &sink_, obj, how_to_code, where_to_point, skip)) {
+    return;
+  }
 
-    int cache_index = startup_serializer_->PartialSnapshotCacheIndex(obj);
-    sink_.Put(kPartialSnapshotCache + how_to_code + where_to_point,
-              "PartialSnapshotCache");
-    sink_.PutInt(cache_index, "partial_snapshot_cache_index");
+  if (ShouldBeInThePartialSnapshotCache(obj)) {
+    startup_serializer_->SerializeUsingPartialSnapshotCache(
+        &sink_, obj, how_to_code, where_to_point, skip);
     return;
   }
 

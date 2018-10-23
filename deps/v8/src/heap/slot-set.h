@@ -226,7 +226,7 @@ class SlotSet : public Malloced {
   }
 
   int NumberOfPreFreedEmptyBuckets() {
-    base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
+    base::MutexGuard guard(&to_be_freed_buckets_mutex_);
     return static_cast<int>(to_be_freed_buckets_.size());
   }
 
@@ -253,7 +253,7 @@ class SlotSet : public Malloced {
   }
 
   void FreeToBeFreedBuckets() {
-    base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
+    base::MutexGuard guard(&to_be_freed_buckets_mutex_);
     while (!to_be_freed_buckets_.empty()) {
       Bucket top = to_be_freed_buckets_.top();
       to_be_freed_buckets_.pop();
@@ -294,7 +294,7 @@ class SlotSet : public Malloced {
   void PreFreeEmptyBucket(int bucket_index) {
     Bucket bucket = LoadBucket(&buckets_[bucket_index]);
     if (bucket != nullptr) {
-      base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
+      base::MutexGuard guard(&to_be_freed_buckets_mutex_);
       to_be_freed_buckets_.push(bucket);
       StoreBucket(&buckets_[bucket_index], nullptr);
     }
@@ -532,7 +532,7 @@ class TypedSlotSet {
         } else {
           set_top(n);
         }
-        base::LockGuard<base::Mutex> guard(&to_be_freed_chunks_mutex_);
+        base::MutexGuard guard(&to_be_freed_chunks_mutex_);
         to_be_freed_chunks_.push(chunk);
       } else {
         previous = chunk;
@@ -543,7 +543,7 @@ class TypedSlotSet {
   }
 
   void FreeToBeFreedChunks() {
-    base::LockGuard<base::Mutex> guard(&to_be_freed_chunks_mutex_);
+    base::MutexGuard guard(&to_be_freed_chunks_mutex_);
     while (!to_be_freed_chunks_.empty()) {
       Chunk* top = to_be_freed_chunks_.top();
       to_be_freed_chunks_.pop();

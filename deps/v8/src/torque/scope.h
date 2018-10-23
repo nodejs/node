@@ -17,7 +17,6 @@ namespace internal {
 namespace torque {
 
 class ScopeChain;
-class Variable;
 class Declarable;
 
 class Scope {
@@ -35,8 +34,6 @@ class Scope {
   int scope_number() const { return scope_number_; }
 
   ScopeChain& GetScopeChain() const { return scope_chain_; }
-
-  void AddLiveVariables(std::set<const Variable*>& set);
 
   void Print();
 
@@ -85,14 +82,6 @@ class ScopeChain {
   Scope* TopScope() const { return current_scopes_.back(); }
   void PushScope(Scope* scope) { current_scopes_.push_back(scope); }
   void PopScope() { current_scopes_.pop_back(); }
-
-  std::set<const Variable*> GetLiveVariables() {
-    std::set<const Variable*> result;
-    for (auto scope : current_scopes_) {
-      scope->AddLiveVariables(result);
-    }
-    return result;
-  }
 
   void Declare(const std::string& name, Declarable* d) {
     TopScope()->Declare(name, d);

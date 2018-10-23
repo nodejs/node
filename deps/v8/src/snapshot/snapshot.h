@@ -96,7 +96,8 @@ class EmbeddedData final {
 
   // Padded with kCodeAlignment.
   uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
-    return PadAndAlign(InstructionSizeOfBuiltin(i));
+    uint32_t size = InstructionSizeOfBuiltin(i);
+    return (size == 0) ? 0 : PadAndAlign(size);
   }
 
   size_t CreateHash() const;
@@ -175,12 +176,6 @@ class Snapshot : public AllStatic {
   static Code* EnsureBuiltinIsDeserialized(Isolate* isolate,
                                            Handle<SharedFunctionInfo> shared);
 
-  // Deserializes a single given handler code object. Intended to be called at
-  // runtime after the isolate has been fully initialized.
-  static Code* DeserializeHandler(Isolate* isolate,
-                                  interpreter::Bytecode bytecode,
-                                  interpreter::OperandScale operand_scale);
-
   // ---------------- Helper methods ----------------
 
   static bool HasContextSnapshot(Isolate* isolate, size_t index);
@@ -189,11 +184,14 @@ class Snapshot : public AllStatic {
   // To be implemented by the snapshot source.
   static const v8::StartupData* DefaultSnapshotBlob();
 
+  static bool VerifyChecksum(const v8::StartupData* data);
+
   // ---------------- Serialization ----------------
 
   static v8::StartupData CreateSnapshotBlob(
       const SnapshotData* startup_snapshot,
       const BuiltinSnapshotData* builtin_snapshot,
+      const SnapshotData* read_only_snapshot,
       const std::vector<SnapshotData*>& context_snapshots,
       bool can_be_rehashed);
 
@@ -207,6 +205,7 @@ class Snapshot : public AllStatic {
                                        uint32_t index);
   static bool ExtractRehashability(const v8::StartupData* data);
   static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
+  static Vector<const byte> ExtractReadOnlyData(const v8::StartupData* data);
   static Vector<const byte> ExtractBuiltinData(const v8::StartupData* data);
   static Vector<const byte> ExtractContextData(const v8::StartupData* data,
                                                uint32_t index);
@@ -224,14 +223,18 @@ class Snapshot : public AllStatic {
   // Snapshot blob layout:
   // [0] number of contexts N
   // [1] rehashability
-  // [2] (128 bytes) version string
-  // [3] offset to builtins
-  // [4] offset to context 0
-  // [5] offset to context 1
+  // [2] checksum part A
+  // [3] checksum part B
+  // [4] (128 bytes) version string
+  // [5] offset to builtins
+  // [6] offset to readonly
+  // [7] offset to context 0
+  // [8] offset to context 1
   // ...
   // ... offset to context N - 1
   // ... startup snapshot data
   // ... builtin snapshot data
+  // ... read-only snapshot data
   // ... context 0 snapshot data
   // ... context 1 snapshot data
 
@@ -239,16 +242,30 @@ class Snapshot : public AllStatic {
   // TODO(yangguo): generalize rehashing, and remove this flag.
   static const uint32_t kRehashabilityOffset =
       kNumberOfContextsOffset + kUInt32Size;
-  static const uint32_t kVersionStringOffset =
+  static const uint32_t kChecksumPartAOffset =
       kRehashabilityOffset + kUInt32Size;
+  static const uint32_t kChecksumPartBOffset =
+      kChecksumPartAOffset + kUInt32Size;
+  static const uint32_t kVersionStringOffset =
+      kChecksumPartBOffset + kUInt32Size;
   static const uint32_t kVersionStringLength = 64;
   static const uint32_t kBuiltinOffsetOffset =
       kVersionStringOffset + kVersionStringLength;
-  static const uint32_t kFirstContextOffsetOffset =
+  static const uint32_t kReadOnlyOffsetOffset =
       kBuiltinOffsetOffset + kUInt32Size;
+  static const uint32_t kFirstContextOffsetOffset =
+      kReadOnlyOffsetOffset + kUInt32Size;
+
+  static Vector<const byte> ChecksummedContent(const v8::StartupData* data) {
+    const uint32_t kChecksumStart = kVersionStringOffset;
+    return Vector<const byte>(
+        reinterpret_cast<const byte*>(data->data + kChecksumStart),
+        data->raw_size - kChecksumStart);
+  }
 
   static uint32_t StartupSnapshotOffset(int num_contexts) {
-    return kFirstContextOffsetOffset + num_contexts * kInt32Size;
+    return POINTER_SIZE_ALIGN(kFirstContextOffsetOffset +
+                              num_contexts * kInt32Size);
   }
 
   static uint32_t ContextSnapshotOffsetOffset(int index) {

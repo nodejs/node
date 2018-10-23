@@ -25,7 +25,7 @@ namespace internal {
   V(BigUint64, biguint64, BIGUINT64, uint64_t)           \
   V(BigInt64, bigint64, BIGINT64, int64_t)
 
-enum ElementsKind {
+enum ElementsKind : uint8_t {
   // The "fast" kind for elements that only contain SMI values. Must be first
   // to make it possible to efficiently check maps for this kind.
   PACKED_SMI_ELEMENTS,

@@ -77,11 +77,11 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     Goto(&cell_done);
 
     BIND(&no_closures);
-    StoreMapNoWriteBarrier(feedback_cell, Heap::kOneClosureCellMapRootIndex);
+    StoreMapNoWriteBarrier(feedback_cell, RootIndex::kOneClosureCellMap);
     Goto(&cell_done);
 
     BIND(&one_closure);
-    StoreMapNoWriteBarrier(feedback_cell, Heap::kManyClosuresCellMapRootIndex);
+    StoreMapNoWriteBarrier(feedback_cell, RootIndex::kManyClosuresCellMap);
     Goto(&cell_done);
 
     BIND(&cell_done);
@@ -116,9 +116,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // Initialize the rest of the function.
   StoreObjectFieldRoot(result, JSObject::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(result, JSObject::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   {
     // Set function prototype if necessary.
     Label done(this), init_prototype(this);
@@ -127,7 +127,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
     BIND(&init_prototype);
     StoreObjectFieldRoot(result, JSFunction::kPrototypeOrInitialMapOffset,
-                         Heap::kTheHoleValueRootIndex);
+                         RootIndex::kTheHoleValue);
     Goto(&done);
     BIND(&done);
   }
@@ -236,13 +236,13 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   TNode<Context> function_context =
       UncheckedCast<Context>(AllocateInNewSpace(size));
 
-  Heap::RootListIndex context_type;
+  RootIndex context_type;
   switch (scope_type) {
     case EVAL_SCOPE:
-      context_type = Heap::kEvalContextMapRootIndex;
+      context_type = RootIndex::kEvalContextMap;
       break;
     case FUNCTION_SCOPE:
-      context_type = Heap::kFunctionContextMapRootIndex;
+      context_type = RootIndex::kFunctionContextMap;
       break;
     default:
       UNREACHABLE();

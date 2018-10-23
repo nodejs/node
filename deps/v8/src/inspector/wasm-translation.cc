@@ -62,7 +62,7 @@ class WasmTranslation::TranslatorImpl {
     TransLocation(WasmTranslation* translation, String16 script_id, int line,
                   int column)
         : translation(translation),
-          script_id(script_id),
+          script_id(std::move(script_id)),
           line(line),
           column(column) {}
   };
@@ -74,7 +74,7 @@ class WasmTranslation::TranslatorImpl {
                                                             int index) = 0;
   virtual const String16 GetHash(v8::Isolate*, int index) = 0;
 
-  virtual ~TranslatorImpl() {}
+  virtual ~TranslatorImpl() = default;
 
   class RawTranslator;
   class DisassemblingTranslator;
@@ -238,7 +238,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     return builder.toString();
   }
 
-  String16 GetFakeScriptId(const String16 script_id, int func_index) {
+  String16 GetFakeScriptId(const String16& script_id, int func_index) {
     return String16::concat(script_id, '-', String16::fromInteger(func_index));
   }
   String16 GetFakeScriptId(const TransLocation* loc) {

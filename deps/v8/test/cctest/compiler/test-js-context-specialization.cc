@@ -110,8 +110,8 @@ static const int slot_index = Context::NATIVE_CONTEXT_INDEX;
 TEST(ReduceJSLoadContext0) {
   // TODO(neis): The native context below does not have all the fields
   // initialized that the heap broker wants to serialize.
-  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
-  FLAG_concurrent_compiler_frontend = false;
+  bool concurrent_typed_lowering = FLAG_concurrent_typed_lowering;
+  FLAG_concurrent_typed_lowering = false;
 
   ContextSpecializationTester t(Nothing<OuterContext>());
 
@@ -178,7 +178,7 @@ TEST(ReduceJSLoadContext0) {
     CHECK_EQ(*expected, *match.Value());
   }
 
-  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
+  FLAG_concurrent_typed_lowering = concurrent_typed_lowering;
 }
 
 TEST(ReduceJSLoadContext1) {
@@ -258,8 +258,8 @@ TEST(ReduceJSLoadContext2) {
 
   // TODO(neis): The native context below does not have all the fields
   // initialized that the heap broker wants to serialize.
-  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
-  FLAG_concurrent_compiler_frontend = false;
+  bool concurrent_typed_lowering = FLAG_concurrent_typed_lowering;
+  FLAG_concurrent_typed_lowering = false;
 
   ContextSpecializationTester t(Nothing<OuterContext>());
 
@@ -332,7 +332,7 @@ TEST(ReduceJSLoadContext2) {
     t.CheckChangesToValue(load, slot_value0);
   }
 
-  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
+  FLAG_concurrent_typed_lowering = concurrent_typed_lowering;
 }
 
 TEST(ReduceJSLoadContext3) {
@@ -344,8 +344,8 @@ TEST(ReduceJSLoadContext3) {
 
   // TODO(neis): The native context below does not have all the fields
   // initialized that the heap broker wants to serialize.
-  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
-  FLAG_concurrent_compiler_frontend = false;
+  bool concurrent_typed_lowering = FLAG_concurrent_typed_lowering;
+  FLAG_concurrent_typed_lowering = false;
 
   HandleAndZoneScope handle_zone_scope;
   auto factory = handle_zone_scope.main_isolate()->factory();
@@ -422,14 +422,14 @@ TEST(ReduceJSLoadContext3) {
     t.CheckChangesToValue(load, slot_value0);
   }
 
-  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
+  FLAG_concurrent_typed_lowering = concurrent_typed_lowering;
 }
 
 TEST(ReduceJSStoreContext0) {
   // TODO(neis): The native context below does not have all the fields
   // initialized that the heap broker wants to serialize.
-  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
-  FLAG_concurrent_compiler_frontend = false;
+  bool concurrent_typed_lowering = FLAG_concurrent_typed_lowering;
+  FLAG_concurrent_typed_lowering = false;
 
   ContextSpecializationTester t(Nothing<OuterContext>());
 
@@ -491,7 +491,7 @@ TEST(ReduceJSStoreContext0) {
     CHECK_EQ(false, access.immutable());
   }
 
-  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
+  FLAG_concurrent_typed_lowering = concurrent_typed_lowering;
 }
 
 TEST(ReduceJSStoreContext1) {
@@ -541,8 +541,8 @@ TEST(ReduceJSStoreContext1) {
 TEST(ReduceJSStoreContext2) {
   // TODO(neis): The native context below does not have all the fields
   // initialized that the heap broker wants to serialize.
-  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
-  FLAG_concurrent_compiler_frontend = false;
+  bool concurrent_typed_lowering = FLAG_concurrent_typed_lowering;
+  FLAG_concurrent_typed_lowering = false;
 
   ContextSpecializationTester t(Nothing<OuterContext>());
 
@@ -595,14 +595,14 @@ TEST(ReduceJSStoreContext2) {
     t.CheckContextInputAndDepthChanges(store, context_object0, 0);
   }
 
-  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
+  FLAG_concurrent_typed_lowering = concurrent_typed_lowering;
 }
 
 TEST(ReduceJSStoreContext3) {
   // TODO(neis): The native context below does not have all the fields
   // initialized that the heap broker wants to serialize.
-  bool concurrent_compiler_frontend = FLAG_concurrent_compiler_frontend;
-  FLAG_concurrent_compiler_frontend = false;
+  bool concurrent_typed_lowering = FLAG_concurrent_typed_lowering;
+  FLAG_concurrent_typed_lowering = false;
 
   HandleAndZoneScope handle_zone_scope;
   auto factory = handle_zone_scope.main_isolate()->factory();
@@ -659,7 +659,7 @@ TEST(ReduceJSStoreContext3) {
     t.CheckContextInputAndDepthChanges(store, context_object0, 0);
   }
 
-  FLAG_concurrent_compiler_frontend = concurrent_compiler_frontend;
+  FLAG_concurrent_typed_lowering = concurrent_typed_lowering;
 }
 
 TEST(SpecializeJSFunction_ToConstant1) {

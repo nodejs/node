@@ -29,7 +29,6 @@ struct WasmModule;
 class SignatureMap;
 class WireBytesRef;
 class WasmInterpreter;
-using FunctionSig = Signature<ValueType>;
 struct WasmFeatures;
 }  // namespace wasm
 
@@ -38,6 +37,7 @@ class JSArrayBuffer;
 class SeqOneByteString;
 class WasmDebugInfo;
 class WasmInstanceObject;
+class WasmModuleObject;
 
 template <class CppType>
 class Managed;
@@ -46,19 +46,22 @@ class Managed;
   V8_INLINE bool has_##name();              \
   DECL_ACCESSORS(name, type)
 
-// An entry in an indirect function table (IFT).
-// Each entry in the IFT has the following fields:
-// - instance = target instance
-// - sig_id   = signature id of function
-// - target   = entrypoint to wasm code for the function, or wasm-to-js wrapper
+// A helper for an entry in an indirect function table (IFT).
+// The underlying storage in the instance is used by generated code to
+// call functions indirectly at runtime.
+// Each entry has the following fields:
+// - object = target instance, if a WASM function, tuple if imported
+// - sig_id = signature id of function
+// - target = entrypoint to WASM code or import wrapper code
 class IndirectFunctionTableEntry {
  public:
   inline IndirectFunctionTableEntry(Handle<WasmInstanceObject>, int index);
 
   void clear();
-  void set(int sig_id, WasmInstanceObject* instance, Address call_target);
+  void Set(int sig_id, Handle<WasmInstanceObject> target_instance,
+           int target_func_index);
 
-  WasmInstanceObject* instance();
+  Object* object_ref();
   int sig_id();
   Address target();
 
@@ -67,32 +70,31 @@ class IndirectFunctionTableEntry {
   int const index_;
 };
 
-// An entry for an imported function.
-// (note this is not called a "table" since it is not dynamically indexed).
-// The imported function entries are used to call imported functions.
-// For each imported function there is an entry which is either:
-//   - an imported JSReceiver, which has fields
-//      - instance = importing instance
-//      - receiver = JSReceiver, either a JS function or other callable
-//      - target   = pointer to wasm-to-js wrapper code entrypoint
-//   - an imported wasm function from another instance, which has fields
-//      - instance = target instance
-//      - target   = entrypoint for the function
+// A helper for an entry for an imported function, indexed statically.
+// The underlying storage in the instance is used by generated code to
+// call imported functions at runtime.
+// Each entry is either:
+//   - WASM to JS, which has fields
+//      - object = a Tuple2 of the importing instance and the callable
+//      - target = entrypoint to import wrapper code
+//   - WASM to WASM, which has fields
+//      - object = target instance
+//      - target = entrypoint for the function
 class ImportedFunctionEntry {
  public:
   inline ImportedFunctionEntry(Handle<WasmInstanceObject>, int index);
 
-  // Initialize this entry as a {JSReceiver} call.
-  void set_wasm_to_js(JSReceiver* callable,
-                      const wasm::WasmCode* wasm_to_js_wrapper);
+  // Initialize this entry as a WASM to JS call. This accepts the isolate as a
+  // parameter, since it must allocate a tuple.
+  void SetWasmToJs(Isolate*, Handle<JSReceiver> callable,
+                   const wasm::WasmCode* wasm_to_js_wrapper);
   // Initialize this entry as a WASM to WASM call.
-  void set_wasm_to_wasm(WasmInstanceObject* target_instance,
-                        Address call_target);
+  void SetWasmToWasm(WasmInstanceObject* target_instance, Address call_target);
 
   WasmInstanceObject* instance();
   JSReceiver* callable();
+  Object* object_ref();
   Address target();
-  bool is_js_receiver_entry();
 
  private:
   Handle<WasmInstanceObject> const instance_;
@@ -271,8 +273,8 @@ class WasmTableObject : public JSObject {
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,
                                    int table_index, wasm::FunctionSig* sig,
-                                   Handle<WasmInstanceObject> from_instance,
-                                   Address call_target);
+                                   Handle<WasmInstanceObject> target_instance,
+                                   int target_func_index);
 
   static void ClearDispatchTables(Isolate* isolate,
                                   Handle<WasmTableObject> table, int index);
@@ -383,10 +385,10 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS(table_object, WasmTableObject)
-  DECL_ACCESSORS(imported_function_instances, FixedArray)
-  DECL_ACCESSORS(imported_function_callables, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(indirect_function_table_instances, FixedArray)
+  DECL_ACCESSORS(imported_function_refs, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
+  DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
   DECL_ACCESSORS(undefined_value, Oddball)
   DECL_ACCESSORS(null_value, Oddball)
   DECL_ACCESSORS(centry_stub, Code)
@@ -418,10 +420,10 @@ class WasmInstanceObject : public JSObject {
   V(kImportedMutableGlobalsBuffersOffset, kPointerSize)                 \
   V(kDebugInfoOffset, kPointerSize)                                     \
   V(kTableObjectOffset, kPointerSize)                                   \
-  V(kImportedFunctionInstancesOffset, kPointerSize)                     \
-  V(kImportedFunctionCallablesOffset, kPointerSize)                     \
-  V(kIndirectFunctionTableInstancesOffset, kPointerSize)                \
+  V(kImportedFunctionRefsOffset, kPointerSize)                          \
+  V(kIndirectFunctionTableRefsOffset, kPointerSize)                     \
   V(kManagedNativeAllocationsOffset, kPointerSize)                      \
+  V(kExceptionsTableOffset, kPointerSize)                               \
   V(kUndefinedValueOffset, kPointerSize)                                \
   V(kNullValueOffset, kPointerSize)                                     \
   V(kCEntryStubOffset, kPointerSize)                                    \
@@ -461,15 +463,37 @@ class WasmInstanceObject : public JSObject {
 
   static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>);
 
-  static void InstallFinalizer(Isolate* isolate,
-                               Handle<WasmInstanceObject> instance);
-
   Address GetCallTarget(uint32_t func_index);
 
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
+};
+
+// Representation of WebAssembly.Exception JavaScript-level object.
+class WasmExceptionObject : public JSObject {
+ public:
+  DECL_CAST(WasmExceptionObject)
+
+  DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
+  DECL_ACCESSORS(exception_tag, HeapObject)
+
+// Layout description.
+#define WASM_EXCEPTION_OBJECT_FIELDS(V)       \
+  V(kSerializedSignatureOffset, kPointerSize) \
+  V(kExceptionTagOffset, kPointerSize)        \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                WASM_EXCEPTION_OBJECT_FIELDS)
+#undef WASM_EXCEPTION_OBJECT_FIELDS
+
+  // Checks whether the given {sig} has the same parameter types as the
+  // serialized signature stored within this exception object.
+  bool IsSignatureEqual(const wasm::FunctionSig* sig);
+
+  static Handle<WasmExceptionObject> New(Isolate* isolate,
+                                         const wasm::FunctionSig* sig,
+                                         Handle<HeapObject> exception_tag);
 };
 
 // A WASM function that is wrapped and exported to JavaScript.
@@ -488,6 +512,8 @@ class WasmExportedFunction : public JSFunction {
                                           Handle<Code> export_wrapper);
 
   Address GetWasmCallTarget();
+
+  wasm::FunctionSig* sig();
 };
 
 // Information for a WasmExportedFunction which is referenced as the function
@@ -521,12 +547,9 @@ class WasmExportedFunctionData : public Struct {
 
 class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
-  DECL_ACCESSORS(interpreter_handle, Object);
-  DECL_ACCESSORS(interpreted_functions, Object);
+  DECL_ACCESSORS(interpreter_handle, Object);  // Foreign or undefined
+  DECL_ACCESSORS(interpreted_functions, FixedArray);
   DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)

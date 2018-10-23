@@ -23,7 +23,7 @@ class CommonOperatorReducerTest : public GraphTest {
  public:
   explicit CommonOperatorReducerTest(int num_parameters = 1)
       : GraphTest(num_parameters), machine_(zone()), simplified_(zone()) {}
-  ~CommonOperatorReducerTest() override {}
+  ~CommonOperatorReducerTest() override = default;
 
  protected:
   Reduction Reduce(

@@ -39,7 +39,7 @@ class ExitFrameConstants : public TypedFrameConstants {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 4;
+  static constexpr int kNumberOfSavedGpParamRegs = 3;
   static constexpr int kNumberOfSavedFpParamRegs = 7;
 
   // FP-relative.

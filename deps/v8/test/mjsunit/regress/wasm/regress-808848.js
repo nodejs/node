@@ -60,7 +60,7 @@ let worker_onmessage = function(msg) {
 }
 let workerScript = "onmessage = " + worker_onmessage.toString();
 
-let worker = new Worker(workerScript);
+let worker = new Worker(workerScript, {type: 'string'});
 worker.postMessage({serialized_m1, m1_bytes});
 
 // Wait for worker to finish.

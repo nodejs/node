@@ -9,8 +9,10 @@
 
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
+#include "src/base/threaded-list.h"
 #include "src/globals.h"
 #include "src/splay-tree.h"
+#include "src/utils.h"
 #include "src/zone/accounting-allocator.h"
 
 #ifndef ZONE_NAME
@@ -45,7 +47,21 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
-  void* New(size_t size);
+  void* New(size_t size) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+    return AsanNew(size);
+#else
+    size = RoundUp(size, kAlignmentInBytes);
+    Address result = position_;
+    if (V8_UNLIKELY(size > limit_ - position_)) {
+      result = NewExpand(size);
+    } else {
+      position_ += size;
+    }
+    return reinterpret_cast<void*>(result);
+#endif
+  }
+  void* AsanNew(size_t size);
 
   template <typename T>
   T* NewArray(size_t length) {
@@ -56,6 +72,10 @@ class V8_EXPORT_PRIVATE Zone final {
   // Seals the zone to prevent any further allocation.
   void Seal() { sealed_ = true; }
 
+  // Allows the zone to be safely reused. Releases the memory and fires zone
+  // destruction and creation events for the accounting allocator.
+  void ReleaseMemory();
+
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
   bool excess_allocation() const {
@@ -64,11 +84,17 @@ class V8_EXPORT_PRIVATE Zone final {
 
   const char* name() const { return name_; }
 
-  size_t allocation_size() const { return allocation_size_; }
+  size_t allocation_size() const {
+    size_t extra = segment_head_ ? position_ - segment_head_->start() : 0;
+    return allocation_size_ + extra;
+  }
 
   AccountingAllocator* allocator() const { return allocator_; }
 
  private:
+  // Deletes all objects and free all memory allocated in the Zone.
+  void DeleteAll();
+
   // All pointers returned from New() are 8-byte aligned.
   static const size_t kAlignmentInBytes = 8;
 
@@ -80,9 +106,6 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
-
-  // Deletes all objects and free all memory allocated in the Zone.
-  void DeleteAll();
 
   // The number of bytes allocated in this zone so far.
   size_t allocation_size_;
@@ -294,6 +317,11 @@ class ZoneList final {
 // zone as the list object.
 template <typename T>
 using ZonePtrList = ZoneList<T*>;
+
+// ZoneThreadedList is a special variant of the ThreadedList that can be put
+// into a Zone.
+template <typename T, typename TLTraits = base::ThreadedListTraits<T>>
+using ZoneThreadedList = base::ThreadedListBase<T, ZoneObject, TLTraits>;
 
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).

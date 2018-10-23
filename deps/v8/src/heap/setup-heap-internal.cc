@@ -23,11 +23,13 @@
 #include "src/objects/dictionary.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map.h"
+#include "src/objects/microtask-queue.h"
 #include "src/objects/microtask.h"
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
 #include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/stack-frame-info.h"
 #include "src/objects/string.h"
 #include "src/regexp/jsregexp.h"
 #include "src/wasm/wasm-objects.h"
@@ -56,33 +58,34 @@ bool Heap::CreateHeapObjects() {
 }
 
 const Heap::StringTypeTable Heap::string_type_table[] = {
-#define STRING_TYPE_ELEMENT(type, size, name, camel_name) \
-  {type, size, k##camel_name##MapRootIndex},
+#define STRING_TYPE_ELEMENT(type, size, name, CamelName) \
+  {type, size, RootIndex::k##CamelName##Map},
     STRING_TYPE_LIST(STRING_TYPE_ELEMENT)
 #undef STRING_TYPE_ELEMENT
 };
 
 const Heap::ConstantStringTable Heap::constant_string_table[] = {
-    {"", kempty_stringRootIndex},
-#define CONSTANT_STRING_ELEMENT(name, contents) {contents, k##name##RootIndex},
-    INTERNALIZED_STRING_LIST(CONSTANT_STRING_ELEMENT)
+    {"", RootIndex::kempty_string},
+#define CONSTANT_STRING_ELEMENT(_, name, contents) \
+  {contents, RootIndex::k##name},
+    INTERNALIZED_STRING_LIST_GENERATOR(CONSTANT_STRING_ELEMENT, /* not used */)
 #undef CONSTANT_STRING_ELEMENT
 };
 
 const Heap::StructTable Heap::struct_table[] = {
-#define STRUCT_TABLE_ELEMENT(NAME, Name, name) \
-  {NAME##_TYPE, Name::kSize, k##Name##MapRootIndex},
+#define STRUCT_TABLE_ELEMENT(TYPE, Name, name) \
+  {TYPE, Name::kSize, RootIndex::k##Name##Map},
     STRUCT_LIST(STRUCT_TABLE_ELEMENT)
 #undef STRUCT_TABLE_ELEMENT
 
-#define ALLOCATION_SITE_ELEMENT(NAME, Name, Size, name) \
-  {NAME##_TYPE, Name::kSize##Size, k##Name##Size##MapRootIndex},
-        ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT)
+#define ALLOCATION_SITE_ELEMENT(_, TYPE, Name, Size, name) \
+  {TYPE, Name::kSize##Size, RootIndex::k##Name##Size##Map},
+        ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT, /* not used */)
 #undef ALLOCATION_SITE_ELEMENT
 
-#define DATA_HANDLER_ELEMENT(NAME, Name, Size, name) \
-  {NAME##_TYPE, Name::kSizeWithData##Size, k##Name##Size##MapRootIndex},
-            DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT)
+#define DATA_HANDLER_ELEMENT(_, TYPE, Name, Size, name) \
+  {TYPE, Name::kSizeWithData##Size, RootIndex::k##Name##Size##Map},
+            DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT, /* not used */)
 #undef DATA_HANDLER_ELEMENT
 };
 
@@ -91,7 +94,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
                                    ElementsKind elements_kind,
                                    int inobject_properties) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  bool is_js_object = Map::IsJSObject(instance_type);
+  bool is_js_object = InstanceTypeChecker::IsJSObject(instance_type);
   DCHECK_IMPLIES(is_js_object &&
                      !Map::CanHaveFastTransitionableElementsKind(instance_type),
                  IsDictionaryElementsKind(elements_kind) ||
@@ -119,8 +122,9 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   if (!allocation.To(&result)) return allocation;
   // Map::cast cannot be used due to uninitialized map field.
   Map* map = reinterpret_cast<Map*>(result);
-  map->set_map_after_allocation(reinterpret_cast<Map*>(root(kMetaMapRootIndex)),
-                                SKIP_WRITE_BARRIER);
+  map->set_map_after_allocation(
+      reinterpret_cast<Map*>(isolate()->root(RootIndex::kMetaMap)),
+      SKIP_WRITE_BARRIER);
   map->set_instance_type(instance_type);
   map->set_instance_size(instance_size);
   // Initialize to only containing tagged fields.
@@ -179,8 +183,9 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
       array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
   if (!allocation.To(&object)) return allocation;
 
-  object->set_map_after_allocation(MapForFixedTypedArray(array_type),
-                                   SKIP_WRITE_BARRIER);
+  object->set_map_after_allocation(
+      ReadOnlyRoots(this).MapForFixedTypedArray(array_type),
+      SKIP_WRITE_BARRIER);
   FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
   elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
@@ -288,7 +293,7 @@ bool Heap::CreateInitialMaps() {
     const StructTable& entry = struct_table[i];
     Map* map;
     if (!AllocatePartialMap(entry.type, entry.size).To(&map)) return false;
-    roots_[entry.index] = map;
+    roots_table()[entry.index] = map;
   }
 
   // Allocate the empty enum cache.
@@ -330,7 +335,7 @@ bool Heap::CreateInitialMaps() {
   FinalizePartialMap(roots.the_hole_map());
   for (unsigned i = 0; i < arraysize(struct_table); ++i) {
     const StructTable& entry = struct_table[i];
-    FinalizePartialMap(Map::cast(roots_[entry.index]));
+    FinalizePartialMap(Map::cast(roots_table()[entry.index]));
   }
 
   {  // Map allocation
@@ -385,13 +390,13 @@ bool Heap::CreateInitialMaps() {
       // Mark cons string maps as unstable, because their objects can change
       // maps during GC.
       if (StringShape(entry.type).IsCons()) map->mark_unstable();
-      roots_[entry.index] = map;
+      roots_table()[entry.index] = map;
     }
 
     {  // Create a separate external one byte string map for native sources.
       AllocationResult allocation =
-          AllocateMap(SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE,
-                      ExternalOneByteString::kShortSize);
+          AllocateMap(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,
+                      ExternalOneByteString::kUncachedSize);
       if (!allocation.To(&obj)) return false;
       Map* map = Map::cast(obj);
       map->SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
@@ -461,6 +466,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(CATCH_CONTEXT_TYPE, catch_context)
     ALLOCATE_VARSIZE_MAP(WITH_CONTEXT_TYPE, with_context)
     ALLOCATE_VARSIZE_MAP(DEBUG_EVALUATE_CONTEXT_TYPE, debug_evaluate_context)
+    ALLOCATE_VARSIZE_MAP(AWAIT_CONTEXT_TYPE, await_context)
     ALLOCATE_VARSIZE_MAP(BLOCK_CONTEXT_TYPE, block_context)
     ALLOCATE_VARSIZE_MAP(MODULE_CONTEXT_TYPE, module_context)
     ALLOCATE_VARSIZE_MAP(EVAL_CONTEXT_TYPE, eval_context)
@@ -620,6 +626,9 @@ void Heap::CreateInitialObjects() {
   set_hash_seed(*factory->NewByteArray(kInt64Size, TENURED));
   InitializeHashSeed();
 
+  // There's no "current microtask" in the beginning.
+  set_current_microtask(roots.undefined_value());
+
   // Allocate cache for single character one byte strings.
   set_single_character_string_cache(
       *factory->NewFixedArray(String::kMaxOneByteCharCode + 1, TENURED));
@@ -630,7 +639,7 @@ void Heap::CreateInitialObjects() {
   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
     Handle<String> str =
         factory->InternalizeUtf8String(constant_string_table[i].contents);
-    roots_[constant_string_table[i].index] = *str;
+    roots_table()[constant_string_table[i].index] = *str;
   }
 
   // Allocate
@@ -696,43 +705,43 @@ void Heap::CreateInitialObjects() {
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(name)                                           \
+#define SYMBOL_INIT(_, name)                                        \
   {                                                                 \
     Handle<Symbol> symbol(                                          \
         isolate()->factory()->NewPrivateSymbol(TENURED_READ_ONLY)); \
-    roots_[k##name##RootIndex] = *symbol;                           \
+    roots_table()[RootIndex::k##name] = *symbol;                    \
   }
-    PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
+    PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
   }
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(name, description)                                    \
+#define SYMBOL_INIT(_, name, description)                                 \
   Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);            \
   Handle<String> name##d =                                                \
       factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
   name->set_name(*name##d);                                               \
-  roots_[k##name##RootIndex] = *name;
-    PUBLIC_SYMBOL_LIST(SYMBOL_INIT)
+  roots_table()[RootIndex::k##name] = *name;
+    PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
 
-#define SYMBOL_INIT(name, description)                                    \
+#define SYMBOL_INIT(_, name, description)                                 \
   Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);            \
   Handle<String> name##d =                                                \
       factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
   name->set_is_well_known_symbol(true);                                   \
   name->set_name(*name##d);                                               \
-  roots_[k##name##RootIndex] = *name;
-    WELL_KNOWN_SYMBOL_LIST(SYMBOL_INIT)
+  roots_table()[RootIndex::k##name] = *name;
+    WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
 
     // Mark "Interesting Symbols" appropriately.
     to_string_tag_symbol->set_is_interesting_symbol(true);
   }
 
-  Handle<NameDictionary> empty_property_dictionary =
-      NameDictionary::New(isolate(), 1, TENURED, USE_CUSTOM_MINIMUM_CAPACITY);
+  Handle<NameDictionary> empty_property_dictionary = NameDictionary::New(
+      isolate(), 1, TENURED_READ_ONLY, USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!empty_property_dictionary->HasSufficientCapacityToAdd(1));
   set_empty_property_dictionary(*empty_property_dictionary);
 
@@ -754,9 +763,7 @@ void Heap::CreateInitialObjects() {
       factory->NewManyClosuresCell(factory->undefined_value());
   set_many_closures_cell(*many_closures_cell);
 
-  // Microtask queue uses the empty fixed array as a sentinel for "empty".
-  // Number of queued microtasks stored in Isolate::pending_microtask_count().
-  set_microtask_queue(roots.empty_fixed_array());
+  set_default_microtask_queue(*factory->NewMicrotaskQueue());
 
   {
     Handle<FixedArray> empty_sloppy_arguments_elements =
@@ -815,6 +822,9 @@ void Heap::CreateInitialObjects() {
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
   script->set_type(Script::TYPE_NATIVE);
+  // This is used for exceptions thrown with no stack frames. Such exceptions
+  // can be shared everywhere.
+  script->set_origin_options(ScriptOriginOptions(true, false));
   set_empty_script(*script);
 
   Handle<Cell> array_constructor_cell = factory->NewCell(
@@ -833,6 +843,14 @@ void Heap::CreateInitialObjects() {
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_array_iterator_protector(*cell);
 
+  cell = factory->NewPropertyCell(factory->empty_string());
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+  set_map_iterator_protector(*cell);
+
+  cell = factory->NewPropertyCell(factory->empty_string());
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+  set_set_iterator_protector(*cell);
+
   Handle<Cell> is_concat_spreadable_cell = factory->NewCell(
       handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_is_concat_spreadable_protector(*is_concat_spreadable_cell);
@@ -848,6 +866,10 @@ void Heap::CreateInitialObjects() {
   cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_promise_species_protector(*cell);
+
+  cell = factory->NewPropertyCell(factory->empty_string());
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+  set_string_iterator_protector(*cell);
 
   Handle<Cell> string_length_overflow_cell = factory->NewCell(
       handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
@@ -874,11 +896,6 @@ void Heap::CreateInitialObjects() {
 
   set_noscript_shared_function_infos(roots.empty_weak_array_list());
 
-  STATIC_ASSERT(interpreter::BytecodeOperands::kOperandScaleCount == 3);
-  set_deserialize_lazy_handler(Smi::kZero);
-  set_deserialize_lazy_handler_wide(Smi::kZero);
-  set_deserialize_lazy_handler_extra_wide(Smi::kZero);
-
   // Evaluate the hash values which will then be cached in the strings.
   isolate()->factory()->zero_string()->Hash();
   isolate()->factory()->one_string()->Hash();
@@ -901,16 +918,19 @@ void Heap::CreateInternalAccessorInfoObjects() {
   HandleScope scope(isolate);
   Handle<AccessorInfo> acessor_info;
 
-#define INIT_ACCESSOR_INFO(accessor_name, AccessorName)        \
-  acessor_info = Accessors::Make##AccessorName##Info(isolate); \
-  roots_[k##AccessorName##AccessorRootIndex] = *acessor_info;
-  ACCESSOR_INFO_LIST(INIT_ACCESSOR_INFO)
+#define INIT_ACCESSOR_INFO(_, accessor_name, AccessorName, ...) \
+  acessor_info = Accessors::Make##AccessorName##Info(isolate);  \
+  roots_table()[RootIndex::k##AccessorName##Accessor] = *acessor_info;
+  ACCESSOR_INFO_LIST_GENERATOR(INIT_ACCESSOR_INFO, /* not used */)
 #undef INIT_ACCESSOR_INFO
 
-#define INIT_SIDE_EFFECT_FLAG(AccessorName)                      \
-  AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex]) \
-      ->set_has_no_side_effect(true);
-  SIDE_EFFECT_FREE_ACCESSOR_INFO_LIST(INIT_SIDE_EFFECT_FLAG)
+#define INIT_SIDE_EFFECT_FLAG(_, accessor_name, AccessorName, GetterType, \
+                              SetterType)                                 \
+  AccessorInfo::cast(roots_table()[RootIndex::k##AccessorName##Accessor]) \
+      ->set_getter_side_effect_type(SideEffectType::GetterType);          \
+  AccessorInfo::cast(roots_table()[RootIndex::k##AccessorName##Accessor]) \
+      ->set_setter_side_effect_type(SideEffectType::SetterType);
+  ACCESSOR_INFO_LIST_GENERATOR(INIT_SIDE_EFFECT_FLAG, /* not used */)
 #undef INIT_SIDE_EFFECT_FLAG
 }
 

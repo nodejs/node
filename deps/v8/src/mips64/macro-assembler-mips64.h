@@ -37,6 +37,7 @@ constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
 constexpr Register kRuntimeCallArgvRegister = a2;
 constexpr Register kWasmInstanceRegister = a0;
+constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 
 // Forward declarations.
 enum class AbortReason : uint8_t;
@@ -135,6 +136,9 @@ inline MemOperand CFunctionArgumentOperand(int index) {
 
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
+  TurboAssembler(const AssemblerOptions& options, void* buffer, int buffer_size)
+      : TurboAssemblerBase(options, buffer, buffer_size) {}
+
   TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int buffer_size,
                  CodeObjectRequired create_code_object)
@@ -240,7 +244,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,
                  MSARegister wt, BranchDelaySlot bd = PROTECT);
 
-  void Branch(Label* L, Condition cond, Register rs, Heap::RootListIndex index,
+  void Branch(Label* L, Condition cond, Register rs, RootIndex index,
               BranchDelaySlot bdslot = PROTECT);
 
   static int InstrCountForLi64Bit(int64_t value);
@@ -251,8 +255,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);
   }
+  // inline void li(Register rd, int32_t j, LiFlags mode = OPTIMIZE_SIZE) {
+  //   li(rd, Operand(static_cast<int64_t>(j)), mode);
+  // }
   void li(Register dst, Handle<HeapObject> value, LiFlags mode = OPTIMIZE_SIZE);
   void li(Register dst, ExternalReference value, LiFlags mode = OPTIMIZE_SIZE);
+  void li(Register dst, const StringConstantBase* string,
+          LiFlags mode = OPTIMIZE_SIZE);
 
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
@@ -763,8 +772,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                            Func GetLabelFunction);
 
   // Load an object from the root table.
-  void LoadRoot(Register destination, Heap::RootListIndex index) override;
-  void LoadRoot(Register destination, Heap::RootListIndex index, Condition cond,
+  void LoadRoot(Register destination, RootIndex index) override;
+  void LoadRoot(Register destination, RootIndex index, Condition cond,
                 Register src1, const Operand& src2);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
@@ -914,10 +923,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler : public TurboAssembler {
  public:
+  MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
+      : TurboAssembler(options, buffer, size) {}
+
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object)
       : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
                        size, create_code_object) {}
+
   MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int size, CodeObjectRequired create_code_object);
 
@@ -927,7 +940,7 @@ class MacroAssembler : public TurboAssembler {
   // less efficient form using xor instead of mov is emitted.
   void Swap(Register reg1, Register reg2, Register scratch = no_reg);
 
-  void PushRoot(Heap::RootListIndex index) {
+  void PushRoot(RootIndex index) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     LoadRoot(scratch, index);
@@ -935,7 +948,7 @@ class MacroAssembler : public TurboAssembler {
   }
 
   // Compare the object in a register to a value and jump if they are equal.
-  void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal) {
+  void JumpIfRoot(Register with, RootIndex index, Label* if_equal) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     LoadRoot(scratch, index);
@@ -943,8 +956,7 @@ class MacroAssembler : public TurboAssembler {
   }
 
   // Compare the object in a register to a value and jump if they are not equal.
-  void JumpIfNotRoot(Register with, Heap::RootListIndex index,
-                     Label* if_not_equal) {
+  void JumpIfNotRoot(Register with, RootIndex index, Label* if_not_equal) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     LoadRoot(scratch, index);

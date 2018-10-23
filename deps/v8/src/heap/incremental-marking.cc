@@ -458,13 +458,6 @@ void IncrementalMarking::FinishBlackAllocation() {
   }
 }
 
-void IncrementalMarking::AbortBlackAllocation() {
-  if (FLAG_trace_incremental_marking) {
-    heap()->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Black allocation aborted\n");
-  }
-}
-
 void IncrementalMarking::MarkRoots() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
@@ -494,7 +487,6 @@ void IncrementalMarking::RetainMaps() {
   // - memory pressure (reduce_memory_footprint_),
   // - GC is requested by tests or dev-tools (abort_incremental_marking_).
   bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
-                                   heap()->ShouldAbortIncrementalMarking() ||
                                    FLAG_retain_maps_for_n_gc == 0;
   WeakArrayList* retained_maps = heap()->retained_maps();
   int length = retained_maps->length();
@@ -505,10 +497,10 @@ void IncrementalMarking::RetainMaps() {
   for (int i = 0; i < length; i += 2) {
     MaybeObject* value = retained_maps->Get(i);
     HeapObject* map_heap_object;
-    if (!value->ToWeakHeapObject(&map_heap_object)) {
+    if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
       continue;
     }
-    int age = Smi::ToInt(retained_maps->Get(i + 1)->ToSmi());
+    int age = Smi::ToInt(retained_maps->Get(i + 1)->cast<Smi>());
     int new_age;
     Map* map = Map::cast(map_heap_object);
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
@@ -582,7 +574,12 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   void* minor_marking_state = nullptr;
 #endif  // ENABLE_MINOR_MC
 
-  marking_worklist()->Update([this, filler_map, minor_marking_state](
+  marking_worklist()->Update([
+#ifdef DEBUG
+                              // this is referred inside DCHECK.
+                                 this,
+#endif
+                                 filler_map, minor_marking_state](
                                  HeapObject* obj, HeapObject** out) -> bool {
     DCHECK(obj->IsHeapObject());
     // Only pointers to from space have to be updated.
@@ -801,6 +798,32 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
   return bytes_processed;
 }
 
+void IncrementalMarking::EmbedderStep(double duration_ms) {
+  constexpr int kObjectsToProcessBeforeInterrupt = 100;
+
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
+
+  const double deadline =
+      heap_->MonotonicallyIncreasingTimeInMs() + duration_ms;
+
+  HeapObject* object;
+  int cnt = 0;
+  while (marking_worklist()->embedder()->Pop(0, &object)) {
+    heap_->TracePossibleWrapper(JSObject::cast(object));
+    if (++cnt == kObjectsToProcessBeforeInterrupt) {
+      cnt = 0;
+      if (heap_->MonotonicallyIncreasingTimeInMs() > deadline) {
+        break;
+      }
+    }
+  }
+
+  heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
+  if (!heap_->local_embedder_heap_tracer()
+           ->ShouldFinalizeIncrementalMarking()) {
+    heap_->local_embedder_heap_tracer()->Trace(deadline);
+  }
+}
 
 void IncrementalMarking::Hurry() {
   // A scavenge may have pushed new objects on the marking deque (due to black
@@ -930,14 +953,7 @@ double IncrementalMarking::AdvanceIncrementalMarking(
       heap_->local_embedder_heap_tracer()->InUse();
   do {
     if (incremental_wrapper_tracing && trace_wrappers_toggle_) {
-      TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
-      const double wrapper_deadline =
-          heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
-      if (!heap_->local_embedder_heap_tracer()
-               ->ShouldFinalizeIncrementalMarking()) {
-        heap_->local_embedder_heap_tracer()->Trace(wrapper_deadline);
-      }
+      EmbedderStep(kStepSizeInMs);
     } else {
       Step(step_size_in_bytes, completion_action, step_origin);
     }
@@ -974,24 +990,18 @@ size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
 }
 
 size_t IncrementalMarking::StepSizeToMakeProgress() {
-  // We increase step size gradually based on the time passed in order to
-  // leave marking work to standalone tasks. The ramp up duration and the
-  // target step count are chosen based on benchmarks.
-  const int kRampUpIntervalMs = 300;
   const size_t kTargetStepCount = 256;
   const size_t kTargetStepCountAtOOM = 32;
+  const size_t kMaxStepSizeInByte = 256 * KB;
   size_t oom_slack = heap()->new_space()->Capacity() + 64 * MB;
 
   if (!heap()->CanExpandOldGeneration(oom_slack)) {
     return heap()->OldGenerationSizeOfObjects() / kTargetStepCountAtOOM;
   }
 
-  size_t step_size = Max(initial_old_generation_size_ / kTargetStepCount,
-                         IncrementalMarking::kMinStepSizeInBytes);
-  double time_passed_ms =
-      heap_->MonotonicallyIncreasingTimeInMs() - start_time_ms_;
-  double factor = Min(time_passed_ms / kRampUpIntervalMs, 1.0);
-  return static_cast<size_t>(factor * step_size);
+  return Min(Max(initial_old_generation_size_ / kTargetStepCount,
+                 IncrementalMarking::kMinStepSizeInBytes),
+             kMaxStepSizeInByte);
 }
 
 void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/debug/debug-interface.h"
+#include "src/handles.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -36,7 +37,7 @@ class TypeProfile : public std::vector<TypeProfileScript> {
   static void SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode);
 
  private:
-  TypeProfile() {}
+  TypeProfile() = default;
 };
 
 }  // namespace internal

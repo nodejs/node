@@ -82,79 +82,15 @@ RUNTIME_FUNCTION(Runtime_NumberToString) {
 // -1 if x < y
 //  0 if x == y
 //  1 if x > y
+// TODO(szuend): Remove once the call-site in src/js/array.js is gone.
 RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(x_value, 0);
-  CONVERT_SMI_ARG_CHECKED(y_value, 1);
+  CONVERT_ARG_CHECKED(Smi, x_value, 0);
+  CONVERT_ARG_CHECKED(Smi, y_value, 1);
 
-  // If the integers are equal so are the string representations.
-  if (x_value == y_value) return Smi::FromInt(0);
-
-  // If one of the integers is zero the normal integer order is the
-  // same as the lexicographic order of the string representations.
-  if (x_value == 0 || y_value == 0)
-    return Smi::FromInt(x_value < y_value ? -1 : 1);
-
-  // If only one of the integers is negative the negative number is
-  // smallest because the char code of '-' is less than the char code
-  // of any digit.  Otherwise, we make both values positive.
-
-  // Use unsigned values otherwise the logic is incorrect for -MIN_INT on
-  // architectures using 32-bit Smis.
-  uint32_t x_scaled = x_value;
-  uint32_t y_scaled = y_value;
-  if (x_value < 0 || y_value < 0) {
-    if (y_value >= 0) return Smi::FromInt(-1);
-    if (x_value >= 0) return Smi::FromInt(1);
-    x_scaled = -x_value;
-    y_scaled = -y_value;
-  }
-
-  static const uint32_t kPowersOf10[] = {
-      1,                 10,                100,         1000,
-      10 * 1000,         100 * 1000,        1000 * 1000, 10 * 1000 * 1000,
-      100 * 1000 * 1000, 1000 * 1000 * 1000};
-
-  // If the integers have the same number of decimal digits they can be
-  // compared directly as the numeric order is the same as the
-  // lexicographic order.  If one integer has fewer digits, it is scaled
-  // by some power of 10 to have the same number of digits as the longer
-  // integer.  If the scaled integers are equal it means the shorter
-  // integer comes first in the lexicographic order.
-
-  // From http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog10
-  int x_log2 = 31 - base::bits::CountLeadingZeros(x_scaled);
-  int x_log10 = ((x_log2 + 1) * 1233) >> 12;
-  x_log10 -= x_scaled < kPowersOf10[x_log10];
-
-  int y_log2 = 31 - base::bits::CountLeadingZeros(y_scaled);
-  int y_log10 = ((y_log2 + 1) * 1233) >> 12;
-  y_log10 -= y_scaled < kPowersOf10[y_log10];
-
-  int tie = 0;
-
-  if (x_log10 < y_log10) {
-    // X has fewer digits.  We would like to simply scale up X but that
-    // might overflow, e.g when comparing 9 with 1_000_000_000, 9 would
-    // be scaled up to 9_000_000_000. So we scale up by the next
-    // smallest power and scale down Y to drop one digit. It is OK to
-    // drop one digit from the longer integer since the final digit is
-    // past the length of the shorter integer.
-    x_scaled *= kPowersOf10[y_log10 - x_log10 - 1];
-    y_scaled /= 10;
-    tie = -1;
-  } else if (y_log10 < x_log10) {
-    y_scaled *= kPowersOf10[x_log10 - y_log10 - 1];
-    x_scaled /= 10;
-    tie = 1;
-  }
-
-  if (x_scaled < y_scaled) return Smi::FromInt(-1);
-  if (x_scaled > y_scaled) return Smi::FromInt(1);
-  return Smi::FromInt(tie);
+  return Smi::LexicographicCompare(isolate, x_value, y_value);
 }
-
 
 RUNTIME_FUNCTION(Runtime_MaxSmi) {
   SealHandleScope shs(isolate);
@@ -183,7 +119,6 @@ RUNTIME_FUNCTION(Runtime_GetHoleNaNLower) {
   DCHECK_EQ(0, args.length());
   return *isolate->factory()->NewNumberFromUint(kHoleNanLower32);
 }
-
 
 }  // namespace internal
 }  // namespace v8

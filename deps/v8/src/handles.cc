@@ -24,17 +24,15 @@ ASSERT_TRIVIALLY_COPYABLE(MaybeHandle<Object>);
 #ifdef DEBUG
 bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   DCHECK_NOT_NULL(location_);
-  Object* object = *location_;
+  Object* object = reinterpret_cast<Object*>(*location_);
   if (object->IsSmi()) return true;
   HeapObject* heap_object = HeapObject::cast(object);
   Isolate* isolate;
   if (!Isolate::FromWritableHeapObject(heap_object, &isolate)) return true;
-  Heap* heap = isolate->heap();
-  Object** roots_array_start = heap->roots_array_start();
-  if (roots_array_start <= location_ &&
-      location_ < roots_array_start + Heap::kStrongRootListLength &&
-      heap->RootCanBeTreatedAsConstant(
-          static_cast<Heap::RootListIndex>(location_ - roots_array_start))) {
+  RootIndex root_index;
+  if (isolate->roots_table().IsRootHandleLocation(
+          reinterpret_cast<Object**>(location_), &root_index) &&
+      RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }
   if (!AllowHandleDereference::IsAllowed()) return false;
@@ -44,7 +42,7 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
     if (heap_object->IsCell()) return true;
     if (heap_object->IsMap()) return true;
     if (heap_object->IsInternalizedString()) return true;
-    return !isolate->IsDeferredHandle(location_);
+    return !isolate->IsDeferredHandle(reinterpret_cast<Object**>(location_));
   }
   return true;
 }
@@ -136,7 +134,7 @@ CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate)
   prev_canonical_scope_ = handle_scope_data->canonical_scope;
   handle_scope_data->canonical_scope = this;
   root_index_map_ = new RootIndexMap(isolate);
-  identity_map_ = new IdentityMap<Object**, ZoneAllocationPolicy>(
+  identity_map_ = new IdentityMap<Address*, ZoneAllocationPolicy>(
       isolate->heap(), ZoneAllocationPolicy(&zone_));
   canonical_level_ = handle_scope_data->level;
 }
@@ -148,28 +146,25 @@ CanonicalHandleScope::~CanonicalHandleScope() {
   isolate_->handle_scope_data()->canonical_scope = prev_canonical_scope_;
 }
 
-
-Object** CanonicalHandleScope::Lookup(Object* object) {
+Address* CanonicalHandleScope::Lookup(Address object) {
   DCHECK_LE(canonical_level_, isolate_->handle_scope_data()->level);
   if (isolate_->handle_scope_data()->level != canonical_level_) {
     // We are in an inner handle scope. Do not canonicalize since we will leave
     // this handle scope while still being in the canonical scope.
     return HandleScope::CreateHandle(isolate_, object);
   }
-  if (object->IsHeapObject()) {
-    int index = root_index_map_->Lookup(HeapObject::cast(object));
-    if (index != RootIndexMap::kInvalidRootIndex) {
-      return isolate_->heap()
-          ->root_handle(static_cast<Heap::RootListIndex>(index))
-          .location();
+  if (Internals::HasHeapObjectTag(object)) {
+    RootIndex root_index;
+    if (root_index_map_->Lookup(object, &root_index)) {
+      return isolate_->root_handle(root_index).location_as_address_ptr();
     }
   }
-  Object*** entry = identity_map_->Get(object);
+  Address** entry = identity_map_->Get(reinterpret_cast<Object*>(object));
   if (*entry == nullptr) {
     // Allocate new handle location.
     *entry = HandleScope::CreateHandle(isolate_, object);
   }
-  return reinterpret_cast<Object**>(*entry);
+  return *entry;
 }
 
 

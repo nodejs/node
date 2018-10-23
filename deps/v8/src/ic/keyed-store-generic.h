@@ -30,6 +30,11 @@ class KeyedStoreGenericGenerator {
                           TNode<Context> context, TNode<Object> receiver,
                           TNode<Object> key, TNode<Object> value,
                           LanguageMode language_mode);
+
+  static void SetPropertyInLiteral(compiler::CodeAssemblerState* state,
+                                   TNode<Context> context,
+                                   TNode<JSObject> receiver, TNode<Name> key,
+                                   TNode<Object> value);
 };
 
 class StoreICUninitializedGenerator {

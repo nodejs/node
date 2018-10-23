@@ -1,3 +1,4 @@
+
 // Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -54,6 +55,20 @@ inline int BoolToInt(bool b) { return b ? 1 : 0; }
 // Same as strcmp, but can handle NULL arguments.
 inline bool CStringEquals(const char* s1, const char* s2) {
   return (s1 == s2) || (s1 != nullptr && s2 != nullptr && strcmp(s1, s2) == 0);
+}
+
+// Checks if value is in range [lower_limit, higher_limit] using a single
+// branch.
+template <typename T, typename U>
+inline bool IsInRange(T value, U lower_limit, U higher_limit) {
+  DCHECK_LE(lower_limit, higher_limit);
+  STATIC_ASSERT(sizeof(U) <= sizeof(T));
+  typedef typename std::make_unsigned<T>::type unsigned_T;
+  // Use static_cast to support enum classes.
+  return static_cast<unsigned_T>(static_cast<unsigned_T>(value) -
+                                 static_cast<unsigned_T>(lower_limit)) <=
+         static_cast<unsigned_T>(static_cast<unsigned_T>(higher_limit) -
+                                 static_cast<unsigned_T>(lower_limit));
 }
 
 // X must be a power of 2.  Returns the number of trailing zeros.
@@ -145,22 +160,6 @@ template <typename T>
 int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
   return Compare<T*>(*(*a), *(*b));
 }
-
-
-template <typename T, typename U>
-inline bool IsAligned(T value, U alignment) {
-  return (value & (alignment - 1)) == 0;
-}
-
-
-// Returns true if (addr + offset) is aligned.
-inline bool IsAddressAligned(Address addr,
-                             intptr_t alignment,
-                             int offset = 0) {
-  intptr_t offs = OffsetFrom(addr + offset);
-  return IsAligned(offs, alignment);
-}
-
 
 // Returns the maximum of the two parameters.
 template <typename T>
@@ -516,7 +515,7 @@ inline uint32_t ComputeAddressHash(Address address) {
 // Generated memcpy/memmove
 
 // Initializes the codegen support that depends on CPU features.
-void init_memcopy_functions(Isolate* isolate);
+void init_memcopy_functions();
 
 #if defined(V8_TARGET_ARCH_IA32)
 // Limit below which the extra overhead of the MemCopy function is likely
@@ -1608,108 +1607,6 @@ static inline V ByteReverse(V value) {
       UNREACHABLE();
   }
 }
-
-// Represents a linked list that threads through the nodes in the linked list.
-// Entries in the list are pointers to nodes. The nodes need to have a T**
-// next() method that returns the location where the next value is stored.
-template <typename T>
-class ThreadedList final {
- public:
-  ThreadedList() : head_(nullptr), tail_(&head_) {}
-  void Add(T* v) {
-    DCHECK_NULL(*tail_);
-    DCHECK_NULL(*v->next());
-    *tail_ = v;
-    tail_ = v->next();
-  }
-
-  void Clear() {
-    head_ = nullptr;
-    tail_ = &head_;
-  }
-
-  class Iterator final {
-   public:
-    Iterator& operator++() {
-      entry_ = (*entry_)->next();
-      return *this;
-    }
-    bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
-    T* operator*() { return *entry_; }
-    T* operator->() { return *entry_; }
-    Iterator& operator=(T* entry) {
-      T* next = *(*entry_)->next();
-      *entry->next() = next;
-      *entry_ = entry;
-      return *this;
-    }
-
-   private:
-    explicit Iterator(T** entry) : entry_(entry) {}
-
-    T** entry_;
-
-    friend class ThreadedList;
-  };
-
-  class ConstIterator final {
-   public:
-    ConstIterator& operator++() {
-      entry_ = (*entry_)->next();
-      return *this;
-    }
-    bool operator!=(const ConstIterator& other) {
-      return entry_ != other.entry_;
-    }
-    const T* operator*() const { return *entry_; }
-
-   private:
-    explicit ConstIterator(T* const* entry) : entry_(entry) {}
-
-    T* const* entry_;
-
-    friend class ThreadedList;
-  };
-
-  Iterator begin() { return Iterator(&head_); }
-  Iterator end() { return Iterator(tail_); }
-
-  ConstIterator begin() const { return ConstIterator(&head_); }
-  ConstIterator end() const { return ConstIterator(tail_); }
-
-  void Rewind(Iterator reset_point) {
-    tail_ = reset_point.entry_;
-    *tail_ = nullptr;
-  }
-
-  void MoveTail(ThreadedList<T>* parent, Iterator location) {
-    if (parent->end() != location) {
-      DCHECK_NULL(*tail_);
-      *tail_ = *location;
-      tail_ = parent->tail_;
-      parent->Rewind(location);
-    }
-  }
-
-  bool is_empty() const { return head_ == nullptr; }
-
-  // Slow. For testing purposes.
-  int LengthForTest() {
-    int result = 0;
-    for (Iterator t = begin(); t != end(); ++t) ++result;
-    return result;
-  }
-  T* AtForTest(int i) {
-    Iterator t = begin();
-    while (i-- > 0) ++t;
-    return *t;
-  }
-
- private:
-  T* head_;
-  T** tail_;
-  DISALLOW_COPY_AND_ASSIGN(ThreadedList);
-};
 
 V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
                                     Vector<const char> filter);

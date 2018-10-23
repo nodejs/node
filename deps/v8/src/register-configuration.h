@@ -144,7 +144,7 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   bool AreAliases(MachineRepresentation rep, int index,
                   MachineRepresentation other_rep, int other_index) const;
 
-  virtual ~RegisterConfiguration() {}
+  virtual ~RegisterConfiguration() = default;
 
  private:
   const int num_general_registers_;

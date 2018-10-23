@@ -81,13 +81,13 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   // Initialize the elements.
 
   DCHECK(!IsDoubleElementsKind(elements_kind));
-  const Heap::RootListIndex map_index = Heap::kFixedArrayMapRootIndex;
-  DCHECK(Heap::RootIsImmortalImmovable(map_index));
+  const RootIndex map_index = RootIndex::kFixedArrayMap;
+  DCHECK(RootsTable::IsImmortalImmovable(map_index));
   StoreMapNoWriteBarrier(elements, map_index);
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
 
   FillFixedArrayWithValue(elements_kind, elements, IntPtrZero(), length_intptr,
-                          Heap::kUndefinedValueRootIndex);
+                          RootIndex::kUndefinedValue);
 
   return CAST(result);
 }
@@ -795,7 +795,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpPrototypeExecBody(
 }
 
 Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
-    Node* context, Node* maybe_receiver, MessageTemplate::Template msg_template,
+    Node* context, Node* maybe_receiver, MessageTemplate msg_template,
     char const* method_name) {
   Label out(this), throw_exception(this, Label::kDeferred);
   VARIABLE(var_value_map, MachineRepresentation::kTagged);
@@ -862,7 +862,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpWithOriginalExec(
   TVARIABLE(BoolT, var_result);
 
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
-  var_result = BoolConstant(0);
+  var_result = BoolConstant(false);
   GotoIfForceSlowPath(&out);
 #endif
 
@@ -1103,7 +1103,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
   Isolate* isolate = this->isolate();
 
   TNode<IntPtrT> const int_one = IntPtrConstant(1);
-  TVARIABLE(Smi, var_length, SmiZero());
+  TVARIABLE(Uint32T, var_length, Uint32Constant(0));
   TVARIABLE(IntPtrT, var_flags);
 
   // First, count the number of characters we will need and check which flags
@@ -1115,13 +1115,13 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Node* const flags_smi = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
     var_flags = SmiUntag(flags_smi);
 
-#define CASE_FOR_FLAG(FLAG)                                  \
-  do {                                                       \
-    Label next(this);                                        \
-    GotoIfNot(IsSetWord(var_flags.value(), FLAG), &next);    \
-    var_length = SmiAdd(var_length.value(), SmiConstant(1)); \
-    Goto(&next);                                             \
-    BIND(&next);                                             \
+#define CASE_FOR_FLAG(FLAG)                                        \
+  do {                                                             \
+    Label next(this);                                              \
+    GotoIfNot(IsSetWord(var_flags.value(), FLAG), &next);          \
+    var_length = Uint32Add(var_length.value(), Uint32Constant(1)); \
+    Goto(&next);                                                   \
+    BIND(&next);                                                   \
   } while (false)
 
     CASE_FOR_FLAG(JSRegExp::kGlobal);
@@ -1145,7 +1145,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Label if_isflagset(this);                                              \
     BranchIfToBooleanIsTrue(flag, &if_isflagset, &next);                   \
     BIND(&if_isflagset);                                                   \
-    var_length = SmiAdd(var_length.value(), SmiConstant(1));               \
+    var_length = Uint32Add(var_length.value(), Uint32Constant(1));         \
     var_flags = Signed(WordOr(var_flags.value(), IntPtrConstant(FLAG)));   \
     Goto(&next);                                                           \
     BIND(&next);                                                           \
@@ -2109,9 +2109,9 @@ TNode<Object> RegExpBuiltinsAssembler::MatchAllIterator(
     StoreMapNoWriteBarrier(iterator, map);
     StoreObjectFieldRoot(iterator,
                          JSRegExpStringIterator::kPropertiesOrHashOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
+                         RootIndex::kEmptyFixedArray);
     StoreObjectFieldRoot(iterator, JSRegExpStringIterator::kElementsOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
+                         RootIndex::kEmptyFixedArray);
 
     // 5. Set iterator.[[IteratingRegExp]] to R.
     StoreObjectFieldNoWriteBarrier(
@@ -2903,14 +2903,13 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
       TNode<String> first_part =
           CAST(CallBuiltin(Builtins::kSubString, context, string,
                            var_last_match_end.value(), match_start));
-      var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone_NotTenured,
-                                    context, var_result.value(), first_part));
+      var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                    var_result.value(), first_part));
 
       GotoIf(SmiEqual(replace_length, SmiZero()), &loop_end);
 
-      var_result =
-          CAST(CallBuiltin(Builtins::kStringAdd_CheckNone_NotTenured, context,
-                           var_result.value(), replace_string));
+      var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                    var_result.value(), replace_string));
       Goto(&loop_end);
 
       BIND(&loop_end);
@@ -2936,8 +2935,8 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
     TNode<String> last_part =
         CAST(CallBuiltin(Builtins::kSubString, context, string,
                          var_last_match_end.value(), string_length));
-    var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone_NotTenured,
-                                  context, var_result.value(), last_part));
+    var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                  var_result.value(), last_part));
     Goto(&out);
   }
 

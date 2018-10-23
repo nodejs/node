@@ -423,7 +423,8 @@ TEST(InterpreterBinaryOpsBigInt) {
         CHECK(return_value->IsBigInt());
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback->ToSmi()->value());
+        CHECK_EQ(BinaryOperationFeedback::kBigInt,
+                 feedback->cast<Smi>()->value());
       }
     }
   }
@@ -543,7 +544,7 @@ TEST(InterpreterStringAdd) {
 
     MaybeObject* feedback = callable.vector()->Get(slot);
     CHECK(feedback->IsSmi());
-    CHECK_EQ(test_cases[i].expected_feedback, feedback->ToSmi()->value());
+    CHECK_EQ(test_cases[i].expected_feedback, feedback->cast<Smi>()->value());
   }
 }
 
@@ -748,7 +749,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
-    CHECK_EQ(test_case.feedback, feedback0->ToSmi()->value());
+    CHECK_EQ(test_case.feedback, feedback0->cast<Smi>()->value());
     CHECK(Object::Equals(isolate, test_case.result, return_val).ToChecked());
   }
 }
@@ -854,7 +855,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
-    CHECK_EQ(test_case.feedback, feedback0->ToSmi()->value());
+    CHECK_EQ(test_case.feedback, feedback0->cast<Smi>()->value());
     CHECK(Object::Equals(isolate, test_case.result, return_val).ToChecked());
   }
 }
@@ -926,23 +927,23 @@ TEST(InterpreterUnaryOpFeedback) {
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
     CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
-             feedback0->ToSmi()->value());
+             feedback0->cast<Smi>()->value());
 
     MaybeObject* feedback1 = callable.vector()->Get(slot1);
     CHECK(feedback1->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi()->value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->cast<Smi>()->value());
 
     MaybeObject* feedback2 = callable.vector()->Get(slot2);
     CHECK(feedback2->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2->ToSmi()->value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2->cast<Smi>()->value());
 
     MaybeObject* feedback3 = callable.vector()->Get(slot3);
     CHECK(feedback3->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3->ToSmi()->value());
+    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3->cast<Smi>()->value());
 
     MaybeObject* feedback4 = callable.vector()->Get(slot4);
     CHECK(feedback4->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4->ToSmi()->value());
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4->cast<Smi>()->value());
   }
 }
 
@@ -988,15 +989,15 @@ TEST(InterpreterBitwiseTypeFeedback) {
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
     CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
-             feedback0->ToSmi()->value());
+             feedback0->cast<Smi>()->value());
 
     MaybeObject* feedback1 = callable.vector()->Get(slot1);
     CHECK(feedback1->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi()->value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->cast<Smi>()->value());
 
     MaybeObject* feedback2 = callable.vector()->Get(slot2);
     CHECK(feedback2->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2->ToSmi()->value());
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2->cast<Smi>()->value());
   }
 }
 
@@ -1818,7 +1819,7 @@ TEST(InterpreterSmiComparisons) {
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
         CHECK_EQ(CompareOperationFeedback::kSignedSmall,
-                 feedback->ToSmi()->value());
+                 feedback->cast<Smi>()->value());
       }
     }
   }
@@ -1866,7 +1867,8 @@ TEST(InterpreterHeapNumberComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kNumber, feedback->ToSmi()->value());
+        CHECK_EQ(CompareOperationFeedback::kNumber,
+                 feedback->cast<Smi>()->value());
       }
     }
   }
@@ -1908,7 +1910,8 @@ TEST(InterpreterBigIntComparisons) {
         CHECK(return_value->IsBoolean());
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kBigInt, feedback->ToSmi()->value());
+        CHECK_EQ(CompareOperationFeedback::kBigInt,
+                 feedback->cast<Smi>()->value());
       }
     }
   }
@@ -1959,7 +1962,7 @@ TEST(InterpreterStringComparisons) {
             Token::IsOrderedRelationalCompareOp(comparison)
                 ? CompareOperationFeedback::kString
                 : CompareOperationFeedback::kInternalizedString;
-        CHECK_EQ(expected_feedback, feedback->ToSmi()->value());
+        CHECK_EQ(expected_feedback, feedback->cast<Smi>()->value());
       }
     }
   }
@@ -2072,7 +2075,7 @@ TEST(InterpreterMixedComparisons) {
             CHECK(feedback->IsSmi());
             // Comparison with a number and string collects kAny feedback.
             CHECK_EQ(CompareOperationFeedback::kAny,
-                     feedback->ToSmi()->value());
+                     feedback->cast<Smi>()->value());
           }
         }
       }
@@ -5044,6 +5047,35 @@ TEST(InterpreterWithNativeStack) {
   CHECK(code->is_interpreter_trampoline_builtin());
   CHECK_NE(code->InstructionStart(),
            interpreter_entry_trampoline->InstructionStart());
+}
+
+TEST(InterpreterGetAndMaybeDeserializeBytecodeHandler) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Interpreter* interpreter = isolate->interpreter();
+
+  // Test that single-width bytecode handlers deserializer correctly.
+  Code* wide_handler = interpreter->GetAndMaybeDeserializeBytecodeHandler(
+      Bytecode::kWide, OperandScale::kSingle);
+
+  CHECK_EQ(wide_handler->builtin_index(), Builtins::kWideHandler);
+
+  Code* add_handler = interpreter->GetAndMaybeDeserializeBytecodeHandler(
+      Bytecode::kAdd, OperandScale::kSingle);
+
+  CHECK_EQ(add_handler->builtin_index(), Builtins::kAddHandler);
+
+  // Test that double-width bytecode handlers deserializer correctly, including
+  // an illegal bytecode handler since there is no Wide.Wide handler.
+  Code* wide_wide_handler = interpreter->GetAndMaybeDeserializeBytecodeHandler(
+      Bytecode::kWide, OperandScale::kDouble);
+
+  CHECK_EQ(wide_wide_handler->builtin_index(), Builtins::kIllegalHandler);
+
+  Code* add_wide_handler = interpreter->GetAndMaybeDeserializeBytecodeHandler(
+      Bytecode::kAdd, OperandScale::kDouble);
+
+  CHECK_EQ(add_wide_handler->builtin_index(), Builtins::kAddWideHandler);
 }
 
 }  // namespace interpreter

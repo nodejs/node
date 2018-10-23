@@ -9,16 +9,15 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/isolate.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
 namespace heap {
 
 void SealCurrentObjects(Heap* heap) {
-  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
-                          GarbageCollectionReason::kTesting);
-  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
-                          GarbageCollectionReason::kTesting);
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
   heap->old_space()->FreeLinearAllocationArea();
   for (Page* page : *heap->old_space()) {
@@ -37,16 +36,21 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
   Isolate* isolate = heap->isolate();
   const int kArraySize = 128;
   const int kArrayLen = heap::FixedArrayLenFromSize(kArraySize);
-  CHECK_EQ(Page::kAllocatableMemory % kArraySize, 0);
   Handle<FixedArray> array;
-  for (int allocated = 0; allocated != (Page::kAllocatableMemory - remainder);
-       allocated += array->Size()) {
-    if (allocated == (Page::kAllocatableMemory - kArraySize)) {
-      array = isolate->factory()->NewFixedArray(
-          heap::FixedArrayLenFromSize(kArraySize - remainder), TENURED);
-      CHECK_EQ(kArraySize - remainder, array->Size());
+  int allocated = 0;
+  do {
+    if (allocated + kArraySize * 2 > MemoryChunk::kAllocatableMemory) {
+      int size =
+          kArraySize * 2 -
+          ((allocated + kArraySize * 2) - MemoryChunk::kAllocatableMemory) -
+          remainder;
+      int last_array_len = heap::FixedArrayLenFromSize(size);
+      array = isolate->factory()->NewFixedArray(last_array_len, TENURED);
+      CHECK_EQ(size, array->Size());
+      allocated += array->Size() + remainder;
     } else {
       array = isolate->factory()->NewFixedArray(kArrayLen, TENURED);
+      allocated += array->Size();
       CHECK_EQ(kArraySize, array->Size());
     }
     if (handles.empty()) {
@@ -55,7 +59,7 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
                Page::FromAddress(array->address())->area_start());
     }
     handles.push_back(array);
-  }
+  } while (allocated < MemoryChunk::kAllocatableMemory);
   return handles;
 }
 

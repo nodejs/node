@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {PROF_COLS, UNICODE_BLOCK} from "./constants.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {TextView} from "./text-view.js"
+import {PROF_COLS, UNICODE_BLOCK} from "../src/constants"
+import {SelectionBroker} from "../src/selection-broker"
+import {TextView} from "../src/text-view"
 
 export class DisassemblyView extends TextView {
   SOURCE_POSITION_HEADER_REGEX: any;

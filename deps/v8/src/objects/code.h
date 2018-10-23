@@ -27,8 +27,6 @@ class Register;
 // Code describes objects with on-the-fly generated machine code.
 class Code : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
   typedef uint32_t Flags;
@@ -307,9 +305,6 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // object has been moved by delta bytes.
   void Relocate(intptr_t delta);
 
-  // Migrate code described by desc.
-  void CopyFrom(Heap* heap, const CodeDesc& desc);
-
   // Migrate code from desc without flushing the instruction cache.
   void CopyFromNoFlush(Heap* heap, const CodeDesc& desc);
 
@@ -369,7 +364,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
     Code* current_code_;
     Isolate* isolate_;
 
-    DisallowHeapAllocation no_gc;
+    DISALLOW_HEAP_ALLOCATION(no_gc);
     DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator)
   };
 
@@ -459,9 +454,6 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
 // field {Code::code_data_container} itself is immutable.
 class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   DECL_ACCESSORS(next_code_link, Object)
   DECL_INT_ACCESSORS(kind_specific_flags)
 
@@ -485,15 +477,7 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
   static const int kPointerFieldsStrongEndOffset = kNextCodeLinkOffset;
   static const int kPointerFieldsWeakEndOffset = kKindSpecificFlagsOffset;
 
-  // Ignores weakness.
-  typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
-                              kPointerFieldsWeakEndOffset, kSize>
-      BodyDescriptor;
-
-  // Respects weakness.
-  typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
-                              kPointerFieldsStrongEndOffset, kSize>
-      BodyDescriptorWeak;
+  class BodyDescriptor;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeDataContainer);
@@ -501,9 +485,6 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
 
 class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   // All code kinds and INTERPRETED_FUNCTION.
   enum Kind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
@@ -624,12 +605,9 @@ class DependentCode : public WeakFixedArray {
   };
 
   // Register a code dependency of {cell} on {object}.
-  static void InstallDependency(Isolate* isolate, MaybeObjectHandle code,
+  static void InstallDependency(Isolate* isolate, const MaybeObjectHandle& code,
                                 Handle<HeapObject> object,
                                 DependencyGroup group);
-
-  bool Contains(DependencyGroup group, MaybeObject* code);
-  bool IsEmpty(DependencyGroup group);
 
   void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroup group);
 
@@ -650,14 +628,14 @@ class DependentCode : public WeakFixedArray {
                                Handle<DependentCode> dep);
 
   static Handle<DependentCode> New(Isolate* isolate, DependencyGroup group,
-                                   MaybeObjectHandle object,
+                                   const MaybeObjectHandle& object,
                                    Handle<DependentCode> next);
   static Handle<DependentCode> EnsureSpace(Isolate* isolate,
                                            Handle<DependentCode> entries);
   static Handle<DependentCode> InsertWeakCode(Isolate* isolate,
                                               Handle<DependentCode> entries,
                                               DependencyGroup group,
-                                              MaybeObjectHandle code);
+                                              const MaybeObjectHandle& code);
 
   // Compact by removing cleared weak cells and return true if there was
   // any cleared weak cell.
@@ -811,8 +789,6 @@ class BytecodeArray : public FixedArrayBase {
   static const int kMaxLength = kMaxSize - kHeaderSize;
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeArray);
@@ -901,6 +877,22 @@ class DeoptimizationData : public FixedArray {
   }
 
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
+};
+
+class SourcePositionTableWithFrameCache : public Tuple2 {
+ public:
+  DECL_ACCESSORS(source_position_table, ByteArray)
+  DECL_ACCESSORS(stack_frame_cache, SimpleNumberDictionary)
+
+  DECL_CAST(SourcePositionTableWithFrameCache)
+
+  static const int kSourcePositionTableIndex = Struct::kHeaderSize;
+  static const int kStackFrameCacheIndex =
+      kSourcePositionTableIndex + kPointerSize;
+  static const int kSize = kStackFrameCacheIndex + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SourcePositionTableWithFrameCache);
 };
 
 }  // namespace internal

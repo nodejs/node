@@ -500,28 +500,12 @@ class GlobalHandles::NodeIterator {
   DISALLOW_COPY_AND_ASSIGN(NodeIterator);
 };
 
-class GlobalHandles::PendingPhantomCallbacksSecondPassTask
-    : public v8::internal::CancelableTask {
- public:
-  PendingPhantomCallbacksSecondPassTask(GlobalHandles* global_handles,
-                                        Isolate* isolate)
-      : CancelableTask(isolate), global_handles_(global_handles) {}
-
-  void RunInternal() override {
-    global_handles_->InvokeSecondPassPhantomCallbacksFromTask();
-  }
-
- private:
-  GlobalHandles* global_handles_;
-  DISALLOW_COPY_AND_ASSIGN(PendingPhantomCallbacksSecondPassTask);
-};
-
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
-      number_of_global_handles_(0),
       first_block_(nullptr),
       first_used_block_(nullptr),
       first_free_(nullptr),
+      number_of_global_handles_(0),
       post_gc_processing_count_(0),
       number_of_phantom_handle_resets_(0) {}
 
@@ -553,24 +537,31 @@ Handle<Object> GlobalHandles::Create(Object* value) {
   return result->handle();
 }
 
+Handle<Object> GlobalHandles::Create(Address value) {
+  return Create(reinterpret_cast<Object*>(value));
+}
 
-Handle<Object> GlobalHandles::CopyGlobal(Object** location) {
+Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   DCHECK_NOT_NULL(location);
   GlobalHandles* global_handles =
-      Node::FromLocation(location)->GetGlobalHandles();
+      Node::FromLocation(reinterpret_cast<Object**>(location))
+          ->GetGlobalHandles();
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
-    (*location)->ObjectVerify(global_handles->isolate());
+    (*reinterpret_cast<Object**>(location))
+        ->ObjectVerify(global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);
 }
 
-
 void GlobalHandles::Destroy(Object** location) {
   if (location != nullptr) Node::FromLocation(location)->Release();
 }
 
+void GlobalHandles::Destroy(Address* location) {
+  Destroy(reinterpret_cast<Object**>(location));
+}
 
 typedef v8::WeakCallbackInfo<void>::Callback GenericCallback;
 
@@ -581,17 +572,35 @@ void GlobalHandles::MakeWeak(Object** location, void* parameter,
   Node::FromLocation(location)->MakeWeak(parameter, phantom_callback, type);
 }
 
+void GlobalHandles::MakeWeak(Address* location, void* parameter,
+                             GenericCallback phantom_callback,
+                             v8::WeakCallbackType type) {
+  Node::FromLocation(reinterpret_cast<Object**>(location))
+      ->MakeWeak(parameter, phantom_callback, type);
+}
+
 void GlobalHandles::MakeWeak(Object*** location_addr) {
   Node::FromLocation(*location_addr)->MakeWeak(location_addr);
 }
 
-void* GlobalHandles::ClearWeakness(Object** location) {
-  return Node::FromLocation(location)->ClearWeakness();
+void GlobalHandles::MakeWeak(Address** location_addr) {
+  MakeWeak(reinterpret_cast<Object***>(location_addr));
+}
+
+void* GlobalHandles::ClearWeakness(Address* location) {
+  return Node::FromLocation(reinterpret_cast<Object**>(location))
+      ->ClearWeakness();
 }
 
 void GlobalHandles::AnnotateStrongRetainer(Object** location,
                                            const char* label) {
   Node::FromLocation(location)->AnnotateStrongRetainer(label);
+}
+
+void GlobalHandles::AnnotateStrongRetainer(Address* location,
+                                           const char* label) {
+  Node::FromLocation(reinterpret_cast<Object**>(location))
+      ->AnnotateStrongRetainer(label);
 }
 
 bool GlobalHandles::IsNearDeath(Object** location) {
@@ -871,9 +880,10 @@ int GlobalHandles::DispatchPendingPhantomCallbacks(
           GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
     } else if (!second_pass_callbacks_task_posted_) {
       second_pass_callbacks_task_posted_ = true;
-      auto task = new PendingPhantomCallbacksSecondPassTask(this, isolate());
-      V8::GetCurrentPlatform()->CallOnForegroundThread(
-          reinterpret_cast<v8::Isolate*>(isolate()), task);
+      auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+          reinterpret_cast<v8::Isolate*>(isolate()));
+      taskrunner->PostTask(MakeCancelableLambdaTask(
+          isolate(), [this] { InvokeSecondPassPhantomCallbacksFromTask(); }));
     }
   }
   return freed_nodes;
@@ -913,6 +923,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
   const int initial_post_gc_processing_count = ++post_gc_processing_count_;
   int freed_nodes = 0;
   bool synchronous_second_pass =
+      isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;

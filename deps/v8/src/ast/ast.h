@@ -383,7 +383,7 @@ class DoExpression final : public Expression {
 
 class Declaration : public AstNode {
  public:
-  typedef ThreadedList<Declaration> List;
+  typedef base::ThreadedList<Declaration> List;
 
   VariableProxy* proxy() const { return proxy_; }
 
@@ -397,6 +397,7 @@ class Declaration : public AstNode {
   Declaration** next() { return &next_; }
   Declaration* next_;
   friend List;
+  friend base::ThreadedListTraits<Declaration>;
 };
 
 class VariableDeclaration : public Declaration {
@@ -1260,19 +1261,20 @@ class AggregateLiteral : public MaterializedLiteral {
 // Common supertype for ObjectLiteralProperty and ClassLiteralProperty
 class LiteralProperty : public ZoneObject {
  public:
-  Expression* key() const { return key_; }
+  Expression* key() const { return key_and_is_computed_name_.GetPointer(); }
   Expression* value() const { return value_; }
 
-  bool is_computed_name() const { return is_computed_name_; }
+  bool is_computed_name() const {
+    return key_and_is_computed_name_.GetPayload();
+  }
   bool NeedsSetFunctionName() const;
 
  protected:
   LiteralProperty(Expression* key, Expression* value, bool is_computed_name)
-      : key_(key), value_(value), is_computed_name_(is_computed_name) {}
+      : key_and_is_computed_name_(key, is_computed_name), value_(value) {}
 
-  Expression* key_;
+  PointerWithPayload<Expression, bool, 1> key_and_is_computed_name_;
   Expression* value_;
-  bool is_computed_name_;
 };
 
 // Property is used for passing information
@@ -1477,8 +1479,6 @@ class ArrayLiteral final : public AggregateLiteral {
 
   int first_spread_index() const { return first_spread_index_; }
 
-  bool is_empty() const;
-
   // Populate the depth field and flags, returns the depth.
   int InitDepthAndFlags();
 
@@ -1578,8 +1578,15 @@ class VariableProxy final : public Expression {
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
 
-  void set_next_unresolved(VariableProxy* next) { next_unresolved_ = next; }
-  VariableProxy* next_unresolved() { return next_unresolved_; }
+  V8_INLINE VariableProxy* next_unresolved() { return next_unresolved_; }
+
+  // Provides an access type for the ThreadedList used by the PreParsers
+  // expressions, lists, and formal parameters.
+  struct PreParserNext {
+    static VariableProxy** next(VariableProxy* t) {
+      return t->pre_parser_expr_next();
+    }
+  };
 
  private:
   friend class AstNodeFactory;
@@ -1590,7 +1597,8 @@ class VariableProxy final : public Expression {
                 int start_position)
       : Expression(start_position, kVariableProxy),
         raw_name_(name),
-        next_unresolved_(nullptr) {
+        next_unresolved_(nullptr),
+        pre_parser_expr_next_(nullptr) {
     bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
                   IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
@@ -1613,9 +1621,15 @@ class VariableProxy final : public Expression {
     const AstRawString* raw_name_;  // if !is_resolved_
     Variable* var_;                 // if is_resolved_
   };
-  VariableProxy* next_unresolved_;
-};
 
+  V8_INLINE VariableProxy** next() { return &next_unresolved_; }
+  VariableProxy* next_unresolved_;
+
+  VariableProxy** pre_parser_expr_next() { return &pre_parser_expr_next_; }
+  VariableProxy* pre_parser_expr_next_;
+
+  friend base::ThreadedListTraits<VariableProxy>;
+};
 
 // Left-hand side can only be a property, a global or a (parameter or local)
 // slot.
@@ -2248,7 +2262,7 @@ class FunctionLiteral final : public Expression {
 
   void mark_as_iife() { bit_field_ = IIFEBit::update(bit_field_, true); }
   bool is_iife() const { return IIFEBit::decode(bit_field_); }
-  bool is_top_level() const {
+  bool is_toplevel() const {
     return function_literal_id() == FunctionLiteral::kIdTypeTopLevel;
   }
   bool is_wrapped() const { return function_type() == kWrapped; }
@@ -2308,7 +2322,7 @@ class FunctionLiteral final : public Expression {
   // - (function() { ... })();
   // - var x = function() { ... }();
   bool ShouldEagerCompile() const;
-  void SetShouldEagerCompile();
+  V8_EXPORT_PRIVATE void SetShouldEagerCompile();
 
   FunctionType function_type() const {
     return FunctionTypeBits::decode(bit_field_);
@@ -2736,7 +2750,7 @@ class TemplateLiteral final : public Expression {
 //   class SpecificVisitor : public AstVisitor<SpecificVisitor> { ... }
 
 template <class Subclass>
-class AstVisitor BASE_EMBEDDED {
+class AstVisitor {
  public:
   void Visit(AstNode* node) { impl()->Visit(node); }
 
@@ -2823,7 +2837,7 @@ class AstVisitor BASE_EMBEDDED {
 // ----------------------------------------------------------------------------
 // AstNode factory
 
-class AstNodeFactory final BASE_EMBEDDED {
+class AstNodeFactory final {
  public:
   AstNodeFactory(AstValueFactory* ast_value_factory, Zone* zone)
       : zone_(zone), ast_value_factory_(ast_value_factory) {}
@@ -3330,7 +3344,6 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   Zone* zone() const { return zone_; }
-  void set_zone(Zone* zone) { zone_ = zone; }
 
  private:
   // This zone may be deallocated upon returning from parsing a function body
@@ -3349,7 +3362,7 @@ class AstNodeFactory final BASE_EMBEDDED {
   bool AstNode::Is##type() const {                                           \
     NodeType mine = node_type();                                             \
     if (mine == AstNode::kRewritableExpression &&                            \
-        AstNode::k##type != AstNode::kRewritableExpression)                  \
+        AstNode::k##type == AstNode::kAssignment)                            \
       mine = reinterpret_cast<const RewritableExpression*>(this)             \
                  ->expression()                                              \
                  ->node_type();                                              \
@@ -3359,7 +3372,7 @@ class AstNodeFactory final BASE_EMBEDDED {
     NodeType mine = node_type();                                             \
     AstNode* result = this;                                                  \
     if (mine == AstNode::kRewritableExpression &&                            \
-        AstNode::k##type != AstNode::kRewritableExpression) {                \
+        AstNode::k##type == AstNode::kAssignment) {                          \
       result =                                                               \
           reinterpret_cast<const RewritableExpression*>(this)->expression(); \
       mine = result->node_type();                                            \

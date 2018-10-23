@@ -127,6 +127,33 @@ class CodeAddressMap : public CodeEventLogger {
   NameMap address_to_name_map_;
 };
 
+class ObjectCacheIndexMap {
+ public:
+  ObjectCacheIndexMap() : map_(), next_index_(0) {}
+
+  // If |obj| is in the map, immediately return true.  Otherwise add it to the
+  // map and return false. In either case set |*index_out| to the index
+  // associated with the map.
+  bool LookupOrInsert(HeapObject* obj, int* index_out) {
+    Maybe<uint32_t> maybe_index = map_.Get(obj);
+    if (maybe_index.IsJust()) {
+      *index_out = maybe_index.FromJust();
+      return true;
+    }
+    *index_out = next_index_;
+    map_.Set(obj, next_index_++);
+    return false;
+  }
+
+ private:
+  DisallowHeapAllocation no_allocation_;
+
+  HeapObjectToIndexHashMap map_;
+  int next_index_;
+
+  DISALLOW_COPY_AND_ASSIGN(ObjectCacheIndexMap);
+};
+
 template <class AllocatorT = DefaultSerializerAllocator>
 class Serializer : public SerializerDeserializer {
  public:
@@ -172,8 +199,8 @@ class Serializer : public SerializerDeserializer {
                          Object** end) override;
   void SerializeRootObject(Object* object);
 
-  void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
-               int skip);
+  void PutRoot(RootIndex root_index, HeapObject* object, HowToCode how,
+               WhereToPoint where, int skip);
   void PutSmi(Smi* smi);
   void PutBackReference(HeapObject* object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference,
@@ -181,6 +208,10 @@ class Serializer : public SerializerDeserializer {
   // Emit alignment prefix if necessary, return required padding space in bytes.
   int PutAlignmentPrefix(HeapObject* object);
   void PutNextChunk(int space);
+
+  // Returns true if the object was successfully serialized as a root.
+  bool SerializeRoot(HeapObject* obj, HowToCode how_to_code,
+                     WhereToPoint where_to_point, int skip);
 
   // Returns true if the object was successfully serialized as hot object.
   bool SerializeHotObject(HeapObject* obj, HowToCode how_to_code,
@@ -198,19 +229,22 @@ class Serializer : public SerializerDeserializer {
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject* obj) const;
 
-  inline void FlushSkip(int skip) {
+  static inline void FlushSkip(SnapshotByteSink* sink, int skip) {
     if (skip != 0) {
-      sink_.Put(kSkip, "SkipFromSerializeObject");
-      sink_.PutInt(skip, "SkipDistanceFromSerializeObject");
+      sink->Put(kSkip, "SkipFromSerializeObject");
+      sink->PutInt(skip, "SkipDistanceFromSerializeObject");
     }
   }
+
+  inline void FlushSkip(int skip) { FlushSkip(&sink_, skip); }
 
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
   }
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
-  void Pad();
+  // Use padding_offset to specify the space you want to use after padding.
+  void Pad(int padding_offset = 0);
 
   // We may not need the code address map for logging for every instance
   // of the serializer.  Initialize it on demand.
@@ -236,7 +270,7 @@ class Serializer : public SerializerDeserializer {
 #endif  // DEBUG
 
   SerializerReferenceMap* reference_map() { return &reference_map_; }
-  RootIndexMap* root_index_map() { return &root_index_map_; }
+  const RootIndexMap* root_index_map() const { return &root_index_map_; }
   AllocatorT* allocator() { return &allocator_; }
 
   SnapshotByteSink sink_;  // Used directly by subclasses.
@@ -284,6 +318,7 @@ class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
     serializer_->PushStack(obj);
 #endif  // DEBUG
   }
+  // NOLINTNEXTLINE (modernize-use-equals-default)
   ~ObjectSerializer() override {
 #ifdef DEBUG
     serializer_->PopStack();

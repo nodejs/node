@@ -30,6 +30,7 @@
 
 #include "src/inspector/injected-script.h"
 
+#include "src/inspector/custom-preview.h"
 #include "src/inspector/injected-script-source.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -381,6 +382,16 @@ Response InjectedScript::wrapObject(
     v8::Local<v8::Value> value, const String16& groupName, bool forceValueType,
     bool generatePreview,
     std::unique_ptr<protocol::Runtime::RemoteObject>* result) const {
+  return wrapObject(value, groupName, forceValueType, generatePreview,
+                    v8::MaybeLocal<v8::Value>(), kMaxCustomPreviewDepth,
+                    result);
+}
+
+Response InjectedScript::wrapObject(
+    v8::Local<v8::Value> value, const String16& groupName, bool forceValueType,
+    bool generatePreview, v8::MaybeLocal<v8::Value> customPreviewConfig,
+    int maxCustomPreviewDepth,
+    std::unique_ptr<protocol::Runtime::RemoteObject>* result) const {
   v8::HandleScope handles(m_context->isolate());
   v8::Local<v8::Value> wrappedObject;
   v8::Local<v8::Context> context = m_context->context();
@@ -395,6 +406,13 @@ Response InjectedScript::wrapObject(
   *result =
       protocol::Runtime::RemoteObject::fromValue(protocolValue.get(), &errors);
   if (!result->get()) return Response::Error(errors.errors());
+  if (m_customPreviewEnabled && value->IsObject()) {
+    std::unique_ptr<protocol::Runtime::CustomPreview> customPreview;
+    generateCustomPreview(m_sessionId, groupName, m_context->context(),
+                          value.As<v8::Object>(), customPreviewConfig,
+                          maxCustomPreviewDepth, &customPreview);
+    if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
+  }
   return Response::OK();
 }
 
@@ -496,13 +514,7 @@ void InjectedScript::releaseObjectGroup(const String16& objectGroup) {
 }
 
 void InjectedScript::setCustomObjectFormatterEnabled(bool enabled) {
-  v8::HandleScope handles(m_context->isolate());
-  V8FunctionCall function(m_context->inspector(), m_context->context(),
-                          v8Value(), "setCustomObjectFormatterEnabled");
-  function.appendArgument(enabled);
-  bool hadException = false;
-  function.call(hadException);
-  DCHECK(!hadException);
+  m_customPreviewEnabled = enabled;
 }
 
 v8::Local<v8::Value> InjectedScript::v8Value() const {
@@ -738,7 +750,7 @@ InjectedScript::ContextScope::ContextScope(V8InspectorSessionImpl* session,
     : InjectedScript::Scope(session),
       m_executionContextId(executionContextId) {}
 
-InjectedScript::ContextScope::~ContextScope() {}
+InjectedScript::ContextScope::~ContextScope() = default;
 
 Response InjectedScript::ContextScope::findInjectedScript(
     V8InspectorSessionImpl* session) {
@@ -749,7 +761,7 @@ InjectedScript::ObjectScope::ObjectScope(V8InspectorSessionImpl* session,
                                          const String16& remoteObjectId)
     : InjectedScript::Scope(session), m_remoteObjectId(remoteObjectId) {}
 
-InjectedScript::ObjectScope::~ObjectScope() {}
+InjectedScript::ObjectScope::~ObjectScope() = default;
 
 Response InjectedScript::ObjectScope::findInjectedScript(
     V8InspectorSessionImpl* session) {
@@ -770,7 +782,7 @@ InjectedScript::CallFrameScope::CallFrameScope(V8InspectorSessionImpl* session,
                                                const String16& remoteObjectId)
     : InjectedScript::Scope(session), m_remoteCallFrameId(remoteObjectId) {}
 
-InjectedScript::CallFrameScope::~CallFrameScope() {}
+InjectedScript::CallFrameScope::~CallFrameScope() = default;
 
 Response InjectedScript::CallFrameScope::findInjectedScript(
     V8InspectorSessionImpl* session) {

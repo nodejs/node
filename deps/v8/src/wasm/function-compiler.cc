@@ -28,13 +28,6 @@ const char* GetExecutionTierAsString(ExecutionTier mode) {
   UNREACHABLE();
 }
 
-void RecordStats(const WasmCode* code, Counters* counters) {
-  counters->wasm_generated_code_size()->Increment(
-      static_cast<int>(code->instructions().size()));
-  counters->wasm_reloc_size()->Increment(
-      static_cast<int>(code->reloc_info().size()));
-}
-
 }  // namespace
 
 // static
@@ -45,13 +38,11 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
                                          ModuleEnv* env,
                                          NativeModule* native_module,
-                                         FunctionBody body, WasmName name,
-                                         int index, Counters* counters,
-                                         ExecutionTier mode)
+                                         FunctionBody body, int index,
+                                         Counters* counters, ExecutionTier mode)
     : env_(env),
       wasm_engine_(wasm_engine),
       func_body_(body),
-      func_name_(name),
       counters_(counters),
       func_index_(index),
       native_module_(native_module),
@@ -71,7 +62,7 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 
 // Declared here such that {LiftoffCompilationUnit} and
 // {TurbofanWasmCompilationUnit} can be opaque in the header file.
-WasmCompilationUnit::~WasmCompilationUnit() {}
+WasmCompilationUnit::~WasmCompilationUnit() = default;
 
 void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   auto size_histogram = SELECT_WASM_COUNTER(counters_, env_->module->origin,
@@ -101,24 +92,23 @@ void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   }
 }
 
-WasmCode* WasmCompilationUnit::FinishCompilation(ErrorThrower* thrower) {
-  WasmCode* ret;
-  switch (mode_) {
-    case ExecutionTier::kBaseline:
-      ret = liftoff_unit_->FinishCompilation(thrower);
-      break;
-    case ExecutionTier::kOptimized:
-      ret = turbofan_unit_->FinishCompilation(thrower);
-      break;
-    case ExecutionTier::kInterpreter:
-      UNREACHABLE();  // TODO(titzer): finish interpreter entry stub.
-  }
-  if (ret == nullptr) {
-    thrower->RuntimeError("Error finalizing code.");
+void WasmCompilationUnit::ReportError(ErrorThrower* thrower) const {
+  DCHECK(result_.failed());
+  // Add the function as another context for the exception. This is
+  // user-visible, so use official format.
+  EmbeddedVector<char, 128> message;
+  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
+  wasm::WireBytesRef name_ref =
+      native_module()->module()->LookupFunctionName(wire_bytes, func_index_);
+  if (name_ref.is_set()) {
+    wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
+    SNPrintF(message, "Compiling wasm function \"%.*s\" failed", name.length(),
+             name.start());
   } else {
-    RecordStats(ret, counters_);
+    SNPrintF(message, "Compiling wasm function \"wasm-function[%d]\" failed",
+             func_index_);
   }
-  return ret;
+  thrower->CompileFailed(message.start(), result_);
 }
 
 void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
@@ -155,10 +145,25 @@ WasmCode* WasmCompilationUnit::CompileWasmFunction(
 
   WasmCompilationUnit unit(isolate->wasm_engine(), env, native_module,
                            function_body,
-                           wire_bytes.GetNameOrNull(function, env->module),
                            function->func_index, isolate->counters(), mode);
   unit.ExecuteCompilation(detected);
-  return unit.FinishCompilation(thrower);
+  if (unit.failed()) {
+    unit.ReportError(thrower);
+    return nullptr;
+  }
+  return unit.result();
+}
+
+void WasmCompilationUnit::SetResult(WasmCode* code) {
+  DCHECK(!result_.failed());
+  DCHECK_NULL(result_.value());
+  result_ = Result<WasmCode*>(code);
+  native_module()->PublishCode(code);
+
+  counters_->wasm_generated_code_size()->Increment(
+      static_cast<int>(code->instructions().size()));
+  counters_->wasm_reloc_size()->Increment(
+      static_cast<int>(code->reloc_info().size()));
 }
 
 }  // namespace wasm

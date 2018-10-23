@@ -8,13 +8,16 @@
 #include "src/code-tracer.h"
 #include "src/global-handles.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/read-only-serializer.h"
 #include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {
 
-StartupSerializer::StartupSerializer(Isolate* isolate)
-    : Serializer(isolate), can_be_rehashed_(true) {
+StartupSerializer::StartupSerializer(Isolate* isolate,
+                                     ReadOnlySerializer* read_only_serializer)
+    : RootsSerializer(isolate, RootIndex::kFirstStrongRoot),
+      read_only_serializer_(read_only_serializer) {
   InitializeCodeAddressMap();
 }
 
@@ -33,17 +36,12 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     return;
   }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
-
-  int root_index = root_index_map()->Lookup(obj);
-  // We can only encode roots as such if it has already been serialized.
-  // That applies to root indices below the wave front.
-  if (root_index != RootIndexMap::kInvalidRootIndex) {
-    if (root_has_been_serialized(root_index)) {
-      PutRoot(root_index, obj, how_to_code, where_to_point, skip);
-      return;
-    }
-  }
-
+  if (IsRootAndHasBeenSerialized(obj) &&
+      SerializeRoot(obj, how_to_code, where_to_point, skip))
+    return;
+  if (SerializeUsingReadOnlyObjectCache(&sink_, obj, how_to_code,
+                                        where_to_point, skip))
+    return;
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
   FlushSkip(skip);
@@ -79,6 +77,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   CheckRehashability(obj);
 
   // Object has not yet been serialized.  Serialize it here.
+  DCHECK(!isolate()->heap()->read_only_space()->Contains(obj));
   ObjectSerializer object_serializer(this, obj, &sink_, how_to_code,
                                      where_to_point);
   object_serializer.Serialize();
@@ -93,22 +92,6 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
   SerializeDeferredObjects();
   Pad();
-}
-
-int StartupSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
-  int index;
-  if (!partial_cache_index_map_.LookupOrInsert(heap_object, &index)) {
-    // This object is not part of the partial snapshot cache yet. Add it to the
-    // startup snapshot so we can refer to it via partial snapshot index from
-    // the partial snapshot.
-    VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                     reinterpret_cast<Object**>(&heap_object));
-  }
-  return index;
-}
-
-void StartupSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
-  sink_.Put(kSynchronize, "Synchronize");
 }
 
 void StartupSerializer::SerializeStrongReferences() {
@@ -128,45 +111,6 @@ void StartupSerializer::SerializeStrongReferences() {
   isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
 }
 
-void StartupSerializer::VisitRootPointers(Root root, const char* description,
-                                          Object** start, Object** end) {
-  if (start == isolate()->heap()->roots_array_start()) {
-    // Serializing the root list needs special handling:
-    // - Only root list elements that have been fully serialized can be
-    //   referenced using kRootArray bytecodes.
-    for (Object** current = start; current < end; current++) {
-      SerializeRootObject(*current);
-      int root_index = static_cast<int>(current - start);
-      root_has_been_serialized_.set(root_index);
-    }
-  } else {
-    Serializer::VisitRootPointers(root, description, start, end);
-  }
-}
-
-void StartupSerializer::CheckRehashability(HeapObject* obj) {
-  if (!can_be_rehashed_) return;
-  if (!obj->NeedsRehashing()) return;
-  if (obj->CanBeRehashed()) return;
-  can_be_rehashed_ = false;
-}
-
-bool StartupSerializer::MustBeDeferred(HeapObject* object) {
-  if (root_has_been_serialized_.test(Heap::kFreeSpaceMapRootIndex) &&
-      root_has_been_serialized_.test(Heap::kOnePointerFillerMapRootIndex) &&
-      root_has_been_serialized_.test(Heap::kTwoPointerFillerMapRootIndex)) {
-    // All required root objects are serialized, so any aligned objects can
-    // be saved without problems.
-    return false;
-  }
-  // Just defer everything except of Map objects until all required roots are
-  // serialized. Some objects may have special alignment requirements, that may
-  // not be fulfilled during deserialization until few first root objects are
-  // serialized. But we must serialize Map objects since deserializer checks
-  // that these root objects are indeed Maps.
-  return !object->IsMap();
-}
-
 SerializedHandleChecker::SerializedHandleChecker(
     Isolate* isolate, std::vector<Context*>* contexts)
     : isolate_(isolate) {
@@ -174,6 +118,24 @@ SerializedHandleChecker::SerializedHandleChecker(
   for (auto const& context : *contexts) {
     AddToSet(context->serialized_objects());
   }
+}
+
+bool StartupSerializer::SerializeUsingReadOnlyObjectCache(
+    SnapshotByteSink* sink, HeapObject* obj, HowToCode how_to_code,
+    WhereToPoint where_to_point, int skip) {
+  return read_only_serializer_->SerializeUsingReadOnlyObjectCache(
+      sink, obj, how_to_code, where_to_point, skip);
+}
+
+void StartupSerializer::SerializeUsingPartialSnapshotCache(
+    SnapshotByteSink* sink, HeapObject* obj, HowToCode how_to_code,
+    WhereToPoint where_to_point, int skip) {
+  FlushSkip(sink, skip);
+
+  int cache_index = SerializeInObjectCache(obj);
+  sink->Put(kPartialSnapshotCache + how_to_code + where_to_point,
+            "PartialSnapshotCache");
+  sink->PutInt(cache_index, "partial_snapshot_cache_index");
 }
 
 void SerializedHandleChecker::AddToSet(FixedArray* serialized) {

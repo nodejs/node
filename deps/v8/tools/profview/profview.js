@@ -8,6 +8,12 @@ function $(id) {
   return document.getElementById(id);
 }
 
+function removeAllChildren(element) {
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+}
+
 let components;
 function createViews() {
   components = [
@@ -16,6 +22,7 @@ function createViews() {
     new HelpView(),
     new SummaryView(),
     new ModeBarView(),
+    new ScriptSourceView(),
   ];
 }
 
@@ -24,6 +31,7 @@ function emptyState() {
     file : null,
     mode : null,
     currentCodeId : null,
+    viewingSource: false,
     start : 0,
     end : Infinity,
     timelineSize : {
@@ -34,7 +42,8 @@ function emptyState() {
       attribution : "js-exclude-bc",
       categories : "code-type",
       sort : "time"
-    }
+    },
+    sourceData: null
   };
 }
 
@@ -119,11 +128,27 @@ let main = {
     }
   },
 
+  updateSources(file) {
+    let statusDiv = $("source-status");
+    if (!file) {
+      statusDiv.textContent = "";
+      return;
+    }
+    if (!file.scripts || file.scripts.length === 0) {
+      statusDiv.textContent =
+          "Script source not available. Run profiler with --log-source-code.";
+      return;
+    }
+    statusDiv.textContent = "Script source is available.";
+    main.currentState.sourceData = new SourceData(file);
+  },
+
   setFile(file) {
     if (file !== main.currentState.file) {
       let lastMode = main.currentState.mode || "summary";
       main.currentState = emptyState();
       main.currentState.file = file;
+      main.updateSources(file);
       main.setMode(lastMode);
       main.delayRender();
     }
@@ -133,6 +158,14 @@ let main = {
     if (codeId !== main.currentState.currentCodeId) {
       main.currentState = Object.assign({}, main.currentState);
       main.currentState.currentCodeId = codeId;
+      main.delayRender();
+    }
+  },
+
+  setViewingSource(value) {
+    if (main.currentState.viewingSource !== value) {
+      main.currentState = Object.assign({}, main.currentState);
+      main.currentState.viewingSource = value;
       main.delayRender();
     }
   },
@@ -328,6 +361,20 @@ function createFunctionNode(name, codeId) {
   return nameElement;
 }
 
+function createViewSourceNode(codeId) {
+  let linkElement = document.createElement("span");
+  linkElement.appendChild(document.createTextNode("View source"));
+  linkElement.classList.add("view-source-link");
+  linkElement.onclick = (event) => {
+    main.setCurrentCode(codeId);
+    main.setViewingSource(true);
+    // Prevent the click from bubbling to the row and causing it to
+    // collapse/expand.
+    event.stopPropagation();
+  };
+  return linkElement;
+}
+
 const COLLAPSED_ARROW = "\u25B6";
 const EXPANDED_ARROW = "\u25BC";
 
@@ -448,6 +495,12 @@ class CallTreeView {
       nameCell.appendChild(arrow);
       nameCell.appendChild(createTypeNode(node.type));
       nameCell.appendChild(createFunctionNode(node.name, node.codeId));
+      if (main.currentState.sourceData &&
+          node.codeId >= 0 &&
+          main.currentState.sourceData.hasSource(
+              this.currentState.file.code[node.codeId].func)) {
+        nameCell.appendChild(createViewSourceNode(node.codeId));
+      }
 
       // Inclusive ticks cell.
       c = row.insertCell();
@@ -793,8 +846,8 @@ class TimelineView {
       return;
     }
 
-    let width = Math.round(window.innerWidth - 20);
-    let height = Math.round(window.innerHeight / 5);
+    let width = Math.round(document.documentElement.clientWidth - 20);
+    let height = Math.round(document.documentElement.clientHeight / 5);
 
     if (oldState) {
       if (width === oldState.timelineSize.width &&
@@ -1010,9 +1063,7 @@ class TimelineView {
       cell.appendChild(document.createTextNode(" " + desc.text));
     }
 
-    while (this.currentCode.firstChild) {
-      this.currentCode.removeChild(this.currentCode.firstChild);
-    }
+    removeAllChildren(this.currentCode);
     if (currentCodeId) {
       let currentCode = file.code[currentCodeId];
       this.currentCode.appendChild(document.createTextNode(currentCode.name));
@@ -1083,10 +1134,7 @@ class SummaryView {
     }
 
     this.element.style.display = "inherit";
-
-    while (this.element.firstChild) {
-      this.element.removeChild(this.element.firstChild);
-    }
+    removeAllChildren(this.element);
 
     let stats = computeOptimizationStats(
         this.currentState.file, newState.start, newState.end);
@@ -1234,6 +1282,217 @@ class SummaryView {
 
     table.appendChild(rows);
     this.element.appendChild(table);
+  }
+}
+
+class ScriptSourceView {
+  constructor() {
+    this.table = $("source-viewer");
+    this.hideButton = $("source-viewer-hide-button");
+    this.hideButton.onclick = () => {
+      main.setViewingSource(false);
+    };
+  }
+
+  render(newState) {
+    let oldState = this.currentState;
+    if (!newState.file || !newState.viewingSource) {
+      this.table.style.display = "none";
+      this.hideButton.style.display = "none";
+      this.currentState = null;
+      return;
+    }
+    if (oldState) {
+      if (newState.file === oldState.file &&
+          newState.currentCodeId === oldState.currentCodeId &&
+          newState.viewingSource === oldState.viewingSource) {
+        // No change, nothing to do.
+        return;
+      }
+    }
+    this.currentState = newState;
+
+    this.table.style.display = "inline-block";
+    this.hideButton.style.display = "inline";
+    removeAllChildren(this.table);
+
+    let functionId =
+        this.currentState.file.code[this.currentState.currentCodeId].func;
+    let sourceView =
+        this.currentState.sourceData.generateSourceView(functionId);
+    for (let i = 0; i < sourceView.source.length; i++) {
+      let sampleCount = sourceView.lineSampleCounts[i] || 0;
+      let sampleProportion = sourceView.samplesTotal > 0 ?
+                             sampleCount / sourceView.samplesTotal : 0;
+      let heatBucket;
+      if (sampleProportion === 0) {
+        heatBucket = "line-none";
+      } else if (sampleProportion < 0.2) {
+        heatBucket = "line-cold";
+      } else if (sampleProportion < 0.4) {
+        heatBucket = "line-mediumcold";
+      } else if (sampleProportion < 0.6) {
+        heatBucket = "line-mediumhot";
+      } else if (sampleProportion < 0.8) {
+        heatBucket = "line-hot";
+      } else {
+        heatBucket = "line-superhot";
+      }
+
+      let row = this.table.insertRow(-1);
+
+      let lineNumberCell = row.insertCell(-1);
+      lineNumberCell.classList.add("source-line-number");
+      lineNumberCell.textContent = i + sourceView.firstLineNumber;
+
+      let sampleCountCell = row.insertCell(-1);
+      sampleCountCell.classList.add(heatBucket);
+      sampleCountCell.textContent = sampleCount;
+
+      let sourceLineCell = row.insertCell(-1);
+      sourceLineCell.classList.add(heatBucket);
+      sourceLineCell.textContent = sourceView.source[i];
+    }
+
+    $("timeline-currentCode").scrollIntoView();
+  }
+}
+
+class SourceData {
+  constructor(file) {
+    this.scripts = new Map();
+    for (let i = 0; i < file.scripts.length; i++) {
+      const scriptBlock = file.scripts[i];
+      if (scriptBlock === null) continue; // Array may be sparse.
+      let source = scriptBlock.source.split("\n");
+      this.scripts.set(i, source);
+    }
+
+    this.functions = new Map();
+    for (let codeId = 0; codeId < file.code.length; ++codeId) {
+      let codeBlock = file.code[codeId];
+      if (codeBlock.source && codeBlock.func !== undefined) {
+        let data = this.functions.get(codeBlock.func);
+        if (!data) {
+          data = new FunctionSourceData(codeBlock.source.script,
+                                        codeBlock.source.start,
+                                        codeBlock.source.end);
+          this.functions.set(codeBlock.func, data);
+        }
+        data.addSourceBlock(codeId, codeBlock.source);
+      }
+    }
+
+    for (let tick of file.ticks) {
+      let stack = tick.s;
+      for (let i = 0; i < stack.length; i += 2) {
+        let codeId = stack[i];
+        if (codeId < 0) continue;
+        let functionId = file.code[codeId].func;
+        if (this.functions.has(functionId)) {
+          let codeOffset = stack[i + 1];
+          this.functions.get(functionId).addOffsetSample(codeId, codeOffset);
+        }
+      }
+    }
+  }
+
+  getScript(scriptId) {
+    return this.scripts.get(scriptId);
+  }
+
+  getLineForScriptOffset(script, scriptOffset) {
+    let line = 0;
+    let charsConsumed = 0;
+    for (; line < script.length; ++line) {
+      charsConsumed += script[line].length + 1; // Add 1 for newline.
+      if (charsConsumed > scriptOffset) break;
+    }
+    return line;
+  }
+
+  hasSource(functionId) {
+    return this.functions.has(functionId);
+  }
+
+  generateSourceView(functionId) {
+    console.assert(this.hasSource(functionId));
+    let data = this.functions.get(functionId);
+    let scriptId = data.scriptId;
+    let script = this.getScript(scriptId);
+    let firstLineNumber =
+        this.getLineForScriptOffset(script, data.startScriptOffset);
+    let lastLineNumber =
+        this.getLineForScriptOffset(script, data.endScriptOffset);
+    let lines = script.slice(firstLineNumber, lastLineNumber + 1);
+    normalizeLeadingWhitespace(lines);
+
+    let samplesTotal = 0;
+    let lineSampleCounts = [];
+    for (let [codeId, block] of data.codes) {
+      block.offsets.forEach((sampleCount, codeOffset) => {
+        let sourceOffset = block.positionTable.getScriptOffset(codeOffset);
+        let lineNumber =
+            this.getLineForScriptOffset(script, sourceOffset) - firstLineNumber;
+        samplesTotal += sampleCount;
+        lineSampleCounts[lineNumber] =
+            (lineSampleCounts[lineNumber] || 0) + sampleCount;
+      });
+    }
+
+    return {
+      source: lines,
+      lineSampleCounts: lineSampleCounts,
+      samplesTotal: samplesTotal,
+      firstLineNumber: firstLineNumber + 1  // Source code is 1-indexed.
+    };
+  }
+}
+
+class FunctionSourceData {
+  constructor(scriptId, startScriptOffset, endScriptOffset) {
+    this.scriptId = scriptId;
+    this.startScriptOffset = startScriptOffset;
+    this.endScriptOffset = endScriptOffset;
+
+    this.codes = new Map();
+  }
+
+  addSourceBlock(codeId, source) {
+    this.codes.set(codeId, {
+      positionTable: new SourcePositionTable(source.positions),
+      offsets: []
+    });
+  }
+
+  addOffsetSample(codeId, codeOffset) {
+    let codeIdOffsets = this.codes.get(codeId).offsets;
+    codeIdOffsets[codeOffset] = (codeIdOffsets[codeOffset] || 0) + 1;
+  }
+}
+
+class SourcePositionTable {
+  constructor(encodedTable) {
+    this.offsetTable = [];
+    let offsetPairRegex = /C([0-9]+)O([0-9]+)/g;
+    while (true) {
+      let regexResult = offsetPairRegex.exec(encodedTable);
+      if (!regexResult) break;
+      let codeOffset = parseInt(regexResult[1]);
+      let scriptOffset = parseInt(regexResult[2]);
+      if (isNaN(codeOffset) || isNaN(scriptOffset)) continue;
+      this.offsetTable.push(codeOffset, scriptOffset);
+    }
+  }
+
+  getScriptOffset(codeOffset) {
+    console.assert(codeOffset >= 0);
+    for (let i = this.offsetTable.length - 2; i >= 0; i -= 2) {
+      if (this.offsetTable[i] <= codeOffset) {
+        return this.offsetTable[i + 1];
+      }
+    }
+    return this.offsetTable[1];
   }
 }
 

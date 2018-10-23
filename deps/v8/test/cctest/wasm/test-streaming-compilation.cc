@@ -4,6 +4,7 @@
 
 #include "src/api-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/managed.h"
 #include "src/v8.h"
 #include "src/vector.h"
 
@@ -12,6 +13,9 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-serialization.h"
 
 #include "test/cctest/cctest.h"
 
@@ -90,10 +94,15 @@ enum class CompilationState {
 
 class TestResolver : public CompilationResultResolver {
  public:
-  explicit TestResolver(CompilationState* state) : state_(state) {}
+  TestResolver(CompilationState* state,
+               std::shared_ptr<NativeModule>* native_module)
+      : state_(state), native_module_(native_module) {}
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
     *state_ = CompilationState::kFinished;
+    if (!module.is_null()) {
+      *native_module_ = module->managed_native_module()->get();
+    }
   }
 
   void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
@@ -102,23 +111,28 @@ class TestResolver : public CompilationResultResolver {
 
  private:
   CompilationState* state_;
+  std::shared_ptr<NativeModule>* native_module_;
 };
 
 class StreamTester {
  public:
-  StreamTester() : zone_(&allocator_, "StreamTester") {
+  StreamTester()
+      : zone_(&allocator_, "StreamTester"),
+        internal_scope_(CcTest::i_isolate()) {
     v8::Isolate* isolate = CcTest::isolate();
     i::Isolate* i_isolate = CcTest::i_isolate();
-    i::HandleScope internal_scope(i_isolate);
 
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
     stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
         i_isolate, kAllWasmFeatures, v8::Utils::OpenHandle(*context),
-        std::make_shared<TestResolver>(&state_));
+        std::make_shared<TestResolver>(&state_, &native_module_));
   }
 
   std::shared_ptr<StreamingDecoder> stream() { return stream_; }
+
+  // Compiled native module, valid after successful compile.
+  std::shared_ptr<NativeModule> native_module() { return native_module_; }
 
   // Run all compiler tasks, both foreground and background tasks.
   void RunCompilerTasks() {
@@ -137,12 +151,18 @@ class StreamTester {
 
   void FinishStream() { stream_->Finish(); }
 
+  void SetCompiledModuleBytes(const uint8_t* start, size_t length) {
+    stream_->SetCompiledModuleBytes(Vector<const uint8_t>(start, length));
+  }
+
   Zone* zone() { return &zone_; }
 
  private:
   AccountingAllocator allocator_;
   Zone zone_;
+  i::HandleScope internal_scope_;
   CompilationState state_ = CompilationState::kPending;
+  std::shared_ptr<NativeModule> native_module_;
   std::shared_ptr<StreamingDecoder> stream_;
 };
 }  // namespace
@@ -180,6 +200,28 @@ ZoneBuffer GetValidModuleBytes(Zone* zone) {
   return buffer;
 }
 
+// Create the same valid module as above and serialize it to test streaming
+// with compiled module caching.
+ZoneBuffer GetValidCompiledModuleBytes(Zone* zone, ZoneBuffer wire_bytes) {
+  // Use a tester to compile to a NativeModule.
+  StreamTester tester;
+  tester.OnBytesReceived(wire_bytes.begin(), wire_bytes.size());
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+  // Serialize the NativeModule.
+  std::shared_ptr<NativeModule> native_module = tester.native_module();
+  CHECK(native_module);
+  i::wasm::WasmSerializer serializer(
+      reinterpret_cast<i::Isolate*>(CcTest::i_isolate()), native_module.get());
+  size_t size = serializer.GetSerializedNativeModuleSize();
+  std::vector<byte> buffer(size);
+  CHECK(serializer.SerializeNativeModule({buffer.data(), size}));
+  ZoneBuffer result(zone, size);
+  result.write(buffer.data(), size);
+  return result;
+}
+
 // Test that all bytes arrive before doing any compilation. FinishStream is
 // called immediately.
 STREAM_TEST(TestAllBytesArriveImmediatelyStreamFinishesFirst) {
@@ -215,7 +257,7 @@ size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
       kAllWasmFeatures, buffer, buffer + size, false, ModuleOrigin::kWasmOrigin,
       isolate->counters(), isolate->allocator());
   CHECK(result.ok());
-  const WasmFunction* func = &result.val->functions[1];
+  const WasmFunction* func = &result.value()->functions[1];
   return func->code.offset();
 }
 
@@ -1010,6 +1052,40 @@ STREAM_TEST(TestModuleWithErrorAfterDataSection) {
   tester.RunCompilerTasks();
   CHECK(tester.IsPromiseRejected());
 }
+
+// Test that cached bytes work.
+STREAM_TEST(TestDeserializationBypassesCompilation) {
+  StreamTester tester;
+  ZoneBuffer wire_bytes = GetValidModuleBytes(tester.zone());
+  ZoneBuffer module_bytes =
+      GetValidCompiledModuleBytes(tester.zone(), wire_bytes);
+  tester.SetCompiledModuleBytes(module_bytes.begin(), module_bytes.size());
+  tester.OnBytesReceived(wire_bytes.begin(), wire_bytes.size());
+  tester.FinishStream();
+
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseFulfilled());
+}
+
+// Test that bad cached bytes don't cause compilation of wire bytes to fail.
+STREAM_TEST(TestDeserializationFails) {
+  StreamTester tester;
+  ZoneBuffer wire_bytes = GetValidModuleBytes(tester.zone());
+  ZoneBuffer module_bytes =
+      GetValidCompiledModuleBytes(tester.zone(), wire_bytes);
+  // corrupt header
+  byte first_byte = *module_bytes.begin();
+  module_bytes.patch_u8(0, first_byte + 1);
+  tester.SetCompiledModuleBytes(module_bytes.begin(), module_bytes.size());
+  tester.OnBytesReceived(wire_bytes.begin(), wire_bytes.size());
+  tester.FinishStream();
+
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseFulfilled());
+}
+
 #undef STREAM_TEST
 
 }  // namespace wasm

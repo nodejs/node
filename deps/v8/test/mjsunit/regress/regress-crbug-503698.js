@@ -5,5 +5,5 @@
 // Flags: --invoke-weak-callbacks
 
 if (this.Worker) {
-  var __v_6 = new Worker('');
+  var __v_6 = new Worker('', {type: 'string'});
 }

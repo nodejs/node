@@ -517,12 +517,14 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
-    case WASM_MODULE_TYPE:
-      if (!FLAG_wasm_disable_structured_cloning) {
+    case WASM_MODULE_TYPE: {
+      auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
+      if (!FLAG_wasm_disable_structured_cloning || enabled_features.threads) {
         // Only write WebAssembly modules if not disabled by a flag.
         return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
       }
       break;
+    }
     case WASM_MEMORY_TYPE: {
       auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
       if (enabled_features.threads) {
@@ -834,7 +836,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     ThrowDataCloneError(MessageTemplate::kDataCloneErrorNeuteredArrayBuffer);
     return Nothing<bool>();
   }
-  double byte_length = array_buffer->byte_length()->Number();
+  double byte_length = array_buffer->byte_length();
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
     return Nothing<bool>();
@@ -865,8 +867,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
     tag = ArrayBufferViewTag::kDataView;
   }
   WriteVarint(static_cast<uint8_t>(tag));
-  WriteVarint(NumberToUint32(view->byte_offset()));
-  WriteVarint(NumberToUint32(view->byte_length()));
+  WriteVarint(static_cast<uint32_t>(view->byte_offset()));
+  WriteVarint(static_cast<uint32_t>(view->byte_length()));
   return ThrowIfOutOfMemory();
 }
 
@@ -965,8 +967,7 @@ Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
   return Just(properties_written);
 }
 
-void ValueSerializer::ThrowDataCloneError(
-    MessageTemplate::Template template_index) {
+void ValueSerializer::ThrowDataCloneError(MessageTemplate template_index) {
   return ThrowDataCloneError(template_index,
                              isolate_->factory()->empty_string());
 }
@@ -979,10 +980,10 @@ Maybe<bool> ValueSerializer::ThrowIfOutOfMemory() {
   return Just(true);
 }
 
-void ValueSerializer::ThrowDataCloneError(
-    MessageTemplate::Template template_index, Handle<Object> arg0) {
+void ValueSerializer::ThrowDataCloneError(MessageTemplate index,
+                                          Handle<Object> arg0) {
   Handle<String> message =
-      MessageTemplate::FormatMessage(isolate_, template_index, arg0);
+      MessageFormatter::FormatMessage(isolate_, index, arg0);
   if (delegate_) {
     delegate_->ThrowDataCloneError(Utils::ToLocal(message));
   } else {
@@ -1273,7 +1274,6 @@ MaybeHandle<String> ValueDeserializer::ReadString() {
 }
 
 MaybeHandle<BigInt> ValueDeserializer::ReadBigInt() {
-  if (!FLAG_harmony_bigint) return MaybeHandle<BigInt>();
   uint32_t bitfield;
   if (!ReadVarint<uint32_t>().To(&bitfield)) return MaybeHandle<BigInt>();
   int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
@@ -1702,7 +1702,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
 
 MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
     Handle<JSArrayBuffer> buffer) {
-  uint32_t buffer_byte_length = NumberToUint32(buffer->byte_length());
+  uint32_t buffer_byte_length = static_cast<uint32_t>(buffer->byte_length());
   uint8_t tag = 0;
   uint32_t byte_offset = 0;
   uint32_t byte_length = 0;
@@ -1716,15 +1716,6 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   uint32_t id = next_id_++;
   ExternalArrayType external_array_type = kExternalInt8Array;
   unsigned element_size = 0;
-
-  if (!FLAG_harmony_bigint) {
-    // Refuse to construct BigInt64Arrays unless the flag is on.
-    ArrayBufferViewTag cast_tag = static_cast<ArrayBufferViewTag>(tag);
-    if (cast_tag == ArrayBufferViewTag::kBigInt64Array ||
-        cast_tag == ArrayBufferViewTag::kBigUint64Array) {
-      return MaybeHandle<JSArrayBufferView>();
-    }
-  }
 
   switch (static_cast<ArrayBufferViewTag>(tag)) {
     case ArrayBufferViewTag::kDataView: {
@@ -1753,7 +1744,9 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
-  if (FLAG_wasm_disable_structured_cloning || expect_inline_wasm()) {
+  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
+  if ((FLAG_wasm_disable_structured_cloning && !enabled_features.threads) ||
+      expect_inline_wasm()) {
     return MaybeHandle<JSObject>();
   }
 
@@ -1775,7 +1768,9 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
-  if (FLAG_wasm_disable_structured_cloning || !expect_inline_wasm()) {
+  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
+  if ((FLAG_wasm_disable_structured_cloning && !enabled_features.threads) ||
+      !expect_inline_wasm()) {
     return MaybeHandle<JSObject>();
   }
 

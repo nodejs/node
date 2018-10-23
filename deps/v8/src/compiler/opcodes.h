@@ -117,7 +117,6 @@
   V(JSOrdinaryHasInstance)
 
 #define JS_CONVERSION_UNOP_LIST(V) \
-  V(JSToInteger)                   \
   V(JSToLength)                    \
   V(JSToName)                      \
   V(JSToNumber)                    \
@@ -134,26 +133,28 @@
   V(JSIncrement)               \
   V(JSNegate)
 
-#define JS_CREATE_OP_LIST(V)    \
-  V(JSCreate)                   \
-  V(JSCreateArguments)          \
-  V(JSCreateArray)              \
-  V(JSCreateArrayIterator)      \
-  V(JSCreateBoundFunction)      \
-  V(JSCreateClosure)            \
-  V(JSCreateCollectionIterator) \
-  V(JSCreateGeneratorObject)    \
-  V(JSCreateIterResultObject)   \
-  V(JSCreateStringIterator)     \
-  V(JSCreateKeyValueArray)      \
-  V(JSCreateObject)             \
-  V(JSCreatePromise)            \
-  V(JSCreateTypedArray)         \
-  V(JSCreateLiteralArray)       \
-  V(JSCreateEmptyLiteralArray)  \
-  V(JSCreateLiteralObject)      \
-  V(JSCreateEmptyLiteralObject) \
-  V(JSCloneObject)              \
+#define JS_CREATE_OP_LIST(V)     \
+  V(JSCreate)                    \
+  V(JSCreateArguments)           \
+  V(JSCreateArray)               \
+  V(JSCreateArrayIterator)       \
+  V(JSCreateAsyncFunctionObject) \
+  V(JSCreateBoundFunction)       \
+  V(JSCreateClosure)             \
+  V(JSCreateCollectionIterator)  \
+  V(JSCreateGeneratorObject)     \
+  V(JSCreateIterResultObject)    \
+  V(JSCreateStringIterator)      \
+  V(JSCreateKeyValueArray)       \
+  V(JSCreateObject)              \
+  V(JSCreatePromise)             \
+  V(JSCreateTypedArray)          \
+  V(JSCreateLiteralArray)        \
+  V(JSCreateEmptyLiteralArray)   \
+  V(JSCreateArrayFromIterable)   \
+  V(JSCreateLiteralObject)       \
+  V(JSCreateEmptyLiteralObject)  \
+  V(JSCloneObject)               \
   V(JSCreateLiteralRegExp)
 
 #define JS_OBJECT_OP_LIST(V)      \
@@ -179,6 +180,12 @@
   V(JSCreateWithContext)      \
   V(JSCreateBlockContext)
 
+#define JS_CALL_OP_LIST(V) \
+  V(JSCall)                \
+  V(JSCallForwardVarargs)  \
+  V(JSCallWithArrayLike)   \
+  V(JSCallWithSpread)
+
 #define JS_CONSTRUCT_OP_LIST(V) \
   V(JSConstructForwardVarargs)  \
   V(JSConstruct)                \
@@ -186,11 +193,11 @@
   V(JSConstructWithSpread)
 
 #define JS_OTHER_OP_LIST(V)            \
+  JS_CALL_OP_LIST(V)                   \
   JS_CONSTRUCT_OP_LIST(V)              \
-  V(JSCallForwardVarargs)              \
-  V(JSCall)                            \
-  V(JSCallWithArrayLike)               \
-  V(JSCallWithSpread)                  \
+  V(JSAsyncFunctionEnter)              \
+  V(JSAsyncFunctionReject)             \
+  V(JSAsyncFunctionResolve)            \
   V(JSCallRuntime)                     \
   V(JSForInEnumerate)                  \
   V(JSForInNext)                       \
@@ -224,13 +231,17 @@
 // Opcodes for VirtuaMachine-level operators.
 #define SIMPLIFIED_CHANGE_OP_LIST(V) \
   V(ChangeTaggedSignedToInt32)       \
+  V(ChangeTaggedSignedToInt64)       \
   V(ChangeTaggedToInt32)             \
+  V(ChangeTaggedToInt64)             \
   V(ChangeTaggedToUint32)            \
   V(ChangeTaggedToFloat64)           \
   V(ChangeTaggedToTaggedSigned)      \
   V(ChangeInt31ToTaggedSigned)       \
   V(ChangeInt32ToTagged)             \
+  V(ChangeInt64ToTagged)             \
   V(ChangeUint32ToTagged)            \
+  V(ChangeUint64ToTagged)            \
   V(ChangeFloat64ToTagged)           \
   V(ChangeFloat64ToTaggedPointer)    \
   V(ChangeTaggedToBit)               \
@@ -249,8 +260,12 @@
   V(CheckedUint32Mod)                 \
   V(CheckedInt32Mul)                  \
   V(CheckedInt32ToTaggedSigned)       \
+  V(CheckedInt64ToInt32)              \
+  V(CheckedInt64ToTaggedSigned)       \
   V(CheckedUint32ToInt32)             \
   V(CheckedUint32ToTaggedSigned)      \
+  V(CheckedUint64ToInt32)             \
+  V(CheckedUint64ToTaggedSigned)      \
   V(CheckedFloat64ToInt32)            \
   V(CheckedTaggedSignedToInt32)       \
   V(CheckedTaggedToInt32)             \
@@ -348,6 +363,7 @@
   V(PlainPrimitiveToWord32)             \
   V(PlainPrimitiveToFloat64)            \
   V(BooleanNot)                         \
+  V(StringConcat)                       \
   V(StringToNumber)                     \
   V(StringCharCodeAt)                   \
   V(StringCodePointAt)                  \
@@ -420,7 +436,7 @@
   V(NewSmiOrObjectElements)             \
   V(NewArgumentsElements)               \
   V(NewConsString)                      \
-  V(ArrayBufferWasNeutered)             \
+  V(DelayedStringConstant)              \
   V(EnsureWritableFastElements)         \
   V(MaybeGrowFastElements)              \
   V(TransitionElementsKind)             \
@@ -571,14 +587,7 @@
   V(Word64AtomicOr)                      \
   V(Word64AtomicXor)                     \
   V(Word64AtomicExchange)                \
-  V(Word64AtomicCompareExchange)         \
-  V(Word64AtomicNarrowAdd)               \
-  V(Word64AtomicNarrowSub)               \
-  V(Word64AtomicNarrowAnd)               \
-  V(Word64AtomicNarrowOr)                \
-  V(Word64AtomicNarrowXor)               \
-  V(Word64AtomicNarrowExchange)          \
-  V(Word64AtomicNarrowCompareExchange)
+  V(Word64AtomicCompareExchange)
 
 #define MACHINE_OP_LIST(V)           \
   MACHINE_UNOP_32_LIST(V)            \
@@ -610,6 +619,7 @@
   V(TruncateFloat64ToWord32)         \
   V(ChangeFloat32ToFloat64)          \
   V(ChangeFloat64ToInt32)            \
+  V(ChangeFloat64ToInt64)            \
   V(ChangeFloat64ToUint32)           \
   V(ChangeFloat64ToUint64)           \
   V(Float64SilenceNaN)               \
@@ -622,6 +632,7 @@
   V(TryTruncateFloat64ToUint64)      \
   V(ChangeInt32ToFloat64)            \
   V(ChangeInt32ToInt64)              \
+  V(ChangeInt64ToFloat64)            \
   V(ChangeUint32ToFloat64)           \
   V(ChangeUint32ToUint64)            \
   V(TruncateFloat64ToFloat32)        \

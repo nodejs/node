@@ -13,6 +13,8 @@
 #include "src/macro-assembler.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-weak-refs-inl.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -59,6 +61,8 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
       return visitor->VisitFreeSpace(map, FreeSpace::cast(object));
     case kVisitWeakArray:
       return visitor->VisitWeakArray(map, object);
+    case kVisitJSWeakCell:
+      return visitor->VisitJSWeakCell(map, JSWeakCell::cast(object));
     case kVisitorIdCount:
       UNREACHABLE();
   }
@@ -167,15 +171,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
   if (visitor->ShouldVisitMapPointer())
     visitor->VisitMapPointer(object, object->map_slot());
   return static_cast<ResultType>(FreeSpace::cast(object)->size());
-}
-
-template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitJSFunction(Map* map,
-                                                      JSFunction* object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
-  JSFunction::BodyDescriptorWeak::IterateBody(map, object, size, visitor);
-  return size;
 }
 
 template <typename ConcreteVisitor>

@@ -6,6 +6,7 @@
 #define V8_ARGUMENTS_H_
 
 #include "src/allocation.h"
+#include "src/handles.h"
 #include "src/objects.h"
 #include "src/tracing/trace-event.h"
 
@@ -27,7 +28,7 @@ namespace internal {
 // Note that length_ (whose value is in the integer range) is defined
 // as intptr_t to provide endian-neutrality on 64-bit archs.
 
-class Arguments BASE_EMBEDDED {
+class Arguments {
  public:
   Arguments(int length, Object** arguments)
       : length_(length), arguments_(arguments) {

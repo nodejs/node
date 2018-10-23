@@ -15,8 +15,6 @@ namespace internal {
 
 namespace wasm {
 
-using FunctionSig = Signature<ValueType>;
-
 // A signature map canonicalizes signatures into a range of indices so that
 // two different {FunctionSig} instances with the same contents map to the
 // same index.
