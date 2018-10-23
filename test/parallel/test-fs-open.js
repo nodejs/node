@@ -58,6 +58,13 @@ fs.open(__filename, 'r', null, common.mustCall((err) => {
   assert.ifError(err);
 }));
 
+async function promise() {
+  await fs.promises.open(__filename);
+  await fs.promises.open(__filename, 'r');
+}
+
+promise().then(common.mustCall()).catch(common.mustNotCall());
+
 common.expectsError(
   () => fs.open(__filename, 'r', 'boom', common.mustNotCall()),
   {
@@ -91,4 +98,15 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
       type: TypeError
     }
   );
+  fs.promises.open(i, 'r')
+    .then(common.mustNotCall())
+    .catch(common.mustCall((err) => {
+      common.expectsError(
+        () => { throw err; },
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError
+        }
+      );
+    }));
 });
