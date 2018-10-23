@@ -36,6 +36,12 @@ try {
 }
 assert.strictEqual(caughtException, true);
 
+fs.openSync(__filename);
+
+fs.open(__filename, common.mustCall((err) => {
+  assert.ifError(err);
+}));
+
 fs.open(__filename, 'r', common.mustCall((err) => {
   assert.ifError(err);
 }));
@@ -43,6 +49,32 @@ fs.open(__filename, 'r', common.mustCall((err) => {
 fs.open(__filename, 'rs', common.mustCall((err) => {
   assert.ifError(err);
 }));
+
+fs.open(__filename, 'r', 0, common.mustCall((err) => {
+  assert.ifError(err);
+}));
+
+fs.open(__filename, 'r', null, common.mustCall((err) => {
+  assert.ifError(err);
+}));
+
+common.expectsError(
+  () => fs.open(__filename, 'r', 'boom', common.mustNotCall()),
+  {
+    code: 'ERR_INVALID_ARG_VALUE',
+    type: TypeError
+  }
+);
+
+for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
+  common.expectsError(
+    () => fs.open(__filename, ...extra),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError
+    }
+  );
+}
 
 [false, 1, [], {}, null, undefined].forEach((i) => {
   common.expectsError(

@@ -2304,7 +2304,7 @@ this API: [`fs.mkdtemp()`][].
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
-## fs.open(path, flags[, mode], callback)
+## fs.open(path[, flags, mode], callback)
 <!-- YAML
 added: v0.0.2
 changes:
@@ -2318,7 +2318,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `flags` {string|number} See [support of file system `flags`][].
+* `flags` {string|number} **Default:** `'r'`
+   See [support of file system `flags`][].
 * `mode` {integer} **Default:** `0o666` (readable and writable)
 * `callback` {Function}
   * `err` {Error}
@@ -2340,7 +2341,7 @@ a colon, Node.js will open a file system stream, as described by
 Functions based on `fs.open()` exhibit this behavior as well:
 `fs.writeFile()`, `fs.readFile()`, etc.
 
-## fs.openSync(path, flags[, mode])
+## fs.openSync(path[, flags, mode])
 <!-- YAML
 added: v0.1.21
 changes:
@@ -2351,7 +2352,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `flags` {string|number} See [support of file system `flags`][].
+* `flags` {string|number} **Default:** `'r'`
+   See [support of file system `flags`][].
 * `mode` {integer} **Default:** `0o666`
 * Returns: {number}
 
