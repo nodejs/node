@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <unicode/unistr.h>
+#include "util-inl.h"
 
 namespace node {
 namespace inspector {

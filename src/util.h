@@ -198,8 +198,8 @@ class ContainerOfHelper {
 // Calculate the address of the outer (i.e. embedding) struct from
 // the interior pointer to a data member.
 template <typename Inner, typename Outer>
-inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
-                                                   Inner* pointer);
+constexpr ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
+                                                      Inner* pointer);
 
 // If persistent.IsWeak() == false, then do not call persistent.Reset()
 // while the returned Local<T> is still in scope, it will destroy the
