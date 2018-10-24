@@ -1099,10 +1099,21 @@ void ContextifyContext::CompileFunction(
           env->cached_data_string(),
           buf.ToLocalChecked()).IsNothing()) return;
     }
+
+    // Report if cache was produced.
     if (fun->Set(
         parsing_context,
         env->cached_data_produced_string(),
         Boolean::New(isolate, cached_data_produced)).IsNothing()) return;
+  }
+
+  // Report if cache was rejected.
+  if (options == ScriptCompiler::kConsumeCodeCache) {
+    if (fun->Set(parsing_context,
+                 env->cached_data_rejected_string(),
+                 Boolean::New(isolate, source.GetCachedData()->rejected))
+            .IsNothing())
+      return;
   }
 
   args.GetReturnValue().Set(fun);
