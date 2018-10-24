@@ -1,6 +1,6 @@
 # c-ares license
 
-Copyright (c) 2007 - 2016, Daniel Stenberg with many contributors, see AUTHORS
+Copyright (c) 2007 - 2018, Daniel Stenberg with many contributors, see AUTHORS
 file.
 
 Copyright 1998 by the Massachusetts Institute of Technology.
