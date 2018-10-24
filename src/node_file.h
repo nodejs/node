@@ -30,7 +30,7 @@ class FSContinuationData : public MemoryRetainer {
 
   uv_fs_t* req;
   int mode;
-  std::vector<std::string> paths;
+  std::vector<std::string> paths{};
 
   void PushPath(std::string&& path) {
     paths.emplace_back(std::move(path));
@@ -244,9 +244,10 @@ class FSReqPromise : public FSReqBase {
                   AsyncWrap::PROVIDER_FSREQPROMISE,
                   use_bigint),
         stats_field_array_(env->isolate(), kFsStatsFieldsNumber) {
-    auto resolver = Promise::Resolver::New(env->context()).ToLocalChecked();
-    object()->Set(env->context(), env->promise_string(),
-                  resolver).FromJust();
+    const auto resolver =
+      Promise::Resolver::New(env->context()).ToLocalChecked();
+    USE(object()->Set(env->context(), env->promise_string(),
+                      resolver).FromJust());
   }
 
   ~FSReqPromise() override {
@@ -262,7 +263,7 @@ class FSReqPromise : public FSReqBase {
         object()->Get(env()->context(),
                       env()->promise_string()).ToLocalChecked();
     Local<Promise::Resolver> resolver = value.As<Promise::Resolver>();
-    resolver->Reject(env()->context(), reject).FromJust();
+    USE(resolver->Reject(env()->context(), reject).FromJust());
   }
 
   void Resolve(Local<Value> value) override {
@@ -273,7 +274,7 @@ class FSReqPromise : public FSReqBase {
         object()->Get(env()->context(),
                       env()->promise_string()).ToLocalChecked();
     Local<Promise::Resolver> resolver = val.As<Promise::Resolver>();
-    resolver->Resolve(env()->context(), value).FromJust();
+    USE(resolver->Resolve(env()->context(), value).FromJust());
   }
 
   void ResolveStat(const uv_stat_t* stat) override {
@@ -297,10 +298,14 @@ class FSReqPromise : public FSReqBase {
   SET_MEMORY_INFO_NAME(FSReqPromise)
   SET_SELF_SIZE(FSReqPromise)
 
+  FSReqPromise(const FSReqPromise&) = delete;
+  FSReqPromise& operator=(const FSReqPromise&) = delete;
+  FSReqPromise(const FSReqPromise&&) = delete;
+  FSReqPromise& operator=(const FSReqPromise&&) = delete;
+
  private:
   bool finished_ = false;
   AliasedBuffer<NativeT, V8T> stats_field_array_;
-  DISALLOW_COPY_AND_ASSIGN(FSReqPromise);
 };
 
 class FSReqAfterScope {
@@ -311,6 +316,11 @@ class FSReqAfterScope {
   bool Proceed();
 
   void Reject(uv_fs_t* req);
+
+  FSReqAfterScope(const FSReqAfterScope&) = delete;
+  FSReqAfterScope& operator=(const FSReqAfterScope&) = delete;
+  FSReqAfterScope(const FSReqAfterScope&&) = delete;
+  FSReqAfterScope& operator=(const FSReqAfterScope&&) = delete;
 
  private:
   FSReqBase* wrap_ = nullptr;
@@ -388,6 +398,11 @@ class FileHandle : public AsyncWrap, public StreamBase {
   SET_MEMORY_INFO_NAME(FileHandle)
   SET_SELF_SIZE(FileHandle)
 
+  FileHandle(const FileHandle&) = delete;
+  FileHandle& operator=(const FileHandle&) = delete;
+  FileHandle(const FileHandle&&) = delete;
+  FileHandle& operator=(const FileHandle&&) = delete;
+
  private:
   // Synchronous close that emits a warning
   void Close();
@@ -430,9 +445,14 @@ class FileHandle : public AsyncWrap, public StreamBase {
       return static_cast<CloseReq*>(ReqWrap::from_req(req));
     }
 
+    CloseReq(const CloseReq&) = delete;
+    CloseReq& operator=(const CloseReq&) = delete;
+    CloseReq(const CloseReq&&) = delete;
+    CloseReq& operator=(const CloseReq&&) = delete;
+
    private:
-    Persistent<Promise> promise_;
-    Persistent<Value> ref_;
+    Persistent<Promise> promise_{};
+    Persistent<Value> ref_{};
   };
 
   // Asynchronous close
@@ -446,9 +466,6 @@ class FileHandle : public AsyncWrap, public StreamBase {
 
   bool reading_ = false;
   std::unique_ptr<FileHandleReadWrap> current_read_ = nullptr;
-
-
-  DISALLOW_COPY_AND_ASSIGN(FileHandle);
 };
 
 }  // namespace fs
