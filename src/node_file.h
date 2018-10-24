@@ -406,7 +406,7 @@ class FileHandle : public AsyncWrap, public StreamBase {
       ref_.Reset(env->isolate(), ref);
     }
 
-    ~CloseReq() {
+    ~CloseReq() override {
       uv_fs_req_cleanup(req());
       promise_.Reset();
       ref_.Reset();
