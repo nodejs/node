@@ -198,8 +198,8 @@ class ContainerOfHelper {
 // Calculate the address of the outer (i.e. embedding) struct from
 // the interior pointer to a data member.
 template <typename Inner, typename Outer>
-inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
-                                                   Inner* pointer);
+constexpr ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
+                                                      Inner* pointer);
 
 // Convenience wrapper around v8::String::NewFromOneByte().
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,

@@ -160,8 +160,8 @@ ContainerOfHelper<Inner, Outer>::operator TypeName*() const {
 }
 
 template <typename Inner, typename Outer>
-inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
-                                                   Inner* pointer) {
+constexpr ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
+                                                      Inner* pointer) {
   return ContainerOfHelper<Inner, Outer>(field, pointer);
 }
 
