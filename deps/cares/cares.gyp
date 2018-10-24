@@ -92,6 +92,7 @@
         'src/ares_strdup.c',
         'src/ares_strdup.h',
         'src/ares_strerror.c',
+        'src/ares_strsplit.c',
         'src/ares_timeout.c',
         'src/ares__timeval.c',
         'src/ares_version.c',

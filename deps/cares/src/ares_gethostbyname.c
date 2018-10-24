@@ -95,6 +95,13 @@ void ares_gethostbyname(ares_channel channel, const char *name, int family,
     return;
   }
 
+  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
+  if (ares__is_onion_domain(name))
+    {
+      callback(arg, ARES_ENOTFOUND, 0, NULL);
+      return;
+    }
+
   if (fake_hostent(name, family, callback, arg))
     return;
 
@@ -338,6 +345,10 @@ static int file_lookup(const char *name, int family, struct hostent **host)
   char **alias;
   int status;
   int error;
+
+  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
+  if (ares__is_onion_domain(name))
+    return ARES_ENOTFOUND;
 
 #ifdef WIN32
   char PATH_HOSTS[MAX_PATH];

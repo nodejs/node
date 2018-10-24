@@ -19,6 +19,7 @@
 #if defined(ANDROID) || defined(__ANDROID__)
 
 char **ares_get_android_server_list(size_t max_servers, size_t *num_servers);
+char *ares_get_android_search_domains_list(void);
 void ares_library_cleanup_android(void);
 
 #endif
