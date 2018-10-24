@@ -35,7 +35,6 @@
         'include_dirs': [ 'include' ]
       },
       'sources': [
-        'common.gypi',
         'include/ares.h',
         'include/ares_rules.h',
         'include/ares_version.h',
