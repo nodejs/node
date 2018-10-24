@@ -130,7 +130,8 @@ async function ordinaryTests() {
     [ 'let o = await 1, p', 'undefined' ],
     [ 'p', 'undefined' ],
     [ 'let q = 1, s = await 2', 'undefined' ],
-    [ 's', '2' ]
+    [ 's', '2' ],
+    [ 'for await (let i of [1,2,3]) console.log(i)', 'undefined', { line: 3 } ]
   ];
 
   for (const [input, expected, options = {}] of testCases) {
