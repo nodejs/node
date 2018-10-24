@@ -1772,3 +1772,37 @@ assert.strictEqual(
   });
   assert.strictEqual(util.inspect(obj), '[Set: null prototype] { 1, 2 }');
 }
+
+// error subclassing and null prototype checks
+{
+  const error = new Error('My Message');
+  assert.ok(util.inspect(error).includes('Error: My Message'));
+
+  Object.setPrototypeOf(error, null);
+  assert.ok(util.inspect(error)
+                 .includes('[Error: null prototype]: My Message'));
+}
+
+{
+  class MyCustomError extends Error {}
+  const customErr = new MyCustomError('custom message');
+  assert.ok(util.inspect(customErr)
+                 .includes('MyCustomError: custom message'));
+
+  Object.setPrototypeOf(customErr, null);
+  assert.ok(util.inspect(customErr)
+                 .includes('[Error: null prototype]: custom message'));
+}
+
+// Check custom errors with name `File`
+// works
+{
+  class FileCustomError extends Error {}
+  const customErr = new FileCustomError();
+  assert.ok(util.inspect(customErr)
+            .includes('FileCustomError'));
+
+  Object.setPrototypeOf(customErr, null);
+  assert.ok(util.inspect(customErr)
+    .includes('[Error: null prototype]'));
+}
