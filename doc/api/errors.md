@@ -1414,13 +1414,6 @@ a `dynamicInstantiate` hook.
 A `MessagePort` was found in the object passed to a `postMessage()` call,
 but not provided in the `transferList` for that call.
 
-<a id="ERR_MISSING_MODULE"></a>
-### ERR_MISSING_MODULE
-
-> Stability: 1 - Experimental
-
-An [ES6 module][] could not be resolved.
-
 <a id="ERR_MISSING_PLATFORM_FOR_WORKER"></a>
 ### ERR_MISSING_PLATFORM_FOR_WORKER
 
@@ -1428,12 +1421,12 @@ The V8 platform used by this instance of Node.js does not support creating
 Workers. This is caused by lack of embedder support for Workers. In particular,
 this error will not occur with standard builds of Node.js.
 
-<a id="ERR_MODULE_RESOLUTION_LEGACY"></a>
-### ERR_MODULE_RESOLUTION_LEGACY
+<a id="ERR_MODULE_NOT_FOUND"></a>
+### ERR_MODULE_NOT_FOUND
 
 > Stability: 1 - Experimental
 
-A failure occurred resolving imports in an [ES6 module][].
+An [ESM module][] could not be resolved.
 
 <a id="ERR_MULTIPLE_CALLBACK"></a>
 ### ERR_MULTIPLE_CALLBACK

@@ -467,104 +467,37 @@ std::string ReadFile(uv_file file) {
   return contents;
 }
 
-enum CheckFileOptions {
-  LEAVE_OPEN_AFTER_CHECK,
-  CLOSE_AFTER_CHECK
+enum DescriptorType {
+  NONE,
+  FILE,
+  DIRECTORY
 };
 
-Maybe<uv_file> CheckFile(const std::string& path,
-                         CheckFileOptions opt = CLOSE_AFTER_CHECK) {
+DescriptorType CheckDescriptor(const std::string& path) {
   uv_fs_t fs_req;
-  if (path.empty()) {
-    return Nothing<uv_file>();
-  }
-
-  uv_file fd = uv_fs_open(nullptr, &fs_req, path.c_str(), O_RDONLY, 0, nullptr);
-  uv_fs_req_cleanup(&fs_req);
-
-  if (fd < 0) {
-    return Nothing<uv_file>();
-  }
-
-  uv_fs_fstat(nullptr, &fs_req, fd, nullptr);
-  uint64_t is_directory = fs_req.statbuf.st_mode & S_IFDIR;
-  uv_fs_req_cleanup(&fs_req);
-
-  if (is_directory) {
-    CHECK_EQ(0, uv_fs_close(nullptr, &fs_req, fd, nullptr));
+  int rc = uv_fs_stat(nullptr, &fs_req, path.c_str(), nullptr);
+  if (rc == 0) {
+    uint64_t is_directory = fs_req.statbuf.st_mode & S_IFDIR;
     uv_fs_req_cleanup(&fs_req);
-    return Nothing<uv_file>();
+    return is_directory ? DIRECTORY : FILE;
   }
-
-  if (opt == CLOSE_AFTER_CHECK) {
-    CHECK_EQ(0, uv_fs_close(nullptr, &fs_req, fd, nullptr));
-    uv_fs_req_cleanup(&fs_req);
-  }
-
-  return Just(fd);
+  uv_fs_req_cleanup(&fs_req);
+  return NONE;
 }
 
-enum ResolveExtensionsOptions {
-  TRY_EXACT_NAME,
-  ONLY_VIA_EXTENSIONS
-};
-
-inline bool ResolvesToFile(const URL& search) {
-  std::string filePath = search.ToFilePath();
-  Maybe<uv_file> check = CheckFile(filePath);
-  return !check.IsNothing();
-}
-
-template <ResolveExtensionsOptions options>
-Maybe<URL> ResolveExtensions(const URL& search) {
-  if (options == TRY_EXACT_NAME) {
-    std::string filePath = search.ToFilePath();
-    Maybe<uv_file> check = CheckFile(filePath);
-    if (!check.IsNothing()) {
-      return Just(search);
-    }
-  }
-
-  for (const char* extension : EXTENSIONS) {
-    URL guess(search.path() + extension, &search);
-    Maybe<uv_file> check = CheckFile(guess.ToFilePath());
-    if (!check.IsNothing()) {
-      return Just(guess);
-    }
-  }
-
-  return Nothing<URL>();
-}
-
-inline Maybe<URL> ResolveIndex(const URL& search) {
-  return ResolveExtensions<ONLY_VIA_EXTENSIONS>(URL("index", search));
-}
-
-Maybe<URL> ResolveModule(Environment* env,
-                         const std::string& specifier,
-                         const URL& base) {
+Maybe<URL> PackageResolve(Environment* env,
+                          const std::string& specifier,
+                          const URL& base) {
   URL parent(".", base);
-  URL dir("");
+  std::string last_path;
   do {
-    dir = parent;
-    Maybe<URL> check =
-        Resolve(env, "./node_modules/" + specifier, dir);
-    if (!check.IsNothing()) {
-      const size_t limit = specifier.find('/');
-      const size_t spec_len =
-          limit == std::string::npos ? specifier.length() :
-                                       limit + 1;
-      std::string chroot =
-          dir.path() + "node_modules/" + specifier.substr(0, spec_len);
-      if (check.FromJust().path().substr(0, chroot.length()) != chroot) {
-        return Nothing<URL>();
-      }
-      return check;
-    } else {
-      // TODO(bmeck) PREVENT FALLTHROUGH
-    }
-    parent = URL("..", &dir);
-  } while (parent.path() != dir.path());
+    URL pkg_url("./node_modules/" + specifier, &parent);
+    DescriptorType check = CheckDescriptor(pkg_url.ToFilePath());
+    if (check == FILE) return Just(pkg_url);
+    last_path = parent.path();
+    parent = URL("..", &parent);
+    // cross-platform root check
+  } while (parent.path() != last_path);
   return Nothing<URL>();
 }
 
@@ -573,26 +506,27 @@ Maybe<URL> ResolveModule(Environment* env,
 Maybe<URL> Resolve(Environment* env,
                    const std::string& specifier,
                    const URL& base) {
-  URL pure_url(specifier);
-  if (!(pure_url.flags() & URL_FLAGS_FAILED)) {
-    // just check existence, without altering
-    Maybe<uv_file> check = CheckFile(pure_url.ToFilePath());
-    if (check.IsNothing()) {
-      return Nothing<URL>();
-    }
-    return Just(pure_url);
-  }
-  if (specifier.length() == 0) {
-    return Nothing<URL>();
-  }
+  // Order swapped from spec for minor perf gain.
+  // Ok since relative URLs cannot parse as URLs.
+  URL resolved;
   if (ShouldBeTreatedAsRelativeOrAbsolutePath(specifier)) {
-    URL resolved(specifier, base);
-    if (ResolvesToFile(resolved))
-      return Just(resolved);
-    return Nothing<URL>();
+    resolved = URL(specifier, base);
   } else {
-    return ResolveModule(env, specifier, base);
+    URL pure_url(specifier);
+    if (!(pure_url.flags() & URL_FLAGS_FAILED)) {
+      resolved = pure_url;
+    } else {
+      return PackageResolve(env, specifier, base);
+    }
   }
+  DescriptorType check = CheckDescriptor(resolved.ToFilePath());
+  if (check != FILE) {
+    std::string msg = "Cannot find module '" + resolved.ToFilePath() +
+          "' imported from " + base.ToFilePath();
+    node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+    return Nothing<URL>();
+  }
+  return Just(resolved);
 }
 
 void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
@@ -614,10 +548,18 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
         env, "second argument is not a URL string");
   }
 
+  TryCatchScope try_catch(env);
   Maybe<URL> result = node::loader::Resolve(env, specifier_std, url);
-  if (result.IsNothing() || (result.FromJust().flags() & URL_FLAGS_FAILED)) {
-    std::string msg = "Cannot find module " + specifier_std;
-    return node::THROW_ERR_MISSING_MODULE(env, msg.c_str());
+  if (try_catch.HasCaught()) {
+    try_catch.ReThrow();
+    return;
+  } else if (result.IsNothing() ||
+             (result.FromJust().flags() & URL_FLAGS_FAILED)) {
+    std::string msg = "Cannot find module '" + specifier_std +
+        "' imported from " + url.ToFilePath();
+    node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+    try_catch.ReThrow();
+    return;
   }
 
   MaybeLocal<Value> obj = result.FromJust().ToObject(env);
