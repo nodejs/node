@@ -164,6 +164,7 @@ extern "C" {
 #define ARES_OPT_ROTATE         (1 << 14)
 #define ARES_OPT_EDNSPSZ        (1 << 15)
 #define ARES_OPT_NOROTATE       (1 << 16)
+#define ARES_OPT_RESOLVCONF     (1 << 17)
 
 /* Nameinfo flag values */
 #define ARES_NI_NOFQDN                  (1 << 0)
@@ -270,6 +271,7 @@ struct ares_options {
   struct apattern *sortlist;
   int nsort;
   int ednspsz;
+  char *resolvconf_path;
 };
 
 struct hostent;

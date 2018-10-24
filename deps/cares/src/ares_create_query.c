@@ -94,6 +94,10 @@ int ares_create_query(const char *name, int dnsclass, int type,
   size_t buflen;
   unsigned char *buf;
 
+  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
+  if (ares__is_onion_domain(name))
+    return ARES_ENOTFOUND;
+
   /* Set our results early, in case we bail out early with an error. */
   *buflenp = 0;
   *bufp = NULL;
@@ -188,7 +192,7 @@ int ares_create_query(const char *name, int dnsclass, int type,
    * specified in RFC 1035 ("To simplify implementations, the total length of
    * a domain name (i.e., label octets and label length octets) is restricted
    * to 255 octets or less."). */
-  if (buflen > (MAXCDNAME + HFIXEDSZ + QFIXEDSZ +
+  if (buflen > (size_t)(MAXCDNAME + HFIXEDSZ + QFIXEDSZ +
                 (max_udp_size ? EDNSFIXEDSZ : 0))) {
     ares_free (buf);
     return ARES_EBADNAME;

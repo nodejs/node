@@ -40,9 +40,19 @@ static unsigned int ares_initialized;
 static int          ares_init_flags;
 
 /* library-private global vars with visibility across the whole library */
-void *(*ares_malloc)(size_t size) = malloc;
-void *(*ares_realloc)(void *ptr, size_t size) = realloc;
-void (*ares_free)(void *ptr) = free;
+#if defined(WIN32)
+/* We need indirections to handle Windows DLL rules. */
+static void *default_malloc(size_t size) { return malloc(size); }
+static void *default_realloc(void *p, size_t size) { return realloc(p, size); }
+static void default_free(void *p) { free(p); }
+#else
+# define default_malloc malloc
+# define default_realloc realloc
+# define default_free free
+#endif
+void *(*ares_malloc)(size_t size) = default_malloc;
+void *(*ares_realloc)(void *ptr, size_t size) = default_realloc;
+void (*ares_free)(void *ptr) = default_free;
 
 #ifdef USE_WINSOCK
 static HMODULE hnd_iphlpapi;

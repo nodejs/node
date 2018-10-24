@@ -53,6 +53,7 @@
 
 #include <assert.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #include "ares.h"
 #include "ares_dns.h"
@@ -871,8 +872,32 @@ void ares__send_query(ares_channel channel, struct query *query,
           return;
         }
     }
-    timeplus = channel->timeout << (query->try_count / channel->nservers);
-    timeplus = (timeplus * (9 + (rand () & 7))) / 16;
+
+    /* For each trip through the entire server list, double the channel's
+     * assigned timeout, avoiding overflow.  If channel->timeout is negative,
+     * leave it as-is, even though that should be impossible here.
+     */
+    timeplus = channel->timeout;
+    {
+      /* How many times do we want to double it?  Presume sane values here. */
+      const int shift = query->try_count / channel->nservers;
+
+      /* Is there enough room to shift timeplus left that many times?
+       *
+       * To find out, confirm that all of the bits we'll shift away are zero.
+       * Stop considering a shift if we get to the point where we could shift
+       * a 1 into the sign bit (i.e. when shift is within two of the bit
+       * count).
+       *
+       * This has the side benefit of leaving negative numbers unchanged.
+       */
+      if(shift <= (int)(sizeof(int) * CHAR_BIT - 1)
+         && (timeplus >> (sizeof(int) * CHAR_BIT - 1 - shift)) == 0)
+      {
+        timeplus <<= shift;
+      }
+    }
+
     query->timeout = *now;
     timeadd(&query->timeout, timeplus);
     /* Keep track of queries bucketed by timeout, so we can process
