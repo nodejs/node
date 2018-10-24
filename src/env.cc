@@ -193,7 +193,7 @@ Environment::Environment(IsolateData* isolate_data,
   AssignToContext(context, ContextInfo(""));
 
   if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
-    trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
+    trace_state_observer_.reset(new TrackingTraceStateObserver(this));
     v8::TracingController* tracing_controller = writer->GetTracingController();
     if (tracing_controller != nullptr)
       tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
