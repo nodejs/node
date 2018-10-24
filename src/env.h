@@ -490,7 +490,7 @@ class Environment {
       ~DefaultTriggerAsyncIdScope();
 
      private:
-      AliasedBuffer<double, v8::Float64Array> async_id_fields_ref_;
+      AsyncHooks* async_hooks_;
       double old_default_trigger_async_id_;
 
       DISALLOW_COPY_AND_ASSIGN(DefaultTriggerAsyncIdScope);
