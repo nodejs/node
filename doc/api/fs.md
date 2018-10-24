@@ -2554,9 +2554,10 @@ when possible prefer streaming via `fs.createReadStream()`.
 1. Any specified file descriptor has to support reading.
 2. If a file descriptor is specified as the `path`, it will not be closed
 automatically.
-3. The reading will begin at the current position. If the file size is
-10 bytes and if six bytes are already read with this file descriptor, then
-`readFile()` will return only the rest of the four bytes.
+3. The reading will begin at the current position. For example, if the file
+already had `'Hello World`' and six bytes are read with the file descriptor,
+the call to `fs.readFile()` with the same file descriptor, would give
+`'World'`, rather than `'Hello World'`.
 
 ## fs.readFileSync(path[, options])
 <!-- YAML
@@ -3551,12 +3552,10 @@ recommended.
 1. Any specified file descriptor has to support writing.
 2. If a file descriptor is specified as the `file`, it will not be closed
 automatically.
-3. The writing will begin at the beginning of the file. If the file size is 10
-bytes and if six bytes are written with this file descriptor, then the file
-contents would be six newly written bytes and four bytes which were already
-there in the file from position seven to ten. For example, if the file already
-had `'Hello World'` and the newly written content is `'Aloha'`, then the
-contents of the file would be `'Aloha World'`, rather than just `'Aloha'`.
+3. The writing will begin at the beginning of the file. For example, if the
+file already had `'Hello World'` and the newly written content is `'Aloha'`,
+then the contents of the file would be `'Aloha World'`, rather than just
+`'Aloha'`.
 
 
 ## fs.writeFileSync(file, data[, options])
@@ -3790,10 +3789,10 @@ returned.
 
 The `FileHandle` has to support reading.
 
-**Note:** If one or more `filehandle.read()` calls are made on a file handle
-and then a `filehandle.readFile()` call is made, the data will be read from
-the current position till the end of the file. It doesn't always read from the
-beginning of the file.
+If one or more `filehandle.read()` calls are made on a file handle and then a
+`filehandle.readFile()` call is made, the data will be read from the current
+position till the end of the file. It doesn't always read from the beginning
+of the file.
 
 #### filehandle.stat([options])
 <!-- YAML
@@ -3957,9 +3956,9 @@ The `FileHandle` has to support writing.
 It is unsafe to use `filehandle.writeFile()` multiple times on the same file
 without waiting for the `Promise` to be resolved (or rejected).
 
-**Note:** If one or more `filehandle.write()` calls are made on a file handle
-and then a `filehandle.writeFile()` call is made, the data will be written from
-the current position till the end of the file. It doesn't always write from the
+If one or more `filehandle.write()` calls are made on a file handle and then a
+`filehandle.writeFile()` call is made, the data will be written from the
+current position till the end of the file. It doesn't always write from the
 beginning of the file.
 
 ### fsPromises.access(path[, mode])
