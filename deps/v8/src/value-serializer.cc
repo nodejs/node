@@ -517,12 +517,14 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
-    case WASM_MODULE_TYPE:
-      if (!FLAG_wasm_disable_structured_cloning) {
+    case WASM_MODULE_TYPE: {
+      auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
+      if (!FLAG_wasm_disable_structured_cloning || enabled_features.threads) {
         // Only write WebAssembly modules if not disabled by a flag.
         return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
       }
       break;
+    }
     case WASM_MEMORY_TYPE: {
       auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
       if (enabled_features.threads) {
@@ -1753,7 +1755,9 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
-  if (FLAG_wasm_disable_structured_cloning || expect_inline_wasm()) {
+  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
+  if ((FLAG_wasm_disable_structured_cloning && !enabled_features.threads) ||
+      expect_inline_wasm()) {
     return MaybeHandle<JSObject>();
   }
 
@@ -1775,7 +1779,9 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
-  if (FLAG_wasm_disable_structured_cloning || !expect_inline_wasm()) {
+  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
+  if ((FLAG_wasm_disable_structured_cloning && !enabled_features.threads) ||
+      !expect_inline_wasm()) {
     return MaybeHandle<JSObject>();
   }
 

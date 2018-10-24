@@ -28,6 +28,19 @@ void BytecodeArrayAccessor::SetOffset(int offset) {
   UpdateOperandScale();
 }
 
+void BytecodeArrayAccessor::ApplyDebugBreak() {
+  // Get the raw bytecode from the bytecode array. This may give us a
+  // scaling prefix, which we can patch with the matching debug-break
+  // variant.
+  interpreter::Bytecode bytecode =
+      interpreter::Bytecodes::FromByte(bytecode_array_->get(bytecode_offset_));
+  if (interpreter::Bytecodes::IsDebugBreak(bytecode)) return;
+  interpreter::Bytecode debugbreak =
+      interpreter::Bytecodes::GetDebugBreak(bytecode);
+  bytecode_array_->set(bytecode_offset_,
+                       interpreter::Bytecodes::ToByte(debugbreak));
+}
+
 void BytecodeArrayAccessor::UpdateOperandScale() {
   if (OffsetInBounds()) {
     uint8_t current_byte = bytecode_array()->get(bytecode_offset_);
