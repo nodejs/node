@@ -15,6 +15,9 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
+// Tests don't work when --optimize-for-size is set.
+#ifndef V8_LITE_MODE
+
 namespace {
 
 v8::Isolate* NewIsolateForPagePromotion(int min_semi_space_size = 8,
@@ -240,6 +243,8 @@ UNINITIALIZED_HEAP_TEST(Regress658718) {
   }
   isolate->Dispose();
 }
+
+#endif  // V8_LITE_MODE
 
 }  // namespace heap
 }  // namespace internal

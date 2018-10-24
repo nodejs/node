@@ -158,7 +158,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
       ModuleOrigin::kWasmOrigin, isolate->counters(), isolate->allocator());
   CHECK(module_res.ok());
-  WasmModule* module = module_res.val.get();
+  WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
 
   StdoutStream os;

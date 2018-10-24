@@ -229,6 +229,42 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   VisitBinop(selector, node, opcode, false, kArchNop);
 }
 
+static void VisitPairAtomicBinop(InstructionSelector* selector, Node* node,
+                                 ArchOpcode opcode) {
+  MipsOperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  Node* value_high = node->InputAt(3);
+
+  InstructionOperand addr_reg = g.TempRegister();
+
+  selector->Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+                 g.UseRegister(index), g.UseRegister(base));
+
+  InstructionOperand inputs[] = {g.UseRegister(value),
+                                 g.UseRegister(value_high), addr_reg};
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                g.TempRegister(), g.TempRegister()};
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
+  if (projection1) {
+    InstructionOperand outputs[] = {g.DefineAsRegister(projection0),
+                                    g.DefineAsRegister(projection1)};
+    selector->Emit(opcode | AddressingModeField::encode(kMode_None),
+                   arraysize(outputs), outputs, arraysize(inputs), inputs,
+                   arraysize(temps), temps);
+  } else if (projection0) {
+    InstructionOperand outputs[] = {g.DefineAsRegister(projection0)};
+    selector->Emit(opcode | AddressingModeField::encode(kMode_None),
+                   arraysize(outputs), outputs, arraysize(inputs), inputs,
+                   arraysize(temps), temps);
+  } else {
+    selector->Emit(opcode | AddressingModeField::encode(kMode_None), 0, nullptr,
+                   arraysize(inputs), inputs, arraysize(temps), temps);
+  }
+}
+
 void InstructionSelector::VisitStackSlot(Node* node) {
   StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
   int alignment = rep.alignment();
@@ -651,6 +687,81 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
   VisitRR(this, kMipsClz, node);
 }
 
+void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  ArchOpcode opcode = kMipsWord32AtomicPairLoad;
+
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
+
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+       g.UseRegister(index), g.UseRegister(base));
+  InstructionOperand inputs[] = {addr_reg};
+
+  InstructionOperand temps[] = {g.TempRegister()};
+  if (projection1) {
+    InstructionOperand outputs[] = {g.DefineAsRegister(projection0),
+                                    g.DefineAsRegister(projection1)};
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), arraysize(outputs),
+         outputs, arraysize(inputs), inputs, 1, temps);
+  } else if (projection0) {
+    InstructionOperand outputs[] = {g.DefineAsRegister(projection0)};
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), arraysize(outputs),
+         outputs, arraysize(inputs), inputs, 1, temps);
+  } else {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), 0, nullptr,
+         arraysize(inputs), inputs, 1, temps);
+  }
+}
+
+void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value_low = node->InputAt(2);
+  Node* value_high = node->InputAt(3);
+
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+       g.UseRegister(index), g.UseRegister(base));
+
+  InstructionOperand inputs[] = {addr_reg, g.UseRegister(value_low),
+                                 g.UseRegister(value_high)};
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+  Emit(kMipsWord32AtomicPairStore | AddressingModeField::encode(kMode_MRI), 0,
+       nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitWord32AtomicPairAdd(Node* node) {
+  VisitPairAtomicBinop(this, node, kMipsWord32AtomicPairAdd);
+}
+
+void InstructionSelector::VisitWord32AtomicPairSub(Node* node) {
+  VisitPairAtomicBinop(this, node, kMipsWord32AtomicPairSub);
+}
+
+void InstructionSelector::VisitWord32AtomicPairAnd(Node* node) {
+  VisitPairAtomicBinop(this, node, kMipsWord32AtomicPairAnd);
+}
+
+void InstructionSelector::VisitWord32AtomicPairOr(Node* node) {
+  VisitPairAtomicBinop(this, node, kMipsWord32AtomicPairOr);
+}
+
+void InstructionSelector::VisitWord32AtomicPairXor(Node* node) {
+  VisitPairAtomicBinop(this, node, kMipsWord32AtomicPairXor);
+}
+
+void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
+  VisitPairAtomicBinop(this, node, kMipsWord32AtomicPairExchange);
+}
+
+void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
+  VisitPairAtomicBinop(this, node, kMipsWord32AtomicPairCompareExchange);
+}
 
 void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 

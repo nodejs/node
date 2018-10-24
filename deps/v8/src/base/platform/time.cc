@@ -302,7 +302,7 @@ class Clock final {
     // Time between resampling the un-granular clock for this API (1 minute).
     const TimeDelta kMaxElapsedTime = TimeDelta::FromMinutes(1);
 
-    LockGuard<Mutex> lock_guard(&mutex_);
+    MutexGuard lock_guard(&mutex_);
 
     // Determine current time and ticks.
     TimeTicks ticks = GetSystemTicks();
@@ -321,7 +321,7 @@ class Clock final {
   }
 
   Time NowFromSystemTime() {
-    LockGuard<Mutex> lock_guard(&mutex_);
+    MutexGuard lock_guard(&mutex_);
     initial_ticks_ = GetSystemTicks();
     initial_time_ = GetSystemTime();
     return initial_time_;

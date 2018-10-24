@@ -355,7 +355,8 @@ class SystemTest(unittest.TestCase):
           basedir, dcheck_always_on=True, is_asan=True, is_cfi=True,
           is_msan=True, is_tsan=True, is_ubsan_vptr=True, target_cpu='x86',
           v8_enable_i18n_support=False, v8_target_cpu='x86',
-          v8_use_snapshot=False)
+          v8_use_snapshot=False, v8_enable_embedded_builtins=False,
+          v8_enable_verify_csa=False, v8_enable_lite_mode=False)
       result = run_tests(
           basedir,
           '--mode=Release',
@@ -682,6 +683,29 @@ class SystemTest(unittest.TestCase):
       self.assertIn(expected, result.stdout)
       self.assertIn('sweet/cherries', result.stdout)
       self.assertIn('sweet/bananas', result.stdout)
+      self.assertEqual(1, result.returncode, result)
+
+  def testExitAfterNFailures(self):
+    with temp_base() as basedir:
+      result = run_tests(
+          basedir,
+          '--mode=Release',
+          '--progress=verbose',
+          '--exit-after-n-failures=2',
+          '-j1',
+          'sweet/mangoes',       # PASS
+          'sweet/strawberries',  # FAIL
+          'sweet/blackberries',  # FAIL
+          'sweet/raspberries',   # should not run
+      )
+      self.assertIn('Running 4 base tests', result.stdout, result)
+      self.assertIn('sweet/mangoes: pass', result.stdout, result)
+      self.assertIn('sweet/strawberries: FAIL', result.stdout, result)
+      self.assertIn('Too many failures, exiting...', result.stdout, result)
+      self.assertIn('sweet/blackberries: FAIL', result.stdout, result)
+      self.assertNotIn('Done running sweet/raspberries', result.stdout, result)
+      self.assertIn('2 tests failed', result.stdout, result)
+      self.assertIn('3 tests ran', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
 if __name__ == '__main__':

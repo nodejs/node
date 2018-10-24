@@ -26,6 +26,12 @@ CAST_ACCESSOR(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
+CAST_ACCESSOR(SourcePositionTableWithFrameCache)
+
+ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
+          kSourcePositionTableIndex)
+ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
+          SimpleNumberDictionary, kStackFrameCacheIndex)
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
@@ -133,14 +139,14 @@ BytecodeArray* AbstractCode::GetBytecodeArray() {
 }
 
 DependentCode* DependentCode::next_link() {
-  return DependentCode::cast(Get(kNextLinkIndex)->ToStrongHeapObject());
+  return DependentCode::cast(Get(kNextLinkIndex)->GetHeapObjectAssumeStrong());
 }
 
 void DependentCode::set_next_link(DependentCode* next) {
   Set(kNextLinkIndex, HeapObjectReference::Strong(next));
 }
 
-int DependentCode::flags() { return Smi::ToInt(Get(kFlagsIndex)->ToSmi()); }
+int DependentCode::flags() { return Smi::ToInt(Get(kFlagsIndex)->cast<Smi>()); }
 
 void DependentCode::set_flags(int flags) {
   Set(kFlagsIndex, MaybeObject::FromObject(Smi::FromInt(flags)));
@@ -333,6 +339,14 @@ int Code::ExecutableSize() const {
   DCHECK_EQ(static_cast<int>(raw_instruction_start() - address()),
             Code::kHeaderSize);
   return raw_instruction_size() + Code::kHeaderSize;
+}
+
+// static
+void Code::CopyRelocInfoToByteArray(ByteArray* dest, const CodeDesc& desc) {
+  DCHECK_EQ(dest->length(), desc.reloc_size);
+  CopyBytes(dest->GetDataStartAddress(),
+            desc.buffer + desc.buffer_size - desc.reloc_size,
+            static_cast<size_t>(desc.reloc_size));
 }
 
 int Code::CodeSize() const { return SizeFor(body_size()); }

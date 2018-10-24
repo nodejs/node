@@ -31,7 +31,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
 class WasmExecutionFuzzer {
  public:
-  virtual ~WasmExecutionFuzzer() {}
+  virtual ~WasmExecutionFuzzer() = default;
   int FuzzWasmModule(Vector<const uint8_t> data, bool require_valid = false);
 
  protected:

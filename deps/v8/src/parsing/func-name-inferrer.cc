@@ -45,7 +45,7 @@ void FuncNameInferrer::PushVariableName(const AstRawString* name) {
 void FuncNameInferrer::RemoveAsyncKeywordFromEnd() {
   if (IsOpen()) {
     CHECK_GT(names_stack_.size(), 0);
-    CHECK(names_stack_.back().name->IsOneByteEqualTo("async"));
+    CHECK(names_stack_.back().name()->IsOneByteEqualTo("async"));
     names_stack_.pop_back();
   }
 }
@@ -65,15 +65,15 @@ const AstConsString* FuncNameInferrer::MakeNameFromStack() {
     // Advance the iterator to be able to peek the next value.
     auto current = it++;
     // Skip consecutive variable declarations.
-    if (it != names_stack_.end() && current->type == kVariableName &&
-        it->type == kVariableName) {
+    if (it != names_stack_.end() && current->type() == kVariableName &&
+        it->type() == kVariableName) {
       continue;
     }
     // Add name. Separate names with ".".
     if (!result->IsEmpty()) {
       result->AddString(zone(), ast_value_factory_->dot_string());
     }
-    result->AddString(zone(), current->name);
+    result->AddString(zone(), current->name());
   }
   return result;
 }

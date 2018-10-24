@@ -434,7 +434,6 @@ TF_STUB(StoreFastElementStub, CodeStubAssembler) {
 
 // static
 void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
-  if (FLAG_minimal) return;
   StoreFastElementStub(isolate, false, HOLEY_ELEMENTS, STANDARD_STORE)
       .GetCode();
   StoreFastElementStub(isolate, false, HOLEY_ELEMENTS,

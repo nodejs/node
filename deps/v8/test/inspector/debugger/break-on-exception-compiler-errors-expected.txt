@@ -4,7 +4,7 @@ Running test: testUnexpectedEndOfInput
 Runs '+++'
 Runtime.evaluate exceptionDetails:
 {
-    columnNumber : 2
+    columnNumber : 3
     exception : {
         className : SyntaxError
         description : SyntaxError: Unexpected end of input
@@ -49,7 +49,7 @@ paused on exception:
 }
 Runtime.evaluate exceptionDetails:
 {
-    columnNumber : 2
+    columnNumber : 3
     exception : {
         className : SyntaxError
         description : SyntaxError: Unexpected end of input     at <anonymous>:1:1

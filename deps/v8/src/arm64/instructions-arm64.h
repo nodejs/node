@@ -7,12 +7,13 @@
 
 #include "src/arm64/constants-arm64.h"
 #include "src/arm64/utils-arm64.h"
-#include "src/assembler.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+struct AssemblerOptions;
 
 // ISA constants. --------------------------------------------------------------
 

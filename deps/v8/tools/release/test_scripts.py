@@ -933,8 +933,8 @@ TBR=reviewer@chromium.org"""
           cb=self.WriteFakeWatchlistsFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
-      Cmd("git cl upload --send-mail --email \"author@chromium.org\" "
-          "-f --bypass-hooks --gerrit --private", ""),
+      Cmd("git cl upload --send-mail "
+          "-f --bypass-hooks --no-autocc --gerrit", ""),
       Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
@@ -1085,7 +1085,7 @@ deps = {
            "--author \"author@chromium.org <author@chromium.org>\"" %
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
-      Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
+      Cmd("git cl upload --send-mail -f "
           "--cq-dry-run --bypass-hooks --gerrit", "",
           cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),

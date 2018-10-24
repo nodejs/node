@@ -230,7 +230,7 @@ enum class PropertyCellConstantType {
 
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
-class PropertyDetails BASE_EMBEDDED {
+class PropertyDetails {
  public:
   // Property details for dictionary mode properties/elements.
   PropertyDetails(PropertyKind kind, PropertyAttributes attributes,

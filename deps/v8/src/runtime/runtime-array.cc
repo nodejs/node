@@ -10,7 +10,6 @@
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
-#include "src/messages.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -27,6 +26,16 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   CONVERT_ARG_HANDLE_CHECKED(Map, to_map, 1);
   ElementsKind to_kind = to_map->elements_kind();
   ElementsAccessor::ForKind(to_kind)->TransitionElementsKind(object, to_map);
+  return *object;
+}
+
+RUNTIME_FUNCTION(Runtime_TransitionElementsKindWithKind) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, elements_kind_smi, 1);
+  ElementsKind to_kind = static_cast<ElementsKind>(elements_kind_smi->value());
+  JSObject::TransitionElementsKind(object, to_kind);
   return *object;
 }
 
@@ -303,7 +312,7 @@ Maybe<bool> ConditionalCopy(Isolate* isolate, Handle<JSReceiver> source,
 
   Handle<Object> source_element;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, source_element, JSReceiver::GetElement(isolate, source, index),
+      isolate, source_element, JSReceiver::GetElement(isolate, target, index),
       Nothing<bool>());
 
   Handle<Object> set_result;

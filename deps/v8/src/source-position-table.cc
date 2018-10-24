@@ -198,16 +198,20 @@ SourcePositionTableIterator::SourcePositionTableIterator(
     Handle<ByteArray> byte_array)
     : table_(byte_array) {
   Advance();
+#ifdef DEBUG
   // We can enable allocation because we keep the table in a handle.
   no_gc.Release();
+#endif  // DEBUG
 }
 
 SourcePositionTableIterator::SourcePositionTableIterator(
     Vector<const byte> bytes)
     : raw_table_(bytes) {
   Advance();
+#ifdef DEBUG
   // We can enable allocation because the underlying vector does not move.
   no_gc.Release();
+#endif  // DEBUG
 }
 
 void SourcePositionTableIterator::Advance() {

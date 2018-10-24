@@ -53,7 +53,7 @@ var testAsync;
 
     equals(expected, found, name_opt) {
       this.actualAsserts_++;
-      if (expected !== found) {
+      if (!deepEquals(expected, found)) {
         this.fail(prettyPrinted(expected), found, name_opt);
       }
     }

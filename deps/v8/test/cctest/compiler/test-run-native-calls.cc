@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <vector>
+
 #include "src/assembler.h"
 #include "src/codegen.h"
 #include "src/compiler/linkage.h"
@@ -9,6 +11,7 @@
 #include "src/machine-type.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
+#include "src/wasm/wasm-linkage.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
@@ -19,8 +22,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 namespace test_run_native_calls {
-
-const auto GetRegConfig = RegisterConfiguration::Default;
 
 namespace {
 typedef float float32;
@@ -84,21 +85,12 @@ class RegisterPairs : public Pairs {
               GetRegConfig()->allocatable_general_codes()) {}
 };
 
-
-// Pairs of double registers.
+// Pairs of float registers.
 class Float32RegisterPairs : public Pairs {
  public:
   Float32RegisterPairs()
-      : Pairs(
-            100,
-#if V8_TARGET_ARCH_ARM
-            // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-            GetRegConfig()->num_allocatable_double_registers() / 2 - 2,
-#else
-            GetRegConfig()->num_allocatable_double_registers(),
-#endif
-            GetRegConfig()->allocatable_double_codes()) {
-  }
+      : Pairs(100, GetRegConfig()->num_allocatable_float_registers(),
+              GetRegConfig()->allocatable_float_codes()) {}
 };
 
 
@@ -112,48 +104,39 @@ class Float64RegisterPairs : public Pairs {
 
 
 // Helper for allocating either an GP or FP reg, or the next stack slot.
-struct Allocator {
-  Allocator(int* gp, int gpc, int* fp, int fpc)
-      : gp_count(gpc),
-        gp_offset(0),
-        gp_regs(gp),
-        fp_count(fpc),
-        fp_offset(0),
-        fp_regs(fp),
-        stack_offset(0) {}
+class Allocator {
+ public:
+  Allocator(int* gp, int gpc, int* fp, int fpc) : stack_offset_(0) {
+    for (int i = 0; i < gpc; ++i) {
+      gp_.push_back(Register::from_code(gp[i]));
+    }
+    for (int i = 0; i < fpc; ++i) {
+      fp_.push_back(DoubleRegister::from_code(fp[i]));
+    }
+    Reset();
+  }
 
-  int gp_count;
-  int gp_offset;
-  int* gp_regs;
-
-  int fp_count;
-  int fp_offset;
-  int* fp_regs;
-
-  int stack_offset;
+  int stack_offset() const { return stack_offset_; }
 
   LinkageLocation Next(MachineType type) {
     if (IsFloatingPoint(type.representation())) {
       // Allocate a floating point register/stack location.
-      if (fp_offset < fp_count) {
-        int code = fp_regs[fp_offset++];
-#if V8_TARGET_ARCH_ARM
-        // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-        if (type.representation() == MachineRepresentation::kFloat32) code *= 2;
-#endif
+      if (reg_allocator_->CanAllocateFP(type.representation())) {
+        int code = reg_allocator_->NextFpReg(type.representation());
         return LinkageLocation::ForRegister(code, type);
       } else {
-        int offset = -1 - stack_offset;
-        stack_offset += StackWords(type);
+        int offset = -1 - stack_offset_;
+        stack_offset_ += StackWords(type);
         return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     } else {
       // Allocate a general purpose register/stack location.
-      if (gp_offset < gp_count) {
-        return LinkageLocation::ForRegister(gp_regs[gp_offset++], type);
+      if (reg_allocator_->CanAllocateGP()) {
+        int code = reg_allocator_->NextGpReg();
+        return LinkageLocation::ForRegister(code, type);
       } else {
-        int offset = -1 - stack_offset;
-        stack_offset += StackWords(type);
+        int offset = -1 - stack_offset_;
+        stack_offset_ += StackWords(type);
         return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     }
@@ -163,10 +146,17 @@ struct Allocator {
     return size <= kPointerSize ? 1 : size / kPointerSize;
   }
   void Reset() {
-    fp_offset = 0;
-    gp_offset = 0;
-    stack_offset = 0;
+    stack_offset_ = 0;
+    reg_allocator_.reset(
+        new wasm::LinkageAllocator(gp_.data(), static_cast<int>(gp_.size()),
+                                   fp_.data(), static_cast<int>(fp_.size())));
   }
+
+ private:
+  std::vector<Register> gp_;
+  std::vector<DoubleRegister> fp_;
+  std::unique_ptr<wasm::LinkageAllocator> reg_allocator_;
+  int stack_offset_;
 };
 
 
@@ -197,7 +187,7 @@ class RegisterConfig {
 
     MachineType target_type = MachineType::AnyTagged();
     LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
-    int stack_param_count = params.stack_offset;
+    int stack_param_count = params.stack_offset();
     return new (zone) CallDescriptor(       // --
         CallDescriptor::kCallCodeObject,    // kind
         target_type,                        // target MachineType
@@ -868,7 +858,7 @@ TEST(Float32Select_registers) {
     return;
   }
 
-  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableFloatCode(0)};
   ArgsBuffer<float32>::Sig sig(2);
 
   Float32RegisterPairs pairs;
@@ -912,7 +902,7 @@ TEST(Float64Select_registers) {
 
 
 TEST(Float32Select_stack_params_return_reg) {
-  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableFloatCode(0)};
   Allocator params(nullptr, 0, nullptr, 0);
   Allocator rets(nullptr, 0, rarray, 1);
   RegisterConfig config(params, rets);

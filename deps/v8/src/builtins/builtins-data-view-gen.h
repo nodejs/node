@@ -17,25 +17,17 @@ class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   explicit DataViewBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : BaseBuiltinsFromDSLAssembler(state) {}
 
-  TNode<Number> LoadDataViewByteOffset(TNode<JSDataView> data_view) {
-    return CAST(LoadObjectField(data_view, JSDataView::kByteOffsetOffset));
-  }
-
-  TNode<Number> LoadDataViewByteLength(TNode<JSDataView> data_view) {
-    return CAST(LoadObjectField(data_view, JSDataView::kByteLengthOffset));
-  }
-
-  TNode<Int32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
+  TNode<Int32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<UintPtrT> offset) {
     return UncheckedCast<Int32T>(
         Load(MachineType::Uint8(), data_pointer, offset));
   }
 
-  TNode<Int32T> LoadInt8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
+  TNode<Int32T> LoadInt8(TNode<RawPtrT> data_pointer, TNode<UintPtrT> offset) {
     return UncheckedCast<Int32T>(
         Load(MachineType::Int8(), data_pointer, offset));
   }
 
-  void StoreWord8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset,
+  void StoreWord8(TNode<RawPtrT> data_pointer, TNode<UintPtrT> offset,
                   TNode<Word32T> value) {
     StoreNoWriteBarrier(MachineRepresentation::kWord8, data_pointer, offset,
                         value);

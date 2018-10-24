@@ -225,6 +225,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return Operand(constant.ToExternalReference());
       case Constant::kHeapObject:
         return Operand(constant.ToHeapObject());
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(dcarney): RPO immediates on arm64.
         break;
@@ -2491,6 +2494,20 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Str(kWasmInstanceRegister,
                MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
       } break;
+      case CallDescriptor::kCallWasmImportWrapper: {
+        UseScratchRegisterScope temps(tasm());
+        __ ldr(kJSFunctionRegister,
+               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ ldr(kWasmInstanceRegister,
+               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+        __ Claim(shrink_slots + 2);  // Claim extra slots for marker + instance.
+        Register scratch = temps.AcquireX();
+        __ Mov(scratch,
+               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+        __ Str(kWasmInstanceRegister,
+               MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
+      } break;
       case CallDescriptor::kCallAddress:
         __ Claim(shrink_slots);
         break;
@@ -2578,7 +2595,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   auto MoveConstantToRegister = [&](Register dst, Constant src) {
     if (src.type() == Constant::kHeapObject) {
       Handle<HeapObject> src_object = src.ToHeapObject();
-      Heap::RootListIndex index;
+      RootIndex index;
       if (IsMaterializableFromRoot(src_object, &index)) {
         __ LoadRoot(dst, index);
       } else {

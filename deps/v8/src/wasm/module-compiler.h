@@ -11,6 +11,7 @@
 
 #include "src/cancelable-task.h"
 #include "src/globals.h"
+#include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
 
@@ -28,25 +29,13 @@ class Vector;
 
 namespace wasm {
 
+struct CompilationEnv;
 class CompilationResultResolver;
-class CompilationState;
 class ErrorThrower;
 class ModuleCompiler;
 class NativeModule;
 class WasmCode;
-struct ModuleEnv;
 struct WasmModule;
-
-struct CompilationStateDeleter {
-  void operator()(CompilationState* compilation_state) const;
-};
-
-// Wrapper to create a CompilationState exists in order to avoid having
-// the CompilationState in the header file.
-std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate* isolate, const ModuleEnv& env);
-
-ModuleEnv* GetModuleEnv(CompilationState* compilation_state);
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
@@ -63,7 +52,8 @@ void CompileJsToWasmWrappers(Isolate* isolate,
                              Handle<WasmModuleObject> module_object);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
-    Isolate* isolate, const ModuleWireBytes& wire_bytes);
+    Isolate* isolate, const ModuleWireBytes& wire_bytes,
+    const std::string& source_map_url);
 
 // Triggered by the WasmCompileLazy builtin.
 // Returns the instruction start of the compiled code object.
@@ -110,7 +100,7 @@ class AsyncCompileJob {
   }
   Counters* counters() const { return async_counters().get(); }
 
-  void FinishCompile();
+  void FinishCompile(bool compile_wrappers);
 
   void AsyncCompileFailed(Handle<Object> error_reason);
 

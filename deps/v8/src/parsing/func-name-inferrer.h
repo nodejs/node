@@ -5,6 +5,7 @@
 #ifndef V8_PARSING_FUNC_NAME_INFERRER_H_
 #define V8_PARSING_FUNC_NAME_INFERRER_H_
 
+#include "src/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone.h"
 
@@ -17,6 +18,11 @@ class AstValueFactory;
 class FunctionLiteral;
 
 enum class InferName { kYes, kNo };
+
+template <>
+struct PointerWithPayloadTraits<AstRawString> {
+  static constexpr int value = 2;
+};
 
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.
@@ -36,12 +42,8 @@ class FuncNameInferrer : public ZoneObject {
   // on the stack.
   class State {
    public:
-    explicit State(FuncNameInferrer* fni) : fni_(fni) {
-      if (fni_ != nullptr) fni_->Enter();
-    }
-    ~State() {
-      if (fni_ != nullptr) fni_->Leave();
-    }
+    explicit State(FuncNameInferrer* fni) : fni_(fni) { fni_->Enter(); }
+    ~State() { fni_->Leave(); }
 
    private:
     FuncNameInferrer* fni_;
@@ -84,15 +86,20 @@ class FuncNameInferrer : public ZoneObject {
   }
 
  private:
-  enum NameType {
+  enum NameType : uint8_t {
     kEnclosingConstructorName,
     kLiteralName,
     kVariableName
   };
   struct Name {
-    Name(const AstRawString* name, NameType type) : name(name), type(type) {}
-    const AstRawString* name;
-    NameType type;
+    Name(const AstRawString* name, NameType type)
+        : name_and_type_(name, type) {}
+
+    PointerWithPayload<const AstRawString, NameType, 2> name_and_type_;
+    inline const AstRawString* name() const {
+      return name_and_type_.GetPointer();
+    }
+    inline NameType type() const { return name_and_type_.GetPayload(); }
   };
 
   void Enter() { entries_stack_.push_back(names_stack_.size()); }

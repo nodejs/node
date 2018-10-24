@@ -34,7 +34,7 @@ class MockHistogram : public Histogram {
 class AggregatedMemoryHistogramTest : public ::testing::Test {
  public:
   AggregatedMemoryHistogramTest() : aggregated_(&mock_) {}
-  virtual ~AggregatedMemoryHistogramTest() {}
+  ~AggregatedMemoryHistogramTest() override = default;
 
   void AddSample(double current_ms, double current_value) {
     aggregated_.AddSample(current_ms, current_value);
@@ -66,7 +66,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
     stats()->Reset();
   }
 
-  ~RuntimeCallStatsTest() {
+  ~RuntimeCallStatsTest() override {
     // Disable RuntimeCallStats before tearing down the isolate to prevent
     // printing the tests table. Comment the following line for debugging
     // purposes.

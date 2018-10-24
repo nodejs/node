@@ -39,7 +39,9 @@ namespace internal {
   V(NoCache, "no cache")                                                       \
   V(NotAHeapNumber, "not a heap number")                                       \
   V(NotAJavaScriptObject, "not a JavaScript object")                           \
+  V(NotAJavaScriptObjectOrOddball, "not a JavaScript object or Oddball")       \
   V(NotANumberOrOddball, "not a Number or Oddball")                            \
+  V(NotAnOddball, "not an Oddball")                                            \
   V(NotASmi, "not a Smi")                                                      \
   V(NotAString, "not a String")                                                \
   V(NotASymbol, "not a Symbol")                                                \

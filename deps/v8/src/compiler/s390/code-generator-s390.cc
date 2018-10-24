@@ -67,6 +67,10 @@ class S390OperandConverter final : public InstructionOperandConverter {
         return Operand(constant.ToInt64());
 #endif
       case Constant::kExternalReference:
+        return Operand(constant.ToExternalReference());
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
         break;
@@ -1018,6 +1022,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     MemOperand op = i.MemoryOperand(&mode, &index);                      \
     __ lay(addr, op);                                                    \
     __ CmpAndSwap(output, new_val, MemOperand(addr));                    \
+    __ LoadlW(output, output);                                           \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_WORD(load_and_op)                           \
@@ -1030,6 +1035,17 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ lay(addr, op);                                                     \
     __ load_and_op(result, value, MemOperand(addr));                      \
     __ LoadlW(result, result);                                            \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_BINOP_WORD64(load_and_op)                         \
+  do {                                                                    \
+    Register value = i.InputRegister(2);                                  \
+    Register result = i.OutputRegister(0);                                \
+    Register addr = r1;                                                   \
+    AddressingMode mode = kMode_None;                                     \
+    MemOperand op = i.MemoryOperand(&mode);                               \
+    __ lay(addr, op);                                                     \
+    __ load_and_op(result, value, MemOperand(addr));                      \
   } while (false)
 
 #define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end)         \
@@ -1141,6 +1157,18 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ bind(&three);                                                      \
     ATOMIC_BIN_OP_BYTE(bin_inst, 3, extract_result);                      \
     __ bind(&done);                                                       \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64()                 \
+  do {                                                           \
+    Register new_val = i.InputRegister(1);                       \
+    Register output = i.OutputRegister();                        \
+    Register addr = kScratchReg;                                 \
+    size_t index = 2;                                            \
+    AddressingMode mode = kMode_None;                            \
+    MemOperand op = i.MemoryOperand(&mode, &index);              \
+    __ lay(addr, op);                                            \
+    __ CmpAndSwap64(output, new_val, MemOperand(addr));          \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -2521,30 +2549,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Lay:
       __ lay(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kWord32AtomicLoadInt8:
-      __ LoadB(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicLoadUint8:
-      __ LoadlB(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicLoadInt16:
-      __ LoadHalfWordP(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicLoadUint16:
-      __ LoadLogicalHalfWordP(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicLoadWord32:
-      __ LoadlW(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicStoreWord8:
-      __ StoreByte(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
-    case kWord32AtomicStoreWord16:
-      __ StoreHalfWord(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
-    case kWord32AtomicStoreWord32:
-      __ StoreW(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
 //         0x aa bb cc dd
 // index =    3..2..1..0
 #define ATOMIC_EXCHANGE(start, end, shift_amount, offset)                    \
@@ -2598,6 +2602,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     ATOMIC_EXCHANGE(start, end, shift_amount, -idx * 2);         \
   }
 #endif
+    case kS390_Word64AtomicExchangeUint8:
     case kWord32AtomicExchangeInt8:
     case kWord32AtomicExchangeUint8: {
       Register base = i.InputRegister(0);
@@ -2631,12 +2636,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       __ bind(&done);
       if (opcode == kWord32AtomicExchangeInt8) {
-        __ lbr(output, output);
+        __ lgbr(output, output);
       } else {
-        __ llcr(output, output);
+        __ llgcr(output, output);
       }
       break;
     }
+    case kS390_Word64AtomicExchangeUint16:
     case kWord32AtomicExchangeInt16:
     case kWord32AtomicExchangeUint16: {
       Register base = i.InputRegister(0);
@@ -2657,13 +2663,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_EXCHANGE_HALFWORD(1);
 
       __ bind(&done);
-      if (opcode == kWord32AtomicExchangeInt8) {
-        __ lhr(output, output);
+      if (opcode == kWord32AtomicExchangeInt16) {
+        __ lghr(output, output);
       } else {
-        __ llhr(output, output);
+        __ llghr(output, output);
       }
       break;
     }
+    case kS390_Word64AtomicExchangeUint32:
     case kWord32AtomicExchangeWord32: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
@@ -2680,15 +2687,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadB);
       break;
+    case kS390_Word64AtomicCompareExchangeUint8:
     case kWord32AtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadlB);
       break;
     case kWord32AtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadHalfWordP);
       break;
+    case kS390_Word64AtomicCompareExchangeUint16:
     case kWord32AtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadLogicalHalfWordP);
       break;
+    case kS390_Word64AtomicCompareExchangeUint32:
     case kWord32AtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD();
       break;
@@ -2700,6 +2710,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadB(result, result);                                     \
         });                                                             \
     break;                                                              \
+  case kS390_Word64Atomic##op##Uint8:                                   \
   case kWord32Atomic##op##Uint8:                                        \
     ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                            \
           int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
@@ -2715,6 +2726,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadHalfWordP(result, result);                             \
         });                                                             \
     break;                                                              \
+  case kS390_Word64Atomic##op##Uint16:                                  \
   case kWord32Atomic##op##Uint16:                                       \
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                        \
           int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
@@ -2729,20 +2741,56 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
+    case kS390_Word64AtomicAddUint32:
     case kWord32AtomicAddWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(laa);
       break;
+    case kS390_Word64AtomicSubUint32:
     case kWord32AtomicSubWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(LoadAndSub32);
       break;
+    case kS390_Word64AtomicAndUint32:
     case kWord32AtomicAndWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lan);
       break;
+    case kS390_Word64AtomicOrUint32:
     case kWord32AtomicOrWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lao);
       break;
+    case kS390_Word64AtomicXorUint32:
     case kWord32AtomicXorWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lax);
+      break;
+    case kS390_Word64AtomicAddUint64:
+      ASSEMBLE_ATOMIC_BINOP_WORD64(laag);
+      break;
+    case kS390_Word64AtomicSubUint64:
+      ASSEMBLE_ATOMIC_BINOP_WORD64(LoadAndSub64);
+      break;
+    case kS390_Word64AtomicAndUint64:
+      ASSEMBLE_ATOMIC_BINOP_WORD64(lang);
+      break;
+    case kS390_Word64AtomicOrUint64:
+      ASSEMBLE_ATOMIC_BINOP_WORD64(laog);
+      break;
+    case kS390_Word64AtomicXorUint64:
+      ASSEMBLE_ATOMIC_BINOP_WORD64(laxg);
+      break;
+    case kS390_Word64AtomicExchangeUint64: {
+      Register base = i.InputRegister(0);
+      Register index = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      Register output = i.OutputRegister();
+      Label do_cs;
+      __ la(r1, MemOperand(base, index));
+      __ lg(output, MemOperand(r1));
+      __ bind(&do_cs);
+      __ csg(output, value, MemOperand(r1));
+      __ bne(&do_cs, Label::kNear);
+      break;
+    }
+    case kS390_Word64AtomicCompareExchangeUint64:
+      ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64();
       break;
     default:
       UNREACHABLE();
@@ -2776,7 +2824,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
   // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual ||
+      condition == kOverflow || condition == kNotOverflow) {
     return;
   }
 
@@ -2971,6 +3020,16 @@ void CodeGenerator::AssembleConstructFrame() {
       // efficient intialization of the constant pool pointer register).
       __ StubPrologue(type);
       if (call_descriptor->IsWasmFunctionCall()) {
+        __ Push(kWasmInstanceRegister);
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        // WASM import wrappers are passed a tuple in the place of the instance.
+        // Unpack the tuple into the instance and the target callable.
+        // This must be done here in the codegen because it cannot be expressed
+        // properly in the graph.
+        __ LoadP(kJSFunctionRegister,
+                 FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ LoadP(kWasmInstanceRegister,
+                 FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ Push(kWasmInstanceRegister);
       }
     }
@@ -3170,9 +3229,13 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kExternalReference:
           __ Move(dst, src.ToExternalReference());
           break;
+        case Constant::kDelayedStringConstant:
+          __ mov(dst, Operand::EmbeddedStringConstant(
+                          src.ToDelayedStringConstant()));
+          break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
-          Heap::RootListIndex index;
+          RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {

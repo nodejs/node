@@ -7,12 +7,25 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
+#include "src/compiler/refs-map.h"
 #include "src/globals.h"
+#include "src/handles.h"
 #include "src/objects.h"
+#include "src/objects/builtin-function-id.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
+
+class BytecodeArray;
+class FixedDoubleArray;
+class InternalizedString;
+class JSGlobalProxy;
+class JSRegExp;
+class JSTypedArray;
+class NativeContext;
+class ScriptContextTable;
+
 namespace compiler {
 
 enum class OddballType : uint8_t {
@@ -25,7 +38,98 @@ enum class OddballType : uint8_t {
   kOther  // Oddball, but none of the above.
 };
 
-// TODO(neis): Get rid of the HeapObjectType class.
+// This list is sorted such that subtypes appear before their supertypes.
+// DO NOT VIOLATE THIS PROPERTY!
+#define HEAP_BROKER_OBJECT_LIST(V) \
+  /* Subtypes of JSObject */       \
+  V(JSArray)                       \
+  V(JSFunction)                    \
+  V(JSGlobalProxy)                 \
+  V(JSRegExp)                      \
+  V(JSTypedArray)                  \
+  /* Subtypes of Context */        \
+  V(NativeContext)                 \
+  /* Subtypes of FixedArray */     \
+  V(Context)                       \
+  V(ScopeInfo)                     \
+  V(ScriptContextTable)            \
+  /* Subtypes of FixedArrayBase */ \
+  V(BytecodeArray)                 \
+  V(FixedArray)                    \
+  V(FixedDoubleArray)              \
+  /* Subtypes of Name */           \
+  V(InternalizedString)            \
+  V(String)                        \
+  /* Subtypes of HeapObject */     \
+  V(AllocationSite)                \
+  V(Cell)                          \
+  V(Code)                          \
+  V(DescriptorArray)               \
+  V(FeedbackVector)                \
+  V(FixedArrayBase)                \
+  V(HeapNumber)                    \
+  V(JSObject)                      \
+  V(Map)                           \
+  V(Module)                        \
+  V(MutableHeapNumber)             \
+  V(Name)                          \
+  V(PropertyCell)                  \
+  V(SharedFunctionInfo)            \
+  /* Subtypes of Object */         \
+  V(HeapObject)
+
+class CompilationDependencies;
+class JSHeapBroker;
+class ObjectData;
+class PerIsolateCompilerCache;
+#define FORWARD_DECL(Name) class Name##Ref;
+HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
+#undef FORWARD_DECL
+
+class ObjectRef {
+ public:
+  ObjectRef(JSHeapBroker* broker, Handle<Object> object);
+  ObjectRef(JSHeapBroker* broker, ObjectData* data)
+      : data_(data), broker_(broker) {
+    CHECK_NOT_NULL(data_);
+  }
+
+  Handle<Object> object() const;
+
+  bool equals(const ObjectRef& other) const;
+
+  bool IsSmi() const;
+  int AsSmi() const;
+
+#define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
+  HEAP_BROKER_OBJECT_LIST(HEAP_IS_METHOD_DECL)
+#undef HEAP_IS_METHOD_DECL
+
+#define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
+  HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
+#undef HEAP_AS_METHOD_DECL
+
+  bool BooleanValue() const;
+  double OddballToNumber() const;
+
+  Isolate* isolate() const;
+
+ protected:
+  JSHeapBroker* broker() const;
+  ObjectData* data() const;
+  ObjectData* data_;  // Should be used only by object() getters.
+
+ private:
+  JSHeapBroker* broker_;
+};
+
+// Temporary class that carries information from a Map. We'd like to remove
+// this class and use MapRef instead, but we can't as long as we support the
+// kDisabled broker mode. That's because obtaining the MapRef via
+// HeapObjectRef::map() requires a HandleScope when the broker is disabled.
+// During OptimizeGraph we generally don't have a HandleScope, however. There
+// are two places where we therefore use GetHeapObjectType() instead. Both that
+// function and this class should eventually be removed.
 class HeapObjectType {
  public:
   enum Flag : uint8_t { kUndetectable = 1 << 0, kCallable = 1 << 1 };
@@ -54,142 +158,65 @@ class HeapObjectType {
   Flags const flags_;
 };
 
-// This list is sorted such that subtypes appear before their supertypes.
-// DO NOT VIOLATE THIS PROPERTY!
-#define HEAP_BROKER_OBJECT_LIST(V) \
-  /* Subtypes of JSObject */       \
-  V(JSArray)                       \
-  V(JSFunction)                    \
-  V(JSGlobalProxy)                 \
-  V(JSRegExp)                      \
-  /* Subtypes of Context */        \
-  V(NativeContext)                 \
-  /* Subtypes of FixedArrayBase */ \
-  V(BytecodeArray)                 \
-  V(FixedArray)                    \
-  V(FixedDoubleArray)              \
-  /* Subtypes of Name */           \
-  V(InternalizedString)            \
-  V(String)                        \
-  /* Subtypes of HeapObject */     \
-  V(AllocationSite)                \
-  V(Cell)                          \
-  V(Code)                          \
-  V(FeedbackVector)                \
-  V(Map)                           \
-  V(Module)                        \
-  V(ScopeInfo)                     \
-  V(ScriptContextTable)            \
-  V(SharedFunctionInfo)            \
-  V(Context)                       \
-  V(FixedArrayBase)                \
-  V(HeapNumber)                    \
-  V(JSObject)                      \
-  V(MutableHeapNumber)             \
-  V(Name)                          \
-  V(PropertyCell)                  \
-  /* Subtypes of Object */         \
-  V(HeapObject)
-
-class CompilationDependencies;
-class JSHeapBroker;
-class ObjectData;
-#define FORWARD_DECL(Name) class Name##Ref;
-HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
-#undef FORWARD_DECL
-
-class ObjectRef {
- public:
-  ObjectRef(JSHeapBroker* broker, Handle<Object> object);
-  explicit ObjectRef(ObjectData* data) : data_(data) { CHECK_NOT_NULL(data_); }
-
-  bool equals(const ObjectRef& other) const;
-
-  Handle<Object> object() const;
-  // TODO(neis): Remove eventually.
-  template <typename T>
-  Handle<T> object() const {
-    AllowHandleDereference handle_dereference;
-    return Handle<T>::cast(object());
-  }
-
-  OddballType oddball_type() const;
-
-  bool IsSmi() const;
-  int AsSmi() const;
-
-#define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
-  HEAP_BROKER_OBJECT_LIST(HEAP_IS_METHOD_DECL)
-#undef HEAP_IS_METHOD_DECL
-
-#define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
-  HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
-#undef HEAP_AS_METHOD_DECL
-
-  StringRef TypeOf() const;
-  bool BooleanValue();
-  double OddballToNumber() const;
-
-  Isolate* isolate() const;
-
- protected:
-  JSHeapBroker* broker() const;
-  ObjectData* data() const;
-
- private:
-  ObjectData* data_;
-};
-
 class HeapObjectRef : public ObjectRef {
  public:
   using ObjectRef::ObjectRef;
+  Handle<HeapObject> object() const;
 
-  HeapObjectType type() const;
   MapRef map() const;
-  base::Optional<MapRef> TryGetObjectCreateMap() const;
-  bool IsSeqString() const;
-  bool IsExternalString() const;
+
+  // See the comment on the HeapObjectType class.
+  HeapObjectType GetHeapObjectType() const;
 };
 
 class PropertyCellRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<PropertyCell> object() const;
 
-  ObjectRef value() const;
   PropertyDetails property_details() const;
+  ObjectRef value() const;
 };
 
 class JSObjectRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<JSObject> object() const;
 
-  bool IsUnboxedDoubleField(FieldIndex index) const;
   double RawFastDoublePropertyAt(FieldIndex index) const;
   ObjectRef RawFastPropertyAt(FieldIndex index) const;
 
   FixedArrayBaseRef elements() const;
   void EnsureElementsTenured();
   ElementsKind GetElementsKind() const;
+
+  void SerializeObjectCreateMap();
+  base::Optional<MapRef> GetObjectCreateMap() const;
 };
 
 class JSFunctionRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
+  Handle<JSFunction> object() const;
 
-  bool IsConstructor() const;
   bool has_initial_map() const;
-  MapRef initial_map() const;
   bool has_prototype() const;
-  ObjectRef prototype() const;
   bool PrototypeRequiresRuntimeLookup() const;
-  JSGlobalProxyRef global_proxy() const;
-  int InitialMapInstanceSizeWithMinSlack() const;
+
+  void Serialize();
+
+  // The following are available only after calling Serialize().
+  ObjectRef prototype() const;
+  MapRef initial_map() const;
+  NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
+  int InitialMapInstanceSizeWithMinSlack() const;
 };
 
 class JSRegExpRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
+  Handle<JSRegExp> object() const;
 
   ObjectRef raw_properties_or_hash() const;
   ObjectRef data() const;
@@ -201,6 +228,7 @@ class JSRegExpRef : public JSObjectRef {
 class HeapNumberRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<HeapNumber> object() const;
 
   double value() const;
 };
@@ -208,6 +236,7 @@ class HeapNumberRef : public HeapObjectRef {
 class MutableHeapNumberRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<MutableHeapNumber> object() const;
 
   double value() const;
 };
@@ -215,37 +244,66 @@ class MutableHeapNumberRef : public HeapObjectRef {
 class ContextRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Context> object() const;
 
-  base::Optional<ContextRef> previous() const;
+  void Serialize();
+  ContextRef previous() const;
   ObjectRef get(int index) const;
 };
 
-#define BROKER_NATIVE_CONTEXT_FIELDS(V)       \
-  V(JSFunction, array_function)               \
-  V(JSFunction, object_function)              \
-  V(JSFunction, promise_function)             \
-  V(Map, fast_aliased_arguments_map)          \
-  V(Map, initial_array_iterator_map)          \
-  V(Map, iterator_result_map)                 \
-  V(Map, js_array_holey_double_elements_map)  \
-  V(Map, js_array_holey_elements_map)         \
-  V(Map, js_array_holey_smi_elements_map)     \
-  V(Map, js_array_packed_double_elements_map) \
-  V(Map, js_array_packed_elements_map)        \
-  V(Map, js_array_packed_smi_elements_map)    \
-  V(Map, map_key_iterator_map)                \
-  V(Map, map_key_value_iterator_map)          \
-  V(Map, map_value_iterator_map)              \
-  V(Map, set_key_value_iterator_map)          \
-  V(Map, set_value_iterator_map)              \
-  V(Map, sloppy_arguments_map)                \
-  V(Map, strict_arguments_map)                \
-  V(Map, string_iterator_map)                 \
-  V(ScriptContextTable, script_context_table)
+#define BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V)                    \
+  V(JSFunction, array_function)                                       \
+  V(JSFunction, boolean_function)                                     \
+  V(JSFunction, bigint_function)                                      \
+  V(JSFunction, number_function)                                      \
+  V(JSFunction, object_function)                                      \
+  V(JSFunction, promise_function)                                     \
+  V(JSFunction, promise_then)                                         \
+  V(JSFunction, string_function)                                      \
+  V(JSFunction, symbol_function)                                      \
+  V(JSGlobalProxy, global_proxy_object)                               \
+  V(JSObject, promise_prototype)                                      \
+  V(Map, bound_function_with_constructor_map)                         \
+  V(Map, bound_function_without_constructor_map)                      \
+  V(Map, fast_aliased_arguments_map)                                  \
+  V(Map, initial_array_iterator_map)                                  \
+  V(Map, initial_string_iterator_map)                                 \
+  V(Map, iterator_result_map)                                         \
+  V(Map, js_array_holey_double_elements_map)                          \
+  V(Map, js_array_holey_elements_map)                                 \
+  V(Map, js_array_holey_smi_elements_map)                             \
+  V(Map, js_array_packed_double_elements_map)                         \
+  V(Map, js_array_packed_elements_map)                                \
+  V(Map, js_array_packed_smi_elements_map)                            \
+  V(Map, sloppy_arguments_map)                                        \
+  V(Map, slow_object_with_null_prototype_map)                         \
+  V(Map, strict_arguments_map)                                        \
+  V(ScriptContextTable, script_context_table)                         \
+  V(SharedFunctionInfo, promise_capability_default_reject_shared_fun) \
+  V(SharedFunctionInfo, promise_catch_finally_shared_fun)             \
+  V(SharedFunctionInfo, promise_then_finally_shared_fun)              \
+  V(SharedFunctionInfo, promise_capability_default_resolve_shared_fun)
+
+// Those are set by Bootstrapper::ExportFromRuntime, which may not yet have
+// happened when Turbofan is invoked via --always-opt.
+#define BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V) \
+  V(Map, async_function_object_map)              \
+  V(Map, map_key_iterator_map)                   \
+  V(Map, map_key_value_iterator_map)             \
+  V(Map, map_value_iterator_map)                 \
+  V(Map, set_key_value_iterator_map)             \
+  V(Map, set_value_iterator_map)
+
+#define BROKER_NATIVE_CONTEXT_FIELDS(V)      \
+  BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V) \
+  BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V)
 
 class NativeContextRef : public ContextRef {
  public:
   using ContextRef::ContextRef;
+  Handle<NativeContext> object() const;
+
+  void Serialize();
 
 #define DECL_ACCESSOR(type, name) type##Ref name() const;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
@@ -253,16 +311,19 @@ class NativeContextRef : public ContextRef {
 
   MapRef GetFunctionMapFromIndex(int index) const;
   MapRef GetInitialJSArrayMap(ElementsKind kind) const;
+  base::Optional<JSFunctionRef> GetConstructorFunction(const MapRef& map) const;
 };
 
 class NameRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Name> object() const;
 };
 
 class ScriptContextTableRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<ScriptContextTable> object() const;
 
   struct LookupResult {
     ContextRef context;
@@ -273,16 +334,26 @@ class ScriptContextTableRef : public HeapObjectRef {
   base::Optional<LookupResult> lookup(const NameRef& name) const;
 };
 
+class DescriptorArrayRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+  Handle<DescriptorArray> object() const;
+};
+
 class FeedbackVectorRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<FeedbackVector> object() const;
 
   ObjectRef get(FeedbackSlot slot) const;
+
+  void SerializeSlots();
 };
 
 class AllocationSiteRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<AllocationSite> object() const;
 
   bool PointsToLiteral() const;
   PretenureFlag GetPretenureMode() const;
@@ -304,6 +375,7 @@ class AllocationSiteRef : public HeapObjectRef {
 class MapRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Map> object() const;
 
   int instance_size() const;
   InstanceType instance_type() const;
@@ -311,32 +383,50 @@ class MapRef : public HeapObjectRef {
   int GetInObjectPropertiesStartInWords() const;
   int NumberOfOwnDescriptors() const;
   int GetInObjectPropertyOffset(int index) const;
+  int constructor_function_index() const;
   ElementsKind elements_kind() const;
   bool is_stable() const;
+  bool is_extensible() const;
+  bool is_constructor() const;
   bool has_prototype_slot() const;
+  bool is_access_check_needed() const;
   bool is_deprecated() const;
   bool CanBeDeprecated() const;
   bool CanTransition() const;
   bool IsInobjectSlackTrackingInProgress() const;
   bool is_dictionary_map() const;
-  bool IsJSArrayMap() const;
   bool IsFixedCowArrayMap() const;
+  bool IsPrimitiveMap() const;
+  bool is_undetectable() const;
+  bool is_callable() const;
 
-  ObjectRef constructor_or_backpointer() const;
+#define DEF_TESTER(Type, ...) bool Is##Type##Map() const;
+  INSTANCE_TYPE_CHECKERS(DEF_TESTER)
+#undef DEF_TESTER
+
+  ObjectRef GetConstructor() const;
+
+  void SerializePrototype();
+  ObjectRef prototype() const;
+
+  OddballType oddball_type() const;
 
   base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
 
   // Concerning the underlying instance_descriptors:
-  MapRef FindFieldOwner(int descriptor) const;
-  PropertyDetails GetPropertyDetails(int i) const;
-  NameRef GetPropertyKey(int i) const;
-  FieldIndex GetFieldIndexFor(int i) const;
-  ObjectRef GetFieldType(int descriptor) const;
+  void SerializeOwnDescriptors();
+  MapRef FindFieldOwner(int descriptor_index) const;
+  PropertyDetails GetPropertyDetails(int descriptor_index) const;
+  NameRef GetPropertyKey(int descriptor_index) const;
+  FieldIndex GetFieldIndexFor(int descriptor_index) const;
+  ObjectRef GetFieldType(int descriptor_index) const;
+  bool IsUnboxedDoubleField(int descriptor_index) const;
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<FixedArrayBase> object() const;
 
   int length() const;
 };
@@ -344,14 +434,15 @@ class FixedArrayBaseRef : public HeapObjectRef {
 class FixedArrayRef : public FixedArrayBaseRef {
  public:
   using FixedArrayBaseRef::FixedArrayBaseRef;
+  Handle<FixedArray> object() const;
 
   ObjectRef get(int i) const;
-  bool is_the_hole(int i) const;
 };
 
 class FixedDoubleArrayRef : public FixedArrayBaseRef {
  public:
   using FixedArrayBaseRef::FixedArrayBaseRef;
+  Handle<FixedDoubleArray> object() const;
 
   double get_scalar(int i) const;
   bool is_the_hole(int i) const;
@@ -360,6 +451,7 @@ class FixedDoubleArrayRef : public FixedArrayBaseRef {
 class BytecodeArrayRef : public FixedArrayBaseRef {
  public:
   using FixedArrayBaseRef::FixedArrayBaseRef;
+  Handle<BytecodeArray> object() const;
 
   int register_count() const;
 };
@@ -367,6 +459,7 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
 class JSArrayRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
+  Handle<JSArray> object() const;
 
   ObjectRef length() const;
 };
@@ -374,6 +467,7 @@ class JSArrayRef : public JSObjectRef {
 class ScopeInfoRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<ScopeInfo> object() const;
 
   int ContextLength() const;
 };
@@ -395,100 +489,140 @@ class ScopeInfoRef : public HeapObjectRef {
 class SharedFunctionInfoRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<SharedFunctionInfo> object() const;
 
   int builtin_id() const;
   BytecodeArrayRef GetBytecodeArray() const;
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
-#undef DECL_ACCSESOR
+#undef DECL_ACCESSOR
 };
 
 class StringRef : public NameRef {
  public:
   using NameRef::NameRef;
+  Handle<String> object() const;
 
   int length() const;
   uint16_t GetFirstChar();
   base::Optional<double> ToNumber();
+  bool IsSeqString() const;
+  bool IsExternalString() const;
+};
+
+class JSTypedArrayRef : public JSObjectRef {
+ public:
+  using JSObjectRef::JSObjectRef;
+  Handle<JSTypedArray> object() const;
+
+  bool is_on_heap() const;
+  size_t length_value() const;
+  void* elements_external_pointer() const;
+
+  void Serialize();
+
+  HeapObjectRef buffer() const;
 };
 
 class ModuleRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Module> object() const;
 
-  CellRef GetCell(int cell_index);
+  void Serialize();
+
+  CellRef GetCell(int cell_index) const;
 };
 
 class CellRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Cell> object() const;
+
+  ObjectRef value() const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
+  Handle<JSGlobalProxy> object() const;
 };
 
 class CodeRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Code> object() const;
 };
 
 class InternalizedStringRef : public StringRef {
  public:
   using StringRef::StringRef;
+  Handle<InternalizedString> object() const;
 };
 
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  JSHeapBroker(Isolate* isolate, Zone* zone);
+  JSHeapBroker(Isolate* isolate, Zone* broker_zone);
+  void SetNativeContextRef();
   void SerializeStandardObjects();
 
-  HeapObjectType HeapObjectTypeFromMap(Handle<Map> map) const {
-    AllowHandleDereference handle_dereference;
-    return HeapObjectTypeFromMap(*map);
-  }
-
   Isolate* isolate() const { return isolate_; }
-  Zone* zone() const { return zone_; }
+  Zone* zone() const { return current_zone_; }
+  NativeContextRef native_context() const { return native_context_.value(); }
+  PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
 
-  enum BrokerMode { kDisabled, kSerializing, kSerialized };
+  enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }
-  void StopSerializing() {
-    CHECK_EQ(mode_, kSerializing);
-    mode_ = kSerialized;
-  }
+  void StartSerializing();
+  void StopSerializing();
+  void Retire();
   bool SerializingAllowed() const;
 
   // Returns nullptr iff handle unknown.
   ObjectData* GetData(Handle<Object>) const;
   // Never returns nullptr.
   ObjectData* GetOrCreateData(Handle<Object>);
+  // Like the previous but wraps argument in handle first (for convenience).
+  ObjectData* GetOrCreateData(Object*);
+
+  // Check if {object} is any native context's %ArrayPrototype% or
+  // %ObjectPrototype%.
+  bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
 
   void Trace(const char* format, ...) const;
+  void IncrementTracingIndentation();
+  void DecrementTracingIndentation();
 
  private:
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
 
-  // TODO(neis): Remove eventually.
-  HeapObjectType HeapObjectTypeFromMap(Map* map) const;
-
-  void AddData(Handle<Object> object, ObjectData* data);
+  void SerializeShareableObjects();
+  void CollectArrayAndObjectPrototypes();
 
   Isolate* const isolate_;
-  Zone* const zone_;
-  ZoneUnorderedMap<Address, ObjectData*> refs_;
-  BrokerMode mode_;
+  Zone* const broker_zone_;
+  Zone* current_zone_;
+  base::Optional<NativeContextRef> native_context_;
+  RefsMap* refs_;
+  ZoneUnorderedSet<Handle<JSObject>, Handle<JSObject>::hash,
+                   Handle<JSObject>::equal_to>
+      array_and_object_prototypes_;
+
+  BrokerMode mode_ = kDisabled;
+  unsigned tracing_indentation_ = 0;
+  PerIsolateCompilerCache* compiler_cache_;
+
+  static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
+  static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2
 };
 
-#define ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(something_var,          \
-                                                optionally_something)   \
-  auto optionally_something_ = optionally_something;                    \
-  if (!optionally_something_)                                           \
-    return NoChangeBecauseOfMissingData(js_heap_broker(), __FUNCTION__, \
-                                        __LINE__);                      \
+#define ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(something_var,             \
+                                                optionally_something)      \
+  auto optionally_something_ = optionally_something;                       \
+  if (!optionally_something_)                                              \
+    return NoChangeBecauseOfMissingData(broker(), __FUNCTION__, __LINE__); \
   something_var = *optionally_something_;
 
 class Reduction;

@@ -253,7 +253,7 @@ class ActivationsFinder : public ThreadVisitor {
   // Find the frames with activations of codes marked for deoptimization, search
   // for the trampoline to the deoptimizer call respective to each code, and use
   // it to replace the current pc on the stack.
-  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       if (it.frame()->type() == StackFrame::OPTIMIZED) {
         Code* code = it.frame()->LookupCode();
@@ -809,6 +809,20 @@ void Deoptimizer::DoComputeOutputFrames() {
     }
   }
 
+#if defined(V8_TARGET_ARCH_IA32)
+  constexpr bool kShouldInitializeRootRegister = FLAG_embedded_builtins;
+#else
+  constexpr bool kShouldInitializeRootRegister = true;
+#endif
+  if (kShouldInitializeRootRegister) {
+    Address root_pointer =
+        reinterpret_cast<Address>(isolate()->roots_array_start()) +
+        kRootRegisterBias;
+    FrameDescription* topmost = output_[count - 1];
+    topmost->GetRegisterValues()->SetRegister(kRootRegister.code(),
+                                              root_pointer);
+  }
+
   // Print some helpful diagnostic information.
   if (trace_scope_ != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -1173,7 +1187,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
   BailoutId bailout_id = translated_frame->node_id();
   unsigned height = translated_frame->height();
-  unsigned height_in_bytes = height * kPointerSize;
+  unsigned parameter_count = height - 1;  // Exclude the context.
+  unsigned height_in_bytes = parameter_count * kPointerSize;
 
   // If the construct frame appears to be topmost we should ensure that the
   // value of result register is preserved during continuation execution.
@@ -1185,7 +1200,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
   }
 
-  int parameter_count = height;
   if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
@@ -1227,7 +1241,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator receiver_iterator = value_iterator;
 
   // Compute the incoming parameter translation.
-  for (int i = 0; i < parameter_count; ++i, ++value_iterator) {
+  for (unsigned i = 0; i < parameter_count; ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
   }
 
@@ -1259,13 +1273,10 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   intptr_t marker = StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
   frame_writer.PushRawValue(marker, "context (construct stub sentinel)\n");
 
-  // The context can be gotten from the previous frame.
-  Object* context =
-      reinterpret_cast<Object*>(output_[frame_index - 1]->GetContext());
-  frame_writer.PushRawObject(context, "context\n");
+  frame_writer.PushTranslatedValue(value_iterator++, "context\n");
 
   // Number of incoming arguments.
-  frame_writer.PushRawObject(Smi::FromInt(height - 1), "argc\n");
+  frame_writer.PushRawObject(Smi::FromInt(parameter_count - 1), "argc\n");
 
   // The constructor function was mentioned explicitly in the
   // CONSTRUCT_STUB_FRAME.
@@ -1476,7 +1487,13 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   const bool must_handle_result =
       !is_topmost || deopt_kind_ == DeoptimizeKind::kLazy;
 
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+  // TODO(v8:6666): Fold into Default config once root is fully supported.
+  const RegisterConfiguration* config(
+      RegisterConfiguration::PreserveRootIA32());
+#else
   const RegisterConfiguration* config(RegisterConfiguration::Default());
+#endif
   const int allocatable_register_count =
       config->num_allocatable_general_registers();
   const int padding_slot_count =
@@ -1739,7 +1756,7 @@ void Deoptimizer::MaterializeHeapObjects() {
   translated_state_.Prepare(static_cast<Address>(stack_fp_));
   if (FLAG_deopt_every_n_times > 0) {
     // Doing a GC here will find problems with the deoptimized frames.
-    isolate_->heap()->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+    isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
                                         GarbageCollectionReason::kTesting);
   }
 
@@ -1998,6 +2015,10 @@ void Translation::StoreInt32Register(Register reg) {
   buffer_->Add(reg.code());
 }
 
+void Translation::StoreInt64Register(Register reg) {
+  buffer_->Add(INT64_REGISTER);
+  buffer_->Add(reg.code());
+}
 
 void Translation::StoreUint32Register(Register reg) {
   buffer_->Add(UINT32_REGISTER);
@@ -2032,6 +2053,10 @@ void Translation::StoreInt32StackSlot(int index) {
   buffer_->Add(index);
 }
 
+void Translation::StoreInt64StackSlot(int index) {
+  buffer_->Add(INT64_STACK_SLOT);
+  buffer_->Add(index);
+}
 
 void Translation::StoreUint32StackSlot(int index) {
   buffer_->Add(UINT32_STACK_SLOT);
@@ -2080,12 +2105,14 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case CAPTURED_OBJECT:
     case REGISTER:
     case INT32_REGISTER:
+    case INT64_REGISTER:
     case UINT32_REGISTER:
     case BOOL_REGISTER:
     case FLOAT_REGISTER:
     case DOUBLE_REGISTER:
     case STACK_SLOT:
     case INT32_STACK_SLOT:
+    case INT64_STACK_SLOT:
     case UINT32_STACK_SLOT:
     case BOOL_STACK_SLOT:
     case FLOAT_STACK_SLOT:
@@ -2350,6 +2377,13 @@ TranslatedValue TranslatedValue::NewInt32(TranslatedState* container,
   return slot;
 }
 
+// static
+TranslatedValue TranslatedValue::NewInt64(TranslatedState* container,
+                                          int64_t value) {
+  TranslatedValue slot(container, kInt64);
+  slot.int64_value_ = value;
+  return slot;
+}
 
 // static
 TranslatedValue TranslatedValue::NewUInt32(TranslatedState* container,
@@ -2398,6 +2432,10 @@ int32_t TranslatedValue::int32_value() const {
   return int32_value_;
 }
 
+int64_t TranslatedValue::int64_value() const {
+  DCHECK_EQ(kInt64, kind());
+  return int64_value_;
+}
 
 uint32_t TranslatedValue::uint32_value() const {
   DCHECK(kind() == kUInt32 || kind() == kBoolBit);
@@ -2446,6 +2484,15 @@ Object* TranslatedValue::GetRawValue() const {
       break;
     }
 
+    case kInt64: {
+      bool is_smi = (int64_value() >= static_cast<int64_t>(Smi::kMinValue) &&
+                     int64_value() <= static_cast<int64_t>(Smi::kMaxValue));
+      if (is_smi) {
+        return Smi::FromIntptr(static_cast<intptr_t>(int64_value()));
+      }
+      break;
+    }
+
     case kUInt32: {
       bool is_smi = (uint32_value() <= static_cast<uintptr_t>(Smi::kMaxValue));
       if (is_smi) {
@@ -2486,6 +2533,7 @@ Handle<Object> TranslatedValue::GetValue() {
   switch (kind()) {
     case TranslatedValue::kTagged:
     case TranslatedValue::kInt32:
+    case TranslatedValue::kInt64:
     case TranslatedValue::kUInt32:
     case TranslatedValue::kBoolBit:
     case TranslatedValue::kFloat:
@@ -2537,6 +2585,11 @@ void TranslatedValue::MaterializeSimple() {
     case kInt32:
       set_initialized_storage(
           Handle<Object>(isolate()->factory()->NewNumber(int32_value())));
+      return;
+
+    case kInt64:
+      set_initialized_storage(Handle<Object>(
+          isolate()->factory()->NewNumber(static_cast<double>(int64_value()))));
       return;
 
     case kUInt32:
@@ -2592,6 +2645,9 @@ int TranslatedValue::GetChildrenCount() const {
   }
 }
 
+uint64_t TranslatedState::GetUInt64Slot(Address fp, int slot_offset) {
+  return Memory<uint64_t>(fp + slot_offset);
+}
 
 uint32_t TranslatedState::GetUInt32Slot(Address fp, int slot_offset) {
   Address address = fp + slot_offset;
@@ -2611,7 +2667,7 @@ Float32 TranslatedState::GetFloatSlot(Address fp, int slot_offset) {
 }
 
 Float64 TranslatedState::GetDoubleSlot(Address fp, int slot_offset) {
-  return Float64::FromBits(Memory<uint64_t>(fp + slot_offset));
+  return Float64::FromBits(GetUInt64Slot(fp, slot_offset));
 }
 
 void TranslatedValue::Handlify() {
@@ -2814,12 +2870,14 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case Translation::CAPTURED_OBJECT:
     case Translation::REGISTER:
     case Translation::INT32_REGISTER:
+    case Translation::INT64_REGISTER:
     case Translation::UINT32_REGISTER:
     case Translation::BOOL_REGISTER:
     case Translation::FLOAT_REGISTER:
     case Translation::DOUBLE_REGISTER:
     case Translation::STACK_SLOT:
     case Translation::INT32_STACK_SLOT:
+    case Translation::INT64_STACK_SLOT:
     case Translation::UINT32_STACK_SLOT:
     case Translation::BOOL_STACK_SLOT:
     case Translation::FLOAT_STACK_SLOT:
@@ -3029,11 +3087,29 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       intptr_t value = registers->GetRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%" V8PRIdPTR " ; %s ", value,
+        PrintF(trace_file, "%" V8PRIdPTR " ; %s (int32)", value,
                converter.NameOfCPURegister(input_reg));
       }
       TranslatedValue translated_value =
           TranslatedValue::NewInt32(this, static_cast<int32_t>(value));
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
+    case Translation::INT64_REGISTER: {
+      int input_reg = iterator->Next();
+      if (registers == nullptr) {
+        TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
+        frame.Add(translated_value);
+        return translated_value.GetChildrenCount();
+      }
+      intptr_t value = registers->GetRegister(input_reg);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%" V8PRIdPTR " ; %s (int64)", value,
+               converter.NameOfCPURegister(input_reg));
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewInt64(this, static_cast<int64_t>(value));
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -3047,7 +3123,7 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       intptr_t value = registers->GetRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%" V8PRIuPTR " ; %s (uint)", value,
+        PrintF(trace_file, "%" V8PRIuPTR " ; %s (uint32)", value,
                converter.NameOfCPURegister(input_reg));
       }
       TranslatedValue translated_value =
@@ -3131,11 +3207,25 @@ int TranslatedState::CreateNextTranslatedValue(
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%d ; (int) [fp %c %3d] ",
+        PrintF(trace_file, "%d ; (int32) [fp %c %3d] ",
                static_cast<int32_t>(value), slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
       }
       TranslatedValue translated_value = TranslatedValue::NewInt32(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
+    case Translation::INT64_STACK_SLOT: {
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
+      uint64_t value = GetUInt64Slot(fp, slot_offset);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%" V8PRIdPTR " ; (int64) [fp %c %3d] ",
+               static_cast<intptr_t>(value), slot_offset < 0 ? '-' : '+',
+               std::abs(slot_offset));
+      }
+      TranslatedValue translated_value = TranslatedValue::NewInt64(this, value);
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -3145,7 +3235,7 @@ int TranslatedState::CreateNextTranslatedValue(
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%u ; (uint) [fp %c %3d] ", value,
+        PrintF(trace_file, "%u ; (uint32) [fp %c %3d] ", value,
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       TranslatedValue translated_value =
@@ -3389,6 +3479,7 @@ void TranslatedState::InitializeCapturedObjectAt(
       return;
 
     case FIXED_ARRAY_TYPE:
+    case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:
@@ -3532,6 +3623,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
 
     case FIXED_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
+    case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:

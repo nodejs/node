@@ -35,7 +35,7 @@ SUPPLEMENTARY_FILES = [
 LIBRARY_FILES = {
   'android': ['*.a', '*.so'],
   'linux': ['*.a', '*.so'],
-  'mac': ['*.a', '*.so'],
+  'mac': ['*.a', '*.so', '*.dylib'],
   'win': ['*.lib', '*.dll'],
 }
 

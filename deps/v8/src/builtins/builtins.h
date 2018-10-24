@@ -12,6 +12,7 @@
 namespace v8 {
 namespace internal {
 
+class ByteArray;
 class Callable;
 template <typename T>
 class Handle;
@@ -23,6 +24,11 @@ class RootVisitor;
 enum class InterpreterPushArgsMode : unsigned;
 namespace compiler {
 class CodeAssemblerState;
+}
+
+template <typename T>
+static constexpr T FirstFromVarArgs(T x, ...) noexcept {
+  return x;
 }
 
 // Convenience macro to avoid generating named accessors for all builtins.
@@ -40,13 +46,16 @@ class Builtins {
 
   enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,
-#define DEF_ENUM_BYTECODE_HANDLER(Name, ...) \
-  k##Name##Handler, k##Name##WideHandler, k##Name##ExtraWideHandler,
     BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
-                 DEF_ENUM_BYTECODE_HANDLER, DEF_ENUM)
+                 DEF_ENUM, DEF_ENUM, DEF_ENUM)
 #undef DEF_ENUM
-#undef DEF_ENUM_BYTECODE_HANDLER
-        builtin_count
+        builtin_count,
+
+#define EXTRACT_NAME(Name, ...) k##Name,
+    // Define kFirstBytecodeHandler,
+    kFirstBytecodeHandler =
+        FirstFromVarArgs(BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME) 0)
+#undef EXTRACT_NAME
   };
 
   static const int32_t kNoBuiltinId = -1;
@@ -56,7 +65,7 @@ class Builtins {
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, BCH, ASM };
+  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, BCH, DLH, ASM };
 
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
@@ -111,6 +120,35 @@ class Builtins {
   // special cases such as CompileLazy and DeserializeLazy.
   static bool IsLazy(int index);
 
+  static constexpr int kFirstWideBytecodeHandler =
+      kFirstBytecodeHandler + kNumberOfBytecodeHandlers;
+  static constexpr int kFirstExtraWideBytecodeHandler =
+      kFirstWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
+  STATIC_ASSERT(kFirstExtraWideBytecodeHandler +
+                    kNumberOfWideBytecodeHandlers ==
+                builtin_count);
+
+  // Returns the index of the appropriate lazy deserializer in the builtins
+  // table.
+  static constexpr int LazyDeserializerForBuiltin(const int index) {
+    return index < kFirstWideBytecodeHandler
+               ? (index < kFirstBytecodeHandler
+                      ? Builtins::kDeserializeLazy
+                      : Builtins::kDeserializeLazyHandler)
+               : (index < kFirstExtraWideBytecodeHandler
+                      ? Builtins::kDeserializeLazyWideHandler
+                      : Builtins::kDeserializeLazyExtraWideHandler);
+  }
+
+  static constexpr bool IsLazyDeserializer(int builtin_index) {
+    return builtin_index == kDeserializeLazy ||
+           builtin_index == kDeserializeLazyHandler ||
+           builtin_index == kDeserializeLazyWideHandler ||
+           builtin_index == kDeserializeLazyExtraWideHandler;
+  }
+
+  static bool IsLazyDeserializer(Code* code);
+
   // Helper methods used for testing isolate-independent builtins.
   // TODO(jgruber,v8:6666): Remove once all builtins have been migrated.
   static bool IsIsolateIndependent(int index);
@@ -151,6 +189,10 @@ class Builtins {
   static Handle<Code> GenerateOffHeapTrampolineFor(Isolate* isolate,
                                                    Address off_heap_entry);
 
+  // Generate the RelocInfo ByteArray that would be generated for an offheap
+  // trampoline.
+  static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
+
  private:
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
@@ -179,7 +221,8 @@ class Builtins {
   static void Generate_##Name(compiler::CodeAssemblerState* state);
 
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF,
-               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, DECLARE_ASM)
+               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, IGNORE_BUILTIN,
+               DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF

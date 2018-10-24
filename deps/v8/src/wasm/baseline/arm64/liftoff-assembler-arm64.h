@@ -391,10 +391,23 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
                                      Register amount, LiftoffRegList pinned) { \
     instruction(dst.W(), src.W(), amount.W());                                 \
   }
+#define I32_SHIFTOP_I(name, instruction)                                       \
+  I32_SHIFTOP(name, instruction)                                               \
+  void LiftoffAssembler::emit_##name(Register dst, Register src, int amount) { \
+    DCHECK(is_uint5(amount));                                                  \
+    instruction(dst.W(), src.W(), amount);                                     \
+  }
 #define I64_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
                                      Register amount, LiftoffRegList pinned) { \
     instruction(dst.gp().X(), src.gp().X(), amount.X());                       \
+  }
+#define I64_SHIFTOP_I(name, instruction)                                       \
+  I64_SHIFTOP(name, instruction)                                               \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
+                                     int amount) {                             \
+    DCHECK(is_uint6(amount));                                                  \
+    instruction(dst.gp().X(), src.gp().X(), amount);                           \
   }
 
 I32_BINOP(i32_add, Add)
@@ -405,7 +418,7 @@ I32_BINOP(i32_or, Orr)
 I32_BINOP(i32_xor, Eor)
 I32_SHIFTOP(i32_shl, Lsl)
 I32_SHIFTOP(i32_sar, Asr)
-I32_SHIFTOP(i32_shr, Lsr)
+I32_SHIFTOP_I(i32_shr, Lsr)
 I64_BINOP(i64_add, Add)
 I64_BINOP(i64_sub, Sub)
 I64_BINOP(i64_mul, Mul)
@@ -414,7 +427,7 @@ I64_BINOP(i64_or, Orr)
 I64_BINOP(i64_xor, Eor)
 I64_SHIFTOP(i64_shl, Lsl)
 I64_SHIFTOP(i64_sar, Asr)
-I64_SHIFTOP(i64_shr, Lsr)
+I64_SHIFTOP_I(i64_shr, Lsr)
 FP32_BINOP(f32_add, Fadd)
 FP32_BINOP(f32_sub, Fsub)
 FP32_BINOP(f32_mul, Fmul)
@@ -450,7 +463,9 @@ FP64_UNOP(f64_sqrt, Fsqrt)
 #undef FP64_UNOP
 #undef FP64_UNOP_RETURN_TRUE
 #undef I32_SHIFTOP
+#undef I32_SHIFTOP_I
 #undef I64_SHIFTOP
+#undef I64_SHIFTOP_I
 
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Clz(dst.W(), src.W());
@@ -611,6 +626,16 @@ void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   Sxtw(dst, src);
 }
 
+void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  BAILOUT("f32_copysign");
+}
+
+void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  BAILOUT("f64_copysign");
+}
+
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
@@ -747,6 +772,29 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
+  sxtb(dst, src);
+}
+
+void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
+  sxth(dst, src);
+}
+
+void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  sxtb(dst.gp(), src.gp());
+}
+
+void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  sxth(dst.gp(), src.gp());
+}
+
+void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  sxtw(dst.gp(), src.gp());
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { B(label); }

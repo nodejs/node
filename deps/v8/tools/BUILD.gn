@@ -30,11 +30,11 @@ group("v8_android_test_runner_deps") {
 
   if (is_android && !build_with_chromium) {
     data_deps = [
-      "../build/android:test_runner_py",
+      "//build/android:test_runner_py",
     ]
     data = [
       # This is used by android.py, but not included by test_runner_py above.
-      "../third_party/catapult/devil/devil/android/perf/",
+      "//third_party/catapult/devil/devil/android/perf/",
     ]
   }
 }
@@ -50,6 +50,7 @@ group("v8_testrunner") {
   data = [
     # Also add the num-fuzzer wrapper script in order to be able to run the
     # num-fuzzer on all existing isolated V8 test suites.
+    "predictable_wrapper.py",
     "run-num-fuzzer.py",
     "run-tests.py",
     "testrunner/",

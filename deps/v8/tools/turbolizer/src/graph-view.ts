@@ -3,15 +3,15 @@
 // found in the LICENSE file.
 
 import * as d3 from "d3"
-import {layoutNodeGraph} from "./graph-layout.js"
-import {MAX_RANK_SENTINEL} from "./constants.js"
-import {GNode, nodeToStr, isNodeInitiallyVisible} from "./node.js"
-import {NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH} from "./node.js"
-import {DEFAULT_NODE_BUBBLE_RADIUS} from "./node.js"
-import {Edge, edgeToStr} from "./edge.js"
-import {View, PhaseView} from "./view.js"
-import {MySelection} from "./selection.js"
-import {partial, alignUp} from "./util.js"
+import {layoutNodeGraph} from "../src/graph-layout"
+import {MAX_RANK_SENTINEL} from "../src/constants"
+import {GNode, nodeToStr, isNodeInitiallyVisible} from "../src/node"
+import {NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH} from "../src/node"
+import {DEFAULT_NODE_BUBBLE_RADIUS} from "../src/node"
+import {Edge, edgeToStr} from "../src/edge"
+import {View, PhaseView} from "../src/view"
+import {MySelection} from "../src/selection"
+import {partial, alignUp} from "../src/util"
 
 function nodeToStringKey(n) {
   return "" + n.id;

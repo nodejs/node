@@ -42,9 +42,8 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'BigInt': '--harmony-bigint',
   'class-fields-public': '--harmony-public-fields',
-  'class-fields-private': '--harmony-private-fields',
+  'class-static-fields-public': '--harmony-class-fields',
   'Array.prototype.flat': '--harmony-array-flat',
   'Array.prototype.flatMap': '--harmony-array-flat',
   'String.prototype.matchAll': '--harmony-string-matchall',
@@ -53,10 +52,18 @@ FEATURE_FLAGS = {
   'Intl.ListFormat': '--harmony-intl-list-format',
   'Intl.Locale': '--harmony-locale',
   'Intl.RelativeTimeFormat': '--harmony-intl-relative-time-format',
+  'Intl.Segmenter': '--harmony-intl-segmenter',
   'Symbol.prototype.description': '--harmony-symbol-description',
+  'globalThis': '--harmony-global',
+  'well-formed-json-stringify': '--harmony-json-stringify',
+  'export-star-as-namespace-from-module': '--harmony-namespace-exports',
 }
 
-SKIPPED_FEATURES = set([])
+SKIPPED_FEATURES = set(['Object.fromEntries',
+                        'class-fields-private',
+                        'class-static-fields-private',
+                        'class-methods-private',
+                        'class-static-methods-private'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
@@ -149,7 +156,7 @@ class TestSuite(testsuite.TestSuite):
     return VariantsGenerator
 
 
-class TestCase(testcase.TestCase):
+class TestCase(testcase.D8TestCase):
   def __init__(self, *args, **kwargs):
     super(TestCase, self).__init__(*args, **kwargs)
 

@@ -62,10 +62,8 @@ macro REQUIRE_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) ||
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro TO_BOOLEAN(arg) = (!!(arg));
-macro TO_INTEGER(arg) = (%_ToInteger(arg));
 macro TO_LENGTH(arg) = (%_ToLength(arg));
 macro TO_STRING(arg) = (%_ToString(arg));
-macro TO_NUMBER(arg) = (%_ToNumber(arg));
 macro TO_OBJECT(arg) = (%_ToObject(arg));
 macro HAS_OWN_PROPERTY(obj, key) = (%_Call(ObjectHasOwnProperty, obj, key));
 

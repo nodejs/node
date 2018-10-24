@@ -242,6 +242,14 @@ const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
   return result;
 }
 
+const AstRawString* AstValueFactory::CloneFromOtherFactory(
+    const AstRawString* raw_string) {
+  const AstRawString* result = GetString(
+      raw_string->hash_field(), raw_string->is_one_byte(),
+      Vector<const byte>(raw_string->raw_data(), raw_string->byte_length()));
+  return result;
+}
+
 AstConsString* AstValueFactory::NewConsString() {
   AstConsString* new_string = new (zone_) AstConsString;
   DCHECK_NOT_NULL(new_string);

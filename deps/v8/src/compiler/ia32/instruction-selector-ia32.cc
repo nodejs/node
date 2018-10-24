@@ -185,7 +185,9 @@ namespace {
 
 void VisitRO(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  InstructionOperand temps[] = {g.TempRegister()};
+  selector->Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
+                 arraysize(temps), temps);
 }
 
 
@@ -237,7 +239,12 @@ void VisitRRISimd(InstructionSelector* selector, Node* node,
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 =
       g.UseImmediate(OpParameter<int32_t>(node->op()));
-  selector->Emit(opcode, g.DefineAsRegister(node), operand0, operand1);
+  // 8x16 uses movsx_b on dest to extract a byte, which only works
+  // if dest is a byte register.
+  InstructionOperand dest = opcode == kIA32I8x16ExtractLane
+                                ? g.DefineAsFixed(node, eax)
+                                : g.DefineAsRegister(node);
+  selector->Emit(opcode, dest, operand0, operand1);
 }
 
 void VisitRRISimd(InstructionSelector* selector, Node* node,
@@ -624,7 +631,8 @@ void InstructionSelector::VisitInt32PairAdd(Node* node) {
     // We use UseUniqueRegister here to avoid register sharing with the temp
     // register.
     InstructionOperand inputs[] = {
-        g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+        g.UseRegister(node->InputAt(0)),
+        g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(1)),
         g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
 
     InstructionOperand outputs[] = {g.DefineSameAsFirst(node),
@@ -649,7 +657,8 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
     // We use UseUniqueRegister here to avoid register sharing with the temp
     // register.
     InstructionOperand inputs[] = {
-        g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+        g.UseRegister(node->InputAt(0)),
+        g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(1)),
         g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
 
     InstructionOperand outputs[] = {g.DefineSameAsFirst(node),
@@ -673,10 +682,11 @@ void InstructionSelector::VisitInt32PairMul(Node* node) {
   if (projection1) {
     // InputAt(3) explicitly shares ecx with OutputRegister(1) to save one
     // register and one mov instruction.
-    InstructionOperand inputs[] = {g.UseUnique(node->InputAt(0)),
-                                   g.UseUnique(node->InputAt(1)),
-                                   g.UseUniqueRegister(node->InputAt(2)),
-                                   g.UseFixed(node->InputAt(3), ecx)};
+    InstructionOperand inputs[] = {
+        g.UseUnique(node->InputAt(0)),
+        g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(1)),
+        g.UseUniqueRegister(node->InputAt(2)),
+        g.UseFixed(node->InputAt(3), ecx)};
 
     InstructionOperand outputs[] = {
         g.DefineAsFixed(node, eax),
@@ -935,10 +945,10 @@ void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister(eax)};
+  InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister()};
   Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), 1,
-       temps);
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitFloat32Max(Node* node) {
@@ -1343,43 +1353,38 @@ void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
   // For Word64 operations, the value input is split into the a high node,
   // and a low node in the int64-lowering phase.
   Node* value_high = node->InputAt(3);
+  bool block_root_register = !FLAG_embedded_builtins;
 
   // Wasm lives in 32-bit address space, so we do not need to worry about
   // base/index lowering. This will need to be fixed for Wasm64.
   AddressingMode addressing_mode;
   InstructionOperand inputs[] = {
-      g.UseFixed(value, ebx), g.UseFixed(value_high, ecx),
+      g.UseUniqueRegisterOrSlotOrConstant(value), g.UseFixed(value_high, ecx),
       g.UseUniqueRegister(base),
       g.GetEffectiveIndexOperand(index, &addressing_mode)};
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), eax),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
-}
-
-void VisitNarrowAtomicBinOp(InstructionSelector* selector, Node* node,
-                            ArchOpcode opcode, MachineType type) {
-  IA32OperandGenerator g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-
-  // Wasm lives in 32-bit address space, so we do not need to worry about
-  // base/index lowering. This will need to be fixed for Wasm64.
-  AddressingMode addressing_mode;
-  InstructionOperand inputs[] = {
-      g.UseUniqueRegister(value), g.UseUniqueRegister(base),
-      g.GetEffectiveIndexOperand(index, &addressing_mode)};
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), eax),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
-  InstructionOperand temp[] = {(type == MachineType::Uint8())
-                                   ? g.UseByteRegister(node)
-                                   : g.TempRegister()};
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-                 arraysize(temp), temp);
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
+  if (projection1) {
+    InstructionOperand temps[] = {g.TempRegister(ebx)};
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax),
+                                    g.DefineAsFixed(projection1, edx)};
+    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                   num_temps, temps);
+  } else if (projection0) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax)};
+    InstructionOperand temps[] = {g.TempRegister(edx), g.TempRegister(ebx)};
+    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                   num_temps, temps);
+  } else {
+    InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx),
+                                  g.TempRegister(ebx)};
+    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, num_temps,
+                   temps);
+  }
 }
 
 }  // namespace
@@ -1769,14 +1774,27 @@ void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
   Node* index = node->InputAt(1);
   InstructionOperand inputs[] = {g.UseUniqueRegister(base),
                                  g.GetEffectiveIndexOperand(index, &mode)};
-  InstructionOperand temps[] = {g.TempDoubleRegister()};
-  InstructionOperand outputs[] = {
-      g.DefineAsRegister(NodeProperties::FindProjection(node, 0)),
-      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
   InstructionCode code =
       kIA32Word32AtomicPairLoad | AddressingModeField::encode(mode);
-  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-       arraysize(temps), temps);
+
+  if (projection1) {
+    InstructionOperand temps[] = {g.TempDoubleRegister()};
+    InstructionOperand outputs[] = {g.DefineAsRegister(projection0),
+                                    g.DefineAsRegister(projection1)};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else if (projection0) {
+    InstructionOperand temps[] = {g.TempDoubleRegister(), g.TempRegister()};
+    InstructionOperand outputs[] = {g.DefineAsRegister(projection0)};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else {
+    InstructionOperand temps[] = {g.TempDoubleRegister(), g.TempRegister(),
+                                  g.TempRegister()};
+    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+  }
 }
 
 void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
@@ -1785,19 +1803,22 @@ void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   Node* value_high = node->InputAt(3);
+  bool block_root_register = !FLAG_embedded_builtins;
 
   AddressingMode addressing_mode;
   InstructionOperand inputs[] = {
-      g.UseFixed(value, ebx), g.UseFixed(value_high, ecx),
+      g.UseUniqueRegisterOrSlotOrConstant(value), g.UseFixed(value_high, ecx),
       g.UseUniqueRegister(base),
       g.GetEffectiveIndexOperand(index, &addressing_mode)};
   // Allocating temp registers here as stores are performed using an atomic
   // exchange, the output of which is stored in edx:eax, which should be saved
   // and restored at the end of the instruction.
-  InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
+  InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx),
+                                g.TempRegister(ebx)};
+  const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
   InstructionCode code =
       kIA32Word32AtomicPairStore | AddressingModeField::encode(addressing_mode);
-  Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+  Emit(code, 0, nullptr, arraysize(inputs), inputs, num_temps, temps);
 }
 
 void InstructionSelector::VisitWord32AtomicPairAdd(Node* node) {
@@ -1828,125 +1849,41 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   IA32OperandGenerator g(this);
   Node* index = node->InputAt(1);
   AddressingMode addressing_mode;
+  bool block_root_register = !FLAG_embedded_builtins;
+
   InstructionOperand inputs[] = {
       // High, Low values of old value
       g.UseFixed(node->InputAt(2), eax), g.UseFixed(node->InputAt(3), edx),
       // High, Low values of new value
-      g.UseFixed(node->InputAt(4), ebx), g.UseFixed(node->InputAt(5), ecx),
+      g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(4)),
+      g.UseFixed(node->InputAt(5), ecx),
       // InputAt(0) => base
       g.UseUniqueRegister(node->InputAt(0)),
       g.GetEffectiveIndexOperand(index, &addressing_mode)};
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), eax),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
   InstructionCode code = kIA32Word32AtomicPairCompareExchange |
                          AddressingModeField::encode(addressing_mode);
-  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
-}
 
-void InstructionSelector::VisitWord64AtomicNarrowBinop(Node* node,
-                                                       ArchOpcode uint8_op,
-                                                       ArchOpcode uint16_op,
-                                                       ArchOpcode uint32_op) {
-  MachineType type = AtomicOpType(node->op());
-  DCHECK(type != MachineType::Uint64());
-  ArchOpcode opcode = kArchNop;
-  if (type == MachineType::Uint32()) {
-    opcode = uint32_op;
-  } else if (type == MachineType::Uint16()) {
-    opcode = uint16_op;
-  } else if (type == MachineType::Uint8()) {
-    opcode = uint8_op;
+  if (projection1) {
+    InstructionOperand temps[] = {g.TempRegister(ebx)};
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax),
+                                    g.DefineAsFixed(projection1, edx)};
+    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         num_temps, temps);
+  } else if (projection0) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax)};
+    InstructionOperand temps[] = {g.TempRegister(edx), g.TempRegister(ebx)};
+    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         num_temps, temps);
   } else {
-    UNREACHABLE();
-    return;
+    InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx),
+                                  g.TempRegister(ebx)};
+    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    Emit(code, 0, nullptr, arraysize(inputs), inputs, num_temps, temps);
   }
-  VisitNarrowAtomicBinOp(this, node, opcode, type);
-}
-
-#define VISIT_ATOMIC_BINOP(op)                                             \
-  void InstructionSelector::VisitWord64AtomicNarrow##op(Node* node) {      \
-    VisitWord64AtomicNarrowBinop(node, kIA32Word64AtomicNarrow##op##Uint8, \
-                                 kIA32Word64AtomicNarrow##op##Uint16,      \
-                                 kIA32Word64AtomicNarrow##op##Uint32);     \
-  }
-VISIT_ATOMIC_BINOP(Add)
-VISIT_ATOMIC_BINOP(Sub)
-VISIT_ATOMIC_BINOP(And)
-VISIT_ATOMIC_BINOP(Or)
-VISIT_ATOMIC_BINOP(Xor)
-#undef VISIT_ATOMIC_BINOP
-
-void InstructionSelector::VisitWord64AtomicNarrowExchange(Node* node) {
-  MachineType type = AtomicOpType(node->op());
-  DCHECK(type != MachineType::Uint64());
-  ArchOpcode opcode = kArchNop;
-  if (type == MachineType::Uint32()) {
-    opcode = kIA32Word64AtomicNarrowExchangeUint32;
-  } else if (type == MachineType::Uint16()) {
-    opcode = kIA32Word64AtomicNarrowExchangeUint16;
-  } else if (type == MachineType::Uint8()) {
-    opcode = kIA32Word64AtomicNarrowExchangeUint8;
-  } else {
-    UNREACHABLE();
-    return;
-  }
-  IA32OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-  AddressingMode addressing_mode;
-  InstructionOperand value_operand =
-      (type.representation() == MachineRepresentation::kWord8)
-          ? g.UseFixed(value, edx)
-          : g.UseUniqueRegister(value);
-  InstructionOperand inputs[] = {
-      value_operand, g.UseUniqueRegister(base),
-      g.GetEffectiveIndexOperand(index, &addressing_mode)};
-  InstructionOperand outputs[2];
-  if (type.representation() == MachineRepresentation::kWord8) {
-    // Using DefineSameAsFirst requires the register to be unallocated.
-    outputs[0] = g.DefineAsFixed(NodeProperties::FindProjection(node, 0), edx);
-  } else {
-    outputs[0] = g.DefineSameAsFirst(NodeProperties::FindProjection(node, 0));
-  }
-  outputs[1] = g.DefineAsRegister(NodeProperties::FindProjection(node, 1));
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
-}
-
-void InstructionSelector::VisitWord64AtomicNarrowCompareExchange(Node* node) {
-  MachineType type = AtomicOpType(node->op());
-  DCHECK(type != MachineType::Uint64());
-  ArchOpcode opcode = kArchNop;
-  if (type == MachineType::Uint32()) {
-    opcode = kIA32Word64AtomicNarrowCompareExchangeUint32;
-  } else if (type == MachineType::Uint16()) {
-    opcode = kIA32Word64AtomicNarrowCompareExchangeUint16;
-  } else if (type == MachineType::Uint8()) {
-    opcode = kIA32Word64AtomicNarrowCompareExchangeUint8;
-  } else {
-    UNREACHABLE();
-    return;
-  }
-  IA32OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* old_value = node->InputAt(2);
-  Node* new_value = node->InputAt(3);
-  AddressingMode addressing_mode;
-  InstructionOperand new_value_operand =
-      (type.representation() == MachineRepresentation::kWord8)
-          ? g.UseByteRegister(new_value)
-          : g.UseUniqueRegister(new_value);
-  InstructionOperand inputs[] = {
-      g.UseFixed(old_value, eax), new_value_operand, g.UseUniqueRegister(base),
-      g.GetEffectiveIndexOperand(index, &addressing_mode)};
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), eax),
-      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
 
 #define SIMD_INT_TYPES(V) \

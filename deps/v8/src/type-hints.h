@@ -35,12 +35,14 @@ enum class CompareOperationHint : uint8_t {
   kNone,
   kSignedSmall,
   kNumber,
+  kOddball,
   kNumberOrOddball,
   kInternalizedString,
   kString,
   kSymbol,
   kBigInt,
   kReceiver,
+  kReceiverOrOddball,
   kAny
 };
 

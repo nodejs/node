@@ -10,6 +10,7 @@
 #include "src/objects-inl.h"  // Needed for write barriers
 #include "src/objects/bigint.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/slots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -42,15 +43,15 @@ Object* FixedArrayBase::unchecked_synchronized_length() const {
 
 ACCESSORS(FixedTypedArrayBase, base_pointer, Object, kBasePointerOffset)
 
-Object** FixedArray::GetFirstElementAddress() {
-  return reinterpret_cast<Object**>(FIELD_ADDR(this, OffsetOfElementAt(0)));
+ObjectSlot FixedArray::GetFirstElementAddress() {
+  return ObjectSlot(FIELD_ADDR(this, OffsetOfElementAt(0)));
 }
 
 bool FixedArray::ContainsOnlySmisOrHoles() {
   Object* the_hole = GetReadOnlyRoots().the_hole_value();
-  Object** current = GetFirstElementAddress();
-  for (int i = 0; i < length(); ++i) {
-    Object* candidate = *current++;
+  ObjectSlot current = GetFirstElementAddress();
+  for (int i = 0; i < length(); ++i, ++current) {
+    Object* candidate = *current;
     if (!candidate->IsSmi() && candidate != the_hole) return false;
   }
   return true;
@@ -159,12 +160,18 @@ void FixedArray::FillWithHoles(int from, int to) {
   }
 }
 
-Object** FixedArray::data_start() {
+ObjectSlot FixedArray::data_start() {
   return HeapObject::RawField(this, OffsetOfElementAt(0));
 }
 
-Object** FixedArray::RawFieldOfElementAt(int index) {
+ObjectSlot FixedArray::RawFieldOfElementAt(int index) {
   return HeapObject::RawField(this, OffsetOfElementAt(index));
+}
+
+void FixedArray::MoveElements(Heap* heap, int dst_index, int src_index, int len,
+                              WriteBarrierMode mode) {
+  DisallowHeapAllocation no_gc;
+  heap->MoveElements(this, dst_index, src_index, len, mode);
 }
 
 double FixedDoubleArray::get_scalar(int index) {
@@ -223,8 +230,11 @@ bool FixedDoubleArray::is_the_hole(int index) {
   return get_representation(index) == kHoleNanInt64;
 }
 
-double* FixedDoubleArray::data_start() {
-  return reinterpret_cast<double*>(FIELD_ADDR(this, kHeaderSize));
+void FixedDoubleArray::MoveElements(Heap* heap, int dst_index, int src_index,
+                                    int len, WriteBarrierMode mode) {
+  DCHECK_EQ(SKIP_WRITE_BARRIER, mode);
+  double* data_start = reinterpret_cast<double*>(FIELD_ADDR(this, kHeaderSize));
+  MemMove(data_start + dst_index, data_start + src_index, len * kDoubleSize);
 }
 
 void FixedDoubleArray::FillWithHoles(int from, int to) {
@@ -254,17 +264,12 @@ void WeakFixedArray::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
   CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);
 }
 
-MaybeObject** WeakFixedArray::data_start() {
+MaybeObjectSlot WeakFixedArray::data_start() {
   return HeapObject::RawMaybeWeakField(this, kHeaderSize);
 }
 
-MaybeObject** WeakFixedArray::RawFieldOfElementAt(int index) {
+MaybeObjectSlot WeakFixedArray::RawFieldOfElementAt(int index) {
   return HeapObject::RawMaybeWeakField(this, OffsetOfElementAt(index));
-}
-
-MaybeObject** WeakFixedArray::GetFirstElementAddress() {
-  return reinterpret_cast<MaybeObject**>(
-      FIELD_ADDR(this, OffsetOfElementAt(0)));
 }
 
 MaybeObject* WeakArrayList::Get(int index) const {
@@ -280,7 +285,7 @@ void WeakArrayList::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
   CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);
 }
 
-MaybeObject** WeakArrayList::data_start() {
+MaybeObjectSlot WeakArrayList::data_start() {
   return HeapObject::RawMaybeWeakField(this, kHeaderSize);
 }
 
@@ -288,8 +293,8 @@ HeapObject* WeakArrayList::Iterator::Next() {
   if (array_ != nullptr) {
     while (index_ < array_->length()) {
       MaybeObject* item = array_->Get(index_++);
-      DCHECK(item->IsWeakHeapObject() || item->IsClearedWeakHeapObject());
-      if (!item->IsClearedWeakHeapObject()) return item->ToWeakHeapObject();
+      DCHECK(item->IsWeakOrCleared());
+      if (!item->IsCleared()) return item->GetHeapObjectAssumeWeak();
     }
     array_ = nullptr;
   }
@@ -309,8 +314,8 @@ Object* ArrayList::Get(int index) const {
   return FixedArray::cast(this)->get(kFirstIndex + index);
 }
 
-Object** ArrayList::Slot(int index) {
-  return data_start() + kFirstIndex + index;
+ObjectSlot ArrayList::Slot(int index) {
+  return HeapObject::RawField(this, OffsetOfElementAt(kFirstIndex + index));
 }
 
 void ArrayList::Set(int index, Object* obj, WriteBarrierMode mode) {

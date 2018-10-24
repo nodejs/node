@@ -90,7 +90,9 @@ class JSSpeculativeBinopBuilder final {
       case CompareOperationHint::kString:
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kBigInt:
+      case CompareOperationHint::kOddball:
       case CompareOperationHint::kReceiver:
+      case CompareOperationHint::kReceiverOrOddball:
       case CompareOperationHint::kInternalizedString:
         break;
     }

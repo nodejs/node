@@ -122,10 +122,6 @@ class V8_EXPORT_PRIVATE Bitmap {
     return index & ~kBitIndexMask;
   }
 
-  V8_INLINE static bool IsCellAligned(uint32_t index) {
-    return (index & kBitIndexMask) == 0;
-  }
-
   V8_INLINE MarkBit::CellType* cells() {
     return reinterpret_cast<MarkBit::CellType*>(this);
   }

@@ -46,6 +46,7 @@
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
 #include "src/boxed-float.h"
+#include "src/constant-pool.h"
 #include "src/double.h"
 
 namespace v8 {
@@ -393,7 +394,7 @@ enum Coprocessor {
 // Machine instruction Operands
 
 // Class Operand represents a shifter operand in data processing instructions
-class Operand BASE_EMBEDDED {
+class Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(int32_t immediate,
@@ -425,6 +426,7 @@ class Operand BASE_EMBEDDED {
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Operand EmbeddedCode(CodeStub* stub);
+  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
   bool IsRegister() const {
@@ -498,7 +500,7 @@ class Operand BASE_EMBEDDED {
 
 
 // Class MemOperand represents a memory operand in load and store instructions
-class MemOperand BASE_EMBEDDED {
+class MemOperand {
  public:
   // [rn +/- offset]      Offset/NegOffset
   // [rn +/- offset]!     PreIndex/NegPreIndex
@@ -557,7 +559,7 @@ class MemOperand BASE_EMBEDDED {
 
 // Class NeonMemOperand represents a memory operand in load and
 // store NEON instructions
-class NeonMemOperand BASE_EMBEDDED {
+class NeonMemOperand {
  public:
   // [rn {:align}]       Offset
   // [rn {:align}]!      PostIndex
@@ -580,7 +582,7 @@ class NeonMemOperand BASE_EMBEDDED {
 
 
 // Class NeonListOperand represents a list of NEON registers
-class NeonListOperand BASE_EMBEDDED {
+class NeonListOperand {
  public:
   explicit NeonListOperand(DoubleRegister base, int register_count = 1)
     : base_(base), register_count_(register_count) {}
@@ -1520,13 +1522,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     }
   }
 
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
-
   // Move a 32-bit immediate into a register, potentially via the constant pool.
   void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
 
@@ -1693,7 +1688,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   friend class UseScratchRegisterScope;
 };
 
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   V8_INLINE explicit EnsureSpace(Assembler* assembler);
 };

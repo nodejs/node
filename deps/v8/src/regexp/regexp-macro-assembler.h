@@ -5,7 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
-#include "src/assembler.h"
+#include "src/label.h"
 #include "src/regexp/regexp-ast.h"
 
 namespace v8 {
@@ -212,8 +212,8 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   enum Result { RETRY = -2, EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
 
   NativeRegExpMacroAssembler(Isolate* isolate, Zone* zone);
-  virtual ~NativeRegExpMacroAssembler();
-  virtual bool CanReadUnaligned();
+  ~NativeRegExpMacroAssembler() override;
+  bool CanReadUnaligned() override;
 
   static Result Match(Handle<Code> regexp,
                       Handle<String> subject,

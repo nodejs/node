@@ -271,7 +271,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Ldr(continuation, MemOperand(last_output_frame,
                                   FrameDescription::continuation_offset()));
   __ Ldr(lr, MemOperand(last_output_frame, FrameDescription::pc_offset()));
-  __ InitializeRootRegister();
   __ Br(continuation);
 }
 

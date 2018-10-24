@@ -178,7 +178,7 @@ SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
 }
 
 void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
-  base::LockGuard<base::Mutex> guard(&profiler_mutex_);
+  base::MutexGuard guard(&profiler_mutex_);
   bool known_object = ids_->MoveObject(from, to, size);
   if (!known_object && allocation_tracker_) {
     allocation_tracker_->address_to_trace()->MoveObject(from, to, size);
@@ -229,10 +229,7 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
                                 PersistentValueVector<v8::Object>* objects) {
   // We should return accurate information about live objects, so we need to
   // collect all garbage first.
-  heap()->CollectAllAvailableGarbage(
-      GarbageCollectionReason::kLowMemoryNotification);
-  heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                            GarbageCollectionReason::kHeapProfiler);
+  heap()->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
   HeapIterator heap_iterator(heap());
   HeapObject* heap_obj;
   while ((heap_obj = heap_iterator.next()) != nullptr) {

@@ -3892,10 +3892,9 @@ int DisassemblingDecoder::SubstitutePCRelAddressField(Instruction* instr,
 
   char sign = '+';
   if (offset < 0) {
-    offset = -offset;
     sign = '-';
   }
-  AppendToOutput("#%c0x%x (addr %p)", sign, offset,
+  AppendToOutput("#%c0x%x (addr %p)", sign, Abs(offset),
                  instr->InstructionAtOffset(offset, Instruction::NO_CHECK));
   return 13;
 }

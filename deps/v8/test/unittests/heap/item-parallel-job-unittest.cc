@@ -151,7 +151,7 @@ class TaskForDifferentItems;
 
 class BaseItem : public ItemParallelJob::Item {
  public:
-  virtual ~BaseItem() {}
+  ~BaseItem() override = default;
   virtual void ProcessItem(TaskForDifferentItems* task) = 0;
 };
 
@@ -162,7 +162,7 @@ class TaskForDifferentItems : public ItemParallelJob::Task {
       : ItemParallelJob::Task(isolate),
         processed_a_(processed_a),
         processed_b_(processed_b) {}
-  virtual ~TaskForDifferentItems() {}
+  ~TaskForDifferentItems() override = default;
 
   void RunInParallel() override {
     BaseItem* item = nullptr;
@@ -182,13 +182,13 @@ class TaskForDifferentItems : public ItemParallelJob::Task {
 
 class ItemA : public BaseItem {
  public:
-  virtual ~ItemA() {}
+  ~ItemA() override = default;
   void ProcessItem(TaskForDifferentItems* task) override { task->ProcessA(); }
 };
 
 class ItemB : public BaseItem {
  public:
-  virtual ~ItemB() {}
+  ~ItemB() override = default;
   void ProcessItem(TaskForDifferentItems* task) override { task->ProcessB(); }
 };
 

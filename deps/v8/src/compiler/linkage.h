@@ -169,10 +169,11 @@ class V8_EXPORT_PRIVATE CallDescriptor final
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {
-    kCallCodeObject,   // target is a Code object
-    kCallJSFunction,   // target is a JSFunction object
-    kCallAddress,      // target is a machine pointer
-    kCallWasmFunction  // target is a wasm function
+    kCallCodeObject,        // target is a Code object
+    kCallJSFunction,        // target is a JSFunction object
+    kCallAddress,           // target is a machine pointer
+    kCallWasmFunction,      // target is a wasm function
+    kCallWasmImportWrapper  // target is a wasm import wrapper
   };
 
   enum Flag {
@@ -190,7 +191,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kRetpoline = 1u << 6,
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
-    kFixedTargetRegister = 1u << 7
+    kFixedTargetRegister = 1u << 7,
+    kAllowCallThroughSlot = 1u << 8
   };
   typedef base::Flags<Flag> Flags;
 
@@ -226,6 +228,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns {true} if this descriptor is a call to a WebAssembly function.
   bool IsWasmFunctionCall() const { return kind_ == kCallWasmFunction; }
+
+  // Returns {true} if this descriptor is a call to a WebAssembly function.
+  bool IsWasmImportWrapper() const { return kind_ == kCallWasmImportWrapper; }
 
   bool RequiresFrameAsIncoming() const {
     return IsCFunctionCall() || IsJSFunctionCall() || IsWasmFunctionCall();

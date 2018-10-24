@@ -47,7 +47,7 @@ class DateParser : public AllStatic {
 
   // InputReader provides basic string parsing and character classification.
   template <typename Char>
-  class InputReader BASE_EMBEDDED {
+  class InputReader {
    public:
     InputReader(UnicodeCache* unicode_cache, Vector<Char> s)
         : index_(0),
@@ -268,7 +268,7 @@ class DateParser : public AllStatic {
     static const int8_t array[][kEntrySize];
   };
 
-  class TimeZoneComposer BASE_EMBEDDED {
+  class TimeZoneComposer {
    public:
     TimeZoneComposer() : sign_(kNone), hour_(kNone), minute_(kNone) {}
     void Set(int offset_in_hours) {
@@ -291,7 +291,7 @@ class DateParser : public AllStatic {
     int minute_;
   };
 
-  class TimeComposer BASE_EMBEDDED {
+  class TimeComposer {
    public:
     TimeComposer() : index_(0), hour_offset_(kNone) {}
     bool IsEmpty() const { return index_ == 0; }
@@ -325,7 +325,7 @@ class DateParser : public AllStatic {
     int hour_offset_;
   };
 
-  class DayComposer BASE_EMBEDDED {
+  class DayComposer {
    public:
     DayComposer() : index_(0), named_month_(kNone), is_iso_date_(false) {}
     bool IsEmpty() const { return index_ == 0; }

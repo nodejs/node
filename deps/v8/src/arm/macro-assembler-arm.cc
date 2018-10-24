@@ -129,8 +129,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
-  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
-      Heap::kBuiltinsConstantsTableRootIndex));
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
 
   // The ldr call below could end up clobbering ip when the offset does not fit
   // into 12 bits (and thus needs to be loaded from the constant pool). In that
@@ -147,7 +146,7 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
     reg = r7;
   }
 
-  LoadRoot(reg, Heap::kBuiltinsConstantsTableRootIndex);
+  LoadRoot(reg, RootIndex::kBuiltinsConstantsTable);
   ldr(destination, MemOperand(reg, offset));
 
   if (could_clobber_ip) {
@@ -527,9 +526,10 @@ void MacroAssembler::Store(Register src,
   }
 }
 
-void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index,
+void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond) {
-  ldr(destination, MemOperand(kRootRegister, RootRegisterOffset(index)), cond);
+  ldr(destination,
+      MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)), cond);
 }
 
 
@@ -615,8 +615,6 @@ void TurboAssembler::CallRecordWriteStub(
       RecordWriteDescriptor::kObject));
   Register slot_parameter(
       callable.descriptor().GetRegisterParameter(RecordWriteDescriptor::kSlot));
-  Register isolate_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kIsolate));
   Register remembered_set_parameter(callable.descriptor().GetRegisterParameter(
       RecordWriteDescriptor::kRememberedSet));
   Register fp_mode_parameter(callable.descriptor().GetRegisterParameter(
@@ -628,7 +626,6 @@ void TurboAssembler::CallRecordWriteStub(
   Pop(slot_parameter);
   Pop(object_parameter);
 
-  Move(isolate_parameter, ExternalReference::isolate_address(isolate()));
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
   Call(callable.code(), RelocInfo::CODE_TARGET);
@@ -1520,7 +1517,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
-    LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+    LoadRoot(r3, RootIndex::kUndefinedValue);
   }
 
   Label done;
@@ -1642,9 +1639,7 @@ void MacroAssembler::CompareInstanceType(Register map,
   cmp(type_reg, Operand(type));
 }
 
-
-void MacroAssembler::CompareRoot(Register obj,
-                                 Heap::RootListIndex index) {
+void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   DCHECK(obj != scratch);
@@ -1906,6 +1901,10 @@ void TurboAssembler::Abort(AbortReason reason) {
   // will not return here
 }
 
+void MacroAssembler::LoadGlobalProxy(Register dst) {
+  LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+}
+
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
   ldr(dst, NativeContextMemOperand());
   ldr(dst, ContextMemOperand(dst, index));
@@ -2039,6 +2038,10 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   CompareInstanceType(map, instance_type, JS_GENERATOR_OBJECT_TYPE);
   b(eq, &do_check);
 
+  // Check if JSAsyncFunctionObject (See MacroAssembler::CompareInstanceType)
+  cmp(instance_type, Operand(JS_ASYNC_FUNCTION_OBJECT_TYPE));
+  b(eq, &do_check);
+
   // Check if JSAsyncGeneratorObject (See MacroAssembler::CompareInstanceType)
   cmp(instance_type, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
 
@@ -2053,7 +2056,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
   if (emit_debug_code()) {
     Label done_checking;
     AssertNotSmi(object);
-    CompareRoot(object, Heap::kUndefinedValueRootIndex);
+    CompareRoot(object, RootIndex::kUndefinedValue);
     b(eq, &done_checking);
     ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(scratch, scratch, ALLOCATION_SITE_TYPE);

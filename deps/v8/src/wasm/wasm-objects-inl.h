@@ -22,6 +22,7 @@ namespace v8 {
 namespace internal {
 
 CAST_ACCESSOR(WasmDebugInfo)
+CAST_ACCESSOR(WasmExceptionObject)
 CAST_ACCESSOR(WasmExportedFunctionData)
 CAST_ACCESSOR(WasmGlobalObject)
 CAST_ACCESSOR(WasmInstanceObject)
@@ -101,10 +102,7 @@ int WasmGlobalObject::type_size() const {
 }
 
 Address WasmGlobalObject::address() const {
-  uint32_t buffer_size = 0;
-  DCHECK(array_buffer()->byte_length()->ToUint32(&buffer_size));
-  DCHECK_LE(offset() + type_size(), buffer_size);
-  USE(buffer_size);
+  DCHECK_LE(offset() + type_size(), array_buffer()->byte_length());
   return Address(array_buffer()->backing_store()) + offset();
 }
 
@@ -179,14 +177,14 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, table_object, WasmTableObject,
                    kTableObjectOffset)
-ACCESSORS(WasmInstanceObject, imported_function_instances, FixedArray,
-          kImportedFunctionInstancesOffset)
-ACCESSORS(WasmInstanceObject, imported_function_callables, FixedArray,
-          kImportedFunctionCallablesOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_instances,
-                   FixedArray, kIndirectFunctionTableInstancesOffset)
+ACCESSORS(WasmInstanceObject, imported_function_refs, FixedArray,
+          kImportedFunctionRefsOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
+                   kIndirectFunctionTableRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
                    kManagedNativeAllocationsOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,
+                   kExceptionsTableOffset)
 ACCESSORS(WasmInstanceObject, undefined_value, Oddball, kUndefinedValueOffset)
 ACCESSORS(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
 ACCESSORS(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
@@ -209,6 +207,11 @@ ImportedFunctionEntry::ImportedFunctionEntry(
   DCHECK_LT(index, instance->module()->num_imported_functions);
 }
 
+// WasmExceptionObject
+ACCESSORS(WasmExceptionObject, serialized_signature, PodArray<wasm::ValueType>,
+          kSerializedSignatureOffset)
+ACCESSORS(WasmExceptionObject, exception_tag, HeapObject, kExceptionTagOffset)
+
 // WasmExportedFunctionData
 ACCESSORS(WasmExportedFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
@@ -220,7 +223,7 @@ SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
 // WasmDebugInfo
 ACCESSORS(WasmDebugInfo, wasm_instance, WasmInstanceObject, kInstanceOffset)
 ACCESSORS(WasmDebugInfo, interpreter_handle, Object, kInterpreterHandleOffset)
-ACCESSORS(WasmDebugInfo, interpreted_functions, Object,
+ACCESSORS(WasmDebugInfo, interpreted_functions, FixedArray,
           kInterpretedFunctionsOffset)
 OPTIONAL_ACCESSORS(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
 OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entries, FixedArray,

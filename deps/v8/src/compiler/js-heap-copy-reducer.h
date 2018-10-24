@@ -17,7 +17,7 @@ class JSHeapBroker;
 // by handles embedded in the graph is copied to the heap broker.
 // TODO(jarin) This is just a temporary solution until the graph uses only
 // ObjetRef-derived reference to refer to the heap data.
-class JSHeapCopyReducer : public Reducer {
+class V8_EXPORT_PRIVATE JSHeapCopyReducer : public Reducer {
  public:
   explicit JSHeapCopyReducer(JSHeapBroker* broker);
 

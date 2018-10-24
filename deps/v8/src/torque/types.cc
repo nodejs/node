@@ -195,7 +195,12 @@ std::string StructType::ToExplicitString() const {
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
   os << "(";
   for (size_t i = 0; i < sig.parameter_types.types.size(); ++i) {
-    if (i > 0) os << ", ";
+    if (i == 0 && sig.implicit_count != 0) os << "implicit ";
+    if (sig.implicit_count > 0 && sig.implicit_count == i) {
+      os << ")(";
+    } else {
+      if (i > 0) os << ", ";
+    }
     if (with_names && !sig.parameter_names.empty()) {
       os << sig.parameter_names[i] << ": ";
     }
@@ -213,8 +218,7 @@ void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
   os << " labels ";
   for (size_t i = 0; i < sig.labels.size(); ++i) {
     if (i > 0) os << ", ";
-    if (with_names) os << sig.labels[i].name;
-
+    os << sig.labels[i].name;
     if (sig.labels[i].types.size() > 0) os << "(" << sig.labels[i].types << ")";
   }
 }
@@ -245,8 +249,15 @@ std::ostream& operator<<(std::ostream& os, const ParameterTypes& p) {
   return os;
 }
 
-bool Signature::HasSameTypesAs(const Signature& other) const {
-  if (!(parameter_types.types == other.parameter_types.types &&
+bool Signature::HasSameTypesAs(const Signature& other,
+                               ParameterMode mode) const {
+  auto compare_types = GetTypes();
+  auto other_compare_types = other.GetTypes();
+  if (mode == ParameterMode::kIgnoreImplicit) {
+    compare_types = GetExplicitTypes();
+    other_compare_types = other.GetExplicitTypes();
+  }
+  if (!(compare_types == other.parameter_types.types &&
         parameter_types.var_args == other.parameter_types.var_args &&
         return_type == other.return_type)) {
     return false;
@@ -255,7 +266,7 @@ bool Signature::HasSameTypesAs(const Signature& other) const {
     return false;
   }
   size_t i = 0;
-  for (auto l : labels) {
+  for (const auto& l : labels) {
     if (l.types != other.labels[i++].types) {
       return false;
     }
@@ -269,52 +280,70 @@ bool IsAssignableFrom(const Type* to, const Type* from) {
   return TypeOracle::IsImplicitlyConvertableFrom(to, from);
 }
 
-bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
-                           const std::vector<Label*>& labels) {
-  auto i = sig.parameter_types.types.begin();
-  if (sig.parameter_types.types.size() > types.size()) return false;
-  // TODO(danno): The test below is actually insufficient. The labels'
-  // parameters must be checked too. ideally, the named part of
-  // LabelDeclarationVector would be factored out so that the label count and
-  // parameter types could be passed separately.
-  if (sig.labels.size() != labels.size()) return false;
-  for (auto current : types) {
-    if (i == sig.parameter_types.types.end()) {
-      if (!sig.parameter_types.var_args) return false;
-      if (!IsAssignableFrom(TypeOracle::GetObjectType(), current)) return false;
-    } else {
-      if (!IsAssignableFrom(*i++, current)) return false;
-    }
-  }
-  return true;
-}
-
 bool operator<(const Type& a, const Type& b) {
   return a.MangledName() < b.MangledName();
 }
 
-VisitResult::VisitResult(const Type* type, const Value* declarable)
-    : type_(type), value_(), declarable_(declarable) {}
-
-std::string VisitResult::LValue() const {
-  return std::string("*") + (declarable_ ? (*declarable_)->value() : value_);
+VisitResult ProjectStructField(VisitResult structure,
+                               const std::string& fieldname) {
+  DCHECK(structure.IsOnStack());
+  BottomOffset begin = structure.stack_range().begin();
+  const StructType* type = StructType::cast(structure.type());
+  for (auto& field : type->fields()) {
+    BottomOffset end = begin + LoweredSlotCount(field.type);
+    if (field.name == fieldname) {
+      return VisitResult(field.type, StackRange{begin, end});
+    }
+    begin = end;
+  }
+  UNREACHABLE();
 }
 
-std::string VisitResult::RValue() const {
-  std::string result;
-  if (declarable()) {
-    auto value = *declarable();
-    if (value->IsVariable() && !Variable::cast(value)->IsDefined()) {
-      std::stringstream s;
-      s << "\"" << value->name() << "\" is used before it is defined";
-      ReportError(s.str());
+namespace {
+void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
+  DCHECK_NE(type, TypeOracle::GetNeverType());
+  if (type->IsConstexpr()) return;
+  if (type == TypeOracle::GetVoidType()) return;
+  if (auto* s = StructType::DynamicCast(type)) {
+    for (const NameAndType& field : s->fields()) {
+      AppendLoweredTypes(field.type, result);
     }
-    result = value->RValue();
   } else {
-    result = value_;
+    result->push_back(type);
   }
-  return "implicit_cast<" + type()->GetGeneratedTypeName() + ">(" + result +
-         ")";
+}
+}  // namespace
+
+TypeVector LowerType(const Type* type) {
+  TypeVector result;
+  AppendLoweredTypes(type, &result);
+  return result;
+}
+
+size_t LoweredSlotCount(const Type* type) { return LowerType(type).size(); }
+
+TypeVector LowerParameterTypes(const TypeVector& parameters) {
+  std::vector<const Type*> result;
+  for (const Type* t : parameters) {
+    AppendLoweredTypes(t, &result);
+  }
+  return result;
+}
+
+TypeVector LowerParameterTypes(const ParameterTypes& parameter_types,
+                               size_t arg_count) {
+  std::vector<const Type*> result = LowerParameterTypes(parameter_types.types);
+  for (size_t i = parameter_types.types.size(); i < arg_count; ++i) {
+    DCHECK(parameter_types.var_args);
+    AppendLoweredTypes(TypeOracle::GetObjectType(), &result);
+  }
+  return result;
+}
+
+VisitResult VisitResult::NeverResult() {
+  VisitResult result;
+  result.type_ = TypeOracle::GetNeverType();
+  return result;
 }
 
 }  // namespace torque

@@ -45,8 +45,8 @@ constexpr Register kRuntimeCallFunctionRegister = edx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
 constexpr Register kRuntimeCallArgvRegister = ecx;
 constexpr Register kWasmInstanceRegister = esi;
+constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
-// TODO(v8:6666): Implement full support.
 constexpr Register kRootRegister = ebx;
 
 // Convenience for platform-independent signatures.  We do not normally
@@ -58,6 +58,9 @@ enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
+  TurboAssembler(const AssemblerOptions& options, void* buffer, int buffer_size)
+      : TurboAssemblerBase(options, buffer, buffer_size) {}
+
   TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int buffer_size,
                  CodeObjectRequired create_code_object)
@@ -105,24 +108,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Check that the stack is aligned.
   void CheckStackAlignment();
-
-  void InitializeRootRegister() {
-    // For now, only check sentinel value for root register.
-    // TODO(jgruber,v8:6666): Implement root register.
-    if (FLAG_ia32_verify_root_register && FLAG_embedded_builtins) {
-      mov(kRootRegister, kRootRegisterSentinel);
-    }
-  }
-
-  void VerifyRootRegister() {
-    if (FLAG_ia32_verify_root_register && FLAG_embedded_builtins) {
-      Label root_register_ok;
-      cmp(kRootRegister, kRootRegisterSentinel);
-      j(equal, &root_register_ok);
-      int3();
-      bind(&root_register_ok);
-    }
-  }
 
   // Move a constant into a destination using the most efficient encoding.
   void Move(Register dst, const Immediate& src);
@@ -238,7 +223,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Ret();
 
-  void LoadRoot(Register destination, Heap::RootListIndex index) override;
+  // Root register utility functions.
+
+  void InitializeRootRegister();
+  void VerifyRootRegister();
+
+  void LoadRoot(Register destination, RootIndex index) override;
 
   // Indirect root-relative loads.
   void LoadFromConstantsTable(Register destination,
@@ -246,13 +236,23 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
 
+  // Operand pointing to an external reference.
+  // May emit code to set up the scratch register. The operand is
+  // only guaranteed to be correct as long as the scratch register
+  // isn't changed.
+  // If the operand is used more than once, use a scratch register
+  // that is guaranteed not to be clobbered.
+  Operand ExternalReferenceAsOperand(ExternalReference reference,
+                                     Register scratch);
+  Operand ExternalReferenceAddressAsOperand(ExternalReference reference);
+  Operand HeapObjectAsOperand(Handle<HeapObject> object);
+
   void LoadAddress(Register destination, ExternalReference source);
 
-  // Wrapper functions to ensure external reference operands produce
-  // isolate-independent code if needed.
-  Operand StaticVariable(const ExternalReference& ext);
-  Operand StaticArray(Register index, ScaleFactor scale,
-                      const ExternalReference& ext);
+  void CompareStackLimit(Register with);
+  void CompareRealStackLimit(Register with);
+  void CompareRoot(Register with, RootIndex index);
+  void CompareRoot(Register with, Register scratch, RootIndex index);
 
   // Return and drop arguments from stack, where the number of arguments
   // may be bigger than 2^16 - 1.  Requires a scratch register.
@@ -270,8 +270,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Pshufd(dst, Operand(src), shuffle);
   }
   void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
-  void Psraw(XMMRegister dst, int8_t shift);
-  void Psrlw(XMMRegister dst, int8_t shift);
+  void Psraw(XMMRegister dst, uint8_t shift);
+  void Psrlw(XMMRegister dst, uint8_t shift);
 
 // SSE/SSE2 instructions with AVX version.
 #define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
@@ -380,15 +380,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   void Palignr(XMMRegister dst, Operand src, uint8_t imm8);
 
-  void Pextrb(Register dst, XMMRegister src, int8_t imm8);
-  void Pextrw(Register dst, XMMRegister src, int8_t imm8);
-  void Pextrd(Register dst, XMMRegister src, int8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src, int8_t imm8,
-              bool is_64_bits = false) {
-    Pinsrd(dst, Operand(src), imm8, is_64_bits);
+  void Pextrb(Register dst, XMMRegister src, uint8_t imm8);
+  void Pextrw(Register dst, XMMRegister src, uint8_t imm8);
+  void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
+  void Pinsrd(XMMRegister dst, Register src, uint8_t imm8) {
+    Pinsrd(dst, Operand(src), imm8);
   }
-  void Pinsrd(XMMRegister dst, Operand src, int8_t imm8,
-              bool is_64_bits = false);
+  void Pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
@@ -407,8 +405,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Cvttss2ui(dst, Operand(src), tmp);
   }
   void Cvttss2ui(Register dst, Operand src, XMMRegister tmp);
-  void Cvtui2sd(XMMRegister dst, Register src) { Cvtui2sd(dst, Operand(src)); }
-  void Cvtui2sd(XMMRegister dst, Operand src);
+  void Cvtui2sd(XMMRegister dst, Register src, Register scratch) {
+    Cvtui2sd(dst, Operand(src), scratch);
+  }
+  void Cvtui2sd(XMMRegister dst, Operand src, Register scratch);
   void Cvttsd2ui(Register dst, XMMRegister src, XMMRegister tmp) {
     Cvttsd2ui(dst, Operand(src), tmp);
   }
@@ -416,7 +416,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }
-  void Push(Immediate value) { push(value); }
+  void Push(Immediate value);
   void Push(Handle<HeapObject> handle) { push(Immediate(handle)); }
   void Push(Smi* smi) { Push(Immediate(smi)); }
 
@@ -460,10 +460,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler : public TurboAssembler {
  public:
+  MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
+      : TurboAssembler(options, buffer, size) {}
+
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object)
       : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
                        size, create_code_object) {}
+
   MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int size, CodeObjectRequired create_code_object);
 
@@ -477,35 +481,17 @@ class MacroAssembler : public TurboAssembler {
   }
   void Set(Operand dst, int32_t x) { mov(dst, Immediate(x)); }
 
-  // Operations on roots in the root-array.
-  void CompareRoot(Register with, Register scratch, Heap::RootListIndex index);
-  // These methods can only be used with constant roots (i.e. non-writable
-  // and not in new space).
-  void CompareRoot(Register with, Heap::RootListIndex index);
-  void CompareRoot(Operand with, Heap::RootListIndex index);
-  void PushRoot(Heap::RootListIndex index);
+  void PushRoot(RootIndex index);
 
   // Compare the object in a register to a value and jump if they are equal.
-  void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal,
-                  Label::Distance if_equal_distance = Label::kFar) {
-    CompareRoot(with, index);
-    j(equal, if_equal, if_equal_distance);
-  }
-  void JumpIfRoot(Operand with, Heap::RootListIndex index, Label* if_equal,
+  void JumpIfRoot(Register with, RootIndex index, Label* if_equal,
                   Label::Distance if_equal_distance = Label::kFar) {
     CompareRoot(with, index);
     j(equal, if_equal, if_equal_distance);
   }
 
   // Compare the object in a register to a value and jump if they are not equal.
-  void JumpIfNotRoot(Register with, Heap::RootListIndex index,
-                     Label* if_not_equal,
-                     Label::Distance if_not_equal_distance = Label::kFar) {
-    CompareRoot(with, index);
-    j(not_equal, if_not_equal, if_not_equal_distance);
-  }
-  void JumpIfNotRoot(Operand with, Heap::RootListIndex index,
-                     Label* if_not_equal,
+  void JumpIfNotRoot(Register with, RootIndex index, Label* if_not_equal,
                      Label::Distance if_not_equal_distance = Label::kFar) {
     CompareRoot(with, index);
     j(not_equal, if_not_equal, if_not_equal_distance);
@@ -543,7 +529,7 @@ class MacroAssembler : public TurboAssembler {
   // esi.
   void EnterExitFrame(int argc, bool save_doubles, StackFrame::Type frame_type);
 
-  void EnterApiExitFrame(int argc);
+  void EnterApiExitFrame(int argc, Register scratch);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
@@ -583,9 +569,6 @@ class MacroAssembler : public TurboAssembler {
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag);
-
-  void InvokeFunction(Register function, const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
   // Compare object type for heap object.
@@ -659,16 +642,16 @@ class MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
-  void AssertUndefinedOrAllocationSite(Register object);
+  void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
   // ---------------------------------------------------------------------------
   // Exception handling
 
   // Push a new stack handler and link it into stack handler chain.
-  void PushStackHandler();
+  void PushStackHandler(Register scratch);
 
   // Unlink the stack handler on top of the stack from the stack handler chain.
-  void PopStackHandler();
+  void PopStackHandler(Register scratch);
 
   // ---------------------------------------------------------------------------
   // Runtime calls
@@ -725,8 +708,8 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
-  void IncrementCounter(StatsCounter* counter, int value);
-  void DecrementCounter(StatsCounter* counter, int value);
+  void IncrementCounter(StatsCounter* counter, int value, Register scratch);
+  void DecrementCounter(StatsCounter* counter, int value, Register scratch);
 
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());
@@ -742,7 +725,7 @@ class MacroAssembler : public TurboAssembler {
                       bool* definitely_mismatches, InvokeFlag flag,
                       Label::Distance done_distance);
 
-  void EnterExitFramePrologue(StackFrame::Type frame_type);
+  void EnterExitFramePrologue(StackFrame::Type frame_type, Register scratch);
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
 
   void LeaveExitFrameEpilogue();

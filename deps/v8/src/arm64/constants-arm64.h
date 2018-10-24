@@ -291,10 +291,8 @@ M_(FPCR, AHP_mask | DN_mask | FZ_mask | RMode_mask)
   const uint32_t Name##_mask = ((1 << Name##_width) - 1) << LowBit;
 #define DECLARE_INSTRUCTION_FIELDS_OFFSETS(Name, HighBit, LowBit, unused_1)    \
   DECLARE_FIELDS_OFFSETS(Name, HighBit, LowBit, unused_1, unused_2)
-#define NOTHING(A, B)
 INSTRUCTION_FIELDS_LIST(DECLARE_INSTRUCTION_FIELDS_OFFSETS)
 SYSTEM_REGISTER_FIELDS_LIST(DECLARE_FIELDS_OFFSETS, NOTHING)
-#undef NOTHING
 #undef DECLARE_FIELDS_OFFSETS
 #undef DECLARE_INSTRUCTION_FIELDS_OFFSETS
 

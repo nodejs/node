@@ -44,7 +44,7 @@ class DateCacheMock: public DateCache {
       : local_offset_(local_offset), rules_(rules), rules_count_(rules_count) {}
 
  protected:
-  virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
+  int GetDaylightSavingsOffsetFromOS(int64_t time_sec) override {
     int days = DaysFromTime(time_sec * 1000);
     int time_in_day_sec = TimeInDay(time_sec * 1000, days) / 1000;
     int year, month, day;
@@ -53,7 +53,7 @@ class DateCacheMock: public DateCache {
     return rule == nullptr ? 0 : rule->offset_sec * 1000;
   }
 
-  virtual int GetLocalOffsetFromOS(int64_t time_sec, bool is_utc) {
+  int GetLocalOffsetFromOS(int64_t time_sec, bool is_utc) override {
     return local_offset_ + GetDaylightSavingsOffsetFromOS(time_sec);
   }
 

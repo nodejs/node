@@ -13,6 +13,7 @@ include_rules = [
   "+src/heap/heap.h",
   "+src/heap/heap-inl.h",
   "+src/heap/heap-write-barrier-inl.h",
+  "+src/heap/heap-write-barrier.h",
   "-src/inspector",
   "-src/interpreter",
   "+src/interpreter/bytecode-array-accessor.h",
@@ -30,6 +31,7 @@ include_rules = [
   "+testing/gtest/include/gtest/gtest_prod.h",
   "-src/libplatform",
   "-include/libplatform",
+  "+builtins-generated",
   "+torque-generated"
 ]
 

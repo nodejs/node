@@ -20,11 +20,11 @@ class SimpleStringResource : public Base {
       : data_(data),
         length_(length) {}
 
-  virtual ~SimpleStringResource() { delete[] data_; }
+  ~SimpleStringResource() override { delete[] data_; }
 
-  virtual const Char* data() const { return data_; }
+  const Char* data() const override { return data_; }
 
-  virtual size_t length() const { return length_; }
+  size_t length() const override { return length_; }
 
  private:
   Char* const data_;
@@ -70,10 +70,7 @@ void ExternalizeStringExtension::Externalize(
   bool force_two_byte = false;
   if (args.Length() >= 2) {
     if (args[1]->IsBoolean()) {
-      force_two_byte =
-          args[1]
-              ->BooleanValue(args.GetIsolate()->GetCurrentContext())
-              .FromJust();
+      force_two_byte = args[1]->BooleanValue(args.GetIsolate());
     } else {
       args.GetIsolate()->ThrowException(
           v8::String::NewFromUtf8(

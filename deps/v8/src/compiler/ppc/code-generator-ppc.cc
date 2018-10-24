@@ -74,6 +74,10 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         return Operand(constant.ToInt64());
 #endif
       case Constant::kExternalReference:
+        return Operand(constant.ToExternalReference());
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
         break;
@@ -513,11 +517,11 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     /* Min: The algorithm is: -((-L) + (-R)), which in case of L and R */ \
     /* being different registers is most efficiently expressed */         \
     /* as -((-L) - R). */                                                 \
-    __ fneg(left_reg, left_reg);                                          \
-    if (left_reg == right_reg) {                                          \
-      __ fadd(result_reg, left_reg, right_reg);                           \
+    __ fneg(kScratchDoubleReg, left_reg);                                 \
+    if (kScratchDoubleReg == right_reg) {                                 \
+      __ fadd(result_reg, kScratchDoubleReg, right_reg);                  \
     } else {                                                              \
-      __ fsub(result_reg, left_reg, right_reg);                           \
+      __ fsub(result_reg, kScratchDoubleReg, right_reg);                  \
     }                                                                     \
     __ fneg(result_reg, result_reg);                                      \
     __ b(&done);                                                          \
@@ -660,15 +664,15 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     __ bne(&exchange, cr0);                                             \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_inst, load_inst, store_inst)                 \
-  do {                                                                         \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
-    Label binop;                                                               \
-    __ bind(&binop);                                                           \
-    __ load_inst(i.OutputRegister(), operand);                                 \
-    __ bin_inst(i.InputRegister(2), i.OutputRegister(), i.InputRegister(2));   \
-    __ store_inst(i.InputRegister(2), operand);                                \
-    __ bne(&binop, cr0);                                                       \
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, load_inst, store_inst)               \
+  do {                                                                       \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
+    Label binop;                                                             \
+    __ bind(&binop);                                                         \
+    __ load_inst(i.OutputRegister(), operand);                               \
+    __ bin_inst(kScratchReg, i.OutputRegister(), i.InputRegister(2));        \
+    __ store_inst(kScratchReg, operand);                                     \
+    __ bne(&binop, cr0);                                                     \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(bin_inst, load_inst,                    \
@@ -691,7 +695,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     Label exit;                                                                \
     __ bind(&loop);                                                            \
     __ load_inst(i.OutputRegister(), operand);                                 \
-    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                       \
+    __ cmp_inst(i.OutputRegister(), i.InputRegister(2), cr0);                  \
     __ bne(&exit, cr0);                                                        \
     __ store_inst(i.InputRegister(3), operand);                                \
     __ bne(&loop, cr0);                                                        \
@@ -1975,77 +1979,90 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lbz, lbzx);
       __ extsb(i.OutputRegister(), i.OutputRegister());
       break;
-    case kWord32AtomicLoadUint8:
+    case kPPC_AtomicLoadUint8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lbz, lbzx);
       break;
     case kWord32AtomicLoadInt16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lha, lhax);
       break;
-    case kWord32AtomicLoadUint16:
+    case kPPC_AtomicLoadUint16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lhz, lhzx);
       break;
-    case kWord32AtomicLoadWord32:
+    case kPPC_AtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lwz, lwzx);
       break;
-
-    case kWord32AtomicStoreWord8:
+    case kPPC_AtomicLoadWord64:
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(ld, ldx);
+      break;
+    case kPPC_AtomicStoreUint8:
       ASSEMBLE_ATOMIC_STORE_INTEGER(stb, stbx);
       break;
-    case kWord32AtomicStoreWord16:
+    case kPPC_AtomicStoreUint16:
       ASSEMBLE_ATOMIC_STORE_INTEGER(sth, sthx);
       break;
-    case kWord32AtomicStoreWord32:
+    case kPPC_AtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(stw, stwx);
+      break;
+    case kPPC_AtomicStoreWord64:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(std, stdx);
       break;
     case kWord32AtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
       __ extsb(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicExchangeUint8:
+    case kPPC_AtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
       break;
     case kWord32AtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
       __ extsh(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicExchangeUint16:
+    case kPPC_AtomicExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
       break;
-    case kWord32AtomicExchangeWord32:
+    case kPPC_AtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lwarx, stwcx);
       break;
-
+    case kPPC_AtomicExchangeWord64:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldarx, stdcx);
+      break;
     case kWord32AtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lbarx, stbcx, extsb);
       break;
-    case kWord32AtomicCompareExchangeUint8:
+    case kPPC_AtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lbarx, stbcx);
       break;
     case kWord32AtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lharx, sthcx, extsh);
       break;
-    case kWord32AtomicCompareExchangeUint16:
+    case kPPC_AtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lharx, sthcx);
       break;
-    case kWord32AtomicCompareExchangeWord32:
+    case kPPC_AtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmpw, lwarx, stwcx);
       break;
+    case kPPC_AtomicCompareExchangeWord64:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, ldarx, stdcx);
+      break;
 
-#define ATOMIC_BINOP_CASE(op, inst)                             \
-  case kWord32Atomic##op##Int8:                                 \
-    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lbarx, stbcx, extsb);  \
-    break;                                                      \
-  case kWord32Atomic##op##Uint8:                                \
-    ASSEMBLE_ATOMIC_BINOP(inst, lbarx, stbcx);                  \
-    break;                                                      \
-  case kWord32Atomic##op##Int16:                                \
-    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lharx, sthcx, extsh);  \
-    break;                                                      \
-  case kWord32Atomic##op##Uint16:                               \
-    ASSEMBLE_ATOMIC_BINOP(inst, lharx, sthcx);                  \
-    break;                                                      \
-  case kWord32Atomic##op##Word32:                               \
-    ASSEMBLE_ATOMIC_BINOP(inst, lwarx, stwcx);                  \
+#define ATOMIC_BINOP_CASE(op, inst)                            \
+  case kWord32Atomic##op##Int8:                                \
+    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lbarx, stbcx, extsb); \
+    break;                                                     \
+  case kPPC_Atomic##op##Uint8:                                 \
+    ASSEMBLE_ATOMIC_BINOP(inst, lbarx, stbcx);                 \
+    break;                                                     \
+  case kWord32Atomic##op##Int16:                               \
+    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lharx, sthcx, extsh); \
+    break;                                                     \
+  case kPPC_Atomic##op##Uint16:                                \
+    ASSEMBLE_ATOMIC_BINOP(inst, lharx, sthcx);                 \
+    break;                                                     \
+  case kPPC_Atomic##op##Word32:                                \
+    ASSEMBLE_ATOMIC_BINOP(inst, lwarx, stwcx);                 \
+    break;                                                     \
+  case kPPC_Atomic##op##Word64:                                \
+    ASSEMBLE_ATOMIC_BINOP(inst, ldarx, stdcx);                 \
     break;
       ATOMIC_BINOP_CASE(Add, add)
       ATOMIC_BINOP_CASE(Sub, sub)
@@ -2118,7 +2135,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
   // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual ||
+      condition == kOverflow || condition == kNotOverflow) {
     return;
   }
 
@@ -2354,6 +2372,16 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(type);
       if (call_descriptor->IsWasmFunctionCall()) {
         __ Push(kWasmInstanceRegister);
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        // WASM import wrappers are passed a tuple in the place of the instance.
+        // Unpack the tuple into the instance and the target callable.
+        // This must be done here in the codegen because it cannot be expressed
+        // properly in the graph.
+        __ LoadP(kJSFunctionRegister,
+                 FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ LoadP(kWasmInstanceRegister,
+                 FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+        __ Push(kWasmInstanceRegister);
       }
     }
   }
@@ -2564,9 +2592,13 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kExternalReference:
           __ Move(dst, src.ToExternalReference());
           break;
+        case Constant::kDelayedStringConstant:
+          __ mov(dst, Operand::EmbeddedStringConstant(
+                          src.ToDelayedStringConstant()));
+          break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
-          Heap::RootListIndex index;
+          RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {

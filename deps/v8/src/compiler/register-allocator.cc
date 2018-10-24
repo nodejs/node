@@ -21,10 +21,10 @@ namespace compiler {
 
 namespace {
 
-static const int kFloatRepBit =
-    1 << static_cast<int>(MachineRepresentation::kFloat32);
-static const int kSimd128RepBit =
-    1 << static_cast<int>(MachineRepresentation::kSimd128);
+static constexpr int kFloat32Bit =
+    RepresentationBit(MachineRepresentation::kFloat32);
+static constexpr int kSimd128Bit =
+    RepresentationBit(MachineRepresentation::kSimd128);
 
 void RemoveElement(ZoneVector<LiveRange*>* v, LiveRange* range) {
   auto it = std::find(v->begin(), v->end(), range);
@@ -2041,8 +2041,8 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
   bool fixed_simd128_live_ranges = false;
   if (!kSimpleFPAliasing) {
     int mask = data()->code()->representation_mask();
-    fixed_float_live_ranges = (mask & kFloatRepBit) != 0;
-    fixed_simd128_live_ranges = (mask & kSimd128RepBit) != 0;
+    fixed_float_live_ranges = (mask & kFloat32Bit) != 0;
+    fixed_simd128_live_ranges = (mask & kSimd128Bit) != 0;
   }
 
   for (int index = block->last_instruction_index(); index >= block_start;
@@ -2556,7 +2556,7 @@ RegisterAllocator::RegisterAllocator(RegisterAllocationData* data,
       check_fp_aliasing_(false) {
   if (!kSimpleFPAliasing && kind == FP_REGISTERS) {
     check_fp_aliasing_ = (data->code()->representation_mask() &
-                          (kFloatRepBit | kSimd128RepBit)) != 0;
+                          (kFloat32Bit | kSimd128Bit)) != 0;
   }
 }
 
@@ -3355,7 +3355,6 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
   RegisterAllocationData::PhiMapValue* phi_map_value =
       data()->GetPhiMapValueFor(range);
   const PhiInstruction* phi = phi_map_value->phi();
-  const InstructionBlock* block = phi_map_value->block();
   // Count the number of spilled operands.
   size_t spilled_count = 0;
   LiveRange* first_op = nullptr;
@@ -3363,15 +3362,9 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
     int op = phi->operands()[i];
     LiveRange* op_range = data()->GetOrCreateLiveRangeFor(op);
     if (!op_range->TopLevel()->HasSpillRange()) continue;
-    const InstructionBlock* pred =
-        code()->InstructionBlockAt(block->predecessors()[i]);
-    LifetimePosition pred_end =
-        LifetimePosition::InstructionFromInstructionIndex(
-            pred->last_instruction_index());
-    while (op_range != nullptr && !op_range->CanCover(pred_end)) {
-      op_range = op_range->next();
-    }
-    if (op_range != nullptr && op_range->spilled()) {
+    if (!op_range->TopLevel()->IsSpilledOnlyInDeferredBlocks()) {
+      // This value was spilled at definition, so it is available in a spillslot
+      // regardless of control flow.
       spilled_count++;
       if (first_op == nullptr) {
         first_op = op_range->TopLevel();

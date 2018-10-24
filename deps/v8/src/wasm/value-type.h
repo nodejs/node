@@ -10,6 +10,10 @@
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Signature;
+
 namespace wasm {
 
 enum ValueType : uint8_t {
@@ -21,8 +25,11 @@ enum ValueType : uint8_t {
   kWasmS128,
   kWasmAnyRef,
   kWasmAnyFunc,
+  kWasmExceptRef,
   kWasmVar,
 };
+
+using FunctionSig = Signature<ValueType>;
 
 inline size_t hash_value(ValueType type) { return static_cast<size_t>(type); }
 
@@ -220,6 +227,8 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return kLocalS128;
       case kWasmAnyRef:
         return kLocalAnyRef;
+      case kWasmExceptRef:
+        return kLocalExceptRef;
       case kWasmStmt:
         return kLocalVoid;
       default:

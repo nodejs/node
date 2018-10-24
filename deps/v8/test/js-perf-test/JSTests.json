@@ -60,48 +60,195 @@
       "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
     },
     {
-      "name": "ArrayLiteralInitialSpread",
-      "path": ["ArrayLiteralInitialSpread"],
+      "name": "ArrayLiteralInitialSpreadSmallPacked",
+      "path": ["ArrayLiteralInitialSpreadSmallPacked"],
       "main": "run.js",
       "resources": [],
-      "results_regexp": "^%s\\-ArrayLiteralInitialSpread\\(Score\\): (.+)$",
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadSmallPacked\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Spread-Small"},
-        {"name": "ForLength-Small"},
-        {"name": "ForLengthEmpty-Small"},
-        {"name": "Slice-Small"},
-        {"name": "Slice0-Small"},
-        {"name": "ConcatReceive-Small"},
-        {"name": "ConcatArg-Small"},
-        {"name": "ForOfPush-Small"},
-        {"name": "MapId-Small"},
-        {"name": "Spread-Large"},
-        {"name": "ForLength-Large"},
-        {"name": "ForLengthEmpty-Large"},
-        {"name": "Slice-Large"},
-        {"name": "Slice0-Large"},
-        {"name": "ConcatReceive-Large"},
-        {"name": "ConcatArg-Large"},
-        {"name": "ForOfPush-Large"},
-        {"name": "MapId-Large"},
-        {"name": "Spread-SmallHoley"},
-        {"name": "ForLength-SmallHoley"},
-        {"name": "ForLengthEmpty-SmallHoley"},
-        {"name": "Slice-SmallHoley"},
-        {"name": "Slice0-SmallHoley"},
-        {"name": "ConcatReceive-SmallHoley"},
-        {"name": "ConcatArg-SmallHoley"},
-        {"name": "ForOfPush-SmallHoley"},
-        {"name": "MapId-SmallHoley"},
-        {"name": "Spread-LargeHoley"},
-        {"name": "ForLength-LargeHoley"},
-        {"name": "ForLengthEmpty-LargeHoley"},
-        {"name": "Slice-LargeHoley"},
-        {"name": "Slice0-LargeHoley"},
-        {"name": "ConcatReceive-LargeHoley"},
-        {"name": "ConcatArg-LargeHoley"},
-        {"name": "ForOfPush-LargeHoley"},
-        {"name": "MapId-LargeHoley"}
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"},
+        {"name": "ForOfPush"},
+        {"name": "MapId"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargePacked",
+      "path": ["ArrayLiteralInitialSpreadLargePacked"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargePacked\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadSmallHoley",
+      "path": ["ArrayLiteralInitialSpreadSmallHoley"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadSmallHoley\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"},
+        {"name": "ForOfPush"},
+        {"name": "MapId"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargeHoley",
+      "path": ["ArrayLiteralInitialSpreadLargeHoley"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeHoley\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadSmallDoublePacked",
+      "path": ["ArrayLiteralInitialSpreadSmallDoublePacked"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadSmallDoublePacked\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"},
+        {"name": "ForOfPush"},
+        {"name": "MapId"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargeDoublePacked",
+      "path": ["ArrayLiteralInitialSpreadLargeDoublePacked"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeDoublePacked\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadSmallDoubleHoley",
+      "path": ["ArrayLiteralInitialSpreadSmallDoubleHoley"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadSmallDoubleHoley\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"},
+        {"name": "ForOfPush"},
+        {"name": "MapId"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargeDoubleHoley",
+      "path": ["ArrayLiteralInitialSpreadLargeDoubleHoley"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeDoubleHoley\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadSmallSmiMap",
+      "path": ["ArrayLiteralInitialSpreadSmallSmiMap"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadSmallSmiMap\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOfKeys"},
+        {"name": "ForOfValues"},
+        {"name": "SpreadKeys"},
+        {"name": "SpreadValues"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargeSmiMap",
+      "path": ["ArrayLiteralInitialSpreadLargeSmiMap"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeSmiMap\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOfKeys"},
+        {"name": "ForOfValues"},
+        {"name": "SpreadKeys"},
+        {"name": "SpreadValues"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadSmallSmiSet",
+      "path": ["ArrayLiteralInitialSpreadSmallSmiSet"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadSmallSmiSet\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOf"},
+        {"name": "ForOfKeys"},
+        {"name": "ForOfValues"},
+        {"name": "Spread"},
+        {"name": "SpreadKeys"},
+        {"name": "SpreadValues"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargeSmiSet",
+      "path": ["ArrayLiteralInitialSpreadLargeSmiSet"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeSmiSet\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOf"},
+        {"name": "ForOfKeys"},
+        {"name": "ForOfValues"},
+        {"name": "Spread"},
+        {"name": "SpreadKeys"},
+        {"name": "SpreadValues"}
       ]
     },
     {

@@ -506,7 +506,7 @@ constexpr uint8_t StoreType::kStoreSizeLog2[];
 constexpr ValueType StoreType::kValueType[];
 constexpr MachineRepresentation StoreType::kMemRep[];
 
-int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
+MessageTemplate WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
   switch (reason) {
 #define TRAPREASON_TO_MESSAGE(name) \
   case k##name:                     \
@@ -519,7 +519,7 @@ int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
 }
 
 const char* WasmOpcodes::TrapReasonMessage(TrapReason reason) {
-  return MessageTemplate::TemplateString(TrapReasonToMessageId(reason));
+  return MessageFormatter::TemplateString(TrapReasonToMessageId(reason));
 }
 }  // namespace wasm
 }  // namespace internal

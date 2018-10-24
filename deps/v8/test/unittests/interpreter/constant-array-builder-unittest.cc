@@ -18,8 +18,8 @@ namespace interpreter {
 
 class ConstantArrayBuilderTest : public TestWithIsolateAndZone {
  public:
-  ConstantArrayBuilderTest() {}
-  ~ConstantArrayBuilderTest() override {}
+  ConstantArrayBuilderTest() = default;
+  ~ConstantArrayBuilderTest() override = default;
 
   static const size_t k8BitCapacity = ConstantArrayBuilder::k8BitCapacity;
   static const size_t k16BitCapacity = ConstantArrayBuilder::k16BitCapacity;

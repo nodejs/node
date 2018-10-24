@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --type-profile
-
 const source1 =
   `
 function g(a, b, c) {

@@ -209,7 +209,7 @@ class NoRootArrayScope {
 // either registers or immediate values. Used to make sure that the
 // caller provides exactly the expected number of parameters to the
 // callee.
-class ParameterCount BASE_EMBEDDED {
+class ParameterCount {
  public:
   explicit ParameterCount(Register reg) : reg_(reg), immediate_(0) {}
   explicit ParameterCount(uint16_t imm) : reg_(no_reg), immediate_(imm) {}

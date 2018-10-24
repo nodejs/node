@@ -36,6 +36,7 @@
 #include "src/code-stubs.h"
 #include "src/frame-constants.h"
 #include "src/register-configuration.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -583,6 +584,7 @@ void Assembler::Reset() {
 }
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     switch (request.kind()) {
@@ -599,6 +601,13 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
         UpdateCodeTarget(instr->ImmPCOffset() >> kInstrSizeLog2,
                          request.code_stub()->GetCode());
+        break;
+      }
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        set_target_address_at(pc, 0 /* unused */,
+                              str->AllocateStringConstant(isolate).address());
         break;
       }
     }
@@ -1713,6 +1722,13 @@ Operand Operand::EmbeddedNumber(double number) {
 Operand Operand::EmbeddedCode(CodeStub* stub) {
   Operand result(0, RelocInfo::CODE_TARGET);
   result.heap_object_request_.emplace(stub);
+  DCHECK(result.IsHeapObjectRequest());
+  return result;
+}
+
+Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.heap_object_request_.emplace(str);
   DCHECK(result.IsHeapObjectRequest());
   return result;
 }
@@ -4751,14 +4767,6 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
                                 ConstantPoolMode constant_pool_mode) {
-  // Non-relocatable constants should not end up in the literal pool.
-  DCHECK(!RelocInfo::IsNone(rmode));
-  if (options().disable_reloc_info_for_patching) return;
-
-  // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
-  bool write_reloc_info = true;
-
   if ((rmode == RelocInfo::COMMENT) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
@@ -4772,23 +4780,22 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {
-    write_reloc_info = constpool_.RecordEntry(data, rmode);
+    bool new_constpool_entry = constpool_.RecordEntry(data, rmode);
     // Make sure the constant pool is not emitted in place of the next
     // instruction for which we just recorded relocation info.
     BlockConstPoolFor(1);
+    if (!new_constpool_entry) return;
   }
   // For modes that cannot use the constant pool, a different sequence of
   // instructions will be emitted by this function's caller.
 
-  if (write_reloc_info) {
-    // Don't record external references unless the heap will be serialized.
-    if (RelocInfo::IsOnlyForSerializer(rmode) &&
-        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
-      return;
-    }
-    DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
-    reloc_info_writer.Write(&rinfo);
-  }
+  if (!ShouldRecordRelocInfo(rmode)) return;
+
+  // We do not try to reuse pool constants.
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+
+  DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
+  reloc_info_writer.Write(&rinfo);
 }
 
 void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {

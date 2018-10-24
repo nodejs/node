@@ -197,6 +197,7 @@ v8_source_set("cctest_sources") {
     "test-inspector.cc",
     "test-intl.cc",
     "test-isolate-independent-builtins.cc",
+    "test-js-weak-refs.cc",
     "test-liveedit.cc",
     "test-lockers.cc",
     "test-log.cc",
@@ -214,6 +215,7 @@ v8_source_set("cctest_sources") {
     "test-roots.cc",
     "test-sampler-api.cc",
     "test-serialize.cc",
+    "test-smi-lexicographic-compare.cc",
     "test-strings.cc",
     "test-strtod.cc",
     "test-symbols.cc",
@@ -237,6 +239,7 @@ v8_source_set("cctest_sources") {
     "trace-extension.cc",
     "trace-extension.h",
     "types-fuzz.h",
+    "unicode-helpers.cc",
     "unicode-helpers.h",
     "wasm/test-c-wasm-entry.cc",
     "wasm/test-jump-table-assembler.cc",
@@ -253,6 +256,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-streaming-compilation.cc",
     "wasm/test-wasm-breakpoints.cc",
     "wasm/test-wasm-codegen.cc",
+    "wasm/test-wasm-import-wrapper-cache.cc",
     "wasm/test-wasm-interpreter-entry.cc",
     "wasm/test-wasm-serialization.cc",
     "wasm/test-wasm-shared-engine.cc",
@@ -268,10 +272,8 @@ v8_source_set("cctest_sources") {
       # TODO(mostynb@opera.com): figure out the jumbo issues with these source
       # files, and include them in jumbo compilation units.
       "interpreter/bytecode-expectations-printer.cc",
-      "interpreter/bytecode-expectations-printer.h",
       "interpreter/test-bytecode-generator.cc",
       "test-api.cc",
-      "test-api.h",
     ]
   }
 
@@ -285,6 +287,7 @@ v8_source_set("cctest_sources") {
       "test-code-stubs.h",
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
+      "test-poison-disasm-arm.cc",
       "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {

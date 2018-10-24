@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_GENERATOR_INL_H_
 
 #include "src/objects/js-generator.h"
+#include "src/objects/js-promise-inl.h"
 
 #include "src/objects-inl.h"  // Needed for write barriers
 
@@ -15,8 +16,9 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(JSGeneratorObject)
+CAST_ACCESSOR(JSAsyncFunctionObject)
 CAST_ACCESSOR(JSAsyncGeneratorObject)
+CAST_ACCESSOR(JSGeneratorObject)
 
 ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
 ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
@@ -40,6 +42,8 @@ bool JSGeneratorObject::is_closed() const {
 bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
+
+ACCESSORS(JSAsyncFunctionObject, promise, JSPromise, kPromiseOffset)
 
 ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
 SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)

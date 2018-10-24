@@ -525,17 +525,15 @@ TF_BUILTIN(Add, AddStubAssembler) {
   BIND(&string_add_convert_left);
   {
     // Convert {left} to a String and concatenate it with the String {right}.
-    Callable callable =
-        CodeFactory::StringAdd(isolate(), STRING_ADD_CONVERT_LEFT, NOT_TENURED);
-    Return(CallStub(callable, context, var_left.value(), var_right.value()));
+    TailCallBuiltin(Builtins::kStringAdd_ConvertLeft, context, var_left.value(),
+                    var_right.value());
   }
 
   BIND(&string_add_convert_right);
   {
     // Convert {right} to a String and concatenate it with the String {left}.
-    Callable callable = CodeFactory::StringAdd(
-        isolate(), STRING_ADD_CONVERT_RIGHT, NOT_TENURED);
-    Return(CallStub(callable, context, var_left.value(), var_right.value()));
+    TailCallBuiltin(Builtins::kStringAdd_ConvertRight, context,
+                    var_left.value(), var_right.value());
   }
 
   BIND(&do_bigint_add);

@@ -209,7 +209,8 @@ static void InitializeVM() {
   __ Ret();                     \
   __ GetCode(masm.isolate(), nullptr);
 
-#define TEARDOWN() CHECK(v8::internal::FreePages(buf, allocated));
+#define TEARDOWN() \
+  CHECK(v8::internal::FreePages(GetPlatformPageAllocator(), buf, allocated));
 
 #endif  // ifdef USE_SIMULATOR.
 
@@ -6768,7 +6769,7 @@ static void LdrLiteralRangeHelper(size_t range, LiteralPoolEmitOutcome outcome,
   // can be handled by this test.
   CHECK_LE(code_size, range);
 
-  auto PoolSizeAt = [pool_entries](int pc_offset) {
+  auto PoolSizeAt = [](int pc_offset) {
     // To determine padding, consider the size of the prologue of the pool,
     // and the jump around the pool, which we always need.
     size_t prologue_size = 2 * kInstrSize + kInstrSize;
@@ -15068,9 +15069,6 @@ TEST(default_nan_double) {
 
 
 TEST(call_no_relocation) {
-  Address call_start;
-  Address return_address;
-
   INIT_V8();
   SETUP();
 
@@ -15091,9 +15089,7 @@ TEST(call_no_relocation) {
   __ Push(lr, xzr);
   {
     Assembler::BlockConstPoolScope scope(&masm);
-    call_start = buf_addr + __ pc_offset();
     __ Call(buf_addr + function.pos(), RelocInfo::NONE);
-    return_address = buf_addr + __ pc_offset();
   }
   __ Pop(xzr, lr);
   END();

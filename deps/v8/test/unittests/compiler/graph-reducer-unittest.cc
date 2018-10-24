@@ -751,7 +751,7 @@ TEST_F(GraphReducerTest, Sorter1) {
     Node* n1 = graph()->NewNode(&kOpA0);
     Node* n2 = graph()->NewNode(&kOpA1, n1);
     Node* n3 = graph()->NewNode(&kOpA1, n1);
-    Node* end = NULL;  // Initialize to please the compiler.
+    Node* end = nullptr;  // Initialize to please the compiler.
 
     if (i == 0) end = graph()->NewNode(&kOpA2, n2, n3);
     if (i == 1) end = graph()->NewNode(&kOpA2, n3, n2);

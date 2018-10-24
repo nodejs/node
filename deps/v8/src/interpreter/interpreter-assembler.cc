@@ -744,12 +744,12 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
         feedback,
         HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
     GotoIf(is_uninitialized, &initialize);
-    CSA_ASSERT(this, IsWeakOrClearedHeapObject(feedback));
+    CSA_ASSERT(this, IsWeakOrCleared(feedback));
 
     // If the weak reference is cleared, we have a new chance to become
     // monomorphic.
     Comment("check if weak reference is cleared");
-    Branch(IsClearedWeakHeapObject(feedback), &initialize, &mark_megamorphic);
+    Branch(IsCleared(feedback), &initialize, &mark_megamorphic);
 
     BIND(&initialize);
     {
@@ -803,7 +803,7 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
       // MegamorphicSentinel is an immortal immovable object so
       // write-barrier is not needed.
       Comment("transition to megamorphic");
-      DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
+      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
       StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
@@ -948,12 +948,12 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
     GotoIf(is_megamorphic, &construct);
 
     Comment("check if weak reference");
-    GotoIfNot(IsWeakOrClearedHeapObject(feedback), &check_allocation_site);
+    GotoIfNot(IsWeakOrCleared(feedback), &check_allocation_site);
 
     // If the weak reference is cleared, we have a new chance to become
     // monomorphic.
     Comment("check if weak reference is cleared");
-    Branch(IsClearedWeakHeapObject(feedback), &initialize, &mark_megamorphic);
+    Branch(IsCleared(feedback), &initialize, &mark_megamorphic);
 
     BIND(&check_allocation_site);
     {
@@ -976,7 +976,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       // Check if it is uninitialized.
       Comment("check if uninitialized");
       Node* is_uninitialized =
-          WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex));
+          WordEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol));
       Branch(is_uninitialized, &initialize, &mark_megamorphic);
     }
 
@@ -1054,7 +1054,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       // MegamorphicSentinel is an immortal immovable object so
       // write-barrier is not needed.
       Comment("transition to megamorphic");
-      DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
+      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
       StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
@@ -1074,8 +1074,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
         isolate(), InterpreterPushArgsMode::kArrayFunction);
     Node* code_target = HeapConstant(callable.code());
     var_result.Bind(CallStub(callable.descriptor(), code_target, context,
-                             args.reg_count(), new_target, target,
-                             var_site.value(), args.base_reg_location()));
+                             args.reg_count(), args.base_reg_location(), target,
+                             new_target, var_site.value()));
     Goto(&return_result);
   }
 
@@ -1087,8 +1087,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
         isolate(), InterpreterPushArgsMode::kOther);
     Node* code_target = HeapConstant(callable.code());
     var_result.Bind(CallStub(callable.descriptor(), code_target, context,
-                             args.reg_count(), new_target, target,
-                             UndefinedConstant(), args.base_reg_location()));
+                             args.reg_count(), args.base_reg_location(), target,
+                             new_target, UndefinedConstant()));
     Goto(&return_result);
   }
 
@@ -1127,19 +1127,19 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
     GotoIf(is_megamorphic, &construct);
 
     Comment("check if weak reference");
-    GotoIfNot(IsWeakOrClearedHeapObject(feedback), &check_initialized);
+    GotoIfNot(IsWeakOrCleared(feedback), &check_initialized);
 
     // If the weak reference is cleared, we have a new chance to become
     // monomorphic.
     Comment("check if weak reference is cleared");
-    Branch(IsClearedWeakHeapObject(feedback), &initialize, &mark_megamorphic);
+    Branch(IsCleared(feedback), &initialize, &mark_megamorphic);
 
     BIND(&check_initialized);
     {
       // Check if it is uninitialized.
       Comment("check if uninitialized");
       Node* is_uninitialized =
-          WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex));
+          WordEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol));
       Branch(is_uninitialized, &initialize, &mark_megamorphic);
     }
 
@@ -1195,7 +1195,7 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
       // MegamorphicSentinel is an immortal immovable object so
       // write-barrier is not needed.
       Comment("transition to megamorphic");
-      DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
+      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
       StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
@@ -1212,8 +1212,8 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
       isolate(), InterpreterPushArgsMode::kWithFinalSpread);
   Node* code_target = HeapConstant(callable.code());
   return CallStub(callable.descriptor(), code_target, context, args.reg_count(),
-                  new_target, target, UndefinedConstant(),
-                  args.base_reg_location());
+                  args.base_reg_location(), target, new_target,
+                  UndefinedConstant());
 }
 
 Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
@@ -1705,7 +1705,7 @@ Node* InterpreterAssembler::ImportRegisterFile(
     StoreRegister(value, reg_index);
 
     StoreFixedArrayElement(array, array_index,
-                           LoadRoot(Heap::kStaleRegisterRootIndex));
+                           LoadRoot(RootIndex::kStaleRegister));
 
     var_index = IntPtrAdd(index, IntPtrConstant(1));
     Goto(&loop);

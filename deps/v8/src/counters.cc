@@ -34,35 +34,35 @@ StatsCounterThreadSafe::StatsCounterThreadSafe(Counters* counters,
 
 void StatsCounterThreadSafe::Set(int Value) {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     SetLoc(ptr_, Value);
   }
 }
 
 void StatsCounterThreadSafe::Increment() {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     IncrementLoc(ptr_);
   }
 }
 
 void StatsCounterThreadSafe::Increment(int value) {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     IncrementLoc(ptr_, value);
   }
 }
 
 void StatsCounterThreadSafe::Decrement() {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     DecrementLoc(ptr_);
   }
 }
 
 void StatsCounterThreadSafe::Decrement(int value) {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     DecrementLoc(ptr_, value);
   }
 }
@@ -118,7 +118,8 @@ Counters::Counters(Isolate* isolate)
       STATS_COUNTER_TS_LIST(SC)
 #undef SC
       // clang format on
-      runtime_call_stats_() {
+      runtime_call_stats_(),
+      worker_thread_runtime_call_stats_() {
   static const struct {
     Histogram Counters::*member;
     const char* caption;
@@ -527,6 +528,65 @@ void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
     if (GetCounter(i)->count() > 0) GetCounter(i)->Dump(value);
   }
   in_use_ = false;
+}
+
+WorkerThreadRuntimeCallStats::WorkerThreadRuntimeCallStats()
+    : tls_key_(base::Thread::CreateThreadLocalKey()) {}
+
+WorkerThreadRuntimeCallStats::~WorkerThreadRuntimeCallStats() {
+  base::Thread::DeleteThreadLocalKey(tls_key_);
+}
+
+RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
+  DCHECK(FLAG_runtime_stats);
+  std::unique_ptr<RuntimeCallStats> new_table =
+      base::make_unique<RuntimeCallStats>();
+  RuntimeCallStats* result = new_table.get();
+
+  base::MutexGuard lock(&mutex_);
+  tables_.push_back(std::move(new_table));
+  return result;
+}
+
+void WorkerThreadRuntimeCallStats::AddToMainTable(
+    RuntimeCallStats* main_call_stats) {
+  base::MutexGuard lock(&mutex_);
+  for (auto& worker_stats : tables_) {
+    DCHECK_NE(main_call_stats, worker_stats.get());
+    main_call_stats->Add(worker_stats.get());
+    worker_stats->Reset();
+  }
+}
+
+WorkerThreadRuntimeCallStatsScope::WorkerThreadRuntimeCallStatsScope(
+    WorkerThreadRuntimeCallStats* worker_stats)
+    : table_(nullptr) {
+  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+
+  table_ = reinterpret_cast<RuntimeCallStats*>(
+      base::Thread::GetThreadLocal(worker_stats->GetKey()));
+  if (table_ == nullptr) {
+    table_ = worker_stats->NewTable();
+    base::Thread::SetThreadLocal(worker_stats->GetKey(), table_);
+  }
+
+  if (FLAG_runtime_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    table_->Reset();
+  }
+}
+
+WorkerThreadRuntimeCallStatsScope::~WorkerThreadRuntimeCallStatsScope() {
+  if (V8_LIKELY(table_ == nullptr)) return;
+
+  if ((FLAG_runtime_stats &
+       v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+    auto value = v8::tracing::TracedValue::Create();
+    table_->Dump(value.get());
+    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"),
+                         "V8.RuntimeStats", TRACE_EVENT_SCOPE_THREAD,
+                         "runtime-call-stats", std::move(value));
+  }
 }
 
 }  // namespace internal

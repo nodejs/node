@@ -9,7 +9,7 @@
 
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/wasm/decoder.h"
+#include "src/vector.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -22,7 +22,30 @@ class WasmModuleObject;
 
 namespace wasm {
 
+using WasmName = Vector<const char>;
+
 class ErrorThrower;
+
+// Reference to a string in the wire bytes.
+class WireBytesRef {
+ public:
+  WireBytesRef() : WireBytesRef(0, 0) {}
+  WireBytesRef(uint32_t offset, uint32_t length)
+      : offset_(offset), length_(length) {
+    DCHECK_IMPLIES(offset_ == 0, length_ == 0);
+    DCHECK_LE(offset_, offset_ + length_);  // no uint32_t overflow.
+  }
+
+  uint32_t offset() const { return offset_; }
+  uint32_t length() const { return length_; }
+  uint32_t end_offset() const { return offset_ + length_; }
+  bool is_empty() const { return length_ == 0; }
+  bool is_set() const { return offset_ != 0; }
+
+ private:
+  uint32_t offset_;
+  uint32_t length_;
+};
 
 // Static representation of a wasm function.
 struct WasmFunction {
@@ -51,19 +74,12 @@ struct WasmGlobal {
 // function signature.
 typedef FunctionSig WasmExceptionSig;
 
+// Static representation of a wasm exception type.
 struct WasmException {
-  explicit WasmException(const WasmExceptionSig* sig = &empty_sig_)
-      : sig(sig) {}
+  explicit WasmException(const WasmExceptionSig* sig) : sig(sig) {}
   FunctionSig* ToFunctionSig() const { return const_cast<FunctionSig*>(sig); }
 
   const WasmExceptionSig* sig;  // type signature of the exception.
-
-  // Used to hold data on runtime exceptions.
-  static constexpr const char* kRuntimeIdStr = "WasmExceptionRuntimeId";
-  static constexpr const char* kRuntimeValuesStr = "WasmExceptionValues";
-
- private:
-  static const WasmExceptionSig empty_sig_;
 };
 
 // Static representation of a wasm data segment.
@@ -156,6 +172,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
   mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
       function_names;
+  std::string source_map_url;
 
   explicit WasmModule(std::unique_ptr<Zone> owned = nullptr);
 
@@ -177,13 +194,6 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
       : module_bytes_(start, static_cast<int>(end - start)) {
     DCHECK_GE(kMaxInt, end - start);
   }
-
-  // Get a string stored in the module bytes representing a name.
-  WasmName GetName(WireBytesRef ref) const;
-
-  // Get a string stored in the module bytes representing a function name.
-  WasmName GetName(const WasmFunction* function,
-                   const WasmModule* module) const;
 
   // Get a string stored in the module bytes representing a name.
   WasmName GetNameOrNull(WireBytesRef ref) const;

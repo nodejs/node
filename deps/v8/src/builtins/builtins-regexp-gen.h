@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 
 #include "src/code-stub-assembler.h"
+#include "src/message-template.h"
 
 namespace v8 {
 namespace internal {
@@ -82,7 +83,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                             const bool is_fastpath);
 
   Node* ThrowIfNotJSReceiver(Node* context, Node* maybe_receiver,
-                             MessageTemplate::Template msg_template,
+                             MessageTemplate msg_template,
                              char const* method_name);
 
   // Analogous to BranchIfFastRegExp, for use in asserts.

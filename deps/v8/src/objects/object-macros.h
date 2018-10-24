@@ -97,6 +97,26 @@
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
 
+#define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,   \
+                                        get_condition, set_condition) \
+  type* holder::name() const {                                        \
+    type* value = type::cast(ACQUIRE_READ_FIELD(this, offset));       \
+    DCHECK(get_condition);                                            \
+    return value;                                                     \
+  }                                                                   \
+  void holder::set_##name(type* value, WriteBarrierMode mode) {       \
+    DCHECK(set_condition);                                            \
+    RELEASE_WRITE_FIELD(this, offset, value);                         \
+    CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);             \
+  }
+
+#define SYNCHRONIZED_ACCESSORS_CHECKED(holder, name, type, offset, condition) \
+  SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset, condition,      \
+                                  condition)
+
+#define SYNCHRONIZED_ACCESSORS(holder, name, type, offset) \
+  SYNCHRONIZED_ACCESSORS_CHECKED(holder, name, type, offset, true)
+
 #define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,   \
                                 set_condition)                         \
   MaybeObject* holder::name() const {                                  \
@@ -289,6 +309,12 @@
 
 #define WRITE_INTPTR_FIELD(p, offset, value) \
   (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define READ_UINTPTR_FIELD(p, offset) \
+  (*reinterpret_cast<const uintptr_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_UINTPTR_FIELD(p, offset, value) \
+  (*reinterpret_cast<uintptr_t*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_UINT8_FIELD(p, offset) \
   (*reinterpret_cast<const uint8_t*>(FIELD_ADDR(p, offset)))

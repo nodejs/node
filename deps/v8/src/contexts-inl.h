@@ -9,6 +9,7 @@
 #include "src/heap/heap.h"
 #include "src/objects-inl.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
@@ -97,6 +98,10 @@ bool Context::IsWithContext() const {
 
 bool Context::IsDebugEvaluateContext() const {
   return map()->instance_type() == DEBUG_EVALUATE_CONTEXT_TYPE;
+}
+
+bool Context::IsAwaitContext() const {
+  return map()->instance_type() == AWAIT_CONTEXT_TYPE;
 }
 
 bool Context::IsBlockContext() const {
@@ -211,6 +216,26 @@ Map* Context::GetInitialJSArrayMap(ElementsKind kind) const {
   Object* const initial_js_array_map = get(Context::ArrayMapIndex(kind));
   DCHECK(!initial_js_array_map->IsUndefined());
   return Map::cast(initial_js_array_map);
+}
+
+void NativeContext::AddDirtyJSWeakFactory(
+    JSWeakFactory* weak_factory, Isolate* isolate,
+    std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
+        gc_notify_updated_slot) {
+  DCHECK(dirty_js_weak_factories()->IsUndefined(isolate) ||
+         dirty_js_weak_factories()->IsJSWeakFactory());
+  DCHECK(weak_factory->next()->IsUndefined(isolate));
+  DCHECK(!weak_factory->scheduled_for_cleanup());
+  weak_factory->set_scheduled_for_cleanup(true);
+  weak_factory->set_next(dirty_js_weak_factories());
+  gc_notify_updated_slot(
+      weak_factory,
+      HeapObject::RawField(weak_factory, JSWeakFactory::kNextOffset),
+      dirty_js_weak_factories());
+  set_dirty_js_weak_factories(weak_factory);
+  int offset = kHeaderSize + DIRTY_JS_WEAK_FACTORIES_INDEX * kPointerSize;
+  gc_notify_updated_slot(this, HeapObject::RawField(this, offset),
+                         weak_factory);
 }
 
 }  // namespace internal

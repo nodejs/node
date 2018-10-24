@@ -89,9 +89,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
                                 Node* fulfill_handler, Node* reject_handler);
 
-  Node* AllocatePromiseReactionJobTask(Heap::RootListIndex map_root_index,
-                                       Node* context, Node* argument,
-                                       Node* handler,
+  Node* AllocatePromiseReactionJobTask(RootIndex map_root_index, Node* context,
+                                       Node* argument, Node* handler,
                                        Node* promise_or_capability);
   Node* AllocatePromiseReactionJobTask(Node* map, Node* context, Node* argument,
                                        Node* handler,
@@ -145,6 +144,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void BranchIfPromiseResolveLookupChainIntact(Node* native_context,
                                                Node* constructor,
                                                Label* if_fast, Label* if_slow);
+  void GotoIfNotPromiseResolveLookupChainIntact(Node* native_context,
+                                                Node* constructor,
+                                                Label* if_slow);
 
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
   // [[Prototype]] is the (initial)  Promise.prototype and the @@species

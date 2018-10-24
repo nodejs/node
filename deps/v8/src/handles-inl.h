@@ -12,22 +12,21 @@
 namespace v8 {
 namespace internal {
 
-HandleBase::HandleBase(Object* object, Isolate* isolate)
+HandleBase::HandleBase(Address object, Isolate* isolate)
     : location_(HandleScope::GetHandle(isolate, object)) {}
 
-
-template <typename T>
 // Allocate a new handle for the object, do not canonicalize.
+template <typename T>
 Handle<T> Handle<T>::New(T* object, Isolate* isolate) {
-  return Handle(
-      reinterpret_cast<T**>(HandleScope::CreateHandle(isolate, object)));
+  return Handle(reinterpret_cast<T**>(
+      HandleScope::CreateHandle(isolate, reinterpret_cast<Address>(object))));
 }
 
 template <typename T>
 template <typename S>
 const Handle<T> Handle<T>::cast(Handle<S> that) {
   T::cast(*reinterpret_cast<T**>(that.location()));
-  return Handle<T>(reinterpret_cast<T**>(that.location_));
+  return Handle<T>(that.location_);
 }
 
 HandleScope::HandleScope(Isolate* isolate) {
@@ -39,7 +38,8 @@ HandleScope::HandleScope(Isolate* isolate) {
 }
 
 template <typename T>
-Handle<T>::Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
+Handle<T>::Handle(T* object, Isolate* isolate)
+    : HandleBase(reinterpret_cast<Address>(object), isolate) {}
 
 template <typename T>
 V8_INLINE Handle<T> handle(T* object, Isolate* isolate) {
@@ -107,23 +107,24 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   return result;
 }
 
-Object** HandleScope::CreateHandle(Isolate* isolate, Object* value) {
+Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   HandleScopeData* data = isolate->handle_scope_data();
-
-  Object** result = data->next;
-  if (result == data->limit) result = Extend(isolate);
-  // Update the current next field, set the value in the created
-  // handle, and return the result.
-  DCHECK(result < data->limit);
-  data->next = result + 1;
-
+  Address* result = reinterpret_cast<Address*>(data->next);
+  if (result == reinterpret_cast<Address*>(data->limit)) {
+    result = reinterpret_cast<Address*>(Extend(isolate));
+  }
+  // Update the current next field, set the value in the created handle,
+  // and return the result.
+  DCHECK_LT(reinterpret_cast<Address>(result),
+            reinterpret_cast<Address>(data->limit));
+  data->next = reinterpret_cast<Object**>(reinterpret_cast<Address>(result) +
+                                          sizeof(Address));
   *result = value;
   return result;
 }
 
-
-Object** HandleScope::GetHandle(Isolate* isolate, Object* value) {
+Address* HandleScope::GetHandle(Isolate* isolate, Address value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   HandleScopeData* data = isolate->handle_scope_data();
   CanonicalHandleScope* canonical = data->canonical_scope;

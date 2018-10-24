@@ -78,7 +78,7 @@ TEST(StartStop) {
   CpuProfilesCollection profiles(isolate);
   ProfileGenerator generator(&profiles);
   std::unique_ptr<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(isolate, &generator,
+      new SamplingEventsProcessor(isolate, &generator,
                                   v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
   processor->StopSynchronously();
@@ -88,19 +88,20 @@ static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame1,
                                    i::Address frame2 = kNullAddress,
                                    i::Address frame3 = kNullAddress) {
-  v8::TickSample* sample = proc->StartTickSample();
-  sample->pc = reinterpret_cast<void*>(frame1);
-  sample->tos = reinterpret_cast<void*>(frame1);
-  sample->frames_count = 0;
+  v8::internal::TickSample sample;
+  sample.pc = reinterpret_cast<void*>(frame1);
+  sample.tos = reinterpret_cast<void*>(frame1);
+  sample.frames_count = 0;
   if (frame2 != kNullAddress) {
-    sample->stack[0] = reinterpret_cast<void*>(frame2);
-    sample->frames_count = 1;
+    sample.stack[0] = reinterpret_cast<void*>(frame2);
+    sample.frames_count = 1;
   }
   if (frame3 != kNullAddress) {
-    sample->stack[1] = reinterpret_cast<void*>(frame3);
-    sample->frames_count = 2;
+    sample.stack[1] = reinterpret_cast<void*>(frame3);
+    sample.frames_count = 2;
   }
-  proc->FinishTickSample();
+  sample.timestamp = base::TimeTicks::HighResolutionNow();
+  proc->AddSample(sample);
 }
 
 namespace {
@@ -159,12 +160,10 @@ TEST(CodeEvents) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor = new ProfilerEventsProcessor(
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       isolate, generator, v8::base::TimeDelta::FromMicroseconds(100));
-  CpuProfiler profiler(isolate, profiles, generator, processor);
-  profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate, &profiler);
+  ProfilerListener profiler_listener(isolate, processor);
   isolate->logger()->AddCodeEventListener(&profiler_listener);
 
   // Enqueue code creation events.
@@ -221,12 +220,12 @@ TEST(TickEvents) {
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
   ProfilerEventsProcessor* processor =
-      new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
+      new SamplingEventsProcessor(CcTest::i_isolate(), generator,
                                   v8::base::TimeDelta::FromMicroseconds(100));
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate, &profiler);
+  ProfilerListener profiler_listener(isolate, processor);
   isolate->logger()->AddCodeEventListener(&profiler_listener);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
@@ -290,23 +289,24 @@ TEST(Issue1398) {
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
   ProfilerEventsProcessor* processor =
-      new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
+      new SamplingEventsProcessor(CcTest::i_isolate(), generator,
                                   v8::base::TimeDelta::FromMicroseconds(100));
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate, &profiler);
+  ProfilerListener profiler_listener(isolate, processor);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
-  v8::TickSample* sample = processor->StartTickSample();
-  sample->pc = reinterpret_cast<void*>(code->InstructionStart());
-  sample->tos = nullptr;
-  sample->frames_count = v8::TickSample::kMaxFramesCount;
-  for (unsigned i = 0; i < sample->frames_count; ++i) {
-    sample->stack[i] = reinterpret_cast<void*>(code->InstructionStart());
+  v8::internal::TickSample sample;
+  sample.pc = reinterpret_cast<void*>(code->InstructionStart());
+  sample.tos = nullptr;
+  sample.frames_count = v8::TickSample::kMaxFramesCount;
+  for (unsigned i = 0; i < sample.frames_count; ++i) {
+    sample.stack[i] = reinterpret_cast<void*>(code->InstructionStart());
   }
-  processor->FinishTickSample();
+  sample.timestamp = base::TimeTicks::HighResolutionNow();
+  processor->AddSample(sample);
 
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
@@ -458,7 +458,9 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
 
   v8::internal::CpuProfiler* iprofiler =
       reinterpret_cast<v8::internal::CpuProfiler*>(profiler_);
-  v8::sampler::Sampler* sampler = iprofiler->processor()->sampler();
+  v8::sampler::Sampler* sampler =
+      reinterpret_cast<i::SamplingEventsProcessor*>(iprofiler->processor())
+          ->sampler();
   sampler->StartCountingSamples();
   do {
     function->Call(context_, context_->Global(), argc, argv).ToLocalChecked();
@@ -1095,7 +1097,9 @@ TEST(BoundFunctionCall) {
 
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
-  if (!optimize) i::FLAG_opt = false;
+#ifndef V8_LITE_MODE
+  FLAG_opt = optimize;
+#endif  // V8_LITE_MODE
   CcTest::InitializeVM();
   LocalContext env;
   i::FLAG_allow_natives_syntax = true;
@@ -1143,12 +1147,12 @@ static void TickLines(bool optimize) {
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
   ProfilerEventsProcessor* processor =
-      new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
+      new SamplingEventsProcessor(CcTest::i_isolate(), generator,
                                   v8::base::TimeDelta::FromMicroseconds(100));
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate, &profiler);
+  ProfilerListener profiler_listener(isolate, processor);
 
   // Enqueue code creation events.
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
@@ -1712,13 +1716,13 @@ TEST(IdleTime) {
   i::ProfilerEventsProcessor* processor =
       reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->processor();
 
-  processor->AddCurrentStack(isolate, true);
+  processor->AddCurrentStack(true);
   isolate->SetIdle(true);
   for (int i = 0; i < 3; i++) {
-    processor->AddCurrentStack(isolate, true);
+    processor->AddCurrentStack(true);
   }
   isolate->SetIdle(false);
-  processor->AddCurrentStack(isolate, true);
+  processor->AddCurrentStack(true);
 
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
   CHECK(profile);

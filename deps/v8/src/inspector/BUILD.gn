@@ -32,7 +32,7 @@ action("protocol_compatibility") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
   script = "$_inspector_protocol/CheckProtocolCompatibility.py"
   inputs = [
-    "js_protocol.json",
+    "js_protocol.pdl",
   ]
   _stamp = "$target_gen_dir/js_protocol.stamp"
   outputs = [
@@ -41,7 +41,7 @@ action("protocol_compatibility") {
   args = [
     "--stamp",
     rebase_path(_stamp, root_build_dir),
-    rebase_path("js_protocol.json", root_build_dir),
+    rebase_path("js_protocol.pdl", root_build_dir),
   ]
 }
 
@@ -55,7 +55,7 @@ inspector_protocol_generate("protocol_generated_sources") {
   out_dir = target_gen_dir
   config_file = "inspector_protocol_config.json"
   inputs = [
-    "js_protocol.json",
+    "js_protocol.pdl",
     "inspector_protocol_config.json",
   ]
   outputs = _protocol_generated
@@ -103,6 +103,8 @@ v8_source_set("inspector") {
   ]
   sources += get_target_outputs(":inspector_injected_script")
   sources += [
+    "custom-preview.cc",
+    "custom-preview.h",
     "injected-script.cc",
     "injected-script.h",
     "inspected-context.cc",

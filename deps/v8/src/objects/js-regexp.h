@@ -131,6 +131,9 @@ class JSRegExp : public JSObject {
   static const int kLastIndexFieldIndex = 0;
   static const int kInObjectFieldCount = 1;
 
+  // Descriptor array index to the exec method in the prototype.
+  static const int kExecFunctionDescriptorIndex = 1;
+
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
 };

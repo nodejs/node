@@ -41,12 +41,16 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
  public:
   explicit CompileTask(Isolate* isolate,
                        OptimizingCompileDispatcher* dispatcher)
-      : CancelableTask(isolate), isolate_(isolate), dispatcher_(dispatcher) {
-    base::LockGuard<base::Mutex> lock_guard(&dispatcher_->ref_count_mutex_);
+      : CancelableTask(isolate),
+        isolate_(isolate),
+        worker_thread_runtime_call_stats_(
+            isolate->counters()->worker_thread_runtime_call_stats()),
+        dispatcher_(dispatcher) {
+    base::MutexGuard lock_guard(&dispatcher_->ref_count_mutex_);
     ++dispatcher_->ref_count_;
   }
 
-  virtual ~CompileTask() {}
+  ~CompileTask() override = default;
 
  private:
   // v8::Task overrides.
@@ -56,8 +60,13 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
     DisallowHandleDereference no_deref;
 
     {
-      TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
+      WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
+          worker_thread_runtime_call_stats_);
+      RuntimeCallTimerScope runtimeTimer(
+          runtime_call_stats_scope.Get(),
+          RuntimeCallCounterId::kRecompileConcurrent);
 
+      TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.RecompileConcurrent");
 
@@ -69,7 +78,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
       dispatcher_->CompileNext(dispatcher_->NextInput(true));
     }
     {
-      base::LockGuard<base::Mutex> lock_guard(&dispatcher_->ref_count_mutex_);
+      base::MutexGuard lock_guard(&dispatcher_->ref_count_mutex_);
       if (--dispatcher_->ref_count_ == 0) {
         dispatcher_->ref_count_zero_.NotifyOne();
       }
@@ -77,6 +86,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
   }
 
   Isolate* isolate_;
+  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   OptimizingCompileDispatcher* dispatcher_;
 
   DISALLOW_COPY_AND_ASSIGN(CompileTask);
@@ -85,7 +95,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
 OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
 #ifdef DEBUG
   {
-    base::LockGuard<base::Mutex> lock_guard(&ref_count_mutex_);
+    base::MutexGuard lock_guard(&ref_count_mutex_);
     DCHECK_EQ(0, ref_count_);
   }
 #endif
@@ -95,7 +105,7 @@ OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
 
 OptimizedCompilationJob* OptimizingCompileDispatcher::NextInput(
     bool check_if_flushing) {
-  base::LockGuard<base::Mutex> access_input_queue_(&input_queue_mutex_);
+  base::MutexGuard access_input_queue_(&input_queue_mutex_);
   if (input_queue_length_ == 0) return nullptr;
   OptimizedCompilationJob* job = input_queue_[InputQueueIndex(0)];
   DCHECK_NOT_NULL(job);
@@ -121,7 +131,7 @@ void OptimizingCompileDispatcher::CompileNext(OptimizedCompilationJob* job) {
   // The function may have already been optimized by OSR.  Simply continue.
   // Use a mutex to make sure that functions marked for install
   // are always also queued.
-  base::LockGuard<base::Mutex> access_output_queue_(&output_queue_mutex_);
+  base::MutexGuard access_output_queue_(&output_queue_mutex_);
   output_queue_.push(job);
   isolate_->stack_guard()->RequestInstallCode();
 }
@@ -130,7 +140,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
   for (;;) {
     OptimizedCompilationJob* job = nullptr;
     {
-      base::LockGuard<base::Mutex> access_output_queue_(&output_queue_mutex_);
+      base::MutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job = output_queue_.front();
       output_queue_.pop();
@@ -143,7 +153,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
 void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
   if (blocking_behavior == BlockingBehavior::kDontBlock) {
     if (FLAG_block_concurrent_recompilation) Unblock();
-    base::LockGuard<base::Mutex> access_input_queue_(&input_queue_mutex_);
+    base::MutexGuard access_input_queue_(&input_queue_mutex_);
     while (input_queue_length_ > 0) {
       OptimizedCompilationJob* job = input_queue_[InputQueueIndex(0)];
       DCHECK_NOT_NULL(job);
@@ -160,7 +170,7 @@ void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
   base::Release_Store(&mode_, static_cast<base::AtomicWord>(FLUSH));
   if (FLAG_block_concurrent_recompilation) Unblock();
   {
-    base::LockGuard<base::Mutex> lock_guard(&ref_count_mutex_);
+    base::MutexGuard lock_guard(&ref_count_mutex_);
     while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
     base::Release_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
   }
@@ -174,7 +184,7 @@ void OptimizingCompileDispatcher::Stop() {
   base::Release_Store(&mode_, static_cast<base::AtomicWord>(FLUSH));
   if (FLAG_block_concurrent_recompilation) Unblock();
   {
-    base::LockGuard<base::Mutex> lock_guard(&ref_count_mutex_);
+    base::MutexGuard lock_guard(&ref_count_mutex_);
     while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
     base::Release_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
   }
@@ -195,7 +205,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
   for (;;) {
     OptimizedCompilationJob* job = nullptr;
     {
-      base::LockGuard<base::Mutex> access_output_queue_(&output_queue_mutex_);
+      base::MutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job = output_queue_.front();
       output_queue_.pop();
@@ -210,7 +220,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       }
       DisposeCompilationJob(job, false);
     } else {
-      Compiler::FinalizeCompilationJob(job, isolate_);
+      Compiler::FinalizeOptimizedCompilationJob(job, isolate_);
     }
   }
 }
@@ -220,7 +230,7 @@ void OptimizingCompileDispatcher::QueueForOptimization(
   DCHECK(IsQueueAvailable());
   {
     // Add job to the back of the input queue.
-    base::LockGuard<base::Mutex> access_input_queue(&input_queue_mutex_);
+    base::MutexGuard access_input_queue(&input_queue_mutex_);
     DCHECK_LT(input_queue_length_, input_queue_capacity_);
     input_queue_[InputQueueIndex(input_queue_length_)] = job;
     input_queue_length_++;

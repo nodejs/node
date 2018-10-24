@@ -12,13 +12,23 @@ namespace internal {
 namespace torque {
 
 std::ostream& operator<<(std::ostream& os, const Callable& m) {
-  os << "callable " << m.name() << "(" << m.signature().parameter_types
-     << "): " << *m.signature().return_type;
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const Variable& v) {
-  os << "variable " << v.name() << ": " << *v.type();
+  os << "callable " << m.name() << "(";
+  if (m.signature().implicit_count != 0) {
+    os << "implicit ";
+    TypeVector implicit_parameter_types(
+        m.signature().parameter_types.types.begin(),
+        m.signature().parameter_types.types.begin() +
+            m.signature().implicit_count);
+    os << implicit_parameter_types << ")(";
+    TypeVector explicit_parameter_types(
+        m.signature().parameter_types.types.begin() +
+            m.signature().implicit_count,
+        m.signature().parameter_types.types.end());
+    os << explicit_parameter_types;
+  } else {
+    os << m.signature().parameter_types;
+  }
+  os << "): " << *m.signature().return_type;
   return os;
 }
 
@@ -34,45 +44,6 @@ std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
   return os;
 }
 
-std::string Variable::RValue() const {
-  if (!IsDefined()) {
-    ReportError("Reading uninitialized variable.");
-  }
-  if (type()->IsStructType()) {
-    return value();
-  }
-  std::string result = "(*" + value() + ")";
-  if (!IsConst()) result += ".value()";
-  return result;
-}
-
-void PrintLabel(std::ostream& os, const Label& l, bool with_names) {
-  os << l.name();
-  if (l.GetParameterCount() != 0) {
-    os << "(";
-    if (with_names) {
-      PrintCommaSeparatedList(os, l.GetParameters(),
-                              [](Variable* v) -> std::string {
-                                std::stringstream stream;
-                                stream << v->name();
-                                stream << ": ";
-                                stream << *(v->type());
-                                return stream.str();
-                              });
-    } else {
-      PrintCommaSeparatedList(
-          os, l.GetParameters(),
-          [](Variable* v) -> const Type& { return *(v->type()); });
-    }
-    os << ")";
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, const Label& l) {
-  PrintLabel(os, l, true);
-  return os;
-}
-
 std::ostream& operator<<(std::ostream& os, const Generic& g) {
   os << "generic " << g.name() << "<";
   PrintCommaSeparatedList(os, g.declaration()->generic_parameters);
@@ -80,8 +51,6 @@ std::ostream& operator<<(std::ostream& os, const Generic& g) {
 
   return os;
 }
-
-size_t Label::next_id_ = 0;
 
 }  // namespace torque
 }  // namespace internal

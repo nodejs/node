@@ -19,6 +19,10 @@ body {
   font-family: 'Roboto', sans-serif;
 }
 
+#source-status {
+  display: inline-block;
+}
+
 .tree-row-arrow {
   margin-right: 0.2em;
   text-align: right;
@@ -35,11 +39,60 @@ body {
 
 .tree-row-name {
   margin-left: 0.2em;
+  margin-right: 0.2em;
 }
 
 .codeid-link {
   text-decoration: underline;
   cursor: pointer;
+}
+
+.view-source-link {
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 10pt;
+  margin-left: 0.6em;
+  color: #555555;
+}
+
+#source-viewer {
+  border: 1px solid black;
+  padding: 0.2em;
+  font-family: 'Roboto Mono', monospace;
+  white-space: pre;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+#source-viewer td.line-none {
+  background-color: white;
+}
+
+#source-viewer td.line-cold {
+  background-color: #e1f5fe;
+}
+
+#source-viewer td.line-mediumcold {
+  background-color: #b2ebf2;
+}
+
+#source-viewer td.line-mediumhot {
+  background-color: #c5e1a5;
+}
+
+#source-viewer td.line-hot {
+  background-color: #dce775;
+}
+
+#source-viewer td.line-superhot {
+  background-color: #ffee58;
+}
+
+#source-viewer .source-line-number {
+  padding-left: 0.2em;
+  padding-right: 0.2em;
+  color: #003c8f;
+  background-color: #eceff1;
 }
 
 div.mode-button {

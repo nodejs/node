@@ -13,7 +13,9 @@ class FixedArray;
 class Heap;
 class HeapObject;
 class MaybeObject;
+class MaybeObjectSlot;
 class Object;
+class ObjectSlot;
 class RelocInfo;
 
 // Note: In general it is preferred to use the macros defined in
@@ -31,8 +33,8 @@ void WriteBarrierForCode(Code* host, RelocInfo* rinfo, Object* value);
 void WriteBarrierForCode(Code* host);
 
 // Generational write barrier.
-void GenerationalBarrier(HeapObject* object, Object** slot, Object* value);
-void GenerationalBarrier(HeapObject* object, MaybeObject** slot,
+void GenerationalBarrier(HeapObject* object, ObjectSlot slot, Object* value);
+void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
                          MaybeObject* value);
 void GenerationalBarrierForElements(Heap* heap, FixedArray* array, int offset,
                                     int length);
@@ -40,8 +42,9 @@ void GenerationalBarrierForCode(Code* host, RelocInfo* rinfo,
                                 HeapObject* object);
 
 // Marking write barrier.
-void MarkingBarrier(HeapObject* object, Object** slot, Object* value);
-void MarkingBarrier(HeapObject* object, MaybeObject** slot, MaybeObject* value);
+void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object* value);
+void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
+                    MaybeObject* value);
 void MarkingBarrierForElements(Heap* heap, HeapObject* object);
 void MarkingBarrierForCode(Code* host, RelocInfo* rinfo, HeapObject* object);
 

@@ -362,7 +362,7 @@ void Simulator::ResetState() {
   set_lr(kEndOfSimAddress);
 
   // Reset debug helpers.
-  breakpoints_.empty();
+  breakpoints_.clear();
   break_on_next_ = false;
 }
 
@@ -1731,7 +1731,7 @@ void Simulator::LoadStoreHelper(Instruction* instr,
   uintptr_t stack = 0;
 
   {
-    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
     if (instr->IsLoad()) {
       local_monitor_.NotifyLoad();
     } else {
@@ -1865,7 +1865,7 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
   uintptr_t stack = 0;
 
   {
-    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
     if (instr->IsLoad()) {
       local_monitor_.NotifyLoad();
     } else {
@@ -2016,7 +2016,7 @@ void Simulator::VisitLoadLiteral(Instruction* instr) {
   unsigned rt = instr->Rt();
 
   {
-    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
     local_monitor_.NotifyLoad();
   }
 
@@ -2107,7 +2107,7 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
   unsigned access_size = 1 << instr->LoadStoreXSizeLog2();
   uintptr_t address = LoadStoreAddress(rn, 0, AddrMode::Offset);
   DCHECK_EQ(address % access_size, 0);
-  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
   if (is_load != 0) {
     if (is_exclusive) {
       local_monitor_.NotifyLoadExcl(address, get_transaction_size(access_size));
@@ -4483,7 +4483,7 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
   }
 
   {
-    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
     if (log_read) {
       local_monitor_.NotifyLoad();
     } else {
@@ -4729,7 +4729,7 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
   }
 
   {
-    base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
     if (do_load) {
       local_monitor_.NotifyLoad();
     } else {
@@ -5863,7 +5863,7 @@ void Simulator::GlobalMonitor::PrependProcessor_Locked(Processor* processor) {
 }
 
 void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
-  base::LockGuard<base::Mutex> lock_guard(&mutex);
+  base::MutexGuard lock_guard(&mutex);
   if (!IsProcessorInLinkedList_Locked(processor)) {
     return;
   }

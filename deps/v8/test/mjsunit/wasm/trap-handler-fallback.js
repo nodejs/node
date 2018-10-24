@@ -33,17 +33,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // space per isolate (see kAddressSpaceLimit in wasm-memory.cc), which allows
   // up to 128 fast memories. As long as we create more than that, we should
   // trigger the fallback behavior.
-  for (var i = 0; i < 135; i++) {
+  for (var i = 0; i < 135 && !fallback_occurred; i++) {
     memory = new WebAssembly.Memory({initial: 1});
     instance = builder.instantiate({mod: {imported_mem: memory}});
     instances.push(instance);
 
     assertTraps(kTrapMemOutOfBounds, () => instance.exports.load(1 << 20));
 
-    fallback_occurred = fallback_occurred || !%WasmMemoryHasFullGuardRegion(memory);
-    if (fallback_occurred) {
-      break;
-    }
+    fallback_occurred = !%WasmMemoryHasFullGuardRegion(memory);
   }
   assertTrue(fallback_occurred);
 })();
@@ -63,17 +60,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // space per isolate (see kAddressSpaceLimit in wasm-memory.cc), which allows
   // up to 128 fast memories. As long as we create more than that, we should
   // trigger the fallback behavior.
-  for (var i = 0; i < 135; i++) {
+  for (var i = 0; i < 135 && !fallback_occurred; i++) {
     memory = new WebAssembly.Memory({initial: 1});
     instance = builder.instantiate({mod: {imported_mem: memory}});
     instances.push(instance);
 
     assertTraps(kTrapMemOutOfBounds, () => instance.exports.load(1 << 20));
 
-    fallback_occurred = fallback_occurred || !%WasmMemoryHasFullGuardRegion(memory);
-    if (fallback_occurred) {
-      break;
-    }
+    fallback_occurred = !%WasmMemoryHasFullGuardRegion(memory);
   }
   assertTrue(fallback_occurred);
 })();
@@ -132,17 +126,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // up to 128 fast memories. As long as we create more than that, we should
   // trigger the fallback behavior.
   const module = builder.toModule();
-  for (var i = 0; i < 135; i++) {
+  for (var i = 0; i < 135 && !fallback_occurred; i++) {
     memory = new WebAssembly.Memory({initial: 1});
     instance = new WebAssembly.Instance(module, {mod: {imported_mem: memory}});
     instances.push(instance);
 
     assertTraps(kTrapMemOutOfBounds, () => instance.exports.load(1 << 20));
 
-    fallback_occurred = fallback_occurred || !%WasmMemoryHasFullGuardRegion(memory);
-    if (fallback_occurred) {
-      break;
-    }
+    fallback_occurred = !%WasmMemoryHasFullGuardRegion(memory);
   }
   assertTrue(fallback_occurred);
 })();

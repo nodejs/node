@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {GraphView} from "./graph-view.js"
-import {ScheduleView} from "./schedule-view.js"
-import {SourceResolver} from "./source-resolver.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {View, PhaseView} from "./view.js"
+import {GraphView} from "../src/graph-view"
+import {ScheduleView} from "../src/schedule-view"
+import {SequenceView} from "../src/sequence-view"
+import {SourceResolver} from "../src/source-resolver"
+import {SelectionBroker} from "../src/selection-broker"
+import {View, PhaseView} from "../src/view"
 
 export class GraphMultiView extends View {
   sourceResolver: SourceResolver;
   selectionBroker: SelectionBroker;
   graph: GraphView;
   schedule: ScheduleView;
+  sequence: SequenceView;
   selectMenu: HTMLSelectElement;
   currentPhaseView: View & PhaseView;
 
@@ -36,6 +38,7 @@ export class GraphMultiView extends View {
     this.graph = new GraphView(id, selectionBroker,
       (phaseName) => view.displayPhaseByName(phaseName));
     this.schedule = new ScheduleView(id, selectionBroker);
+    this.sequence = new SequenceView(id, selectionBroker);
     this.selectMenu = (<HTMLSelectElement>document.getElementById('display-selector'));
   }
 
@@ -69,6 +72,8 @@ export class GraphMultiView extends View {
       this.displayPhaseView(this.graph, phase.data);
     } else if (phase.type == 'schedule') {
       this.displayPhaseView(this.schedule, phase);
+    } else if (phase.type == 'sequence') {
+      this.displayPhaseView(this.sequence, phase);
     }
   }
 

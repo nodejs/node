@@ -125,6 +125,9 @@ class ArmOperandConverter final : public InstructionOperandConverter {
         return Operand::EmbeddedNumber(constant.ToFloat64().value());
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kInt64:
       case Constant::kHeapObject:
       // TODO(dcarney): loading RPO constants on arm.
@@ -416,47 +419,38 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
     __ dmb(ISH);                                                             \
   } while (0)
 
-#define ASSEMBLE_ATOMIC64_ARITH_BINOP(instr1, instr2)                       \
-  do {                                                                      \
-    Label binop;                                                            \
-    __ add(i.TempRegister(0), i.InputRegister(2), i.InputRegister(3));      \
-    __ dmb(ISH);                                                            \
-    __ bind(&binop);                                                        \
-    __ ldrexd(i.OutputRegister(0), i.OutputRegister(1), i.TempRegister(0)); \
-    __ instr1(i.TempRegister(1), i.OutputRegister(0), i.InputRegister(0),   \
-              SBit::SetCC);                                                 \
-    __ instr2(i.TempRegister(2), i.OutputRegister(1),                       \
-              Operand(i.InputRegister(1)));                                 \
-    DCHECK_EQ(LeaveCC, i.OutputSBit());                                     \
-    __ strexd(i.TempRegister(3), i.TempRegister(1), i.TempRegister(2),      \
-              i.TempRegister(0));                                           \
-    __ teq(i.TempRegister(3), Operand(0));                                  \
-    __ b(ne, &binop);                                                       \
-    __ dmb(ISH);                                                            \
+#define ASSEMBLE_ATOMIC64_ARITH_BINOP(instr1, instr2)                  \
+  do {                                                                 \
+    Label binop;                                                       \
+    __ add(i.TempRegister(0), i.InputRegister(2), i.InputRegister(3)); \
+    __ dmb(ISH);                                                       \
+    __ bind(&binop);                                                   \
+    __ ldrexd(r2, r3, i.TempRegister(0));                              \
+    __ instr1(i.TempRegister(1), r2, i.InputRegister(0), SBit::SetCC); \
+    __ instr2(i.TempRegister(2), r3, Operand(i.InputRegister(1)));     \
+    DCHECK_EQ(LeaveCC, i.OutputSBit());                                \
+    __ strexd(i.TempRegister(3), i.TempRegister(1), i.TempRegister(2), \
+              i.TempRegister(0));                                      \
+    __ teq(i.TempRegister(3), Operand(0));                             \
+    __ b(ne, &binop);                                                  \
+    __ dmb(ISH);                                                       \
   } while (0)
 
-#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(instr)                                \
-  do {                                                                      \
-    Label binop;                                                            \
-    __ add(i.TempRegister(0), i.InputRegister(2), i.InputRegister(3));      \
-    __ dmb(ISH);                                                            \
-    __ bind(&binop);                                                        \
-    __ ldrexd(i.OutputRegister(0), i.OutputRegister(1), i.TempRegister(0)); \
-    __ instr(i.TempRegister(1), i.OutputRegister(0),                        \
-             Operand(i.InputRegister(0)));                                  \
-    __ instr(i.TempRegister(2), i.OutputRegister(1),                        \
-             Operand(i.InputRegister(1)));                                  \
-    __ strexd(i.TempRegister(3), i.TempRegister(1), i.TempRegister(2),      \
-              i.TempRegister(0));                                           \
-    __ teq(i.TempRegister(3), Operand(0));                                  \
-    __ b(ne, &binop);                                                       \
-    __ dmb(ISH);                                                            \
+#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(instr)                           \
+  do {                                                                 \
+    Label binop;                                                       \
+    __ add(i.TempRegister(0), i.InputRegister(2), i.InputRegister(3)); \
+    __ dmb(ISH);                                                       \
+    __ bind(&binop);                                                   \
+    __ ldrexd(r2, r3, i.TempRegister(0));                              \
+    __ instr(i.TempRegister(1), r2, Operand(i.InputRegister(0)));      \
+    __ instr(i.TempRegister(2), r3, Operand(i.InputRegister(1)));      \
+    __ strexd(i.TempRegister(3), i.TempRegister(1), i.TempRegister(2), \
+              i.TempRegister(0));                                      \
+    __ teq(i.TempRegister(3), Operand(0));                             \
+    __ b(ne, &binop);                                                  \
+    __ dmb(ISH);                                                       \
   } while (0)
-
-#define ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(op)       \
-  if (arch_opcode == kArmWord64AtomicNarrow##op) { \
-    __ mov(i.OutputRegister(1), Operand(0));       \
-  }
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                           \
   do {                                                                         \
@@ -606,6 +600,19 @@ void AdjustStackPointerForTailCall(
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
+
+#if DEBUG
+bool VerifyOutputOfAtomicPairInstr(ArmOperandConverter* converter,
+                                   const Instruction* instr, Register low,
+                                   Register high) {
+  if (instr->OutputCount() > 0) {
+    if (converter->OutputRegister(0) != low) return false;
+    if (instr->OutputCount() == 2 && converter->OutputRegister(1) != high)
+      return false;
+  }
+  return true;
+}
+#endif
 
 }  // namespace
 
@@ -2684,23 +2691,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kWord32AtomicExchangeUint8:
-    case kArmWord64AtomicNarrowExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexb, strexb);
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(ExchangeUint8);
       break;
     case kWord32AtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexh, strexh);
       __ sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kWord32AtomicExchangeUint16:
-    case kArmWord64AtomicNarrowExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexh, strexh);
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(ExchangeUint16);
       break;
     case kWord32AtomicExchangeWord32:
-    case kArmWord64AtomicNarrowExchangeUint32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrex, strex);
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(ExchangeUint32);
       break;
     case kWord32AtomicCompareExchangeInt8:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
@@ -2710,12 +2711,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kWord32AtomicCompareExchangeUint8:
-    case kArmWord64AtomicNarrowCompareExchangeUint8:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
       __ uxtb(i.TempRegister(2), i.InputRegister(2));
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexb, strexb,
                                                i.TempRegister(2));
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(CompareExchangeUint8);
       break;
     case kWord32AtomicCompareExchangeInt16:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
@@ -2725,19 +2724,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kWord32AtomicCompareExchangeUint16:
-    case kArmWord64AtomicNarrowCompareExchangeUint16:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
       __ uxth(i.TempRegister(2), i.InputRegister(2));
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexh, strexh,
                                                i.TempRegister(2));
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(CompareExchangeUint16);
       break;
     case kWord32AtomicCompareExchangeWord32:
-    case kArmWord64AtomicNarrowCompareExchangeUint32:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex,
                                                i.InputRegister(2));
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(CompareExchangeUint32);
       break;
 #define ATOMIC_BINOP_CASE(op, inst)                    \
   case kWord32Atomic##op##Int8:                        \
@@ -2745,23 +2740,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ sxtb(i.OutputRegister(0), i.OutputRegister(0)); \
     break;                                             \
   case kWord32Atomic##op##Uint8:                       \
-  case kArmWord64AtomicNarrow##op##Uint8:              \
     ASSEMBLE_ATOMIC_BINOP(ldrexb, strexb, inst);       \
-    ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(op##Uint8);       \
     break;                                             \
   case kWord32Atomic##op##Int16:                       \
     ASSEMBLE_ATOMIC_BINOP(ldrexh, strexh, inst);       \
     __ sxth(i.OutputRegister(0), i.OutputRegister(0)); \
     break;                                             \
   case kWord32Atomic##op##Uint16:                      \
-  case kArmWord64AtomicNarrow##op##Uint16:             \
     ASSEMBLE_ATOMIC_BINOP(ldrexh, strexh, inst);       \
-    ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(op##Uint16);      \
     break;                                             \
   case kWord32Atomic##op##Word32:                      \
-  case kArmWord64AtomicNarrow##op##Uint32:             \
     ASSEMBLE_ATOMIC_BINOP(ldrex, strex, inst);         \
-    ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(op##Uint32);      \
     break;
       ATOMIC_BINOP_CASE(Add, add)
       ATOMIC_BINOP_CASE(Sub, sub)
@@ -2769,11 +2758,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, orr)
       ATOMIC_BINOP_CASE(Xor, eor)
 #undef ATOMIC_BINOP_CASE
-    case kArmWord32AtomicPairLoad:
+    case kArmWord32AtomicPairLoad: {
+      DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr, r0, r1));
       __ add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      __ ldrexd(i.OutputRegister(0), i.OutputRegister(1), i.TempRegister(0));
+      __ ldrexd(r0, r1, i.TempRegister(0));
       __ dmb(ISH);
       break;
+    }
     case kArmWord32AtomicPairStore: {
       Label store;
       __ add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
@@ -2787,28 +2778,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ dmb(ISH);
       break;
     }
-#define ATOMIC_ARITH_BINOP_CASE(op, instr1, instr2) \
-  case kArmWord32AtomicPair##op: {                  \
-    ASSEMBLE_ATOMIC64_ARITH_BINOP(instr1, instr2);  \
-    break;                                          \
+#define ATOMIC_ARITH_BINOP_CASE(op, instr1, instr2)           \
+  case kArmWord32AtomicPair##op: {                            \
+    DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr, r2, r3)); \
+    ASSEMBLE_ATOMIC64_ARITH_BINOP(instr1, instr2);            \
+    break;                                                    \
   }
       ATOMIC_ARITH_BINOP_CASE(Add, add, adc)
       ATOMIC_ARITH_BINOP_CASE(Sub, sub, sbc)
 #undef ATOMIC_ARITH_BINOP_CASE
-#define ATOMIC_LOGIC_BINOP_CASE(op, instr) \
-  case kArmWord32AtomicPair##op: {         \
-    ASSEMBLE_ATOMIC64_LOGIC_BINOP(instr);  \
-    break;                                 \
+#define ATOMIC_LOGIC_BINOP_CASE(op, instr1)                   \
+  case kArmWord32AtomicPair##op: {                            \
+    DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr, r2, r3)); \
+    ASSEMBLE_ATOMIC64_LOGIC_BINOP(instr1);                    \
+    break;                                                    \
   }
       ATOMIC_LOGIC_BINOP_CASE(And, and_)
       ATOMIC_LOGIC_BINOP_CASE(Or, orr)
       ATOMIC_LOGIC_BINOP_CASE(Xor, eor)
+#undef ATOMIC_LOGIC_BINOP_CASE
     case kArmWord32AtomicPairExchange: {
+      DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr, r6, r7));
       Label exchange;
       __ add(i.TempRegister(0), i.InputRegister(2), i.InputRegister(3));
       __ dmb(ISH);
       __ bind(&exchange);
-      __ ldrexd(i.OutputRegister(0), i.OutputRegister(1), i.TempRegister(0));
+      __ ldrexd(r6, r7, i.TempRegister(0));
       __ strexd(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1),
                 i.TempRegister(0));
       __ teq(i.TempRegister(1), Operand(0));
@@ -2817,15 +2812,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmWord32AtomicPairCompareExchange: {
+      DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr, r2, r3));
       __ add(i.TempRegister(0), i.InputRegister(4), i.InputRegister(5));
       Label compareExchange;
       Label exit;
       __ dmb(ISH);
       __ bind(&compareExchange);
-      __ ldrexd(i.OutputRegister(0), i.OutputRegister(1), i.TempRegister(0));
-      __ teq(i.InputRegister(0), Operand(i.OutputRegister(0)));
+      __ ldrexd(r2, r3, i.TempRegister(0));
+      __ teq(i.InputRegister(0), Operand(r2));
       __ b(ne, &exit);
-      __ teq(i.InputRegister(1), Operand(i.OutputRegister(1)));
+      __ teq(i.InputRegister(1), Operand(r3));
       __ b(ne, &exit);
       __ strexd(i.TempRegister(1), i.InputRegister(2), i.InputRegister(3),
                 i.TempRegister(0));
@@ -2835,8 +2831,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ dmb(ISH);
       break;
     }
-#undef ATOMIC_LOGIC_BINOP_CASE
-#undef ATOMIC_NARROW_OP_CLEAR_HIGH_WORD
 #undef ASSEMBLE_ATOMIC_LOAD_INTEGER
 #undef ASSEMBLE_ATOMIC_STORE_INTEGER
 #undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER
@@ -3030,6 +3024,16 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {
         __ Push(kWasmInstanceRegister);
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        // WASM import wrappers are passed a tuple in the place of the instance.
+        // Unpack the tuple into the instance and the target callable.
+        // This must be done here in the codegen because it cannot be expressed
+        // properly in the graph.
+        __ ldr(kJSFunctionRegister,
+               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ ldr(kWasmInstanceRegister,
+               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+        __ Push(kWasmInstanceRegister);
       }
     }
 
@@ -3192,7 +3196,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   auto MoveConstantToRegister = [&](Register dst, Constant src) {
     if (src.type() == Constant::kHeapObject) {
       Handle<HeapObject> src_object = src.ToHeapObject();
-      Heap::RootListIndex index;
+      RootIndex index;
       if (IsMaterializableFromRoot(src_object, &index)) {
         __ LoadRoot(dst, index);
       } else {

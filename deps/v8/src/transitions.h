@@ -213,12 +213,12 @@ class TransitionArray : public WeakFixedArray {
   // Accessors for fetching instance transition at transition number.
   inline void SetKey(int transition_number, Name* value);
   inline Name* GetKey(int transition_number);
-  inline HeapObjectReference** GetKeySlot(int transition_number);
+  inline HeapObjectSlot GetKeySlot(int transition_number);
 
   inline Map* GetTarget(int transition_number);
   inline void SetRawTarget(int transition_number, MaybeObject* target);
   inline MaybeObject* GetRawTarget(int transition_number);
-  inline HeapObjectReference** GetTargetSlot(int transition_number);
+  inline HeapObjectSlot GetTargetSlot(int transition_number);
   inline bool GetTargetIfExists(int transition_number, Isolate* isolate,
                                 Map** target);
 

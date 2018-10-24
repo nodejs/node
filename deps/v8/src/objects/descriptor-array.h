@@ -18,6 +18,7 @@ template <typename T>
 class Handle;
 
 class Isolate;
+class MaybeObjectSlot;
 
 // An EnumCache is a pair used to hold keys and indices caches.
 class EnumCache : public Tuple2 {
@@ -68,14 +69,14 @@ class DescriptorArray : public WeakFixedArray {
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name* GetKey(int descriptor_number);
-  inline Object** GetKeySlot(int descriptor_number);
+  inline ObjectSlot GetKeySlot(int descriptor_number);
   inline Object* GetStrongValue(int descriptor_number);
   inline void SetValue(int descriptor_number, Object* value);
   inline MaybeObject* GetValue(int descriptor_number);
-  inline MaybeObject** GetValueSlot(int descriptor_number);
+  inline MaybeObjectSlot GetValueSlot(int descriptor_number);
   static inline int GetValueOffset(int descriptor_number);
-  inline MaybeObject** GetDescriptorStartSlot(int descriptor_number);
-  inline MaybeObject** GetDescriptorEndSlot(int descriptor_number);
+  inline MaybeObjectSlot GetDescriptorStartSlot(int descriptor_number);
+  inline MaybeObjectSlot GetDescriptorEndSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
   inline FieldType* GetFieldType(int descriptor_number);

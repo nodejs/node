@@ -135,6 +135,46 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_StoreToStackSlot:
       return kHasSideEffect;
 
+    case kPPC_AtomicLoadUint8:
+    case kPPC_AtomicLoadUint16:
+    case kPPC_AtomicLoadWord32:
+    case kPPC_AtomicLoadWord64:
+      return kIsLoadOperation;
+
+    case kPPC_AtomicStoreUint8:
+    case kPPC_AtomicStoreUint16:
+    case kPPC_AtomicStoreWord32:
+    case kPPC_AtomicStoreWord64:
+    case kPPC_AtomicExchangeUint8:
+    case kPPC_AtomicExchangeUint16:
+    case kPPC_AtomicExchangeWord32:
+    case kPPC_AtomicExchangeWord64:
+    case kPPC_AtomicCompareExchangeUint8:
+    case kPPC_AtomicCompareExchangeUint16:
+    case kPPC_AtomicCompareExchangeWord32:
+    case kPPC_AtomicCompareExchangeWord64:
+    case kPPC_AtomicAddUint8:
+    case kPPC_AtomicAddUint16:
+    case kPPC_AtomicAddWord32:
+    case kPPC_AtomicAddWord64:
+    case kPPC_AtomicSubUint8:
+    case kPPC_AtomicSubUint16:
+    case kPPC_AtomicSubWord32:
+    case kPPC_AtomicSubWord64:
+    case kPPC_AtomicAndUint8:
+    case kPPC_AtomicAndUint16:
+    case kPPC_AtomicAndWord32:
+    case kPPC_AtomicAndWord64:
+    case kPPC_AtomicOrUint8:
+    case kPPC_AtomicOrUint16:
+    case kPPC_AtomicOrWord32:
+    case kPPC_AtomicOrWord64:
+    case kPPC_AtomicXorUint8:
+    case kPPC_AtomicXorUint16:
+    case kPPC_AtomicXorWord32:
+    case kPPC_AtomicXorWord64:
+      return kHasSideEffect;
+
 #define CASE(Name) case k##Name:
     COMMON_ARCH_OPCODE_LIST(CASE)
 #undef CASE
