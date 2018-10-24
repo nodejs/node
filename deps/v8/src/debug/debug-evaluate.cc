@@ -995,12 +995,7 @@ void DebugEvaluate::ApplySideEffectChecks(
   for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
        it.Advance()) {
     interpreter::Bytecode bytecode = it.current_bytecode();
-    if (BytecodeRequiresRuntimeCheck(bytecode)) {
-      interpreter::Bytecode debugbreak =
-          interpreter::Bytecodes::GetDebugBreak(bytecode);
-      bytecode_array->set(it.current_offset(),
-                          interpreter::Bytecodes::ToByte(debugbreak));
-    }
+    if (BytecodeRequiresRuntimeCheck(bytecode)) it.ApplyDebugBreak();
   }
 }
 
