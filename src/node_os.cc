@@ -168,7 +168,7 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   Local<Array> cpus = args[2].As<Array>();
 
   Local<Value> model_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  int model_idx = 0;
+  unsigned int model_idx = 0;
 
   for (i = 0, field_idx = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
