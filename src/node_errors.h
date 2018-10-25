@@ -52,8 +52,11 @@ namespace node {
            js_code).FromJust();                                               \
     return e;                                                                 \
   }                                                                           \
+  inline void THROW_ ## code(v8::Isolate* isolate, const char* message) {     \
+    isolate->ThrowException(code(isolate, message));                          \
+  }                                                                           \
   inline void THROW_ ## code(Environment* env, const char* message) {         \
-    env->isolate()->ThrowException(code(env->isolate(), message));            \
+    THROW_ ## code(env->isolate(), message);                                  \
   }
   ERRORS_WITH_CODE(V)
 #undef V
@@ -80,8 +83,11 @@ namespace node {
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
     return code(isolate, message);                                           \
   }                                                                          \
+  inline void THROW_ ## code(v8::Isolate* isolate) {                         \
+    isolate->ThrowException(code(isolate, message));                         \
+  }                                                                          \
   inline void THROW_ ## code(Environment* env) {                             \
-    env->isolate()->ThrowException(code(env->isolate(), message));           \
+    THROW_ ## code(env->isolate());                                          \
   }
   PREDEFINED_ERROR_MESSAGES(V)
 #undef V
@@ -93,13 +99,6 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
   message << "Script execution timed out after ";
   message << timeout << "ms";
   THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
-}
-
-inline void THROW_ERR_OUT_OF_RANGE_WITH_TEXT(Environment* env,
-                                             const char* messageText) {
-  std::ostringstream message;
-  message << messageText;
-  THROW_ERR_OUT_OF_RANGE(env, message.str().c_str());
 }
 
 inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
