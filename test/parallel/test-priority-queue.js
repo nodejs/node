@@ -95,3 +95,39 @@ const PriorityQueue = require('internal/priority_queue');
 
   assert.strictEqual(queue.peek(), undefined);
 }
+
+{
+  const queue = new PriorityQueue((a, b) => {
+    return a.value - b.value;
+  }, (node, pos) => (node.position = pos));
+
+  queue.insert({ value: 1, position: null });
+  queue.insert({ value: 2, position: null });
+  queue.insert({ value: 3, position: null });
+  queue.insert({ value: 4, position: null });
+  queue.insert({ value: 5, position: null });
+
+  queue.insert({ value: 2, position: null });
+  const secondLargest = { value: 10, position: null };
+  queue.insert(secondLargest);
+  const largest = { value: 15, position: null };
+  queue.insert(largest);
+
+  queue.removeAt(5);
+  assert.strictEqual(largest.position, 5);
+
+  // check that removing 2nd to last item works fine
+  queue.removeAt(6);
+  assert.strictEqual(secondLargest.position, 6);
+
+  // check that removing the last item doesn't throw
+  queue.removeAt(6);
+
+  assert.strictEqual(queue.shift().value, 1);
+  assert.strictEqual(queue.shift().value, 2);
+  assert.strictEqual(queue.shift().value, 2);
+  assert.strictEqual(queue.shift().value, 4);
+  assert.strictEqual(queue.shift().value, 15);
+
+  assert.strictEqual(queue.shift(), undefined);
+}
