@@ -3,7 +3,7 @@
 const common = require('../common');
 
 if (!common.enoughTestMem)
-  common.skip('Insufficient memory for HTTP benchmark test');
+  common.skip('Insufficient memory for HTTP/2 benchmark test');
 
 // Because the http benchmarks use hardcoded ports, this should be in sequential
 // rather than parallel to make sure it does not conflict with tests that choose
@@ -11,22 +11,15 @@ if (!common.enoughTestMem)
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('http',
+runBenchmark('http2',
              [
-               'benchmarker=test-double-http',
-               'c=1',
-               'chunkedEnc=true',
-               'chunks=0',
-               'dur=0.1',
-               'duplicates=1',
-               'input=keep-alive',
-               'key=""',
-               'len=1',
-               'method=write',
+               'benchmarker=test-double-http2',
+               'clients=1',
+               'length=65536',
                'n=1',
-               'res=normal',
-               'type=asc',
-               'value=X-Powered-By'
+               'nheaders=0',
+               'requests=1',
+               'streams=1'
              ],
              {
                NODEJS_BENCHMARK_ZERO_ALLOWED: 1,
