@@ -11,6 +11,6 @@ const {
 expectWarning(
   'DeprecationWarning',
   'net._setSimultaneousAccepts() is deprecated and will be removed.',
-  'DEP00XX');
+  'DEP0121');
 
 _setSimultaneousAccepts();

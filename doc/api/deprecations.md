@@ -2264,8 +2264,8 @@ undocumented `COUNTER_NET_SERVER_CONNECTION()`,
 `COUNTER_HTTP_SERVER_RESPONSE()`, `COUNTER_HTTP_CLIENT_REQUEST()`, and
 `COUNTER_HTTP_CLIENT_RESPONSE()` functions have been deprecated.
 
-<a id="DEP00XX"></a>
-### DEP00XX: net._setSimultaneousAccepts()
+<a id="DEP0121"></a>
+### DEP0121: net._setSimultaneousAccepts()
 <!-- YAML
 changes:
   - version: REPLACEME
