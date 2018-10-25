@@ -1797,7 +1797,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<String> string = args[1].As<String>();
-  std::unique_ptr<Wrap> wrap {new Wrap(channel, req_wrap_obj)};
+  auto wrap = std::make_unique<Wrap>(channel, req_wrap_obj);
 
   node::Utf8Value name(env->isolate(), string);
   channel->ModifyActivityQueryCount(1);
@@ -1970,8 +1970,9 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
       CHECK(0 && "bad address family");
   }
 
-  std::unique_ptr<GetAddrInfoReqWrap> req_wrap {
-      new GetAddrInfoReqWrap(env, req_wrap_obj, args[4]->IsTrue())};
+  auto req_wrap = std::make_unique<GetAddrInfoReqWrap>(env,
+                                                       req_wrap_obj,
+                                                       args[4]->IsTrue());
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
@@ -2011,8 +2012,7 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(uv_ip4_addr(*ip, port, reinterpret_cast<sockaddr_in*>(&addr)) == 0 ||
         uv_ip6_addr(*ip, port, reinterpret_cast<sockaddr_in6*>(&addr)) == 0);
 
-  std::unique_ptr<GetNameInfoReqWrap> req_wrap {
-      new GetNameInfoReqWrap(env, req_wrap_obj)};
+  auto req_wrap = std::make_unique<GetNameInfoReqWrap>(env, req_wrap_obj);
 
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
       TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
