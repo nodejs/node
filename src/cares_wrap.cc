@@ -1805,7 +1805,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   if (err) {
     channel->ModifyActivityQueryCount(-1);
   } else {
-    wrap.release();
+    USE(wrap.release());
   }
 
   args.GetReturnValue().Set(err);
