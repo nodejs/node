@@ -41,7 +41,7 @@
 #define THROW_AND_RETURN_IF_OOB(r)                                          \
   do {                                                                      \
     if (!(r))                                                               \
-      return node::THROW_ERR_OUT_OF_RANGE(env,  "Index out of range");      \
+      return node::THROW_ERR_OUT_OF_RANGE(env, "Index out of range");       \
   } while (0)                                                               \
 
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
