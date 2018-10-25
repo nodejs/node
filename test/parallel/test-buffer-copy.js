@@ -149,48 +149,43 @@ assert.strictEqual(b.copy(c, 512, 0, 10), 0);
 // Validate arg type checking.
 // Refs: https://github.com/nodejs/node/issues/23668
 {
+  const expected = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+  }
+
   common.expectsError(
     () => b.copy(c, '1'),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "targetStart" argument must be of type ' +
-        'Number. Received type string'
-    }
+    expected
   );
   common.expectsError(
     () => b.copy(c, 0, '1'),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "sourceStart" argument must be of type ' +
-        'Number. Received type string'
-    }
+    expected
   );
   common.expectsError(
     () => b.copy(c, 0, 0, '1'),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "sourceEnd" argument must be of type ' +
-        'Number. Received type string'
-    }
   );
 }
+
 
 // Validate arg range checking.
 // Refs: https://github.com/nodejs/node/issues/23668
 {
+  const expected = {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError,
+  }
+
   common.expectsError(
     () => b.copy(c, -1),
-    RangeError
+    expected
   );
   common.expectsError(
     () => b.copy(c, 0, -1),
-    RangeError
+    expected
   );
   common.expectsError(
     () => b.copy(c, 0, 0, -1),
-    RangeError
+    expected
   );
 }
