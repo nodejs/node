@@ -109,7 +109,7 @@ void PipeWrap::Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, UV_READABLE);
   NODE_DEFINE_CONSTANT(constants, UV_WRITABLE);
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
+              env->constants_string(),
               constants).FromJust();
 }
 

@@ -3114,7 +3114,7 @@ HTTP_STATUS_CODES(V)
   env->SetMethod(target, "packSettings", PackSettings);
 
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(isolate, "constants"),
+              env->constants_string(),
               constants).FromJust();
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "nameForErrorCode"),
