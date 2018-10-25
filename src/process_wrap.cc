@@ -128,9 +128,8 @@ class ProcessWrap : public HandleWrap {
         options->stdio[i].data.stream = StreamForWrap(env, stdio);
       } else {
         Local<String> fd_key = env->fd_string();
-        Local<Value> fd_value = stdio->Get(context, fd_key).ToLocalChecked();
-        CHECK(fd_value->IsNumber());
-        int fd = static_cast<int>(fd_value.As<Integer>()->Value());
+        int fd = static_cast<int>(
+            stdio->Get(context, fd_key).ToLocalChecked()->IntegerValue());
         options->stdio[i].flags = UV_INHERIT_FD;
         options->stdio[i].data.fd = fd;
       }

@@ -977,16 +977,15 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
-  int64_t val;
 
-  if (args.Length() != 1 ||
-      !args[0]->IntegerValue(args.GetIsolate()->GetCurrentContext()).To(&val)) {
+  if (args.Length() != 1 || !args[0]->IntegerValue()) {
     return THROW_ERR_INVALID_ARG_TYPE(
         sc->env(), "Options must be an integer value");
   }
 
-  SSL_CTX_set_options(sc->ctx_.get(),
-                      static_cast<long>(val));  // NOLINT(runtime/int)
+  SSL_CTX_set_options(
+      sc->ctx_.get(),
+      static_cast<long>(args[0]->IntegerValue()));  // NOLINT(runtime/int)
 }
 
 

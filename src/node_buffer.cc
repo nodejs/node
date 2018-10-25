@@ -170,8 +170,7 @@ inline MUST_USE_RESULT bool ParseArrayIndex(Local<Value> arg,
     return true;
   }
 
-  CHECK(arg->IsNumber());
-  int64_t tmp_i = arg.As<Integer>()->Value();
+  int64_t tmp_i = arg->IntegerValue();
 
   if (tmp_i < 0)
     return false;
@@ -772,7 +771,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
   Local<String> needle = args[1].As<String>();
-  int64_t offset_i64 = args[2].As<Integer>()->Value();
+  int64_t offset_i64 = args[2]->IntegerValue();
   bool is_forward = args[4]->IsTrue();
 
   const char* haystack = ts_obj_data;
@@ -888,7 +887,7 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[1]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
   SPREAD_BUFFER_ARG(args[1], buf);
-  int64_t offset_i64 = args[2].As<Integer>()->Value();
+  int64_t offset_i64 = args[2]->IntegerValue();
   bool is_forward = args[4]->IsTrue();
 
   const char* haystack = ts_obj_data;
@@ -958,7 +957,7 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
   uint32_t needle = args[1].As<Uint32>()->Value();
-  int64_t offset_i64 = args[2].As<Integer>()->Value();
+  int64_t offset_i64 = args[2]->IntegerValue();
   bool is_forward = args[3]->IsTrue();
 
   int64_t opt_offset = IndexOfOffset(ts_obj_length, offset_i64, 1, is_forward);

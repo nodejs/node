@@ -289,16 +289,12 @@ class Parser : public AsyncWrap, public StreamListener {
     MaybeLocal<Value> head_response =
         MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
-    int64_t val;
-
-    if (head_response.IsEmpty() || !head_response.ToLocalChecked()
-                                        ->IntegerValue(env()->context())
-                                        .To(&val)) {
+    if (head_response.IsEmpty()) {
       got_exception_ = true;
       return -1;
     }
 
-    return val;
+    return head_response.ToLocalChecked()->IntegerValue();
   }
 
 

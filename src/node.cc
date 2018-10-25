@@ -2217,10 +2217,11 @@ void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Invalid number of arguments.");
   }
 
-  CHECK(args[0]->IsNumber());
-  pid_t pid = args[0].As<Integer>()->Value();
-  int r = kill(pid, SIGUSR1);
+  pid_t pid;
+  int r;
 
+  pid = args[0]->IntegerValue();
+  r = kill(pid, SIGUSR1);
   if (r != 0) {
     return env->ThrowErrnoException(errno, "kill");
   }
@@ -2262,8 +2263,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
       CloseHandle(mapping);
   });
 
-  CHECK(args[0]->IsNumber());
-  pid = args[0].As<Integer>()->Value();
+  pid = (DWORD) args[0]->IntegerValue();
 
   process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
                             PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
