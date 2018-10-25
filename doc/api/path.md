@@ -20,7 +20,7 @@ paths are being used.
 
 For example, using the `path.basename()` function with the Windows file path
 `C:\temp\myfile.html`, will yield different results when running on POSIX than
-when run on Windows:
+when running on Windows:
 
 On POSIX:
 
