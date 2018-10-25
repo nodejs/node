@@ -2,6 +2,7 @@
 
 #include "main_thread_interface.h"
 #include "worker_inspector.h"
+#include "util-inl.h"
 
 namespace node {
 namespace inspector {
