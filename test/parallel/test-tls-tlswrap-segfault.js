@@ -31,8 +31,8 @@ const server = tls.createServer(options, function(s) {
 
 function putImmediate(client) {
   setImmediate(function() {
-    if (client.ssl) {
-      const fd = client.ssl.fd;
+    if (client._handle) {
+      const fd = client._handle.fd;
       assert(!!fd);
       putImmediate(client);
     } else {

@@ -2292,6 +2292,16 @@ Type: Runtime
 
 Please use `Server.prototype.setSecureContext()` instead.
 
+<a id="DEP00XX"></a>
+### DEP00XX: TLSSocket.prototype.ssl
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23915
+    description: Runtime deprecation.
+-->
+
+The undocumented `tlsSocket.ssl` property has been deprecated.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size

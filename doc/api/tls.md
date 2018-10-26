@@ -465,7 +465,8 @@ changes:
 * `socket` {net.Socket|stream.Duplex}
   On the server side, any `Duplex` stream. On the client side, any
   instance of [`net.Socket`][] (for generic `Duplex` stream support
-  on the client side, [`tls.connect()`][] must be used).
+  on the client side, [`tls.connect()`][] must be used). If the `socket`
+  is not provided, a new unconnected TCP socket or named pipe will be created.
 * `options` {Object}
   * `isServer`: The SSL/TLS protocol is asymmetrical, TLSSockets must know if
     they are to behave as a server or a client. If `true` the TLS socket will be
@@ -489,7 +490,24 @@ changes:
   * ...: [`tls.createSecureContext()`][] options that are used if the
     `secureContext` option is missing. Otherwise, they are ignored.
 
-Construct a new `tls.TLSSocket` object from an existing TCP socket.
+Construct a new `tls.TLSSocket` object from an existing `net.Socket` instance.
+Using the `tls.connect()` method is preferred when creating a new TLS session
+on top of a new `net.Socket` instance.
+
+Using the `tls.TLSSocket()` constructor directly is helpful when implementing
+protocols that can start off insecure (such as SMTP), then initiating a secure
+session after the socket is connected. It is important to remember, however,
+that it is the caller's responsibility to manage the lifecycle of the provided
+`net.Socket`, including establishing the connection and validating peer
+certificates and identity. See the [`'secure'`][] event.
+
+### Event: 'connect'
+<!-- YAML
+added: v0.11.4
+-->
+
+The `'connect'` event is emitted once the underlying `net.Socket` has been
+connected.
 
 ### Event: 'OCSPResponse'
 <!-- YAML
@@ -505,6 +523,30 @@ The listener callback is passed a single argument when called:
 Typically, the `response` is a digitally signed object from the server's CA that
 contains information about server's certificate revocation status.
 
+### Event: 'secure'
+<!-- YAML
+added: v0.11.3
+-->
+
+The `'secure'` event is emitted after the TLS handshake has been completed.
+
+Before using the connection, the user must verify that the peer certificate
+is valid (see [`tls.TLSSocket.verifyError()`][]) and that the peer certificate
+is for the expected host (see [`tls.checkServerIdentity()`][] and
+[`tls.TLSSocket.getPeerCertificate()`][]). If these checks are not performed,
+the connection should be considered insecure. When using the `tls.connect()`
+method to create a new `tls.TLSSocket`, these checks are performed
+automatically.
+
+```js
+tlsSocket.on('secure', function() {
+  const err = this.verifyError() ||
+    tls.checkServerIdentity(hostname, this.getPeerCertificate());
+  if (err)
+    this.destroy(err);
+});
+```
+
 ### Event: 'secureConnect'
 <!-- YAML
 added: v0.11.4
@@ -519,6 +561,9 @@ determine if the server certificate was signed by one of the specified CAs. If
 `tlsSocket.authorizationError` property. If ALPN was used, the
 `tlsSocket.alpnProtocol` property can be checked to determine the negotiated
 protocol.
+
+The `'secureConnect'` event is only emitted on `tls.TLSSocket` connections
+created using the `tls.connect()` method.
 
 ### tlsSocket.address()
 <!-- YAML
@@ -539,6 +584,9 @@ added: v0.11.4
 Returns the reason why the peer's certificate was not been verified. This
 property is set only when `tlsSocket.authorized === false`.
 
+The `tlsSocket.authorizationError` property is only set for `tls.TLSSocket`
+instances created using the `tls.connect()` method.
+
 ### tlsSocket.authorized
 <!-- YAML
 added: v0.11.4
@@ -548,6 +596,9 @@ added: v0.11.4
 
 Returns `true` if the peer certificate was signed by one of the CAs specified
 when creating the `tls.TLSSocket` instance, otherwise `false`.
+
+The `tlsSocket.authorized` property is only set for `tls.TLSSocket` instances
+created using the `tls.connect()` method.
 
 ### tlsSocket.disableRenegotiation()
 <!-- YAML
@@ -804,6 +855,21 @@ and its integrity is verified; large fragments can span multiple roundtrips
 and their processing can be delayed due to packet loss or reordering. However,
 smaller fragments add extra TLS framing bytes and CPU overhead, which may
 decrease overall server throughput.
+
+### tlsSocket.verifyError()
+<!-- YAML
+added: v0.11.3
+-->
+
+* Returns: {Error} object if the peer's certificate fails validation.
+
+Validation contains many checks, including verification that the certificate
+is either trusted or can be chained to a trusted certificate authority
+(see the `ca` option of [`tls.createSecureContext()`][] for more information).
+
+Validation explicitly does *not* include any authentication of the identity.
+The [`tls.checkServerIdentity()`][] method can be used to authenticate the
+identity of the peer.
 
 ## tls.checkServerIdentity(hostname, cert)
 <!-- YAML
@@ -1389,6 +1455,7 @@ secureSocket = tls.TLSSocket(socket, options);
 
 where `secureSocket` has the same API as `pair.cleartext`.
 
+[`'secure'`]: #tls_event_secure
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
 [`SSL_CTX_set_timeout`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_timeout.html
@@ -1403,6 +1470,8 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`tls.Server`]: #tls_class_tls_server
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.TLSSocket`]: #tls_class_tls_tlssocket
+[`tls.TLSSocket.verifyError()`]: #tls_tlssocket_verifyerror
+[`tls.checkServerIdentity()`]: #tls_tls_checkserveridentity_hostname_cert
 [`tls.connect()`]: #tls_tls_connect_options_callback
 [`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options

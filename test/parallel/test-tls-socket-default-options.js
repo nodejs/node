@@ -61,7 +61,7 @@ function test(client, callback) {
         this.end('hello');
       }))
       .on('secure', common.mustCall(function() {
-        callback(this.ssl.verifyError());
+        callback(this.verifyError());
       }));
   });
 }
