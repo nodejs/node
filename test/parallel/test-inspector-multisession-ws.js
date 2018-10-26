@@ -7,8 +7,24 @@ common.skipIfInspectorDisabled();
 const { NodeInstance } = require('../common/inspector-helper.js');
 
 // Sets up JS bindings session and runs till the "paused" event
-const script = `
+const callbackScript = `
 const { Session } = require('inspector');
+const session = new Session();
+let done = false;
+const interval = setInterval(() => {
+  if (done)
+    clearInterval(interval);
+}, 150);
+session.on('Debugger.paused', () => {
+  done = true;
+});
+session.connect();
+session.post('Debugger.enable');
+console.log('Ready');
+`;
+
+const promiseScript = `
+const { Session } = require('inspector').promises;
 const session = new Session();
 let done = false;
 const interval = setInterval(() => {
@@ -56,7 +72,7 @@ async function testSuspend(sessionA, sessionB) {
   ]);
 }
 
-async function runTest() {
+async function runTest(script) {
   const child = new NodeInstance(undefined, script);
 
   const [session1, session2] =
@@ -70,4 +86,5 @@ async function runTest() {
   return child.expectShutdown();
 }
 
-runTest();
+runTest(callbackScript);
+runTest(promiseScript);

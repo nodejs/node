@@ -122,6 +122,8 @@
       'lib/internal/fs/watchers.js',
       'lib/internal/http.js',
       'lib/internal/inspector_async_hook.js',
+      'lib/internal/inspector/promises.js',
+      'lib/internal/inspector/utils.js',
       'lib/internal/linkedlist.js',
       'lib/internal/modules/cjs/helpers.js',
       'lib/internal/modules/cjs/loader.js',
