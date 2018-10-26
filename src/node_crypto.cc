@@ -400,6 +400,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   int max_version = 0;
   const SSL_METHOD* method = TLS_method();
 
+  if (env->options()->tls_v1_1) min_version = TLS1_1_VERSION;
+  if (env->options()->tls_v1_0) min_version = TLS1_VERSION;
+
   if (args.Length() == 1 && args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
 

@@ -1,3 +1,4 @@
+// Flags: --tls-v1.1
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)
@@ -11,8 +12,7 @@ const fixtures = require('../common/fixtures');
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
-  ca: fixtures.readKey('ca1-cert.pem'),
-  secureProtocol: 'TLS_method',
+  ca: fixtures.readKey('ca1-cert.pem')
 };
 
 const server = https.Server(options, function(req, res) {
@@ -35,7 +35,7 @@ const updatedValues = new Map([
   ['ecdhCurve', 'secp384r1'],
   ['honorCipherOrder', true],
   ['secureOptions', crypto.constants.SSL_OP_CIPHER_SERVER_PREFERENCE],
-  ['secureProtocol', 'TLSv1_method'],
+  ['secureProtocol', 'TLSv1_1_method'],
   ['sessionIdContext', 'sessionIdContext'],
 ]);
 

@@ -1,3 +1,4 @@
+// Flags: --tls-v1.0
 'use strict';
 
 const common = require('../common');
@@ -54,8 +55,7 @@ function faultyServer(port) {
 function second(server, session) {
   const req = https.request({
     port: server.address().port,
-    rejectUnauthorized: false,
-    secureProtocol: 'TLS_method',
+    rejectUnauthorized: false
   }, function(res) {
     res.resume();
   });
