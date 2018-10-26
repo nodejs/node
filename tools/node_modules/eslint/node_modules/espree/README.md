@@ -150,8 +150,8 @@ There are seven ECMAScript 2018 syntax changes:
 * Async iteration
 * RegExp `s` flag
 * RegExp named capture groups
-* RegExp lookhehind assersions
-* RegExp unicode property escapes
+* RegExp lookbehind assertions
+* RegExp Unicode property escapes
 
 Espree supports all of them.
 
