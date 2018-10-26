@@ -362,6 +362,24 @@ async function tests() {
       assert.strictEqual(e, err);
     }
   })();
+
+  await (async () => {
+    console.log('iterating on an ended stream completes');
+    const r = new Readable({
+      objectMode: true,
+      read() {
+        this.push('asdf');
+        this.push('hehe');
+        this.push(null);
+      }
+    });
+    // eslint-disable-next-line no-unused-vars
+    for await (const a of r) {
+    }
+    // eslint-disable-next-line no-unused-vars
+    for await (const b of r) {
+    }
+  })();
 }
 
 // to avoid missing some tests if a promise does not resolve
