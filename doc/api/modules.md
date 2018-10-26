@@ -152,19 +152,20 @@ require(X) from module at path Y
 3. If X begins with './' or '/' or '../'
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
+   c. LOAD_AS_FILE_EXT(Y + X)
 4. LOAD_NODE_MODULES(X, dirname(Y))
 5. THROW "not found"
 
 LOAD_AS_FILE(X)
 1. If X is a file, load X as JavaScript text.  STOP
+
+LOAD_AS_FILE_EXT(X)
 2. If X.js is a file, load X.js as JavaScript text.  STOP
 3. If X.json is a file, parse X.json to a JavaScript Object.  STOP
 4. If X.node is a file, load X.node as binary addon.  STOP
 
 LOAD_INDEX(X)
-1. If X/index.js is a file, load X/index.js as JavaScript text.  STOP
-2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
-3. If X/index.node is a file, load X/index.node as binary addon.  STOP
+1. LOAD_AS_FILE_EXT(X/index)
 
 LOAD_AS_DIRECTORY(X)
 1. If X/package.json is a file,
