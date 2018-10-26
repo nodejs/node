@@ -360,7 +360,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
   }
 
   const int err = uv_os_get_passwd(&pwd);
-  OnScopeLeave free_passwd([&]() { uv_os_free_passwd(&pwd); });
 
   if (err) {
     CHECK_GE(args.Length(), 2);
@@ -368,6 +367,8 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
                                 "uv_os_get_passwd");
     return args.GetReturnValue().SetUndefined();
   }
+
+  OnScopeLeave free_passwd([&]() { uv_os_free_passwd(&pwd); });
 
   Local<Value> error;
 
