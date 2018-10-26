@@ -1,9 +1,8 @@
-#!/usr/bin/env node
 'use strict';
 
 var path = require('path');
 var fs = require('fs');
-var acorn = require('../dist/acorn.js');
+var acorn = require('./acorn.js');
 
 var infile;
 var forceFile;
