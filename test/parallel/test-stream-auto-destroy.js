@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const stream = require('stream');
+const assert = require('assert');
 
 {
   const r = new stream.Readable({
@@ -13,9 +14,17 @@ const stream = require('stream');
     destroy: common.mustCall((err, cb) => cb())
   });
 
+  let ended = false;
+
   r.resume();
-  r.on('end', common.mustCall());
-  r.on('close', common.mustCall());
+
+  r.on('end', common.mustCall(() => {
+    ended = true;
+  }));
+
+  r.on('close', common.mustCall(() => {
+    assert(ended);
+  }));
 }
 
 {
@@ -27,12 +36,19 @@ const stream = require('stream');
     destroy: common.mustCall((err, cb) => cb())
   });
 
+  let finished = false;
+
   w.write('hello');
   w.write('world');
   w.end();
 
-  w.on('finish', common.mustCall());
-  w.on('close', common.mustCall());
+  w.on('finish', common.mustCall(() => {
+    finished = true;
+  }));
+
+  w.on('close', common.mustCall(() => {
+    assert(finished);
+  }));
 }
 
 {
@@ -44,12 +60,25 @@ const stream = require('stream');
     destroy: common.mustCall((err, cb) => cb())
   });
 
+  let ended = false;
+  let finished = false;
+
   t.write('hello');
   t.write('world');
   t.end();
 
   t.resume();
-  t.on('end', common.mustCall());
-  t.on('finish', common.mustCall());
-  t.on('close', common.mustCall());
+
+  t.on('end', common.mustCall(() => {
+    ended = true;
+  }));
+
+  t.on('finish', common.mustCall(() => {
+    finished = true;
+  }));
+
+  t.on('close', common.mustCall(() => {
+    assert(ended);
+    assert(finished);
+  }));
 }
