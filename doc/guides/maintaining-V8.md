@@ -228,7 +228,7 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
   * Open a cherry-pick PR on `nodejs/node` targeting the *vY.x-staging* branch
     and notify the `@nodejs/v8` team.
   * Run the Node.js [V8 CI] in addition to the [Node.js CI].
-    Note: The CI uses the `test-v8` target in the `Makefile`, which uses
+    The CI uses the `test-v8` target in the `Makefile`, which uses
     `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
     run V8 tests.
 

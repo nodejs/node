@@ -1056,9 +1056,9 @@ child process may not actually terminate the process.
 
 See kill(2) for reference.
 
-Also note: on Linux, child processes of child processes will not be terminated
+On Linux, child processes of child processes will not be terminated
 when attempting to kill their parent. This is likely to happen when running a
-new process in a shell or with use of the `shell` option of `ChildProcess`:
+new process in a shell or with the use of the `shell` option of `ChildProcess`:
 
 ```js
 'use strict';
