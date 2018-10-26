@@ -16,6 +16,7 @@ if (common.isWindows) {
 }
 
 const maskToIgnore = 0o10000;
+const kMaskOnlyRead = 0o444;
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -88,6 +89,34 @@ function test(mode, asString) {
 
     fs.lchmodSync(link, input);
     assert.strictEqual(fs.lstatSync(link).mode & 0o777, mode);
+  }
+
+  // Test that `lchmod` works on readonly (0x444) files.
+  if (fs.lchmod) {
+    const link = path.join(tmpdir.path, `lchmod-read-only-src-${suffix}`);
+    const file = path.join(tmpdir.path, `lchmod-read-only-dest-${suffix}`);
+    fs.writeFileSync(file, 'test', { encoding: 'utf-8', mode: 0o444 });
+    fs.symlinkSync(file, link);
+
+    fs.lchmod(link, input, common.mustCall((err) => {
+      assert.ifError(err);
+      assert.strictEqual(
+        fs.lstatSync(link).mode & kMaskOnlyRead, kMaskOnlyRead
+      );
+    }));
+  }
+
+  // Test that `lchmodSync` works on readonly (0x444) files.
+  if (fs.lchmodSync) {
+    const link = path.join(tmpdir.path, `lchmodSync-read-only-src-${suffix}`);
+    const file = path.join(tmpdir.path, `lchmodSync-read-only-dest-${suffix}`);
+    fs.writeFileSync(file, 'test', { encoding: 'utf-8', mode: 0o444 });
+    fs.symlinkSync(file, link);
+
+    for (const _mode of [...Array(1..mode).keys()]) {
+      fs.lchmodSync(link, _mode + 1);
+      assert.strictEqual(fs.lstatSync(link).mode & 0o777, _mode + 1);
+    }
   }
 }
 
