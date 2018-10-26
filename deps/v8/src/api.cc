@@ -3901,7 +3901,7 @@ double Value::NumberValue() const {
 
 
 int64_t Value::IntegerValue() const {
-  return NumberValue(Isolate::GetCurrent()->GetCurrentContext())
+  return IntegerValue(Isolate::GetCurrent()->GetCurrentContext())
       .FromMaybe(0);
 }
 
