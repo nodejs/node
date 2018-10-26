@@ -54,7 +54,7 @@ path.posix.basename('/tmp/myfile.html');
 // Returns: 'myfile.html'
 ```
 
-*Note:* On Windows Node.js follows the concept of per-drive working directory.
+On Windows Node.js follows the concept of per-drive working directory.
 This behavior can be observed when using a drive path without a backslash. For
 example, `path.resolve('c:\\')` can potentially return a different result than
 `path.resolve('c:')`. For more information, see
