@@ -6,7 +6,7 @@ Each release line has a staging branch that the releaser will use as a scratch
 pad while preparing a release. The branch name is formatted as follows:
 `vN.x-staging` where `N` is the major release number.
 
-*Note*: For the active staging branches see the [Release Schedule][].
+For the active staging branches see the [Release Schedule][].
 
 ## What needs to be backported?
 

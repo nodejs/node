@@ -51,10 +51,6 @@
 * References to constructor instances should use camelCase.
 * References to methods should be used with parentheses: for example,
   `socket.end()` instead of `socket.end`.
-* To draw special attention to a note, adhere to the following guidelines:
-  * Make the "Note:" label italic, i.e. `*Note*:`.
-  * Use a capital letter after the "Note:" label.
-  * Preferably, make the note a new paragraph for better visual distinction.
 * Function arguments or object properties should use the following format:
   * ``` * `name` {type|type2} Optional description. **Default:** `value`. ```
   <!--lint disable maximum-line-length remark-lint-->

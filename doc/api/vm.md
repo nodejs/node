@@ -7,7 +7,7 @@
 <!--name=vm-->
 
 The `vm` module provides APIs for compiling and running code within V8 Virtual
-Machine contexts. **Note that the `vm` module is not a security mechanism. Do
+Machine contexts. **The `vm` module is not a security mechanism. Do
 not use it to run untrusted code**. The term "sandbox" is used throughout these
 docs simply to refer to a separate context, and does not confer any security
 guarantees.
