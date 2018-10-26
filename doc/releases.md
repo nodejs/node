@@ -182,7 +182,7 @@ and also if there are non-trivial API changes. The rules are not yet strictly
 defined, so if in doubt, please confer with someone that will have a more
 informed perspective, such as a member of the NAN team.
 
-*Note*: It is current TSC policy to bump major version when ABI changes. If you
+It is current TSC policy to bump major version when ABI changes. If you
 see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC.
 Commits may need to be reverted or a major version bump may need to happen.
 
@@ -263,7 +263,7 @@ doc/api/*.md`, and substitute this node version with `sed -i
 "s/REPLACEME/$VERSION/g" doc/api/*.md` or `perl -pi -e "s/REPLACEME/$VERSION/g"
 doc/api/*.md`.
 
-*Note*: `$VERSION` should be prefixed with a `v`.
+`$VERSION` should be prefixed with a `v`.
 
 If this release includes any new deprecations it is necessary to ensure that
 those are assigned a proper static deprecation code. These are listed in the
@@ -507,7 +507,7 @@ release, you should re-run `tools/release.sh` after the ARM builds have
 finished. That will move the ARM artifacts into the correct location. You will
 be prompted to re-sign SHASUMS256.txt.
 
-*Note*: It is possible to only sign a release by running `./tools/release.sh -s
+It is possible to only sign a release by running `./tools/release.sh -s
 vX.Y.Z`.
 
 ### 14. Check the Release

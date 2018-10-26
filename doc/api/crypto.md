@@ -845,7 +845,7 @@ const crypto = require('crypto');
 const alice = crypto.createECDH('secp256k1');
 const bob = crypto.createECDH('secp256k1');
 
-// Note: This is a shortcut way to specify one of Alice's previous private
+// This is a shortcut way of specifying one of Alice's previous private
 // keys. It would be unwise to use such a predictable private key in a real
 // application.
 alice.setPrivateKey(
