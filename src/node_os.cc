@@ -360,6 +360,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
   }
 
   const int err = uv_os_get_passwd(&pwd);
+  OnScopeLeave free_passwd([&]() { uv_os_free_passwd(&pwd); });
 
   if (err) {
     CHECK_GE(args.Length(), 2);
@@ -389,7 +390,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (username.IsEmpty() || homedir.IsEmpty() || shell.IsEmpty()) {
     CHECK(!error.IsEmpty());
-    uv_os_free_passwd(&pwd);
     env->isolate()->ThrowException(error);
     return;
   }
