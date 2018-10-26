@@ -114,3 +114,4 @@ tools/turbolizer/deploy
 
 !/third_party/jinja2
 !/third_party/markupsafe
+!/test/mjsunit/tools/*.log
