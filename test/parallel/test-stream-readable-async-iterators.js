@@ -335,11 +335,8 @@ async function tests() {
 
     readable.destroy();
 
-    try {
-      await readable[Symbol.asyncIterator]().next();
-    } catch (e) {
-      assert.strictEqual(e.code, 'ERR_STREAM_PREMATURE_CLOSE');
-    }
+    const { done } = await readable[Symbol.asyncIterator]().next();
+    assert.strictEqual(done, true);
   })();
 
   await (async function() {
@@ -378,6 +375,22 @@ async function tests() {
     }
     // eslint-disable-next-line no-unused-vars
     for await (const b of r) {
+    }
+  })();
+
+  await (async () => {
+    console.log('destroy mid-stream does not error');
+    const r = new Readable({
+      objectMode: true,
+      read() {
+        this.push('asdf');
+        this.push('hehe');
+      }
+    });
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const a of r) {
+      r.destroy(null);
     }
   })();
 }
