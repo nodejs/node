@@ -151,7 +151,7 @@ to the run-time events.
 
 ## Inspector Promises API
 <!-- YAML
-added: vX.Y.0
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -168,7 +168,7 @@ back-end and receiving message responses and notifications.
 
 ### Constructor: new inspector.Session()
 <!-- YAML
-added: vX.Y.0
+added: REPLACEME
 -->
 
 Create a new instance of the `inspector.promises.Session` class. The inspector session
@@ -179,7 +179,7 @@ can be dispatched to the inspector backend.
 
 ### Event: 'inspectorNotification'
 <!-- YAML
-added: vX.Y.0
+added: REPLACEME
 -->
 
 * {Object} The notification message object
@@ -196,7 +196,7 @@ It is also possible to subscribe only to notifications with specific method:
 
 ### Event: &lt;inspector-protocol-method&gt;
 <!-- YAML
-added: vX.Y.0
+added: REPLACEME
 -->
 
 * {Object} The notification message object
@@ -217,7 +217,7 @@ session.on('Debugger.paused', ({ params }) => {
 
 ### session.connect()
 <!-- YAML
-added: vX.Y.0
+added: REPLACEME
 -->
 
 Connects a session to the inspector back-end. An exception will be thrown
@@ -226,7 +226,7 @@ a front-end connected to the Inspector WebSocket port.
 
 ### session.disconnect()
 <!-- YAML
-added: vX.Y.0
+added: REPLACEME
 -->
 
 Immediately close the session. All pending message promises will be rejected. 
@@ -236,7 +236,7 @@ enabled agents or configured breakpoints.
 
 ### session.post(method[, params])
 <!-- YAML
-added: v8.0.0
+added: REPLACEME
 -->
 
 * `method` {string}
@@ -256,7 +256,7 @@ async function postRuntimeEvaluate() {
 The latest version of the V8 inspector protocol is published on the
 [Chrome DevTools Protocol Viewer][].
 
-Node inspector supports all the Chrome DevTools Protocol domains declared
+Node.js inspector supports all the Chrome DevTools Protocol domains declared
 by V8. Chrome DevTools Protocol domain provides an interface for interacting
 with one of the runtime agents used to inspect the application state and listen
 to the run-time events.
@@ -310,9 +310,6 @@ async function main() {
 
 main();
 ```
-
-Apart from the debugger, various V8 Profilers are available through the DevTools
-protocol. Here's a simple example showing how to use the [CPU profiler][]:
 
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
 [`EventEmitter`]: events.html#events_class_eventemitter

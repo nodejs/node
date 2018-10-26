@@ -36,7 +36,7 @@ session.on('Debugger.paused', () => {
 });
 session.connect();
 session.post('Debugger.enable');
-console.log('Ready');
+// console.log('Ready');
 `;
 
 async function setupSession(node) {

@@ -98,7 +98,7 @@ async function promiseTest() {
   assert(traceNotification.data.value.length > 0);
   assert(tracingComplete);
   clearInterval(interval);
-  console.log('Success');
+  // console.log('Success');
 }
 
 promiseTest();
