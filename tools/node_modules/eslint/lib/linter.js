@@ -889,6 +889,15 @@ module.exports = class Linter {
     }
 
     /**
+     * Getter for package version.
+     * @static
+     * @returns {string} The version from package.json.
+     */
+    static get version() {
+        return pkg.version;
+    }
+
+    /**
      * Configuration object for the `verify` API. A JS representation of the eslintrc files.
      * @typedef {Object} ESLintConfig
      * @property {Object} rules The rule configuration to verify against.

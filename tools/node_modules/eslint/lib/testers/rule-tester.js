@@ -397,7 +397,7 @@ class RuleTester {
          */
         function assertASTDidntChange(beforeAST, afterAST) {
             if (!lodash.isEqual(beforeAST, afterAST)) {
-                assert.fail(null, null, "Rule should not modify AST.");
+                assert.fail("Rule should not modify AST.");
             }
         }
 
@@ -551,7 +551,7 @@ class RuleTester {
                     } else {
 
                         // Message was an unexpected type
-                        assert.fail(message, null, "Error should be a string, object, or RegExp.");
+                        assert.fail(`Error should be a string, object, or RegExp, but found (${util.inspect(message)})`);
                     }
                 }
             }
