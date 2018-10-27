@@ -426,7 +426,7 @@ the function does not return a promise, `assert.doesNotReject()` will return a
 rejected `Promise` with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases
 the error handler is skipped.
 
-Using `assert.doesNotReject()` is actually not useful because there is a little
+Using `assert.doesNotReject()` is actually not useful because there is little
 benefit in catching a rejection and then rejecting it again. Instead, consider
 adding a comment next to the specific code path that should not reject and keep
 error messages as expressive as possible.
