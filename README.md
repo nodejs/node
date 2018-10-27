@@ -31,7 +31,7 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 * [Current Project Team Members](#current-project-team-members)
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
-  * [Release Team](#release-team)
+  * [Release Keys](#release-keys)
 * [Contributing to Node.js](#contributing-to-nodejs)
 
 ## Support
@@ -81,7 +81,7 @@ your expectations.
   changes. Use with caution.
 
 Current and LTS releases follow [Semantic Versioning](https://semver.org). A
-member of the [Release Team](#release-team) signs each Current and LTS release.
+member of the Release Team [signs](#release-keys) each Current and LTS release.
 For more information, see the
 [Release README](https://github.com/nodejs/Release).
 
@@ -133,9 +133,9 @@ $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 
 For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
 `SHASUMS256.txt.sig`. You can use it with `gpg` to verify the integrity of
-`SHASUM256.txt`. You will first need to import all the GPG keys of individuals
-authorized to create releases. They are at the bottom of this README under
-[Release Team](#release-team). To import the keys:
+`SHASUM256.txt`. You will first need to import
+[the GPG keys of individuals authorized to create releases](#release-keys). To
+import the keys:
 
 ```console
 $ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
@@ -555,9 +555,9 @@ For information about the governance of the Node.js project, see
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the Node.js project.
 
-### Release Team
+### Release Keys
 
-Node.js releases are signed with one of the following GPG keys:
+GPG keys used to sign Node.js releases:
 
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
