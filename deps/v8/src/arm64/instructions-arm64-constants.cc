@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <cstdint>
+#include "include/v8config.h"
 
 namespace v8 {
 namespace internal {
@@ -20,6 +21,10 @@ namespace internal {
 // possible, and figure out how to replace *DefaultNaN with something clean,
 // then move this code back into instructions-arm64.cc with the same types
 // that client code uses.
+
+#if defined(V8_OS_WIN)
+extern "C" {
+#endif
 
 extern const uint16_t kFP16PositiveInfinity = 0x7C00;
 extern const uint16_t kFP16NegativeInfinity = 0xFC00;
@@ -41,6 +46,10 @@ extern const uint32_t kFP32QuietNaN = 0x7FC00001;
 extern const uint64_t kFP64DefaultNaN = 0x7FF8000000000000UL;
 extern const uint32_t kFP32DefaultNaN = 0x7FC00000;
 extern const uint16_t kFP16DefaultNaN = 0x7E00;
+
+#if defined(V8_OS_WIN)
+}  // end of extern "C"
+#endif
 
 }  // namespace internal
 }  // namespace v8

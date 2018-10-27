@@ -5,7 +5,6 @@
 #ifndef V8_TRAP_HANDLER_TRAP_HANDLER_H_
 #define V8_TRAP_HANDLER_TRAP_HANDLER_H_
 
-#include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -13,19 +12,15 @@
 #include "src/flags.h"
 #include "src/globals.h"
 
-#if V8_OS_LINUX
-#include <ucontext.h>
-#endif
-
 namespace v8 {
 namespace internal {
 namespace trap_handler {
 
 // TODO(eholk): Support trap handlers on other platforms.
 #if V8_TARGET_ARCH_X64 && V8_OS_LINUX && !V8_OS_ANDROID
-#define V8_TRAP_HANDLER_SUPPORTED 1
+#define V8_TRAP_HANDLER_SUPPORTED true
 #else
-#define V8_TRAP_HANDLER_SUPPORTED 0
+#define V8_TRAP_HANDLER_SUPPORTED false
 #endif
 
 struct ProtectedInstructionData {
@@ -100,18 +95,8 @@ inline void ClearThreadInWasm() {
   }
 }
 
-class ThreadInWasmScope {
- public:
-  ThreadInWasmScope() { SetThreadInWasm(); }
-  ~ThreadInWasmScope() { ClearThreadInWasm(); }
-};
-
 bool RegisterDefaultTrapHandler();
-V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler();
-
-#if V8_OS_LINUX
-bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context);
-#endif  // V8_OS_LINUX
+V8_EXPORT_PRIVATE void RemoveTrapHandler();
 
 size_t GetRecoveredTrapCount();
 

@@ -39,16 +39,9 @@ D8Console::D8Console(Isolate* isolate) : isolate_(isolate) {
 
 void D8Console::Assert(const debug::ConsoleCallArguments& args,
                        const v8::debug::ConsoleContext&) {
-  Local<Boolean> arg;
-  if (args.Length() > 0) {
-    if (!args[0]->ToBoolean(isolate_->GetCurrentContext()).ToLocal(&arg)) {
-      return;
-    }
-  } else {
-    // No arguments given, the "first" argument is undefined which is false-ish.
-    arg = v8::False(isolate_);
-  }
-  if (arg->IsTrue()) return;
+  // If no arguments given, the "first" argument is undefined which is
+  // false-ish.
+  if (args.Length() > 0 && args[0]->BooleanValue(isolate_)) return;
   WriteToFile("console.assert", stdout, isolate_, args);
   isolate_->ThrowException(v8::Exception::Error(
       v8::String::NewFromUtf8(isolate_, "console.assert failed",

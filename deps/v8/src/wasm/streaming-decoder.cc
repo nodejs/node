@@ -12,6 +12,7 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
@@ -26,7 +27,14 @@ namespace internal {
 namespace wasm {
 
 void StreamingDecoder::OnBytesReceived(Vector<const uint8_t> bytes) {
+  if (deserializing()) {
+    wire_bytes_for_deserializing_.insert(wire_bytes_for_deserializing_.end(),
+                                         bytes.begin(), bytes.end());
+    return;
+  }
+
   TRACE_STREAMING("OnBytesReceived(%zu bytes)\n", bytes.size());
+
   size_t current = 0;
   while (ok() && current < bytes.size()) {
     size_t num_bytes =
@@ -53,6 +61,19 @@ size_t StreamingDecoder::DecodingState::ReadBytes(StreamingDecoder* streaming,
 }
 
 void StreamingDecoder::Finish() {
+  if (deserializing()) {
+    Vector<const uint8_t> wire_bytes(wire_bytes_for_deserializing_.data(),
+                                     wire_bytes_for_deserializing_.size());
+    // Try to deserialize the module from wire bytes and module bytes.
+    if (processor_->Deserialize(compiled_module_bytes_, wire_bytes)) return;
+
+    // Deserialization failed. Restart decoding using |wire_bytes|.
+    compiled_module_bytes_ = {};
+    DCHECK(!deserializing());
+    OnBytesReceived(wire_bytes);
+    // The decoder has received all wire bytes; fall through and finish.
+  }
+
   TRACE_STREAMING("Finish\n");
   if (!ok()) {
     return;
@@ -87,6 +108,18 @@ void StreamingDecoder::Abort() {
     ok_ = false;
     processor_->OnAbort();
   }
+}
+
+void StreamingDecoder::SetModuleCompiledCallback(
+    ModuleCompiledCallback callback) {
+  DCHECK_NULL(module_compiled_callback_);
+  module_compiled_callback_ = callback;
+}
+
+bool StreamingDecoder::SetCompiledModuleBytes(
+    Vector<const uint8_t> compiled_module_bytes) {
+  compiled_module_bytes_ = compiled_module_bytes;
+  return true;
 }
 
 // An abstract class to share code among the states which decode VarInts. This

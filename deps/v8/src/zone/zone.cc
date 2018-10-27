@@ -43,13 +43,12 @@ Zone::Zone(AccountingAllocator* allocator, const char* name,
 
 Zone::~Zone() {
   allocator_->ZoneDestruction(this);
-
   DeleteAll();
 
   DCHECK_EQ(segment_bytes_allocated_, 0);
 }
 
-void* Zone::New(size_t size) {
+void* Zone::AsanNew(size_t size) {
   CHECK(!sealed_);
 
   // Round up the requested size to fit the alignment.
@@ -59,7 +58,7 @@ void* Zone::New(size_t size) {
   Address result = position_;
 
   const size_t size_with_redzone = size + kASanRedzoneBytes;
-  DCHECK(limit_ >= position_);
+  DCHECK_LE(position_, limit_);
   if (size_with_redzone > limit_ - position_) {
     result = NewExpand(size_with_redzone);
   } else {
@@ -72,9 +71,14 @@ void* Zone::New(size_t size) {
                             kASanRedzoneBytes);
 
   // Check that the result has the proper alignment and return it.
-  DCHECK(IsAddressAligned(result, kAlignmentInBytes, 0));
-  allocation_size_ += size;
+  DCHECK(IsAligned(result, kAlignmentInBytes));
   return reinterpret_cast<void*>(result);
+}
+
+void Zone::ReleaseMemory() {
+  allocator_->ZoneDestruction(this);
+  DeleteAll();
+  allocator_->ZoneCreation(this);
 }
 
 void Zone::DeleteAll() {
@@ -117,6 +121,8 @@ Address Zone::NewExpand(size_t size) {
   DCHECK_EQ(size, RoundDown(size, kAlignmentInBytes));
   DCHECK(limit_ - position_ < size);
 
+  // Commit the allocation_size_ of segment_head_ if any.
+  allocation_size_ = allocation_size();
   // Compute the new segment size. We use a 'high water mark'
   // strategy, where we increase the segment size every time we expand
   // except that we employ a maximum segment size when we delete. This

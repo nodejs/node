@@ -123,16 +123,21 @@ void CcTest::CollectGarbage(i::AllocationSpace space) {
   heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectAllGarbage() {
-  CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+void CcTest::CollectAllGarbage(i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+                                 i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectAllGarbage(int flags) {
-  heap()->CollectAllGarbage(flags, i::GarbageCollectionReason::kTesting);
+void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectAllAvailableGarbage() {
-  heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
+void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
+                                        i::GarbageCollectionReason::kTesting);
 }
 
 v8::base::RandomNumberGenerator* CcTest::random_number_generator() {
@@ -210,12 +215,12 @@ InitializedHandleScope::InitializedHandleScope()
       initialized_handle_scope_impl_(
           new InitializedHandleScopeImpl(main_isolate_)) {}
 
-InitializedHandleScope::~InitializedHandleScope() {}
+InitializedHandleScope::~InitializedHandleScope() = default;
 
 HandleAndZoneScope::HandleAndZoneScope()
     : main_zone_(new i::Zone(&allocator_, ZONE_NAME)) {}
 
-HandleAndZoneScope::~HandleAndZoneScope() {}
+HandleAndZoneScope::~HandleAndZoneScope() = default;
 
 static void PrintTestList(CcTest* current) {
   if (current == nullptr) return;

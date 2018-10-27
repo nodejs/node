@@ -53,13 +53,27 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion) const {
   int bytes = 0;
   auto list = kCallerSaved;
-  DCHECK_EQ(list.Count() % 2, 0);
   // We only allow one exclusion register, so if the list is of even length
   // before exclusions, it must still be afterwards, to maintain alignment.
   // Therefore, we can ignore the exclusion register in the computation.
   // However, we leave it in the argument list to mirror the prototype for
   // Push/PopCallerSaved().
+
+#if defined(V8_OS_WIN)
+  // X18 is excluded from caller-saved register list on Windows ARM64 which
+  // makes caller-saved registers in odd number. padreg is used accordingly
+  // to maintain the alignment.
+  DCHECK_EQ(list.Count() % 2, 1);
+  if (exclusion.Is(no_reg)) {
+    bytes += kXRegSizeInBits / 8;
+  } else {
+    bytes -= kXRegSizeInBits / 8;
+  }
+#else
+  DCHECK_EQ(list.Count() % 2, 0);
   USE(exclusion);
+#endif
+
   bytes += list.Count() * kXRegSizeInBits / 8;
 
   if (fp_mode == kSaveFPRegs) {
@@ -73,12 +87,24 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
                                     Register exclusion) {
   int bytes = 0;
   auto list = kCallerSaved;
-  DCHECK_EQ(list.Count() % 2, 0);
+
+#if defined(V8_OS_WIN)
+  // X18 is excluded from caller-saved register list on Windows ARM64, use
+  // padreg accordingly to maintain alignment.
+  if (!exclusion.Is(no_reg)) {
+    list.Remove(exclusion);
+  } else {
+    list.Combine(padreg);
+  }
+#else
   if (!exclusion.Is(no_reg)) {
     // Replace the excluded register with padding to maintain alignment.
     list.Remove(exclusion);
     list.Combine(padreg);
   }
+#endif
+
+  DCHECK_EQ(list.Count() % 2, 0);
   PushCPURegList(list);
   bytes += list.Count() * kXRegSizeInBits / 8;
 
@@ -99,12 +125,24 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   }
 
   auto list = kCallerSaved;
-  DCHECK_EQ(list.Count() % 2, 0);
+
+#if defined(V8_OS_WIN)
+  // X18 is excluded from caller-saved register list on Windows ARM64, use
+  // padreg accordingly to maintain alignment.
+  if (!exclusion.Is(no_reg)) {
+    list.Remove(exclusion);
+  } else {
+    list.Combine(padreg);
+  }
+#else
   if (!exclusion.Is(no_reg)) {
     // Replace the excluded register with padding to maintain alignment.
     list.Remove(exclusion);
     list.Combine(padreg);
   }
+#endif
+
+  DCHECK_EQ(list.Count() % 2, 0);
   PopCPURegList(list);
   bytes += list.Count() * kXRegSizeInBits / 8;
 
@@ -1516,10 +1554,11 @@ void TurboAssembler::CanonicalizeNaN(const VRegister& dst,
   Fsub(dst, src, fp_zero);
 }
 
-void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
+void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   // TODO(jbramley): Most root values are constants, and can be synthesized
   // without a load. Refer to the ARM back end for details.
-  Ldr(destination, MemOperand(kRootRegister, RootRegisterOffset(index)));
+  Ldr(destination,
+      MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
 
 
@@ -1632,6 +1671,10 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   CompareInstanceType(temp, temp, JS_GENERATOR_OBJECT_TYPE);
   B(eq, &do_check);
 
+  // Check if JSAsyncFunctionObject
+  Cmp(temp, JS_ASYNC_FUNCTION_OBJECT_TYPE);
+  B(eq, &do_check);
+
   // Check if JSAsyncGeneratorObject
   Cmp(temp, JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
@@ -1646,7 +1689,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
     Register scratch = temps.AcquireX();
     Label done_checking;
     AssertNotSmi(object);
-    JumpIfRoot(object, Heap::kUndefinedValueRootIndex, &done_checking);
+    JumpIfRoot(object, RootIndex::kUndefinedValue, &done_checking);
     Ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(scratch, scratch, ALLOCATION_SITE_TYPE);
     Assert(eq, AbortReason::kExpectedUndefinedOrCell);
@@ -1727,7 +1770,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
-  Mov(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+  Ldr(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Br(kOffHeapTrampolineRegister);
 }
 
@@ -1805,9 +1848,8 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
-  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
-      Heap::kBuiltinsConstantsTableRootIndex));
-  LoadRoot(destination, Heap::kBuiltinsConstantsTableRootIndex);
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
+  LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   Ldr(destination,
       FieldMemOperand(destination,
                       FixedArray::kHeaderSize + constant_index * kPointerSize));
@@ -1905,7 +1947,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
         Register scratch = temps.AcquireX();
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
         Jump(scratch, cond);
         return;
       }
@@ -1963,7 +2005,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
         Register scratch = temps.AcquireX();
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
         Call(scratch);
         return;
       }
@@ -2225,7 +2267,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
-    LoadRoot(x3, Heap::kUndefinedValueRootIndex);
+    LoadRoot(x3, RootIndex::kUndefinedValue);
   }
 
   Label done;
@@ -2527,6 +2569,10 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   Pop(fp, lr);
 }
 
+void MacroAssembler::LoadGlobalProxy(Register dst) {
+  LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+}
+
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
   CompareAndBranch(in, Operand(kClearedWeakHeapObject), eq, target_if_cleared);
@@ -2597,8 +2643,7 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   DecodeField<Map::ElementsKindBits>(result);
 }
 
-void MacroAssembler::CompareRoot(const Register& obj,
-                                 Heap::RootListIndex index) {
+void MacroAssembler::CompareRoot(const Register& obj, RootIndex index) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
   DCHECK(!AreAliased(obj, temp));
@@ -2606,17 +2651,13 @@ void MacroAssembler::CompareRoot(const Register& obj,
   Cmp(obj, temp);
 }
 
-
-void MacroAssembler::JumpIfRoot(const Register& obj,
-                                Heap::RootListIndex index,
+void MacroAssembler::JumpIfRoot(const Register& obj, RootIndex index,
                                 Label* if_equal) {
   CompareRoot(obj, index);
   B(eq, if_equal);
 }
 
-
-void MacroAssembler::JumpIfNotRoot(const Register& obj,
-                                   Heap::RootListIndex index,
+void MacroAssembler::JumpIfNotRoot(const Register& obj, RootIndex index,
                                    Label* if_not_equal) {
   CompareRoot(obj, index);
   B(ne, if_not_equal);
@@ -2808,36 +2849,55 @@ void TurboAssembler::RestoreRegisters(RegList registers) {
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
+  CallRecordWriteStub(
+      object, address, remembered_set_action, fp_mode,
+      isolate()->builtins()->builtin_handle(Builtins::kRecordWrite),
+      kNullAddress);
+}
+
+void TurboAssembler::CallRecordWriteStub(
+    Register object, Register address,
+    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+    Address wasm_target) {
+  CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
+                      Handle<Code>::null(), wasm_target);
+}
+
+void TurboAssembler::CallRecordWriteStub(
+    Register object, Register address,
+    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+    Handle<Code> code_target, Address wasm_target) {
+  DCHECK_NE(code_target.is_null(), wasm_target == kNullAddress);
   // TODO(albertnetymk): For now we ignore remembered_set_action and fp_mode,
   // i.e. always emit remember set and save FP registers in RecordWriteStub. If
   // large performance regression is observed, we should use these values to
   // avoid unnecessary work.
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kRecordWrite);
-  RegList registers = callable.descriptor().allocatable_registers();
+  RecordWriteDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
 
   SaveRegisters(registers);
 
-  Register object_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kObject));
+  Register object_parameter(
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kObject));
   Register slot_parameter(
-      callable.descriptor().GetRegisterParameter(RecordWriteDescriptor::kSlot));
-  Register isolate_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kIsolate));
-  Register remembered_set_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kRememberedSet));
-  Register fp_mode_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kFPMode));
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kSlot));
+  Register remembered_set_parameter(
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kRememberedSet));
+  Register fp_mode_parameter(
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kFPMode));
 
   Push(object, address);
 
   Pop(slot_parameter, object_parameter);
 
-  Mov(isolate_parameter, ExternalReference::isolate_address(isolate()));
   Mov(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Mov(fp_mode_parameter, Smi::FromEnum(fp_mode));
-  Call(callable.code(), RelocInfo::CODE_TARGET);
+  if (code_target.is_null()) {
+    Call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  } else {
+    Call(code_target, RelocInfo::CODE_TARGET);
+  }
 
   RestoreRegisters(registers);
 }
@@ -2915,8 +2975,7 @@ void TurboAssembler::AssertUnreachable(AbortReason reason) {
   if (emit_debug_code()) Abort(reason);
 }
 
-void MacroAssembler::AssertRegisterIsRoot(Register reg,
-                                          Heap::RootListIndex index,
+void MacroAssembler::AssertRegisterIsRoot(Register reg, RootIndex index,
                                           AbortReason reason) {
   if (emit_debug_code()) {
     CompareRoot(reg, index);

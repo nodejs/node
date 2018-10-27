@@ -294,9 +294,8 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   }
 }
 
-
-MaybeHandle<Object> IC::TypeError(MessageTemplate::Template index,
-                                  Handle<Object> object, Handle<Object> key) {
+MaybeHandle<Object> IC::TypeError(MessageTemplate index, Handle<Object> object,
+                                  Handle<Object> key) {
   HandleScope scope(isolate());
   THROW_NEW_ERROR(isolate(), NewTypeError(index, key, object), Object);
 }
@@ -1260,9 +1259,8 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   return result;
 }
 
-
 bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
-                             JSReceiver::StoreFromKeyed store_mode) {
+                             StoreOrigin store_origin) {
   // Disable ICs for non-JSObjects for now.
   Handle<Object> object = it->GetReceiver();
   if (object->IsJSProxy()) return true;
@@ -1319,7 +1317,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 
           if (it->ExtendingNonExtensible(receiver)) return false;
           it->PrepareTransitionToDataProperty(receiver, value, NONE,
-                                              store_mode);
+                                              store_origin);
           return it->IsCacheableTransition();
         }
       }
@@ -1328,7 +1326,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 
   receiver = it->GetStoreTarget<JSObject>();
   if (it->ExtendingNonExtensible(receiver)) return false;
-  it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
+  it->PrepareTransitionToDataProperty(receiver, value, NONE, store_origin);
   return it->IsCacheableTransition();
 }
 
@@ -1381,7 +1379,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
 
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
-                                   JSReceiver::StoreFromKeyed store_mode) {
+                                   StoreOrigin store_origin) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(object)) {
@@ -1424,15 +1422,15 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       use_ic = false;
     }
   }
-  if (use_ic) UpdateCaches(&it, value, store_mode);
+  if (use_ic) UpdateCaches(&it, value, store_origin);
 
   MAYBE_RETURN_NULL(
-      Object::SetProperty(&it, value, language_mode(), store_mode));
+      Object::SetProperty(&it, value, language_mode(), store_origin));
   return value;
 }
 
 void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
-                           JSReceiver::StoreFromKeyed store_mode) {
+                           StoreOrigin store_origin) {
   if (state() == UNINITIALIZED && !IsStoreGlobalIC()) {
     // This is the first time we execute this inline cache. Transition
     // to premonomorphic state to delay setting the monomorphic state.
@@ -1443,7 +1441,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   }
 
   MaybeObjectHandle handler;
-  if (LookupForWrite(lookup, value, store_mode)) {
+  if (LookupForWrite(lookup, value, store_origin)) {
     if (IsStoreGlobalIC()) {
       if (lookup->state() == LookupIterator::DATA &&
           lookup->GetReceiver().is_identical_to(lookup->GetHolder<Object>())) {
@@ -1988,8 +1986,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   if (MigrateDeprecated(object)) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result, Runtime::SetObjectProperty(isolate(), object, key,
-                                                      value, language_mode()),
+        isolate(), result,
+        Runtime::SetObjectProperty(isolate(), object, key, value,
+                                   language_mode(), StoreOrigin::kMaybeKeyed),
         Object);
     return result;
   }
@@ -2004,11 +2003,10 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   if ((key->IsInternalizedString() &&
        !String::cast(*key)->AsArrayIndex(&index)) ||
       key->IsSymbol()) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), store_handle,
-        StoreIC::Store(object, Handle<Name>::cast(key), value,
-                       JSReceiver::MAY_BE_STORE_FROM_KEYED),
-        Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), store_handle,
+                               StoreIC::Store(object, Handle<Name>::cast(key),
+                                              value, StoreOrigin::kMaybeKeyed),
+                               Object);
     if (vector_needs_update()) {
       if (ConfigureVectorState(MEGAMORPHIC, key)) {
         set_slow_stub_reason("unhandled internalized string key");
@@ -2062,10 +2060,11 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   bool receiver_was_cow =
       object->IsJSArray() &&
       Handle<JSArray>::cast(object)->elements()->IsCowArray();
-  ASSIGN_RETURN_ON_EXCEPTION(isolate(), store_handle,
-                             Runtime::SetObjectProperty(isolate(), object, key,
-                                                        value, language_mode()),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate(), store_handle,
+      Runtime::SetObjectProperty(isolate(), object, key, value, language_mode(),
+                                 StoreOrigin::kMaybeKeyed),
+      Object);
 
   if (use_ic) {
     if (!old_receiver_map.is_null()) {
@@ -2359,7 +2358,8 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   RETURN_RESULT_OR_FAILURE(
       isolate,
-      Runtime::SetObjectProperty(isolate, global, name, value, language_mode));
+      Runtime::SetObjectProperty(isolate, global, name, value, language_mode,
+                                 StoreOrigin::kMaybeKeyed));
 }
 
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
@@ -2406,7 +2406,8 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   LanguageMode language_mode = GetLanguageModeFromSlotKind(kind);
   RETURN_RESULT_OR_FAILURE(
       isolate,
-      Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
+      Runtime::SetObjectProperty(isolate, object, key, value, language_mode,
+                                 StoreOrigin::kMaybeKeyed));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Slow) {
@@ -2446,7 +2447,8 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
     LanguageMode language_mode = GetLanguageModeFromSlotKind(kind);
     RETURN_RESULT_OR_FAILURE(
         isolate,
-        Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
+        Runtime::SetObjectProperty(isolate, object, key, value, language_mode,
+                                   StoreOrigin::kMaybeKeyed));
   }
 }
 
@@ -2595,8 +2597,9 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
 
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     RETURN_RESULT_OR_FAILURE(
-        isolate, Runtime::SetObjectProperty(isolate, receiver, name, value,
-                                            language_mode));
+        isolate,
+        Runtime::SetObjectProperty(isolate, receiver, name, value,
+                                   language_mode, StoreOrigin::kMaybeKeyed));
   }
 
   DCHECK(info->IsCompatibleReceiver(*receiver));
@@ -2747,9 +2750,9 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
   it.Next();
 
-  MAYBE_RETURN(Object::SetProperty(&it, value, language_mode,
-                                   JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED),
-               ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(
+      Object::SetProperty(&it, value, language_mode, StoreOrigin::kNamed),
+      ReadOnlyRoots(isolate).exception());
   return *value;
 }
 

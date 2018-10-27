@@ -36,18 +36,12 @@
 #define V8_ASSEMBLER_H_
 
 #include <forward_list>
-#include <iosfwd>
-#include <map>
 
-#include "src/allocation.h"
-#include "src/code-reference.h"
-#include "src/contexts.h"
 #include "src/deoptimize-reason.h"
-#include "src/double.h"
 #include "src/external-reference.h"
 #include "src/flags.h"
 #include "src/globals.h"
-#include "src/label.h"
+#include "src/handles.h"
 #include "src/objects.h"
 #include "src/register-configuration.h"
 #include "src/reglist.h"
@@ -67,6 +61,7 @@ class Isolate;
 class SCTableReference;
 class SourcePosition;
 class StatsCounter;
+class StringConstantBase;
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
@@ -97,8 +92,9 @@ class HeapObjectRequest {
  public:
   explicit HeapObjectRequest(double heap_number, int offset = -1);
   explicit HeapObjectRequest(CodeStub* code_stub, int offset = -1);
+  explicit HeapObjectRequest(const StringConstantBase* string, int offset = -1);
 
-  enum Kind { kHeapNumber, kCodeStub };
+  enum Kind { kHeapNumber, kCodeStub, kStringConstant };
   Kind kind() const { return kind_; }
 
   double heap_number() const {
@@ -109,6 +105,11 @@ class HeapObjectRequest {
   CodeStub* code_stub() const {
     DCHECK_EQ(kind(), kCodeStub);
     return value_.code_stub;
+  }
+
+  const StringConstantBase* string() const {
+    DCHECK_EQ(kind(), kStringConstant);
+    return value_.string;
   }
 
   // The code buffer offset at the time of the request.
@@ -128,6 +129,7 @@ class HeapObjectRequest {
   union {
     double heap_number;
     CodeStub* code_stub;
+    const StringConstantBase* string;
   } value_;
 
   int offset_;
@@ -139,6 +141,9 @@ class HeapObjectRequest {
 enum class CodeObjectRequired { kNo, kYes };
 
 struct V8_EXPORT_PRIVATE AssemblerOptions {
+  // Prohibits using any V8-specific features of assembler like (isolates,
+  // heap objects, external references, etc.).
+  bool v8_agnostic_code = false;
   // Recording reloc info for external references and off-heap targets is
   // needed whenever code is serialized, e.g. into the snapshot or as a WASM
   // module. This flag allows this reloc info to be disabled for code that
@@ -167,6 +172,9 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // this flag, the code range must be small enough to fit all offsets into
   // the instruction immediates.
   bool use_pc_relative_calls_and_jumps = false;
+
+  // Constructs V8-agnostic set of options from current state.
+  AssemblerOptions EnableV8AgnosticCode() const;
 
   static AssemblerOptions Default(
       Isolate* isolate, bool explicitly_support_serialization = false);
@@ -245,9 +253,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // Update to the code target at {code_target_index} to {target}.
   void UpdateCodeTarget(intptr_t code_target_index, Handle<Code> target);
   // Reserves space in the code target vector.
-  void ReserveCodeTargetSpace(size_t num_of_code_targets) {
-    code_targets_.reserve(num_of_code_targets);
-  }
+  void ReserveCodeTargetSpace(size_t num_of_code_targets);
 
   // The buffer into which code and relocation info are generated. It could
   // either be owned by the assembler or be provided externally.
@@ -268,12 +274,22 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
-  // {RequestHeapObject} records the need for a future heap number allocation or
-  // code stub generation. After code assembly, each platform's
-  // {Assembler::AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request).
+  // {RequestHeapObject} records the need for a future heap number allocation,
+  // code stub generation or string allocation. After code assembly, each
+  // platform's {Assembler::AllocateAndInstallRequestedHeapObjects} will
+  // allocate these objects and place them where they are expected (determined
+  // by the pc offset associated with each request).
   void RequestHeapObject(HeapObjectRequest request);
+
+  bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
+    DCHECK(!RelocInfo::IsNone(rmode));
+    if (options().disable_reloc_info_for_patching) return false;
+    if (RelocInfo::IsOnlyForSerializer(rmode) &&
+        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
+      return false;
+    }
+    return true;
+  }
 
  private:
   // Before we copy code into the code space, we sometimes cannot encode
@@ -301,7 +317,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 };
 
 // Avoids emitting debug code during the lifetime of this scope object.
-class DontEmitDebugCodeScope BASE_EMBEDDED {
+class DontEmitDebugCodeScope {
  public:
   explicit DontEmitDebugCodeScope(AssemblerBase* assembler)
       : assembler_(assembler), old_value_(assembler->emit_debug_code()) {
@@ -332,7 +348,7 @@ class PredictableCodeSizeScope {
 
 
 // Enable a specified feature within a scope.
-class CpuFeatureScope BASE_EMBEDDED {
+class CpuFeatureScope {
  public:
   enum CheckPolicy {
     kCheckSupported,
@@ -350,11 +366,11 @@ class CpuFeatureScope BASE_EMBEDDED {
 #else
   CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
                   CheckPolicy check = kCheckSupported) {}
-  // Define a destructor to avoid unused variable warnings.
-  ~CpuFeatureScope() {}
+  ~CpuFeatureScope() {  // NOLINT (modernize-use-equals-default)
+    // Define a destructor to avoid unused variable warnings.
+  }
 #endif
 };
-
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a CpuFeatureScope before use.
@@ -420,145 +436,10 @@ class CpuFeatures : public AllStatic {
 // Utility functions
 
 // Computes pow(x, y) with the special cases in the spec for Math.pow.
-double power_helper(Isolate* isolate, double x, double y);
+double power_helper(double x, double y);
 double power_double_int(double x, int y);
 double power_double_double(double x, double y);
 
-
-// -----------------------------------------------------------------------------
-// Constant pool support
-
-class ConstantPoolEntry {
- public:
-  ConstantPoolEntry() {}
-  ConstantPoolEntry(int position, intptr_t value, bool sharing_ok,
-                    RelocInfo::Mode rmode = RelocInfo::NONE)
-      : position_(position),
-        merged_index_(sharing_ok ? SHARING_ALLOWED : SHARING_PROHIBITED),
-        value_(value),
-        rmode_(rmode) {}
-  ConstantPoolEntry(int position, Double value,
-                    RelocInfo::Mode rmode = RelocInfo::NONE)
-      : position_(position),
-        merged_index_(SHARING_ALLOWED),
-        value64_(value.AsUint64()),
-        rmode_(rmode) {}
-
-  int position() const { return position_; }
-  bool sharing_ok() const { return merged_index_ != SHARING_PROHIBITED; }
-  bool is_merged() const { return merged_index_ >= 0; }
-  int merged_index(void) const {
-    DCHECK(is_merged());
-    return merged_index_;
-  }
-  void set_merged_index(int index) {
-    DCHECK(sharing_ok());
-    merged_index_ = index;
-    DCHECK(is_merged());
-  }
-  int offset(void) const {
-    DCHECK_GE(merged_index_, 0);
-    return merged_index_;
-  }
-  void set_offset(int offset) {
-    DCHECK_GE(offset, 0);
-    merged_index_ = offset;
-  }
-  intptr_t value() const { return value_; }
-  uint64_t value64() const { return value64_; }
-  RelocInfo::Mode rmode() const { return rmode_; }
-
-  enum Type { INTPTR, DOUBLE, NUMBER_OF_TYPES };
-
-  static int size(Type type) {
-    return (type == INTPTR) ? kPointerSize : kDoubleSize;
-  }
-
-  enum Access { REGULAR, OVERFLOWED };
-
- private:
-  int position_;
-  int merged_index_;
-  union {
-    intptr_t value_;
-    uint64_t value64_;
-  };
-  // TODO(leszeks): The way we use this, it could probably be packed into
-  // merged_index_ if size is a concern.
-  RelocInfo::Mode rmode_;
-  enum { SHARING_PROHIBITED = -2, SHARING_ALLOWED = -1 };
-};
-
-
-// -----------------------------------------------------------------------------
-// Embedded constant pool support
-
-class ConstantPoolBuilder BASE_EMBEDDED {
- public:
-  ConstantPoolBuilder(int ptr_reach_bits, int double_reach_bits);
-
-  // Add pointer-sized constant to the embedded constant pool
-  ConstantPoolEntry::Access AddEntry(int position, intptr_t value,
-                                     bool sharing_ok) {
-    ConstantPoolEntry entry(position, value, sharing_ok);
-    return AddEntry(entry, ConstantPoolEntry::INTPTR);
-  }
-
-  // Add double constant to the embedded constant pool
-  ConstantPoolEntry::Access AddEntry(int position, Double value) {
-    ConstantPoolEntry entry(position, value);
-    return AddEntry(entry, ConstantPoolEntry::DOUBLE);
-  }
-
-  // Add double constant to the embedded constant pool
-  ConstantPoolEntry::Access AddEntry(int position, double value) {
-    return AddEntry(position, Double(value));
-  }
-
-  // Previews the access type required for the next new entry to be added.
-  ConstantPoolEntry::Access NextAccess(ConstantPoolEntry::Type type) const;
-
-  bool IsEmpty() {
-    return info_[ConstantPoolEntry::INTPTR].entries.empty() &&
-           info_[ConstantPoolEntry::INTPTR].shared_entries.empty() &&
-           info_[ConstantPoolEntry::DOUBLE].entries.empty() &&
-           info_[ConstantPoolEntry::DOUBLE].shared_entries.empty();
-  }
-
-  // Emit the constant pool.  Invoke only after all entries have been
-  // added and all instructions have been emitted.
-  // Returns position of the emitted pool (zero implies no constant pool).
-  int Emit(Assembler* assm);
-
-  // Returns the label associated with the start of the constant pool.
-  // Linking to this label in the function prologue may provide an
-  // efficient means of constant pool pointer register initialization
-  // on some architectures.
-  inline Label* EmittedPosition() { return &emitted_label_; }
-
- private:
-  ConstantPoolEntry::Access AddEntry(ConstantPoolEntry& entry,
-                                     ConstantPoolEntry::Type type);
-  void EmitSharedEntries(Assembler* assm, ConstantPoolEntry::Type type);
-  void EmitGroup(Assembler* assm, ConstantPoolEntry::Access access,
-                 ConstantPoolEntry::Type type);
-
-  struct PerTypeEntryInfo {
-    PerTypeEntryInfo() : regular_count(0), overflow_start(-1) {}
-    bool overflow() const {
-      return (overflow_start >= 0 &&
-              overflow_start < static_cast<int>(entries.size()));
-    }
-    int regular_reach_bits;
-    int regular_count;
-    int overflow_start;
-    std::vector<ConstantPoolEntry> entries;
-    std::vector<ConstantPoolEntry> shared_entries;
-  };
-
-  Label emitted_label_;  // Records pc_offset of emitted pool
-  PerTypeEntryInfo info_[ConstantPoolEntry::NUMBER_OF_TYPES];
-};
 
 // Base type for CPU Registers.
 //

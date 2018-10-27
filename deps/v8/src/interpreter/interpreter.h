@@ -36,7 +36,7 @@ class InterpreterAssembler;
 class Interpreter {
  public:
   explicit Interpreter(Isolate* isolate);
-  virtual ~Interpreter() {}
+  virtual ~Interpreter() = default;
 
   // Returns the interrupt budget which should be used for the profiler counter.
   static int InterruptBudget();
@@ -54,9 +54,6 @@ class Interpreter {
   Code* GetAndMaybeDeserializeBytecodeHandler(Bytecode bytecode,
                                               OperandScale operand_scale);
 
-  // Return bytecode handler for |bytecode| and |operand_scale|.
-  Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
-
   // Set the bytecode handler for |bytecode| and |operand_scale|.
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
                           Code* handler);
@@ -68,6 +65,10 @@ class Interpreter {
   const char* LookupNameOfBytecodeHandler(const Code* code);
 
   V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
+
+  void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
+
+  void InitializeDispatchTable();
 
   bool IsDispatchTableInitialized() const;
 

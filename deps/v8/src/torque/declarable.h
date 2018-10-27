@@ -18,16 +18,15 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+class Block;
+class Generic;
 class Scope;
 class ScopeChain;
-class Generic;
 
 class Declarable {
  public:
-  virtual ~Declarable() {}
+  virtual ~Declarable() = default;
   enum Kind {
-    kVariable,
-    kParameter,
     kMacro,
     kMacroList,
     kBuiltin,
@@ -35,7 +34,6 @@ class Declarable {
     kGeneric,
     kGenericList,
     kTypeAlias,
-    kLabel,
     kExternConstant,
     kModuleConstant
   };
@@ -45,17 +43,11 @@ class Declarable {
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
   bool IsGeneric() const { return kind() == kGeneric; }
   bool IsTypeAlias() const { return kind() == kTypeAlias; }
-  bool IsParameter() const { return kind() == kParameter; }
-  bool IsLabel() const { return kind() == kLabel; }
-  bool IsVariable() const { return kind() == kVariable; }
   bool IsMacroList() const { return kind() == kMacroList; }
   bool IsGenericList() const { return kind() == kGenericList; }
   bool IsExternConstant() const { return kind() == kExternConstant; }
   bool IsModuleConstant() const { return kind() == kModuleConstant; }
-  bool IsValue() const {
-    return IsVariable() || IsExternConstant() || IsParameter() ||
-           IsModuleConstant();
-  }
+  bool IsValue() const { return IsExternConstant() || IsModuleConstant(); }
   virtual const char* type_name() const { return "<<unknown>>"; }
 
  protected:
@@ -88,12 +80,16 @@ class Declarable {
 
 class Value : public Declarable {
  public:
+  DECLARE_DECLARABLE_BOILERPLATE(Value, value);
   const std::string& name() const { return name_; }
   virtual bool IsConst() const { return true; }
-  virtual std::string value() const = 0;
-  virtual std::string RValue() const { return value(); }
-  DECLARE_DECLARABLE_BOILERPLATE(Value, value);
+  VisitResult value() const { return *value_; }
   const Type* type() const { return type_; }
+
+  void set_value(VisitResult value) {
+    DCHECK(!value_);
+    value_ = value;
+  }
 
  protected:
   Value(Kind kind, const Type* type, const std::string& name)
@@ -102,104 +98,34 @@ class Value : public Declarable {
  private:
   const Type* type_;
   std::string name_;
-};
-
-class Parameter : public Value {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(Parameter, parameter);
-  std::string value() const override { return var_name_; }
-
- private:
-  friend class Declarations;
-  Parameter(const std::string& name, const Type* type,
-            const std::string& var_name)
-      : Value(Declarable::kParameter, type, name), var_name_(var_name) {}
-
-  std::string var_name_;
+  base::Optional<VisitResult> value_;
 };
 
 class ModuleConstant : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(ModuleConstant, constant);
-  std::string value() const override { UNREACHABLE(); }
-  std::string RValue() const override { return name() + "()"; }
+
+  const std::string& constant_name() const { return constant_name_; }
 
  private:
   friend class Declarations;
-  explicit ModuleConstant(const std::string& name, const Type* type)
-      : Value(Declarable::kModuleConstant, type, name) {}
-};
+  explicit ModuleConstant(std::string constant_name, const Type* type)
+      : Value(Declarable::kModuleConstant, type, constant_name),
+        constant_name_(std::move(constant_name)) {}
 
-class Variable : public Value {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(Variable, variable);
-  bool IsConst() const override { return const_; }
-  std::string value() const override { return value_; }
-  std::string RValue() const override;
-  void Define() {
-    if (defined_ && IsConst()) {
-      ReportError("Cannot re-define a const-bound variable.");
-    }
-    defined_ = true;
-  }
-  bool IsDefined() const { return defined_; }
-
- private:
-  friend class Declarations;
-  Variable(const std::string& name, const std::string& value, const Type* type,
-           bool is_const)
-      : Value(Declarable::kVariable, type, name),
-        value_(value),
-        defined_(false),
-        const_(is_const) {
-    DCHECK_IMPLIES(type->IsConstexpr(), IsConst());
-  }
-
-  std::string value_;
-  bool defined_;
-  bool const_;
-};
-
-class Label : public Declarable {
- public:
-  void AddVariable(Variable* var) { parameters_.push_back(var); }
-  std::string name() const { return name_; }
-  std::string generated() const { return generated_; }
-  Variable* GetParameter(size_t i) const { return parameters_[i]; }
-  size_t GetParameterCount() const { return parameters_.size(); }
-  const std::vector<Variable*>& GetParameters() const { return parameters_; }
-
-  DECLARE_DECLARABLE_BOILERPLATE(Label, label);
-  void MarkUsed() { used_ = true; }
-  bool IsUsed() const { return used_; }
-
- private:
-  friend class Declarations;
-  explicit Label(const std::string& name)
-      : Declarable(Declarable::kLabel),
-        name_(name),
-        generated_("label_" + name + "_" + std::to_string(next_id_++)),
-        used_(false) {}
-
-  std::string name_;
-  std::string generated_;
-  std::vector<Variable*> parameters_;
-  static size_t next_id_;
-  bool used_;
+  std::string constant_name_;
 };
 
 class ExternConstant : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(ExternConstant, constant);
-  std::string value() const override { return value_; }
 
  private:
   friend class Declarations;
-  explicit ExternConstant(const std::string& name, const Type* type,
-                          const std::string& value)
-      : Value(Declarable::kExternConstant, type, name), value_(value) {}
-
-  std::string value_;
+  explicit ExternConstant(std::string name, const Type* type, std::string value)
+      : Value(Declarable::kExternConstant, type, std::move(name)) {
+    set_value(VisitResult(type, std::move(value)));
+  }
 };
 
 class Callable : public Declarable {
@@ -360,12 +286,8 @@ class TypeAlias : public Declarable {
   const Type* type_;
 };
 
-void PrintLabel(std::ostream& os, const Label& l, bool with_names);
-
 std::ostream& operator<<(std::ostream& os, const Callable& m);
-std::ostream& operator<<(std::ostream& os, const Variable& v);
 std::ostream& operator<<(std::ostream& os, const Builtin& b);
-std::ostream& operator<<(std::ostream& os, const Label& l);
 std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b);
 std::ostream& operator<<(std::ostream& os, const Generic& g);
 

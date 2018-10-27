@@ -8,6 +8,7 @@
 #include "src/api.h"
 #include "src/debug/debug.h"
 #include "src/isolate.h"
+#include "src/objects/slots.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -26,14 +27,14 @@ class CustomArguments : public CustomArgumentsBase {
  public:
   static const int kReturnValueOffset = T::kReturnValueIndex;
 
-  ~CustomArguments() {
+  ~CustomArguments() override {
     this->begin()[kReturnValueOffset] =
         reinterpret_cast<Object*>(kHandleZapValue);
   }
 
-  virtual inline void IterateInstance(RootVisitor* v) {
-    v->VisitRootPointers(Root::kRelocatable, nullptr, values_,
-                         values_ + T::kArgsLength);
+  inline void IterateInstance(RootVisitor* v) override {
+    v->VisitRootPointers(Root::kRelocatable, nullptr, ObjectSlot(values_),
+                         ObjectSlot(values_ + T::kArgsLength));
   }
 
  protected:
@@ -133,9 +134,10 @@ class PropertyCallbackArguments
       IndexedPropertyGetterCallback f, uint32_t index, Handle<Object> info);
   inline Handle<Object> BasicCallNamedGetterCallback(
       GenericNamedPropertyGetterCallback f, Handle<Name> name,
-      Handle<Object> info);
+      Handle<Object> info, Handle<Object> receiver = Handle<Object>());
 
   inline JSObject* holder();
+  inline Object* receiver();
 
   // Don't copy PropertyCallbackArguments, because they would both have the
   // same prev_ pointer.

@@ -38,7 +38,8 @@ SimdScalarLowering::SimdScalarLowering(
   DCHECK_NOT_NULL(graph());
   DCHECK_NOT_NULL(graph()->end());
   replacements_ = zone()->NewArray<Replacement>(graph()->NodeCount());
-  memset(replacements_, 0, sizeof(Replacement) * graph()->NodeCount());
+  memset(static_cast<void*>(replacements_), 0,
+         sizeof(Replacement) * graph()->NodeCount());
 }
 
 void SimdScalarLowering::LowerGraph() {

@@ -15,7 +15,7 @@ namespace internal {
 
 enum ParseElementResult { kElementFound, kElementNotFound, kNullHandle };
 
-class JsonParseInternalizer BASE_EMBEDDED {
+class JsonParseInternalizer {
  public:
   static MaybeHandle<Object> Internalize(Isolate* isolate,
                                          Handle<Object> object,
@@ -36,7 +36,7 @@ class JsonParseInternalizer BASE_EMBEDDED {
 
 // A simple json parser.
 template <bool seq_one_byte>
-class JsonParser BASE_EMBEDDED {
+class JsonParser {
  public:
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Parse(
       Isolate* isolate, Handle<String> source, Handle<Object> reviver) {

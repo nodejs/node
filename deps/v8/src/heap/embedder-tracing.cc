@@ -24,13 +24,6 @@ void LocalEmbedderHeapTracer::TraceEpilogue() {
   remote_tracer_->TraceEpilogue();
 }
 
-void LocalEmbedderHeapTracer::AbortTracing() {
-  if (!InUse()) return;
-
-  cached_wrappers_to_trace_.clear();
-  remote_tracer_->AbortTracing();
-}
-
 void LocalEmbedderHeapTracer::EnterFinalPause() {
   if (!InUse()) return;
 

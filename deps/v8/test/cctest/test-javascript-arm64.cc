@@ -46,7 +46,7 @@ namespace test_javascript_arm64 {
 static void ExpectBoolean(Local<v8::Context> context, bool expected,
                           Local<Value> result) {
   CHECK(result->IsBoolean());
-  CHECK_EQ(expected, result->BooleanValue(context).FromJust());
+  CHECK_EQ(expected, result->BooleanValue(context->GetIsolate()));
 }
 
 static void ExpectInt32(Local<v8::Context> context, int32_t expected,

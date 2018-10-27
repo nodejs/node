@@ -1498,9 +1498,14 @@ AsmType* AsmJsParser::AssignmentExpression() {
         FAILn("Illegal type stored to heap view");
       }
       if (heap_type->IsA(AsmType::Float32Array()) &&
-          value->IsA(AsmType::Double())) {
+          value->IsA(AsmType::DoubleQ())) {
         // Assignment to a float32 heap can be used to convert doubles.
         current_function_builder_->Emit(kExprF32ConvertF64);
+      }
+      if (heap_type->IsA(AsmType::Float64Array()) &&
+          value->IsA(AsmType::FloatQ())) {
+        // Assignment to a float64 heap can be used to convert floats.
+        current_function_builder_->Emit(kExprF64ConvertF32);
       }
       ret = value;
 #define V(array_type, wasmload, wasmstore, type)                         \

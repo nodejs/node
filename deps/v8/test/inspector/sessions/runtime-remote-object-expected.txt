@@ -5,6 +5,12 @@ Retrieving properties in 2
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -38,6 +44,12 @@ Retrieving properties in 1
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true
@@ -72,6 +84,12 @@ Retrieving properties in 1
 {
     id : <messageId>
     result : {
+        internalProperties : [
+            [0] : {
+                name : [[StableObjectId]]
+                value : <StablectObjectId>
+            }
+        ]
         result : [
             [0] : {
                 configurable : true

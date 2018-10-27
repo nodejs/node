@@ -25,14 +25,6 @@ Scope* ScopeChain::NewScope() {
   return new_scope;
 }
 
-void Scope::AddLiveVariables(std::set<const Variable*>& set) {
-  for (auto& current : lookup_) {
-    if (current.second->IsVariable()) {
-      set.insert(Variable::cast(current.second));
-    }
-  }
-}
-
 void Scope::Print() {
   std::cout << "scope #" << std::to_string(scope_number_) << "\n";
   for (auto& i : lookup_) {

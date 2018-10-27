@@ -18,10 +18,10 @@ namespace internal {
 void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
   if (buffer->backing_store() == nullptr) return;
 
-  const size_t length = NumberToSize(buffer->byte_length());
+  const size_t length = buffer->byte_length();
   Page* page = Page::FromAddress(buffer->address());
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     if (tracker == nullptr) {
       page->AllocateLocalTracker();
@@ -42,9 +42,9 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
   if (buffer->backing_store() == nullptr) return;
 
   Page* page = Page::FromAddress(buffer->address());
-  const size_t length = NumberToSize(buffer->byte_length());
+  const size_t length = buffer->byte_length();
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     DCHECK_NOT_NULL(tracker);
     tracker->Remove(buffer, length);
@@ -100,6 +100,11 @@ void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
   page_->IncrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kArrayBuffer, length);
 
+  AddInternal(buffer, length);
+}
+
+void LocalArrayBufferTracker::AddInternal(JSArrayBuffer* buffer,
+                                          size_t length) {
   auto ret = array_buffers_.insert(
       {buffer,
        {buffer->backing_store(), length, buffer->backing_store(),

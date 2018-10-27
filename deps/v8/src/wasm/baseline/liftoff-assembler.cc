@@ -286,7 +286,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
       auto& dst = stack_state[dst_idx];
       auto& src = source.stack_state[src_idx];
       // Just initialize to any register; will be overwritten before use.
-      LiftoffRegister reg(Register::from_code<0>());
+      LiftoffRegister reg = kGpCacheRegList.GetFirstRegSet();
       RegClass rc = src.is_reg() ? src.reg_class() : reg_class_for(src.type());
       if (src.is_reg() && is_free(src.reg())) {
         reg = src.reg();
@@ -449,7 +449,7 @@ void LiftoffAssembler::SpillAllRegisters() {
 void LiftoffAssembler::PrepareCall(FunctionSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
                                    Register* target,
-                                   LiftoffRegister* target_instance) {
+                                   Register* target_instance) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
   // Input 0 is the call target.
   constexpr size_t kInputShift = 1;
@@ -472,10 +472,12 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
   compiler::LinkageLocation instance_loc =
       call_descriptor->GetInputLocation(kInputShift);
   DCHECK(instance_loc.IsRegister() && !instance_loc.IsAnyRegister());
-  LiftoffRegister instance_reg(Register::from_code(instance_loc.AsRegister()));
+  Register instance_reg = Register::from_code(instance_loc.AsRegister());
   param_regs.set(instance_reg);
   if (target_instance && *target_instance != instance_reg) {
-    stack_transfers.MoveRegister(instance_reg, *target_instance, kWasmIntPtr);
+    stack_transfers.MoveRegister(LiftoffRegister(instance_reg),
+                                 LiftoffRegister(*target_instance),
+                                 kWasmIntPtr);
   }
 
   // Now move all parameter values into the right slot for the call.
@@ -551,7 +553,7 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
 
   // Reload the instance from the stack.
   if (!target_instance) {
-    FillInstanceInto(instance_reg.gp());
+    FillInstanceInto(instance_reg);
   }
 }
 

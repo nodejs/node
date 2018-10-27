@@ -21,7 +21,7 @@ class CallHelper {
       : csig_(csig), isolate_(isolate) {
     USE(isolate_);
   }
-  virtual ~CallHelper() {}
+  virtual ~CallHelper() = default;
 
   template <typename... Params>
   R Call(Params... args) {
@@ -46,7 +46,7 @@ class CodeRunner : public CallHelper<T> {
  public:
   CodeRunner(Isolate* isolate, Handle<Code> code, MachineSignature* csig)
       : CallHelper<T>(isolate, csig), code_(code) {}
-  virtual ~CodeRunner() {}
+  ~CodeRunner() override = default;
 
   Address Generate() override { return code_->entry(); }
 

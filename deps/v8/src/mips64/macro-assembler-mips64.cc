@@ -127,15 +127,15 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   return bytes;
 }
 
-void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
-  Ld(destination, MemOperand(s6, RootRegisterOffset(index)));
+void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
+  Ld(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
 
-void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index,
+void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond, Register src1,
                               const Operand& src2) {
   Branch(2, NegateCondition(cond), src1, src2);
-  Ld(destination, MemOperand(s6, RootRegisterOffset(index)));
+  Ld(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
 
 
@@ -259,26 +259,42 @@ void TurboAssembler::RestoreRegisters(RegList registers) {
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
+  CallRecordWriteStub(
+      object, address, remembered_set_action, fp_mode,
+      isolate()->builtins()->builtin_handle(Builtins::kRecordWrite),
+      kNullAddress);
+}
+
+void TurboAssembler::CallRecordWriteStub(
+    Register object, Register address,
+    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+    Address wasm_target) {
+  CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
+                      Handle<Code>::null(), wasm_target);
+}
+
+void TurboAssembler::CallRecordWriteStub(
+    Register object, Register address,
+    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+    Handle<Code> code_target, Address wasm_target) {
+  DCHECK_NE(code_target.is_null(), wasm_target == kNullAddress);
   // TODO(albertnetymk): For now we ignore remembered_set_action and fp_mode,
   // i.e. always emit remember set and save FP registers in RecordWriteStub. If
   // large performance regression is observed, we should use these values to
   // avoid unnecessary work.
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kRecordWrite);
-  RegList registers = callable.descriptor().allocatable_registers();
+  RecordWriteDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
 
   SaveRegisters(registers);
-  Register object_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kObject));
+  Register object_parameter(
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kObject));
   Register slot_parameter(
-      callable.descriptor().GetRegisterParameter(RecordWriteDescriptor::kSlot));
-  Register isolate_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kIsolate));
-  Register remembered_set_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kRememberedSet));
-  Register fp_mode_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kFPMode));
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kSlot));
+  Register remembered_set_parameter(
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kRememberedSet));
+  Register fp_mode_parameter(
+      descriptor.GetRegisterParameter(RecordWriteDescriptor::kFPMode));
 
   Push(object);
   Push(address);
@@ -286,10 +302,13 @@ void TurboAssembler::CallRecordWriteStub(
   Pop(slot_parameter);
   Pop(object_parameter);
 
-  li(isolate_parameter, ExternalReference::isolate_address(isolate()));
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
-  Call(callable.code(), RelocInfo::CODE_TARGET);
+  if (code_target.is_null()) {
+    Call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  } else {
+    Call(code_target, RelocInfo::CODE_TARGET);
+  }
 
   RestoreRegisters(registers);
 }
@@ -1571,6 +1590,11 @@ void TurboAssembler::li(Register dst, ExternalReference value, LiFlags mode) {
     }
   }
   li(dst, Operand(value), mode);
+}
+
+void TurboAssembler::li(Register dst, const StringConstantBase* string,
+                        LiFlags mode) {
+  li(dst, Operand::EmbeddedStringConstant(string), mode);
 }
 
 static inline int InstrCountForLiLower32Bit(int64_t value) {
@@ -3311,7 +3335,7 @@ void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
 }
 
 void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
-                            Heap::RootListIndex index, BranchDelaySlot bdslot) {
+                            RootIndex index, BranchDelaySlot bdslot) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   LoadRoot(scratch, index);
@@ -4123,9 +4147,8 @@ bool TurboAssembler::BranchAndLinkShortCheck(int32_t offset, Label* L,
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
-  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
-      Heap::kBuiltinsConstantsTableRootIndex));
-  LoadRoot(destination, Heap::kBuiltinsConstantsTableRootIndex);
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
+  LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   Ld(destination,
      FieldMemOperand(destination,
                      FixedArray::kHeaderSize + constant_index * kPointerSize));
@@ -4708,7 +4731,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
-    LoadRoot(a3, Heap::kUndefinedValueRootIndex);
+    LoadRoot(a3, RootIndex::kUndefinedValue);
   }
 
   Label done;
@@ -5421,6 +5444,9 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   // Check if JSGeneratorObject
   Branch(&done, eq, t8, Operand(JS_GENERATOR_OBJECT_TYPE));
 
+  // Check if JSAsyncFunctionObject (See MacroAssembler::CompareInstanceType)
+  Branch(&done, eq, t8, Operand(JS_ASYNC_FUNCTION_OBJECT_TYPE));
+
   // Check if JSAsyncGeneratorObject
   Branch(&done, eq, t8, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
 
@@ -5434,7 +5460,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
   if (emit_debug_code()) {
     Label done_checking;
     AssertNotSmi(object);
-    LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+    LoadRoot(scratch, RootIndex::kUndefinedValue);
     Branch(&done_checking, eq, object, Operand(scratch));
     GetObjectType(object, scratch, scratch);
     Assert(eq, AbortReason::kExpectedUndefinedOrCell, scratch,

@@ -1,8 +1,6 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// TODO(luoe): remove flag when it is on by default.
-// Flags: --harmony-bigint
 
 let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.evaluate will generate correct previews.");
 
@@ -63,6 +61,7 @@ Object.defineProperty(parentObj, 'propNotNamedProto', {
   get: deterministicNativeFunction,
   set: function() {}
 });
+inspector.allowAccessorFormatting(parentObj);
 var objInheritsGetterProperty = {__proto__: parentObj};
 inspector.allowAccessorFormatting(objInheritsGetterProperty);
 

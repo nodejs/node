@@ -12,6 +12,7 @@
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/fixed-array.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -51,13 +52,12 @@ struct BuiltinMetadata {
 #define DECL_TFC(Name, ...) { #Name, Builtins::TFC, {} },
 #define DECL_TFS(Name, ...) { #Name, Builtins::TFS, {} },
 #define DECL_TFH(Name, ...) { #Name, Builtins::TFH, {} },
-#define DECL_BCH(Name, ...) { #Name "Handler", Builtins::BCH, {} }, \
-                            { #Name "WideHandler", Builtins::BCH, {} }, \
-                            { #Name "ExtraWideHandler", Builtins::BCH, {} },
+#define DECL_BCH(Name, ...) { #Name, Builtins::BCH, {} },
+#define DECL_DLH(Name, ...) { #Name, Builtins::DLH, {} },
 #define DECL_ASM(Name, ...) { #Name, Builtins::ASM, {} },
 const BuiltinMetadata builtin_metadata[] = {
   BUILTIN_LIST(DECL_CPP, DECL_API, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH,
-               DECL_BCH, DECL_ASM)
+               DECL_BCH, DECL_DLH, DECL_ASM)
 };
 #undef DECL_CPP
 #undef DECL_API
@@ -66,6 +66,7 @@ const BuiltinMetadata builtin_metadata[] = {
 #undef DECL_TFS
 #undef DECL_TFH
 #undef DECL_BCH
+#undef DECL_DLH
 #undef DECL_ASM
 // clang-format on
 
@@ -166,11 +167,12 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
-                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN)
+                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN,
+                 IGNORE_BUILTIN)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(name);
-      DCHECK_NE(kind, BCH);
+      DCHECK(kind != BCH && kind != DLH);
       if (kind == TFJ || kind == CPP) {
         return Callable(code, JSTrampolineDescriptor{});
       }
@@ -264,8 +266,11 @@ bool Builtins::IsLazy(int index) {
     case kArrayReduceRightPreLoopEagerDeoptContinuation:
     case kArraySomeLoopEagerDeoptContinuation:
     case kArraySomeLoopLazyDeoptContinuation:
-    case kAsyncGeneratorAwaitCaught:            // https://crbug.com/v8/6786.
-    case kAsyncGeneratorAwaitUncaught:          // https://crbug.com/v8/6786.
+    case kAsyncFunctionAwaitResolveClosure:   // https://crbug.com/v8/7522
+    case kAsyncGeneratorAwaitResolveClosure:  // https://crbug.com/v8/7522
+    case kAsyncGeneratorYieldResolveClosure:  // https://crbug.com/v8/7522
+    case kAsyncGeneratorAwaitCaught:          // https://crbug.com/v8/6786.
+    case kAsyncGeneratorAwaitUncaught:        // https://crbug.com/v8/6786.
     // CEntry variants must be immovable, whereas lazy deserialization allocates
     // movable code.
     case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
@@ -281,13 +286,18 @@ bool Builtins::IsLazy(int index) {
     case kCompileLazy:
     case kDebugBreakTrampoline:
     case kDeserializeLazy:
+    case kDeserializeLazyHandler:
+    case kDeserializeLazyWideHandler:
+    case kDeserializeLazyExtraWideHandler:
     case kFunctionPrototypeHasInstance:  // https://crbug.com/v8/6786.
     case kHandleApiCall:
     case kIllegal:
+    case kIllegalHandler:
     case kInstantiateAsmJs:
     case kInterpreterEnterBytecodeAdvance:
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:
+    case kPromiseAllResolveElementClosure:  // https://crbug.com/v8/7522
     case kPromiseConstructorLazyDeoptContinuation:
     case kRecordWrite:  // https://crbug.com/chromium/765301.
     case kThrowWasmTrapDivByZero:             // Required by wasm.
@@ -306,27 +316,20 @@ bool Builtins::IsLazy(int index) {
       return false;
     default:
       // TODO(6624): Extend to other kinds.
-      return KindOf(index) == TFJ;
+      return KindOf(index) == TFJ || KindOf(index) == BCH;
   }
   UNREACHABLE();
 }
 
 // static
+bool Builtins::IsLazyDeserializer(Code* code) {
+  return IsLazyDeserializer(code->builtin_index());
+}
+
+// static
 bool Builtins::IsIsolateIndependent(int index) {
   DCHECK(IsBuiltinId(index));
-#ifndef V8_TARGET_ARCH_IA32
   switch (index) {
-// Bytecode handlers do not yet support being embedded.
-#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
-#define BYTECODE_BUILTIN(Name, ...) \
-  case k##Name##Handler:            \
-  case k##Name##WideHandler:        \
-  case k##Name##ExtraWideHandler:   \
-    return false;
-    BUILTIN_LIST_BYTECODE_HANDLERS(BYTECODE_BUILTIN)
-#undef BYTECODE_BUILTIN
-#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
-
     // TODO(jgruber): There's currently two blockers for moving
     // InterpreterEntryTrampoline into the binary:
     // 1. InterpreterEnterBytecode calculates a pointer into the middle of
@@ -344,24 +347,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     default:
       return true;
   }
-#else   // V8_TARGET_ARCH_IA32
-  // TODO(jgruber, v8:6666): Implement support.
-  // ia32 is a work-in-progress. This will let us make builtins
-  // isolate-independent one-by-one.
-  switch (index) {
-    case kContinueToCodeStubBuiltin:
-    case kContinueToCodeStubBuiltinWithResult:
-    case kContinueToJavaScriptBuiltin:
-    case kContinueToJavaScriptBuiltinWithResult:
-    case kWasmAllocateHeapNumber:
-    case kWasmCallJavaScript:
-    case kWasmToNumber:
-    case kDoubleToI:
-      return true;
-    default:
-      return false;
-  }
-#endif  // V8_TARGET_ARCH_IA32
   UNREACHABLE();
 }
 
@@ -381,6 +366,39 @@ bool Builtins::IsWasmRuntimeStub(int index) {
   UNREACHABLE();
 }
 
+namespace {
+
+class OffHeapTrampolineGenerator {
+ public:
+  explicit OffHeapTrampolineGenerator(Isolate* isolate)
+      : isolate_(isolate),
+        masm_(isolate, buffer, kBufferSize, CodeObjectRequired::kYes) {}
+
+  CodeDesc Generate(Address off_heap_entry) {
+    // Generate replacement code that simply tail-calls the off-heap code.
+    DCHECK(!masm_.has_frame());
+    {
+      FrameScope scope(&masm_, StackFrame::NONE);
+      masm_.JumpToInstructionStream(off_heap_entry);
+    }
+
+    CodeDesc desc;
+    masm_.GetCode(isolate_, &desc);
+    return desc;
+  }
+
+  Handle<HeapObject> CodeObject() { return masm_.CodeObject(); }
+
+ private:
+  Isolate* isolate_;
+  // Enough to fit the single jmp.
+  static constexpr size_t kBufferSize = 256;
+  byte buffer[kBufferSize];
+  MacroAssembler masm_;
+};
+
+}  // namespace
+
 // static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
                                                     Address off_heap_entry) {
@@ -388,21 +406,26 @@ Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
   DCHECK_NOT_NULL(isolate->embedded_blob());
   DCHECK_NE(0, isolate->embedded_blob_size());
 
-  constexpr size_t buffer_size = 256;  // Enough to fit the single jmp.
-  byte buffer[buffer_size];            // NOLINT(runtime/arrays)
+  OffHeapTrampolineGenerator generator(isolate);
+  CodeDesc desc = generator.Generate(off_heap_entry);
 
-  // Generate replacement code that simply tail-calls the off-heap code.
-  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
-  DCHECK(!masm.has_frame());
-  {
-    FrameScope scope(&masm, StackFrame::NONE);
-    masm.JumpToInstructionStream(off_heap_entry);
-  }
+  return isolate->factory()->NewCode(desc, Code::BUILTIN,
+                                     generator.CodeObject());
+}
 
-  CodeDesc desc;
-  masm.GetCode(isolate, &desc);
+// static
+Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
+    Isolate* isolate) {
+  OffHeapTrampolineGenerator generator(isolate);
+  // Generate a jump to a dummy address as we're not actually interested in the
+  // generated instruction stream.
+  CodeDesc desc = generator.Generate(kNullAddress);
 
-  return isolate->factory()->NewCode(desc, Code::BUILTIN, masm.CodeObject());
+  Handle<ByteArray> reloc_info =
+      isolate->factory()->NewByteArray(desc.reloc_size, TENURED_READ_ONLY);
+  Code::CopyRelocInfoToByteArray(*reloc_info, desc);
+
+  return reloc_info;
 }
 
 // static
@@ -423,6 +446,7 @@ const char* Builtins::KindNameOf(int index) {
     case TFS: return "TFS";
     case TFH: return "TFH";
     case BCH: return "BCH";
+    case DLH: return "DLH";
     case ASM: return "ASM";
   }
   // clang-format on

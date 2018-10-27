@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 
+#include "src/base/logging.h"
 #include "src/torque/ast.h"
 #include "src/torque/utils.h"
 
@@ -76,9 +77,90 @@ std::string CurrentPositionAsString() {
   return PositionAsString(CurrentSourcePosition::Get());
 }
 
-[[noreturn]] void ReportError(const std::string& error) {
+DEFINE_CONTEXTUAL_VARIABLE(LintErrorStatus)
+
+[[noreturn]] void ReportErrorString(const std::string& error) {
   std::cerr << CurrentPositionAsString() << ": Torque error: " << error << "\n";
-  std::abort();
+  v8::base::OS::Abort();
+}
+
+void LintError(const std::string& error) {
+  LintErrorStatus::SetLintError();
+  std::cerr << CurrentPositionAsString() << ": Lint error: " << error << "\n";
+}
+
+void NamingConventionError(const std::string& type, const std::string& name,
+                           const std::string& convention) {
+  std::stringstream sstream;
+  sstream << type << " \"" << name << "\" doesn't follow \"" << convention
+          << "\" naming convention.";
+  LintError(sstream.str());
+}
+
+namespace {
+
+bool ContainsUnderscore(const std::string& s) {
+  if (s.empty()) return false;
+  return s.find("_") != std::string::npos;
+}
+
+bool ContainsUpperCase(const std::string& s) {
+  if (s.empty()) return false;
+  return std::any_of(s.begin(), s.end(), [](char c) { return isupper(c); });
+}
+
+// Torque has some module constants that are used like language level
+// keywords, e.g.: 'True', 'Undefined', etc.
+// These do not need to follow the default naming convention for constants.
+bool IsKeywordLikeName(const std::string& s) {
+  static const char* const keyword_like_constants[]{"True", "False", "Hole",
+                                                    "Null", "Undefined"};
+
+  return std::find(std::begin(keyword_like_constants),
+                   std::end(keyword_like_constants),
+                   s) != std::end(keyword_like_constants);
+}
+
+// Untagged/MachineTypes like 'int32', 'intptr' etc. follow a 'all-lowercase'
+// naming convention and are those exempt from the normal type convention.
+bool IsMachineType(const std::string& s) {
+  static const char* const machine_types[]{
+      "void",    "never",   "int32",   "uint32", "int64",  "intptr",
+      "uintptr", "float32", "float64", "bool",   "string", "int31"};
+
+  return std::find(std::begin(machine_types), std::end(machine_types), s) !=
+         std::end(machine_types);
+}
+
+}  // namespace
+
+bool IsLowerCamelCase(const std::string& s) {
+  if (s.empty()) return false;
+  return islower(s[0]) && !ContainsUnderscore(s);
+}
+
+bool IsUpperCamelCase(const std::string& s) {
+  if (s.empty()) return false;
+  return isupper(s[0]) && !ContainsUnderscore(s);
+}
+
+bool IsSnakeCase(const std::string& s) {
+  if (s.empty()) return false;
+  return !ContainsUpperCase(s);
+}
+
+bool IsValidModuleConstName(const std::string& s) {
+  if (s.empty()) return false;
+  if (IsKeywordLikeName(s)) return true;
+
+  return s[0] == 'k' && IsUpperCamelCase(s.substr(1));
+}
+
+bool IsValidTypeName(const std::string& s) {
+  if (s.empty()) return false;
+  if (IsMachineType(s)) return true;
+
+  return IsUpperCamelCase(s);
 }
 
 std::string CamelifyString(const std::string& underscore_string) {

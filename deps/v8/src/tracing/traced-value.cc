@@ -26,9 +26,8 @@ const bool kStackTypeArray = true;
 
 void EscapeAndAppendString(const char* value, std::string* result) {
   *result += '"';
-  char number_buffer[10];
   while (*value) {
-    char c = *value++;
+    unsigned char c = *value++;
     switch (c) {
       case '\t':
         *result += "\\t";
@@ -43,9 +42,10 @@ void EscapeAndAppendString(const char* value, std::string* result) {
         *result += "\\\\";
         break;
       default:
-        if (c < '\x20') {
+        if (c < '\x20' || c == '\x7F') {
+          char number_buffer[8];
           base::OS::SNPrintF(
-              number_buffer, arraysize(number_buffer), "\\u%04X",
+              number_buffer, arraysize(number_buffer), "\\x%02X",
               static_cast<unsigned>(static_cast<unsigned char>(c)));
           *result += number_buffer;
         } else {

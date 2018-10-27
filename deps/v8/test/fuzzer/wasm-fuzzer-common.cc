@@ -158,7 +158,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
       ModuleOrigin::kWasmOrigin, isolate->counters(), isolate->allocator());
   CHECK(module_res.ok());
-  WasmModule* module = module_res.val.get();
+  WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
 
   StdoutStream os;
@@ -251,6 +251,11 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
 int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
                                         bool require_valid) {
+  // Strictly enforce the input size limit. Note that setting "max_len" on the
+  // fuzzer target is not enough, since different fuzzers are used and not all
+  // respect that limit.
+  if (data.size() > max_input_size()) return 0;
+
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);

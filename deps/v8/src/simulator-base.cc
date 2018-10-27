@@ -4,7 +4,6 @@
 
 #include "src/simulator-base.h"
 
-#include "src/assembler.h"
 #include "src/isolate.h"
 #include "src/simulator.h"
 
@@ -61,7 +60,7 @@ void SimulatorBase::GlobalTearDown() {
 // static
 Address SimulatorBase::RedirectExternalReference(Address external_function,
                                                  ExternalReference::Type type) {
-  base::LockGuard<base::Mutex> lock_guard(Simulator::redirection_mutex());
+  base::MutexGuard lock_guard(Simulator::redirection_mutex());
   Redirection* redirection = Redirection::Get(external_function, type);
   return redirection->address_of_instruction();
 }
@@ -70,7 +69,7 @@ Redirection::Redirection(Address external_function,
                          ExternalReference::Type type)
     : external_function_(external_function), type_(type), next_(nullptr) {
   next_ = Simulator::redirection();
-  base::LockGuard<base::Mutex> lock_guard(Simulator::i_cache_mutex());
+  base::MutexGuard lock_guard(Simulator::i_cache_mutex());
   Simulator::SetRedirectInstruction(
       reinterpret_cast<Instruction*>(address_of_instruction()));
   Simulator::FlushICache(Simulator::i_cache(),

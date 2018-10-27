@@ -6,23 +6,17 @@
 #define V8_WASM_WASM_OPCODES_H_
 
 #include "src/globals.h"
-#include "src/vector.h"
+#include "src/message-template.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-constants.h"
 
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Signature;
-
 namespace wasm {
 
-using FunctionSig = Signature<ValueType>;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 bool IsJSCompatibleSignature(const FunctionSig* sig);
-
-using WasmName = Vector<const char>;
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V)         \
@@ -584,7 +578,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   // this one in the current block are dead. Returns false for |end|.
   static bool IsUnconditionalJump(WasmOpcode opcode);
 
-  static int TrapReasonToMessageId(TrapReason reason);
+  static MessageTemplate TrapReasonToMessageId(TrapReason reason);
   static const char* TrapReasonMessage(TrapReason reason);
 };
 

@@ -142,8 +142,9 @@ class IdentityMapTester : public HandleAndZoneScope {
 
   void SimulateGCByIncrementingSmisBy(int shift) {
     for (int i = 0; i < map.capacity_; i++) {
-      if (map.keys_[i]->IsSmi()) {
-        map.keys_[i] = Smi::FromInt(Smi::ToInt(map.keys_[i]) + shift);
+      Address key = map.keys_[i];
+      if (!Internals::HasHeapObjectTag(key)) {
+        map.keys_[i] = Internals::IntToSmi(Internals::SmiValue(key) + shift);
       }
     }
     map.gc_counter_ = -1;

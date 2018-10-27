@@ -246,10 +246,6 @@ bool UberDispatcher::parseCommand(Value* parsedMessage, int* outCallId, String* 
         reportProtocolErrorTo(m_frontendChannel, callId, DispatchResponse::kInvalidRequest, "Message must have string 'method' property", nullptr);
         return false;
     }
-
-    std::unordered_map<String, String>::iterator redirectIt = m_redirects.find(method);
-    if (redirectIt != m_redirects.end())
-        method = redirectIt->second;
     if (outMethod)
       *outMethod = method;
     return true;
@@ -268,13 +264,21 @@ protocol::DispatcherBase* UberDispatcher::findDispatcher(const String& method) {
     return it->second.get();
 }
 
-bool UberDispatcher::canDispatch(const String& method)
+bool UberDispatcher::canDispatch(const String& in_method)
 {
+    String method = in_method;
+    auto redirectIt = m_redirects.find(method);
+    if (redirectIt != m_redirects.end())
+        method = redirectIt->second;
     return !!findDispatcher(method);
 }
 
-void UberDispatcher::dispatch(int callId, const String& method, std::unique_ptr<Value> parsedMessage, const String& rawMessage)
+void UberDispatcher::dispatch(int callId, const String& in_method, std::unique_ptr<Value> parsedMessage, const String& rawMessage)
 {
+    String method = in_method;
+    auto redirectIt = m_redirects.find(method);
+    if (redirectIt != m_redirects.end())
+        method = redirectIt->second;
     protocol::DispatcherBase* dispatcher = findDispatcher(method);
     if (!dispatcher) {
         reportProtocolErrorTo(m_frontendChannel, callId, DispatchResponse::kMethodNotFound, "'" + method + "' wasn't found", nullptr);

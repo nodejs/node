@@ -13,6 +13,7 @@
 #include "src/frame-constants.h"
 #include "src/heap/heap-inl.h"
 #include "src/optimized-compilation-info.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -225,6 +226,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return Operand(constant.ToExternalReference());
       case Constant::kHeapObject:
         return Operand(constant.ToHeapObject());
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(dcarney): RPO immediates on arm64.
         break;
@@ -259,7 +263,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand index,
                        Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode,
+                       RecordWriteMode mode, StubCallMode stub_mode,
                        UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
@@ -268,6 +272,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
+        stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         unwinding_info_writer_(unwinding_info_writer),
         zone_(gen->zone()) {}
@@ -290,8 +295,16 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ Push(lr, padreg);
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(), sp);
     }
-    __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
-                           save_fp_mode);
+    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+      // A direct call to a wasm runtime stub defined in this module.
+      // Just encode the stub index. This will be patched when the code
+      // is added to the native module and copied into wasm code space.
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode, wasm::WasmCode::kWasmRecordWrite);
+    } else {
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode);
+    }
     if (must_save_lr_) {
       __ Pop(padreg, lr);
       unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
@@ -305,6 +318,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
+  StubCallMode const stub_mode_;
   bool must_save_lr_;
   UnwindingInfoWriter* const unwinding_info_writer_;
   Zone* zone_;
@@ -840,9 +854,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = new (zone())
-          OutOfLineRecordWrite(this, object, index, value, scratch0, scratch1,
-                               mode, &unwinding_info_writer_);
+      auto ool = new (zone()) OutOfLineRecordWrite(
+          this, object, index, value, scratch0, scratch1, mode,
+          DetermineStubCallMode(), &unwinding_info_writer_);
       __ Str(value, MemOperand(object, index));
       __ CheckPageFlagSet(object, scratch0,
                           MemoryChunk::kPointersFromHereAreInterestingMask,
@@ -2266,7 +2280,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       } else {
         gen_->AssembleSourcePosition(instr_);
         // A direct call to a wasm runtime stub defined in this module.
-        // Just encode the stub index. This will be patched at relocation.
+        // Just encode the stub index. This will be patched when the code
+        // is added to the native module and copied into wasm code space.
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
@@ -2491,6 +2506,20 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Str(kWasmInstanceRegister,
                MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
       } break;
+      case CallDescriptor::kCallWasmImportWrapper: {
+        UseScratchRegisterScope temps(tasm());
+        __ ldr(kJSFunctionRegister,
+               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ ldr(kWasmInstanceRegister,
+               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+        __ Claim(shrink_slots + 2);  // Claim extra slots for marker + instance.
+        Register scratch = temps.AcquireX();
+        __ Mov(scratch,
+               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+        __ Str(kWasmInstanceRegister,
+               MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
+      } break;
       case CallDescriptor::kCallAddress:
         __ Claim(shrink_slots);
         break;
@@ -2578,7 +2607,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   auto MoveConstantToRegister = [&](Register dst, Constant src) {
     if (src.type() == Constant::kHeapObject) {
       Handle<HeapObject> src_object = src.ToHeapObject();
-      Heap::RootListIndex index;
+      RootIndex index;
       if (IsMaterializableFromRoot(src_object, &index)) {
         __ LoadRoot(dst, index);
       } else {

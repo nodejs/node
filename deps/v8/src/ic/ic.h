@@ -11,8 +11,7 @@
 #include "src/heap/factory.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 
@@ -36,7 +35,7 @@ class IC {
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot);
-  virtual ~IC() {}
+  virtual ~IC() = default;
 
   State state() const { return state_; }
   inline Address address() const;
@@ -59,7 +58,7 @@ class IC {
            IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind());
   }
 
-  static inline bool IsHandler(MaybeObject* object);
+  static inline bool IsHandler(MaybeObject object);
 
   // Nofity the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
@@ -88,7 +87,7 @@ class IC {
   bool vector_needs_update() {
     return (!vector_set_ &&
             (state() != MEGAMORPHIC ||
-             Smi::ToInt(nexus()->GetFeedbackExtra()->ToSmi()) != ELEMENT));
+             Smi::ToInt(nexus()->GetFeedbackExtra()->cast<Smi>()) != ELEMENT));
   }
 
   // Configure for most states.
@@ -109,8 +108,8 @@ class IC {
   void TraceIC(const char* type, Handle<Object> name, State old_state,
                State new_state);
 
-  MaybeHandle<Object> TypeError(MessageTemplate::Template,
-                                Handle<Object> object, Handle<Object> key);
+  MaybeHandle<Object> TypeError(MessageTemplate, Handle<Object> object,
+                                Handle<Object> key);
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
@@ -296,11 +295,10 @@ class StoreIC : public IC {
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
-      JSReceiver::StoreFromKeyed store_mode =
-          JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
+      StoreOrigin store_origin = StoreOrigin::kNamed);
 
   bool LookupForWrite(LookupIterator* it, Handle<Object> value,
-                      JSReceiver::StoreFromKeyed store_mode);
+                      StoreOrigin store_origin);
 
  protected:
   // Stub accessors.
@@ -312,7 +310,7 @@ class StoreIC : public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
-                    JSReceiver::StoreFromKeyed store_mode);
+                    StoreOrigin store_origin);
 
  private:
   MaybeObjectHandle ComputeHandler(LookupIterator* lookup);

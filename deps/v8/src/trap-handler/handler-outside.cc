@@ -19,7 +19,6 @@
 //
 // For the code that runs in the signal handler itself, see handler-inside.cc.
 
-#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

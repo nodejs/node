@@ -116,11 +116,24 @@ TEST(Escaping) {
   // Cannot use the expected value literal directly in CHECK_EQ
   // as it fails to process the # character on Windows.
   const char* expected =
-      "{\"a\":\"abc\\\"\'\\\\\\\\x\\\"y\'z\\n\\t\\u0017\",\"b\":"
-      "\"\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\u0008\\t\\n\\u000B"
-      "\\u000C\\u000D\\u000E\\u000F\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\"
-      "u0016\\u0017\\u0018\\u0019\\u001A\\u001B\\u001C\\u001D\\u001E\\u001F "
-      "!\\\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_`"
-      "abcdefghijklmnopqrstuvwxyz{|}~\x7F\"}";
+      R"({"a":"abc\"'\\\\x\"y'z\n\t\x17","b":"\x01\x02\x03\x04\x05\x06\x07\x08)"
+      R"(\t\n\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A)"
+      R"(\x1B\x1C\x1D\x1E\x1F !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNO)"
+      R"(PQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\x7F"})";
+  CHECK_EQ(expected, json);
+}
+
+TEST(Utf8) {
+  const char* string1 = "Люблю тебя, Петра творенье";
+  const char* string2 = "☀\u2600\u26FF";
+  auto value = TracedValue::Create();
+  value->SetString("a", string1);
+  value->SetString("b", string2);
+  std::string json;
+  value->AppendAsTraceFormat(&json);
+  const char* expected =
+      "{\"a\":\"\u041b\u044e\u0431\u043b\u044e \u0442\u0435\u0431\u044f, \u041f"
+      "\u0435\u0442\u0440\u0430 \u0442\u0432\u043e\u0440\u0435\u043d\u044c"
+      "\u0435\",\"b\":\"\u2600\u2600\u26ff\"}";
   CHECK_EQ(expected, json);
 }

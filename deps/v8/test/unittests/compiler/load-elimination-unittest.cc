@@ -26,7 +26,7 @@ class LoadEliminationTest : public TypedGraphTest {
         simplified_(zone()),
         jsgraph_(isolate(), graph(), common(), nullptr, simplified(), nullptr) {
   }
-  ~LoadEliminationTest() override {}
+  ~LoadEliminationTest() override = default;
 
  protected:
   JSGraph* jsgraph() { return &jsgraph_; }

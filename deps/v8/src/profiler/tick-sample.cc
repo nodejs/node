@@ -206,7 +206,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // Check whether we interrupted setup/teardown of a stack frame in JS code.
   // Avoid this check for C++ code, as that would trigger false positives.
   if (regs->pc &&
-      isolate->heap()->memory_allocator()->code_range()->contains(
+      isolate->heap()->memory_allocator()->code_range().contains(
           reinterpret_cast<i::Address>(regs->pc)) &&
       IsNoFrameRegion(reinterpret_cast<i::Address>(regs->pc))) {
     // The frame is not setup, so it'd be hard to iterate the stack. Bailout.
@@ -255,17 +255,16 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
       // bytecode_array might be garbage, so don't actually dereference it. We
       // avoid the frame->GetXXX functions since they call BytecodeArray::cast,
       // which has a heap access in its DCHECK.
-      i::Object* bytecode_array = i::Memory<i::Object*>(
+      i::Address bytecode_array = i::Memory<i::Address>(
           frame->fp() + i::InterpreterFrameConstants::kBytecodeArrayFromFp);
-      i::Object* bytecode_offset = i::Memory<i::Object*>(
+      i::Address bytecode_offset = i::Memory<i::Address>(
           frame->fp() + i::InterpreterFrameConstants::kBytecodeOffsetFromFp);
 
       // If the bytecode array is a heap object and the bytecode offset is a
       // Smi, use those, otherwise fall back to using the frame's pc.
       if (HAS_HEAP_OBJECT_TAG(bytecode_array) && HAS_SMI_TAG(bytecode_offset)) {
         frames[i++] = reinterpret_cast<void*>(
-            reinterpret_cast<i::Address>(bytecode_array) +
-            i::Internals::SmiValue(bytecode_offset));
+            bytecode_array + i::Internals::SmiValue(bytecode_offset));
         continue;
       }
     }

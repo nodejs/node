@@ -26,11 +26,10 @@ void LocalArrayBufferTracker::Process(Callback callback) {
   JSArrayBuffer* new_buffer = nullptr;
   JSArrayBuffer* old_buffer = nullptr;
   size_t freed_memory = 0;
-  size_t moved_memory = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end(); ++it) {
     old_buffer = it->first;
-    Page* old_page = Page::FromAddress(old_buffer->address());
+    DCHECK_EQ(page_, Page::FromAddress(old_buffer->address()));
     const CallbackResult result = callback(old_buffer, &new_buffer);
     if (result == kKeepEntry) {
       kept_array_buffers.insert(*it);
@@ -38,7 +37,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       DCHECK_NOT_NULL(new_buffer);
       Page* target_page = Page::FromAddress(new_buffer->address());
       {
-        base::LockGuard<base::Mutex> guard(target_page->mutex());
+        base::MutexGuard guard(target_page->mutex());
         LocalArrayBufferTracker* tracker = target_page->local_tracker();
         if (tracker == nullptr) {
           target_page->AllocateLocalTracker();
@@ -49,26 +48,25 @@ void LocalArrayBufferTracker::Process(Callback callback) {
         // We should decrement before adding to avoid potential overflows in
         // the external memory counters.
         DCHECK_EQ(it->first->is_wasm_memory(), it->second.is_wasm_memory);
-        old_page->DecrementExternalBackingStoreBytes(
-            ExternalBackingStoreType::kArrayBuffer, length);
-        tracker->Add(new_buffer, length);
+        tracker->AddInternal(new_buffer, length);
+        MemoryChunk::MoveExternalBackingStoreBytes(
+            ExternalBackingStoreType::kArrayBuffer,
+            static_cast<MemoryChunk*>(page_),
+            static_cast<MemoryChunk*>(target_page), length);
       }
-      moved_memory += it->second.length;
-
     } else if (result == kRemoveEntry) {
-      const size_t length = it->second.length;
-      freed_memory += length;
+      freed_memory += it->second.length;
       // We pass backing_store() and stored length to the collector for freeing
       // the backing store. Wasm allocations will go through their own tracker
       // based on the backing store.
       backing_stores_to_free.push_back(it->second);
-      old_page->DecrementExternalBackingStoreBytes(
-          ExternalBackingStoreType::kArrayBuffer, length);
     } else {
       UNREACHABLE();
     }
   }
-  if (moved_memory || freed_memory) {
+  if (freed_memory) {
+    page_->DecrementExternalBackingStoreBytes(
+        ExternalBackingStoreType::kArrayBuffer, freed_memory);
     // TODO(wez): Remove backing-store from external memory accounting.
     page_->heap()->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));
@@ -76,9 +74,9 @@ void LocalArrayBufferTracker::Process(Callback callback) {
 
   array_buffers_.swap(kept_array_buffers);
 
-  // Pass the backing stores that need to be freed to the main thread for later
-  // distribution.
-  page_->heap()->array_buffer_collector()->AddGarbageAllocations(
+  // Pass the backing stores that need to be freed to the main thread for
+  // potential later distribution.
+  page_->heap()->array_buffer_collector()->QueueOrFreeGarbageAllocations(
       std::move(backing_stores_to_free));
 }
 
@@ -122,7 +120,7 @@ bool ArrayBufferTracker::ProcessBuffers(Page* page, ProcessingMode mode) {
 bool ArrayBufferTracker::IsTracked(JSArrayBuffer* buffer) {
   Page* page = Page::FromAddress(buffer->address());
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     if (tracker == nullptr) return false;
     return tracker->IsTracked(buffer);

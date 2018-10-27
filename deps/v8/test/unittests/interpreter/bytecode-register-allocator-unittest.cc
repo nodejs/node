@@ -16,7 +16,7 @@ namespace interpreter {
 class BytecodeRegisterAllocatorTest : public TestWithIsolateAndZone {
  public:
   BytecodeRegisterAllocatorTest() : allocator_(0) {}
-  ~BytecodeRegisterAllocatorTest() override {}
+  ~BytecodeRegisterAllocatorTest() override = default;
 
   BytecodeRegisterAllocator* allocator() { return &allocator_; }
 

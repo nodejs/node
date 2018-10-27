@@ -31,7 +31,7 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   InitializeAstVisitor(isolate);
 }
 
-CallPrinter::~CallPrinter() {}
+CallPrinter::~CallPrinter() = default;
 
 CallPrinter::ErrorHint CallPrinter::GetErrorHint() const {
   if (is_call_error_) {
@@ -501,14 +501,14 @@ void CallPrinter::VisitRewritableExpression(RewritableExpression* node) {
   Find(node->expression());
 }
 
-void CallPrinter::FindStatements(ZonePtrList<Statement>* statements) {
+void CallPrinter::FindStatements(const ZonePtrList<Statement>* statements) {
   if (statements == nullptr) return;
   for (int i = 0; i < statements->length(); i++) {
     Find(statements->at(i));
   }
 }
 
-void CallPrinter::FindArguments(ZonePtrList<Expression>* arguments) {
+void CallPrinter::FindArguments(const ZonePtrList<Expression>* arguments) {
   if (found_) return;
   for (int i = 0; i < arguments->length(); i++) {
     Find(arguments->at(i));
@@ -666,7 +666,7 @@ void AstPrinter::PrintLiteral(const AstConsString* value, bool quote) {
 
 //-----------------------------------------------------------------------------
 
-class IndentedScope BASE_EMBEDDED {
+class IndentedScope {
  public:
   IndentedScope(AstPrinter* printer, const char* txt)
       : ast_printer_(printer) {
@@ -813,13 +813,13 @@ void AstPrinter::PrintParameters(DeclarationScope* scope) {
   }
 }
 
-void AstPrinter::PrintStatements(ZonePtrList<Statement>* statements) {
+void AstPrinter::PrintStatements(const ZonePtrList<Statement>* statements) {
   for (int i = 0; i < statements->length(); i++) {
     Visit(statements->at(i));
   }
 }
 
-void AstPrinter::PrintArguments(ZonePtrList<Expression>* arguments) {
+void AstPrinter::PrintArguments(const ZonePtrList<Expression>* arguments) {
   for (int i = 0; i < arguments->length(); i++) {
     Visit(arguments->at(i));
   }
@@ -1050,7 +1050,7 @@ void AstPrinter::VisitInitializeClassFieldsStatement(
 }
 
 void AstPrinter::PrintClassProperties(
-    ZonePtrList<ClassLiteral::Property>* properties) {
+    const ZonePtrList<ClassLiteral::Property>* properties) {
   for (int i = 0; i < properties->length(); i++) {
     ClassLiteral::Property* property = properties->at(i);
     const char* prop_kind = nullptr;
@@ -1064,16 +1064,13 @@ void AstPrinter::PrintClassProperties(
       case ClassLiteral::Property::SETTER:
         prop_kind = "SETTER";
         break;
-      case ClassLiteral::Property::PUBLIC_FIELD:
-        prop_kind = "PUBLIC FIELD";
-        break;
-      case ClassLiteral::Property::PRIVATE_FIELD:
-        prop_kind = "PRIVATE FIELD";
+      case ClassLiteral::Property::FIELD:
+        prop_kind = "FIELD";
         break;
     }
     EmbeddedVector<char, 128> buf;
-    SNPrintF(buf, "PROPERTY%s - %s", property->is_static() ? " - STATIC" : "",
-             prop_kind);
+    SNPrintF(buf, "PROPERTY%s%s - %s", property->is_static() ? " - STATIC" : "",
+             property->is_private() ? "- PRIVATE" : "- PUBLIC", prop_kind);
     IndentedScope prop(this, buf.start());
     PrintIndentedVisit("KEY", properties->at(i)->key());
     PrintIndentedVisit("VALUE", properties->at(i)->value());
@@ -1129,7 +1126,7 @@ void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 void AstPrinter::PrintObjectProperties(
-    ZonePtrList<ObjectLiteral::Property>* properties) {
+    const ZonePtrList<ObjectLiteral::Property>* properties) {
   for (int i = 0; i < properties->length(); i++) {
     ObjectLiteral::Property* property = properties->at(i);
     const char* prop_kind = nullptr;

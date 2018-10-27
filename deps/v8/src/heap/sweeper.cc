@@ -15,6 +15,20 @@
 namespace v8 {
 namespace internal {
 
+Sweeper::Sweeper(Heap* heap, MajorNonAtomicMarkingState* marking_state)
+    : heap_(heap),
+      marking_state_(marking_state),
+      num_tasks_(0),
+      pending_sweeper_tasks_semaphore_(0),
+      incremental_sweeper_pending_(false),
+      sweeping_in_progress_(false),
+      num_sweeping_tasks_(0),
+      stop_sweeper_tasks_(false),
+      iterability_task_semaphore_(0),
+      iterability_in_progress_(false),
+      iterability_task_started_(false),
+      should_reduce_memory_(heap->ShouldReduceMemory()) {}
+
 Sweeper::PauseOrCompleteScope::PauseOrCompleteScope(Sweeper* sweeper)
     : sweeper_(sweeper) {
   sweeper_->stop_sweeper_tasks_ = true;
@@ -76,7 +90,7 @@ class Sweeper::SweeperTask final : public CancelableTask {
         space_to_start_(space_to_start),
         tracer_(isolate->heap()->tracer()) {}
 
-  virtual ~SweeperTask() {}
+  ~SweeperTask() override = default;
 
  private:
   void RunInternal() final {
@@ -111,7 +125,7 @@ class Sweeper::IncrementalSweeperTask final : public CancelableTask {
   IncrementalSweeperTask(Isolate* isolate, Sweeper* sweeper)
       : CancelableTask(isolate), isolate_(isolate), sweeper_(sweeper) {}
 
-  virtual ~IncrementalSweeperTask() {}
+  ~IncrementalSweeperTask() override = default;
 
  private:
   void RunInternal() final {
@@ -181,7 +195,7 @@ void Sweeper::SweepOrWaitUntilSweepingCompleted(Page* page) {
 }
 
 Page* Sweeper::GetSweptPageSafe(PagedSpace* space) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   SweptList& list = swept_list_[GetSweepSpaceIndex(space->identity())];
   if (!list.empty()) {
     auto last_page = list.back();
@@ -249,7 +263,6 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   ArrayBufferTracker::FreeDead(p, marking_state_);
 
   Address free_start = p->area_start();
-  DCHECK_EQ(0, free_start % (32 * kPointerSize));
 
   // If we use the skip list for code space pages, we have to lock the skip
   // list because it could be accessed concurrently by the runtime or the
@@ -290,6 +303,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
             free_start, static_cast<int>(size), ClearRecordedSlots::kNo,
             ClearFreedMemoryMode::kClearFreedMemory);
       }
+      if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
       RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, free_end,
                                              SlotSet::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, free_end,
@@ -330,7 +344,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                                       ClearRecordedSlots::kNo,
                                       ClearFreedMemoryMode::kClearFreedMemory);
     }
-
+    if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
     RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, p->area_end(),
                                            SlotSet::KEEP_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, p->area_end(),
@@ -411,7 +425,7 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
   DCHECK(IsValidSweepingSpace(identity));
   int max_freed = 0;
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     // If this page was already swept in the meantime, we can return here.
     if (page->SweepingDone()) return 0;
 
@@ -438,7 +452,7 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
   }
 
   {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     swept_list_[GetSweepSpaceIndex(identity)].push_back(page);
   }
   return max_freed;
@@ -447,16 +461,17 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
 void Sweeper::ScheduleIncrementalSweepingTask() {
   if (!incremental_sweeper_pending_) {
     incremental_sweeper_pending_ = true;
-    IncrementalSweeperTask* task =
-        new IncrementalSweeperTask(heap_->isolate(), this);
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap_->isolate());
-    V8::GetCurrentPlatform()->CallOnForegroundThread(isolate, task);
+    auto taskrunner =
+        V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
+    taskrunner->PostTask(
+        base::make_unique<IncrementalSweeperTask>(heap_->isolate(), this));
   }
 }
 
 void Sweeper::AddPage(AllocationSpace space, Page* page,
                       Sweeper::AddPageMode mode) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
   DCHECK(!FLAG_concurrent_sweeping || !AreSweeperTasksRunning());
   if (mode == Sweeper::REGULAR) {
@@ -482,7 +497,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
 }
 
 Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
   int space_index = GetSweepSpaceIndex(space);
   Page* page = nullptr;
@@ -530,7 +545,7 @@ class Sweeper::IterabilityTask final : public CancelableTask {
         pending_iterability_task_(pending_iterability_task),
         tracer_(isolate->heap()->tracer()) {}
 
-  virtual ~IterabilityTask() {}
+  ~IterabilityTask() override = default;
 
  private:
   void RunInternal() final {

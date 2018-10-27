@@ -9,7 +9,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/debug/debug.h"
-#include "src/macro-assembler.h"
+#include "src/handles-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {
@@ -47,14 +47,13 @@ void IC::update_receiver_map(Handle<Object> receiver) {
   }
 }
 
-bool IC::IsHandler(MaybeObject* object) {
+bool IC::IsHandler(MaybeObject object) {
   HeapObject* heap_object;
-  return (object->IsSmi() && (object != nullptr)) ||
-         (object->ToWeakHeapObject(&heap_object) &&
+  return (object->IsSmi() && (object.ptr() != kNullAddress)) ||
+         (object->GetHeapObjectIfWeak(&heap_object) &&
           (heap_object->IsMap() || heap_object->IsPropertyCell())) ||
-         (object->ToStrongHeapObject(&heap_object) &&
-          (heap_object->IsDataHandler() ||
-           heap_object->IsCode()));
+         (object->GetHeapObjectIfStrong(&heap_object) &&
+          (heap_object->IsDataHandler() || heap_object->IsCode()));
 }
 
 bool IC::AddressIsDeoptimizedCode() const {

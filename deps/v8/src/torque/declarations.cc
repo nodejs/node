@@ -121,23 +121,14 @@ Value* Declarations::LookupValue(const std::string& name) {
   return Value::cast(d);
 }
 
-Label* Declarations::LookupLabel(const std::string& name) {
-  Declarable* d = Lookup(name);
-  if (!d->IsLabel()) {
-    std::stringstream s;
-    s << "declaration \"" << name << "\" is not a Label";
-    ReportError(s.str());
-  }
-  return Label::cast(d);
-}
-
 Macro* Declarations::TryLookupMacro(const std::string& name,
                                     const TypeVector& types) {
   Declarable* declarable = TryLookup(name);
   if (declarable != nullptr) {
     if (declarable->IsMacroList()) {
       for (auto& m : MacroList::cast(declarable)->list()) {
-        if (m->signature().parameter_types.types == types &&
+        auto signature_types = m->signature().GetExplicitTypes();
+        if (signature_types == types &&
             !m->signature().parameter_types.var_args) {
           return m;
         }
@@ -233,13 +224,6 @@ void Declarations::DeclareStruct(Module* module, const std::string& name,
   DeclareType(name, new_type);
 }
 
-Label* Declarations::DeclareLabel(const std::string& name) {
-  CheckAlreadyDeclared(name, "label");
-  Label* result = new Label(name);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
 MacroList* Declarations::GetMacroListForName(const std::string& name,
                                              const Signature& signature) {
   auto previous = chain_.Lookup(name);
@@ -298,38 +282,8 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
   return result;
 }
 
-Variable* Declarations::DeclareVariable(const std::string& var,
-                                        const Type* type, bool is_const) {
-  std::string name(var + "_" +
-                   std::to_string(GetNextUniqueDeclarationNumber()));
-  std::replace(name.begin(), name.end(), '.', '_');
-  CheckAlreadyDeclared(var, "variable");
-  Variable* result = new Variable(var, name, type, is_const);
-  Declare(var, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Parameter* Declarations::DeclareParameter(const std::string& name,
-                                          const std::string& var_name,
-                                          const Type* type) {
-  CheckAlreadyDeclared(name, "parameter");
-  Parameter* result = new Parameter(name, type, var_name);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Label* Declarations::DeclarePrivateLabel(const std::string& raw_name) {
-  std::string name =
-      raw_name + "_" + std::to_string(GetNextUniqueDeclarationNumber());
-  CheckAlreadyDeclared(name, "label");
-  Label* result = new Label(name);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
 void Declarations::DeclareExternConstant(const std::string& name,
-                                         const Type* type,
-                                         const std::string& value) {
+                                         const Type* type, std::string value) {
   CheckAlreadyDeclared(name, "constant, parameter or arguments");
   ExternConstant* result = new ExternConstant(name, type, value);
   Declare(name, std::unique_ptr<Declarable>(result));

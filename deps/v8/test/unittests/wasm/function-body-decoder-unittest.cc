@@ -2403,63 +2403,84 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
   WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
-
-  builder.AddException(sigs.v_v());
-  builder.AddException(sigs.v_i());
-  AddLocals(kWasmI32, 1);
-
-  EXPECT_VERIFIES(v_v, kExprThrow, 0);
-
-  // exception index out of range.
-  EXPECT_FAILURE(v_v, kExprThrow, 2);
-
-  EXPECT_VERIFIES(v_v, WASM_I32V(0), kExprThrow, 1);
-
-  // TODO(kschimpf): Add more tests.
+  byte ex1 = builder.AddException(sigs.v_v());
+  byte ex2 = builder.AddException(sigs.v_i());
+  byte ex3 = builder.AddException(sigs.v_ii());
+  EXPECT_VERIFIES(v_v, kExprThrow, ex1);
+  EXPECT_VERIFIES(v_v, WASM_I32V(0), kExprThrow, ex2);
+  EXPECT_FAILURE(v_v, WASM_F32(0.0), kExprThrow, ex2);
+  EXPECT_VERIFIES(v_v, WASM_I32V(0), WASM_I32V(0), kExprThrow, ex3);
+  EXPECT_FAILURE(v_v, WASM_F32(0.0), WASM_I32V(0), kExprThrow, ex3);
+  EXPECT_FAILURE(v_v, kExprThrow, 99);
 }
 
 TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
-  // TODO(titzer): unreachable code after throw should validate.
   WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
-
-  builder.AddException(sigs.v_v());
-  builder.AddException(sigs.v_i());
-  AddLocals(kWasmI32, 1);
-  EXPECT_VERIFIES(i_i, kExprThrow, 0, WASM_GET_LOCAL(0));
-
-  // TODO(kschimpf): Add more (block-level) tests of unreachable to see
-  // if they validate.
+  byte ex1 = builder.AddException(sigs.v_v());
+  byte ex2 = builder.AddException(sigs.v_i());
+  EXPECT_VERIFIES(i_i, WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_NOP);
+  EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_NOP);
+  EXPECT_VERIFIES(i_i, WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_ZERO);
+  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_ZERO);
+  EXPECT_FAILURE(i_i, WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_F32(0.0));
+  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_F32(0.0));
 }
 
 #define WASM_TRY_OP kExprTry, kLocalVoid
 #define WASM_CATCH(index) kExprCatch, static_cast<byte>(index)
+#define WASM_RETHROW(depth) kExprRethrow, static_cast<byte>(depth)
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
   WASM_FEATURE_SCOPE(eh);
-
   TestModuleBuilder builder;
   module = builder.module();
-  builder.AddException(sigs.v_v());
-  builder.AddException(sigs.v_v());
+  byte ex1 = builder.AddException(sigs.v_v());
+  byte ex2 = builder.AddException(sigs.v_v());
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_CATCH(ex2), kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);         // Missing catch.
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, WASM_CATCH(ex1));  // Missing end.
+  EXPECT_FAILURE(v_v, WASM_CATCH(ex1), kExprEnd);     // Missing try.
+}
 
-  // TODO(kschimpf): Need to fix catch to use declared exception.
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(0), kExprEnd);
+TEST_F(FunctionBodyDecoderTest, TryCatchAll) {
+  WASM_FEATURE_SCOPE(eh);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte ex1 = builder.AddException(sigs.v_v());
+  byte ex2 = builder.AddException(sigs.v_v());
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), kExprCatchAll, kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_CATCH(ex2),
+                  kExprCatchAll, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, kExprCatchAll, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_CATCH(ex1), kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll);  // Missing end.
+  EXPECT_FAILURE(v_v, kExprCatchAll, kExprEnd);     // Missing try.
+}
 
-  // Missing catch.
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);
-
-  // Missing end.
-  EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0));
-
-  // Double catch.
-  // TODO(kschimpf): Fix this to verify.
-  EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0), WASM_CATCH(1), kExprEnd);
+TEST_F(FunctionBodyDecoderTest, Rethrow) {
+  WASM_FEATURE_SCOPE(eh);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte ex1 = builder.AddException(sigs.v_v());
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_RETHROW(0), kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, WASM_RETHROW(0), kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, WASM_BLOCK(WASM_RETHROW(1)),
+                  kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_BLOCK(WASM_RETHROW(0)),
+                 kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_RETHROW(23), kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, WASM_RETHROW(0), kExprCatchAll, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_BLOCK(WASM_RETHROW(0)));
+  EXPECT_FAILURE(v_v, WASM_RETHROW(0));
 }
 
 #undef WASM_TRY_OP
 #undef WASM_CATCH
+#undef WASM_RETHROW
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   WASM_FEATURE_SCOPE(mv);
@@ -2797,6 +2818,7 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(2, kExprBr);
   EXPECT_LENGTH(2, kExprBrIf);
   EXPECT_LENGTH(2, kExprThrow);
+  EXPECT_LENGTH(2, kExprRethrow);
   EXPECT_LENGTH(2, kExprCatch);
   EXPECT_LENGTH_N(2, kExprBlock, kLocalI32);
   EXPECT_LENGTH_N(2, kExprLoop, kLocalI32);
@@ -3130,6 +3152,20 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   pos = ExpectRun(map, pos, kWasmF32, 5);
   pos = ExpectRun(map, pos, kWasmI32, 1337);
   pos = ExpectRun(map, pos, kWasmI64, 212);
+}
+
+TEST_F(LocalDeclDecoderTest, ExceptRef) {
+  WASM_FEATURE_SCOPE(eh);
+  ValueType type = kWasmExceptRef;
+  const byte data[] = {1, 1,
+                       static_cast<byte>(ValueTypes::ValueTypeCodeFor(type))};
+  BodyLocalDecls decls(zone());
+  bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
+  EXPECT_TRUE(result);
+  EXPECT_EQ(1u, decls.type_list.size());
+
+  TypesOfLocals map = decls.type_list;
+  EXPECT_EQ(type, map[0]);
 }
 
 class BytecodeIteratorTest : public TestWithZone {};

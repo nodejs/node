@@ -34,17 +34,17 @@ class OneshotBarrier {
   OneshotBarrier() : tasks_(0), waiting_(0), done_(false) {}
 
   void Start() {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     tasks_++;
   }
 
   void NotifyAll() {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     if (waiting_ > 0) condition_.NotifyAll();
   }
 
   bool Wait() {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     if (done_) return true;
 
     DCHECK_LE(waiting_, tasks_);

@@ -1041,7 +1041,7 @@ class LinearScanAllocator final : public RegisterAllocator {
 
  private:
   struct LiveRangeOrdering {
-    bool operator()(LiveRange* a, LiveRange* b) {
+    bool operator()(const LiveRange* a, const LiveRange* b) const {
       return a->ShouldBeAllocatedBefore(b);
     }
   };

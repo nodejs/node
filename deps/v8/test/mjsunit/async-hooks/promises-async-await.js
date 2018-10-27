@@ -56,6 +56,10 @@
     }).then(() => {
       assertNotEquals(outerExecutionAsyncId, async_hooks.executionAsyncId());
       assertNotEquals(outerTriggerAsyncId, async_hooks.triggerAsyncId());
+    }).catch((err) => {
+      setTimeout(() => {
+        throw err;
+      }, 0);
     });
   });
 

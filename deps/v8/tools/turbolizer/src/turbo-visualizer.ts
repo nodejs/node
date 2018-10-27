@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import * as C from "./constants.js"
-import {SourceResolver} from "./source-resolver.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {DisassemblyView} from "./disassembly-view.js"
-import {GraphMultiView} from "./graphmultiview.js"
-import {CodeMode, CodeView} from "./code-view.js"
+import * as C from "../src/constants"
+import {SourceResolver} from "../src/source-resolver"
+import {SelectionBroker} from "../src/selection-broker"
+import {DisassemblyView} from "../src/disassembly-view"
+import {GraphMultiView} from "../src/graphmultiview"
+import {CodeMode, CodeView} from "../src/code-view"
 import * as d3 from "d3"
 
 class Snapper {

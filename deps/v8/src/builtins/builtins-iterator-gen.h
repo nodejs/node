@@ -54,10 +54,14 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   void IteratorCloseOnException(Node* context, const IteratorRecord& iterator,
                                 Variable* exception);
 
-  // /#sec-iterabletolist
+  // #sec-iterabletolist
+  // Build a JSArray by iterating over {iterable} using {iterator_fn},
+  // following the ECMAscript operation with the same name.
   TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable,
                                 TNode<Object> iterator_fn);
-  TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable);
+
+  void FastIterableToList(TNode<Context> context, TNode<Object> iterable,
+                          TVariable<Object>* var_result, Label* slow);
 };
 
 }  // namespace internal

@@ -23,7 +23,7 @@ namespace internal {
 template <typename T>
 class MaybeHandle final {
  public:
-  V8_INLINE MaybeHandle() {}
+  V8_INLINE MaybeHandle() = default;
 
   // Constructor for handling automatic up casting from Handle.
   // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
@@ -81,15 +81,15 @@ class MaybeHandle final {
 class MaybeObjectHandle {
  public:
   inline MaybeObjectHandle();
-  inline MaybeObjectHandle(MaybeObject* object, Isolate* isolate);
+  inline MaybeObjectHandle(MaybeObject object, Isolate* isolate);
   inline MaybeObjectHandle(Object* object, Isolate* isolate);
   inline explicit MaybeObjectHandle(Handle<Object> object);
 
   static inline MaybeObjectHandle Weak(Object* object, Isolate* isolate);
   static inline MaybeObjectHandle Weak(Handle<Object> object);
 
-  inline MaybeObject* operator*() const;
-  inline MaybeObject* operator->() const;
+  inline MaybeObject operator*() const;
+  inline MaybeObject operator->() const;
   inline Handle<Object> object() const;
 
   bool is_identical_to(const MaybeObjectHandle& other) const {

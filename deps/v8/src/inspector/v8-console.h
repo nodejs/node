@@ -88,6 +88,8 @@ class V8Console : public v8::debug::ConsoleDelegate {
                   const v8::debug::ConsoleContext& consoleContext) override;
   void Time(const v8::debug::ConsoleCallArguments&,
             const v8::debug::ConsoleContext& consoleContext) override;
+  void TimeLog(const v8::debug::ConsoleCallArguments&,
+               const v8::debug::ConsoleContext& consoleContext) override;
   void TimeEnd(const v8::debug::ConsoleCallArguments&,
                const v8::debug::ConsoleContext& consoleContext) override;
   void TimeStamp(const v8::debug::ConsoleCallArguments&,

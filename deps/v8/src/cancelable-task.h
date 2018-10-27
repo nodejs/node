@@ -43,10 +43,6 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   enum TryAbortResult { kTaskRemoved, kTaskRunning, kTaskAborted };
   TryAbortResult TryAbort(Id id);
 
-  // Cancels all remaining registered tasks and waits for tasks that are
-  // already running. This disallows subsequent Register calls.
-  void CancelAndWait();
-
   // Tries to cancel all remaining registered tasks. The return value indicates
   // whether
   //
@@ -57,6 +53,13 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   //
   // 3) All registered tasks were cancelled (kTaskAborted).
   TryAbortResult TryAbortAll();
+
+  // Cancels all remaining registered tasks and waits for tasks that are
+  // already running. This disallows subsequent Register calls.
+  void CancelAndWait();
+
+  // Returns true of the task manager has been cancelled.
+  bool canceled() const { return canceled_; }
 
  private:
   // Only called by {Cancelable} destructor. The task is done with executing,
@@ -134,7 +137,6 @@ class V8_EXPORT_PRIVATE Cancelable {
   DISALLOW_COPY_AND_ASSIGN(Cancelable);
 };
 
-
 // Multiple inheritance can be used because Task is a pure interface.
 class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
                                          NON_EXPORTED_BASE(public Task) {
@@ -155,6 +157,32 @@ class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
   DISALLOW_COPY_AND_ASSIGN(CancelableTask);
 };
 
+// TODO(clemensh): Use std::function and move implementation to cc file.
+template <typename Func>
+class CancelableLambdaTask final : public CancelableTask {
+ public:
+  CancelableLambdaTask(Isolate* isolate, Func func)
+      : CancelableTask(isolate), func_(std::move(func)) {}
+  CancelableLambdaTask(CancelableTaskManager* manager, Func func)
+      : CancelableTask(manager), func_(std::move(func)) {}
+  void RunInternal() final { func_(); }
+
+ private:
+  Func func_;
+};
+
+template <typename Func>
+std::unique_ptr<CancelableTask> MakeCancelableLambdaTask(Isolate* isolate,
+                                                         Func func) {
+  return std::unique_ptr<CancelableTask>(
+      new CancelableLambdaTask<Func>(isolate, std::move(func)));
+}
+template <typename Func>
+std::unique_ptr<CancelableTask> MakeCancelableLambdaTask(
+    CancelableTaskManager* manager, Func func) {
+  return std::unique_ptr<CancelableTask>(
+      new CancelableLambdaTask<Func>(manager, std::move(func)));
+}
 
 // Multiple inheritance can be used because IdleTask is a pure interface.
 class CancelableIdleTask : public Cancelable, public IdleTask {
@@ -175,6 +203,33 @@ class CancelableIdleTask : public Cancelable, public IdleTask {
   DISALLOW_COPY_AND_ASSIGN(CancelableIdleTask);
 };
 
+template <typename Func>
+class CancelableIdleLambdaTask final : public CancelableIdleTask {
+ public:
+  CancelableIdleLambdaTask(Isolate* isolate, Func func)
+      : CancelableIdleTask(isolate), func_(std::move(func)) {}
+  CancelableIdleLambdaTask(CancelableTaskManager* manager, Func func)
+      : CancelableIdleTask(manager), func_(std::move(func)) {}
+  void RunInternal(double deadline_in_seconds) final {
+    func_(deadline_in_seconds);
+  }
+
+ private:
+  Func func_;
+};
+
+template <typename Func>
+std::unique_ptr<CancelableIdleTask> MakeCancelableIdleLambdaTask(
+    Isolate* isolate, Func func) {
+  return std::unique_ptr<CancelableIdleTask>(
+      new CancelableIdleLambdaTask<Func>(isolate, std::move(func)));
+}
+template <typename Func>
+std::unique_ptr<CancelableIdleTask> MakeCancelableIdleLambdaTask(
+    CancelableTaskManager* manager, Func func) {
+  return std::unique_ptr<CancelableIdleTask>(
+      new CancelableIdleLambdaTask<Func>(manager, std::move(func)));
+}
 
 }  // namespace internal
 }  // namespace v8
