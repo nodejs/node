@@ -118,9 +118,10 @@ function isWarned(emitter) {
       { input: fi, output: fi, terminal: terminal }
     );
     let called = false;
-    rli.on('line', function(line) {
+    rli.on('line', function(line, separator) {
       called = true;
       assert.strictEqual(line, 'asdf');
+      assert.strictEqual(separator, '\n');
     });
     fi.emit('data', 'asdf\n');
     assert.ok(called);
