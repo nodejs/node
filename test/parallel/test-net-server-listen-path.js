@@ -69,3 +69,23 @@ function randomPipePath() {
       srv.close();
     }));
 }
+
+// Test should emit "error" events when listening fails.
+{
+  const handlePath = randomPipePath();
+  const srv1 = net.createServer().listen({ path: handlePath }, () => {
+    // As the handlePath is in use, binding to the same address again should
+    // make the server emit an 'EADDRINUSE' error.
+    const srv2 = net.createServer()
+      .listen({
+        path: handlePath,
+        writableAll: true,
+      }, common.mustNotCall());
+
+    srv2.on('error', common.mustCall((err) => {
+      srv1.close();
+      assert.strictEqual(err.code, 'EADDRINUSE');
+      assert(/^listen EADDRINUSE: address already in use/.test(err.message));
+    }));
+  });
+}
