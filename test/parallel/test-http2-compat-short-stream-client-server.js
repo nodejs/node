@@ -9,6 +9,7 @@ const { Readable } = require('stream');
 
 const server = http2.createServer(common.mustCall((req, res) => {
   res.setHeader('content-type', 'text/html');
+  res.setHeader('connection', 'sagiii');
   const input = new Readable({
     read() {
       this.push('test');
