@@ -44,7 +44,7 @@ function testProduceConsume() {
   for (const cachedData of common.getArrayBufferViews(data)) {
     // It should consume code cache
     const script = new vm.Script(source, {
-      cachedData: cachedData
+      cachedData
     });
     assert(!script.cachedDataRejected);
     assert.strictEqual(script.runInThisContext()(), 'original');
