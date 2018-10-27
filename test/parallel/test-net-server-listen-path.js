@@ -69,3 +69,17 @@ function randomPipePath() {
       srv.close();
     }));
 }
+
+// Test should emit "error" events when listening fails.
+{
+  const srv = net.createServer()
+    .listen({
+      path: tmpdir.path,
+      writableAll: true,
+    }, common.mustNotCall());
+
+  srv.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'EADDRINUSE');
+    assert(/^listen EADDRINUSE: address already in use/.test(err.message));
+  }));
+}
