@@ -1,4 +1,5 @@
 #include <node.h>
+#include <node_buffer.h>
 #include <assert.h>
 
 namespace {
@@ -14,6 +15,17 @@ using v8::Object;
 using v8::Script;
 using v8::String;
 using v8::Value;
+
+inline void MakeBufferInNewContext(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+
+  // This should throw an exception, rather than actually do anything.
+  MaybeLocal<Object> buf = node::Buffer::Copy(isolate, "foo", 3);
+  assert(buf.IsEmpty());
+}
 
 inline void RunInNewContext(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -41,13 +53,8 @@ inline void RunInNewContext(
 inline void Initialize(Local<Object> exports,
                        Local<Value> module,
                        Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
-  Local<String> key = String::NewFromUtf8(
-      isolate, "runInNewContext", NewStringType::kNormal).ToLocalChecked();
-  Local<Function> value = FunctionTemplate::New(isolate, RunInNewContext)
-                   ->GetFunction(context)
-                   .ToLocalChecked();
-  assert(exports->Set(context, key, value).IsJust());
+  NODE_SET_METHOD(exports, "runInNewContext", RunInNewContext);
+  NODE_SET_METHOD(exports, "makeBufferInNewContext", MakeBufferInNewContext);
 }
 
 }  // anonymous namespace

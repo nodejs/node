@@ -271,7 +271,10 @@ MaybeLocal<Object> New(Isolate* isolate, size_t length) {
   EscapableHandleScope handle_scope(isolate);
   Local<Object> obj;
   Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);  // TODO(addaleax): Handle nullptr here.
+  if (env == nullptr) {
+    THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Object>();
+  }
   if (Buffer::New(env, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
   return Local<Object>();
@@ -314,7 +317,10 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
   EscapableHandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);  // TODO(addaleax): Handle nullptr here.
+  if (env == nullptr) {
+    THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Object>();
+  }
   Local<Object> obj;
   if (Buffer::Copy(env, data, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
@@ -364,7 +370,11 @@ MaybeLocal<Object> New(Isolate* isolate,
                        void* hint) {
   EscapableHandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);  // TODO(addaleax): Handle nullptr here.
+  if (env == nullptr) {
+    callback(data, hint);
+    THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Object>();
+  }
   Local<Object> obj;
   if (Buffer::New(env, data, length, callback, hint).ToLocal(&obj))
     return handle_scope.Escape(obj);
@@ -403,7 +413,11 @@ MaybeLocal<Object> New(Environment* env,
 MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
   EscapableHandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);  // TODO(addaleax): Handle nullptr here.
+  if (env == nullptr) {
+    free(data);
+    THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Object>();
+  }
   Local<Object> obj;
   if (Buffer::New(env, data, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
