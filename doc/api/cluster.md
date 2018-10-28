@@ -201,9 +201,6 @@ See [`process` event: `'message'`][].
 Here is an example using the message system. It keeps a count in the master
 process of the number of HTTP requests received by the workers:
 
-Note that when this example running, you need to open browser and visit `http://localhost:8000`
-or open another terminal window and run `curl http://localhost:8000` to see `numReqs` increasing.
-
 ```js
 const cluster = require('cluster');
 const http = require('http');
