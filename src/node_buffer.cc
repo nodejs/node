@@ -243,8 +243,10 @@ MaybeLocal<Object> New(Isolate* isolate,
   if (length > 0) {
     data = static_cast<char*>(BufferMalloc(length));
 
-    if (data == nullptr)
+    if (data == nullptr) {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
       return Local<Object>();
+    }
 
     actual = StringBytes::Write(isolate, data, length, string, enc);
     CHECK(actual <= length);
@@ -286,14 +288,17 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 
   // V8 currently only allows a maximum Typed Array index of max Smi.
   if (length > kMaxLength) {
+    env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
     return Local<Object>();
   }
 
   void* data;
   if (length > 0) {
     data = BufferMalloc(length);
-    if (data == nullptr)
+    if (data == nullptr) {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
       return Local<Object>();
+    }
   } else {
     data = nullptr;
   }
@@ -303,14 +308,10 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
         data,
         length,
         ArrayBufferCreationMode::kInternalized);
-  MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
-
-  if (ui.IsEmpty()) {
-    // Object failed to be created. Clean up resources.
-    free(data);
-  }
-
-  return scope.Escape(ui.FromMaybe(Local<Uint8Array>()));
+  Local<Object> obj;
+  if (Buffer::New(env, ab, 0, length).ToLocal(&obj))
+    return scope.Escape(obj);
+  return Local<Object>();
 }
 
 
@@ -333,6 +334,7 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
 
   // V8 currently only allows a maximum Typed Array index of max Smi.
   if (length > kMaxLength) {
+    env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
     return Local<Object>();
   }
 
@@ -340,8 +342,10 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
   if (length > 0) {
     CHECK_NOT_NULL(data);
     new_data = node::UncheckedMalloc(length);
-    if (new_data == nullptr)
+    if (new_data == nullptr) {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
       return Local<Object>();
+    }
     memcpy(new_data, data, length);
   } else {
     new_data = nullptr;
@@ -352,14 +356,10 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
         new_data,
         length,
         ArrayBufferCreationMode::kInternalized);
-  MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
-
-  if (ui.IsEmpty()) {
-    // Object failed to be created. Clean up resources.
-    free(new_data);
-  }
-
-  return scope.Escape(ui.FromMaybe(Local<Uint8Array>()));
+  Local<Object> obj;
+  if (Buffer::New(env, ab, 0, length).ToLocal(&obj))
+    return scope.Escape(obj);
+  return Local<Object>();
 }
 
 
@@ -390,6 +390,8 @@ MaybeLocal<Object> New(Environment* env,
   EscapableHandleScope scope(env->isolate());
 
   if (length > kMaxLength) {
+    env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
+    callback(data, hint);
     return Local<Object>();
   }
 
@@ -401,11 +403,11 @@ MaybeLocal<Object> New(Environment* env,
     ab->Neuter();
   MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
-  if (ui.IsEmpty()) {
-    return Local<Object>();
-  }
-
   CallbackInfo::New(env->isolate(), ab, callback, data, hint);
+
+  if (ui.IsEmpty())
+    return MaybeLocal<Object>();
+
   return scope.Escape(ui.ToLocalChecked());
 }
 
