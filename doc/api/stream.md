@@ -463,6 +463,16 @@ process.nextTick(() => {
 
 See also: [`writable.cork()`][].
 
+##### writable.writable
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean that is `true` by default, but turns `false` after the 
+[`stream.end()`][stream-end] method has been called.
+
 ##### writable.writableHighWaterMark
 <!-- YAML
 added: v9.3.0
@@ -1012,6 +1022,15 @@ also be emitted.
 
 Calling [`stream.read([size])`][stream-read] after the [`'end'`][] event has
 been emitted will return `null`. No runtime error will be raised.
+
+##### readable.readable
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+A boolean that is `true` by default, but turns `false` immediately before the `'end'` event is emitted.
 
 ##### readable.readableHighWaterMark
 <!-- YAML
