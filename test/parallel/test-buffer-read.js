@@ -73,7 +73,6 @@ assert.throws(
     name: 'RangeError [ERR_OUT_OF_RANGE]'
   }
 );
-
 assert.throws(
   () => Buffer.allocUnsafe(8).readFloatLE(-1),
   {
