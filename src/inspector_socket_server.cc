@@ -20,7 +20,8 @@ std::string FormatWsAddress(const std::string& host, int port,
 namespace {
 
 static const uint8_t PROTOCOL_JSON[] = {
-  #include "v8_inspector_protocol_json.h"  // NOLINT(build/include_order)
+  // NOLINT(build/include_order)
+  #include "concatenated_protocol/v8_inspector_protocol_json.h"
 };
 
 void Escape(std::string* string) {

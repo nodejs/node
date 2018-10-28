@@ -4,7 +4,6 @@
 #include "libplatform/v8-tracing.h"
 #include "uv.h"
 #include "v8.h"
-#include "util.h"
 #include "node_mutex.h"
 
 #include <list>

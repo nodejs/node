@@ -1,7 +1,7 @@
 #ifndef SRC_INSPECTOR_WORKER_AGENT_H_
 #define SRC_INSPECTOR_WORKER_AGENT_H_
 
-#include "node/inspector/protocol/NodeWorker.h"
+#include "protocol/NodeWorker.h"
 #include "v8.h"
 
 
