@@ -684,13 +684,14 @@ listeners for that event will receive `exception` as an argument.
 * {boolean} Indicates if the connection is destroyed or not. Once a
   connection is destroyed no further data can be transferred using it.
 
-### socket.end([data][, encoding])
+### socket.end([data][, encoding][, callback])
 <!-- YAML
 added: v0.1.90
 -->
 
 * `data` {string|Buffer|Uint8Array}
 * `encoding` {string} Only used when data is `string`. **Default:** `'utf8'`.
+* `callback` {Function} Optional callback for when the socket is finished.
 * Returns: {net.Socket} The socket itself.
 
 Half-closes the socket. i.e., it sends a FIN packet. It is possible the
@@ -1168,7 +1169,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`socket.connect(path)`]: #net_socket_connect_path_connectlistener
 [`socket.connect(port, host)`]: #net_socket_connect_port_host_connectlistener
 [`socket.destroy()`]: #net_socket_destroy_exception
-[`socket.end()`]: #net_socket_end_data_encoding
+[`socket.end()`]: #net_socket_end_data_encoding_callback
 [`socket.pause()`]: #net_socket_pause
 [`socket.resume()`]: #net_socket_resume
 [`socket.setEncoding()`]: #net_socket_setencoding_encoding
