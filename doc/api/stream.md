@@ -463,6 +463,15 @@ process.nextTick(() => {
 
 See also: [`writable.cork()`][].
 
+##### writable.writable
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` if it is safe to call [`writable.write()`][].
+
 ##### writable.writableHighWaterMark
 <!-- YAML
 added: v9.3.0
@@ -1013,12 +1022,21 @@ also be emitted.
 Calling [`stream.read([size])`][stream-read] after the [`'end'`][] event has
 been emitted will return `null`. No runtime error will be raised.
 
+##### readable.readable
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` if it is safe to call [`readable.read()`][].
+
 ##### readable.readableHighWaterMark
 <!-- YAML
 added: v9.3.0
 -->
 
-* Returns: {number}
+* {number}
 
 Returns the value of `highWaterMark` passed when constructing this
 `Readable`.
@@ -1028,7 +1046,7 @@ Returns the value of `highWaterMark` passed when constructing this
 added: v9.4.0
 -->
 
-* Returns: {number}
+* {number}
 
 This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
