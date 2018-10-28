@@ -1037,7 +1037,7 @@ A boolean that is `true` by default, but turns `false` immediately before the `'
 added: v9.3.0
 -->
 
-* Returns: {number}
+* {number}
 
 Returns the value of `highWaterMark` passed when constructing this
 `Readable`.
@@ -1047,7 +1047,7 @@ Returns the value of `highWaterMark` passed when constructing this
 added: v9.4.0
 -->
 
-* Returns: {number}
+* {number}
 
 This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
