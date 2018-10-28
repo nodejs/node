@@ -33,12 +33,11 @@ const invalidArgValueError =
   common.expectsError({ code: 'ERR_INVALID_ARG_VALUE', type: TypeError }, 14);
 
 const invalidArgTypeError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 12);
+  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 13);
 
 assert.throws(function() {
-  const child = spawn(invalidcmd, 'this is not an array');
-  child.on('error', common.mustNotCall());
-}, TypeError);
+  spawn(invalidcmd, 'this is not an array');
+}, invalidArgTypeError);
 
 // Verify that valid argument combinations do not throw.
 spawn(cmd);
