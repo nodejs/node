@@ -52,21 +52,53 @@ read(buf, 'readUIntBE', [2, 2], 0x48ea);
 read(buf, 'readUIntLE', [2, 2], 0xea48);
 
 // Attempt to overflow buffers, similar to previous bug in array buffers
-assert.throws(() => Buffer.allocUnsafe(8).readFloatBE(0xffffffff),
-              RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
-              RangeError);
+assert.throws(
+  () => Buffer.allocUnsafe(8).readFloatBE(0xffffffff),
+  {
+    name: 'RangeError [ERR_OUT_OF_RANGE]',
+  }
+);
+
+assert.throws(
+  () => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
+  {
+    name: 'RangeError [ERR_OUT_OF_RANGE]'
+  }
+);
 
 // Ensure negative values can't get past offset
-assert.throws(() => Buffer.allocUnsafe(8).readFloatBE(-1), RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
+assert.throws(
+  () => Buffer.allocUnsafe(8).readFloatBE(-1),
+  {
+    name: 'RangeError [ERR_OUT_OF_RANGE]'
+  }
+);
+
+assert.throws(
+  () => Buffer.allocUnsafe(8).readFloatLE(-1),
+  {
+    name: 'RangeError [ERR_OUT_OF_RANGE]'
+  }
+);
 
 // Offset checks
 {
   const buf = Buffer.allocUnsafe(0);
 
-  assert.throws(() => buf.readUInt8(0), RangeError);
-  assert.throws(() => buf.readInt8(0), RangeError);
+  assert.throws(
+    () => buf.readUInt8(0),
+    {
+      name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+      message: 'Attempt to write outside buffer bounds'
+    }
+  );
+  assert.throws(
+    () => buf.readInt8(0),
+    {
+      name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+      message: 'Attempt to write outside buffer bounds'
+    }
+  );
 }
 
 [16, 32].forEach((bit) => {
