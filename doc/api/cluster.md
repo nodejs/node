@@ -199,7 +199,10 @@ Within a worker, `process.on('message')` may also be used.
 See [`process` event: `'message'`][].
 
 As an example, here is a cluster that keeps count of the number of requests
-in the master process using the message system:
+in the master process using the message system.
+
+Note that when this example running, you need to open browser and visit `http://localhost:8000`
+or open another terminal window and run `curl http://localhost:8000` to see `numReqs` increasing.
 
 ```js
 const cluster = require('cluster');
