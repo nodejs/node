@@ -32,9 +32,13 @@
       '-Wendif-labels',
       '-W',
       '-Wno-unused-parameter',
+      '-Werror=undefined-inline',
     ],
   },
   'conditions': [
+    ['clang==1', {
+      'cflags': [ '-Werror=undefined-inline', ]
+    }],
     [ 'node_shared=="false"', {
       'msvs_settings': {
         'VCManifestTool': {
