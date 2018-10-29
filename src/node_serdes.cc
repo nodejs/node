@@ -266,9 +266,9 @@ void SerializerContext::WriteRawBytes(const FunctionCallbackInfo<Value>& args) {
   SerializerContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
-  if (!args[0]->IsUint8Array()) {
+  if (!args[0]->IsArrayBufferView()) {
     return node::THROW_ERR_INVALID_ARG_TYPE(
-        ctx->env(), "source must be a Uint8Array");
+        ctx->env(), "source must be a TypedArray or a DataView");
   }
 
   ctx->serializer_.WriteRawBytes(Buffer::Data(args[0]),
@@ -317,9 +317,9 @@ MaybeLocal<Object> DeserializerContext::ReadHostObject(Isolate* isolate) {
 void DeserializerContext::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsUint8Array()) {
+  if (!args[0]->IsArrayBufferView()) {
     return node::THROW_ERR_INVALID_ARG_TYPE(
-        env, "buffer must be a Uint8Array");
+        env, "buffer must be a TypedArray or a DataView");
   }
 
   new DeserializerContext(env, args.This(), args[0]);
