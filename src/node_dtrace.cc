@@ -22,7 +22,7 @@
 #include "node_dtrace.h"
 
 #ifdef HAVE_DTRACE
-#include "node_provider.h"
+#include "node_dtrace_header/node_provider.h"
 #elif HAVE_ETW
 #include "node_win32_etw_provider-inl.h"
 #else

@@ -242,7 +242,7 @@
           }, {
             'msvs_settings': {
               'VCCLCompilerTool': {
-                'WholeProgramOptimization': 'false'
+                'WholeProgramOptimization': 'false'  # /GL-
               },
               'VCLinkerTool': {
                 'LinkIncremental': 2 # enable incremental linking
