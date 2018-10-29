@@ -96,6 +96,10 @@
               }],
             ],
           }],
+          ['OS=="aix"', {
+            'cflags': [ '-Wno-nonnull-compare',
+                        '-Wno-address' ],
+          }],
         ],
         'msvs_disabled_warnings': [4800],
       },

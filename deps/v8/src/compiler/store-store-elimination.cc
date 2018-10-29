@@ -251,6 +251,9 @@ void StoreStoreElimination::Run(JSGraph* js_graph, Zone* temp_zone) {
   }
 }
 
+#if V8_OS_AIX
+ALLOW_UNUSED_TYPE
+#endif
 bool RedundantStoreFinder::IsEffectful(Node* node) {
   return (node->op()->EffectInputCount() >= 1);
 }
@@ -552,6 +555,9 @@ bool UnobservableStore::operator==(const UnobservableStore other) const {
   return (id_ == other.id_) && (offset_ == other.offset_);
 }
 
+#if V8_OS_AIX
+ALLOW_UNUSED_TYPE
+#endif
 bool UnobservableStore::operator!=(const UnobservableStore other) const {
   return !(*this == other);
 }
