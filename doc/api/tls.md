@@ -118,6 +118,40 @@ SNI (Server Name Indication) are TLS handshake extensions:
 * SNI: Allows the use of one TLS server for multiple hostnames with different
   SSL certificates.
 
+### Pre-shared keys
+
+<!-- type=misc -->
+
+TLS-PSK support is available as an alternative to normal certificate-based
+authentication. It uses a pre-shared key instead of certificates to
+authenticate a TLS connection, providing mutual authentication.
+TLS-PSK and public key infrastructure are not mutually exclusive. Clients and
+servers can accommodate both, choosing either of them during the normal cipher
+negotiation step.
+
+TLS-PSK is only a good choice where means exist to securely share a
+key with every connecting machine, so it does not replace PKI
+(Public Key Infrastructure) for the majority of TLS uses.
+The TLS-PSK implementation in OpenSSL has seen many security flaws in
+recent years, mostly because it is used only by a minority of applications.
+Please consider all alternative solutions before switching to PSK ciphers.
+Upon generating PSK it is of critical importance to use sufficient entropy as
+discussed in [RFC 4086][]. Deriving a shared secret from a password or other
+low-entropy sources is not secure.
+
+PSK ciphers are disabled by default, and using TLS-PSK thus requires explicitly
+specifying a cipher suite with the `ciphers` option. The list of available
+ciphers can be retrieved via `openssl ciphers -v 'PSK'`. All TLS 1.3
+ciphers are eligible for PSK but currently only those that use SHA256 digest are
+supported they can be retrieved via `openssl ciphers -v -s -tls1_3 -psk`.
+
+According to the [RFC 4279][], PSK identities up to 128 bytes in length and
+PSKs up to 64 bytes in length must be supported. As of OpenSSL 1.1.0
+maximum identity size is 128 bytes, and maximum PSK length is 256 bytes.
+
+The current implementation doesn't support asynchronous PSK callbacks due to the
+limitations of the underlying OpenSSL API.
+
 ### Client-initiated renegotiation attack mitigation
 
 <!-- type=misc -->
@@ -1207,6 +1241,9 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23188
+    description: The `pskCallback` option is now supported.
   - version: v12.9.0
     pr-url: https://github.com/nodejs/node/pull/27836
     description: Support the `allowHalfOpen` option.
@@ -1258,6 +1295,23 @@ changes:
     verified against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
+  * `pskCallback` {Function}
+    * hint: {string} optional message sent from the server to help client
+      decide which identity to use during negotiation.
+      Always `null` if TLS 1.3 is used.
+    * Returns: {Object} in the form
+      `{ psk: <Buffer|TypedArray|DataView>, identity: <string> }`
+      or `null` to stop the negotiation process. `psk` must be
+      compatible with the selected cipher's digest.
+      `identity` must use UTF-8 encoding.
+    When negotiating TLS-PSK (pre-shared keys), this function is called
+    with optional identity `hint` provided by the server or `null`
+    in case of TLS 1.3 where `hint` was removed.
+    It will be necessary to provide a custom `tls.checkServerIdentity()`
+    for the connection as the default one will try to check hostname/IP
+    of the server against the certificate but that's not applicable for PSK
+    because there won't be a certificate present.
+    More information can be found in the [RFC 4279][].
   * `ALPNProtocols`: {string[]|Buffer[]|TypedArray[]|DataView[]|Buffer|
     TypedArray|DataView}
     An array of strings, `Buffer`s or `TypedArray`s or `DataView`s, or a
@@ -1593,8 +1647,30 @@ changes:
     provided the default callback with high-level API will be used (see below).
   * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
     data. See [Session Resumption][] for more information.
+  * `pskCallback` {Function}
+    * socket: {tls.TLSSocket} the server [`tls.TLSSocket`][] instance for
+      this connection.
+    * identity: {string} identity parameter sent from the client.
+    * Returns: {Buffer|TypedArray|DataView} pre-shared key that must either be
+      a buffer or `null` to stop the negotiation process. Returned PSK must be
+      compatible with the selected cipher's digest.
+    When negotiating TLS-PSK (pre-shared keys), this function is called
+    with the identity provided by the client.
+    If the return value is `null` the negotiation process will stop and an
+    "unknown_psk_identity" alert message will be sent to the other party.
+    If the server wishes to hide the fact that the PSK identity was not known,
+    the callback must provide some random data as `psk` to make the connection
+    fail with "decrypt_error" before negotiation is finished.
+    PSK ciphers are disabled by default, and using TLS-PSK thus
+    requires explicitly specifying a cipher suite with the `ciphers` option.
+    More information can be found in the [RFC 4279][].
+  * `pskIdentityHint` {string} optional hint to send to a client to help
+    with selecting the identity during TLS-PSK negotiation. Will be ignored
+    in TLS 1.3. Upon failing to set pskIdentityHint `'tlsClientError'` will be
+    emitted with `'ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED'` code.
   * ...: Any [`tls.createSecureContext()`][] option can be provided. For
-    servers, the identity options (`pfx` or `key`/`cert`) are usually required.
+    servers, the identity options (`pfx`, `key`/`cert` or `pskCallback`)
+    are usually required.
   * ...: Any [`net.createServer()`][] option can be provided.
 * `secureConnectionListener` {Function}
 * Returns: {tls.Server}
@@ -1870,3 +1946,5 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
+[RFC 4279]: https://tools.ietf.org/html/rfc4279
+[RFC 4086]: https://tools.ietf.org/html/rfc4086
