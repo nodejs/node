@@ -72,6 +72,7 @@ const char kMangledSymbolPrefix[] = "_Z";
 const char kSymbolCharacters[] =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
 
+#if HAVE_EXECINFO_H
 // Demangles C++ symbols in the given text. Example:
 //
 // "out/Debug/base_unittests(_ZN10StackTraceC1Ev+0x20) [0x817778c]"
@@ -81,7 +82,6 @@ void DemangleSymbols(std::string* text) {
   // Note: code in this function is NOT async-signal safe (std::string uses
   // malloc internally).
 
-#if HAVE_EXECINFO_H
 
   std::string::size_type search_from = 0;
   while (search_from < text->size()) {
@@ -117,9 +117,8 @@ void DemangleSymbols(std::string* text) {
       search_from = mangled_start + 2;
     }
   }
-
-#endif  // HAVE_EXECINFO_H
 }
+#endif  // HAVE_EXECINFO_H
 
 class BacktraceOutputHandler {
  public:
@@ -129,6 +128,7 @@ class BacktraceOutputHandler {
   virtual ~BacktraceOutputHandler() {}
 };
 
+#if HAVE_EXECINFO_H
 void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
   // This should be more than enough to store a 64-bit number in hex:
   // 16 hex digits + 1 for null-terminator.
@@ -139,7 +139,6 @@ void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
   handler->HandleOutput(buf);
 }
 
-#if HAVE_EXECINFO_H
 void ProcessBacktrace(void* const* trace, size_t size,
                       BacktraceOutputHandler* handler) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
