@@ -25,7 +25,7 @@ server.listen(0, common.mustCall(function() {
   let res = '';
 
   req.on('response', common.mustCall(function(headers) {
-    assert.strictEqual(200, headers[':status']);
+    assert.strictEqual(headers[':status'], 200);
   }));
 
   req.on('data', (chunk) => {
@@ -33,7 +33,7 @@ server.listen(0, common.mustCall(function() {
   });
 
   req.on('end', common.mustCall(function() {
-    assert.strictEqual('1\n2\n3\n', res);
+    assert.strictEqual(res, '1\n2\n3\n');
     client.close();
   }));
 
