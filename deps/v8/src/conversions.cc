@@ -53,11 +53,17 @@ class StringCharacterStreamIterator {
 };
 
 
+#if V8_OS_AIX
+ALLOW_UNUSED_TYPE
+#endif
 StringCharacterStreamIterator::StringCharacterStreamIterator(
     StringCharacterStream* stream) : stream_(stream) {
   ++(*this);
 }
 
+#if V8_OS_AIX
+ALLOW_UNUSED_TYPE
+#endif
 uint16_t StringCharacterStreamIterator::operator*() const {
   return current_;
 }
