@@ -23,9 +23,11 @@ namespace wasm {
 
 namespace liftoff {
 
+constexpr Register kScratchRegister2 = r11;
+static_assert(kScratchRegister != kScratchRegister2, "collision");
 static_assert((kLiftoffAssemblerGpCacheRegs &
-               Register::ListOf<kScratchRegister>()) == 0,
-              "scratch register must not be used as cache registers");
+               Register::ListOf<kScratchRegister, kScratchRegister2>()) == 0,
+              "scratch registers must not be used as cache registers");
 
 constexpr DoubleRegister kScratchDoubleReg2 = xmm14;
 static_assert(kScratchDoubleReg != kScratchDoubleReg2, "collision");
@@ -254,7 +256,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
-                             StoreType type, LiftoffRegList pinned,
+                             StoreType type, LiftoffRegList /* pinned */,
                              uint32_t* protected_store_pc, bool is_store_mem) {
   if (emit_debug_code() && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
@@ -619,6 +621,12 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register src, Register amount,
                                         &Assembler::shrl_cl, pinned);
 }
 
+void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
+  if (dst != src) movl(dst, src);
+  DCHECK(is_uint5(amount));
+  shrl(dst, Immediate(amount));
+}
+
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Label nonzero_input;
   Label continuation;
@@ -756,6 +764,13 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                         &Assembler::shrq_cl, pinned);
 }
 
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                                    int amount) {
+  if (dst.gp() != src.gp()) movl(dst.gp(), src.gp());
+  DCHECK(is_uint6(amount));
+  shrq(dst.gp(), Immediate(amount));
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   movsxlq(dst, src);
 }
@@ -885,6 +900,17 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
                                     liftoff::MinOrMax::kMax);
 }
 
+void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  static constexpr int kF32SignBit = 1 << 31;
+  Movd(kScratchRegister, lhs);
+  andl(kScratchRegister, Immediate(~kF32SignBit));
+  Movd(liftoff::kScratchRegister2, rhs);
+  andl(liftoff::kScratchRegister2, Immediate(kF32SignBit));
+  orl(kScratchRegister, liftoff::kScratchRegister2);
+  Movd(dst, kScratchRegister);
+}
+
 void LiftoffAssembler::emit_f32_abs(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint32_t kSignBit = uint32_t{1} << 31;
   if (dst == src) {
@@ -992,6 +1018,20 @@ void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   liftoff::EmitFloatMinOrMax<double>(this, dst, lhs, rhs,
                                      liftoff::MinOrMax::kMin);
+}
+
+void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  // Extract sign bit from {rhs} into {kScratchRegister2}.
+  Movq(liftoff::kScratchRegister2, rhs);
+  shrq(liftoff::kScratchRegister2, Immediate(63));
+  shlq(liftoff::kScratchRegister2, Immediate(63));
+  // Reset sign bit of {lhs} (in {kScratchRegister}).
+  Movq(kScratchRegister, lhs);
+  btrq(kScratchRegister, Immediate(63));
+  // Combine both values into {kScratchRegister} and move into {dst}.
+  orq(kScratchRegister, liftoff::kScratchRegister2);
+  Movq(dst, kScratchRegister);
 }
 
 void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
@@ -1211,6 +1251,29 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
+  movsxbl(dst, src);
+}
+
+void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
+  movsxwl(dst, src);
+}
+
+void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  movsxbq(dst.gp(), src.gp());
+}
+
+void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  movsxwq(dst.gp(), src.gp());
+}
+
+void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  movsxlq(dst.gp(), src.gp());
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }

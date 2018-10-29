@@ -276,7 +276,16 @@ namespace compiler {
   V(MipsI16x8UConvertI8x16Low)     \
   V(MipsI16x8UConvertI8x16High)    \
   V(MipsI8x16SConvertI16x8)        \
-  V(MipsI8x16UConvertI16x8)
+  V(MipsI8x16UConvertI16x8)        \
+  V(MipsWord32AtomicPairLoad)      \
+  V(MipsWord32AtomicPairStore)     \
+  V(MipsWord32AtomicPairAdd)       \
+  V(MipsWord32AtomicPairSub)       \
+  V(MipsWord32AtomicPairAnd)       \
+  V(MipsWord32AtomicPairOr)        \
+  V(MipsWord32AtomicPairXor)       \
+  V(MipsWord32AtomicPairExchange)  \
+  V(MipsWord32AtomicPairCompareExchange)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

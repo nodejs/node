@@ -35,7 +35,6 @@ Page* HeapTester::AllocateByteArraysOnPage(
     CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));
     byte_arrays->push_back(byte_array);
     page = Page::FromAddress(byte_array->address());
-    CHECK_EQ(page->area_size() % kSize, 0u);
     size_t n = page->area_size() / kSize;
     for (size_t i = 1; i < n; i++) {
       CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));

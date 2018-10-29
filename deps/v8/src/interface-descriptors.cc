@@ -16,6 +16,9 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
   // InterfaceDescriptor owns a copy of the registers array.
   register_params_ = NewArray<Register>(register_parameter_count, no_reg);
   for (int i = 0; i < register_parameter_count; i++) {
+    // The value of the root register must be reserved, thus any uses
+    // within the calling convention are disallowed.
+    DCHECK_NE(registers[i], kRootRegister);
     register_params_[i] = registers[i];
   }
 }
@@ -256,17 +259,30 @@ void TypeConversionStackParameterDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(0, nullptr);
 }
 
+void AsyncFunctionStackParameterDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformSpecific(0, nullptr);
+}
+
 void LoadWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), SlotRegister(),
                           VectorRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
+  // TODO(jgruber): This DCHECK could be enabled if RegisterBase::ListOf were
+  // to allow no_reg entries.
+  // DCHECK(!AreAliased(ReceiverRegister(), NameRegister(), SlotRegister(),
+  //                    VectorRegister(), kRootRegister));
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
 }
 
 void StoreWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
                           SlotRegister(), VectorRegister()};
+  // TODO(jgruber): This DCHECK could be enabled if RegisterBase::ListOf were
+  // to allow no_reg entries.
+  // DCHECK(!AreAliased(ReceiverRegister(), NameRegister(), kRootRegister));
   int len = arraysize(registers) - kStackArgumentsCount;
   data->InitializePlatformSpecific(len, registers);
 }
@@ -329,6 +345,11 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
 }
 
 void WasmGrowMemoryDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void WasmThrowDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

@@ -37,6 +37,21 @@ from ..local import utils
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
+# Patterns for additional resource files on Android. Files that are not covered
+# by one of the other patterns below will be specified in the resources section.
+RESOURCES_PATTERN = re.compile(r"//\s+Resources:(.*)")
+# Pattern to auto-detect files to push on Android for statements like:
+# load("path/to/file.js")
+LOAD_PATTERN = re.compile(
+    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
+# Pattern to auto-detect files to push on Android for statements like:
+# import "path/to/file.js"
+MODULE_RESOURCES_PATTERN_1 = re.compile(
+    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]+)(?:'|\")")
+# Pattern to auto-detect files to push on Android for statements like:
+# import foobar from "path/to/file.js"
+MODULE_RESOURCES_PATTERN_2 = re.compile(
+    r"(?:import|export).*from (?:'|\")([^'\"]+)(?:'|\")")
 
 
 class TestCase(object):
@@ -143,7 +158,10 @@ class TestCase(object):
   def get_command(self):
     params = self._get_cmd_params()
     env = self._get_cmd_env()
-    shell, shell_flags = self._get_shell_with_flags()
+    shell = self.get_shell()
+    if utils.IsWindows():
+      shell += '.exe'
+    shell_flags = self._get_shell_flags()
     timeout = self._get_timeout(params)
     return self._create_cmd(shell, shell_flags + params, env, timeout)
 
@@ -207,14 +225,8 @@ class TestCase(object):
   def _get_suite_flags(self):
     return []
 
-  def _get_shell_with_flags(self):
-    shell = self.get_shell()
-    shell_flags = []
-    if shell == 'd8':
-      shell_flags.append('--test')
-    if utils.IsWindows():
-      shell += '.exe'
-    return shell, shell_flags
+  def _get_shell_flags(self):
+    return []
 
   def _get_timeout(self, params):
     timeout = self._test_config.timeout
@@ -228,7 +240,7 @@ class TestCase(object):
     return timeout
 
   def get_shell(self):
-    return 'd8'
+    raise NotImplementedError()
 
   def _get_suffix(self):
     return '.js'
@@ -269,6 +281,10 @@ class TestCase(object):
     """
     return []
 
+  def skip_predictable(self):
+    """Returns True if the test case is not suitable for predictable testing."""
+    return True
+
   @property
   def output_proc(self):
     if self.expected_outcomes is outproc.OUTCOMES_PASS:
@@ -285,3 +301,57 @@ class TestCase(object):
 
   def __str__(self):
     return self.suite.name + '/' + self.name
+
+
+class D8TestCase(TestCase):
+  def get_shell(self):
+    return "d8"
+
+  def _get_shell_flags(self):
+    return ['--test']
+
+  def _get_resources_for_file(self, file):
+    """Returns for a given file a list of absolute paths of files needed by the
+    given file.
+    """
+    with open(file) as f:
+      source = f.read()
+    result = []
+    def add_path(path):
+      result.append(os.path.abspath(path.replace('/', os.path.sep)))
+    for match in RESOURCES_PATTERN.finditer(source):
+      # There are several resources per line. Relative to base dir.
+      for path in match.group(1).strip().split():
+        add_path(path)
+    for match in LOAD_PATTERN.finditer(source):
+      # Files in load statements are relative to base dir.
+      add_path(match.group(1))
+    for match in MODULE_RESOURCES_PATTERN_1.finditer(source):
+      # Imported files are relative to the file importing them.
+      add_path(os.path.join(os.path.dirname(file), match.group(1)))
+    for match in MODULE_RESOURCES_PATTERN_2.finditer(source):
+      # Imported files are relative to the file importing them.
+      add_path(os.path.join(os.path.dirname(file), match.group(1)))
+    return result
+
+  def _get_resources(self):
+    """Returns the list of files needed by a test case."""
+    if not self._get_source_path():
+      return []
+    result = set()
+    to_check = [self._get_source_path()]
+    # Recurse over all files until reaching a fixpoint.
+    while to_check:
+      next_resource = to_check.pop()
+      result.add(next_resource)
+      for resource in self._get_resources_for_file(next_resource):
+        # Only add files that exist on disc. The pattens we check for give some
+        # false positives otherwise.
+        if resource not in result and os.path.exists(resource):
+          to_check.append(resource)
+    return sorted(list(result))
+
+  def skip_predictable(self):
+    """Returns True if the test case is not suitable for predictable testing."""
+    return (statusfile.FAIL in self.expected_outcomes or
+            self.output_proc.negative)

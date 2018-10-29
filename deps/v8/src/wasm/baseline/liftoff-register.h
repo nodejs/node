@@ -46,11 +46,11 @@ static inline constexpr RegClass reg_class_for(ValueType type) {
 // Maximum code of a gp cache register.
 static constexpr int kMaxGpRegCode =
     8 * sizeof(kLiftoffAssemblerGpCacheRegs) -
-    base::bits::CountLeadingZeros(kLiftoffAssemblerGpCacheRegs);
+    base::bits::CountLeadingZeros(kLiftoffAssemblerGpCacheRegs) - 1;
 // Maximum code of an fp cache register.
 static constexpr int kMaxFpRegCode =
     8 * sizeof(kLiftoffAssemblerFpCacheRegs) -
-    base::bits::CountLeadingZeros(kLiftoffAssemblerFpCacheRegs);
+    base::bits::CountLeadingZeros(kLiftoffAssemblerFpCacheRegs) - 1;
 // LiftoffRegister encodes both gp and fp in a unified index space.
 // [0 .. kMaxGpRegCode] encodes gp registers,
 // [kMaxGpRegCode+1 .. kMaxGpRegCode + kMaxFpRegCode] encodes fp registers.
@@ -72,16 +72,23 @@ class LiftoffRegister {
   using storage_t = std::conditional<
       needed_bits <= 8, uint8_t,
       std::conditional<needed_bits <= 16, uint16_t, uint32_t>::type>::type;
-  static_assert(8 * sizeof(storage_t) >= needed_bits &&
-                    8 * sizeof(storage_t) < 2 * needed_bits,
-                "right type has been chosen");
+
+  static_assert(8 * sizeof(storage_t) >= needed_bits,
+                "chosen type is big enough");
+  // Check for smallest required data type being chosen.
+  // Special case for uint8_t as there are no smaller types.
+  static_assert((8 * sizeof(storage_t) < 2 * needed_bits) ||
+                    (sizeof(storage_t) == sizeof(uint8_t)),
+                "chosen type is small enough");
 
  public:
   explicit LiftoffRegister(Register reg) : LiftoffRegister(reg.code()) {
+    DCHECK_NE(0, kLiftoffAssemblerGpCacheRegs & reg.bit());
     DCHECK_EQ(reg, gp());
   }
   explicit LiftoffRegister(DoubleRegister reg)
       : LiftoffRegister(kAfterMaxLiftoffGpRegCode + reg.code()) {
+    DCHECK_NE(0, kLiftoffAssemblerFpCacheRegs & reg.bit());
     DCHECK_EQ(reg, fp());
   }
 
@@ -246,8 +253,8 @@ class LiftoffRegList {
     return LiftoffRegList(regs_ & other.regs_);
   }
 
-  constexpr LiftoffRegList operator~() const {
-    return LiftoffRegList(~regs_ & (kGpMask | kFpMask));
+  constexpr LiftoffRegList operator|(const LiftoffRegList other) const {
+    return LiftoffRegList(regs_ | other.regs_);
   }
 
   constexpr bool operator==(const LiftoffRegList other) const {

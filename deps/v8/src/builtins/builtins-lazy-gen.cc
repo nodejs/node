@@ -86,7 +86,7 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
   {
     // Optimized code slot is a weak reference.
     TNode<Code> optimized_code =
-        CAST(ToWeakHeapObject(maybe_optimized_code_entry, &fallthrough));
+        CAST(GetHeapObjectAssumeWeak(maybe_optimized_code_entry, &fallthrough));
 
     // Check if the optimized code is marked for deopt. If it is, call the
     // runtime to clear it.

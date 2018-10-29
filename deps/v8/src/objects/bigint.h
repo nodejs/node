@@ -173,7 +173,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   }
 
   static MaybeHandle<String> ToString(Isolate* isolate, Handle<BigInt> bigint,
-                                      int radix = 10);
+                                      int radix = 10,
+                                      ShouldThrow should_throw = kThrowOnError);
   // "The Number value for x", see:
   // https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
   // Returns a Smi or HeapNumber.

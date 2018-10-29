@@ -52,7 +52,7 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
         if (record_slots) {
           HeapObject* slot_holder = WeakListVisitor<T>::WeakNextHolder(tail);
           int slot_offset = WeakListVisitor<T>::WeakNextOffset();
-          Object** slot = HeapObject::RawField(slot_holder, slot_offset);
+          ObjectSlot slot = HeapObject::RawField(slot_holder, slot_offset);
           MarkCompactCollector::RecordSlot(slot_holder, slot,
                                            HeapObject::cast(retained));
         }
@@ -135,7 +135,7 @@ struct WeakListVisitor<Context> {
       // Record the slots of the weak entries in the native context.
       for (int idx = Context::FIRST_WEAK_SLOT;
            idx < Context::NATIVE_CONTEXT_SLOTS; ++idx) {
-        Object** slot = Context::cast(context)->RawFieldOfElementAt(idx);
+        ObjectSlot slot = Context::cast(context)->RawFieldOfElementAt(idx);
         MarkCompactCollector::RecordSlot(context, slot,
                                          HeapObject::cast(*slot));
       }
@@ -157,7 +157,7 @@ struct WeakListVisitor<Context> {
 
     if (MustRecordSlots(heap)) {
       // Record the updated slot if necessary.
-      Object** head_slot =
+      ObjectSlot head_slot =
           HeapObject::RawField(context, FixedArray::SizeFor(index));
       heap->mark_compact_collector()->RecordSlot(context, head_slot,
                                                  HeapObject::cast(list_head));

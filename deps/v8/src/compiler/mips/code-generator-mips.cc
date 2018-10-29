@@ -12,6 +12,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/mips/macro-assembler-mips.h"
 #include "src/optimized-compilation-info.h"
+#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {
@@ -84,6 +85,9 @@ class MipsOperandConverter final : public InstructionOperandConverter {
         // TODO(plind): Maybe we should handle ExtRef & HeapObj here?
         //    maybe not done on arm due to const pool ??
         break;
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(titzer): RPO immediates on mips?
         break;
@@ -141,7 +145,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
                        Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode)
+                       RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         index_(index),
@@ -149,30 +153,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
+        stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
-
-  void SaveRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-    __ MultiPush(regs | ra.bit());
-  }
-
-  void RestoreRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-    __ MultiPop(regs | ra.bit());
-  }
 
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
@@ -191,8 +174,17 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       // We need to save and restore ra if the frame was elided.
       __ Push(ra);
     }
-    __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
-                           save_fp_mode);
+
+    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+      // A direct call to a wasm runtime stub defined in this module.
+      // Just encode the stub index. This will be patched when the code
+      // is added to the native module and copied into wasm code space.
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode, wasm::WasmCode::kWasmRecordWrite);
+    } else {
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode);
+    }
     if (must_save_lr_) {
       __ Pop(ra);
     }
@@ -205,6 +197,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
+  StubCallMode const stub_mode_;
   bool must_save_lr_;
   Zone* zone_;
 };
@@ -351,6 +344,41 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ Sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));         \
     __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));   \
     __ sync();                                                          \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(bin_instr)                               \
+  do {                                                                         \
+    if (IsMipsArchVariant(kMips32r6)) {                                        \
+      Label binop;                                                             \
+      __ sync();                                                               \
+      __ bind(&binop);                                                         \
+      __ llwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));       \
+      __ bin_instr(i.TempRegister(0), i.TempRegister(1), i.TempRegister(0),    \
+                   i.TempRegister(1), i.InputRegister(0), i.InputRegister(1)); \
+      __ scwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));       \
+      __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));        \
+      __ sync();                                                               \
+    } else {                                                                   \
+      UNREACHABLE();                                                           \
+    }                                                                          \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC64_ARITH_BINOP(bin_instr)                              \
+  do {                                                                        \
+    if (IsMipsArchVariant(kMips32r6)) {                                       \
+      Label binop;                                                            \
+      __ sync();                                                              \
+      __ bind(&binop);                                                        \
+      __ llwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));      \
+      __ bin_instr(i.TempRegister(0), i.TempRegister(1), i.TempRegister(0),   \
+                   i.TempRegister(1), i.InputRegister(0), i.InputRegister(1), \
+                   i.TempRegister(2), i.TempRegister(3));                     \
+      __ scwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));      \
+      __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));       \
+      __ sync();                                                              \
+    } else {                                                                  \
+      UNREACHABLE();                                                          \
+    }                                                                         \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP_EXT(sign_extend, size, bin_instr)                \
@@ -823,8 +851,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = new (zone()) OutOfLineRecordWrite(this, object, index, value,
-                                                   scratch0, scratch1, mode);
+      auto ool = new (zone())
+          OutOfLineRecordWrite(this, object, index, value, scratch0, scratch1,
+                               mode, DetermineStubCallMode());
       __ Addu(kScratchReg, object, index);
       __ sw(value, MemOperand(kScratchReg));
       __ CheckPageFlag(object, scratch0,
@@ -1701,6 +1730,50 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
+    case kMipsWord32AtomicPairLoad: {
+      if (IsMipsArchVariant(kMips32r6)) {
+        Register second_output =
+            instr->OutputCount() == 2 ? i.OutputRegister(1) : i.TempRegister(0);
+        __ llwp(i.OutputRegister(0), second_output, i.InputRegister(0));
+        __ sync();
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+    case kMipsWord32AtomicPairStore: {
+      if (IsMipsArchVariant(kMips32r6)) {
+        Label store;
+        __ sync();
+        __ bind(&store);
+        __ llwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(0));
+        __ Move(i.TempRegister(0), i.InputRegister(2));
+        __ scwp(i.InputRegister(1), i.TempRegister(0), i.InputRegister(0));
+        __ BranchShort(&store, eq, i.TempRegister(0), Operand(zero_reg));
+        __ sync();
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+#define ATOMIC64_BINOP_ARITH_CASE(op, instr) \
+  case kMipsWord32AtomicPair##op:            \
+    ASSEMBLE_ATOMIC64_ARITH_BINOP(instr);    \
+    break;
+      ATOMIC64_BINOP_ARITH_CASE(Add, AddPair)
+      ATOMIC64_BINOP_ARITH_CASE(Sub, SubPair)
+#undef ATOMIC64_BINOP_ARITH_CASE
+#define ATOMIC64_BINOP_LOGIC_CASE(op, instr) \
+  case kMipsWord32AtomicPair##op:            \
+    ASSEMBLE_ATOMIC64_LOGIC_BINOP(instr);    \
+    break;
+      ATOMIC64_BINOP_LOGIC_CASE(And, AndPair)
+      ATOMIC64_BINOP_LOGIC_CASE(Or, OrPair)
+      ATOMIC64_BINOP_LOGIC_CASE(Xor, XorPair)
+#undef ATOMIC64_BINOP_LOGIC_CASE
+    case kMipsWord32AtomicPairExchange:
+    case kMipsWord32AtomicPairCompareExchange:
+      break;
     case kMipsS128Zero: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ xor_v(i.OutputSimd128Register(), i.OutputSimd128Register(),
@@ -2977,7 +3050,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       } else {
         gen_->AssembleSourcePosition(instr_);
         // A direct call to a wasm runtime stub defined in this module.
-        // Just encode the stub index. This will be patched at relocation.
+        // Just encode the stub index. This will be patched when the code
+        // is added to the native module and copied into wasm code space.
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
@@ -3217,6 +3291,16 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {
         __ Push(kWasmInstanceRegister);
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        // WASM import wrappers are passed a tuple in the place of the instance.
+        // Unpack the tuple into the instance and the target callable.
+        // This must be done here in the codegen because it cannot be expressed
+        // properly in the graph.
+        __ lw(kJSFunctionRegister,
+              FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ lw(kWasmInstanceRegister,
+              FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+        __ Push(kWasmInstanceRegister);
       }
     }
   }
@@ -3371,9 +3455,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kExternalReference:
           __ li(dst, src.ToExternalReference());
           break;
+        case Constant::kDelayedStringConstant:
+          __ li(dst, src.ToDelayedStringConstant());
+          break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
-          Heap::RootListIndex index;
+          RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {

@@ -7,6 +7,7 @@
 
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/regexp-match-info.h"
 
 namespace v8 {
 namespace internal {
@@ -58,17 +59,6 @@ bool Isolate::has_pending_exception() {
   return !thread_local_top_.pending_exception_->IsTheHole(this);
 }
 
-Object* Isolate::get_wasm_caught_exception() {
-  return thread_local_top_.wasm_caught_exception_;
-}
-
-void Isolate::set_wasm_caught_exception(Object* exception) {
-  thread_local_top_.wasm_caught_exception_ = exception;
-}
-
-void Isolate::clear_wasm_caught_exception() {
-  thread_local_top_.wasm_caught_exception_ = nullptr;
-}
 
 void Isolate::clear_pending_message() {
   thread_local_top_.pending_message_obj_ = ReadOnlyRoots(this).the_hole_value();
@@ -188,6 +178,21 @@ bool Isolate::IsArrayBufferNeuteringIntact() {
 bool Isolate::IsArrayIteratorLookupChainIntact() {
   PropertyCell* array_iterator_cell = heap()->array_iterator_protector();
   return array_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
+bool Isolate::IsMapIteratorLookupChainIntact() {
+  PropertyCell* map_iterator_cell = heap()->map_iterator_protector();
+  return map_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
+bool Isolate::IsSetIteratorLookupChainIntact() {
+  PropertyCell* set_iterator_cell = heap()->set_iterator_protector();
+  return set_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
+bool Isolate::IsStringIteratorLookupChainIntact() {
+  PropertyCell* string_iterator_cell = heap()->string_iterator_protector();
+  return string_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
 }  // namespace internal

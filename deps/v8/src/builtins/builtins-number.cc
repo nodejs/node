@@ -111,6 +111,9 @@ BUILTIN(NumberPrototypeToFixed) {
 // ES6 section 20.1.3.4 Number.prototype.toLocaleString ( [ r1 [ , r2 ] ] )
 BUILTIN(NumberPrototypeToLocaleString) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kNumberToLocaleString);
+
   Handle<Object> value = args.at(0);
 
   // Unwrap the receiver {value}.

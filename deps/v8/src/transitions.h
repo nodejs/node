@@ -10,6 +10,7 @@
 #include "src/objects.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/map.h"
+#include "src/objects/maybe-object.h"
 #include "src/objects/name.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -153,7 +154,7 @@ class TransitionsAccessor {
     return transition->instance_descriptors()->GetKey(descriptor);
   }
 
-  static inline Map* GetTargetFromRaw(MaybeObject* raw);
+  static inline Map* GetTargetFromRaw(MaybeObject raw);
 
   void MarkNeedsReload() {
 #if DEBUG
@@ -166,7 +167,7 @@ class TransitionsAccessor {
   inline Map* GetSimpleTransition();
   bool HasSimpleTransitionTo(Map* map);
 
-  void ReplaceTransitions(MaybeObject* new_transitions);
+  void ReplaceTransitions(MaybeObject new_transitions);
 
   inline Map* GetTargetMapFromWeakRef();
 
@@ -182,7 +183,7 @@ class TransitionsAccessor {
   Isolate* isolate_;
   Handle<Map> map_handle_;
   Map* map_;
-  MaybeObject* raw_transitions_;
+  MaybeObject raw_transitions_;
   Encoding encoding_;
 #if DEBUG
   bool needs_reload_;
@@ -213,12 +214,12 @@ class TransitionArray : public WeakFixedArray {
   // Accessors for fetching instance transition at transition number.
   inline void SetKey(int transition_number, Name* value);
   inline Name* GetKey(int transition_number);
-  inline HeapObjectReference** GetKeySlot(int transition_number);
+  inline HeapObjectSlot GetKeySlot(int transition_number);
 
   inline Map* GetTarget(int transition_number);
-  inline void SetRawTarget(int transition_number, MaybeObject* target);
-  inline MaybeObject* GetRawTarget(int transition_number);
-  inline HeapObjectReference** GetTargetSlot(int transition_number);
+  inline void SetRawTarget(int transition_number, MaybeObject target);
+  inline MaybeObject GetRawTarget(int transition_number);
+  inline HeapObjectSlot GetTargetSlot(int transition_number);
   inline bool GetTargetIfExists(int transition_number, Isolate* isolate,
                                 Map** target);
 
@@ -337,7 +338,7 @@ class TransitionArray : public WeakFixedArray {
                                    PropertyKind kind2,
                                    PropertyAttributes attributes2);
 
-  inline void Set(int transition_number, Name* key, MaybeObject* target);
+  inline void Set(int transition_number, Name* key, MaybeObject target);
 
   void Zap(Isolate* isolate);
 

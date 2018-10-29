@@ -64,6 +64,9 @@ var assertNotSame;
 // and the properties of non-Array objects).
 var assertEquals;
 
+// Deep equality predicate used by assertEquals.
+var deepEquals;
+
 // Expected and found values are not identical primitive values or functions
 // or similarly structured objects (checking internal properties
 // of, e.g., Number and Date objects, the elements of arrays
@@ -163,7 +166,11 @@ var V8OptimizationStatus = {
   kOptimizingConcurrently: 1 << 9,
   kIsExecuting: 1 << 10,
   kTopmostFrameIsTurboFanned: 1 << 11,
+  kLiteMode: 1 << 12,
 };
+
+// Returns true if --lite-mode is on and we can't ever turn on optimization.
+var isNeverOptimizeLiteMode;
 
 // Returns true if --no-opt mode is on.
 var isNeverOptimize;
@@ -182,6 +189,9 @@ var isTurboFanned;
 
 // Monkey-patchable all-purpose failure handler.
 var failWithMessage;
+
+// Returns the formatted failure text.  Used by test-async.js.
+var formatFailureText;
 
 // Returns a pretty-printed string representation of the passed value.
 var prettyPrinted;
@@ -297,7 +307,7 @@ var prettyPrinted;
     throw new MjsUnitAssertionError(message);
   }
 
-  function formatFailureText(expectedText, found, name_opt) {
+  formatFailureText = function(expectedText, found, name_opt) {
     var message = "Fail" + "ure";
     if (name_opt) {
       // Fix this when we ditch the old test runner.
@@ -335,7 +345,7 @@ var prettyPrinted;
   }
 
 
-  function deepEquals(a, b) {
+  deepEquals = function deepEquals(a, b) {
     if (a === b) {
       // Check for -0.
       if (a === 0) return (1 / a) === (1 / b);
@@ -647,6 +657,12 @@ var prettyPrinted;
       fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
     if (sync_opt === undefined) sync_opt = "";
     var opt_status = OptimizationStatus(fun, sync_opt);
+    // Tests that use assertOptimized() do not make sense for Lite mode where
+    // optimization is always disabled, explicitly exit the test with a warning.
+    if (opt_status & V8OptimizationStatus.kLiteMode) {
+      print("Warning: Test uses assertOptimized in Lite mode, skipping test.");
+      quit(0);
+    }
     // Tests that use assertOptimized() do not make sense if --no-opt
     // option is provided. Such tests must add --opt to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kNeverOptimize) !== 0,
@@ -660,6 +676,11 @@ var prettyPrinted;
       return;
     }
     assertTrue((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
+  }
+
+  isNeverOptimizeLiteMode = function isNeverOptimizeLiteMode() {
+    var opt_status = OptimizationStatus(undefined, "");
+    return (opt_status & V8OptimizationStatus.kLiteMode) !== 0;
   }
 
   isNeverOptimize = function isNeverOptimize() {

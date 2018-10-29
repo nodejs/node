@@ -5,20 +5,21 @@
 module array {
   macro ArrayForEachTorqueContinuation(
       context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
-      thisArg: Object, initial_k: Smi): Object {
+      thisArg: Object, initialK: Number): Object {
     // 5. Let k be 0.
     // 6. Repeat, while k < len
-    for (let k: Smi = initial_k; k < len; k = k + 1) {
+    for (let k: Number = initialK; k < len; k = k + 1) {
       // 6a. Let Pk be ! ToString(k).
-      const pK: String = ToString_Inline(context, k);
+      // k is guaranteed to be a positive integer, hence ToString is
+      // side-effect free and HasProperty/GetProperty do the conversion inline.
 
       // 6b. Let kPresent be ? HasProperty(O, Pk).
-      const kPresent: Boolean = HasProperty(context, o, pK);
+      const kPresent: Boolean = HasProperty_Inline(o, k);
 
       // 6c. If kPresent is true, then
       if (kPresent == True) {
         // 6c. i. Let kValue be ? Get(O, Pk).
-        const kValue: Object = GetProperty(context, o, pK);
+        const kValue: Object = GetProperty(o, k);
 
         // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
         Call(context, callbackfn, thisArg, kValue, k, o);
@@ -32,10 +33,10 @@ module array {
   javascript builtin ArrayForEachLoopEagerDeoptContinuation(
       context: Context, receiver: Object, callback: Object, thisArg: Object,
       initialK: Object, length: Object): Object {
-    // The unsafe cast is safe because all continuation points in forEach are
+    // The unsafe Cast is safe because all continuation points in forEach are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
-    const jsreceiver: JSReceiver = unsafe_cast<JSReceiver>(receiver);
+    const jsreceiver: JSReceiver = UnsafeCast<JSReceiver>(receiver);
     return ArrayForEachLoopContinuation(
         context, jsreceiver, callback, thisArg, Undefined, jsreceiver, initialK,
         length, Undefined);
@@ -44,10 +45,10 @@ module array {
   javascript builtin ArrayForEachLoopLazyDeoptContinuation(
       context: Context, receiver: Object, callback: Object, thisArg: Object,
       initialK: Object, length: Object, result: Object): Object {
-    // The unsafe cast is safe because all continuation points in forEach are
+    // The unsafe Cast is safe because all continuation points in forEach are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
-    const jsreceiver: JSReceiver = unsafe_cast<JSReceiver>(receiver);
+    const jsreceiver: JSReceiver = UnsafeCast<JSReceiver>(receiver);
     return ArrayForEachLoopContinuation(
         context, jsreceiver, callback, thisArg, Undefined, jsreceiver, initialK,
         length, Undefined);
@@ -59,22 +60,22 @@ module array {
       to: Object): Object {
     try {
       const callbackfn: Callable =
-          cast<Callable>(callback) otherwise Unexpected;
-      const k: Smi = cast<Smi>(initialK) otherwise Unexpected;
-      const number_length: Number = cast<Number>(length) otherwise Unexpected;
+          Cast<Callable>(callback) otherwise Unexpected;
+      const k: Number = Cast<Number>(initialK) otherwise Unexpected;
+      const numberLength: Number = Cast<Number>(length) otherwise Unexpected;
 
       return ArrayForEachTorqueContinuation(
-          context, receiver, number_length, callbackfn, thisArg, k);
+          context, receiver, numberLength, callbackfn, thisArg, k);
     }
-    label Unexpected {
+    label Unexpected deferred {
       unreachable;
     }
   }
 
-  macro VisitAllElements<FixedArrayType : type>(
+  macro VisitAllElements<FixedArrayType: type>(
       context: Context, a: JSArray, len: Smi, callbackfn: Callable,
-      thisArg: Object): void labels
-  Bailout(Smi) {
+      thisArg: Object): void
+      labels Bailout(Smi) {
     let k: Smi = 0;
     const map: Map = a.map;
 
@@ -100,19 +101,19 @@ module array {
         }
       }
     }
-    label Slow {
+    label Slow deferred {
       goto Bailout(k);
     }
   }
 
   macro FastArrayForEach(
       context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
-      thisArg: Object): Object labels
-  Bailout(Smi) {
+      thisArg: Object): Object
+      labels Bailout(Smi) {
     let k: Smi = 0;
     try {
-      const smi_len: Smi = cast<Smi>(len) otherwise Slow;
-      const a: JSArray = cast<JSArray>(o) otherwise Slow;
+      const smiLen: Smi = Cast<Smi>(len) otherwise Slow;
+      const a: JSArray = Cast<JSArray>(o) otherwise Slow;
       const map: Map = a.map;
 
       if (!IsPrototypeInitialArrayPrototype(context, map)) goto Slow;
@@ -121,14 +122,14 @@ module array {
 
       if (IsElementsKindGreaterThan(elementsKind, HOLEY_ELEMENTS)) {
         VisitAllElements<FixedDoubleArray>(
-            context, a, smi_len, callbackfn, thisArg)
-        otherwise Bailout;
+            context, a, smiLen, callbackfn, thisArg)
+            otherwise Bailout;
       } else {
-        VisitAllElements<FixedArray>(context, a, smi_len, callbackfn, thisArg)
-        otherwise Bailout;
+        VisitAllElements<FixedArray>(context, a, smiLen, callbackfn, thisArg)
+            otherwise Bailout;
       }
     }
-    label Slow {
+    label Slow deferred {
       goto Bailout(k);
     }
     return Undefined;
@@ -146,35 +147,35 @@ module array {
       const o: JSReceiver = ToObject_Inline(context, receiver);
 
       // 2. Let len be ? ToLength(? Get(O, "length")).
-      const len: Number = GetLengthProperty(context, o);
+      const len: Number = GetLengthProperty(o);
 
       // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
       if (arguments.length == 0) {
         goto TypeError;
       }
       const callbackfn: Callable =
-          cast<Callable>(arguments[0]) otherwise TypeError;
+          Cast<Callable>(arguments[0]) otherwise TypeError;
 
       // 4. If thisArg is present, let T be thisArg; else let T be undefined.
       const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
 
       // Special cases.
-      let k: Smi = 0;
+      let k: Number = 0;
       try {
         return FastArrayForEach(context, o, len, callbackfn, thisArg)
-        otherwise Bailout;
+            otherwise Bailout;
       }
-      label Bailout(k_value: Smi) {
-        k = k_value;
+      label Bailout(kValue: Smi) deferred {
+        k = kValue;
       }
 
       return ArrayForEachTorqueContinuation(
           context, o, len, callbackfn, thisArg, k);
     }
-    label TypeError {
+    label TypeError deferred {
       ThrowTypeError(context, kCalledNonCallable, arguments[0]);
     }
-    label NullOrUndefinedError {
+    label NullOrUndefinedError deferred {
       ThrowTypeError(
           context, kCalledOnNullOrUndefined, 'Array.prototype.forEach');
     }

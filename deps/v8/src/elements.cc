@@ -10,12 +10,14 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
+#include "src/keys.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/slots.h"
 #include "src/utils.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,
@@ -145,7 +147,7 @@ void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase* from_base,
       int start = to_start + copy_size;
       int length = to_base->length() - start;
       if (length > 0) {
-        MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
+        MemsetPointer(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
                       roots.the_hole_value(), length);
       }
     }
@@ -183,7 +185,7 @@ static void CopyDictionaryToObjectElements(
       int start = to_start + copy_size;
       int length = to_base->length() - start;
       if (length > 0) {
-        MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
+        MemsetPointer(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
                       ReadOnlyRoots(isolate).the_hole_value(), length);
       }
     }
@@ -232,7 +234,7 @@ static void CopyDoubleToObjectElements(Isolate* isolate,
       int start = to_start;
       int length = to_base->length() - start;
       if (length > 0) {
-        MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
+        MemsetPointer(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
                       ReadOnlyRoots(isolate).the_hole_value(), length);
       }
     }
@@ -461,7 +463,7 @@ static void SortIndices(
   // store operations that are safe for concurrent marking.
   base::AtomicElement<Object*>* start =
       reinterpret_cast<base::AtomicElement<Object*>*>(
-          indices->GetFirstElementAddress());
+          indices->GetFirstElementAddress().address());
   std::sort(start, start + sort_size,
             [isolate](const base::AtomicElement<Object*>& elementA,
                       const base::AtomicElement<Object*>& elementB) {
@@ -529,11 +531,11 @@ class InternalElementsAccessor : public ElementsAccessor {
   explicit InternalElementsAccessor(const char* name)
       : ElementsAccessor(name) {}
 
-  virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
-                                    FixedArrayBase* backing_store,
-                                    uint32_t index) = 0;
+  uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
+                            FixedArrayBase* backing_store,
+                            uint32_t index) override = 0;
 
-  virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
+  PropertyDetails GetDetails(JSObject* holder, uint32_t entry) override = 0;
 };
 
 // Base class for element handler implementations. Contains the
@@ -721,18 +723,6 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
   static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
                                     uint32_t end) {
-    UNREACHABLE();
-  }
-
-  Handle<JSArray> Splice(Handle<JSArray> receiver, uint32_t start,
-                         uint32_t delete_count, Arguments* args,
-                         uint32_t add_count) final {
-    return Subclass::SpliceImpl(receiver, start, delete_count, args, add_count);
-  }
-
-  static Handle<JSArray> SpliceImpl(Handle<JSArray> receiver,
-                                    uint32_t start, uint32_t delete_count,
-                                    Arguments* args, uint32_t add_count) {
     UNREACHABLE();
   }
 
@@ -1026,14 +1016,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
   void CopyElements(Isolate* isolate, Handle<FixedArrayBase> source,
                     ElementsKind source_kind,
-                    Handle<FixedArrayBase> destination, int size) {
+                    Handle<FixedArrayBase> destination, int size) override {
     Subclass::CopyElementsImpl(isolate, *source, 0, *destination, source_kind,
                                0, kPackedSizeNotKnown, size);
   }
 
   void CopyTypedArrayElementsSlice(JSTypedArray* source,
                                    JSTypedArray* destination, size_t start,
-                                   size_t end) {
+                                   size_t end) override {
     Subclass::CopyTypedArrayElementsSliceImpl(source, destination, start, end);
   }
 
@@ -1068,7 +1058,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   Maybe<bool> CollectValuesOrEntries(Isolate* isolate, Handle<JSObject> object,
                                      Handle<FixedArray> values_or_entries,
                                      bool get_entries, int* nof_items,
-                                     PropertyFilter filter) {
+                                     PropertyFilter filter) override {
     return Subclass::CollectValuesOrEntriesImpl(
         isolate, object, values_or_entries, get_entries, nof_items, filter);
   }
@@ -1298,7 +1288,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   }
 
   Object* Fill(Handle<JSObject> receiver, Handle<Object> obj_value,
-               uint32_t start, uint32_t end) {
+               uint32_t start, uint32_t end) override {
     return Subclass::FillImpl(receiver, obj_value, start, end);
   }
 
@@ -2227,58 +2217,6 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return result_array;
   }
 
-  static Handle<JSArray> SpliceImpl(Handle<JSArray> receiver,
-                                    uint32_t start, uint32_t delete_count,
-                                    Arguments* args, uint32_t add_count) {
-    Isolate* isolate = receiver->GetIsolate();
-    Heap* heap = isolate->heap();
-    uint32_t length = Smi::ToInt(receiver->length());
-    uint32_t new_length = length - delete_count + add_count;
-
-    ElementsKind kind = KindTraits::Kind;
-    if (new_length <= static_cast<uint32_t>(receiver->elements()->length()) &&
-        IsSmiOrObjectElementsKind(kind)) {
-      HandleScope scope(isolate);
-      JSObject::EnsureWritableFastElements(receiver);
-    }
-
-    Handle<FixedArrayBase> backing_store(receiver->elements(), isolate);
-
-    if (new_length == 0) {
-      receiver->set_elements(ReadOnlyRoots(heap).empty_fixed_array());
-      receiver->set_length(Smi::kZero);
-      return isolate->factory()->NewJSArrayWithElements(
-          backing_store, KindTraits::Kind, delete_count);
-    }
-
-    // Construct the result array which holds the deleted elements.
-    Handle<JSArray> deleted_elements = isolate->factory()->NewJSArray(
-        KindTraits::Kind, delete_count, delete_count);
-    if (delete_count > 0) {
-      DisallowHeapAllocation no_gc;
-      Subclass::CopyElementsImpl(isolate, *backing_store, start,
-                                 deleted_elements->elements(), KindTraits::Kind,
-                                 0, kPackedSizeNotKnown, delete_count);
-    }
-
-    // Delete and move elements to make space for add_count new elements.
-    if (add_count < delete_count) {
-      Subclass::SpliceShrinkStep(isolate, receiver, backing_store, start,
-                                 delete_count, add_count, length, new_length);
-    } else if (add_count > delete_count) {
-      backing_store =
-          Subclass::SpliceGrowStep(isolate, receiver, backing_store, start,
-                                   delete_count, add_count, length, new_length);
-    }
-
-    // Copy over the arguments.
-    Subclass::CopyArguments(args, backing_store, add_count, 3, start);
-
-    receiver->set_length(Smi::FromInt(new_length));
-    Subclass::TryTransitionResultArrayToPacked(deleted_elements);
-    return deleted_elements;
-  }
-
   static void MoveElements(Isolate* isolate, Handle<JSArray> receiver,
                            Handle<FixedArrayBase> backing_store, int dst_index,
                            int src_index, int len, int hole_start,
@@ -2296,15 +2234,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       DCHECK_LE(hole_start, backing_store->length());
       DCHECK_LE(hole_end, backing_store->length());
     } else if (len != 0) {
-      if (IsDoubleElementsKind(KindTraits::Kind)) {
-        MemMove(dst_elms->data_start() + dst_index,
-                dst_elms->data_start() + src_index, len * kDoubleSize);
-      } else {
-        DisallowHeapAllocation no_gc;
-        WriteBarrierMode mode = GetWriteBarrierMode(KindTraits::Kind);
-        heap->MoveElements(FixedArray::cast(*dst_elms), dst_index, src_index,
-                           len, mode);
-      }
+      WriteBarrierMode mode = GetWriteBarrierMode(KindTraits::Kind);
+      dst_elms->MoveElements(heap, dst_index, src_index, len, mode);
     }
     if (hole_start != hole_end) {
       dst_elms->FillWithHoles(hole_start, hole_end);
@@ -2360,39 +2291,29 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
     if (!value->IsNumber()) {
       if (value == undefined) {
-        // Only PACKED_ELEMENTS, HOLEY_ELEMENTS, HOLEY_SMI_ELEMENTS, and
-        // HOLEY_DOUBLE_ELEMENTS can have `undefined` as a value.
-        if (!IsObjectElementsKind(Subclass::kind()) &&
-            !IsHoleyElementsKind(Subclass::kind())) {
-          return Just(false);
-        }
-
-        // Search for `undefined` or The Hole in PACKED_ELEMENTS,
-        // HOLEY_ELEMENTS or HOLEY_SMI_ELEMENTS
+        // Search for `undefined` or The Hole. Even in the case of
+        // PACKED_DOUBLE_ELEMENTS or PACKED_SMI_ELEMENTS, we might encounter The
+        // Hole here, since the {length} used here can be larger than
+        // JSArray::length.
         if (IsSmiOrObjectElementsKind(Subclass::kind())) {
           auto elements = FixedArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
             Object* element_k = elements->get(k);
 
-            if (IsHoleyElementsKind(Subclass::kind()) &&
-                element_k == the_hole) {
-              return Just(true);
-            }
-            if (IsObjectElementsKind(Subclass::kind()) &&
-                element_k == undefined) {
+            if (element_k == the_hole || element_k == undefined) {
               return Just(true);
             }
           }
           return Just(false);
         } else {
-          // Search for The Hole in HOLEY_DOUBLE_ELEMENTS
-          DCHECK_EQ(Subclass::kind(), HOLEY_DOUBLE_ELEMENTS);
+          // Search for The Hole in HOLEY_DOUBLE_ELEMENTS or
+          // PACKED_DOUBLE_ELEMENTS.
+          DCHECK(IsDoubleElementsKind(Subclass::kind()));
           auto elements = FixedDoubleArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
-            if (IsHoleyElementsKind(Subclass::kind()) &&
-                elements->is_the_hole(k)) {
+            if (elements->is_the_hole(k)) {
               return Just(true);
             }
           }
@@ -2412,7 +2333,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
         for (uint32_t k = start_from; k < length; ++k) {
           Object* element_k = elements->get(k);
-          if (IsHoleyElementsKind(Subclass::kind()) && element_k == the_hole) {
+          if (element_k == the_hole) {
             continue;
           }
 
@@ -2430,8 +2351,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           auto elements = FixedDoubleArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
-            if (IsHoleyElementsKind(Subclass::kind()) &&
-                elements->is_the_hole(k)) {
+            if (elements->is_the_hole(k)) {
               continue;
             }
             if (elements->get_scalar(k) == search_value) return Just(true);
@@ -2463,8 +2383,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           auto elements = FixedDoubleArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
-            if (IsHoleyElementsKind(Subclass::kind()) &&
-                elements->is_the_hole(k)) {
+            if (elements->is_the_hole(k)) {
               continue;
             }
             if (std::isnan(elements->get_scalar(k))) return Just(true);
@@ -2501,50 +2420,6 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       result->set(i, *value);
     }
     return result;
-  }
-
- private:
-  // SpliceShrinkStep might modify the backing_store.
-  static void SpliceShrinkStep(Isolate* isolate, Handle<JSArray> receiver,
-                               Handle<FixedArrayBase> backing_store,
-                               uint32_t start, uint32_t delete_count,
-                               uint32_t add_count, uint32_t len,
-                               uint32_t new_length) {
-    const int move_left_count = len - delete_count - start;
-    const int move_left_dst_index = start + add_count;
-    Subclass::MoveElements(isolate, receiver, backing_store,
-                           move_left_dst_index, start + delete_count,
-                           move_left_count, new_length, len);
-  }
-
-  // SpliceGrowStep might modify the backing_store.
-  static Handle<FixedArrayBase> SpliceGrowStep(
-      Isolate* isolate, Handle<JSArray> receiver,
-      Handle<FixedArrayBase> backing_store, uint32_t start,
-      uint32_t delete_count, uint32_t add_count, uint32_t length,
-      uint32_t new_length) {
-    // Check we do not overflow the new_length.
-    DCHECK((add_count - delete_count) <= (Smi::kMaxValue - length));
-    // Check if backing_store is big enough.
-    if (new_length <= static_cast<uint32_t>(backing_store->length())) {
-      Subclass::MoveElements(isolate, receiver, backing_store,
-                             start + add_count, start + delete_count,
-                             (length - delete_count - start), 0, 0);
-      // MoveElements updates the backing_store in-place.
-      return backing_store;
-    }
-    // New backing storage is needed.
-    int capacity = JSObject::NewElementsCapacity(new_length);
-    // Partially copy all elements up to start.
-    Handle<FixedArrayBase> new_elms = Subclass::ConvertElementsWithCapacity(
-        receiver, backing_store, KindTraits::Kind, capacity, start);
-    // Copy the trailing elements after start + delete_count
-    Subclass::CopyElementsImpl(isolate, *backing_store, start + delete_count,
-                               *new_elms, KindTraits::Kind, start + add_count,
-                               kPackedSizeNotKnown,
-                               ElementsAccessor::kCopyToEndAndInitializeToHole);
-    receiver->set_elements(*new_elms);
-    return new_elms;
   }
 
   static Handle<Object> RemoveElement(Handle<JSArray> receiver,
@@ -2751,6 +2626,10 @@ class FastSmiOrObjectElementsAccessor
     // NaN can never be found by strict equality.
     if (value->IsNaN()) return Just<int64_t>(-1);
 
+    // k can be greater than receiver->length() below, but it is bounded by
+    // elements_base->length() so we never read out of bounds. This means that
+    // elements->get(k) can return the hole, for which the StrictEquals will
+    // always fail.
     FixedArray* elements = FixedArray::cast(receiver->elements());
     for (uint32_t k = start_from; k < length; ++k) {
       if (value->StrictEquals(elements->get(k))) return Just<int64_t>(k);
@@ -3285,8 +3164,8 @@ class TypedElementsAccessor
                                               size_t start, size_t end) {
     DisallowHeapAllocation no_gc;
     DCHECK_EQ(destination->GetElementsKind(), AccessorClass::kind());
-    DCHECK(!source->WasNeutered());
-    DCHECK(!destination->WasNeutered());
+    CHECK(!source->WasNeutered());
+    CHECK(!destination->WasNeutered());
     DCHECK_LE(start, end);
     DCHECK_LE(end, source->length_value());
 
@@ -3356,6 +3235,9 @@ class TypedElementsAccessor
     // side-effects, as the source elements will always be a number.
     DisallowHeapAllocation no_gc;
 
+    CHECK(!source->WasNeutered());
+    CHECK(!destination->WasNeutered());
+
     FixedTypedArrayBase* source_elements =
         FixedTypedArrayBase::cast(source->elements());
     BackingStore* destination_elements =
@@ -3377,8 +3259,8 @@ class TypedElementsAccessor
 
     uint8_t* source_data = static_cast<uint8_t*>(source_elements->DataPtr());
     uint8_t* dest_data = static_cast<uint8_t*>(destination_elements->DataPtr());
-    size_t source_byte_length = NumberToSize(source->byte_length());
-    size_t dest_byte_length = NumberToSize(destination->byte_length());
+    size_t source_byte_length = source->byte_length();
+    size_t dest_byte_length = destination->byte_length();
 
     // We can simply copy the backing store if the types are the same, or if
     // we are converting e.g. Uint8 <-> Int8, as the binary representation
@@ -3445,6 +3327,8 @@ class TypedElementsAccessor
     Isolate* isolate = source->GetIsolate();
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
+
+    CHECK(!destination->WasNeutered());
 
     size_t current_length;
     DCHECK(source->length()->IsNumber() &&
@@ -3542,8 +3426,7 @@ class TypedElementsAccessor
 
       if (V8_UNLIKELY(destination->WasNeutered())) {
         const char* op = "set";
-        const MessageTemplate::Template message =
-            MessageTemplate::kDetachedOperation;
+        const MessageTemplate message = MessageTemplate::kDetachedOperation;
         Handle<String> operation =
             isolate->factory()->NewStringFromAsciiChecked(op);
         THROW_NEW_ERROR_RETURN_FAILURE(isolate,
@@ -3566,6 +3449,7 @@ class TypedElementsAccessor
     Handle<JSTypedArray> destination_ta =
         Handle<JSTypedArray>::cast(destination);
     DCHECK_LE(offset + length, destination_ta->length_value());
+    CHECK(!destination_ta->WasNeutered());
 
     if (length == 0) return *isolate->factory()->undefined_value();
 
@@ -3593,7 +3477,6 @@ class TypedElementsAccessor
       // If we have to copy more elements than we have in the source, we need to
       // do special handling and conversion; that happens in the slow case.
       if (length + offset <= source_ta->length_value()) {
-        DCHECK(length == 0 || !source_ta->WasNeutered());
         CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
         return *isolate->factory()->undefined_value();
       }

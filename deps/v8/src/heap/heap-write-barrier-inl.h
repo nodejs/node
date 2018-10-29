@@ -12,7 +12,9 @@
 
 #include "src/globals.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -84,21 +86,31 @@ inline void WriteBarrierForCode(Code* host) {
   Heap::WriteBarrierForCodeSlow(host);
 }
 
-inline void GenerationalBarrier(HeapObject* object, Object** slot,
+inline void GenerationalBarrier(HeapObject* object, ObjectSlot slot,
+                                Object* value) {
+  DCHECK(!HasWeakHeapObjectTag(*slot));
+  DCHECK(!HasWeakHeapObjectTag(value));
+  if (!value->IsHeapObject()) return;
+  heap_internals::GenerationalBarrierInternal(object, slot.address(),
+                                              HeapObject::cast(value));
+}
+
+inline void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
+                                MaybeObject value) {
+  HeapObject* value_heap_object;
+  if (!value->GetHeapObject(&value_heap_object)) return;
+  heap_internals::GenerationalBarrierInternal(object, slot.address(),
+                                              value_heap_object);
+}
+
+inline void GenerationalBarrier(HeapObjectPtr* object, ObjectSlot slot,
                                 Object* value) {
   DCHECK(!HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value->IsHeapObject()) return;
   heap_internals::GenerationalBarrierInternal(
-      object, reinterpret_cast<Address>(slot), HeapObject::cast(value));
-}
-
-inline void GenerationalBarrier(HeapObject* object, MaybeObject** slot,
-                                MaybeObject* value) {
-  HeapObject* value_heap_object;
-  if (!value->ToStrongOrWeakHeapObject(&value_heap_object)) return;
-  heap_internals::GenerationalBarrierInternal(
-      object, reinterpret_cast<Address>(slot), value_heap_object);
+      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
+      HeapObject::cast(value));
 }
 
 inline void GenerationalBarrierForElements(Heap* heap, FixedArray* array,
@@ -118,20 +130,30 @@ inline void GenerationalBarrierForCode(Code* host, RelocInfo* rinfo,
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 
-inline void MarkingBarrier(HeapObject* object, Object** slot, Object* value) {
-  DCHECK_IMPLIES(slot != nullptr, !HasWeakHeapObjectTag(*slot));
+inline void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object* value) {
+  DCHECK_IMPLIES(slot.address() != kNullAddress, !HasWeakHeapObjectTag(*slot));
+  DCHECK(!HasWeakHeapObjectTag(value));
+  if (!value->IsHeapObject()) return;
+  heap_internals::MarkingBarrierInternal(object, slot.address(),
+                                         HeapObject::cast(value));
+}
+
+inline void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
+                           MaybeObject value) {
+  HeapObject* value_heap_object;
+  if (!value->GetHeapObject(&value_heap_object)) return;
+  heap_internals::MarkingBarrierInternal(object, slot.address(),
+                                         value_heap_object);
+}
+
+inline void MarkingBarrier(HeapObjectPtr* object, ObjectSlot slot,
+                           Object* value) {
+  DCHECK_IMPLIES(slot.address() != kNullAddress, !HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value->IsHeapObject()) return;
   heap_internals::MarkingBarrierInternal(
-      object, reinterpret_cast<Address>(slot), HeapObject::cast(value));
-}
-
-inline void MarkingBarrier(HeapObject* object, MaybeObject** slot,
-                           MaybeObject* value) {
-  HeapObject* value_heap_object;
-  if (!value->ToStrongOrWeakHeapObject(&value_heap_object)) return;
-  heap_internals::MarkingBarrierInternal(
-      object, reinterpret_cast<Address>(slot), value_heap_object);
+      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
+      HeapObject::cast(value));
 }
 
 inline void MarkingBarrierForElements(Heap* heap, HeapObject* object) {

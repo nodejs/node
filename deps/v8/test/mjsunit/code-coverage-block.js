@@ -847,7 +847,49 @@ Util.escape("foo.bar");                   // 0400
 [{"start":0,"end":449,"count":1},
  {"start":64,"end":351,"count":1},
  {"start":112,"end":203,"count":0},
- {"start":303,"end":350,"count":0}]
+ {"start":268,"end":350,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/8237",
+`
+!function() {                             // 0000
+  if (true)                               // 0050
+    while (false) return; else nop();     // 0100
+}();                                      // 0150
+!function() {                             // 0200
+  if (true) l0: { break l0; } else        // 0250
+    if (nop()) { }                        // 0300
+}();                                      // 0350
+!function() {                             // 0400
+  if (true) { if (false) { return; }      // 0450
+  } else if (nop()) { } }();              // 0500
+!function(){                              // 0550
+  if(true)while(false)return;else nop()   // 0600
+}();                                      // 0650
+!function(){                              // 0700
+  if(true) l0:{break l0}else if (nop()){} // 0750
+}();                                      // 0800
+!function(){                              // 0850
+  if(true){if(false){return}}else         // 0900
+    if(nop()){}                           // 0950
+}();                                      // 1000
+`,
+[{"start":0,"end":1049,"count":1},
+ {"start":1,"end":151,"count":1},
+ {"start":118,"end":137,"count":0},
+ {"start":201,"end":351,"count":1},
+ {"start":277,"end":318,"count":0},
+ {"start":401,"end":525,"count":1},
+ {"start":475,"end":486,"count":0},
+ {"start":503,"end":523,"count":0},
+ {"start":551,"end":651,"count":1},
+ {"start":622,"end":639,"count":0},
+ {"start":701,"end":801,"count":1},
+ {"start":773,"end":791,"count":0},
+ {"start":851,"end":1001,"count":1},
+ {"start":920,"end":928,"count":0},
+ {"start":929,"end":965,"count":0}]
 );
 
 %DebugToggleBlockCoverage(false);

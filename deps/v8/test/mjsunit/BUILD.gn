@@ -23,8 +23,5 @@ group("v8_mjsunit") {
     "../../tools/splaytree.js",
     "../../tools/tickprocessor.js",
     "../../tools/dumpcpp.js",
-    "../wasm-js/test/harness/wasm-constants.js",
-    "../wasm-js/test/harness/wasm-module-builder.js",
-    "../wasm-js/test/js-api/jsapi.js",
   ]
 }

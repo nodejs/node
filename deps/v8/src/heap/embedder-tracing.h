@@ -24,6 +24,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
   }
 
+  EmbedderHeapTracer* remote_tracer() const { return remote_tracer_; }
+
   void SetRemoteTracer(EmbedderHeapTracer* tracer) {
     if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
 
@@ -36,7 +38,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   void TracePrologue();
   void TraceEpilogue();
-  void AbortTracing();
   void EnterFinalPause();
   bool Trace(double deadline);
   bool IsRemoteTracingDone();
@@ -78,6 +79,24 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
       EmbedderHeapTracer::kUnknown;
 
   friend class EmbedderStackStateScope;
+};
+
+class V8_EXPORT_PRIVATE EmbedderStackStateScope final {
+ public:
+  EmbedderStackStateScope(LocalEmbedderHeapTracer* local_tracer,
+                          EmbedderHeapTracer::EmbedderStackState stack_state)
+      : local_tracer_(local_tracer),
+        old_stack_state_(local_tracer_->embedder_stack_state_) {
+    local_tracer_->embedder_stack_state_ = stack_state;
+  }
+
+  ~EmbedderStackStateScope() {
+    local_tracer_->embedder_stack_state_ = old_stack_state_;
+  }
+
+ private:
+  LocalEmbedderHeapTracer* const local_tracer_;
+  const EmbedderHeapTracer::EmbedderStackState old_stack_state_;
 };
 
 }  // namespace internal

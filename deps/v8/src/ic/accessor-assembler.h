@@ -28,18 +28,22 @@ class AccessorAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   void GenerateLoadIC();
+  void GenerateLoadIC_Megamorphic();
   void GenerateLoadIC_Noninlined();
   void GenerateLoadIC_Uninitialized();
   void GenerateLoadICTrampoline();
+  void GenerateLoadICTrampoline_Megamorphic();
   void GenerateKeyedLoadIC();
-  void GenerateKeyedLoadICTrampoline();
   void GenerateKeyedLoadIC_Megamorphic();
   void GenerateKeyedLoadIC_PolymorphicName();
+  void GenerateKeyedLoadICTrampoline();
+  void GenerateKeyedLoadICTrampoline_Megamorphic();
   void GenerateStoreIC();
   void GenerateStoreICTrampoline();
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
   void GenerateCloneObjectIC();
+  void GenerateCloneObjectIC_Slow();
 
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
@@ -106,10 +110,16 @@ class AccessorAssembler : public CodeStubAssembler {
   void HandleStoreICHandlerCase(
       const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
       ICMode ic_mode, ElementSupport support_elements = kOnlyProperties);
+  enum StoreTransitionMapFlags {
+    kCheckPrototypeValidity = 1 << 0,
+    kValidateTransitionHandler = 1 << 1,
+    kStoreTransitionMapFlagsMask =
+        kCheckPrototypeValidity | kValidateTransitionHandler,
+  };
   void HandleStoreICTransitionMapHandlerCase(const StoreICParameters* p,
                                              TNode<Map> transition_map,
                                              Label* miss,
-                                             bool validate_transition_handler);
+                                             StoreTransitionMapFlags flags);
 
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 

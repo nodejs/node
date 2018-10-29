@@ -60,6 +60,110 @@ TEST(AssigmentExpressionLHSIsCall) {
   use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict] = 0;
 }
 
+TEST(AtomicsWakeAndAtomicsNotify) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  i::FLAG_harmony_sharedarraybuffer = true;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  CompileRun("Atomics.wake(new Int32Array(new SharedArrayBuffer(16)), 0);");
+  CHECK_EQ(1, use_counts[v8::Isolate::kAtomicsWake]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kAtomicsNotify]);
+
+  use_counts[v8::Isolate::kAtomicsWake] = 0;
+  use_counts[v8::Isolate::kAtomicsNotify] = 0;
+
+  CompileRun("Atomics.notify(new Int32Array(new SharedArrayBuffer(16)), 0);");
+  CHECK_EQ(0, use_counts[v8::Isolate::kAtomicsWake]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kAtomicsNotify]);
+}
+
+TEST(OverrideReadOnlyPropertyOnPrototype) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  using Isolate = v8::Isolate;
+
+  // Initial setup
+  CompileRun(
+      "Object.defineProperty(Object.prototype, 'readonly', "
+      "{ readonly: true, value: 'readonly', configurable: false });");
+  CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy]);
+  CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
+
+  // StoreIC Sloppy
+  CompileRun(
+      "function sloppy() { let sloppy = {}; sloppy.readonly = 'override'; }"
+      "sloppy();");
+  CHECK_EQ(1, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy]);
+  CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy] = 0;
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict] = 0;
+
+  // StoreIC Sloppy (one-shot)
+  CompileRun("let sloppyob = {}; sloppyob.readonly = 'override';");
+  CHECK_EQ(1, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy]);
+  CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy] = 0;
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict] = 0;
+
+  // StoreIC Strict
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun(
+        "function strict() {"
+        "    'use strict'; let strict = {}; strict.readonly = 'override';"
+        "}"
+        "strict();");
+    CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy]);
+    CHECK_EQ(1, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
+    CHECK(try_catch.HasCaught());
+  }
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy] = 0;
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict] = 0;
+
+  // StoreIC Strict (one-shot)
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun(
+        "'use strict';"
+        "let strictob = {}; strictob.readonly = 'override';");
+    CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy]);
+    CHECK_EQ(1, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
+    CHECK(try_catch.HasCaught());
+  }
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy] = 0;
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict] = 0;
+
+  // KeyedStoreIC Sloppy
+  CompileRun(
+      "function sloppy2() { let sloppy = {}; sloppy['readonly'] = 'override'; }"
+      "sloppy2();");
+  CHECK_EQ(1, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy]);
+  CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy] = 0;
+  use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict] = 0;
+
+  // KeyedStoreIC Strict
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun(
+        "function strict2() {"
+        "    'use strict'; let strict = {}; strict['readonly'] = 'override';"
+        "}"
+        "strict2();");
+    CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy]);
+    CHECK_EQ(1, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
+    CHECK(try_catch.HasCaught());
+  }
+}
+
 }  // namespace test_usecounters
 }  // namespace internal
 }  // namespace v8

@@ -66,6 +66,11 @@ class MockStreamingProcessor : public StreamingProcessor {
 
   void OnAbort() override {}
 
+  bool Deserialize(Vector<const uint8_t> module_bytes,
+                   Vector<const uint8_t> wire_bytes) override {
+    return false;
+  };
+
   size_t num_sections() const { return num_sections_; }
   size_t num_functions() const { return num_functions_; }
   bool ok() const { return ok_; }

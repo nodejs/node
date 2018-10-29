@@ -77,11 +77,11 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     Goto(&cell_done);
 
     BIND(&no_closures);
-    StoreMapNoWriteBarrier(feedback_cell, Heap::kOneClosureCellMapRootIndex);
+    StoreMapNoWriteBarrier(feedback_cell, RootIndex::kOneClosureCellMap);
     Goto(&cell_done);
 
     BIND(&one_closure);
-    StoreMapNoWriteBarrier(feedback_cell, Heap::kManyClosuresCellMapRootIndex);
+    StoreMapNoWriteBarrier(feedback_cell, RootIndex::kManyClosuresCellMap);
     Goto(&cell_done);
 
     BIND(&cell_done);
@@ -106,9 +106,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
       LoadContextElement(native_context, function_map_index);
 
   // Create a new closure from the given function info in new space
-  Node* instance_size_in_bytes =
+  TNode<IntPtrT> instance_size_in_bytes =
       TimesPointerSize(LoadMapInstanceSizeInWords(function_map));
-  Node* const result = Allocate(instance_size_in_bytes);
+  TNode<Object> result = Allocate(instance_size_in_bytes);
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBodyNoSlackTracking(result, function_map,
                                         instance_size_in_bytes,
@@ -116,9 +116,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // Initialize the rest of the function.
   StoreObjectFieldRoot(result, JSObject::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(result, JSObject::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   {
     // Set function prototype if necessary.
     Label done(this), init_prototype(this);
@@ -127,7 +127,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
     BIND(&init_prototype);
     StoreObjectFieldRoot(result, JSFunction::kPrototypeOrInitialMapOffset,
-                         Heap::kTheHoleValueRootIndex);
+                         RootIndex::kTheHoleValue);
     Goto(&done);
     BIND(&done);
   }
@@ -230,19 +230,20 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   ParameterMode mode = INTPTR_PARAMETERS;
   Node* min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
   Node* length = IntPtrAdd(slots, min_context_slots);
-  Node* size = GetFixedArrayAllocationSize(length, PACKED_ELEMENTS, mode);
+  TNode<IntPtrT> size =
+      GetFixedArrayAllocationSize(length, PACKED_ELEMENTS, mode);
 
   // Create a new closure from the given function info in new space
   TNode<Context> function_context =
       UncheckedCast<Context>(AllocateInNewSpace(size));
 
-  Heap::RootListIndex context_type;
+  RootIndex context_type;
   switch (scope_type) {
     case EVAL_SCOPE:
-      context_type = Heap::kEvalContextMapRootIndex;
+      context_type = RootIndex::kEvalContextMap;
       break;
     case FUNCTION_SCOPE:
-      context_type = Heap::kFunctionContextMapRootIndex;
+      context_type = RootIndex::kFunctionContextMap;
       break;
     default:
       UNREACHABLE();
@@ -406,10 +407,10 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   TNode<Int32T> kind = LoadElementsKind(allocation_site.value());
   TNode<Context> native_context = LoadNativeContext(context);
   Comment("LoadJSArrayElementsMap");
-  Node* array_map = LoadJSArrayElementsMap(kind, native_context);
-  Node* zero = SmiConstant(0);
+  TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
+  TNode<Smi> zero = SmiConstant(0);
   Comment("Allocate JSArray");
-  Node* result =
+  TNode<JSArray> result =
       AllocateJSArray(GetInitialFastElementsKind(), array_map, zero, zero,
                       allocation_site.value(), ParameterMode::SMI_PARAMETERS);
 
@@ -492,9 +493,9 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   // Ensure new-space allocation for a fresh JSObject so we can skip write
   // barriers when copying all object fields.
   STATIC_ASSERT(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
-  Node* instance_size =
+  TNode<IntPtrT> instance_size =
       TimesPointerSize(LoadMapInstanceSizeInWords(boilerplate_map));
-  Node* allocation_size = instance_size;
+  TNode<IntPtrT> allocation_size = instance_size;
   bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
   if (needs_allocation_memento) {
     // Prepare for inner-allocating the AllocationMemento.
@@ -502,7 +503,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
         IntPtrAdd(instance_size, IntPtrConstant(AllocationMemento::kSize));
   }
 
-  Node* copy = AllocateInNewSpace(allocation_size);
+  TNode<HeapObject> copy =
+      UncheckedCast<HeapObject>(AllocateInNewSpace(allocation_size));
   {
     Comment("Initialize Literal Copy");
     // Initialize Object fields.

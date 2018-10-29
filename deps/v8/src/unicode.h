@@ -28,7 +28,7 @@ const int kMaxMappingSize = 4;
 template <class T, int size = 256>
 class Predicate {
  public:
-  inline Predicate() { }
+  inline Predicate() = default;
   inline bool get(uchar c);
 
  private:
@@ -68,7 +68,7 @@ class Predicate {
 template <class T, int size = 256>
 class Mapping {
  public:
-  inline Mapping() { }
+  inline Mapping() = default;
   inline int get(uchar c, uchar n, uchar* result);
  private:
   friend class Test;

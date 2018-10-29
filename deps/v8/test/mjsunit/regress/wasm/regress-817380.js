@@ -20,6 +20,6 @@ const builder2 = new WasmModuleBuilder();
 const mul_import = builder2.addImport('q', 'wasm_mul', kSig_i_ii);
 builder2.addImportedTable('q', 'table');
 const glob_import = builder2.addImportedGlobal('q', 'glob', kWasmI32);
-builder2.addFunctionTableInit(glob_import, true, [mul_import]);
+builder2.addElementSegment(glob_import, true, [mul_import]);
 builder2.instantiate(
     {q: {glob: 0, js_div: i => i, wasm_mul: mul, table: table}});

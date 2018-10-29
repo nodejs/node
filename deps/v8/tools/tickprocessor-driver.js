@@ -55,7 +55,7 @@ var entriesProviders = {
   'mac': MacCppEntriesProvider
 };
 
-var params = processArguments(arguments);
+var params = processArguments(this.arguments || []);
 var sourceMap = null;
 if (params.sourceMap) {
   initSourceMapSupport();

@@ -345,7 +345,7 @@ static void MemMoveWrapper(void* dest, const void* src, size_t size) {
 static MemMoveFunction memmove_function = &MemMoveWrapper;
 
 // Defined in codegen-ia32.cc.
-MemMoveFunction CreateMemMoveFunction(Isolate* isolate);
+MemMoveFunction CreateMemMoveFunction();
 
 // Copy memory area to disjoint memory area.
 void MemMove(void* dest, const void* src, size_t size) {
@@ -369,46 +369,40 @@ V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
 MemCopyUint16Uint8Function memcopy_uint16_uint8_function =
     &MemCopyUint16Uint8Wrapper;
 // Defined in codegen-arm.cc.
-MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
-                                                MemCopyUint8Function stub);
+MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub);
 MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
-    Isolate* isolate, MemCopyUint16Uint8Function stub);
+    MemCopyUint16Uint8Function stub);
 
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
 V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
     &MemCopyUint8Wrapper;
 // Defined in codegen-mips.cc.
-MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
-                                                MemCopyUint8Function stub);
+MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub);
 #endif
 
 
 static bool g_memcopy_functions_initialized = false;
 
-void init_memcopy_functions(Isolate* isolate) {
+void init_memcopy_functions() {
   if (g_memcopy_functions_initialized) return;
   g_memcopy_functions_initialized = true;
 #if V8_TARGET_ARCH_IA32
-  MemMoveFunction generated_memmove = CreateMemMoveFunction(isolate);
+  MemMoveFunction generated_memmove = CreateMemMoveFunction();
   if (generated_memmove != nullptr) {
     memmove_function = generated_memmove;
   }
 #elif V8_OS_POSIX && V8_HOST_ARCH_ARM
-  memcopy_uint8_function =
-      CreateMemCopyUint8Function(isolate, &MemCopyUint8Wrapper);
+  memcopy_uint8_function = CreateMemCopyUint8Function(&MemCopyUint8Wrapper);
   memcopy_uint16_uint8_function =
-      CreateMemCopyUint16Uint8Function(isolate, &MemCopyUint16Uint8Wrapper);
+      CreateMemCopyUint16Uint8Function(&MemCopyUint16Uint8Wrapper);
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
-  memcopy_uint8_function =
-      CreateMemCopyUint8Function(isolate, &MemCopyUint8Wrapper);
+  memcopy_uint8_function = CreateMemCopyUint8Function(&MemCopyUint8Wrapper);
 #endif
 }
 
-
+// Returns false iff d is NaN, +0, or -0.
 bool DoubleToBoolean(double d) {
-  // NaN, +0, and -0 should return the false object
   IeeeDoubleArchType u;
-
   u.d = d;
   if (u.bits.exp == 2047) {
     // Detect NaN for IEEE double precision floating point.

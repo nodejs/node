@@ -83,7 +83,13 @@ if (v8_snapshot_toolchain == "") {
     if (v8_current_cpu == "x64" || v8_current_cpu == "x86") {
       _cpus = v8_current_cpu
     } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el") {
-      _cpus = "x64_v8_${v8_current_cpu}"
+      if (is_win && v8_current_cpu == "arm64") {
+        # set _cpus to blank for Windows ARM64 so host_toolchain could be
+        # selected as snapshot toolchain later.
+        _cpus = ""
+      } else {
+        _cpus = "x64_v8_${v8_current_cpu}"
+      }
     } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel") {
       _cpus = "x86_v8_${v8_current_cpu}"
     } else {
@@ -94,6 +100,9 @@ if (v8_snapshot_toolchain == "") {
 
     if (_cpus != "") {
       v8_snapshot_toolchain = "//build/toolchain/${host_os}:${_clang}${_cpus}"
+    } else if (is_win && v8_current_cpu == "arm64") {
+      # cross compile Windows arm64 with Windows x64 toolchain.
+      v8_snapshot_toolchain = host_toolchain
     }
   }
 }

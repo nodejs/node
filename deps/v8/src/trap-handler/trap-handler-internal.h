@@ -41,10 +41,6 @@ class MetadataLock {
   void operator=(const MetadataLock&) = delete;
 };
 
-#if V8_TRAP_HANDLER_SUPPORTED
-void HandleSignal(int signum, siginfo_t* info, void* context);
-#endif
-
 // To enable constant time registration of handler data, we keep a free list of
 // entries in the gCodeObjects table. Each entry contains a {next_free} field,
 // which can be used to figure out where the next entry should be inserted.
@@ -67,13 +63,6 @@ extern std::atomic_size_t gRecoveredTrapCount;
 // can recover from this fault. Otherwise, returns false and leaves offset
 // unchanged.
 bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad);
-
-#if V8_TRAP_HANDLER_SUPPORTED
-// When using the default signal handler, we save the old one to restore in case
-// V8 chooses not to handle the signal.
-extern struct sigaction g_old_handler;
-extern bool g_is_default_signal_handler_registered;
-#endif
 
 }  // namespace trap_handler
 }  // namespace internal

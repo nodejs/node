@@ -2,8 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-*%(basename)s:6: TypeError: Cannot read property 'Symbol(Symbol.iterator)' of undefined
+*%(basename)s:6: TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))
 x[Symbol.iterator];
  ^
-TypeError: Cannot read property 'Symbol(Symbol.iterator)' of undefined
+TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))
     at *%(basename)s:6:2

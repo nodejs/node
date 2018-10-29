@@ -7,6 +7,7 @@
 
 #include "src/heap/factory.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/natives.h"
 #include "src/visitors.h"
 
@@ -18,7 +19,7 @@ namespace internal {
 // (array.js, etc.) to precompiled functions. Instead of mapping
 // names to functions it might make sense to let the JS2C tool
 // generate an index for each native JS file.
-class SourceCodeCache final BASE_EMBEDDED {
+class SourceCodeCache final {
  public:
   explicit SourceCodeCache(Script::Type type) : type_(type), cache_(nullptr) {}
 
@@ -26,7 +27,7 @@ class SourceCodeCache final BASE_EMBEDDED {
 
   void Iterate(RootVisitor* v) {
     v->VisitRootPointer(Root::kExtensions, nullptr,
-                        bit_cast<Object**, FixedArray**>(&cache_));
+                        ObjectSlot(reinterpret_cast<Address>(&cache_)));
   }
 
   bool Lookup(Isolate* isolate, Vector<const char> name,
@@ -122,8 +123,7 @@ class Bootstrapper final {
   DISALLOW_COPY_AND_ASSIGN(Bootstrapper);
 };
 
-
-class BootstrapperActive final BASE_EMBEDDED {
+class BootstrapperActive final {
  public:
   explicit BootstrapperActive(Bootstrapper* bootstrapper)
       : bootstrapper_(bootstrapper) {

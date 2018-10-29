@@ -48,10 +48,8 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
         if_resultisnotprimitive(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(result), &if_resultisprimitive);
     Node* result_instance_type = LoadInstanceType(result);
-    STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
-    Branch(Int32LessThanOrEqual(result_instance_type,
-                                Int32Constant(LAST_PRIMITIVE_TYPE)),
-           &if_resultisprimitive, &if_resultisnotprimitive);
+    Branch(IsPrimitiveInstanceType(result_instance_type), &if_resultisprimitive,
+           &if_resultisnotprimitive);
 
     BIND(&if_resultisprimitive);
     {
@@ -108,7 +106,62 @@ TF_BUILTIN(ToName, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kArgument);
 
-  Return(ToName(context, input));
+  VARIABLE(var_input, MachineRepresentation::kTagged, input);
+  Label loop(this, &var_input);
+  Goto(&loop);
+  BIND(&loop);
+  {
+    // Load the current {input} value.
+    Node* input = var_input.value();
+
+    // Dispatch based on the type of the {input.}
+    Label if_inputisbigint(this), if_inputisname(this), if_inputisnumber(this),
+        if_inputisoddball(this), if_inputisreceiver(this, Label::kDeferred);
+    GotoIf(TaggedIsSmi(input), &if_inputisnumber);
+    Node* input_instance_type = LoadInstanceType(input);
+    STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
+    GotoIf(IsNameInstanceType(input_instance_type), &if_inputisname);
+    GotoIf(IsJSReceiverInstanceType(input_instance_type), &if_inputisreceiver);
+    GotoIf(IsHeapNumberInstanceType(input_instance_type), &if_inputisnumber);
+    Branch(IsBigIntInstanceType(input_instance_type), &if_inputisbigint,
+           &if_inputisoddball);
+
+    BIND(&if_inputisbigint);
+    {
+      // We don't have a fast-path for BigInt currently, so just
+      // tail call to the %ToString runtime function here for now.
+      TailCallRuntime(Runtime::kToString, context, input);
+    }
+
+    BIND(&if_inputisname);
+    {
+      // The {input} is already a Name.
+      Return(input);
+    }
+
+    BIND(&if_inputisnumber);
+    {
+      // Convert the String {input} to a Number.
+      TailCallBuiltin(Builtins::kNumberToString, context, input);
+    }
+
+    BIND(&if_inputisoddball);
+    {
+      // Just return the {input}'s string representation.
+      CSA_ASSERT(this, IsOddballInstanceType(input_instance_type));
+      Return(LoadObjectField(input, Oddball::kToStringOffset));
+    }
+
+    BIND(&if_inputisreceiver);
+    {
+      // Convert the JSReceiver {input} to a primitive first,
+      // and then run the loop again with the new {input},
+      // which is then a primitive value.
+      var_input.Bind(CallBuiltin(Builtins::kNonPrimitiveToPrimitive_String,
+                                 context, input));
+      Goto(&loop);
+    }
+  }
 }
 
 TF_BUILTIN(NonNumberToNumber, CodeStubAssembler) {
@@ -205,10 +258,7 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
       // Return the {result} if it is a primitive.
       GotoIf(TaggedIsSmi(result), &return_result);
       Node* result_instance_type = LoadInstanceType(result);
-      STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
-      GotoIf(Int32LessThanOrEqual(result_instance_type,
-                                  Int32Constant(LAST_PRIMITIVE_TYPE)),
-             &return_result);
+      GotoIf(IsPrimitiveInstanceType(result_instance_type), &return_result);
     }
 
     // Just continue with the next {name} if the {method} is not callable.
@@ -384,9 +434,9 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Node* js_value = Allocate(JSValue::kSize);
   StoreMapNoWriteBarrier(js_value, initial_map);
   StoreObjectFieldRoot(js_value, JSValue::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(js_value, JSObject::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectField(js_value, JSValue::kValueOffset, object);
   Return(js_value);
 

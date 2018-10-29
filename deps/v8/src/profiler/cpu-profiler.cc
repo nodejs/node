@@ -25,7 +25,7 @@ static const int kProfilerStackSize = 64 * KB;
 
 class CpuSampler : public sampler::Sampler {
  public:
-  CpuSampler(Isolate* isolate, ProfilerEventsProcessor* processor)
+  CpuSampler(Isolate* isolate, SamplingEventsProcessor* processor)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
         processor_(processor) {}
 
@@ -42,60 +42,71 @@ class CpuSampler : public sampler::Sampler {
   }
 
  private:
-  ProfilerEventsProcessor* processor_;
+  SamplingEventsProcessor* processor_;
 };
 
 ProfilerEventsProcessor::ProfilerEventsProcessor(Isolate* isolate,
-                                                 ProfileGenerator* generator,
-                                                 base::TimeDelta period)
+                                                 ProfileGenerator* generator)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
-      sampler_(new CpuSampler(isolate, this)),
       running_(1),
-      period_(period),
       last_code_event_id_(0),
-      last_processed_code_event_id_(0) {
+      last_processed_code_event_id_(0),
+      isolate_(isolate) {}
+
+SamplingEventsProcessor::SamplingEventsProcessor(Isolate* isolate,
+                                                 ProfileGenerator* generator,
+                                                 base::TimeDelta period)
+    : ProfilerEventsProcessor(isolate, generator),
+      sampler_(new CpuSampler(isolate, this)),
+      period_(period) {
   sampler_->IncreaseProfilingDepth();
 }
 
-ProfilerEventsProcessor::~ProfilerEventsProcessor() {
+SamplingEventsProcessor::~SamplingEventsProcessor() {
   sampler_->DecreaseProfilingDepth();
+  sampler_->UnregisterIfRegistered();
 }
+
+ProfilerEventsProcessor::~ProfilerEventsProcessor() = default;
 
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
   event.generic.order = ++last_code_event_id_;
   events_buffer_.Enqueue(event);
 }
 
-
-void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
-                                            int fp_to_sp_delta) {
+void ProfilerEventsProcessor::AddDeoptStack(Address from, int fp_to_sp_delta) {
   TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
-  Address fp = isolate->c_entry_fp(isolate->thread_local_top());
+  Address fp = isolate_->c_entry_fp(isolate_->thread_local_top());
   regs.sp = reinterpret_cast<void*>(fp - fp_to_sp_delta);
   regs.fp = reinterpret_cast<void*>(fp);
   regs.pc = reinterpret_cast<void*>(from);
-  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, false, false);
+  record.sample.Init(isolate_, regs, TickSample::kSkipCEntryFrame, false,
+                     false);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
-void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
-                                              bool update_stats) {
+void ProfilerEventsProcessor::AddCurrentStack(bool update_stats) {
   TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
-  StackFrameIterator it(isolate);
+  StackFrameIterator it(isolate_);
   if (!it.done()) {
     StackFrame* frame = it.frame();
     regs.sp = reinterpret_cast<void*>(frame->sp());
     regs.fp = reinterpret_cast<void*>(frame->fp());
     regs.pc = reinterpret_cast<void*>(frame->pc());
   }
-  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, update_stats,
+  record.sample.Init(isolate_, regs, TickSample::kSkipCEntryFrame, update_stats,
                      false);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
+void ProfilerEventsProcessor::AddSample(TickSample sample) {
+  TickSampleEventRecord record(last_code_event_id_);
+  record.sample = sample;
+  ticks_from_vm_buffer_.Enqueue(record);
+}
 
 void ProfilerEventsProcessor::StopSynchronously() {
   if (!base::Relaxed_AtomicExchange(&running_, 0)) return;
@@ -123,8 +134,30 @@ bool ProfilerEventsProcessor::ProcessCodeEvent() {
   return false;
 }
 
+void ProfilerEventsProcessor::CodeEventHandler(
+    const CodeEventsContainer& evt_rec) {
+  switch (evt_rec.generic.type) {
+    case CodeEventRecord::CODE_CREATION:
+    case CodeEventRecord::CODE_MOVE:
+    case CodeEventRecord::CODE_DISABLE_OPT:
+      Enqueue(evt_rec);
+      break;
+    case CodeEventRecord::CODE_DEOPT: {
+      const CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
+      Address pc = rec->pc;
+      int fp_to_sp_delta = rec->fp_to_sp_delta;
+      Enqueue(evt_rec);
+      AddDeoptStack(pc, fp_to_sp_delta);
+      break;
+    }
+    case CodeEventRecord::NONE:
+    case CodeEventRecord::REPORT_BUILTIN:
+      UNREACHABLE();
+  }
+}
+
 ProfilerEventsProcessor::SampleProcessingResult
-    ProfilerEventsProcessor::ProcessOneSample() {
+SamplingEventsProcessor::ProcessOneSample() {
   TickSampleEventRecord record1;
   if (ticks_from_vm_buffer_.Peek(&record1) &&
       (record1.order == last_processed_code_event_id_)) {
@@ -147,8 +180,7 @@ ProfilerEventsProcessor::SampleProcessingResult
   return OneSampleProcessed;
 }
 
-
-void ProfilerEventsProcessor::Run() {
+void SamplingEventsProcessor::Run() {
   while (!!base::Relaxed_Load(&running_)) {
     base::TimeTicks nextSampleTime =
         base::TimeTicks::HighResolutionNow() + period_;
@@ -180,8 +212,8 @@ void ProfilerEventsProcessor::Run() {
       }
     }
 
-    // Schedule next sample. sampler_ is nullptr in tests.
-    if (sampler_) sampler_->DoSample();
+    // Schedule next sample.
+    sampler_->DoSample();
   }
 
   // Process remaining tick events.
@@ -193,16 +225,11 @@ void ProfilerEventsProcessor::Run() {
   } while (ProcessCodeEvent());
 }
 
-
-void* ProfilerEventsProcessor::operator new(size_t size) {
-  return AlignedAlloc(size, V8_ALIGNOF(ProfilerEventsProcessor));
+void* SamplingEventsProcessor::operator new(size_t size) {
+  return AlignedAlloc(size, V8_ALIGNOF(SamplingEventsProcessor));
 }
 
-
-void ProfilerEventsProcessor::operator delete(void* ptr) {
-  AlignedFree(ptr);
-}
-
+void SamplingEventsProcessor::operator delete(void* ptr) { AlignedFree(ptr); }
 
 int CpuProfiler::GetProfilesCount() {
   // The count of profiles doesn't depend on a security token.
@@ -229,37 +256,17 @@ void CpuProfiler::DeleteProfile(CpuProfile* profile) {
   }
 }
 
-void CpuProfiler::CodeEventHandler(const CodeEventsContainer& evt_rec) {
-  switch (evt_rec.generic.type) {
-    case CodeEventRecord::CODE_CREATION:
-    case CodeEventRecord::CODE_MOVE:
-    case CodeEventRecord::CODE_DISABLE_OPT:
-      processor_->Enqueue(evt_rec);
-      break;
-    case CodeEventRecord::CODE_DEOPT: {
-      const CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
-      Address pc = rec->pc;
-      int fp_to_sp_delta = rec->fp_to_sp_delta;
-      processor_->Enqueue(evt_rec);
-      processor_->AddDeoptStack(isolate_, pc, fp_to_sp_delta);
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-}
-
 namespace {
 
 class CpuProfilersManager {
  public:
   void AddProfiler(Isolate* isolate, CpuProfiler* profiler) {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     profilers_.emplace(isolate, profiler);
   }
 
   void RemoveProfiler(Isolate* isolate, CpuProfiler* profiler) {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     auto range = profilers_.equal_range(isolate);
     for (auto it = range.first; it != range.second; ++it) {
       if (it->second != profiler) continue;
@@ -270,7 +277,7 @@ class CpuProfilersManager {
   }
 
   void CallCollectSample(Isolate* isolate) {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     auto range = profilers_.equal_range(isolate);
     for (auto it = range.first; it != range.second; ++it) {
       it->second->CollectSample();
@@ -341,7 +348,7 @@ void CpuProfiler::CollectSample(Isolate* isolate) {
 
 void CpuProfiler::CollectSample() {
   if (processor_) {
-    processor_->AddCurrentStack(isolate_);
+    processor_->AddCurrentStack();
   }
 }
 
@@ -361,7 +368,7 @@ void CpuProfiler::StartProfiling(String* title, bool record_samples,
 
 void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_) {
-    processor_->AddCurrentStack(isolate_);
+    processor_->AddCurrentStack();
     return;
   }
   Logger* logger = isolate_->logger();
@@ -375,10 +382,10 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     codemap_needs_initialization = true;
     CreateEntriesForRuntimeCallStats();
   }
-  processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
+  processor_.reset(new SamplingEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
   if (!profiler_listener_) {
-    profiler_listener_.reset(new ProfilerListener(isolate_, this));
+    profiler_listener_.reset(new ProfilerListener(isolate_, processor_.get()));
   }
   logger->AddCodeEventListener(profiler_listener_.get());
   is_profiling_ = true;
@@ -394,7 +401,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     LogBuiltins();
   }
   // Enable stack sampling.
-  processor_->AddCurrentStack(isolate_);
+  processor_->AddCurrentStack();
   processor_->StartSynchronously();
 }
 

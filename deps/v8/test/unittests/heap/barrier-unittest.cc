@@ -103,7 +103,7 @@ class CountingThread final : public base::Thread {
 
  private:
   void ProcessWork() {
-    base::LockGuard<base::Mutex> guard(mutex_);
+    base::MutexGuard guard(mutex_);
     processed_work_ += *work_;
     *work_ = 0;
   }
@@ -129,7 +129,7 @@ TEST(OneshotBarrier, Processing_Concurrent) {
 
   for (size_t i = 0; i < kWorkCounter; i++) {
     {
-      base::LockGuard<base::Mutex> guard(&mutex);
+      base::MutexGuard guard(&mutex);
       work++;
     }
     barrier.NotifyAll();

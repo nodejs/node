@@ -48,10 +48,10 @@ bool SequentialUnmapperTest::old_flag_;
 
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
-  Page* page =
-      allocator()->AllocatePage(MemoryAllocator::PageAreaSize(OLD_SPACE),
-                                static_cast<PagedSpace*>(heap()->old_space()),
-                                Executability::NOT_EXECUTABLE);
+  Page* page = allocator()->AllocatePage(
+      MemoryChunkLayout::AllocatableMemoryInDataPage(),
+      static_cast<PagedSpace*>(heap()->old_space()),
+      Executability::NOT_EXECUTABLE);
   EXPECT_NE(nullptr, page);
   const int page_size = getpagesize();
   void* start_address = reinterpret_cast<void*>(page->address());
@@ -66,10 +66,10 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
 
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
-  Page* page =
-      allocator()->AllocatePage(MemoryAllocator::PageAreaSize(OLD_SPACE),
-                                static_cast<PagedSpace*>(heap()->old_space()),
-                                Executability::NOT_EXECUTABLE);
+  Page* page = allocator()->AllocatePage(
+      MemoryChunkLayout::AllocatableMemoryInDataPage(),
+      static_cast<PagedSpace*>(heap()->old_space()),
+      Executability::NOT_EXECUTABLE);
   EXPECT_NE(nullptr, page);
   const int page_size = getpagesize();
   void* start_address = reinterpret_cast<void*>(page->address());

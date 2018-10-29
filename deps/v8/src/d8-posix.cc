@@ -204,7 +204,7 @@ class ExecArgs {
         return;
       }
       delete [] exec_args_[i];
-      exec_args_[i] = 0;
+      exec_args_[i] = nullptr;
     }
   }
   static const unsigned kMaxArgs = 1000;

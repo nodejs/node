@@ -1,0 +1,321 @@
+console.table
+{
+    description : Array(3)
+    overflow : false
+    properties : [
+        [0] : {
+            name : 0
+            type : string
+            value : apples
+        }
+        [1] : {
+            name : 1
+            type : string
+            value : oranges
+        }
+        [2] : {
+            name : 2
+            type : string
+            value : bananas
+        }
+    ]
+    subtype : array
+    type : object
+}
+{
+    description : Person
+    overflow : false
+    properties : [
+        [0] : {
+            name : firstName
+            type : string
+            value : John
+        }
+        [1] : {
+            name : lastName
+            type : string
+            value : Smith
+        }
+    ]
+    type : object
+}
+{
+    description : Array(3)
+    overflow : false
+    properties : [
+        [0] : {
+            name : 0
+            subtype : array
+            type : object
+            valuePreview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : 0
+                        type : string
+                        value : John
+                    }
+                    [1] : {
+                        name : 1
+                        type : string
+                        value : Smith
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+        }
+        [1] : {
+            name : 1
+            subtype : array
+            type : object
+            valuePreview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : 0
+                        type : string
+                        value : Jane
+                    }
+                    [1] : {
+                        name : 1
+                        type : string
+                        value : Doe
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+        }
+        [2] : {
+            name : 2
+            subtype : array
+            type : object
+            valuePreview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : 0
+                        type : string
+                        value : Emily
+                    }
+                    [1] : {
+                        name : 1
+                        type : string
+                        value : Jones
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+        }
+    ]
+    subtype : array
+    type : object
+}
+{
+    description : Array(3)
+    overflow : false
+    properties : [
+        [0] : {
+            name : 0
+            type : object
+            valuePreview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : firstName
+                        type : string
+                        value : John
+                    }
+                    [1] : {
+                        name : lastName
+                        type : string
+                        value : Smith
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+        }
+        [1] : {
+            name : 1
+            type : object
+            valuePreview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : firstName
+                        type : string
+                        value : Jane
+                    }
+                    [1] : {
+                        name : lastName
+                        type : string
+                        value : Doe
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+        }
+        [2] : {
+            name : 2
+            type : object
+            valuePreview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : firstName
+                        type : string
+                        value : Emily
+                    }
+                    [1] : {
+                        name : lastName
+                        type : string
+                        value : Jones
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+        }
+    ]
+    subtype : array
+    type : object
+}
+{
+    description : Object
+    overflow : false
+    properties : [
+        [0] : {
+            name : mother
+            type : object
+            valuePreview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : firstName
+                        type : string
+                        value : Jane
+                    }
+                    [1] : {
+                        name : lastName
+                        type : string
+                        value : Smith
+                    }
+                ]
+                type : object
+            }
+        }
+        [1] : {
+            name : father
+            type : object
+            valuePreview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : firstName
+                        type : string
+                        value : John
+                    }
+                    [1] : {
+                        name : lastName
+                        type : string
+                        value : Smith
+                    }
+                ]
+                type : object
+            }
+        }
+        [2] : {
+            name : daughter
+            type : object
+            valuePreview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : firstName
+                        type : string
+                        value : Emily
+                    }
+                    [1] : {
+                        name : lastName
+                        type : string
+                        value : Smith
+                    }
+                ]
+                type : object
+            }
+        }
+    ]
+    type : object
+}
+{
+    description : Array(3)
+    overflow : false
+    properties : [
+        [0] : {
+            name : 0
+            type : object
+            valuePreview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : firstName
+                        type : string
+                        value : John
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+        }
+        [1] : {
+            name : 1
+            type : object
+            valuePreview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : firstName
+                        type : string
+                        value : Jane
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+        }
+        [2] : {
+            name : 2
+            type : object
+            valuePreview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : firstName
+                        type : string
+                        value : Emily
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+        }
+    ]
+    subtype : array
+    type : object
+}

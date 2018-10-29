@@ -208,7 +208,7 @@ class TestingModuleBuilder {
     native_module_->SetExecutable(true);
   }
 
-  ModuleEnv CreateModuleEnv();
+  CompilationEnv CreateCompilationEnv();
 
   ExecutionTier execution_tier() const { return execution_tier_; }
 
@@ -239,7 +239,7 @@ class TestingModuleBuilder {
 };
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       ModuleEnv* module, FunctionSig* sig,
+                       CompilationEnv* module, FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end);
 
@@ -461,10 +461,12 @@ class WasmRunner : public WasmRunnerBase {
                                          wrapper_code, wrapper_.signature());
     int32_t result;
     {
-      trap_handler::ThreadInWasmScope scope;
+      trap_handler::SetThreadInWasm();
 
       result = runner.Call(static_cast<void*>(&p)...,
                            static_cast<void*>(&return_value));
+
+      trap_handler::ClearThreadInWasm();
     }
     CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
     return WasmRunnerBase::trap_happened

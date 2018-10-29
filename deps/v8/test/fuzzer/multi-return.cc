@@ -83,21 +83,6 @@ MachineType RandomType(InputProvider* input) {
   return kTypes[input->NextInt8(kNumTypes)];
 }
 
-int num_registers(MachineType type) {
-  const RegisterConfiguration* config = RegisterConfiguration::Default();
-  switch (type.representation()) {
-    case MachineRepresentation::kWord32:
-    case MachineRepresentation::kWord64:
-      return config->num_allocatable_general_registers();
-    case MachineRepresentation::kFloat32:
-      return config->num_allocatable_float_registers();
-    case MachineRepresentation::kFloat64:
-      return config->num_allocatable_double_registers();
-    default:
-      UNREACHABLE();
-  }
-}
-
 int index(MachineType type) { return static_cast<int>(type.representation()); }
 
 Node* Constant(RawMachineAssembler& m, MachineType type, int value) {
@@ -153,16 +138,12 @@ std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
                                                          size_t code_size) {
   std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule);
   module->num_declared_functions = 1;
-  wasm::ModuleEnv env(
-      module.get(), wasm::UseTrapHandler::kNoTrapHandler,
-      wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
 
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   return isolate->wasm_engine()->code_manager()->NewNativeModule(
-      isolate, i::wasm::kAllWasmFeatures, code_size, false, std::move(module),
-      env);
+      isolate, i::wasm::kAllWasmFeatures, code_size, false, std::move(module));
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -264,9 +245,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   std::unique_ptr<wasm::NativeModule> module =
       AllocateNativeModule(i_isolate, code->raw_instruction_size());
-  byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
-                         ->instructions()
-                         .start();
+  byte* code_start = module->AddCodeForTesting(code)->instructions().start();
   // Generate wrapper.
   int expect = 0;
 
