@@ -24,6 +24,7 @@ file a new issue.
     * [Prerequisites](#prerequisites)
     * [Building Node.js](#building-nodejs-1)
     * [Running Tests](#running-tests)
+    * [Running Coverage](#running-coverage)
     * [Building the documentation](#building-the-documentation)
     * [Building a debug build](#building-a-debug-build)
   * [Windows](#windows-1)
@@ -223,6 +224,13 @@ $ make -j4 test
 `make -j4 test` does a full check on the codebase, including running linters and
 documentation tests.
 
+Make sure the linter does not report any issues and that all tests pass. Please
+do not submit patches that fail either check.
+
+If you want to run the linter without running tests, use
+`make lint`/`vcbuild lint`. It will run both JavaScript linting and
+C++ linting.
+
 If you are updating tests and just want to run a single test to check it:
 
 ```text
@@ -249,18 +257,35 @@ You can usually run tests directly with node:
 $ ./node ./test/parallel/test-stream2-transform.js
 ```
 
-Optionally, continue below.
+Remember to recompile with `make -j4` in between test runs if you change code in
+the `lib` or `src` directories.
 
-To run the tests and generate code coverage reports:
+#### Running Coverage
+
+It's good practice to ensure any code you add or change is covered by tests.
+You can do so by running the test suite with coverage enabled:
 
 ```console
 $ ./configure --coverage
 $ make coverage
 ```
 
-This will generate coverage reports for both JavaScript and C++ tests (if you
-only want to run the JavaScript tests then you do not need to run the first
-command `./configure --coverage`).
+A detailed coverage report will be written to `coverage/index.html` for
+JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage
+(if you only want to run the JavaScript tests then you do not need to run
+the first command `./configure --coverage`).
+
+_Generating a test coverage report can take several minutes._
+
+To collect coverage for a subset of tests you can set the `CI_JS_SUITES` and
+`CI_NATIVE_SUITES` variables:
+
+```text
+$ CI_JS_SUITES=child-process CI_NATIVE_SUITES= make coverage
+```
+
+The above command executes tests for the `child-process` subsystem and
+outputs the resulting coverage report.
 
 The `make coverage` command downloads some tools to the project root directory
 and overwrites the `lib/` directory. To clean up after generating the coverage
