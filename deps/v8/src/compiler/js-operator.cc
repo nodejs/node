@@ -731,7 +731,8 @@ const Operator* JSOperatorBuilder::CallForwardVarargs(size_t arity,
       parameters);                                               // parameter
 }
 
-const Operator* JSOperatorBuilder::Call(size_t arity, CallFrequency frequency,
+const Operator* JSOperatorBuilder::Call(size_t arity,
+                                        CallFrequency const& frequency,
                                         VectorSlotPair const& feedback,
                                         ConvertReceiverMode convert_mode) {
   CallParameters parameters(arity, frequency, feedback, convert_mode);
@@ -751,7 +752,8 @@ const Operator* JSOperatorBuilder::CallWithArrayLike(CallFrequency frequency) {
 }
 
 const Operator* JSOperatorBuilder::CallWithSpread(
-    uint32_t arity, CallFrequency frequency, VectorSlotPair const& feedback) {
+    uint32_t arity, CallFrequency const& frequency,
+    VectorSlotPair const& feedback) {
   CallParameters parameters(arity, frequency, feedback,
                             ConvertReceiverMode::kAny);
   return new (zone()) Operator1<CallParameters>(             // --
