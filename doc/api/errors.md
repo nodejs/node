@@ -1849,6 +1849,11 @@ vector for denial-of-service attacks.
 An attempt was made to issue Server Name Indication from a TLS server-side
 socket, which is only valid from a client.
 
+<a id="ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED"></a>
+### ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED
+
+Failed to set PSK identity hint. Hint may be too long.
+
 <a id="ERR_TRACE_EVENTS_CATEGORY_REQUIRED"></a>
 ### `ERR_TRACE_EVENTS_CATEGORY_REQUIRED`
 

@@ -2620,6 +2620,16 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   if (X509* peer_cert = SSL_get_peer_certificate(w->ssl_.get())) {
     X509_free(peer_cert);
     x509_verify_error = SSL_get_verify_result(w->ssl_.get());
+  } else {
+    const SSL_CIPHER* curr_cipher = SSL_get_current_cipher(w->ssl_.get());
+    const SSL_SESSION* sess = SSL_get_session(w->ssl_.get());
+    // Allow no-cert for PSK authentication in TLS1.2 and lower.
+    // In TLS1.3 check that session was reused because TLS1.3 PSK
+    // looks like session resumption. Is there a better way?
+    if (SSL_CIPHER_get_auth_nid(curr_cipher) == NID_auth_psk ||
+        (SSL_SESSION_get_protocol_version(sess) == TLS1_3_VERSION &&
+         SSL_session_reused(w->ssl_.get())))
+      return args.GetReturnValue().SetNull();
   }
 
   if (x509_verify_error == X509_V_OK)
