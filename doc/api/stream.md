@@ -1030,7 +1030,8 @@ added: REPLACEME
 
 * {boolean}
 
-A boolean that is `true` by default, but turns `false` immediately before the `'end'` event is emitted.
+A boolean that is `true` by default, but turns `false` immediately before
+the `'end'` event is emitted.
 
 ##### readable.readableHighWaterMark
 <!-- YAML
