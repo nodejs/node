@@ -1522,7 +1522,7 @@ changes:
   * `final` {Function} Implementation for the
     [`stream._final()`][stream-_final] method.
   * `autoDestroy` {boolean} Whether this stream should automatically call
-    .destroy() on itself after ending.
+    `.destroy()` on itself after ending. **Default:** `false`.
 
 ```js
 const { Writable } = require('stream');
@@ -1773,7 +1773,7 @@ constructor and implement the `readable._read()` method.
   * `destroy` {Function} Implementation for the
     [`stream._destroy()`][readable-_destroy] method.
   * `autoDestroy` {boolean} Whether this stream should automatically call
-    .destroy() on itself after ending.
+    `.destroy()` on itself after ending. **Default:** `false`.
 
 ```js
 const { Readable } = require('stream');
