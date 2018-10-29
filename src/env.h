@@ -160,11 +160,12 @@ constexpr size_t kFsStatsBufferLength =
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
-#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
-  V(handle_onclose_symbol, "handle_onclose")                                  \
-  V(no_message_symbol, "no_message_symbol")                                   \
-  V(oninit_symbol, "oninit")                                                  \
-  V(owner_symbol, "owner")                                                    \
+#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
+  V(handle_onclose_symbol, "handle_onclose")                                   \
+  V(no_message_symbol, "no_message_symbol")                                    \
+  V(oninit_symbol, "oninit")                                                   \
+  V(owner_symbol, "owner")                                                     \
+  V(onpskexchange_symbol, "onpskexchange")
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -254,6 +255,7 @@ constexpr size_t kFsStatsBufferLength =
   V(host_string, "host")                                                       \
   V(hostmaster_string, "hostmaster")                                           \
   V(http_1_1_string, "http/1.1")                                               \
+  V(identity_string, "identity")                                               \
   V(ignore_string, "ignore")                                                   \
   V(import_string, "import")                                                   \
   V(infoaccess_string, "infoAccess")                                           \
@@ -325,6 +327,8 @@ constexpr size_t kFsStatsBufferLength =
   V(priority_string, "priority")                                               \
   V(process_string, "process")                                                 \
   V(promise_string, "promise")                                                 \
+  V(psk_identity_hint_error, "Failed to set PSK identity hint")                \
+  V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \
   V(raw_string, "raw")                                                         \
