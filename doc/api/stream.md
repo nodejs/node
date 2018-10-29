@@ -1493,7 +1493,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18438
     description: >
       Add `emitClose` option to specify if `'close'` is emitted on destroy
-  - version: TBD
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22795
     description: >
       Add `autoDestroy` option to automatically `destroy()` the stream
@@ -1765,7 +1765,7 @@ constructor and implement the `readable._read()` method.
 #### new stream.Readable([options])
 <!-- YAML
 changes:
-  - version: TBD
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22795
     description: >
       Add `autoDestroy` option to automatically `destroy()` the stream
