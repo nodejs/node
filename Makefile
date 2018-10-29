@@ -308,19 +308,19 @@ test-valgrind: all
 test-check-deopts: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
 
-benchmark/napi/function_call/build/Release/binding.node: all \
+benchmark/napi/function_call/build/Release/binding.node: \
 		benchmark/napi/function_call/napi_binding.c \
 		benchmark/napi/function_call/binding.cc \
-		benchmark/napi/function_call/binding.gyp
+		benchmark/napi/function_call/binding.gyp | all
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
 		--directory="$(shell pwd)/benchmark/napi/function_call" \
 		--nodedir="$(shell pwd)"
 
-benchmark/napi/function_args/build/Release/binding.node: all \
+benchmark/napi/function_args/build/Release/binding.node: \
 		benchmark/napi/function_args/napi_binding.c \
 		benchmark/napi/function_args/binding.cc \
-		benchmark/napi/function_args/binding.gyp
+		benchmark/napi/function_args/binding.gyp | all
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
 		--directory="$(shell pwd)/benchmark/napi/function_args" \
