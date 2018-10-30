@@ -1,10 +1,17 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const b = Buffer.allocUnsafe(1024);
 const c = Buffer.allocUnsafe(512);
+
+const errorProperty = {
+  code: 'ERR_OUT_OF_RANGE',
+  type: RangeError,
+  message: 'Index out of range'
+};
+
 let cntr = 0;
 
 {
@@ -96,9 +103,9 @@ bb.fill('hello crazy world');
 b.copy(c, 0, 100, 10);
 
 // copy throws at negative sourceStart
-assert.throws(function() {
-  Buffer.allocUnsafe(5).copy(Buffer.allocUnsafe(5), 0, -1);
-}, RangeError);
+common.expectsError(
+  () => Buffer.allocUnsafe(5).copy(Buffer.allocUnsafe(5), 0, -1),
+  errorProperty);
 
 {
   // check sourceEnd resets to targetEnd if former is greater than the latter
@@ -111,7 +118,8 @@ assert.throws(function() {
 }
 
 // throw with negative sourceEnd
-assert.throws(() => b.copy(c, 0, 0, -1), RangeError);
+common.expectsError(
+  () => b.copy(c, 0, -1), errorProperty);
 
 // when sourceStart is greater than sourceEnd, zero copied
 assert.strictEqual(b.copy(c, 0, 100, 10), 0);
