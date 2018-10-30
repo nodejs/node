@@ -2880,7 +2880,7 @@ changes:
 
 Synchronous rename(2). Returns `undefined`.
 
-## fs.rmdir(path, callback)
+## fs.rmdir(path[, options], callback)
 <!-- YAML
 added: v0.0.2
 changes:
@@ -2899,6 +2899,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `recursive` {boolean} **Default:** `false`
 * `callback` {Function}
   * `err` {Error}
 
@@ -2908,7 +2910,17 @@ to the completion callback.
 Using `fs.rmdir()` on a file (not a directory) results in an `ENOENT` error on
 Windows and an `ENOTDIR` error on POSIX.
 
-## fs.rmdirSync(path)
+The optional `options` argument can be an object with a `recursive` property
+indicating whether a folder with sub folders or files should be deleted.
+
+```js
+// Delete /path/to/foler, regardless of whether sub folders or files exist.
+fs.rmdir('/path/to/folder', { recursive: true }, (err) => {
+  if (err) throw err;
+});
+```
+
+## fs.rmdirSync(path[, options])
 <!-- YAML
 added: v0.1.21
 changes:
@@ -2919,6 +2931,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `recursive` {boolean} **Default:** `false`
 
 Synchronous rmdir(2). Returns `undefined`.
 
@@ -4336,12 +4350,14 @@ added: v10.0.0
 Renames `oldPath` to `newPath` and resolves the `Promise` with no arguments
 upon success.
 
-### fsPromises.rmdir(path)
+### fsPromises.rmdir(path[, options])
 <!-- YAML
 added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `recursive` {boolean} **Default:** `false`
 * Returns: {Promise}
 
 Removes the directory identified by `path` then resolves the `Promise` with
@@ -4835,7 +4851,7 @@ the file contents.
 [`fs.readFile()`]: #fs_fs_readfile_path_options_callback
 [`fs.readFileSync()`]: #fs_fs_readfilesync_path_options
 [`fs.realpath()`]: #fs_fs_realpath_path_options_callback
-[`fs.rmdir()`]: #fs_fs_rmdir_path_callback
+[`fs.rmdir()`]: #fs_fs_rmdir_path_options_callback
 [`fs.stat()`]: #fs_fs_stat_path_options_callback
 [`fs.symlink()`]: #fs_fs_symlink_target_path_type_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
