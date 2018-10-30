@@ -49,7 +49,7 @@ file a new issue.
 ## Supported platforms
 
 This list of supported platforms is current as of the branch/release to
-which it is attached.
+which it belongs.
 
 ### Input
 
@@ -57,21 +57,20 @@ Node.js relies on V8 and libuv. We adopt a subset of their supported platforms.
 
 ### Strategy
 
-Support is divided into three tiers:
+There are three support tiers:
 
 * **Tier 1**: Full test coverage and maintenance by the Node.js core team and
   the broader community.
-* **Tier 2**: Full test coverage but more limited maintenance,
-  often provided by the vendor of the platform.
-* **Experimental**: May not compile reliably or test suite may not pass.
-  These are often working to be promoted to Tier 2 but are not quite ready.
-  There is at least one individual actively providing maintenance and the team
-  is striving to broaden quality and reliability of support.
+* **Tier 2**: Full test coverage. Limited maintenance, often provided by the
+  vendor of the platform.
+* **Experimental**: May not compile or test suite may not pass.
+  These are often approaching Tier 2 support but are not quite ready.
+  There is at least one individual providing maintenance.
 
 ### Supported platforms
 
 The community does not build or test against end-of-life distributions (EoL).
-Thus, we do not recommend that you use Node on end-of-life or unsupported
+Thus, we do not recommend that you use Node.js on end-of-life or unsupported
 platforms in production.
 
 | System       | Support type | Version                         | Architectures    | Notes                         |
