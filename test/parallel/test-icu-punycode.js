@@ -10,7 +10,10 @@ const icu = internalBinding('icu');
 const assert = require('assert');
 
 const tests = require('../fixtures/url-idna.js');
-const wptToASCIITests = require('../fixtures/url-toascii.js');
+const fixtures = require('../common/fixtures');
+const wptToASCIITests = require(
+  fixtures.path('wpt', 'url', 'resources', 'toascii.json')
+);
 
 {
   for (const [i, { ascii, unicode }] of tests.entries()) {
