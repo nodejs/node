@@ -61,7 +61,7 @@ set doc=
 :next-arg
 if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
-if /i "%1"=="release"       set config=Release&set ltcg=1&set "pch="&goto arg-ok
+if /i "%1"=="release"       set config=Release&goto arg-ok
 if /i "%1"=="clean"         set target=Clean&goto arg-ok
 if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
