@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const expected_keys = ['ares', 'http_parser', 'modules', 'node',
+const expected_keys = ['ares', 'llhttp', 'http_parser', 'modules', 'node',
                        'uv', 'v8', 'zlib', 'nghttp2', 'napi'];
 
 if (common.hasCrypto) {
@@ -24,7 +24,8 @@ assert.deepStrictEqual(actual_keys, expected_keys);
 const commonTemplate = /^\d+\.\d+\.\d+(?:-.*)?$/;
 
 assert(commonTemplate.test(process.versions.ares));
-assert(commonTemplate.test(process.versions.http_parser));
+assert(commonTemplate.test(process.versions.llhttp === null ?
+  process.versions.http_parser : process.versions.llhttp));
 assert(commonTemplate.test(process.versions.node));
 assert(commonTemplate.test(process.versions.uv));
 assert(commonTemplate.test(process.versions.zlib));

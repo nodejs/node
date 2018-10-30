@@ -182,6 +182,11 @@ parser.add_option('--openssl-system-ca-path',
     help='Use the specified path to system CA (PEM format) in addition to '
          'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
+parser.add_option('--experimental-http-parser',
+    action='store_true',
+    dest='experimental_http_parser',
+    help='use llhttp instead of http_parser')
+
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
@@ -1099,6 +1104,9 @@ def configure_node(o):
     o['variables']['node_target_type'] = 'static_library'
   else:
     o['variables']['node_target_type'] = 'executable'
+
+  o['variables']['node_experimental_http_parser'] = \
+      'true' if options.experimental_http_parser else 'false'
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
