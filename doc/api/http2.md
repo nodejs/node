@@ -2,7 +2,7 @@
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v8.13.0
     pr-url: https://github.com/nodejs/node/pull/22466
     description: HTTP/2 is now Stable. Previously, it had been Experimental.
 -->
@@ -225,7 +225,7 @@ session.on('localSettings', (settings) => {
 
 #### Event: 'ping'
 <!-- YAML
-added: REPLACEME
+added: v8.13.0
 -->
 
 * `payload` {Buffer} The `PING` frame 8-byte payload
@@ -682,7 +682,7 @@ are passed through as provided by the user or received from the peer.
 
 #### serverhttp2session.origin(...origins)
 <!-- YAML
-added: REPLACEME
+added: v8.13.0
 -->
 
 * `origins` { string | URL | Object } One or more URL Strings passed as
@@ -762,7 +762,7 @@ client.on('altsvc', (alt, origin, streamId) => {
 
 #### Event: 'origin'
 <!-- YAML
-added: REPLACEME
+added: v8.13.0
 -->
 
 * `origins` {string[]}
@@ -993,7 +993,7 @@ stream.on('trailers', (headers, flags) => {
 
 #### Event: 'wantTrailers'
 <!-- YAML
-added: REPLACEME
+added: v8.13.0
 -->
 
 The `'wantTrailers'` event is emitted when the `Http2Stream` has queued the
@@ -1046,7 +1046,7 @@ usable.
 
 #### http2stream.endAfterHeaders
 <!-- YAML
-added: REPLACEME
+added: v8.13.0
 -->
 
 * {boolean}
@@ -1179,7 +1179,7 @@ A current state of this `Http2Stream`.
 
 #### http2stream.sendTrailers(headers)
 <!-- YAML
-added: REPLACEME
+added: v8.13.0
 -->
 
 * `headers` {HTTP/2 Headers Object}
@@ -1995,7 +1995,7 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v8.13.0
     pr-url: https://github.com/nodejs/node/pull/22956
     description: Added the `origins` option to automatically send an `ORIGIN`
                  frame on `Http2Session` startup.
@@ -2602,7 +2602,7 @@ Just like `'end'`, this event occurs only once per response.
 
 #### request.aborted
 <!-- YAML
-added: REPLACEME
+added: v8.13.0
 -->
 
 * {boolean}

@@ -1413,7 +1413,7 @@ Just like `'end'`, this event occurs only once per response.
 
 ### message.aborted
 <!-- YAML
-added: REPLACEME
+added: v8.13.0
 -->
 
 * {boolean}

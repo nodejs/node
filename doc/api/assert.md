@@ -15,9 +15,9 @@ For more information about the used equality comparisons see
 
 ## Strict mode
 <!-- YAML
-added: REPLACEME
+added: V8.13.0
 changes:
-  - version: REPLACEME
+  - version: V8.13.0
     pr-url: https://github.com/nodejs/node/pull/17002
     description: Added strict mode to the assert module.
 -->
@@ -244,7 +244,7 @@ parameter is undefined, a default error message is assigned.
 
 ## assert.doesNotReject(block[, error][, message])
 <!-- YAML
-added: REPLACEME
+added: V8.13.0
 -->
 * `block` {Function}
 * `error` {RegExp|Function}
@@ -670,7 +670,7 @@ If the values are not strictly equal, an `AssertionError` is thrown with a
 
 ## assert.rejects(block[, error][, message])
 <!-- YAML
-added: REPLACEME
+added: V8.13.0
 -->
 * `block` {Function}
 * `error` {RegExp|Function|Object}
@@ -714,8 +714,8 @@ assert.rejects(
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+  - version: V8.13.0
+    pr-url: https://github.com/nodejs/node/pull/23223
     description: The `error` parameter can now be an object as well.
   - version: v4.2.0
     pr-url: https://github.com/nodejs/node/pull/3276
