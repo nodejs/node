@@ -70,7 +70,7 @@ Support is divided into three tiers:
 ### Supported platforms
 
 The community does not build or test against end-of-life distributions (EoL).
-Thus, we do not recommend that you use Node on end-of-life or unsupported
+Thus, we do not recommend that you use Node.js on end-of-life or unsupported
 platforms in production.
 
 | System       | Support type | Version                         | Architectures    | Notes                         |
