@@ -51,18 +51,23 @@ read(buf, 'readUInt32LE', [1], 0xcfea48fd);
 read(buf, 'readUIntBE', [2, 2], 0x48ea);
 read(buf, 'readUIntLE', [2, 2], 0xea48);
 
+// Error name and message
+const OOR_ERROR_NAME = 'RangeError [ERR_OUT_OF_RANGE]';
+const OOB_ERROR_NAME = 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]';
+const OOB_ERROR_MESSAGE = 'Attempt to write outside buffer bounds';
+
 // Attempt to overflow buffers, similar to previous bug in array buffers
 assert.throws(
   () => Buffer.allocUnsafe(8).readFloatBE(0xffffffff),
   {
-    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    name: OOR_ERROR_NAME,
   }
 );
 
 assert.throws(
   () => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
   {
-    name: 'RangeError [ERR_OUT_OF_RANGE]'
+    name: OOR_ERROR_NAME
   }
 );
 
@@ -70,13 +75,13 @@ assert.throws(
 assert.throws(
   () => Buffer.allocUnsafe(8).readFloatBE(-1),
   {
-    name: 'RangeError [ERR_OUT_OF_RANGE]'
+    name: OOR_ERROR_NAME
   }
 );
 assert.throws(
   () => Buffer.allocUnsafe(8).readFloatLE(-1),
   {
-    name: 'RangeError [ERR_OUT_OF_RANGE]'
+    name: OOR_ERROR_NAME
   }
 );
 
@@ -87,15 +92,15 @@ assert.throws(
   assert.throws(
     () => buf.readUInt8(0),
     {
-      name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
-      message: 'Attempt to write outside buffer bounds'
+      name: OOB_ERROR_NAME,
+      message: OOB_ERROR_MESSAGE
     }
   );
   assert.throws(
     () => buf.readInt8(0),
     {
-      name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
-      message: 'Attempt to write outside buffer bounds'
+      name: OOB_ERROR_NAME,
+      message: OOB_ERROR_MESSAGE
     }
   );
 }
@@ -106,8 +111,8 @@ assert.throws(
     assert.throws(
       () => buf[`read${fn}E`](0),
       {
-        name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
-        message: 'Attempt to write outside buffer bounds'
+        name: OOB_ERROR_NAME,
+        message: OOB_ERROR_MESSAGE
       }
     );
   });
