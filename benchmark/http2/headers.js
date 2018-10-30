@@ -39,8 +39,7 @@ function main({ n, nheaders }) {
 
     function doRequest(remaining) {
       const req = client.request(headersObject);
-      req.end();
-      req.on('data', () => {});
+      req.resume();
       req.on('end', () => {
         if (remaining > 0) {
           doRequest(remaining - 1);
