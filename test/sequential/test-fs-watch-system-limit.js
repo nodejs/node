@@ -2,12 +2,27 @@
 const common = require('../common');
 const assert = require('assert');
 const child_process = require('child_process');
+const fs = require('fs');
 const stream = require('stream');
 
 if (!common.isLinux)
   common.skip('The fs watch limit is OS-dependent');
 if (!common.enoughTestCpu)
   common.skip('This test is resource-intensive');
+
+try {
+  // Ensure inotify limit is low enough for the test to actually exercise the
+  // limit with small enough resources.
+  const limit = Number(
+    fs.readFileSync('/proc/sys/fs/inotify/max_user_watches', 'utf8'));
+  if (limit > 16384)
+    common.skip('inotify limit is quite large');
+} catch (e) {
+  if (e.code === 'ENOENT')
+    common.skip('the inotify /proc subsystem does not exist');
+  // Fail on other errors.
+  throw e;
+}
 
 const processes = [];
 const gatherStderr = new stream.PassThrough();
