@@ -12,7 +12,9 @@ const URL = require('url').URL;
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
-const tests = require(fixtures.path('url-tests'));
+const tests = require(
+  fixtures.path('wpt', 'url', 'resources', 'urltestdata.json')
+);
 
 const originalFailures = tests.filter((test) => test.failure);
 
