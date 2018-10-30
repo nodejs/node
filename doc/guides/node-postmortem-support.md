@@ -15,8 +15,8 @@ Node.js always includes these constants in the final build.
 
 ### Node.js Debug Symbols
 
-Node prefixes all postmortem constants with `nodedbg_`, and they complement V8
-constants by providing ways to inspect Node-specific structures, like
+Node.js prefixes all postmortem constants with `nodedbg_`, and they complement
+V8 constants by providing ways to inspect Node.js-specific structures, like
 `node::Environment`, `node::BaseObject` and its descendants, classes from
 `src/utils.h` and others. Those constants are declared in
 `src/node_postmortem_metadata.cc`, and most of them are calculated at compile
@@ -63,7 +63,7 @@ class ReqWrap : public AsyncWrap {
 ```
 
 There are also tests on `test/cctest/test_node_postmortem_metadata.cc` to make
-sure all Node postmortem metadata are calculated correctly.
+sure all Node.js postmortem metadata are calculated correctly.
 
 ## Tools and References
 

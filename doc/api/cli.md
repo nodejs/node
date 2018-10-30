@@ -553,7 +553,7 @@ if they had been specified on the command line before the actual command line
 (so they can be overridden). Node.js will exit with an error if an option
 that is not allowed in the environment is used, such as `-p` or a script file.
 
-Node options that are allowed are:
+Node.js options that are allowed are:
 - `--enable-fips`
 - `--experimental-modules`
 - `--experimental-repl-await`
