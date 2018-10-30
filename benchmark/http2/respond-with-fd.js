@@ -7,9 +7,9 @@ const fs = require('fs');
 const file = path.join(path.resolve(__dirname, '../fixtures'), 'alice.html');
 
 const bench = common.createBenchmark(main, {
-  requests: [100, 1000, 10000, 100000],
-  streams: [100, 200, 1000],
-  clients: [1, 2],
+  requests: [100, 1000, 5000],
+  streams: [1, 10, 20, 40, 100, 200],
+  clients: [2],
   benchmarker: ['h2load']
 }, { flags: ['--no-warnings'] });
 
