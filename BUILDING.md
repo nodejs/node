@@ -275,7 +275,7 @@ JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage
 (if you only want to run the JavaScript tests then you do not need to run 
 the first command `./configure --coverage`).
 
-_Note that generating a test coverage report can take several minutes._
+_Generating a test coverage report can take several minutes._
 
 To collect coverage for a subset of tests you can set the `CI_JS_SUITES` and
 `CI_NATIVE_SUITES` variables:
