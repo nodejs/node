@@ -5,7 +5,9 @@ require('../common');
 const url = require('url');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
-const tests = require(fixtures.path('url-tests'));
+const tests = require(
+  fixtures.path('wpt', 'url', 'resources', 'urltestdata.json')
+);
 
 let failed = 0;
 let attempted = 0;
