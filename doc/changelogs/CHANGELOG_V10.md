@@ -5,11 +5,14 @@
 
 <table>
 <tr>
-<th>Current</th>
+<th>LTS 'Dubnium'</th>
+<th title="Previously called 'Stable'">Current</th>
 </tr>
 <tr>
-<td>
+<td valign="top">
 <a href="#10.13.0">10.13.0</a><br/>
+</td>
+<td valign="top">
 <a href="#10.12.0">10.12.0</a><br/>
 <a href="#10.11.0">10.11.0</a><br/>
 <a href="#10.10.0">10.10.0</a><br/>
