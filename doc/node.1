@@ -71,7 +71,7 @@ Print node's version.
 
 .TP
 .BR \-h ", " \-\-help
-Print node command line options.
+Print Node.js command line options.
 The output of this option is less detailed than this document.
 
 .TP
@@ -93,7 +93,7 @@ Open the REPL even if stdin does not appear to be a terminal.
 .TP
 .BR \-r ", " \-\-require " " \fImodule\fR
 Preload the specified module at startup. Follows `require()`'s module resolution
-rules. \fImodule\fR may be either a path to a file, or a node module name.
+rules. \fImodule\fR may be either a path to a file, or a Node.js module name.
 
 .TP
 .BR \-\-inspect \fI[=[host:]port]\fR
@@ -294,7 +294,7 @@ When set to \fI1\fR, the http2 module is suppressed.
 .BR NODE_OPTIONS =\fIoptions...\fR
 A space-separated list of command line options. \fBoptions...\fR are interpreted
 as if they had been specified on the command line before the actual command line
-(so they can be overridden).  Node will exit with an error if an option that is
+(so they can be overridden).  Node.js will exit with an error if an option that is
 not allowed in the environment is used, such as \fB-p\fR or a script file.
 
 .TP

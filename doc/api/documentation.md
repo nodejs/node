@@ -90,7 +90,7 @@ and is not available on Linux.
 
 Most Unix syscalls have Windows equivalents, but behavior may differ on Windows
 relative to Linux and macOS. For an example of the subtle ways in which it's
-sometimes impossible to replace Unix syscall semantics on Windows, see [Node
+sometimes impossible to replace Unix syscall semantics on Windows, see [Node.js
 issue 4760](https://github.com/nodejs/node/issues/4760).
 
 [submit an issue]: https://github.com/nodejs/node/issues/new
