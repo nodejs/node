@@ -262,6 +262,7 @@ struct PackageConfig {
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
+  V(reason_string, "reason")                                                  \
   V(refresh_string, "refresh")                                                \
   V(regexp_string, "regexp")                                                  \
   V(rename_string, "rename")                                                  \

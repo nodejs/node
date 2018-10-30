@@ -58,6 +58,7 @@ else
 fi
 
 addlicense "libuv" "deps/uv" "$(cat ${rootdir}/deps/uv/LICENSE)"
+addlicense "llhttp" "deps/llhttp" "$(cat deps/llhttp/LICENSE-MIT)"
 addlicense "OpenSSL" "deps/openssl" \
            "$(sed -e '/^ \*\/$/,$d' -e '/^ [^*].*$/d' -e '/\/\*.*$/d' -e '/^$/d' -e 's/^[/ ]\* *//' ${rootdir}/deps/openssl/openssl/LICENSE)"
 addlicense "Punycode.js" "lib/punycode.js" \
