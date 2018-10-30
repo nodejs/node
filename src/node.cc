@@ -53,7 +53,11 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
-#include "http_parser.h"
+#ifdef NODE_EXPERIMENTAL_HTTP
+# include "llhttp.h"
+#else  /* !NODE_EXPERIMENTAL_HTTP */
+# include "http_parser.h"
+#endif  /* NODE_EXPERIMENTAL_HTTP */
 #include "nghttp2/nghttp2ver.h"
 #include "req_wrap-inl.h"
 #include "string_bytes.h"
@@ -179,6 +183,22 @@ static node_module* modlist_internal;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
 
+#ifdef NODE_EXPERIMENTAL_HTTP
+static const char llhttp_version[] =
+    NODE_STRINGIFY(LLHTTP_VERSION_MAJOR)
+    "."
+    NODE_STRINGIFY(LLHTTP_VERSION_MINOR)
+    "."
+    NODE_STRINGIFY(LLHTTP_VERSION_PATCH);
+#else  /* !NODE_EXPERIMENTAL_HTTP */
+static const char http_parser_version[] =
+    NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
+    "."
+    NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
+    "."
+    NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+#endif  /* NODE_EXPERIMENTAL_HTTP */
+
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
 
@@ -217,17 +237,15 @@ class NodeTraceStateObserver :
     auto trace_process = tracing::TracedValue::Create();
     trace_process->BeginDictionary("versions");
 
-    const char http_parser_version[] =
-        NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
-        "."
-        NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
-        "."
-        NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+#ifdef NODE_EXPERIMENTAL_HTTP
+    trace_process->SetString("llhttp", llhttp_version);
+#else  /* !NODE_EXPERIMENTAL_HTTP */
+    trace_process->SetString("http_parser", http_parser_version);
+#endif  /* NODE_EXPERIMENTAL_HTTP */
 
     const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
     const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
 
-    trace_process->SetString("http_parser", http_parser_version);
     trace_process->SetString("node", NODE_VERSION_STRING);
     trace_process->SetString("v8", V8::GetVersion());
     trace_process->SetString("uv", uv_version_string());
@@ -1344,14 +1362,16 @@ void SetupProcessObject(Environment* env,
   Local<Object> versions = Object::New(env->isolate());
   READONLY_PROPERTY(process, "versions", versions);
 
-  const char http_parser_version[] = NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
-                                     "."
-                                     NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
-                                     "."
-                                     NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+#ifdef NODE_EXPERIMENTAL_HTTP
+  READONLY_PROPERTY(versions,
+                    "llhttp",
+                    FIXED_ONE_BYTE_STRING(env->isolate(), llhttp_version));
+#else  /* !NODE_EXPERIMENTAL_HTTP */
   READONLY_PROPERTY(versions,
                     "http_parser",
                     FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
+#endif  /* NODE_EXPERIMENTAL_HTTP */
+
   // +1 to get rid of the leading 'v'
   READONLY_PROPERTY(versions,
                     "node",

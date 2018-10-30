@@ -1,6 +1,6 @@
 #include "inspector_socket.h"
 
-#include "http_parser.h"
+#include "http_parser_adaptor.h"
 #include "util-inl.h"
 
 #define NODE_WANT_INTERNALS 1
@@ -433,8 +433,13 @@ class HttpHandler : public ProtocolHandler {
   explicit HttpHandler(InspectorSocket* inspector, TcpHolder::Pointer tcp)
                        : ProtocolHandler(inspector, std::move(tcp)),
                          parsing_value_(false) {
+#ifdef NODE_EXPERIMENTAL_HTTP
+    llhttp_init(&parser_, HTTP_REQUEST, &parser_settings);
+    llhttp_settings_init(&parser_settings);
+#else  /* !NODE_EXPERIMENTAL_HTTP */
     http_parser_init(&parser_, HTTP_REQUEST);
     http_parser_settings_init(&parser_settings);
+#endif  /* NODE_EXPERIMENTAL_HTTP */
     parser_settings.on_header_field = OnHeaderField;
     parser_settings.on_header_value = OnHeaderValue;
     parser_settings.on_message_complete = OnMessageComplete;
@@ -478,9 +483,20 @@ class HttpHandler : public ProtocolHandler {
   }
 
   void OnData(std::vector<char>* data) override {
+    parser_errno_t err;
+#ifdef NODE_EXPERIMENTAL_HTTP
+    err = llhttp_execute(&parser_, data->data(), data->size());
+
+    if (err == HPE_PAUSED_UPGRADE) {
+      err = HPE_OK;
+      llhttp_resume_after_upgrade(&parser_);
+    }
+#else  /* !NODE_EXPERIMENTAL_HTTP */
     http_parser_execute(&parser_, &parser_settings, data->data(), data->size());
+    err = HTTP_PARSER_ERRNO(&parser_);
+#endif  /* NODE_EXPERIMENTAL_HTTP */
     data->clear();
-    if (parser_.http_errno != HPE_OK) {
+    if (err != HPE_OK) {
       CancelHandshake();
     }
     // Event handling may delete *this
@@ -517,14 +533,14 @@ class HttpHandler : public ProtocolHandler {
     handler->inspector()->SwitchProtocol(nullptr);
   }
 
-  static int OnHeaderValue(http_parser* parser, const char* at, size_t length) {
+  static int OnHeaderValue(parser_t* parser, const char* at, size_t length) {
     HttpHandler* handler = From(parser);
     handler->parsing_value_ = true;
     handler->headers_[handler->current_header_].append(at, length);
     return 0;
   }
 
-  static int OnHeaderField(http_parser* parser, const char* at, size_t length) {
+  static int OnHeaderField(parser_t* parser, const char* at, size_t length) {
     HttpHandler* handler = From(parser);
     if (handler->parsing_value_) {
       handler->parsing_value_ = false;
@@ -534,17 +550,17 @@ class HttpHandler : public ProtocolHandler {
     return 0;
   }
 
-  static int OnPath(http_parser* parser, const char* at, size_t length) {
+  static int OnPath(parser_t* parser, const char* at, size_t length) {
     HttpHandler* handler = From(parser);
     handler->path_.append(at, length);
     return 0;
   }
 
-  static HttpHandler* From(http_parser* parser) {
+  static HttpHandler* From(parser_t* parser) {
     return node::ContainerOf(&HttpHandler::parser_, parser);
   }
 
-  static int OnMessageComplete(http_parser* parser) {
+  static int OnMessageComplete(parser_t* parser) {
     // Event needs to be fired after the parser is done.
     HttpHandler* handler = From(parser);
     handler->events_.push_back(
@@ -581,8 +597,8 @@ class HttpHandler : public ProtocolHandler {
   }
 
   bool parsing_value_;
-  http_parser parser_;
-  http_parser_settings parser_settings;
+  parser_t parser_;
+  parser_settings_t parser_settings;
   std::vector<HttpEvent> events_;
   std::string current_header_;
   std::map<std::string, std::string> headers_;
