@@ -376,8 +376,9 @@ Error: Cannot find module 'some-library'
 If the module identifier passed to `require()` is not a
 [core](#modules_core_modules) module, and does not begin with `'/'`, `'../'`, or
 `'./'`, then Node.js starts at the parent directory of the current module, and
-adds `/node_modules`, and attempts to load the module from that location. Node
-will not append `node_modules` to a path already ending in `node_modules`.
+adds `/node_modules`, and attempts to load the module from that location.
+Node.js will not append `node_modules` to a path already ending in
+`node_modules`.
 
 If it is not found there, then it moves to the parent directory, and so
 on, until the root of the file system is reached.
