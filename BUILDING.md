@@ -271,7 +271,7 @@ $ make coverage
 ```
 
 A detailed coverage report will be written to `coverage/index.html` for
-JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage.
+JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage
 (if you only want to run the JavaScript tests then you do not need to run 
 the first command `./configure --coverage`).
 
