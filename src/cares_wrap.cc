@@ -1805,6 +1805,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   if (err) {
     channel->ModifyActivityQueryCount(-1);
   } else {
+    // Release ownership of the pointer allowing the ownership to be transferred
     USE(wrap.release());
   }
 
@@ -1992,6 +1993,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
                                nullptr,
                                &hints);
   if (err == 0)
+    // Release ownership of the pointer allowing the ownership to be transferred
     USE(req_wrap.release());
 
   args.GetReturnValue().Set(err);
@@ -2023,6 +2025,7 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
                                reinterpret_cast<struct sockaddr*>(&addr),
                                NI_NAMEREQD);
   if (err == 0)
+    // Release ownership of the pointer allowing the ownership to be transferred
     USE(req_wrap.release());
 
   args.GetReturnValue().Set(err);
