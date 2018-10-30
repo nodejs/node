@@ -96,8 +96,8 @@ platforms in production.
   by Joyent. SmartOS images >= 16.4 are not supported because
   GCC 4.8 runtime libraries are not available in their pkgsrc repository
 
-<em id="fn2">2</em>: Tier 1 support for building on Windows is only on 64 bit
-  hosts. Support is experimental for 32 bit hosts.
+<em id="fn2">2</em>: Tier 1 support for building on Windows is only on 64-bit
+  hosts. Support is experimental for 32-bit hosts.
 
 <em id="fn3">3</em>: On Windows, running Node.js in Windows terminal emulators
   like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
@@ -115,7 +115,7 @@ platforms in production.
 
 ### Supported toolchains
 
-Depending on host platform, the selection of toolchains may vary.
+Depending on the host platform, the selection of toolchains may vary.
 
 #### Unix
 
@@ -127,11 +127,11 @@ Depending on host platform, the selection of toolchains may vary.
 
 #### Windows
 
-* Visual Studio 2017 with the Windows 10 SDK on a 64 bit host.
+* Visual Studio 2017 with the Windows 10 SDK on a 64-bit host.
 
 #### OpenSSL asm support
 
-OpenSSL-1.1.0 requires the following asssembler version for use of asm
+OpenSSL-1.1.0 requires the following assembler version for use of asm
 support on x86_64 and ia32.
 
 * gas (GNU assembler) version 2.23 or higher
@@ -365,7 +365,7 @@ These core dumps are useful for debugging when provided with the
 corresponding original debug binary and system information.
 
 Reading the core dump requires `gdb` built on the same platform the core dump
-was captured on (i.e. 64 bit `gdb` for `node` built on a 64 bit system, Linux
+was captured on (i.e. 64-bit `gdb` for `node` built on a 64-bit system, Linux
 `gdb` for `node` built on Linux) otherwise you will get errors like
 `not in executable format: File format not recognized`.
 
@@ -484,7 +484,7 @@ $ ./configure --without-intl
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
 ```
 
-If you are cross compiling, your `pkg-config` must be able to supply a path
+If you are cross-compiling, your `pkg-config` must be able to supply a path
 that works for both your host and target environments.
 
 #### Build with a specific ICU:
@@ -532,7 +532,7 @@ This version of Node.js does not support FIPS.
 ## Building Node.js with external core modules
 
 It is possible to specify one or more JavaScript text files to be bundled in
-the binary as builtin modules when building Node.js.
+the binary as built-in modules when building Node.js.
 
 ### Unix/macOS
 
