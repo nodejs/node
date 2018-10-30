@@ -497,7 +497,7 @@ This should be done where a pull request:
 
 Assign the `tsc-review` label or @-mention the
 `@nodejs/tsc` GitHub team if you want to elevate an issue to the [TSC][].
-Do not use the GitHub UI on the right hand side to assign to
+Do not use the GitHub UI on the right-hand side to assign to
 `@nodejs/tsc` or request a review from `@nodejs/tsc`.
 
 The TSC should serve as the final arbiter where required.
@@ -528,7 +528,7 @@ The TSC should serve as the final arbiter where required.
    you are unsure exactly how to format the commit messages, use the commit log
    as a reference. See [this commit][commit-example] as an example.
 
-For PRs from first time contributors, be [welcoming](#welcoming-first-time-contributors).
+For PRs from first-time contributors, be [welcoming](#welcoming-first-time-contributors).
 Also, verify that their git settings are to their liking.
 
 All commits should be self-contained, meaning every commit should pass all
