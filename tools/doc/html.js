@@ -404,7 +404,8 @@ function altDocs(filename, docCreated) {
   const [, docCreatedMajor, docCreatedMinor] = docCreated.map(Number);
   const host = 'https://nodejs.org';
   const versions = [
-    { num: '10.x' },
+    { num: '11.x' },
+    { num: '10.x', lts: true },
     { num: '9.x' },
     { num: '8.x', lts: true },
     { num: '7.x' },
