@@ -47,7 +47,23 @@ echo script is at your own risk. Please read the Chocolatey's legal terms of use
 echo and the Boxstarter project license as well as how the community repository
 echo for Chocolatey.org is maintained.
 echo.
-echo You can close this window to stop now.
+pause
+
+cls
+echo !!!!!WARNING!!!!!
+echo -----------------
+echo Use of Boxstarter may reboot your computer automatically multiple times.
+echo When performing a reboot, Boxstarter will need to disable User Account
+echo Control (UAC) to allow the script to run immediately after the reboot. When
+echo the scripts have completed, Boxstarter will re-enable UAC. If you prematurely
+echo stop the process, UAC will need to be re-enabled manually.
+echo.
+echo Sometimes the scripts may install all necessary Windows Updates which
+echo could cause a high number of reboots that appear to be a reboot loop when
+echo in fact it is just a normal Windows Updates reboot cycle.
+echo.
+echo If this is not what you would like to occur, you can close this window
+echo to stop now.
 pause
 
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command Start-Process '%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe' -ArgumentList '-NoProfile -InputFormat None -ExecutionPolicy Bypass -Command iex ((New-Object System.Net.WebClient).DownloadString(''https://boxstarter.org/bootstrapper.ps1'')); get-boxstarter -Force; Install-BoxstarterPackage -PackageName ''%~dp0\install_tools.txt''; Read-Host ''Type ENTER to exit'' ' -Verb RunAs
