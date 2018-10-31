@@ -28,7 +28,7 @@
   - [Using `git-node`](#using-git-node)
   - [Technical HOWTO](#technical-howto)
   - [Troubleshooting](#troubleshooting)
-  - [I Just Made a Mistake](#i-just-made-a-mistake)
+  - [I Made a Mistake](#i-made-a-mistake)
   - [Long Term Support](#long-term-support)
     - [What is LTS?](#what-is-lts)
     - [How does LTS work?](#how-does-lts-work)
@@ -38,13 +38,10 @@
     - [How is an LTS release cut?](#how-is-an-lts-release-cut)
 * [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker)
 
-This document contains information for Collaborators of the Node.js
-project regarding managing the project's code, documentation, and issue tracker.
-
-Collaborators should be familiar with the guidelines for new
-contributors in [CONTRIBUTING.md](./CONTRIBUTING.md) and also
-understand the project governance model as outlined in
-[GOVERNANCE.md](./GOVERNANCE.md).
+This document explains how Collaborators manage the Node.js project.
+Collaborators should understand the
+[guidelines for new contributors](CONTRIBUTING.md) and the
+[project governance model](GOVERNANCE.md).
 
 ## Issues and Pull Requests
 
@@ -747,7 +744,7 @@ make -j4 test
 git push upstream master
 ```
 
-### I Just Made a Mistake
+### I Made a Mistake
 
 * Ping a TSC member.
 * `#node-dev` on freenode
