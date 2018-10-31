@@ -47,7 +47,8 @@ export class GraphMultiView extends View {
     view.selectMenu.innerHTML = '';
     view.sourceResolver.forEachPhase((phase) => {
       const optionElement = document.createElement("option");
-      optionElement.text = phase.name;
+      const maxNodeId = phase.highestNodeId == 0 ? "" : ` ${phase.highestNodeId}`;
+      optionElement.text = `${phase.name}${maxNodeId}`;
       view.selectMenu.add(optionElement);
     });
     this.selectMenu.onchange = function (this: HTMLSelectElement) {

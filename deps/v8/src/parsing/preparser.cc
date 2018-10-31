@@ -85,7 +85,7 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   int start_position = scanner()->peek_location().beg_pos;
   PreParserStatementList body;
   ParseStatementList(body, Token::EOS);
-  ok = !scanner()->has_parser_error();
+  ok = !has_error();
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (!ok) {
@@ -190,7 +190,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     return kPreParseStackOverflow;
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
     return kPreParseNotIdentifiableError;
-  } else if (scanner()->has_parser_error()) {
+  } else if (has_error()) {
     DCHECK(pending_error_handler()->has_pending_error());
   } else if (result == kLazyParsingAborted) {
     DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
@@ -203,7 +203,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       // Validate parameter names. We can do this only after parsing the
       // function, since the function can declare itself strict.
       ValidateFormalParameters(language_mode(), allow_duplicate_parameters);
-      if (scanner()->has_parser_error()) {
+      if (has_error()) {
         if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
           return kPreParseNotIdentifiableError;
         } else {
@@ -392,7 +392,8 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
 PreParserExpression PreParser::ExpressionFromIdentifier(
     const PreParserIdentifier& name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;
-  DCHECK_NOT_NULL(name.string_);
+  DCHECK_EQ(name.string_ == nullptr, has_error());
+  if (name.string_ == nullptr) return PreParserExpression::Default();
   proxy = scope()->NewUnresolved(factory()->ast_node_factory(), name.string_,
                                  start_position, NORMAL_VARIABLE);
   return PreParserExpression::FromIdentifier(name, proxy, zone());

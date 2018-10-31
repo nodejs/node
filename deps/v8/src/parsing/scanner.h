@@ -239,7 +239,7 @@ class Scanner {
   // Sets the Scanner into an error state to stop further scanning and terminate
   // the parsing by only returning ILLEGAL tokens after that.
   V8_INLINE void set_parser_error() {
-    if (!source_->has_parser_error()) {
+    if (!has_parser_error()) {
       c0_ = kEndOfInput;
       source_->set_parser_error();
       for (TokenDesc& desc : token_storage_) {

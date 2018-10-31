@@ -302,6 +302,7 @@ export class SourceResolver {
   recordOrigins(phase) {
     if (phase.type != "graph") return;
     for (const node of phase.data.nodes) {
+      phase.highestNodeId = Math.max(phase.highestNodeId, node.id)
       if (node.origin != undefined &&
         node.origin.bytecodePosition != undefined) {
         const position = { bytecodePosition: node.origin.bytecodePosition };
@@ -384,6 +385,7 @@ export class SourceResolver {
 
   parsePhases(phases) {
     for (const [phaseId, phase] of Object.entries<Phase>(phases)) {
+      phase.highestNodeId = 0;
       if (phase.type == 'disassembly') {
         this.disassemblyPhase = phase;
       } else if (phase.type == 'schedule') {

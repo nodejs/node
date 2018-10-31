@@ -623,6 +623,9 @@
   # Some of these are related to v8:4361 in being visible side effects from Intl.
   'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle': [FAIL],
 
+  # TODO(jshin): Started failing after ICU 63.1 update.
+  'intl402/Segmenter/prototype/segment/segment-line-following-modes': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],

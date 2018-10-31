@@ -98,7 +98,7 @@ class SourceRangeScope final {
 // ----------------------------------------------------------------------------
 // The RETURN_IF_PARSE_ERROR macro is a convenient macro to enforce error
 // handling for functions that may fail (by returning if there was an parser
-// error scanner()->has_parser_error()).
+// error).
 //
 // Usage:
 //     foo = ParseFoo(); // may fail
@@ -274,7 +274,7 @@ class ParserBase {
 
 #undef ALLOW_ACCESSORS
 
-  bool has_error() const { return scanner()->has_parser_error(); }
+  V8_INLINE bool has_error() const { return scanner()->has_parser_error(); }
   bool allow_harmony_numeric_separator() const {
     return scanner()->allow_harmony_numeric_separator();
   }
@@ -1667,7 +1667,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBindingPattern() {
 
   if (Token::IsAnyIdentifier(token)) {
     IdentifierT name = ParseAndClassifyIdentifier();
-    RETURN_IF_PARSE_ERROR;
     result = impl()->ExpressionFromIdentifier(name, beg_pos);
   } else {
     classifier()->RecordNonSimpleParameter();
@@ -1734,7 +1733,6 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         infer = InferName::kNo;
       }
     }
-    RETURN_IF_PARSE_ERROR;
     return impl()->ExpressionFromIdentifier(name, beg_pos, infer);
   }
   DCHECK_IMPLIES(Token::IsAnyIdentifier(token), token == Token::ENUM);
@@ -2224,7 +2222,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
         ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
             name_expression, initializer, *property_kind, *is_static,
             *is_computed_name, *is_private);
-        RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty);
         impl()->SetFunctionNameFromPropertyName(result, *name);
         return result;
 
@@ -2245,7 +2242,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       if (!*is_computed_name) {
         checker->CheckClassMethodName(name_token, ParsePropertyKind::kMethod,
                                       function_flags, *is_static);
-        RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty)
       }
 
       FunctionKind kind = MethodKindFor(function_flags);
@@ -2260,7 +2256,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
           *name, scanner()->location(), kSkipFunctionNameCheck, kind,
           name_token_position, FunctionLiteral::kAccessorOrMethod,
           language_mode(), nullptr);
-      RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty);
 
       *property_kind = ClassLiteralProperty::METHOD;
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
@@ -2293,7 +2288,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
           *name, scanner()->location(), kSkipFunctionNameCheck, kind,
           name_token_position, FunctionLiteral::kAccessorOrMethod,
           language_mode(), nullptr);
-      RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty);
 
       *property_kind =
           is_get ? ClassLiteralProperty::GETTER : ClassLiteralProperty::SETTER;
@@ -2378,7 +2372,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
   bool is_private = false;
   ExpressionT name_expression = ParsePropertyName(
       &name, &kind, &function_flags, is_computed_name, &is_private);
-  RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty);
 
   if (is_private) {
     // TODO(joyee): private names in object literals should be Syntax Errors
@@ -2464,7 +2457,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
             Scanner::Location(next_beg_pos, end_position()),
             MessageTemplate::kInvalidCoverInitializedName);
 
-        RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty);
         impl()->SetFunctionNameFromIdentifierRef(rhs, lhs);
       } else {
         value = lhs;
@@ -2495,7 +2487,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
           name_expression, value, ObjectLiteralProperty::COMPUTED,
           *is_computed_name);
-      RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty);
       impl()->SetFunctionNameFromPropertyName(result, name);
       return result;
     }
@@ -2513,6 +2504,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
         // Make sure the name expression is a string since we need a Name for
         // Runtime_DefineAccessorPropertyUnchecked and since we can determine
         // this statically we can skip the extra runtime check.
+        RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty);
         name_expression =
             factory()->NewStringLiteral(name, name_expression->position());
       }
@@ -2533,7 +2525,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       const AstRawString* prefix =
           is_get ? ast_value_factory()->get_space_string()
                  : ast_value_factory()->set_space_string();
-      RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty);
       impl()->SetFunctionNameFromPropertyName(result, name, prefix);
       return result;
     }
@@ -3562,7 +3553,7 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
   FuncNameInferrerState fni_state(&fni_);
   ExpressionT pattern = ParseBindingPattern();
   // TODO(verwaest): Remove once we have FailureExpression.
-  RETURN_IF_PARSE_ERROR_CUSTOM(Void);
+  RETURN_IF_PARSE_ERROR_VOID;
   if (!impl()->IsIdentifier(pattern)) {
     parameters->is_simple = false;
     ValidateFormalParameterInitializer();
@@ -3582,8 +3573,6 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
       parameters->is_simple = false;
     }
     classifier()->RecordNonSimpleParameter();
-    // TODO(verwaest): Remove once we have FailureExpression.
-    RETURN_IF_PARSE_ERROR_CUSTOM(Void);
     impl()->SetFunctionNameFromIdentifierRef(initializer, pattern);
   }
 
@@ -3633,7 +3622,6 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters) {
     }
   }
 
-  RETURN_IF_PARSE_ERROR_CUSTOM(Void);
   impl()->DeclareFormalParameters(parameters);
 }
 
@@ -3699,7 +3687,6 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
     Scanner::Location variable_loc = scanner()->location();
 
     // TODO(verwaest): Remove once we have FailureExpression.
-    RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
     bool single_name = impl()->IsIdentifier(pattern);
     if (single_name) {
       impl()->PushVariableName(impl()->AsIdentifier(pattern));
@@ -3720,11 +3707,10 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
         parsing_result->first_initializer_loc = variable_loc;
       }
 
-      // TODO(verwaest): Remove once we have FailureExpression.
-      RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
-
       // Don't infer if it is "a = function(){...}();"-like expression.
       if (single_name) {
+        // TODO(verwaest): Remove once we have FailureExpression.
+        RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
         if (!value->IsCall() && !value->IsCallNew()) {
           fni_.Infer();
         } else {
@@ -5470,7 +5456,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
 
     Expect(Token::SEMICOLON);
 
-    RETURN_IF_PARSE_ERROR;
     StatementT init = impl()->BuildInitializationBlock(&for_info.parsing_result,
                                                        &for_info.bound_names);
 
@@ -5493,7 +5478,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
                                                    own_labels, nullptr);
     }
 
-    RETURN_IF_PARSE_ERROR;
     init = impl()->BuildInitializationBlock(&for_info.parsing_result, nullptr);
   } else if (peek() != Token::SEMICOLON) {
     // The initializer does not contain declarations.
@@ -5647,7 +5631,6 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     expression = CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
         kSyntaxError);
-    RETURN_IF_PARSE_ERROR;
   }
 
   auto loop = factory()->NewForEachStatement(for_info->mode, labels, own_labels,

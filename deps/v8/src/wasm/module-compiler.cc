@@ -97,6 +97,7 @@ class CompilationStateImpl {
   void OnFinishedUnit();
   void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
                                 ExecutionTier mode);
+  void ScheduleCodeLogging(WasmCode*);
 
   void OnBackgroundTaskStopped(const WasmFeatures& detected);
   void PublishDetectedFeatures(Isolate* isolate, const WasmFeatures& detected);
@@ -156,6 +157,41 @@ class CompilationStateImpl {
           result(VoidResult::ErrorFrom(compile_result)) {}
   };
 
+  class LogCodesTask : public CancelableTask {
+   public:
+    LogCodesTask(CancelableTaskManager* manager,
+                 CompilationStateImpl* compilation_state, Isolate* isolate)
+        : CancelableTask(manager),
+          compilation_state_(compilation_state),
+          isolate_(isolate) {
+      // This task should only be created if we should actually log code.
+      DCHECK(WasmCode::ShouldBeLogged(isolate));
+    }
+
+    // Hold the compilation state {mutex_} when calling this method.
+    void AddCode(WasmCode* code) { code_to_log_.push_back(code); }
+
+    void RunInternal() override {
+      // Remove this task from the {CompilationStateImpl}. The next compilation
+      // that finishes will allocate and schedule a new task.
+      {
+        base::MutexGuard guard(&compilation_state_->mutex_);
+        DCHECK_EQ(this, compilation_state_->log_codes_task_);
+        compilation_state_->log_codes_task_ = nullptr;
+      }
+      // If by now we shouldn't log code any more, don't log it.
+      if (!WasmCode::ShouldBeLogged(isolate_)) return;
+      for (WasmCode* code : code_to_log_) {
+        code->LogCode(isolate_);
+      }
+    }
+
+   private:
+    CompilationStateImpl* const compilation_state_;
+    Isolate* const isolate_;
+    std::vector<WasmCode*> code_to_log_;
+  };
+
   void NotifyOnEvent(CompilationEvent event, const VoidResult* error_result);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
@@ -169,6 +205,11 @@ class CompilationStateImpl {
   NativeModule* const native_module_;
   const CompileMode compile_mode_;
   bool baseline_compilation_finished_ = false;
+  // Store the value of {WasmCode::ShouldBeLogged()} at creation time of the
+  // compilation state.
+  // TODO(wasm): We might lose log events if logging is enabled while
+  // compilation is running.
+  bool const should_log_code_;
 
   // This mutex protects all information of this {CompilationStateImpl} which is
   // being accessed concurrently.
@@ -190,6 +231,10 @@ class CompilationStateImpl {
   // Features detected to be used in this module. Features can be detected
   // as a module is being compiled.
   WasmFeatures detected_features_ = kNoWasmFeatures;
+
+  // The foreground task to log finished wasm code. Is {nullptr} if no such task
+  // is currently scheduled.
+  LogCodesTask* log_codes_task_;
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
@@ -572,6 +617,7 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   // access {unit->mode()} within {ScheduleUnitForFinishing()}.
   ExecutionTier mode = unit->mode();
   unit->ExecuteCompilation(env, counters, detected);
+  if (!unit->failed()) compilation_state->ScheduleCodeLogging(unit->result());
   compilation_state->ScheduleUnitForFinishing(std::move(unit), mode);
 
   return true;
@@ -841,18 +887,6 @@ class FinishCompileTask : public CancelableTask {
 
       DCHECK_IMPLIES(unit->failed(), compilation_state_->failed());
       if (unit->failed()) break;
-
-      WasmCode* result = unit->result();
-
-      if (compilation_state_->baseline_compilation_finished()) {
-        // If Liftoff compilation finishes it will directly start executing.
-        // As soon as we have Turbofan-compiled code available, it will
-        // directly be used by Liftoff-compiled code via the jump table.
-        DCHECK_EQ(CompileMode::kTiering, compilation_state_->compile_mode());
-        DCHECK(!result->is_liftoff());
-
-        if (WasmCode::ShouldBeLogged(isolate)) result->LogCode(isolate);
-      }
 
       // Update the compilation state, and possibly notify
       // threads waiting for events.
@@ -2346,9 +2380,6 @@ void AsyncCompileJob::FinishCompile(bool compile_wrappers) {
   }
   isolate_->debug()->OnAfterCompile(script);
 
-  // Log the code within the generated module for profiling.
-  native_module_->LogWasmCodes(isolate_);
-
   // We can only update the feature counts once the entire compile is done.
   auto compilation_state = Impl(native_module_->compilation_state());
   compilation_state->PublishDetectedFeatures(
@@ -2907,6 +2938,7 @@ CompilationStateImpl::CompilationStateImpl(internal::Isolate* isolate,
                             native_module->module()->origin == kWasmOrigin
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
+      should_log_code_(WasmCode::ShouldBeLogged(isolate)),
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,
                       V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {
@@ -3046,6 +3078,18 @@ void CompilationStateImpl::ScheduleUnitForFinishing(
   }
 }
 
+void CompilationStateImpl::ScheduleCodeLogging(WasmCode* code) {
+  if (!should_log_code_) return;
+  base::MutexGuard guard(&mutex_);
+  if (log_codes_task_ == nullptr) {
+    auto new_task = base::make_unique<LogCodesTask>(&foreground_task_manager_,
+                                                    this, isolate_);
+    log_codes_task_ = new_task.get();
+    foreground_task_runner_->PostTask(std::move(new_task));
+  }
+  log_codes_task_->AddCode(code);
+}
+
 void CompilationStateImpl::OnBackgroundTaskStopped(
     const WasmFeatures& detected) {
   base::MutexGuard guard(&mutex_);
@@ -3129,9 +3173,6 @@ void CompilationStateImpl::SetError(uint32_t func_index,
   // compile error.
   foreground_task_runner_->PostTask(
       MakeCancelableLambdaTask(&foreground_task_manager_, [this] {
-        // This is only being called from foreground tasks.
-        base::MutexGuard guard(&mutex_);
-        HandleScope scope(isolate_);
         VoidResult error_result = GetCompileError();
         NotifyOnEvent(CompilationEvent::kFailedCompilation, &error_result);
       }));
@@ -3139,6 +3180,7 @@ void CompilationStateImpl::SetError(uint32_t func_index,
 
 void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
                                          const VoidResult* error_result) {
+  HandleScope scope(isolate_);
   if (callback_) callback_(event, error_result);
 }
 

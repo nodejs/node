@@ -237,7 +237,7 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
       declaration, descriptor_->declaration_kind, descriptor_->mode,
       Variable::DefaultInitializationFlag(descriptor_->mode),
       outer_function_scope);
-  if (parser_->scanner_.has_parser_error()) return;
+  if (parser_->has_error()) return;
   DCHECK_NOT_NULL(var);
   DCHECK(proxy->is_resolved());
   DCHECK_NE(initializer_position_, kNoSourcePosition);
