@@ -520,7 +520,7 @@ class ModuleDecoderImpl : public Decoder {
           if (!AddMemory(module_.get())) break;
           uint8_t flags = validate_memory_flags(&module_->has_shared_memory);
           consume_resizable_limits(
-              "memory", "pages", FLAG_wasm_max_mem_pages,
+              "memory", "pages", kSpecMaxWasmMemoryPages,
               &module_->initial_pages, &module_->has_maximum_pages,
               kSpecMaxWasmMemoryPages, &module_->maximum_pages, flags);
           break;
@@ -614,7 +614,7 @@ class ModuleDecoderImpl : public Decoder {
       if (!AddMemory(module_.get())) break;
       uint8_t flags = validate_memory_flags(&module_->has_shared_memory);
       consume_resizable_limits(
-          "memory", "pages", FLAG_wasm_max_mem_pages, &module_->initial_pages,
+          "memory", "pages", kSpecMaxWasmMemoryPages, &module_->initial_pages,
           &module_->has_maximum_pages, kSpecMaxWasmMemoryPages,
           &module_->maximum_pages, flags);
     }

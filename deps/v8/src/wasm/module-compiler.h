@@ -95,11 +95,6 @@ class AsyncCompileJob {
   class CompileWrappers;         // Step 5  (sync)
   class FinishModule;            // Step 6  (sync)
 
-  const std::shared_ptr<Counters>& async_counters() const {
-    return async_counters_;
-  }
-  Counters* counters() const { return async_counters().get(); }
-
   void PrepareRuntimeObjects(std::shared_ptr<const WasmModule>);
 
   void FinishCompile(bool compile_wrappers);
@@ -136,7 +131,6 @@ class AsyncCompileJob {
 
   Isolate* isolate_;
   const WasmFeatures enabled_features_;
-  const std::shared_ptr<Counters> async_counters_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
   std::unique_ptr<byte[]> bytes_copy_;

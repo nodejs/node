@@ -896,9 +896,9 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
     }
   }
 
-  // If the receiver is not a special receiver type, and the length is a valid
-  // element index, perform fast operation tailored to specific ElementsKinds.
-  if (!object->map()->IsSpecialReceiverMap() && len < kMaxUInt32 &&
+  // If the receiver is not a special receiver type, and the length fits
+  // uint32_t, perform fast operation tailored to specific ElementsKinds.
+  if (!object->map()->IsSpecialReceiverMap() && len <= kMaxUInt32 &&
       JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
     Handle<JSObject> obj = Handle<JSObject>::cast(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();

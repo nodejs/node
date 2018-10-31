@@ -547,7 +547,7 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
-    return Handle<Code>(reinterpret_cast<Code**>(
+    return Handle<Code>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc, 0 /* unused */)));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
@@ -697,7 +697,7 @@ HeapObject* RelocInfo::target_object() {
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (rmode_ == EMBEDDED_OBJECT) {
-    return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
+    return Handle<HeapObject>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
   } else {
     DCHECK(IsCodeTarget(rmode_));

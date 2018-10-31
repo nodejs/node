@@ -110,6 +110,14 @@ BUILTIN(CallSitePrototypeGetPosition) {
   return Smi::FromInt(it.Frame()->GetPosition());
 }
 
+BUILTIN(CallSitePrototypeGetPromiseIndex) {
+  HandleScope scope(isolate);
+  CHECK_CALLSITE(recv, "getPromiseIndex");
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return PositiveNumberOrNull(it.Frame()->GetPromiseIndex(), isolate);
+}
+
 BUILTIN(CallSitePrototypeGetScriptNameOrSourceURL) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getScriptNameOrSourceUrl");

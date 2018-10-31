@@ -95,8 +95,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
       std::shared_ptr<CompilationResultResolver> resolver);
 
   // Compiles the function with the given index at a specific compilation tier
-  // and returns true on success, false (and pending exception) otherwise. This
-  // is mostly used for testing to force a function into a specific tier.
+  // and returns true on success, false otherwise. This is mostly used for
+  // testing to force a function into a specific tier.
   bool CompileFunction(Isolate* isolate, NativeModule* native_module,
                        uint32_t function_index, ExecutionTier tier);
 

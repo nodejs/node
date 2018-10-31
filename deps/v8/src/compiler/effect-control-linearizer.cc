@@ -676,9 +676,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTruncateTaggedToFloat64:
       result = LowerTruncateTaggedToFloat64(node);
       break;
-    case IrOpcode::kCheckBounds:
-      result = LowerCheckBounds(node, frame_state);
-      break;
     case IrOpcode::kPoisonIndex:
       result = LowerPoisonIndex(node);
       break;
@@ -739,11 +736,17 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedInt64ToTaggedSigned:
       result = LowerCheckedInt64ToTaggedSigned(node, frame_state);
       break;
+    case IrOpcode::kCheckedUint32Bounds:
+      result = LowerCheckedUint32Bounds(node, frame_state);
+      break;
     case IrOpcode::kCheckedUint32ToInt32:
       result = LowerCheckedUint32ToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedUint32ToTaggedSigned:
       result = LowerCheckedUint32ToTaggedSigned(node, frame_state);
+      break;
+    case IrOpcode::kCheckedUint64Bounds:
+      result = LowerCheckedUint64Bounds(node, frame_state);
       break;
     case IrOpcode::kCheckedUint64ToInt32:
       result = LowerCheckedUint64ToInt32(node, frame_state);
@@ -754,6 +757,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedFloat64ToInt32:
       result = LowerCheckedFloat64ToInt32(node, frame_state);
       break;
+    case IrOpcode::kCheckedFloat64ToInt64:
+      result = LowerCheckedFloat64ToInt64(node, frame_state);
+      break;
     case IrOpcode::kCheckedTaggedSignedToInt32:
       if (frame_state == nullptr) {
         FATAL("No frame state (zapped by #%d: %s)", frame_state_zapper_->id(),
@@ -763,6 +769,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckedTaggedToInt32:
       result = LowerCheckedTaggedToInt32(node, frame_state);
+      break;
+    case IrOpcode::kCheckedTaggedToInt64:
+      result = LowerCheckedTaggedToInt64(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedToFloat64:
       result = LowerCheckedTaggedToFloat64(node, frame_state);
@@ -1427,17 +1436,6 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {
   return done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state) {
-  Node* index = node->InputAt(0);
-  Node* limit = node->InputAt(1);
-  const CheckParameters& params = CheckParametersOf(node->op());
-
-  Node* check = __ Uint32LessThan(index, limit);
-  __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, params.feedback(), check,
-                     frame_state, IsSafetyCheck::kCriticalSafetyCheck);
-  return index;
-}
-
 Node* EffectControlLinearizer::LowerPoisonIndex(Node* node) {
   Node* index = node->InputAt(0);
   if (mask_array_index_ == kMaskArrayIndex) {
@@ -2055,6 +2053,18 @@ Node* EffectControlLinearizer::LowerCheckedInt64ToTaggedSigned(
   }
 }
 
+Node* EffectControlLinearizer::LowerCheckedUint32Bounds(Node* node,
+                                                        Node* frame_state) {
+  Node* index = node->InputAt(0);
+  Node* limit = node->InputAt(1);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check = __ Uint32LessThan(index, limit);
+  __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, params.feedback(), check,
+                     frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+  return index;
+}
+
 Node* EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node,
                                                          Node* frame_state) {
   Node* value = node->InputAt(0);
@@ -2073,6 +2083,18 @@ Node* EffectControlLinearizer::LowerCheckedUint32ToTaggedSigned(
   __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
                      frame_state);
   return ChangeUint32ToSmi(value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedUint64Bounds(Node* node,
+                                                        Node* frame_state) {
+  CheckParameters const& params = CheckParametersOf(node->op());
+  Node* const index = node->InputAt(0);
+  Node* const limit = node->InputAt(1);
+
+  Node* check = __ Uint64LessThan(index, limit);
+  __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, params.feedback(), check,
+                     frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+  return index;
 }
 
 Node* EffectControlLinearizer::LowerCheckedUint64ToInt32(Node* node,
@@ -2137,6 +2159,45 @@ Node* EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node,
                                     frame_state);
 }
 
+Node* EffectControlLinearizer::BuildCheckedFloat64ToInt64(
+    CheckForMinusZeroMode mode, const VectorSlotPair& feedback, Node* value,
+    Node* frame_state) {
+  Node* value64 = __ TruncateFloat64ToInt64(value);
+  Node* check_same = __ Float64Equal(value, __ ChangeInt64ToFloat64(value64));
+  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecisionOrNaN, feedback,
+                     check_same, frame_state);
+
+  if (mode == CheckForMinusZeroMode::kCheckForMinusZero) {
+    // Check if {value} is -0.
+    auto if_zero = __ MakeDeferredLabel();
+    auto check_done = __ MakeLabel();
+
+    Node* check_zero = __ Word64Equal(value64, __ Int64Constant(0));
+    __ GotoIf(check_zero, &if_zero);
+    __ Goto(&check_done);
+
+    __ Bind(&if_zero);
+    // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+    Node* check_negative = __ Int32LessThan(__ Float64ExtractHighWord32(value),
+                                            __ Int32Constant(0));
+    __ DeoptimizeIf(DeoptimizeReason::kMinusZero, feedback, check_negative,
+                    frame_state);
+    __ Goto(&check_done);
+
+    __ Bind(&check_done);
+  }
+  return value64;
+}
+
+Node* EffectControlLinearizer::LowerCheckedFloat64ToInt64(Node* node,
+                                                          Node* frame_state) {
+  const CheckMinusZeroParameters& params =
+      CheckMinusZeroParametersOf(node->op());
+  Node* value = node->InputAt(0);
+  return BuildCheckedFloat64ToInt64(params.mode(), params.feedback(), value,
+                                    frame_state);
+}
+
 Node* EffectControlLinearizer::LowerCheckedTaggedSignedToInt32(
     Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
@@ -2170,6 +2231,36 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
                      check_map, frame_state);
   Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
   vfalse = BuildCheckedFloat64ToInt32(params.mode(), params.feedback(), vfalse,
+                                      frame_state);
+  __ Goto(&done, vfalse);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerCheckedTaggedToInt64(Node* node,
+                                                         Node* frame_state) {
+  const CheckMinusZeroParameters& params =
+      CheckMinusZeroParametersOf(node->op());
+  Node* value = node->InputAt(0);
+
+  auto if_not_smi = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kWord64);
+
+  Node* check = ObjectIsSmi(value);
+  __ GotoIfNot(check, &if_not_smi);
+  // In the Smi case, just convert to int64.
+  __ Goto(&done, ChangeSmiToInt64(value));
+
+  // In the non-Smi case, check the heap numberness, load the number and convert
+  // to int64.
+  __ Bind(&if_not_smi);
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* check_map = __ WordEqual(value_map, __ HeapNumberMapConstant());
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotAHeapNumber, params.feedback(),
+                     check_map, frame_state);
+  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  vfalse = BuildCheckedFloat64ToInt64(params.mode(), params.feedback(), vfalse,
                                       frame_state);
   __ Goto(&done, vfalse);
 
@@ -3710,6 +3801,11 @@ Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
 }
 
 Node* EffectControlLinearizer::ChangeIntPtrToSmi(Node* value) {
+  // Do shift on 32bit values if Smis are stored in the lower word.
+  if (machine()->Is64() && SmiValuesAre31Bits()) {
+    return __ ChangeInt32ToInt64(
+        __ Word32Shl(__ TruncateInt64ToInt32(value), SmiShiftBitsConstant()));
+  }
   return __ WordShl(value, SmiShiftBitsConstant());
 }
 
@@ -3728,6 +3824,10 @@ Node* EffectControlLinearizer::ChangeIntPtrToInt32(Node* value) {
 }
 
 Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
+  // Do shift on 32bit values if Smis are stored in the lower word.
+  if (machine()->Is64() && SmiValuesAre31Bits()) {
+    return __ ChangeInt32ToInt64(__ Word32Shl(value, SmiShiftBitsConstant()));
+  }
   return ChangeIntPtrToSmi(ChangeInt32ToIntPtr(value));
 }
 
@@ -3744,20 +3844,32 @@ Node* EffectControlLinearizer::ChangeUint32ToUintPtr(Node* value) {
 }
 
 Node* EffectControlLinearizer::ChangeUint32ToSmi(Node* value) {
-  value = ChangeUint32ToUintPtr(value);
-  return __ WordShl(value, SmiShiftBitsConstant());
+  // Do shift on 32bit values if Smis are stored in the lower word.
+  if (machine()->Is64() && SmiValuesAre31Bits()) {
+    return __ ChangeUint32ToUint64(__ Word32Shl(value, SmiShiftBitsConstant()));
+  } else {
+    return __ WordShl(ChangeUint32ToUintPtr(value), SmiShiftBitsConstant());
+  }
 }
 
 Node* EffectControlLinearizer::ChangeSmiToIntPtr(Node* value) {
+  // Do shift on 32bit values if Smis are stored in the lower word.
+  if (machine()->Is64() && SmiValuesAre31Bits()) {
+    return __ ChangeInt32ToInt64(
+        __ Word32Sar(__ TruncateInt64ToInt32(value), SmiShiftBitsConstant()));
+  }
   return __ WordSar(value, SmiShiftBitsConstant());
 }
 
 Node* EffectControlLinearizer::ChangeSmiToInt32(Node* value) {
-  value = ChangeSmiToIntPtr(value);
-  if (machine()->Is64()) {
-    value = __ TruncateInt64ToInt32(value);
+  // Do shift on 32bit values if Smis are stored in the lower word.
+  if (machine()->Is64() && SmiValuesAre31Bits()) {
+    return __ Word32Sar(__ TruncateInt64ToInt32(value), SmiShiftBitsConstant());
   }
-  return value;
+  if (machine()->Is64()) {
+    return __ TruncateInt64ToInt32(ChangeSmiToIntPtr(value));
+  }
+  return ChangeSmiToIntPtr(value);
 }
 
 Node* EffectControlLinearizer::ChangeSmiToInt64(Node* value) {
@@ -4112,17 +4224,21 @@ Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
   ExternalArrayType element_type = ExternalArrayTypeOf(node->op());
   Node* buffer = node->InputAt(0);
   Node* storage = node->InputAt(1);
-  Node* index = node->InputAt(2);
-  Node* is_little_endian = node->InputAt(3);
+  Node* byte_offset = node->InputAt(2);
+  Node* index = node->InputAt(3);
+  Node* is_little_endian = node->InputAt(4);
 
   // We need to keep the {buffer} alive so that the GC will not release the
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   __ Retain(buffer);
 
+  // Compute the effective offset.
+  Node* offset = __ IntAdd(byte_offset, index);
+
   MachineType const machine_type =
       AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
 
-  Node* value = __ LoadUnaligned(machine_type, storage, index);
+  Node* value = __ LoadUnaligned(machine_type, storage, offset);
   auto big_endian = __ MakeLabel();
   auto done = __ MakeLabel(machine_type.representation());
 
@@ -4153,13 +4269,17 @@ void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
   ExternalArrayType element_type = ExternalArrayTypeOf(node->op());
   Node* buffer = node->InputAt(0);
   Node* storage = node->InputAt(1);
-  Node* index = node->InputAt(2);
-  Node* value = node->InputAt(3);
-  Node* is_little_endian = node->InputAt(4);
+  Node* byte_offset = node->InputAt(2);
+  Node* index = node->InputAt(3);
+  Node* value = node->InputAt(4);
+  Node* is_little_endian = node->InputAt(5);
 
   // We need to keep the {buffer} alive so that the GC will not release the
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   __ Retain(buffer);
+
+  // Compute the effective offset.
+  Node* offset = __ IntAdd(byte_offset, index);
 
   MachineType const machine_type =
       AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
@@ -4186,7 +4306,7 @@ void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
   }
 
   __ Bind(&done);
-  __ StoreUnaligned(machine_type.representation(), storage, index,
+  __ StoreUnaligned(machine_type.representation(), storage, offset,
                     done.PhiAt(0));
 }
 

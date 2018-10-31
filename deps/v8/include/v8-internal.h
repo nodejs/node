@@ -146,7 +146,7 @@ class Internals {
 
   static const uint32_t kNumIsolateDataSlots = 4;
 
-  static const int kIsolateEmbedderDataOffset = 0 * kApiPointerSize;
+  static const int kIsolateEmbedderDataOffset = 0;
   static const int kExternalMemoryOffset =
       kNumIsolateDataSlots * kApiPointerSize;
   static const int kExternalMemoryLimitOffset =

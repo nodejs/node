@@ -98,7 +98,7 @@ TF_BUILTIN(WasmThrow, WasmBuiltinsAssembler) {
   TailCallRuntimeWithCEntry(Runtime::kThrow, centry, context, exception);
 }
 
-TF_BUILTIN(WasmGrowMemory, WasmBuiltinsAssembler) {
+TF_BUILTIN(WasmMemoryGrow, WasmBuiltinsAssembler) {
   TNode<Int32T> num_pages =
       UncheckedCast<Int32T>(Parameter(Descriptor::kNumPages));
   Label num_pages_out_of_range(this, Label::kDeferred);
@@ -112,7 +112,7 @@ TF_BUILTIN(WasmGrowMemory, WasmBuiltinsAssembler) {
   TNode<Code> centry = LoadCEntryFromInstance(instance);
   TNode<Object> context = LoadContextFromInstance(instance);
   TNode<Smi> ret_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
-      Runtime::kWasmGrowMemory, centry, context, instance, num_pages_smi));
+      Runtime::kWasmMemoryGrow, centry, context, instance, num_pages_smi));
   TNode<Int32T> ret = SmiToInt32(ret_smi);
   ReturnRaw(ret);
 

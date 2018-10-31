@@ -107,7 +107,7 @@ Builtin* DeclarationVisitor::BuiltinDeclarationCommon(
   std::string generated_name = GetGeneratedCallableName(
       decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
   return declarations()->DeclareBuiltin(generated_name, kind, external,
-                                        signature);
+                                        signature, decl->transitioning);
 }
 
 void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
@@ -135,7 +135,8 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
     ReportError(stream.str());
   }
 
-  declarations()->DeclareRuntimeFunction(decl->name, signature);
+  declarations()->DeclareRuntimeFunction(decl->name, signature,
+                                         decl->transitioning);
 }
 
 void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
@@ -147,7 +148,8 @@ void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
 
   std::string generated_name = GetGeneratedCallableName(
       decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
-  declarations()->DeclareMacro(generated_name, signature, decl->op);
+  declarations()->DeclareMacro(generated_name, signature, decl->transitioning,
+                               decl->op);
 }
 
 void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
@@ -162,8 +164,8 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
                                const Signature& signature, Statement* body) {
   std::string generated_name = GetGeneratedCallableName(
       decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
-  Macro* macro =
-      declarations()->DeclareMacro(generated_name, signature, decl->op);
+  Macro* macro = declarations()->DeclareMacro(generated_name, signature,
+                                              decl->transitioning, decl->op);
 
   CurrentCallableActivator activator(global_context_, macro, decl);
 
@@ -427,15 +429,19 @@ void DeclarationVisitor::Visit(CallExpression* expr) {
 void DeclarationVisitor::Visit(TypeDeclaration* decl) {
   std::string generates = decl->generates ? *decl->generates : std::string("");
   const AbstractType* type = declarations()->DeclareAbstractType(
-      decl->name, generates, {}, decl->extends);
+      decl->name, decl->transient, generates, {}, decl->extends);
 
   if (decl->constexpr_generates) {
+    if (decl->transient) {
+      ReportError("cannot declare a transient type that is also constexpr");
+    }
     std::string constexpr_name = CONSTEXPR_TYPE_PREFIX + decl->name;
     base::Optional<std::string> constexpr_extends;
     if (decl->extends)
       constexpr_extends = CONSTEXPR_TYPE_PREFIX + *decl->extends;
-    declarations()->DeclareAbstractType(
-        constexpr_name, *decl->constexpr_generates, type, constexpr_extends);
+    declarations()->DeclareAbstractType(constexpr_name, false,
+                                        *decl->constexpr_generates, type,
+                                        constexpr_extends);
   }
 }
 

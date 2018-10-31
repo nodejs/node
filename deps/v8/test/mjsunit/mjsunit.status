@@ -660,7 +660,6 @@
 ['system == macos', {
   # BUG(v8:5333)
   'big-object-literal': [SKIP],
-  'harmony/weakrefs/basics': [SKIP],
 }],  # 'system == macos'
 
 ##############################################################################

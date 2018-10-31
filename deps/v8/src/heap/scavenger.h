@@ -29,6 +29,7 @@ using SurvivingNewLargeObjectMapEntry = std::pair<HeapObject*, Map*>;
 class ScavengerCollector {
  public:
   static const int kMaxScavengerTasks = 8;
+  static const int kMaxWaitTimeMs = 2;
 
   explicit ScavengerCollector(Heap* heap);
 

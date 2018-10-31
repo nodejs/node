@@ -1938,11 +1938,10 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Local<Context> context = Context::New(isolate, nullptr, global_template);
   DCHECK(!context.IsEmpty());
   InitializeModuleEmbedderData(context);
-  Context::Scope scope(context);
-
-  const std::vector<const char*>& args = options.arguments;
-  int size = static_cast<int>(args.size());
-  if (size > 0) {
+  if (options.include_arguments) {
+    Context::Scope scope(context);
+    const std::vector<const char*>& args = options.arguments;
+    int size = static_cast<int>(args.size());
     Local<Array> array = Array::New(isolate, size);
     for (int i = 0; i < size; i++) {
       Local<String> arg =
@@ -2766,8 +2765,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         argv[j] = nullptr;
       }
       break;
-    }
-    if (strcmp(argv[i], "--stress-opt") == 0) {
+    } else if (strcmp(argv[i], "--no-arguments") == 0) {
+      options.include_arguments = false;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--nostress-opt") == 0 ||

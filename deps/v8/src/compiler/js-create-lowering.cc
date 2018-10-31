@@ -6,7 +6,7 @@
 
 #include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
-#include "src/compiler/allocation-builder.h"
+#include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"

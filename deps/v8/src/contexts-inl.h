@@ -218,26 +218,6 @@ Map* Context::GetInitialJSArrayMap(ElementsKind kind) const {
   return Map::cast(initial_js_array_map);
 }
 
-void NativeContext::AddDirtyJSWeakFactory(
-    JSWeakFactory* weak_factory, Isolate* isolate,
-    std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
-        gc_notify_updated_slot) {
-  DCHECK(dirty_js_weak_factories()->IsUndefined(isolate) ||
-         dirty_js_weak_factories()->IsJSWeakFactory());
-  DCHECK(weak_factory->next()->IsUndefined(isolate));
-  DCHECK(!weak_factory->scheduled_for_cleanup());
-  weak_factory->set_scheduled_for_cleanup(true);
-  weak_factory->set_next(dirty_js_weak_factories());
-  gc_notify_updated_slot(
-      weak_factory,
-      HeapObject::RawField(weak_factory, JSWeakFactory::kNextOffset),
-      dirty_js_weak_factories());
-  set_dirty_js_weak_factories(weak_factory);
-  int offset = kHeaderSize + DIRTY_JS_WEAK_FACTORIES_INDEX * kPointerSize;
-  gc_notify_updated_slot(this, HeapObject::RawField(this, offset),
-                         weak_factory);
-}
-
 }  // namespace internal
 }  // namespace v8
 

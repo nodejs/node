@@ -1177,14 +1177,15 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       if (!js_function->is_compiled()) continue;
       JSFunction::EnsureFeedbackVector(js_function);
     }
-
-    if (!new_sfi->HasBytecodeArray()) continue;
-    FixedArray* constants = new_sfi->GetBytecodeArray()->constant_pool();
+  }
+  SharedFunctionInfo::ScriptIterator it(isolate, *new_script);
+  while (SharedFunctionInfo* sfi = it.Next()) {
+    if (!sfi->HasBytecodeArray()) continue;
+    FixedArray* constants = sfi->GetBytecodeArray()->constant_pool();
     for (int i = 0; i < constants->length(); ++i) {
       if (!constants->get(i)->IsSharedFunctionInfo()) continue;
       SharedFunctionInfo* inner_sfi =
           SharedFunctionInfo::cast(constants->get(i));
-
       // See if there is a mapping from this function's start position to a
       // unchanged function's id.
       auto unchanged_it =
@@ -1197,13 +1198,11 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
           SharedFunctionInfo::cast(new_script->shared_function_infos()
                                        ->Get(unchanged_it->second)
                                        ->GetHeapObject());
-      // Now some sanity checks. Make sure that this inner_sfi is not the
-      // unchanged SFI yet...
+      if (old_unchanged_inner_sfi == inner_sfi) continue;
       DCHECK_NE(old_unchanged_inner_sfi, inner_sfi);
-      // ... and that the unchanged SFI has already been processed and patched
-      // to be on the new script ...
+      // Now some sanity checks. Make sure that the unchanged SFI has already
+      // been processed and patched to be on the new script ...
       DCHECK_EQ(old_unchanged_inner_sfi->script(), *new_script);
-
       constants->set(i, old_unchanged_inner_sfi);
     }
   }

@@ -594,16 +594,18 @@ struct BlockStatement : Statement {
 
 struct TypeDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TypeDeclaration)
-  TypeDeclaration(SourcePosition pos, std::string name,
+  TypeDeclaration(SourcePosition pos, std::string name, bool transient,
                   base::Optional<std::string> extends,
                   base::Optional<std::string> generates,
                   base::Optional<std::string> constexpr_generates)
       : Declaration(kKind, pos),
         name(std::move(name)),
+        transient(transient),
         extends(std::move(extends)),
         generates(std::move(generates)),
         constexpr_generates(std::move(constexpr_generates)) {}
   std::string name;
+  bool transient;
   base::Optional<std::string> extends;
   base::Optional<std::string> generates;
   base::Optional<std::string> constexpr_generates;
@@ -637,84 +639,94 @@ struct CallableNodeSignature {
 };
 
 struct CallableNode : AstNode {
-  CallableNode(AstNode::Kind kind, SourcePosition pos, std::string name,
-               ParameterList parameters, TypeExpression* return_type,
-               const LabelAndTypesVector& labels)
+  CallableNode(AstNode::Kind kind, SourcePosition pos, bool transitioning,
+               std::string name, ParameterList parameters,
+               TypeExpression* return_type, const LabelAndTypesVector& labels)
       : AstNode(kind, pos),
+        transitioning(transitioning),
         name(std::move(name)),
         signature(new CallableNodeSignature{parameters, return_type, labels}) {}
   DEFINE_AST_NODE_INNER_BOILERPLATE(CallableNode)
+  bool transitioning;
   std::string name;
   std::unique_ptr<CallableNodeSignature> signature;
 };
 
 struct MacroDeclaration : CallableNode {
   DEFINE_AST_NODE_INNER_BOILERPLATE(MacroDeclaration)
-  MacroDeclaration(AstNode::Kind kind, SourcePosition pos, std::string name,
-                   base::Optional<std::string> op, ParameterList parameters,
-                   TypeExpression* return_type,
+  MacroDeclaration(AstNode::Kind kind, SourcePosition pos, bool transitioning,
+                   std::string name, base::Optional<std::string> op,
+                   ParameterList parameters, TypeExpression* return_type,
                    const LabelAndTypesVector& labels)
-      : CallableNode(kind, pos, std::move(name), std::move(parameters),
-                     return_type, labels),
+      : CallableNode(kind, pos, transitioning, std::move(name),
+                     std::move(parameters), return_type, labels),
         op(std::move(op)) {}
   base::Optional<std::string> op;
 };
 
 struct ExternalMacroDeclaration : MacroDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternalMacroDeclaration)
-  ExternalMacroDeclaration(SourcePosition pos, std::string name,
-                           base::Optional<std::string> op,
+  ExternalMacroDeclaration(SourcePosition pos, bool transitioning,
+                           std::string name, base::Optional<std::string> op,
                            ParameterList parameters,
                            TypeExpression* return_type,
                            const LabelAndTypesVector& labels)
-      : MacroDeclaration(kKind, pos, std::move(name), std::move(op),
-                         std::move(parameters), return_type, labels) {}
+      : MacroDeclaration(kKind, pos, transitioning, std::move(name),
+                         std::move(op), std::move(parameters), return_type,
+                         labels) {}
 };
 
 struct TorqueMacroDeclaration : MacroDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TorqueMacroDeclaration)
-  TorqueMacroDeclaration(SourcePosition pos, std::string name,
-                         base::Optional<std::string> op,
+  TorqueMacroDeclaration(SourcePosition pos, bool transitioning,
+                         std::string name, base::Optional<std::string> op,
                          ParameterList parameters, TypeExpression* return_type,
                          const LabelAndTypesVector& labels)
-      : MacroDeclaration(kKind, pos, std::move(name), std::move(op),
-                         std::move(parameters), return_type, labels) {}
+      : MacroDeclaration(kKind, pos, transitioning, std::move(name),
+                         std::move(op), std::move(parameters), return_type,
+                         labels) {}
 };
 
 struct BuiltinDeclaration : CallableNode {
   BuiltinDeclaration(AstNode::Kind kind, SourcePosition pos,
-                     bool javascript_linkage, std::string name,
-                     ParameterList parameters, TypeExpression* return_type)
-      : CallableNode(kind, pos, std::move(name), std::move(parameters),
-                     return_type, {}),
+                     bool javascript_linkage, bool transitioning,
+                     std::string name, ParameterList parameters,
+                     TypeExpression* return_type)
+      : CallableNode(kind, pos, transitioning, std::move(name),
+                     std::move(parameters), return_type, {}),
         javascript_linkage(javascript_linkage) {}
   bool javascript_linkage;
 };
 
 struct ExternalBuiltinDeclaration : BuiltinDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternalBuiltinDeclaration)
-  ExternalBuiltinDeclaration(SourcePosition pos, bool javascript_linkage,
-                             std::string name, ParameterList parameters,
+  ExternalBuiltinDeclaration(SourcePosition pos, bool transitioning,
+                             bool javascript_linkage, std::string name,
+                             ParameterList parameters,
                              TypeExpression* return_type)
-      : BuiltinDeclaration(kKind, pos, javascript_linkage, std::move(name),
-                           std::move(parameters), return_type) {}
+      : BuiltinDeclaration(kKind, pos, javascript_linkage, transitioning,
+                           std::move(name), std::move(parameters),
+                           return_type) {}
 };
 
 struct TorqueBuiltinDeclaration : BuiltinDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TorqueBuiltinDeclaration)
-  TorqueBuiltinDeclaration(SourcePosition pos, bool javascript_linkage,
-                           std::string name, ParameterList parameters,
+  TorqueBuiltinDeclaration(SourcePosition pos, bool transitioning,
+                           bool javascript_linkage, std::string name,
+                           ParameterList parameters,
                            TypeExpression* return_type)
-      : BuiltinDeclaration(kKind, pos, javascript_linkage, std::move(name),
-                           std::move(parameters), return_type) {}
+      : BuiltinDeclaration(kKind, pos, javascript_linkage, transitioning,
+                           std::move(name), std::move(parameters),
+                           return_type) {}
 };
 
 struct ExternalRuntimeDeclaration : CallableNode {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternalRuntimeDeclaration)
-  ExternalRuntimeDeclaration(SourcePosition pos, std::string name,
-                             ParameterList parameters,
+  ExternalRuntimeDeclaration(SourcePosition pos, bool transitioning,
+                             std::string name, ParameterList parameters,
                              TypeExpression* return_type)
-      : CallableNode(kKind, pos, name, parameters, return_type, {}) {}
+      : CallableNode(kKind, pos, transitioning, name, parameters, return_type,
+                     {}) {}
 };
 
 struct ConstDeclaration : Declaration {

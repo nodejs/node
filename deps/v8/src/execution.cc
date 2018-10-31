@@ -15,8 +15,6 @@
 namespace v8 {
 namespace internal {
 
-StackGuard::StackGuard() : isolate_(nullptr) {}
-
 void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
   DCHECK_NOT_NULL(isolate_);
   thread_local_.set_jslimit(kInterruptLimit);

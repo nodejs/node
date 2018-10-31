@@ -29,6 +29,7 @@ namespace compiler {
   V(ChangeFloat64ToUint32)               \
   V(TruncateInt64ToInt32)                \
   V(RoundFloat64ToInt32)                 \
+  V(TruncateFloat64ToInt64)              \
   V(TruncateFloat64ToWord32)             \
   V(Float64ExtractLowWord32)             \
   V(Float64ExtractHighWord32)            \

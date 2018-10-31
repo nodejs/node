@@ -4,9 +4,9 @@
 
 // PLEASE READ BEFORE CHANGING THIS FILE!
 //
-// This file implements the support code for the out of bounds signal handler.
-// Nothing in here actually runs in the signal handler, but the code here
-// manipulates data structures used by the signal handler so we still need to be
+// This file implements the support code for the out of bounds trap handler.
+// Nothing in here actually runs in the trap handler, but the code here
+// manipulates data structures used by the trap handler so we still need to be
 // careful. In order to minimize this risk, here are some rules to follow.
 //
 // 1. Avoid introducing new external dependencies. The files in src/trap-handler
@@ -17,7 +17,7 @@
 //
 // For more information, see https://goo.gl/yMeyUY.
 //
-// For the code that runs in the signal handler itself, see handler-inside.cc.
+// For the code that runs in the trap handler itself, see handler-inside.cc.
 
 #include <stddef.h>
 #include <stdio.h>
@@ -243,15 +243,17 @@ size_t GetRecoveredTrapCount() {
 // Otherwise, the correct one should be implemented in the appropriate
 // platform-specific handler-outside.cc.
 bool RegisterDefaultTrapHandler() { return false; }
+
+void RemoveTrapHandler() {}
 #endif
 
 bool g_is_trap_handler_enabled;
 
-bool EnableTrapHandler(bool use_v8_signal_handler) {
+bool EnableTrapHandler(bool use_v8_handler) {
   if (!V8_TRAP_HANDLER_SUPPORTED) {
     return false;
   }
-  if (use_v8_signal_handler) {
+  if (use_v8_handler) {
     g_is_trap_handler_enabled = RegisterDefaultTrapHandler();
     return g_is_trap_handler_enabled;
   }

@@ -372,7 +372,7 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::RemoveJob(
   // Delete SFI associated with job if its been registered.
   Handle<SharedFunctionInfo> function;
   if (job->function.ToHandle(&function)) {
-    GlobalHandles::Destroy(Handle<Object>::cast(function).location());
+    GlobalHandles::Destroy(function.location());
   }
 
   // Delete job.

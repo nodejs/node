@@ -63,7 +63,6 @@ class GlobalHandles {
   static Handle<Object> CopyGlobal(Address* location);
 
   // Destroy a global handle.
-  static void Destroy(Object** location);
   static void Destroy(Address* location);
 
   // Make the global handle weak and set the callback parameter for the
@@ -75,17 +74,12 @@ class GlobalHandles {
   // GC.  For a phantom weak handle the handle is cleared (set to a Smi)
   // before the callback is invoked, but the handle can still be identified
   // in the callback by using the location() of the handle.
-  static void MakeWeak(Object** location, void* parameter,
-                       WeakCallbackInfo<void>::Callback weak_callback,
-                       v8::WeakCallbackType type);
   static void MakeWeak(Address* location, void* parameter,
                        WeakCallbackInfo<void>::Callback weak_callback,
                        v8::WeakCallbackType type);
 
-  static void MakeWeak(Object*** location_addr);
   static void MakeWeak(Address** location_addr);
 
-  static void AnnotateStrongRetainer(Object** location, const char* label);
   static void AnnotateStrongRetainer(Address* location, const char* label);
 
   void RecordStats(HeapStats* stats);
@@ -109,12 +103,10 @@ class GlobalHandles {
   static void* ClearWeakness(Address* location);
 
   // Tells whether global handle is near death.
-  // TODO(jkummerow): This seems to be unused.
-  static bool IsNearDeath(Object** location);
+  static bool IsNearDeath(Address* location);
 
   // Tells whether global handle is weak.
-  // TODO(jkummerow): This seems to be unused.
-  static bool IsWeak(Object** location);
+  static bool IsWeak(Address* location);
 
   // Process pending weak handles.
   // Returns the number of freed nodes.
@@ -316,14 +308,15 @@ class EternalHandles {
   static const int kSize = 1 << kShift;
   static const int kMask = 0xff;
 
-  // Gets the slot for an index
-  inline Object** GetLocation(int index) {
+  // Gets the slot for an index. This returns an Address* rather than an
+  // ObjectSlot in order to avoid #including slots.h in this header file.
+  inline Address* GetLocation(int index) {
     DCHECK(index >= 0 && index < size_);
     return &blocks_[index >> kShift][index & kMask];
   }
 
   int size_;
-  std::vector<Object**> blocks_;
+  std::vector<Address*> blocks_;
   std::vector<int> new_space_indices_;
   int singleton_handles_[NUMBER_OF_SINGLETON_HANDLES];
 

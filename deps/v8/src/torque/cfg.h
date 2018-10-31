@@ -136,6 +136,8 @@ class CfgAssembler {
   void Unreachable();
   void DebugBreak();
 
+  void PrintCurrentStack(std::ostream& s) { s << "stack: " << current_stack_; }
+
  private:
   Stack<const Type*> current_stack_;
   ControlFlowGraph cfg_;

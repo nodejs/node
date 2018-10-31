@@ -10,6 +10,7 @@
 #include "src/identity-map.h"
 #include "src/maybe-handles.h"
 #include "src/objects-inl.h"
+#include "src/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -30,8 +31,7 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   Isolate* isolate;
   if (!Isolate::FromWritableHeapObject(heap_object, &isolate)) return true;
   RootIndex root_index;
-  if (isolate->roots_table().IsRootHandleLocation(
-          reinterpret_cast<Object**>(location_), &root_index) &&
+  if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
       RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }
@@ -42,7 +42,7 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
     if (heap_object->IsCell()) return true;
     if (heap_object->IsMap()) return true;
     if (heap_object->IsInternalizedString()) return true;
-    return !isolate->IsDeferredHandle(reinterpret_cast<Object**>(location_));
+    return !isolate->IsDeferredHandle(location_);
   }
   return true;
 }
@@ -58,11 +58,10 @@ int HandleScope::NumberOfHandles(Isolate* isolate) {
              (isolate->handle_scope_data()->next - impl->blocks()->back()));
 }
 
-
-Object** HandleScope::Extend(Isolate* isolate) {
+Address* HandleScope::Extend(Isolate* isolate) {
   HandleScopeData* current = isolate->handle_scope_data();
 
-  Object** result = current->next;
+  Address* result = current->next;
 
   DCHECK(result == current->limit);
   // Make sure there's at least one scope on the stack and that the
@@ -76,7 +75,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
   // If there's more room in the last block, we use that. This is used
   // for fast creation of scopes after scope barriers.
   if (!impl->blocks()->empty()) {
-    Object** limit = &impl->blocks()->back()[kHandleBlockSize];
+    Address* limit = &impl->blocks()->back()[kHandleBlockSize];
     if (current->limit != limit) {
       current->limit = limit;
       DCHECK_LT(limit - current->next, kHandleBlockSize);
@@ -105,10 +104,10 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 
 
 #ifdef ENABLE_HANDLE_ZAPPING
-void HandleScope::ZapRange(Object** start, Object** end) {
+void HandleScope::ZapRange(Address* start, Address* end) {
   DCHECK_LE(end - start, kHandleBlockSize);
-  for (Object** p = start; p != end; p++) {
-    *reinterpret_cast<Address*>(p) = static_cast<Address>(kHandleZapValue);
+  for (Address* p = start; p != end; p++) {
+    *p = static_cast<Address>(kHandleZapValue);
   }
 }
 #endif
@@ -156,7 +155,7 @@ Address* CanonicalHandleScope::Lookup(Address object) {
   if (Internals::HasHeapObjectTag(object)) {
     RootIndex root_index;
     if (root_index_map_->Lookup(object, &root_index)) {
-      return isolate_->root_handle(root_index).location_as_address_ptr();
+      return isolate_->root_handle(root_index).location();
     }
   }
   Address** entry = identity_map_->Get(reinterpret_cast<Object*>(object));
@@ -172,8 +171,8 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
   impl_->BeginDeferredScope();
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
-  Object** new_next = impl_->GetSpareOrNewBlock();
-  Object** new_limit = &new_next[kHandleBlockSize];
+  Address* new_next = impl_->GetSpareOrNewBlock();
+  Address* new_limit = &new_next[kHandleBlockSize];
   // Check that at least one HandleScope with at least one Handle in it exists,
   // see the class description.
   DCHECK(!impl_->blocks()->empty());

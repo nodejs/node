@@ -154,13 +154,17 @@ bool CheckSubsumes(Node const* a, Node const* b) {
         case IrOpcode::kCheckedTaggedSignedToInt32:
         case IrOpcode::kCheckedTaggedToTaggedPointer:
         case IrOpcode::kCheckedTaggedToTaggedSigned:
+        case IrOpcode::kCheckedUint32Bounds:
         case IrOpcode::kCheckedUint32ToInt32:
         case IrOpcode::kCheckedUint32ToTaggedSigned:
+        case IrOpcode::kCheckedUint64Bounds:
         case IrOpcode::kCheckedUint64ToInt32:
         case IrOpcode::kCheckedUint64ToTaggedSigned:
           break;
         case IrOpcode::kCheckedFloat64ToInt32:
-        case IrOpcode::kCheckedTaggedToInt32: {
+        case IrOpcode::kCheckedFloat64ToInt64:
+        case IrOpcode::kCheckedTaggedToInt32:
+        case IrOpcode::kCheckedTaggedToInt64: {
           const CheckMinusZeroParameters& ap =
               CheckMinusZeroParametersOf(a->op());
           const CheckMinusZeroParameters& bp =

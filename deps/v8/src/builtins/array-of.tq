@@ -4,7 +4,7 @@
 
 module array {
   // https://tc39.github.io/ecma262/#sec-array.of
-  javascript builtin ArrayOf(implicit context: Context)(
+  transitioning javascript builtin ArrayOf(implicit context: Context)(
       receiver: Object, ...arguments): Object {
     // 1. Let len be the actual number of arguments passed to this function.
     const len: Smi = Convert<Smi>(arguments.length);

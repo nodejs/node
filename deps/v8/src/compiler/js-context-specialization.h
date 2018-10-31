@@ -18,11 +18,12 @@ class JSOperatorBuilder;
 
 // Pair of a context and its distance from some point of reference.
 struct OuterContext {
-  OuterContext() : context(), distance() {}
+  OuterContext() = default;
   OuterContext(Handle<Context> context_, size_t distance_)
       : context(context_), distance(distance_) {}
+
   Handle<Context> context;
-  size_t distance;
+  size_t distance = 0;
 };
 
 // Specializes a given JSGraph to a given context, potentially constant folding

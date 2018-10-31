@@ -1579,7 +1579,7 @@ Object* OptimizedFrame::receiver() const {
     intptr_t args_size =
         (StandardFrameConstants::kFixedSlotCountAboveFp + argc) * kPointerSize;
     Address receiver_ptr = fp() + args_size;
-    return *reinterpret_cast<Object**>(receiver_ptr);
+    return *ObjectSlot(receiver_ptr);
   } else {
     return JavaScriptFrame::receiver();
   }

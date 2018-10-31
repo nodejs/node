@@ -1701,6 +1701,10 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     // Check that the source is a TypedArray
     GotoIf(TaggedIsSmi(source), &check_iterator);
     GotoIfNot(IsJSTypedArray(CAST(source)), &check_iterator);
+    TNode<JSArrayBuffer> source_buffer =
+        LoadJSArrayBufferViewBuffer(CAST(source));
+    GotoIf(IsDetachedBuffer(source_buffer), &check_iterator);
+
     // Check that the iterator function is Builtins::kTypedArrayPrototypeValues
     GotoIfNot(IsJSFunction(CAST(iterator_fn)), &check_iterator);
     TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(

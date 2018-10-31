@@ -686,6 +686,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,
                                         const VectorSlotPair& feedback);
+  const Operator* CheckedFloat64ToInt64(CheckForMinusZeroMode,
+                                        const VectorSlotPair& feedback);
   const Operator* CheckedInt32Add();
   const Operator* CheckedInt32Div();
   const Operator* CheckedInt32Mod();
@@ -699,14 +701,18 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                          const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode,
                                        const VectorSlotPair& feedback);
+  const Operator* CheckedTaggedToInt64(CheckForMinusZeroMode,
+                                       const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedSigned(const VectorSlotPair& feedback);
   const Operator* CheckedTruncateTaggedToWord32(CheckTaggedInputMode,
                                                 const VectorSlotPair& feedback);
   const Operator* CheckedUint32Div();
   const Operator* CheckedUint32Mod();
+  const Operator* CheckedUint32Bounds(const VectorSlotPair& feedback);
   const Operator* CheckedUint32ToInt32(const VectorSlotPair& feedback);
   const Operator* CheckedUint32ToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedUint64Bounds(const VectorSlotPair& feedback);
   const Operator* CheckedUint64ToInt32(const VectorSlotPair& feedback);
   const Operator* CheckedUint64ToTaggedSigned(const VectorSlotPair& feedback);
 
@@ -790,13 +796,13 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);
 
-  // load-data-view-element buffer, [base + index]
+  // load-data-view-element buffer, [base + byte_offset + index]
   const Operator* LoadDataViewElement(ExternalArrayType const&);
 
   // store-typed-element buffer, [base + external + index], value
   const Operator* StoreTypedElement(ExternalArrayType const&);
 
-  // store-data-view-element buffer, [base + index], value
+  // store-data-view-element buffer, [base + byte_offset + index], value
   const Operator* StoreDataViewElement(ExternalArrayType const&);
 
   // Abort (for terminating execution on internal error).

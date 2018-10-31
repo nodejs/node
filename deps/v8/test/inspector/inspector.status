@@ -17,8 +17,6 @@
 
 ##############################################################################
 ['system == android', {
-  # https://crbug.com/v8/8160
-  'debugger/stepping-with-exposed-injected-script': [FAIL],
   # https://crbug.com/v8/8197
   'debugger/get-possible-breakpoints-class-fields': [SKIP],
 }],  # 'system == android'

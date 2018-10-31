@@ -186,7 +186,7 @@ ModuleConstant* Declarations::LookupModuleConstant(const std::string& name) {
 }
 
 const AbstractType* Declarations::DeclareAbstractType(
-    const std::string& name, const std::string& generated,
+    const std::string& name, bool transient, const std::string& generated,
     base::Optional<const AbstractType*> non_constexpr_version,
     const base::Optional<std::string>& parent) {
   CheckAlreadyDeclared(name, "type");
@@ -207,7 +207,7 @@ const AbstractType* Declarations::DeclareAbstractType(
     parent_type = TypeAlias::cast(maybe_parent_type)->type();
   }
   const AbstractType* type = TypeOracle::GetAbstractType(
-      parent_type, name, generated, non_constexpr_version);
+      parent_type, name, transient, generated, non_constexpr_version);
   DeclareType(name, type);
   return type;
 }
@@ -255,9 +255,10 @@ MacroList* Declarations::GetMacroListForName(const std::string& name,
 
 Macro* Declarations::DeclareMacro(const std::string& name,
                                   const Signature& signature,
+                                  bool transitioning,
                                   base::Optional<std::string> op) {
-  Macro* macro = RegisterDeclarable(
-      std::unique_ptr<Macro>(new Macro(name, signature, GetCurrentGeneric())));
+  Macro* macro = RegisterDeclarable(std::unique_ptr<Macro>(
+      new Macro(name, signature, transitioning, GetCurrentGeneric())));
   GetMacroListForName(name, signature)->AddMacro(macro);
   if (op) GetMacroListForName(*op, signature)->AddMacro(macro);
   return macro;
@@ -265,19 +266,20 @@ Macro* Declarations::DeclareMacro(const std::string& name,
 
 Builtin* Declarations::DeclareBuiltin(const std::string& name,
                                       Builtin::Kind kind, bool external,
-                                      const Signature& signature) {
+                                      const Signature& signature,
+                                      bool transitioning) {
   CheckAlreadyDeclared(name, "builtin");
-  Builtin* result =
-      new Builtin(name, kind, external, signature, GetCurrentGeneric());
+  Builtin* result = new Builtin(name, kind, external, signature, transitioning,
+                                GetCurrentGeneric());
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }
 
 RuntimeFunction* Declarations::DeclareRuntimeFunction(
-    const std::string& name, const Signature& signature) {
+    const std::string& name, const Signature& signature, bool transitioning) {
   CheckAlreadyDeclared(name, "runtime function");
   RuntimeFunction* result =
-      new RuntimeFunction(name, signature, GetCurrentGeneric());
+      new RuntimeFunction(name, signature, transitioning, GetCurrentGeneric());
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }

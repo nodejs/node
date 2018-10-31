@@ -1276,6 +1276,12 @@ void JSWeakFactoryCleanupIterator::JSWeakFactoryCleanupIteratorVerify(
   VerifyHeapPointer(isolate, factory());
 }
 
+void WeakFactoryCleanupJobTask::WeakFactoryCleanupJobTaskVerify(
+    Isolate* isolate) {
+  CHECK(IsWeakFactoryCleanupJobTask());
+  CHECK(factory()->IsJSWeakFactory());
+}
+
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
   CHECK(IsJSWeakMap());
   JSObjectVerify(isolate);

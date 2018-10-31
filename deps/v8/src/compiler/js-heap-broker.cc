@@ -2420,9 +2420,9 @@ ObjectRef JSRegExpRef::source() const {
 
 Handle<Object> ObjectRef::object() const { return data_->object(); }
 
-#define DEF_OBJECT_GETTER(T)                                            \
-  Handle<T> T##Ref::object() const {                                    \
-    return Handle<T>(reinterpret_cast<T**>(data_->object().address())); \
+#define DEF_OBJECT_GETTER(T)                                                 \
+  Handle<T> T##Ref::object() const {                                         \
+    return Handle<T>(reinterpret_cast<Address*>(data_->object().address())); \
   }
 HEAP_BROKER_OBJECT_LIST(DEF_OBJECT_GETTER)
 #undef DEF_OBJECT_GETTER

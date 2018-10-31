@@ -149,16 +149,6 @@ class PreParserExpression {
     return PreParserExpression(TypeField::encode(kStringLiteralExpression));
   }
 
-  static PreParserExpression UseStrictStringLiteral() {
-    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
-                               IsUseStrictField::encode(true));
-  }
-
-  static PreParserExpression UseAsmStringLiteral() {
-    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
-                               IsUseAsmField::encode(true));
-  }
-
   static PreParserExpression This() {
     return PreParserExpression(TypeField::encode(kExpression) |
                                ExpressionTypeField::encode(kThisExpression));
@@ -242,16 +232,6 @@ class PreParserExpression {
 
   bool IsStringLiteral() const {
     return TypeField::decode(code_) == kStringLiteralExpression;
-  }
-
-  bool IsUseStrictLiteral() const {
-    return TypeField::decode(code_) == kStringLiteralExpression &&
-           IsUseStrictField::decode(code_);
-  }
-
-  bool IsUseAsmLiteral() const {
-    return TypeField::decode(code_) == kStringLiteralExpression &&
-           IsUseAsmField::decode(code_);
   }
 
   bool IsThis() const {
@@ -389,8 +369,6 @@ class PreParserExpression {
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.
   typedef BitField<ExpressionType, TypeField::kNext, 4> ExpressionTypeField;
-  typedef BitField<bool, TypeField::kNext, 1> IsUseStrictField;
-  typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseAsmField;
   typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 8>
       IdentifierTypeField;
   typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
@@ -480,28 +458,13 @@ class PreParserStatement {
   // "use strict".
   static PreParserStatement ExpressionStatement(
       const PreParserExpression& expression) {
-    if (expression.IsUseStrictLiteral()) {
-      return PreParserStatement(kUseStrictExpressionStatement);
-    }
-    if (expression.IsUseAsmLiteral()) {
-      return PreParserStatement(kUseAsmExpressionStatement);
-    }
     if (expression.IsStringLiteral()) {
       return PreParserStatement(kStringLiteralExpressionStatement);
     }
     return Default();
   }
 
-  bool IsStringLiteral() {
-    return code_ == kStringLiteralExpressionStatement || IsUseStrictLiteral() ||
-           IsUseAsmLiteral();
-  }
-
-  bool IsUseStrictLiteral() {
-    return code_ == kUseStrictExpressionStatement;
-  }
-
-  bool IsUseAsmLiteral() { return code_ == kUseAsmExpressionStatement; }
+  bool IsStringLiteral() { return code_ == kStringLiteralExpressionStatement; }
 
   bool IsJumpStatement() {
     return code_ == kJumpStatement;
@@ -535,8 +498,6 @@ class PreParserStatement {
     kUnknownStatement,
     kJumpStatement,
     kStringLiteralExpressionStatement,
-    kUseStrictExpressionStatement,
-    kUseAsmExpressionStatement,
   };
 
   explicit PreParserStatement(Type code) : code_(code) {}
@@ -724,9 +685,7 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
-  PreParserStatement NewEmptyStatement(int pos) {
-    return PreParserStatement::Default();
-  }
+  PreParserStatement EmptyStatement() { return PreParserStatement::Default(); }
 
   PreParserStatement NewBlock(
       int capacity, bool ignore_completion_value,
@@ -1345,14 +1304,6 @@ class PreParser : public ParserBase<PreParser> {
     return false;
   }
 
-  V8_INLINE bool IsUseStrictDirective(PreParserStatement statement) const {
-    return statement.IsUseStrictLiteral();
-  }
-
-  V8_INLINE bool IsUseAsmDirective(PreParserStatement statement) const {
-    return statement.IsUseAsmLiteral();
-  }
-
   V8_INLINE bool IsStringLiteral(PreParserStatement statement) const {
     return statement.IsStringLiteral();
   }
@@ -1613,9 +1564,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression ExpressionFromLiteral(Token::Value token,
                                                       int pos) {
     if (token != Token::STRING) return PreParserExpression::Default();
-    if (scanner()->IsUseStrict()) {
-      return PreParserExpression::UseStrictStringLiteral();
-    }
     return PreParserExpression::StringLiteral();
   }
 

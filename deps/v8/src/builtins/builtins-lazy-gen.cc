@@ -161,43 +161,5 @@ TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
   GenerateTailCallToJSCode(code, function);
 }
 
-// Lazy deserialization design doc: http://goo.gl/dxkYDZ.
-TF_BUILTIN(DeserializeLazy, LazyBuiltinsAssembler) {
-  Label deserialize_in_runtime(this, Label::kDeferred);
-
-  TNode<JSFunction> function = CAST(Parameter(Descriptor::kTarget));
-
-  // Load the builtin id for lazy deserialization from SharedFunctionInfo.
-  TNode<SharedFunctionInfo> shared =
-      CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-
-  TNode<Smi> sfi_data =
-      CAST(LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset));
-
-  // The builtin may already have been deserialized. If that is the case, it is
-  // stored in the builtins table, and we can copy to correct code object to
-  // both the shared function info and function without calling into runtime.
-  //
-  // Otherwise, we need to call into runtime to deserialize.
-
-  TNode<Code> code = LoadBuiltin(sfi_data);
-
-  // Check if the loaded code object has already been deserialized. This is
-  // the case iff it does not equal DeserializeLazy.
-  GotoIf(
-      WordEqual(code, HeapConstant(BUILTIN_CODE(isolate(), DeserializeLazy))),
-      &deserialize_in_runtime);
-
-  // If we've reached this spot, the target builtin has been deserialized and
-  // we simply need to copy it over to the target function.
-  StoreObjectField(function, JSFunction::kCodeOffset, code);
-
-  // All copying is done. Jump to the deserialized code object.
-  GenerateTailCallToJSCode(code, function);
-
-  BIND(&deserialize_in_runtime);
-  { GenerateTailCallToReturnedCode(Runtime::kDeserializeLazy, function); }
-}
-
 }  // namespace internal
 }  // namespace v8

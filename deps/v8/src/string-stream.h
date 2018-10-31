@@ -97,7 +97,7 @@ class StringStream final {
       const char* u_c_str_;
       const Vector<const uc16>* u_lc_str_;
       Object* u_obj_;
-      Object** u_handle_;
+      Address* u_handle_;
       void* u_pointer_;
     } data_;
   };

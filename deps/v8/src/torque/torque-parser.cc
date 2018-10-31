@@ -346,6 +346,7 @@ base::Optional<ParseResult> MakeVoidType(ParseResultIterator* child_results) {
 
 base::Optional<ParseResult> MakeExternalMacro(
     ParseResultIterator* child_results) {
+  auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
@@ -355,7 +356,7 @@ base::Optional<ParseResult> MakeExternalMacro(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   MacroDeclaration* macro = MakeNode<ExternalMacroDeclaration>(
-      name, operator_name, args, return_type, labels);
+      transitioning, name, operator_name, args, return_type, labels);
   Declaration* result;
   if (generic_parameters.empty()) {
     result = MakeNode<StandardDeclaration>(macro, nullptr);
@@ -367,6 +368,7 @@ base::Optional<ParseResult> MakeExternalMacro(
 
 base::Optional<ParseResult> MakeTorqueMacroDeclaration(
     ParseResultIterator* child_results) {
+  auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
   if (!IsUpperCamelCase(name)) {
@@ -381,7 +383,7 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<base::Optional<Statement*>>();
   MacroDeclaration* macro = MakeNode<TorqueMacroDeclaration>(
-      name, operator_name, args, return_type, labels);
+      transitioning, name, operator_name, args, return_type, labels);
   Declaration* result;
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
@@ -394,6 +396,7 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
 
 base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
     ParseResultIterator* child_results) {
+  auto transitioning = child_results->NextAs<bool>();
   auto javascript_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
   if (!IsUpperCamelCase(name)) {
@@ -407,7 +410,7 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto body = child_results->NextAs<base::Optional<Statement*>>();
   BuiltinDeclaration* builtin = MakeNode<TorqueBuiltinDeclaration>(
-      javascript_linkage, name, args, return_type);
+      transitioning, javascript_linkage, name, args, return_type);
   Declaration* result;
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
@@ -452,6 +455,7 @@ base::Optional<ParseResult> MakeTypeAliasDeclaration(
 
 base::Optional<ParseResult> MakeTypeDeclaration(
     ParseResultIterator* child_results) {
+  auto transient = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
   if (!IsValidTypeName(name)) {
     NamingConventionError("Type", name, "UpperCamelCase");
@@ -461,7 +465,7 @@ base::Optional<ParseResult> MakeTypeDeclaration(
   auto constexpr_generates =
       child_results->NextAs<base::Optional<std::string>>();
   Declaration* result = MakeNode<TypeDeclaration>(
-      std::move(name), std::move(extends), std::move(generates),
+      std::move(name), transient, std::move(extends), std::move(generates),
       std::move(constexpr_generates));
   return ParseResult{result};
 }
@@ -505,6 +509,7 @@ base::Optional<ParseResult> MakeStructDeclaration(
 
 base::Optional<ParseResult> MakeExternalBuiltin(
     ParseResultIterator* child_results) {
+  auto transitioning = child_results->NextAs<bool>();
   auto js_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
@@ -512,8 +517,8 @@ base::Optional<ParseResult> MakeExternalBuiltin(
 
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
-  BuiltinDeclaration* builtin =
-      MakeNode<ExternalBuiltinDeclaration>(js_linkage, name, args, return_type);
+  BuiltinDeclaration* builtin = MakeNode<ExternalBuiltinDeclaration>(
+      transitioning, js_linkage, name, args, return_type);
   Declaration* result;
   if (generic_parameters.empty()) {
     result = MakeNode<StandardDeclaration>(builtin, nullptr);
@@ -525,11 +530,12 @@ base::Optional<ParseResult> MakeExternalBuiltin(
 
 base::Optional<ParseResult> MakeExternalRuntime(
     ParseResultIterator* child_results) {
+  auto transitioning = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
-  ExternalRuntimeDeclaration* runtime =
-      MakeNode<ExternalRuntimeDeclaration>(name, args, return_type);
+  ExternalRuntimeDeclaration* runtime = MakeNode<ExternalRuntimeDeclaration>(
+      transitioning, name, args, return_type);
   Declaration* result = MakeNode<StandardDeclaration>(runtime, nullptr);
   return ParseResult{result};
 }
@@ -1359,7 +1365,7 @@ struct TorqueGrammar : Grammar {
       Rule({Token("const"), &identifier, Token(":"), &type, Token("generates"),
             &externalString, Token(";")},
            MakeExternConstDeclaration),
-      Rule({Token("type"), &identifier,
+      Rule({CheckIf(Token("transient")), Token("type"), &identifier,
             Optional<std::string>(Sequence({Token("extends"), &identifier})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
@@ -1369,7 +1375,7 @@ struct TorqueGrammar : Grammar {
            MakeTypeDeclaration),
       Rule({Token("type"), &identifier, Token("="), &type, Token(";")},
            MakeTypeAliasDeclaration),
-      Rule({Token("extern"),
+      Rule({Token("extern"), CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
             Token("macro"), &identifier,
@@ -1377,21 +1383,25 @@ struct TorqueGrammar : Grammar {
             &typeListMaybeVarArgs, &optionalReturnType, optionalLabelList,
             Token(";")},
            MakeExternalMacro),
-      Rule({Token("extern"), CheckIf(Token("javascript")), Token("builtin"),
-            &identifier, TryOrDefault<GenericParameters>(&genericParameters),
+      Rule({Token("extern"), CheckIf(Token("transitioning")),
+            CheckIf(Token("javascript")), Token("builtin"), &identifier,
+            TryOrDefault<GenericParameters>(&genericParameters),
             &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
            MakeExternalBuiltin),
-      Rule({Token("extern"), Token("runtime"), &identifier,
-            &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
-           MakeExternalRuntime),
-      Rule({Optional<std::string>(
+      Rule(
+          {Token("extern"), CheckIf(Token("transitioning")), Token("runtime"),
+           &identifier, &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
+          MakeExternalRuntime),
+      Rule({CheckIf(Token("transitioning")),
+            Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
             Token("macro"), &identifier,
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListNoVararg, &optionalReturnType, optionalLabelList,
             &optionalBody},
            MakeTorqueMacroDeclaration),
-      Rule({CheckIf(Token("javascript")), Token("builtin"), &identifier,
+      Rule({CheckIf(Token("transitioning")), CheckIf(Token("javascript")),
+            Token("builtin"), &identifier,
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListAllowVararg, &optionalReturnType, &optionalBody},
            MakeTorqueBuiltinDeclaration),

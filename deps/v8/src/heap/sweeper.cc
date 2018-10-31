@@ -27,7 +27,7 @@ Sweeper::Sweeper(Heap* heap, MajorNonAtomicMarkingState* marking_state)
       iterability_task_semaphore_(0),
       iterability_in_progress_(false),
       iterability_task_started_(false),
-      should_reduce_memory_(heap->ShouldReduceMemory()) {}
+      should_reduce_memory_(false) {}
 
 Sweeper::PauseOrCompleteScope::PauseOrCompleteScope(Sweeper* sweeper)
     : sweeper_(sweeper) {
@@ -150,6 +150,7 @@ void Sweeper::StartSweeping() {
   CHECK(!stop_sweeper_tasks_);
   sweeping_in_progress_ = true;
   iterability_in_progress_ = true;
+  should_reduce_memory_ = heap_->ShouldReduceMemory();
   MajorNonAtomicMarkingState* marking_state =
       heap_->mark_compact_collector()->non_atomic_marking_state();
   ForAllSweepingSpaces([this, marking_state](AllocationSpace space) {

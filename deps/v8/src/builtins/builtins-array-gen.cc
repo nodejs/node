@@ -897,9 +897,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     GotoIf(WordEqual(value, protector_invalid), &runtime);
 
     GotoIfNot(TaggedIsPositiveSmi(len), &runtime);
-    GotoIf(
-        SmiAbove(CAST(len), SmiConstant(JSArray::kInitialMaxFastElementArray)),
-        &runtime);
+    GotoIf(SmiAbove(CAST(len), SmiConstant(JSArray::kMaxFastArrayLength)),
+           &runtime);
 
     // We need to be conservative and start with holey because the builtins
     // that create output arrays aren't guaranteed to be called for every
@@ -910,7 +909,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     TNode<Map> array_map =
         LoadJSArrayElementsMap(elements_kind, native_context);
     a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, CAST(len),
-                            nullptr, CodeStubAssembler::SMI_PARAMETERS));
+                            nullptr, CodeStubAssembler::SMI_PARAMETERS,
+                            kAllowLargeObjectAllocation));
 
     Goto(&done);
 

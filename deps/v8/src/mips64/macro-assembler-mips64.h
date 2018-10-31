@@ -1241,9 +1241,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
     DecodeField<Field>(reg, reg);
   }
 
-  void EnterBuiltinFrame(Register context, Register target, Register argc);
-  void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
  private:
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,

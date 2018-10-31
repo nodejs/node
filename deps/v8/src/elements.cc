@@ -292,8 +292,8 @@ static void CopyDoubleToDoubleElements(FixedArrayBase* from_base,
   to_address += kDoubleSize * to_start;
   from_address += kDoubleSize * from_start;
   int words_per_double = (kDoubleSize / kPointerSize);
-  CopyWords(reinterpret_cast<Object**>(to_address),
-            reinterpret_cast<Object**>(from_address),
+  CopyWords(reinterpret_cast<Address*>(to_address),
+            reinterpret_cast<Address*>(from_address),
             static_cast<size_t>(words_per_double * copy_size));
 }
 
@@ -2227,7 +2227,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         heap->CanMoveObjectStart(*dst_elms)) {
       // Update all the copies of this backing_store handle.
       *dst_elms.location() =
-          BackingStore::cast(heap->LeftTrimFixedArray(*dst_elms, src_index));
+          BackingStore::cast(heap->LeftTrimFixedArray(*dst_elms, src_index))
+              ->ptr();
       receiver->set_elements(*dst_elms);
       // Adjust the hole offset as the array has been shrunk.
       hole_end -= src_index;
@@ -2279,15 +2280,17 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     Object* undefined = ReadOnlyRoots(isolate).undefined_value();
     Object* value = *search_value;
 
-    // Elements beyond the capacity of the backing store treated as undefined.
-    if (value == undefined &&
-        static_cast<uint32_t>(elements_base->length()) < length) {
-      return Just(true);
-    }
-
     if (start_from >= length) return Just(false);
 
-    length = std::min(static_cast<uint32_t>(elements_base->length()), length);
+    // Elements beyond the capacity of the backing store treated as undefined.
+    uint32_t elements_length = static_cast<uint32_t>(elements_base->length());
+    if (value == undefined && elements_length < length) return Just(true);
+    if (elements_length == 0) {
+      DCHECK_NE(value, undefined);
+      return Just(false);
+    }
+
+    length = std::min(elements_length, length);
 
     if (!value->IsNumber()) {
       if (value == undefined) {

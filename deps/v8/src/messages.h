@@ -69,6 +69,9 @@ class StackFrameBase {
   // Return 1-based column number, including column offset if first line.
   virtual int GetColumnNumber() = 0;
 
+  // Returns index for Promise.all() async frames, or -1 for other frames.
+  virtual int GetPromiseIndex() const = 0;
+
   virtual bool IsNative() = 0;
   virtual bool IsToplevel() = 0;
   virtual bool IsEval();
@@ -108,6 +111,8 @@ class JSStackFrame : public StackFrameBase {
   int GetPosition() const override;
   int GetLineNumber() override;
   int GetColumnNumber() override;
+
+  int GetPromiseIndex() const override;
 
   bool IsNative() override;
   bool IsToplevel() override;
@@ -154,6 +159,8 @@ class WasmStackFrame : public StackFrameBase {
   int GetPosition() const override;
   int GetLineNumber() override { return wasm_func_index_; }
   int GetColumnNumber() override { return -1; }
+
+  int GetPromiseIndex() const override { return -1; }
 
   bool IsNative() override { return false; }
   bool IsToplevel() override { return false; }

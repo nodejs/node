@@ -1772,8 +1772,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC64_BINOP_LOGIC_CASE(Xor, XorPair)
 #undef ATOMIC64_BINOP_LOGIC_CASE
     case kMipsWord32AtomicPairExchange:
-    case kMipsWord32AtomicPairCompareExchange:
+      UNREACHABLE();
       break;
+    case kMipsWord32AtomicPairCompareExchange: {
+      FrameScope scope(tasm(), StackFrame::MANUAL);
+      __ PushCallerSaved(kDontSaveFPRegs, v0, v1);
+      __ PrepareCallCFunction(5, 0, kScratchReg);
+      __ addu(a0, i.InputRegister(0), i.InputRegister(1));
+      __ sw(i.InputRegister(5), MemOperand(sp, 16));
+      __ CallCFunction(
+          ExternalReference::atomic_pair_compare_exchange_function(), 5, 0);
+      __ PopCallerSaved(kDontSaveFPRegs, v0, v1);
+      break;
+    }
     case kMipsS128Zero: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ xor_v(i.OutputSimd128Register(), i.OutputSimd128Register(),

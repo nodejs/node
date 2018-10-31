@@ -160,7 +160,7 @@ void ScavengerCollector::CollectGarbage() {
   Scavenger* scavengers[kMaxScavengerTasks];
   const bool is_logging = isolate_->LogObjectRelocation();
   const int num_scavenge_tasks = NumberOfScavengeTasks();
-  OneshotBarrier barrier;
+  OneshotBarrier barrier(base::TimeDelta::FromMilliseconds(kMaxWaitTimeMs));
   Scavenger::CopiedList copied_list(num_scavenge_tasks);
   Scavenger::PromotionList promotion_list(num_scavenge_tasks);
   for (int i = 0; i < num_scavenge_tasks; i++) {
@@ -363,7 +363,6 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 }
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Scavenger::ScavengePage");
   CodePageMemoryModificationScope memory_modification_scope(page);
   RememberedSet<OLD_TO_NEW>::Iterate(page,
                                      [this](MaybeObjectSlot addr) {
@@ -383,7 +382,6 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
 }
 
 void Scavenger::Process(OneshotBarrier* barrier) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Scavenger::Process");
   ScavengeVisitor scavenge_visitor(this);
 
   const bool have_barrier = barrier != nullptr;

@@ -2101,16 +2101,16 @@ void MarkCompactCollector::ClearJSWeakCells() {
     return;
   }
   JSWeakCell* weak_cell;
-  HandleScope handle_scope(isolate());
   while (weak_objects_.js_weak_cells.Pop(kMainThread, &weak_cell)) {
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
     HeapObject* target = HeapObject::cast(weak_cell->target());
     if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
+      // The value of the JSWeakCell is dead.
       JSWeakFactory* weak_factory = JSWeakFactory::cast(weak_cell->factory());
       if (!weak_factory->scheduled_for_cleanup()) {
-        isolate()->native_context()->AddDirtyJSWeakFactory(
-            weak_factory, isolate(),
+        heap()->AddDirtyJSWeakFactory(
+            weak_factory,
             [](HeapObject* object, ObjectSlot slot, Object* target) {
               if (target->IsHeapObject()) {
                 RecordSlot(object, slot, HeapObject::cast(target));

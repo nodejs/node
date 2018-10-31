@@ -1007,7 +1007,7 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
           ReadOnlyRoots(isolate_).empty_fixed_array())) {}
 
 ValueDeserializer::~ValueDeserializer() {
-  GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
+  GlobalHandles::Destroy(id_map_.location());
 
   Handle<Object> transfer_map_handle;
   if (array_buffer_transfer_map_.ToHandle(&transfer_map_handle)) {
@@ -1141,7 +1141,7 @@ void ValueDeserializer::TransferArrayBuffer(
   Handle<SimpleNumberDictionary> new_dictionary = SimpleNumberDictionary::Set(
       isolate_, dictionary, transfer_id, array_buffer);
   if (!new_dictionary.is_identical_to(dictionary)) {
-    GlobalHandles::Destroy(Handle<Object>::cast(dictionary).location());
+    GlobalHandles::Destroy(dictionary.location());
     array_buffer_transfer_map_ =
         isolate_->global_handles()->Create(*new_dictionary);
   }
@@ -2042,7 +2042,7 @@ void ValueDeserializer::AddObjectWithID(uint32_t id,
 
   // If the dictionary was reallocated, update the global handle.
   if (!new_array.is_identical_to(id_map_)) {
-    GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
+    GlobalHandles::Destroy(id_map_.location());
     id_map_ = isolate_->global_handles()->Create(*new_array);
   }
 }

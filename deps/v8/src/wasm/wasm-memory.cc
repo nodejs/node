@@ -277,10 +277,8 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
 
 MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
                                           SharedFlag shared) {
-  // Enforce engine-limited maximum allocation size.
-  if (size > kV8MaxWasmMemoryBytes) return {};
   // Enforce flag-limited maximum allocation size.
-  if (size > (FLAG_wasm_max_mem_pages * uint64_t{kWasmPageSize})) return {};
+  if (size > max_mem_bytes()) return {};
 
   WasmMemoryTracker* memory_tracker = isolate->wasm_engine()->memory_tracker();
 

@@ -296,7 +296,9 @@ TNode<String> CodeAssembler::StringConstant(const char* str) {
 }
 
 TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
-  return UncheckedCast<Oddball>(raw_assembler()->BooleanConstant(value));
+  Handle<Object> object = isolate()->factory()->ToBoolean(value);
+  return UncheckedCast<Oddball>(
+      raw_assembler()->HeapConstant(Handle<HeapObject>::cast(object)));
 }
 
 TNode<ExternalReference> CodeAssembler::ExternalConstant(

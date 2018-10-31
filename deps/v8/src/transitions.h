@@ -145,14 +145,9 @@ class TransitionsAccessor {
   friend class MarkCompactCollector;  // For HasSimpleTransitionTo.
   friend class TransitionArray;
 
-  static inline PropertyDetails GetSimpleTargetDetails(Map* transition) {
-    return transition->GetLastDescriptorDetails();
-  }
+  static inline PropertyDetails GetSimpleTargetDetails(Map* transition);
 
-  static inline Name* GetSimpleTransitionKey(Map* transition) {
-    int descriptor = transition->LastAdded();
-    return transition->instance_descriptors()->GetKey(descriptor);
-  }
+  static inline Name* GetSimpleTransitionKey(Map* transition);
 
   static inline Map* GetTargetFromRaw(MaybeObject raw);
 
@@ -224,12 +219,11 @@ class TransitionArray : public WeakFixedArray {
                                 Map** target);
 
   // Required for templatized Search interface.
-  static const int kNotFound = -1;
-  Name* GetSortedKey(int transition_number) {
-    return GetKey(transition_number);
-  }
+  static constexpr int kNotFound = -1;
+
+  inline Name* GetSortedKey(int transition_number);
   int GetSortedKeyIndex(int transition_number) { return transition_number; }
-  inline int number_of_entries() const { return number_of_transitions(); }
+  inline int number_of_entries() const;
 #ifdef DEBUG
   bool IsSortedNoDuplicates(int valid_entries = -1);
 #endif
@@ -261,9 +255,7 @@ class TransitionArray : public WeakFixedArray {
   }
 
   inline int SearchNameForTesting(Name* name,
-                                  int* out_insertion_index = nullptr) {
-    return SearchName(name, out_insertion_index);
-  }
+                                  int* out_insertion_index = nullptr);
 
  private:
   friend class Factory;
@@ -303,9 +295,7 @@ class TransitionArray : public WeakFixedArray {
 
   // Search a non-property transition (like elements kind, observe or frozen
   // transitions).
-  inline int SearchSpecial(Symbol* symbol, int* out_insertion_index = nullptr) {
-    return SearchName(symbol, out_insertion_index);
-  }
+  inline int SearchSpecial(Symbol* symbol, int* out_insertion_index = nullptr);
   // Search a first transition for a given property name.
   inline int SearchName(Name* name, int* out_insertion_index = nullptr);
   int SearchDetails(int transition, PropertyKind kind,

@@ -241,7 +241,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
   ~AsyncCompilationResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
@@ -277,7 +277,7 @@ class InstantiateModuleResultResolver
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
   ~InstantiateModuleResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnInstantiationSucceeded(
@@ -313,8 +313,8 @@ class InstantiateBytesResultResolver
         module_(isolate_->global_handles()->Create(*module)) {}
 
   ~InstantiateBytesResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(module_).location());
+    i::GlobalHandles::Destroy(promise_.location());
+    i::GlobalHandles::Destroy(module_.location());
   }
 
   void OnInstantiationSucceeded(
@@ -378,11 +378,9 @@ class AsyncInstantiateCompileResultResolver
                                  *maybe_imports.ToHandleChecked())) {}
 
   ~AsyncInstantiateCompileResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
     if (!maybe_imports_.is_null()) {
-      i::GlobalHandles::Destroy(
-          i::Handle<i::Object>::cast(maybe_imports_.ToHandleChecked())
-              .location());
+      i::GlobalHandles::Destroy(maybe_imports_.ToHandleChecked().location());
     }
   }
 
@@ -952,7 +950,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int64_t initial = 0;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
                           v8_str(isolate, "initial"), &initial, 0,
-                          i::FLAG_wasm_max_mem_pages)) {
+                          i::wasm::max_mem_pages())) {
     return;
   }
   // The descriptor's 'maximum'.
@@ -1272,9 +1270,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!args[0]->IntegerValue(context).To(&delta_size)) return;
 
   int64_t max_size64 = receiver->maximum_pages();
-  if (max_size64 < 0 ||
-      max_size64 > static_cast<int64_t>(i::FLAG_wasm_max_mem_pages)) {
-    max_size64 = i::FLAG_wasm_max_mem_pages;
+  if (max_size64 < 0 || max_size64 > int64_t{i::wasm::max_mem_pages()}) {
+    max_size64 = i::wasm::max_mem_pages();
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(), i_isolate);
   if (!old_buffer->is_growable()) {

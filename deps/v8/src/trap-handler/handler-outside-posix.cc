@@ -75,17 +75,15 @@ bool RegisterDefaultTrapHandler() {
   g_is_default_signal_handler_registered = true;
   return true;
 }
-#endif  // V8_TRAP_HANDLER_SUPPORTED
 
 void RemoveTrapHandler() {
-#if V8_TRAP_HANDLER_SUPPORTED
   if (g_is_default_signal_handler_registered) {
     if (sigaction(SIGSEGV, &g_old_handler, nullptr) == 0) {
       g_is_default_signal_handler_registered = false;
     }
   }
-#endif
 }
+#endif  // V8_TRAP_HANDLER_SUPPORTED
 
 }  // namespace trap_handler
 }  // namespace internal

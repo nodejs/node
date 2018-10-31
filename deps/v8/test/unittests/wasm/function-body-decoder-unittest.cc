@@ -1798,22 +1798,22 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
   }
 }
 
-TEST_F(FunctionBodyDecoderTest, WasmGrowMemory) {
+TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
   TestModuleBuilder builder;
   module = builder.module();
   builder.InitializeMemory();
 
-  byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
+  byte code[] = {WASM_GET_LOCAL(0), kExprMemoryGrow, 0};
   EXPECT_VERIFIES_C(i_i, code);
   EXPECT_FAILURE_C(i_d, code);
 }
 
-TEST_F(FunctionBodyDecoderTest, AsmJsGrowMemory) {
+TEST_F(FunctionBodyDecoderTest, AsmJsMemoryGrow) {
   TestModuleBuilder builder(kAsmJsOrigin);
   module = builder.module();
   builder.InitializeMemory();
 
-  byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
+  byte code[] = {WASM_GET_LOCAL(0), kExprMemoryGrow, 0};
   EXPECT_FAILURE_C(i_i, code);
 }
 
@@ -2895,7 +2895,7 @@ TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {
 
 TEST_F(WasmOpcodeLengthTest, MiscMemExpressions) {
   EXPECT_LENGTH(2, kExprMemorySize);
-  EXPECT_LENGTH(2, kExprGrowMemory);
+  EXPECT_LENGTH(2, kExprMemoryGrow);
 }
 
 TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {

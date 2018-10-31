@@ -26,12 +26,6 @@ static constexpr int kFloat32Bit =
 static constexpr int kSimd128Bit =
     RepresentationBit(MachineRepresentation::kSimd128);
 
-void RemoveElement(ZoneVector<LiveRange*>* v, LiveRange* range) {
-  auto it = std::find(v->begin(), v->end(), range);
-  DCHECK(it != v->end());
-  v->erase(it);
-}
-
 int GetRegisterCount(const RegisterConfiguration* cfg, RegisterKind kind) {
   return kind == FP_REGISTERS ? cfg->num_double_registers()
                               : cfg->num_general_registers();
@@ -2808,25 +2802,27 @@ void LinearScanAllocator::AllocateRegisters() {
     if (current->IsTopLevel() && TryReuseSpillForPhi(current->TopLevel()))
       continue;
 
-    for (size_t i = 0; i < active_live_ranges().size(); ++i) {
-      LiveRange* cur_active = active_live_ranges()[i];
+    for (auto it = active_live_ranges().begin();
+         it != active_live_ranges().end();) {
+      LiveRange* cur_active = *it;
       if (cur_active->End() <= position) {
-        ActiveToHandled(cur_active);
-        --i;  // The live range was removed from the list of active live ranges.
+        it = ActiveToHandled(it);
       } else if (!cur_active->Covers(position)) {
-        ActiveToInactive(cur_active);
-        --i;  // The live range was removed from the list of active live ranges.
+        it = ActiveToInactive(it);
+      } else {
+        ++it;
       }
     }
 
-    for (size_t i = 0; i < inactive_live_ranges().size(); ++i) {
-      LiveRange* cur_inactive = inactive_live_ranges()[i];
+    for (auto it = inactive_live_ranges().begin();
+         it != inactive_live_ranges().end();) {
+      LiveRange* cur_inactive = *it;
       if (cur_inactive->End() <= position) {
-        InactiveToHandled(cur_inactive);
-        --i;  // Live range was removed from the list of inactive live ranges.
+        it = InactiveToHandled(it);
       } else if (cur_inactive->Covers(position)) {
-        InactiveToActive(cur_inactive);
-        --i;  // Live range was removed from the list of inactive live ranges.
+        it = InactiveToActive(it);
+      } else {
+        ++it;
       }
     }
 
@@ -2891,34 +2887,36 @@ void LinearScanAllocator::AddToUnhandled(LiveRange* range) {
   unhandled_live_ranges().insert(range);
 }
 
-
-void LinearScanAllocator::ActiveToHandled(LiveRange* range) {
-  RemoveElement(&active_live_ranges(), range);
+ZoneVector<LiveRange*>::iterator LinearScanAllocator::ActiveToHandled(
+    const ZoneVector<LiveRange*>::iterator it) {
   TRACE("Moving live range %d:%d from active to handled\n",
-        range->TopLevel()->vreg(), range->relative_id());
+        (*it)->TopLevel()->vreg(), (*it)->relative_id());
+  return active_live_ranges().erase(it);
 }
 
-
-void LinearScanAllocator::ActiveToInactive(LiveRange* range) {
-  RemoveElement(&active_live_ranges(), range);
+ZoneVector<LiveRange*>::iterator LinearScanAllocator::ActiveToInactive(
+    const ZoneVector<LiveRange*>::iterator it) {
+  LiveRange* range = *it;
   inactive_live_ranges().push_back(range);
   TRACE("Moving live range %d:%d from active to inactive\n",
-        range->TopLevel()->vreg(), range->relative_id());
+        (range)->TopLevel()->vreg(), range->relative_id());
+  return active_live_ranges().erase(it);
 }
 
-
-void LinearScanAllocator::InactiveToHandled(LiveRange* range) {
-  RemoveElement(&inactive_live_ranges(), range);
+ZoneVector<LiveRange*>::iterator LinearScanAllocator::InactiveToHandled(
+    ZoneVector<LiveRange*>::iterator it) {
   TRACE("Moving live range %d:%d from inactive to handled\n",
-        range->TopLevel()->vreg(), range->relative_id());
+        (*it)->TopLevel()->vreg(), (*it)->relative_id());
+  return inactive_live_ranges().erase(it);
 }
 
-
-void LinearScanAllocator::InactiveToActive(LiveRange* range) {
-  RemoveElement(&inactive_live_ranges(), range);
+ZoneVector<LiveRange*>::iterator LinearScanAllocator::InactiveToActive(
+    ZoneVector<LiveRange*>::iterator it) {
+  LiveRange* range = *it;
   active_live_ranges().push_back(range);
   TRACE("Moving live range %d:%d from inactive to active\n",
         range->TopLevel()->vreg(), range->relative_id());
+  return inactive_live_ranges().erase(it);
 }
 
 void LinearScanAllocator::GetFPRegisterSet(MachineRepresentation rep,
@@ -3286,14 +3284,19 @@ void LinearScanAllocator::SplitAndSpillIntersecting(LiveRange* current) {
   DCHECK(current->HasRegisterAssigned());
   int reg = current->assigned_register();
   LifetimePosition split_pos = current->Start();
-  for (size_t i = 0; i < active_live_ranges().size(); ++i) {
-    LiveRange* range = active_live_ranges()[i];
+  for (auto it = active_live_ranges().begin();
+       it != active_live_ranges().end();) {
+    LiveRange* range = *it;
     if (kSimpleFPAliasing || !check_fp_aliasing()) {
-      if (range->assigned_register() != reg) continue;
+      if (range->assigned_register() != reg) {
+        ++it;
+        continue;
+      }
     } else {
       if (!data()->config()->AreAliases(current->representation(), reg,
                                         range->representation(),
                                         range->assigned_register())) {
+        ++it;
         continue;
       }
     }
@@ -3315,21 +3318,29 @@ void LinearScanAllocator::SplitAndSpillIntersecting(LiveRange* current) {
                                                         next_pos->pos()));
       SpillBetweenUntil(range, spill_pos, current->Start(), next_pos->pos());
     }
-    ActiveToHandled(range);
-    --i;
+    it = ActiveToHandled(it);
   }
 
-  for (size_t i = 0; i < inactive_live_ranges().size(); ++i) {
-    LiveRange* range = inactive_live_ranges()[i];
+  for (auto it = inactive_live_ranges().begin();
+       it != inactive_live_ranges().end();) {
+    LiveRange* range = *it;
     DCHECK(range->End() > current->Start());
-    if (range->TopLevel()->IsFixed()) continue;
+    if (range->TopLevel()->IsFixed()) {
+      ++it;
+      continue;
+    }
     if (kSimpleFPAliasing || !check_fp_aliasing()) {
-      if (range->assigned_register() != reg) continue;
+      if (range->assigned_register() != reg) {
+        ++it;
+        continue;
+      }
     } else {
       if (!data()->config()->AreAliases(current->representation(), reg,
                                         range->representation(),
-                                        range->assigned_register()))
+                                        range->assigned_register())) {
+        ++it;
         continue;
+      }
     }
 
     LifetimePosition next_intersection = range->FirstIntersection(current);
@@ -3341,8 +3352,9 @@ void LinearScanAllocator::SplitAndSpillIntersecting(LiveRange* current) {
         next_intersection = Min(next_intersection, next_pos->pos());
         SpillBetween(range, split_pos, next_intersection);
       }
-      InactiveToHandled(range);
-      --i;
+      it = InactiveToHandled(it);
+    } else {
+      ++it;
     }
   }
 }
@@ -3355,6 +3367,7 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
   RegisterAllocationData::PhiMapValue* phi_map_value =
       data()->GetPhiMapValueFor(range);
   const PhiInstruction* phi = phi_map_value->phi();
+  const InstructionBlock* block = phi_map_value->block();
   // Count the number of spilled operands.
   size_t spilled_count = 0;
   LiveRange* first_op = nullptr;
@@ -3362,9 +3375,15 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
     int op = phi->operands()[i];
     LiveRange* op_range = data()->GetOrCreateLiveRangeFor(op);
     if (!op_range->TopLevel()->HasSpillRange()) continue;
-    if (!op_range->TopLevel()->IsSpilledOnlyInDeferredBlocks()) {
-      // This value was spilled at definition, so it is available in a spillslot
-      // regardless of control flow.
+    const InstructionBlock* pred =
+        code()->InstructionBlockAt(block->predecessors()[i]);
+    LifetimePosition pred_end =
+        LifetimePosition::InstructionFromInstructionIndex(
+            pred->last_instruction_index());
+    while (op_range != nullptr && !op_range->CanCover(pred_end)) {
+      op_range = op_range->next();
+    }
+    if (op_range != nullptr && op_range->spilled()) {
       spilled_count++;
       if (first_op == nullptr) {
         first_op = op_range->TopLevel();

@@ -42,7 +42,7 @@ class ScriptData {
   DISALLOW_COPY_AND_ASSIGN(ScriptData);
 };
 
-class CodeSerializer : public Serializer<> {
+class CodeSerializer : public Serializer {
  public:
   static ScriptCompiler::CachedData* Serialize(Handle<SharedFunctionInfo> info);
 

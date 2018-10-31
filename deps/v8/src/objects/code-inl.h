@@ -370,25 +370,17 @@ void Code::initialize_flags(Kind kind, bool has_unwinding_info,
 }
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
-  Builtins* builtins = GetIsolate()->builtins();
-  Code* interpreter_entry_trampoline =
-      builtins->builtin(Builtins::kInterpreterEntryTrampoline);
   bool is_interpreter_trampoline =
-      (builtin_index() == interpreter_entry_trampoline->builtin_index() ||
-       this == builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance) ||
-       this == builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch));
-  DCHECK_IMPLIES(is_interpreter_trampoline, !Builtins::IsLazy(builtin_index()));
+      (builtin_index() == Builtins::kInterpreterEntryTrampoline ||
+       builtin_index() == Builtins::kInterpreterEnterBytecodeAdvance ||
+       builtin_index() == Builtins::kInterpreterEnterBytecodeDispatch);
   return is_interpreter_trampoline;
 }
 
 inline bool Code::checks_optimization_marker() const {
-  Builtins* builtins = GetIsolate()->builtins();
-  Code* interpreter_entry_trampoline =
-      builtins->builtin(Builtins::kInterpreterEntryTrampoline);
   bool checks_marker =
-      (this == builtins->builtin(Builtins::kCompileLazy) ||
-       builtin_index() == interpreter_entry_trampoline->builtin_index());
-  DCHECK_IMPLIES(checks_marker, !Builtins::IsLazy(builtin_index()));
+      (builtin_index() == Builtins::kCompileLazy ||
+       builtin_index() == Builtins::kInterpreterEntryTrampoline);
   return checks_marker ||
          (kind() == OPTIMIZED_FUNCTION && marked_for_deoptimization());
 }

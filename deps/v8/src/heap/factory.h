@@ -63,6 +63,7 @@ class TemplateObjectDescription;
 class UncompiledDataWithoutPreParsedScope;
 class UncompiledDataWithPreParsedScope;
 class WasmExportedFunctionData;
+class WeakFactoryCleanupJobTask;
 struct SourceRange;
 template <typename T>
 class ZoneVector;
@@ -439,6 +440,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(
       Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
       Handle<JSReceiver> thenable, Handle<Context> context);
+  Handle<WeakFactoryCleanupJobTask> NewWeakFactoryCleanupJobTask(
+      Handle<JSWeakFactory> weak_factory);
 
   Handle<MicrotaskQueue> NewMicrotaskQueue();
 
@@ -775,12 +778,6 @@ class V8_EXPORT_PRIVATE Factory {
       Movability movability = kMovable, uint32_t stub_key = 0,
       bool is_turbofanned = false, int stack_slots = 0,
       int safepoint_table_offset = 0, int handler_table_offset = 0);
-
-  // Allocates a new, empty code object for use by builtin deserialization. The
-  // given {size} argument specifies the size of the entire code object.
-  // Can only be used when code space is unprotected and requires manual
-  // initialization by the caller.
-  Handle<Code> NewCodeForDeserialization(uint32_t size);
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.

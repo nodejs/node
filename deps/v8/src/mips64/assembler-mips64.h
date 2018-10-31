@@ -407,8 +407,6 @@ class Operand {
     value_.immediate = static_cast<int64_t>(f.address());
   }
   V8_INLINE explicit Operand(const char* s);
-  V8_INLINE explicit Operand(Object** opp);
-  V8_INLINE explicit Operand(Context** cpp);
   explicit Operand(Handle<HeapObject> handle);
   V8_INLINE explicit Operand(Smi* value)
       : rm_(no_reg), rmode_(RelocInfo::NONE) {

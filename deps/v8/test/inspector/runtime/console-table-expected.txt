@@ -47,8 +47,9 @@ console.table
             name : 0
             subtype : array
             type : object
+            value : Array(2)
             valuePreview : {
-                description : Array(3)
+                description : Array(2)
                 overflow : false
                 properties : [
                     [0] : {
@@ -70,8 +71,9 @@ console.table
             name : 1
             subtype : array
             type : object
+            value : Array(2)
             valuePreview : {
-                description : Array(3)
+                description : Array(2)
                 overflow : false
                 properties : [
                     [0] : {
@@ -93,8 +95,9 @@ console.table
             name : 2
             subtype : array
             type : object
+            value : Array(2)
             valuePreview : {
-                description : Array(3)
+                description : Array(2)
                 overflow : false
                 properties : [
                     [0] : {
@@ -123,8 +126,9 @@ console.table
         [0] : {
             name : 0
             type : object
+            value : Person
             valuePreview : {
-                description : Array(3)
+                description : Person
                 overflow : false
                 properties : [
                     [0] : {
@@ -138,15 +142,15 @@ console.table
                         value : Smith
                     }
                 ]
-                subtype : array
                 type : object
             }
         }
         [1] : {
             name : 1
             type : object
+            value : Person
             valuePreview : {
-                description : Array(3)
+                description : Person
                 overflow : false
                 properties : [
                     [0] : {
@@ -160,15 +164,15 @@ console.table
                         value : Doe
                     }
                 ]
-                subtype : array
                 type : object
             }
         }
         [2] : {
             name : 2
             type : object
+            value : Person
             valuePreview : {
-                description : Array(3)
+                description : Person
                 overflow : false
                 properties : [
                     [0] : {
@@ -182,7 +186,6 @@ console.table
                         value : Jones
                     }
                 ]
-                subtype : array
                 type : object
             }
         }
@@ -197,8 +200,9 @@ console.table
         [0] : {
             name : mother
             type : object
+            value : Person
             valuePreview : {
-                description : Object
+                description : Person
                 overflow : false
                 properties : [
                     [0] : {
@@ -218,8 +222,9 @@ console.table
         [1] : {
             name : father
             type : object
+            value : Person
             valuePreview : {
-                description : Object
+                description : Person
                 overflow : false
                 properties : [
                     [0] : {
@@ -239,8 +244,9 @@ console.table
         [2] : {
             name : daughter
             type : object
+            value : Person
             valuePreview : {
-                description : Object
+                description : Person
                 overflow : false
                 properties : [
                     [0] : {
@@ -267,8 +273,9 @@ console.table
         [0] : {
             name : 0
             type : object
+            value : Person
             valuePreview : {
-                description : Array(3)
+                description : Person
                 overflow : false
                 properties : [
                     [0] : {
@@ -277,15 +284,15 @@ console.table
                         value : John
                     }
                 ]
-                subtype : array
                 type : object
             }
         }
         [1] : {
             name : 1
             type : object
+            value : Person
             valuePreview : {
-                description : Array(3)
+                description : Person
                 overflow : false
                 properties : [
                     [0] : {
@@ -294,15 +301,15 @@ console.table
                         value : Jane
                     }
                 ]
-                subtype : array
                 type : object
             }
         }
         [2] : {
             name : 2
             type : object
+            value : Person
             valuePreview : {
-                description : Array(3)
+                description : Person
                 overflow : false
                 properties : [
                     [0] : {
@@ -311,7 +318,6 @@ console.table
                         value : Emily
                     }
                 ]
-                subtype : array
                 type : object
             }
         }

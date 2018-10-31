@@ -1520,6 +1520,53 @@ class RepresentationSelector {
     }
   }
 
+  void VisitCheckBounds(Node* node, SimplifiedLowering* lowering) {
+    CheckParameters const& p = CheckParametersOf(node->op());
+    Type const index_type = TypeOf(node->InputAt(0));
+    Type const length_type = TypeOf(node->InputAt(1));
+    if (length_type.Is(Type::Unsigned31())) {
+      if (index_type.Is(Type::Integral32OrMinusZero())) {
+        // Map -0 to 0, and the values in the [-2^31,-1] range to the
+        // [2^31,2^32-1] range, which will be considered out-of-bounds
+        // as well, because the {length_type} is limited to Unsigned31.
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kWord32);
+        if (lower()) {
+          if (lowering->poisoning_level_ ==
+                  PoisoningMitigationLevel::kDontPoison &&
+              (index_type.IsNone() || length_type.IsNone() ||
+               (index_type.Min() >= 0.0 &&
+                index_type.Max() < length_type.Min()))) {
+            // The bounds check is redundant if we already know that
+            // the index is within the bounds of [0.0, length[.
+            DeferReplacement(node, node->InputAt(0));
+          } else {
+            NodeProperties::ChangeOp(
+                node, simplified()->CheckedUint32Bounds(p.feedback()));
+          }
+        }
+      } else {
+        VisitBinop(
+            node,
+            UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, p.feedback()),
+            UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
+        if (lower()) {
+          NodeProperties::ChangeOp(
+              node, simplified()->CheckedUint32Bounds(p.feedback()));
+        }
+      }
+    } else {
+      DCHECK(length_type.Is(type_cache_.kPositiveSafeInteger));
+      VisitBinop(node,
+                 UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, p.feedback()),
+                 UseInfo::Word64(), MachineRepresentation::kWord64);
+      if (lower()) {
+        NodeProperties::ChangeOp(
+            node, simplified()->CheckedUint64Bounds(p.feedback()));
+      }
+    }
+  }
+
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, Truncation truncation,
@@ -2234,6 +2281,14 @@ class RepresentationSelector {
             lowering->DoMax(node, lowering->machine()->Int32LessThan(),
                             MachineRepresentation::kWord32);
           }
+        } else if (jsgraph_->machine()->Is64() &&
+                   lhs_type.Is(type_cache_.kSafeInteger) &&
+                   rhs_type.Is(type_cache_.kSafeInteger)) {
+          VisitInt64Binop(node);
+          if (lower()) {
+            lowering->DoMax(node, lowering->machine()->Int64LessThan(),
+                            MachineRepresentation::kWord64);
+          }
         } else {
           VisitBinop(node,
                      UseInfo::TruncatingFloat64(truncation.identify_zeros()),
@@ -2279,6 +2334,14 @@ class RepresentationSelector {
           if (lower()) {
             lowering->DoMin(node, lowering->machine()->Int32LessThan(),
                             MachineRepresentation::kWord32);
+          }
+        } else if (jsgraph_->machine()->Is64() &&
+                   lhs_type.Is(type_cache_.kSafeInteger) &&
+                   rhs_type.Is(type_cache_.kSafeInteger)) {
+          VisitInt64Binop(node);
+          if (lower()) {
+            lowering->DoMin(node, lowering->machine()->Int64LessThan(),
+                            MachineRepresentation::kWord64);
           }
         } else {
           VisitBinop(node,
@@ -2536,34 +2599,8 @@ class RepresentationSelector {
                   MachineRepresentation::kTaggedPointer);
         return;
       }
-      case IrOpcode::kCheckBounds: {
-        const CheckParameters& p = CheckParametersOf(node->op());
-        Type index_type = TypeOf(node->InputAt(0));
-        Type length_type = TypeOf(node->InputAt(1));
-        if (index_type.Is(Type::Integral32OrMinusZero())) {
-          // Map -0 to 0, and the values in the [-2^31,-1] range to the
-          // [2^31,2^32-1] range, which will be considered out-of-bounds
-          // as well, because the {length_type} is limited to Unsigned31.
-          VisitBinop(node, UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kWord32);
-          if (lower() && lowering->poisoning_level_ ==
-                             PoisoningMitigationLevel::kDontPoison) {
-            if (index_type.IsNone() || length_type.IsNone() ||
-                (index_type.Min() >= 0.0 &&
-                 index_type.Max() < length_type.Min())) {
-              // The bounds check is redundant if we already know that
-              // the index is within the bounds of [0.0, length[.
-              DeferReplacement(node, node->InputAt(0));
-            }
-          }
-        } else {
-          VisitBinop(
-              node,
-              UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, p.feedback()),
-              UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
-        }
-        return;
-      }
+      case IrOpcode::kCheckBounds:
+        return VisitCheckBounds(node, lowering);
       case IrOpcode::kPoisonIndex: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
                   MachineRepresentation::kWord32);
@@ -2777,9 +2814,10 @@ class RepresentationSelector {
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
         ProcessInput(node, 0, UseInfo::AnyTagged());  // buffer
         ProcessInput(node, 1, UseInfo::Word());       // external pointer
-        ProcessInput(node, 2, UseInfo::Word());       // index
-        ProcessInput(node, 3, UseInfo::Bool());       // little-endian
-        ProcessRemainingInputs(node, 4);
+        ProcessInput(node, 2, UseInfo::Word());       // byte offset
+        ProcessInput(node, 3, UseInfo::Word());       // index
+        ProcessInput(node, 4, UseInfo::Bool());       // little-endian
+        ProcessRemainingInputs(node, 5);
         SetOutput(node, rep);
         return;
       }
@@ -2801,11 +2839,12 @@ class RepresentationSelector {
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
         ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
         ProcessInput(node, 1, UseInfo::Word());              // external pointer
-        ProcessInput(node, 2, UseInfo::Word());              // index
-        ProcessInput(node, 3,
+        ProcessInput(node, 2, UseInfo::Word());              // byte offset
+        ProcessInput(node, 3, UseInfo::Word());              // index
+        ProcessInput(node, 4,
                      TruncatingUseInfoFromRepresentation(rep));  // value
-        ProcessInput(node, 4, UseInfo::Bool());  // little-endian
-        ProcessRemainingInputs(node, 5);
+        ProcessInput(node, 5, UseInfo::Bool());  // little-endian
+        ProcessRemainingInputs(node, 6);
         SetOutput(node, MachineRepresentation::kNone);
         return;
       }

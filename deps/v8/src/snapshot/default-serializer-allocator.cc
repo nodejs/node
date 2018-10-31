@@ -12,8 +12,7 @@
 namespace v8 {
 namespace internal {
 
-DefaultSerializerAllocator::DefaultSerializerAllocator(
-    Serializer<DefaultSerializerAllocator>* serializer)
+DefaultSerializerAllocator::DefaultSerializerAllocator(Serializer* serializer)
     : serializer_(serializer) {
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     pending_chunk_[i] = 0;

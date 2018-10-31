@@ -146,7 +146,7 @@ class Logger : public CodeEventListener {
   void IntPtrTEvent(const char* name, intptr_t value);
 
   // Emits an event with an handle value -> (name, location).
-  void HandleEvent(const char* name, Object** location);
+  void HandleEvent(const char* name, Address* location);
 
   // Emits memory management events for C allocated structures.
   void NewEvent(const char* name, void* object, size_t size);

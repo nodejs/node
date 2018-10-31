@@ -544,6 +544,7 @@ void Scanner::Scan() {
   next().invalid_template_escape_message = MessageTemplate::kNone;
 
   next().token = ScanSingleToken();
+  DCHECK_IMPLIES(has_parser_error(), next().token == Token::ILLEGAL);
   next().location.end_pos = source_pos();
 
 #ifdef DEBUG

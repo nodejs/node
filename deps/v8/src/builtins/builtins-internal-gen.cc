@@ -944,15 +944,21 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
           is_promise_fulfill_reaction_job(this),
           is_promise_reject_reaction_job(this),
           is_promise_resolve_thenable_job(this),
+          is_weak_factory_cleanup_job(this),
           is_unreachable(this, Label::kDeferred);
 
-      int32_t case_values[] = {CALLABLE_TASK_TYPE, CALLBACK_TASK_TYPE,
+      int32_t case_values[] = {CALLABLE_TASK_TYPE,
+                               CALLBACK_TASK_TYPE,
                                PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
                                PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
-                               PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE};
-      Label* case_labels[] = {
-          &is_callable, &is_callback, &is_promise_fulfill_reaction_job,
-          &is_promise_reject_reaction_job, &is_promise_resolve_thenable_job};
+                               PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
+                               WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE};
+      Label* case_labels[] = {&is_callable,
+                              &is_callback,
+                              &is_promise_fulfill_reaction_job,
+                              &is_promise_reject_reaction_job,
+                              &is_promise_resolve_thenable_job,
+                              &is_weak_factory_cleanup_job};
       static_assert(arraysize(case_values) == arraysize(case_labels), "");
       Switch(microtask_type, &is_unreachable, case_values, case_labels,
              arraysize(case_labels));
@@ -1094,6 +1100,26 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                        promise_or_capability);
 
+        LeaveMicrotaskContext();
+        SetCurrentContext(current_context);
+        Goto(&loop_next);
+      }
+
+      BIND(&is_weak_factory_cleanup_job);
+      {
+        // Enter the context of the {weak_factory}.
+        TNode<JSWeakFactory> weak_factory = LoadObjectField<JSWeakFactory>(
+            microtask, WeakFactoryCleanupJobTask::kFactoryOffset);
+        TNode<Context> native_context = LoadObjectField<Context>(
+            weak_factory, JSWeakFactory::kNativeContextOffset);
+        CSA_ASSERT(this, IsNativeContext(native_context));
+        EnterMicrotaskContext(native_context);
+        SetCurrentContext(native_context);
+
+        Node* const result = CallRuntime(Runtime::kWeakFactoryCleanupJob,
+                                         native_context, weak_factory);
+
+        GotoIfException(result, &if_exception, &var_exception);
         LeaveMicrotaskContext();
         SetCurrentContext(current_context);
         Goto(&loop_next);

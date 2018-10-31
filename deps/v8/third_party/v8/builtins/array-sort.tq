@@ -124,7 +124,7 @@ module array {
   // copied values from the prototype chain to the receiver if they were visible
   // through a hole.
 
-  builtin Load<ElementsAccessor: type>(
+  transitioning builtin Load<ElementsAccessor: type>(
       context: Context, sortState: FixedArray, elements: HeapObject,
       index: Smi): Object {
     return GetProperty(elements, index);
@@ -193,7 +193,7 @@ module array {
     return elems[index];
   }
 
-  builtin Store<ElementsAccessor: type>(
+  transitioning builtin Store<ElementsAccessor: type>(
       context: Context, sortState: FixedArray, elements: HeapObject, index: Smi,
       value: Object): Smi {
     SetProperty(elements, index, value);
@@ -306,7 +306,7 @@ module array {
     return 0;
   }
 
-  builtin SortCompareUserFn(
+  transitioning builtin SortCompareUserFn(
       context: Context, comparefn: Object, x: Object, y: Object): Number {
     assert(comparefn != Undefined);
     const cmpfn: Callable = UnsafeCast<Callable>(comparefn);
@@ -499,7 +499,7 @@ module array {
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
-  macro CallCopyFromTempArray(
+  transitioning macro CallCopyFromTempArray(
       context: Context, sortState: FixedArray, dstElements: HeapObject,
       dstPos: Smi, tempArray: FixedArray, srcPos: Smi, length: Smi)
   labels Bailout {
@@ -508,7 +508,7 @@ module array {
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
-  macro CallCopyWithinSortArray(
+  transitioning macro CallCopyWithinSortArray(
       context: Context, sortState: FixedArray, elements: HeapObject,
       srcPos: Smi, dstPos: Smi, length: Smi)
   labels Bailout {
@@ -536,20 +536,20 @@ module array {
     return result;
   }
 
-  macro CallMergeAt(context: Context, sortState: FixedArray, i: Smi)
+  transitioning macro CallMergeAt(context: Context, sortState: FixedArray, i: Smi)
   labels Bailout {
     MergeAt(context, sortState, i);
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
   // Used for OOB asserts in Copy* builtins.
-  macro GetReceiverLengthProperty(implicit context: Context)(
+  transitioning macro GetReceiverLengthProperty(implicit context: Context)(
       sortState: FixedArray): Smi {
     return Cast<Smi>(GetLengthProperty(GetReceiver(sortState)))
         otherwise unreachable;
   }
 
-  macro CopyToTempArray(
+  transitioning macro CopyToTempArray(
       context: Context, sortState: FixedArray, load: LoadFn,
       srcElements: HeapObject, srcPos: Smi, tempArray: FixedArray, dstPos: Smi,
       length: Smi)
@@ -571,7 +571,7 @@ module array {
     }
   }
 
-  builtin CopyFromTempArray(
+  transitioning builtin CopyFromTempArray(
       context: Context, sortState: FixedArray, dstElements: HeapObject,
       dstPos: Smi, tempArray: FixedArray, srcPos: Smi, length: Smi): Smi {
     assert(srcPos >= 0);
@@ -598,7 +598,7 @@ module array {
     }
   }
 
-  builtin CopyWithinSortArray(
+  transitioning builtin CopyWithinSortArray(
       context: Context, sortState: FixedArray, elements: HeapObject,
       srcPos: Smi, dstPos: Smi, length: Smi): Smi {
     assert(srcPos >= 0);
@@ -806,7 +806,8 @@ module array {
 
   // Merges the two runs at stack indices i and i + 1.
   // Returns kFailure if we need to bailout, kSuccess otherwise.
-  builtin MergeAt(context: Context, sortState: FixedArray, i: Smi): Smi {
+  transitioning builtin MergeAt(
+      context: Context, sortState: FixedArray, i: Smi): Smi {
     const stackSize: Smi = GetPendingRunsSize(sortState);
 
     // We are only allowed to either merge the two top-most runs, or leave
@@ -1159,7 +1160,7 @@ module array {
   // array[baseB] < array[baseA],
   // that array[baseA + lengthA - 1] belongs at the end of the merge,
   // and should have lengthA <= lengthB.
-  macro MergeLow(
+  transitioning macro MergeLow(
       context: Context, sortState: FixedArray, baseA: Smi, lengthAArg: Smi,
       baseB: Smi, lengthBArg: Smi)
   labels Bailout {
@@ -1334,7 +1335,7 @@ module array {
   // starting at baseB in a stable way, in-place. lengthA and lengthB must
   // be > 0. Must also have that array[baseA + lengthA - 1] belongs at the
   // end of the merge and should have lengthA >= lengthB.
-  macro MergeHigh(
+  transitioning macro MergeHigh(
       context: Context, sortState: FixedArray, baseA: Smi, lengthAArg: Smi,
       baseB: Smi, lengthBArg: Smi)
   labels Bailout {
@@ -1556,7 +1557,7 @@ module array {
   // TODO(szuend): Remove unnecessary loads. This macro was refactored to
   //               improve readability, introducing unnecessary loads in the
   //               process. Determine if all these extra loads are ok.
-  macro MergeCollapse(context: Context, sortState: FixedArray)
+  transitioning macro MergeCollapse(context: Context, sortState: FixedArray)
   labels Bailout {
     const pendingRuns: FixedArray =
         UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]);
@@ -1585,7 +1586,7 @@ module array {
 
   // Regardless of invariants, merge all runs on the stack until only one
   // remains. This is used at the end of the mergesort.
-  macro MergeForceCollapse(context: Context, sortState: FixedArray)
+  transitioning macro MergeForceCollapse(context: Context, sortState: FixedArray)
   labels Bailout {
     let pendingRuns: FixedArray =
         UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]);
@@ -1628,7 +1629,8 @@ module array {
         CanUseSameAccessor<GenericElementsAccessor>;
   }
 
-  macro ArrayTimSortImpl(context: Context, sortState: FixedArray, length: Smi)
+  transitioning macro ArrayTimSortImpl(
+      context: Context, sortState: FixedArray, length: Smi)
   labels Bailout {
     InitializeSortState(sortState);
 
@@ -1671,7 +1673,7 @@ module array {
             UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]), 0) == length);
   }
 
-  builtin ArrayTimSort(
+  transitioning builtin ArrayTimSort(
       context: Context, sortState: FixedArray, length: Smi): Object {
     try {
       ArrayTimSortImpl(context, sortState, length)
@@ -1705,7 +1707,7 @@ module array {
   extern runtime PrepareElementsForSort(Context, Object, Number): Smi;
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.sort
-  javascript builtin ArrayPrototypeSort(
+  transitioning javascript builtin ArrayPrototypeSort(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.

@@ -214,7 +214,7 @@ class Scanner {
     explicit BookmarkScope(Scanner* scanner)
         : scanner_(scanner),
           bookmark_(kNoBookmark),
-          had_parser_error_(scanner->has_parser_error_set()) {
+          had_parser_error_(scanner->has_parser_error()) {
       DCHECK_NOT_NULL(scanner_);
     }
     ~BookmarkScope() = default;
@@ -238,11 +238,20 @@ class Scanner {
 
   // Sets the Scanner into an error state to stop further scanning and terminate
   // the parsing by only returning ILLEGAL tokens after that.
-  V8_INLINE void set_parser_error() { source_->set_parser_error(); }
+  V8_INLINE void set_parser_error() {
+    if (!source_->has_parser_error()) {
+      c0_ = kEndOfInput;
+      source_->set_parser_error();
+      for (TokenDesc& desc : token_storage_) {
+        desc.token = Token::ILLEGAL;
+        desc.contextual_token = Token::UNINITIALIZED;
+      }
+    }
+  }
   V8_INLINE void reset_parser_error_flag() {
     source_->reset_parser_error_flag();
   }
-  V8_INLINE bool has_parser_error_set() const {
+  V8_INLINE bool has_parser_error() const {
     return source_->has_parser_error();
   }
 
@@ -346,12 +355,6 @@ class Scanner {
            (current().literal_chars.is_used() &&
             current().literal_chars.Equals(Vector<const char>(
                 Token::String(token), Token::StringLength(token))));
-  }
-
-  bool IsUseStrict() const {
-    return current().token == Token::STRING &&
-           current().literal_chars.Equals(
-               Vector<const char>("use strict", strlen("use strict")));
   }
 
   bool IsGet() { return CurrentMatchesContextual(Token::GET); }

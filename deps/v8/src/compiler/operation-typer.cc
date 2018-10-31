@@ -1206,16 +1206,13 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
 }
 
 Type OperationTyper::CheckBounds(Type index, Type length) {
-  DCHECK(length.Is(Type::Unsigned31()));
+  DCHECK(length.Is(cache_.kPositiveSafeInteger));
+  if (length.Is(cache_.kSingletonZero)) return Type::None();
+  Type mask = Type::Range(0.0, length.Max() - 1, zone());
   if (index.Maybe(Type::MinusZero())) {
     index = Type::Union(index, cache_.kSingletonZero, zone());
   }
-  index = Type::Intersect(index, Type::Integral32(), zone());
-  if (index.IsNone() || length.IsNone()) return Type::None();
-  double min = std::max(index.Min(), 0.0);
-  double max = std::min(index.Max(), length.Max() - 1);
-  if (max < min) return Type::None();
-  return Type::Range(min, max, zone());
+  return Type::Intersect(index, mask, zone());
 }
 
 Type OperationTyper::CheckFloat64Hole(Type type) {

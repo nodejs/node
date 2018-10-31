@@ -243,6 +243,13 @@ T* CheckNotNull(T* x) {
   return x;
 }
 
+template <class T>
+inline std::ostream& operator<<(std::ostream& os, Stack<T>& t) {
+  os << "Stack{";
+  PrintCommaSeparatedList(os, t);
+  os << "}";
+  return os;
+}
 class ToString {
  public:
   template <class T>

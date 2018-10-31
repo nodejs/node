@@ -38,10 +38,9 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
                                          NativeModule* native_module,
                                          FunctionBody body, int index,
-                                         Counters* counters, ExecutionTier mode)
+                                         ExecutionTier mode)
     : wasm_engine_(wasm_engine),
       func_body_(body),
-      counters_(counters),
       func_index_(index),
       native_module_(native_module),
       mode_(mode) {
@@ -64,13 +63,14 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 WasmCompilationUnit::~WasmCompilationUnit() = default;
 
 void WasmCompilationUnit::ExecuteCompilation(CompilationEnv* env,
+                                             Counters* counters,
                                              WasmFeatures* detected) {
   const WasmModule* module = native_module_->module();
   auto size_histogram =
-      SELECT_WASM_COUNTER(counters_, module->origin, wasm, function_size_bytes);
+      SELECT_WASM_COUNTER(counters, module->origin, wasm, function_size_bytes);
   size_histogram->AddSample(
       static_cast<int>(func_body_.end - func_body_.start));
-  auto timed_histogram = SELECT_WASM_COUNTER(counters_, module->origin,
+  auto timed_histogram = SELECT_WASM_COUNTER(counters, module->origin,
                                              wasm_compile, function_time);
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
@@ -81,35 +81,16 @@ void WasmCompilationUnit::ExecuteCompilation(CompilationEnv* env,
 
   switch (mode_) {
     case ExecutionTier::kBaseline:
-      if (liftoff_unit_->ExecuteCompilation(env, detected)) break;
+      if (liftoff_unit_->ExecuteCompilation(env, counters, detected)) break;
       // Otherwise, fall back to turbofan.
       SwitchMode(ExecutionTier::kOptimized);
       V8_FALLTHROUGH;
     case ExecutionTier::kOptimized:
-      turbofan_unit_->ExecuteCompilation(env, detected);
+      turbofan_unit_->ExecuteCompilation(env, counters, detected);
       break;
     case ExecutionTier::kInterpreter:
       UNREACHABLE();  // TODO(titzer): compile interpreter entry stub.
   }
-}
-
-void WasmCompilationUnit::ReportError(ErrorThrower* thrower) const {
-  DCHECK(result_.failed());
-  // Add the function as another context for the exception. This is
-  // user-visible, so use official format.
-  EmbeddedVector<char, 128> message;
-  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
-  wasm::WireBytesRef name_ref =
-      native_module()->module()->LookupFunctionName(wire_bytes, func_index_);
-  if (name_ref.is_set()) {
-    wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
-    SNPrintF(message, "Compiling wasm function \"%.*s\" failed", name.length(),
-             name.start());
-  } else {
-    SNPrintF(message, "Compiling wasm function \"wasm-function[%d]\" failed",
-             func_index_);
-  }
-  thrower->CompileFailed(message.start(), result_);
 }
 
 void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
@@ -135,34 +116,31 @@ void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
 }
 
 // static
-bool WasmCompilationUnit::CompileWasmFunction(
-    Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
-    ErrorThrower* thrower, const WasmFunction* function, ExecutionTier mode) {
+bool WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
+                                              NativeModule* native_module,
+                                              WasmFeatures* detected,
+                                              const WasmFunction* function,
+                                              ExecutionTier mode) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset()};
 
   WasmCompilationUnit unit(isolate->wasm_engine(), native_module, function_body,
-                           function->func_index, isolate->counters(), mode);
+                           function->func_index, mode);
   CompilationEnv env = native_module->CreateCompilationEnv();
-  unit.ExecuteCompilation(&env, detected);
-  if (unit.failed()) {
-    unit.ReportError(thrower);
-    return false;
-  }
-  return true;
+  unit.ExecuteCompilation(&env, isolate->counters(), detected);
+  return !unit.failed();
 }
 
-void WasmCompilationUnit::SetResult(WasmCode* code) {
-  DCHECK(!result_.failed());
-  DCHECK_NULL(result_.value());
-  result_ = Result<WasmCode*>(code);
+void WasmCompilationUnit::SetResult(WasmCode* code, Counters* counters) {
+  DCHECK_NULL(result_);
+  result_ = code;
   native_module()->PublishCode(code);
 
-  counters_->wasm_generated_code_size()->Increment(
+  counters->wasm_generated_code_size()->Increment(
       static_cast<int>(code->instructions().size()));
-  counters_->wasm_reloc_size()->Increment(
+  counters->wasm_reloc_size()->Increment(
       static_cast<int>(code->reloc_info().size()));
 }
 

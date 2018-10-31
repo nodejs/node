@@ -13,7 +13,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c55a0b9f680eb777534848fe3fb306bbdc7a7a05',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '49671d3af749f02346a8fe246c56189e69e3b791',
   'v8/third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cb629a482b3d3c13e46a66031ba4c0cc3679d200',
   'v8/third_party/icu':
@@ -33,7 +33,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '985e130969ef41e256acaa48b64ec15961984bf5',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '36a23a7b2851af59ed8734145c92a2bb2eb243f2',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -57,7 +57,7 @@ deps = {
   'v8/test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'v8/test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '00cfe1628cc03164dcf03f01ba9c84376e9be735',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'f1e362d558665d940ba677267cae5a037e462712',
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
   'v8/third_party/qemu-linux-x64': {
@@ -243,17 +243,6 @@ hooks = [
                 '-u',
                 '--bucket', 'v8-wasm-spec-tests',
                 '-s', 'v8/test/wasm-spec-tests/tests.tar.gz.sha1',
-    ],
-  },
-  {
-    'name': 'closure_compiler',
-    'pattern': '.',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--no_auth',
-                '-u',
-                '--bucket', 'chromium-v8-closure-compiler',
-                '-s', 'v8/src/inspector/build/closure-compiler.tar.gz.sha1',
     ],
   },
   {

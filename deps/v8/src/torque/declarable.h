@@ -150,20 +150,24 @@ class Callable : public Declarable {
   }
   void IncrementReturns() { ++returns_; }
   bool HasReturns() const { return returns_; }
+  bool IsTransitioning() const { return transitioning_; }
   base::Optional<Generic*> generic() const { return generic_; }
 
  protected:
   Callable(Declarable::Kind kind, const std::string& name,
-           const Signature& signature, base::Optional<Generic*> generic)
+           const Signature& signature, bool transitioning,
+           base::Optional<Generic*> generic)
       : Declarable(kind),
         name_(name),
         signature_(signature),
+        transitioning_(transitioning),
         returns_(0),
         generic_(generic) {}
 
  private:
   std::string name_;
   Signature signature_;
+  bool transitioning_;
   size_t returns_;
   base::Optional<Generic*> generic_;
 };
@@ -174,9 +178,9 @@ class Macro : public Callable {
 
  private:
   friend class Declarations;
-  Macro(const std::string& name, const Signature& signature,
+  Macro(const std::string& name, const Signature& signature, bool transitioning,
         base::Optional<Generic*> generic)
-      : Callable(Declarable::kMacro, name, signature, generic) {
+      : Callable(Declarable::kMacro, name, signature, transitioning, generic) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for macros.");
     }
@@ -212,8 +216,9 @@ class Builtin : public Callable {
  private:
   friend class Declarations;
   Builtin(const std::string& name, Builtin::Kind kind, bool external,
-          const Signature& signature, base::Optional<Generic*> generic)
-      : Callable(Declarable::kBuiltin, name, signature, generic),
+          const Signature& signature, bool transitioning,
+          base::Optional<Generic*> generic)
+      : Callable(Declarable::kBuiltin, name, signature, transitioning, generic),
         kind_(kind),
         external_(external) {}
 
@@ -228,8 +233,9 @@ class RuntimeFunction : public Callable {
  private:
   friend class Declarations;
   RuntimeFunction(const std::string& name, const Signature& signature,
-                  base::Optional<Generic*> generic)
-      : Callable(Declarable::kRuntimeFunction, name, signature, generic) {}
+                  bool transitioning, base::Optional<Generic*> generic)
+      : Callable(Declarable::kRuntimeFunction, name, signature, transitioning,
+                 generic) {}
 };
 
 class Generic : public Declarable {

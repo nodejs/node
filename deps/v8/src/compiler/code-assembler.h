@@ -60,6 +60,7 @@ class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
 class TorqueAssembler;
+class WeakFactoryCleanupJobTask;
 class Zone;
 
 template <typename T>

@@ -74,8 +74,6 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
   bool numeric =
       icu_collator->getAttribute(UCOL_NUMERIC_COLLATION, status) == UCOL_ON;
   CHECK(U_SUCCESS(status));
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->numeric_string(), numeric);
 
   const char* case_first = nullptr;
   status = U_ZERO_ERROR;
@@ -90,8 +88,6 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
       case_first = "false";
   }
   CHECK(U_SUCCESS(status));
-  CreateDataPropertyForOptions(
-      isolate, options, isolate->factory()->caseFirst_string(), case_first);
 
   const char* sensitivity = nullptr;
   status = U_ZERO_ERROR;
@@ -123,16 +119,11 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
       sensitivity = "variant";
   }
   CHECK(U_SUCCESS(status));
-  CreateDataPropertyForOptions(
-      isolate, options, isolate->factory()->sensitivity_string(), sensitivity);
 
   status = U_ZERO_ERROR;
   bool ignore_punctuation = icu_collator->getAttribute(UCOL_ALTERNATE_HANDLING,
                                                        status) == UCOL_SHIFTED;
   CHECK(U_SUCCESS(status));
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->ignorePunctuation_string(),
-                               ignore_punctuation);
 
   status = U_ZERO_ERROR;
 
@@ -186,15 +177,32 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
     toLanguageTag(icu_locale, bcp47_locale_tag);
   }
 
-  CreateDataPropertyForOptions(
-      isolate, options, isolate->factory()->collation_string(), collation);
-
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->usage_string(), usage);
-
+  // 5. For each row of Table 2, except the header row, in table order, do
+  //    ...
+  // Table 2: Resolved Options of Collator Instances
+  //  Internal Slot            Property               Extension Key
+  //    [[Locale]                "locale"
+  //    [[Usage]                 "usage"
+  //    [[Sensitivity]]          "sensitivity"
+  //    [[IgnorePunctuation]]    "ignorePunctuation"
+  //    [[Collation]]            "collation"
+  //    [[Numeric]]              "numeric"              kn
+  //    [[CaseFirst]]            "caseFirst"            kf
   CreateDataPropertyForOptions(
       isolate, options, isolate->factory()->locale_string(), bcp47_locale_tag);
-
+  CreateDataPropertyForOptions(isolate, options,
+                               isolate->factory()->usage_string(), usage);
+  CreateDataPropertyForOptions(
+      isolate, options, isolate->factory()->sensitivity_string(), sensitivity);
+  CreateDataPropertyForOptions(isolate, options,
+                               isolate->factory()->ignorePunctuation_string(),
+                               ignore_punctuation);
+  CreateDataPropertyForOptions(
+      isolate, options, isolate->factory()->collation_string(), collation);
+  CreateDataPropertyForOptions(isolate, options,
+                               isolate->factory()->numeric_string(), numeric);
+  CreateDataPropertyForOptions(
+      isolate, options, isolate->factory()->caseFirst_string(), case_first);
   return options;
 }
 

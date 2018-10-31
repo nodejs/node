@@ -16,6 +16,7 @@
 namespace v8 {
 namespace internal {
 
+ACCESSORS(JSWeakFactory, native_context, Context, kNativeContextOffset)
 ACCESSORS(JSWeakFactory, cleanup, Object, kCleanupOffset)
 ACCESSORS(JSWeakFactory, active_cells, Object, kActiveCellsOffset)
 ACCESSORS(JSWeakFactory, cleared_cells, Object, kClearedCellsOffset)
@@ -32,6 +33,9 @@ CAST_ACCESSOR(JSWeakCell)
 
 ACCESSORS(JSWeakFactoryCleanupIterator, factory, JSWeakFactory, kFactoryOffset)
 CAST_ACCESSOR(JSWeakFactoryCleanupIterator)
+
+ACCESSORS(WeakFactoryCleanupJobTask, factory, JSWeakFactory, kFactoryOffset)
+CAST_ACCESSOR(WeakFactoryCleanupJobTask)
 
 void JSWeakFactory::AddWeakCell(JSWeakCell* weak_cell) {
   weak_cell->set_factory(this);

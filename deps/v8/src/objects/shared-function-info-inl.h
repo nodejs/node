@@ -483,7 +483,6 @@ int SharedFunctionInfo::builtin_id() const {
 
 void SharedFunctionInfo::set_builtin_id(int builtin_id) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK_NE(builtin_id, Builtins::kDeserializeLazy);
   set_function_data(Smi::FromInt(builtin_id), SKIP_WRITE_BARRIER);
 }
 

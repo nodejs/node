@@ -1472,14 +1472,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   AllocateUninitializedJSArrayWithElements(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
       Node* allocation_site, Node* capacity,
-      ParameterMode capacity_mode = INTPTR_PARAMETERS);
+      ParameterMode capacity_mode = INTPTR_PARAMETERS,
+      AllocationFlags allocation_flags = kNone);
 
   // Allocate a JSArray and fill elements with the hole.
   // The ParameterMode argument is only used for the capacity parameter.
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, Node* capacity,
       TNode<Smi> length, Node* allocation_site = nullptr,
-      ParameterMode capacity_mode = INTPTR_PARAMETERS);
+      ParameterMode capacity_mode = INTPTR_PARAMETERS,
+      AllocationFlags allocation_flags = kNone);
 
   TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
                                  TNode<Smi> capacity, TNode<Smi> length) {
@@ -2633,8 +2635,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   template <class... TArgs>
   TNode<Object> CallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
                             TArgs... args) {
-    DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
-                   !Builtins::IsLazy(id));
     return CallStub<Object>(Builtins::CallableFor(isolate(), id), context,
                             args...);
   }
@@ -2642,8 +2642,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   template <class... TArgs>
   void TailCallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
                        TArgs... args) {
-    DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
-                   !Builtins::IsLazy(id));
     return TailCallStub(Builtins::CallableFor(isolate(), id), context, args...);
   }
 

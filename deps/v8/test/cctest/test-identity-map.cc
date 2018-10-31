@@ -706,7 +706,7 @@ TEST(CanonicalHandleScope) {
   for (int i = 0; i < 100; i++) {
     smi_handles.push_back(Handle<Object>(Smi::FromInt(i), isolate));
   }
-  Object** next_handle = isolate->handle_scope_data()->next;
+  Address* next_handle = isolate->handle_scope_data()->next;
   for (int i = 0; i < 100; i++) {
     Handle<Object> new_smi = Handle<Object>(Smi::FromInt(i), isolate);
     Handle<Object> old_smi = smi_handles[i];

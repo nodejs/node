@@ -874,9 +874,6 @@ class MacroAssembler : public TurboAssembler {
     return SafepointRegisterStackIndex(reg.code());
   }
 
-  void EnterBuiltinFrame(Register context, Register target, Register argc);
-  void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
  private:
   // Order general registers are pushed by Pushad.
   // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14, r15.

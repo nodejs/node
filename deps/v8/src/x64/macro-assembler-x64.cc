@@ -2373,23 +2373,6 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   popq(rbp);
 }
 
-void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
-                                       Register argc) {
-  Push(rbp);
-  Move(rbp, rsp);
-  Push(context);
-  Push(target);
-  Push(argc);
-}
-
-void MacroAssembler::LeaveBuiltinFrame(Register context, Register target,
-                                       Register argc) {
-  Pop(argc);
-  Pop(target);
-  Pop(context);
-  leave();
-}
-
 void MacroAssembler::EnterExitFramePrologue(bool save_rax,
                                             StackFrame::Type frame_type) {
   DCHECK(frame_type == StackFrame::EXIT ||

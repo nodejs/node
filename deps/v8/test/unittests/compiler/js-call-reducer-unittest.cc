@@ -42,17 +42,6 @@ class JSCallReducerTest : public TypedGraphTest {
 
   JSOperatorBuilder* javascript() { return &javascript_; }
 
-  static void SetUpTestCase() {
-    old_flag_lazy_ = i::FLAG_lazy_deserialization;
-    i::FLAG_lazy_deserialization = false;
-    TypedGraphTest::SetUpTestCase();
-  }
-
-  static void TearDownTestCase() {
-    TypedGraphTest::TearDownTestCase();
-    i::FLAG_lazy_deserialization = old_flag_lazy_;
-  }
-
   Node* GlobalFunction(const char* name) {
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
@@ -129,9 +118,6 @@ class JSCallReducerTest : public TypedGraphTest {
  private:
   JSOperatorBuilder javascript_;
   CompilationDependencies deps_;
-
-  static bool old_flag_lazy_;
-  static bool old_flag_lazy_handler_;
 };
 
 TEST_F(JSCallReducerTest, PromiseConstructorNoArgs) {
@@ -214,9 +200,6 @@ TEST_F(JSCallReducerTest, PromiseConstructorWithHook) {
 
   ASSERT_FALSE(r.Changed());
 }
-
-bool JSCallReducerTest::old_flag_lazy_;
-bool JSCallReducerTest::old_flag_lazy_handler_;
 
 // -----------------------------------------------------------------------------
 // Math unaries

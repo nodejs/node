@@ -13,38 +13,52 @@ namespace torque {
 void Block::SetInputTypes(const Stack<const Type*>& input_types) {
   if (!input_types_) {
     input_types_ = input_types;
-  } else if (*input_types_ != input_types) {
-    std::stringstream error;
-    error << "incompatible types at branch:\n";
-    for (intptr_t i = std::max(input_types_->Size(), input_types.Size()) - 1;
-         i >= 0; --i) {
-      base::Optional<const Type*> left;
-      base::Optional<const Type*> right;
-      if (static_cast<size_t>(i) < input_types.Size()) {
-        left = input_types.Peek(BottomOffset{static_cast<size_t>(i)});
-      }
-      if (static_cast<size_t>(i) < input_types_->Size()) {
-        right = input_types_->Peek(BottomOffset{static_cast<size_t>(i)});
-      }
-      if (left && right && *left == *right) {
-        error << **left << "\n";
-      } else {
-        if (left) {
-          error << **left;
-        } else {
-          error << "/*missing*/";
-        }
-        error << "   =>   ";
-        if (right) {
-          error << **right;
-        } else {
-          error << "/*missing*/";
-        }
-        error << "\n";
-      }
-    }
-    ReportError(error.str());
+    return;
+  } else if (*input_types_ == input_types) {
+    return;
   }
+
+  Stack<const Type*> merged_types;
+  auto c2_iterator = input_types.begin();
+  for (const Type* c1 : *input_types_) {
+    const Type* merged_type = TypeOracle::GetUnionType(c1, *c2_iterator++);
+    merged_types.Push(merged_type);
+  }
+  if (merged_types.Size() == input_types_->Size()) {
+    input_types_ = merged_types;
+    return;
+  }
+
+  std::stringstream error;
+  error << "incompatible types at branch:\n";
+  for (intptr_t i = std::max(input_types_->Size(), input_types.Size()) - 1;
+       i >= 0; --i) {
+    base::Optional<const Type*> left;
+    base::Optional<const Type*> right;
+    if (static_cast<size_t>(i) < input_types.Size()) {
+      left = input_types.Peek(BottomOffset{static_cast<size_t>(i)});
+    }
+    if (static_cast<size_t>(i) < input_types_->Size()) {
+      right = input_types_->Peek(BottomOffset{static_cast<size_t>(i)});
+    }
+    if (left && right && *left == *right) {
+      error << **left << "\n";
+    } else {
+      if (left) {
+        error << **left;
+      } else {
+        error << "/*missing*/";
+      }
+      error << "   =>   ";
+      if (right) {
+        error << **right;
+      } else {
+        error << "/*missing*/";
+      }
+      error << "\n";
+    }
+  }
+  ReportError(error.str());
 }
 
 void CfgAssembler::Bind(Block* block) {

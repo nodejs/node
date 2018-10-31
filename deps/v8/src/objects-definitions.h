@@ -120,6 +120,7 @@ namespace internal {
   V(PROMISE_FULFILL_REACTION_JOB_TASK_TYPE)                        \
   V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)                         \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                        \
+  V(WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE)                            \
                                                                    \
   V(MICROTASK_QUEUE_TYPE)                                          \
                                                                    \
@@ -342,6 +343,8 @@ namespace internal {
     promise_reject_reaction_job_task)                                         \
   V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask, \
     promise_resolve_thenable_job_task)                                        \
+  V(_, WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE, WeakFactoryCleanupJobTask,         \
+    weak_factory_cleanup_job_task)                                            \
   V(_, MICROTASK_QUEUE_TYPE, MicrotaskQueue, microtask_queue)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry

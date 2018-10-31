@@ -18958,58 +18958,5 @@ template void
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
     Handle<NameDictionary> dictionary, KeyAccumulator* keys);
 
-void JSWeakFactory::CleanupJSWeakFactoriesCallback(void* data) {
-  DCHECK(FLAG_harmony_weak_refs);
-  Isolate* isolate = reinterpret_cast<Isolate*>(data);
-  HandleScope handle_scope(isolate);
-  Handle<Context> native_context = isolate->native_context();
-
-  while (native_context->dirty_js_weak_factories()->IsJSWeakFactory()) {
-    Handle<JSWeakFactory> weak_factory =
-        handle(JSWeakFactory::cast(native_context->dirty_js_weak_factories()),
-               isolate);
-    native_context->set_dirty_js_weak_factories(weak_factory->next());
-    weak_factory->set_next(ReadOnlyRoots(isolate).undefined_value());
-    weak_factory->set_scheduled_for_cleanup(false);
-
-    // It's possible that the cleared_cells list is empty, since
-    // WeakCell.clear() was called on all its elements before this task ran. In
-    // that case, don't call the cleanup function.
-    if (weak_factory->cleared_cells()->IsUndefined(isolate)) {
-      continue;
-    }
-
-    // Construct the iterator.
-    Handle<JSWeakFactoryCleanupIterator> iterator;
-    {
-      Handle<Map> cleanup_iterator_map(
-          native_context->js_weak_factory_cleanup_iterator_map(), isolate);
-      iterator = Handle<JSWeakFactoryCleanupIterator>::cast(
-          isolate->factory()->NewJSObjectFromMap(
-              cleanup_iterator_map, NOT_TENURED,
-              Handle<AllocationSite>::null()));
-      iterator->set_factory(*weak_factory);
-    }
-    Handle<Object> cleanup(weak_factory->cleanup(), isolate);
-
-    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-    v8::Local<v8::Value> result;
-    MaybeHandle<Object> exception;
-    Handle<Object> args[] = {iterator};
-    bool has_pending_exception = !ToLocal<Value>(
-        Execution::TryCall(
-            isolate, cleanup,
-            handle(ReadOnlyRoots(isolate).undefined_value(), isolate), 1, args,
-            Execution::MessageHandling::kReport, &exception,
-            Execution::Target::kCallable),
-        &result);
-    // TODO(marja): (spec): What if there's an exception?
-    USE(has_pending_exception);
-
-    // TODO(marja): (spec): Should the iterator be invalidated after the
-    // function returns?
-  }
-}
-
 }  // namespace internal
 }  // namespace v8

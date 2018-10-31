@@ -873,24 +873,24 @@ void WasmTableObject::ClearDispatchTables(Isolate* isolate,
 }
 
 namespace {
-MaybeHandle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
+MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
                                             Handle<JSArrayBuffer> old_buffer,
                                             uint32_t pages,
                                             uint32_t maximum_pages) {
+  CHECK_GE(wasm::max_mem_pages(), maximum_pages);
   if (!old_buffer->is_growable()) return {};
   void* old_mem_start = old_buffer->backing_store();
   size_t old_size = old_buffer->byte_length();
-  CHECK_GE(wasm::kV8MaxWasmMemoryBytes, old_size);
   CHECK_EQ(0, old_size % wasm::kWasmPageSize);
   size_t old_pages = old_size / wasm::kWasmPageSize;
-  if (old_pages > maximum_pages ||            // already reached maximum
-      (pages > maximum_pages - old_pages) ||  // exceeds remaining
-      (pages > FLAG_wasm_max_mem_pages - old_pages)) {  // exceeds limit
+  CHECK_GE(wasm::max_mem_pages(), old_pages);
+
+  if ((pages > maximum_pages - old_pages) ||          // exceeds remaining
+      (pages > wasm::max_mem_pages() - old_pages)) {  // exceeds limit
     return {};
   }
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * wasm::kWasmPageSize;
-  CHECK_GE(wasm::kV8MaxWasmMemoryBytes, new_size);
 
   // Reusing the backing store from externalized buffers causes problems with
   // Blink's array buffers. The connection between the two is lost, which can
@@ -1050,12 +1050,12 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
   Handle<JSArrayBuffer> new_buffer;
 
-  uint32_t maximum_pages = FLAG_wasm_max_mem_pages;
+  uint32_t maximum_pages = wasm::max_mem_pages();
   if (memory_object->has_maximum_pages()) {
-    maximum_pages = Min(FLAG_wasm_max_mem_pages,
-                        static_cast<uint32_t>(memory_object->maximum_pages()));
+    maximum_pages = std::min(
+        maximum_pages, static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  if (!GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages)
+  if (!MemoryGrowBuffer(isolate, old_buffer, pages, maximum_pages)
            .ToHandle(&new_buffer)) {
     return -1;
   }
@@ -1220,7 +1220,7 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
 }
 
 void WasmInstanceObject::SetRawMemory(byte* mem_start, size_t mem_size) {
-  CHECK_LE(mem_size, wasm::kV8MaxWasmMemoryBytes);
+  CHECK_LE(mem_size, wasm::max_mem_bytes());
 #if V8_HOST_ARCH_64_BIT
   uint64_t mem_mask64 = base::bits::RoundUpToPowerOfTwo64(mem_size) - 1;
   set_memory_start(mem_start);

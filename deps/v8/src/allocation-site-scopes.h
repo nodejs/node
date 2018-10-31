@@ -30,15 +30,10 @@ class AllocationSiteContext {
 
  protected:
   void update_current_site(AllocationSite* site) {
-    *(current_.location()) = site;
+    *(current_.location()) = site->ptr();
   }
 
-  void InitializeTraversal(Handle<AllocationSite> site) {
-    top_ = site;
-    // {current_} is updated in place to not create unnecessary Handles, hence
-    // we initially need a separate handle.
-    current_ = Handle<AllocationSite>::New(*top_, isolate());
-  }
+  inline void InitializeTraversal(Handle<AllocationSite> site);
 
  private:
   Isolate* isolate_;

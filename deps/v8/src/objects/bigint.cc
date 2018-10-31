@@ -350,7 +350,7 @@ Handle<BigInt> MutableBigInt::MakeImmutable(Handle<MutableBigInt> result) {
   }
   DCHECK_IMPLIES(result->length() > 0,
                  result->digit(result->length() - 1) != 0);  // MSD is non-zero.
-  return Handle<BigInt>(reinterpret_cast<BigInt**>(result.location()));
+  return Handle<BigInt>(result.location());
 }
 
 Handle<BigInt> BigInt::Zero(Isolate* isolate) {

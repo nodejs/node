@@ -568,7 +568,7 @@
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
       {'name': 'test262_variants', 'shards': 6},
-      {'name': 'test262_variants', 'variant': 'code_serializer', 'shards': 1},
+      {'name': 'test262_variants', 'variant': 'code_serializer', 'shards': 2},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'shards': 3},
       {

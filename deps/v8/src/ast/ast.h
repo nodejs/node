@@ -176,7 +176,6 @@ class AstNode: public ZoneObject {
 
 class Statement : public AstNode {
  public:
-  bool IsEmpty() { return AsEmptyStatement() != nullptr; }
   bool IsJump() const;
 
  protected:
@@ -849,8 +848,8 @@ class SwitchStatement final : public BreakableStatement {
 // given if-statement has a then- or an else-part containing code.
 class IfStatement final : public Statement {
  public:
-  bool HasThenStatement() const { return !then_statement()->IsEmpty(); }
-  bool HasElseStatement() const { return !else_statement()->IsEmpty(); }
+  bool HasThenStatement() const { return !then_statement_->IsEmptyStatement(); }
+  bool HasElseStatement() const { return !else_statement_->IsEmptyStatement(); }
 
   Expression* condition() const { return condition_; }
   Statement* then_statement() const { return then_statement_; }
@@ -991,7 +990,7 @@ class DebuggerStatement final : public Statement {
 class EmptyStatement final : public Statement {
  private:
   friend class AstNodeFactory;
-  explicit EmptyStatement(int pos) : Statement(pos, kEmptyStatement) {}
+  EmptyStatement() : Statement(kNoSourcePosition, kEmptyStatement) {}
 };
 
 
@@ -2869,7 +2868,9 @@ class AstVisitor {
 class AstNodeFactory final {
  public:
   AstNodeFactory(AstValueFactory* ast_value_factory, Zone* zone)
-      : zone_(zone), ast_value_factory_(ast_value_factory) {}
+      : zone_(zone),
+        ast_value_factory_(ast_value_factory),
+        empty_statement_(new (zone) class EmptyStatement()) {}
 
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
 
@@ -3010,13 +3011,12 @@ class AstNodeFactory final {
     return new (zone_) DebuggerStatement(pos);
   }
 
-  EmptyStatement* NewEmptyStatement(int pos) {
-    return new (zone_) EmptyStatement(pos);
+  class EmptyStatement* EmptyStatement() {
+    return empty_statement_;
   }
 
   SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement() {
-    return new (zone_)
-        SloppyBlockFunctionStatement(NewEmptyStatement(kNoSourcePosition));
+    return new (zone_) SloppyBlockFunctionStatement(EmptyStatement());
   }
 
   CaseClause* NewCaseClause(Expression* label,
@@ -3386,6 +3386,7 @@ class AstNodeFactory final {
   // See ParseFunctionLiteral in parser.cc for preconditions.
   Zone* zone_;
   AstValueFactory* ast_value_factory_;
+  class EmptyStatement* empty_statement_;
 };
 
 

@@ -14,8 +14,7 @@ namespace v8 {
 namespace internal {
 
 Object* ObjectSlot::Relaxed_Load() const {
-  Address object_ptr =
-      base::AsAtomicWord::Relaxed_Load(reinterpret_cast<Address*>(address()));
+  Address object_ptr = base::AsAtomicWord::Relaxed_Load(location());
   return reinterpret_cast<Object*>(object_ptr);
 }
 
@@ -27,7 +26,13 @@ Object* ObjectSlot::Relaxed_Load(int offset) const {
 
 void ObjectSlot::Relaxed_Store(int offset, Object* value) const {
   Address* addr = reinterpret_cast<Address*>(address() + offset * kPointerSize);
-  base::AsAtomicWord::Relaxed_Store(addr, reinterpret_cast<Address>(value));
+  base::AsAtomicWord::Relaxed_Store(addr, value->ptr());
+}
+
+Object* ObjectSlot::Release_CompareAndSwap(Object* old, Object* target) const {
+  Address result = base::AsAtomicWord::Release_CompareAndSwap(
+      location(), old->ptr(), target->ptr());
+  return reinterpret_cast<Object*>(result);
 }
 
 MaybeObject MaybeObjectSlot::operator*() {
@@ -39,15 +44,14 @@ void MaybeObjectSlot::store(MaybeObject value) {
 }
 
 MaybeObject MaybeObjectSlot::Relaxed_Load() const {
-  Address object_ptr =
-      base::AsAtomicWord::Relaxed_Load(reinterpret_cast<Address*>(address()));
+  Address object_ptr = base::AsAtomicWord::Relaxed_Load(location());
   return MaybeObject(object_ptr);
 }
 
 void MaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
                                              MaybeObject target) const {
-  base::AsAtomicWord::Release_CompareAndSwap(
-      reinterpret_cast<Address*>(address()), old.ptr(), target.ptr());
+  base::AsAtomicWord::Release_CompareAndSwap(location(), old.ptr(),
+                                             target.ptr());
 }
 
 HeapObjectReference HeapObjectSlot::operator*() {

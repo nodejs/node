@@ -5,12 +5,12 @@
 // PLEASE READ BEFORE CHANGING THIS FILE!
 //
 // This file contains code that is used both inside and outside the out of
-// bounds signal handler. Because this code runs in a signal handler context,
+// bounds trap handler. Because this code runs in a trap handler context,
 // use extra care when modifying this file. Here are some rules to follow.
 //
 // 1. Do not introduce any new external dependencies. This file needs
 //    to be self contained so it is easy to audit everything that a
-//    signal handler might do.
+//    trap handler might do.
 //
 // 2. Any changes must be reviewed by someone from the crash reporting
 //    or security team. See OWNERS for suggested reviewers.

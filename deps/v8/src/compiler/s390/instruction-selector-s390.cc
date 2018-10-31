@@ -1414,6 +1414,8 @@ static inline bool TryMatchDoubleConstructFromInsert(
     null)                                                                     \
   V(Float64, ChangeFloat64ToInt64, kS390_DoubleToInt64, OperandMode::kNone,   \
     null)                                                                     \
+  V(Float64, TruncateFloat64ToInt64, kS390_DoubleToInt64, OperandMode::kNone, \
+    null)                                                                     \
   V(Float64, BitcastFloat64ToInt64, kS390_BitcastDoubleToInt64,               \
     OperandMode::kNone, null)
 

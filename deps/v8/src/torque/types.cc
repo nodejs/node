@@ -32,6 +32,7 @@ std::string Type::ToString() const {
 }
 
 bool Type::IsSubtypeOf(const Type* supertype) const {
+  if (supertype->IsTopType()) return true;
   if (IsNever()) return true;
   if (const UnionType* union_type = UnionType::DynamicCast(supertype)) {
     return union_type->IsSupertypeOf(this);

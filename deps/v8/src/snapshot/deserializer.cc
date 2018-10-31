@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table.h"
@@ -14,7 +15,6 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
-#include "src/snapshot/builtin-deserializer-allocator.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 
@@ -64,22 +64,17 @@ class UnalignedSlot {
   Address ptr_;
 };
 
-template <class AllocatorT>
-void Deserializer<AllocatorT>::UnalignedCopy(UnalignedSlot dest,
-                                             MaybeObject value) {
+void Deserializer::UnalignedCopy(UnalignedSlot dest, MaybeObject value) {
   DCHECK(!allocator()->next_reference_is_weak());
   dest.Write(value.ptr());
 }
 
-template <class AllocatorT>
-void Deserializer<AllocatorT>::UnalignedCopy(UnalignedSlot dest,
-                                             Address value) {
+void Deserializer::UnalignedCopy(UnalignedSlot dest, Address value) {
   DCHECK(!allocator()->next_reference_is_weak());
   dest.Write(value);
 }
 
-template <class AllocatorT>
-void Deserializer<AllocatorT>::Initialize(Isolate* isolate) {
+void Deserializer::Initialize(Isolate* isolate) {
   DCHECK_NULL(isolate_);
   DCHECK_NOT_NULL(isolate);
   isolate_ = isolate;
@@ -98,19 +93,12 @@ void Deserializer<AllocatorT>::Initialize(Isolate* isolate) {
            SerializedData::ComputeMagicNumber(external_reference_table_));
 }
 
-template <class AllocatorT>
-bool Deserializer<AllocatorT>::IsLazyDeserializationEnabled() const {
-  return FLAG_lazy_deserialization && !isolate()->serializer_enabled();
-}
-
-template <class AllocatorT>
-void Deserializer<AllocatorT>::Rehash() {
+void Deserializer::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
   for (const auto& item : to_rehash_) item->RehashBasedOnMap(isolate());
 }
 
-template <class AllocatorT>
-Deserializer<AllocatorT>::~Deserializer() {
+Deserializer::~Deserializer() {
 #ifdef DEBUG
   // Do not perform checks if we aborted deserialization.
   if (source_.position() == 0) return;
@@ -123,28 +111,19 @@ Deserializer<AllocatorT>::~Deserializer() {
 
 // This is called on the roots.  It is the driver of the deserialization
 // process.  It is also called on the body of each function.
-template <class AllocatorT>
-void Deserializer<AllocatorT>::VisitRootPointers(Root root,
-                                                 const char* description,
-                                                 ObjectSlot start,
-                                                 ObjectSlot end) {
-  // Builtins are deserialized in a separate pass by the BuiltinDeserializer.
-  if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
-
+void Deserializer::VisitRootPointers(Root root, const char* description,
+                                     ObjectSlot start, ObjectSlot end) {
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using nullptr as the address.
   ReadData(UnalignedSlot(start), UnalignedSlot(end), NEW_SPACE, kNullAddress);
 }
 
-template <class AllocatorT>
-void Deserializer<AllocatorT>::Synchronize(
-    VisitorSynchronization::SyncTag tag) {
+void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
   static const byte expected = kSynchronize;
   CHECK_EQ(expected, source_.Get());
 }
 
-template <class AllocatorT>
-void Deserializer<AllocatorT>::DeserializeDeferredObjects() {
+void Deserializer::DeserializeDeferredObjects() {
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
     switch (code) {
       case kAlignmentPrefix:
@@ -195,9 +174,7 @@ uint32_t StringTableInsertionKey::ComputeHashField(String* string) {
   return string->hash_field();
 }
 
-template <class AllocatorT>
-HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
-                                                           int space) {
+HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
     if (obj->IsString()) {
       // Uninitialize hash field as we need to recompute the hash.
@@ -320,16 +297,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
   return obj;
 }
 
-template <class AllocatorT>
-int Deserializer<AllocatorT>::MaybeReplaceWithDeserializeLazy(int builtin_id) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  return IsLazyDeserializationEnabled() && Builtins::IsLazy(builtin_id)
-             ? Builtins::kDeserializeLazy
-             : builtin_id;
-}
-
-template <class AllocatorT>
-HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
+HeapObject* Deserializer::GetBackReferencedObject(int space) {
   HeapObject* obj;
   switch (space) {
     case LO_SPACE:
@@ -377,10 +345,8 @@ HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
 // The reason for this strange interface is that otherwise the object is
 // written very late, which means the FreeSpace map is not set up by the
 // time we need to use it to mark the space at the end of a page free.
-template <class AllocatorT>
-void Deserializer<AllocatorT>::ReadObject(
-    int space_number, UnalignedSlot write_back,
-    HeapObjectReferenceType reference_type) {
+void Deserializer::ReadObject(int space_number, UnalignedSlot write_back,
+                              HeapObjectReferenceType reference_type) {
   const int size = source_.GetInt() << kObjectAlignmentBits;
 
   Address address =
@@ -409,18 +375,6 @@ void Deserializer<AllocatorT>::ReadObject(
 #endif  // DEBUG
 }
 
-template <class AllocatorT>
-Object* Deserializer<AllocatorT>::ReadDataSingle() {
-  MaybeObject o;
-  UnalignedSlot start(&o);
-  UnalignedSlot end(start.address() + kPointerSize);
-  int source_space = NEW_SPACE;
-  Address current_object = kNullAddress;
-
-  CHECK(ReadData(start, end, source_space, current_object));
-  return o->GetHeapObjectAssumeStrong();
-}
-
 static void NoExternalReferencesCallback() {
   // The following check will trigger if a function or object template
   // with references to native functions have been deserialized from
@@ -429,10 +383,8 @@ static void NoExternalReferencesCallback() {
   CHECK_WITH_MSG(false, "No external references provided via API");
 }
 
-template <class AllocatorT>
-bool Deserializer<AllocatorT>::ReadData(UnalignedSlot current,
-                                        UnalignedSlot limit, int source_space,
-                                        Address current_object_address) {
+bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
+                            int source_space, Address current_object_address) {
   Isolate* const isolate = isolate_;
   // Write barrier support costs around 1% in startup time.  In fact there
   // are no new space objects in current boot snapshots, so it's not needed,
@@ -539,10 +491,6 @@ bool Deserializer<AllocatorT>::ReadData(UnalignedSlot current,
       SINGLE_CASE(kAttachedReference, kPlain, kStartOfObject, 0)
       SINGLE_CASE(kAttachedReference, kFromCode, kStartOfObject, 0)
       SINGLE_CASE(kAttachedReference, kFromCode, kInnerPointer, 0)
-      // Find a builtin and write a pointer to it to the current object.
-      SINGLE_CASE(kBuiltin, kPlain, kStartOfObject, 0)
-      SINGLE_CASE(kBuiltin, kFromCode, kStartOfObject, 0)
-      SINGLE_CASE(kBuiltin, kFromCode, kInnerPointer, 0)
 
 #undef CASE_STATEMENT
 #undef CASE_BODY
@@ -805,8 +753,7 @@ bool Deserializer<AllocatorT>::ReadData(UnalignedSlot current,
   return true;
 }
 
-template <class AllocatorT>
-UnalignedSlot Deserializer<AllocatorT>::ReadExternalReferenceCase(
+UnalignedSlot Deserializer::ReadExternalReferenceCase(
     HowToCode how, UnalignedSlot current, Address current_object_address) {
   int skip = source_.GetInt();
   current.Advance(skip);
@@ -828,11 +775,11 @@ UnalignedSlot Deserializer<AllocatorT>::ReadExternalReferenceCase(
   return current;
 }
 
-template <class AllocatorT>
 template <int where, int how, int within, int space_number_if_any>
-UnalignedSlot Deserializer<AllocatorT>::ReadDataCase(
-    Isolate* isolate, UnalignedSlot current, Address current_object_address,
-    byte data, bool write_barrier_needed) {
+UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
+                                         UnalignedSlot current,
+                                         Address current_object_address,
+                                         byte data, bool write_barrier_needed) {
   bool emit_write_barrier = false;
   bool current_was_incremented = false;
   int space_number = space_number_if_any == kAnyOldSpace ? (data & kSpaceMask)
@@ -872,24 +819,15 @@ UnalignedSlot Deserializer<AllocatorT>::ReadDataCase(
       int cache_index = source_.GetInt();
       new_object = isolate->partial_snapshot_cache()->at(cache_index);
       emit_write_barrier = Heap::InNewSpace(new_object);
-    } else if (where == kAttachedReference) {
+    } else {
+      DCHECK_EQ(where, kAttachedReference);
       int index = source_.GetInt();
       new_object = *attached_objects_[index];
       emit_write_barrier = Heap::InNewSpace(new_object);
-    } else {
-      DCHECK_EQ(where, kBuiltin);
-      int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
-      new_object = isolate->builtins()->builtin(builtin_id);
-      emit_write_barrier = false;
     }
     if (within == kInnerPointer) {
       DCHECK_EQ(how, kFromCode);
-      if (where == kBuiltin) {
-        // At this point, new_object may still be uninitialized, thus the
-        // unchecked Code cast.
-        new_object = reinterpret_cast<Object*>(
-            reinterpret_cast<Code*>(new_object)->raw_instruction_start());
-      } else if (new_object->IsCode()) {
+      if (new_object->IsCode()) {
         new_object = reinterpret_cast<Object*>(
             Code::cast(new_object)->raw_instruction_start());
       } else {
@@ -927,10 +865,6 @@ UnalignedSlot Deserializer<AllocatorT>::ReadDataCase(
 
   return current;
 }
-
-// Explicit instantiation.
-template class Deserializer<BuiltinDeserializerAllocator>;
-template class Deserializer<DefaultDeserializerAllocator>;
 
 }  // namespace internal
 }  // namespace v8

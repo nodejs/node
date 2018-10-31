@@ -28,26 +28,14 @@ OUT_DIR = os.path.join(V8_DIR, 'check-header-includes')
 AUTO_EXCLUDE = [
   # flag-definitions.h needs a mode set for being included.
   'src/flag-definitions.h',
-  # blacklist of headers we need to fix (https://crbug.com/v8/7965).
-  'src/allocation-site-scopes.h',
-  'src/compiler/allocation-builder.h',
-  'src/compiler/js-context-specialization.h',
-  'src/compiler/raw-machine-assembler.h',
-  'src/dateparser-inl.h',
-  'src/ic/ic.h',
-  'src/lookup.h',
-  'src/parsing/parser.h',
-  'src/parsing/preparser.h',
-  'src/regexp/jsregexp.h',
-  'src/snapshot/object-deserializer.h',
-  'src/transitions.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
   'src/base/atomicops_internals_.*',
 ] + [
   # platform-specific headers
   '\\b{}\\b'.format(p) for p in
-    ('win32', 'ia32', 'x64', 'arm', 'arm64', 'mips', 'mips64', 's390', 'ppc')]
+    ('win', 'win32', 'ia32', 'x64', 'arm', 'arm64', 'mips', 'mips64', 's390',
+     'ppc')]
 
 args = None
 def parse_args():

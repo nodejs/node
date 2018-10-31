@@ -237,7 +237,7 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
       declaration, descriptor_->declaration_kind, descriptor_->mode,
       Variable::DefaultInitializationFlag(descriptor_->mode),
       outer_function_scope);
-  if (parser_->scanner_.has_parser_error_set()) return;
+  if (parser_->scanner_.has_parser_error()) return;
   DCHECK_NOT_NULL(var);
   DCHECK(proxy->is_resolved());
   DCHECK_NE(initializer_position_, kNoSourcePosition);
@@ -499,8 +499,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
       if_not_done = factory()->NewIfStatement(
           factory()->NewUnaryOperation(
               Token::NOT, factory()->NewVariableProxy(done), kNoSourcePosition),
-          next_block, factory()->NewEmptyStatement(kNoSourcePosition),
-          kNoSourcePosition);
+          next_block, factory()->EmptyStatement(), kNoSourcePosition);
     }
     block_->statements()->Add(if_not_done, zone());
 
@@ -608,7 +607,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
       maybe_store_and_unset_done = factory()->NewIfStatement(
           factory()->NewUnaryOperation(Token::NOT, result_done, nopos), then,
-          factory()->NewEmptyStatement(nopos), nopos);
+          factory()->EmptyStatement(), nopos);
     }
 
     // index++;

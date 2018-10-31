@@ -20,7 +20,7 @@ enum class RootIndex : uint16_t;
 
 // Base class for serializer that iterate over roots. Also maintains a cache
 // that can be used to share non-root objects with other serializers.
-class RootsSerializer : public Serializer<> {
+class RootsSerializer : public Serializer {
  public:
   // The serializer expects that all roots before |first_root_to_be_serialized|
   // are already serialized.

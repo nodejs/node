@@ -333,7 +333,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     wire_bytes_ = std::move(wire_bytes);
   }
   const WasmModule* module() const { return module_.get(); }
-  WasmEngine* wasm_engine() const { return wasm_engine_; }
 
   WasmCode* Lookup(Address) const;
 
@@ -353,7 +352,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   NativeModule(Isolate* isolate, const WasmFeatures& enabled_features,
                bool can_request_more, VirtualMemory code_space,
-               WasmEngine* wasm_engine,
+               WasmCodeManager* code_manager,
                std::shared_ptr<const WasmModule> module);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind,
@@ -454,7 +453,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  WasmEngine* const wasm_engine_;
+  WasmCodeManager* const code_manager_;
   std::atomic<size_t> committed_code_space_{0};
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;

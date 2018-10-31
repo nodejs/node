@@ -106,6 +106,7 @@ enum class TypeCheckKind : uint8_t {
   kNone,
   kSignedSmall,
   kSigned32,
+  kSigned64,
   kNumber,
   kNumberOrOddball,
   kHeapObject
@@ -119,6 +120,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "SignedSmall";
     case TypeCheckKind::kSigned32:
       return os << "Signed32";
+    case TypeCheckKind::kSigned64:
+      return os << "Signed64";
     case TypeCheckKind::kNumber:
       return os << "Number";
     case TypeCheckKind::kNumberOrOddball:
@@ -206,6 +209,12 @@ class UseInfo {
                                          const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kWord32,
                    Truncation::Any(identify_zeros), TypeCheckKind::kSigned32,
+                   feedback);
+  }
+  static UseInfo CheckedSigned64AsWord64(IdentifyZeros identify_zeros,
+                                         const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kWord64,
+                   Truncation::Any(identify_zeros), TypeCheckKind::kSigned64,
                    feedback);
   }
   static UseInfo CheckedNumberAsFloat64(IdentifyZeros identify_zeros,
@@ -325,7 +334,8 @@ class RepresentationChanger final {
   Node* GetBitRepresentationFor(Node* node, MachineRepresentation output_rep,
                                 Type output_type);
   Node* GetWord64RepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type output_type);
+                                   Type output_type, Node* use_node,
+                                   UseInfo use_info);
   Node* TypeError(Node* node, MachineRepresentation output_rep,
                   Type output_type, MachineRepresentation use);
   Node* MakeTruncatedInt32Constant(double value);

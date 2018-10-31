@@ -55,9 +55,6 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
 
-  if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip)) {
-    return;
-  }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
   if (SerializeRoot(obj, how_to_code, where_to_point, skip)) return;

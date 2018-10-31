@@ -123,8 +123,11 @@ class SerializerDeserializer : public RootVisitor {
       const std::vector<CallHandlerInfo*>& call_handler_infos);
 
 #define UNUSED_SERIALIZER_BYTE_CODES(V) \
+  V(0x0e)                               \
+  V(0x2e)                               \
   V(0x3e)                               \
   V(0x3f)                               \
+  V(0x4e)                               \
   V(0x58)                               \
   V(0x59)                               \
   V(0x5a)                               \
@@ -134,6 +137,7 @@ class SerializerDeserializer : public RootVisitor {
   V(0x5e)                               \
   V(0x5f)                               \
   V(0x67)                               \
+  V(0x6e)                               \
   V(0x76)                               \
   V(0x79)                               \
   V(0x7a)                               \
@@ -160,8 +164,6 @@ class SerializerDeserializer : public RootVisitor {
     // 0x07        External reference referenced by id.
     kExternalReference = 0x07,
 
-    // 0x0e        Builtin code referenced by index.
-    kBuiltin = 0x0e,
     // 0x16       Root array item.
     kRootArray = 0x16,
     // 0x17        Object provided in the attached list.

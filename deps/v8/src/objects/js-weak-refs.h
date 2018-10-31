@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_WEAK_REFS_H_
 
 #include "src/objects/js-objects.h"
+#include "src/objects/microtask.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,6 +24,7 @@ class JSWeakFactory : public JSObject {
   DECL_VERIFIER(JSWeakFactory)
   DECL_CAST(JSWeakFactory)
 
+  DECL_ACCESSORS(native_context, Context)
   DECL_ACCESSORS(cleanup, Object)
   DECL_ACCESSORS(active_cells, Object)
   DECL_ACCESSORS(cleared_cells, Object)
@@ -45,7 +47,8 @@ class JSWeakFactory : public JSObject {
   // list. (Assumes there is one.)
   inline JSWeakCell* PopClearedCell(Isolate* isolate);
 
-  static const int kCleanupOffset = JSObject::kHeaderSize;
+  static const int kNativeContextOffset = JSObject::kHeaderSize;
+  static const int kCleanupOffset = kNativeContextOffset + kPointerSize;
   static const int kActiveCellsOffset = kCleanupOffset + kPointerSize;
   static const int kClearedCellsOffset = kActiveCellsOffset + kPointerSize;
   static const int kNextOffset = kClearedCellsOffset + kPointerSize;
@@ -54,8 +57,6 @@ class JSWeakFactory : public JSObject {
 
   // Bitfields in flags.
   class ScheduledForCleanupField : public BitField<bool, 0, 1> {};
-
-  static void CleanupJSWeakFactoriesCallback(void* data);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakFactory);
@@ -98,6 +99,21 @@ class JSWeakCell : public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCell);
+};
+
+class WeakFactoryCleanupJobTask : public Microtask {
+ public:
+  DECL_ACCESSORS(factory, JSWeakFactory)
+
+  DECL_CAST(WeakFactoryCleanupJobTask)
+  DECL_VERIFIER(WeakFactoryCleanupJobTask)
+  DECL_PRINTER(WeakFactoryCleanupJobTask)
+
+  static const int kFactoryOffset = Microtask::kHeaderSize;
+  static const int kSize = kFactoryOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFactoryCleanupJobTask);
 };
 
 class JSWeakFactoryCleanupIterator : public JSObject {

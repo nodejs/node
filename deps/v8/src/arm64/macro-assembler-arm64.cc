@@ -353,7 +353,7 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
           return;
         } else if (operand.ImmediateRMode() == RelocInfo::EMBEDDED_OBJECT) {
           Handle<HeapObject> x(
-              reinterpret_cast<HeapObject**>(operand.ImmediateValue()));
+              reinterpret_cast<Address*>(operand.ImmediateValue()));
           IndirectLoadConstant(rd, x);
           return;
         }

@@ -1504,15 +1504,12 @@ struct RegExpCompileData {
 class RegExpEngine: public AllStatic {
  public:
   struct CompilationResult {
-    CompilationResult(Isolate* isolate, const char* error_message)
-        : error_message(error_message),
-          code(ReadOnlyRoots(isolate).the_hole_value()),
-          num_registers(0) {}
+    inline CompilationResult(Isolate* isolate, const char* error_message);
     CompilationResult(Object* code, int registers)
-        : error_message(nullptr), code(code), num_registers(registers) {}
-    const char* error_message;
-    Object* code;
-    int num_registers;
+        : code(code), num_registers(registers) {}
+    const char* const error_message = nullptr;
+    Object* const code;
+    int const num_registers = 0;
   };
 
   static CompilationResult Compile(Isolate* isolate, Zone* zone,

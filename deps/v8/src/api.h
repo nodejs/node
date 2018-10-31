@@ -246,7 +246,7 @@ template <class T>
 static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
     const v8::Persistent<T>& persistent) {
   return v8::internal::Handle<v8::internal::Object>(
-      reinterpret_cast<v8::internal::Object**>(persistent.val_));
+      reinterpret_cast<v8::internal::Address*>(persistent.val_));
   }
 
   template <class T>
@@ -295,7 +295,7 @@ class V8_EXPORT_PRIVATE DeferredHandles {
   ~DeferredHandles();
 
  private:
-  DeferredHandles(Object** first_block_limit, Isolate* isolate)
+  DeferredHandles(Address* first_block_limit, Isolate* isolate)
       : next_(nullptr),
         previous_(nullptr),
         first_block_limit_(first_block_limit),
@@ -305,10 +305,10 @@ class V8_EXPORT_PRIVATE DeferredHandles {
 
   void Iterate(RootVisitor* v);
 
-  std::vector<Object**> blocks_;
+  std::vector<Address*> blocks_;
   DeferredHandles* next_;
   DeferredHandles* previous_;
-  Object** first_block_limit_;
+  Address* first_block_limit_;
   Isolate* isolate_;
 
   friend class HandleScopeImplementer;
@@ -357,8 +357,8 @@ class HandleScopeImplementer {
   void Iterate(v8::internal::RootVisitor* v);
   static char* Iterate(v8::internal::RootVisitor* v, char* data);
 
-  inline internal::Object** GetSpareOrNewBlock();
-  inline void DeleteExtensions(internal::Object** prev_limit);
+  inline internal::Address* GetSpareOrNewBlock();
+  inline void DeleteExtensions(internal::Address* prev_limit);
 
   // Call depth represents nested v8 api calls.
   inline void IncrementCallDepth() {call_depth_++;}
@@ -410,10 +410,10 @@ class HandleScopeImplementer {
   inline Context* RestoreContext();
   inline bool HasSavedContexts();
 
-  inline DetachableVector<Object**>* blocks() { return &blocks_; }
+  inline DetachableVector<Address*>* blocks() { return &blocks_; }
   Isolate* isolate() const { return isolate_; }
 
-  void ReturnBlock(Object** block) {
+  void ReturnBlock(Address* block) {
     DCHECK_NOT_NULL(block);
     if (spare_ != nullptr) DeleteArray(spare_);
     spare_ = block;
@@ -448,16 +448,16 @@ class HandleScopeImplementer {
   }
 
   void BeginDeferredScope();
-  DeferredHandles* Detach(Object** prev_limit);
+  DeferredHandles* Detach(Address* prev_limit);
 
   Isolate* isolate_;
-  DetachableVector<Object**> blocks_;
+  DetachableVector<Address*> blocks_;
   // Used as a stack to keep track of entered contexts.
   DetachableVector<Context*> entered_contexts_;
   // Used as a stack to keep track of saved contexts.
   DetachableVector<Context*> saved_contexts_;
   Context* microtask_context_;
-  Object** spare_;
+  Address* spare_;
   int call_depth_;
   int microtasks_depth_;
   int microtasks_suppressions_;
@@ -467,7 +467,7 @@ class HandleScopeImplementer {
   int debug_microtasks_depth_;
 #endif
   v8::MicrotasksPolicy microtasks_policy_;
-  Object** last_handle_before_deferred_block_;
+  Address* last_handle_before_deferred_block_;
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;
 
@@ -554,22 +554,26 @@ void HandleScopeImplementer::LeaveMicrotaskContext() {
 }
 
 // If there's a spare block, use it for growing the current scope.
-internal::Object** HandleScopeImplementer::GetSpareOrNewBlock() {
-  internal::Object** block =
+internal::Address* HandleScopeImplementer::GetSpareOrNewBlock() {
+  internal::Address* block =
       (spare_ != nullptr) ? spare_
-                          : NewArray<internal::Object*>(kHandleBlockSize);
+                          : NewArray<internal::Address>(kHandleBlockSize);
   spare_ = nullptr;
   return block;
 }
 
-
-void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
+void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
   while (!blocks_.empty()) {
-    internal::Object** block_start = blocks_.back();
-    internal::Object** block_limit = block_start + kHandleBlockSize;
+    internal::Address* block_start = blocks_.back();
+    internal::Address* block_limit = block_start + kHandleBlockSize;
 
     // SealHandleScope may make the prev_limit to point inside the block.
-    if (block_start <= prev_limit && prev_limit <= block_limit) {
+    // Cast possibly-unrelated pointers to plain Addres before comparing them
+    // to avoid undefined behavior.
+    if (reinterpret_cast<Address>(block_start) <=
+            reinterpret_cast<Address>(prev_limit) &&
+        reinterpret_cast<Address>(prev_limit) <=
+            reinterpret_cast<Address>(block_limit)) {
 #ifdef ENABLE_HANDLE_ZAPPING
       internal::HandleScope::ZapRange(prev_limit, block_limit);
 #endif

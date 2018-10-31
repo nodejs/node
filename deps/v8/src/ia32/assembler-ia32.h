@@ -251,7 +251,7 @@ class Immediate {
   }
 
   Handle<HeapObject> embedded_object() const {
-    return Handle<HeapObject>(bit_cast<HeapObject**>(immediate()));
+    return Handle<HeapObject>(reinterpret_cast<Address*>(immediate()));
   }
 
   bool is_external_reference() const {

@@ -107,11 +107,12 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   Node* FlagsGetter(Node* const context, Node* const regexp, bool is_fastpath);
 
-  Node* FastFlagGetter(Node* const regexp, JSRegExp::Flag flag);
-  Node* SlowFlagGetter(Node* const context, Node* const regexp,
-                       JSRegExp::Flag flag);
-  Node* FlagGetter(Node* const context, Node* const regexp, JSRegExp::Flag flag,
-                   bool is_fastpath);
+  TNode<Int32T> FastFlagGetter(TNode<JSRegExp> regexp, JSRegExp::Flag flag);
+  TNode<Int32T> SlowFlagGetter(TNode<Context> context, TNode<Object> regexp,
+                               JSRegExp::Flag flag);
+  TNode<Int32T> FlagGetter(TNode<Context> context, TNode<Object> regexp,
+                           JSRegExp::Flag flag, bool is_fastpath);
+
   void FlagGetter(Node* context, Node* receiver, JSRegExp::Flag flag,
                   int counter, const char* method_name);
 

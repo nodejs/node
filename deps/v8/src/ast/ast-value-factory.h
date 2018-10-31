@@ -107,11 +107,11 @@ class AstRawString final : public ZoneObject {
 #endif
   }
 
-  // {string_} is stored as String** instead of a Handle<String> so it can be
+  // {string_} is stored as Address* instead of a Handle<String> so it can be
   // stored in a union with {next_}.
   union {
     AstRawString* next_;
-    String** string_;
+    Address* string_;
   };
 
   Vector<const byte> literal_bytes_;  // Memory owned by Zone.
@@ -163,12 +163,12 @@ class AstConsString final : public ZoneObject {
   AstConsString* next() const { return next_; }
   AstConsString** next_location() { return &next_; }
 
-  // {string_} is stored as String** instead of a Handle<String> so it can be
+  // {string_} is stored as Address* instead of a Handle<String> so it can be
   // stored in a union with {next_}.
   void set_string(Handle<String> string) { string_ = string.location(); }
   union {
     AstConsString* next_;
-    String** string_;
+    Address* string_;
   };
 
   struct Segment {

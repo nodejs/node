@@ -45,6 +45,20 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
   return reinterpret_cast<void*>(address);
 }
 
+bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
+                                           PageAllocator::Permission access) {
+  CHECK(IsAligned(address, allocate_page_size_));
+  CHECK(IsAligned(size, allocate_page_size_));
+  CHECK(region_allocator_.contains(address, size));
+
+  if (!region_allocator_.AllocateRegionAt(address, size)) {
+    return false;
+  }
+  CHECK(page_allocator_->SetPermissions(reinterpret_cast<void*>(address), size,
+                                        access));
+  return true;
+}
+
 bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
   MutexGuard guard(&mutex_);
 

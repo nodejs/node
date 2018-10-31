@@ -154,7 +154,6 @@ class ObjectCacheIndexMap {
   DISALLOW_COPY_AND_ASSIGN(ObjectCacheIndexMap);
 };
 
-template <class AllocatorT = DefaultSerializerAllocator>
 class Serializer : public SerializerDeserializer {
  public:
   explicit Serializer(Isolate* isolate);
@@ -221,11 +220,6 @@ class Serializer : public SerializerDeserializer {
   bool SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
                               WhereToPoint where_to_point, int skip);
 
-  // Returns true if the object was successfully serialized as a builtin
-  // reference.
-  bool SerializeBuiltinReference(HeapObject* obj, HowToCode how_to_code,
-                                 WhereToPoint where_to_point, int skip);
-
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject* obj) const;
 
@@ -271,7 +265,7 @@ class Serializer : public SerializerDeserializer {
 
   SerializerReferenceMap* reference_map() { return &reference_map_; }
   const RootIndexMap* root_index_map() const { return &root_index_map_; }
-  AllocatorT* allocator() { return &allocator_; }
+  DefaultSerializerAllocator* allocator() { return &allocator_; }
 
   SnapshotByteSink sink_;  // Used directly by subclasses.
 
@@ -284,7 +278,7 @@ class Serializer : public SerializerDeserializer {
   std::vector<byte> code_buffer_;
   std::vector<HeapObject*> deferred_objects_;  // To handle stack overflow.
   int recursion_depth_ = 0;
-  AllocatorT allocator_;
+  DefaultSerializerAllocator allocator_;
 
 #ifdef OBJECT_PRINT
   static const int kInstanceTypes = LAST_TYPE + 1;
@@ -303,8 +297,7 @@ class Serializer : public SerializerDeserializer {
 
 class RelocInfoIterator;
 
-template <class AllocatorT>
-class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
+class Serializer::ObjectSerializer : public ObjectVisitor {
  public:
   ObjectSerializer(Serializer* serializer, HeapObject* obj,
                    SnapshotByteSink* sink, HowToCode how_to_code,

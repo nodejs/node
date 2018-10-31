@@ -65,6 +65,7 @@ class HeapObjectsFilter;
 class HeapStats;
 class HistogramTimer;
 class Isolate;
+class JSWeakFactory;
 class LocalEmbedderHeapTracer;
 class MemoryAllocator;
 class MemoryReducer;
@@ -662,6 +663,12 @@ class Heap {
 
   void SetBuiltinsConstantsTable(FixedArray* cache);
 
+  // Add weak_factory into the dirty_js_weak_factories list.
+  void AddDirtyJSWeakFactory(
+      JSWeakFactory* weak_factory,
+      std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
+          gc_notify_updated_slot);
+
   // ===========================================================================
   // Inline allocation. ========================================================
   // ===========================================================================
@@ -992,9 +999,8 @@ class Heap {
   // Returns the capacity of the old generation.
   size_t OldGenerationCapacity();
 
-  // Returns the amount of memory currently committed for the heap and memory
-  // held alive by the unmapper.
-  size_t CommittedMemoryOfHeapAndUnmapper();
+  // Returns the amount of memory currently held alive by the unmapper.
+  size_t CommittedMemoryOfUnmapper();
 
   // Returns the amount of memory currently committed for the heap.
   size_t CommittedMemory();

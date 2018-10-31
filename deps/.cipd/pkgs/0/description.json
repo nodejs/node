@@ -1,0 +1,4 @@
+{
+  "subdir": "v8/tools/luci-go",
+  "package_name": "infra/tools/luci/isolate/linux-amd64"
+}

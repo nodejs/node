@@ -1058,10 +1058,14 @@ class LinearScanAllocator final : public RegisterAllocator {
   void AddToActive(LiveRange* range);
   void AddToInactive(LiveRange* range);
   void AddToUnhandled(LiveRange* range);
-  void ActiveToHandled(LiveRange* range);
-  void ActiveToInactive(LiveRange* range);
-  void InactiveToHandled(LiveRange* range);
-  void InactiveToActive(LiveRange* range);
+  ZoneVector<LiveRange*>::iterator ActiveToHandled(
+      ZoneVector<LiveRange*>::iterator it);
+  ZoneVector<LiveRange*>::iterator ActiveToInactive(
+      ZoneVector<LiveRange*>::iterator it);
+  ZoneVector<LiveRange*>::iterator InactiveToHandled(
+      ZoneVector<LiveRange*>::iterator it);
+  ZoneVector<LiveRange*>::iterator InactiveToActive(
+      ZoneVector<LiveRange*>::iterator it);
 
   // Helper methods for allocating registers.
   bool TryReuseSpillForPhi(TopLevelLiveRange* range);

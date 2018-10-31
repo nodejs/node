@@ -268,6 +268,35 @@ TEST_F(RedundancyEliminationTest, CheckedFloat64ToInt32) {
 }
 
 // -----------------------------------------------------------------------------
+// CheckedFloat64ToInt64
+
+TEST_F(RedundancyEliminationTest, CheckedFloat64ToInt64) {
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+        Node* value = Parameter(0);
+        Node* effect = graph()->start();
+        Node* control = graph()->start();
+
+        Node* check1 = effect = graph()->NewNode(
+            simplified()->CheckedFloat64ToInt64(mode, feedback1), value, effect,
+            control);
+        Reduction r1 = Reduce(check1);
+        ASSERT_TRUE(r1.Changed());
+        EXPECT_EQ(r1.replacement(), check1);
+
+        Node* check2 = effect = graph()->NewNode(
+            simplified()->CheckedFloat64ToInt64(mode, feedback2), value, effect,
+            control);
+        Reduction r2 = Reduce(check2);
+        ASSERT_TRUE(r2.Changed());
+        EXPECT_EQ(r2.replacement(), check1);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // CheckedInt32ToTaggedSigned
 
 TEST_F(RedundancyEliminationTest, CheckedInt32ToTaggedSigned) {
@@ -488,6 +517,35 @@ TEST_F(RedundancyEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
+// CheckedTaggedToInt64
+
+TEST_F(RedundancyEliminationTest, CheckedTaggedToInt64) {
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+        Node* value = Parameter(0);
+        Node* effect = graph()->start();
+        Node* control = graph()->start();
+
+        Node* check1 = effect = graph()->NewNode(
+            simplified()->CheckedTaggedToInt64(mode, feedback1), value, effect,
+            control);
+        Reduction r1 = Reduce(check1);
+        ASSERT_TRUE(r1.Changed());
+        EXPECT_EQ(r1.replacement(), check1);
+
+        Node* check2 = effect = graph()->NewNode(
+            simplified()->CheckedTaggedToInt64(mode, feedback2), value, effect,
+            control);
+        Reduction r2 = Reduce(check2);
+        ASSERT_TRUE(r2.Changed());
+        EXPECT_EQ(r2.replacement(), check1);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // CheckedTaggedToTaggedPointer
 
 TEST_F(RedundancyEliminationTest, CheckedTaggedToTaggedPointer) {
@@ -600,6 +658,34 @@ TEST_F(RedundancyEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
+// CheckedUint32Bounds
+
+TEST_F(RedundancyEliminationTest, CheckedUint32Bounds) {
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* index = Parameter(0);
+      Node* length = Parameter(1);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect =
+          graph()->NewNode(simplified()->CheckedUint32Bounds(feedback1), index,
+                           length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect =
+          graph()->NewNode(simplified()->CheckedUint32Bounds(feedback2), index,
+                           length, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check1);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // CheckedUint32ToInt32
 
 TEST_F(RedundancyEliminationTest, CheckedUint32ToInt32) {
@@ -646,6 +732,34 @@ TEST_F(RedundancyEliminationTest, CheckedUint32ToTaggedSigned) {
       Node* check2 = effect =
           graph()->NewNode(simplified()->CheckedUint32ToTaggedSigned(feedback2),
                            value, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check1);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// CheckedUint64Bounds
+
+TEST_F(RedundancyEliminationTest, CheckedUint64Bounds) {
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* index = Parameter(0);
+      Node* length = Parameter(1);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect =
+          graph()->NewNode(simplified()->CheckedUint64Bounds(feedback1), index,
+                           length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect =
+          graph()->NewNode(simplified()->CheckedUint64Bounds(feedback2), index,
+                           length, effect, control);
       Reduction r2 = Reduce(check2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_EQ(r2.replacement(), check1);

@@ -15,7 +15,7 @@ module array {
       String
       labels IfException(Object);
 
-  builtin LoadJoinElement<T: type>(
+  transitioning builtin LoadJoinElement<T: type>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     return GetProperty(receiver, k);
   }
@@ -59,7 +59,7 @@ module array {
     }
   }
 
-  builtin ConvertToLocaleString(
+  transitioning builtin ConvertToLocaleString(
       context: Context, element: Object, locales: Object,
       options: Object): String {
     if (IsNullOrUndefined(element)) return kEmptyString;
@@ -109,6 +109,27 @@ module array {
     }
   }
 
+  // Stores an element to a fixed array and return the fixed array. If the fixed
+  // array is not large enough, create and return a new, larger fixed array that
+  // contains all previously elements and the new element.
+  macro StoreAndGrowFixedArray<T: type>(
+      fixedArray: FixedArray, index: intptr, element: T): FixedArray {
+    const length: intptr = fixedArray.length_intptr;
+    assert(index <= length);
+    if (index < length) {
+      fixedArray[index] = element;
+      return fixedArray;
+    } else
+      deferred {
+        const newLength: intptr = CalculateNewElementsCapacity(length);
+        assert(index < newLength);
+        const newfixedArray: FixedArray =
+            ExtractFixedArray(fixedArray, 0, length, newLength, kFixedArrays);
+        newfixedArray[index] = element;
+        return newfixedArray;
+      }
+  }
+
   // Contains the information necessary to create a single, separator delimited,
   // flattened one or two byte string.
   // The buffer is maintained and updated by BufferInit(), BufferAdd(),
@@ -143,8 +164,8 @@ module array {
   }
 
   macro BufferInit(len: uintptr, sep: String): Buffer {
-    const cappedBufferSize: intptr = len > kFixedArrayMaxLength ?
-        FromConstexpr<intptr>(kFixedArrayMaxLength) :
+    const cappedBufferSize: intptr = len > kMaxNewSpaceFixedArrayElements ?
+        kMaxNewSpaceFixedArrayElements :
         Signed(len);
     assert(cappedBufferSize > 0);
     const fixedArray: FixedArray = AllocateZeroedFixedArray(cappedBufferSize);
@@ -164,11 +185,11 @@ module array {
     const totalStringLength: intptr =
         AddStringLength(buffer.totalStringLength, str.length);
     let index: intptr = buffer.index;
-    assert(index < buffer.fixedArray.length_intptr);
-    buffer.fixedArray[index++] = str;
+    const fixedArray: FixedArray =
+        StoreAndGrowFixedArray<String>(buffer.fixedArray, index++, str);
     const isOneByte: bool =
         HasOnlyOneByteChars(str.instanceType) & buffer.isOneByte;
-    return Buffer{buffer.fixedArray, index, totalStringLength, isOneByte};
+    return Buffer{fixedArray, index, totalStringLength, isOneByte};
   }
 
   macro BufferAddSeparators(implicit context: Context)(
@@ -187,16 +208,12 @@ module array {
     const totalStringLength: intptr =
         AddStringLength(buffer.totalStringLength, sepsLen);
     let index: intptr = buffer.index;
+    let fixedArray: FixedArray = buffer.fixedArray;
     if (write) deferred {
-        assert(index < buffer.fixedArray.length_intptr);
-        buffer.fixedArray[index++] = Convert<Smi>(nofSeparatorsInt);
+        fixedArray = StoreAndGrowFixedArray<Smi>(
+            buffer.fixedArray, index++, Convert<Smi>(nofSeparatorsInt));
       }
-    return Buffer{
-      buffer.fixedArray,
-      index,
-      totalStringLength,
-      buffer.isOneByte
-    };
+    return Buffer{fixedArray, index, totalStringLength, buffer.isOneByte};
   }
 
   macro BufferJoin(implicit context: Context)(
@@ -211,7 +228,7 @@ module array {
         buffer.fixedArray, buffer.index, sep, r);
   }
 
-  macro ArrayJoinImpl(
+  transitioning macro ArrayJoinImpl(
       context: Context, receiver: JSReceiver, sep: String, lengthNumber: Number,
       useToLocaleString: constexpr bool, locales: Object, options: Object,
       initialLoadJoinElement: LoadJoinElementFn): String {
@@ -279,7 +296,7 @@ module array {
     return BufferJoin(buffer, sep);
   }
 
-  macro ArrayJoin(implicit context: Context)(
+  transitioning macro ArrayJoin(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
       lenNumber: Number, locales: Object, options: Object): Object {
     const map: Map = receiver.map;
@@ -327,13 +344,13 @@ module array {
         loadJoinElements);
   }
 
-  builtin ArrayJoinWithToLocaleString(
+  transitioning builtin ArrayJoinWithToLocaleString(
       context: Context, receiver: JSReceiver, sep: String, len: Number,
       locales: Object, options: Object): Object {
     return ArrayJoin(true, receiver, sep, len, locales, options);
   }
 
-  builtin ArrayJoinWithoutToLocaleString(
+  transitioning builtin ArrayJoinWithoutToLocaleString(
       context: Context, receiver: JSReceiver, sep: String, len: Number,
       locales: Object, options: Object): Object {
     return ArrayJoin(false, receiver, sep, len, locales, options);
@@ -381,10 +398,8 @@ module array {
     }
 
     // If no open slots were found, grow the stack and add receiver to the end.
-    const newCapacity: intptr = CalculateNewElementsCapacity(capacity);
     const newStack: FixedArray =
-        ExtractFixedArray(stack, 0, capacity, newCapacity, kFixedArrays);
-    newStack[capacity] = receiver;
+        StoreAndGrowFixedArray<JSReceiver>(stack, capacity, receiver);
     SetJoinStack(newStack);
     return True;
   }
@@ -450,7 +465,7 @@ module array {
   }
 
   // Main entry point for all builtins using Array Join functionality.
-  macro CycleProtectedArrayJoin(implicit context: Context)(
+  transitioning macro CycleProtectedArrayJoin(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: Object, sepObj: Object,
       locales: Object, options: Object): Object {
     // 1. Let O be ? ToObject(this value).
@@ -460,8 +475,8 @@ module array {
     const len: Number = GetLengthProperty(o);
     // 3. If separator is undefined, let sep be the single-element String ",".
     // 4. Else, let sep be ? ToString(separator).
-    let sep: String = sepObj == Undefined ? FromConstexpr<String>(',') :
-                                            ToString_Inline(context, sepObj);
+    let sep: String =
+        sepObj == Undefined ? ',' : ToString_Inline(context, sepObj);
     try {
       // Fast paths for zero elements
       if (len == 0) goto IfReturnEmpty;
@@ -485,7 +500,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.join
-  javascript builtin ArrayPrototypeJoin(
+  transitioning javascript builtin ArrayPrototypeJoin(
       context: Context, receiver: Object, ...arguments): Object {
     const separator: Object = arguments[0];
     return CycleProtectedArrayJoin(
@@ -493,7 +508,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.toLocaleString
-  javascript builtin ArrayPrototypeToLocaleString(
+  transitioning javascript builtin ArrayPrototypeToLocaleString(
       context: Context, receiver: Object, ...arguments): Object {
     const locales: Object = arguments[0];
     const options: Object = arguments[1];
@@ -501,7 +516,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.toString
-  javascript builtin ArrayPrototypeToString(
+  transitioning javascript builtin ArrayPrototypeToString(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let array be ? ToObject(this value).
     const array: JSReceiver = ToObject_Inline(context, receiver);

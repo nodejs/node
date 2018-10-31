@@ -1528,6 +1528,10 @@ v8_header_set("v8_headers") {
     sources += [ "include/v8-wasm-trap-handler-posix.h" ]
   }
 
+  if (is_win) {
+    sources += [ "include/v8-wasm-trap-handler-win.h" ]
+  }
+
   deps = [
     ":v8_version",
   ]
@@ -1701,6 +1705,7 @@ v8_source_set("v8_base") {
     "src/compiler/access-info.h",
     "src/compiler/all-nodes.cc",
     "src/compiler/all-nodes.h",
+    "src/compiler/allocation-builder-inl.h",
     "src/compiler/allocation-builder.h",
     "src/compiler/basic-block-instrumentor.cc",
     "src/compiler/basic-block-instrumentor.h",
@@ -1932,6 +1937,8 @@ v8_source_set("v8_base") {
     "src/debug/debug-frames.cc",
     "src/debug/debug-frames.h",
     "src/debug/debug-interface.h",
+    "src/debug/debug-property-iterator.cc",
+    "src/debug/debug-property-iterator.h",
     "src/debug/debug-scope-iterator.cc",
     "src/debug/debug-scope-iterator.h",
     "src/debug/debug-scopes.cc",
@@ -2149,6 +2156,8 @@ v8_source_set("v8_base") {
     "src/interpreter/interpreter-intrinsics.h",
     "src/interpreter/interpreter.cc",
     "src/interpreter/interpreter.h",
+    "src/isolate-allocator.cc",
+    "src/isolate-allocator.h",
     "src/isolate-data.h",
     "src/isolate-inl.h",
     "src/isolate.cc",
@@ -2457,6 +2466,7 @@ v8_source_set("v8_base") {
     "src/runtime/runtime-typedarray.cc",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime-wasm.cc",
+    "src/runtime/runtime-weak-refs.cc",
     "src/runtime/runtime.cc",
     "src/runtime/runtime.h",
     "src/safepoint-table.cc",
@@ -2466,14 +2476,6 @@ v8_source_set("v8_base") {
     "src/simulator-base.cc",
     "src/simulator-base.h",
     "src/simulator.h",
-    "src/snapshot/builtin-deserializer-allocator.cc",
-    "src/snapshot/builtin-deserializer-allocator.h",
-    "src/snapshot/builtin-deserializer.cc",
-    "src/snapshot/builtin-deserializer.h",
-    "src/snapshot/builtin-serializer-allocator.cc",
-    "src/snapshot/builtin-serializer-allocator.h",
-    "src/snapshot/builtin-serializer.cc",
-    "src/snapshot/builtin-serializer.h",
     "src/snapshot/code-serializer.cc",
     "src/snapshot/code-serializer.h",
     "src/snapshot/default-deserializer-allocator.cc",
@@ -2532,6 +2534,8 @@ v8_source_set("v8_base") {
     "src/strtod.cc",
     "src/strtod.h",
     "src/third_party/utf8-decoder/utf8-decoder.h",
+    "src/thread-id.cc",
+    "src/thread-id.h",
     "src/torque-assembler.h",
     "src/tracing/trace-event.cc",
     "src/tracing/trace-event.h",
@@ -2754,7 +2758,11 @@ v8_source_set("v8_base") {
       ]
     }
     if (is_win) {
-      sources += [ "src/trap-handler/handler-outside-win.cc" ]
+      sources += [
+        "src/trap-handler/handler-inside-win.cc",
+        "src/trap-handler/handler-inside-win.h",
+        "src/trap-handler/handler-outside-win.cc",
+      ]
     }
   } else if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###

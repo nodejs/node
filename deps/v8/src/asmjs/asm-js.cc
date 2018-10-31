@@ -335,10 +335,8 @@ namespace {
 inline bool IsValidAsmjsMemorySize(size_t size) {
   // Enforce asm.js spec minimum size.
   if (size < (1u << 12u)) return false;
-  // Enforce engine-limited maximum allocation size.
-  if (size > wasm::kV8MaxWasmMemoryBytes) return false;
-  // Enforce flag-limited maximum allocation size.
-  if (size > (FLAG_wasm_max_mem_pages * uint64_t{wasm::kWasmPageSize})) {
+  // Enforce engine-limited and flag-limited maximum allocation size.
+  if (size > wasm::max_mem_pages() * uint64_t{wasm::kWasmPageSize}) {
     return false;
   }
   // Enforce power-of-2 sizes for 2^12 - 2^24.

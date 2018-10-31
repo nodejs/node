@@ -86,7 +86,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig);
 // Miscellaneous memory expressions
 #define FOREACH_MISC_MEM_OPCODE(V) \
   V(MemorySize, 0x3f, i_v)         \
-  V(GrowMemory, 0x40, i_i)
+  V(MemoryGrow, 0x40, i_i)
 
 // Expressions with signatures.
 #define FOREACH_SIMPLE_OPCODE(V)  \

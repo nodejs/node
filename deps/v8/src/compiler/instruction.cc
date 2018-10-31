@@ -583,13 +583,13 @@ Constant::Constant(RelocatablePtrConstantInfo info) {
 Handle<HeapObject> Constant::ToHeapObject() const {
   DCHECK_EQ(kHeapObject, type());
   Handle<HeapObject> value(
-      bit_cast<HeapObject**>(static_cast<intptr_t>(value_)));
+      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   return value;
 }
 
 Handle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<Code> value(bit_cast<Code**>(static_cast<intptr_t>(value_)));
+  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   return value;
 }
 

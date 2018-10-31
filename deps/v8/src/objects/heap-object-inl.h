@@ -15,6 +15,14 @@
 namespace v8 {
 namespace internal {
 
+#define TYPE_CHECK_FORWARDER(Type)                       \
+  bool ObjectPtr::Is##Type() const {                     \
+    return reinterpret_cast<Object*>(ptr())->Is##Type(); \
+  }
+OBJECT_TYPE_LIST(TYPE_CHECK_FORWARDER)
+HEAP_OBJECT_TYPE_LIST(TYPE_CHECK_FORWARDER)
+#undef TYPE_CHECK_FORWARDER
+
 OBJECT_CONSTRUCTORS_IMPL(HeapObjectPtr, ObjectPtr)
 
 #define TYPE_CHECK_FORWARDER(Type)                           \

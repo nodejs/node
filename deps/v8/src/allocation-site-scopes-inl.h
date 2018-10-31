@@ -12,6 +12,13 @@
 namespace v8 {
 namespace internal {
 
+void AllocationSiteContext::InitializeTraversal(Handle<AllocationSite> site) {
+  top_ = site;
+  // {current_} is updated in place to not create unnecessary Handles, hence
+  // we initially need a separate handle.
+  current_ = Handle<AllocationSite>::New(*top_, isolate());
+}
+
 Handle<AllocationSite> AllocationSiteUsageContext::EnterNewScope() {
   if (top().is_null()) {
     InitializeTraversal(top_site_);

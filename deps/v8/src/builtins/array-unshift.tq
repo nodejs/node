@@ -21,7 +21,7 @@ module array {
         Convert<int32>(arguments.length));
   }
 
-  macro GenericArrayUnshift(
+  transitioning macro GenericArrayUnshift(
       context: Context, receiver: Object,
       arguments: constexpr Arguments): Number {
     // 1. Let O be ? ToObject(this value).
@@ -94,7 +94,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.unshift
-  javascript builtin ArrayPrototypeUnshift(
+  transitioning javascript builtin ArrayPrototypeUnshift(
       context: Context, receiver: Object, ...arguments): Object {
     try {
       TryFastArrayUnshift(context, receiver, arguments) otherwise Baseline;

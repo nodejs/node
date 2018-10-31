@@ -209,7 +209,6 @@ v8_source_set("unittests_sources") {
     "wasm/loop-assignment-analysis-unittest.cc",
     "wasm/module-decoder-unittest.cc",
     "wasm/streaming-decoder-unittest.cc",
-    "wasm/trap-handler-unittest.cc",
     "wasm/wasm-code-manager-unittest.cc",
     "wasm/wasm-macro-gen-unittest.cc",
     "wasm/wasm-module-builder-unittest.cc",
@@ -269,6 +268,14 @@ v8_source_set("unittests_sources") {
       "assembler/turbo-assembler-s390-unittest.cc",
       "compiler/s390/instruction-selector-s390-unittest.cc",
     ]
+  }
+
+  if (is_posix) {
+    sources += [ "wasm/trap-handler-posix-unittest.cc" ]
+  }
+
+  if (is_win) {
+    sources += [ "wasm/trap-handler-win-unittest.cc" ]
   }
 
   configs = [

@@ -647,7 +647,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(StoreMem, StoreType type, const MemoryAccessImmediate<validate>& imm,     \
     const Value& index, const Value& value)                                   \
   F(CurrentMemoryPages, Value* result)                                        \
-  F(GrowMemory, const Value& value, Value* result)                            \
+  F(MemoryGrow, const Value& value, Value* result)                            \
   F(CallDirect, const CallFunctionImmediate<validate>& imm,                   \
     const Value args[], Value returns[])                                      \
   F(CallIndirect, const Value& index,                                         \
@@ -798,7 +798,7 @@ class WasmDecoder : public Decoder {
           length = 1 + imm.length;
           break;
         }
-        case kExprGrowMemory:
+        case kExprMemoryGrow:
         case kExprCallFunction:
         case kExprCallIndirect:
           // Add instance cache nodes to the assigned set.
@@ -1066,7 +1066,7 @@ class WasmDecoder : public Decoder {
       case kExprRefNull: {
         return 1;
       }
-      case kExprGrowMemory:
+      case kExprMemoryGrow:
       case kExprMemorySize: {
         MemoryIndexImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
@@ -1143,7 +1143,7 @@ class WasmDecoder : public Decoder {
         return {2, 0};
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
       case kExprTeeLocal:
-      case kExprGrowMemory:
+      case kExprMemoryGrow:
         return {1, 1};
       case kExprSetLocal:
       case kExprSetGlobal:
@@ -1900,7 +1900,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprF64StoreMem:
             len = 1 + DecodeStoreMem(StoreType::kF64Store);
             break;
-          case kExprGrowMemory: {
+          case kExprMemoryGrow: {
             if (!CheckHasMemory()) break;
             MemoryIndexImmediate<validate> imm(this, this->pc_);
             len = 1 + imm.length;
@@ -1911,7 +1911,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             auto value = Pop(0, kWasmI32);
             auto* result = Push(kWasmI32);
-            CALL_INTERFACE_IF_REACHABLE(GrowMemory, value, result);
+            CALL_INTERFACE_IF_REACHABLE(MemoryGrow, value, result);
             break;
           }
           case kExprMemorySize: {

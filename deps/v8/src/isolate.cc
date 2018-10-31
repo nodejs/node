@@ -87,8 +87,6 @@ namespace internal {
 #define TRACE_ISOLATE(tag)
 #endif
 
-base::Atomic32 ThreadId::highest_thread_id_ = 0;
-
 extern const uint8_t* DefaultEmbeddedBlob();
 extern uint32_t DefaultEmbeddedBlobSize();
 
@@ -140,21 +138,6 @@ uint32_t Isolate::CurrentEmbeddedBlobSize() {
       std::memory_order::memory_order_relaxed);
 }
 
-int ThreadId::AllocateThreadId() {
-  int new_id = base::Relaxed_AtomicIncrement(&highest_thread_id_, 1);
-  return new_id;
-}
-
-
-int ThreadId::GetCurrentThreadId() {
-  int thread_id = base::Thread::GetThreadLocalInt(Isolate::thread_id_key_);
-  if (thread_id == 0) {
-    thread_id = AllocateThreadId();
-    base::Thread::SetThreadLocalInt(Isolate::thread_id_key_, thread_id);
-  }
-  return thread_id;
-}
-
 void ThreadLocalTop::Initialize(Isolate* isolate) {
   *this = ThreadLocalTop();
   isolate_ = isolate;
@@ -173,7 +156,6 @@ void ThreadLocalTop::Free() {
 
 
 base::Thread::LocalStorageKey Isolate::isolate_key_;
-base::Thread::LocalStorageKey Isolate::thread_id_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 base::Atomic32 Isolate::isolate_counter_ = 0;
 #if DEBUG
@@ -198,9 +180,8 @@ Isolate::PerIsolateThreadData*
 
 
 void Isolate::DiscardPerThreadDataForThisThread() {
-  int thread_id_int = base::Thread::GetThreadLocalInt(Isolate::thread_id_key_);
-  if (thread_id_int) {
-    ThreadId thread_id = ThreadId(thread_id_int);
+  ThreadId thread_id = ThreadId::TryGetCurrent();
+  if (thread_id.IsValid()) {
     DCHECK(!thread_manager_->mutex_owner_.Equals(thread_id));
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
     PerIsolateThreadData* per_thread = thread_data_table_.Lookup(thread_id);
@@ -234,7 +215,6 @@ void Isolate::InitializeOncePerProcess() {
 #if DEBUG
   base::Relaxed_Store(&isolate_key_created_, 1);
 #endif
-  thread_id_key_ = base::Thread::CreateThreadLocalKey();
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
 }
 
@@ -297,7 +277,10 @@ void Isolate::IterateDeferredHandles(RootVisitor* visitor) {
 
 
 #ifdef DEBUG
-bool Isolate::IsDeferredHandle(Object** handle) {
+bool Isolate::IsDeferredHandle(Address* handle) {
+  // Comparing unrelated pointers (not from the same array) is undefined
+  // behavior, so cast to Address before making arbitrary comparisons.
+  Address handle_as_address = reinterpret_cast<Address>(handle);
   // Each DeferredHandles instance keeps the handles to one job in the
   // concurrent recompilation queue, containing a list of blocks.  Each block
   // contains kHandleBlockSize handles except for the first block, which may
@@ -306,11 +289,14 @@ bool Isolate::IsDeferredHandle(Object** handle) {
   // belongs to one of the blocks.  If so, it is deferred.
   for (DeferredHandles* deferred = deferred_handles_head_; deferred != nullptr;
        deferred = deferred->next_) {
-    std::vector<Object**>* blocks = &deferred->blocks_;
+    std::vector<Address*>* blocks = &deferred->blocks_;
     for (size_t i = 0; i < blocks->size(); i++) {
-      Object** block_limit = (i == 0) ? deferred->first_block_limit_
+      Address* block_limit = (i == 0) ? deferred->first_block_limit_
                                       : blocks->at(i) + kHandleBlockSize;
-      if (blocks->at(i) <= handle && handle < block_limit) return true;
+      if (reinterpret_cast<Address>(blocks->at(i)) <= handle_as_address &&
+          handle_as_address < reinterpret_cast<Address>(block_limit)) {
+        return true;
+      }
     }
   }
   return false;
@@ -2646,8 +2632,16 @@ std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
 // static
-Isolate* Isolate::New() {
-  Isolate* isolate = new Isolate();
+Isolate* Isolate::New(IsolateAllocationMode mode) {
+  // IsolateAllocator allocates the memory for the Isolate object according to
+  // the given allocation mode.
+  std::unique_ptr<IsolateAllocator> isolate_allocator =
+      base::make_unique<IsolateAllocator>(mode);
+  // Construct Isolate object in the allocated memory.
+  void* isolate_ptr = isolate_allocator->isolate_memory();
+  Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
+  DCHECK_IMPLIES(mode == IsolateAllocationMode::kAllocateInV8Heap,
+                 IsAligned(isolate->isolate_root(), size_t{4} * GB));
 
 #ifdef DEBUG
   non_disposed_isolates_++;
@@ -2675,98 +2669,39 @@ void Isolate::Delete(Isolate* isolate) {
   non_disposed_isolates_--;
 #endif  // DEBUG
 
-  delete isolate;
+  // Take ownership of the IsolateAllocator to ensure the Isolate memory will
+  // be available during Isolate descructor call.
+  std::unique_ptr<IsolateAllocator> isolate_allocator =
+      std::move(isolate->isolate_allocator_);
+  isolate->~Isolate();
+  // Now free the memory owned by the allocator.
+  isolate_allocator.reset();
 
   // Restore the previous current isolate.
   SetIsolateThreadLocals(saved_isolate, saved_data);
 }
 
-Isolate::Isolate()
-    : entry_stack_(nullptr),
-      stack_trace_nesting_level_(0),
-      incomplete_message_(nullptr),
-      bootstrapper_(nullptr),
-      runtime_profiler_(nullptr),
-      compilation_cache_(nullptr),
-      logger_(nullptr),
-      load_stub_cache_(nullptr),
-      store_stub_cache_(nullptr),
-      deoptimizer_data_(nullptr),
-      deoptimizer_lazy_throw_(false),
-      materialized_object_store_(nullptr),
-      capture_stack_trace_for_uncaught_exceptions_(false),
-      stack_trace_for_uncaught_exceptions_frame_limit_(0),
-      stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
-      context_slot_cache_(nullptr),
-      descriptor_lookup_cache_(nullptr),
-      handle_scope_implementer_(nullptr),
-      unicode_cache_(nullptr),
+v8::PageAllocator* Isolate::page_allocator() {
+  return isolate_allocator_->page_allocator();
+}
+
+Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
+    : isolate_allocator_(std::move(isolate_allocator)),
+      id_(base::Relaxed_AtomicIncrement(&isolate_counter_, 1)),
+      stack_guard_(this),
       allocator_(FLAG_trace_zone_stats ? new VerboseAccountingAllocator(
                                              &heap_, 256 * KB, 128 * KB)
                                        : new AccountingAllocator()),
-      inner_pointer_to_code_cache_(nullptr),
-      global_handles_(nullptr),
-      eternal_handles_(nullptr),
-      thread_manager_(nullptr),
       builtins_(this),
-      setup_delegate_(nullptr),
-      regexp_stack_(nullptr),
-      date_cache_(nullptr),
-      // TODO(bmeurer) Initialized lazily because it depends on flags; can
-      // be fixed once the default isolate cleanup is done.
-      random_number_generator_(nullptr),
-      fuzzer_rng_(nullptr),
       rail_mode_(PERFORMANCE_ANIMATION),
-      atomics_wait_callback_(nullptr),
-      atomics_wait_callback_data_(nullptr),
-      promise_hook_(nullptr),
-      host_import_module_dynamically_callback_(nullptr),
-      host_initialize_import_meta_object_callback_(nullptr),
-      load_start_time_ms_(0),
-#ifdef V8_INTL_SUPPORT
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-      language_singleton_regexp_matcher_(nullptr),
-      language_tag_regexp_matcher_(nullptr),
-      language_variant_regexp_matcher_(nullptr),
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-      default_locale_(""),
-#endif  // V8_INTL_SUPPORT
-      serializer_enabled_(false),
-      has_fatal_error_(false),
-      initialized_from_snapshot_(false),
-      is_tail_call_elimination_enabled_(true),
-      is_isolate_in_background_(false),
-      memory_savings_mode_active_(false),
-      heap_profiler_(nullptr),
       code_event_dispatcher_(new CodeEventDispatcher()),
-      function_entry_hook_(nullptr),
-      deferred_handles_head_(nullptr),
-      optimizing_compile_dispatcher_(nullptr),
-      stress_deopt_count_(0),
-      force_slow_path_(false),
-      next_optimization_id_(0),
-#if V8_SFI_HAS_UNIQUE_ID
-      next_unique_sfi_id_(0),
-#endif
-      is_running_microtasks_(false),
-      use_counter_callback_(nullptr),
-      cancelable_task_manager_(new CancelableTaskManager()),
-      abort_on_uncaught_exception_callback_(nullptr),
-      total_regexp_code_generated_(0) {
-  CheckIsolateLayout();
-  id_ = base::Relaxed_AtomicIncrement(&isolate_counter_, 1);
+      cancelable_task_manager_(new CancelableTaskManager()) {
   TRACE_ISOLATE(constructor);
-
-  memset(isolate_addresses_, 0,
-      sizeof(isolate_addresses_[0]) * (kIsolateAddressCount + 1));
-
-  heap_.isolate_ = this;
-  stack_guard_.isolate_ = this;
+  CheckIsolateLayout();
 
   // ThreadManager is initialized early to support locking an isolate
   // before it is entered.
-  thread_manager_ = new ThreadManager();
-  thread_manager_->isolate_ = this;
+  thread_manager_ = new ThreadManager(this);
 
   handle_scope_data_.Initialize();
 
@@ -3109,8 +3044,7 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 
     // Note that references to the old, on-heap code objects may still exist on
     // the heap. This is fine for the sake of serialization, as serialization
-    // will replace all of them with a builtin reference which is later
-    // deserialized to point to the object within the builtins table.
+    // will canonicalize all builtins in MaybeCanonicalizeBuiltin().
     //
     // From this point onwards, some builtin code objects may be unreachable and
     // thus collected by the GC.
@@ -3853,6 +3787,8 @@ static base::RandomNumberGenerator* ensure_rng_exists(
 }
 
 base::RandomNumberGenerator* Isolate::random_number_generator() {
+  // TODO(bmeurer) Initialized lazily because it depends on flags; can
+  // be fixed once the default isolate cleanup is done.
   return ensure_rng_exists(&random_number_generator_, FLAG_random_seed);
 }
 

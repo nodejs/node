@@ -18,25 +18,6 @@
 namespace v8 {
 namespace internal {
 
-// ----------------------------------------------------------------------------
-// The RETURN_IF_PARSE_ERROR macro is a convenient macro to enforce error
-// handling for functions that may fail (by returning if there was an parser
-// error scanner()->has_parser_error_set).
-//
-// Usage:
-//     foo = ParseFoo(); // may fail
-//     RETURN_IF_PARSE_ERROR
-//
-//     SAFE_USE(foo);
-
-#define RETURN_IF_PARSE_ERROR_VALUE(x)     \
-  if (scanner()->has_parser_error_set()) { \
-    return x;                              \
-  }
-
-#define RETURN_IF_PARSE_ERROR RETURN_IF_PARSE_ERROR_VALUE(Expression::Default())
-#define RETURN_IF_PARSE_ERROR_VOID RETURN_IF_PARSE_ERROR_VALUE(this->Void())
-
 namespace {
 
 PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
@@ -104,7 +85,7 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   int start_position = scanner()->peek_location().beg_pos;
   PreParserStatementList body;
   ParseStatementList(body, Token::EOS);
-  ok = !scanner()->has_parser_error_set();
+  ok = !scanner()->has_parser_error();
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (!ok) {
@@ -159,22 +140,15 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
     ParseFormalParameterList(&formals);
-    RETURN_IF_PARSE_ERROR_VALUE(
-        pending_error_handler()->has_error_unidentifiable_by_preparser()
-            ? kPreParseNotIdentifiableError
-            : kPreParseSuccess);
     Expect(Token::RPAREN);
-    RETURN_IF_PARSE_ERROR_VALUE(kPreParseSuccess);
     int formals_end_position = scanner()->location().end_pos;
 
     CheckArityRestrictions(formals.arity, kind, formals.has_rest,
                            function_scope->start_position(),
                            formals_end_position);
-    RETURN_IF_PARSE_ERROR_VALUE(kPreParseSuccess);
   }
 
   Expect(Token::LBRACE);
-  RETURN_IF_PARSE_ERROR_VALUE(kPreParseSuccess);
   DeclarationScope* inner_scope = function_scope;
   LazyParsingResult result;
 
@@ -212,15 +186,15 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   use_counts_ = nullptr;
 
-  if (result == kLazyParsingAborted) {
-    DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
-    return kPreParseAbort;
-  } else if (stack_overflow()) {
+  if (stack_overflow()) {
     return kPreParseStackOverflow;
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
     return kPreParseNotIdentifiableError;
-  } else if (scanner()->has_parser_error_set()) {
+  } else if (scanner()->has_parser_error()) {
     DCHECK(pending_error_handler()->has_pending_error());
+  } else if (result == kLazyParsingAborted) {
+    DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
+    return kPreParseAbort;
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
     DCHECK(result == kLazyParsingComplete);
@@ -229,7 +203,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       // Validate parameter names. We can do this only after parsing the
       // function, since the function can declare itself strict.
       ValidateFormalParameters(language_mode(), allow_duplicate_parameters);
-      if (scanner()->has_parser_error_set()) {
+      if (scanner()->has_parser_error()) {
         if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
           return kPreParseNotIdentifiableError;
         } else {
@@ -316,22 +290,17 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int func_id = GetNextFunctionLiteralId();
 
   Expect(Token::LPAREN);
-  RETURN_IF_PARSE_ERROR;
   int start_position = scanner()->location().beg_pos;
   function_scope->set_start_position(start_position);
   PreParserFormalParameters formals(function_scope);
   ParseFormalParameterList(&formals);
-  RETURN_IF_PARSE_ERROR;
   Expect(Token::RPAREN);
-  RETURN_IF_PARSE_ERROR;
   int formals_end_position = scanner()->location().end_pos;
 
   CheckArityRestrictions(formals.arity, kind, formals.has_rest, start_position,
                          formals_end_position);
-  RETURN_IF_PARSE_ERROR;
 
   Expect(Token::LBRACE);
-  RETURN_IF_PARSE_ERROR;
 
   // Parse function body.
   PreParserStatementList body;
@@ -339,7 +308,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
                                                     : function_token_pos;
   ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
                     FunctionBodyType::kBlock, true);
-  RETURN_IF_PARSE_ERROR;
 
   // Parsing the body may change the language mode in our scope.
   language_mode = function_scope->language_mode();
@@ -352,12 +320,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // function, since the function can declare itself strict.
   CheckFunctionName(language_mode, function_name, function_name_validity,
                     function_name_location);
-  RETURN_IF_PARSE_ERROR;
 
   int end_position = scanner()->location().end_pos;
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(start_position, end_position);
-    RETURN_IF_PARSE_ERROR;
   }
 
   if (preparsed_scope_data_builder_scope) {
@@ -388,11 +354,10 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
     PreParserFormalParameters* formals, bool may_abort) {
   PreParserStatementList body;
   LazyParsingResult result = ParseStatementList(body, Token::RBRACE, may_abort);
-  RETURN_IF_PARSE_ERROR_VALUE(kLazyParsingComplete);
   if (result == kLazyParsingAborted) return result;
 
   // Position right after terminal '}'.
-  DCHECK_EQ(Token::RBRACE, scanner()->peek());
+  DCHECK_IMPLIES(!has_error(), scanner()->peek() == Token::RBRACE);
   int body_end = scanner()->peek_location().end_pos;
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
   log_.LogFunction(body_end, formals->num_parameters(),
@@ -455,8 +420,5 @@ void PreParser::DeclareAndInitializeVariables(
   }
 }
 
-#undef RETURN_IF_PARSE_ERROR_VOID
-#undef RETURN_IF_PARSE_ERROR
-#undef RETURN_IF_PARSE_ERROR_VALUE
 }  // namespace internal
 }  // namespace v8

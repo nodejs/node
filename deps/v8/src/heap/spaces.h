@@ -1205,6 +1205,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     void PrepareForMarkCompact();
     void EnsureUnmappingCompleted();
     void TearDown();
+    size_t NumberOfCommittedChunks();
     int NumberOfChunks();
     size_t CommittedBufferedMemory();
 

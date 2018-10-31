@@ -121,7 +121,7 @@ void CodeRangeAddressHint::NotifyFreedCodeRange(Address code_range_start,
 MemoryAllocator::MemoryAllocator(Isolate* isolate, size_t capacity,
                                  size_t code_range_size)
     : isolate_(isolate),
-      data_page_allocator_(GetPlatformPageAllocator()),
+      data_page_allocator_(isolate->page_allocator()),
       code_page_allocator_(nullptr),
       capacity_(RoundUp(capacity, Page::kPageSize)),
       size_(0),
@@ -358,6 +358,11 @@ void MemoryAllocator::Unmapper::TearDown() {
   for (int i = 0; i < kNumberOfChunkQueues; i++) {
     DCHECK(chunks_[i].empty());
   }
+}
+
+size_t MemoryAllocator::Unmapper::NumberOfCommittedChunks() {
+  base::MutexGuard guard(&mutex_);
+  return chunks_[kRegular].size() + chunks_[kNonRegular].size();
 }
 
 int MemoryAllocator::Unmapper::NumberOfChunks() {

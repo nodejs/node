@@ -100,10 +100,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* HeapConstant(Handle<HeapObject> object) {
     return AddNode(common()->HeapConstant(object));
   }
-  Node* BooleanConstant(bool value) {
-    Handle<Object> object = isolate()->factory()->ToBoolean(value);
-    return HeapConstant(Handle<HeapObject>::cast(object));
-  }
   Node* ExternalConstant(ExternalReference address) {
     return AddNode(common()->ExternalConstant(address));
   }

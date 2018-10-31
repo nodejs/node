@@ -173,11 +173,10 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
 
 bool WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
                                  uint32_t function_index, ExecutionTier tier) {
-  ErrorThrower thrower(isolate, "Manually requested tier up");
   // Note we assume that "one-off" compilations can discard detected features.
   WasmFeatures detected = kNoWasmFeatures;
   return WasmCompilationUnit::CompileWasmFunction(
-      isolate, native_module, &detected, &thrower,
+      isolate, native_module, &detected,
       &native_module->module()->functions[function_index], tier);
 }
 
@@ -188,7 +187,6 @@ std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
 
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_module) {
-  CHECK_EQ(this, shared_module->wasm_engine());
   Vector<const byte> wire_bytes = shared_module->wire_bytes();
   const WasmModule* module = shared_module->module();
   Handle<Script> script =
@@ -317,6 +315,12 @@ void WasmEngine::GlobalTearDown() {
 std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
   if (FLAG_wasm_shared_engine) return global_wasm_engine.Get();
   return std::shared_ptr<WasmEngine>(new WasmEngine());
+}
+
+// {max_mem_pages} is declared in wasm-limits.h.
+uint32_t max_mem_pages() {
+  STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
+  return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
 }
 
 }  // namespace wasm

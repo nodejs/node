@@ -28431,8 +28431,7 @@ bool wasm_streaming_data_got_collected = false;
 void WasmStreamingTestFinalizer(const v8::WeakCallbackInfo<void>& data) {
   CHECK(!wasm_streaming_data_got_collected);
   wasm_streaming_data_got_collected = true;
-  i::JSObject** p = reinterpret_cast<i::JSObject**>(data.GetParameter());
-  i::GlobalHandles::Destroy(reinterpret_cast<i::Object**>(p));
+  i::GlobalHandles::Destroy(reinterpret_cast<i::Address*>(data.GetParameter()));
 }
 
 void WasmStreamingCallbackTestCallbackIsCalled(

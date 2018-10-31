@@ -99,6 +99,17 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
 }
 
 // static
+PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map* transition) {
+  return transition->GetLastDescriptorDetails();
+}
+
+// static
+Name* TransitionsAccessor::GetSimpleTransitionKey(Map* transition) {
+  int descriptor = transition->LastAdded();
+  return transition->instance_descriptors()->GetKey(descriptor);
+}
+
+// static
 Map* TransitionsAccessor::GetTargetFromRaw(MaybeObject raw) {
   return Map::cast(raw->GetHeapObjectAssumeWeak());
 }
@@ -144,6 +155,15 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
   }
   *target = TransitionsAccessor::GetTargetFromRaw(raw);
   return true;
+}
+
+int TransitionArray::SearchNameForTesting(Name* name,
+                                          int* out_insertion_index) {
+  return SearchName(name, out_insertion_index);
+}
+
+int TransitionArray::SearchSpecial(Symbol* symbol, int* out_insertion_index) {
+  return SearchName(symbol, out_insertion_index);
 }
 
 int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
@@ -198,6 +218,14 @@ void TransitionArray::Set(int transition_number, Name* key,
   WeakFixedArray::Set(ToKeyIndex(transition_number),
                       MaybeObject::FromObject(key));
   WeakFixedArray::Set(ToTargetIndex(transition_number), target);
+}
+
+Name* TransitionArray::GetSortedKey(int transition_number) {
+  return GetKey(transition_number);
+}
+
+int TransitionArray::number_of_entries() const {
+  return number_of_transitions();
 }
 
 int TransitionArray::Capacity() {

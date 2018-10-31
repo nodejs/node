@@ -176,19 +176,35 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
   return segmenter_holder;
 }
 
+// ecma402 #sec-Intl.Segmenter.prototype.resolvedOptions
 Handle<JSObject> JSSegmenter::ResolvedOptions(
     Isolate* isolate, Handle<JSSegmenter> segmenter_holder) {
   Factory* factory = isolate->factory();
+  // 3. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+  // 4. For each row of Table 1, except the header row, do
+  // a. Let p be the Property value of the current row.
+  // b. Let v be the value of pr's internal slot whose name is the Internal Slot
+  //    value of the current row.
+  //
+  // c. If v is not undefined, then
+  //  i. Perform ! CreateDataPropertyOrThrow(options, p, v).
+  //    Table 1: Resolved Options of Segmenter Instances
+  //     Internal Slot                 Property
+  //     [[Locale]]                    "locale"
+  //     [[SegmenterGranularity]]      "granularity"
+  //     [[SegmenterLineBreakStyle]]   "lineBreakStyle"
+
   Handle<String> locale(segmenter_holder->locale(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
+  JSObject::AddProperty(isolate, result, factory->granularity_string(),
+                        segmenter_holder->GranularityAsString(), NONE);
   if (segmenter_holder->line_break_style() != LineBreakStyle::NOTSET) {
     JSObject::AddProperty(isolate, result, factory->lineBreakStyle_string(),
                           segmenter_holder->LineBreakStyleAsString(), NONE);
   }
-  JSObject::AddProperty(isolate, result, factory->granularity_string(),
-                        segmenter_holder->GranularityAsString(), NONE);
+  // 5. Return options.
   return result;
 }
 

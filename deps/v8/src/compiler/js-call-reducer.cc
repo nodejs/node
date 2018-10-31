@@ -977,16 +977,6 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   return Changed(vtrue);
 }
 
-bool CanInlineArrayIteratingBuiltin(Isolate* isolate, MapRef& receiver_map) {
-  receiver_map.SerializePrototype();
-  if (!receiver_map.prototype().IsJSArray()) return false;
-  JSArrayRef receiver_prototype = receiver_map.prototype().AsJSArray();
-  return receiver_map.instance_type() == JS_ARRAY_TYPE &&
-         IsFastElementsKind(receiver_map.elements_kind()) &&
-         isolate->IsNoElementsProtectorIntact() &&
-         isolate->IsAnyInitialArrayPrototype(receiver_prototype.object());
-}
-
 Node* JSCallReducer::WireInLoopStart(Node* k, Node** control, Node** effect) {
   Node* loop = *control =
       graph()->NewNode(common()->Loop(2), *control, *control);
@@ -1004,6 +994,37 @@ void JSCallReducer::WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
   vloop->ReplaceInput(1, k);
   eloop->ReplaceInput(1, effect);
 }
+
+namespace {
+
+bool CanInlineArrayIteratingBuiltin(Isolate* isolate, MapRef& receiver_map) {
+  receiver_map.SerializePrototype();
+  if (!receiver_map.prototype().IsJSArray()) return false;
+  JSArrayRef receiver_prototype = receiver_map.prototype().AsJSArray();
+  return receiver_map.instance_type() == JS_ARRAY_TYPE &&
+         IsFastElementsKind(receiver_map.elements_kind()) &&
+         isolate->IsNoElementsProtectorIntact() &&
+         isolate->IsAnyInitialArrayPrototype(receiver_prototype.object());
+}
+
+bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
+                                    ZoneHandleSet<Map> receiver_maps,
+                                    ElementsKind* kind_return) {
+  DCHECK_NE(0, receiver_maps.size());
+  *kind_return = MapRef(broker, receiver_maps[0]).elements_kind();
+  for (auto receiver_map : receiver_maps) {
+    MapRef map(broker, receiver_map);
+    if (!CanInlineArrayIteratingBuiltin(broker->isolate(), map)) {
+      return false;
+    }
+    if (!UnionElementsKindUptoSize(kind_return, map.elements_kind())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
 
 Reduction JSCallReducer::ReduceArrayForEach(Node* node,
                                             Handle<SharedFunctionInfo> shared) {
@@ -1033,27 +1054,9 @@ Reduction JSCallReducer::ReduceArrayForEach(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // By ensuring that {kind} is object or double, we can be polymorphic
-  // on different elements kinds.
-  ElementsKind kind = receiver_maps[0]->elements_kind();
-  if (IsSmiElementsKind(kind)) {
-    kind = FastSmiToObjectElementsKind(kind);
-  }
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    ElementsKind next_kind = receiver_map.elements_kind();
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map)) {
-      return NoChange();
-    }
-    if (!IsFastElementsKind(next_kind)) {
-      return NoChange();
-    }
-    if (IsDoubleElementsKind(kind) != IsDoubleElementsKind(next_kind)) {
-      return NoChange();
-    }
-    if (IsHoleyElementsKind(next_kind)) {
-      kind = GetHoleyElementsKind(kind);
-    }
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   // Install code dependencies on the {receiver} prototype maps and the
@@ -1184,6 +1187,11 @@ Reduction JSCallReducer::ReduceArrayForEach(Node* node,
   control = if_false;
   effect = eloop;
 
+  // Introduce proper LoopExit and LoopExitEffect nodes to mark
+  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
+  control = graph()->NewNode(common()->LoopExit(), control, loop);
+  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
+
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
   // return a successful completion. Therefore, we simply connect the successful
@@ -1224,13 +1232,9 @@ Reduction JSCallReducer::ReduceArrayReduce(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  ElementsKind kind = receiver_maps[0]->elements_kind();
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    if (!UnionElementsKindUptoSize(&kind, receiver_map.elements_kind()))
-      return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   std::function<Node*(Node*)> hole_check = [this, kind](Node* element) {
@@ -1505,15 +1509,9 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
   // Ensure that any changes to the Array species constructor cause deopt.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
-  const ElementsKind kind = receiver_maps[0]->elements_kind();
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   if (IsHoleyElementsKind(kind)) {
@@ -1711,19 +1709,13 @@ Reduction JSCallReducer::ReduceArrayFilter(Node* node,
   // And ensure that any changes to the Array species constructor cause deopt.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
-  const ElementsKind kind = receiver_maps[0]->elements_kind();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
+  }
+
   // The output array is packed (filter doesn't visit holes).
   const ElementsKind packed_kind = GetPackedElementsKind(kind);
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map)) {
-      return NoChange();
-    }
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
-  }
 
   if (IsHoleyElementsKind(kind)) {
     dependencies()->DependOnProtector(
@@ -1989,15 +1981,9 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  const ElementsKind kind = receiver_maps[0]->elements_kind();
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   // Install code dependencies on the {receiver} prototype maps and the
@@ -2138,9 +2124,15 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
   Node* if_not_found_value = (variant == ArrayFindVariant::kFind)
                                  ? jsgraph()->UndefinedConstant()
                                  : jsgraph()->MinusOneConstant();
-  Node* return_value =
+  Node* value =
       graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                        if_found_return_value, if_not_found_value, control);
+
+  // Introduce proper LoopExit/LoopExitEffect/LoopExitValue to mark
+  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
+  control = graph()->NewNode(common()->LoopExit(), control, loop);
+  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
+  value = graph()->NewNode(common()->LoopExitValue(), value, control);
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
@@ -2150,8 +2142,8 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
 
-  ReplaceWithValue(node, return_value, effect, control);
-  return Replace(return_value);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
@@ -2308,15 +2300,9 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   // And ensure that any changes to the Array species constructor cause deopt.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
-  const ElementsKind kind = receiver_maps[0]->elements_kind();
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   if (IsHoleyElementsKind(kind)) {
@@ -2488,9 +2474,15 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   control = graph()->NewNode(common()->Merge(2), if_false, if_false_callback);
   effect =
       graph()->NewNode(common()->EffectPhi(2), eloop, efalse_callback, control);
-  Node* return_value = graph()->NewNode(
+  Node* value = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2),
       jsgraph()->TrueConstant(), jsgraph()->FalseConstant(), control);
+
+  // Introduce proper LoopExit/LoopExitEffect/LoopExitValue to mark
+  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
+  control = graph()->NewNode(common()->LoopExit(), control, loop);
+  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
+  value = graph()->NewNode(common()->LoopExitValue(), value, control);
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
@@ -2500,8 +2492,8 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
 
-  ReplaceWithValue(node, return_value, effect, control);
-  return Replace(return_value);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 namespace {
@@ -2656,17 +2648,9 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   // And ensure that any changes to the Array species constructor cause deopt.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
-  if (receiver_maps.size() == 0) return NoChange();
-
-  const ElementsKind kind = MapRef(broker(), receiver_maps[0]).elements_kind();
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   if (IsHoleyElementsKind(kind)) {
@@ -2845,9 +2829,15 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   control = graph()->NewNode(common()->Merge(2), if_false, if_true_callback);
   effect =
       graph()->NewNode(common()->EffectPhi(2), eloop, etrue_callback, control);
-  Node* return_value = graph()->NewNode(
+  Node* value = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2),
       jsgraph()->FalseConstant(), jsgraph()->TrueConstant(), control);
+
+  // Introduce proper LoopExit/LoopExitEffect/LoopExitValue to mark
+  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
+  control = graph()->NewNode(common()->LoopExit(), control, loop);
+  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
+  value = graph()->NewNode(common()->LoopExitValue(), value, control);
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
@@ -2857,8 +2847,8 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
 
-  ReplaceWithValue(node, return_value, effect, control);
-  return Replace(return_value);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Reduction JSCallReducer::ReduceCallApiFunction(
@@ -4783,41 +4773,53 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
     return NoChange();
   }
 
-  int arity = static_cast<int>(p.arity() - 2);
-  // Here we only optimize for cloning, that is when slice is called
-  // without arguments, or with a single argument that is the constant 0.
-  if (arity >= 2) return NoChange();
-  if (arity == 1) {
-    NumberMatcher m(NodeProperties::GetValueInput(node, 2));
-    if (!m.HasValue()) return NoChange();
-    if (m.Value() != 0) return NoChange();
-  }
-
   Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* start = node->op()->ValueInputCount() > 2
+                    ? NodeProperties::GetValueInput(node, 2)
+                    : jsgraph()->ZeroConstant();
+  Node* end = node->op()->ValueInputCount() > 3
+                  ? NodeProperties::GetValueInput(node, 3)
+                  : jsgraph()->UndefinedConstant();
+  Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Try to determine the {receiver} map.
+  // Optimize for the case where we simply clone the {receiver},
+  // i.e. when the {start} is zero and the {end} is undefined
+  // (meaning it will be set to {receiver}s "length" property).
+  if (!NumberMatcher(start).Is(0) ||
+      !HeapObjectMatcher(end).Is(factory()->undefined_value())) {
+    return NoChange();
+  }
+
+  // Try to determine the {receiver} maps.
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(broker(), receiver, effect,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // Ensure that any changes to the Array species constructor cause deopt.
+  // We cannot optimize unless the Array[@@species] lookup chain is intact.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->array_species_protector()));
 
+  // Check that the maps are of JSArray (and more).
+  // TODO(turbofan): Consider adding special case for the common pattern
+  // `slice.call(arguments)`, for example jQuery makes heavy use of that.
   bool can_be_holey = false;
-  // Check that the maps are of JSArray (and more)
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
+    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map)) {
       return NoChange();
+    }
 
-    if (IsHoleyElementsKind(receiver_map.elements_kind())) can_be_holey = true;
+    if (IsHoleyElementsKind(receiver_map.elements_kind())) {
+      can_be_holey = true;
+    }
   }
+
+  // Install code dependency on the Array[@@species] protector.
+  dependencies()->DependOnProtector(
+      PropertyCellRef(broker(), factory()->array_species_protector()));
 
   // Install code dependency on the array protector for holey arrays.
   if (can_be_holey) {
@@ -4825,10 +4827,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
         PropertyCellRef(broker(), factory()->no_elements_protector()));
   }
 
-  // If we have unreliable maps, we need a map check.
-  // This is actually redundant due to how JSNativeContextSpecialization
-  // reduces the load of slice, but we do it here nevertheless for consistency
-  // and robustness.
+  // If we have unreliable maps, we need a map check, as there might be
+  // side-effects caused by the evaluation of the {node}s parameters.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
     effect =
         graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
@@ -4836,8 +4836,12 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
                          receiver, effect, control);
   }
 
-  Node* context = NodeProperties::GetContextInput(node);
-
+  // TODO(turbofan): We can do even better here, either adding a CloneArray
+  // simplified operator, whose output type indicates that it's an Array,
+  // saving subsequent checks, or yet better, by introducing new operators
+  // CopySmiOrObjectElements / CopyDoubleElements and inlining the JSArray
+  // allocation in here. That way we'd even get escape analysis and scalar
+  // replacement to help in some cases.
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCloneFastJSArray);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -4963,15 +4967,9 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
       }
     }
   } else {
-    for (Handle<Map> map : iterated_object_maps) {
-      MapRef iterated_object_map(broker(), map);
-      if (!CanInlineArrayIteratingBuiltin(isolate(), iterated_object_map)) {
-        return NoChange();
-      }
-      if (!UnionElementsKindUptoSize(&elements_kind,
-                                     iterated_object_map.elements_kind())) {
-        return NoChange();
-      }
+    if (!CanInlineArrayIteratingBuiltin(broker(), iterated_object_maps,
+                                        &elements_kind)) {
+      return NoChange();
     }
   }
 
@@ -6802,21 +6800,15 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   // Only do stuff if the {receiver} is really a DataView.
   if (NodeProperties::HasInstanceTypeWitness(broker(), receiver, effect,
                                              JS_DATA_VIEW_TYPE)) {
+    Node* byte_offset;
+
     // Check that the {offset} is within range for the {receiver}.
     HeapObjectMatcher m(receiver);
     if (m.HasValue()) {
       // We only deal with DataViews here whose [[ByteLength]] is at least
-      // {element_size} and less than 2^31-{element_size}.
+      // {element_size}, as for all other DataViews it'll be out-of-bounds.
       Handle<JSDataView> dataview = Handle<JSDataView>::cast(m.Value());
-      if (dataview->byte_length() < element_size ||
-          dataview->byte_length() - element_size > kMaxInt) {
-        return NoChange();
-      }
-
-      // The {receiver}s [[ByteOffset]] must be within Unsigned31 range.
-      if (dataview->byte_offset() > kMaxInt) {
-        return NoChange();
-      }
+      if (dataview->byte_length() < element_size) return NoChange();
 
       // Check that the {offset} is within range of the {byte_length}.
       Node* byte_length =
@@ -6825,43 +6817,38 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
           graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
                            byte_length, effect, control);
 
-      // Add the [[ByteOffset]] to compute the effective offset.
-      Node* byte_offset = jsgraph()->Constant(dataview->byte_offset());
-      offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
+      // Load the [[ByteOffset]] from the {dataview}.
+      byte_offset = jsgraph()->Constant(dataview->byte_offset());
     } else {
       // We only deal with DataViews here that have Smi [[ByteLength]]s.
       Node* byte_length = effect =
           graph()->NewNode(simplified()->LoadField(
                                AccessBuilder::ForJSArrayBufferViewByteLength()),
                            receiver, effect, control);
-      byte_length = effect = graph()->NewNode(
-          simplified()->CheckSmi(p.feedback()), byte_length, effect, control);
+
+      if (element_size > 1) {
+        // For non-byte accesses we also need to check that the {offset}
+        // plus the {element_size}-1 fits within the given {byte_length}.
+        // So to keep this as a single check on the {offset}, we subtract
+        // the {element_size}-1 from the {byte_length} here (clamped to
+        // positive safe integer range), and perform a check against that
+        // with the {offset} below.
+        byte_length = graph()->NewNode(
+            simplified()->NumberMax(), jsgraph()->ZeroConstant(),
+            graph()->NewNode(simplified()->NumberSubtract(), byte_length,
+                             jsgraph()->Constant(element_size - 1)));
+      }
 
       // Check that the {offset} is within range of the {byte_length}.
       offset = effect =
           graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
                            byte_length, effect, control);
 
-      if (element_size > 0) {
-        // For non-byte accesses we also need to check that the {offset}
-        // plus the {element_size}-1 fits within the given {byte_length}.
-        Node* end_offset =
-            graph()->NewNode(simplified()->NumberAdd(), offset,
-                             jsgraph()->Constant(element_size - 1));
-        effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
-                                  end_offset, byte_length, effect, control);
-      }
-
-      // The {receiver}s [[ByteOffset]] also needs to be a (positive) Smi.
-      Node* byte_offset = effect =
+      // Also load the [[ByteOffset]] from the {receiver}.
+      byte_offset = effect =
           graph()->NewNode(simplified()->LoadField(
                                AccessBuilder::ForJSArrayBufferViewByteOffset()),
                            receiver, effect, control);
-      byte_offset = effect = graph()->NewNode(
-          simplified()->CheckSmi(p.feedback()), byte_offset, effect, control);
-
-      // Compute the buffer index at which we'll read.
-      offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
     }
 
     // Coerce {is_little_endian} to boolean.
@@ -6911,15 +6898,17 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     switch (access) {
       case DataViewAccess::kGet:
         // Perform the load.
-        value = effect = graph()->NewNode(
-            simplified()->LoadDataViewElement(element_type), buffer,
-            backing_store, offset, is_little_endian, effect, control);
+        value = effect =
+            graph()->NewNode(simplified()->LoadDataViewElement(element_type),
+                             buffer, backing_store, byte_offset, offset,
+                             is_little_endian, effect, control);
         break;
       case DataViewAccess::kSet:
         // Perform the store.
-        effect = graph()->NewNode(
-            simplified()->StoreDataViewElement(element_type), buffer,
-            backing_store, offset, value, is_little_endian, effect, control);
+        effect =
+            graph()->NewNode(simplified()->StoreDataViewElement(element_type),
+                             buffer, backing_store, byte_offset, offset, value,
+                             is_little_endian, effect, control);
         value = jsgraph()->UndefinedConstant();
         break;
     }

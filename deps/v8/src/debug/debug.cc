@@ -399,7 +399,7 @@ DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo* debug_info)
 
 DebugInfoListNode::~DebugInfoListNode() {
   if (debug_info_ == nullptr) return;
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_info_));
+  GlobalHandles::Destroy(debug_info_);
   debug_info_ = nullptr;
 }
 
@@ -1466,10 +1466,6 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
       !Compiler::Compile(shared, Compiler::CLEAR_EXCEPTION)) {
     return false;
   }
-  if (shared->GetCode() ==
-      isolate_->builtins()->builtin(Builtins::kDeserializeLazy)) {
-    Snapshot::EnsureBuiltinIsDeserialized(isolate_, shared);
-  }
   CreateBreakInfo(shared);
   return true;
 }
@@ -2163,10 +2159,6 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
       // If function has bytecode array then prepare function for debug
       // execution to perform runtime side effect checks.
       DCHECK(shared->is_compiled());
-      if (shared->GetCode() ==
-          isolate_->builtins()->builtin(Builtins::kDeserializeLazy)) {
-        Snapshot::EnsureBuiltinIsDeserialized(isolate_, shared);
-      }
       PrepareFunctionForDebugExecution(shared);
       ApplySideEffectChecks(debug_info);
       return true;

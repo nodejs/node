@@ -408,6 +408,7 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
 
   switch (token.token) {
     case Token::UNINITIALIZED:
+    case Token::ILLEGAL:
       // token.literal_chars & other members might be garbage. That's ok.
       break;
     case Token::TEMPLATE_SPAN:

@@ -90,7 +90,7 @@ module array {
         context, array, length, fromSmi, searchElement);
   }
 
-  macro GenericArrayLastIndexOf(
+  transitioning macro GenericArrayLastIndexOf(
       context: Context, object: JSReceiver, searchElement: Object,
       from: Number): Object {
     let k: Number = from;
@@ -122,7 +122,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.lastIndexOf
-  javascript builtin ArrayPrototypeLastIndexOf(
+  transitioning javascript builtin ArrayPrototypeLastIndexOf(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);

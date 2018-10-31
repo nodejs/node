@@ -67,7 +67,7 @@ module typed_array {
     return Undefined;
   }
 
-  macro CallCompareWithDetachedCheck(
+  transitioning macro CallCompareWithDetachedCheck(
       context: Context, array: JSTypedArray, comparefn: Callable, a: Object,
       b: Object): Number
       labels Detached {
@@ -86,7 +86,7 @@ module typed_array {
   }
 
   // InsertionSort is used for smaller arrays.
-  macro TypedArrayInsertionSort(
+  transitioning macro TypedArrayInsertionSort(
       context: Context, array: JSTypedArray, fromArg: Smi, toArg: Smi,
       comparefn: Callable, load: LoadFn, store: StoreFn)
   labels Detached {
@@ -112,7 +112,7 @@ module typed_array {
     }
   }
 
-  macro TypedArrayQuickSortImpl(
+  transitioning macro TypedArrayQuickSortImpl(
       context: Context, array: JSTypedArray, fromArg: Smi, toArg: Smi,
       comparefn: Callable, load: LoadFn, store: StoreFn)
   labels Detached {
@@ -241,7 +241,7 @@ module typed_array {
     }
   }
 
-  builtin TypedArrayQuickSort(
+  transitioning builtin TypedArrayQuickSort(
       context: Context, array: JSTypedArray, from: Smi, to: Smi,
       comparefn: Callable, load: LoadFn, store: StoreFn): JSTypedArray {
     try {
@@ -256,7 +256,7 @@ module typed_array {
   }
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
-  javascript builtin TypedArrayPrototypeSort(
+  transitioning javascript builtin TypedArrayPrototypeSort(
       context: Context, receiver: Object, ...arguments): JSTypedArray {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.

@@ -5036,6 +5036,8 @@ TEST(StaticClassFieldsNoErrors) {
     "static 'a' = 0;",
     "static 'a';",
 
+    "static c = [c] = c",
+
     // ASI
     "static a = 0\n",
     "static a = 0\n b",
@@ -5125,6 +5127,8 @@ TEST(ClassFieldsNoErrors) {
     "0;",
     "'a' = 0;",
     "'a';",
+
+    "c = [c] = c",
 
     // ASI
     "a = 0\n",
@@ -5279,6 +5283,8 @@ TEST(StaticClassFieldsErrors) {
     "static a b",
     "static a = 0 b",
 
+    "static c = [1] = [c]",
+
     // ASI requires that the next token is not part of any legal production
     "static a = 0\n *b(){}",
     "static a = 0\n ['b'](){}",
@@ -5326,6 +5332,8 @@ TEST(ClassFieldsErrors) {
     // ASI requires a linebreak
     "a b",
     "a = 0 b",
+
+    "c = [1] = [c]",
 
     // ASI requires that the next token is not part of any legal production
     "a = 0\n *b(){}",

@@ -86,8 +86,7 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
   DisallowHeapAllocation no_gc;
 
-  VisitRootPointer(Root::kHandleScope, nullptr,
-                   ObjectSlot(Handle<Object>::cast(info).location()));
+  VisitRootPointer(Root::kHandleScope, nullptr, ObjectSlot(info.location()));
   SerializeDeferredObjects();
   Pad();
 
@@ -141,17 +140,13 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
       case Code::BYTECODE_HANDLER:    // No direct references to handlers.
         break;                        // hit UNREACHABLE below.
-      case Code::BUILTIN:
-        SerializeBuiltinReference(code_object, how_to_code, where_to_point, 0);
-        return;
       case Code::STUB:
         if (code_object->builtin_index() == -1) {
-          SerializeCodeStub(code_object, how_to_code, where_to_point);
+          return SerializeCodeStub(code_object, how_to_code, where_to_point);
         } else {
-          SerializeBuiltinReference(code_object, how_to_code, where_to_point,
-                                    0);
+          return SerializeCodeObject(code_object, how_to_code, where_to_point);
         }
-        return;
+      case Code::BUILTIN:
       default:
         return SerializeCodeObject(code_object, how_to_code, where_to_point);
     }

@@ -177,6 +177,8 @@ class StatsCounter;
   V(wasm_word32_ror, "wasm::word32_ror")                                      \
   V(wasm_word64_ctz, "wasm::word64_ctz")                                      \
   V(wasm_word64_popcnt, "wasm::word64_popcnt")                                \
+  V(atomic_pair_compare_exchange_function,                                    \
+    "atomic_pair_compare_exchange_function")                                  \
   EXTERNAL_REFERENCE_LIST_INTL(V)
 
 #ifndef V8_INTERPRETED_REGEXP

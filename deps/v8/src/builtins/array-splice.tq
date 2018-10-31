@@ -106,7 +106,7 @@ module array {
     a.length = newLength;
   }
 
-  macro FastArraySplice(
+  transitioning macro FastArraySplice(
       context: Context, args: constexpr Arguments, o: JSReceiver,
       originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
       actualDeleteCountNumber: Number): Object
@@ -177,7 +177,7 @@ module array {
     return deletedResult;
   }
 
-  macro FillDeletedElementsArray(
+  transitioning macro FillDeletedElementsArray(
       context: Context, o: JSReceiver, actualStart: Number,
       actualDeleteCount: Number, a: JSReceiver): Object {
     // 10. Let k be 0.
@@ -210,7 +210,7 @@ module array {
 
   // HandleForwardCase implements step 15. "If itemCount < actualDeleteCount,
   // then...""
-  macro HandleForwardCase(
+  transitioning macro HandleForwardCase(
       context: Context, o: JSReceiver, len: Number, itemCount: Number,
       actualStart: Number, actualDeleteCount: Number): void {
     // 15. If itemCount < actualDeleteCount, then
@@ -258,7 +258,7 @@ module array {
 
   // HandleBackwardCase implements step 16. "Else if itemCount >
   // actualDeleteCount, then..."
-  macro HandleBackwardCase(
+  transitioning macro HandleBackwardCase(
       context: Context, o: JSReceiver, len: Number, itemCount: Number,
       actualStart: Number, actualDeleteCount: Number): void {
     // 16. Else if itemCount > actualDeleteCount, then
@@ -295,7 +295,7 @@ module array {
     }
   }
 
-  macro SlowSplice(
+  transitioning macro SlowSplice(
       context: Context, arguments: constexpr Arguments, o: JSReceiver,
       len: Number, actualStart: Number, insertCount: Smi,
       actualDeleteCount: Number): Object {
@@ -349,7 +349,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.splice
-  javascript builtin ArraySplice(
+  transitioning javascript builtin ArraySplice(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject(context, receiver);

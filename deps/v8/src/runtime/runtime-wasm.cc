@@ -51,11 +51,11 @@ class ClearThreadInWasmScope {
 
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
+RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  // {delta_pages} is checked to be a positive smi in the WasmGrowMemory builtin
+  // {delta_pages} is checked to be a positive smi in the WasmMemoryGrow builtin
   // which calls this runtime function.
   CONVERT_UINT32_ARG_CHECKED(delta_pages, 1);
 
@@ -64,7 +64,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
 
   int ret = WasmMemoryObject::Grow(
       isolate, handle(instance->memory_object(), isolate), delta_pages);
-  // The WasmGrowMemory builtin which calls this runtime function expects us to
+  // The WasmMemoryGrow builtin which calls this runtime function expects us to
   // always return a Smi.
   return Smi::FromInt(ret);
 }

@@ -166,10 +166,9 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I)
 #endif
 
-#define FOR_EACH_INTRINSIC_INTERPRETER(F, I)          \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I)          \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I) \
-  F(InterpreterDeserializeLazy, 2, 1)
+#define FOR_EACH_INTRINSIC_INTERPRETER(F, I) \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I) \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F, I)  \
   I(Call, -1 /* >= 2 */, 1)                \
@@ -221,7 +220,6 @@ namespace internal {
   I(CreateAsyncFromSyncIterator, 1, 1)             \
   F(CreateListFromArrayLike, 1, 1)                 \
   F(CreateTemplateObject, 1, 1)                    \
-  F(DeserializeLazy, 1, 1)                         \
   F(ExportFromRuntime, 1, 1)                       \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1) \
   F(IncrementUseCounter, 1, 1)                     \
@@ -256,7 +254,8 @@ namespace internal {
   F(ThrowThrowMethodMissing, 0, 1)                 \
   F(ThrowTypeError, -1 /* >= 1 */, 1)              \
   F(Typeof, 1, 1)                                  \
-  F(UnwindAndFindExceptionHandler, 0, 1)
+  F(UnwindAndFindExceptionHandler, 0, 1)           \
+  F(WeakFactoryCleanupJob, 1, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F, I)           \
   F(CreateArrayLiteral, 4, 1)                       \
@@ -540,7 +539,7 @@ namespace internal {
   F(ThrowWasmStackOverflow, 0, 1)     \
   F(WasmExceptionGetValues, 1, 1)     \
   F(WasmExceptionGetTag, 1, 1)        \
-  F(WasmGrowMemory, 2, 1)             \
+  F(WasmMemoryGrow, 2, 1)             \
   F(WasmRunInterpreter, 2, 1)         \
   F(WasmStackGuard, 0, 1)             \
   F(WasmThrowCreate, 2, 1)            \

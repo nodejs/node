@@ -489,7 +489,11 @@ const Type* ImplementationVisitor::Visit(
     }
     TypeVector lowered_types = LowerType(*type);
     for (const Type* type : lowered_types) {
-      assembler().Emit(PushUninitializedInstruction{type});
+      assembler().Emit(PushUninitializedInstruction{TypeOracle::GetTopType(
+          "unitialized variable '" + stmt->name + "' of type " +
+              type->ToString() + " originally defined at " +
+              PositionAsString(stmt->pos),
+          type)});
     }
     init_result =
         VisitResult(*type, assembler().TopRange(lowered_types.size()));
@@ -1757,6 +1761,16 @@ VisitResult ImplementationVisitor::GenerateCall(
       << " (expected " << std::to_string(label_count) << " found "
       << std::to_string(arguments.labels.size()) << ")";
     ReportError(s.str());
+  }
+
+  if (callable->IsTransitioning()) {
+    if (!global_context_.GetCurrentCallable()->IsTransitioning()) {
+      std::stringstream s;
+      s << *global_context_.GetCurrentCallable()
+        << " isn't marked transitioning but calls the transitioning "
+        << *callable;
+      ReportError(s.str());
+    }
   }
 
   if (auto* builtin = Builtin::DynamicCast(callable)) {

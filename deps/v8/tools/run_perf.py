@@ -138,6 +138,11 @@ def GeometricMean(values):
   return str(math.exp(sum(map(math.log, values)) / len(values)))
 
 
+class TestFailedError(Exception):
+  """Error raised when a test has failed due to a non-infra issue."""
+  pass
+
+
 class Results(object):
   """Place holder for result traces."""
   def __init__(self, traces=None, errors=None):
@@ -692,7 +697,7 @@ class DesktopPlatform(Platform):
       output = cmd.execute()
     except OSError:  # pragma: no cover
       logging.exception(title % "OSError")
-      return ""
+      raise
 
     logging.info(title % "Stdout" + "\n%s", output.stdout)
     if output.stderr:  # pragma: no cover
@@ -700,6 +705,10 @@ class DesktopPlatform(Platform):
       logging.info(title % "Stderr" + "\n%s", output.stderr)
     if output.timed_out:
       logging.warning(">>> Test timed out after %ss.", runnable.timeout)
+      raise TestFailedError()
+    if output.exit_code != 0:
+      logging.warning(">>> Test crashed.")
+      raise TestFailedError()
     if '--prof' in self.extra_flags:
       os_prefix = {"linux": "linux", "macos": "mac"}.get(utils.GuessOS())
       if os_prefix:
@@ -781,12 +790,13 @@ class AndroidPlatform(Platform):  # pragma: no cover
       logging.info(title % "Stdout" + "\n%s", stdout)
     except android.CommandFailedException as e:
       logging.info(title % "Stdout" + "\n%s", e.output)
-      raise
+      logging.warning('>>> Test crashed.')
+      raise TestFailedError()
     except android.TimeoutException as e:
       if e.output is not None:
         logging.info(title % "Stdout" + "\n%s", e.output)
       logging.warning(">>> Test timed out after %ss.", runnable.timeout)
-      stdout = ""
+      raise TestFailedError()
     if runnable.process_size:
       return stdout + "MaxMemory: Unsupported"
     return stdout
@@ -1027,6 +1037,8 @@ def Main(args):
 
   results = Results()
   results_secondary = Results()
+  # We use list here to allow modification in nested function below.
+  have_failed_tests = [False]
   with CustomMachineConfiguration(governor = options.cpu_governor,
                                   disable_aslr = options.noaslr) as conf:
     for path in args:
@@ -1065,7 +1077,10 @@ def Main(args):
           for i in xrange(0, max(1, total_runs)):
             # TODO(machenbach): Allow timeout per arch like with run_count per
             # arch.
-            yield platform.Run(runnable, i)
+            try:
+              yield platform.Run(runnable, i)
+            except TestFailedError:
+              have_failed_tests[0] = True
 
         # Let runnable iterate over all runs and handle output.
         result, result_secondary = runnable.Run(
@@ -1084,7 +1099,7 @@ def Main(args):
   else:  # pragma: no cover
     print results_secondary
 
-  if results.errors:
+  if results.errors or have_failed_tests[0]:
     return 1
 
   return 0

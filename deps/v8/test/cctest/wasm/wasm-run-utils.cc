@@ -420,9 +420,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
   WasmCompilationUnit unit(isolate()->wasm_engine(), native_module, func_body,
-                           function_->func_index, isolate()->counters(), tier);
+                           function_->func_index, tier);
   WasmFeatures unused_detected_features;
-  unit.ExecuteCompilation(&env, &unused_detected_features);
+  unit.ExecuteCompilation(&env, isolate()->counters(),
+                          &unused_detected_features);
   CHECK(!unit.failed());
   if (WasmCode::ShouldBeLogged(isolate())) unit.result()->LogCode(isolate());
 }

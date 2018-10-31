@@ -80,8 +80,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   // We need to deserialize now to ensure we don't hit the debug break again
   // after deserializing.
   OperandScale operand_scale = OperandScale::kSingle;
-  isolate->interpreter()->GetAndMaybeDeserializeBytecodeHandler(bytecode,
-                                                                operand_scale);
+  isolate->interpreter()->GetBytecodeHandler(bytecode, operand_scale);
 
   if (side_effect_check_failed) {
     return MakePair(ReadOnlyRoots(isolate).exception(),

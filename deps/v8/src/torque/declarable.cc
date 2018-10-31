@@ -12,7 +12,11 @@ namespace internal {
 namespace torque {
 
 std::ostream& operator<<(std::ostream& os, const Callable& m) {
-  os << "callable " << m.name() << "(";
+  if (m.generic()) {
+    os << "callable " << (*m.generic())->name() << "(";
+  } else {
+    os << "callable " << m.name() << "(";
+  }
   if (m.signature().implicit_count != 0) {
     os << "implicit ";
     TypeVector implicit_parameter_types(

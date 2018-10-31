@@ -73,10 +73,10 @@ def _V8PresubmitChecks(input_api, output_api):
   import sys
   sys.path.append(input_api.os_path.join(
         input_api.PresubmitLocalPath(), 'tools'))
-  from presubmit import CppLintProcessor
-  from presubmit import TorqueFormatProcessor
-  from presubmit import SourceProcessor
-  from presubmit import StatusFilesProcessor
+  from v8_presubmit import CppLintProcessor
+  from v8_presubmit import TorqueFormatProcessor
+  from v8_presubmit import SourceProcessor
+  from v8_presubmit import StatusFilesProcessor
 
   def FilterFile(affected_file):
     return input_api.FilterSourceFile(

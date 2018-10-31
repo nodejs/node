@@ -913,6 +913,22 @@
       ]
     },
     {
+      "name": "ArrayIndexOfIncludesPolymorphic",
+      "path": ["ArrayIndexOfIncludesPolymorphic"],
+      "main": "run.js",
+      "resources": ["indexof-includes-polymorphic.js"],
+      "test_flags": ["indexof-includes-polymorphic"],
+      "results_regexp": "^%s\\-ArrayIndexOfIncludesPolymorphic\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "for loop"},
+        {"name": "Array#indexOf"},
+        {"name": "Array#includes"}
+      ]
+    },
+    {
       "name": "ArraySort",
       "path": ["ArraySort"],
       "main": "run.js",

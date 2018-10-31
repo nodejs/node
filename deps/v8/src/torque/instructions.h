@@ -65,6 +65,7 @@ struct InstructionBase {
 
   virtual void TypeInstruction(Stack<const Type*>* stack,
                                ControlFlowGraph* cfg) const = 0;
+  void InvalidateTransientTypes(Stack<const Type*>* stack) const;
   virtual bool IsBlockTerminator() const { return false; }
   virtual void AppendSuccessorBlocks(std::vector<Block*>* block_list) const {}
 

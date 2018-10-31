@@ -237,6 +237,10 @@ void* OS::GetRandomMmapAddr() {
   // 31 bits of virtual addressing.  Truncate to 29 bits to allow kernel chance
   // to fulfill request.
   raw_addr &= 0x1FFFF000;
+#elif V8_TARGET_ARCH_MIPS64
+  // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
+  // to fulfill request.
+  raw_addr &= uint64_t{0xFFFFFF0000};
 #else
   raw_addr &= 0x3FFFF000;
 

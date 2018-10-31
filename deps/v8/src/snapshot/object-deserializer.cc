@@ -14,6 +14,9 @@
 namespace v8 {
 namespace internal {
 
+ObjectDeserializer::ObjectDeserializer(const SerializedCodeData* data)
+    : Deserializer(data, true) {}
+
 MaybeHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfo(
     Isolate* isolate, const SerializedCodeData* data, Handle<String> source) {

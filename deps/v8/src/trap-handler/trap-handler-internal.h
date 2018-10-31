@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
-// This describes a chunk of code that the signal handler will be able to handle
+// This describes a chunk of code that the trap handler will be able to handle
 // faults in. {base} points to the beginning of the chunk, and {size} is the
 // number of bytes in the code chunk. The remainder of the struct is a list of
 // protected memory access instructions and an offset to a landing pad to handle

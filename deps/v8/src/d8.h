@@ -387,6 +387,7 @@ class ShellOptions {
   bool quiet_load = false;
   int thread_pool_size = 0;
   std::vector<const char*> arguments;
+  bool include_arguments = true;
 };
 
 class Shell : public i::AllStatic {

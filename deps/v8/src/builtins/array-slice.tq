@@ -118,7 +118,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.slice
-  javascript builtin ArraySlice(
+  transitioning javascript builtin ArraySlice(
       context: Context, receiver: Object, ...arguments): Object {
     // Handle array cloning case if the receiver is a fast array.
     if (arguments.length == 0) {

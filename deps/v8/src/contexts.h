@@ -12,7 +12,6 @@ namespace internal {
 
 class JSGlobalObject;
 class JSGlobalProxy;
-class JSWeakFactory;
 class NativeContext;
 class ObjectSlot;
 class RegExpMatchInfo;
@@ -159,7 +158,6 @@ enum ContextLookupFlags {
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
   V(DEBUG_CONTEXT_ID_INDEX, Object, debug_context_id)                          \
-  V(DIRTY_JS_WEAK_FACTORIES_INDEX, Object, dirty_js_weak_factories)            \
   V(EMPTY_FUNCTION_INDEX, JSFunction, empty_function)                          \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
@@ -635,12 +633,6 @@ class NativeContext : public Context {
  public:
   static inline NativeContext* cast(Object* context);
   // TODO(neis): Move some stuff from Context here.
-
-  // Add weak_factory into the dirty_js_weak_factories list.
-  inline void AddDirtyJSWeakFactory(
-      JSWeakFactory* weak_factory, Isolate* isolate,
-      std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
-          gc_notify_updated_slot);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(NativeContext);

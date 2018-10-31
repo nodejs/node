@@ -84,11 +84,7 @@ class IC {
                                               Address address);
 
   bool is_vector_set() { return vector_set_; }
-  bool vector_needs_update() {
-    return (!vector_set_ &&
-            (state() != MEGAMORPHIC ||
-             Smi::ToInt(nexus()->GetFeedbackExtra()->cast<Smi>()) != ELEMENT));
-  }
+  inline bool vector_needs_update();
 
   // Configure for most states.
   bool ConfigureVectorState(IC::State new_state, Handle<Object> key);

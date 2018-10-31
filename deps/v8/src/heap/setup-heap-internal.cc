@@ -629,6 +629,8 @@ void Heap::CreateInitialObjects() {
   // There's no "current microtask" in the beginning.
   set_current_microtask(roots.undefined_value());
 
+  set_dirty_js_weak_factories(roots.undefined_value());
+
   // Allocate cache for single character one byte strings.
   set_single_character_string_cache(
       *factory->NewFixedArray(String::kMaxOneByteCharCode + 1, TENURED));

@@ -188,7 +188,7 @@ HeapObject* RelocInfo::target_object() {
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (IsCodeTarget(rmode_) || IsEmbeddedObject(rmode_)) {
-    return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
+    return Handle<HeapObject>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
   }
   DCHECK(IsRelativeCodeTarget(rmode_));

@@ -299,7 +299,8 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
   CHECK_EQ(expected, c->opcode());
   CHECK_EQ(n, c->InputAt(0));
 
-  if (expected == IrOpcode::kCheckedFloat64ToInt32) {
+  if (expected == IrOpcode::kCheckedFloat64ToInt32 ||
+      expected == IrOpcode::kCheckedFloat64ToInt64) {
     CheckForMinusZeroMode mode =
         from_type.Maybe(Type::MinusZero())
             ? use_info.minus_zero_check()
@@ -316,13 +317,13 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
 static void CheckTwoChanges(IrOpcode::Value expected2,
                             IrOpcode::Value expected1,
                             MachineRepresentation from, Type from_type,
-                            MachineRepresentation to) {
+                            MachineRepresentation to, UseInfo use_info) {
   RepresentationChangerTester r;
 
   Node* n = r.Parameter();
   Node* use = r.Return(n);
-  Node* c1 = r.changer()->GetRepresentationFor(n, from, from_type, use,
-                                               UseInfo(to, Truncation::None()));
+  Node* c1 =
+      r.changer()->GetRepresentationFor(n, from, from_type, use, use_info);
 
   CHECK_NE(c1, n);
   CHECK_EQ(expected1, c1->opcode());
@@ -330,6 +331,14 @@ static void CheckTwoChanges(IrOpcode::Value expected2,
   CHECK_NE(c2, n);
   CHECK_EQ(expected2, c2->opcode());
   CHECK_EQ(n, c2->InputAt(0));
+}
+
+static void CheckTwoChanges(IrOpcode::Value expected2,
+                            IrOpcode::Value expected1,
+                            MachineRepresentation from, Type from_type,
+                            MachineRepresentation to) {
+  CheckTwoChanges(expected2, expected1, from, from_type, to,
+                  UseInfo(to, Truncation::None()));
 }
 
 static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
@@ -387,6 +396,10 @@ TEST(Word64) {
               TypeCache::Get().kInt64, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeFloat64ToUint64, MachineRepresentation::kFloat64,
               TypeCache::Get().kUint64, MachineRepresentation::kWord64);
+  CheckChange(
+      IrOpcode::kCheckedFloat64ToInt64, MachineRepresentation::kFloat64,
+      Type::Number(), MachineRepresentation::kWord64,
+      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, VectorSlotPair()));
 
   CheckChange(IrOpcode::kChangeInt64ToFloat64, MachineRepresentation::kWord64,
               Type::Signed32(), MachineRepresentation::kFloat64);
@@ -411,6 +424,11 @@ TEST(Word64) {
                   IrOpcode::kChangeFloat64ToUint64,
                   MachineRepresentation::kFloat32, TypeCache::Get().kUint64,
                   MachineRepresentation::kWord64);
+  CheckTwoChanges(
+      IrOpcode::kChangeFloat32ToFloat64, IrOpcode::kCheckedFloat64ToInt64,
+      MachineRepresentation::kFloat32, Type::Number(),
+      MachineRepresentation::kWord64,
+      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, VectorSlotPair()));
 
   CheckTwoChanges(IrOpcode::kChangeInt64ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32,
@@ -428,6 +446,14 @@ TEST(Word64) {
   CheckChange(IrOpcode::kChangeTaggedSignedToInt64,
               MachineRepresentation::kTaggedSigned, Type::SignedSmall(),
               MachineRepresentation::kWord64);
+  CheckChange(
+      IrOpcode::kCheckedTaggedToInt64, MachineRepresentation::kTagged,
+      Type::Number(), MachineRepresentation::kWord64,
+      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, VectorSlotPair()));
+  CheckChange(
+      IrOpcode::kCheckedTaggedToInt64, MachineRepresentation::kTaggedPointer,
+      Type::Number(), MachineRepresentation::kWord64,
+      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, VectorSlotPair()));
 
   CheckTwoChanges(IrOpcode::kTruncateInt64ToInt32,
                   IrOpcode::kChangeInt31ToTaggedSigned,

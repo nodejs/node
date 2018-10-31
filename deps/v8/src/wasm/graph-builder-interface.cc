@@ -360,8 +360,8 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(CurrentMemoryPages);
   }
 
-  void GrowMemory(FullDecoder* decoder, const Value& value, Value* result) {
-    result->node = BUILD(GrowMemory, value.node);
+  void MemoryGrow(FullDecoder* decoder, const Value& value, Value* result) {
+    result->node = BUILD(MemoryGrow, value.node);
     // Always reload the instance cache after growing memory.
     LoadContextIntoSsa(ssa_env_);
   }
@@ -415,14 +415,14 @@ class WasmGraphBuildingInterface {
       args[i] = value_args[i].node;
     }
     BUILD(Throw, imm.index, imm.exception, vec2vec(args));
-    Unreachable(decoder);
+    builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     TFNode* exception = block->try_info->exception;
     BUILD(Rethrow, exception);
-    Unreachable(decoder);
+    builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
   }
 
   void CatchException(FullDecoder* decoder,
@@ -700,7 +700,7 @@ class WasmGraphBuildingInterface {
 
     env->control = builder_->Loop(env->control);
     env->effect = builder_->EffectPhi(1, &env->effect, env->control);
-    builder_->Terminate(env->effect, env->control);
+    builder_->TerminateLoop(env->effect, env->control);
     // The '+ 1' here is to be able to set the instance cache as assigned.
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
         decoder, decoder->pc(), decoder->total_locals() + 1, decoder->zone());

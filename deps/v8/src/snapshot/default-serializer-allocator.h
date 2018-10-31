@@ -10,13 +10,11 @@
 namespace v8 {
 namespace internal {
 
-template <class AllocatorT>
 class Serializer;
 
 class DefaultSerializerAllocator final {
  public:
-  DefaultSerializerAllocator(
-      Serializer<DefaultSerializerAllocator>* serializer);
+  explicit DefaultSerializerAllocator(Serializer* serializer);
 
   SerializerReference Allocate(AllocationSpace space, uint32_t size);
   SerializerReference AllocateMap();
@@ -68,7 +66,7 @@ class DefaultSerializerAllocator final {
   uint32_t custom_chunk_size_ = 0;
 
   // The current serializer.
-  Serializer<DefaultSerializerAllocator>* const serializer_;
+  Serializer* const serializer_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultSerializerAllocator)
 };

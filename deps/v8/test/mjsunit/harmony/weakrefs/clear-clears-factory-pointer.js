@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-weak-refs --expose-gc
+// Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 // Test that WeakCell.prototype.clear() also clears the WeakFactory pointer of
 // WeakCell. The only way to observe this is to assert that the WeakCell no

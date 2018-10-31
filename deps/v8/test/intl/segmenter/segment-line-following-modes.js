@@ -48,9 +48,9 @@ assertTrue(breakCounts["zh-loose"] > breakCounts["zh-normal"]);
 // and test the break count in normal mode is greater than strict mode.
 assertTrue(breakCounts["zh-normal"] > breakCounts["zh-strict"]);
 // In English, French and Korean
-assertEquals(breakCounts["en-loose"], breakCounts["en-normal"]);
-assertEquals(breakCounts["fr-loose"], breakCounts["fr-normal"]);
-assertEquals(breakCounts["ko-loose"], breakCounts["ko-normal"]);
+assertTrue(breakCounts["en-loose"] >= breakCounts["en-normal"]);
+assertTrue(breakCounts["fr-loose"] >= breakCounts["fr-normal"]);
+assertTrue(breakCounts["ko-loose"] >= breakCounts["ko-normal"]);
 // and test the break count in normal mode is greater than strict mode.
 assertTrue(breakCounts["en-normal"] > breakCounts["en-strict"]);
 assertTrue(breakCounts["fr-normal"] > breakCounts["fr-strict"]);

@@ -20,6 +20,7 @@ namespace v8 {
 namespace internal {
 
 typedef TestWithIsolate HeapTest;
+typedef TestWithIsolateAndPointerCompression HeapWithPointerCompressionTest;
 
 TEST(Heap, SemiSpaceSize) {
   const size_t KB = static_cast<size_t>(i::KB);
@@ -72,6 +73,35 @@ TEST_F(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling) {
   EXPECT_GE(heap->isolate()->isolate_data()->external_memory_limit_,
             kExternalAllocationSoftLimit);
 }
+
+#if V8_TARGET_ARCH_64_BIT
+TEST_F(HeapWithPointerCompressionTest, HeapLayout) {
+  // Produce some garbage.
+  RunJS(
+      "let ar = [];"
+      "for (let i = 0; i < 100; i++) {"
+      "  ar.push(Array(i));"
+      "}"
+      "ar.push(Array(32 * 1024 * 1024));");
+
+  Address isolate_root = i_isolate()->isolate_root();
+  EXPECT_TRUE(IsAligned(isolate_root, size_t{4} * GB));
+
+  // Check that all memory chunks belong this region.
+  base::AddressRegion heap_reservation(isolate_root - size_t{2} * GB,
+                                       size_t{4} * GB);
+
+  MemoryChunkIterator iter(i_isolate()->heap());
+  for (;;) {
+    MemoryChunk* chunk = iter.next();
+    if (chunk == nullptr) break;
+
+    Address address = chunk->address();
+    size_t size = chunk->area_end() - address;
+    EXPECT_TRUE(heap_reservation.contains(address, size));
+  }
+}
+#endif  // V8_TARGET_ARCH_64_BIT
 
 }  // namespace internal
 }  // namespace v8

@@ -468,6 +468,10 @@ int JSStackFrame::GetColumnNumber() {
   return -1;
 }
 
+int JSStackFrame::GetPromiseIndex() const {
+  return is_promise_all_ ? offset_ : -1;
+}
+
 bool JSStackFrame::IsNative() {
   return HasScript() && GetScript()->type() == Script::TYPE_NATIVE;
 }

@@ -28,14 +28,32 @@ StartupSerializer::~StartupSerializer() {
   OutputStatistics("StartupSerializer");
 }
 
+namespace {
+
+// Due to how we currently create the embedded blob, we may encounter both
+// off-heap trampolines and old, outdated full Code objects during
+// serialization. This ensures that we only serialize the canonical version of
+// each builtin.
+// See also CreateOffHeapTrampolines().
+HeapObject* MaybeCanonicalizeBuiltin(Isolate* isolate, HeapObject* obj) {
+  if (!obj->IsCode()) return obj;
+
+  const int builtin_index = Code::cast(obj)->builtin_index();
+  if (!Builtins::IsBuiltinId(builtin_index)) return obj;
+
+  return isolate->builtins()->builtin(builtin_index);
+}
+
+}  // namespace
+
 void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
-  DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
   DCHECK(!obj->IsJSFunction());
 
-  if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip)) {
-    return;
-  }
+  // TODO(jgruber): Remove canonicalization once off-heap trampoline creation
+  // moves to Isolate::Init().
+  obj = MaybeCanonicalizeBuiltin(isolate(), obj);
+
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
   if (IsRootAndHasBeenSerialized(obj) &&
       SerializeRoot(obj, how_to_code, where_to_point, skip))

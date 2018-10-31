@@ -679,37 +679,52 @@ module data_view {
     let littleEndian: bool = ToBoolean(requestedLittleEndian);
     let buffer: JSArrayBuffer = dataView.buffer;
 
-    let bigIntValue: BigInt;
-    let numValue: Number;
     // According to ES6 section 24.2.1.2 SetViewValue, we must perform
     // the conversion before doing the bounds check.
     if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
-      bigIntValue = ToBigInt(context, value);
-    } else {
-      numValue = ToNumber(context, value);
-    }
+      let bigIntValue: BigInt = ToBigInt(context, value);
 
-    if (IsDetachedBuffer(buffer)) {
-      ThrowTypeError(
-          context, kDetachedOperation, MakeDataViewSetterNameString(kind));
-    }
+      if (IsDetachedBuffer(buffer)) {
+        ThrowTypeError(
+            context, kDetachedOperation, MakeDataViewSetterNameString(kind));
+      }
 
-    let getIndexFloat: float64 = Convert<float64>(getIndex);
-    let getIndexWord: uintptr = Convert<uintptr>(getIndexFloat);
+      let getIndexFloat: float64 = Convert<float64>(getIndex);
+      let getIndexWord: uintptr = Convert<uintptr>(getIndexFloat);
 
-    let viewOffsetWord: uintptr = dataView.byte_offset;
-    let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
-    let elementSizeFloat: float64 = Convert<float64>(DataViewElementSize(kind));
+      let viewOffsetWord: uintptr = dataView.byte_offset;
+      let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
+      let elementSizeFloat: float64 =
+          Convert<float64>(DataViewElementSize(kind));
 
-    if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
-      ThrowRangeError(context, kInvalidDataViewAccessorOffset);
-    }
+      if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
+        ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+      }
 
-    let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
-
-    if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
+      let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
       StoreDataViewBigInt(buffer, bufferIndex, bigIntValue, littleEndian);
     } else {
+      let numValue: Number = ToNumber(context, value);
+
+      if (IsDetachedBuffer(buffer)) {
+        ThrowTypeError(
+            context, kDetachedOperation, MakeDataViewSetterNameString(kind));
+      }
+
+      let getIndexFloat: float64 = Convert<float64>(getIndex);
+      let getIndexWord: uintptr = Convert<uintptr>(getIndexFloat);
+
+      let viewOffsetWord: uintptr = dataView.byte_offset;
+      let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
+      let elementSizeFloat: float64 =
+          Convert<float64>(DataViewElementSize(kind));
+
+      if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
+        ThrowRangeError(context, kInvalidDataViewAccessorOffset);
+      }
+
+      let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
+
       let doubleValue: float64 = ChangeNumberToFloat64(numValue);
 
       if constexpr (kind == UINT8_ELEMENTS || kind == INT8_ELEMENTS) {

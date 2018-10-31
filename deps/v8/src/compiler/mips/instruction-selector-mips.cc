@@ -760,7 +760,32 @@ void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
 }
 
 void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
-  VisitPairAtomicBinop(this, node, kMipsWord32AtomicPairCompareExchange);
+  MipsOperandGenerator g(this);
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)),  g.UseRegister(node->InputAt(1)),
+      g.UseFixed(node->InputAt(2), a1), g.UseFixed(node->InputAt(3), a2),
+      g.UseFixed(node->InputAt(4), a3), g.UseUniqueRegister(node->InputAt(5))};
+
+  InstructionCode code = kMipsWord32AtomicPairCompareExchange |
+                         AddressingModeField::encode(kMode_MRI);
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
+  if (projection1) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, v0),
+                                    g.DefineAsFixed(projection1, v1)};
+    InstructionOperand temps[] = {g.TempRegister(a0)};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else if (projection0) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, v0)};
+    InstructionOperand temps[] = {g.TempRegister(a0), g.TempRegister(v1)};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else {
+    InstructionOperand temps[] = {g.TempRegister(a0), g.TempRegister(v0),
+                                  g.TempRegister(v1)};
+    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+  }
 }
 
 void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }

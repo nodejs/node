@@ -50,13 +50,13 @@ class TurbofanWasmCompilationUnit {
   explicit TurbofanWasmCompilationUnit(wasm::WasmCompilationUnit* wasm_unit);
   ~TurbofanWasmCompilationUnit();
 
-  SourcePositionTable* BuildGraphForWasmFunction(wasm::CompilationEnv* env,
-                                                 wasm::WasmFeatures* detected,
-                                                 double* decode_ms,
-                                                 MachineGraph* mcgraph,
-                                                 NodeOriginTable* node_origins);
+  bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
+                                 wasm::WasmFeatures* detected,
+                                 double* decode_ms, MachineGraph* mcgraph,
+                                 NodeOriginTable* node_origins,
+                                 SourcePositionTable* source_positions);
 
-  void ExecuteCompilation(wasm::CompilationEnv* env,
+  void ExecuteCompilation(wasm::CompilationEnv*, Counters*,
                           wasm::WasmFeatures* detected);
 
  private:
@@ -159,7 +159,8 @@ class WasmGraphBuilder {
   Node* Start(unsigned params);
   Node* Param(unsigned index);
   Node* Loop(Node* entry);
-  Node* Terminate(Node* effect, Node* control);
+  Node* TerminateLoop(Node* effect, Node* control);
+  Node* TerminateThrow(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
   Node* Phi(wasm::ValueType type, unsigned count, Node** vals, Node* control);
   Node* CreateOrMergeIntoPhi(MachineRepresentation rep, Node* merge,
@@ -177,7 +178,7 @@ class WasmGraphBuilder {
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
-  Node* GrowMemory(Node* input);
+  Node* MemoryGrow(Node* input);
   Node* Throw(uint32_t exception_index, const wasm::WasmException* exception,
               const Vector<Node*> values);
   Node* Rethrow(Node* except_obj);
@@ -185,7 +186,7 @@ class WasmGraphBuilder {
   Node* LoadExceptionTagFromTable(uint32_t exception_index);
   Node* GetExceptionTag(Node* except_obj);
   Node** GetExceptionValues(Node* except_obj,
-                            const wasm::WasmException* except_decl);
+                            const wasm::WasmException* exception);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
@@ -469,8 +470,8 @@ class WasmGraphBuilder {
   uint32_t GetExceptionEncodedSize(const wasm::WasmException* exception) const;
   void BuildEncodeException32BitValue(Node* values_array, uint32_t* index,
                                       Node* value);
-  Node* BuildDecodeException32BitValue(Node* const* values, uint32_t* index);
-  Node* BuildDecodeException64BitValue(Node* const* values, uint32_t* index);
+  Node* BuildDecodeException32BitValue(Node* values_array, uint32_t* index);
+  Node* BuildDecodeException64BitValue(Node* values_array, uint32_t* index);
 
   Node** Realloc(Node* const* buffer, size_t old_count, size_t new_count) {
     Node** buf = Buffer(new_count);

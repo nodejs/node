@@ -36,6 +36,20 @@ class ObjectPtr {
   // Returns the tagged "(heap) object pointer" representation of this object.
   Address ptr() const { return ptr_; }
 
+  ObjectPtr* operator->() { return this; }
+  const ObjectPtr* operator->() const { return this; }
+
+#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
+  OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+#undef IS_TYPE_FUNCTION_DECL
+
+#ifdef VERIFY_HEAP
+  void ObjectVerify(Isolate* isolate) {
+    reinterpret_cast<Object*>(ptr())->ObjectVerify(isolate);
+  }
+#endif
+
  private:
   Address ptr_;
 };
@@ -56,6 +70,7 @@ class HeapObjectPtr : public ObjectPtr {
     return reinterpret_cast<const HeapObject*>(ptr());
   }
 
+  bool IsHeapObject() const { return true; }
   bool IsHeapObjectPtr() const { return true; }
 
 #define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;

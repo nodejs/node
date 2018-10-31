@@ -41,9 +41,9 @@ type JSArgumentsObjectWithLength extends JSObject
     generates 'TNode<JSArgumentsObjectWithLength>';
 type JSArray extends JSArgumentsObjectWithLength
     generates 'TNode<JSArray>';
-type FastJSArray extends JSArray
+transient type FastJSArray extends JSArray
     generates 'TNode<JSArray>';
-type FastJSArrayForCopy extends FastJSArray
+transient type FastJSArrayForCopy extends FastJSArray
     generates 'TNode<JSArray>';
 type JSFunction extends JSObject generates 'TNode<JSFunction>';
 type JSBoundFunction extends JSObject generates 'TNode<JSBoundFunction>';
@@ -250,13 +250,15 @@ extern macro ToInteger_Inline(
 extern macro ToLength_Inline(Context, Object): Number;
 extern macro ToNumber_Inline(Context, Object): Number;
 extern macro ToString_Inline(Context, Object): String;
-extern macro GetProperty(implicit context: Context)(Object, Object): Object;
-extern builtin SetProperty(implicit context: Context)(Object, Object, Object);
-extern builtin DeleteProperty(implicit context: Context)(
+extern transitioning macro GetProperty(implicit context: Context)(
+    Object, Object): Object;
+extern transitioning builtin SetProperty(implicit context: Context)(
+    Object, Object, Object);
+extern transitioning builtin DeleteProperty(implicit context: Context)(
     Object, Object, LanguageMode);
-extern builtin HasProperty(implicit context: Context)(
+extern transitioning builtin HasProperty(implicit context: Context)(
     JSReceiver, Object): Boolean;
-extern macro HasProperty_Inline(implicit context: Context)(
+extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, Object): Boolean;
 
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
@@ -285,9 +287,10 @@ extern macro IsTheHole(Object): bool;
 extern macro IsString(HeapObject): bool;
 extern builtin ToString(Context, Object): String;
 
-extern runtime NormalizeElements(Context, JSObject);
-extern runtime TransitionElementsKindWithKind(Context, JSObject, Smi);
-extern runtime CreateDataProperty(implicit context: Context)(
+extern transitioning runtime NormalizeElements(Context, JSObject);
+extern transitioning runtime TransitionElementsKindWithKind(
+    Context, JSObject, Smi);
+extern transitioning runtime CreateDataProperty(implicit context: Context)(
     JSReceiver, Object, Object);
 
 extern macro LoadRoot(constexpr RootIndex): Object;
@@ -433,7 +436,7 @@ extern operator '!' macro Word32BinaryNot(bool): bool;
 extern operator '!' macro IsFalse(Boolean): bool;
 
 extern operator '.map' macro LoadMap(HeapObject): Map;
-extern operator '.map=' macro StoreMap(HeapObject, Map);
+extern transitioning operator '.map=' macro StoreMap(HeapObject, Map);
 extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
 
@@ -1015,13 +1018,15 @@ extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, intptr): float64
     labels IfHole;
 extern macro StoreFixedDoubleArrayHoleSmi(FixedDoubleArray, Smi): void;
 
-extern macro Call(Context, Callable, Object): Object;
-extern macro Call(Context, Callable, Object, Object): Object;
-extern macro Call(Context, Callable, Object, Object, Object): Object;
-extern macro Call(Context, Callable, Object, Object, Object, Object): Object;
-extern macro Call(
+extern transitioning macro Call(Context, Callable, Object): Object;
+extern transitioning macro Call(Context, Callable, Object, Object): Object;
+extern transitioning macro Call(
+    Context, Callable, Object, Object, Object): Object;
+extern transitioning macro Call(
+    Context, Callable, Object, Object, Object, Object): Object;
+extern transitioning macro Call(
     Context, Callable, Object, Object, Object, Object, Object): Object;
-extern macro Call(
+extern transitioning macro Call(
     Context, Callable, Object, Object, Object, Object, Object, Object): Object;
 
 extern builtin CloneFastJSArray(Context, FastJSArrayForCopy): JSArray;
@@ -1066,7 +1071,7 @@ macro TorqueCopyElements(
       count);
 }
 
-macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): Object
+transitioning macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): Object
     labels IfHole;
 
 LoadElementNoHole<FixedArray>(a: JSArray, index: Smi): Object
@@ -1154,7 +1159,8 @@ macro ToIndex(input: Object, context: Context): Number
   return value;
 }
 
-macro GetLengthProperty(implicit context: Context)(o: Object): Number {
+transitioning macro GetLengthProperty(implicit context: Context)(o: Object):
+    Number {
   try {
     typeswitch (o) {
       case (a: JSArray): {

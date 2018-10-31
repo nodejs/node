@@ -44,10 +44,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     BEFORE_PROPERTY = INTERCEPTOR
   };
 
-  LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-                 Configuration configuration = DEFAULT)
-      : LookupIterator(isolate, receiver, name, GetRoot(isolate, receiver),
-                       configuration) {}
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                        Handle<Name> name,
+                        Configuration configuration = DEFAULT);
 
   inline LookupIterator(Handle<Object> receiver, Handle<Name> name,
                         Handle<JSReceiver> holder,
@@ -57,10 +56,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         Handle<Name> name, Handle<JSReceiver> holder,
                         Configuration configuration = DEFAULT);
 
-  LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
-                 Configuration configuration = DEFAULT)
-      : LookupIterator(isolate, receiver, index,
-                       GetRoot(isolate, receiver, index), configuration) {}
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                        uint32_t index, Configuration configuration = DEFAULT);
 
   LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
                  Handle<JSReceiver> holder,
@@ -130,19 +127,10 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   template <class T>
   inline Handle<T> GetStoreTarget() const;
   inline bool is_dictionary_holder() const;
-  Handle<Map> transition_map() const {
-    DCHECK_EQ(TRANSITION, state_);
-    return Handle<Map>::cast(transition_);
-  }
-  Handle<PropertyCell> transition_cell() const {
-    DCHECK_EQ(TRANSITION, state_);
-    return Handle<PropertyCell>::cast(transition_);
-  }
+  inline Handle<Map> transition_map() const;
+  inline Handle<PropertyCell> transition_cell() const;
   template <class T>
-  Handle<T> GetHolder() const {
-    DCHECK(IsFound());
-    return Handle<T>::cast(holder_);
-  }
+  inline Handle<T> GetHolder() const;
 
   bool HolderIsReceiver() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
@@ -259,18 +247,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
   }
-  int descriptor_number() const {
-    DCHECK(!IsElement());
-    DCHECK(has_property_);
-    DCHECK(holder_->HasFastProperties());
-    return number_;
-  }
-  int dictionary_entry() const {
-    DCHECK(!IsElement());
-    DCHECK(has_property_);
-    DCHECK(!holder_->HasFastProperties());
-    return number_;
-  }
+  inline int descriptor_number() const;
+  inline int dictionary_entry() const;
 
   static inline Configuration ComputeConfiguration(
       Configuration configuration, Handle<Name> name);

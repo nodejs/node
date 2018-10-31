@@ -1303,6 +1303,7 @@ void JSWeakCell::JSWeakCellPrint(std::ostream& os) {
 
 void JSWeakFactory::JSWeakFactoryPrint(std::ostream& os) {
   JSObjectPrintHeader(os, this, "JSWeakFactory");
+  os << "\n - native_context: " << Brief(native_context());
   os << "\n - cleanup: " << Brief(cleanup());
   os << "\n - active_cells: " << Brief(active_cells());
   os << "\n - cleared_cells: " << Brief(cleared_cells());
@@ -1314,6 +1315,12 @@ void JSWeakFactoryCleanupIterator::JSWeakFactoryCleanupIteratorPrint(
   JSObjectPrintHeader(os, this, "JSWeakFactoryCleanupIterator");
   os << "\n - factory: " << Brief(factory());
   JSObjectPrintBody(os, this);
+}
+
+void WeakFactoryCleanupJobTask::WeakFactoryCleanupJobTaskPrint(
+    std::ostream& os) {
+  HeapObject::PrintHeader(os, "WeakFactoryCleanupJobTask");
+  os << "\n - factory: " << Brief(factory());
 }
 
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {  // NOLINT
@@ -1397,16 +1404,8 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
   // Print Builtin name for builtin functions
   int builtin_index = code()->builtin_index();
-  if (builtin_index != -1 && !IsInterpreted()) {
-    if (builtin_index == Builtins::kDeserializeLazy) {
-      if (shared()->HasBuiltinId()) {
-        builtin_index = shared()->builtin_id();
-        os << "\n - builtin: " << isolate->builtins()->name(builtin_index)
-           << "(lazy)";
-      }
-    } else {
-      os << "\n - builtin: " << isolate->builtins()->name(builtin_index);
-    }
+  if (Builtins::IsBuiltinId(builtin_index) && !IsInterpreted()) {
+    os << "\n - builtin: " << isolate->builtins()->name(builtin_index);
   }
 
   os << "\n - formal_parameter_count: "

@@ -53,11 +53,10 @@ struct BuiltinMetadata {
 #define DECL_TFS(Name, ...) { #Name, Builtins::TFS, {} },
 #define DECL_TFH(Name, ...) { #Name, Builtins::TFH, {} },
 #define DECL_BCH(Name, ...) { #Name, Builtins::BCH, {} },
-#define DECL_DLH(Name, ...) { #Name, Builtins::DLH, {} },
 #define DECL_ASM(Name, ...) { #Name, Builtins::ASM, {} },
 const BuiltinMetadata builtin_metadata[] = {
   BUILTIN_LIST(DECL_CPP, DECL_API, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH,
-               DECL_BCH, DECL_DLH, DECL_ASM)
+               DECL_BCH, DECL_ASM)
 };
 #undef DECL_CPP
 #undef DECL_API
@@ -66,7 +65,6 @@ const BuiltinMetadata builtin_metadata[] = {
 #undef DECL_TFS
 #undef DECL_TFH
 #undef DECL_BCH
-#undef DECL_DLH
 #undef DECL_ASM
 // clang-format on
 
@@ -167,8 +165,7 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
-                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN,
-                 IGNORE_BUILTIN)
+                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(name);
@@ -221,109 +218,6 @@ bool Builtins::IsIsolateIndependentBuiltin(const Code* code) {
   } else {
     return false;
   }
-}
-
-// static
-bool Builtins::IsLazy(int index) {
-  DCHECK(IsBuiltinId(index));
-
-  if (FLAG_embedded_builtins) {
-    // We don't want to lazy-deserialize off-heap builtins.
-    if (Builtins::IsIsolateIndependent(index)) return false;
-  }
-
-  // There are a couple of reasons that builtins can require eager-loading,
-  // i.e. deserialization at isolate creation instead of on-demand. For
-  // instance:
-  // * DeserializeLazy implements lazy loading.
-  // * Immovability requirement. This can only conveniently be guaranteed at
-  //   isolate creation (at runtime, we'd have to allocate in LO space).
-  // * To avoid conflicts in SharedFunctionInfo::function_data (Illegal,
-  //   HandleApiCall, interpreter entry trampolines).
-  // * Frequent use makes lazy loading unnecessary (CompileLazy).
-  // TODO(wasm): Remove wasm builtins once immovability is no longer required.
-  switch (index) {
-    case kAbort:  // Required by wasm.
-    case kArrayEveryLoopEagerDeoptContinuation:
-    case kArrayEveryLoopLazyDeoptContinuation:
-    case kArrayFilterLoopEagerDeoptContinuation:
-    case kArrayFilterLoopLazyDeoptContinuation:
-    case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayFindIndexLoopEagerDeoptContinuation:
-    case kArrayFindIndexLoopLazyDeoptContinuation:
-    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayFindLoopEagerDeoptContinuation:
-    case kArrayFindLoopLazyDeoptContinuation:
-    case kArrayForEachLoopEagerDeoptContinuation:
-    case kArrayForEachLoopLazyDeoptContinuation:
-    case kArrayMapLoopEagerDeoptContinuation:
-    case kArrayMapLoopLazyDeoptContinuation:
-    case kArrayReduceLoopEagerDeoptContinuation:
-    case kArrayReduceLoopLazyDeoptContinuation:
-    case kArrayReducePreLoopEagerDeoptContinuation:
-    case kArrayReduceRightLoopEagerDeoptContinuation:
-    case kArrayReduceRightLoopLazyDeoptContinuation:
-    case kArrayReduceRightPreLoopEagerDeoptContinuation:
-    case kArraySomeLoopEagerDeoptContinuation:
-    case kArraySomeLoopLazyDeoptContinuation:
-    case kAsyncFunctionAwaitResolveClosure:   // https://crbug.com/v8/7522
-    case kAsyncGeneratorAwaitResolveClosure:  // https://crbug.com/v8/7522
-    case kAsyncGeneratorYieldResolveClosure:  // https://crbug.com/v8/7522
-    case kAsyncGeneratorAwaitCaught:          // https://crbug.com/v8/6786.
-    case kAsyncGeneratorAwaitUncaught:        // https://crbug.com/v8/6786.
-    // CEntry variants must be immovable, whereas lazy deserialization allocates
-    // movable code.
-    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCompileLazy:
-    case kDebugBreakTrampoline:
-    case kDeserializeLazy:
-    case kDeserializeLazyHandler:
-    case kDeserializeLazyWideHandler:
-    case kDeserializeLazyExtraWideHandler:
-    case kFunctionPrototypeHasInstance:  // https://crbug.com/v8/6786.
-    case kHandleApiCall:
-    case kIllegal:
-    case kIllegalHandler:
-    case kInstantiateAsmJs:
-    case kInterpreterEnterBytecodeAdvance:
-    case kInterpreterEnterBytecodeDispatch:
-    case kInterpreterEntryTrampoline:
-    case kPromiseAllResolveElementClosure:  // https://crbug.com/v8/7522
-    case kPromiseConstructorLazyDeoptContinuation:
-    case kRecordWrite:  // https://crbug.com/chromium/765301.
-    case kThrowWasmTrapDivByZero:             // Required by wasm.
-    case kThrowWasmTrapDivUnrepresentable:    // Required by wasm.
-    case kThrowWasmTrapFloatUnrepresentable:  // Required by wasm.
-    case kThrowWasmTrapFuncInvalid:           // Required by wasm.
-    case kThrowWasmTrapFuncSigMismatch:       // Required by wasm.
-    case kThrowWasmTrapMemOutOfBounds:        // Required by wasm.
-    case kThrowWasmTrapRemByZero:             // Required by wasm.
-    case kThrowWasmTrapUnreachable:           // Required by wasm.
-    case kToBooleanLazyDeoptContinuation:
-    case kToNumber:                           // Required by wasm.
-    case kGenericConstructorLazyDeoptContinuation:
-    case kWasmCompileLazy:                    // Required by wasm.
-    case kWasmStackGuard:                     // Required by wasm.
-      return false;
-    default:
-      // TODO(6624): Extend to other kinds.
-      return KindOf(index) == TFJ || KindOf(index) == BCH;
-  }
-  UNREACHABLE();
-}
-
-// static
-bool Builtins::IsLazyDeserializer(Code* code) {
-  return IsLazyDeserializer(code->builtin_index());
 }
 
 // static

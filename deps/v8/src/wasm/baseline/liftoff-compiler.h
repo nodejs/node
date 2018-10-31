@@ -9,6 +9,9 @@
 
 namespace v8 {
 namespace internal {
+
+class Counters;
+
 namespace wasm {
 
 struct CompilationEnv;
@@ -20,7 +23,7 @@ class LiftoffCompilationUnit final {
   explicit LiftoffCompilationUnit(WasmCompilationUnit* wasm_unit)
       : wasm_unit_(wasm_unit) {}
 
-  bool ExecuteCompilation(CompilationEnv*, WasmFeatures* detected);
+  bool ExecuteCompilation(CompilationEnv*, Counters*, WasmFeatures* detected);
 
  private:
   WasmCompilationUnit* const wasm_unit_;

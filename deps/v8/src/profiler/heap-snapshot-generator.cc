@@ -1804,7 +1804,9 @@ class GlobalHandlesExtractor : public PersistentHandleVisitor {
   void VisitPersistentHandle(Persistent<Value>* value,
                              uint16_t class_id) override {
     Handle<Object> object = Utils::OpenPersistent(value);
-    explorer_->VisitSubtreeWrapper(object.location(), class_id);
+    // TODO(3770): Get rid of Object** here.
+    explorer_->VisitSubtreeWrapper(
+        reinterpret_cast<Object**>(object.location()), class_id);
   }
 
  private:

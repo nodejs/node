@@ -27,6 +27,8 @@ class IsolateData final {
  public:
   IsolateData() = default;
 
+  static constexpr intptr_t kIsolateRootBias = kRootRegisterBias;
+
   // The value of the kRootRegister.
   Address isolate_root() const {
     return reinterpret_cast<Address>(this) + kIsolateRootBias;
@@ -97,8 +99,6 @@ class IsolateData final {
   static constexpr intptr_t kRootRegisterSentinel = 0xcafeca11;
 
  private:
-  static constexpr intptr_t kIsolateRootBias = kRootRegisterBias;
-
 // Static layout definition.
 #define FIELDS(V)                                                         \
   V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kPointerSize)   \

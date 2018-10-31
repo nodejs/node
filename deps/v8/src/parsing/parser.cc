@@ -139,7 +139,7 @@ void Parser::GetUnexpectedTokenMessage(Token::Value token,
 // ----------------------------------------------------------------------------
 // The RETURN_IF_PARSE_ERROR macro is a convenient macro to enforce error
 // handling for functions that may fail (by returning if there was an parser
-// error scanner()->has_parser_error_set).
+// error scanner()->has_parser_error()).
 //
 // Usage:
 //     foo = ParseFoo(); // may fail
@@ -147,9 +147,9 @@ void Parser::GetUnexpectedTokenMessage(Token::Value token,
 //
 //     SAFE_USE(foo);
 
-#define RETURN_IF_PARSE_ERROR_VALUE(x)     \
-  if (scanner()->has_parser_error_set()) { \
-    return x;                              \
+#define RETURN_IF_PARSE_ERROR_VALUE(x) \
+  if (scanner()->has_parser_error()) { \
+    return x;                          \
   }
 
 #define RETURN_IF_PARSE_ERROR RETURN_IF_PARSE_ERROR_VALUE(nullptr)
@@ -589,7 +589,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
           zone());
 
       ParseModuleItemList(body);
-      ok = !scanner_.has_parser_error_set() &&
+      ok = !scanner_.has_parser_error() &&
            module()->Validate(this->scope()->AsModuleScope(),
                               pending_error_handler(), zone());
     } else if (info->is_wrapped_as_function()) {
@@ -600,7 +600,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       this->scope()->SetLanguageMode(info->language_mode());
       ParseStatementList(body, Token::EOS);
     }
-    ok = ok && !scanner_.has_parser_error_set();
+    ok = ok && !scanner_.has_parser_error();
 
     // The parser will peek but not consume EOS.  Our scope logically goes all
     // the way to the EOS, though.
@@ -608,7 +608,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
 
     if (ok && is_strict(language_mode())) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos);
-      ok = !scanner_.has_parser_error_set();
+      ok = !scanner_.has_parser_error();
     }
     if (ok && is_sloppy(language_mode())) {
       // TODO(littledan): Function bindings on the global object that modify
@@ -619,7 +619,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     }
     if (ok) {
       CheckConflictingVarDeclarations(scope);
-      ok = !scanner_.has_parser_error_set();
+      ok = !scanner_.has_parser_error();
     }
 
     if (ok && info->parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
@@ -687,7 +687,6 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
       function_name, location, kSkipFunctionNameCheck, kNormalFunction,
       kNoSourcePosition, FunctionLiteral::kWrapped, LanguageMode::kSloppy,
       arguments_for_wrapped_function);
-  RETURN_IF_PARSE_ERROR_VOID;
 
   Statement* return_statement = factory()->NewReturnStatement(
       function_literal, kNoSourcePosition, kNoSourcePosition);
@@ -816,12 +815,12 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         if (Check(Token::LPAREN)) {
           // '(' StrictFormalParameters ')'
           ParseFormalParameterList(&formals);
-          ok = !scanner_.has_parser_error_set();
+          ok = !scanner_.has_parser_error();
           if (ok) ok = Check(Token::RPAREN);
         } else {
           // BindingIdentifier
           ParseFormalParameter(&formals);
-          ok = !scanner_.has_parser_error_set();
+          ok = !scanner_.has_parser_error();
           if (ok) {
             DeclareFormalParameters(&formals);
           }
@@ -854,7 +853,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         const int rewritable_length = 0;
         Expression* expression =
             ParseArrowFunctionLiteral(accept_IN, formals, rewritable_length);
-        ok = !scanner_.has_parser_error_set();
+        ok = !scanner_.has_parser_error();
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack
@@ -885,10 +884,10 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, function_type, info->language_mode(),
           arguments_for_wrapped_function);
-      ok = !scanner_.has_parser_error_set();
+      ok = !scanner_.has_parser_error();
     }
 
-    DCHECK_EQ(ok, !scanner_.has_parser_error_set());
+    DCHECK_EQ(ok, !scanner_.has_parser_error());
     if (ok) {
       result->set_requires_instance_fields_initializer(
           info->requires_instance_fields_initializer());
@@ -924,8 +923,7 @@ Statement* Parser::ParseModuleItem() {
     if ((!allow_harmony_dynamic_import() || peek_ahead != Token::LPAREN) &&
         (!allow_harmony_import_meta() || peek_ahead != Token::PERIOD)) {
       ParseImportDeclaration();
-      RETURN_IF_PARSE_ERROR;
-      return factory()->NewEmptyStatement(kNoSourcePosition);
+      return factory()->EmptyStatement();
     }
   }
 
@@ -945,9 +943,8 @@ void Parser::ParseModuleItemList(ZonePtrList<Statement>* body) {
   while (peek() != Token::EOS) {
     Statement* stat = ParseModuleItem();
     RETURN_IF_PARSE_ERROR_VOID;
-    if (stat && !stat->IsEmpty()) {
-      body->Add(stat, zone());
-    }
+    if (stat->IsEmptyStatement()) continue;
+    body->Add(stat, zone());
   }
 }
 
@@ -956,7 +953,6 @@ const AstRawString* Parser::ParseModuleSpecifier() {
   //    StringLiteral
 
   Expect(Token::STRING);
-  RETURN_IF_PARSE_ERROR;
   return GetSymbol();
 }
 
@@ -978,7 +974,6 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
       new (zone()) ZoneChunkList<ExportClauseData>(zone());
 
   Expect(Token::LBRACE);
-  RETURN_IF_PARSE_ERROR;
 
   Token::Value name_tok;
   while ((name_tok = peek()) != Token::RBRACE) {
@@ -990,12 +985,10 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
       *reserved_loc = scanner()->location();
     }
     const AstRawString* local_name = ParseIdentifierName();
-    RETURN_IF_PARSE_ERROR;
     const AstRawString* export_name = nullptr;
     Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(Token::AS)) {
       export_name = ParseIdentifierName();
-      RETURN_IF_PARSE_ERROR;
       // Set the location to the whole "a as b" string, so that it makes sense
       // both for errors due to "a" and for errors due to "b".
       location.end_pos = scanner()->location().end_pos;
@@ -1010,7 +1003,6 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
   }
 
   Expect(Token::RBRACE);
-  RETURN_IF_PARSE_ERROR;
   return export_data;
 }
 
@@ -1029,12 +1021,10 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
   //   IdentifierName 'as' BindingIdentifier
 
   Expect(Token::LBRACE);
-  RETURN_IF_PARSE_ERROR;
 
   auto result = new (zone()) ZonePtrList<const NamedImport>(1, zone());
   while (peek() != Token::RBRACE) {
     const AstRawString* import_name = ParseIdentifierName();
-    RETURN_IF_PARSE_ERROR;
     const AstRawString* local_name = import_name;
     Scanner::Location location = scanner()->location();
     // In the presence of 'as', the left-side of the 'as' can
@@ -1042,7 +1032,6 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
     // BindingIdentifier.
     if (CheckContextualKeyword(Token::AS)) {
       local_name = ParseIdentifierName();
-      RETURN_IF_PARSE_ERROR;
     }
     if (!Token::IsIdentifier(scanner()->current_token(), LanguageMode::kStrict,
                              false, parsing_module_)) {
@@ -1053,9 +1042,9 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
       return nullptr;
     }
 
+    RETURN_IF_PARSE_ERROR;
     DeclareVariable(local_name, VariableMode::kConst, kNeedsInitialization,
                     position());
-    RETURN_IF_PARSE_ERROR;
 
     NamedImport* import =
         new (zone()) NamedImport(import_name, local_name, location);
@@ -1063,11 +1052,9 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
 
     if (peek() == Token::RBRACE) break;
     Expect(Token::COMMA);
-    RETURN_IF_PARSE_ERROR;
   }
 
   Expect(Token::RBRACE);
-  RETURN_IF_PARSE_ERROR;
   return result;
 }
 
@@ -1088,7 +1075,6 @@ void Parser::ParseImportDeclaration() {
 
   int pos = peek_position();
   Expect(Token::IMPORT);
-  RETURN_IF_PARSE_ERROR_VOID;
 
   Token::Value tok = peek();
 
@@ -1096,9 +1082,7 @@ void Parser::ParseImportDeclaration() {
   if (tok == Token::STRING) {
     Scanner::Location specifier_loc = scanner()->peek_location();
     const AstRawString* module_specifier = ParseModuleSpecifier();
-    RETURN_IF_PARSE_ERROR_VOID;
     ExpectSemicolon();
-    RETURN_IF_PARSE_ERROR_VOID;
     module()->AddEmptyImport(module_specifier, specifier_loc);
     return;
   }
@@ -1108,11 +1092,10 @@ void Parser::ParseImportDeclaration() {
   Scanner::Location import_default_binding_loc;
   if (tok != Token::MUL && tok != Token::LBRACE) {
     import_default_binding = ParseIdentifier(kDontAllowRestrictedIdentifiers);
-    RETURN_IF_PARSE_ERROR_VOID;
     import_default_binding_loc = scanner()->location();
+    RETURN_IF_PARSE_ERROR_VOID;
     DeclareVariable(import_default_binding, VariableMode::kConst,
                     kNeedsInitialization, pos);
-    RETURN_IF_PARSE_ERROR_VOID;
   }
 
   // Parse NameSpaceImport or NamedImports if present.
@@ -1124,20 +1107,17 @@ void Parser::ParseImportDeclaration() {
       case Token::MUL: {
         Consume(Token::MUL);
         ExpectContextualKeyword(Token::AS);
-        RETURN_IF_PARSE_ERROR_VOID;
         module_namespace_binding =
             ParseIdentifier(kDontAllowRestrictedIdentifiers);
-        RETURN_IF_PARSE_ERROR_VOID;
         module_namespace_binding_loc = scanner()->location();
+        RETURN_IF_PARSE_ERROR_VOID;
         DeclareVariable(module_namespace_binding, VariableMode::kConst,
                         kCreatedInitialized, pos);
-        RETURN_IF_PARSE_ERROR_VOID;
         break;
       }
 
       case Token::LBRACE:
         named_imports = ParseNamedImports(pos);
-        RETURN_IF_PARSE_ERROR_VOID;
         break;
 
       default:
@@ -1147,12 +1127,9 @@ void Parser::ParseImportDeclaration() {
   }
 
   ExpectContextualKeyword(Token::FROM);
-  RETURN_IF_PARSE_ERROR_VOID;
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
-  RETURN_IF_PARSE_ERROR_VOID;
   ExpectSemicolon();
-  RETURN_IF_PARSE_ERROR_VOID;
 
   // Now that we have all the information, we can make the appropriate
   // declarations.
@@ -1195,7 +1172,6 @@ Statement* Parser::ParseExportDefault() {
   //    'export' 'default' AssignmentExpression[In] ';'
 
   Expect(Token::DEFAULT);
-  RETURN_IF_PARSE_ERROR;
   Scanner::Location default_loc = scanner()->location();
 
   ZonePtrList<const AstRawString> local_names(1, zone());
@@ -1203,13 +1179,11 @@ Statement* Parser::ParseExportDefault() {
   switch (peek()) {
     case Token::FUNCTION:
       result = ParseHoistableDeclaration(&local_names, true);
-      RETURN_IF_PARSE_ERROR;
       break;
 
     case Token::CLASS:
       Consume(Token::CLASS);
       result = ParseClassDeclaration(&local_names, true);
-      RETURN_IF_PARSE_ERROR;
       break;
 
     case Token::ASYNC:
@@ -1217,7 +1191,6 @@ Statement* Parser::ParseExportDefault() {
           !scanner()->HasLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
         result = ParseAsyncFunctionDeclaration(&local_names, true);
-        RETURN_IF_PARSE_ERROR;
         break;
       }
       V8_FALLTHROUGH;
@@ -1226,7 +1199,6 @@ Statement* Parser::ParseExportDefault() {
       int pos = position();
       ExpressionClassifier classifier(this);
       Expression* value = ParseAssignmentExpression(true);
-      RETURN_IF_PARSE_ERROR;
       ValidateExpression();
       RETURN_IF_PARSE_ERROR;
       SetFunctionName(value, ast_value_factory()->default_string());
@@ -1239,7 +1211,6 @@ Statement* Parser::ParseExportDefault() {
       // no way of writing to it.
       Declaration* decl =
           DeclareVariable(local_name, VariableMode::kConst, pos);
-      RETURN_IF_PARSE_ERROR;
       decl->proxy()->var()->set_initializer_position(position());
 
       Assignment* assignment = factory()->NewAssignment(
@@ -1248,11 +1219,11 @@ Statement* Parser::ParseExportDefault() {
           factory()->NewExpressionStatement(assignment, kNoSourcePosition));
 
       ExpectSemicolon();
-      RETURN_IF_PARSE_ERROR;
       break;
     }
   }
 
+  RETURN_IF_PARSE_ERROR;
   DCHECK_EQ(local_names.length(), 1);
   module()->AddExport(local_names.first(),
                       ast_value_factory()->default_string(), default_loc,
@@ -1277,12 +1248,9 @@ void Parser::ParseExportStar() {
     // 'export' '*' 'from' ModuleSpecifier ';'
     Scanner::Location loc = scanner()->location();
     ExpectContextualKeyword(Token::FROM);
-    RETURN_IF_PARSE_ERROR_VOID;
     Scanner::Location specifier_loc = scanner()->peek_location();
     const AstRawString* module_specifier = ParseModuleSpecifier();
-    RETURN_IF_PARSE_ERROR_VOID;
     ExpectSemicolon();
-    RETURN_IF_PARSE_ERROR_VOID;
     module()->AddStarExport(module_specifier, loc, specifier_loc, zone());
     return;
   }
@@ -1296,22 +1264,17 @@ void Parser::ParseExportStar() {
   //   import * as .x from "..."; export {.x as x};
 
   ExpectContextualKeyword(Token::AS);
-  RETURN_IF_PARSE_ERROR_VOID;
   const AstRawString* export_name = ParseIdentifierName();
-  RETURN_IF_PARSE_ERROR_VOID;
   Scanner::Location export_name_loc = scanner()->location();
   const AstRawString* local_name = NextInternalNamespaceExportName();
   Scanner::Location local_name_loc = Scanner::Location::invalid();
-  DeclareVariable(local_name, VariableMode::kConst, kCreatedInitialized, pos);
   RETURN_IF_PARSE_ERROR_VOID;
+  DeclareVariable(local_name, VariableMode::kConst, kCreatedInitialized, pos);
 
   ExpectContextualKeyword(Token::FROM);
-  RETURN_IF_PARSE_ERROR_VOID;
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
-  RETURN_IF_PARSE_ERROR_VOID;
   ExpectSemicolon();
-  RETURN_IF_PARSE_ERROR_VOID;
 
   module()->AddStarImport(local_name, module_specifier, local_name_loc,
                           specifier_loc, zone());
@@ -1328,7 +1291,6 @@ Statement* Parser::ParseExportDeclaration() {
   //    'export' 'default' ... (handled in ParseExportDefault)
 
   Expect(Token::EXPORT);
-  RETURN_IF_PARSE_ERROR;
   Statement* result = nullptr;
   ZonePtrList<const AstRawString> names(1, zone());
   Scanner::Location loc = scanner()->peek_location();
@@ -1338,8 +1300,7 @@ Statement* Parser::ParseExportDeclaration() {
 
     case Token::MUL:
       ParseExportStar();
-      RETURN_IF_PARSE_ERROR;
-      return factory()->NewEmptyStatement(position());
+      return factory()->EmptyStatement();
 
     case Token::LBRACE: {
       // There are two cases here:
@@ -1353,17 +1314,14 @@ Statement* Parser::ParseExportDeclaration() {
       // pass in a location that gets filled with the first reserved word
       // encountered, and then throw a SyntaxError if we are in the
       // non-FromClause case.
-      int pos = position();
       Scanner::Location reserved_loc = Scanner::Location::invalid();
       ZoneChunkList<ExportClauseData>* export_data =
           ParseExportClause(&reserved_loc);
-      RETURN_IF_PARSE_ERROR;
       const AstRawString* module_specifier = nullptr;
       Scanner::Location specifier_loc;
       if (CheckContextualKeyword(Token::FROM)) {
         specifier_loc = scanner()->peek_location();
         module_specifier = ParseModuleSpecifier();
-        RETURN_IF_PARSE_ERROR;
       } else if (reserved_loc.IsValid()) {
         // No FromClause, so reserved words are invalid in ExportClause.
         ReportMessageAt(reserved_loc, MessageTemplate::kUnexpectedReserved);
@@ -1385,25 +1343,22 @@ Statement* Parser::ParseExportDeclaration() {
                               zone());
         }
       }
-      return factory()->NewEmptyStatement(pos);
+      return factory()->EmptyStatement();
     }
 
     case Token::FUNCTION:
       result = ParseHoistableDeclaration(&names, false);
-      RETURN_IF_PARSE_ERROR;
       break;
 
     case Token::CLASS:
       Consume(Token::CLASS);
       result = ParseClassDeclaration(&names, false);
-      RETURN_IF_PARSE_ERROR;
       break;
 
     case Token::VAR:
     case Token::LET:
     case Token::CONST:
       result = ParseVariableStatement(kStatementListItem, &names);
-      RETURN_IF_PARSE_ERROR;
       break;
 
     case Token::ASYNC:
@@ -1411,7 +1366,6 @@ Statement* Parser::ParseExportDeclaration() {
       if (peek() == Token::FUNCTION &&
           !scanner()->HasLineTerminatorBeforeNext()) {
         result = ParseAsyncFunctionDeclaration(&names, false);
-        RETURN_IF_PARSE_ERROR;
         break;
       }
       V8_FALLTHROUGH;
@@ -1427,7 +1381,6 @@ Statement* Parser::ParseExportDeclaration() {
     descriptor->AddExport(names[i], names[i], loc, zone());
   }
 
-  DCHECK_NOT_NULL(result);
   return result;
 }
 
@@ -1461,7 +1414,6 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
   }
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, nullptr,
           scanner()->location().end_pos);
-  if (scanner()->has_parser_error_set()) return nullptr;
   return declaration;
 }
 
@@ -1477,7 +1429,7 @@ Variable* Parser::Declare(Declaration* declaration,
   Variable* variable = scope->DeclareVariable(
       declaration, mode, init, &sloppy_mode_block_scope_function_redefinition,
       &local_ok);
-  if (!local_ok | scanner()->has_parser_error_set()) {
+  if (!local_ok) {
     // If we only have the start position of a proxy, we can't highlight the
     // whole variable name.  Pretend its length is 1 so that we highlight at
     // least the first character.
@@ -1491,9 +1443,7 @@ Variable* Parser::Declare(Declaration* declaration,
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
                       declaration->proxy()->raw_name());
     }
-    return nullptr;
-  }
-  if (sloppy_mode_block_scope_function_redefinition) {
+  } else if (sloppy_mode_block_scope_function_redefinition) {
     ++use_counts_[v8::Isolate::kSloppyModeBlockScopedFunctionRedefinition];
   }
   return variable;
@@ -1506,7 +1456,6 @@ Block* Parser::BuildInitializationBlock(
   for (const auto& declaration : parsing_result->declarations) {
     DeclareAndInitializeVariables(result, &(parsing_result->descriptor),
                                   &declaration, names);
-    RETURN_IF_PARSE_ERROR;
   }
   return result;
 }
@@ -1521,7 +1470,6 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
       factory()->NewFunctionDeclaration(proxy, function, pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode,
           kCreatedInitialized);
-  RETURN_IF_PARSE_ERROR;
   if (names) names->Add(variable_name, zone());
   if (is_sloppy_block_function) {
     SloppyBlockFunctionStatement* statement =
@@ -1530,7 +1478,7 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
                                                       statement);
     return statement;
   }
-  return factory()->NewEmptyStatement(kNoSourcePosition);
+  return factory()->EmptyStatement();
 }
 
 Statement* Parser::DeclareClass(const AstRawString* variable_name,
@@ -1539,7 +1487,6 @@ Statement* Parser::DeclareClass(const AstRawString* variable_name,
                                 int class_token_pos, int end_pos) {
   Declaration* decl =
       DeclareVariable(variable_name, VariableMode::kLet, class_token_pos);
-  RETURN_IF_PARSE_ERROR;
   decl->proxy()->var()->set_initializer_position(end_pos);
   if (names) names->Add(variable_name, zone());
 
@@ -1560,7 +1507,6 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos) {
   // introduced dynamically when we meet their declarations, whereas
   // other functions are set up when entering the surrounding scope.
   Declaration* decl = DeclareVariable(name, VariableMode::kVar, pos);
-  RETURN_IF_PARSE_ERROR;
   NativeFunctionLiteral* lit =
       factory()->NewNativeFunctionLiteral(name, extension_, kNoSourcePosition);
   return factory()->NewExpressionStatement(
@@ -1788,7 +1734,7 @@ void Parser::ParseAndRewriteGeneratorFunctionBody(
   Expression* initial_yield = BuildInitialYield(pos, kind);
   body->Add(factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
             zone());
-  ParseStatementList(body, Token::RBRACE, !scanner()->has_parser_error_set());
+  ParseStatementList(body, Token::RBRACE, !scanner()->has_parser_error());
 }
 
 void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
@@ -1821,8 +1767,7 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
       factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
       zone());
   ParseStatementList(try_block->statements(), Token::RBRACE,
-                     !scanner()->has_parser_error_set());
-  RETURN_IF_PARSE_ERROR_VOID;
+                     !scanner()->has_parser_error());
 
   // Don't create iterator result for async generators, as the resume methods
   // will create it.
@@ -2023,7 +1968,6 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
     DeclareAndInitializeVariables(
         each_initialization_block, &descriptor, &decl,
         collect_names ? &for_info->bound_names : nullptr);
-    RETURN_IF_PARSE_ERROR_VOID;
 
     // Annex B.3.5 prohibits the form
     // `try {} catch(e) { for (var e of {}); }`
@@ -2069,7 +2013,6 @@ Block* Parser::CreateForEachStatementTDZ(Block* init_block,
       // but visible to everything else.
       Declaration* tdz_decl = DeclareVariable(
           for_info.bound_names[i], VariableMode::kLet, kNoSourcePosition);
-      RETURN_IF_PARSE_ERROR;
       tdz_decl->proxy()->var()->set_initializer_position(position());
     }
   }
@@ -2307,7 +2250,6 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       Declaration* decl = DeclareVariable(
           for_info.bound_names[i], for_info.parsing_result.descriptor.mode,
           kNoSourcePosition);
-      RETURN_IF_PARSE_ERROR;
       inner_vars.Add(decl->proxy()->var(), zone());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
       Assignment* assignment = factory()->NewAssignment(
@@ -2362,7 +2304,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     if (cond) {
       Statement* stop =
           factory()->NewBreakStatement(outer_loop, kNoSourcePosition);
-      Statement* noop = factory()->NewEmptyStatement(kNoSourcePosition);
+      Statement* noop = factory()->EmptyStatement();
       ignore_completion_block->statements()->Add(
           factory()->NewIfStatement(cond, noop, stop, cond->position()),
           zone());
@@ -2425,7 +2367,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       }
       Statement* stop =
           factory()->NewBreakStatement(outer_loop, kNoSourcePosition);
-      Statement* empty = factory()->NewEmptyStatement(kNoSourcePosition);
+      Statement* empty = factory()->EmptyStatement();
       Statement* if_flag_break =
           factory()->NewIfStatement(compare, stop, empty, kNoSourcePosition);
       inner_block->statements()->Add(IgnoreCompletion(if_flag_break), zone());
@@ -2468,11 +2410,9 @@ void Parser::AddArrowFunctionFormalParameters(
     for (size_t i = 0; i < nary->subsequent_length(); ++i) {
       AddArrowFunctionFormalParameters(parameters, next,
                                        nary->subsequent_op_position(i));
-      RETURN_IF_PARSE_ERROR_VOID;
       next = nary->subsequent(i);
     }
     AddArrowFunctionFormalParameters(parameters, next, end_pos);
-    RETURN_IF_PARSE_ERROR_VOID;
     return;
   }
 
@@ -2487,7 +2427,6 @@ void Parser::AddArrowFunctionFormalParameters(
     Expression* right = binop->right();
     int comma_pos = binop->position();
     AddArrowFunctionFormalParameters(parameters, left, comma_pos);
-    RETURN_IF_PARSE_ERROR_VOID;
     // LHS of comma expression should be unparenthesized.
     expr = right;
   }
@@ -2526,7 +2465,6 @@ void Parser::DeclareArrowFunctionFormalParameters(
   if (expr->IsEmptyParentheses()) return;
 
   AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos);
-  RETURN_IF_PARSE_ERROR_VOID;
 
   if (parameters->arity > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
@@ -2698,14 +2636,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       SkipFunction(function_name, kind, function_type, scope, &num_parameters,
                    &produced_preparsed_scope_data, is_lazy_top_level_function,
                    &eager_compile_hint);
-  RETURN_IF_PARSE_ERROR;
   if (!did_preparse_successfully) {
     should_post_parallel_task = false;
     body = ParseFunction(function_name, pos, kind, function_type, scope,
                          &num_parameters, &function_length,
                          &has_duplicate_parameters, &expected_property_count,
                          &suspend_count, arguments_for_wrapped_function);
-    RETURN_IF_PARSE_ERROR;
   }
 
   if (V8_UNLIKELY(FLAG_log_function_events)) {
@@ -2730,19 +2666,18 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
   }
 
+  RETURN_IF_PARSE_ERROR;
+
   // Validate function name. We can do this only after parsing the function,
   // since the function can declare itself strict.
   language_mode = scope->language_mode();
   CheckFunctionName(language_mode, function_name, function_name_validity,
                     function_name_location);
-  RETURN_IF_PARSE_ERROR;
 
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(scope->start_position(), scope->end_position());
-    RETURN_IF_PARSE_ERROR;
   }
   CheckConflictingVarDeclarations(scope);
-  RETURN_IF_PARSE_ERROR;
 
   FunctionLiteral::ParameterFlag duplicate_parameters =
       has_duplicate_parameters ? FunctionLiteral::kHasDuplicateParameters
@@ -2802,7 +2737,6 @@ bool Parser::SkipFunction(
     function_scope->set_end_position(end_position);
     scanner()->SeekForward(end_position - 1);
     Expect(Token::RBRACE);
-    RETURN_IF_PARSE_ERROR_VALUE(kLazyParsingComplete);
     SetLanguageMode(function_scope, language_mode);
     if (uses_super_property) {
       function_scope->RecordSuperPropertyUsage();
@@ -2835,6 +2769,7 @@ bool Parser::SkipFunction(
     // Propagate stack overflow.
     set_stack_overflow();
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
+    DCHECK(!pending_error_handler()->stack_overflow());
     // If we encounter an error that the preparser can not identify we reset to
     // the state before preparsing. The caller may then fully parse the function
     // to identify the actual error.
@@ -2843,14 +2778,15 @@ bool Parser::SkipFunction(
     pending_error_handler()->clear_unidentifiable_error();
     return false;
   } else if (pending_error_handler()->has_pending_error()) {
-    DCHECK(scanner()->has_parser_error_set());
+    DCHECK(!pending_error_handler()->stack_overflow());
+    DCHECK(scanner()->has_parser_error());
   } else {
+    DCHECK(!pending_error_handler()->stack_overflow());
     set_allow_eval_cache(reusable_preparser()->allow_eval_cache());
 
     PreParserLogger* logger = reusable_preparser()->logger();
     function_scope->set_end_position(logger->end());
     Expect(Token::RBRACE);
-    RETURN_IF_PARSE_ERROR_VALUE(kLazyParsingComplete);
     total_preparse_skipped_ +=
         function_scope->end_position() - function_scope->start_position();
     *num_parameters = logger->num_parameters();
@@ -2892,7 +2828,7 @@ Statement* Parser::BuildAssertIsCoercible(Variable* var,
   IfStatement* if_statement = factory()->NewIfStatement(
       condition,
       factory()->NewExpressionStatement(throw_type_error, kNoSourcePosition),
-      factory()->NewEmptyStatement(kNoSourcePosition), kNoSourcePosition);
+      factory()->EmptyStatement(), kNoSourcePosition);
   return if_statement;
 }
 
@@ -2984,7 +2920,6 @@ Block* Parser::BuildParameterInitializationBlock(
     DeclarationParsingResult::Declaration decl(
         parameter->pattern, parameter->initializer_end_position, initial_value);
     DeclareAndInitializeVariables(param_block, &descriptor, &decl, nullptr);
-    RETURN_IF_PARSE_ERROR;
 
     if (param_block != init_block) {
       param_scope = param_scope->FinalizeBlockScope();
@@ -3119,7 +3054,6 @@ ZonePtrList<Statement>* Parser::ParseFunction(
     CheckArityRestrictions(formals.arity, kind, formals.has_rest,
                            function_scope->start_position(),
                            formals_end_position);
-    RETURN_IF_PARSE_ERROR;
     Expect(Token::LBRACE);
     RETURN_IF_PARSE_ERROR;
   }
@@ -3166,7 +3100,6 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
   Variable* var =
       Declare(declaration, DeclarationDescriptor::NORMAL, VariableMode::kConst,
               Variable::DefaultInitializationFlag(VariableMode::kConst));
-  RETURN_IF_PARSE_ERROR;
   var->ForceContextAllocation();
   return var;
 }
@@ -3216,7 +3149,6 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     Variable* computed_name_var =
         CreateSyntheticContextVariable(ClassFieldVariableName(
             ast_value_factory(), class_info->computed_field_count));
-    RETURN_IF_PARSE_ERROR_VOID;
     property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
   }
@@ -3224,7 +3156,6 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
   if (kind == ClassLiteralProperty::FIELD && is_private) {
     Variable* private_field_name_var =
         CreateSyntheticContextVariable(property_name);
-    RETURN_IF_PARSE_ERROR_VOID;
     property->set_private_field_name_var(private_field_name_var);
     class_info->properties->Add(property, zone());
   }
@@ -3758,7 +3689,7 @@ Statement* Parser::CheckCallable(Variable* var, Expression* error, int pos) {
     Statement* throw_call = factory()->NewExpressionStatement(error, pos);
 
     validate_var = factory()->NewIfStatement(
-        condition, factory()->NewEmptyStatement(nopos), throw_call, nopos);
+        condition, factory()->EmptyStatement(), throw_call, nopos);
   }
   return validate_var;
 }
@@ -3809,7 +3740,7 @@ void Parser::BuildIteratorClose(ZonePtrList<Statement>* statements,
     Statement* return_input = BuildReturnStatement(value, nopos);
 
     check_return = factory()->NewIfStatement(
-        condition, return_input, factory()->NewEmptyStatement(nopos), nopos);
+        condition, return_input, factory()->EmptyStatement(), nopos);
   }
 
   // output = %_Call(iteratorReturn, iterator, input);
@@ -3853,8 +3784,7 @@ void Parser::BuildIteratorClose(ZonePtrList<Statement>* statements,
     }
 
     validate_output = factory()->NewIfStatement(
-        is_receiver_call, factory()->NewEmptyStatement(nopos), throw_call,
-        nopos);
+        is_receiver_call, factory()->EmptyStatement(), throw_call, nopos);
   }
 
   statements->Add(get_return, zone());
@@ -3911,7 +3841,7 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
         factory()->NewSmiLiteral(Parser::kThrowCompletion, nopos), nopos);
     Statement* statement = factory()->NewExpressionStatement(assignment, nopos);
     set_completion_throw = factory()->NewIfStatement(
-        condition, statement, factory()->NewEmptyStatement(nopos), nopos);
+        condition, statement, factory()->EmptyStatement(), nopos);
   }
 
   // if (condition) {
@@ -3925,7 +3855,7 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
     DCHECK_EQ(block->statements()->length(), 2);
 
     maybe_close = IgnoreCompletion(factory()->NewIfStatement(
-        condition, block, factory()->NewEmptyStatement(nopos), nopos));
+        condition, block, factory()->EmptyStatement(), nopos));
   }
 
   // try { #try_block }
@@ -4097,8 +4027,7 @@ void Parser::BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
     }
 
     Statement* check_return = factory()->NewIfStatement(
-        is_receiver_call, factory()->NewEmptyStatement(nopos), throw_call,
-        nopos);
+        is_receiver_call, factory()->EmptyStatement(), throw_call, nopos);
 
     validate_return = factory()->NewBlock(2, false);
     validate_return->statements()->Add(call_return, zone());
@@ -4133,8 +4062,7 @@ void Parser::BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
         factory()->NewNullLiteral(nopos), nopos);
 
     maybe_call_return = factory()->NewIfStatement(
-        condition, factory()->NewEmptyStatement(nopos), call_return_carefully,
-        nopos);
+        condition, factory()->EmptyStatement(), call_return_carefully, nopos);
   }
 
   statements->Add(get_return, zone());

@@ -94,7 +94,7 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
       auto builder = heap->isolate()->builtins_constants_table_builder();
       if (builder != nullptr) builder->PatchSelfReference(self_ref, code);
     }
-    *(self_ref.location()) = *code;
+    *(self_ref.location()) = code->ptr();
   }
 
   // Migrate generated code.
@@ -1356,8 +1356,6 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context->set_errors_thrown(Smi::kZero);
   context->set_math_random_index(Smi::kZero);
   context->set_serialized_objects(*empty_fixed_array());
-  context->set_dirty_js_weak_factories(
-      ReadOnlyRoots(isolate()).undefined_value());
   return context;
 }
 
@@ -1617,6 +1615,15 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
   microtask->set_then(*then);
   microtask->set_thenable(*thenable);
   microtask->set_context(*context);
+  return microtask;
+}
+
+Handle<WeakFactoryCleanupJobTask> Factory::NewWeakFactoryCleanupJobTask(
+    Handle<JSWeakFactory> weak_factory) {
+  Handle<WeakFactoryCleanupJobTask> microtask =
+      Handle<WeakFactoryCleanupJobTask>::cast(
+          NewStruct(WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE));
+  microtask->set_factory(*weak_factory);
   return microtask;
 }
 
@@ -2664,22 +2671,6 @@ Handle<Code> Factory::NewCode(
   return code;
 }
 
-Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
-  DCHECK(IsAligned(static_cast<intptr_t>(size), kCodeAlignment));
-  Heap* heap = isolate()->heap();
-  HeapObject* result = heap->AllocateRawWithRetryOrFail(size, CODE_SPACE);
-  // Unprotect the memory chunk of the object if it was not unprotected
-  // already.
-  heap->UnprotectAndRegisterMemoryChunk(result);
-  heap->ZapCodeObject(result->address(), size);
-  result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
-  DCHECK(IsAligned(result->address(), kCodeAlignment));
-  DCHECK_IMPLIES(
-      !heap->memory_allocator()->code_range().is_empty(),
-      heap->memory_allocator()->code_range().contains(result->address()));
-  return handle(Code::cast(result), isolate());
-}
-
 Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
                                               Address off_heap_entry) {
   CHECK(isolate()->serializer_enabled());
@@ -3478,7 +3469,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
                      !Code::cast(*function_data)->is_builtin());
       share->set_function_data(*function_data);
     } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
-      DCHECK_NE(maybe_builtin_index, Builtins::kDeserializeLazy);
       share->set_builtin_id(maybe_builtin_index);
     } else {
       share->set_builtin_id(Builtins::kIllegal);

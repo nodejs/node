@@ -9,7 +9,6 @@
 #include "src/code-stubs.h"
 #include "src/code-tracer.h"
 #include "src/heap/heap-inl.h"
-#include "src/snapshot/builtin-deserializer.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/snapshot.h"
 
@@ -22,10 +21,8 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   ReadOnlyDeserializer read_only_deserializer(read_only_data_);
   read_only_deserializer.SetRehashability(can_rehash());
   read_only_deserializer.DeserializeInto(isolate);
-  BuiltinDeserializer builtin_deserializer(isolate, builtin_data_);
 
-  if (!DefaultDeserializerAllocator::ReserveSpace(this,
-                                                  &builtin_deserializer)) {
+  if (!allocator()->ReserveSpace()) {
     V8::FatalProcessOutOfMemory(isolate, "StartupDeserializer");
   }
 
@@ -46,10 +43,6 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     DeserializeDeferredObjects();
     RestoreExternalReferenceRedirectors(accessor_infos());
     RestoreExternalReferenceRedirectors(call_handler_infos());
-
-    // Deserialize eager builtins from the builtin snapshot. Note that deferred
-    // objects must have been deserialized prior to this.
-    builtin_deserializer.DeserializeEagerBuiltins();
 
     // Flush the instruction cache for the entire code-space. Must happen after
     // builtins deserialization.

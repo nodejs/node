@@ -1258,6 +1258,10 @@ void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
   VisitRR(this, kMips64TruncUwD, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToInt64(Node* node) {
+  VisitRR(this, kMips64TruncLD, node);
+}
+
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   Mips64OperandGenerator g(this);
   InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};

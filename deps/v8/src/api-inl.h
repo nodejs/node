@@ -116,7 +116,8 @@ MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
     DCHECK(that == nullptr ||                                                  \
            (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
     return v8::internal::Handle<v8::internal::To>(                             \
-        reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that)));    \
+        reinterpret_cast<v8::internal::Address*>(                              \
+            const_cast<v8::From*>(that)));                                     \
   }
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)

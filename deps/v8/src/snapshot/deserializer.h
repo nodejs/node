@@ -31,7 +31,6 @@ class UnalignedSlot;
 #endif
 
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
-template <class AllocatorT = DefaultDeserializerAllocator>
 class Deserializer : public SerializerDeserializer {
  public:
   ~Deserializer() override;
@@ -57,9 +56,6 @@ class Deserializer : public SerializerDeserializer {
 
   void Initialize(Isolate* isolate);
   void DeserializeDeferredObjects();
-
-  // Deserializes into a single pointer and returns the resulting object.
-  Object* ReadDataSingle();
 
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
@@ -92,11 +88,9 @@ class Deserializer : public SerializerDeserializer {
     return new_scripts_;
   }
 
-  AllocatorT* allocator() { return &allocator_; }
+  DefaultDeserializerAllocator* allocator() { return &allocator_; }
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool can_rehash() const { return can_rehash_; }
-
-  bool IsLazyDeserializationEnabled() const;
 
   void Rehash();
 
@@ -135,10 +129,6 @@ class Deserializer : public SerializerDeserializer {
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* PostProcessNewObject(HeapObject* obj, int space);
 
-  // May replace the given builtin_id with the DeserializeLazy builtin for lazy
-  // deserialization.
-  int MaybeReplaceWithDeserializeLazy(int builtin_id);
-
   // Cached current isolate.
   Isolate* isolate_;
 
@@ -158,7 +148,7 @@ class Deserializer : public SerializerDeserializer {
   std::vector<Handle<Script>> new_scripts_;
   std::vector<byte*> off_heap_backing_stores_;
 
-  AllocatorT allocator_;
+  DefaultDeserializerAllocator allocator_;
   const bool deserializing_user_code_;
 
   // TODO(6593): generalize rehashing, and remove this flag.

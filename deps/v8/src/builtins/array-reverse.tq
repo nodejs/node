@@ -49,8 +49,6 @@ module array {
   StoreElement<FastPackedDoubleElements, float64>(
       elements: FixedArrayBase, index: Smi, value: float64) {
     const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-
-    assert(value == Float64SilenceNaN(value));
     StoreFixedDoubleArrayElementWithSmiIndex(elems, index, value);
   }
 
@@ -72,7 +70,8 @@ module array {
     }
   }
 
-  macro GenericArrayReverse(context: Context, receiver: Object): Object {
+  transitioning macro GenericArrayReverse(
+      context: Context, receiver: Object): Object {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -165,7 +164,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reverse
-  javascript builtin ArrayPrototypeReverse(
+  transitioning javascript builtin ArrayPrototypeReverse(
       context: Context, receiver: Object, ...arguments): Object {
     try {
       TryFastPackedArrayReverse(receiver) otherwise Baseline;

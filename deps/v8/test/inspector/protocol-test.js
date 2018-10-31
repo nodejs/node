@@ -176,8 +176,6 @@ InspectorTest.ContextGroup = class {
 
     if (session) {
       InspectorTest.log('WARNING: setupInjectedScriptEnvironment with debug flag for debugging only and should not be landed.');
-      InspectorTest.log('WARNING: run test with --expose-inspector-scripts flag to get more details.');
-      InspectorTest.log('WARNING: you can additionally comment rjsmin in xxd.py to get unminified injected-script-source.js.');
       session.setupScriptMap();
       session.Protocol.Debugger.enable();
       session.Protocol.Debugger.onPaused(message => {

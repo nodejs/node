@@ -64,7 +64,7 @@ class Declarations {
   ModuleConstant* LookupModuleConstant(const std::string& name);
 
   const AbstractType* DeclareAbstractType(
-      const std::string& name, const std::string& generated,
+      const std::string& name, bool transient, const std::string& generated,
       base::Optional<const AbstractType*> non_constexpr_version,
       const base::Optional<std::string>& parent = {});
 
@@ -74,13 +74,15 @@ class Declarations {
                      const std::vector<NameAndType>& fields);
 
   Macro* DeclareMacro(const std::string& name, const Signature& signature,
-                      base::Optional<std::string> op = {});
+                      bool transitioning, base::Optional<std::string> op = {});
 
   Builtin* DeclareBuiltin(const std::string& name, Builtin::Kind kind,
-                          bool external, const Signature& signature);
+                          bool external, const Signature& signature,
+                          bool transitioning);
 
   RuntimeFunction* DeclareRuntimeFunction(const std::string& name,
-                                          const Signature& signature);
+                                          const Signature& signature,
+                                          bool transitioning);
 
   void DeclareExternConstant(const std::string& name, const Type* type,
                              std::string value);

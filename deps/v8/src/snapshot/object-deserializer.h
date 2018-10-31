@@ -14,14 +14,13 @@ class SerializedCodeData;
 class SharedFunctionInfo;
 
 // Deserializes the object graph rooted at a given object.
-class ObjectDeserializer final : public Deserializer<> {
+class ObjectDeserializer final : public Deserializer {
  public:
   static MaybeHandle<SharedFunctionInfo> DeserializeSharedFunctionInfo(
       Isolate* isolate, const SerializedCodeData* data, Handle<String> source);
 
  private:
-  explicit ObjectDeserializer(const SerializedCodeData* data)
-      : Deserializer(data, true) {}
+  explicit ObjectDeserializer(const SerializedCodeData* data);
 
   // Deserialize an object graph. Fail gracefully.
   MaybeHandle<HeapObject> Deserialize(Isolate* isolate);

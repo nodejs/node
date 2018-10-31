@@ -1168,7 +1168,6 @@ Variable* Scope::DeclareVariable(
         // In harmony we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
         *ok = false;
-        return nullptr;
       }
     } else if (mode == VariableMode::kVar) {
       var->set_maybe_assigned();

@@ -2475,7 +2475,7 @@ class ThreadImpl {
           ASMJS_STORE_CASE(F32AsmjsStoreMem, float, float);
           ASMJS_STORE_CASE(F64AsmjsStoreMem, double, double);
 #undef ASMJS_STORE_CASE
-        case kExprGrowMemory: {
+        case kExprMemoryGrow: {
           MemoryIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
@@ -3093,8 +3093,8 @@ class WasmInterpreterInternals : public ZoneObject {
 
 namespace {
 void NopFinalizer(const v8::WeakCallbackInfo<void>& data) {
-  Object** global_handle_location =
-      reinterpret_cast<Object**>(data.GetParameter());
+  Address* global_handle_location =
+      reinterpret_cast<Address*>(data.GetParameter());
   GlobalHandles::Destroy(global_handle_location);
 }
 
@@ -3102,8 +3102,7 @@ Handle<WasmInstanceObject> MakeWeak(
     Isolate* isolate, Handle<WasmInstanceObject> instance_object) {
   Handle<WasmInstanceObject> weak_instance =
       isolate->global_handles()->Create<WasmInstanceObject>(*instance_object);
-  Object** global_handle_location =
-      Handle<Object>::cast(weak_instance).location();
+  Address* global_handle_location = weak_instance.location();
   GlobalHandles::MakeWeak(global_handle_location, global_handle_location,
                           &NopFinalizer, v8::WeakCallbackType::kParameter);
   return weak_instance;

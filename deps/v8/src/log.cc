@@ -1014,11 +1014,10 @@ void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
   msg.WriteToLogFile();
 }
 
-
-void Logger::HandleEvent(const char* name, Object** location) {
+void Logger::HandleEvent(const char* name, Address* location) {
   if (!log_->IsEnabled() || !FLAG_log_handles) return;
   Log::MessageBuilder msg(log_);
-  msg << name << kNext << static_cast<void*>(location);
+  msg << name << kNext << reinterpret_cast<void*>(location);
   msg.WriteToLogFile();
 }
 

@@ -60,13 +60,20 @@ bool IC::AddressIsDeoptimizedCode() const {
   return AddressIsDeoptimizedCode(isolate(), address());
 }
 
-
+// static
 bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
   Code* host =
       isolate->inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
   return (host->kind() == Code::OPTIMIZED_FUNCTION &&
           host->marked_for_deoptimization());
 }
+
+bool IC::vector_needs_update() {
+  return (!vector_set_ &&
+          (state() != MEGAMORPHIC ||
+           Smi::ToInt(nexus()->GetFeedbackExtra()->cast<Smi>()) != ELEMENT));
+}
+
 }  // namespace internal
 }  // namespace v8
 

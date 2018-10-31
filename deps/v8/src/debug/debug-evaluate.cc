@@ -923,24 +923,14 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     // Check built-ins against whitelist.
     int builtin_index =
         info->HasBuiltinId() ? info->builtin_id() : Builtins::kNoBuiltinId;
-    DCHECK_NE(Builtins::kDeserializeLazy, builtin_index);
     if (!Builtins::IsBuiltinId(builtin_index))
       return DebugInfo::kHasSideEffects;
     DebugInfo::SideEffectState state =
         BuiltinGetSideEffectState(static_cast<Builtins::Name>(builtin_index));
 #ifdef DEBUG
     if (state == DebugInfo::kHasNoSideEffect) {
-      Code* code = isolate->builtins()->builtin(builtin_index);
-      if (code->builtin_index() == Builtins::kDeserializeLazy) {
-        // Target builtin is not yet deserialized. Deserialize it now.
-
-        DCHECK(Builtins::IsLazy(builtin_index));
-        DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_index));
-
-        code = Snapshot::DeserializeBuiltin(isolate, builtin_index);
-        DCHECK_NE(Builtins::kDeserializeLazy, code->builtin_index());
-      }
       // TODO(yangguo): Check builtin-to-builtin calls too.
+      Code* code = isolate->builtins()->builtin(builtin_index);
       int mode = RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
       bool failed = false;
       for (RelocIterator it(code, mode); !it.done(); it.next()) {

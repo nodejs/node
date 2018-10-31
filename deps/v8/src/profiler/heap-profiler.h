@@ -92,6 +92,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
                     v8::PersistentValueVector<v8::Object>* objects);
 
  private:
+  void MaybeClearStringsStorage();
+
   Heap* heap() const;
 
   // Mapping from HeapObject addresses to objects' uids.

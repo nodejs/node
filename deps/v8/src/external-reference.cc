@@ -975,6 +975,25 @@ ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
 }
 
+static uint64_t atomic_pair_compare_exchange(intptr_t address,
+                                             int old_value_low,
+                                             int old_value_high,
+                                             int new_value_low,
+                                             int new_value_high) {
+  uint64_t old_value = static_cast<uint64_t>(old_value_high) << 32 |
+                       (old_value_low & 0xFFFFFFFF);
+  uint64_t new_value = static_cast<uint64_t>(new_value_high) << 32 |
+                       (new_value_low & 0xFFFFFFFF);
+  std::atomic_compare_exchange_strong(
+      reinterpret_cast<std::atomic<uint64_t>*>(address), &old_value, new_value);
+  return old_value;
+}
+
+ExternalReference ExternalReference::atomic_pair_compare_exchange_function() {
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(atomic_pair_compare_exchange)));
+}
+
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.address() == rhs.address();
 }

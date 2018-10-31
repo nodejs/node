@@ -13,5 +13,8 @@ specific_include_rules = {
     "+src/base/build_config.h",
     "+src/globals.h",
     "+src/flags.h",
+  ],
+  "handler-inside-win.h": [
+    "+src/base/macros.h",
   ]
 }

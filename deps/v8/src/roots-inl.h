@@ -9,6 +9,7 @@
 
 #include "src/handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -24,9 +25,23 @@ V8_INLINE RootIndex operator++(RootIndex& index) {
   return index;
 }
 
+bool RootsTable::IsRootHandleLocation(Address* handle_location,
+                                      RootIndex* index) const {
+  ObjectSlot location(handle_location);
+  ObjectSlot first_root(&roots_[0]);
+  ObjectSlot last_root(&roots_[kEntriesCount]);
+  if (location >= last_root) return false;
+  if (location < first_root) return false;
+  *index = static_cast<RootIndex>(location - first_root);
+  return true;
+}
+
 template <typename T>
 bool RootsTable::IsRootHandle(Handle<T> handle, RootIndex* index) const {
-  Object** handle_location = bit_cast<Object**>(handle.address());
+  // This can't use handle.location() because it is called from places
+  // where handle dereferencing is disallowed. Comparing the handle's
+  // location against the root handle list is safe though.
+  Address* handle_location = reinterpret_cast<Address*>(handle.address());
   return IsRootHandleLocation(handle_location, index);
 }
 
