@@ -292,7 +292,7 @@ void StreamBase::CallJSOnreadMethod(ssize_t nread,
 
 #ifdef DEBUG
   CHECK_EQ(static_cast<int32_t>(nread), nread);
-  CHECK_EQ(static_cast<int32_t>(offset), offset);
+  CHECK_LE(offset, INT32_MAX);
 
   if (ab.IsEmpty()) {
     CHECK_EQ(offset, 0);
