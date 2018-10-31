@@ -1,11 +1,5 @@
 # Node.js Changelog
 
-<!--lint disable maximum-line-length-->
-
-To make the changelog easier to both use and manage, it has been split into
-multiple files organized according to significant major and minor Node.js
-release lines.
-
 Select a Node.js version below to view the changelog history:
 
 * [Node.js 11](doc/changelogs/CHANGELOG_V11.md) - **Current**
@@ -129,10 +123,9 @@ release.
 
 ### Notes
 
-* Release streams marked with `LTS` are currently covered by the
-  [Node.js Long Term Support plan](https://github.com/nodejs/Release).
-* Release versions displayed in **bold** text represent the most
-  recent actively supported release.
+* The [Node.js Long Term Support plan](https://github.com/nodejs/Release) covers
+  LTS releases.
+* Release versions in **bold** text are the most recent supported releases.
 
 ----
 ----
