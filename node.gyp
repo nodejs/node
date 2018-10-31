@@ -112,6 +112,7 @@
       'lib/internal/encoding.js',
       'lib/internal/errors.js',
       'lib/internal/error-serdes.js',
+      'lib/internal/fish_completion.js',
       'lib/internal/fixed_queue.js',
       'lib/internal/freelist.js',
       'lib/internal/fs/promises.js',

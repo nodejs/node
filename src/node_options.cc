@@ -248,6 +248,9 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
   AddOption("--completion-bash",
             "print source-able bash completion script",
             &PerProcessOptions::print_bash_completion);
+  AddOption("--completion-fish",
+            "print source-able fish completion script",
+            &PerProcessOptions::print_fish_completion);
   AddOption("--help",
             "print node command line options",
             &PerProcessOptions::print_help);
