@@ -1097,6 +1097,7 @@ class ThreadSafeFunction : public node::AsyncResource {
   }
 
   void CloseHandlesAndMaybeDelete(bool set_closing = false) {
+    v8::HandleScope scope(env->isolate);
     if (set_closing) {
       node::Mutex::ScopedLock lock(this->mutex);
       is_closing = true;
@@ -1114,6 +1115,7 @@ class ThreadSafeFunction : public node::AsyncResource {
           ThreadSafeFunction* ts_fn =
               node::ContainerOf(&ThreadSafeFunction::async,
                                 reinterpret_cast<uv_async_t*>(handle));
+          v8::HandleScope scope(ts_fn->env->isolate);
           uv_close(
               reinterpret_cast<uv_handle_t*>(&ts_fn->idle),
               [] (uv_handle_t* handle) -> void {
