@@ -52,69 +52,45 @@ read(buf, 'readUIntBE', [2, 2], 0x48ea);
 read(buf, 'readUIntLE', [2, 2], 0xea48);
 
 // Error name and message
-const OOR_ERROR_NAME = 'RangeError [ERR_OUT_OF_RANGE]';
-const OOB_ERROR_NAME = 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]';
-const OOB_ERROR_MESSAGE = 'Attempt to write outside buffer bounds';
+const OOR_ERROR =
+{
+  name: 'RangeError [ERR_OUT_OF_RANGE]'
+};
+
+const OOB_ERROR =
+{
+  name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+  message: 'Attempt to write outside buffer bounds'
+};
 
 // Attempt to overflow buffers, similar to previous bug in array buffers
 assert.throws(
-  () => Buffer.allocUnsafe(8).readFloatBE(0xffffffff),
-  {
-    name: OOR_ERROR_NAME,
-  }
-);
+  () => Buffer.allocUnsafe(8).readFloatBE(0xffffffff), OOR_ERROR);
 
 assert.throws(
-  () => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
-  {
-    name: OOR_ERROR_NAME
-  }
-);
+  () => Buffer.allocUnsafe(8).readFloatLE(0xffffffff), OOR_ERROR);
 
 // Ensure negative values can't get past offset
 assert.throws(
-  () => Buffer.allocUnsafe(8).readFloatBE(-1),
-  {
-    name: OOR_ERROR_NAME
-  }
-);
+  () => Buffer.allocUnsafe(8).readFloatBE(-1), OOR_ERROR);
 assert.throws(
-  () => Buffer.allocUnsafe(8).readFloatLE(-1),
-  {
-    name: OOR_ERROR_NAME
-  }
-);
+  () => Buffer.allocUnsafe(8).readFloatLE(-1), OOR_ERROR);
 
 // Offset checks
 {
   const buf = Buffer.allocUnsafe(0);
 
   assert.throws(
-    () => buf.readUInt8(0),
-    {
-      name: OOB_ERROR_NAME,
-      message: OOB_ERROR_MESSAGE
-    }
-  );
+    () => buf.readUInt8(0), OOB_ERROR);
   assert.throws(
-    () => buf.readInt8(0),
-    {
-      name: OOB_ERROR_NAME,
-      message: OOB_ERROR_MESSAGE
-    }
-  );
+    () => buf.readInt8(0), OOB_ERROR);
 }
 
 [16, 32].forEach((bit) => {
   const buf = Buffer.allocUnsafe(bit / 8 - 1);
   [`Int${bit}B`, `Int${bit}L`, `UInt${bit}B`, `UInt${bit}L`].forEach((fn) => {
     assert.throws(
-      () => buf[`read${fn}E`](0),
-      {
-        name: OOB_ERROR_NAME,
-        message: OOB_ERROR_MESSAGE
-      }
-    );
+      () => buf[`read${fn}E`](0), OOB_ERROR);
   });
 });
 
