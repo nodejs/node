@@ -949,6 +949,8 @@ class XcodeSettings(object):
     libtoolflags = []
 
     for libtoolflag in self._Settings().get('OTHER_LDFLAGS', []):
+      if libtoolflag == "--coverage":
+        continue
       libtoolflags.append(libtoolflag)
     # TODO(thakis): ARCHS?
 
