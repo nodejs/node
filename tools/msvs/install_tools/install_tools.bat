@@ -1,5 +1,7 @@
 @echo off
 
+setlocal
+
 cls
 echo ====================================================
 echo Tools for Node.js Native Modules Installation Script
@@ -61,9 +63,14 @@ echo.
 echo Sometimes the scripts may install all necessary Windows Updates which
 echo could cause a high number of reboots that appear to be a reboot loop when
 echo in fact it is just a normal Windows Updates reboot cycle.
+:acceptretry
 echo.
-echo If this is not what you would like to occur, you can close this window
-echo to stop now.
-pause
+echo Your computer may REBOOT SEVERAL TIMES WITHOUT FURTHER WARNING.
+echo Please type YES followed by enter to confirm that you have saved all your
+set /p "ACCEPT_PROMPT=work and closed all open programs: "
+if /i not "%ACCEPT_PROMPT%"=="yes" (
+  echo Please type YES to confirm, or close the window to exit.
+  goto acceptretry
+)
 
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command Start-Process '%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe' -ArgumentList '-NoProfile -InputFormat None -ExecutionPolicy Bypass -Command iex ((New-Object System.Net.WebClient).DownloadString(''https://boxstarter.org/bootstrapper.ps1'')); get-boxstarter -Force; Install-BoxstarterPackage -PackageName ''%~dp0\install_tools.txt''; Read-Host ''Type ENTER to exit'' ' -Verb RunAs
