@@ -52,11 +52,11 @@ pause
 cls
 echo !!!!!WARNING!!!!!
 echo -----------------
-echo Use of Boxstarter may reboot your box automatically multiple times. When
-echo performing a reboot, Boxstarter will need to disable UAC to allow the
-echo script to run immediately after the reboot. When the scripts have
-echo completed, Boxstarter will re-enable UAC. If you prematurely stop the
-echo process, UAC will need to be re-enabled manually.
+echo Use of Boxstarter may reboot your computer automatically multiple times.
+echo When performing a reboot, Boxstarter will need to disable User Account
+echo Control (UAC) to allow the script to run immediately after the reboot. When
+echo the scripts have completed, Boxstarter will re-enable UAC. If you prematurely
+echo stop the process, UAC will need to be re-enabled manually.
 echo.
 echo Sometimes the scripts may install all necessary Windows Updates which
 echo could cause a high number of reboots that appear to be a reboot loop when
