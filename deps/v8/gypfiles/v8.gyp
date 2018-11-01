@@ -51,6 +51,8 @@
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-base-from-dsl-gen.h',
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.cc',
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.h',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-iterator-from-dsl-gen.cc',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-iterator-from-dsl-gen.h',
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.cc',
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.h',
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.cc',
