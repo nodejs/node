@@ -29,7 +29,7 @@ so that you can make the actual changes. This is where we will start.
   * [Accept that there are different opinions about what belongs in Node.js](#accept-that-there-are-different-opinions-about-what-belongs-in-nodejs)
   * [Performance is not everything](#performance-is-not-everything)
   * [Continuous Integration Testing](#continuous-integration-testing)
-* [Additional Notes](#additional-notes)
+* [Notes](#notes)
   * [Commit Squashing](#commit-squashing)
   * [Getting Approvals for your Pull Request](#getting-approvals-for-your-pull-request)
   * [CI Testing](#ci-testing)
@@ -531,7 +531,7 @@ specific platforms or for so-called "flaky" tests to fail ("be red"). It is
 vital to visually inspect the results of all failed ("red") tests to determine
 whether the failure was caused by the changes in the Pull Request.
 
-## Additional Notes
+## Notes
 
 ### Commit Squashing
 
