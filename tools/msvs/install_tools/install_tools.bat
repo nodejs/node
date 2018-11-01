@@ -63,9 +63,6 @@ echo.
 echo Sometimes the scripts may install all necessary Windows Updates which
 echo could cause a high number of reboots that appear to be a reboot loop when
 echo in fact it is just a normal Windows Updates reboot cycle.
-echo.
-echo If this is not what you would like to occur, you can close this window
-echo to stop now.
 :acceptretry
 echo.
 echo Your computer may REBOOT SEVERAL TIMES WITHOUT FURTHER WARNING.
