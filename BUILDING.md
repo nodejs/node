@@ -366,6 +366,10 @@ loopback interface on Ubuntu:
 sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0
 ```
 
+You can use
+[node-code-ide-configs](https://github.com/nodejs/node-code-ide-configs)
+to run/debug tests, if your IDE configs are present.
+
 #### Running Coverage
 
 It's good practice to ensure any code you add or change is covered by tests.
