@@ -155,6 +155,7 @@ my $clgypi = $cltemplate->fill_in(
         libapps_srcs => \@libapps_srcs,
         config => \%config,
         target => \%target,
+        asm => \$asm,
         arch => \$arch,
         lib_cppflags => \@lib_cppflags,
         is_win => \$is_win,

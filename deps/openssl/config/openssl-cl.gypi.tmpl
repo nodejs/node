@@ -28,7 +28,9 @@
     ],
     'openssl_cli_srcs_%%-$arch-%%': [
 %%- foreach $src (@apps_openssl_srcs) {
-  $OUT .= "      'openssl/$src',\n";
+  unless ($src eq "apps/openssl.rc") {
+    $OUT .= "      'openssl/$src',\n";
+  }
 }
 foreach $src (@libapps_srcs) {
   $OUT .= "      'openssl/$src',\n";
