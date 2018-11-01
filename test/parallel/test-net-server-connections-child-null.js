@@ -20,8 +20,8 @@ if (process.argv[2] === 'child') {
 
     const server = net.createServer();
 
-    // server.connections should start as 0
-    assert.strictEqual(server.connections, 0);
+    // server connection count should start at 0
+    assert.strictEqual(server.getConnections(), 0);
     server.on('connection', (socket) => {
       child.send({ what: 'socket' }, socket);
     });
@@ -33,8 +33,8 @@ if (process.argv[2] === 'child') {
       const connect = net.connect(server.address().port);
 
       connect.on('close', common.mustCall(() => {
-        // now server.connections should be null
-        assert.strictEqual(server.connections, null);
+        // now server connection count should be null
+        assert.strictEqual(server.getConnections(), null);
         server.close();
       }));
 

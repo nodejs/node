@@ -28,7 +28,7 @@ const events = [];
 const sockets = [];
 
 process.on('exit', function() {
-  assert.strictEqual(server.connections, 0);
+  assert.strictEqual(server.getConnections(), 0);
   assert.strictEqual(events.length, 3);
   // Expect to see one server event and two client events. The order of the
   // events is undefined because they arrive on the same event loop tick.
