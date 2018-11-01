@@ -15,6 +15,7 @@ linux-armv4 linux-elf linux-x32 linux-x86_64 linux-ppc \
 linux-ppc64 linux-ppc64le linux32-s390x linux64-s390x \
 solaris-x86-gcc solaris64-x86_64-gcc VC-WIN64A VC-WIN32
 
+CC = gcc
 CONFIGURE = ./Configure
 # no-comp: against CRIME attack
 # no-shared: openssl-cli needs static link
@@ -44,8 +45,11 @@ all: $(ARCHS) replace
 $(ARCHS):
 # Remove openssl .gitignore to follow nodejs .gitignore
 	if [ -e $(GITIGNORE) ]; then rm $(GITIGNORE); fi
-# Confgure asm and generate asm sources
-	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) $@;
+	if [ "$(findstring darwin, $@)" = "" ]; then \
+	  cd $(OPSSL_SRC); $(NO_WARN_ENV) ARC=$@ CC=$(CC) $(PERL) $(CONFIGURE) $(COPTS) $@; \
+	else \
+	  cd $(OPSSL_SRC); $(NO_WARN_ENV) ARC=$@ CC=./fake_gcc.pl $(PERL) $(CONFIGURE) $(COPTS) $@; \
+	fi
 	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm $@
 # Confgure no-asm and generate no-asm sources
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) \
@@ -61,4 +65,4 @@ replace:
 
 clean:
 	find archs \( -name \*.S -o -name \*.s -o -name \*.asm -o \
-	-name \*.gypi -o -name \*.h -o -name \*.pm \) -exec rm "{}" \;
+	-name \*.gypi -o -name \*.h -o -name \*.pm -o -name \*.rc \) -exec rm "{}" \;
