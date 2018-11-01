@@ -163,9 +163,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   BIND(&if_arguments);
   {
     TNode<JSArgumentsObject> js_arguments = CAST(arguments_list);
-    // Try to extract the elements from an JSArgumentsObject.
-    TNode<Object> length =
-        LoadObjectField(js_arguments, JSArgumentsObject::kLengthOffset);
+    // Try to extract the elements from an JSArgumentsObjectWithLength.
+    TNode<Object> length = LoadObjectField(
+        js_arguments, JSArgumentsObjectWithLength::kLengthOffset);
     TNode<FixedArrayBase> elements = LoadElements(js_arguments);
     TNode<Smi> elements_length = LoadFixedArrayBaseLength(elements);
     GotoIfNot(WordEqual(length, elements_length), &if_runtime);
@@ -211,11 +211,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     {
       if (new_target == nullptr) {
         Callable callable = CodeFactory::CallVarargs(isolate());
-        TailCallStub(callable, context, target, args_count, elements, length);
+        TailCallStub(callable, context, target, args_count, length, elements);
       } else {
         Callable callable = CodeFactory::ConstructVarargs(isolate());
-        TailCallStub(callable, context, target, new_target, args_count,
-                     elements, length);
+        TailCallStub(callable, context, target, new_target, args_count, length,
+                     elements);
       }
     }
 
@@ -237,8 +237,6 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
     TNode<Object> target, SloppyTNode<Object> new_target,
     TNode<FixedDoubleArray> elements, TNode<Int32T> length,
     TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
-  Label if_done(this);
-
   const ElementsKind new_kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
   TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
@@ -247,31 +245,18 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
   // Allocate a new FixedArray of Objects.
   TNode<FixedArray> new_elements = CAST(AllocateFixedArray(
       new_kind, intptr_length, CodeStubAssembler::kAllowLargeObjectAllocation));
-  Branch(Word32Equal(kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
-         [&] {
-           // Fill the FixedArray with pointers to HeapObjects.
-           CopyFixedArrayElements(HOLEY_DOUBLE_ELEMENTS, elements, new_kind,
-                                  new_elements, intptr_length, intptr_length,
-                                  barrier_mode);
-           Goto(&if_done);
-         },
-         [&] {
-           CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, new_kind,
-                                  new_elements, intptr_length, intptr_length,
-                                  barrier_mode);
-           Goto(&if_done);
-         });
-
-  BIND(&if_done);
-  {
-    if (new_target == nullptr) {
-      Callable callable = CodeFactory::CallVarargs(isolate());
-      TailCallStub(callable, context, target, args_count, new_elements, length);
-    } else {
-      Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, args_count,
-                   new_elements, length);
-    }
+  // CopyFixedArrayElements does not distinguish between holey and packed for
+  // its first argument, so we don't need to dispatch on {kind} here.
+  CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, new_kind,
+                         new_elements, intptr_length, intptr_length,
+                         barrier_mode);
+  if (new_target == nullptr) {
+    Callable callable = CodeFactory::CallVarargs(isolate());
+    TailCallStub(callable, context, target, args_count, length, new_elements);
+  } else {
+    Callable callable = CodeFactory::ConstructVarargs(isolate());
+    TailCallStub(callable, context, target, new_target, args_count, length,
+                 new_elements);
   }
 }
 
@@ -299,7 +284,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   // Check that the Array.prototype hasn't been modified in a way that would
   // affect iteration.
   TNode<PropertyCell> protector_cell =
-      CAST(LoadRoot(Heap::kArrayIteratorProtectorRootIndex));
+      CAST(LoadRoot(RootIndex::kArrayIteratorProtector));
   GotoIf(WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                    SmiConstant(Isolate::kProtectorInvalid)),
          &if_generic);
@@ -325,8 +310,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<Object> iterator_fn =
         GetProperty(context, spread, IteratorSymbolConstant());
     GotoIfNot(TaggedIsCallable(iterator_fn), &if_iterator_fn_not_callable);
-    TNode<JSArray> list = CAST(
-        CallBuiltin(Builtins::kIterableToList, context, spread, iterator_fn));
+    TNode<JSArray> list =
+        CAST(CallBuiltin(Builtins::kIterableToListMayPreserveHoles, context,
+                         spread, iterator_fn));
     var_length = LoadAndUntagToWord32ObjectField(list, JSArray::kLengthOffset);
 
     var_elements = LoadElements(list);
@@ -346,11 +332,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
     if (new_target == nullptr) {
       Callable callable = CodeFactory::CallVarargs(isolate());
-      TailCallStub(callable, context, target, args_count, elements, length);
+      TailCallStub(callable, context, target, args_count, length, elements);
     } else {
       Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, args_count, elements,
-                   length);
+      TailCallStub(callable, context, target, new_target, args_count, length,
+                   elements);
     }
   }
 

@@ -208,7 +208,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
  private:
   Zone zone_;
-  WasmInterpreterInternals* const internals_;
+  WasmInterpreterInternals* internals_;
 };
 
 }  // namespace wasm

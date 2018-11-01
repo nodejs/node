@@ -42,8 +42,7 @@ function RunTest(name, formals_and_body, args, handler, continuation) {
   run(function () { return fun.apply(null, args) });
   run(function () { return gen.apply(null, args).next().value });
 
-  // TODO(wingo): Uncomment after bug 2838 is fixed.
-  // Debug.setListener(null);
+  Debug.setListener(null);
 }
 
 // Check that two scope are the same.

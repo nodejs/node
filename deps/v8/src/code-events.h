@@ -66,7 +66,7 @@ class CodeEventListener {
   };
 #undef DECLARE_ENUM
 
-  virtual ~CodeEventListener() {}
+  virtual ~CodeEventListener() = default;
 
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                                const char* comment) = 0;
@@ -98,14 +98,14 @@ class CodeEventDispatcher {
  public:
   using LogEventsAndTags = CodeEventListener::LogEventsAndTags;
 
-  CodeEventDispatcher() {}
+  CodeEventDispatcher() = default;
 
   bool AddListener(CodeEventListener* listener) {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     return listeners_.insert(listener).second;
   }
   void RemoveListener(CodeEventListener* listener) {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     listeners_.erase(listener);
   }
   bool IsListeningToCodeEvents() {
@@ -117,8 +117,8 @@ class CodeEventDispatcher {
     return false;
   }
 
-#define CODE_EVENT_DISPATCH(code)              \
-  base::LockGuard<base::Mutex> guard(&mutex_); \
+#define CODE_EVENT_DISPATCH(code)  \
+  base::MutexGuard guard(&mutex_); \
   for (auto it = listeners_.begin(); it != listeners_.end(); ++it) (*it)->code
 
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,

@@ -228,7 +228,7 @@ enum class CheckTaggedInputMode : uint8_t {
 
 size_t hash_value(CheckTaggedInputMode);
 
-std::ostream& operator<<(std::ostream&, CheckTaggedInputMode);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, CheckTaggedInputMode);
 
 class CheckTaggedInputParameters {
  public:
@@ -616,6 +616,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* ToBoolean();
 
+  const Operator* StringConcat();
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
@@ -641,13 +642,17 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* PlainPrimitiveToFloat64();
 
   const Operator* ChangeTaggedSignedToInt32();
+  const Operator* ChangeTaggedSignedToInt64();
   const Operator* ChangeTaggedToInt32();
+  const Operator* ChangeTaggedToInt64();
   const Operator* ChangeTaggedToUint32();
   const Operator* ChangeTaggedToFloat64();
   const Operator* ChangeTaggedToTaggedSigned();
   const Operator* ChangeInt31ToTaggedSigned();
   const Operator* ChangeInt32ToTagged();
+  const Operator* ChangeInt64ToTagged();
   const Operator* ChangeUint32ToTagged();
+  const Operator* ChangeUint64ToTagged();
   const Operator* ChangeFloat64ToTagged(CheckForMinusZeroMode);
   const Operator* ChangeFloat64ToTaggedPointer();
   const Operator* ChangeTaggedToBit();
@@ -674,11 +679,14 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const VectorSlotPair& feedback);
   const Operator* CheckReceiver();
+  const Operator* CheckReceiverOrNullOrUndefined();
   const Operator* CheckSmi(const VectorSlotPair& feedback);
   const Operator* CheckString(const VectorSlotPair& feedback);
   const Operator* CheckSymbol();
 
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,
+                                        const VectorSlotPair& feedback);
+  const Operator* CheckedFloat64ToInt64(CheckForMinusZeroMode,
                                         const VectorSlotPair& feedback);
   const Operator* CheckedInt32Add();
   const Operator* CheckedInt32Div();
@@ -686,10 +694,14 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
   const Operator* CheckedInt32Sub();
   const Operator* CheckedInt32ToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedInt64ToInt32(const VectorSlotPair& feedback);
+  const Operator* CheckedInt64ToTaggedSigned(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedSignedToInt32(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode,
                                          const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode,
+                                       const VectorSlotPair& feedback);
+  const Operator* CheckedTaggedToInt64(CheckForMinusZeroMode,
                                        const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedSigned(const VectorSlotPair& feedback);
@@ -697,8 +709,12 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                                 const VectorSlotPair& feedback);
   const Operator* CheckedUint32Div();
   const Operator* CheckedUint32Mod();
+  const Operator* CheckedUint32Bounds(const VectorSlotPair& feedback);
   const Operator* CheckedUint32ToInt32(const VectorSlotPair& feedback);
   const Operator* CheckedUint32ToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedUint64Bounds(const VectorSlotPair& feedback);
+  const Operator* CheckedUint64ToInt32(const VectorSlotPair& feedback);
+  const Operator* CheckedUint64ToTaggedSigned(const VectorSlotPair& feedback);
 
   const Operator* ConvertReceiver(ConvertReceiverMode);
 
@@ -741,9 +757,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // new-cons-string length, first, second
   const Operator* NewConsString();
 
-  // array-buffer-was-neutered buffer
-  const Operator* ArrayBufferWasNeutered();
-
   // ensure-writable-fast-elements object, elements
   const Operator* EnsureWritableFastElements();
 
@@ -783,13 +796,13 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);
 
-  // load-data-view-element buffer, [base + index]
+  // load-data-view-element buffer, [base + byte_offset + index]
   const Operator* LoadDataViewElement(ExternalArrayType const&);
 
   // store-typed-element buffer, [base + external + index], value
   const Operator* StoreTypedElement(ExternalArrayType const&);
 
-  // store-data-view-element buffer, [base + index], value
+  // store-data-view-element buffer, [base + byte_offset + index], value
   const Operator* StoreDataViewElement(ExternalArrayType const&);
 
   // Abort (for terminating execution on internal error).

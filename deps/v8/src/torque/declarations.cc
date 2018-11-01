@@ -121,23 +121,14 @@ Value* Declarations::LookupValue(const std::string& name) {
   return Value::cast(d);
 }
 
-Label* Declarations::LookupLabel(const std::string& name) {
-  Declarable* d = Lookup(name);
-  if (!d->IsLabel()) {
-    std::stringstream s;
-    s << "declaration \"" << name << "\" is not a Label";
-    ReportError(s.str());
-  }
-  return Label::cast(d);
-}
-
 Macro* Declarations::TryLookupMacro(const std::string& name,
                                     const TypeVector& types) {
   Declarable* declarable = TryLookup(name);
   if (declarable != nullptr) {
     if (declarable->IsMacroList()) {
       for (auto& m : MacroList::cast(declarable)->list()) {
-        if (m->signature().parameter_types.types == types &&
+        auto signature_types = m->signature().GetExplicitTypes();
+        if (signature_types == types &&
             !m->signature().parameter_types.var_args) {
           return m;
         }
@@ -195,7 +186,7 @@ ModuleConstant* Declarations::LookupModuleConstant(const std::string& name) {
 }
 
 const AbstractType* Declarations::DeclareAbstractType(
-    const std::string& name, const std::string& generated,
+    const std::string& name, bool transient, const std::string& generated,
     base::Optional<const AbstractType*> non_constexpr_version,
     const base::Optional<std::string>& parent) {
   CheckAlreadyDeclared(name, "type");
@@ -216,7 +207,7 @@ const AbstractType* Declarations::DeclareAbstractType(
     parent_type = TypeAlias::cast(maybe_parent_type)->type();
   }
   const AbstractType* type = TypeOracle::GetAbstractType(
-      parent_type, name, generated, non_constexpr_version);
+      parent_type, name, transient, generated, non_constexpr_version);
   DeclareType(name, type);
   return type;
 }
@@ -231,13 +222,6 @@ void Declarations::DeclareStruct(Module* module, const std::string& name,
                                  const std::vector<NameAndType>& fields) {
   const StructType* new_type = TypeOracle::GetStructType(module, name, fields);
   DeclareType(name, new_type);
-}
-
-Label* Declarations::DeclareLabel(const std::string& name) {
-  CheckAlreadyDeclared(name, "label");
-  Label* result = new Label(name);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
 }
 
 MacroList* Declarations::GetMacroListForName(const std::string& name,
@@ -271,9 +255,10 @@ MacroList* Declarations::GetMacroListForName(const std::string& name,
 
 Macro* Declarations::DeclareMacro(const std::string& name,
                                   const Signature& signature,
+                                  bool transitioning,
                                   base::Optional<std::string> op) {
-  Macro* macro = RegisterDeclarable(
-      std::unique_ptr<Macro>(new Macro(name, signature, GetCurrentGeneric())));
+  Macro* macro = RegisterDeclarable(std::unique_ptr<Macro>(
+      new Macro(name, signature, transitioning, GetCurrentGeneric())));
   GetMacroListForName(name, signature)->AddMacro(macro);
   if (op) GetMacroListForName(*op, signature)->AddMacro(macro);
   return macro;
@@ -281,55 +266,26 @@ Macro* Declarations::DeclareMacro(const std::string& name,
 
 Builtin* Declarations::DeclareBuiltin(const std::string& name,
                                       Builtin::Kind kind, bool external,
-                                      const Signature& signature) {
+                                      const Signature& signature,
+                                      bool transitioning) {
   CheckAlreadyDeclared(name, "builtin");
-  Builtin* result =
-      new Builtin(name, kind, external, signature, GetCurrentGeneric());
+  Builtin* result = new Builtin(name, kind, external, signature, transitioning,
+                                GetCurrentGeneric());
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }
 
 RuntimeFunction* Declarations::DeclareRuntimeFunction(
-    const std::string& name, const Signature& signature) {
+    const std::string& name, const Signature& signature, bool transitioning) {
   CheckAlreadyDeclared(name, "runtime function");
   RuntimeFunction* result =
-      new RuntimeFunction(name, signature, GetCurrentGeneric());
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Variable* Declarations::DeclareVariable(const std::string& var,
-                                        const Type* type, bool is_const) {
-  std::string name(var + "_" +
-                   std::to_string(GetNextUniqueDeclarationNumber()));
-  std::replace(name.begin(), name.end(), '.', '_');
-  CheckAlreadyDeclared(var, "variable");
-  Variable* result = new Variable(var, name, type, is_const);
-  Declare(var, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Parameter* Declarations::DeclareParameter(const std::string& name,
-                                          const std::string& var_name,
-                                          const Type* type) {
-  CheckAlreadyDeclared(name, "parameter");
-  Parameter* result = new Parameter(name, type, var_name);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Label* Declarations::DeclarePrivateLabel(const std::string& raw_name) {
-  std::string name =
-      raw_name + "_" + std::to_string(GetNextUniqueDeclarationNumber());
-  CheckAlreadyDeclared(name, "label");
-  Label* result = new Label(name);
+      new RuntimeFunction(name, signature, transitioning, GetCurrentGeneric());
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }
 
 void Declarations::DeclareExternConstant(const std::string& name,
-                                         const Type* type,
-                                         const std::string& value) {
+                                         const Type* type, std::string value) {
   CheckAlreadyDeclared(name, "constant, parameter or arguments");
   ExternConstant* result = new ExternConstant(name, type, value);
   Declare(name, std::unique_ptr<Declarable>(result));

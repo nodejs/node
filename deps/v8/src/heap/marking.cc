@@ -28,6 +28,9 @@ void Bitmap::MarkAllBits() {
 }
 
 void Bitmap::SetRange(uint32_t start_index, uint32_t end_index) {
+  if (start_index >= end_index) return;
+  end_index--;
+
   unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
   MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
   unsigned int end_cell_index = end_index >> Bitmap::kBitsPerCellLog2;
@@ -43,10 +46,11 @@ void Bitmap::SetRange(uint32_t start_index, uint32_t end_index) {
       base::Relaxed_Store(cell_base + i, ~0u);
     }
     // Finally, fill all bits until the end address in the last cell with 1s.
-    SetBitsInCell<AccessMode::ATOMIC>(end_cell_index, (end_index_mask - 1));
+    SetBitsInCell<AccessMode::ATOMIC>(end_cell_index,
+                                      end_index_mask | (end_index_mask - 1));
   } else {
-    SetBitsInCell<AccessMode::ATOMIC>(start_cell_index,
-                                      end_index_mask - start_index_mask);
+    SetBitsInCell<AccessMode::ATOMIC>(
+        start_cell_index, end_index_mask | (end_index_mask - start_index_mask));
   }
   // This fence prevents re-ordering of publishing stores with the mark-
   // bit setting stores.
@@ -54,6 +58,9 @@ void Bitmap::SetRange(uint32_t start_index, uint32_t end_index) {
 }
 
 void Bitmap::ClearRange(uint32_t start_index, uint32_t end_index) {
+  if (start_index >= end_index) return;
+  end_index--;
+
   unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
   MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
 
@@ -71,10 +78,11 @@ void Bitmap::ClearRange(uint32_t start_index, uint32_t end_index) {
       base::Relaxed_Store(cell_base + i, 0);
     }
     // Finally, set all bits until the end address in the last cell with 0s.
-    ClearBitsInCell<AccessMode::ATOMIC>(end_cell_index, (end_index_mask - 1));
+    ClearBitsInCell<AccessMode::ATOMIC>(end_cell_index,
+                                        end_index_mask | (end_index_mask - 1));
   } else {
-    ClearBitsInCell<AccessMode::ATOMIC>(start_cell_index,
-                                        (end_index_mask - start_index_mask));
+    ClearBitsInCell<AccessMode::ATOMIC>(
+        start_cell_index, end_index_mask | (end_index_mask - start_index_mask));
   }
   // This fence prevents re-ordering of publishing stores with the mark-
   // bit clearing stores.
@@ -82,6 +90,9 @@ void Bitmap::ClearRange(uint32_t start_index, uint32_t end_index) {
 }
 
 bool Bitmap::AllBitsSetInRange(uint32_t start_index, uint32_t end_index) {
+  if (start_index >= end_index) return false;
+  end_index--;
+
   unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
   MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
 
@@ -97,21 +108,18 @@ bool Bitmap::AllBitsSetInRange(uint32_t start_index, uint32_t end_index) {
     for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
       if (cells()[i] != ~0u) return false;
     }
-    matching_mask = (end_index_mask - 1);
-    // Check against a mask of 0 to avoid dereferencing the cell after the
-    // end of the bitmap.
-    return (matching_mask == 0) ||
-           ((cells()[end_cell_index] & matching_mask) == matching_mask);
+    matching_mask = end_index_mask | (end_index_mask - 1);
+    return ((cells()[end_cell_index] & matching_mask) == matching_mask);
   } else {
-    matching_mask = end_index_mask - start_index_mask;
-    // Check against a mask of 0 to avoid dereferencing the cell after the
-    // end of the bitmap.
-    return (matching_mask == 0) ||
-           (cells()[end_cell_index] & matching_mask) == matching_mask;
+    matching_mask = end_index_mask | (end_index_mask - start_index_mask);
+    return (cells()[end_cell_index] & matching_mask) == matching_mask;
   }
 }
 
 bool Bitmap::AllBitsClearInRange(uint32_t start_index, uint32_t end_index) {
+  if (start_index >= end_index) return true;
+  end_index--;
+
   unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
   MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
 
@@ -125,15 +133,11 @@ bool Bitmap::AllBitsClearInRange(uint32_t start_index, uint32_t end_index) {
     for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
       if (cells()[i]) return false;
     }
-    matching_mask = (end_index_mask - 1);
-    // Check against a mask of 0 to avoid dereferencing the cell after the
-    // end of the bitmap.
-    return (matching_mask == 0) || !(cells()[end_cell_index] & matching_mask);
+    matching_mask = end_index_mask | (end_index_mask - 1);
+    return !(cells()[end_cell_index] & matching_mask);
   } else {
-    matching_mask = end_index_mask - start_index_mask;
-    // Check against a mask of 0 to avoid dereferencing the cell after the
-    // end of the bitmap.
-    return (matching_mask == 0) || !(cells()[end_cell_index] & matching_mask);
+    matching_mask = end_index_mask | (end_index_mask - start_index_mask);
+    return !(cells()[end_cell_index] & matching_mask);
   }
 }
 

@@ -7,7 +7,7 @@
 #include "src/arguments-inl.h"
 #include "src/conversions-inl.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/jsregexp.h"
@@ -38,7 +38,7 @@ uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
 
 // Looks up the capture of the given name. Returns the (1-based) numbered
 // capture index or -1 on failure.
-int LookupNamedCapture(std::function<bool(String*)> name_matches,
+int LookupNamedCapture(const std::function<bool(String*)>& name_matches,
                        FixedArray* capture_name_map) {
   // TODO(jgruber): Sort capture_name_map and do binary search via
   // internalized strings.
@@ -1097,7 +1097,7 @@ class VectorBackedMatch : public String::Match {
 // RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo).
 Handle<JSObject> ConstructNamedCaptureGroupsObject(
     Isolate* isolate, Handle<FixedArray> capture_map,
-    std::function<Object*(int)> f_get_capture) {
+    const std::function<Object*(int)>& f_get_capture) {
   Handle<JSObject> groups = isolate->factory()->NewJSObjectWithNullProto();
 
   const int capture_count = capture_map->length() >> 1;

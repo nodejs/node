@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_ARGUMENTS_H_
 #define V8_OBJECTS_ARGUMENTS_H_
 
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,18 +14,9 @@
 namespace v8 {
 namespace internal {
 
-// Common superclass for JSSloppyArgumentsObject and JSStrictArgumentsObject.
-// Note that the instance type {JS_ARGUMENTS_TYPE} does _not_ guarantee the
-// below layout, the in-object properties might have transitioned to dictionary
-// mode already. Only use the below layout with the specific initial maps.
+// Superclass for all objects with instance type {JS_ARGUMENTS_TYPE}
 class JSArgumentsObject : public JSObject {
  public:
-  // Offsets of object fields.
-  static const int kLengthOffset = JSObject::kHeaderSize;
-  static const int kSize = kLengthOffset + kPointerSize;
-  // Indices of in-object properties.
-  static const int kLengthIndex = 0;
-
   DECL_VERIFIER(JSArgumentsObject)
   DECL_CAST(JSArgumentsObject)
 
@@ -33,12 +24,31 @@ class JSArgumentsObject : public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArgumentsObject);
 };
 
-// JSSloppyArgumentsObject is just a JSObject with specific initial map.
-// This initial map adds in-object properties for "length" and "callee".
-class JSSloppyArgumentsObject : public JSArgumentsObject {
+// Common superclass for JSSloppyArgumentsObject and JSStrictArgumentsObject.
+// Note that the instance type {JS_ARGUMENTS_TYPE} does _not_ guarantee the
+// below layout, the in-object properties might have transitioned to dictionary
+// mode already. Only use the below layout with the specific initial maps.
+class JSArgumentsObjectWithLength : public JSArgumentsObject {
  public:
   // Offsets of object fields.
-  static const int kCalleeOffset = JSArgumentsObject::kSize;
+  static const int kLengthOffset = JSObject::kHeaderSize;
+  static const int kSize = kLengthOffset + kPointerSize;
+  // Indices of in-object properties.
+  static const int kLengthIndex = 0;
+
+  DECL_VERIFIER(JSArgumentsObjectWithLength)
+  DECL_CAST(JSArgumentsObjectWithLength)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArgumentsObjectWithLength);
+};
+
+// JSSloppyArgumentsObject is just a JSObject with specific initial map.
+// This initial map adds in-object properties for "length" and "callee".
+class JSSloppyArgumentsObject : public JSArgumentsObjectWithLength {
+ public:
+  // Offsets of object fields.
+  static const int kCalleeOffset = JSArgumentsObjectWithLength::kSize;
   static const int kSize = kCalleeOffset + kPointerSize;
   // Indices of in-object properties.
   static const int kCalleeIndex = kLengthIndex + 1;
@@ -53,10 +63,10 @@ class JSSloppyArgumentsObject : public JSArgumentsObject {
 
 // JSStrictArgumentsObject is just a JSObject with specific initial map.
 // This initial map adds an in-object property for "length".
-class JSStrictArgumentsObject : public JSArgumentsObject {
+class JSStrictArgumentsObject : public JSArgumentsObjectWithLength {
  public:
   // Offsets of object fields.
-  static const int kSize = JSArgumentsObject::kSize;
+  static const int kSize = JSArgumentsObjectWithLength::kSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);

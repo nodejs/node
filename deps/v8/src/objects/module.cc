@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
 struct ModuleHandleHash {
   V8_INLINE size_t operator()(Handle<Module> module) const {
     return module->hash();
@@ -82,8 +80,6 @@ class UnorderedStringMap
                 zone)) {}
 };
 
-}  // anonymous namespace
-
 class Module::ResolveSet
     : public std::unordered_map<
           Handle<Module>, UnorderedStringSet*, ModuleHandleHash,
@@ -106,21 +102,17 @@ class Module::ResolveSet
   Zone* zone_;
 };
 
-namespace {
-
-int ExportIndex(int cell_index) {
+int Module::ExportIndex(int cell_index) {
   DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
             ModuleDescriptor::kExport);
   return cell_index - 1;
 }
 
-int ImportIndex(int cell_index) {
+int Module::ImportIndex(int cell_index) {
   DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
             ModuleDescriptor::kImport);
   return -cell_index - 1;
 }
-
-}  // anonymous namespace
 
 void Module::CreateIndirectExport(Isolate* isolate, Handle<Module> module,
                                   Handle<String> name,

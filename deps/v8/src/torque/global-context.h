@@ -18,7 +18,6 @@ class GlobalContext;
 class Scope;
 class TypeOracle;
 class Builtin;
-class Label;
 
 class Module {
  public:
@@ -65,36 +64,10 @@ class GlobalContext {
   void SetVerbose() { verbose_ = true; }
   bool verbose() const { return verbose_; }
 
-  void AddControlSplitChangedVariables(const AstNode* node,
-                                       const TypeVector& specialization_types,
-                                       const std::set<const Variable*>& vars) {
-    auto key = std::make_pair(node, specialization_types);
-    control_split_changed_variables_[key] = vars;
-  }
-
-  const std::set<const Variable*>& GetControlSplitChangedVariables(
-      const AstNode* node, const TypeVector& specialization_types) {
-    auto key = std::make_pair(node, specialization_types);
-    assert(control_split_changed_variables_.find(key) !=
-           control_split_changed_variables_.end());
-    return control_split_changed_variables_.find(key)->second;
-  }
-
-  void MarkVariableChanged(const AstNode* node,
-                           const TypeVector& specialization_types,
-                           Variable* var) {
-    auto key = std::make_pair(node, specialization_types);
-    control_split_changed_variables_[key].insert(var);
-  }
-
   friend class CurrentCallableActivator;
   friend class BreakContinueActivator;
 
   Callable* GetCurrentCallable() const { return current_callable_; }
-  Label* GetCurrentBreak() const { return break_continue_stack_.back().first; }
-  Label* GetCurrentContinue() const {
-    return break_continue_stack_.back().second;
-  }
 
   Declarations* declarations() { return &declarations_; }
   Ast* ast() { return &ast_; }
@@ -104,11 +77,8 @@ class GlobalContext {
   int next_label_number_;
   Declarations declarations_;
   Callable* current_callable_;
-  std::vector<std::pair<Label*, Label*>> break_continue_stack_;
   std::map<std::string, std::unique_ptr<Module>> modules_;
   Module* default_module_;
-  std::map<std::pair<const AstNode*, TypeVector>, std::set<const Variable*>>
-      control_split_changed_variables_;
   Ast ast_;
 };
 
@@ -128,19 +98,6 @@ class CurrentCallableActivator {
   GlobalContext& context_;
   Callable* remembered_callable_;
   Declarations::NodeScopeActivator scope_activator_;
-};
-
-class BreakContinueActivator {
- public:
-  BreakContinueActivator(GlobalContext& context, Label* break_label,
-                         Label* continue_label)
-      : context_(context) {
-    context_.break_continue_stack_.push_back({break_label, continue_label});
-  }
-  ~BreakContinueActivator() { context_.break_continue_stack_.pop_back(); }
-
- private:
-  GlobalContext& context_;
 };
 
 }  // namespace torque

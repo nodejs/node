@@ -103,8 +103,7 @@ def run_tests(basedir, *args, **kwargs):
       sys_args.append('--infra-staging')
     else:
       sys_args.append('--no-infra-staging')
-    code = standard_runner.StandardTestRunner(
-        basedir=basedir).execute(sys_args)
+    code = standard_runner.StandardTestRunner(basedir=basedir).execute(sys_args)
     return Result(stdout.getvalue(), stderr.getvalue(), code)
 
 
@@ -247,7 +246,8 @@ class SystemTest(unittest.TestCase):
       self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
-  def check_cleaned_json_output(self, expected_results_name, actual_json):
+  def check_cleaned_json_output(
+      self, expected_results_name, actual_json, basedir):
     # Check relevant properties of the json output.
     with open(actual_json) as f:
       json_output = json.load(f)[0]
@@ -260,6 +260,7 @@ class SystemTest(unittest.TestCase):
       data['duration'] = 1
       data['command'] = ' '.join(
           ['/usr/bin/python'] + data['command'].split()[1:])
+      data['command'] = data['command'].replace(basedir + '/', '')
     for data in json_output['slowest_tests']:
       replace_variable_data(data)
     for data in json_output['results']:
@@ -310,7 +311,8 @@ class SystemTest(unittest.TestCase):
       # After recent changes we report all flags, including the file names.
       # This is redundant to the command. Needs investigation.
       self.maxDiff = None
-      self.check_cleaned_json_output('expected_test_results1.json', json_path)
+      self.check_cleaned_json_output(
+          'expected_test_results1.json', json_path, basedir)
 
   def testFlakeWithRerunAndJSONProc(self):
     self.testFlakeWithRerunAndJSON(infra_staging=True)
@@ -342,7 +344,8 @@ class SystemTest(unittest.TestCase):
         self.assertIn('All tests succeeded', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
       self.maxDiff = None
-      self.check_cleaned_json_output('expected_test_results2.json', json_path)
+      self.check_cleaned_json_output(
+          'expected_test_results2.json', json_path, basedir)
 
   def testAutoDetect(self):
     """Fake a build with several auto-detected options.
@@ -355,7 +358,8 @@ class SystemTest(unittest.TestCase):
           basedir, dcheck_always_on=True, is_asan=True, is_cfi=True,
           is_msan=True, is_tsan=True, is_ubsan_vptr=True, target_cpu='x86',
           v8_enable_i18n_support=False, v8_target_cpu='x86',
-          v8_use_snapshot=False)
+          v8_use_snapshot=False, v8_enable_embedded_builtins=False,
+          v8_enable_verify_csa=False, v8_enable_lite_mode=False)
       result = run_tests(
           basedir,
           '--mode=Release',
@@ -682,6 +686,29 @@ class SystemTest(unittest.TestCase):
       self.assertIn(expected, result.stdout)
       self.assertIn('sweet/cherries', result.stdout)
       self.assertIn('sweet/bananas', result.stdout)
+      self.assertEqual(1, result.returncode, result)
+
+  def testExitAfterNFailures(self):
+    with temp_base() as basedir:
+      result = run_tests(
+          basedir,
+          '--mode=Release',
+          '--progress=verbose',
+          '--exit-after-n-failures=2',
+          '-j1',
+          'sweet/mangoes',       # PASS
+          'sweet/strawberries',  # FAIL
+          'sweet/blackberries',  # FAIL
+          'sweet/raspberries',   # should not run
+      )
+      self.assertIn('Running 4 base tests', result.stdout, result)
+      self.assertIn('sweet/mangoes: pass', result.stdout, result)
+      self.assertIn('sweet/strawberries: FAIL', result.stdout, result)
+      self.assertIn('Too many failures, exiting...', result.stdout, result)
+      self.assertIn('sweet/blackberries: FAIL', result.stdout, result)
+      self.assertNotIn('Done running sweet/raspberries', result.stdout, result)
+      self.assertIn('2 tests failed', result.stdout, result)
+      self.assertIn('3 tests ran', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
 if __name__ == '__main__':

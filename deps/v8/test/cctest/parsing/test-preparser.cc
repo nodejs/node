@@ -8,6 +8,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
+#include "src/parsing/preparsed-scope-data-impl.h"
 #include "src/parsing/preparsed-scope-data.h"
 
 #include "test/cctest/cctest.h"
@@ -33,9 +34,6 @@ enum class Bailout { BAILOUT_IF_OUTER_SLOPPY, NO };
 }  // namespace
 
 TEST(PreParserScopeAnalysis) {
-  i::FLAG_lazy_inner_functions = true;
-  i::FLAG_preparser_scope_analysis = true;
-  i::FLAG_aggressive_lazy_inner_functions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   LocalContext env;
@@ -747,8 +745,8 @@ TEST(PreParserScopeAnalysis) {
       // Parse the lazy function using the scope data.
       i::ParseInfo using_scope_data(isolate, shared);
       using_scope_data.set_lazy_compile();
-      using_scope_data.consumed_preparsed_scope_data()->SetData(
-          isolate, produced_data_on_heap);
+      using_scope_data.set_consumed_preparsed_scope_data(
+          i::ConsumedPreParsedScopeData::For(isolate, produced_data_on_heap));
       CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate));
 
       // Verify that we skipped at least one function inside that scope.
@@ -792,7 +790,6 @@ TEST(PreParserScopeAnalysis) {
 // https://bugs.chromium.org/p/chromium/issues/detail?id=753896. Should not
 // crash.
 TEST(Regress753896) {
-  i::FLAG_preparser_scope_analysis = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
@@ -814,7 +811,7 @@ TEST(ProducingAndConsumingByteData) {
   LocalContext env;
 
   i::Zone zone(isolate->allocator(), ZONE_NAME);
-  i::ProducedPreParsedScopeData::ByteData bytes(&zone);
+  i::PreParsedScopeDataBuilder::ByteData bytes(&zone);
   // Write some data.
   bytes.WriteUint32(1983);  // This will be overwritten.
   bytes.WriteUint32(2147483647);
@@ -841,32 +838,67 @@ TEST(ProducingAndConsumingByteData) {
   // End with a lonely quarter.
   bytes.WriteQuarter(2);
 
-  i::Handle<i::PodArray<uint8_t>> data_on_heap = bytes.Serialize(isolate);
-  i::ConsumedPreParsedScopeData::ByteData bytes_for_reading;
-  i::ConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
-      &bytes_for_reading, *data_on_heap);
+  {
+    // Serialize as a ZoneConsumedPreParsedScopeData, and read back data.
+    i::ZonePreParsedScopeData zone_serialized(&zone, bytes.begin(), bytes.end(),
+                                              0);
+    i::ZoneConsumedPreParsedScopeData::ByteData bytes_for_reading;
+    i::ZoneVectorWrapper wrapper(zone_serialized.byte_data());
+    i::ZoneConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
+        &bytes_for_reading, &wrapper);
 
-  // Read the data back.
 #ifdef DEBUG
-  CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);
 #else
-  CHECK_EQ(bytes_for_reading.ReadUint32(), 1983);
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 1983);
 #endif
-  CHECK_EQ(bytes_for_reading.ReadUint32(), 2147483647);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
-  CHECK_EQ(bytes_for_reading.ReadUint32(), 0);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 50);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
-  CHECK_EQ(bytes_for_reading.ReadUint32(), 50);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 2147483647);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 50);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 50);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+  }
+
+  {
+    // Serialize as an OnHeapConsumedPreParsedScopeData, and read back data.
+    i::Handle<i::PodArray<uint8_t>> data_on_heap = bytes.Serialize(isolate);
+    i::OnHeapConsumedPreParsedScopeData::ByteData bytes_for_reading;
+    i::OnHeapConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
+        &bytes_for_reading, *data_on_heap);
+
+#ifdef DEBUG
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);
+#else
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 1983);
+#endif
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 2147483647);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 50);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadUint32(), 50);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+  }
 }

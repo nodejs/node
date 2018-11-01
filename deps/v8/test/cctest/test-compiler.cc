@@ -55,7 +55,7 @@ static void SetGlobalProperty(const char* name, Object* value) {
       isolate->factory()->InternalizeUtf8String(name);
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Runtime::SetObjectProperty(isolate, global, internalized_name, object,
-                             LanguageMode::kSloppy)
+                             LanguageMode::kSloppy, StoreOrigin::kMaybeKeyed)
       .Check();
 }
 
@@ -315,10 +315,10 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
   CHECK(!feedback_vector->is_empty());
   FeedbackSlot slot_for_a(0);
-  MaybeObject* object = feedback_vector->Get(slot_for_a);
+  MaybeObject object = feedback_vector->Get(slot_for_a);
   {
     HeapObject* heap_object;
-    CHECK(object->ToWeakHeapObject(&heap_object));
+    CHECK(object->GetHeapObjectIfWeak(&heap_object));
     CHECK(heap_object->IsJSFunction());
   }
 
@@ -330,7 +330,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   object = f->feedback_vector()->Get(slot_for_a);
   {
     HeapObject* heap_object;
-    CHECK(object->ToWeakHeapObject(&heap_object));
+    CHECK(object->GetHeapObjectIfWeak(&heap_object));
     CHECK(heap_object->IsJSFunction());
   }
 }
@@ -676,7 +676,7 @@ void TestCompileFunctionInContextToStringImpl() {
       V8_Fatal(__FILE__, __LINE__,                                            \
                "Unexpected exception thrown during %s:\n\t%s\n", op, *error); \
     }                                                                         \
-  } while (0)
+  } while (false)
 
   {  // NOLINT
     CcTest::InitializeVM();
@@ -764,11 +764,6 @@ void TestCompileFunctionInContextToStringImpl() {
     }
   }
 #undef CHECK_NOT_CAUGHT
-}
-
-TEST(CompileFunctionInContextHarmonyFunctionToString) {
-  v8::internal::FLAG_harmony_function_tostring = true;
-  TestCompileFunctionInContextToStringImpl();
 }
 
 TEST(CompileFunctionInContextFunctionToString) {

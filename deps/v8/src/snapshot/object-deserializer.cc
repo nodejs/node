@@ -8,10 +8,14 @@
 #include "src/code-stubs.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/code-serializer.h"
 
 namespace v8 {
 namespace internal {
+
+ObjectDeserializer::ObjectDeserializer(const SerializedCodeData* data)
+    : Deserializer(data, true) {}
 
 MaybeHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfo(
@@ -43,7 +47,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   {
     DisallowHeapAllocation no_gc;
     Object* root;
-    VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);
+    VisitRootPointer(Root::kPartialSnapshotCache, nullptr, ObjectSlot(&root));
     DeserializeDeferredObjects();
     FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
     result = handle(HeapObject::cast(root), isolate);
@@ -89,6 +93,21 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
     list = WeakArrayList::AddToEnd(isolate(), list,
                                    MaybeObjectHandle::Weak(script));
     heap->SetRootScriptList(*list);
+  }
+
+  // Allocation sites are present in the snapshot, and must be linked into
+  // a list at deserialization time.
+  for (AllocationSite* site : new_allocation_sites()) {
+    if (!site->HasWeakNext()) continue;
+    // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
+    // as a (weak) root. If this root is relocated correctly, this becomes
+    // unnecessary.
+    if (heap->allocation_sites_list() == Smi::kZero) {
+      site->set_weak_next(ReadOnlyRoots(heap).undefined_value());
+    } else {
+      site->set_weak_next(heap->allocation_sites_list());
+    }
+    heap->set_allocation_sites_list(site);
   }
 }
 

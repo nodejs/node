@@ -39,7 +39,7 @@ BUILTIN(SymbolFor) {
   Handle<String> key;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
                                      Object::ToString(isolate, key_obj));
-  return *isolate->SymbolFor(Heap::kPublicSymbolTableRootIndex, key, false);
+  return *isolate->SymbolFor(RootIndex::kPublicSymbolTable, key, false);
 }
 
 // ES6 section 19.4.2.5 Symbol.keyFor.

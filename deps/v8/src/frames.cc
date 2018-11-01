@@ -11,6 +11,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/ic/ic-stats.h"
+#include "src/objects/slots.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
@@ -29,7 +30,7 @@ ReturnAddressLocationResolver StackFrame::return_address_location_resolver_ =
 
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
-class StackHandlerIterator BASE_EMBEDDED {
+class StackHandlerIterator {
  public:
   StackHandlerIterator(const StackFrame* frame, StackHandler* handler)
       : limit_(frame->fp()), handler_(handler) {
@@ -406,7 +407,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   DCHECK(holder->GetHeap()->GcSafeCodeContains(holder, pc));
   unsigned pc_offset = static_cast<unsigned>(pc - holder->InstructionStart());
   Object* code = holder;
-  v->VisitRootPointer(Root::kTop, nullptr, &code);
+  v->VisitRootPointer(Root::kTop, nullptr, ObjectSlot(&code));
   if (code == holder) return;
   holder = reinterpret_cast<Code*>(code);
   pc = holder->InstructionStart() + pc_offset;
@@ -617,7 +618,7 @@ void ExitFrame::Iterate(RootVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
-  v->VisitRootPointer(Root::kTop, nullptr, &code_slot());
+  v->VisitRootPointer(Root::kTop, nullptr, ObjectSlot(&code_slot()));
 }
 
 
@@ -898,11 +899,11 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   slot_space -=
       (frame_header_size + StandardFrameConstants::kFixedFrameSizeAboveFp);
 
-  Object** frame_header_base = &Memory<Object*>(fp() - frame_header_size);
-  Object** frame_header_limit =
-      &Memory<Object*>(fp() - StandardFrameConstants::kCPSlotSize);
-  Object** parameters_base = &Memory<Object*>(sp());
-  Object** parameters_limit = frame_header_base - slot_space / kPointerSize;
+  ObjectSlot frame_header_base(&Memory<Object*>(fp() - frame_header_size));
+  ObjectSlot frame_header_limit(
+      &Memory<Object*>(fp() - StandardFrameConstants::kCPSlotSize));
+  ObjectSlot parameters_base(&Memory<Object*>(sp()));
+  ObjectSlot parameters_limit(frame_header_base.address() - slot_space);
 
   // Visit the parameters that may be on top of the saved registers.
   if (safepoint_entry.argument_count() > 0) {
@@ -1578,7 +1579,7 @@ Object* OptimizedFrame::receiver() const {
     intptr_t args_size =
         (StandardFrameConstants::kFixedSlotCountAboveFp + argc) * kPointerSize;
     Address receiver_ptr = fp() + args_size;
-    return *reinterpret_cast<Object**>(receiver_ptr);
+    return *ObjectSlot(receiver_ptr);
   } else {
     return JavaScriptFrame::receiver();
   }
@@ -1921,15 +1922,15 @@ WasmInstanceObject* WasmCompileLazyFrame::wasm_instance() const {
   return WasmInstanceObject::cast(*wasm_instance_slot());
 }
 
-Object** WasmCompileLazyFrame::wasm_instance_slot() const {
+ObjectSlot WasmCompileLazyFrame::wasm_instance_slot() const {
   const int offset = WasmCompileLazyFrameConstants::kWasmInstanceOffset;
-  return &Memory<Object*>(fp() + offset);
+  return ObjectSlot(&Memory<Object*>(fp() + offset));
 }
 
 void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
   const int header_size = WasmCompileLazyFrameConstants::kFixedFrameSizeFromFp;
-  Object** base = &Memory<Object*>(sp());
-  Object** limit = &Memory<Object*>(fp() - header_size);
+  ObjectSlot base(&Memory<Object*>(sp()));
+  ObjectSlot limit(&Memory<Object*>(fp() - header_size));
   v->VisitRootPointers(Root::kTop, nullptr, base, limit);
   v->VisitRootPointer(Root::kTop, nullptr, wasm_instance_slot());
 }
@@ -2105,8 +2106,8 @@ void EntryFrame::Iterate(RootVisitor* v) const {
 
 void StandardFrame::IterateExpressions(RootVisitor* v) const {
   const int offset = StandardFrameConstants::kLastObjectOffset;
-  Object** base = &Memory<Object*>(sp());
-  Object** limit = &Memory<Object*>(fp() + offset) + 1;
+  ObjectSlot base(&Memory<Object*>(sp()));
+  ObjectSlot limit(&Memory<Object*>(fp() + offset) + 1);
   v->VisitRootPointers(Root::kTop, nullptr, base, limit);
 }
 

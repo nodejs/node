@@ -12,16 +12,12 @@
 namespace v8 {
 namespace internal {
 
-template <class AllocatorT>
 class Deserializer;
-
-class BuiltinDeserializer;
 class StartupDeserializer;
 
 class DefaultDeserializerAllocator final {
  public:
-  DefaultDeserializerAllocator(
-      Deserializer<DefaultDeserializerAllocator>* deserializer);
+  explicit DefaultDeserializerAllocator(Deserializer* deserializer);
 
   // ------- Allocation Methods -------
   // Methods related to memory allocation during deserialization.
@@ -58,13 +54,8 @@ class DefaultDeserializerAllocator final {
   // ------- Reservation Methods -------
   // Methods related to memory reservations (prior to deserialization).
 
-  void DecodeReservation(std::vector<SerializedData::Reservation> res);
+  void DecodeReservation(const std::vector<SerializedData::Reservation>& res);
   bool ReserveSpace();
-
-  // Atomically reserves space for the two given deserializers. Guarantees
-  // reservation for both without garbage collection in-between.
-  static bool ReserveSpace(StartupDeserializer* startup_deserializer,
-                           BuiltinDeserializer* builtin_deserializer);
 
   bool ReservationsAreFullyUsed() const;
 
@@ -106,7 +97,7 @@ class DefaultDeserializerAllocator final {
   std::vector<HeapObject*> deserialized_large_objects_;
 
   // The current deserializer.
-  Deserializer<DefaultDeserializerAllocator>* const deserializer_;
+  Deserializer* const deserializer_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultDeserializerAllocator)
 };

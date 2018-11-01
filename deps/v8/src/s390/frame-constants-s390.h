@@ -35,7 +35,7 @@ class ExitFrameConstants : public TypedFrameConstants {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 5;
+  static constexpr int kNumberOfSavedGpParamRegs = 4;
 #ifdef V8_TARGET_ARCH_S390X
   static constexpr int kNumberOfSavedFpParamRegs = 4;
 #else

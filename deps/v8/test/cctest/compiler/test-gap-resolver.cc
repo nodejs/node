@@ -314,9 +314,9 @@ class ParallelMoveCreator : public HandleAndZoneScope {
     UNREACHABLE();
   }
 
-  // min(num_alloctable_general_registers for each arch) == 6 from
+  // min(num_alloctable_general_registers for each arch) == 5 from
   // assembler-ia32.h
-  const int kMaxIndex = 6;
+  const int kMaxIndex = 5;
   const int kMaxIndices = kMaxIndex + 1;
 
   // Non-FP slots shouldn't overlap FP slots.

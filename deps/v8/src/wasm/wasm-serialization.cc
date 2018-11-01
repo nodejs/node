@@ -46,9 +46,9 @@ class Writer {
     DCHECK_GE(current_size(), sizeof(T));
     WriteUnalignedValue(reinterpret_cast<Address>(current_location()), value);
     pos_ += sizeof(T);
-    if (FLAG_wasm_trace_serialization) {
-      StdoutStream{} << "wrote: " << (size_t)value << " sized: " << sizeof(T)
-                     << std::endl;
+    if (FLAG_trace_wasm_serialization) {
+      StdoutStream{} << "wrote: " << static_cast<size_t>(value)
+                     << " sized: " << sizeof(T) << std::endl;
     }
   }
 
@@ -58,7 +58,7 @@ class Writer {
       memcpy(current_location(), v.start(), v.size());
       pos_ += v.size();
     }
-    if (FLAG_wasm_trace_serialization) {
+    if (FLAG_trace_wasm_serialization) {
       StdoutStream{} << "wrote vector of " << v.size() << " elements"
                      << std::endl;
     }
@@ -90,9 +90,9 @@ class Reader {
     T value =
         ReadUnalignedValue<T>(reinterpret_cast<Address>(current_location()));
     pos_ += sizeof(T);
-    if (FLAG_wasm_trace_serialization) {
-      StdoutStream{} << "read: " << (size_t)value << " sized: " << sizeof(T)
-                     << std::endl;
+    if (FLAG_trace_wasm_serialization) {
+      StdoutStream{} << "read: " << static_cast<size_t>(value)
+                     << " sized: " << sizeof(T) << std::endl;
     }
     return value;
   }
@@ -103,7 +103,7 @@ class Reader {
       memcpy(v.start(), current_location(), v.size());
       pos_ += v.size();
     }
-    if (FLAG_wasm_trace_serialization) {
+    if (FLAG_trace_wasm_serialization) {
       StdoutStream{} << "read vector of " << v.size() << " elements"
                      << std::endl;
     }
@@ -120,19 +120,11 @@ class Reader {
 constexpr size_t kVersionSize = 4 * sizeof(uint32_t);
 
 void WriteVersion(Isolate* isolate, Writer* writer) {
-  writer->Write(SerializedData::ComputeMagicNumber(
-      isolate->heap()->external_reference_table()));
+  writer->Write(
+      SerializedData::ComputeMagicNumber(isolate->external_reference_table()));
   writer->Write(Version::Hash());
   writer->Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer->Write(FlagList::Hash());
-}
-
-bool IsSupportedVersion(Isolate* isolate, const Vector<const byte> version) {
-  if (version.size() < kVersionSize) return false;
-  byte current_version[kVersionSize];
-  Writer writer({current_version, kVersionSize});
-  WriteVersion(isolate, &writer);
-  return memcmp(version.start(), current_version, kVersionSize) == 0;
 }
 
 // On Intel, call sites are encoded as a displacement. For linking and for
@@ -251,7 +243,7 @@ NativeModuleSerializer::NativeModuleSerializer(
             ->instruction_start();
     wasm_stub_targets_lookup_.insert(std::make_pair(addr, i));
   }
-  ExternalReferenceTable* table = isolate_->heap()->external_reference_table();
+  ExternalReferenceTable* table = isolate_->external_reference_table();
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
     reference_table_lookup_.insert(std::make_pair(addr, i));
@@ -276,6 +268,9 @@ size_t NativeModuleSerializer::Measure() const {
 }
 
 void NativeModuleSerializer::WriteHeader(Writer* writer) {
+  // TODO(eholk): We need to properly preserve the flag whether the trap
+  // handler was used or not when serializing.
+
   writer->Write(native_module_->num_functions());
   writer->Write(native_module_->num_imported_functions());
 }
@@ -509,8 +504,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       }
       case RelocInfo::EXTERNAL_REFERENCE: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
-        Address address =
-            isolate_->heap()->external_reference_table()->address(tag);
+        Address address = isolate_->external_reference_table()->address(tag);
         iter.rinfo()->set_target_external_reference(address, SKIP_ICACHE_FLUSH);
         break;
       }
@@ -537,6 +531,14 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   return true;
 }
 
+bool IsSupportedVersion(Isolate* isolate, Vector<const byte> version) {
+  if (version.size() < kVersionSize) return false;
+  byte current_version[kVersionSize];
+  Writer writer({current_version, kVersionSize});
+  WriteVersion(isolate, &writer);
+  return memcmp(version.start(), current_version, kVersionSize) == 0;
+}
+
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
@@ -550,22 +552,16 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   ModuleResult decode_result = DecodeWasmModule(
       enabled_features, wire_bytes.start(), wire_bytes.end(), false,
       i::wasm::kWasmOrigin, isolate->counters(), isolate->allocator());
-  if (!decode_result.ok()) return {};
-  CHECK_NOT_NULL(decode_result.val);
-  WasmModule* module = decode_result.val.get();
-  Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
-
-  // TODO(eholk): We need to properly preserve the flag whether the trap
-  // handler was used or not when serializing.
-  UseTrapHandler use_trap_handler =
-      trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler;
-  ModuleEnv env(module, use_trap_handler,
-                RuntimeExceptionSupport::kRuntimeExceptionSupport);
+  if (decode_result.failed()) return {};
+  CHECK_NOT_NULL(decode_result.value());
+  WasmModule* module = decode_result.value().get();
+  Handle<Script> script =
+      CreateWasmScript(isolate, wire_bytes, module->source_map_url);
 
   OwnedVector<uint8_t> wire_bytes_copy = OwnedVector<uint8_t>::Of(wire_bytes);
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, enabled_features, std::move(decode_result.val), env,
+      isolate, enabled_features, std::move(decode_result).value(),
       std::move(wire_bytes_copy), script, Handle<ByteArray>::null());
   NativeModule* native_module = module_object->native_module();
 

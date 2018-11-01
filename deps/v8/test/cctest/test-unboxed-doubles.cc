@@ -18,7 +18,6 @@
 #include "src/heap/spaces.h"
 #include "src/ic/ic.h"
 #include "src/layout-descriptor.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/property.h"

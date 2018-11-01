@@ -113,7 +113,7 @@ class ProducerThread: public v8::base::Thread {
         value_(value),
         finished_(finished) {}
 
-  virtual void Run() {
+  void Run() override {
     for (Record i = value_; i < value_ + records_per_chunk_; ++i) {
       Record* rec = reinterpret_cast<Record*>(scq_->StartEnqueue());
       CHECK(rec);

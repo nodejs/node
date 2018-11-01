@@ -19,7 +19,6 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
-class BuiltinDeserializerAllocator;
 class Callable;
 class UnoptimizedCompilationJob;
 class FunctionLiteral;
@@ -36,7 +35,7 @@ class InterpreterAssembler;
 class Interpreter {
  public:
   explicit Interpreter(Isolate* isolate);
-  virtual ~Interpreter() {}
+  virtual ~Interpreter() = default;
 
   // Returns the interrupt budget which should be used for the profiler counter.
   static int InterruptBudget();
@@ -51,10 +50,6 @@ class Interpreter {
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.
-  Code* GetAndMaybeDeserializeBytecodeHandler(Bytecode bytecode,
-                                              OperandScale operand_scale);
-
-  // Return bytecode handler for |bytecode| and |operand_scale|.
   Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
 
   // Set the bytecode handler for |bytecode| and |operand_scale|.
@@ -69,6 +64,10 @@ class Interpreter {
 
   V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
 
+  void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
+
+  void InitializeDispatchTable();
+
   bool IsDispatchTableInitialized() const;
 
   Address dispatch_table_address() {
@@ -82,7 +81,6 @@ class Interpreter {
  private:
   friend class SetupInterpreter;
   friend class v8::internal::SetupIsolateDelegate;
-  friend class v8::internal::BuiltinDeserializerAllocator;
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 

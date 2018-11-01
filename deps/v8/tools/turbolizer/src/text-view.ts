@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {View} from "./view.js"
-import {anyToString, ViewElements, isIterable} from "./util.js"
-import {MySelection} from "./selection.js"
+import {View} from "../src/view"
+import {anyToString, ViewElements, isIterable} from "../src/util"
+import {MySelection} from "../src/selection"
 
 export abstract class TextView extends View {
   selectionHandler: NodeSelectionHandler;

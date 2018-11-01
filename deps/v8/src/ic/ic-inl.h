@@ -9,7 +9,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/debug/debug.h"
-#include "src/macro-assembler.h"
+#include "src/handles-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {
@@ -47,27 +47,33 @@ void IC::update_receiver_map(Handle<Object> receiver) {
   }
 }
 
-bool IC::IsHandler(MaybeObject* object) {
+bool IC::IsHandler(MaybeObject object) {
   HeapObject* heap_object;
-  return (object->IsSmi() && (object != nullptr)) ||
-         (object->ToWeakHeapObject(&heap_object) &&
+  return (object->IsSmi() && (object.ptr() != kNullAddress)) ||
+         (object->GetHeapObjectIfWeak(&heap_object) &&
           (heap_object->IsMap() || heap_object->IsPropertyCell())) ||
-         (object->ToStrongHeapObject(&heap_object) &&
-          (heap_object->IsDataHandler() ||
-           heap_object->IsCode()));
+         (object->GetHeapObjectIfStrong(&heap_object) &&
+          (heap_object->IsDataHandler() || heap_object->IsCode()));
 }
 
 bool IC::AddressIsDeoptimizedCode() const {
   return AddressIsDeoptimizedCode(isolate(), address());
 }
 
-
+// static
 bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
   Code* host =
       isolate->inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
   return (host->kind() == Code::OPTIMIZED_FUNCTION &&
           host->marked_for_deoptimization());
 }
+
+bool IC::vector_needs_update() {
+  return (!vector_set_ &&
+          (state() != MEGAMORPHIC ||
+           Smi::ToInt(nexus()->GetFeedbackExtra()->cast<Smi>()) != ELEMENT));
+}
+
 }  // namespace internal
 }  // namespace v8
 

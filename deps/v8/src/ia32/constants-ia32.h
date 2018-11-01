@@ -15,10 +15,6 @@ namespace internal {
 // currently no root register is present.
 constexpr int kRootRegisterBias = 0;
 
-// Used temporarily to track clobbering of the root register.
-// TODO(v8:6666): Remove this once use the root register.
-constexpr size_t kRootRegisterSentinel = 0xcafeca11;
-
 // TODO(sigurds): Change this value once we use relative jumps.
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
 }  // namespace internal

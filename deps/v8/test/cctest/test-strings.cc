@@ -105,9 +105,9 @@ static const int SUPER_DEEP_DEPTH = 80 * 1024;
 class Resource: public v8::String::ExternalStringResource {
  public:
   Resource(const uc16* data, size_t length): data_(data), length_(length) {}
-  ~Resource() { i::DeleteArray(data_); }
-  virtual const uint16_t* data() const { return data_; }
-  virtual size_t length() const { return length_; }
+  ~Resource() override { i::DeleteArray(data_); }
+  const uint16_t* data() const override { return data_; }
+  size_t length() const override { return length_; }
 
  private:
   const uc16* data_;
@@ -119,9 +119,9 @@ class OneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
   OneByteResource(const char* data, size_t length)
       : data_(data), length_(length) {}
-  ~OneByteResource() { i::DeleteArray(data_); }
-  virtual const char* data() const { return data_; }
-  virtual size_t length() const { return length_; }
+  ~OneByteResource() override { i::DeleteArray(data_); }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
 
  private:
   const char* data_;
@@ -1108,6 +1108,98 @@ TEST(JSONStringifySliceMadeExternal) {
                                          CompileRun("JSON.stringify(slice)"))));
 }
 
+TEST(JSONStringifyWellFormed) {
+  FLAG_harmony_json_stringify = true;
+  CcTest::InitializeVM();
+  v8::HandleScope handle_scope(CcTest::isolate());
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+
+  // Test some leading surrogates (U+D800 to U+DBFF).
+  {  // U+D800
+    CHECK_EQ(
+        0, strcmp("\"\\ud800\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uD800')"))));
+    v8::Local<v8::String> json = v8_str("\"\\ud800\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  {  // U+DAAA
+    CHECK_EQ(
+        0, strcmp("\"\\udaaa\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDAAA')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udaaa\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  {  // U+DBFF
+    CHECK_EQ(
+        0, strcmp("\"\\udbff\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDBFF')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udbff\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  // Test some trailing surrogates (U+DC00 to U+DFFF).
+  {  // U+DC00
+    CHECK_EQ(
+        0, strcmp("\"\\udc00\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDC00')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udc00\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  {  // U+DDDD
+    CHECK_EQ(
+        0, strcmp("\"\\udddd\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDDDD')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udddd\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  {  // U+DFFF
+    CHECK_EQ(
+        0, strcmp("\"\\udfff\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDFFF')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udfff\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+}
 
 TEST(CachedHashOverflow) {
   CcTest::InitializeVM();
@@ -1186,9 +1278,9 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit OneByteVectorResource(i::Vector<const char> vector)
       : data_(vector) {}
-  virtual ~OneByteVectorResource() {}
-  virtual size_t length() const { return data_.length(); }
-  virtual const char* data() const { return data_.start(); }
+  ~OneByteVectorResource() override = default;
+  size_t length() const override { return data_.length(); }
+  const char* data() const override { return data_.start(); }
  private:
   i::Vector<const char> data_;
 };
@@ -1464,15 +1556,15 @@ TEST(Latin1IgnoreCase) {
 
 class DummyResource: public v8::String::ExternalStringResource {
  public:
-  virtual const uint16_t* data() const { return nullptr; }
-  virtual size_t length() const { return 1 << 30; }
+  const uint16_t* data() const override { return nullptr; }
+  size_t length() const override { return 1 << 30; }
 };
 
 
 class DummyOneByteResource: public v8::String::ExternalOneByteStringResource {
  public:
-  virtual const char* data() const { return nullptr; }
-  virtual size_t length() const { return 1 << 30; }
+  const char* data() const override { return nullptr; }
+  size_t length() const override { return 1 << 30; }
 };
 
 
@@ -1528,7 +1620,7 @@ TEST(FormatMessage) {
   Handle<String> arg1 = isolate->factory()->NewStringFromAsciiChecked("arg1");
   Handle<String> arg2 = isolate->factory()->NewStringFromAsciiChecked("arg2");
   Handle<String> result =
-      MessageTemplate::FormatMessage(
+      MessageFormatter::FormatMessage(
           isolate, MessageTemplate::kPropertyNotFunction, arg0, arg1, arg2)
           .ToHandleChecked();
   Handle<String> expected = isolate->factory()->NewStringFromAsciiChecked(

@@ -17,7 +17,7 @@ class Sample {
  public:
   enum { kFramesLimit = 255 };
 
-  Sample() {}
+  Sample() = default;
 
   typedef const void* const* const_iterator;
   const_iterator begin() const { return data_.start(); }

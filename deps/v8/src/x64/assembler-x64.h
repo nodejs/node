@@ -38,10 +38,11 @@
 #define V8_X64_ASSEMBLER_X64_H_
 
 #include <deque>
-#include <forward_list>
+#include <map>
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/label.h"
 #include "src/x64/constants-x64.h"
 #include "src/x64/sse-instr.h"
 
@@ -219,7 +220,6 @@ typedef XMMRegister Simd128Register;
   constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
 DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
-constexpr DoubleRegister no_double_reg = DoubleRegister::no_reg();
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 enum Condition {
@@ -488,7 +488,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
   Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
-  virtual ~Assembler() {}
+  ~Assembler() override = default;
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -689,6 +689,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // move.
   void movp_heap_number(Register dst, double value);
 
+  void movp_string(Register dst, const StringConstantBase* str);
+
   // Loads a 64-bit immediate into a register.
   void movq(Register dst, int64_t value,
             RelocInfo::Mode rmode = RelocInfo::NONE);
@@ -856,8 +858,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Bit operations.
   void bswapl(Register dst);
   void bswapq(Register dst);
-  void bt(Operand dst, Register src);
-  void bts(Operand dst, Register src);
+  void btq(Operand dst, Register src);
+  void btsq(Operand dst, Register src);
+  void btsq(Register dst, Immediate imm8);
+  void btrq(Register dst, Immediate imm8);
   void bsrq(Register dst, Register src);
   void bsrq(Register dst, Operand src);
   void bsrl(Register dst, Register src);
@@ -1920,12 +1924,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
                          int id);
 
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
@@ -2433,7 +2431,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 // instructions and relocation information.  The constructor makes
 // sure that there is enough space and (in debug mode) the destructor
 // checks that we did not generate too much.
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit EnsureSpace(Assembler* assembler) : assembler_(assembler) {
     if (assembler_->buffer_overflow()) assembler_->GrowBuffer();

@@ -26,6 +26,9 @@ def setup_testing():
   from threading import Thread as Process
   # Monkeypatch threading Queue to look like multiprocessing Queue.
   Queue.cancel_join_thread = lambda self: None
+  # Monkeypatch os.kill and add fake pid property on Thread.
+  os.kill = lambda *args: None
+  Process.pid = property(lambda self: None)
 
 
 class NormalResult():

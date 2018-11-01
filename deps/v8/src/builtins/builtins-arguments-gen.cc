@@ -82,35 +82,35 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
   }
   bool empty = IsIntPtrOrSmiConstantZero(arguments_count, mode);
   DCHECK_IMPLIES(empty, parameter_map_count == nullptr);
-  Node* size =
+  TNode<IntPtrT> size =
       empty ? IntPtrConstant(base_size)
             : ElementOffsetFromIndex(element_count, PACKED_ELEMENTS, mode,
                                      base_size + FixedArray::kHeaderSize);
-  Node* result = Allocate(size);
+  TNode<Object> result = Allocate(size);
   Comment("Initialize arguments object");
   StoreMapNoWriteBarrier(result, map);
-  Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
+  Node* empty_fixed_array = LoadRoot(RootIndex::kEmptyFixedArray);
   StoreObjectField(result, JSArray::kPropertiesOrHashOffset, empty_fixed_array);
   Node* smi_arguments_count = ParameterToTagged(arguments_count, mode);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset,
                                  smi_arguments_count);
   Node* arguments = nullptr;
   if (!empty) {
-    arguments = InnerAllocate(result, elements_offset);
+    arguments = InnerAllocate(CAST(result), elements_offset);
     StoreObjectFieldNoWriteBarrier(arguments, FixedArray::kLengthOffset,
                                    smi_arguments_count);
-    Node* fixed_array_map = LoadRoot(Heap::kFixedArrayMapRootIndex);
+    Node* fixed_array_map = LoadRoot(RootIndex::kFixedArrayMap);
     StoreMapNoWriteBarrier(arguments, fixed_array_map);
   }
   Node* parameter_map = nullptr;
   if (parameter_map_count != nullptr) {
-    Node* parameter_map_offset = ElementOffsetFromIndex(
+    TNode<IntPtrT> parameter_map_offset = ElementOffsetFromIndex(
         arguments_count, PACKED_ELEMENTS, mode, FixedArray::kHeaderSize);
-    parameter_map = InnerAllocate(arguments, parameter_map_offset);
+    parameter_map = InnerAllocate(CAST(arguments), parameter_map_offset);
     StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset,
                                    parameter_map);
     Node* sloppy_elements_map =
-        LoadRoot(Heap::kSloppyArgumentsElementsMapRootIndex);
+        LoadRoot(RootIndex::kSloppyArgumentsElementsMap);
     StoreMapNoWriteBarrier(parameter_map, sloppy_elements_map);
     parameter_map_count = ParameterToTagged(parameter_map_count, mode);
     StoreObjectFieldNoWriteBarrier(parameter_map, FixedArray::kLengthOffset,

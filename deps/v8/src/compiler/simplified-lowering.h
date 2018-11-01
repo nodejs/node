@@ -23,11 +23,11 @@ class TypeCache;
 
 class V8_EXPORT_PRIVATE SimplifiedLowering final {
  public:
-  SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* js_heap_broker, Zone* zone,
+  SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
                      SourcePositionTable* source_position,
                      NodeOriginTable* node_origins,
                      PoisoningMitigationLevel poisoning_level);
-  ~SimplifiedLowering() {}
+  ~SimplifiedLowering() = default;
 
   void LowerAllNodes();
 
@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
 
  private:
   JSGraph* const jsgraph_;
-  JSHeapBroker* js_heap_broker_;
+  JSHeapBroker* broker_;
   Zone* const zone_;
   TypeCache const& type_cache_;
   SetOncePointer<Node> to_number_code_;

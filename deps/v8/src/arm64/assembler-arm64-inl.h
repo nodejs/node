@@ -89,14 +89,14 @@ inline void CPURegList::Remove(const CPURegister& other1,
 inline void CPURegList::Combine(int code) {
   DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
-  list_ |= (1UL << code);
+  list_ |= (1ULL << code);
 }
 
 
 inline void CPURegList::Remove(int code) {
   DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
-  list_ &= ~(1UL << code);
+  list_ &= ~(1ULL << code);
 }
 
 
@@ -341,7 +341,9 @@ Immediate Operand::immediate_for_heap_object_request() const {
   DCHECK((heap_object_request().kind() == HeapObjectRequest::kHeapNumber &&
           immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT) ||
          (heap_object_request().kind() == HeapObjectRequest::kCodeStub &&
-          immediate_.rmode() == RelocInfo::CODE_TARGET));
+          immediate_.rmode() == RelocInfo::CODE_TARGET) ||
+         (heap_object_request().kind() == HeapObjectRequest::kStringConstant &&
+          immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT));
   return immediate_;
 }
 
@@ -545,7 +547,7 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
-    return Handle<Code>(reinterpret_cast<Code**>(
+    return Handle<Code>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc, 0 /* unused */)));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
@@ -677,7 +679,7 @@ Address RelocInfo::target_address_address() {
     return constant_pool_entry_address();
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    return reinterpret_cast<Address>(pc_);
+    return pc_;
   }
 }
 
@@ -695,7 +697,7 @@ HeapObject* RelocInfo::target_object() {
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (rmode_ == EMBEDDED_OBJECT) {
-    return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
+    return Handle<HeapObject>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
   } else {
     DCHECK(IsCodeTarget(rmode_));

@@ -4,6 +4,7 @@
 (() => {
 
   createSuite('MixedFrom', 1000, MixedFrom, MixedFromSetup);
+  createSuite('MixedNoMapFrom', 1000, MixedNoMapFrom, MixedNoMapFromSetup);
   createSuite('SmiFrom', 1000, SmiFrom, SmiFromSetup);
   createSuite('SmallSmiFrom', 1000, SmallSmiFrom, SmallSmiFromSetup);
   createSuite('SmiNoMapFrom', 1000, SmiNoMapFrom, SmiNoMapFromSetup);
@@ -12,6 +13,7 @@
   createSuite(
       'TransplantedFrom', 1000, TransplantedFrom, TransplantedFromSetup);
   createSuite('DoubleFrom', 1000, DoubleFrom, DoubleFromSetup);
+  createSuite('DoubleNoMapFrom', 1000, DoubleNoMapFrom, DoubleNoMapFromSetup);
   createSuite('StringFrom', 1000, StringFrom, StringFromSetup);
   createSuite('StringNoMapFrom', 1000, StringNoMapFrom, StringNoMapFromSetup);
 
@@ -92,6 +94,10 @@
     result = Array.from(arg, func);
   }
 
+  function DoubleNoMapFrom() {
+    result = Array.from(arg);
+  }
+
   function StringFrom() {
     result = Array.from(arg, func);
   }
@@ -102,6 +108,10 @@
 
   function MixedFrom() {
     result = Array.from(arg, func);
+  }
+
+  function MixedNoMapFrom() {
+    result = Array.from(arg);
   }
 
   function SmallSmiFromSetup() {
@@ -136,6 +146,11 @@
     arg = double_array;
   }
 
+  function DoubleNoMapFromSetup() {
+    func = undefined;
+    arg = double_array;
+  }
+
   function StringFromSetup() {
     func = (v, i) => v + i;
     arg = string_array;
@@ -151,4 +166,8 @@
     arg = mixed_array;
   }
 
+  function MixedNoMapFromSetup() {
+    func = undefined;
+    arg = mixed_array;
+  }
 })();

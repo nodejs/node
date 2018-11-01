@@ -58,7 +58,7 @@ class ValueSerializerTest : public TestWithIsolate {
     isolate_ = reinterpret_cast<i::Isolate*>(isolate());
   }
 
-  ~ValueSerializerTest() {
+  ~ValueSerializerTest() override {
     // In some cases unhandled scheduled exceptions from current test produce
     // that Context::New(isolate()) from next test's constructor returns NULL.
     // In order to prevent that, we added destructor which will clear scheduled
@@ -228,7 +228,7 @@ class ValueSerializerTest : public TestWithIsolate {
     Local<Script> script =
         Script::Compile(deserialization_context_, source).ToLocalChecked();
     Local<Value> value = script->Run(deserialization_context_).ToLocalChecked();
-    EXPECT_TRUE(value->BooleanValue(deserialization_context_).FromJust());
+    EXPECT_TRUE(value->BooleanValue(isolate()));
   }
 
   Local<String> StringFromUtf8(const char* source) {

@@ -14,9 +14,15 @@
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
 #include "src/base/optional.h"
+#include "src/constant-pool.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
+// Windows arm64 SDK defines mvn to NEON intrinsic neon_not which will not
+// be used here.
+#if defined(V8_OS_WIN) && defined(mvn)
+#undef mvn
+#endif
 
 namespace v8 {
 namespace internal {
@@ -36,11 +42,20 @@ namespace internal {
   R(x16) R(x17) R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) \
   R(x24) R(x25) R(x26) R(x27) R(x28) R(x29) R(x30) R(x31)
 
+#if defined(V8_OS_WIN)
+// x18 is reserved as platform register on Windows ARM64.
+#define ALLOCATABLE_GENERAL_REGISTERS(R)                  \
+  R(x0)  R(x1)  R(x2)  R(x3)  R(x4)  R(x5)  R(x6)  R(x7)  \
+  R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
+         R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x25) \
+  R(x27) R(x28)
+#else
 #define ALLOCATABLE_GENERAL_REGISTERS(R)                  \
   R(x0)  R(x1)  R(x2)  R(x3)  R(x4)  R(x5)  R(x6)  R(x7)  \
   R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
   R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x25) \
   R(x27) R(x28)
+#endif
 
 #define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
@@ -207,7 +222,12 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   int reg_size_;
   RegisterType reg_type_;
 
+#if defined(V8_OS_WIN) && !defined(__clang__)
+  // MSVC has problem to parse template base class as friend class.
+  friend RegisterBase;
+#else
   friend class RegisterBase;
+#endif
 
   constexpr CPURegister(int code, int size, RegisterType type)
       : RegisterBase(code), reg_size_(size), reg_type_(type) {}
@@ -533,8 +553,8 @@ class CPURegList {
         ((type == CPURegister::kVRegister) &&
          (last_reg < kNumberOfVRegisters)));
     DCHECK(last_reg >= first_reg);
-    list_ = (1UL << (last_reg + 1)) - 1;
-    list_ &= ~((1UL << first_reg) - 1);
+    list_ = (1ULL << (last_reg + 1)) - 1;
+    list_ &= ~((1ULL << first_reg) - 1);
     DCHECK(IsValid());
   }
 
@@ -693,7 +713,7 @@ class Immediate {
 // -----------------------------------------------------------------------------
 // Operands.
 constexpr int kSmiShift = kSmiTagSize + kSmiShiftSize;
-constexpr uint64_t kSmiShiftMask = (1UL << kSmiShift) - 1;
+constexpr uint64_t kSmiShiftMask = (1ULL << kSmiShift) - 1;
 
 // Represents an operand in a machine instruction.
 class Operand {
@@ -718,6 +738,7 @@ class Operand {
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Operand EmbeddedCode(CodeStub* stub);
+  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   inline bool IsHeapObjectRequest() const;
   inline HeapObjectRequest heap_object_request() const;
@@ -3168,13 +3189,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
-
   // Returns true if we should emit a veneer as soon as possible for a branch
   // which can at most reach to specified pc.
   bool ShouldEmitVeneer(int max_reachable_pc,
@@ -3624,8 +3638,7 @@ class PatchingAssembler : public Assembler {
   void PatchSubSp(uint32_t immediate);
 };
 
-
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit EnsureSpace(Assembler* assembler) {
     assembler->CheckBufferSpace();

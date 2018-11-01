@@ -5,7 +5,6 @@
 #include "src/snapshot/default-deserializer-allocator.h"
 
 #include "src/heap/heap-inl.h"
-#include "src/snapshot/builtin-deserializer.h"
 #include "src/snapshot/deserializer.h"
 #include "src/snapshot/startup-deserializer.h"
 
@@ -13,7 +12,7 @@ namespace v8 {
 namespace internal {
 
 DefaultDeserializerAllocator::DefaultDeserializerAllocator(
-    Deserializer<DefaultDeserializerAllocator>* deserializer)
+    Deserializer* deserializer)
     : deserializer_(deserializer) {}
 
 // We know the space requirements before deserialization and can
@@ -121,7 +120,7 @@ HeapObject* DefaultDeserializerAllocator::GetObject(AllocationSpace space,
 }
 
 void DefaultDeserializerAllocator::DecodeReservation(
-    std::vector<SerializedData::Reservation> res) {
+    const std::vector<SerializedData::Reservation>& res) {
   DCHECK_EQ(0, reservations_[FIRST_SPACE].size());
   int current_space = FIRST_SPACE;
   for (auto& r : res) {
@@ -146,74 +145,6 @@ bool DefaultDeserializerAllocator::ReserveSpace() {
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     high_water_[i] = reservations_[i][0].start;
   }
-  return true;
-}
-
-// static
-bool DefaultDeserializerAllocator::ReserveSpace(
-    StartupDeserializer* startup_deserializer,
-    BuiltinDeserializer* builtin_deserializer) {
-  Isolate* isolate = startup_deserializer->isolate();
-
-  // Create a set of merged reservations to reserve space in one go.
-  // The BuiltinDeserializer's reservations are ignored, since our actual
-  // requirements vary based on whether lazy deserialization is enabled.
-  // Instead, we manually determine the required code-space.
-
-  Heap::Reservation merged_reservations[kNumberOfSpaces];
-  for (int i = FIRST_SPACE; i < kNumberOfSpaces; i++) {
-    merged_reservations[i] =
-        startup_deserializer->allocator()->reservations_[i];
-  }
-
-  Heap::Reservation builtin_reservations =
-      builtin_deserializer->allocator()
-          ->CreateReservationsForEagerBuiltinsAndHandlers();
-  DCHECK(!builtin_reservations.empty());
-
-  for (const auto& c : builtin_reservations) {
-    merged_reservations[CODE_SPACE].push_back(c);
-  }
-
-  if (!isolate->heap()->ReserveSpace(
-          merged_reservations,
-          &startup_deserializer->allocator()->allocated_maps_)) {
-    return false;
-  }
-
-  DisallowHeapAllocation no_allocation;
-
-  // Distribute the successful allocations between both deserializers.
-  // There's nothing to be done here except for code space.
-
-  {
-    const int num_builtin_reservations =
-        static_cast<int>(builtin_reservations.size());
-    for (int i = num_builtin_reservations - 1; i >= 0; i--) {
-      const auto& c = merged_reservations[CODE_SPACE].back();
-      DCHECK_EQ(c.size, builtin_reservations[i].size);
-      DCHECK_EQ(c.size, c.end - c.start);
-      builtin_reservations[i].start = c.start;
-      builtin_reservations[i].end = c.end;
-      merged_reservations[CODE_SPACE].pop_back();
-    }
-
-    builtin_deserializer->allocator()->InitializeFromReservations(
-        builtin_reservations);
-  }
-
-  // Write back startup reservations.
-
-  for (int i = FIRST_SPACE; i < kNumberOfSpaces; i++) {
-    startup_deserializer->allocator()->reservations_[i].swap(
-        merged_reservations[i]);
-  }
-
-  for (int i = FIRST_SPACE; i < kNumberOfPreallocatedSpaces; i++) {
-    startup_deserializer->allocator()->high_water_[i] =
-        startup_deserializer->allocator()->reservations_[i][0].start;
-  }
-
   return true;
 }
 

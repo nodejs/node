@@ -21,7 +21,7 @@ BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
       zone_(zone),
       dead_(js_graph->Dead()) {}
 
-BranchElimination::~BranchElimination() {}
+BranchElimination::~BranchElimination() = default;
 
 
 Reduction BranchElimination::Reduce(Node* node) {

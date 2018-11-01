@@ -13,7 +13,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
         kExprI32Const, 0x03,
         kExprNop,
-        kExprGrowMemory, 0x00,
+        kExprMemoryGrow, 0x00,
         kExprI32Const, 0x13,
         kExprNop,
         kExprI32StoreMem8, 0x00, 0x10

@@ -711,8 +711,6 @@ class SlotConstraintTest : public RegisterAllocatorTest,
 
 }  // namespace
 
-#if GTEST_HAS_COMBINE
-
 TEST_P(SlotConstraintTest, SlotConstraint) {
   StartBlock();
   VReg p_0;
@@ -761,8 +759,6 @@ INSTANTIATE_TEST_CASE_P(
     RegisterAllocatorTest, SlotConstraintTest,
     ::testing::Combine(::testing::ValuesIn(kParameterTypes),
                        ::testing::Range(0, SlotConstraintTest::kMaxVariant)));
-
-#endif  // GTEST_HAS_COMBINE
 
 }  // namespace compiler
 }  // namespace internal

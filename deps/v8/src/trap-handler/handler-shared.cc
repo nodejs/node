@@ -5,12 +5,12 @@
 // PLEASE READ BEFORE CHANGING THIS FILE!
 //
 // This file contains code that is used both inside and outside the out of
-// bounds signal handler. Because this code runs in a signal handler context,
+// bounds trap handler. Because this code runs in a trap handler context,
 // use extra care when modifying this file. Here are some rules to follow.
 //
 // 1. Do not introduce any new external dependencies. This file needs
 //    to be self contained so it is easy to audit everything that a
-//    signal handler might do.
+//    trap handler might do.
 //
 // 2. Any changes must be reviewed by someone from the crash reporting
 //    or security team. See OWNERS for suggested reviewers.
@@ -27,21 +27,6 @@ namespace trap_handler {
 // which the dynamic loader cannot handle executables whose TLS area is only
 // 1 byte in size; see https://sourceware.org/bugzilla/show_bug.cgi?id=14898.
 THREAD_LOCAL int g_thread_in_wasm_code;
-
-#if V8_TRAP_HANDLER_SUPPORTED
-// When using the default signal handler, we save the old one to restore in case
-// V8 chooses not to handle the signal.
-struct sigaction g_old_handler;
-bool g_is_default_signal_handler_registered;
-#endif
-
-V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler() {
-#if V8_TRAP_HANDLER_SUPPORTED
-  if (sigaction(SIGSEGV, &g_old_handler, nullptr) == 0) {
-    g_is_default_signal_handler_registered = false;
-  }
-#endif
-}
 
 static_assert(sizeof(g_thread_in_wasm_code) > 1,
               "sizeof(thread_local_var) must be > 1, see "

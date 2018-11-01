@@ -21,7 +21,7 @@ class Isolate;
 namespace interpreter {
 
 // A helper class for constructing exception handler tables for the interpreter.
-class V8_EXPORT_PRIVATE HandlerTableBuilder final BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE HandlerTableBuilder final {
  public:
   explicit HandlerTableBuilder(Zone* zone);
 

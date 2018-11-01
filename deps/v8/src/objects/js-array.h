@@ -5,8 +5,9 @@
 #ifndef V8_OBJECTS_JS_ARRAY_H_
 #define V8_OBJECTS_JS_ARRAY_H_
 
-#include "src/objects.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -62,6 +63,28 @@ class JSArray : public JSObject {
       Isolate* isolate, Handle<JSArray> a, PropertyDescriptor* desc,
       ShouldThrow should_throw);
 
+  // Support for Array.prototype.join().
+  // Writes a fixed array of strings and separators to a single destination
+  // string. This helpers assumes the fixed array encodes separators in two
+  // ways:
+  //   1) Explicitly with a smi, whos value represents the number of repeated
+  //      separators.
+  //   2) Implicitly between two consecutive strings a single separator.
+  //
+  // Here are some input/output examples given the separator string is ',':
+  //
+  //   [1, 'hello', 2, 'world', 1] => ',hello,,world,'
+  //   ['hello', 'world']          => 'hello,world'
+  //
+  // To avoid any allocations, this helper assumes the destination string is the
+  // exact length necessary to write the strings and separators from the fixed
+  // array.
+  static String* ArrayJoinConcatToSequentialString(Isolate* isolate,
+                                                   FixedArray* fixed_array,
+                                                   intptr_t length,
+                                                   String* separator,
+                                                   String* dest);
+
   // Checks whether the Array has the current realm's Array.prototype as its
   // prototype. This function is best-effort and only gives a conservative
   // approximation, erring on the side of false, in particular with respect
@@ -88,6 +111,9 @@ class JSArray : public JSObject {
 
   // This constant is somewhat arbitrary. Any large enough value would work.
   static const uint32_t kMaxFastArrayLength = 32 * 1024 * 1024;
+
+  // Min. stack size for detecting an Array.prototype.join() call cycle.
+  static const uint32_t kMinJoinStackSize = 2;
 
   static const int kInitialMaxFastElementArray =
       (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kSize -

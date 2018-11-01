@@ -121,13 +121,7 @@ class VirtualObject : public Dependable {
   typedef ZoneVector<Variable>::const_iterator const_iterator;
   VirtualObject(VariableTracker* var_states, Id id, int size);
   Maybe<Variable> FieldAt(int offset) const {
-    if (offset % kPointerSize != 0) {
-      // We do not support fields that are not word-aligned. Bail out by
-      // treating the object as escaping. This can only happen for
-      // {Name::kHashFieldOffset} on 64bit big endian architectures.
-      DCHECK_EQ(Name::kHashFieldOffset, offset);
-      return Nothing<Variable>();
-    }
+    CHECK_EQ(0, offset % kPointerSize);
     CHECK(!HasEscaped());
     if (offset >= size()) {
       // TODO(tebbi): Reading out-of-bounds can only happen in unreachable

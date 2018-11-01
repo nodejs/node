@@ -12,8 +12,7 @@
 namespace v8 {
 namespace internal {
 
-DefaultSerializerAllocator::DefaultSerializerAllocator(
-    Serializer<DefaultSerializerAllocator>* serializer)
+DefaultSerializerAllocator::DefaultSerializerAllocator(Serializer* serializer)
     : serializer_(serializer) {
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     pending_chunk_[i] = 0;
@@ -26,7 +25,8 @@ void DefaultSerializerAllocator::UseCustomChunkSize(uint32_t chunk_size) {
 
 static uint32_t PageSizeOfSpace(int space) {
   return static_cast<uint32_t>(
-      MemoryAllocator::PageAreaSize(static_cast<AllocationSpace>(space)));
+      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
+          static_cast<AllocationSpace>(space)));
 }
 
 uint32_t DefaultSerializerAllocator::TargetChunkSize(int space) {

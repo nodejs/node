@@ -13,6 +13,7 @@
 #include "src/mips64/constants-mips64.h"
 #include "src/mips64/macro-assembler-mips64.h"
 #include "src/optimized-compilation-info.h"
+#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {
@@ -87,6 +88,9 @@ class MipsOperandConverter final : public InstructionOperandConverter {
         // TODO(plind): Maybe we should handle ExtRef & HeapObj here?
         //    maybe not done on arm due to const pool ??
         break;
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(titzer): RPO immediates on mips?
         break;
@@ -144,7 +148,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
                        Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode)
+                       RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         index_(index),
@@ -152,30 +156,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
+        stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
-
-  void SaveRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-    __ MultiPush(regs | ra.bit());
-  }
-
-  void RestoreRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-    __ MultiPop(regs | ra.bit());
-  }
 
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
@@ -194,8 +177,16 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       // We need to save and restore ra if the frame was elided.
       __ Push(ra);
     }
-    __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
-                           save_fp_mode);
+    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+      // A direct call to a wasm runtime stub defined in this module.
+      // Just encode the stub index. This will be patched when the code
+      // is added to the native module and copied into wasm code space.
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode, wasm::WasmCode::kWasmRecordWrite);
+    } else {
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode);
+    }
     if (must_save_lr_) {
       __ Pop(ra);
     }
@@ -208,6 +199,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
+  StubCallMode const stub_mode_;
   bool must_save_lr_;
   Zone* zone_;
 };
@@ -349,116 +341,120 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ sync();                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_instr)                                 \
-  do {                                                                   \
-    Label binop;                                                         \
-    __ Daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
-    __ sync();                                                           \
-    __ bind(&binop);                                                     \
-    __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));        \
-    __ bin_instr(i.TempRegister(1), i.OutputRegister(0),                 \
-                 Operand(i.InputRegister(2)));                           \
-    __ Sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));          \
-    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));    \
-    __ sync();                                                           \
+#define ASSEMBLE_ATOMIC_BINOP(load_linked, store_conditional, bin_instr)       \
+  do {                                                                         \
+    Label binop;                                                               \
+    __ Daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ sync();                                                                 \
+    __ bind(&binop);                                                           \
+    __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
+    __ bin_instr(i.TempRegister(1), i.OutputRegister(0),                       \
+                 Operand(i.InputRegister(2)));                                 \
+    __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
+    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));          \
+    __ sync();                                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_BINOP_EXT(sign_extend, size, bin_instr)               \
-  do {                                                                        \
-    Label binop;                                                              \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));      \
-    __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                       \
-    __ Dsubu(i.TempRegister(0), i.TempRegister(0),                            \
-             Operand(i.TempRegister(3)));                                     \
-    __ sll(i.TempRegister(3), i.TempRegister(3), 3);                          \
-    __ sync();                                                                \
-    __ bind(&binop);                                                          \
-    __ Ll(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));               \
-    __ ExtractBits(i.OutputRegister(0), i.TempRegister(1), i.TempRegister(3), \
-                   size, sign_extend);                                        \
-    __ bin_instr(i.TempRegister(2), i.OutputRegister(0),                      \
-                 Operand(i.InputRegister(2)));                                \
-    __ InsertBits(i.TempRegister(1), i.TempRegister(2), i.TempRegister(3),    \
-                  size);                                                      \
-    __ Sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));               \
-    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));         \
-    __ sync();                                                                \
+#define ASSEMBLE_ATOMIC_BINOP_EXT(load_linked, store_conditional, sign_extend, \
+                                  size, bin_instr)                             \
+  do {                                                                         \
+    Label binop;                                                               \
+    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                        \
+    __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
+             Operand(i.TempRegister(3)));                                      \
+    __ sll(i.TempRegister(3), i.TempRegister(3), 3);                           \
+    __ sync();                                                                 \
+    __ bind(&binop);                                                           \
+    __ load_linked(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));       \
+    __ ExtractBits(i.OutputRegister(0), i.TempRegister(1), i.TempRegister(3),  \
+                   size, sign_extend);                                         \
+    __ bin_instr(i.TempRegister(2), i.OutputRegister(0),                       \
+                 Operand(i.InputRegister(2)));                                 \
+    __ InsertBits(i.TempRegister(1), i.TempRegister(2), i.TempRegister(3),     \
+                  size);                                                       \
+    __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
+    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));          \
+    __ sync();                                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER()                               \
-  do {                                                                   \
-    Label exchange;                                                      \
-    __ sync();                                                           \
-    __ bind(&exchange);                                                  \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
-    __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));        \
-    __ mov(i.TempRegister(1), i.InputRegister(2));                       \
-    __ Sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));          \
-    __ BranchShort(&exchange, eq, i.TempRegister(1), Operand(zero_reg)); \
-    __ sync();                                                           \
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_linked, store_conditional)       \
+  do {                                                                         \
+    Label exchange;                                                            \
+    __ sync();                                                                 \
+    __ bind(&exchange);                                                        \
+    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
+    __ mov(i.TempRegister(1), i.InputRegister(2));                             \
+    __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
+    __ BranchShort(&exchange, eq, i.TempRegister(1), Operand(zero_reg));       \
+    __ sync();                                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(sign_extend, size)               \
-  do {                                                                        \
-    Label exchange;                                                           \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));      \
-    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                       \
-    __ Dsubu(i.TempRegister(0), i.TempRegister(0),                            \
-             Operand(i.TempRegister(1)));                                     \
-    __ sll(i.TempRegister(1), i.TempRegister(1), 3);                          \
-    __ sync();                                                                \
-    __ bind(&exchange);                                                       \
-    __ Ll(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));               \
-    __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1), \
-                   size, sign_extend);                                        \
-    __ InsertBits(i.TempRegister(2), i.InputRegister(2), i.TempRegister(1),   \
-                  size);                                                      \
-    __ Sc(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));               \
-    __ BranchShort(&exchange, eq, i.TempRegister(2), Operand(zero_reg));      \
-    __ sync();                                                                \
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(load_linked, store_conditional,   \
+                                             sign_extend, size)                \
+  do {                                                                         \
+    Label exchange;                                                            \
+    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                        \
+    __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
+             Operand(i.TempRegister(1)));                                      \
+    __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
+    __ sync();                                                                 \
+    __ bind(&exchange);                                                        \
+    __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));       \
+    __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
+                   size, sign_extend);                                         \
+    __ InsertBits(i.TempRegister(2), i.InputRegister(2), i.TempRegister(1),    \
+                  size);                                                       \
+    __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
+    __ BranchShort(&exchange, eq, i.TempRegister(2), Operand(zero_reg));       \
+    __ sync();                                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER()                       \
-  do {                                                                   \
-    Label compareExchange;                                               \
-    Label exit;                                                          \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
-    __ sync();                                                           \
-    __ bind(&compareExchange);                                           \
-    __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));        \
-    __ BranchShort(&exit, ne, i.InputRegister(2),                        \
-                   Operand(i.OutputRegister(0)));                        \
-    __ mov(i.TempRegister(2), i.InputRegister(3));                       \
-    __ Sc(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));          \
-    __ BranchShort(&compareExchange, eq, i.TempRegister(2),              \
-                   Operand(zero_reg));                                   \
-    __ bind(&exit);                                                      \
-    __ sync();                                                           \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_linked,                  \
+                                                 store_conditional)            \
+  do {                                                                         \
+    Label compareExchange;                                                     \
+    Label exit;                                                                \
+    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ sync();                                                                 \
+    __ bind(&compareExchange);                                                 \
+    __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
+    __ BranchShort(&exit, ne, i.InputRegister(2),                              \
+                   Operand(i.OutputRegister(0)));                              \
+    __ mov(i.TempRegister(2), i.InputRegister(3));                             \
+    __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
+    __ BranchShort(&compareExchange, eq, i.TempRegister(2),                    \
+                   Operand(zero_reg));                                         \
+    __ bind(&exit);                                                            \
+    __ sync();                                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(sign_extend, size)       \
-  do {                                                                        \
-    Label compareExchange;                                                    \
-    Label exit;                                                               \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));      \
-    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                       \
-    __ Dsubu(i.TempRegister(0), i.TempRegister(0),                            \
-             Operand(i.TempRegister(1)));                                     \
-    __ sll(i.TempRegister(1), i.TempRegister(1), 3);                          \
-    __ sync();                                                                \
-    __ bind(&compareExchange);                                                \
-    __ Ll(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));               \
-    __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1), \
-                   size, sign_extend);                                        \
-    __ BranchShort(&exit, ne, i.InputRegister(2),                             \
-                   Operand(i.OutputRegister(0)));                             \
-    __ InsertBits(i.TempRegister(2), i.InputRegister(3), i.TempRegister(1),   \
-                  size);                                                      \
-    __ Sc(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));               \
-    __ BranchShort(&compareExchange, eq, i.TempRegister(2),                   \
-                   Operand(zero_reg));                                        \
-    __ bind(&exit);                                                           \
-    __ sync();                                                                \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(                          \
+    load_linked, store_conditional, sign_extend, size)                         \
+  do {                                                                         \
+    Label compareExchange;                                                     \
+    Label exit;                                                                \
+    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                        \
+    __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
+             Operand(i.TempRegister(1)));                                      \
+    __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
+    __ sync();                                                                 \
+    __ bind(&compareExchange);                                                 \
+    __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));       \
+    __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
+                   size, sign_extend);                                         \
+    __ BranchShort(&exit, ne, i.InputRegister(2),                              \
+                   Operand(i.OutputRegister(0)));                              \
+    __ InsertBits(i.TempRegister(2), i.InputRegister(3), i.TempRegister(1),    \
+                  size);                                                       \
+    __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
+    __ BranchShort(&compareExchange, eq, i.TempRegister(2),                    \
+                   Operand(zero_reg));                                         \
+    __ bind(&exit);                                                            \
+    __ sync();                                                                 \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                        \
@@ -843,8 +839,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = new (zone()) OutOfLineRecordWrite(this, object, index, value,
-                                                   scratch0, scratch1, mode);
+      auto ool = new (zone())
+          OutOfLineRecordWrite(this, object, index, value, scratch0, scratch1,
+                               mode, DetermineStubCallMode());
       __ Daddu(kScratchReg, object, index);
       __ Sd(value, MemOperand(kScratchReg));
       __ CheckPageFlag(object, scratch0,
@@ -1845,6 +1842,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
       break;
+    case kMips64Word64AtomicLoadUint8:
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lbu);
+      break;
+    case kMips64Word64AtomicLoadUint16:
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lhu);
+      break;
+    case kMips64Word64AtomicLoadUint32:
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lwu);
+      break;
+    case kMips64Word64AtomicLoadUint64:
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ld);
+      break;
     case kWord32AtomicStoreWord8:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sb);
       break;
@@ -1854,55 +1863,110 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
       break;
+    case kMips64Word64AtomicStoreWord8:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sb);
+      break;
+    case kMips64Word64AtomicStoreWord16:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sh);
+      break;
+    case kMips64Word64AtomicStoreWord32:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
+      break;
+    case kMips64Word64AtomicStoreWord64:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sd);
+      break;
     case kWord32AtomicExchangeInt8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 8);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8);
       break;
     case kWord32AtomicExchangeUint8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 8);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8);
       break;
     case kWord32AtomicExchangeInt16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 16);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16);
       break;
     case kWord32AtomicExchangeUint16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 16);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16);
       break;
     case kWord32AtomicExchangeWord32:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER();
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Ll, Sc);
+      break;
+    case kMips64Word64AtomicExchangeUint8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8);
+      break;
+    case kMips64Word64AtomicExchangeUint16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16);
+      break;
+    case kMips64Word64AtomicExchangeUint32:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32);
+      break;
+    case kMips64Word64AtomicExchangeUint64:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
       break;
     case kWord32AtomicCompareExchangeInt8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 8);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8);
       break;
     case kWord32AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 8);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8);
       break;
     case kWord32AtomicCompareExchangeInt16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 16);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16);
       break;
     case kWord32AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 16);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16);
       break;
     case kWord32AtomicCompareExchangeWord32:
       __ sll(i.InputRegister(2), i.InputRegister(2), 0);
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER();
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
       break;
-#define ATOMIC_BINOP_CASE(op, inst)             \
-  case kWord32Atomic##op##Int8:                 \
-    ASSEMBLE_ATOMIC_BINOP_EXT(true, 8, inst);   \
-    break;                                      \
-  case kWord32Atomic##op##Uint8:                \
-    ASSEMBLE_ATOMIC_BINOP_EXT(false, 8, inst);  \
-    break;                                      \
-  case kWord32Atomic##op##Int16:                \
-    ASSEMBLE_ATOMIC_BINOP_EXT(true, 16, inst);  \
-    break;                                      \
-  case kWord32Atomic##op##Uint16:               \
-    ASSEMBLE_ATOMIC_BINOP_EXT(false, 16, inst); \
-    break;                                      \
-  case kWord32Atomic##op##Word32:               \
-    ASSEMBLE_ATOMIC_BINOP(inst);                \
+    case kMips64Word64AtomicCompareExchangeUint8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8);
+      break;
+    case kMips64Word64AtomicCompareExchangeUint16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16);
+      break;
+    case kMips64Word64AtomicCompareExchangeUint32:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32);
+      break;
+    case kMips64Word64AtomicCompareExchangeUint64:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd);
+      break;
+#define ATOMIC_BINOP_CASE(op, inst)                     \
+  case kWord32Atomic##op##Int8:                         \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst);   \
+    break;                                              \
+  case kWord32Atomic##op##Uint8:                        \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst);  \
+    break;                                              \
+  case kWord32Atomic##op##Int16:                        \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst);  \
+    break;                                              \
+  case kWord32Atomic##op##Uint16:                       \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst); \
+    break;                                              \
+  case kWord32Atomic##op##Word32:                       \
+    ASSEMBLE_ATOMIC_BINOP(Ll, Sc, inst);                \
     break;
       ATOMIC_BINOP_CASE(Add, Addu)
       ATOMIC_BINOP_CASE(Sub, Subu)
+      ATOMIC_BINOP_CASE(And, And)
+      ATOMIC_BINOP_CASE(Or, Or)
+      ATOMIC_BINOP_CASE(Xor, Xor)
+#undef ATOMIC_BINOP_CASE
+#define ATOMIC_BINOP_CASE(op, inst)                       \
+  case kMips64Word64Atomic##op##Uint8:                    \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst);  \
+    break;                                                \
+  case kMips64Word64Atomic##op##Uint16:                   \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst); \
+    break;                                                \
+  case kMips64Word64Atomic##op##Uint32:                   \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst); \
+    break;                                                \
+  case kMips64Word64Atomic##op##Uint64:                   \
+    ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst);                \
+    break;
+      ATOMIC_BINOP_CASE(Add, Daddu)
+      ATOMIC_BINOP_CASE(Sub, Dsubu)
       ATOMIC_BINOP_CASE(And, And)
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
@@ -2496,7 +2560,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label all_false;
       __ BranchMSA(&all_false, MSA_BRANCH_V, all_zero,
                    i.InputSimd128Register(0), USE_DELAY_SLOT);
-      __ li(dst, 0);  // branch delay slot
+      __ li(dst, 0l);  // branch delay slot
       __ li(dst, -1);
       __ bind(&all_false);
       break;
@@ -2508,7 +2572,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ BranchMSA(&all_true, MSA_BRANCH_W, all_not_zero,
                    i.InputSimd128Register(0), USE_DELAY_SLOT);
       __ li(dst, -1);  // branch delay slot
-      __ li(dst, 0);
+      __ li(dst, 0l);
       __ bind(&all_true);
       break;
     }
@@ -2519,7 +2583,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ BranchMSA(&all_true, MSA_BRANCH_H, all_not_zero,
                    i.InputSimd128Register(0), USE_DELAY_SLOT);
       __ li(dst, -1);  // branch delay slot
-      __ li(dst, 0);
+      __ li(dst, 0l);
       __ bind(&all_true);
       break;
     }
@@ -2530,7 +2594,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ BranchMSA(&all_true, MSA_BRANCH_B, all_not_zero,
                    i.InputSimd128Register(0), USE_DELAY_SLOT);
       __ li(dst, -1);  // branch delay slot
-      __ li(dst, 0);
+      __ li(dst, 0l);
       __ bind(&all_true);
       break;
     }
@@ -3174,6 +3238,8 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
   }
 }
 
+#undef UNSUPPORTED_COND
+
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
                                             BranchInfo* branch) {
   AssembleArchBranch(instr, branch);
@@ -3216,7 +3282,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       } else {
         gen_->AssembleSourcePosition(instr_);
         // A direct call to a wasm runtime stub defined in this module.
-        // Just encode the stub index. This will be patched at relocation.
+        // Just encode the stub index. This will be patched when the code
+        // is added to the native module and copied into wasm code space.
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
@@ -3467,6 +3534,16 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {
         __ Push(kWasmInstanceRegister);
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        // WASM import wrappers are passed a tuple in the place of the instance.
+        // Unpack the tuple into the instance and the target callable.
+        // This must be done here in the codegen because it cannot be expressed
+        // properly in the graph.
+        __ ld(kJSFunctionRegister,
+              FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ ld(kWasmInstanceRegister,
+              FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+        __ Push(kWasmInstanceRegister);
       }
     }
   }
@@ -3621,9 +3698,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kExternalReference:
           __ li(dst, src.ToExternalReference());
           break;
+        case Constant::kDelayedStringConstant:
+          __ li(dst, src.ToDelayedStringConstant());
+          break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
-          Heap::RootListIndex index;
+          RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {
@@ -3823,6 +3903,19 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   UNREACHABLE();
 }
 
+#undef ASSEMBLE_ATOMIC_LOAD_INTEGER
+#undef ASSEMBLE_ATOMIC_STORE_INTEGER
+#undef ASSEMBLE_ATOMIC_BINOP
+#undef ASSEMBLE_ATOMIC_BINOP_EXT
+#undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER
+#undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT
+#undef ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER
+#undef ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT
+#undef ASSEMBLE_IEEE754_BINOP
+#undef ASSEMBLE_IEEE754_UNOP
+
+#undef TRACE_MSG
+#undef TRACE_UNIMPL
 #undef __
 
 }  // namespace compiler

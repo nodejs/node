@@ -1,0 +1,5 @@
+*%(basename)s:8: ReferenceError: foo is not defined
+  [foo()] = 1;
+   ^
+ReferenceError: foo is not defined
+    at *%(basename)s:8:4

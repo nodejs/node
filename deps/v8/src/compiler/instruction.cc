@@ -583,13 +583,20 @@ Constant::Constant(RelocatablePtrConstantInfo info) {
 Handle<HeapObject> Constant::ToHeapObject() const {
   DCHECK_EQ(kHeapObject, type());
   Handle<HeapObject> value(
-      bit_cast<HeapObject**>(static_cast<intptr_t>(value_)));
+      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   return value;
 }
 
 Handle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<Code> value(bit_cast<Code**>(static_cast<intptr_t>(value_)));
+  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  return value;
+}
+
+const StringConstantBase* Constant::ToDelayedStringConstant() const {
+  DCHECK_EQ(kDelayedStringConstant, type());
+  const StringConstantBase* value =
+      bit_cast<StringConstantBase*>(static_cast<intptr_t>(value_));
   return value;
 }
 
@@ -609,6 +616,9 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
       return os << Brief(*constant.ToHeapObject());
     case Constant::kRpoNumber:
       return os << "RPO" << constant.ToRpoNumber().ToInt();
+    case Constant::kDelayedStringConstant:
+      return os << "DelayedStringConstant: "
+                << constant.ToDelayedStringConstant();
   }
   UNREACHABLE();
 }
@@ -942,7 +952,7 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
   DCHECK_IMPLIES(representations_[virtual_register] != rep,
                  representations_[virtual_register] == DefaultRepresentation());
   representations_[virtual_register] = rep;
-  representation_mask_ |= 1 << static_cast<int>(rep);
+  representation_mask_ |= RepresentationBit(rep);
 }
 
 int InstructionSequence::AddDeoptimizationEntry(

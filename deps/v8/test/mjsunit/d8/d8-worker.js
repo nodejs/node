@@ -97,7 +97,21 @@ if (this.Worker) {
     return ab;
   }
 
-  var w = new Worker(workerScript);
+  assertThrows(function() {
+    // Second arg must be 'options' object
+    new Worker(workerScript, 123);
+  });
+
+  assertThrows(function() {
+    new Worker('test/mjsunit/d8/d8-worker.js', {type: 'invalid'});
+  });
+
+  assertThrows(function() {
+    // worker type defaults to 'classic' which tries to load from file
+    new Worker(workerScript);
+  });
+
+  var w = new Worker(workerScript, {type: 'string'});
 
   assertEquals("Starting worker", w.getMessage());
 
@@ -140,6 +154,12 @@ if (this.Worker) {
   w.postMessage(ab2, [ab2]);
   assertEquals(0, ab2.byteLength);  // ArrayBuffer should be neutered.
 
+  // Attempting to transfer the same ArrayBuffer twice should throw.
+  assertThrows(function() {
+    var ab3 = createArrayBuffer(4);
+    w.postMessage(ab3, [ab3, ab3]);
+  });
+
   assertEquals("undefined", typeof foo);
 
   // Read a message from the worker.
@@ -150,7 +170,7 @@ if (this.Worker) {
 
   // Make sure that the main thread doesn't block forever in getMessage() if
   // the worker dies without posting a message.
-  var w2 = new Worker('');
+  var w2 = new Worker('', {type: 'string'});
   var msg = w2.getMessage();
   assertEquals(undefined, msg);
 }

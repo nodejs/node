@@ -120,9 +120,10 @@ class V8InspectorImpl : public V8Inspector {
   InspectedContext* getContext(int contextId) const;
   V8Console* console();
   void forEachContext(int contextGroupId,
-                      std::function<void(InspectedContext*)> callback);
-  void forEachSession(int contextGroupId,
-                      std::function<void(V8InspectorSessionImpl*)> callback);
+                      const std::function<void(InspectedContext*)>& callback);
+  void forEachSession(
+      int contextGroupId,
+      const std::function<void(V8InspectorSessionImpl*)>& callback);
 
   class EvaluateScope {
    public:

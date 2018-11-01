@@ -54,7 +54,7 @@ std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
                           decoding_result.error_msg().c_str());
   }
 
-  return std::move(decoding_result.val);
+  return std::move(decoding_result).value();
 }
 
 bool InterpretWasmModuleForTesting(Isolate* isolate,

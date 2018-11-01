@@ -135,7 +135,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
   base::Optional<ContextRef> maybe_concrete =
-      GetSpecializationContext(js_heap_broker(), context, &depth, outer());
+      GetSpecializationContext(broker(), context, &depth, outer());
   if (!maybe_concrete.has_value()) {
     // We do not have a concrete context object, so we can only partially reduce
     // the load by folding-in the outer context node.
@@ -144,8 +144,9 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
 
   // Now walk up the concrete context chain for the remaining depth.
   ContextRef concrete = maybe_concrete.value();
+  concrete.Serialize();  // TODO(neis): Remove later.
   for (; depth > 0; --depth) {
-    concrete = concrete.previous().value();
+    concrete = concrete.previous();
   }
 
   if (!access.immutable()) {
@@ -164,7 +165,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
     // We must be conservative and check if the value in the slot is currently
     // the hole or undefined. Only if it is neither of these, can we be sure
     // that it won't change anymore.
-    OddballType oddball_type = maybe_value->oddball_type();
+    OddballType oddball_type = maybe_value->AsHeapObject().map().oddball_type();
     if (oddball_type == OddballType::kUndefined ||
         oddball_type == OddballType::kHole) {
       maybe_value.reset();
@@ -196,7 +197,7 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
   base::Optional<ContextRef> maybe_concrete =
-      GetSpecializationContext(js_heap_broker(), context, &depth, outer());
+      GetSpecializationContext(broker(), context, &depth, outer());
   if (!maybe_concrete.has_value()) {
     // We do not have a concrete context object, so we can only partially reduce
     // the load by folding-in the outer context node.
@@ -205,8 +206,9 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
 
   // Now walk up the concrete context chain for the remaining depth.
   ContextRef concrete = maybe_concrete.value();
+  concrete.Serialize();  // TODO(neis): Remove later.
   for (; depth > 0; --depth) {
-    concrete = concrete.previous().value();
+    concrete = concrete.previous();
   }
 
   return SimplifyJSStoreContext(node, jsgraph()->Constant(concrete), depth);

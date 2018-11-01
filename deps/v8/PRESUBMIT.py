@@ -73,9 +73,10 @@ def _V8PresubmitChecks(input_api, output_api):
   import sys
   sys.path.append(input_api.os_path.join(
         input_api.PresubmitLocalPath(), 'tools'))
-  from presubmit import CppLintProcessor
-  from presubmit import SourceProcessor
-  from presubmit import StatusFilesProcessor
+  from v8_presubmit import CppLintProcessor
+  from v8_presubmit import TorqueFormatProcessor
+  from v8_presubmit import SourceProcessor
+  from v8_presubmit import StatusFilesProcessor
 
   def FilterFile(affected_file):
     return input_api.FilterSourceFile(
@@ -83,10 +84,19 @@ def _V8PresubmitChecks(input_api, output_api):
       white_list=None,
       black_list=_NO_LINT_PATHS)
 
+  def FilterTorqueFile(affected_file):
+    return input_api.FilterSourceFile(
+      affected_file,
+      white_list=(r'.+\.tq'))
+
   results = []
   if not CppLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterFile, include_deletes=False)):
     results.append(output_api.PresubmitError("C++ lint check failed"))
+  if not TorqueFormatProcessor().RunOnFiles(
+      input_api.AffectedFiles(file_filter=FilterTorqueFile,
+                              include_deletes=False)):
+    results.append(output_api.PresubmitError("Torque format check failed"))
   if not SourceProcessor().RunOnFiles(
       input_api.AffectedFiles(include_deletes=False)):
     results.append(output_api.PresubmitError(
@@ -448,19 +458,3 @@ def CheckChangeOnCommit(input_api, output_api):
         input_api, output_api,
         json_url='http://v8-status.appspot.com/current?format=json'))
   return results
-
-def PostUploadHook(cl, change, output_api):
-  """git cl upload will call this hook after the issue is created/modified.
-
-  This hook adds a noi18n bot if the patch affects Intl.
-  """
-  def affects_intl(f):
-    return 'intl' in f.LocalPath() or 'test262' in f.LocalPath()
-  if not change.AffectedFiles(file_filter=affects_intl):
-    return []
-  return output_api.EnsureCQIncludeTrybotsAreAdded(
-      cl,
-      [
-        'luci.v8.try:v8_linux_noi18n_rel_ng'
-      ],
-      'Automatically added noi18n trybots to run tests on CQ.')

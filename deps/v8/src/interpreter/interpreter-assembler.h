@@ -270,9 +270,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   void ToNumberOrNumeric(Object::Conversion mode);
 
-  // Lazily deserializes the current bytecode's handler and tail-calls into it.
-  void DeserializeLazyAndDispatch();
-
  private:
   // Returns a tagged pointer to the current function's BytecodeArray object.
   compiler::Node* BytecodeArrayTaggedPointer();

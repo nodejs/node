@@ -44,6 +44,7 @@
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/ppc/assembler-ppc-inl.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -211,6 +212,13 @@ Operand Operand::EmbeddedCode(CodeStub* stub) {
   return result;
 }
 
+Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(str);
+  return result;
+}
+
 MemOperand::MemOperand(Register rn, int32_t offset)
     : ra_(rn), offset_(offset), rb_(no_reg) {}
 
@@ -218,22 +226,30 @@ MemOperand::MemOperand(Register ra, Register rb)
     : ra_(ra), offset_(0), rb_(rb) {}
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
     switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber:
+      case HeapObjectRequest::kHeapNumber: {
         object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         break;
-      case HeapObjectRequest::kCodeStub:
+      }
+      case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
         object = request.code_stub()->GetCode();
         break;
+      }
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        object = str->AllocateStringConstant(isolate);
+        break;
+      }
     }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     Address constant_pool = kNullAddress;
-    set_target_address_at(pc, constant_pool,
-                          reinterpret_cast<Address>(object.location()),
+    set_target_address_at(pc, constant_pool, object.address(),
                           SKIP_ICACHE_FLUSH);
   }
 }
@@ -2070,13 +2086,7 @@ void Assembler::dp(uintptr_t data) {
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  if (options().disable_reloc_info_for_patching) return;
-  if (RelocInfo::IsNone(rmode) ||
-      // Don't record external references unless the heap will be serialized.
-      (RelocInfo::IsOnlyForSerializer(rmode) &&
-       !options().record_reloc_info_for_serialization && !emit_debug_code())) {
-    return;
-  }
+  if (!ShouldRecordRelocInfo(rmode)) return;
   DeferredRelocInfo rinfo(pc_offset(), rmode, data);
   relocations_.push_back(rinfo);
 }

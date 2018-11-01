@@ -41,31 +41,29 @@ const char* GetIcuStyleString(JSListFormat::Style style,
           return kStandard;
         case JSListFormat::Style::SHORT:
           return kStandardShort;
+        // NARROW is now not allowed if type is not unit
+        // It is impossible to reach because we've already thrown a RangeError
+        // when style is "narrow" and type is not "unit".
         case JSListFormat::Style::NARROW:
-          // Currently, ListFormat::createInstance on "standard-narrow" will
-          // fail so we use "standard-short" here.
-          // See https://unicode.org/cldr/trac/ticket/11254
-          // TODO(ftang): change to return kStandardNarrow; after the above
-          // issue fixed in CLDR/ICU.
-          // CLDR bug: https://unicode.org/cldr/trac/ticket/11254
-          // ICU bug: https://unicode-org.atlassian.net/browse/ICU-20014
-          return kStandardShort;
         case JSListFormat::Style::COUNT:
           UNREACHABLE();
       }
     case JSListFormat::Type::DISJUNCTION:
       switch (style) {
-        // Currently, ListFormat::createInstance on "or-short" and "or-narrow"
+        // Currently, ListFormat::createInstance on "or-short"
         // will fail so we use "or" here.
         // See https://unicode.org/cldr/trac/ticket/11254
-        // TODO(ftang): change to return kOr, kOrShort or kOrNarrow depend on
+        // TODO(ftang): change to return kOr or kOrShort depend on
         // style after the above issue fixed in CLDR/ICU.
         // CLDR bug: https://unicode.org/cldr/trac/ticket/11254
         // ICU bug: https://unicode-org.atlassian.net/browse/ICU-20014
         case JSListFormat::Style::LONG:
         case JSListFormat::Style::SHORT:
-        case JSListFormat::Style::NARROW:
           return kOr;
+        // NARROW is now not allowed if type is not unit
+        // It is impossible to reach because we've already thrown a RangeError
+        // when style is "narrow" and type is not "unit".
+        case JSListFormat::Style::NARROW:
         case JSListFormat::Style::COUNT:
           UNREACHABLE();
       }
@@ -119,26 +117,35 @@ JSListFormat::Type get_type(const char* str) {
   UNREACHABLE();
 }
 
-MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
+MaybeHandle<JSListFormat> JSListFormat::Initialize(
     Isolate* isolate, Handle<JSListFormat> list_format_holder,
-    Handle<Object> input_locales, Handle<Object> input_options) {
-  Factory* factory = isolate->factory();
+    Handle<Object> locales, Handle<Object> input_options) {
   list_format_holder->set_flags(0);
 
   Handle<JSReceiver> options;
-  // 2. If options is undefined, then
+  // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  Maybe<std::vector<std::string>> maybe_requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales);
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSListFormat>());
+  std::vector<std::string> requested_locales =
+      maybe_requested_locales.FromJust();
+
+  // 4. If options is undefined, then
   if (input_options->IsUndefined(isolate)) {
-    // a. Let options be ObjectCreate(null).
+    // 4. a. Let options be ObjectCreate(null).
     options = isolate->factory()->NewJSObjectWithNullProto();
-    // 3. Else
+    // 5. Else
   } else {
-    // a. Let options be ? ToObject(options).
+    // 5. a. Let options be ? ToObject(options).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                                Object::ToObject(isolate, input_options),
                                JSListFormat);
   }
 
-  // 5. Let t be GetOption(options, "type", "string", «"conjunction",
+  // Note: No need to create a record. It's not observable.
+  // 6. Let opt be a new Record.
+
+  // 7. Let t be GetOption(options, "type", "string", «"conjunction",
   //    "disjunction", "unit"», "conjunction").
   std::unique_ptr<char[]> type_str = nullptr;
   std::vector<const char*> type_values = {"conjunction", "disjunction", "unit"};
@@ -150,10 +157,11 @@ MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
     DCHECK_NOT_NULL(type_str.get());
     type_enum = get_type(type_str.get());
   }
-  // 6. Set listFormat.[[Type]] to t.
+
+  // 8. Set listFormat.[[Type]] to t.
   list_format_holder->set_type(type_enum);
 
-  // 7. Let s be ? GetOption(options, "style", "string",
+  // 9. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   std::unique_ptr<char[]> style_str = nullptr;
   std::vector<const char*> style_values = {"long", "short", "narrow"};
@@ -165,28 +173,36 @@ MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
     DCHECK_NOT_NULL(style_str.get());
     style_enum = get_style(style_str.get());
   }
-  // 15. Set listFormat.[[Style]] to s.
+  // 10. Set listFormat.[[Style]] to s.
   list_format_holder->set_style(style_enum);
 
-  // 10. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
+  // 12. Let matcher be ? GetOption(options, "localeMatcher", "string", «
+  // "lookup", "best fit" », "best fit").
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, "Intl.ListFormat");
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSListFormat>());
+  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
+
+  // 14. If style is "narrow" and type is not "unit", throw a RangeError
+  // exception.
+  if (style_enum == Style::NARROW && type_enum != Type::UNIT) {
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kIllegalTypeWhileStyleNarrow),
+        JSListFormat);
+  }
+
+  // 15. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "listformat", input_locales, options),
-      JSListFormat);
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
+                          requested_locales, matcher, {});
 
-  Handle<Object> locale_obj =
-      JSObject::GetDataProperty(r, factory->locale_string());
-  Handle<String> locale;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, locale, Object::ToString(isolate, locale_obj), JSListFormat);
+  // 24. Set listFormat.[[Locale]] to r.[[Locale]].
+  Handle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  list_format_holder->set_locale(*locale_str);
 
-  // 18. Set listFormat.[[Locale]] to the value of r.[[Locale]].
-  list_format_holder->set_locale(*locale);
-
-  std::unique_ptr<char[]> locale_name = locale->ToCString();
-  icu::Locale icu_locale(locale_name.get());
+  icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
   icu::ListFormatter* formatter = icu::ListFormatter::createInstance(
       icu_locale, GetIcuStyleString(style_enum, type_enum), status);
@@ -199,27 +215,32 @@ MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
   Handle<Managed<icu::ListFormatter>> managed_formatter =
       Managed<icu::ListFormatter>::FromRawPtr(isolate, 0, formatter);
 
-  list_format_holder->set_formatter(*managed_formatter);
+  list_format_holder->set_icu_formatter(*managed_formatter);
   return list_format_holder;
 }
 
+// ecma402 #sec-intl.pluralrules.prototype.resolvedoptions
 Handle<JSObject> JSListFormat::ResolvedOptions(
     Isolate* isolate, Handle<JSListFormat> format_holder) {
   Factory* factory = isolate->factory();
+  // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+
+  // 5.  For each row of Table 1, except the header row, do
+  //  Table 1: Resolved Options of ListFormat Instances
+  //  Internal Slot    Property
+  //  [[Locale]]       "locale"
+  //  [[Type]]         "type"
+  //  [[Style]]        "style"
   Handle<String> locale(format_holder->locale(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
-  JSObject::AddProperty(isolate, result, factory->style_string(),
-                        format_holder->StyleAsString(), NONE);
   JSObject::AddProperty(isolate, result, factory->type_string(),
                         format_holder->TypeAsString(), NONE);
+  JSObject::AddProperty(isolate, result, factory->style_string(),
+                        format_holder->StyleAsString(), NONE);
+  // 6. Return options.
   return result;
-}
-
-icu::ListFormatter* JSListFormat::UnpackFormatter(Isolate* isolate,
-                                                  Handle<JSListFormat> holder) {
-  return Managed<icu::ListFormatter>::cast(holder->formatter())->raw();
 }
 
 Handle<String> JSListFormat::StyleAsString() const {
@@ -332,13 +353,7 @@ Maybe<bool> ToUnicodeStringArray(Isolate* isolate, Handle<JSArray> array,
   }
   for (uint32_t i = 0; i < length; i++) {
     Handle<String> string = Handle<String>::cast(accessor->Get(array, i));
-    DisallowHeapAllocation no_gc;
-    string = String::Flatten(isolate, string);
-    std::unique_ptr<uc16[]> sap;
-    items[i] =
-        icu::UnicodeString(GetUCharBufferFromFlat(string->GetFlatContent(),
-                                                  &sap, string->length()),
-                           string->length());
+    items[i] = Intl::ToICUUnicodeString(isolate, string);
   }
   return Just(true);
 }
@@ -352,8 +367,7 @@ Maybe<bool> FormatListCommon(Isolate* isolate,
                              std::unique_ptr<icu::UnicodeString[]>& array) {
   DCHECK(!list->IsUndefined());
 
-  icu::ListFormatter* formatter =
-      JSListFormat::UnpackFormatter(isolate, format_holder);
+  icu::ListFormatter* formatter = format_holder->icu_formatter()->raw();
   CHECK_NOT_NULL(formatter);
 
   *length = list->GetElementsAccessor()->NumberOfElements(*list);
@@ -395,6 +409,17 @@ MaybeHandle<JSArray> JSListFormat::FormatListToParts(
       FormatListCommon(isolate, format_holder, list, formatted, &length, array),
       Handle<JSArray>());
   return GenerateListFormatParts(isolate, formatted, array.get(), length);
+}
+
+std::set<std::string> JSListFormat::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  // TODO(ftang): for now just use
+  // icu::Locale::getAvailableLocales(count) until we migrate to
+  // Intl::GetAvailableLocales().
+  // ICU FR at https://unicode-org.atlassian.net/browse/ICU-20015
+  const icu::Locale* icu_available_locales =
+      icu::Locale::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
 }  // namespace internal

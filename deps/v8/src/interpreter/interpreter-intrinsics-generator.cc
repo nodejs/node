@@ -159,12 +159,6 @@ Node* IntrinsicsGenerator::IsArray(
   return IsInstanceType(input, JS_ARRAY_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSProxy(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_PROXY_TYPE);
-}
-
 Node* IntrinsicsGenerator::IsTypedArray(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* input = __ LoadRegisterFromRegisterList(args, 0);
@@ -212,26 +206,6 @@ Node* IntrinsicsGenerator::HasProperty(
       args, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
 }
 
-Node* IntrinsicsGenerator::GetProperty(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kGetProperty));
-}
-
-Node* IntrinsicsGenerator::RejectPromise(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context,
-      Builtins::CallableFor(isolate(), Builtins::kRejectPromise));
-}
-
-Node* IntrinsicsGenerator::ResolvePromise(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context,
-      Builtins::CallableFor(isolate(), Builtins::kResolvePromise));
-}
-
 Node* IntrinsicsGenerator::ToString(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
@@ -242,18 +216,6 @@ Node* IntrinsicsGenerator::ToLength(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
       args, context, Builtins::CallableFor(isolate(), Builtins::kToLength));
-}
-
-Node* IntrinsicsGenerator::ToInteger(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kToInteger));
-}
-
-Node* IntrinsicsGenerator::ToNumber(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kToNumber));
 }
 
 Node* IntrinsicsGenerator::ToObject(
@@ -336,15 +298,6 @@ Node* IntrinsicsGenerator::CreateJSGeneratorObject(
                                 Builtins::kCreateGeneratorObject);
 }
 
-Node* IntrinsicsGenerator::GeneratorGetInputOrDebugPos(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* generator = __ LoadRegisterFromRegisterList(args, 0);
-  Node* const value =
-      __ LoadObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset);
-
-  return value;
-}
-
 Node* IntrinsicsGenerator::GeneratorGetResumeMode(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* generator = __ LoadRegisterFromRegisterList(args, 0);
@@ -383,6 +336,45 @@ Node* IntrinsicsGenerator::GetImportMetaObject(
 
   __ BIND(&end);
   return return_value.value();
+}
+
+Node* IntrinsicsGenerator::AsyncFunctionAwaitCaught(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context,
+                                Builtins::kAsyncFunctionAwaitCaught);
+}
+
+Node* IntrinsicsGenerator::AsyncFunctionAwaitUncaught(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context,
+                                Builtins::kAsyncFunctionAwaitUncaught);
+}
+
+Node* IntrinsicsGenerator::AsyncFunctionEnter(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncFunctionEnter);
+}
+
+Node* IntrinsicsGenerator::AsyncFunctionReject(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncFunctionReject);
+}
+
+Node* IntrinsicsGenerator::AsyncFunctionResolve(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncFunctionResolve);
+}
+
+Node* IntrinsicsGenerator::AsyncGeneratorAwaitCaught(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context,
+                                Builtins::kAsyncGeneratorAwaitCaught);
+}
+
+Node* IntrinsicsGenerator::AsyncGeneratorAwaitUncaught(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context,
+                                Builtins::kAsyncGeneratorAwaitUncaught);
 }
 
 Node* IntrinsicsGenerator::AsyncGeneratorReject(

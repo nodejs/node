@@ -16,7 +16,7 @@ namespace internal {
 StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {
   // Ensure the nullptr (aka Smi::kZero) which StubCache::Get() returns
   // when the entry is not found is not considered as a handler.
-  DCHECK(!IC::IsHandler(nullptr));
+  DCHECK(!IC::IsHandler(MaybeObject()));
 }
 
 void StubCache::Initialize() {
@@ -58,27 +58,27 @@ int StubCache::SecondaryOffset(Name* name, int seed) {
 namespace {
 
 bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
-                           MaybeObject* handler) {
+                           MaybeObject handler) {
   // Validate that the name and handler do not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
   DCHECK(!Heap::InNewSpace(name));
   DCHECK(!Heap::InNewSpace(handler));
   DCHECK(name->IsUniqueName());
   DCHECK(name->HasHashCode());
-  if (handler) DCHECK(IC::IsHandler(handler));
+  if (handler->ptr() != kNullAddress) DCHECK(IC::IsHandler(handler));
   return true;
 }
 
 }  // namespace
 #endif
 
-MaybeObject* StubCache::Set(Name* name, Map* map, MaybeObject* handler) {
+void StubCache::Set(Name* name, Map* map, MaybeObject handler) {
   DCHECK(CommonStubCacheChecks(this, name, map, handler));
 
   // Compute the primary entry.
   int primary_offset = PrimaryOffset(name, map);
   Entry* primary = entry(primary_, primary_offset);
-  MaybeObject* old_handler = primary->value;
+  MaybeObject old_handler(primary->value);
 
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
@@ -93,41 +93,40 @@ MaybeObject* StubCache::Set(Name* name, Map* map, MaybeObject* handler) {
 
   // Update primary cache.
   primary->key = name;
-  primary->value = handler;
+  primary->value = handler.ptr();
   primary->map = map;
   isolate()->counters()->megamorphic_stub_cache_updates()->Increment();
-  return handler;
 }
 
-MaybeObject* StubCache::Get(Name* name, Map* map) {
-  DCHECK(CommonStubCacheChecks(this, name, map, nullptr));
+MaybeObject StubCache::Get(Name* name, Map* map) {
+  DCHECK(CommonStubCacheChecks(this, name, map, MaybeObject()));
   int primary_offset = PrimaryOffset(name, map);
   Entry* primary = entry(primary_, primary_offset);
   if (primary->key == name && primary->map == map) {
-    return primary->value;
+    return MaybeObject(primary->value);
   }
   int secondary_offset = SecondaryOffset(name, primary_offset);
   Entry* secondary = entry(secondary_, secondary_offset);
   if (secondary->key == name && secondary->map == map) {
-    return secondary->value;
+    return MaybeObject(secondary->value);
   }
-  return nullptr;
+  return MaybeObject();
 }
 
 
 void StubCache::Clear() {
-  MaybeObject* empty = MaybeObject::FromObject(
+  MaybeObject empty = MaybeObject::FromObject(
       isolate_->builtins()->builtin(Builtins::kIllegal));
   Name* empty_string = ReadOnlyRoots(isolate()).empty_string();
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = empty_string;
     primary_[i].map = nullptr;
-    primary_[i].value = empty;
+    primary_[i].value = empty.ptr();
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = empty_string;
     secondary_[j].map = nullptr;
-    secondary_[j].value = empty;
+    secondary_[j].value = empty.ptr();
   }
 }
 

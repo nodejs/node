@@ -13,13 +13,14 @@ namespace torque {
 
 Signature FileVisitor::MakeSignature(const CallableNodeSignature* signature) {
   LabelDeclarationVector definition_vector;
-  for (auto label : signature->labels) {
+  for (const auto& label : signature->labels) {
     LabelDeclaration def = {label.name, GetTypeVector(label.types)};
     definition_vector.push_back(def);
   }
   Signature result{signature->parameters.names,
                    {GetTypeVector(signature->parameters.types),
                     signature->parameters.has_varargs},
+                   signature->parameters.implicit_count,
                    declarations()->GetType(signature->return_type),
                    definition_vector};
   return result;
@@ -27,7 +28,8 @@ Signature FileVisitor::MakeSignature(const CallableNodeSignature* signature) {
 
 Signature FileVisitor::MakeSignatureFromReturnType(
     TypeExpression* return_type) {
-  Signature result{{}, {{}, false}, declarations()->GetType(return_type), {}};
+  Signature result{
+      {}, {{}, false}, 0, declarations()->GetType(return_type), {}};
   return result;
 }
 
