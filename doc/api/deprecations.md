@@ -2301,7 +2301,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-The undocumented `tlsSocket.ssl` property has been deprecated.
+`tlsSocket.ssl` is deprecated.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
