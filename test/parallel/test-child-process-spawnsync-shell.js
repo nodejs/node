@@ -67,7 +67,7 @@ assert.strictEqual(env.stdout.toString().trim(), 'buzz');
       assert.strictEqual(opts.options.shell, shell);
       assert.strictEqual(opts.options.file, opts.file);
       assert.deepStrictEqual(opts.options.args, opts.args);
-      assert.strictEqual(opts.options.windowsHide, true);
+      assert.strictEqual(opts.options.windowsHide, undefined);
       assert.strictEqual(opts.options.windowsVerbatimArguments,
                          windowsVerbatim);
     });
