@@ -310,27 +310,7 @@ functions worked correctly with the `beforeExit` event, then it might be named
 
 ### Web Platform Tests
 
-Some of the tests for the WHATWG URL implementation (named
-`test-whatwg-url-*.js`) are imported from the [Web Platform Tests Project][].
-These imported tests will be wrapped like this:
-
-```js
-/* The following tests are copied from WPT. Modifications to them should be
-   upstreamed first. Refs:
-   https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-stringifier.html
-   License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
-*/
-/* eslint-disable */
-
-// Test code
-
-/* eslint-enable */
-```
-
-To improve tests that have been imported this way, please send
-a PR to the upstream project first. When the proposed change is merged in
-the upstream project, send another PR here to update Node.js accordingly.
-Be sure to update the hash in the URL following `WPT Refs:`.
+See [`test/wpt`](../../test/wpt/README.md) for more information.
 
 ## C++ Unit test
 
@@ -418,7 +398,6 @@ To generate a test coverage report, see the
 
 [ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
-[Web Platform Tests Project]: https://github.com/w3c/web-platform-tests/tree/master/url
 [`common` module]: https://github.com/nodejs/node/blob/master/test/common/README.md
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
