@@ -1,4 +1,5 @@
 # Security
+
 If you find a security vulnerability in Node.js, please report it to
 security@nodejs.org. Please withhold public disclosure until after the security
 team has addressed the vulnerability.
@@ -10,7 +11,6 @@ There are no hard and fast rules to determine if a bug is worth reporting as a
 security issue. Here are some examples of past issues and what the Security
 Response Team thinks of them. When in doubt, please do send us a report
 nonetheless.
-
 
 ## Public disclosure preferred
 

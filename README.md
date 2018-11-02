@@ -159,7 +159,8 @@ source and a list of supported platforms.
 
 ## Security
 
-For information about security of the Node.js project, see [Seucrity.md](https://github.com/nodejs/node/blob/master/SECURITY.md).
+For information on reporting security vulnerabilities in Node.js, see
+[SECURITY.md](./SECURITY.md).
 
 ## Current Project Team Members
 
