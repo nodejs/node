@@ -10,14 +10,14 @@ let v8;
 let napi;
 
 try {
-  v8 = require('./build/Release/binding');
+  v8 = require(`./build/${common.buildType}/binding`);
 } catch {
   console.error(`${__filename}: V8 Binding failed to load`);
   process.exit(0);
 }
 
 try {
-  napi = require('./build/Release/napi_binding');
+  napi = require(`./build/${common.buildType}/napi_binding`);
 } catch {
   console.error(`${__filename}: NAPI-Binding failed to load`);
   process.exit(0);
