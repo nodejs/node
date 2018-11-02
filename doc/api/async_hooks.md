@@ -276,8 +276,8 @@ require('net').createServer((conn) => {}).listen(8080);
 Output when hitting the server with `nc localhost 8080`:
 
 ```console
-TCPSERVERWRAP(2): trigger: 1 execution: 1
-TCPWRAP(4): trigger: 2 execution: 0
+TCPSERVERWRAP(5): trigger: 1 execution: 1
+TCPWRAP(7): trigger: 5 execution: 0
 ```
 
 The `TCPSERVERWRAP` is the server which receives the connections.
@@ -354,27 +354,18 @@ require('net').createServer(() => {}).listen(8080, () => {
 Output from only starting the server:
 
 ```console
-TCPSERVERWRAP(2): trigger: 1 execution: 1
-TickObject(3): trigger: 2 execution: 1
-before:  3
-  Timeout(4): trigger: 3 execution: 3
-  TIMERWRAP(5): trigger: 3 execution: 3
-after:   3
-destroy: 3
-before:  5
-  before:  4
-    TTYWRAP(6): trigger: 4 execution: 4
-    SIGNALWRAP(7): trigger: 4 execution: 4
-    TTYWRAP(8): trigger: 4 execution: 4
->>> 4
-    TickObject(9): trigger: 4 execution: 4
-  after:   4
-after:   5
-before:  9
-after:   9
-destroy: 4
-destroy: 9
-destroy: 5
+TCPSERVERWRAP(5): trigger: 1 execution: 1
+TickObject(6): trigger: 5 execution: 1
+before:  6
+  Timeout(7): trigger: 6 execution: 6
+after:   6
+destroy: 6
+before:  7
+>>> 7
+  TickObject(8): trigger: 7 execution: 7
+after:   7
+before:  8
+after:   8
 ```
 
 As illustrated in the example, `executionAsyncId()` and `execution` each specify
@@ -384,7 +375,7 @@ the value of the current execution context; which is delineated by calls to
 Only using `execution` to graph resource allocation results in the following:
 
 ```console
-TTYWRAP(6) -> Timeout(4) -> TIMERWRAP(5) -> TickObject(3) -> root(1)
+Timeout(7) -> TickObject(6) -> root(1)
 ```
 
 The `TCPSERVERWRAP` is not part of this graph, even though it was the reason for
