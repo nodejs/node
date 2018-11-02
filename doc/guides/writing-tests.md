@@ -423,5 +423,5 @@ To generate a test coverage report, see the
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
-[Test Coverage section of the Pull Requests guide]: https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#test-coverage
+[Test Coverage section of the Pull Requests guide]: https://github.com/nodejs/node/blob/master/BUILDING.md#running-coverage
 [directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories
