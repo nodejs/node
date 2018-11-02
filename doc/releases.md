@@ -5,6 +5,34 @@ The intended audience is those who have been authorized by the Node.js
 Foundation Technical Steering Committee (TSC) to create, promote, and sign
 official release builds for Node.js, hosted on <https://nodejs.org/>.
 
+## Table of Contents
+
+* [Who can make a release?](#who-can-make-a-release)
+  * [1. Jenkins Release Access](#1-jenkins-release-access)
+  * [2. <nodejs.org> Access](#2-nodejsorg-access)
+  * [3. A Publicly Listed GPG Key](#3-a-publicly-listed-gpg-key)
+* [How to create a release](#how-to-create-a-release)
+  * [0. Pre-release steps](#0-pre-release-steps)
+  * [1. Update the staging branch](#1-update-the-staging-branch)
+  * [2. Create a new branch for the release](#2-create-a-new-branch-for-the-release)
+  * [3. Update `src/node_version.h`](#3-update-srcnode_versionh)
+  * [4. Update the Changelog](#4-update-the-changelog)
+  * [5. Create Release Commit](#5-create-release-commit)
+  * [6. Propose Release on GitHub](#6-propose-release-on-github)
+  * [7. Ensure that the Release Branch is Stable](#7-ensure-that-the-release-branch-is-stable)
+  * [8. Produce a Nightly Build _(optional)_](#8-produce-a-nightly-build-optional)
+  * [9. Produce Release Builds](#9-produce-release-builds)
+  * [10. Test the Build](#10-test-the-build)
+  * [11. Tag and Sign the Release Commit](#11-tag-and-sign-the-release-commit)
+  * [12. Set Up For the Next Release](#12-set-up-for-the-next-release)
+  * [13. Promote and Sign the Release Builds](#13-promote-and-sign-the-release-builds)
+  * [14. Check the Release](#14-check-the-release)
+  * [15. Create a Blog Post](#15-create-a-blog-post)
+  * [16. Create the release on GitHub](#16-create-the-release-on-github)
+  * [17. Cleanup](#17-cleanup)
+  * [18. Announce](#18-announce)
+  * [19. Celebrate](#19-celebrate)
+
 ## Who can make a release?
 
 Release authorization is given by the Node.js TSC. Once authorized, an
@@ -553,7 +581,19 @@ This script will use the promoted builds and changelog to generate the post. Run
 - Changes to `master` on the nodejs.org repo will trigger a new build of
   nodejs.org so your changes should appear in a few minutes after pushing.
 
-### 16. Announce
+### 16. Create the release on GitHub
+
+- Go to the [New release page](https://github.com/nodejs/node/releases/new).
+- Select the tag version you pushed earlier.
+- For release title, copy the title from the changelog.
+- For the description, copy the rest of the changelog entry.
+- Click on the "Publish release" button.
+
+### 17. Cleanup
+
+Close your release proposal PR and delete the proposal branch.
+
+### 18. Announce
 
 The nodejs.org website will automatically rebuild and include the new version.
 To announce the build on Twitter through the official @nodejs account, email
@@ -567,18 +607,6 @@ To ensure communication goes out with the timing of the blog post, please allow
 24 hour prior notice. If known, please include the date and time the release
 will be shared with the community in the email to coordinate these
 announcements.
-
-### 17. Create the release on GitHub
-
-- Got to the [New release page](https://github.com/nodejs/node/releases/new).
-- Select the tag version you pushed earlier.
-- For release title, copy the title from the changelog.
-- For the description, copy the rest of the changelog entry.
-- Click on the "Publish release" button.
-
-### 18. Cleanup
-
-Close your release proposal PR and delete the proposal branch.
 
 ### 19. Celebrate
 
