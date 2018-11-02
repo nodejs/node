@@ -583,7 +583,7 @@ This script will use the promoted builds and changelog to generate the post. Run
 
 ### 16. Create the release on GitHub
 
-- Got to the [New release page](https://github.com/nodejs/node/releases/new).
+- Go to the [New release page](https://github.com/nodejs/node/releases/new).
 - Select the tag version you pushed earlier.
 - For release title, copy the title from the changelog.
 - For the description, copy the rest of the changelog entry.
