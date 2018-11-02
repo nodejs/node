@@ -308,7 +308,7 @@ test-valgrind: all
 test-check-deopts: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
 
-benchmark/napi/function_call/build/Release/binding.node: \
+benchmark/napi/function_call/build/$(BUILDTYPE)/binding.node: \
 		benchmark/napi/function_call/napi_binding.c \
 		benchmark/napi/function_call/binding.cc \
 		benchmark/napi/function_call/binding.gyp | all
@@ -317,7 +317,7 @@ benchmark/napi/function_call/build/Release/binding.node: \
 		--directory="$(shell pwd)/benchmark/napi/function_call" \
 		--nodedir="$(shell pwd)"
 
-benchmark/napi/function_args/build/Release/binding.node: \
+benchmark/napi/function_args/build/$(BUILDTYPE)/binding.node: \
 		benchmark/napi/function_args/napi_binding.c \
 		benchmark/napi/function_args/binding.cc \
 		benchmark/napi/function_args/binding.gyp | all
@@ -1044,8 +1044,8 @@ bench: bench-addons-build
 
 # Build required addons for benchmark before running it.
 .PHONY: bench-addons-build
-bench-addons-build: benchmark/napi/function_call/build/Release/binding.node \
-	benchmark/napi/function_args/build/Release/binding.node
+bench-addons-build: benchmark/napi/function_call/build/$(BUILDTYPE)/binding.node \
+	benchmark/napi/function_args/build/$(BUILDTYPE)/binding.node
 
 .PHONY: bench-addons-clean
 bench-addons-clean:

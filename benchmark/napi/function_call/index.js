@@ -12,7 +12,7 @@ const common = require('../../common.js');
 // abort quietly.
 
 try {
-  var binding = require('./build/Release/binding');
+  var binding = require(`./build/${common.buildType}/binding`);
 } catch {
   console.error('misc/function_call.js Binding failed to load');
   process.exit(0);
@@ -21,7 +21,7 @@ const cxx = binding.hello;
 
 let napi_binding;
 try {
-  napi_binding = require('./build/Release/napi_binding');
+  napi_binding = require(`./build/${common.buildType}/napi_binding`);
 } catch {
   console.error('misc/function_call/index.js NAPI-Binding failed to load');
   process.exit(0);
