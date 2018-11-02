@@ -1,5 +1,5 @@
 'use strict';
-console.log("1111")
+
 const {
   mustCall,
   mustNotCall,
