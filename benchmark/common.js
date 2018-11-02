@@ -3,6 +3,8 @@
 const child_process = require('child_process');
 const http_benchmarkers = require('./_http-benchmarkers.js');
 
+exports.buildType = process.features.debug ? 'Debug' : 'Release';
+
 exports.createBenchmark = function(fn, configs, options) {
   return new Benchmark(fn, configs, options);
 };
