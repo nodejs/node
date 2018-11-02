@@ -105,10 +105,16 @@ out.write = err.write = (d) => {};
 {
   class MyConsole extends Console {
     hello() {}
+    // See if the methods on Console.prototype are overridable.
+    log() { return 'overridden'; }
   }
   const myConsole = new MyConsole(process.stdout);
   assert.strictEqual(typeof myConsole.hello, 'function');
   assert.ok(myConsole instanceof Console);
+  assert.strictEqual(myConsole.log(), 'overridden');
+
+  const log = myConsole.log;
+  assert.strictEqual(log(), 'overridden');
 }
 
 // Instance that does not ignore the stream errors.
