@@ -398,7 +398,6 @@ To generate a test coverage report, see the
 
 [ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
-[Web Platform Tests Project]: https://github.com/w3c/web-platform-tests/tree/master/url
 [`common` module]: https://github.com/nodejs/node/blob/master/test/common/README.md
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
