@@ -6,9 +6,10 @@
 #include <cmath>
 #include <vector>
 #define NAPI_EXPERIMENTAL
-#include "node_api.h"
-#include "node_internals.h"
 #include "env.h"
+#include "node_api.h"
+#include "node_errors.h"
+#include "node_internals.h"
 
 static
 napi_status napi_set_last_error(napi_env env, napi_status error_code,
