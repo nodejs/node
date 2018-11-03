@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include "node_errors.h"
 #include "node_internals.h"
 
