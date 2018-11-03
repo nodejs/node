@@ -108,6 +108,20 @@ function nextdir() {
   assert.strictEqual(fixtureCoverage, undefined);
 }
 
+// disables async hooks before writing coverage.
+{
+  const coverageDirectory = path.join(tmpdir.path, nextdir());
+  const output = spawnSync(process.execPath, [
+    require.resolve('../fixtures/v8-coverage/async-hooks')
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  assert.strictEqual(output.status, 0);
+  const fixtureCoverage = getFixtureCoverage('async-hooks.js',
+                                             coverageDirectory);
+  assert.ok(fixtureCoverage);
+  // first branch executed.
+  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
+}
+
 // extracts the coverage object for a given fixture name.
 function getFixtureCoverage(fixtureFile, coverageDirectory) {
   const coverageFiles = fs.readdirSync(coverageDirectory);
