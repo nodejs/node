@@ -13,7 +13,7 @@ common.crashOnUnhandledRejection();
 
 (async () => {
   await assert.rejects(
-    async () => assert.fail(),
+    async () => assert.fail('Failed'),
     common.expectsError({
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
