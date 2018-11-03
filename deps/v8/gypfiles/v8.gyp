@@ -2640,11 +2640,6 @@
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
         'libraries_experimental_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
-        'conditions': [
-          ['v8_enable_i18n_support==1', {
-            'library_files': ['../src/js/intl.js'],
-          }],
-        ],
       },
       'actions': [
         {
