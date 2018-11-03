@@ -488,6 +488,16 @@ argument to `fs.createReadStream()`. If `path` is passed as a string, then
 `readStream.path` will be a string. If `path` is passed as a `Buffer`, then
 `readStream.path` will be a `Buffer`.
 
+### readStream.pending
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+This property is `true` if the underlying file has not been opened yet,
+i.e. before the `'ready'` event is emitted.
+
 ## Class: fs.Stats
 <!-- YAML
 added: v0.1.21
@@ -832,6 +842,16 @@ The path to the file the stream is writing to as specified in the first
 argument to [`fs.createWriteStream()`][]. If `path` is passed as a string, then
 `writeStream.path` will be a string. If `path` is passed as a `Buffer`, then
 `writeStream.path` will be a `Buffer`.
+
+### writeStream.pending
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+This property is `true` if the underlying file has not been opened yet,
+i.e. before the `'ready'` event is emitted.
 
 ## fs.access(path[, mode], callback)
 <!-- YAML
