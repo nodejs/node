@@ -44,8 +44,10 @@ tcp.listen(0, common.mustCall(function() {
   const socket = net.Stream({ highWaterMark: 0 });
 
   let connected = false;
+  assert.strictEqual(socket.pending, true);
   socket.connect(this.address().port, common.mustCall(() => connected = true));
 
+  assert.strictEqual(socket.pending, true);
   assert.strictEqual(socket.connecting, true);
   assert.strictEqual(socket.readyState, 'opening');
 
@@ -87,6 +89,10 @@ tcp.listen(0, common.mustCall(function() {
     console.error('write cb');
     assert.ok(connected);
     assert.strictEqual(socket.bytesWritten, Buffer.from(a + b).length);
+    assert.strictEqual(socket.pending, false);
+  }));
+  socket.on('close', common.mustCall(() => {
+    assert.strictEqual(socket.pending, true);
   }));
 
   assert.strictEqual(socket.bytesWritten, Buffer.from(a).length);
