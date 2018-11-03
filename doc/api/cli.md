@@ -774,6 +774,13 @@ if they had been specified on the command line before the actual command line
 (so they can be overridden). Node.js will exit with an error if an option
 that is not allowed in the environment is used, such as `-p` or a script file.
 
+In case an option value happens to contain a space (for example a path listed in
+`--require`), it must be escaped using double quotes. For example:
+
+```bash
+--require "./my path/file.js"
+```
+
 Node.js options that are allowed are:
 - `--diagnostic-report-directory`
 - `--diagnostic-report-filename`

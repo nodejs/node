@@ -671,11 +671,49 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   std::string node_options;
+
   if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
-    // [0] is expected to be the program name, fill it in from the real argv
-    // and use 'x' as a placeholder while parsing.
-    std::vector<std::string> env_argv = SplitString("x " + node_options, ' ');
-    env_argv[0] = argv->at(0);
+    std::vector<std::string> env_argv;
+    // [0] is expected to be the program name, fill it in from the real argv.
+    env_argv.push_back(argv->at(0));
+
+    bool is_in_string = false;
+    bool will_start_new_arg = true;
+    for (std::string::size_type index = 0;
+         index < node_options.size();
+         ++index) {
+      char c = node_options.at(index);
+
+      // Backslashes escape the following character
+      if (c == '\\' && is_in_string) {
+        if (index + 1 == node_options.size()) {
+          errors->push_back("invalid value for NODE_OPTIONS "
+                            "(invalid escape)\n");
+          return 9;
+        } else {
+          c = node_options.at(++index);
+        }
+      } else if (c == ' ' && !is_in_string) {
+        will_start_new_arg = true;
+        continue;
+      } else if (c == '"') {
+        is_in_string = !is_in_string;
+        continue;
+      }
+
+      if (will_start_new_arg) {
+        env_argv.push_back(std::string(1, c));
+        will_start_new_arg = false;
+      } else {
+        env_argv.back() += c;
+      }
+    }
+
+    if (is_in_string) {
+      errors->push_back("invalid value for NODE_OPTIONS "
+                        "(unterminated string)\n");
+      return 9;
+    }
 
     const int exit_code = ProcessGlobalArgs(&env_argv, nullptr, errors, true);
     if (exit_code != 0) return exit_code;
