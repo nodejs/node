@@ -1571,8 +1571,12 @@ void Http2Session::ClearOutgoing(int status) {
     current_outgoing_buffers_.swap(outgoing_buffers_);
     for (const nghttp2_stream_write& wr : current_outgoing_buffers_) {
       WriteWrap* wrap = wr.req_wrap;
-      if (wrap != nullptr)
-        wrap->Done(status);
+      if (wrap != nullptr) {
+        // TODO(addaleax): Pass `status` instead of 0, so that we actually error
+        // out with the error from the write to the underlying protocol,
+        // if one occurred.
+        wrap->Done(0);
+      }
     }
   }
 
