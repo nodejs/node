@@ -8,24 +8,16 @@ const common = require('../common');
 // have to test it through mapToHeaders
 
 const { mapToHeaders } = require('internal/http2/util');
-const assert = require('assert');
 
-function isNotError(val) {
-  assert(!(val instanceof Error));
-}
+// These should not throw
+mapToHeaders({ ':status': 'a' });
+mapToHeaders({ ':path': 'a' });
+mapToHeaders({ ':authority': 'a' });
+mapToHeaders({ ':scheme': 'a' });
+mapToHeaders({ ':method': 'a' });
 
-function isError(val) {
-  common.expectsError({
-    code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
-    type: TypeError,
-    message: '":foo" is an invalid pseudoheader or is used incorrectly'
-  })(val);
-}
-
-isNotError(mapToHeaders({ ':status': 'a' }));
-isNotError(mapToHeaders({ ':path': 'a' }));
-isNotError(mapToHeaders({ ':authority': 'a' }));
-isNotError(mapToHeaders({ ':scheme': 'a' }));
-isNotError(mapToHeaders({ ':method': 'a' }));
-
-isError(mapToHeaders({ ':foo': 'a' }));
+common.expectsError(() => mapToHeaders({ ':foo': 'a' }), {
+  code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
+  type: TypeError,
+  message: '":foo" is an invalid pseudoheader or is used incorrectly'
+});
