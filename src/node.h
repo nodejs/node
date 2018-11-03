@@ -369,7 +369,7 @@ inline void NODE_SET_METHOD(v8::Local<v8::Object> recv,
   v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name,
       v8::NewStringType::kInternalized).ToLocalChecked();
   fn->SetName(fn_name);
-  recv->Set(fn_name, fn);
+  recv->Set(context, fn_name, fn).FromJust();
 }
 #define NODE_SET_METHOD node::NODE_SET_METHOD
 
