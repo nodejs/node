@@ -137,3 +137,30 @@ const Countdown = require('../common/countdown');
     req.destroy();
   }));
 }
+
+// test close before connect
+{
+  const server = h2.createServer();
+
+  server.on('stream', common.mustNotCall());
+  server.listen(0, common.mustCall(() => {
+    const client = h2.connect(`http://localhost:${server.address().port}`);
+    const socket = client[kSocket];
+    socket.on('close', common.mustCall(() => {
+      assert(socket.destroyed);
+    }));
+
+    const req = client.request();
+    // should throw goaway error
+    req.on('error', common.expectsError({
+      code: 'ERR_HTTP2_GOAWAY_SESSION',
+      type: Error,
+      message: 'New streams cannot be created after receiving a GOAWAY'
+    }));
+
+    client.close();
+    req.resume();
+    req.on('end', common.mustCall());
+    req.on('close', common.mustCall(() => server.close()));
+  }));
+}
