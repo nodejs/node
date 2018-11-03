@@ -91,6 +91,9 @@ tcp.listen(0, common.mustCall(function() {
     assert.strictEqual(socket.bytesWritten, Buffer.from(a + b).length);
     assert.strictEqual(socket.pending, false);
   }));
+  socket.on('close', common.mustCall(() => {
+    assert.strictEqual(socket.pending, true);
+  }));
 
   assert.strictEqual(socket.bytesWritten, Buffer.from(a).length);
   assert.strictEqual(r, false);
