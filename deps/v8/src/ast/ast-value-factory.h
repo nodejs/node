@@ -107,11 +107,11 @@ class AstRawString final : public ZoneObject {
 #endif
   }
 
-  // {string_} is stored as String** instead of a Handle<String> so it can be
+  // {string_} is stored as Address* instead of a Handle<String> so it can be
   // stored in a union with {next_}.
   union {
     AstRawString* next_;
-    String** string_;
+    Address* string_;
   };
 
   Vector<const byte> literal_bytes_;  // Memory owned by Zone.
@@ -163,12 +163,12 @@ class AstConsString final : public ZoneObject {
   AstConsString* next() const { return next_; }
   AstConsString** next_location() { return &next_; }
 
-  // {string_} is stored as String** instead of a Handle<String> so it can be
+  // {string_} is stored as Address* instead of a Handle<String> so it can be
   // stored in a union with {next_}.
   void set_string(Handle<String> string) { string_ = string.location(); }
   union {
     AstConsString* next_;
-    String** string_;
+    Address* string_;
   };
 
   struct Segment {
@@ -194,48 +194,47 @@ class AstBigInt {
 };
 
 // For generating constants.
-#define AST_STRING_CONSTANTS(F)                                      \
-  F(anonymous_function, "(anonymous function)")                      \
-  F(arguments, "arguments")                                          \
-  F(async, "async")                                                  \
-  F(await, "await")                                                  \
-  F(bigint, "bigint")                                                \
-  F(boolean, "boolean")                                              \
-  F(constructor, "constructor")                                      \
-  F(default, "default")                                              \
-  F(done, "done")                                                    \
-  F(dot, ".")                                                        \
-  F(dot_for, ".for")                                                 \
-  F(dot_generator_object, ".generator_object")                       \
-  F(dot_iterator, ".iterator")                                       \
-  F(dot_result, ".result")                                           \
-  F(dot_switch_tag, ".switch_tag")                                   \
-  F(dot_catch, ".catch")                                             \
-  F(empty, "")                                                       \
-  F(eval, "eval")                                                    \
-  F(function, "function")                                            \
-  F(get_space, "get ")                                               \
-  F(length, "length")                                                \
-  F(let, "let")                                                      \
-  F(name, "name")                                                    \
-  F(native, "native")                                                \
-  F(new_target, ".new.target")                                       \
-  F(next, "next")                                                    \
-  F(number, "number")                                                \
-  F(object, "object")                                                \
-  F(proto, "__proto__")                                              \
-  F(prototype, "prototype")                                          \
-  F(return, "return")                                                \
-  F(set_space, "set ")                                               \
-  F(star_default_star, "*default*")                                  \
-  F(string, "string")                                                \
-  F(symbol, "symbol")                                                \
-  F(this, "this")                                                    \
-  F(this_function, ".this_function")                                 \
-  F(throw, "throw")                                                  \
-  F(undefined, "undefined")                                          \
-  F(use_asm, "use asm")                                              \
-  F(use_strict, "use strict")                                        \
+#define AST_STRING_CONSTANTS(F)                 \
+  F(anonymous_function, "(anonymous function)") \
+  F(arguments, "arguments")                     \
+  F(async, "async")                             \
+  F(await, "await")                             \
+  F(bigint, "bigint")                           \
+  F(boolean, "boolean")                         \
+  F(constructor, "constructor")                 \
+  F(default, "default")                         \
+  F(done, "done")                               \
+  F(dot, ".")                                   \
+  F(dot_for, ".for")                            \
+  F(dot_generator_object, ".generator_object")  \
+  F(dot_iterator, ".iterator")                  \
+  F(dot_promise, ".promise")                    \
+  F(dot_result, ".result")                      \
+  F(dot_switch_tag, ".switch_tag")              \
+  F(dot_catch, ".catch")                        \
+  F(empty, "")                                  \
+  F(eval, "eval")                               \
+  F(function, "function")                       \
+  F(get_space, "get ")                          \
+  F(length, "length")                           \
+  F(let, "let")                                 \
+  F(name, "name")                               \
+  F(native, "native")                           \
+  F(new_target, ".new.target")                  \
+  F(next, "next")                               \
+  F(number, "number")                           \
+  F(object, "object")                           \
+  F(proto, "__proto__")                         \
+  F(prototype, "prototype")                     \
+  F(return, "return")                           \
+  F(set_space, "set ")                          \
+  F(star_default_star, "*default*")             \
+  F(string, "string")                           \
+  F(symbol, "symbol")                           \
+  F(this, "this")                               \
+  F(this_function, ".this_function")            \
+  F(throw, "throw")                             \
+  F(undefined, "undefined")                     \
   F(value, "value")
 
 class AstStringConstants final {
@@ -297,10 +296,15 @@ class AstValueFactory {
     return GetTwoByteStringInternal(literal);
   }
   const AstRawString* GetString(Handle<String> literal);
+
+  // Clones an AstRawString from another ast value factory, adding it to this
+  // factory and returning the clone.
+  const AstRawString* CloneFromOtherFactory(const AstRawString* raw_string);
+
   V8_EXPORT_PRIVATE AstConsString* NewConsString();
-  AstConsString* NewConsString(const AstRawString* str);
-  AstConsString* NewConsString(const AstRawString* str1,
-                               const AstRawString* str2);
+  V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str);
+  V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str1,
+                                                 const AstRawString* str2);
 
   V8_EXPORT_PRIVATE void Internalize(Isolate* isolate);
 

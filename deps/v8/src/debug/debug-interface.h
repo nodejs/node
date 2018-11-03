@@ -154,9 +154,11 @@ void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
 
+enum ExceptionType { kException, kPromiseRejection };
+
 class DebugDelegate {
  public:
-  virtual ~DebugDelegate() {}
+  virtual ~DebugDelegate() = default;
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
   // |inspector_break_points_hit| contains id of breakpoints installed with
@@ -166,8 +168,8 @@ class DebugDelegate {
       const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
-                               v8::Local<v8::Value> promise, bool is_uncaught) {
-  }
+                               v8::Local<v8::Value> promise, bool is_uncaught,
+                               ExceptionType exception_type) {}
   virtual bool IsFunctionBlackboxed(v8::Local<debug::Script> script,
                                     const debug::Location& start,
                                     const debug::Location& end) {
@@ -179,7 +181,7 @@ void SetDebugDelegate(Isolate* isolate, DebugDelegate* listener);
 
 class AsyncEventDelegate {
  public:
-  virtual ~AsyncEventDelegate() {}
+  virtual ~AsyncEventDelegate() = default;
   virtual void AsyncEventOccurred(debug::DebugAsyncActionType type, int id,
                                   bool is_blackboxed) = 0;
 };
@@ -191,13 +193,7 @@ void ResetBlackboxedStateCache(Isolate* isolate,
 
 int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
 
-enum Builtin {
-  kObjectKeys,
-  kObjectGetPrototypeOf,
-  kObjectGetOwnPropertyDescriptor,
-  kObjectGetOwnPropertyNames,
-  kObjectGetOwnPropertySymbols,
-};
+enum Builtin { kStringToLowerCase };
 
 Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 
@@ -472,13 +468,8 @@ void SetReturnValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 enum class NativeAccessorType {
   None = 0,
   HasGetter = 1 << 0,
-  HasSetter = 1 << 1,
-  IsBuiltin = 1 << 2
+  HasSetter = 1 << 1
 };
-
-int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
-                                v8::Local<v8::Object> object,
-                                v8::Local<v8::Name> name);
 
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
@@ -502,6 +493,53 @@ class PostponeInterruptsScope {
   std::unique_ptr<i::PostponeInterruptsScope> scope_;
 };
 
+class WeakMap : public v8::Object {
+ public:
+  V8_WARN_UNUSED_RESULT v8::MaybeLocal<v8::Value> Get(
+      v8::Local<v8::Context> context, v8::Local<v8::Value> key);
+  V8_WARN_UNUSED_RESULT v8::MaybeLocal<WeakMap> Set(
+      v8::Local<v8::Context> context, v8::Local<v8::Value> key,
+      v8::Local<v8::Value> value);
+
+  static Local<WeakMap> New(v8::Isolate* isolate);
+  V8_INLINE static WeakMap* Cast(Value* obj);
+
+ private:
+  WeakMap();
+};
+
+struct PropertyDescriptor {
+  bool enumerable : 1;
+  bool has_enumerable : 1;
+  bool configurable : 1;
+  bool has_configurable : 1;
+  bool writable : 1;
+  bool has_writable : 1;
+  v8::Local<v8::Value> value;
+  v8::Local<v8::Value> get;
+  v8::Local<v8::Value> set;
+};
+
+class PropertyIterator {
+ public:
+  static std::unique_ptr<PropertyIterator> Create(v8::Local<v8::Object> object);
+
+  virtual ~PropertyIterator() = default;
+
+  virtual bool Done() const = 0;
+  virtual void Advance() = 0;
+
+  virtual v8::Local<v8::Name> name() const = 0;
+
+  virtual bool is_native_accessor() = 0;
+  virtual bool has_native_getter() = 0;
+  virtual bool has_native_setter() = 0;
+  virtual Maybe<PropertyAttribute> attributes() = 0;
+  virtual Maybe<PropertyDescriptor> descriptor() = 0;
+
+  virtual bool is_own() = 0;
+  virtual bool is_array_index() = 0;
+};
 }  // namespace debug
 }  // namespace v8
 

@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_MAYBE_OBJECT_H_
 #define V8_OBJECTS_MAYBE_OBJECT_H_
 
+#include "include/v8-internal.h"
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -21,47 +23,80 @@ class StringStream;
 // implementing in-place weak references (see design doc: goo.gl/j6SdcK )
 class MaybeObject {
  public:
-  bool IsSmi() const { return HAS_SMI_TAG(this); }
+  MaybeObject() : ptr_(kNullAddress) {}
+  explicit MaybeObject(Address ptr) : ptr_(ptr) {}
+
+  bool operator==(const MaybeObject& other) const { return ptr_ == other.ptr_; }
+  bool operator!=(const MaybeObject& other) const { return ptr_ != other.ptr_; }
+
+  Address ptr() const { return ptr_; }
+
+  // Enable incremental transition of client code.
+  MaybeObject* operator->() { return this; }
+  const MaybeObject* operator->() const { return this; }
+
+  bool IsSmi() const { return HAS_SMI_TAG(ptr_); }
   inline bool ToSmi(Smi** value);
-  inline Smi* ToSmi();
 
-  bool IsClearedWeakHeapObject() const {
-    return ::v8::internal::IsClearedWeakHeapObject(this);
-  }
+  bool IsCleared() const { return ptr_ == kClearedWeakHeapObject; }
 
-  inline bool IsStrongOrWeakHeapObject() const;
-  inline bool ToStrongOrWeakHeapObject(HeapObject** result);
-  inline bool ToStrongOrWeakHeapObject(HeapObject** result,
-                                       HeapObjectReferenceType* reference_type);
-  inline bool IsStrongHeapObject() const;
-  inline bool ToStrongHeapObject(HeapObject** result);
-  inline HeapObject* ToStrongHeapObject();
-  inline bool IsWeakHeapObject() const;
-  inline bool IsWeakOrClearedHeapObject() const;
-  inline bool ToWeakHeapObject(HeapObject** result);
-  inline HeapObject* ToWeakHeapObject();
+  inline bool IsStrongOrWeak() const;
+  inline bool IsStrong() const;
 
-  // Returns the HeapObject pointed to (either strongly or weakly).
-  inline HeapObject* GetHeapObject();
-  inline Object* GetHeapObjectOrSmi();
+  // If this MaybeObject is a strong pointer to a HeapObject, returns true and
+  // sets *result. Otherwise returns false.
+  inline bool GetHeapObjectIfStrong(HeapObject** result) const;
+
+  // DCHECKs that this MaybeObject is a strong pointer to a HeapObject and
+  // returns the HeapObject.
+  inline HeapObject* GetHeapObjectAssumeStrong() const;
+
+  inline bool IsWeak() const;
+  inline bool IsWeakOrCleared() const;
+
+  // If this MaybeObject is a weak pointer to a HeapObject, returns true and
+  // sets *result. Otherwise returns false.
+  inline bool GetHeapObjectIfWeak(HeapObject** result) const;
+
+  // DCHECKs that this MaybeObject is a weak pointer to a HeapObject and
+  // returns the HeapObject.
+  inline HeapObject* GetHeapObjectAssumeWeak() const;
+
+  // If this MaybeObject is a strong or weak pointer to a HeapObject, returns
+  // true and sets *result. Otherwise returns false.
+  inline bool GetHeapObject(HeapObject** result) const;
+  inline bool GetHeapObject(HeapObject** result,
+                            HeapObjectReferenceType* reference_type) const;
+
+  // DCHECKs that this MaybeObject is a strong or a weak pointer to a HeapObject
+  // and returns the HeapObject.
+  inline HeapObject* GetHeapObject() const;
+
+  // DCHECKs that this MaybeObject is a strong or a weak pointer to a HeapObject
+  // or a SMI and returns the HeapObject or SMI.
+  inline Object* GetHeapObjectOrSmi() const;
 
   inline bool IsObject() const;
-  inline Object* ToObject();
-
-  static MaybeObject* FromSmi(Smi* smi) {
-    DCHECK(HAS_SMI_TAG(smi));
-    return reinterpret_cast<MaybeObject*>(smi);
+  template <typename T>
+  T* cast() const {
+    DCHECK(!HasWeakHeapObjectTag(ptr_));
+    return T::cast(reinterpret_cast<Object*>(ptr_));
   }
 
-  static MaybeObject* FromObject(Object* object) {
+  static MaybeObject FromSmi(Smi* smi) {
+    DCHECK(HAS_SMI_TAG(smi->ptr()));
+    return MaybeObject(smi->ptr());
+  }
+
+  static MaybeObject FromObject(Object* object) {
     DCHECK(!HasWeakHeapObjectTag(object));
-    return reinterpret_cast<MaybeObject*>(object);
+    return MaybeObject(object->ptr());
   }
 
-  static inline MaybeObject* MakeWeak(MaybeObject* object);
+  static inline MaybeObject MakeWeak(MaybeObject object);
 
 #ifdef VERIFY_HEAP
-  static void VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject* p);
+  static void VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p);
 #endif
 
   // Prints this object without details.
@@ -81,49 +116,33 @@ class MaybeObject {
 #endif
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(MaybeObject);
+  Address ptr_;
 };
 
 // A HeapObjectReference is either a strong reference to a HeapObject, a weak
 // reference to a HeapObject, or a cleared weak reference.
 class HeapObjectReference : public MaybeObject {
  public:
-  static HeapObjectReference* Strong(Object* object) {
+  explicit HeapObjectReference(Address address) : MaybeObject(address) {}
+  explicit HeapObjectReference(Object* object) : MaybeObject(object->ptr()) {}
+
+  static HeapObjectReference Strong(Object* object) {
     DCHECK(!object->IsSmi());
     DCHECK(!HasWeakHeapObjectTag(object));
-    return reinterpret_cast<HeapObjectReference*>(object);
+    return HeapObjectReference(object);
   }
 
-  static HeapObjectReference* Weak(Object* object) {
+  static HeapObjectReference Weak(Object* object) {
     DCHECK(!object->IsSmi());
     DCHECK(!HasWeakHeapObjectTag(object));
-    return AddWeakHeapObjectMask(object);
+    return HeapObjectReference(object->ptr() | kWeakHeapObjectMask);
   }
 
-  static HeapObjectReference* ClearedValue() {
-    return reinterpret_cast<HeapObjectReference*>(kClearedWeakHeapObject);
+  static HeapObjectReference ClearedValue() {
+    return HeapObjectReference(kClearedWeakHeapObject);
   }
 
-  static void Update(HeapObjectReference** slot, HeapObject* value) {
-    DCHECK(!HAS_SMI_TAG(*slot));
-    DCHECK(Internals::HasHeapObjectTag(value));
-
-#ifdef DEBUG
-    bool weak_before = HasWeakHeapObjectTag(*slot);
-#endif
-
-    *slot = reinterpret_cast<HeapObjectReference*>(
-        reinterpret_cast<intptr_t>(value) |
-        (reinterpret_cast<intptr_t>(*slot) & kWeakHeapObjectMask));
-
-#ifdef DEBUG
-    bool weak_after = HasWeakHeapObjectTag(*slot);
-    DCHECK_EQ(weak_before, weak_after);
-#endif
-  }
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapObjectReference);
+  static inline void Update(HeapObjectSlot slot, HeapObject* value);
 };
 
 }  // namespace internal

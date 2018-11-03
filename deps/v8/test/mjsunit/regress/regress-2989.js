@@ -21,7 +21,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
+
+if (isNeverOptimizeLiteMode()) {
+  print("Warning: skipping test that requires optimization in Lite mode.");
+  quit(0);
+}
 
 (function ArgumentsObjectChange() {
   function f(x) {

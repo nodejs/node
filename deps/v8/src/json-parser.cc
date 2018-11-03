@@ -8,7 +8,7 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/field-type.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/property-descriptor.h"
@@ -164,7 +164,7 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
 
     // Parse failed. Current character is the unexpected token.
     Factory* factory = this->factory();
-    MessageTemplate::Template message;
+    MessageTemplate message;
     Handle<Object> arg1 = Handle<Smi>(Smi::FromInt(position_), isolate());
     Handle<Object> arg2;
 

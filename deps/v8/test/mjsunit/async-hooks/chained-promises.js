@@ -40,9 +40,13 @@
   let createdPromise = new Promise(function(resolve) {
     resolve(42);
   }).then(function() {
-    assertEquals(asyncIds.length, 2, 'Exactly 2 promises should be inited');
-    assertEquals(triggerIds.length, 2, 'Exactly 2 promises should be inited');
+    assertEquals(3, asyncIds.length, 'Exactly 3 promises should be inited');
+    assertEquals(3, triggerIds.length, 'Exactly 3 promises should be inited');
     assertEquals(triggerIds[1], asyncIds[0],
       "Parent promise asyncId doesn't correspond to child triggerAsyncId");
+  }).catch((err) => {
+    setTimeout(() => {
+      throw err;
+    }, 0);
   });
 })();

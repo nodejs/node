@@ -26,7 +26,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
    kExprI32And,
   kExprI32Eqz,
  kExprI32And,
-kExprGrowMemory, 0x00,
+kExprMemoryGrow, 0x00,
    kExprI32Const, 0x55,
   kExprI32LoadMem8S, 0x00, 0x3a,
    kExprI32LoadMem16U, 0x00, 0x71,

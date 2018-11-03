@@ -7,6 +7,8 @@
 
 #ifdef V8_INTERPRETED_REGEXP
 
+#include "src/regexp/regexp-macro-assembler-irregexp.h"
+
 #include "src/ast/ast.h"
 #include "src/regexp/bytecodes-irregexp.h"
 

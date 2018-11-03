@@ -55,6 +55,7 @@
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
+#include "src/string-constants.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -73,6 +74,13 @@ Immediate Immediate::EmbeddedCode(CodeStub* stub) {
   Immediate result(0, RelocInfo::CODE_TARGET);
   result.is_heap_object_request_ = true;
   result.value_.heap_object_request = HeapObjectRequest(stub);
+  return result;
+}
+
+Immediate Immediate::EmbeddedStringConstant(const StringConstantBase* str) {
+  Immediate result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(str);
   return result;
 }
 
@@ -300,6 +308,7 @@ Register Operand::reg() const {
 }
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
     switch (request.kind()) {
@@ -311,6 +320,12 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         request.code_stub()->set_isolate(isolate);
         object = request.code_stub()->GetCode();
         break;
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        object = str->AllocateStringConstant(isolate);
+        break;
+      }
     }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     Memory<Handle<Object>>(pc) = object;
@@ -664,6 +679,7 @@ void Assembler::mov(Operand dst, Register src) {
 }
 
 void Assembler::movsx_b(Register dst, Operand src) {
+  DCHECK_IMPLIES(src.is_reg_only(), src.reg().is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0xBE);
@@ -678,6 +694,7 @@ void Assembler::movsx_w(Register dst, Operand src) {
 }
 
 void Assembler::movzx_b(Register dst, Operand src) {
+  DCHECK_IMPLIES(src.is_reg_only(), src.reg().is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0xB6);
@@ -2171,6 +2188,8 @@ void Assembler::setcc(Condition cc, Register reg) {
 
 void Assembler::cvttss2si(Register dst, Operand src) {
   EnsureSpace ensure_space(this);
+  // The [src] might contain ebx's register code, but in
+  // this case, it refers to xmm3, so it is OK to emit.
   EMIT(0xF3);
   EMIT(0x0F);
   EMIT(0x2C);
@@ -2179,6 +2198,8 @@ void Assembler::cvttss2si(Register dst, Operand src) {
 
 void Assembler::cvttsd2si(Register dst, Operand src) {
   EnsureSpace ensure_space(this);
+  // The [src] might contain ebx's register code, but in
+  // this case, it refers to xmm3, so it is OK to emit.
   EMIT(0xF2);
   EMIT(0x0F);
   EMIT(0x2C);
@@ -2358,7 +2379,7 @@ void Assembler::maxps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::cmpps(XMMRegister dst, Operand src, int8_t cmp) {
+void Assembler::cmpps(XMMRegister dst, Operand src, uint8_t cmp) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0xC2);
@@ -2617,7 +2638,7 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   EMIT(imm8);
 }
 
-void Assembler::psllw(XMMRegister reg, int8_t shift) {
+void Assembler::psllw(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2626,7 +2647,7 @@ void Assembler::psllw(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::pslld(XMMRegister reg, int8_t shift) {
+void Assembler::pslld(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2635,7 +2656,7 @@ void Assembler::pslld(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psrlw(XMMRegister reg, int8_t shift) {
+void Assembler::psrlw(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2644,7 +2665,7 @@ void Assembler::psrlw(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psrld(XMMRegister reg, int8_t shift) {
+void Assembler::psrld(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2653,7 +2674,7 @@ void Assembler::psrld(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psraw(XMMRegister reg, int8_t shift) {
+void Assembler::psraw(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2662,7 +2683,7 @@ void Assembler::psraw(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psrad(XMMRegister reg, int8_t shift) {
+void Assembler::psrad(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2671,7 +2692,7 @@ void Assembler::psrad(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psllq(XMMRegister reg, int8_t shift) {
+void Assembler::psllq(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2689,8 +2710,7 @@ void Assembler::psllq(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
-
-void Assembler::psrlq(XMMRegister reg, int8_t shift) {
+void Assembler::psrlq(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2757,7 +2777,7 @@ void Assembler::palignr(XMMRegister dst, Operand src, uint8_t mask) {
   EMIT(mask);
 }
 
-void Assembler::pextrb(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::pextrb(Operand dst, XMMRegister src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2768,7 +2788,7 @@ void Assembler::pextrb(Operand dst, XMMRegister src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pextrw(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::pextrw(Operand dst, XMMRegister src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2779,7 +2799,7 @@ void Assembler::pextrw(Operand dst, XMMRegister src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pextrd(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::pextrd(Operand dst, XMMRegister src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2790,7 +2810,7 @@ void Assembler::pextrd(Operand dst, XMMRegister src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::insertps(XMMRegister dst, Operand src, int8_t offset) {
+void Assembler::insertps(XMMRegister dst, Operand src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2801,7 +2821,7 @@ void Assembler::insertps(XMMRegister dst, Operand src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pinsrb(XMMRegister dst, Operand src, int8_t offset) {
+void Assembler::pinsrb(XMMRegister dst, Operand src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2812,7 +2832,7 @@ void Assembler::pinsrb(XMMRegister dst, Operand src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pinsrw(XMMRegister dst, Operand src, int8_t offset) {
+void Assembler::pinsrw(XMMRegister dst, Operand src, uint8_t offset) {
   DCHECK(is_uint8(offset));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2822,7 +2842,7 @@ void Assembler::pinsrw(XMMRegister dst, Operand src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pinsrd(XMMRegister dst, Operand src, int8_t offset) {
+void Assembler::pinsrd(XMMRegister dst, Operand src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2933,7 +2953,7 @@ void Assembler::vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
 }
 
 void Assembler::vcmpps(XMMRegister dst, XMMRegister src1, Operand src2,
-                       int8_t cmp) {
+                       uint8_t cmp) {
   vps(0xC2, dst, src1, src2);
   EMIT(cmp);
 }
@@ -2945,37 +2965,37 @@ void Assembler::vshufps(XMMRegister dst, XMMRegister src1, Operand src2,
   EMIT(imm8);
 }
 
-void Assembler::vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsllw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(6);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpslld(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpslld(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(6);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpsrlw(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsrlw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(2);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpsrld(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsrld(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(2);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsraw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(4);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsrad(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(4);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
@@ -3008,41 +3028,41 @@ void Assembler::vpalignr(XMMRegister dst, XMMRegister src1, Operand src2,
   EMIT(mask);
 }
 
-void Assembler::vpextrb(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::vpextrb(Operand dst, XMMRegister src, uint8_t offset) {
   vinstr(0x14, src, xmm0, dst, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
-void Assembler::vpextrw(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::vpextrw(Operand dst, XMMRegister src, uint8_t offset) {
   vinstr(0x15, src, xmm0, dst, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
-void Assembler::vpextrd(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::vpextrd(Operand dst, XMMRegister src, uint8_t offset) {
   vinstr(0x16, src, xmm0, dst, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
 void Assembler::vinsertps(XMMRegister dst, XMMRegister src1, Operand src2,
-                          int8_t offset) {
+                          uint8_t offset) {
   vinstr(0x21, dst, src1, src2, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
 void Assembler::vpinsrb(XMMRegister dst, XMMRegister src1, Operand src2,
-                        int8_t offset) {
+                        uint8_t offset) {
   vinstr(0x20, dst, src1, src2, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
 void Assembler::vpinsrw(XMMRegister dst, XMMRegister src1, Operand src2,
-                        int8_t offset) {
+                        uint8_t offset) {
   vinstr(0xC4, dst, src1, src2, k66, k0F, kWIG);
   EMIT(offset);
 }
 
 void Assembler::vpinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
-                        int8_t offset) {
+                        uint8_t offset) {
   vinstr(0x22, dst, src1, src2, k66, k0F3A, kWIG);
   EMIT(offset);
 }
@@ -3285,9 +3305,8 @@ void Assembler::emit_operand(int code, Operand adr) {
          adr.rmode_ != RelocInfo::CODE_TARGET);
   DCHECK(!options().isolate_independent_code ||
          adr.rmode_ != RelocInfo::EMBEDDED_OBJECT);
-  // TODO(jgruber,v8:6666): Enable once kRootRegister exists.
-  //  DCHECK(!options().isolate_independent_code ||
-  //         adr.rmode_ != RelocInfo::EXTERNAL_REFERENCE);
+  DCHECK(!options().isolate_independent_code ||
+         adr.rmode_ != RelocInfo::EXTERNAL_REFERENCE);
 
   const unsigned length = adr.len_;
   DCHECK_GT(length, 0);
@@ -3356,17 +3375,10 @@ void Assembler::dd(Label* label) {
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  DCHECK(!RelocInfo::IsNone(rmode));
-  if (options().disable_reloc_info_for_patching) return;
-  // Don't record external references unless the heap will be serialized.
-  if (RelocInfo::IsOnlyForSerializer(rmode) &&
-      !options().record_reloc_info_for_serialization && !emit_debug_code()) {
-    return;
-  }
+  if (!ShouldRecordRelocInfo(rmode)) return;
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   reloc_info_writer.Write(&rinfo);
 }
-
 
 }  // namespace internal
 }  // namespace v8

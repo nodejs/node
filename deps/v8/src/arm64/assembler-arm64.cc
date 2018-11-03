@@ -36,6 +36,7 @@
 #include "src/code-stubs.h"
 #include "src/frame-constants.h"
 #include "src/register-configuration.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -67,7 +68,7 @@ CPURegister CPURegList::PopLowestIndex() {
     return NoCPUReg;
   }
   int index = CountTrailingZeros(list_, kRegListSizeInBits);
-  DCHECK((1 << index) & list_);
+  DCHECK((1LL << index) & list_);
   Remove(index);
   return CPURegister::Create(index, size_, type_);
 }
@@ -80,7 +81,7 @@ CPURegister CPURegList::PopHighestIndex() {
   }
   int index = CountLeadingZeros(list_, kRegListSizeInBits);
   index = kRegListSizeInBits - 1 - index;
-  DCHECK((1 << index) & list_);
+  DCHECK((1LL << index) & list_);
   Remove(index);
   return CPURegister::Create(index, size_, type_);
 }
@@ -109,8 +110,14 @@ CPURegList CPURegList::GetCalleeSavedV(int size) {
 
 
 CPURegList CPURegList::GetCallerSaved(int size) {
+#if defined(V8_OS_WIN)
+  // x18 is reserved as platform register on Windows arm64.
+  // Registers x0-x17 and lr (x30) are caller-saved.
+  CPURegList list = CPURegList(CPURegister::kRegister, size, 0, 17);
+#else
   // Registers x0-x18 and lr (x30) are caller-saved.
   CPURegList list = CPURegList(CPURegister::kRegister, size, 0, 18);
+#endif
   list.Combine(lr);
   return list;
 }
@@ -143,9 +150,13 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
   list.Remove(16);
   list.Remove(17);
 
+// Don't add x18 to safepoint list on Windows arm64 because it is reserved
+// as platform register.
+#if !defined(V8_OS_WIN)
   // Add x18 to the safepoint list, as although it's not in kJSCallerSaved, it
   // is a caller-saved register according to the procedure call standard.
   list.Combine(18);
+#endif
 
   // Add the link register (x30) to the safepoint list.
   list.Combine(30);
@@ -505,11 +516,11 @@ MemOperand::PairResult MemOperand::AreConsistentForPair(
   }
   // Step two: check that the offsets are contiguous and that the range
   // is OK for ldp/stp.
-  if ((operandB.offset() == operandA.offset() + (1 << access_size_log2)) &&
+  if ((operandB.offset() == operandA.offset() + (1LL << access_size_log2)) &&
       is_int7(operandA.offset() >> access_size_log2)) {
     return kPairAB;
   }
-  if ((operandA.offset() == operandB.offset() + (1 << access_size_log2)) &&
+  if ((operandA.offset() == operandB.offset() + (1LL << access_size_log2)) &&
       is_int7(operandB.offset() >> access_size_log2)) {
     return kPairBA;
   }
@@ -583,6 +594,7 @@ void Assembler::Reset() {
 }
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     switch (request.kind()) {
@@ -599,6 +611,13 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
         UpdateCodeTarget(instr->ImmPCOffset() >> kInstrSizeLog2,
                          request.code_stub()->GetCode());
+        break;
+      }
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        set_target_address_at(pc, 0 /* unused */,
+                              str->AllocateStringConstant(isolate).address());
         break;
       }
     }
@@ -1713,6 +1732,13 @@ Operand Operand::EmbeddedNumber(double number) {
 Operand Operand::EmbeddedCode(CodeStub* stub) {
   Operand result(0, RelocInfo::CODE_TARGET);
   result.heap_object_request_.emplace(stub);
+  DCHECK(result.IsHeapObjectRequest());
+  return result;
+}
+
+Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.heap_object_request_.emplace(str);
   DCHECK(result.IsHeapObjectRequest());
   return result;
 }
@@ -3986,16 +4012,16 @@ void Assembler::MoveWide(const Register& rd, uint64_t imm, int shift,
     // Calculate a new immediate and shift combination to encode the immediate
     // argument.
     shift = 0;
-    if ((imm & ~0xFFFFUL) == 0) {
+    if ((imm & ~0xFFFFULL) == 0) {
       // Nothing to do.
-    } else if ((imm & ~(0xFFFFUL << 16)) == 0) {
+    } else if ((imm & ~(0xFFFFULL << 16)) == 0) {
       imm >>= 16;
       shift = 1;
-    } else if ((imm & ~(0xFFFFUL << 32)) == 0) {
+    } else if ((imm & ~(0xFFFFULL << 32)) == 0) {
       DCHECK(rd.Is64Bits());
       imm >>= 32;
       shift = 2;
-    } else if ((imm & ~(0xFFFFUL << 48)) == 0) {
+    } else if ((imm & ~(0xFFFFULL << 48)) == 0) {
       DCHECK(rd.Is64Bits());
       imm >>= 48;
       shift = 3;
@@ -4751,14 +4777,6 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
                                 ConstantPoolMode constant_pool_mode) {
-  // Non-relocatable constants should not end up in the literal pool.
-  DCHECK(!RelocInfo::IsNone(rmode));
-  if (options().disable_reloc_info_for_patching) return;
-
-  // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
-  bool write_reloc_info = true;
-
   if ((rmode == RelocInfo::COMMENT) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
@@ -4772,23 +4790,22 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {
-    write_reloc_info = constpool_.RecordEntry(data, rmode);
+    bool new_constpool_entry = constpool_.RecordEntry(data, rmode);
     // Make sure the constant pool is not emitted in place of the next
     // instruction for which we just recorded relocation info.
     BlockConstPoolFor(1);
+    if (!new_constpool_entry) return;
   }
   // For modes that cannot use the constant pool, a different sequence of
   // instructions will be emitted by this function's caller.
 
-  if (write_reloc_info) {
-    // Don't record external references unless the heap will be serialized.
-    if (RelocInfo::IsOnlyForSerializer(rmode) &&
-        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
-      return;
-    }
-    DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
-    reloc_info_writer.Write(&rinfo);
-  }
+  if (!ShouldRecordRelocInfo(rmode)) return;
+
+  // We do not try to reuse pool constants.
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+
+  DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
+  reloc_info_writer.Write(&rinfo);
 }
 
 void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {

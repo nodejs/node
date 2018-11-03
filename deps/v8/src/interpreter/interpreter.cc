@@ -7,6 +7,7 @@
 #include <fstream>
 #include <memory>
 
+#include "builtins-generated/bytecodes-builtins-list.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
@@ -16,6 +17,7 @@
 #include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/slots.h"
 #include "src/parsing/parse-info.h"
 #include "src/setup-isolate.h"
 #include "src/snapshot/snapshot.h"
@@ -59,33 +61,24 @@ Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
   }
 }
 
-Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
-    Bytecode bytecode, OperandScale operand_scale) {
-  Code* code = GetBytecodeHandler(bytecode, operand_scale);
+namespace {
 
-  // Already deserialized? Then just return the handler.
-  if (!isolate_->heap()->IsDeserializeLazyHandler(code)) return code;
-
-  DCHECK(FLAG_lazy_handler_deserialization);
-  DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
-  code = Snapshot::DeserializeHandler(isolate_, bytecode, operand_scale);
-
-  DCHECK(code->IsCode());
-  DCHECK_EQ(code->kind(), Code::BYTECODE_HANDLER);
-  DCHECK(!isolate_->heap()->IsDeserializeLazyHandler(code));
-
-  SetBytecodeHandler(bytecode, operand_scale, code);
-
-  return code;
+int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
+  int index = BytecodeOperands::OperandScaleAsIndex(operand_scale) *
+                  kNumberOfBytecodeHandlers +
+              static_cast<int>(bytecode);
+  int offset = kBytecodeToBuiltinsMapping[index];
+  return offset >= 0 ? Builtins::kFirstBytecodeHandler + offset
+                     : Builtins::kIllegalHandler;
 }
+
+}  // namespace
 
 Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
                                       OperandScale operand_scale) {
-  DCHECK(IsDispatchTableInitialized());
-  DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
-  size_t index = GetDispatchTableIndex(bytecode, operand_scale);
-  Address code_entry = dispatch_table_[index];
-  return Code::GetCodeFromTargetAddress(code_entry);
+  int builtin_index = BuiltinIndexFromBytecode(bytecode, operand_scale);
+  Builtins* builtins = isolate_->builtins();
+  return builtins->builtin(builtin_index);
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
@@ -93,7 +86,7 @@ void Interpreter::SetBytecodeHandler(Bytecode bytecode,
                                      Code* handler) {
   DCHECK(handler->kind() == Code::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
-  dispatch_table_[index] = handler->entry();
+  dispatch_table_[index] = handler->InstructionStart();
 }
 
 // static
@@ -101,25 +94,20 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
                                           OperandScale operand_scale) {
   static const size_t kEntriesPerOperandScale = 1u << kBitsPerByte;
   size_t index = static_cast<size_t>(bytecode);
-  switch (operand_scale) {
-    case OperandScale::kSingle:
-      return index;
-    case OperandScale::kDouble:
-      return index + kEntriesPerOperandScale;
-    case OperandScale::kQuadruple:
-      return index + 2 * kEntriesPerOperandScale;
-  }
-  UNREACHABLE();
+  return index + BytecodeOperands::OperandScaleAsIndex(operand_scale) *
+                     kEntriesPerOperandScale;
 }
 
 void Interpreter::IterateDispatchTable(RootVisitor* v) {
+  Heap* heap = isolate_->heap();
   for (int i = 0; i < kDispatchTableSize; i++) {
     Address code_entry = dispatch_table_[i];
+
     Object* code = code_entry == kNullAddress
                        ? nullptr
-                       : Code::GetCodeFromTargetAddress(code_entry);
+                       : heap->GcSafeFindCodeForInnerPointer(code_entry);
     Object* old_code = code;
-    v->VisitRootPointer(Root::kDispatchTable, nullptr, &code);
+    v->VisitRootPointer(Root::kDispatchTable, nullptr, ObjectSlot(&code));
     if (code != old_code) {
       dispatch_table_[i] = reinterpret_cast<Code*>(code)->entry();
     }
@@ -227,6 +215,52 @@ UnoptimizedCompilationJob* Interpreter::NewCompilationJob(
     ZoneVector<FunctionLiteral*>* eager_inner_literals) {
   return new InterpreterCompilationJob(parse_info, literal, allocator,
                                        eager_inner_literals);
+}
+
+void Interpreter::ForEachBytecode(
+    const std::function<void(Bytecode, OperandScale)>& f) {
+  constexpr OperandScale kOperandScales[] = {
+#define VALUE(Name, _) OperandScale::k##Name,
+      OPERAND_SCALE_LIST(VALUE)
+#undef VALUE
+  };
+
+  for (OperandScale operand_scale : kOperandScales) {
+    for (int i = 0; i < Bytecodes::kBytecodeCount; i++) {
+      f(Bytecodes::FromByte(i), operand_scale);
+    }
+  }
+}
+
+void Interpreter::InitializeDispatchTable() {
+  Builtins* builtins = isolate_->builtins();
+  Code* illegal = builtins->builtin(Builtins::kIllegalHandler);
+  int builtin_id = Builtins::kFirstBytecodeHandler;
+  ForEachBytecode([=, &builtin_id](Bytecode bytecode,
+                                   OperandScale operand_scale) {
+    Code* handler = illegal;
+    if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
+#ifdef DEBUG
+      std::string builtin_name(Builtins::name(builtin_id));
+      std::string expected_name =
+          Bytecodes::ToString(bytecode, operand_scale, "") + "Handler";
+      DCHECK_EQ(expected_name, builtin_name);
+#endif
+      handler = builtins->builtin(builtin_id++);
+    }
+    SetBytecodeHandler(bytecode, operand_scale, handler);
+  });
+  DCHECK(builtin_id == Builtins::builtin_count);
+  DCHECK(IsDispatchTableInitialized());
+
+#if defined(V8_USE_SNAPSHOT) && !defined(V8_USE_SNAPSHOT_WITH_UNWINDING_INFO)
+  if (!isolate_->serializer_enabled() && FLAG_perf_prof_unwinding_info) {
+    StdoutStream{}
+        << "Warning: The --perf-prof-unwinding-info flag can be passed at "
+           "mksnapshot time to get better results."
+        << std::endl;
+  }
+#endif
 }
 
 bool Interpreter::IsDispatchTableInitialized() const {

@@ -65,7 +65,7 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
   UNREACHABLE();
 }
 
-ElementAccessInfo::ElementAccessInfo() {}
+ElementAccessInfo::ElementAccessInfo() = default;
 
 ElementAccessInfo::ElementAccessInfo(MapHandles const& receiver_maps,
                                      ElementsKind elements_kind)
@@ -74,7 +74,7 @@ ElementAccessInfo::ElementAccessInfo(MapHandles const& receiver_maps,
 // static
 PropertyAccessInfo PropertyAccessInfo::NotFound(MapHandles const& receiver_maps,
                                                 MaybeHandle<JSObject> holder) {
-  return PropertyAccessInfo(holder, receiver_maps);
+  return PropertyAccessInfo(kNotFound, holder, receiver_maps);
 }
 
 // static
@@ -111,14 +111,21 @@ PropertyAccessInfo PropertyAccessInfo::ModuleExport(
                             receiver_maps);
 }
 
+// static
+PropertyAccessInfo PropertyAccessInfo::StringLength(
+    MapHandles const& receiver_maps) {
+  return PropertyAccessInfo(kStringLength, MaybeHandle<JSObject>(),
+                            receiver_maps);
+}
+
 PropertyAccessInfo::PropertyAccessInfo()
     : kind_(kInvalid),
       field_representation_(MachineRepresentation::kNone),
       field_type_(Type::None()) {}
 
-PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
+PropertyAccessInfo::PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
                                        MapHandles const& receiver_maps)
-    : kind_(kNotFound),
+    : kind_(kind),
       receiver_maps_(receiver_maps),
       holder_(holder),
       field_representation_(MachineRepresentation::kNone),
@@ -218,7 +225,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       return false;
     }
 
-    case kNotFound: {
+    case kNotFound:
+    case kStringLength: {
       this->receiver_maps_.insert(this->receiver_maps_.end(),
                                   that->receiver_maps_.begin(),
                                   that->receiver_maps_.end());
@@ -237,10 +245,10 @@ Handle<Cell> PropertyAccessInfo::export_cell() const {
   return Handle<Cell>::cast(constant_);
 }
 
-AccessInfoFactory::AccessInfoFactory(JSHeapBroker* js_heap_broker,
+AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
                                      CompilationDependencies* dependencies,
                                      Handle<Context> native_context, Zone* zone)
-    : js_heap_broker_(js_heap_broker),
+    : broker_(broker),
       dependencies_(dependencies),
       native_context_(native_context),
       isolate_(native_context->GetIsolate()),
@@ -396,11 +404,12 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               // The field type was cleared by the GC, so we don't know anything
               // about the contents now.
             } else if (descriptors_field_type->IsClass()) {
-              dependencies()->DependOnFieldType(MapRef(js_heap_broker(), map),
-                                                number);
+              MapRef map_ref(broker(), map);
+              map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
+              dependencies()->DependOnFieldType(map_ref, number);
               // Remember the field map, and try to infer a useful type.
               Handle<Map> map(descriptors_field_type->AsClass(), isolate());
-              field_type = Type::For(js_heap_broker(), map);
+              field_type = Type::For(MapRef(broker(), map));
               field_map = MaybeHandle<Map>(map);
             }
           }
@@ -620,18 +629,20 @@ bool AccessInfoFactory::ConsolidateElementLoad(MapHandles const& maps,
 
 bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
+  // Check for String::length field accessor.
+  if (map->IsStringMap()) {
+    if (Name::Equals(isolate(), name, factory()->length_string())) {
+      *access_info = PropertyAccessInfo::StringLength(MapHandles{map});
+      return true;
+    }
+    return false;
+  }
   // Check for special JSObject field accessors.
   FieldIndex field_index;
   if (Accessors::IsJSObjectFieldAccessor(isolate(), map, name, &field_index)) {
     Type field_type = Type::NonInternal();
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
-    if (map->IsStringMap()) {
-      DCHECK(Name::Equals(isolate(), factory()->length_string(), name));
-      // The String::length property is always a smi in the range
-      // [0, String::kMaxLength].
-      field_type = type_cache_.kStringLengthType;
-      field_representation = MachineRepresentation::kTaggedSigned;
-    } else if (map->IsJSArrayMap()) {
+    if (map->IsJSArrayMap()) {
       DCHECK(Name::Equals(isolate(), factory()->length_string(), name));
       // The JSArray::length property is a smi in the range
       // [0, FixedDoubleArray::kMaxLength] in case of fast double
@@ -698,15 +709,17 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       // Store is not safe if the field type was cleared.
       return false;
     } else if (descriptors_field_type->IsClass()) {
-      dependencies()->DependOnFieldType(
-          MapRef(js_heap_broker(), transition_map), number);
+      MapRef transition_map_ref(broker(), transition_map);
+      transition_map_ref
+          .SerializeOwnDescriptors();  // TODO(neis): Remove later.
+      dependencies()->DependOnFieldType(transition_map_ref, number);
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());
-      field_type = Type::For(js_heap_broker(), map);
+      field_type = Type::For(MapRef(broker(), map));
       field_map = MaybeHandle<Map>(map);
     }
   }
-  dependencies()->DependOnTransition(MapRef(js_heap_broker(), transition_map));
+  dependencies()->DependOnTransition(MapRef(broker(), transition_map));
   // Transitioning stores are never stores to constant fields.
   *access_info = PropertyAccessInfo::DataField(
       PropertyConstness::kMutable, MapHandles{map}, field_index,

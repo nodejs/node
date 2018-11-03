@@ -65,6 +65,16 @@ class MachineRepresentationInferrer {
         auto call_descriptor = CallDescriptorOf(input->op());
         return call_descriptor->GetReturnType(index).representation();
       }
+      case IrOpcode::kWord32AtomicPairLoad:
+      case IrOpcode::kWord32AtomicPairAdd:
+      case IrOpcode::kWord32AtomicPairSub:
+      case IrOpcode::kWord32AtomicPairAnd:
+      case IrOpcode::kWord32AtomicPairOr:
+      case IrOpcode::kWord32AtomicPairXor:
+      case IrOpcode::kWord32AtomicPairExchange:
+      case IrOpcode::kWord32AtomicPairCompareExchange:
+        CHECK_LE(index, static_cast<size_t>(1));
+        return MachineRepresentation::kWord32;
       default:
         return MachineRepresentation::kNone;
     }
@@ -111,6 +121,7 @@ class MachineRepresentationInferrer {
             representation_vector_[node->id()] = MachineRepresentation::kNone;
             break;
           case IrOpcode::kWord32AtomicLoad:
+          case IrOpcode::kWord64AtomicLoad:
           case IrOpcode::kLoad:
           case IrOpcode::kProtectedLoad:
           case IrOpcode::kPoisonedLoad:
@@ -144,8 +155,20 @@ class MachineRepresentationInferrer {
             break;
           }
           case IrOpcode::kWord32AtomicStore:
+          case IrOpcode::kWord64AtomicStore:
             representation_vector_[node->id()] =
                 PromoteRepresentation(AtomicStoreRepresentationOf(node->op()));
+            break;
+          case IrOpcode::kWord32AtomicPairLoad:
+          case IrOpcode::kWord32AtomicPairStore:
+          case IrOpcode::kWord32AtomicPairAdd:
+          case IrOpcode::kWord32AtomicPairSub:
+          case IrOpcode::kWord32AtomicPairAnd:
+          case IrOpcode::kWord32AtomicPairOr:
+          case IrOpcode::kWord32AtomicPairXor:
+          case IrOpcode::kWord32AtomicPairExchange:
+          case IrOpcode::kWord32AtomicPairCompareExchange:
+            representation_vector_[node->id()] = MachineRepresentation::kWord32;
             break;
           case IrOpcode::kWord32AtomicExchange:
           case IrOpcode::kWord32AtomicCompareExchange:
@@ -154,6 +177,13 @@ class MachineRepresentationInferrer {
           case IrOpcode::kWord32AtomicAnd:
           case IrOpcode::kWord32AtomicOr:
           case IrOpcode::kWord32AtomicXor:
+          case IrOpcode::kWord64AtomicExchange:
+          case IrOpcode::kWord64AtomicCompareExchange:
+          case IrOpcode::kWord64AtomicAdd:
+          case IrOpcode::kWord64AtomicSub:
+          case IrOpcode::kWord64AtomicAnd:
+          case IrOpcode::kWord64AtomicOr:
+          case IrOpcode::kWord64AtomicXor:
             representation_vector_[node->id()] = PromoteRepresentation(
                 AtomicOpType(node->op()).representation());
             break;
@@ -168,6 +198,7 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kHeapConstant:
           case IrOpcode::kNumberConstant:
+          case IrOpcode::kDelayedStringConstant:
           case IrOpcode::kChangeBitToTagged:
           case IrOpcode::kIfException:
           case IrOpcode::kOsrValue:
@@ -486,11 +517,23 @@ class MachineRepresentationChecker {
             break;
           case IrOpcode::kLoad:
           case IrOpcode::kWord32AtomicLoad:
+          case IrOpcode::kWord32AtomicPairLoad:
+          case IrOpcode::kWord64AtomicLoad:
           case IrOpcode::kPoisonedLoad:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
             break;
+          case IrOpcode::kWord32AtomicPairAdd:
+          case IrOpcode::kWord32AtomicPairSub:
+          case IrOpcode::kWord32AtomicPairAnd:
+          case IrOpcode::kWord32AtomicPairOr:
+          case IrOpcode::kWord32AtomicPairXor:
+          case IrOpcode::kWord32AtomicPairStore:
+          case IrOpcode::kWord32AtomicPairExchange:
+            CheckValueInputRepresentationIs(node, 3,
+                                            MachineRepresentation::kWord32);
+            V8_FALLTHROUGH;
           case IrOpcode::kStore:
           case IrOpcode::kWord32AtomicStore:
           case IrOpcode::kWord32AtomicExchange:
@@ -499,6 +542,13 @@ class MachineRepresentationChecker {
           case IrOpcode::kWord32AtomicAnd:
           case IrOpcode::kWord32AtomicOr:
           case IrOpcode::kWord32AtomicXor:
+          case IrOpcode::kWord64AtomicStore:
+          case IrOpcode::kWord64AtomicExchange:
+          case IrOpcode::kWord64AtomicAdd:
+          case IrOpcode::kWord64AtomicSub:
+          case IrOpcode::kWord64AtomicAnd:
+          case IrOpcode::kWord64AtomicOr:
+          case IrOpcode::kWord64AtomicXor:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
@@ -513,7 +563,14 @@ class MachineRepresentationChecker {
                     node, 2, inferrer_->GetRepresentation(node));
             }
             break;
+          case IrOpcode::kWord32AtomicPairCompareExchange:
+            CheckValueInputRepresentationIs(node, 4,
+                                            MachineRepresentation::kWord32);
+            CheckValueInputRepresentationIs(node, 5,
+                                            MachineRepresentation::kWord32);
+            V8_FALLTHROUGH;
           case IrOpcode::kWord32AtomicCompareExchange:
+          case IrOpcode::kWord64AtomicCompareExchange:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());

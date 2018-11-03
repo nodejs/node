@@ -28,22 +28,24 @@ void DebugCodegen::GenerateHandleDebuggerStatement(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // Frame is being dropped:
-  // - Drop to the target frame specified by ebx.
+  // - Drop to the target frame specified by eax.
   // - Look up current function on the frame.
   // - Leave the frame.
   // - Restart the frame by calling the function.
-  __ mov(ebp, ebx);
+  __ mov(ebp, eax);
   __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ leave();
 
-  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ movzx_w(
-      ebx, FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
+      eax, FieldOperand(eax, SharedFunctionInfo::kFormalParameterCountOffset));
 
-  ParameterCount dummy(ebx);
-  __ InvokeFunction(edi, dummy, dummy, JUMP_FUNCTION);
+  // The expected and actual argument counts don't matter as long as they match
+  // and we don't enter the ArgumentsAdaptorTrampoline.
+  ParameterCount dummy(0);
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+  __ InvokeFunctionCode(edi, no_reg, dummy, dummy, JUMP_FUNCTION);
 }
-
 
 const bool LiveEdit::kFrameDropperSupported = true;
 

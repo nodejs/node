@@ -31,15 +31,15 @@ StoreBuffer::StoreBuffer(Heap* heap)
 }
 
 void StoreBuffer::SetUp() {
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   const size_t requested_size = kStoreBufferSize * kStoreBuffers;
   // Allocate buffer memory aligned at least to kStoreBufferSize. This lets us
   // use a bit test to detect the ends of the buffers.
   const size_t alignment =
-      std::max<size_t>(kStoreBufferSize, AllocatePageSize());
+      std::max<size_t>(kStoreBufferSize, page_allocator->AllocatePageSize());
   void* hint = AlignedAddress(heap_->GetRandomMmapAddr(), alignment);
-  VirtualMemory reservation;
-  if (!AlignedAllocVirtualMemory(requested_size, alignment, hint,
-                                 &reservation)) {
+  VirtualMemory reservation(page_allocator, requested_size, hint, alignment);
+  if (!reservation.IsReserved()) {
     heap_->FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
 
@@ -133,7 +133,7 @@ int StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
 }
 
 void StoreBuffer::FlipStoreBuffers() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   lazy_top_[current_] = top_;
@@ -155,7 +155,7 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
 
   // We are taking the chunk map mutex here because the page lookup of addr
   // below may require us to check if addr is part of a large page.
-  base::LockGuard<base::Mutex> guard(heap_->lo_space()->chunk_map_mutex());
+  base::MutexGuard guard(heap_->lo_space()->chunk_map_mutex());
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
     Address addr = *current;
@@ -184,7 +184,7 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
 }
 
 void StoreBuffer::MoveAllEntriesToRememberedSet() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   lazy_top_[current_] = top_;
@@ -193,7 +193,7 @@ void StoreBuffer::MoveAllEntriesToRememberedSet() {
 }
 
 void StoreBuffer::ConcurrentlyProcessStoreBuffer() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   task_running_ = false;

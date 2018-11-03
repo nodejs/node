@@ -45,7 +45,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void InstallOptimizedFunctions();
 
   inline bool IsQueueAvailable() {
-    base::LockGuard<base::Mutex> access_input_queue(&input_queue_mutex_);
+    base::MutexGuard access_input_queue(&input_queue_mutex_);
     return input_queue_length_ < input_queue_capacity_;
   }
 

@@ -14,7 +14,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
               kExprMemorySize, kMemoryZero,
               kExprI32Const, 0x10,
-              kExprGrowMemory, kMemoryZero,
+              kExprMemoryGrow, kMemoryZero,
               kExprI32Mul,
               ])
               .exportFunc();

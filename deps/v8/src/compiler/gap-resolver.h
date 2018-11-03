@@ -16,7 +16,7 @@ class GapResolver final {
   // Interface used by the gap resolver to emit moves and swaps.
   class Assembler {
    public:
-    virtual ~Assembler() {}
+    virtual ~Assembler() = default;
 
     // Assemble move.
     virtual void AssembleMove(InstructionOperand* source,

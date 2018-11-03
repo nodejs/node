@@ -8,6 +8,7 @@
 #include "src/globals.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
+#include "src/objects/slots.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -54,8 +55,8 @@ TEST(SlotSet, Iterate) {
   }
 
   set.Iterate(
-      [](Address slot_address) {
-        if (slot_address % 3 == 0) {
+      [](MaybeObjectSlot slot) {
+        if (slot.address() % 3 == 0) {
           return KEEP_SLOT;
         } else {
           return REMOVE_SLOT;

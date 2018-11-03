@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {isIterable} from "./util.js"
+import {isIterable} from "../src/util"
 
 export class MySelection {
   selection: any;

@@ -9,6 +9,7 @@
 #include "src/heap/heap.h"
 #include "src/objects-inl.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
@@ -97,6 +98,10 @@ bool Context::IsWithContext() const {
 
 bool Context::IsDebugEvaluateContext() const {
   return map()->instance_type() == DEBUG_EVALUATE_CONTEXT_TYPE;
+}
+
+bool Context::IsAwaitContext() const {
+  return map()->instance_type() == AWAIT_CONTEXT_TYPE;
 }
 
 bool Context::IsBlockContext() const {

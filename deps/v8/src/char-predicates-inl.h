@@ -18,21 +18,12 @@ inline int AsciiAlphaToLower(uc32 c) {
   return c | 0x20;
 }
 
-
 inline bool IsCarriageReturn(uc32 c) {
   return c == 0x000D;
 }
 
-
 inline bool IsLineFeed(uc32 c) {
   return c == 0x000A;
-}
-
-
-inline bool IsInRange(int value, int lower_limit, int higher_limit) {
-  DCHECK(lower_limit <= higher_limit);
-  return static_cast<unsigned int>(value - lower_limit) <=
-      static_cast<unsigned int>(higher_limit - lower_limit);
 }
 
 inline bool IsAsciiIdentifier(uc32 c) {
@@ -57,6 +48,8 @@ inline bool IsOctalDigit(uc32 c) {
   // ECMA-262, 6th, 7.8.3
   return IsInRange(c, '0', '7');
 }
+
+inline bool IsNonOctalDecimalDigit(uc32 c) { return IsInRange(c, '8', '9'); }
 
 inline bool IsBinaryDigit(uc32 c) {
   // ECMA-262, 6th, 7.8.3

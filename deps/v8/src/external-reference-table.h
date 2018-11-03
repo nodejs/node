@@ -30,7 +30,8 @@ class ExternalReferenceTable {
       BUILTIN_LIST_C(COUNT_C_BUILTIN);
 #undef COUNT_C_BUILTIN
   static constexpr int kRuntimeReferenceCount =
-      Runtime::kNumFunctions / 2;  // Don't count dupe kInline... functions.
+      Runtime::kNumFunctions -
+      Runtime::kNumInlineFunctions;  // Don't count dupe kInline... functions.
   static constexpr int kIsolateAddressReferenceCount = kIsolateAddressCount;
   static constexpr int kAccessorReferenceCount =
       Accessors::kAccessorInfoCount + Accessors::kAccessorSetterCount;
@@ -73,7 +74,7 @@ class ExternalReferenceTable {
     return OffsetOfEntry(size()) + 2 * kUInt32Size;
   }
 
-  ExternalReferenceTable() {}
+  ExternalReferenceTable() = default;
   void Init(Isolate* isolate);
 
  private:

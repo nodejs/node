@@ -16,8 +16,8 @@ namespace interpreter {
 
 class BytecodeArrayRandomIteratorTest : public TestWithIsolateAndZone {
  public:
-  BytecodeArrayRandomIteratorTest() {}
-  ~BytecodeArrayRandomIteratorTest() override {}
+  BytecodeArrayRandomIteratorTest() = default;
+  ~BytecodeArrayRandomIteratorTest() override = default;
 };
 
 TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {

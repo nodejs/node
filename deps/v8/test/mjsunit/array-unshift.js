@@ -190,15 +190,12 @@
 (function() {
   for (var i = 0; i < 7; i++) {
     try {
-      new Array(Math.pow(2, 32) - 3).unshift(1, 2, 3, 4, 5);
-      throw 'Should have thrown RangeError';
+      let obj = { length: 2 ** 53 - 3};
+      Array.prototype.unshift.call(obj, 1, 2, 3, 4, 5);
+      throw 'Should have thrown TypeError';
     } catch (e) {
-      assertTrue(e instanceof RangeError);
+      assertTrue(e instanceof TypeError);
     }
-
-    // Check smi boundary
-    var bigNum = (1 << 30) - 3;
-    assertEquals(bigNum + 7, new Array(bigNum).unshift(1, 2, 3, 4, 5, 6, 7));
   }
 })();
 

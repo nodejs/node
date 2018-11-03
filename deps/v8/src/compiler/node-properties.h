@@ -152,11 +152,11 @@ class V8_EXPORT_PRIVATE NodeProperties final {
                              // but instance type is reliable.
   };
   static InferReceiverMapsResult InferReceiverMaps(
-      Isolate* isolate, Node* receiver, Node* effect,
+      JSHeapBroker* broker, Node* receiver, Node* effect,
       ZoneHandleSet<Map>* maps_return);
 
-  static MaybeHandle<Map> GetMapWitness(Isolate* isolate, Node* node);
-  static bool HasInstanceTypeWitness(Isolate* isolate, Node* receiver,
+  static MaybeHandle<Map> GetMapWitness(JSHeapBroker* broker, Node* node);
+  static bool HasInstanceTypeWitness(JSHeapBroker* broker, Node* receiver,
                                      Node* effect, InstanceType instance_type);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
@@ -167,11 +167,12 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Returns true if the {receiver} can be a primitive value (i.e. is not
   // definitely a JavaScript object); might walk up the {effect} chain to
   // find map checks on {receiver}.
-  static bool CanBePrimitive(Isolate* isolate, Node* receiver, Node* effect);
+  static bool CanBePrimitive(JSHeapBroker* broker, Node* receiver,
+                             Node* effect);
 
   // Returns true if the {receiver} can be null or undefined. Might walk
   // up the {effect} chain to find map checks for {receiver}.
-  static bool CanBeNullOrUndefined(Isolate* isolate, Node* receiver,
+  static bool CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
                                    Node* effect);
 
   // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 
 #include "src/code-stub-assembler.h"
+#include "src/message-template.h"
 
 namespace v8 {
 namespace internal {
@@ -82,7 +83,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                             const bool is_fastpath);
 
   Node* ThrowIfNotJSReceiver(Node* context, Node* maybe_receiver,
-                             MessageTemplate::Template msg_template,
+                             MessageTemplate msg_template,
                              char const* method_name);
 
   // Analogous to BranchIfFastRegExp, for use in asserts.
@@ -106,11 +107,12 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   Node* FlagsGetter(Node* const context, Node* const regexp, bool is_fastpath);
 
-  Node* FastFlagGetter(Node* const regexp, JSRegExp::Flag flag);
-  Node* SlowFlagGetter(Node* const context, Node* const regexp,
-                       JSRegExp::Flag flag);
-  Node* FlagGetter(Node* const context, Node* const regexp, JSRegExp::Flag flag,
-                   bool is_fastpath);
+  TNode<Int32T> FastFlagGetter(TNode<JSRegExp> regexp, JSRegExp::Flag flag);
+  TNode<Int32T> SlowFlagGetter(TNode<Context> context, TNode<Object> regexp,
+                               JSRegExp::Flag flag);
+  TNode<Int32T> FlagGetter(TNode<Context> context, TNode<Object> regexp,
+                           JSRegExp::Flag flag, bool is_fastpath);
+
   void FlagGetter(Node* context, Node* receiver, JSRegExp::Flag flag,
                   int counter, const char* method_name);
 

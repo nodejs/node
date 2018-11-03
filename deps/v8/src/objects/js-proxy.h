@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_JS_PROXY_H_
 #define V8_OBJECTS_JS_PROXY_H_
 
-#include "src/objects.h"
+#include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -118,8 +118,6 @@ class JSProxy : public JSReceiver {
 
   typedef FixedBodyDescriptor<JSReceiver::kPropertiesOrHashOffset, kSize, kSize>
       BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   static Maybe<bool> SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
                                       Handle<Symbol> private_name,

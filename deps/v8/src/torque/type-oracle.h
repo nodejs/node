@@ -21,10 +21,12 @@ class TypeOracle : public ContextualClass<TypeOracle> {
       : declarations_(declarations) {}
 
   static const AbstractType* GetAbstractType(
-      const Type* parent, std::string name, std::string generated,
+      const Type* parent, std::string name, bool transient,
+      std::string generated,
       base::Optional<const AbstractType*> non_constexpr_version) {
-    AbstractType* result = new AbstractType(
-        parent, std::move(name), std::move(generated), non_constexpr_version);
+    AbstractType* result =
+        new AbstractType(parent, transient, std::move(name),
+                         std::move(generated), non_constexpr_version);
     Get().nominal_types_.push_back(std::unique_ptr<AbstractType>(result));
     return result;
   }
@@ -57,6 +59,13 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     UnionType result = UnionType::FromType(a);
     result.Extend(b);
     return GetUnionType(std::move(result));
+  }
+
+  static const TopType* GetTopType(std::string reason,
+                                   const Type* source_type) {
+    TopType* result = new TopType(std::move(reason), source_type);
+    Get().top_types_.push_back(std::unique_ptr<TopType>(result));
+    return result;
   }
 
   static const Type* GetArgumentsType() {
@@ -110,6 +119,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   Deduplicator<UnionType> union_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
   std::vector<std::unique_ptr<Type>> struct_types_;
+  std::vector<std::unique_ptr<Type>> top_types_;
 };
 
 }  // namespace torque

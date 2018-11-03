@@ -30,7 +30,7 @@ CancelableTaskManager::CancelableTaskManager()
     : task_id_counter_(0), canceled_(false) {}
 
 CancelableTaskManager::Id CancelableTaskManager::Register(Cancelable* task) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   CancelableTaskManager::Id id = ++task_id_counter_;
   // Id overflows are not supported.
   CHECK_NE(0, id);
@@ -40,7 +40,7 @@ CancelableTaskManager::Id CancelableTaskManager::Register(Cancelable* task) {
 }
 
 void CancelableTaskManager::RemoveFinishedTask(CancelableTaskManager::Id id) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   size_t removed = cancelable_tasks_.erase(id);
   USE(removed);
   DCHECK_NE(0u, removed);
@@ -49,7 +49,7 @@ void CancelableTaskManager::RemoveFinishedTask(CancelableTaskManager::Id id) {
 
 CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbort(
     CancelableTaskManager::Id id) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   auto entry = cancelable_tasks_.find(id);
   if (entry != cancelable_tasks_.end()) {
     Cancelable* value = entry->second;
@@ -70,7 +70,7 @@ void CancelableTaskManager::CancelAndWait() {
   // the way if possible, i.e., if they have not started yet.  After each round
   // of canceling we wait for the background tasks that have already been
   // started.
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   canceled_ = true;
 
   // Cancelable tasks could be running or could potentially register new
@@ -94,7 +94,7 @@ void CancelableTaskManager::CancelAndWait() {
 CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbortAll() {
   // Clean up all cancelable fore- and background tasks. Tasks are canceled on
   // the way if possible, i.e., if they have not started yet.
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
 
   if (cancelable_tasks_.empty()) return kTaskRemoved;
 

@@ -45,6 +45,12 @@
 }],  # variant == stress
 
 ##############################################################################
+['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'debug/debug-stepout-scope-part*': [SKIP],
+}],  # variant == stress and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
 ['variant == stress_incremental_marking', {
   # BUG(chromium:772010).
   'debug/debug-*': [PASS, ['system == windows', SKIP]],
@@ -54,14 +60,7 @@
 ['gc_stress == True', {
   # Skip tests not suitable for GC stress.
   # Tests taking too long
-  'debug/debug-stepout-scope-part1': [SKIP],
-  'debug/debug-stepout-scope-part2': [SKIP],
-  'debug/debug-stepout-scope-part3': [SKIP],
-  'debug/debug-stepout-scope-part4': [SKIP],
-  'debug/debug-stepout-scope-part5': [SKIP],
-  'debug/debug-stepout-scope-part6': [SKIP],
-  'debug/debug-stepout-scope-part7': [SKIP],
-  'debug/debug-stepout-scope-part8': [SKIP],
+  'debug/debug-stepout-scope-part*': [SKIP],
 
   # Async function tests taking too long
   # https://bugs.chromium.org/p/v8/issues/detail?id=5411
@@ -70,7 +69,26 @@
   'debug/es8/async-debug-caught-exception-cases2': [SKIP],
   'debug/es8/async-debug-caught-exception-cases3': [SKIP],
   'debug/es8/async-function-debug-scopes': [SKIP],
+
+  # https://crbug.com/v8/8141
+  'debug/debug-liveedit-1': [SKIP],
+  'debug/debug-liveedit-double-call': [SKIP],
+  'debug/es6/debug-liveedit-new-target-3': [SKIP],
+  'debug/side-effect/debug-evaluate-no-side-effect-control': [SKIP],
 }],  # 'gc_stress == True'
+
+##############################################################################
+['gc_fuzzer', {
+  # Slow tests.
+  'regress/regress-2318': [SKIP],
+}],  # 'gc_fuzzer'
+
+##############################################################################
+['predictable == True', {
+  # https://crbug.com/v8/8147
+  'debug/debug-liveedit-*': [SKIP],
+  'debug/debug-set-variable-value': [SKIP],
+}],  # 'predictable == True'
 
 ##############################################################################
 ['variant == no_wasm_traps', {

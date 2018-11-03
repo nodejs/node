@@ -23,5 +23,5 @@
 ].forEach(([inputLocale, expectedLocale]) => {
   const canonicalLocales = Intl.getCanonicalLocales(inputLocale);
   assertEquals(canonicalLocales.length, 1);
-  assertEquals(canonicalLocales[0], expectedLocale);
+  assertEquals(expectedLocale, canonicalLocales[0]);
 })

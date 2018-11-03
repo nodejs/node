@@ -25,18 +25,17 @@ class SimplifiedOperatorReducerTest : public GraphTest {
  public:
   explicit SimplifiedOperatorReducerTest(int num_parameters = 1)
       : GraphTest(num_parameters), simplified_(zone()) {}
-  ~SimplifiedOperatorReducerTest() override {}
+  ~SimplifiedOperatorReducerTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {
-    JSHeapBroker js_heap_broker(isolate(), zone());
+    JSHeapBroker broker(isolate(), zone());
     MachineOperatorBuilder machine(zone());
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
     GraphReducer graph_reducer(zone(), graph());
-    SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph,
-                                      &js_heap_broker);
+    SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph, &broker);
     return reducer.Reduce(node);
   }
 
@@ -54,7 +53,7 @@ class SimplifiedOperatorReducerTestWithParam
  public:
   explicit SimplifiedOperatorReducerTestWithParam(int num_parameters = 1)
       : SimplifiedOperatorReducerTest(num_parameters) {}
-  ~SimplifiedOperatorReducerTestWithParam() override {}
+  ~SimplifiedOperatorReducerTestWithParam() override = default;
 };
 
 

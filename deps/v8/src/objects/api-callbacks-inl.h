@@ -59,8 +59,22 @@ BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_special_data_property,
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, replace_on_access,
                     AccessorInfo::ReplaceOnAccessBit)
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_sloppy, AccessorInfo::IsSloppyBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, has_no_side_effect,
-                    AccessorInfo::HasNoSideEffectBit)
+BIT_FIELD_ACCESSORS(AccessorInfo, flags, getter_side_effect_type,
+                    AccessorInfo::GetterSideEffectTypeBits)
+
+SideEffectType AccessorInfo::setter_side_effect_type() const {
+  return SetterSideEffectTypeBits::decode(flags());
+}
+
+void AccessorInfo::set_setter_side_effect_type(SideEffectType value) {
+  // We do not support describing setters as having no side effect, since
+  // calling set accessors must go through a store bytecode. Store bytecodes
+  // support checking receivers for temporary objects, but still expect
+  // the receiver to be written to.
+  CHECK_NE(value, SideEffectType::kHasNoSideEffect);
+  set_flags(SetterSideEffectTypeBits::update(flags(), value));
+}
+
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
                     AccessorInfo::InitialAttributesBits)
 

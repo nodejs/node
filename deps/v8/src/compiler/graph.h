@@ -110,7 +110,7 @@ class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
 // in a graph.
 class GraphDecorator : public ZoneObject {
  public:
-  virtual ~GraphDecorator() {}
+  virtual ~GraphDecorator() = default;
   virtual void Decorate(Node* node) = 0;
 };
 

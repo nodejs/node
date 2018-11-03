@@ -45,5 +45,4 @@ class OutProc(outproc_base.BaseOutProc):
 
 class PredictableFilterProc(testproc_base.TestProcFilter):
   def _filter(self, test):
-    return (statusfile.FAIL in test.expected_outcomes or
-            test.output_proc.negative)
+    return test.skip_predictable()

@@ -93,6 +93,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
                                   Address re_frame);
 
  private:
+  Operand StaticVariable(const ExternalReference& ext);
   // Offsets from ebp of function parameters and stored registers.
   static const int kFramePointer = 0;
   // Above the frame pointer - function parameters and return address.

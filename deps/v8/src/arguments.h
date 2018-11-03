@@ -6,7 +6,9 @@
 #define V8_ARGUMENTS_H_
 
 #include "src/allocation.h"
+#include "src/handles.h"
 #include "src/objects.h"
+#include "src/objects/slots.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
@@ -27,7 +29,7 @@ namespace internal {
 // Note that length_ (whose value is in the integer range) is defined
 // as intptr_t to provide endian-neutrality on 64-bit archs.
 
-class Arguments BASE_EMBEDDED {
+class Arguments {
  public:
   Arguments(int length, Object** arguments)
       : length_(length), arguments_(arguments) {
@@ -53,9 +55,11 @@ class Arguments BASE_EMBEDDED {
 
   Object** arguments() { return arguments_; }
 
-  Object** lowest_address() { return &this->operator[](length() - 1); }
+  ObjectSlot lowest_address() {
+    return ObjectSlot(&this->operator[](length() - 1));
+  }
 
-  Object** highest_address() { return &this->operator[](0); }
+  ObjectSlot highest_address() { return ObjectSlot(&this->operator[](0)); }
 
  private:
   intptr_t length_;

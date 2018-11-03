@@ -720,7 +720,7 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
 
 void WasmGenerator::grow_memory(DataRange& data) {
   Generate<kWasmI32>(data);
-  builder_->EmitWithU8(kExprGrowMemory, 0);
+  builder_->EmitWithU8(kExprMemoryGrow, 0);
 }
 
 void WasmGenerator::Generate(ValueType type, DataRange& data) {

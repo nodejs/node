@@ -16,7 +16,7 @@ TEST(ConditionVariable, WaitForAfterNofityOnSameThread) {
     Mutex mutex;
     ConditionVariable cv;
 
-    LockGuard<Mutex> lock_guard(&mutex);
+    MutexGuard lock_guard(&mutex);
 
     cv.NotifyOne();
     EXPECT_FALSE(cv.WaitFor(&mutex, TimeDelta::FromMicroseconds(n)));
@@ -37,7 +37,7 @@ class ThreadWithMutexAndConditionVariable final : public Thread {
         finished_(false) {}
 
   void Run() override {
-    LockGuard<Mutex> lock_guard(&mutex_);
+    MutexGuard lock_guard(&mutex_);
     running_ = true;
     cv_.NotifyOne();
     while (running_) {
@@ -61,7 +61,7 @@ TEST(ConditionVariable, MultipleThreadsWithSeparateConditionVariables) {
   ThreadWithMutexAndConditionVariable threads[kThreadCount];
 
   for (int n = 0; n < kThreadCount; ++n) {
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    MutexGuard lock_guard(&threads[n].mutex_);
     EXPECT_FALSE(threads[n].running_);
     EXPECT_FALSE(threads[n].finished_);
     threads[n].Start();
@@ -72,13 +72,13 @@ TEST(ConditionVariable, MultipleThreadsWithSeparateConditionVariables) {
   }
 
   for (int n = kThreadCount - 1; n >= 0; --n) {
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    MutexGuard lock_guard(&threads[n].mutex_);
     EXPECT_TRUE(threads[n].running_);
     EXPECT_FALSE(threads[n].finished_);
   }
 
   for (int n = 0; n < kThreadCount; ++n) {
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    MutexGuard lock_guard(&threads[n].mutex_);
     EXPECT_TRUE(threads[n].running_);
     EXPECT_FALSE(threads[n].finished_);
     // Tell the nth thread to quit.
@@ -88,7 +88,7 @@ TEST(ConditionVariable, MultipleThreadsWithSeparateConditionVariables) {
 
   for (int n = kThreadCount - 1; n >= 0; --n) {
     // Wait for nth thread to quit.
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    MutexGuard lock_guard(&threads[n].mutex_);
     while (!threads[n].finished_) {
       threads[n].cv_.Wait(&threads[n].mutex_);
     }
@@ -98,7 +98,7 @@ TEST(ConditionVariable, MultipleThreadsWithSeparateConditionVariables) {
 
   for (int n = 0; n < kThreadCount; ++n) {
     threads[n].Join();
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    MutexGuard lock_guard(&threads[n].mutex_);
     EXPECT_FALSE(threads[n].running_);
     EXPECT_TRUE(threads[n].finished_);
   }
@@ -113,11 +113,11 @@ class ThreadWithSharedMutexAndConditionVariable final : public Thread {
       : Thread(Options("ThreadWithSharedMutexAndConditionVariable")),
         running_(false),
         finished_(false),
-        cv_(NULL),
-        mutex_(NULL) {}
+        cv_(nullptr),
+        mutex_(nullptr) {}
 
   void Run() override {
-    LockGuard<Mutex> lock_guard(mutex_);
+    MutexGuard lock_guard(mutex_);
     running_ = true;
     cv_->NotifyAll();
     while (running_) {
@@ -149,7 +149,7 @@ TEST(ConditionVariable, MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Start all threads.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    MutexGuard lock_guard(&mutex);
     for (int n = 0; n < kThreadCount; ++n) {
       EXPECT_FALSE(threads[n].running_);
       EXPECT_FALSE(threads[n].finished_);
@@ -159,7 +159,7 @@ TEST(ConditionVariable, MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Wait for all threads to start.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    MutexGuard lock_guard(&mutex);
     for (int n = kThreadCount - 1; n >= 0; --n) {
       while (!threads[n].running_) {
         cv.Wait(&mutex);
@@ -169,7 +169,7 @@ TEST(ConditionVariable, MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Make sure that all threads are running.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    MutexGuard lock_guard(&mutex);
     for (int n = 0; n < kThreadCount; ++n) {
       EXPECT_TRUE(threads[n].running_);
       EXPECT_FALSE(threads[n].finished_);
@@ -178,7 +178,7 @@ TEST(ConditionVariable, MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Tell all threads to quit.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    MutexGuard lock_guard(&mutex);
     for (int n = kThreadCount - 1; n >= 0; --n) {
       EXPECT_TRUE(threads[n].running_);
       EXPECT_FALSE(threads[n].finished_);
@@ -190,7 +190,7 @@ TEST(ConditionVariable, MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Wait for all threads to quit.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    MutexGuard lock_guard(&mutex);
     for (int n = 0; n < kThreadCount; ++n) {
       while (!threads[n].finished_) {
         cv.Wait(&mutex);
@@ -200,7 +200,7 @@ TEST(ConditionVariable, MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Make sure all threads are finished.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    MutexGuard lock_guard(&mutex);
     for (int n = kThreadCount - 1; n >= 0; --n) {
       EXPECT_FALSE(threads[n].running_);
       EXPECT_TRUE(threads[n].finished_);
@@ -234,7 +234,7 @@ class LoopIncrementThread final : public Thread {
   void Run() override {
     int last_count = -1;
     while (true) {
-      LockGuard<Mutex> lock_guard(mutex_);
+      MutexGuard lock_guard(mutex_);
       int count = *counter_;
       while (count % thread_count_ != rem_ && count < limit_) {
         cv_->Wait(mutex_);

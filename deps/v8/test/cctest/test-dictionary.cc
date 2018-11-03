@@ -86,7 +86,7 @@ static void TestHashMap(Handle<HashMap> table) {
     CHECK_EQ(table->NumberOfElements(), i + 1);
     CHECK_NE(table->FindEntry(isolate, key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), *value);
-    CHECK(key->GetIdentityHash(isolate)->IsSmi());
+    CHECK(key->GetIdentityHash()->IsSmi());
   }
 
   // Keys never added to the map which already have an identity hash
@@ -96,7 +96,7 @@ static void TestHashMap(Handle<HashMap> table) {
     CHECK(key->GetOrCreateIdentityHash(isolate)->IsSmi());
     CHECK_EQ(table->FindEntry(isolate, key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), roots.the_hole_value());
-    CHECK(key->GetIdentityHash(isolate)->IsSmi());
+    CHECK(key->GetIdentityHash()->IsSmi());
   }
 
   // Keys that don't have an identity hash should not be found and also
@@ -104,7 +104,7 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK_EQ(table->Lookup(key), roots.the_hole_value());
-    Object* identity_hash = key->GetIdentityHash(isolate);
+    Object* identity_hash = key->GetIdentityHash();
     CHECK_EQ(roots.undefined_value(), identity_hash);
   }
 }
@@ -157,7 +157,7 @@ static void TestHashSet(Handle<HashSet> table) {
     table = HashSet::Add(isolate, table, key);
     CHECK_EQ(table->NumberOfElements(), i + 2);
     CHECK(table->Has(isolate, key));
-    CHECK(key->GetIdentityHash(isolate)->IsSmi());
+    CHECK(key->GetIdentityHash()->IsSmi());
   }
 
   // Keys never added to the map which already have an identity hash
@@ -166,7 +166,7 @@ static void TestHashSet(Handle<HashSet> table) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(key->GetOrCreateIdentityHash(isolate)->IsSmi());
     CHECK(!table->Has(isolate, key));
-    CHECK(key->GetIdentityHash(isolate)->IsSmi());
+    CHECK(key->GetIdentityHash()->IsSmi());
   }
 
   // Keys that don't have an identity hash should not be found and also
@@ -174,7 +174,7 @@ static void TestHashSet(Handle<HashSet> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(!table->Has(isolate, key));
-    Object* identity_hash = key->GetIdentityHash(isolate);
+    Object* identity_hash = key->GetIdentityHash();
     CHECK_EQ(ReadOnlyRoots(CcTest::heap()).undefined_value(), identity_hash);
   }
 }

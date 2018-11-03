@@ -42,47 +42,35 @@ bool BasicBlock::LoopContains(BasicBlock* block) const {
          block->rpo_number_ < loop_end_->rpo_number_;
 }
 
-
 void BasicBlock::AddSuccessor(BasicBlock* successor) {
   successors_.push_back(successor);
 }
-
 
 void BasicBlock::AddPredecessor(BasicBlock* predecessor) {
   predecessors_.push_back(predecessor);
 }
 
-
 void BasicBlock::AddNode(Node* node) { nodes_.push_back(node); }
 
-
-void BasicBlock::set_control(Control control) {
-  control_ = control;
-}
-
+void BasicBlock::set_control(Control control) { control_ = control; }
 
 void BasicBlock::set_control_input(Node* control_input) {
   control_input_ = control_input;
 }
 
-
 void BasicBlock::set_loop_depth(int32_t loop_depth) {
   loop_depth_ = loop_depth;
 }
-
 
 void BasicBlock::set_rpo_number(int32_t rpo_number) {
   rpo_number_ = rpo_number;
 }
 
-
 void BasicBlock::set_loop_end(BasicBlock* loop_end) { loop_end_ = loop_end; }
-
 
 void BasicBlock::set_loop_header(BasicBlock* loop_header) {
   loop_header_ = loop_header;
 }
-
 
 // static
 BasicBlock* BasicBlock::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
@@ -141,11 +129,9 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
   UNREACHABLE();
 }
 
-
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id) {
   return os << id.ToSize();
 }
-
 
 Schedule::Schedule(Zone* zone, size_t node_count_hint)
     : zone_(zone),
@@ -157,7 +143,6 @@ Schedule::Schedule(Zone* zone, size_t node_count_hint)
   nodeid_to_block_.reserve(node_count_hint);
 }
 
-
 BasicBlock* Schedule::block(Node* node) const {
   if (node->id() < static_cast<NodeId>(nodeid_to_block_.size())) {
     return nodeid_to_block_[node->id()];
@@ -165,24 +150,20 @@ BasicBlock* Schedule::block(Node* node) const {
   return nullptr;
 }
 
-
 bool Schedule::IsScheduled(Node* node) {
   if (node->id() >= nodeid_to_block_.size()) return false;
   return nodeid_to_block_[node->id()] != nullptr;
 }
-
 
 BasicBlock* Schedule::GetBlockById(BasicBlock::Id block_id) {
   DCHECK(block_id.ToSize() < all_blocks_.size());
   return all_blocks_[block_id.ToSize()];
 }
 
-
 bool Schedule::SameBasicBlock(Node* a, Node* b) const {
   BasicBlock* block = this->block(a);
   return block != nullptr && block == this->block(b);
 }
-
 
 BasicBlock* Schedule::NewBasicBlock() {
   BasicBlock* block = new (zone_)
@@ -190,7 +171,6 @@ BasicBlock* Schedule::NewBasicBlock() {
   all_blocks_.push_back(block);
   return block;
 }
-
 
 void Schedule::PlanNode(BasicBlock* block, Node* node) {
   if (FLAG_trace_turbo_scheduler) {
@@ -202,7 +182,6 @@ void Schedule::PlanNode(BasicBlock* block, Node* node) {
   SetBlockForNode(block, node);
 }
 
-
 void Schedule::AddNode(BasicBlock* block, Node* node) {
   if (FLAG_trace_turbo_scheduler) {
     StdoutStream{} << "Adding #" << node->id() << ":" << node->op()->mnemonic()
@@ -212,7 +191,6 @@ void Schedule::AddNode(BasicBlock* block, Node* node) {
   block->AddNode(node);
   SetBlockForNode(block, node);
 }
-
 
 void Schedule::AddGoto(BasicBlock* block, BasicBlock* succ) {
   DCHECK_EQ(BasicBlock::kNone, block->control());
@@ -249,7 +227,6 @@ void Schedule::AddCall(BasicBlock* block, Node* call, BasicBlock* success_block,
   SetControlInput(block, call);
 }
 
-
 void Schedule::AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
                          BasicBlock* fblock) {
   DCHECK_EQ(BasicBlock::kNone, block->control());
@@ -259,7 +236,6 @@ void Schedule::AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
   AddSuccessor(block, fblock);
   SetControlInput(block, branch);
 }
-
 
 void Schedule::AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
                          size_t succ_count) {
@@ -272,14 +248,12 @@ void Schedule::AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
   SetControlInput(block, sw);
 }
 
-
 void Schedule::AddTailCall(BasicBlock* block, Node* input) {
   DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kTailCall);
   SetControlInput(block, input);
   if (block != end()) AddSuccessor(block, end());
 }
-
 
 void Schedule::AddReturn(BasicBlock* block, Node* input) {
   DCHECK_EQ(BasicBlock::kNone, block->control());
@@ -288,7 +262,6 @@ void Schedule::AddReturn(BasicBlock* block, Node* input) {
   if (block != end()) AddSuccessor(block, end());
 }
 
-
 void Schedule::AddDeoptimize(BasicBlock* block, Node* input) {
   DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kDeoptimize);
@@ -296,14 +269,12 @@ void Schedule::AddDeoptimize(BasicBlock* block, Node* input) {
   if (block != end()) AddSuccessor(block, end());
 }
 
-
 void Schedule::AddThrow(BasicBlock* block, Node* input) {
   DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kThrow);
   SetControlInput(block, input);
   if (block != end()) AddSuccessor(block, end());
 }
-
 
 void Schedule::InsertBranch(BasicBlock* block, BasicBlock* end, Node* branch,
                             BasicBlock* tblock, BasicBlock* fblock) {
@@ -319,7 +290,6 @@ void Schedule::InsertBranch(BasicBlock* block, BasicBlock* end, Node* branch,
   }
   SetControlInput(block, branch);
 }
-
 
 void Schedule::InsertSwitch(BasicBlock* block, BasicBlock* end, Node* sw,
                             BasicBlock** succ_blocks, size_t succ_count) {
@@ -343,7 +313,7 @@ void Schedule::EnsureCFGWellFormedness() {
   BasicBlockVector all_blocks_copy(all_blocks_);
 
   // Insert missing split edge blocks.
-  for (auto block : all_blocks_copy) {
+  for (BasicBlock* block : all_blocks_copy) {
     if (block->PredecessorCount() > 1) {
       if (block != end_) {
         EnsureSplitEdgeForm(block);
@@ -351,24 +321,42 @@ void Schedule::EnsureCFGWellFormedness() {
       if (block->deferred()) {
         EnsureDeferredCodeSingleEntryPoint(block);
       }
-    } else {
-      EliminateNoopPhiNodes(block);
     }
   }
+
+  EliminateRedundantPhiNodes();
 }
 
-void Schedule::EliminateNoopPhiNodes(BasicBlock* block) {
-  // Ensure that useless phi nodes in blocks that only have a single predecessor
+void Schedule::EliminateRedundantPhiNodes() {
+  // Ensure that useless phi nodes that only have a single input, identical
+  // inputs, or are a self-referential loop phi,
   // -- which can happen with the automatically generated code in the CSA and
   // torque -- are pruned.
-  if (block->PredecessorCount() == 1) {
-    for (size_t i = 0; i < block->NodeCount();) {
-      Node* node = block->NodeAt(i);
-      if (node->opcode() == IrOpcode::kPhi) {
-        node->ReplaceUses(node->InputAt(0));
-        block->RemoveNode(block->begin() + i);
-      } else {
-        ++i;
+  // Since we have strucured control flow, this is enough to minimize the number
+  // of phi nodes.
+  bool reached_fixed_point = false;
+  while (!reached_fixed_point) {
+    reached_fixed_point = true;
+    for (BasicBlock* block : all_blocks_) {
+      int predecessor_count = static_cast<int>(block->PredecessorCount());
+      for (size_t node_pos = 0; node_pos < block->NodeCount(); ++node_pos) {
+        Node* node = block->NodeAt(node_pos);
+        if (node->opcode() == IrOpcode::kPhi) {
+          Node* first_input = node->InputAt(0);
+          bool inputs_equal = true;
+          for (int i = 1; i < predecessor_count; ++i) {
+            Node* input = node->InputAt(i);
+            if (input != first_input && input != node) {
+              inputs_equal = false;
+              break;
+            }
+          }
+          if (!inputs_equal) continue;
+          node->ReplaceUses(first_input);
+          block->RemoveNode(block->begin() + node_pos);
+          --node_pos;
+          reached_fixed_point = false;
+        }
       }
     }
   }
@@ -481,7 +469,6 @@ void Schedule::AddSuccessor(BasicBlock* block, BasicBlock* succ) {
   succ->AddPredecessor(block);
 }
 
-
 void Schedule::MoveSuccessors(BasicBlock* from, BasicBlock* to) {
   for (BasicBlock* const successor : from->successors()) {
     to->AddSuccessor(successor);
@@ -492,12 +479,10 @@ void Schedule::MoveSuccessors(BasicBlock* from, BasicBlock* to) {
   from->ClearSuccessors();
 }
 
-
 void Schedule::SetControlInput(BasicBlock* block, Node* node) {
   block->set_control_input(node);
   SetBlockForNode(block, node);
 }
-
 
 void Schedule::SetBlockForNode(BasicBlock* block, Node* node) {
   if (node->id() >= nodeid_to_block_.size()) {
@@ -505,7 +490,6 @@ void Schedule::SetBlockForNode(BasicBlock* block, Node* node) {
   }
   nodeid_to_block_[node->id()] = block;
 }
-
 
 std::ostream& operator<<(std::ostream& os, const Schedule& s) {
   for (BasicBlock* block :

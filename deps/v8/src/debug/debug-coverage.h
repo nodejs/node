@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/debug/debug-interface.h"
+#include "src/handles.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -63,7 +64,7 @@ class Coverage : public std::vector<CoverageScript> {
   static std::unique_ptr<Coverage> Collect(
       Isolate* isolate, v8::debug::Coverage::Mode collectionMode);
 
-  Coverage() {}
+  Coverage() = default;
 };
 
 }  // namespace internal

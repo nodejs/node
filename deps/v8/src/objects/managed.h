@@ -24,7 +24,7 @@ struct ManagedPtrDestructor {
   ManagedPtrDestructor* next_ = nullptr;
   void* shared_ptr_ptr_ = nullptr;
   void (*destructor_)(void* shared_ptr) = nullptr;
-  Object** global_handle_location_ = nullptr;
+  Address* global_handle_location_ = nullptr;
 
   ManagedPtrDestructor(size_t estimated_size, void* shared_ptr_ptr,
                        void (*destructor)(void*))

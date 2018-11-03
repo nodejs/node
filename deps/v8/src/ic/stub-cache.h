@@ -5,7 +5,6 @@
 #ifndef V8_IC_STUB_CACHE_H_
 #define V8_IC_STUB_CACHE_H_
 
-#include "src/macro-assembler.h"
 #include "src/objects/name.h"
 
 namespace v8 {
@@ -34,14 +33,18 @@ class StubCache {
  public:
   struct Entry {
     Name* key;
-    MaybeObject* value;
+    // {value} is a tagged heap object reference (weak or strong), equivalent
+    // to a MaybeObject's payload. It has a plain Address type because it is
+    // read directly from generated code. As a nice side effect, this keeps
+    // #includes lightweight.
+    Address value;
     Map* map;
   };
 
   void Initialize();
   // Access cache for entry hash(name, map).
-  MaybeObject* Set(Name* name, Map* map, MaybeObject* handler);
-  MaybeObject* Get(Name* name, Map* map);
+  void Set(Name* name, Map* map, MaybeObject handler);
+  MaybeObject Get(Name* name, Map* map);
   // Clear the lookup table (@ mark compact collection).
   void Clear();
 

@@ -14,8 +14,8 @@ namespace internal {
 
 class CodeStubAssemblerTest : public TestWithIsolateAndZone {
  public:
-  CodeStubAssemblerTest() {}
-  ~CodeStubAssemblerTest() override {}
+  CodeStubAssemblerTest() = default;
+  ~CodeStubAssemblerTest() override = default;
 };
 
 class CodeStubAssemblerTestState : public compiler::CodeAssemblerState {

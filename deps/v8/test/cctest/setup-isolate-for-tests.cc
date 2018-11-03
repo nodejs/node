@@ -4,21 +4,12 @@
 
 #include "test/cctest/setup-isolate-for-tests.h"
 
-#include "src/interpreter/setup-interpreter.h"
-
 namespace v8 {
 namespace internal {
 
 void SetupIsolateDelegateForTests::SetupBuiltins(Isolate* isolate) {
   if (create_heap_objects_) {
     SetupBuiltinsInternal(isolate);
-  }
-}
-
-void SetupIsolateDelegateForTests::SetupInterpreter(
-    interpreter::Interpreter* interpreter) {
-  if (create_heap_objects_) {
-    interpreter::SetupInterpreter::InstallBytecodeHandlers(interpreter);
   }
 }
 

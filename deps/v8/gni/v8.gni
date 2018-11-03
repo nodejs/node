@@ -143,7 +143,15 @@ template("v8_source_set") {
     }
   }
   target(link_target_type, target_name) {
-    forward_variables_from(invoker, "*", [ "configs" ])
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "remove_configs",
+                           ])
+    if (defined(invoker.remove_configs)) {
+      configs -= invoker.remove_configs
+    }
     configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs

@@ -82,19 +82,19 @@ function createTests() {
     });
     result.push(function (jsonObject){
         var value = new Number(1);
-        value.valueOf = function() { return 2; }
+        value.valueOf = function() { return 2; };
         return jsonObject.stringify(value);
     });
     result[result.length - 1].expected = '2';
     result.push(function (jsonObject){
         var value = new Boolean(true);
-        value.valueOf = function() { return 2; }
+        value.valueOf = function() { return 2; };
         return jsonObject.stringify(value);
     });
     result[result.length - 1].expected = '2';
     result.push(function (jsonObject){
         var value = new String("fail");
-        value.toString = function() { return "converted string"; }
+        value.toString = function() { return "converted string"; };
         return jsonObject.stringify(value);
     });
     result[result.length - 1].expected = '"converted string"';
@@ -429,7 +429,7 @@ function createTests() {
     result[result.length - 1].throws = true;
     result.push(function (jsonObject){
         cycleTracker = "";
-        try { jsonObject.stringify(cyclicArray); } catch(e) { cycleTracker += " -> exception" }
+        try { jsonObject.stringify(cyclicArray); } catch { cycleTracker += " -> exception" }
         return cycleTracker;
     });
     result[result.length - 1].expected = "0(number):[object Object]first, -> exception";
@@ -508,7 +508,7 @@ function createTests() {
         return jsonObject.stringify(toDeepVirtualJSONArray());
     });
     var fullCharsetString = "";
-    for (var i = 0; i < 65536; i++)
+    for (let i = 0; i <= 0xFFFF; i++)
         fullCharsetString += String.fromCharCode(i);
     result.push(function (jsonObject){
         return jsonObject.stringify(fullCharsetString);

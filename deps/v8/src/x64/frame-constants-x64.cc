@@ -4,12 +4,11 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/assembler.h"
+#include "src/x64/frame-constants-x64.h"
+
 #include "src/frame-constants.h"
 #include "src/x64/assembler-x64-inl.h"
-#include "src/x64/assembler-x64.h"
 
-#include "src/x64/frame-constants-x64.h"
 
 namespace v8 {
 namespace internal {

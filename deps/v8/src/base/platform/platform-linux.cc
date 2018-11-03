@@ -27,14 +27,6 @@
 #include <sys/types.h>  // mmap & munmap
 #include <unistd.h>     // sysconf
 
-// GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
-// Old versions of the C library <signal.h> didn't define the type.
-#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    (defined(__arm__) || defined(__aarch64__)) &&                 \
-    !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
-#include <asm/sigcontext.h>  // NOLINT
-#endif
-
 #include <cmath>
 
 #undef MAP_TYPE

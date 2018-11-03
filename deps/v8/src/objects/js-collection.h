@@ -21,6 +21,7 @@ class JSCollection : public JSObject {
 
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kSize = kTableOffset + kPointerSize;
+  static const int kAddFunctionDescriptorIndex = 3;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSCollection);
@@ -107,14 +108,13 @@ class JSWeakCollection : public JSObject {
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kSize = kTableOffset + kPointerSize;
 
+  static const int kAddFunctionDescriptorIndex = 3;
+
   // Iterates the function object according to the visiting policy.
   class BodyDescriptorImpl;
 
   // Visit the whole object.
   typedef BodyDescriptorImpl BodyDescriptor;
-
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCollection);

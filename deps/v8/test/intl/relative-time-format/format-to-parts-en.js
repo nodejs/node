@@ -66,3 +66,44 @@ assertEquals('day', parts[0].unit);
 assertEquals(2, Object.getOwnPropertyNames(parts[1]).length);
 assertEquals('literal', parts[1].type);
 assertEquals(' days ago', parts[1].value);
+
+// Test with non integer
+// Part Idx:  0  1  23  45 6
+assertEquals('in 123,456.78 seconds', longAlways.format(123456.78, 'seconds'));
+parts = longAlways.formatToParts(123456.78, 'seconds');
+assertEquals(7, parts.length);
+// 0: "in "
+assertEquals(2, Object.getOwnPropertyNames(parts[0]).length);
+assertEquals('literal', parts[0].type);
+assertEquals('in ', parts[0].value);
+assertEquals(undefined, parts[0].unit);
+// 1: "123"
+assertEquals(3, Object.getOwnPropertyNames(parts[1]).length);
+assertEquals('integer', parts[1].type);
+assertEquals('123', parts[1].value);
+assertEquals('second', parts[1].unit);
+// 2: ","
+assertEquals(3, Object.getOwnPropertyNames(parts[2]).length);
+assertEquals('group', parts[2].type);
+assertEquals(',', parts[2].value);
+assertEquals('second', parts[2].unit);
+// 3: "456"
+assertEquals(3, Object.getOwnPropertyNames(parts[3]).length);
+assertEquals('integer', parts[3].type);
+assertEquals('456', parts[3].value);
+assertEquals('second', parts[3].unit);
+// 4: "."
+assertEquals(3, Object.getOwnPropertyNames(parts[4]).length);
+assertEquals('decimal', parts[4].type);
+assertEquals('.', parts[4].value);
+assertEquals('second', parts[4].unit);
+// 5: "78"
+assertEquals(3, Object.getOwnPropertyNames(parts[4]).length);
+assertEquals('fraction', parts[5].type);
+assertEquals('78', parts[5].value);
+assertEquals('second', parts[5].unit);
+// 6: " seconds"
+assertEquals(2, Object.getOwnPropertyNames(parts[6]).length);
+assertEquals('literal', parts[6].type);
+assertEquals(' seconds', parts[6].value);
+assertEquals(undefined, parts[6].unit);

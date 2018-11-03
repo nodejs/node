@@ -23,13 +23,13 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<Code> LoadBuiltinFromFrame(Builtins::Name id) {
     TNode<Object> instance = LoadInstanceFromFrame();
-    TNode<IntPtrT> roots = UncheckedCast<IntPtrT>(
+    TNode<IntPtrT> isolate_root = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), instance,
-             IntPtrConstant(WasmInstanceObject::kRootsArrayAddressOffset -
+             IntPtrConstant(WasmInstanceObject::kIsolateRootOffset -
                             kHeapObjectTag)));
-    TNode<Code> target = UncheckedCast<Code>(Load(
-        MachineType::TaggedPointer(), roots,
-        IntPtrConstant(Heap::roots_to_builtins_offset() + id * kPointerSize)));
+    TNode<Code> target = UncheckedCast<Code>(
+        Load(MachineType::TaggedPointer(), isolate_root,
+             IntPtrConstant(IsolateData::builtin_slot_offset(id))));
     return target;
   }
 
@@ -38,33 +38,24 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
         LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
   }
 
+  TNode<Object> LoadContextFromInstance(TNode<Object> instance) {
+    return UncheckedCast<Object>(
+        Load(MachineType::AnyTagged(), instance,
+             IntPtrConstant(WasmInstanceObject::kNativeContextOffset -
+                            kHeapObjectTag)));
+  }
+
   TNode<Code> LoadCEntryFromInstance(TNode<Object> instance) {
     return UncheckedCast<Code>(
         Load(MachineType::AnyTagged(), instance,
              IntPtrConstant(WasmInstanceObject::kCEntryStubOffset -
                             kHeapObjectTag)));
   }
-
-  TNode<Code> LoadCEntryFromFrame() {
-    return LoadCEntryFromInstance(LoadInstanceFromFrame());
-  }
 };
 
 TF_BUILTIN(WasmAllocateHeapNumber, WasmBuiltinsAssembler) {
   TNode<Code> target = LoadBuiltinFromFrame(Builtins::kAllocateHeapNumber);
   TailCallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant());
-}
-
-TF_BUILTIN(WasmArgumentsAdaptor, WasmBuiltinsAssembler) {
-  TNode<Object> context = UncheckedParameter(Descriptor::kContext);
-  TNode<Object> function = UncheckedParameter(Descriptor::kTarget);
-  TNode<Object> new_target = UncheckedParameter(Descriptor::kNewTarget);
-  TNode<Object> argc1 = UncheckedParameter(Descriptor::kActualArgumentsCount);
-  TNode<Object> argc2 = UncheckedParameter(Descriptor::kExpectedArgumentsCount);
-  TNode<Code> target =
-      LoadBuiltinFromFrame(Builtins::kArgumentsAdaptorTrampoline);
-  TailCallStub(ArgumentAdaptorDescriptor{}, target, context, function,
-               new_target, argc1, argc2);
 }
 
 TF_BUILTIN(WasmCallJavaScript, WasmBuiltinsAssembler) {
@@ -75,6 +66,16 @@ TF_BUILTIN(WasmCallJavaScript, WasmBuiltinsAssembler) {
   TailCallStub(CallTrampolineDescriptor{}, target, context, function, argc);
 }
 
+TF_BUILTIN(WasmRecordWrite, WasmBuiltinsAssembler) {
+  TNode<Object> object = UncheckedParameter(Descriptor::kObject);
+  TNode<Object> slot = UncheckedParameter(Descriptor::kSlot);
+  TNode<Object> remembered = UncheckedParameter(Descriptor::kRememberedSet);
+  TNode<Object> fp_mode = UncheckedParameter(Descriptor::kFPMode);
+  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kRecordWrite);
+  TailCallStub(RecordWriteDescriptor{}, target, NoContextConstant(), object,
+               slot, remembered, fp_mode);
+}
+
 TF_BUILTIN(WasmToNumber, WasmBuiltinsAssembler) {
   TNode<Object> context = UncheckedParameter(Descriptor::kContext);
   TNode<Object> argument = UncheckedParameter(Descriptor::kArgument);
@@ -83,12 +84,21 @@ TF_BUILTIN(WasmToNumber, WasmBuiltinsAssembler) {
 }
 
 TF_BUILTIN(WasmStackGuard, WasmBuiltinsAssembler) {
-  TNode<Code> centry = LoadCEntryFromFrame();
-  TailCallRuntimeWithCEntry(Runtime::kWasmStackGuard, centry,
-                            NoContextConstant());
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+  TNode<Object> context = LoadContextFromInstance(instance);
+  TailCallRuntimeWithCEntry(Runtime::kWasmStackGuard, centry, context);
 }
 
-TF_BUILTIN(WasmGrowMemory, WasmBuiltinsAssembler) {
+TF_BUILTIN(WasmThrow, WasmBuiltinsAssembler) {
+  TNode<Object> exception = UncheckedParameter(Descriptor::kException);
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+  TNode<Object> context = LoadContextFromInstance(instance);
+  TailCallRuntimeWithCEntry(Runtime::kThrow, centry, context, exception);
+}
+
+TF_BUILTIN(WasmMemoryGrow, WasmBuiltinsAssembler) {
   TNode<Int32T> num_pages =
       UncheckedCast<Int32T>(Parameter(Descriptor::kNumPages));
   Label num_pages_out_of_range(this, Label::kDeferred);
@@ -100,9 +110,9 @@ TF_BUILTIN(WasmGrowMemory, WasmBuiltinsAssembler) {
   TNode<Smi> num_pages_smi = SmiFromInt32(num_pages);
   TNode<Object> instance = LoadInstanceFromFrame();
   TNode<Code> centry = LoadCEntryFromInstance(instance);
-  TNode<Smi> ret_smi = UncheckedCast<Smi>(
-      CallRuntimeWithCEntry(Runtime::kWasmGrowMemory, centry,
-                            NoContextConstant(), instance, num_pages_smi));
+  TNode<Object> context = LoadContextFromInstance(instance);
+  TNode<Smi> ret_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
+      Runtime::kWasmMemoryGrow, centry, context, instance, num_pages_smi));
   TNode<Int32T> ret = SmiToInt32(ret_smi);
   ReturnRaw(ret);
 
@@ -110,12 +120,15 @@ TF_BUILTIN(WasmGrowMemory, WasmBuiltinsAssembler) {
   ReturnRaw(Int32Constant(-1));
 }
 
-#define DECLARE_ENUM(name)                                                    \
-  TF_BUILTIN(ThrowWasm##name, WasmBuiltinsAssembler) {                        \
-    TNode<Code> centry = LoadCEntryFromFrame();                               \
-    int message_id = wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name); \
-    TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry,               \
-                              NoContextConstant(), SmiConstant(message_id));  \
+#define DECLARE_ENUM(name)                                                \
+  TF_BUILTIN(ThrowWasm##name, WasmBuiltinsAssembler) {                    \
+    TNode<Object> instance = LoadInstanceFromFrame();                     \
+    TNode<Code> centry = LoadCEntryFromInstance(instance);                \
+    TNode<Object> context = LoadContextFromInstance(instance);            \
+    MessageTemplate message_id =                                          \
+        wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name);          \
+    TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry, context,  \
+                              SmiConstant(static_cast<int>(message_id))); \
   }
 FOREACH_WASM_TRAPREASON(DECLARE_ENUM)
 #undef DECLARE_ENUM

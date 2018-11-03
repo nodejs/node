@@ -26,7 +26,7 @@ return x + b;
 ---
 Break location after LiveEdit:
 var x = a;
-var x = #3;
+#var x = 3;
 debugger;
 
 stackChanged: true
@@ -62,12 +62,12 @@ var x = 1;
 ---
 Break location after LiveEdit:
 function boo() {
-var x = #3;
+#var x = 3;
 debugger;
 
 stackChanged: true
 Protocol.Debugger.stepInto
-var x = 3;
-#debugger;
-var x = 1;
+function boo() {
+var x = #3;
+debugger;
 

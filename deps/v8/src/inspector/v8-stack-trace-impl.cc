@@ -223,10 +223,10 @@ V8StackTraceImpl::V8StackTraceImpl(
     const V8StackTraceId& externalParent)
     : m_frames(std::move(frames)),
       m_maxAsyncDepth(maxAsyncDepth),
-      m_asyncParent(asyncParent),
+      m_asyncParent(std::move(asyncParent)),
       m_externalParent(externalParent) {}
 
-V8StackTraceImpl::~V8StackTraceImpl() {}
+V8StackTraceImpl::~V8StackTraceImpl() = default;
 
 std::unique_ptr<V8StackTrace> V8StackTraceImpl::clone() {
   return std::unique_ptr<V8StackTrace>(new V8StackTraceImpl(
@@ -268,9 +268,15 @@ StringView V8StackTraceImpl::topFunctionName() const {
 
 std::unique_ptr<protocol::Runtime::StackTrace>
 V8StackTraceImpl::buildInspectorObjectImpl(V8Debugger* debugger) const {
+  return buildInspectorObjectImpl(debugger, m_maxAsyncDepth);
+}
+
+std::unique_ptr<protocol::Runtime::StackTrace>
+V8StackTraceImpl::buildInspectorObjectImpl(V8Debugger* debugger,
+                                           int maxAsyncDepth) const {
   return buildInspectorObjectCommon(debugger, m_frames, String16(),
                                     m_asyncParent.lock(), m_externalParent,
-                                    m_maxAsyncDepth);
+                                    maxAsyncDepth);
 }
 
 std::unique_ptr<protocol::Runtime::API::StackTrace>
@@ -392,7 +398,7 @@ AsyncStackTrace::AsyncStackTrace(
       m_suspendedTaskId(nullptr),
       m_description(description),
       m_frames(std::move(frames)),
-      m_asyncParent(asyncParent),
+      m_asyncParent(std::move(asyncParent)),
       m_externalParent(externalParent) {
   DCHECK(m_contextGroupId || (!externalParent.IsInvalid() && m_frames.empty()));
 }

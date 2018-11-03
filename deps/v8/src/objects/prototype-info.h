@@ -67,7 +67,7 @@ class PrototypeInfo : public Struct {
   class BodyDescriptor;
 
  private:
-  DECL_ACCESSORS(object_create_map, MaybeObject)
+  DECL_ACCESSORS2(object_create_map, MaybeObject)
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);
 };

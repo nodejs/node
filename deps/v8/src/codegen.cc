@@ -12,19 +12,17 @@
 namespace v8 {
 namespace internal {
 
-#define UNARY_MATH_FUNCTION(name, generator)                             \
-  static UnaryMathFunctionWithIsolate fast_##name##_function = nullptr;  \
-  double std_##name(double x, Isolate* isolate) { return std::name(x); } \
-  void init_fast_##name##_function(Isolate* isolate) {                   \
-    if (FLAG_fast_math) fast_##name##_function = generator(isolate);     \
-    if (!fast_##name##_function) fast_##name##_function = std_##name;    \
-  }                                                                      \
-  void lazily_initialize_fast_##name(Isolate* isolate) {                 \
-    if (!fast_##name##_function) init_fast_##name##_function(isolate);   \
-  }                                                                      \
-  double fast_##name(double x, Isolate* isolate) {                       \
-    return (*fast_##name##_function)(x, isolate);                        \
-  }
+#define UNARY_MATH_FUNCTION(name, generator)                          \
+  static UnaryMathFunction fast_##name##_function = nullptr;          \
+  double std_##name(double x) { return std::name(x); }                \
+  void init_fast_##name##_function() {                                \
+    if (FLAG_fast_math) fast_##name##_function = generator();         \
+    if (!fast_##name##_function) fast_##name##_function = std_##name; \
+  }                                                                   \
+  void lazily_initialize_fast_##name() {                              \
+    if (!fast_##name##_function) init_fast_##name##_function();       \
+  }                                                                   \
+  double fast_##name(double x) { return (*fast_##name##_function)(x); }
 
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction)
 

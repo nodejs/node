@@ -81,7 +81,7 @@ class V8_EXPORT_PRIVATE Utf8DecoderBase {
 template <size_t kBufferSize>
 class Utf8Decoder : public Utf8DecoderBase {
  public:
-  inline Utf8Decoder() {}
+  inline Utf8Decoder() = default;
   explicit inline Utf8Decoder(const v8::internal::Vector<const char>& stream);
   inline void Reset(const v8::internal::Vector<const char>& stream);
   inline size_t WriteUtf16(

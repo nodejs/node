@@ -3,6 +3,23 @@
 # found in the LICENSE file.
 
 [
+##############################################################################
+[ALWAYS, {
+  # https://crbug.com/v8/7767
+  'debugger/wasm-imports': [SKIP],
+  # https://crbug.com/v8/7932
+  'runtime/command-line-api-without-side-effects': [SKIP],
+
+  # Require optimization, so can't be run on Lite mode.
+  'cpu-profiler/coverage-block': [PASS, ['lite_mode == True', SKIP]],
+  'cpu-profiler/coverage': [PASS, ['lite_mode == True', SKIP]],
+}],  # ALWAYS
+
+##############################################################################
+['system == android', {
+  # https://crbug.com/v8/8197
+  'debugger/get-possible-breakpoints-class-fields': [SKIP],
+}],  # 'system == android'
 
 ##############################################################################
 ['variant != default', {
@@ -15,6 +32,18 @@
 }],  # variant != default
 
 ##############################################################################
+['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'runtime/console-messages-limits': [SKIP],
+}],  # variant == stress and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
+['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'runtime/console-messages-limits': [SKIP],
+}],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
@@ -24,10 +53,4 @@
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debugger/set-script-source-stack-padding': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
-
-##############################################################################
-[ALWAYS, {
-  # https://crbug.com/v8/7767
-  'debugger/wasm-imports': [SKIP],
-}],  # ALWAYS
 ]

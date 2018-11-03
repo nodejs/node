@@ -151,8 +151,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(GetGlobal, "get_global")
     CASE_OP(SetGlobal, "set_global")
     CASE_ALL_OP(Const, "const")
-    CASE_OP(MemorySize, "current_memory")
-    CASE_OP(GrowMemory, "grow_memory")
+    CASE_OP(MemorySize, "memory.size")
+    CASE_OP(MemoryGrow, "memory.grow")
     CASE_ALL_OP(LoadMem, "load")
     CASE_SIGN_OP(INT, LoadMem8, "load8")
     CASE_SIGN_OP(INT, LoadMem16, "load16")
@@ -506,7 +506,7 @@ constexpr uint8_t StoreType::kStoreSizeLog2[];
 constexpr ValueType StoreType::kValueType[];
 constexpr MachineRepresentation StoreType::kMemRep[];
 
-int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
+MessageTemplate WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
   switch (reason) {
 #define TRAPREASON_TO_MESSAGE(name) \
   case k##name:                     \
@@ -519,7 +519,7 @@ int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
 }
 
 const char* WasmOpcodes::TrapReasonMessage(TrapReason reason) {
-  return MessageTemplate::TemplateString(TrapReasonToMessageId(reason));
+  return MessageFormatter::TemplateString(TrapReasonToMessageId(reason));
 }
 }  // namespace wasm
 }  // namespace internal

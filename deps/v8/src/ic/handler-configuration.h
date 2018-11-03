@@ -150,7 +150,7 @@ class LoadHandler final : public DataHandler {
   // needed (e.g., for "nonexistent"), null_value() may be passed in.
   static Handle<Object> LoadFullChain(Isolate* isolate,
                                       Handle<Map> receiver_map,
-                                      MaybeObjectHandle holder,
+                                      const MaybeObjectHandle& holder,
                                       Handle<Smi> smi_handler);
 
   // Creates a data handler that represents a prototype chain check followed
@@ -178,7 +178,7 @@ class LoadHandler final : public DataHandler {
                                               KeyedAccessLoadMode load_mode);
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
-  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject* handler);
+  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject handler);
 };
 
 // A set of bit fields representing Smi handlers for stores and a HeapObject

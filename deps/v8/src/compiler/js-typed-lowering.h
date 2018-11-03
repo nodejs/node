@@ -31,9 +31,9 @@ enum Signedness { kSigned, kUnsigned };
 class V8_EXPORT_PRIVATE JSTypedLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  JSTypedLowering(Editor* editor, JSGraph* jsgraph,
-                  JSHeapBroker* js_heap_broker, Zone* zone);
-  ~JSTypedLowering() final {}
+  JSTypedLowering(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
+                  Zone* zone);
+  ~JSTypedLowering() final = default;
 
   const char* reducer_name() const override { return "JSTypedLowering"; }
 
@@ -57,11 +57,11 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSStoreModule(Node* node);
   Reduction ReduceJSEqual(Node* node);
   Reduction ReduceJSStrictEqual(Node* node);
-  Reduction ReduceJSToInteger(Node* node);
   Reduction ReduceJSToLength(Node* node);
   Reduction ReduceJSToName(Node* node);
-  Reduction ReduceJSToNumberOrNumericInput(Node* input);
-  Reduction ReduceJSToNumberOrNumeric(Node* node);
+  Reduction ReduceJSToNumberInput(Node* input);
+  Reduction ReduceJSToNumber(Node* node);
+  Reduction ReduceJSToNumeric(Node* node);
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToString(Node* node);
   Reduction ReduceJSToObject(Node* node);
@@ -81,31 +81,28 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceNumberBinop(Node* node);
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);
-  Reduction ReduceCreateConsString(Node* node);
   Reduction ReduceSpeculativeNumberAdd(Node* node);
   Reduction ReduceSpeculativeNumberMultiply(Node* node);
   Reduction ReduceSpeculativeNumberBinop(Node* node);
   Reduction ReduceSpeculativeNumberComparison(Node* node);
   Reduction ReduceObjectIsArray(Node* node);
   Reduction ReduceJSParseInt(Node* node);
+  Reduction ReduceJSResolvePromise(Node* node);
 
   // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
   Node* BuildGetModuleCell(Node* node);
 
-  // Helpers for ReduceJSCreateConsString.
-  Node* BuildGetStringLength(Node* value);
-
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* jsgraph_;
-  JSHeapBroker* js_heap_broker_;
+  JSHeapBroker* broker_;
   Type empty_string_type_;
   Type pointer_comparable_type_;
   TypeCache const& type_cache_;

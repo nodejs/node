@@ -235,7 +235,7 @@ async function testPromiseAsyncWithCode() {
     |C|nextTest();
   |R|}
   |C|main();
-  |_|return testPromise;
+  |_|return testPromise;|R|
 |R|}
 
 function returnFunction() {
@@ -248,7 +248,7 @@ async function testPromiseComplex() {
   async function main() {
     async function foo() {
       |_|await Promise.|C|resolve();
-      |_|return 42;
+      |_|return 42;|R|
     |R|}
     var x = |_|1;
     var y = |_|2;
@@ -256,7 +256,7 @@ async function testPromiseComplex() {
     |C|nextTest();
   |R|}
   |C|main();
-  |_|return testPromise;
+  |_|return testPromise;|R|
 |R|}
 
 function twiceDefined() {

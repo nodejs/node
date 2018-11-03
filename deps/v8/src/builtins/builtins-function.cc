@@ -41,11 +41,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     IncrementalStringBuilder builder(isolate);
     builder.AppendCharacter('(');
     builder.AppendCString(token);
-    if (FLAG_harmony_function_tostring) {
-      builder.AppendCString(" anonymous(");
-    } else {
-      builder.AppendCharacter('(');
-    }
+    builder.AppendCString(" anonymous(");
     bool parenthesis_in_arg_string = false;
     if (argc > 1) {
       for (int i = 1; i < argc; ++i) {
@@ -55,31 +51,10 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
             isolate, param, Object::ToString(isolate, args.at(i)), Object);
         param = String::Flatten(isolate, param);
         builder.AppendString(param);
-        if (!FLAG_harmony_function_tostring) {
-          // If the formal parameters string include ) - an illegal
-          // character - it may make the combined function expression
-          // compile. We avoid this problem by checking for this early on.
-          DisallowHeapAllocation no_gc;  // Ensure vectors stay valid.
-          String::FlatContent param_content = param->GetFlatContent();
-          for (int i = 0, length = param->length(); i < length; ++i) {
-            if (param_content.Get(i) == ')') {
-              parenthesis_in_arg_string = true;
-              break;
-            }
-          }
-        }
-      }
-      if (!FLAG_harmony_function_tostring) {
-        // If the formal parameters include an unbalanced block comment, the
-        // function must be rejected. Since JavaScript does not allow nested
-        // comments we can include a trailing block comment to catch this.
-        builder.AppendCString("\n/*``*/");
       }
     }
-    if (FLAG_harmony_function_tostring) {
-      builder.AppendCharacter('\n');
-      parameters_end_pos = builder.Length();
-    }
+    builder.AppendCharacter('\n');
+    parameters_end_pos = builder.Length();
     builder.AppendCString(") {\n");
     if (argc > 0) {
       Handle<String> body;
@@ -303,7 +278,7 @@ BUILTIN(FunctionPrototypeToString) {
   }
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.
-  if (FLAG_harmony_function_tostring && receiver->IsJSReceiver() &&
+  if (receiver->IsJSReceiver() &&
       JSReceiver::cast(*receiver)->map()->is_callable()) {
     return ReadOnlyRoots(isolate).function_native_code_string();
   }

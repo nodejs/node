@@ -49,6 +49,10 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   virtual void OnError(DecodeResult result) = 0;
   // Report the abortion of the stream.
   virtual void OnAbort() = 0;
+
+  // Attempt to deserialize the module. Supports embedder caching.
+  virtual bool Deserialize(Vector<const uint8_t> module_bytes,
+                           Vector<const uint8_t> wire_bytes) = 0;
 };
 
 // The StreamingDecoder takes a sequence of byte arrays, each received by a call
@@ -71,6 +75,18 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
     // We set {ok_} to false to turn all future calls to the StreamingDecoder
     // into no-ops.
     ok_ = false;
+  }
+
+  // Caching support.
+  // Sets the callback that is called after the module is fully compiled.
+  using ModuleCompiledCallback = std::function<void(Handle<WasmModuleObject>)>;
+  void SetModuleCompiledCallback(ModuleCompiledCallback callback);
+  // Passes previously compiled module bytes from the embedder's cache.
+  bool SetCompiledModuleBytes(Vector<const uint8_t> compiled_module_bytes);
+  // The callback is stored on the StreamingDecoder so it can be called by the
+  // AsyncCompileJob.
+  ModuleCompiledCallback module_compiled_callback() const {
+    return module_compiled_callback_;
   }
 
  private:
@@ -208,9 +224,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   }
 
   std::unique_ptr<DecodingState> Error(std::string message) {
-    DecodeResult result(nullptr);
-    result.error(module_offset_ - 1, std::move(message));
-    return Error(std::move(result));
+    return Error(DecodeResult::Error(module_offset_ - 1, std::move(message)));
   }
 
   void ProcessModuleHeader() {
@@ -253,6 +267,8 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   uint32_t module_offset() const { return module_offset_; }
 
+  bool deserializing() const { return !compiled_module_bytes_.is_empty(); }
+
   std::unique_ptr<StreamingProcessor> processor_;
   bool ok_ = true;
   std::unique_ptr<DecodingState> state_;
@@ -260,6 +276,12 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   uint32_t module_offset_ = 0;
   size_t total_size_ = 0;
   uint8_t next_section_id_ = kFirstSectionInModule;
+
+  // Caching support.
+  ModuleCompiledCallback module_compiled_callback_ = nullptr;
+  // We need wire bytes in an array for deserializing cached modules.
+  std::vector<uint8_t> wire_bytes_for_deserializing_;
+  Vector<const uint8_t> compiled_module_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(StreamingDecoder);
 };

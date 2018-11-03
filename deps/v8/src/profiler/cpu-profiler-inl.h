@@ -53,8 +53,7 @@ void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
   entry->SetBuiltinId(builtin_id);
 }
 
-
-TickSample* ProfilerEventsProcessor::StartTickSample() {
+TickSample* SamplingEventsProcessor::StartTickSample() {
   void* address = ticks_buffer_.StartEnqueue();
   if (address == nullptr) return nullptr;
   TickSampleEventRecord* evt =
@@ -62,8 +61,7 @@ TickSample* ProfilerEventsProcessor::StartTickSample() {
   return &evt->sample;
 }
 
-
-void ProfilerEventsProcessor::FinishTickSample() {
+void SamplingEventsProcessor::FinishTickSample() {
   ticks_buffer_.FinishEnqueue();
 }
 

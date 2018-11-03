@@ -6,6 +6,7 @@
 #define V8_TORQUE_TYPES_H_
 
 #include <algorithm>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -32,19 +33,20 @@ static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
-class Label;
 class Value;
 class Module;
 
 class TypeBase {
  public:
   enum class Kind {
+    kTopType,
     kAbstractType,
     kFunctionPointerType,
     kUnionType,
     kStructType
   };
-  virtual ~TypeBase() {}
+  virtual ~TypeBase() = default;
+  bool IsTopType() const { return kind() == Kind::kTopType; }
   bool IsAbstractType() const { return kind() == Kind::kAbstractType; }
   bool IsFunctionPointerType() const {
     return kind() == Kind::kFunctionPointerType;
@@ -96,6 +98,7 @@ class Type : public TypeBase {
   virtual std::string GetGeneratedTypeName() const = 0;
   virtual std::string GetGeneratedTNodeTypeName() const = 0;
   virtual bool IsConstexpr() const = 0;
+  virtual bool IsTransient() const { return false; }
   virtual const Type* NonConstexprVersion() const = 0;
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
@@ -125,6 +128,35 @@ struct NameAndType {
 
 std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type);
 
+class TopType final : public Type {
+ public:
+  DECLARE_TYPE_BOILERPLATE(TopType);
+  virtual std::string MangledName() const { return "top"; }
+  virtual std::string GetGeneratedTypeName() const { UNREACHABLE(); }
+  virtual std::string GetGeneratedTNodeTypeName() const {
+    return source_type_->GetGeneratedTNodeTypeName();
+  }
+  virtual bool IsConstexpr() const { return false; }
+  virtual const Type* NonConstexprVersion() const { return nullptr; }
+  virtual std::string ToExplicitString() const {
+    std::stringstream s;
+    s << "inaccessible " + source_type_->ToString();
+    return s.str();
+  }
+
+  const Type* source_type() const { return source_type_; }
+  const std::string reason() const { return reason_; }
+
+ private:
+  friend class TypeOracle;
+  explicit TopType(std::string reason, const Type* source_type)
+      : Type(Kind::kTopType, nullptr),
+        reason_(std::move(reason)),
+        source_type_(source_type) {}
+  std::string reason_;
+  const Type* source_type_;
+};
+
 class AbstractType final : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(AbstractType);
@@ -144,10 +176,11 @@ class AbstractType final : public Type {
 
  private:
   friend class TypeOracle;
-  AbstractType(const Type* parent, const std::string& name,
+  AbstractType(const Type* parent, bool transient, const std::string& name,
                const std::string& generated_type,
                base::Optional<const AbstractType*> non_constexpr_version)
       : Type(Kind::kAbstractType, parent),
+        transient_(transient),
         name_(name),
         generated_type_(generated_type),
         non_constexpr_version_(non_constexpr_version) {
@@ -155,6 +188,9 @@ class AbstractType final : public Type {
     if (parent) DCHECK(parent->IsConstexpr() == IsConstexpr());
   }
 
+  bool IsTransient() const override { return transient_; }
+
+  bool transient_;
   const std::string name_;
   const std::string generated_type_;
   base::Optional<const AbstractType*> non_constexpr_version_;
@@ -264,6 +300,15 @@ class UnionType final : public Type {
     return false;
   }
 
+  bool IsTransient() const override {
+    for (const Type* member : types_) {
+      if (member->IsTransient()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void Extend(const Type* t) {
     if (const UnionType* union_type = UnionType::DynamicCast(t)) {
       for (const Type* member : union_type->types_) {
@@ -344,21 +389,34 @@ inline std::ostream& operator<<(std::ostream& os, const Type& t) {
 
 class VisitResult {
  public:
-  VisitResult() {}
-  VisitResult(const Type* type, const std::string& value)
-      : type_(type), value_(value), declarable_{} {}
-  VisitResult(const Type* type, const Value* declarable);
+  VisitResult() = default;
+  VisitResult(const Type* type, const std::string& constexpr_value)
+      : type_(type), constexpr_value_(constexpr_value) {
+    DCHECK(type->IsConstexpr());
+  }
+  static VisitResult NeverResult();
+  VisitResult(const Type* type, StackRange stack_range)
+      : type_(type), stack_range_(stack_range) {
+    DCHECK(!type->IsConstexpr());
+  }
   const Type* type() const { return type_; }
-  base::Optional<const Value*> declarable() const { return declarable_; }
-  std::string LValue() const;
-  std::string RValue() const;
+  const std::string& constexpr_value() const { return *constexpr_value_; }
+  const StackRange& stack_range() const { return *stack_range_; }
   void SetType(const Type* new_type) { type_ = new_type; }
+  bool IsOnStack() const { return stack_range_ != base::nullopt; }
+  bool operator==(const VisitResult& other) const {
+    return type_ == other.type_ && constexpr_value_ == other.constexpr_value_ &&
+           stack_range_ == other.stack_range_;
+  }
 
  private:
   const Type* type_ = nullptr;
-  std::string value_;
-  base::Optional<const Value*> declarable_;
+  base::Optional<std::string> constexpr_value_;
+  base::Optional<StackRange> stack_range_;
 };
+
+VisitResult ProjectStructField(VisitResult structure,
+                               const std::string& fieldname);
 
 class VisitResultVector : public std::vector<VisitResult> {
  public:
@@ -399,26 +457,47 @@ struct ParameterTypes {
 
 std::ostream& operator<<(std::ostream& os, const ParameterTypes& parameters);
 
+enum class ParameterMode { kProcessImplicit, kIgnoreImplicit };
+
 struct Signature {
+  Signature(NameVector n, ParameterTypes p, size_t i, const Type* r,
+            LabelDeclarationVector l)
+      : parameter_names(std::move(n)),
+        parameter_types(std::move(p)),
+        implicit_count(i),
+        return_type(r),
+        labels(std::move(l)) {}
+  Signature() : implicit_count(0), return_type(nullptr) {}
   const TypeVector& types() const { return parameter_types.types; }
   NameVector parameter_names;
   ParameterTypes parameter_types;
+  size_t implicit_count;
   const Type* return_type;
   LabelDeclarationVector labels;
-  bool HasSameTypesAs(const Signature& other) const;
-};
-
-struct Arguments {
-  VisitResultVector parameters;
-  std::vector<Label*> labels;
+  bool HasSameTypesAs(
+      const Signature& other,
+      ParameterMode mode = ParameterMode::kProcessImplicit) const;
+  const TypeVector& GetTypes() const { return parameter_types.types; }
+  TypeVector GetImplicitTypes() const {
+    return TypeVector(parameter_types.types.begin(),
+                      parameter_types.types.begin() + implicit_count);
+  }
+  TypeVector GetExplicitTypes() const {
+    return TypeVector(parameter_types.types.begin() + implicit_count,
+                      parameter_types.types.end());
+  }
 };
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names);
 std::ostream& operator<<(std::ostream& os, const Signature& sig);
 
 bool IsAssignableFrom(const Type* to, const Type* from);
-bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
-                           const std::vector<Label*>& labels);
+
+TypeVector LowerType(const Type* type);
+size_t LoweredSlotCount(const Type* type);
+TypeVector LowerParameterTypes(const TypeVector& parameters);
+TypeVector LowerParameterTypes(const ParameterTypes& parameter_types,
+                               size_t vararg_count = 0);
 
 }  // namespace torque
 }  // namespace internal

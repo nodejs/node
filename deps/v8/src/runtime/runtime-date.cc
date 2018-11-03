@@ -9,17 +9,9 @@
 #include "src/date.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
 
 namespace v8 {
 namespace internal {
-
-RUNTIME_FUNCTION(Runtime_IsDate) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSDate());
-}
 
 RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   HandleScope scope(isolate);

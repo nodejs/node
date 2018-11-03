@@ -67,7 +67,7 @@ TEST(Regress340063) {
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
 }
 
 
@@ -84,7 +84,7 @@ TEST(Regress470390) {
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
 }
 
 

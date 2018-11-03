@@ -132,36 +132,6 @@ V8_INLINE uint64_t QPCNowRaw() {
 namespace v8 {
 namespace base {
 
-TimeDelta TimeDelta::FromDays(int days) {
-  return TimeDelta(days * Time::kMicrosecondsPerDay);
-}
-
-
-TimeDelta TimeDelta::FromHours(int hours) {
-  return TimeDelta(hours * Time::kMicrosecondsPerHour);
-}
-
-
-TimeDelta TimeDelta::FromMinutes(int minutes) {
-  return TimeDelta(minutes * Time::kMicrosecondsPerMinute);
-}
-
-
-TimeDelta TimeDelta::FromSeconds(int64_t seconds) {
-  return TimeDelta(seconds * Time::kMicrosecondsPerSecond);
-}
-
-
-TimeDelta TimeDelta::FromMilliseconds(int64_t milliseconds) {
-  return TimeDelta(milliseconds * Time::kMicrosecondsPerMillisecond);
-}
-
-
-TimeDelta TimeDelta::FromNanoseconds(int64_t nanoseconds) {
-  return TimeDelta(nanoseconds / Time::kNanosecondsPerMicrosecond);
-}
-
-
 int TimeDelta::InDays() const {
   if (IsMax()) {
     // Preserve max to prevent overflow.
@@ -302,7 +272,7 @@ class Clock final {
     // Time between resampling the un-granular clock for this API (1 minute).
     const TimeDelta kMaxElapsedTime = TimeDelta::FromMinutes(1);
 
-    LockGuard<Mutex> lock_guard(&mutex_);
+    MutexGuard lock_guard(&mutex_);
 
     // Determine current time and ticks.
     TimeTicks ticks = GetSystemTicks();
@@ -321,7 +291,7 @@ class Clock final {
   }
 
   Time NowFromSystemTime() {
-    LockGuard<Mutex> lock_guard(&mutex_);
+    MutexGuard lock_guard(&mutex_);
     initial_ticks_ = GetSystemTicks();
     initial_time_ = GetSystemTime();
     return initial_time_;
@@ -829,6 +799,12 @@ void ThreadTicks::WaitUntilInitializedWin() {
     ::Sleep(10);
 }
 
+#ifdef V8_HOST_ARCH_ARM64
+#define ReadCycleCounter() _ReadStatusReg(ARM64_PMCCNTR_EL0)
+#else
+#define ReadCycleCounter() __rdtsc()
+#endif
+
 double ThreadTicks::TSCTicksPerSecond() {
   DCHECK(IsSupported());
 
@@ -849,12 +825,12 @@ double ThreadTicks::TSCTicksPerSecond() {
 
   // The first time that this function is called, make an initial reading of the
   // TSC and the performance counter.
-  static const uint64_t tsc_initial = __rdtsc();
+  static const uint64_t tsc_initial = ReadCycleCounter();
   static const uint64_t perf_counter_initial = QPCNowRaw();
 
   // Make a another reading of the TSC and the performance counter every time
   // that this function is called.
-  uint64_t tsc_now = __rdtsc();
+  uint64_t tsc_now = ReadCycleCounter();
   uint64_t perf_counter_now = QPCNowRaw();
 
   // Reset the thread priority.
@@ -887,6 +863,7 @@ double ThreadTicks::TSCTicksPerSecond() {
 
   return tsc_ticks_per_second;
 }
+#undef ReadCycleCounter
 #endif  // V8_OS_WIN
 
 }  // namespace base

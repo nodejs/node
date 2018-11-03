@@ -4,19 +4,27 @@
 
 #include "src/heap/barrier.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 namespace heap {
 
+namespace {
+
+// Large timeout that will not trigger in tests.
+constexpr base::TimeDelta test_timeout = base::TimeDelta::FromHours(3);
+
+}  // namespace
+
 TEST(OneshotBarrier, InitializeNotDone) {
-  OneshotBarrier barrier;
+  OneshotBarrier barrier(test_timeout);
   EXPECT_FALSE(barrier.DoneForTesting());
 }
 
 TEST(OneshotBarrier, DoneAfterWait_Sequential) {
-  OneshotBarrier barrier;
+  OneshotBarrier barrier(test_timeout);
   barrier.Start();
   barrier.Wait();
   EXPECT_TRUE(barrier.DoneForTesting());
@@ -41,7 +49,7 @@ class ThreadWaitingOnBarrier final : public base::Thread {
 
 TEST(OneshotBarrier, DoneAfterWait_Concurrent) {
   const int kThreadCount = 2;
-  OneshotBarrier barrier;
+  OneshotBarrier barrier(test_timeout);
   ThreadWaitingOnBarrier threads[kThreadCount];
   for (int i = 0; i < kThreadCount; i++) {
     threads[i].Initialize(&barrier);
@@ -59,7 +67,7 @@ TEST(OneshotBarrier, DoneAfterWait_Concurrent) {
 
 TEST(OneshotBarrier, EarlyFinish_Concurrent) {
   const int kThreadCount = 2;
-  OneshotBarrier barrier;
+  OneshotBarrier barrier(test_timeout);
   ThreadWaitingOnBarrier threads[kThreadCount];
   // Test that one thread that actually finishes processing work before other
   // threads call Start() will move the barrier in Done state.
@@ -103,7 +111,7 @@ class CountingThread final : public base::Thread {
 
  private:
   void ProcessWork() {
-    base::LockGuard<base::Mutex> guard(mutex_);
+    base::MutexGuard guard(mutex_);
     processed_work_ += *work_;
     *work_ = 0;
   }
@@ -118,7 +126,7 @@ class CountingThread final : public base::Thread {
 
 TEST(OneshotBarrier, Processing_Concurrent) {
   const size_t kWorkCounter = 173173;
-  OneshotBarrier barrier;
+  OneshotBarrier barrier(test_timeout);
   base::Mutex mutex;
   size_t work = 0;
   CountingThread counting_thread(&barrier, &mutex, &work);
@@ -129,7 +137,7 @@ TEST(OneshotBarrier, Processing_Concurrent) {
 
   for (size_t i = 0; i < kWorkCounter; i++) {
     {
-      base::LockGuard<base::Mutex> guard(&mutex);
+      base::MutexGuard guard(&mutex);
       work++;
     }
     barrier.NotifyAll();

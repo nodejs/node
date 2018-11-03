@@ -75,11 +75,6 @@ AllocationTraceTree::AllocationTraceTree()
       root_(this, 0) {
 }
 
-
-AllocationTraceTree::~AllocationTraceTree() {
-}
-
-
 AllocationTraceNode* AllocationTraceTree::AddPathFromEnd(
     const Vector<unsigned>& path) {
   AllocationTraceNode* node = root();
@@ -288,14 +283,14 @@ AllocationTracker::UnresolvedLocation::UnresolvedLocation(
     : start_position_(start),
       info_(info) {
   script_ = script->GetIsolate()->global_handles()->Create(script);
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()), this,
-                          &HandleWeakScript, v8::WeakCallbackType::kParameter);
+  GlobalHandles::MakeWeak(script_.location(), this, &HandleWeakScript,
+                          v8::WeakCallbackType::kParameter);
 }
 
 
 AllocationTracker::UnresolvedLocation::~UnresolvedLocation() {
   if (!script_.is_null()) {
-    GlobalHandles::Destroy(reinterpret_cast<Object**>(script_.location()));
+    GlobalHandles::Destroy(script_.location());
   }
 }
 
@@ -311,7 +306,7 @@ void AllocationTracker::UnresolvedLocation::HandleWeakScript(
     const v8::WeakCallbackInfo<void>& data) {
   UnresolvedLocation* loc =
       reinterpret_cast<UnresolvedLocation*>(data.GetParameter());
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(loc->script_.location()));
+  GlobalHandles::Destroy(loc->script_.location());
   loc->script_ = Handle<Script>::null();
 }
 

@@ -6,6 +6,7 @@
 #define V8_INTERPRETER_BYTECODE_GENERATOR_H_
 
 #include "src/ast/ast.h"
+#include "src/feedback-vector.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register.h"
@@ -43,7 +44,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visiting function for declarations list and statements are overridden.
   void VisitDeclarations(Declaration::List* declarations);
-  void VisitStatements(ZonePtrList<Statement>* statments);
+  void VisitStatements(const ZonePtrList<Statement>* statments);
 
  private:
   class ContextScope;
@@ -100,7 +101,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visit the arguments expressions in |args| and store them in |args_regs|,
   // growing |args_regs| for each argument visited.
-  void VisitArguments(ZonePtrList<Expression>* args, RegisterList* arg_regs);
+  void VisitArguments(const ZonePtrList<Expression>* args,
+                      RegisterList* arg_regs);
 
   // Visit a keyed super property load. The optional
   // |opt_receiver_out| register will have the receiver stored to it
@@ -182,17 +184,18 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildArrayLiteralSpread(Spread* spread, Register array, Register index,
                                FeedbackSlot index_slot,
                                FeedbackSlot element_slot);
-  void BuildArrayLiteralElementsInsertion(Register array,
-                                          int first_spread_index,
-                                          ZonePtrList<Expression>* elements,
-                                          bool skip_constants);
-
+  // Create Array literals. |expr| can be nullptr, but if provided,
+  // a boilerplate will be used to create an initial array for elements
+  // before the first spread.
+  void BuildCreateArrayLiteral(const ZonePtrList<Expression>* elements,
+                               ArrayLiteral* expr);
   void BuildCreateObjectLiteral(Register literal, uint8_t flags, size_t entry);
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
-  void BuildClassLiteral(ClassLiteral* expr);
+  void BuildClassLiteral(ClassLiteral* expr, Register name);
+  void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);
   void BuildInstanceFieldInitialization(Register constructor,
@@ -373,7 +376,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Dummy feedback slot for compare operations, where we don't care about
   // feedback
-  FeedbackSlot dummy_feedback_slot_;
+  SharedFeedbackSlot dummy_feedback_slot_;
 
   BytecodeJumpTable* generator_jump_table_;
   int suspend_count_;

@@ -11,9 +11,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-// Support to serialize WebAssembly {NativeModule} objects. This class intends
-// to be thread-safe in that it takes a consistent snapshot of the module state
-// at instantiation, allowing other threads to mutate the module concurrently.
+// Support for serializing WebAssembly {NativeModule} objects. This class takes
+// a snapshot of the module state at instantiation, and other code that modifies
+// the module after that won't affect the serialized result.
 class WasmSerializer {
  public:
   WasmSerializer(Isolate* isolate, NativeModule* native_module);
@@ -31,7 +31,11 @@ class WasmSerializer {
   std::vector<WasmCode*> code_table_;
 };
 
-// Support to deserialize WebAssembly {NativeModule} objects.
+// Support for deserializing WebAssembly {NativeModule} objects.
+// Checks the version header of the data against the current version.
+bool IsSupportedVersion(Isolate* isolate, Vector<const byte> data);
+
+// Deserializes the given data to create a compiled Wasm module.
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes);
 

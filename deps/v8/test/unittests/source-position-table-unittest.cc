@@ -14,8 +14,8 @@ namespace interpreter {
 
 class SourcePositionTableTest : public TestWithIsolate {
  public:
-  SourcePositionTableTest() {}
-  ~SourcePositionTableTest() override {}
+  SourcePositionTableTest() = default;
+  ~SourcePositionTableTest() override = default;
 
   SourcePosition toPos(int offset) {
     return SourcePosition(offset, offset % 10 - 1);
