@@ -608,6 +608,8 @@ To ensure communication goes out with the timing of the blog post, please allow
 will be shared with the community in the email to coordinate these
 announcements.
 
+Ping the IRC ops and the other [Partner Communities] liaisons.
+
 ### 19. Celebrate
 
 _In whatever form you do this..._
@@ -615,4 +617,5 @@ _In whatever form you do this..._
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/master/scripts/release-post.js
+[Partner Communities]: https://github.com/nodejs/community-committee/blob/master/PARTNER_COMMUNITIES.md
 [webchat.freenode.net]: https://webchat.freenode.net/
