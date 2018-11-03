@@ -847,47 +847,6 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
       TRACING_CATEGORY_NODE2(vm, script), "RunInContext", wrapped_script);
 }
 
-void ContextifyScript::DecorateErrorStack(
-    Environment* env, const TryCatch& try_catch) {
-  Local<Value> exception = try_catch.Exception();
-
-  if (!exception->IsObject())
-    return;
-
-  Local<Object> err_obj = exception.As<Object>();
-
-  if (IsExceptionDecorated(env, err_obj))
-    return;
-
-  AppendExceptionLine(env, exception, try_catch.Message(), CONTEXTIFY_ERROR);
-  Local<Value> stack = err_obj->Get(env->stack_string());
-  MaybeLocal<Value> maybe_value =
-      err_obj->GetPrivate(
-          env->context(),
-          env->arrow_message_private_symbol());
-
-  Local<Value> arrow;
-  if (!(maybe_value.ToLocal(&arrow) && arrow->IsString())) {
-    return;
-  }
-
-  if (stack.IsEmpty() || !stack->IsString()) {
-    return;
-  }
-
-  Local<String> decorated_stack = String::Concat(
-      env->isolate(),
-      String::Concat(env->isolate(),
-                     arrow.As<String>(),
-                     FIXED_ONE_BYTE_STRING(env->isolate(), "\n")),
-      stack.As<String>());
-  err_obj->Set(env->stack_string(), decorated_stack);
-  err_obj->SetPrivate(
-      env->context(),
-      env->decorated_private_symbol(),
-      True(env->isolate()));
-}
-
 bool ContextifyScript::EvalMachine(Environment* env,
                                    const int64_t timeout,
                                    const bool display_errors,
@@ -1080,7 +1039,7 @@ void ContextifyContext::CompileFunction(
 
   Local<Function> fun;
   if (maybe_fun.IsEmpty() || !maybe_fun.ToLocal(&fun)) {
-    ContextifyScript::DecorateErrorStack(env, try_catch);
+    DecorateErrorStack(env, try_catch);
     try_catch.ReThrow();
     return;
   }
