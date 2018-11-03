@@ -671,11 +671,40 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   std::string node_options;
+
   if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
-    // [0] is expected to be the program name, fill it in from the real argv
-    // and use 'x' as a placeholder while parsing.
-    std::vector<std::string> env_argv = SplitString("x " + node_options, ' ');
-    env_argv[0] = argv->at(0);
+    std::vector<std::string> env_argv;
+    // [0] is expected to be the program name, fill it in from the real argv.
+    env_argv.push_back(argv->at(0));
+
+    bool will_start_new_arg = true;
+    for (std::string::size_type index = 0;
+         index < node_options.size();
+         ++index) {
+      char c = node_options.at(index);
+
+      // Backslashes escape the following character
+      if (c == '\\') {
+        if (index + 1 == node_options.size()) {
+          fprintf(stderr,
+                  "%s: invalid escaping for NODE_OPTIONS\n",
+                  argv->at(0).c_str());
+          exit(9);
+        } else {
+          c = node_options.at(++index);
+        }
+      } else if (c == ' ') {
+        will_start_new_arg = true;
+        continue;
+      }
+
+      if (will_start_new_arg) {
+        env_argv.push_back(std::string(1, c));
+        will_start_new_arg = false;
+      } else {
+        env_argv.back() += c;
+      }
+    }
 
     const int exit_code = ProcessGlobalArgs(&env_argv, nullptr, errors, true);
     if (exit_code != 0) return exit_code;
