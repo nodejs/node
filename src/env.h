@@ -212,7 +212,6 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(nistcurve_string, "nistCurve")                                             \
   V(nsname_string, "nsname")                                                   \
   V(ocsp_request_string, "OCSPRequest")                                        \
-  V(onaltsvc_string, "onaltsvc")                                               \
   V(oncertcb_string, "oncertcb")                                               \
   V(onchange_string, "onchange")                                               \
   V(onclienthello_string, "onclienthello")                                     \
@@ -221,26 +220,16 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(ondone_string, "ondone")                                                   \
   V(onerror_string, "onerror")                                                 \
   V(onexit_string, "onexit")                                                   \
-  V(onframeerror_string, "onframeerror")                                       \
-  V(ongetpadding_string, "ongetpadding")                                       \
-  V(ongoawaydata_string, "ongoawaydata")                                       \
   V(onhandshakedone_string, "onhandshakedone")                                 \
   V(onhandshakestart_string, "onhandshakestart")                               \
-  V(onheaders_string, "onheaders")                                             \
   V(onmessage_string, "onmessage")                                             \
   V(onnewsession_string, "onnewsession")                                       \
   V(onocspresponse_string, "onocspresponse")                                   \
-  V(onorigin_string, "onorigin")                                               \
-  V(onping_string, "onping")                                                   \
-  V(onpriority_string, "onpriority")                                           \
   V(onread_string, "onread")                                                   \
   V(onreadstart_string, "onreadstart")                                         \
   V(onreadstop_string, "onreadstop")                                           \
-  V(onsettings_string, "onsettings")                                           \
   V(onshutdown_string, "onshutdown")                                           \
   V(onsignal_string, "onsignal")                                               \
-  V(onstreamclose_string, "onstreamclose")                                     \
-  V(ontrailers_string, "ontrailers")                                           \
   V(onunpipe_string, "onunpipe")                                               \
   V(onwrite_string, "onwrite")                                                 \
   V(openssl_error_stack, "opensslErrorStack")                                  \
@@ -343,6 +332,18 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(host_import_module_dynamically_callback, v8::Function)                     \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
+  V(http2session_on_altsvc_function, v8::Function)                             \
+  V(http2session_on_error_function, v8::Function)                              \
+  V(http2session_on_frame_error_function, v8::Function)                        \
+  V(http2session_on_goaway_data_function, v8::Function)                        \
+  V(http2session_on_headers_function, v8::Function)                            \
+  V(http2session_on_origin_function, v8::Function)                             \
+  V(http2session_on_ping_function, v8::Function)                               \
+  V(http2session_on_priority_function, v8::Function)                           \
+  V(http2session_on_select_padding_function, v8::Function)                     \
+  V(http2session_on_settings_function, v8::Function)                           \
+  V(http2session_on_stream_close_function, v8::Function)                       \
+  V(http2session_on_stream_trailers_function, v8::Function)                    \
   V(http2settings_constructor_template, v8::ObjectTemplate)                    \
   V(http2stream_constructor_template, v8::ObjectTemplate)                      \
   V(immediate_callback_function, v8::Function)                                 \

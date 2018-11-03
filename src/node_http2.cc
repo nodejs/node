@@ -851,7 +851,7 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   buffer[PADDING_BUF_FRAME_LENGTH] = frameLen;
   buffer[PADDING_BUF_MAX_PAYLOAD_LENGTH] = maxPayloadLen;
   buffer[PADDING_BUF_RETURN_VALUE] = frameLen;
-  MakeCallback(env()->ongetpadding_string(), 0, nullptr);
+  MakeCallback(env()->http2session_on_select_padding_function(), 0, nullptr);
   uint32_t retval = buffer[PADDING_BUF_RETURN_VALUE];
   retval = std::min(retval, static_cast<uint32_t>(maxPayloadLen));
   retval = std::max(retval, static_cast<uint32_t>(frameLen));
@@ -1017,7 +1017,7 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
     Local<Context> context = env->context();
     Context::Scope context_scope(context);
     Local<Value> arg = Integer::New(isolate, lib_error_code);
-    session->MakeCallback(env->error_string(), 1, &arg);
+    session->MakeCallback(env->http2session_on_error_function(), 1, &arg);
   }
   return 0;
 }
@@ -1054,7 +1054,9 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
     Integer::New(isolate, frame->hd.type),
     Integer::New(isolate, error_code)
   };
-  session->MakeCallback(env->onframeerror_string(), arraysize(argv), argv);
+  session->MakeCallback(
+      env->http2session_on_frame_error_function(),
+      arraysize(argv), argv);
   return 0;
 }
 
@@ -1085,22 +1087,19 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
     return 0;
 
   stream->Close(code);
+
   // It is possible for the stream close to occur before the stream is
-  // ever passed on to the javascript side. If that happens, skip straight
-  // to destroying the stream. We can check this by looking for the
-  // onstreamclose function. If it exists, then the stream has already
-  // been passed on to javascript.
-  Local<Value> fn =
-      stream->object()->Get(context, env->onstreamclose_string())
-          .ToLocalChecked();
-
-  if (!fn->IsFunction()) {
-    stream->Destroy();
-    return 0;
-  }
-
+  // ever passed on to the javascript side. If that happens, the callback
+  // will return false.
   Local<Value> arg = Integer::NewFromUnsigned(isolate, code);
-  stream->MakeCallback(fn.As<Function>(), 1, &arg);
+  MaybeLocal<Value> answer =
+    stream->MakeCallback(env->http2session_on_stream_close_function(),
+                          1, &arg);
+  if (answer.IsEmpty() ||
+      !(answer.ToLocalChecked()->BooleanValue(env->context()).FromJust())) {
+    // Skip to destroy
+    stream->Destroy();
+  }
   return 0;
 }
 
@@ -1233,7 +1232,7 @@ int Http2Session::OnNghttpError(nghttp2_session* handle,
     Local<Context> context = env->context();
     Context::Scope context_scope(context);
     Local<Value> arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
-    session->MakeCallback(env->error_string(), 1, &arg);
+    session->MakeCallback(env->http2session_on_error_function(), 1, &arg);
   }
   return 0;
 }
@@ -1317,7 +1316,8 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
       Integer::New(isolate, stream->headers_category()),
       Integer::New(isolate, frame->hd.flags),
       Array::New(isolate, headers_v.data(), headers_size * 2)};
-  MakeCallback(env()->onheaders_string(), arraysize(args), args);
+  MakeCallback(env()->http2session_on_headers_function(),
+               arraysize(args), args);
 }
 
 
@@ -1343,7 +1343,8 @@ void Http2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
     Integer::New(isolate, spec.weight),
     Boolean::New(isolate, spec.exclusive)
   };
-  MakeCallback(env()->onpriority_string(), arraysize(argv), argv);
+  MakeCallback(env()->http2session_on_priority_function(),
+               arraysize(argv), argv);
 }
 
 
@@ -1383,7 +1384,8 @@ void Http2Session::HandleGoawayFrame(const nghttp2_frame* frame) {
                            length).ToLocalChecked();
   }
 
-  MakeCallback(env()->ongoawaydata_string(), arraysize(argv), argv);
+  MakeCallback(env()->http2session_on_goaway_data_function(),
+               arraysize(argv), argv);
 }
 
 // Called by OnFrameReceived when a complete ALTSVC frame has been received.
@@ -1411,7 +1413,8 @@ void Http2Session::HandleAltSvcFrame(const nghttp2_frame* frame) {
                            altsvc->field_value_len).ToLocalChecked(),
   };
 
-  MakeCallback(env()->onaltsvc_string(), arraysize(argv), argv);
+  MakeCallback(env()->http2session_on_altsvc_function(),
+               arraysize(argv), argv);
 }
 
 void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
@@ -1436,7 +1439,7 @@ void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
             .ToLocalChecked();
   }
   Local<Value> holder = Array::New(isolate, origin_v.data(), origin_v.size());
-  MakeCallback(env()->onorigin_string(), 1, &holder);
+  MakeCallback(env()->http2session_on_origin_function(), 1, &holder);
 }
 
 // Called by OnFrameReceived when a complete PING frame has been received.
@@ -1457,7 +1460,7 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
       // is buggy or malicious, and we're not going to tolerate such
       // nonsense.
       arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
-      MakeCallback(env()->error_string(), 1, &arg);
+      MakeCallback(env()->http2session_on_error_function(), 1, &arg);
       return;
     }
 
@@ -1469,7 +1472,7 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
   arg = Buffer::Copy(env(),
                       reinterpret_cast<const char*>(frame->ping.opaque_data),
                       8).ToLocalChecked();
-  MakeCallback(env()->onping_string(), 1, &arg);
+  MakeCallback(env()->http2session_on_ping_function(), 1, &arg);
 }
 
 // Called by OnFrameReceived when a complete SETTINGS frame has been received.
@@ -1477,7 +1480,7 @@ void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
   if (!ack) {
     // This is not a SETTINGS acknowledgement, notify and return
-    MakeCallback(env()->onsettings_string(), 0, nullptr);
+    MakeCallback(env()->http2session_on_settings_function(), 0, nullptr);
     return;
   }
 
@@ -1502,7 +1505,7 @@ void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
   Local<Context> context = env()->context();
   Context::Scope context_scope(context);
   Local<Value> arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
-  MakeCallback(env()->error_string(), 1, &arg);
+  MakeCallback(env()->http2session_on_error_function(), 1, &arg);
 }
 
 // Callback used when data has been written to the stream.
@@ -1827,7 +1830,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   if (UNLIKELY(ret < 0)) {
     Debug(this, "fatal error receiving data: %d", ret);
     Local<Value> arg = Integer::New(isolate, ret);
-    MakeCallback(env()->error_string(), 1, &arg);
+    MakeCallback(env()->http2session_on_error_function(), 1, &arg);
     return;
   }
 
@@ -2032,7 +2035,7 @@ void Http2Stream::OnTrailers() {
   Local<Context> context = env()->context();
   Context::Scope context_scope(context);
   flags_ &= ~NGHTTP2_STREAM_FLAG_TRAILERS;
-  MakeCallback(env()->ontrailers_string(), 0, nullptr);
+  MakeCallback(env()->http2session_on_stream_trailers_function(), 0, nullptr);
 }
 
 // Submit informational headers for a stream.
@@ -2898,6 +2901,29 @@ void nghttp2_header::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("value", nghttp2_rcbuf_get_buf(value).len);
 }
 
+void SetCallbackFunctions(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 12);
+
+#define SET_FUNCTION(arg, name)                                               \
+  CHECK(args[arg]->IsFunction());                                             \
+  env->set_http2session_on_ ## name ## _function(args[arg].As<Function>());
+
+  SET_FUNCTION(0, error)
+  SET_FUNCTION(1, priority)
+  SET_FUNCTION(2, settings)
+  SET_FUNCTION(3, ping)
+  SET_FUNCTION(4, headers)
+  SET_FUNCTION(5, frame_error)
+  SET_FUNCTION(6, goaway_data)
+  SET_FUNCTION(7, altsvc)
+  SET_FUNCTION(8, origin)
+  SET_FUNCTION(9, select_padding)
+  SET_FUNCTION(10, stream_trailers)
+  SET_FUNCTION(11, stream_close)
+
+#undef SET_FUNCTION
+}
 
 // Set up the process.binding('http2') binding.
 void Initialize(Local<Object> target,
@@ -3106,6 +3132,7 @@ HTTP_STATUS_CODES(V)
 
   env->SetMethod(target, "refreshDefaultSettings", RefreshDefaultSettings);
   env->SetMethod(target, "packSettings", PackSettings);
+  env->SetMethod(target, "setCallbackFunctions", SetCallbackFunctions);
 
   target->Set(context,
               env->constants_string(),
