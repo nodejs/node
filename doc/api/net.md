@@ -658,9 +658,9 @@ called with `{port: port, host: host}` as `options`.
 added: v6.1.0
 -->
 
-If `true` -
+If `true`,
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
-was called and haven't yet finished. Will be set to `false` before emitting
+was called and has not yet finished. Will be set to `true` before emitting
 `'connect'` event and/or calling
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]'s
 callback.
