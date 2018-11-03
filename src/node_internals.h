@@ -118,6 +118,7 @@ struct sockaddr;
   V(js_stream)                                                                 \
   V(messaging)                                                                 \
   V(module_wrap)                                                               \
+  V(native_module)                                                             \
   V(options)                                                                   \
   V(os)                                                                        \
   V(performance)                                                               \

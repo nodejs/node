@@ -416,6 +416,8 @@
         'src/node_javascript.h',
         'src/node_messaging.h',
         'src/node_mutex.h',
+        'src/node_native_module.h',
+        'src/node_native_module.cc',
         'src/node_options.h',
         'src/node_options-inl.h',
         'src/node_perf.h',
