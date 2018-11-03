@@ -212,6 +212,7 @@ void ContextifyContext::Init(Environment* env, Local<Object> target) {
   env->SetMethod(target, "makeContext", MakeContext);
   env->SetMethod(target, "isContext", IsContext);
   env->SetMethod(target, "compileFunction", CompileFunction);
+  env->SetMethod(target, "createCacheForFunction", CreateCacheForFunction);
 }
 
 
@@ -1106,6 +1107,26 @@ void ContextifyContext::CompileFunction(
   }
 
   args.GetReturnValue().Set(fun);
+}
+
+void ContextifyContext::CreateCacheForFunction(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  // Argument 1: target function
+  Local<Function> function = args[0].As<Function>();
+
+  const std::unique_ptr<ScriptCompiler::CachedData> cache(
+      ScriptCompiler::CreateCodeCacheForFunction(function));
+
+  if (cache == nullptr) {
+    args.GetReturnValue().SetUndefined();
+  } else {
+    args.GetReturnValue().Set(
+        Buffer::Copy(
+            env, reinterpret_cast<const char*>(cache->data), cache->length)
+            .ToLocalChecked());
+  }
 }
 
 
