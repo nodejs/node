@@ -15,7 +15,12 @@ tmpdir.refresh();
 process.chdir(tmpdir.path);
 
 const printA = require.resolve('../fixtures/printA.js');
+const printSpaceA = require.resolve('../fixtures/print A.js');
+
+expect(` -r ${printA} `, 'A\nB\n');
 expect(`-r ${printA}`, 'A\nB\n');
+expect(`-r ${JSON.stringify(printA)}`, 'A\nB\n');
+expect(`-r ${JSON.stringify(printSpaceA)}`, 'A\nB\n');
 expect(`-r ${printA} -r ${printA}`, 'A\nB\n');
 expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
