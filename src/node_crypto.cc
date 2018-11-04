@@ -2557,10 +2557,19 @@ int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   return 1;
 }
 
-static bool IsSupportedAuthenticatedMode(int mode) {
-  return mode == EVP_CIPH_CCM_MODE ||
+static bool IsSupportedAuthenticatedMode(const EVP_CIPHER* cipher) {
+  const int mode = EVP_CIPHER_mode(cipher);
+  // Check `chacha20-poly1305` separately, it is also an AEAD cipher,
+  // but its mode is 0 which doesn't indicate
+  return EVP_CIPHER_nid(cipher) == NID_chacha20_poly1305 ||
+         mode == EVP_CIPH_CCM_MODE ||
          mode == EVP_CIPH_GCM_MODE ||
          IS_OCB_MODE(mode);
+}
+
+static bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
+  const EVP_CIPHER* cipher = EVP_CIPHER_CTX_cipher(ctx);
+  return IsSupportedAuthenticatedMode(cipher);
 }
 
 void CipherBase::Initialize(Environment* env, Local<Object> target) {
@@ -2610,7 +2619,7 @@ void CipherBase::CommonInit(const char* cipher_type,
                             "Failed to initialize cipher");
   }
 
-  if (IsSupportedAuthenticatedMode(mode)) {
+  if (IsSupportedAuthenticatedMode(cipher)) {
     CHECK_GE(iv_len, 0);
     if (!InitAuthenticated(cipher_type, iv_len, auth_tag_len))
       return;
@@ -2712,8 +2721,7 @@ void CipherBase::InitIv(const char* cipher_type,
   }
 
   const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
-  const int mode = EVP_CIPHER_mode(cipher);
-  const bool is_authenticated_mode = IsSupportedAuthenticatedMode(mode);
+  const bool is_authenticated_mode = IsSupportedAuthenticatedMode(cipher);
   const bool has_iv = iv_len >= 0;
 
   // Throw if no IV was passed and the cipher requires an IV
@@ -2785,7 +2793,20 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
   }
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  if (mode == EVP_CIPH_CCM_MODE || IS_OCB_MODE(mode)) {
+  if (mode == EVP_CIPH_GCM_MODE) {
+    if (auth_tag_len != kNoAuthTagLength) {
+      if (!IsValidGCMTagLength(auth_tag_len)) {
+        char msg[50];
+        snprintf(msg, sizeof(msg),
+            "Invalid authentication tag length: %u", auth_tag_len);
+        env()->ThrowError(msg);
+        return false;
+      }
+
+      // Remember the given authentication tag length for later.
+      auth_tag_len_ = auth_tag_len;
+    }
+  } else {
     if (auth_tag_len == kNoAuthTagLength) {
       char msg[128];
       snprintf(msg, sizeof(msg), "authTagLength required for %s", cipher_type);
@@ -2818,21 +2839,6 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
       if (iv_len == 12) max_message_size_ = 16777215;
       if (iv_len == 13) max_message_size_ = 65535;
     }
-  } else {
-    CHECK_EQ(mode, EVP_CIPH_GCM_MODE);
-
-    if (auth_tag_len != kNoAuthTagLength) {
-      if (!IsValidGCMTagLength(auth_tag_len)) {
-        char msg[50];
-        snprintf(msg, sizeof(msg),
-            "Invalid authentication tag length: %u", auth_tag_len);
-        env()->ThrowError(msg);
-        return false;
-      }
-
-      // Remember the given authentication tag length for later.
-      auth_tag_len_ = auth_tag_len;
-    }
   }
 
   return true;
@@ -2855,8 +2861,7 @@ bool CipherBase::CheckCCMMessageLength(int message_len) {
 bool CipherBase::IsAuthenticatedMode() const {
   // Check if this cipher operates in an AEAD mode that we support.
   CHECK(ctx_);
-  const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  return IsSupportedAuthenticatedMode(mode);
+  return IsSupportedAuthenticatedMode(ctx_.get());
 }
 
 
@@ -2901,7 +2906,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   } else {
     // At this point, the tag length is already known and must match the
     // length of the given authentication tag.
-    CHECK(mode == EVP_CIPH_CCM_MODE || IS_OCB_MODE(mode));
+    CHECK(IsSupportedAuthenticatedMode(cipher->ctx_.get()));
     CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
     is_valid = cipher->auth_tag_len_ == tag_len;
   }
@@ -3108,7 +3113,7 @@ bool CipherBase::Final(unsigned char** out, int* out_len) {
   *out = Malloc<unsigned char>(
       static_cast<size_t>(EVP_CIPHER_CTX_block_size(ctx_.get())));
 
-  if (kind_ == kDecipher && IsSupportedAuthenticatedMode(mode)) {
+  if (kind_ == kDecipher && IsSupportedAuthenticatedMode(ctx_.get())) {
     MaybePassAuthTagToOpenSSL();
   }
 
