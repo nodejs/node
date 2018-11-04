@@ -14,7 +14,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, fullPath, useCache }) {
   tmpdir.refresh();
-  try { fs.mkdirSync(benchmarkDirectory); } catch (e) {}
+  try { fs.mkdirSync(benchmarkDirectory); } catch {}
   for (var i = 0; i <= n; i++) {
     fs.mkdirSync(`${benchmarkDirectory}${i}`);
     fs.writeFileSync(

@@ -24,7 +24,7 @@ const bench = common.createBenchmark(main, {
 
 function main(conf) {
   const len = +conf.len;
-  try { fs.unlinkSync(filename); } catch (e) {}
+  try { fs.unlinkSync(filename); } catch {}
   var data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
   data = null;
@@ -39,7 +39,7 @@ function main(conf) {
     const totalOps = reads + zips;
     benchEnded = true;
     bench.end(totalOps);
-    try { fs.unlinkSync(filename); } catch (e) {}
+    try { fs.unlinkSync(filename); } catch {}
   }, +conf.dur * 1000);
 
   function read() {
