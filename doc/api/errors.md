@@ -505,8 +505,6 @@ If present, `error.info` is an object with details about the error condition.
 * {string} 
 
 `error.message` is a system-provided human-readable description of the error.
-It is subject to change between versions of Node.js. Use `code` for a more
-stable indicator of the type of error.
 
 #### error.path
 
