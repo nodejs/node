@@ -37,7 +37,7 @@ assert(ok, 'Run this test with --max_old_space_size=32.');
 const interval = setInterval(function() {
   try {
     vm.runInNewContext('throw 1;');
-  } catch (e) {
+  } catch {
   }
 
   const rss = process.memoryUsage().rss;
