@@ -441,53 +441,82 @@ checks or `abort()` calls in the C++ layer.
 
 ## System Errors
 
-System errors are generated when exceptions occur within the Node.js
-runtime environment. Typically, these are operational errors that occur
-when an application violates an operating system constraint such as attempting
-to read a file that does not exist or when the user does not have sufficient
-permissions.
+Node.js generates system errors when exceptions occur within its runtime
+environment. These usually occur when an application violates an operating
+system constraint. For example, a system error will occur if an application
+attempts to read a file that does not exist.
 
-System errors are typically generated at the syscall level: an exhaustive list
-of error codes and their meanings is available by running `man 2 intro` or
-`man 3 errno` on most Unices; or [online][].
+System errors are usually generated at the syscall level. For a comprehensive
+list, see the [`errno`(3) man page][].
 
-In Node.js, system errors are represented as augmented `Error` objects with
-added properties.
+In Node.js, system errors are `Error` objects with extra properties.
 
 ### Class: SystemError
 
-#### error.info
-
-`SystemError` instances may have an additional `info` property whose
-value is an object with additional details about the error conditions.
-
-The following properties are provided:
-
+* `address` {string} If present, the address to which a network connection
+  failed
 * `code` {string} The string error code
-* `errno` {number} The system-provided error number
-* `message` {string} A system-provided human readable description of the error
+* `dest` {string} If present, the file path destination when reporting a file
+  system error
+* `errno` {number|string} The system-provided error number
+* `info` {Object} If present, extra details about the error condition
+* `message` {string} A system-provided human-readable description of the error
+* `path` {string} If present, the file path when reporting a file system error
+* `port` {number} If present, the network connection port that is not available
 * `syscall` {string} The name of the system call that triggered the error
-* `path` {Buffer} When reporting a file system error, the `path` will identify
-  the file path.
-* `dest` {Buffer} When reporting a file system error, the `dest` will identify
-  the file path destination (if any).
+
+#### error.address
+
+* {string}
+
+If present, `error.address` is a string describing the address to which a
+network connection failed.
 
 #### error.code
 
 * {string}
 
-The `error.code` property is a string representing the error code, which is
-typically `E` followed by a sequence of capital letters.
+The `error.code` property is a string representing the error code.
+
+#### error.dest
+
+* {string}
+
+If present, `error.dest` is the file path destination when reporting a file
+system error.
 
 #### error.errno
 
 * {string|number}
 
-The `error.errno` property is a number or a string.
-The number is a **negative** value which corresponds to the error code defined
-in [`libuv Error handling`]. See `uv-errno.h` header file
-(`deps/uv/include/uv-errno.h` in the Node.js source tree) for details. In case
+The `error.errno` property is a number or a string. If it is a number, it is a negative value which corresponds to the error code defined in
+[`libuv Error handling`]. See the libuv `errno.h` header file
+(`deps/uv/include/uv/errno.h` in the Node.js source tree) for details. In case
 of a string, it is the same as `error.code`.
+
+#### error.info
+
+* {Object}
+
+If present, `error.info` is an object with details about the error condition.
+
+#### error.message
+
+* {string}
+
+`error.message` is a system-provided human-readable description of the error.
+
+#### error.path
+
+* {string}
+
+If present, `error.path` is a string containing a relevant invalid pathname.
+
+#### error.port
+
+* {number}
+
+If present, `error.port` is the network connection port that is not available.
 
 #### error.syscall
 
@@ -495,32 +524,10 @@ of a string, it is the same as `error.code`.
 
 The `error.syscall` property is a string describing the [syscall][] that failed.
 
-#### error.path
-
-* {string}
-
-When present (e.g. in `fs` or `child_process`), the `error.path` property is a
-string containing a relevant invalid pathname.
-
-#### error.address
-
-* {string}
-
-When present (e.g. in `net` or `dgram`), the `error.address` property is a
-string describing the address to which the connection failed.
-
-#### error.port
-
-* {number}
-
-When present (e.g. in `net` or `dgram`), the `error.port` property is a number
-representing the connection's port that is not available.
-
 ### Common System Errors
 
-This list is **not exhaustive**, but enumerates many of the common system
-errors encountered when writing a Node.js program. An exhaustive list may be
-found [here][online].
+This is a list of system errors commonly-encountered when writing a Node.js
+program. For a comprehensive list, see the [`errno`(3) man page][].
 
 - `EACCES` (Permission denied): An attempt was made to access a file in a way
   forbidden by its file access permissions.
@@ -2126,6 +2133,7 @@ such as `process.stdout.on('data')`.
 [`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptsync_password_salt_keylen_options
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
+[`errno`(3) man page]: http://man7.org/linux/man-pages/man3/errno.3.html
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.symlink()`]: fs.html#fs_fs_symlink_target_path_type_callback
@@ -2165,7 +2173,6 @@ such as `process.stdout.on('data')`.
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
-[online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscalls.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
