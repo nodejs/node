@@ -205,7 +205,7 @@ coverage-build: all
 	if [ ! -d node_modules/nyc ]; then \
 		$(NODE) ./deps/npm install nyc@13 --no-save --no-package-lock; fi
 	if [ ! -d gcovr ]; then git clone -b 3.4 --depth=1 \
-		--single-branch git://github.com/gcovr/gcovr.git; fi
+		--single-branch https://github.com/gcovr/gcovr.git; fi
 	if [ ! -d build ]; then git clone --depth=1 \
 		--single-branch https://github.com/nodejs/build.git; fi
 	if [ ! -f gcovr/scripts/gcovr.orig ]; then \
