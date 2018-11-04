@@ -17,7 +17,7 @@ Module._findPath = (request, paths, isMain) => {
   if (!r && hacks.includes(request)) {
     try {
       return require.resolve(`./tools/node_modules/${request}`);
-    } catch (err) {
+    } catch {
       return require.resolve(
         `./tools/node_modules/eslint/node_modules/${request}`);
     }
@@ -212,7 +212,7 @@ module.exports = {
     'no-unsafe-finally': 'error',
     'no-unsafe-negation': 'error',
     'no-unused-labels': 'error',
-    'no-unused-vars': ['error', { args: 'none' }],
+    'no-unused-vars': ['error', { args: 'none', caughtErrors: 'all' }],
     'no-use-before-define': ['error', {
       classes: true,
       functions: false,
