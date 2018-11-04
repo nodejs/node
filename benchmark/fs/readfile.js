@@ -17,7 +17,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ len, dur, concurrent }) {
-  try { fs.unlinkSync(filename); } catch (e) {}
+  try { fs.unlinkSync(filename); } catch {}
   var data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
   data = null;
@@ -28,7 +28,7 @@ function main({ len, dur, concurrent }) {
   setTimeout(function() {
     benchEnded = true;
     bench.end(reads);
-    try { fs.unlinkSync(filename); } catch (e) {}
+    try { fs.unlinkSync(filename); } catch {}
     process.exit(0);
   }, dur * 1000);
 
