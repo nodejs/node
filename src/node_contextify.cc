@@ -1119,9 +1119,7 @@ void ContextifyContext::CreateCacheForFunction(
   const std::unique_ptr<ScriptCompiler::CachedData> cache(
       ScriptCompiler::CreateCodeCacheForFunction(function));
 
-  if (cache == nullptr) {
-    args.GetReturnValue().SetUndefined();
-  } else {
+  if (cache != nullptr) {
     args.GetReturnValue().Set(
         Buffer::Copy(
             env, reinterpret_cast<const char*>(cache->data), cache->length)
