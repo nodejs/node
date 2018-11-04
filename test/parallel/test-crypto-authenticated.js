@@ -97,9 +97,10 @@ for (const test of TEST_CASES) {
 
   const isCCM = /^aes-(128|192|256)-ccm$/.test(test.algo);
   const isOCB = /^aes-(128|192|256)-ocb$/.test(test.algo);
+  const isChacha20Poly1305 = test.algo === 'chacha20-poly1305';
 
   let options;
-  if (isCCM || isOCB)
+  if (isCCM || isOCB || isChacha20Poly1305)
     options = { authTagLength: test.tag.length / 2 };
 
   const inputEncoding = test.plainIsHex ? 'hex' : 'ascii';
