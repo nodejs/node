@@ -34,7 +34,7 @@ common.expectWarning('DeprecationWarning', deprecatedModules.map((m) => {
 for (const m of deprecatedModules) {
   try {
     require(m);
-  } catch (err) {}
+  } catch {}
 }
 
 // Instead of checking require, check that resolve isn't pointing toward a

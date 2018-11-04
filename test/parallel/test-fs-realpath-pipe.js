@@ -22,7 +22,7 @@ for (const code of [
     if (require('fs').realpathSync('/dev/stdin')) {
       process.exit(2);
     }
-  } catch (e) {
+  } catch {
     process.exit(1);
   }`
 ]) {

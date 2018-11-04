@@ -40,12 +40,12 @@ tests.forEach((test) => {
         assert.strictEqual(test.pathname, parsed.pathname || '/');
         assert.strictEqual(test.search, parsed.search || '');
         assert.strictEqual(test.hash, parsed.hash || '');
-      } catch (err) {
+      } catch {
         // For now, we're just interested in the number of failures.
         failed++;
       }
     }
-  } catch (err) {
+  } catch {
     // If Parse failed and it wasn't supposed to, treat it as a failure.
     if (!test.failure)
       failed++;

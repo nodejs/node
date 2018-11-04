@@ -97,7 +97,7 @@ async function checkModuleState() {
     const m = new SourceTextModule('import "foo";');
     try {
       await m.link(common.mustCall(() => ({})));
-    } catch (err) {
+    } catch {
       assert.strictEqual(m.linkingStatus, 'errored');
       m.instantiate();
     }
@@ -218,7 +218,7 @@ async function checkLinking() {
     const erroredModule = new SourceTextModule('import "foo";');
     try {
       await erroredModule.link(common.mustCall(() => ({})));
-    } catch (err) {
+    } catch {
       // ignored
     } finally {
       assert.strictEqual(erroredModule.linkingStatus, 'errored');

@@ -25,7 +25,7 @@ do {
   try {
     script.runInContext(context, { timeout: 5 });
     ++sandbox.timeout;
-  } catch (err) {
+  } catch {
     --sandbox.timeout;
   }
 } while (Date.now() < giveUp);

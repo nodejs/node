@@ -371,7 +371,7 @@ function canCreateSymLink() {
     try {
       const output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
       return output.includes('SeCreateSymbolicLinkPrivilege');
-    } catch (e) {
+    } catch {
       return false;
     }
   }
@@ -455,7 +455,7 @@ function isAlive(pid) {
   try {
     process.kill(pid, 'SIGCONT');
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -664,7 +664,7 @@ function getTTYfd() {
   if (ttyFd === undefined) {
     try {
       return fs.openSync('/dev/tty');
-    } catch (e) {
+    } catch {
       // There aren't any tty fd's available to use.
       return -1;
     }
@@ -678,7 +678,7 @@ function runWithInvalidFD(func) {
   // be an valid one.
   try {
     while (fs.fstatSync(fd--) && fd > 0);
-  } catch (e) {
+  } catch {
     return func(fd);
   }
 
