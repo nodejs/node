@@ -168,13 +168,13 @@ testCipher2(Buffer.from('0123456789abcdef'));
 // not assert. See https://github.com/nodejs/node-v0.x-archive/issues/4886.
 {
   const c = crypto.createCipher('aes-256-cbc', 'secret');
-  try { c.final('xxx'); } catch (e) { /* Ignore. */ }
-  try { c.final('xxx'); } catch (e) { /* Ignore. */ }
-  try { c.final('xxx'); } catch (e) { /* Ignore. */ }
+  try { c.final('xxx'); } catch { /* Ignore. */ }
+  try { c.final('xxx'); } catch { /* Ignore. */ }
+  try { c.final('xxx'); } catch { /* Ignore. */ }
   const d = crypto.createDecipher('aes-256-cbc', 'secret');
-  try { d.final('xxx'); } catch (e) { /* Ignore. */ }
-  try { d.final('xxx'); } catch (e) { /* Ignore. */ }
-  try { d.final('xxx'); } catch (e) { /* Ignore. */ }
+  try { d.final('xxx'); } catch { /* Ignore. */ }
+  try { d.final('xxx'); } catch { /* Ignore. */ }
+  try { d.final('xxx'); } catch { /* Ignore. */ }
 }
 
 // Regression test for https://github.com/nodejs/node-v0.x-archive/issues/5482:

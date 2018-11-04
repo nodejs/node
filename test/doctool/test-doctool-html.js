@@ -4,7 +4,7 @@ const common = require('../common');
 // The doctool currently uses js-yaml from the tool/node_modules/eslint/ tree.
 try {
   require('../../tools/node_modules/eslint/node_modules/js-yaml');
-} catch (e) {
+} catch {
   common.skip('missing js-yaml (eslint not present)');
 }
 

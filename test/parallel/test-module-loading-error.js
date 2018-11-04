@@ -45,7 +45,7 @@ if (common.isWindows) {
   try {
     // If MUI != 'en' we'll ignore the content of the message
     localeOk = execSync(powerShellFindMUI).toString('utf8').trim() === 'en';
-  } catch (_) {
+  } catch {
     // It's only a best effort try to find the MUI
   }
 }
