@@ -456,7 +456,7 @@ In Node.js, system errors are `Error` objects with extra properties.
 * `address` {string} If present, the address to which a network connection
   failed
 * `code` {string} The string error code
-* `dest` {Buffer} If present, the file path destination when reporting a file
+* `dest` {string} If present, the file path destination when reporting a file
   system error
 * `errno` {number|string} The system-provided error number
 * `info` {Object} If present, extra details about the error condition
