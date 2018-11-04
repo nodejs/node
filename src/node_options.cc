@@ -367,9 +367,8 @@ HostPort SplitHostPort(const std::string& arg,
                     ParseAndValidatePort(arg.substr(colon + 1), errors) };
 }
 
-// Usage: Either:
-// - getOptions() to get all options + metadata or
-// - getOptions(string) to get the value of a particular option
+// Return a map containing all the options and their metadata as well
+// as the aliases
 void GetOptions(const FunctionCallbackInfo<Value>& args) {
   Mutex::ScopedLock lock(per_process_opts_mutex);
   Environment* env = Environment::GetCurrent(args);
@@ -390,13 +389,8 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
 
   const auto& parser = PerProcessOptionsParser::instance;
 
-  std::string filter;
-  if (args[0]->IsString()) filter = *node::Utf8Value(isolate, args[0]);
-
   Local<Map> options = Map::New(isolate);
   for (const auto& item : parser.options_) {
-    if (!filter.empty() && item.first != filter) continue;
-
     Local<Value> value;
     const auto& option_info = item.second;
     auto field = option_info.field;
@@ -445,11 +439,6 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
     }
     CHECK(!value.IsEmpty());
 
-    if (!filter.empty()) {
-      args.GetReturnValue().Set(value);
-      return;
-    }
-
     Local<Value> name = ToV8Value(context, item.first).ToLocalChecked();
     Local<Object> info = Object::New(isolate);
     Local<Value> help_text;
@@ -470,8 +459,6 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
       return;
     }
   }
-
-  if (!filter.empty()) return;
 
   Local<Value> aliases;
   if (!ToV8Value(context, parser.aliases_).ToLocal(&aliases)) return;

@@ -134,6 +134,7 @@
       'lib/internal/modules/esm/translators.js',
       'lib/internal/safe_globals.js',
       'lib/internal/net.js',
+      'lib/internal/options.js',
       'lib/internal/print_help.js',
       'lib/internal/process/esm_loader.js',
       'lib/internal/process/main_thread_only.js',
