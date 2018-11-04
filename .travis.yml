@@ -11,7 +11,7 @@ matrix:
       script:
         - make lint
         # Lint the first commit in the PR.
-        - \[ "${TRAVIS_PULL_REQUEST}" != "false" \] && PR_ID=${TRAVIS_PULL_REQUEST}; bash tools/lint-pr-commit-message.sh ${PR_ID}
+        - \[ "${TRAVIS_PULL_REQUEST}" != "false" \] && bash tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST}
     - name: "Test Suite"
       addons:
         apt:
