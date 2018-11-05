@@ -1,10 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
-
-let ends = 0;
 
 const server = net.createServer((socket) => {
   socket.resume();
@@ -17,15 +14,9 @@ server.listen(common.mustCall(() => {
     });
   };
 
-  const cb = () => {
-    ends++;
-  };
+  const cb = common.mustCall(() => {}, 3);
 
-  connect(common.mustCall(cb));
-  connect('foo', common.mustCall(cb));
-  connect('foo', 'utf8', common.mustCall(cb));
+  connect(cb);
+  connect('foo', cb);
+  connect('foo', 'utf8', cb);
 }));
-
-process.on('exit', () => {
-  assert.strictEqual(ends, 3);
-});
