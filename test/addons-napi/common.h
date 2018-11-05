@@ -54,7 +54,7 @@
   NAPI_CALL_BASE(env, the_call, NAPI_RETVAL_NOTHING)
 
 #define DECLARE_NAPI_PROPERTY(name, func)                                \
-  { (name), 0, (func), 0, 0, 0, napi_default, 0 }
+  { (name), NULL, (func), NULL, NULL, NULL, napi_default, NULL }
 
 #define DECLARE_NAPI_GETTER(name, func)                                  \
-  { (name), 0, 0, (func), 0, 0, napi_default, 0 }
+  { (name), NULL, NULL, (func), NULL, NULL, napi_default, NULL }
