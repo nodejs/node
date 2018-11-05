@@ -291,7 +291,7 @@ for (let i = 0; i < 100; i++) {
 }
 writer.end('This is the end\n');
 writer.on('finish', () => {
-  console.error('All writes are now complete.');
+  console.log('All writes are now complete.');
 });
 ```
 
@@ -309,7 +309,7 @@ a readable stream, adding this writable to its set of destinations.
 const writer = getWritableStreamSomehow();
 const reader = getReadableStreamSomehow();
 writer.on('pipe', (src) => {
-  console.error('something is piping into the writer');
+  console.log('something is piping into the writer');
   assert.equal(src, reader);
 });
 reader.pipe(writer);
@@ -334,7 +334,7 @@ This is also emitted in case this [`Writable`][] stream emits an error when a
 const writer = getWritableStreamSomehow();
 const reader = getReadableStreamSomehow();
 writer.on('unpipe', (src) => {
-  console.error('Something has stopped piping into the writer.');
+  console.log('Something has stopped piping into the writer.');
   assert.equal(src, reader);
 });
 reader.pipe(writer);
