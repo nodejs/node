@@ -30293,88 +30293,61 @@ function stringify$7(options) {
 
 var remark = unified_1().use(remarkParse).use(remarkStringify).freeze();
 
-const _args = [["remark@8.0.0","D:\\code\\prws\\tools\\node-lint-md-cli-rollup"]];
-const _from = "remark@8.0.0";
-const _id = "remark@8.0.0";
-const _inBundle = false;
-const _integrity = "sha512-K0PTsaZvJlXTl9DN6qYlvjTkqSZBFELhROZMrblm2rB+085flN84nz4g/BscKRMqDvhzlK1oQ/xnWQumdeNZYw==";
-const _location = "/remark";
-const _phantomChildren = {};
-const _requested = {"type":"version","registry":true,"raw":"remark@8.0.0","name":"remark","escapedName":"remark","rawSpec":"8.0.0","saveSpec":null,"fetchSpec":"8.0.0"};
-const _requiredBy = ["/"];
-const _resolved = "https://registry.npmjs.org/remark/-/remark-8.0.0.tgz";
-const _spec = "8.0.0";
-const _where = "D:\\code\\prws\\tools\\node-lint-md-cli-rollup";
-const author = {"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"};
-const bugs = {"url":"https://github.com/wooorm/remark/issues"};
-const contributors = [{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"}];
-const dependencies = {"remark-parse":"^4.0.0","remark-stringify":"^4.0.0","unified":"^6.0.0"};
-const description = "Markdown processor powered by plugins";
-const files = ["index.js"];
-const homepage = "http://remark.js.org";
-const keywords = ["markdown","abstract","syntax","tree","ast","parse","stringify","process"];
-const license = "MIT";
 const name = "remark";
-const repository = {"type":"git","url":"https://github.com/wooorm/remark/tree/master/packages/remark"};
-const scripts = {};
 const version$1 = "8.0.0";
+const description = "Markdown processor powered by plugins";
+const license = "MIT";
+const keywords = ["markdown","abstract","syntax","tree","ast","parse","stringify","process"];
+const dependencies = {"remark-parse":"^4.0.0","remark-stringify":"^4.0.0","unified":"^6.0.0"};
+const homepage = "http://remark.js.org";
+const repository = "https://github.com/wooorm/remark/tree/master/packages/remark";
+const bugs = "https://github.com/wooorm/remark/issues";
+const author = "Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)";
+const contributors = ["Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)"];
+const files = ["index.js"];
+const scripts = {};
 const xo = false;
+const _resolved = "https://registry.npmjs.org/remark/-/remark-8.0.0.tgz";
+const _integrity = "sha512-K0PTsaZvJlXTl9DN6qYlvjTkqSZBFELhROZMrblm2rB+085flN84nz4g/BscKRMqDvhzlK1oQ/xnWQumdeNZYw==";
+const _from = "remark@8.0.0";
 var _package = {
-	_args: _args,
-	_from: _from,
-	_id: _id,
-	_inBundle: _inBundle,
-	_integrity: _integrity,
-	_location: _location,
-	_phantomChildren: _phantomChildren,
-	_requested: _requested,
-	_requiredBy: _requiredBy,
-	_resolved: _resolved,
-	_spec: _spec,
-	_where: _where,
-	author: author,
-	bugs: bugs,
-	contributors: contributors,
-	dependencies: dependencies,
-	description: description,
-	files: files,
-	homepage: homepage,
-	keywords: keywords,
-	license: license,
 	name: name,
-	repository: repository,
-	scripts: scripts,
 	version: version$1,
-	xo: xo
+	description: description,
+	license: license,
+	keywords: keywords,
+	dependencies: dependencies,
+	homepage: homepage,
+	repository: repository,
+	bugs: bugs,
+	author: author,
+	contributors: contributors,
+	files: files,
+	scripts: scripts,
+	xo: xo,
+	_resolved: _resolved,
+	_integrity: _integrity,
+	_from: _from
 };
 
 var _package$1 = Object.freeze({
-	_args: _args,
-	_from: _from,
-	_id: _id,
-	_inBundle: _inBundle,
-	_integrity: _integrity,
-	_location: _location,
-	_phantomChildren: _phantomChildren,
-	_requested: _requested,
-	_requiredBy: _requiredBy,
-	_resolved: _resolved,
-	_spec: _spec,
-	_where: _where,
-	author: author,
-	bugs: bugs,
-	contributors: contributors,
-	dependencies: dependencies,
-	description: description,
-	files: files,
-	homepage: homepage,
-	keywords: keywords,
-	license: license,
 	name: name,
-	repository: repository,
-	scripts: scripts,
 	version: version$1,
+	description: description,
+	license: license,
+	keywords: keywords,
+	dependencies: dependencies,
+	homepage: homepage,
+	repository: repository,
+	bugs: bugs,
+	author: author,
+	contributors: contributors,
+	files: files,
+	scripts: scripts,
 	xo: xo,
+	_resolved: _resolved,
+	_integrity: _integrity,
+	_from: _from,
 	default: _package
 });
 
@@ -30382,7 +30355,7 @@ const name$1 = "node-lint-md-cli-rollup";
 const description$1 = "remark packaged for node markdown linting";
 const version$2 = "1.0.0";
 const devDependencies = {"rollup":"^0.55.5","rollup-plugin-commonjs":"^8.0.2","rollup-plugin-json":"^2.3.1","rollup-plugin-node-resolve":"^3.4.0"};
-const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^8.0.0","remark-lint":"^6.0.2","remark-preset-lint-node":"^1.0.3","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
+const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^8.0.0","remark-lint":"^6.0.2","remark-preset-lint-node":"^1.1.0","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
 const scripts$1 = {"build":"rollup -c","build-node":"npm run build && cp dist/* .."};
 var _package$2 = {
 	name: name$1,
@@ -32479,7 +32452,84 @@ function noInlinePadding(tree, file) {
   }
 }
 
+var remarkLintMaximumLineLength = unifiedLintRule('remark-lint:maximum-line-length', maximumLineLength);
+
 var start$6 = unistUtilPosition.start;
+var end$4 = unistUtilPosition.end;
+
+function maximumLineLength(tree, file, pref) {
+  var style = typeof pref === 'number' && !isNaN(pref) ? pref : 80;
+  var content = String(file);
+  var lines = content.split(/\r?\n/);
+  var length = lines.length;
+  var index = -1;
+  var lineLength;
+
+  unistUtilVisit(tree, ['heading', 'table', 'code', 'definition'], ignore);
+  unistUtilVisit(tree, ['link', 'image', 'inlineCode'], inline);
+
+  /* Iterate over every line, and warn for violating lines. */
+  while (++index < length) {
+    lineLength = lines[index].length;
+
+    if (lineLength > style) {
+      file.message('Line must be at most ' + style + ' characters', {
+        line: index + 1,
+        column: lineLength + 1
+      });
+    }
+  }
+
+  /* Finally, whitelist some inline spans, but only if they occur at or after
+   * the wrap.  However, when they do, and there’s white-space after it, they
+   * are not whitelisted. */
+  function inline(node, pos, parent) {
+    var next = parent.children[pos + 1];
+    var initial;
+    var final;
+
+    /* istanbul ignore if - Nothing to whitelist when generated. */
+    if (unistUtilGenerated(node)) {
+      return
+    }
+
+    initial = start$6(node);
+    final = end$4(node);
+
+    /* No whitelisting when starting after the border, or ending before it. */
+    if (initial.column > style || final.column < style) {
+      return
+    }
+
+    /* No whitelisting when there’s white-space after
+     * the link. */
+    if (
+      next &&
+      start$6(next).line === initial.line &&
+      (!next.value || /^(.+?[ \t].+?)/.test(next.value))
+    ) {
+      return
+    }
+
+    whitelist(initial.line - 1, final.line);
+  }
+
+  function ignore(node) {
+    /* istanbul ignore else - Hard to test, as we only run this case on `position: true` */
+    if (!unistUtilGenerated(node)) {
+      whitelist(start$6(node).line - 1, end$4(node).line);
+    }
+  }
+
+  /* Whitelist from `initial` to `final`, zero-based. */
+  function whitelist(initial, final) {
+    while (initial < final) {
+      lines[initial++] = '';
+    }
+  }
+}
+
+var start$7 = unistUtilPosition.start;
 
 
 
@@ -32502,7 +32552,7 @@ function noMultipleToplevelHeadings(tree, file, pref) {
           node
         );
       } else {
-        duplicate = unistUtilStringifyPosition(start$6(node));
+        duplicate = unistUtilStringifyPosition(start$7(node));
       }
     }
   }
@@ -32664,8 +32714,8 @@ var rule$1 = unifiedLintRule;
 
 var remarkLintRuleStyle = rule$1('remark-lint:rule-style', ruleStyle);
 
-var start$7 = unistUtilPosition.start;
-var end$4 = unistUtilPosition.end;
+var start$8 = unistUtilPosition.start;
+var end$5 = unistUtilPosition.end;
 
 function ruleStyle(tree, file, pref) {
   var contents = String(file);
@@ -32681,8 +32731,8 @@ function ruleStyle(tree, file, pref) {
   unistUtilVisit(tree, 'thematicBreak', visitor);
 
   function visitor(node) {
-    var initial = start$7(node).offset;
-    var final = end$4(node).offset;
+    var initial = start$8(node).offset;
+    var final = end$5(node).offset;
     var rule;
 
     if (!unistUtilGenerated(node)) {
@@ -32701,8 +32751,8 @@ function ruleStyle(tree, file, pref) {
 
 var remarkLintTablePipes = unifiedLintRule('remark-lint:table-pipes', tablePipes);
 
-var start$8 = unistUtilPosition.start;
-var end$5 = unistUtilPosition.end;
+var start$9 = unistUtilPosition.start;
+var end$6 = unistUtilPosition.end;
 
 var reasonStart = 'Missing initial pipe in table fence';
 var reasonEnd = 'Missing final pipe in table fence';
@@ -32730,15 +32780,15 @@ function tablePipes(tree, file) {
         cells = row.children;
         head = cells[0];
         tail = cells[cells.length - 1];
-        initial = contents.slice(start$8(row).offset, start$8(head).offset);
-        final = contents.slice(end$5(tail).offset, end$5(row).offset);
+        initial = contents.slice(start$9(row).offset, start$9(head).offset);
+        final = contents.slice(end$6(tail).offset, end$6(row).offset);
 
         if (initial.indexOf('|') === -1) {
-          file.message(reasonStart, start$8(row));
+          file.message(reasonStart, start$9(row));
         }
 
         if (final.indexOf('|') === -1) {
-          file.message(reasonEnd, end$5(row));
+          file.message(reasonEnd, end$6(row));
         }
       }
     }
@@ -32800,8 +32850,8 @@ var remarkLintCheckboxCharacterStyle = unifiedLintRule(
   checkboxCharacterStyle
 );
 
-var start$9 = unistUtilPosition.start;
-var end$6 = unistUtilPosition.end;
+var start$10 = unistUtilPosition.start;
+var end$7 = unistUtilPosition.end;
 
 var checked = {x: true, X: true};
 var unchecked = {' ': true, '\t': true};
@@ -32846,8 +32896,8 @@ function checkboxCharacterStyle(tree, file, pref) {
     }
 
     type = types[node.checked];
-    initial = start$9(node).offset;
-    final = (node.children.length ? start$9(node.children[0]) : end$6(node)).offset;
+    initial = start$10(node).offset;
+    final = (node.children.length ? start$10(node.children[0]) : end$7(node)).offset;
 
     /* For a checkbox to be parsed, it must be followed by a white space. */
     value = contents
@@ -32881,8 +32931,8 @@ function checkboxCharacterStyle(tree, file, pref) {
 
 var remarkLintCodeBlockStyle = unifiedLintRule('remark-lint:code-block-style', codeBlockStyle);
 
-var start$10 = unistUtilPosition.start;
-var end$7 = unistUtilPosition.end;
+var start$11 = unistUtilPosition.start;
+var end$8 = unistUtilPosition.end;
 
 var styles = {null: true, fenced: true, indented: true};
 
@@ -32915,8 +32965,8 @@ function codeBlockStyle(tree, file, pref) {
 
   /* Get the style of `node`. */
   function check(node) {
-    var initial = start$10(node).offset;
-    var final = end$7(node).offset;
+    var initial = start$11(node).offset;
+    var final = end$8(node).offset;
 
     if (unistUtilGenerated(node)) {
       return null
@@ -33111,8 +33161,8 @@ function strongMarker(tree, file, pref) {
 
 var remarkLintTableCellPadding = unifiedLintRule('remark-lint:table-cell-padding', tableCellPadding);
 
-var start$11 = unistUtilPosition.start;
-var end$8 = unistUtilPosition.end;
+var start$12 = unistUtilPosition.start;
+var end$9 = unistUtilPosition.end;
 
 var styles$1 = {null: true, padded: true, compact: true};
 
@@ -33160,8 +33210,8 @@ function tableCellPadding(tree, file, pref) {
         next = cells[column + 1];
 
         fence = contents.slice(
-          cell ? end$8(cell).offset : start$11(row).offset,
-          next ? start$11(next).offset : end$8(row).offset
+          cell ? end$9(cell).offset : start$12(row).offset,
+          next ? start$12(next).offset : end$9(row).offset
         );
 
         pos = fence.indexOf('|');
@@ -33238,7 +33288,7 @@ function tableCellPadding(tree, file, pref) {
 }
 
 function size(node) {
-  return end$8(node).offset - start$11(node).offset
+  return end$9(node).offset - start$12(node).offset
 }
 
 var plugins$1 = [
@@ -33258,6 +33308,7 @@ var plugins$1 = [
   remarkLintNoHeadingContentIndent,
   remarkLintNoHeadingIndent,
   remarkLintNoInlinePadding,
+  remarkLintMaximumLineLength,
   remarkLintNoMultipleToplevelHeadings,
   remarkLintNoShellDollars,
   remarkLintNoShortcutReferenceImage,
