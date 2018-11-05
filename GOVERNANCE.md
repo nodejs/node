@@ -123,8 +123,8 @@ The meeting chair is responsible for ensuring that minutes are taken and that a
 pull request with the minutes is submitted after the meeting.
 
 Due to the challenges of scheduling a global meeting with participants in
-several time zones, the TSC will seek to resolve as many agenda items as possible
-outside of meetings using
+several time zones, the TSC will seek to resolve as many agenda items as
+possible outside of meetings using
 [the TSC issue tracker](https://github.com/nodejs/TSC/issues). The process in
 the issue tracker is:
 
