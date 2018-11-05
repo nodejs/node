@@ -10266,15 +10266,22 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
     Name* key = src->GetKey(i);
     PropertyDetails details = src->GetDetails(i);
 
-    SLOW_DCHECK(!key->IsPrivateField() && details.IsEnumerable() &&
-                details.kind() == kData);
+    DCHECK(!key->IsPrivateField());
+    DCHECK(details.IsEnumerable());
+    DCHECK_EQ(details.kind(), kData);
 
     // Ensure the ObjectClone property details are NONE, and that all source
     // details did not contain DONT_ENUM.
     PropertyDetails new_details(kData, NONE, details.location(),
                                 details.constness(), details.representation(),
                                 details.field_index());
-    descriptors->Set(i, key, src->GetValue(i), new_details);
+    // Do not propagate the field type of normal object fields from the
+    // original descriptors since FieldType changes don't create new maps.
+    MaybeObject* type = src->GetValue(i);
+    if (details.location() == PropertyLocation::kField) {
+      type = MaybeObject::FromObject(FieldType::Any());
+    }
+    descriptors->Set(i, key, type, new_details);
   }
 
   descriptors->Sort();
