@@ -17,6 +17,7 @@ Select a Node.js version below to view the changelog history:
 Please use the following table to find the changelog for a specific Node.js
 release.
 
+<!--lint disable maximum-line-length-->
 <table>
 <tr>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V10.md">10</a><sup>Current</sup></th>
