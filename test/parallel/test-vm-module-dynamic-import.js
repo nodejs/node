@@ -68,16 +68,34 @@ async function testInvalid() {
   await result.catch(common.mustCall((e) => {
     assert.strictEqual(e.code, 'ERR_VM_MODULE_NOT_MODULE');
   }));
+
+  const s = new Script('import("foo")', {
+    importModuleDynamically: common.mustCall((specifier, wrap) => {
+      return undefined;
+    }),
+  });
+  let threw = false;
+  try {
+    await s.runInThisContext();
+  } catch (e) {
+    threw = true;
+    assert.strictEqual(e.code, 'ERR_VM_MODULE_NOT_MODULE');
+  }
+  assert(threw);
 }
 
-const done = common.mustCallAtLeast(3);
+async function testInvalidimportModuleDynamically() {
+  assert.throws(
+    () => new Script(
+      'import("foo")',
+      { importModuleDynamically: false }),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+}
+
 (async function() {
   await testNoCallback();
-  done();
-
   await test();
-  done();
-
   await testInvalid();
-  done();
+  await testInvalidimportModuleDynamically();
 }()).then(common.mustCall());
