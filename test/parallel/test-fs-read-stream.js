@@ -42,7 +42,7 @@ const rangeFile = fixtures.path('x.txt');
 
   file.on('open', common.mustCall(function(fd) {
     file.length = 0;
-    assert.strictEqual('number', typeof fd);
+    assert.strictEqual(typeof fd, 'number');
     assert.strictEqual(file.bytesRead, 0);
     assert.ok(file.readable);
 
@@ -91,12 +91,12 @@ const rangeFile = fixtures.path('x.txt');
   const file = fs.createReadStream(fn, { encoding: 'utf8' });
   file.length = 0;
   file.on('data', function(data) {
-    assert.strictEqual('string', typeof data);
+    assert.strictEqual(typeof data, 'string');
     file.length += data.length;
 
     for (let i = 0; i < data.length; i++) {
       // http://www.fileformat.info/info/unicode/char/2026/index.htm
-      assert.strictEqual('\u2026', data[i]);
+      assert.strictEqual(data[i], '\u2026');
     }
   });
 
@@ -162,7 +162,7 @@ common.expectsError(
   });
 
   stream.on('end', common.mustCall(function() {
-    assert.strictEqual('x', stream.data);
+    assert.strictEqual(stream.data, 'x');
   }));
 }
 
@@ -176,7 +176,7 @@ common.expectsError(
   });
 
   stream.on('end', common.mustCall(function() {
-    assert.strictEqual('xy', stream.data);
+    assert.strictEqual(stream.data, 'xy');
   }));
 }
 
@@ -197,7 +197,7 @@ if (!common.isWindows) {
     });
 
     stream.on('end', common.mustCall(function() {
-      assert.strictEqual('xy', stream.data);
+      assert.strictEqual(stream.data, 'xy');
       fs.unlinkSync(filename);
     }));
   } else {
