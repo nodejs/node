@@ -5,7 +5,8 @@ os: linux
 matrix:
   include:
     - name: "Linter"
-      node_js: "latest"
+      language: node_js
+      node_js: "node"
       env:
         - NODE=$(which node)
       script:
