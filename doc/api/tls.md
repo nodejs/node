@@ -811,14 +811,15 @@ decrease overall server throughput.
 added: v0.8.4
 -->
 
-* `hostname` {string} The hostname to verify the certificate against
+* `hostname` {string} The host name or IP address to verify the certificate
+  against.
 * `cert` {Object} An object representing the peer's certificate. The returned
   object has some properties corresponding to the fields of the certificate.
 * Returns: {Error|undefined}
 
 Verifies the certificate `cert` is issued to `hostname`.
 
-Returns {Error} object, populating it with the reason, host, and cert on
+Returns {Error} object, populating it with `reason`, `host`, and `cert` on
 failure. On success, returns {undefined}.
 
 This function can be overwritten by providing alternative function as part of
