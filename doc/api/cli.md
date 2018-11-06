@@ -169,7 +169,7 @@ If you specify a host, make sure that at least one of the following is true:
 either the host is not public, or the port is properly firewalled to disallow
 unwanted connections.
 
-**More specifially, `--inspect=0.0.0.0` is insecure if the port (`9229` by
+**More specifically, `--inspect=0.0.0.0` is insecure if the port (`9229` by
 default) is not firewall-protected.**
 
 See the [debugging security implications][] section for more information.
