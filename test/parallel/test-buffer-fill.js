@@ -303,19 +303,19 @@ Buffer.alloc(8, '');
 
   buf.fill(0);
   for (let i = 0; i < buf.length; i++)
-    assert.strictEqual(0, buf[i]);
+    assert.strictEqual(buf[i], 0);
 
   buf.fill(null);
   for (let i = 0; i < buf.length; i++)
-    assert.strictEqual(0, buf[i]);
+    assert.strictEqual(buf[i], 0);
 
   buf.fill(1, 16, 32);
   for (let i = 0; i < 16; i++)
-    assert.strictEqual(0, buf[i]);
+    assert.strictEqual(buf[i], 0);
   for (let i = 16; i < 32; i++)
-    assert.strictEqual(1, buf[i]);
+    assert.strictEqual(buf[i], 1);
   for (let i = 32; i < buf.length; i++)
-    assert.strictEqual(0, buf[i]);
+    assert.strictEqual(buf[i], 0);
 }
 
 {
