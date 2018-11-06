@@ -5,10 +5,13 @@ os: linux
 matrix:
   include:
     - name: "Linter"
-      node_js: "latest"
+      language: node_js
+      node_js:
+        - "node"
       env:
         - NODE=$(which node)
       script:
+        - node -v
         - make lint
         # Lint the first commit in the PR.
         - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
