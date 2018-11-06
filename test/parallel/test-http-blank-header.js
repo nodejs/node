@@ -26,8 +26,8 @@ const http = require('http');
 const net = require('net');
 
 const server = http.createServer(common.mustCall((req, res) => {
-  assert.strictEqual('GET', req.method);
-  assert.strictEqual('/blah', req.url);
+  assert.strictEqual(req.method, 'GET');
+  assert.strictEqual(req.url, '/blah');
   assert.deepStrictEqual({
     host: 'example.org:443',
     origin: 'http://example.org',
