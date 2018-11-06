@@ -24,8 +24,8 @@
 require('../common');
 const assert = require('assert');
 
-assert.strictEqual(0, Buffer.from('hello', 'utf8').slice(0, 0).length);
-assert.strictEqual(0, Buffer('hello', 'utf8').slice(0, 0).length);
+assert.strictEqual(Buffer.from('hello', 'utf8').slice(0, 0).length, 0);
+assert.strictEqual(Buffer('hello', 'utf8').slice(0, 0).length, 0);
 
 const buf = Buffer.from('0123456789', 'utf8');
 const expectedSameBufs = [
@@ -72,7 +72,7 @@ for (let i = 0, s = buf.toString(); i < buf.length; ++i) {
 }
 
 expectedSameBufs.forEach(([buf1, buf2]) => {
-  assert.strictEqual(0, Buffer.compare(buf1, buf2));
+  assert.strictEqual(Buffer.compare(buf1, buf2), 0);
 });
 
 const utf16Buf = Buffer.from('0123456789', 'utf16le');
@@ -83,12 +83,12 @@ assert.strictEqual(Buffer.alloc(0).slice(0, 1).length, 0);
 
 {
   // Single argument slice
-  assert.strictEqual('bcde',
-                     Buffer.from('abcde', 'utf8').slice(1).toString('utf8'));
+  assert.strictEqual(Buffer.from('abcde', 'utf8').slice(1).toString('utf8'),
+                     'bcde');
 }
 
 // slice(0,0).length === 0
-assert.strictEqual(0, Buffer.from('hello', 'utf8').slice(0, 0).length);
+assert.strictEqual(Buffer.from('hello', 'utf8').slice(0, 0).length, 0);
 
 {
   // Regression tests for https://github.com/nodejs/node/issues/9096
