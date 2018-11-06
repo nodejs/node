@@ -493,7 +493,7 @@ class HttpHandler : public ProtocolHandler {
     }
 #else  /* !NODE_EXPERIMENTAL_HTTP */
     http_parser_execute(&parser_, &parser_settings, data->data(), data->size());
-    err = parser_.http_errno;
+    err = HTTP_PARSER_ERRNO(&parser_);
 #endif  /* NODE_EXPERIMENTAL_HTTP */
     data->clear();
     if (err != HPE_OK) {
