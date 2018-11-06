@@ -571,10 +571,7 @@ void AfterScanDir(uv_fs_t* req) {
   Environment* env = req_wrap->env();
   Local<Value> error;
   int r;
-  Local<Array> names = Array::New(env->isolate(), 0);
-  Local<Function> fn = env->push_values_to_array_function();
-  Local<Value> name_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  size_t name_idx = 0;
+  std::vector<Local<Value>> name_argv;
 
   for (int i = 0; ; i++) {
     uv_dirent_t ent;
@@ -596,23 +593,11 @@ void AfterScanDir(uv_fs_t* req) {
     if (filename.IsEmpty())
       return req_wrap->Reject(error);
 
-    name_argv[name_idx++] = filename.ToLocalChecked();
-
-    if (name_idx >= arraysize(name_argv)) {
-      MaybeLocal<Value> ret = fn->Call(env->context(), names, name_idx,
-                                       name_argv);
-      if (ret.IsEmpty()) {
-        return;
-      }
-      name_idx = 0;
-    }
+    name_argv.push_back(filename.ToLocalChecked());
   }
 
-  if (name_idx > 0) {
-    fn->Call(env->context(), names, name_idx, name_argv)
-      .ToLocalChecked();
-  }
-
+  Local<Array> names =
+      Array::New(env->isolate(), name_argv.data(), name_argv.size());
   req_wrap->Resolve(names);
 }
 
@@ -1497,18 +1482,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
     CHECK_GE(req_wrap_sync.req.result, 0);
     int r;
-    Local<Array> names = Array::New(isolate, 0);
-    Local<Function> fn = env->push_values_to_array_function();
-    Local<Value> name_v[NODE_PUSH_VAL_TO_ARRAY_MAX];
-    size_t name_idx = 0;
-
-    Local<Value> types;
-    Local<Value> type_v[NODE_PUSH_VAL_TO_ARRAY_MAX];
-    size_t type_idx;
-    if (with_types) {
-      types = Array::New(isolate, 0);
-      type_idx = 0;
-    }
+    std::vector<Local<Value>> name_v;
+    std::vector<Local<Value>> type_v;
 
     for (int i = 0; ; i++) {
       uv_dirent_t ent;
@@ -1537,47 +1512,18 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      name_v[name_idx++] = filename.ToLocalChecked();
-
-      if (name_idx >= arraysize(name_v)) {
-        MaybeLocal<Value> ret = fn->Call(env->context(), names, name_idx,
-                                         name_v);
-        if (ret.IsEmpty()) {
-          return;
-        }
-        name_idx = 0;
-      }
+      name_v.push_back(filename.ToLocalChecked());
 
       if (with_types) {
-        type_v[type_idx++] = Integer::New(isolate, ent.type);
-
-        if (type_idx >= arraysize(type_v)) {
-          MaybeLocal<Value> ret = fn->Call(env->context(), types, type_idx,
-              type_v);
-          if (ret.IsEmpty()) {
-            return;
-          }
-          type_idx = 0;
-        }
+        type_v.push_back(Integer::New(isolate, ent.type));
       }
     }
 
-    if (name_idx > 0) {
-      MaybeLocal<Value> ret = fn->Call(env->context(), names, name_idx, name_v);
-      if (ret.IsEmpty()) {
-        return;
-      }
-    }
 
-    if (with_types && type_idx > 0) {
-      MaybeLocal<Value> ret = fn->Call(env->context(), types, type_idx, type_v);
-      if (ret.IsEmpty()) {
-        return;
-      }
-    }
-
+    Local<Array> names = Array::New(isolate, name_v.data(), name_v.size());
     if (with_types) {
       Local<Array> result = Array::New(isolate, 2);
+      Local<Value> types = Array::New(isolate, type_v.data(), type_v.size());
       result->Set(0, names);
       result->Set(1, types);
       args.GetReturnValue().Set(result);
