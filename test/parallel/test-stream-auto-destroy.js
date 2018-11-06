@@ -82,3 +82,31 @@ const assert = require('assert');
     assert(finished);
   }));
 }
+
+{
+  const r = new stream.Readable({
+    read() {
+      r2.emit('error', new Error('fail'));
+    }
+  });
+  const r2 = new stream.Readable({
+    autoDestroy: true,
+    destroy: common.mustCall((err, cb) => cb())
+  });
+
+  r.pipe(r2);
+}
+
+{
+  const r = new stream.Readable({
+    read() {
+      w.emit('error', new Error('fail'));
+    }
+  });
+  const w = new stream.Writable({
+    autoDestroy: true,
+    destroy: common.mustCall((err, cb) => cb())
+  });
+
+  r.pipe(w);
+}
