@@ -29,7 +29,7 @@ const vm = require('vm');
 // Run in a new empty context
 let context = vm.createContext();
 let result = vm.runInContext('"passed";', context);
-assert.strictEqual('passed', result);
+assert.strictEqual(result, 'passed');
 
 // Create a new pre-populated context
 context = vm.createContext({ 'foo': 'bar', 'thing': 'lala' });
