@@ -26,7 +26,7 @@ const fixtures = require('../common/fixtures');
 
 setTimeout(common.mustCall(function() {
   const a = require(fixtures.path('a'));
-  assert.strictEqual(true, 'A' in a);
-  assert.strictEqual('A', a.A());
-  assert.strictEqual('D', a.D());
+  assert.strictEqual('A' in a, true);
+  assert.strictEqual(a.A(), 'A');
+  assert.strictEqual(a.D(), 'D');
 }), 50);
