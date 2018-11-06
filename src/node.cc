@@ -1746,9 +1746,7 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "llhttp",
                     FIXED_ONE_BYTE_STRING(env->isolate(), llhttp_version));
-  READONLY_PROPERTY(versions, "http_parser", Null(env->isolate()));
 #else  /* !NODE_EXPERIMENTAL_HTTP */
-  READONLY_PROPERTY(versions, "llhttp", Null(env->isolate()));
   READONLY_PROPERTY(versions,
                     "http_parser",
                     FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));

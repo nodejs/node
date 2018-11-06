@@ -24,7 +24,7 @@ assert.deepStrictEqual(actual_keys, expected_keys);
 const commonTemplate = /^\d+\.\d+\.\d+(?:-.*)?$/;
 
 assert(commonTemplate.test(process.versions.ares));
-assert(commonTemplate.test(process.versions.llhttp === null ?
+assert(commonTemplate.test(process.versions.llhttp === undefined ?
   process.versions.http_parser : process.versions.llhttp));
 assert(commonTemplate.test(process.versions.node));
 assert(commonTemplate.test(process.versions.uv));
