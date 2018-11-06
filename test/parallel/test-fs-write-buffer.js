@@ -58,11 +58,11 @@ tmpdir.refresh();
     const cb = common.mustCall((err, written) => {
       assert.ifError(err);
 
-      assert.strictEqual(2, written);
+      assert.strictEqual(written, 2);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
-      assert.strictEqual('lo', found);
+      assert.strictEqual(found, 'lo');
     });
 
     fs.write(fd, Buffer.from('hello'), 3, cb);
