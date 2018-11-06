@@ -42,8 +42,8 @@ const EventEmitter = require('events');
   });
 
   const hello = common.mustCall(function(a, b) {
-    assert.strictEqual('a', a);
-    assert.strictEqual('b', b);
+    assert.strictEqual(a, 'a');
+    assert.strictEqual(b, 'b');
   });
 
   ee.once('newListener', function(name, listener) {
