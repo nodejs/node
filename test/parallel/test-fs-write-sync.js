@@ -34,7 +34,7 @@ tmpdir.refresh();
   const fd = fs.openSync(filename, 'w');
 
   let written = fs.writeSync(fd, '');
-  assert.strictEqual(0, written);
+  assert.strictEqual(written, 0);
 
   fs.writeSync(fd, 'foo');
 
@@ -50,7 +50,7 @@ tmpdir.refresh();
   const fd = fs.openSync(filename, 'w');
 
   let written = fs.writeSync(fd, '');
-  assert.strictEqual(0, written);
+  assert.strictEqual(written, 0);
 
   fs.writeSync(fd, 'foo');
 
@@ -66,7 +66,7 @@ tmpdir.refresh();
   const fd = fs.openSync(filename, 'w');
 
   let written = fs.writeSync(fd, '');
-  assert.strictEqual(0, written);
+  assert.strictEqual(written, 0);
 
   fs.writeSync(fd, 'foo');
 
