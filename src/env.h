@@ -246,7 +246,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(options_string, "options")                                                \
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
-  V(parse_error_string, "Parse Error")                                      \
+  V(parse_error_string, "Parse Error")                                        \
   V(password_string, "password")                                              \
   V(path_string, "path")                                                      \
   V(pending_handle_string, "pendingHandle")                                   \
