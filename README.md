@@ -433,6 +433,8 @@ For information about the governance of the Node.js project, see
 **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
+* [shisama](https://github.com/shisama) -
+**Masashi Hirano** &lt;shisama07@gmail.com&gt; (he/him)
 * [silverwind](https://github.com/silverwind) -
 **Roman Reiss** &lt;me@silverwind.io&gt;
 * [srl295](https://github.com/srl295) -
