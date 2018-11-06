@@ -5,6 +5,7 @@ const common = require('../common');
 
 const assert = require('assert');
 const { customInspectSymbol: inspect } = require('internal/util');
+const util = require('util');
 
 const buf = Buffer.from([0xef, 0xbb, 0xbf, 0x74, 0x65,
                          0x73, 0x74, 0xe2, 0x82, 0xac]);
@@ -95,6 +96,42 @@ if (common.hasIntl) {
   const dec = new TextDecoder('utf-16be');
   const res = dec.decode(Buffer.from('test€', 'utf-16le').swap16());
   assert.strictEqual(res, 'test€');
+}
+
+// Test TextDecoder inspect with hidden fields
+{
+  const dec = new TextDecoder('utf-8', { ignoreBOM: true });
+  if (common.hasIntl) {
+    assert.strictEqual(
+      util.inspect(dec, { showHidden: true }),
+      'TextDecoder {\n  encoding: \'utf-8\',\n  fatal: false,\n  ' +
+      'ignoreBOM: true,\n  [Symbol(flags)]: 4,\n  [Symbol(handle)]: {} }'
+    );
+  } else {
+    assert.strictEqual(
+      util.inspect(dec, { showHidden: true }),
+      'TextDecoder {\n  encoding: \'utf-8\',\n  fatal: false,\n  ' +
+      'ignoreBOM: true,\n  [Symbol(flags)]: 4,\n  [Symbol(handle)]:\n   ' +
+      'StringDecoder {\n     encoding: \'utf8\',\n     ' +
+      '[Symbol(kNativeDecoder)]: <Buffer 00 00 00 00 00 00 01> } }'
+    );
+  }
+}
+
+
+// Test TextDecoder inspect without hidden fields
+{
+  const dec = new TextDecoder('utf-8', { ignoreBOM: true });
+  assert.strictEqual(
+    util.inspect(dec, { showHidden: false }),
+    'TextDecoder { encoding: \'utf-8\', fatal: false, ignoreBOM: true }'
+  );
+}
+
+// Test TextDecoder inspect with negative depth
+{
+  const dec = new TextDecoder();
+  assert.strictEqual(util.inspect(dec, { depth: -1 }), '[Object]');
 }
 
 {
