@@ -32,7 +32,6 @@ fi
 addlicense "Acorn" "deps/acorn" "$(cat ${rootdir}/deps/acorn/LICENSE)"
 addlicense "c-ares" "deps/cares" "$(tail -n +3 ${rootdir}/deps/cares/LICENSE.md)"
 addlicense "HTTP Parser" "deps/http_parser" "$(cat deps/http_parser/LICENSE-MIT)"
-addlicense "llhttp" "deps/llhttp" "$(cat deps/llhttp/LICENSE-MIT)"
 if [ -f "${rootdir}/deps/icu/LICENSE" ]; then
   # ICU 57 and following. Drop the BOM
   addlicense "ICU" "deps/icu" \
@@ -59,6 +58,7 @@ else
 fi
 
 addlicense "libuv" "deps/uv" "$(cat ${rootdir}/deps/uv/LICENSE)"
+addlicense "llhttp" "deps/llhttp" "$(cat deps/llhttp/LICENSE-MIT)"
 addlicense "OpenSSL" "deps/openssl" \
            "$(sed -e '/^ \*\/$/,$d' -e '/^ [^*].*$/d' -e '/\/\*.*$/d' -e '/^$/d' -e 's/^[/ ]\* *//' ${rootdir}/deps/openssl/openssl/LICENSE)"
 addlicense "Punycode.js" "lib/punycode.js" \
