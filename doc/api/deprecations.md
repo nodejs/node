@@ -1344,12 +1344,15 @@ removed. Please use `sloppy` instead.
 ### DEP0066: outgoingMessage.\_headers, outgoingMessage.\_headerNames
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24167
+    description: Runtime deprecation.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10941
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The `http` module `outgoingMessage._headers` and `outgoingMessage._headerNames`
 properties are deprecated. Use one of the public methods
