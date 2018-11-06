@@ -44,6 +44,7 @@ const notEqualArrayPairs = [
   [new Int16Array([-256]), new Uint16Array([0xff00])], // same bits
   [new Int32Array([-256]), new Uint32Array([0xffffff00])], // ditto
   [new Float32Array([0.1]), new Float32Array([0.0])],
+  [new Float32Array([0.1]), new Float32Array([0.1, 0.2])],
   [new Float64Array([0.1]), new Float64Array([0.0])]
 ];
 
