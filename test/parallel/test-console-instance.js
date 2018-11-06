@@ -34,7 +34,7 @@ const err = new Stream();
 process.stdout.write = process.stderr.write = common.mustNotCall();
 
 // Make sure that the "Console" function exists.
-assert.strictEqual('function', typeof Console);
+assert.strictEqual(typeof Console, 'function');
 
 assert.strictEqual(requiredConsole, global.console);
 // Make sure the custom instanceof of Console works
