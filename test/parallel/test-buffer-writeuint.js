@@ -84,6 +84,18 @@ const assert = require('assert');
 
   data.writeUInt16BE(value, 0);
   assert.ok(data.equals(new Uint8Array([0xff, 0x80, 0x43, 0x23])));
+
+  value = 0xfffff;
+  ['writeUInt16BE', 'writeUInt16LE'].forEach((fn) => {
+    assert.throws(
+      () => data[fn](value, 0),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        message: 'The value of "value" is out of range. ' +
+                 `It must be >= 0 and <= 65535. Received ${value}`
+      }
+    );
+  });
 }
 
 // Test 32 bit
