@@ -475,11 +475,9 @@ class NodeInspectorClient : public V8InspectorClient {
                       bool prevent_shutdown) {
     events_dispatched_ = true;
     int session_id = next_session_id_++;
-    // TODO(addaleax): Revert back to using make_unique once we get issues
-    // with CI resolved (i.e. revert the patch that added this comment).
-    channels_[session_id].reset(
-        new ChannelImpl(env_, client_, getWorkerManager(),
-                        std::move(delegate), prevent_shutdown));
+    channels_[session_id] =
+        std::make_unique<ChannelImpl>(env_, client_, getWorkerManager(),
+                                      std::move(delegate), prevent_shutdown);
     return session_id;
   }
 
