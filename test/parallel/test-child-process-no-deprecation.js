@@ -14,4 +14,3 @@ if (process.argv[2] === 'child') {
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', common.mustNotCall());
 }
-
