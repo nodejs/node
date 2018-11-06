@@ -180,6 +180,7 @@ const vm = require('vm');
     'lineOffset': 'number',
     'cachedData': 'Buffer, TypedArray, or DataView',
     'produceCachedData': 'boolean',
+    
   };
 
   for (const option in optionTypes) {
@@ -208,6 +209,20 @@ const vm = require('vm');
       });
     }
   );
+
+    // Testing for non Array type-based failures
+    [Boolean(), Number(), null, Object(), Symbol(), {}].forEach(
+      (value) => {
+        common.expectsError(() => {
+          vm.compileFunction('', value);
+        }, {
+          type: TypeError,
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: 'The "params" argument must be of type Array. ' 
+          + `Received type ${typeof Object()}`
+        });
+      }
+    );
 
   assert.strictEqual(
     vm.compileFunction(
