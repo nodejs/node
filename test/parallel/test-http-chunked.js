@@ -48,7 +48,7 @@ server.listen(0, common.mustCall(() => {
     x.setEncoding('utf8');
     x.on('data', (c) => data += c);
     x.on('end', common.mustCall(() => {
-      assert.strictEqual('string', typeof data);
+      assert.strictEqual(typeof data, 'string');
       assert.strictEqual(UTF8_STRING, data);
       server.close();
     }));
