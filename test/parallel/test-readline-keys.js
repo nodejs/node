@@ -108,6 +108,11 @@ addTest('\b\x7f\x1b\b\x1b\x7f \x1b ', [
   { name: 'space', sequence: '\x1b ', meta: true },
 ]);
 
+// escape key
+addTest('\x1b\x1b\x1b', [
+  { name: 'escape', sequence: '\x1b\x1b\x1b', meta: true },
+]);
+
 // control keys
 addTest('\x01\x0b\x10', [
   { name: 'a', sequence: '\x01', ctrl: true },
