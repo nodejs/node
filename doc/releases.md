@@ -235,6 +235,12 @@ and also if there are non-trivial API changes. The rules are not yet strictly
 defined, so if in doubt, please confer with someone that will have a more
 informed perspective, such as a member of the NAN team.
 
+A registry of currently used `NODE_MODULE_VERSION` values is maintained at
+<https://github.com/nodejs/node/blob/master/doc/abi_version_registry.json>.
+When bumping `NODE_MODULE_VERSION`, you should choose a new value not listed
+in the registry. Also include a change to the registry in your commit to
+reflect the newly used value.
+
 It is current TSC policy to bump major version when ABI changes. If you
 see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC.
 Commits may need to be reverted or a major version bump may need to happen.

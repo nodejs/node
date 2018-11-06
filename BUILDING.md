@@ -581,11 +581,14 @@ To make `./myModule.js` available via `require('myModule')` and
 
 ## Note for downstream distributors of Node.js
 
-The Node.js ecosystem is reliant on ABI compatibility within a major
-release. To maintain ABI compatibility it is required that production
-builds of Node.js will be built against the same version of dependencies as the
-project vendors. If Node.js is to be built against a different version of a
-dependency please create a custom `NODE_MODULE_VERSION` to ensure ecosystem
-compatibility. Please consult with the TSC by opening an issue at
-https://github.com/nodejs/tsc/issues if you decide to create a custom
-`NODE_MODULE_VERSION` so we can avoid duplication in the ecosystem.
+The Node.js ecosystem is reliant on ABI compatibility within a major release.
+To maintain ABI compatibility it is required that distributed builds of Node.js
+be built against the same version of dependencies, or similar versions that do
+not break their ABI compatibility, as those released by Node.js for any given
+`NODE_MODULE_VERSION` (located in `src/node_version.h`).
+
+When Node.js is built (with an intention to distribute) with an ABI
+incompatible with the official Node.js builds (e.g. using a ABI incompatible
+version of a dependency), please reserve and use a custom `NODE_MODULE_VERSION`
+by opening a pull request against the registry available at
+<https://github.com/nodejs/node/blob/master/doc/abi_version_registry.json>.
