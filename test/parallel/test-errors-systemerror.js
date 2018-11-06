@@ -111,3 +111,25 @@ const { ERR_TEST } = codes;
   assert.strictEqual(err.path, 'path');
   assert.strictEqual(err.dest, 'path');
 }
+
+{
+  const ctx = {
+    code: 'ERR_TEST',
+    message: 'Error occurred',
+    syscall: 'syscall_test'
+  };
+  assert.throws(
+    () => {
+      const err = new ERR_TEST(ctx);
+      err.name = 'SystemError [CUSTOM_ERR_TEST]';
+      throw err;
+    },
+    {
+      code: 'ERR_TEST',
+      name: 'SystemError [CUSTOM_ERR_TEST]',
+      message: 'custom message: syscall_test returned ERR_TEST ' +
+               '(Error occurred)',
+      info: ctx
+    }
+  );
+}
