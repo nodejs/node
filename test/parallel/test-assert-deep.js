@@ -915,6 +915,27 @@ assert.deepStrictEqual(obj1, obj2);
   );
 }
 
+// Strict equal with identical objects that are not identical
+// by reference and longer than 30 elements
+// E.g., assert.deepStrictEqual({ a: Symbol() }, { a: Symbol() })
+{
+  const a = {};
+  const b = {};
+  for (let i = 0; i < 35; i++) {
+    a[`symbol${i}`] = Symbol();
+    b[`symbol${i}`] = Symbol();
+  }
+
+  assert.throws(
+    () => assert.deepStrictEqual(a, b),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError [ERR_ASSERTION]',
+      message: /\.\.\./g
+    }
+  );
+}
+
 // Basic valueOf check.
 {
   const a = new String(1);
