@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const expected_keys = ['ares', 'llhttp', 'http_parser', 'modules', 'node',
+const expected_keys = ['ares', 'modules', 'node',
                        'uv', 'v8', 'zlib', 'nghttp2', 'napi'];
 
 if (common.hasCrypto) {
@@ -15,6 +15,9 @@ if (common.hasIntl) {
   expected_keys.push('tz');
   expected_keys.push('unicode');
 }
+
+expected_keys.push(
+  process.versions.llhttp === undefined ? 'http_parser' : 'llhttp');
 
 expected_keys.sort();
 const actual_keys = Object.keys(process.versions).sort();
