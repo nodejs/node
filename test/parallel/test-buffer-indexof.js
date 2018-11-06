@@ -505,20 +505,20 @@ assert.strictEqual(buf_bc.lastIndexOf(Buffer.from('你好'), 7), -1);
 
 // Test lastIndexOf on a longer buffer:
 const bufferString = Buffer.from('a man a plan a canal panama');
-assert.strictEqual(15, bufferString.lastIndexOf('canal'));
-assert.strictEqual(21, bufferString.lastIndexOf('panama'));
-assert.strictEqual(0, bufferString.lastIndexOf('a man a plan a canal panama'));
+assert.strictEqual(bufferString.lastIndexOf('canal'), 15);
+assert.strictEqual(bufferString.lastIndexOf('panama'), 21);
+assert.strictEqual(bufferString.lastIndexOf('a man a plan a canal panama'), 0);
 assert.strictEqual(-1, bufferString.lastIndexOf('a man a plan a canal mexico'));
 assert.strictEqual(-1, bufferString
   .lastIndexOf('a man a plan a canal mexico city'));
 assert.strictEqual(-1, bufferString.lastIndexOf(Buffer.from('a'.repeat(1000))));
-assert.strictEqual(0, bufferString.lastIndexOf('a man a plan', 4));
-assert.strictEqual(13, bufferString.lastIndexOf('a '));
-assert.strictEqual(13, bufferString.lastIndexOf('a ', 13));
-assert.strictEqual(6, bufferString.lastIndexOf('a ', 12));
-assert.strictEqual(0, bufferString.lastIndexOf('a ', 5));
-assert.strictEqual(13, bufferString.lastIndexOf('a ', -1));
-assert.strictEqual(0, bufferString.lastIndexOf('a ', -27));
+assert.strictEqual(bufferString.lastIndexOf('a man a plan', 4), 0);
+assert.strictEqual(bufferString.lastIndexOf('a '), 13);
+assert.strictEqual(bufferString.lastIndexOf('a ', 13), 13);
+assert.strictEqual(bufferString.lastIndexOf('a ', 12), 6);
+assert.strictEqual(bufferString.lastIndexOf('a ', 5), 0);
+assert.strictEqual(bufferString.lastIndexOf('a ', -1), 13);
+assert.strictEqual(bufferString.lastIndexOf('a ', -27), 0);
 assert.strictEqual(-1, bufferString.lastIndexOf('a ', -28));
 
 // Test lastIndexOf for the case that the first character can be found,
@@ -534,18 +534,18 @@ assert.strictEqual(-1, Buffer.from('bc').lastIndexOf(Buffer.from('ab')));
 assert.strictEqual(-1, Buffer.from('bc', 'ucs2').lastIndexOf('ab', 'ucs2'));
 assert.strictEqual(-1, Buffer.from('bc', 'ucs2').lastIndexOf(abInUCS2));
 
-assert.strictEqual(0, Buffer.from('abc').lastIndexOf('ab'));
-assert.strictEqual(0, Buffer.from('abc').lastIndexOf('ab', 1));
-assert.strictEqual(0, Buffer.from('abc').lastIndexOf('ab', 2));
-assert.strictEqual(0, Buffer.from('abc').lastIndexOf('ab', 3));
+assert.strictEqual(Buffer.from('abc').lastIndexOf('ab'), 0);
+assert.strictEqual(Buffer.from('abc').lastIndexOf('ab', 1), 0);
+assert.strictEqual(Buffer.from('abc').lastIndexOf('ab', 2), 0);
+assert.strictEqual(Buffer.from('abc').lastIndexOf('ab', 3), 0);
 
 // The above tests test the LINEAR and SINGLE-CHAR strategies.
 // Now, we test the BOYER-MOORE-HORSPOOL strategy.
 // Test lastIndexOf on a long buffer w multiple matches:
 pattern = 'JABACABADABACABA';
-assert.strictEqual(1535, longBufferString.lastIndexOf(pattern));
-assert.strictEqual(1535, longBufferString.lastIndexOf(pattern, 1535));
-assert.strictEqual(511, longBufferString.lastIndexOf(pattern, 1534));
+assert.strictEqual(longBufferString.lastIndexOf(pattern), 1535);
+assert.strictEqual(longBufferString.lastIndexOf(pattern, 1535), 1535);
+assert.strictEqual(longBufferString.lastIndexOf(pattern, 1534), 511);
 
 // Finally, give it a really long input to trigger fallback from BMH to
 // regular BOYER-MOORE (which has better worst-case complexity).
@@ -567,19 +567,19 @@ for (let i = 0; i < 1000000; i++) {
   parts.push((countBits(i) % 2 === 0) ? 'yolo' : 'swag');
 }
 const reallyLong = Buffer.from(parts.join(' '));
-assert.strictEqual('yolo swag swag yolo', reallyLong.slice(0, 19).toString());
+assert.strictEqual(reallyLong.slice(0, 19).toString(), 'yolo swag swag yolo');
 
 // Expensive reverse searches. Stress test lastIndexOf:
 pattern = reallyLong.slice(0, 100000);  // First 1/50th of the pattern.
-assert.strictEqual(4751360, reallyLong.lastIndexOf(pattern));
-assert.strictEqual(3932160, reallyLong.lastIndexOf(pattern, 4000000));
-assert.strictEqual(2949120, reallyLong.lastIndexOf(pattern, 3000000));
+assert.strictEqual(reallyLong.lastIndexOf(pattern), 4751360);
+assert.strictEqual(reallyLong.lastIndexOf(pattern, 4000000), 3932160);
+assert.strictEqual(reallyLong.lastIndexOf(pattern, 3000000), 2949120);
 pattern = reallyLong.slice(100000, 200000);  // Second 1/50th.
-assert.strictEqual(4728480, reallyLong.lastIndexOf(pattern));
+assert.strictEqual(reallyLong.lastIndexOf(pattern), 4728480);
 pattern = reallyLong.slice(0, 1000000);  // First 1/5th.
-assert.strictEqual(3932160, reallyLong.lastIndexOf(pattern));
+assert.strictEqual(reallyLong.lastIndexOf(pattern), 3932160);
 pattern = reallyLong.slice(0, 2000000);  // first 2/5ths.
-assert.strictEqual(0, reallyLong.lastIndexOf(pattern));
+assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
 
 // test truncation of Number arguments to uint8
 {
