@@ -33,7 +33,7 @@ const err = new Stream();
 process.stdout.write = process.stderr.write = common.mustNotCall();
 
 // Make sure that the "Console" function exists.
-assert.strictEqual('function', typeof Console);
+assert.strictEqual(typeof Console, 'function');
 
 // Make sure that the Console constructor throws
 // when not given a writable stream instance.
