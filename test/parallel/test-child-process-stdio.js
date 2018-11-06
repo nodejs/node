@@ -60,8 +60,8 @@ const { spawn } = require('child_process');
   }));
 
   child.on('close', common.mustCall(function() {
-    assert.strictEqual(true, output.length > 1);
-    assert.strictEqual('\n', output[output.length - 1]);
+    assert.strictEqual(output.length > 1, true);
+    assert.strictEqual(output[output.length - 1], '\n');
   }));
 }
 
