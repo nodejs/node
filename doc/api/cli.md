@@ -162,7 +162,7 @@ tcp port and communicate using the [Chrome DevTools Protocol][].
 #### Warning: binding inspector to a public IP:port combination is insecure
 
 Binding the inspector to a public IP (including `0.0.0.0`) with an open port is
-insecure, as it allows third-party hosts to connect to the inspector and perform
+insecure, as it allows external hosts to connect to the inspector and perform
 a [remote code execution][] attack.
 
 If you specify a host, make sure that at least one of the following is true:
