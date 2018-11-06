@@ -14,7 +14,7 @@ function myMultiArgFunc(arg1, arg2, arg3) {
 }
 
 assert.strictEqual(makeCallback(process, common.mustCall(function() {
-  assert.strictEqual(0, arguments.length);
+  assert.strictEqual(arguments.length, 0);
   assert.strictEqual(this, process);
   return 42;
 })), 42);
