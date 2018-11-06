@@ -75,6 +75,14 @@ if (common.hasIntl) {
     });
 }
 
+// Test TextDecoder, label undefined, options null
+{
+  const dec = new TextDecoder(undefined, null);
+  assert.strictEqual(dec.encoding, 'utf-8');
+  assert.strictEqual(dec.fatal, false);
+  assert.strictEqual(dec.ignoreBOM, false);
+}
+
 // Test TextDecoder, UTF-16le
 {
   const dec = new TextDecoder('utf-16le');
