@@ -16,5 +16,7 @@ runBenchmark('fs', [
   'statType=fstat',
   'statSyncType=fstatSync',
   'encodingType=buf',
-  'filesize=1024'
+  'filesize=1024',
+  'dir=.github',
+  'withFileTypes=false'
 ], { NODE_TMPDIR: tmpdir.path, NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
