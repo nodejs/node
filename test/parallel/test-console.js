@@ -180,6 +180,8 @@ assert.strictEqual(errStrings[errStrings.length - 1],
 
 console.assert(true, 'this should not throw');
 
+console.assert(true);
+
 assert.strictEqual(strings.length, process.stdout.writeTimes);
 assert.strictEqual(errStrings.length, process.stderr.writeTimes);
 restoreStdout();
