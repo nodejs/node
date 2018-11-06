@@ -183,24 +183,24 @@ assert.strictEqual(Buffer.from('aaaa00a').indexOf('3030', 'hex'), 4);
   // test usc2 encoding
   const twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
-  assert.strictEqual(8, twoByteString.indexOf('\u0395', 4, 'ucs2'));
-  assert.strictEqual(6, twoByteString.indexOf('\u03a3', -4, 'ucs2'));
-  assert.strictEqual(4, twoByteString.indexOf('\u03a3', -6, 'ucs2'));
-  assert.strictEqual(4, twoByteString.indexOf(
-    Buffer.from('\u03a3', 'ucs2'), -6, 'ucs2'));
+  assert.strictEqual(twoByteString.indexOf('\u0395', 4, 'ucs2'), 8);
+  assert.strictEqual(twoByteString.indexOf('\u03a3', -4, 'ucs2'), 6);
+  assert.strictEqual(twoByteString.indexOf('\u03a3', -6, 'ucs2'), 4);
+  assert.strictEqual(twoByteString.indexOf(
+    Buffer.from('\u03a3', 'ucs2'), -6, 'ucs2'), 4);
   assert.strictEqual(-1, twoByteString.indexOf('\u03a3', -2, 'ucs2'));
 }
 
 const mixedByteStringUcs2 =
     Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
-assert.strictEqual(6, mixedByteStringUcs2.indexOf('bc', 0, 'ucs2'));
-assert.strictEqual(10, mixedByteStringUcs2.indexOf('\u03a3', 0, 'ucs2'));
+assert.strictEqual(mixedByteStringUcs2.indexOf('bc', 0, 'ucs2'), 6);
+assert.strictEqual(mixedByteStringUcs2.indexOf('\u03a3', 0, 'ucs2'), 10);
 assert.strictEqual(-1, mixedByteStringUcs2.indexOf('\u0396', 0, 'ucs2'));
 
 assert.strictEqual(
-  6, mixedByteStringUcs2.indexOf(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
+  mixedByteStringUcs2.indexOf(Buffer.from('bc', 'ucs2'), 0, 'ucs2'), 6);
 assert.strictEqual(
-  10, mixedByteStringUcs2.indexOf(Buffer.from('\u03a3', 'ucs2'), 0, 'ucs2'));
+  mixedByteStringUcs2.indexOf(Buffer.from('\u03a3', 'ucs2'), 0, 'ucs2'), 10);
 assert.strictEqual(
   -1, mixedByteStringUcs2.indexOf(Buffer.from('\u0396', 'ucs2'), 0, 'ucs2'));
 
@@ -208,34 +208,34 @@ assert.strictEqual(
   const twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
   // Test single char pattern
-  assert.strictEqual(0, twoByteString.indexOf('\u039a', 0, 'ucs2'));
+  assert.strictEqual(twoByteString.indexOf('\u039a', 0, 'ucs2'), 0);
   let index = twoByteString.indexOf('\u0391', 0, 'ucs2');
-  assert.strictEqual(2, index, `Alpha - at index ${index}`);
+  assert.strictEqual(index, 2, `Alpha - at index ${index}`);
   index = twoByteString.indexOf('\u03a3', 0, 'ucs2');
-  assert.strictEqual(4, index, `First Sigma - at index ${index}`);
+  assert.strictEqual(index, 4, `First Sigma - at index ${index}`);
   index = twoByteString.indexOf('\u03a3', 6, 'ucs2');
-  assert.strictEqual(6, index, `Second Sigma - at index ${index}`);
+  assert.strictEqual(index, 6, `Second Sigma - at index ${index}`);
   index = twoByteString.indexOf('\u0395', 0, 'ucs2');
-  assert.strictEqual(8, index, `Epsilon - at index ${index}`);
+  assert.strictEqual(index, 8, `Epsilon - at index ${index}`);
   index = twoByteString.indexOf('\u0392', 0, 'ucs2');
   assert.strictEqual(-1, index, `Not beta - at index ${index}`);
 
   // Test multi-char pattern
   index = twoByteString.indexOf('\u039a\u0391', 0, 'ucs2');
-  assert.strictEqual(0, index, `Lambda Alpha - at index ${index}`);
+  assert.strictEqual(index, 0, `Lambda Alpha - at index ${index}`);
   index = twoByteString.indexOf('\u0391\u03a3', 0, 'ucs2');
-  assert.strictEqual(2, index, `Alpha Sigma - at index ${index}`);
+  assert.strictEqual(index, 2, `Alpha Sigma - at index ${index}`);
   index = twoByteString.indexOf('\u03a3\u03a3', 0, 'ucs2');
-  assert.strictEqual(4, index, `Sigma Sigma - at index ${index}`);
+  assert.strictEqual(index, 4, `Sigma Sigma - at index ${index}`);
   index = twoByteString.indexOf('\u03a3\u0395', 0, 'ucs2');
-  assert.strictEqual(6, index, `Sigma Epsilon - at index ${index}`);
+  assert.strictEqual(index, 6, `Sigma Epsilon - at index ${index}`);
 }
 
 const mixedByteStringUtf8 = Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395');
-assert.strictEqual(5, mixedByteStringUtf8.indexOf('bc'));
-assert.strictEqual(5, mixedByteStringUtf8.indexOf('bc', 5));
-assert.strictEqual(5, mixedByteStringUtf8.indexOf('bc', -8));
-assert.strictEqual(7, mixedByteStringUtf8.indexOf('\u03a3'));
+assert.strictEqual(mixedByteStringUtf8.indexOf('bc'), 5);
+assert.strictEqual(mixedByteStringUtf8.indexOf('bc', 5), 5);
+assert.strictEqual(mixedByteStringUtf8.indexOf('bc', -8), 5);
+assert.strictEqual(mixedByteStringUtf8.indexOf('\u03a3'), 7);
 assert.strictEqual(-1, mixedByteStringUtf8.indexOf('\u0396'));
 
 
@@ -257,22 +257,22 @@ for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
 }
 
 let index = longBufferString.indexOf('AJABACA');
-assert.strictEqual(510, index, `Long AJABACA, First J - at index ${index}`);
+assert.strictEqual(index, 510, `Long AJABACA, First J - at index ${index}`);
 index = longBufferString.indexOf('AJABACA', 511);
-assert.strictEqual(1534, index, `Long AJABACA, Second J - at index ${index}`);
+assert.strictEqual(index, 1534, `Long AJABACA, Second J - at index ${index}`);
 
 pattern = 'JABACABADABACABA';
 index = longBufferString.indexOf(pattern);
-assert.strictEqual(511, index, `Long JABACABA..., First J - at index ${index}`);
+assert.strictEqual(index, 511, `Long JABACABA..., First J - at index ${index}`);
 index = longBufferString.indexOf(pattern, 512);
 assert.strictEqual(
-  1535, index, `Long JABACABA..., Second J - at index ${index}`);
+  index, 1535, `Long JABACABA..., Second J - at index ${index}`);
 
 // Search for a non-ASCII string in a pure ASCII string.
 const asciiString = Buffer.from(
   'arglebargleglopglyfarglebargleglopglyfarglebargleglopglyf');
 assert.strictEqual(-1, asciiString.indexOf('\x2061'));
-assert.strictEqual(3, asciiString.indexOf('leb', 0));
+assert.strictEqual(asciiString.indexOf('leb', 0), 3);
 
 // Search in string containing many non-ASCII chars.
 const allCodePoints = [];
