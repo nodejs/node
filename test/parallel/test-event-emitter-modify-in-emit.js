@@ -74,7 +74,7 @@ callbacks_called = [];
 
 e.on('foo', callback2);
 e.on('foo', callback3);
-assert.strictEqual(2, e.listeners('foo').length);
+assert.strictEqual(e.listeners('foo').length, 2);
 e.emit('foo');
 assert.deepStrictEqual(['callback2', 'callback3'], callbacks_called);
-assert.strictEqual(0, e.listeners('foo').length);
+assert.strictEqual(e.listeners('foo').length, 0);
