@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
 #include "src/objects/promise.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +30,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kPromiseContextLength,
   };
 
- protected:
+  // TODO(bmeurer): Move this to a proper context map in contexts.h?
+  // Similar to the AwaitContext that we introduced for await closures.
   enum PromiseAllResolveElementContextSlots {
     // Remaining elements count
     kPromiseAllResolveElementRemainingSlot = Context::MIN_CONTEXT_SLOTS,
@@ -43,7 +45,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kPromiseAllResolveElementLength
   };
 
- public:
   enum FunctionContextSlot {
     kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
 
@@ -89,9 +90,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
                                 Node* fulfill_handler, Node* reject_handler);
 
-  Node* AllocatePromiseReactionJobTask(Heap::RootListIndex map_root_index,
-                                       Node* context, Node* argument,
-                                       Node* handler,
+  Node* AllocatePromiseReactionJobTask(RootIndex map_root_index, Node* context,
+                                       Node* argument, Node* handler,
                                        Node* promise_or_capability);
   Node* AllocatePromiseReactionJobTask(Node* map, Node* context, Node* argument,
                                        Node* handler,
@@ -145,6 +145,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void BranchIfPromiseResolveLookupChainIntact(Node* native_context,
                                                Node* constructor,
                                                Label* if_fast, Label* if_slow);
+  void GotoIfNotPromiseResolveLookupChainIntact(Node* native_context,
+                                                Node* constructor,
+                                                Label* if_slow);
 
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
   // [[Prototype]] is the (initial)  Promise.prototype and the @@species
@@ -178,9 +181,10 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
-  Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
-                          const IteratorRecord& record, Label* if_exception,
-                          Variable* var_exception);
+  Node* PerformPromiseAll(
+      Node* context, Node* constructor, Node* capability,
+      const BaseBuiltinsFromDSLAssembler::IteratorRecord& record,
+      Label* if_exception, Variable* var_exception);
 
   void SetForwardingHandlerIfTrue(Node* context, Node* condition,
                                   const NodeGenerator& object);

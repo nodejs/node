@@ -9,6 +9,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/elements-kind.h"
 #include "src/globals.h"
+#include "src/objects/js-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -105,6 +106,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSGeneratorObject::resume_mode() field.
   static FieldAccess ForJSGeneratorObjectResumeMode();
+
+  // Provides access to JSAsyncFunctionObject::promise() field.
+  static FieldAccess ForJSAsyncFunctionObjectPromise();
 
   // Provides access to JSAsyncGeneratorObject::queue() field.
   static FieldAccess ForJSAsyncGeneratorObjectQueue();

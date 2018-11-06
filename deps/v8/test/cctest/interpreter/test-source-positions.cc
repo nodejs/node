@@ -49,7 +49,7 @@ struct TestCaseData {
   const char* arguments() const { return arguments_; }
 
  private:
-  TestCaseData();
+  TestCaseData() = delete;
 
   const char* const script_;
   const char* const declaration_parameters_;

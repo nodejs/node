@@ -1546,6 +1546,16 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           }
           break;
         }
+        case LL_R6: {
+          DCHECK(IsMipsArchVariant(kMips32r6));
+          Format(instr, "llwp    'rd, 'rt, 0('rs)");
+          break;
+        }
+        case SC_R6: {
+          DCHECK(IsMipsArchVariant(kMips32r6));
+          Format(instr, "scwp    'rd, 'rt, 0('rs)");
+          break;
+        }
         default: {
           sa >>= kBp2Bits;
           switch (sa) {
@@ -1738,7 +1748,11 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
           Format(instr, "bltz    'rs, 'imm16u -> 'imm16p4s2");
           break;
         case BLTZAL:
-          Format(instr, "bltzal  'rs, 'imm16u -> 'imm16p4s2");
+          if (instr->RsValue() == 0) {
+            Format(instr, "nal");
+          } else {
+            Format(instr, "bltzal  'rs, 'imm16u -> 'imm16p4s2");
+          }
           break;
         case BGEZ:
           Format(instr, "bgez    'rs, 'imm16u -> 'imm16p4s2");

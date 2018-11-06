@@ -9,6 +9,7 @@
 #include "src/counters.h"
 #include "src/keys.h"
 #include "src/lookup.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/property-descriptor.h"
 
@@ -67,7 +68,7 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
                                      Object::ToObject(isolate, object));
   // 2. If IsCallable(getter) is false, throw a TypeError exception.
   if (!accessor->IsCallable()) {
-    MessageTemplate::Template message =
+    MessageTemplate message =
         which_accessor == ACCESSOR_GETTER
             ? MessageTemplate::kObjectGetterExpectingFunction
             : MessageTemplate::kObjectSetterExpectingFunction;

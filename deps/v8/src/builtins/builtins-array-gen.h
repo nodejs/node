@@ -5,12 +5,12 @@
 #ifndef V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 #define V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 
-#include "torque-generated/builtins-base-from-dsl-gen.h"
+#include "src/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
+class ArrayBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit ArrayBuiltinsAssembler(compiler::CodeAssemblerState* state);
 
@@ -71,6 +71,39 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   // Uses memset to effectively initialize the given FixedArray with Smi zeroes.
   void FillFixedArrayWithSmiZero(TNode<FixedArray> array,
                                  TNode<Smi> smi_length);
+
+  TNode<String> CallJSArrayArrayJoinConcatToSequentialString(
+      TNode<FixedArray> fixed_array, TNode<IntPtrT> length, TNode<String> sep,
+      TNode<String> dest) {
+    TNode<ExternalReference> func = ExternalConstant(
+        ExternalReference::jsarray_array_join_concat_to_sequential_string());
+    TNode<ExternalReference> isolate_ptr =
+        ExternalConstant(ExternalReference::isolate_address(isolate()));
+    return UncheckedCast<String>(
+        CallCFunction5(MachineType::AnyTagged(),  // <return> String*
+                       MachineType::Pointer(),    // Isolate*
+                       MachineType::AnyTagged(),  // FixedArray* fixed_array
+                       MachineType::IntPtr(),     // intptr_t length
+                       MachineType::AnyTagged(),  // String* sep
+                       MachineType::AnyTagged(),  // String* dest
+                       func, isolate_ptr, fixed_array, length, sep, dest));
+  }
+
+  // Temporary Torque support for Array.prototype.join().
+  // TODO(pwong): Remove this when Torque supports exception handlers.
+  TNode<String> CallArrayJoin(TNode<Context> context, bool use_to_locale_string,
+                              TNode<JSReceiver> receiver, TNode<String> sep,
+                              TNode<Number> len, TNode<Object> locales,
+                              TNode<Object> options, Label* if_exception,
+                              TVariable<Object>* var_exception) {
+    Builtins::Name builtin = use_to_locale_string
+                                 ? Builtins::kArrayJoinWithToLocaleString
+                                 : Builtins::kArrayJoinWithoutToLocaleString;
+    TNode<Object> result =
+        CallBuiltin(builtin, context, receiver, sep, len, locales, options);
+    GotoIfException(result, if_exception, var_exception);
+    return CAST(result);
+  }
 
  protected:
   TNode<Context> context() { return context_; }

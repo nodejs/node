@@ -6,6 +6,7 @@
 
 #include "src/api-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -42,7 +43,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   CodeSpace* code_space = isolate->heap()->code_space();
   Address start_address = code_space->top();
   Object* root;
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, ObjectSlot(&root));
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);
 

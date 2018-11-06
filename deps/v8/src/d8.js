@@ -15,7 +15,7 @@ function JSProxyGetTarget(proxy) { };
 function JSProxyGetHandler(proxy) { };
 
 try {
-  isProxy = Function(['object'], 'return %_IsJSProxy(object)');
+  isProxy = Function(['object'], 'return %IsJSProxy(object)');
   JSProxyGetTarget = Function(['proxy'],
     'return %JSProxyGetTarget(proxy)');
   JSProxyGetHandler = Function(['proxy'],

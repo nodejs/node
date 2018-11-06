@@ -36,7 +36,7 @@ class InterpreterCallable {
  public:
   InterpreterCallable(Isolate* isolate, Handle<JSFunction> function)
       : isolate_(isolate), function_(function) {}
-  virtual ~InterpreterCallable() {}
+  virtual ~InterpreterCallable() = default;
 
   MaybeHandle<Object> operator()(A... args) {
     return CallInterpreter(isolate_, function_, args...);

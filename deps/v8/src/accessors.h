@@ -22,27 +22,28 @@ class JavaScriptFrame;
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
-#define ACCESSOR_INFO_LIST(V)                                       \
-  V(arguments_iterator, ArgumentsIterator)                          \
-  V(array_length, ArrayLength)                                      \
-  V(bound_function_length, BoundFunctionLength)                     \
-  V(bound_function_name, BoundFunctionName)                         \
-  V(error_stack, ErrorStack)                                        \
-  V(function_arguments, FunctionArguments)                          \
-  V(function_caller, FunctionCaller)                                \
-  V(function_name, FunctionName)                                    \
-  V(function_length, FunctionLength)                                \
-  V(function_prototype, FunctionPrototype)                          \
-  V(string_length, StringLength)
-
-#define SIDE_EFFECT_FREE_ACCESSOR_INFO_LIST(V) \
-  V(ArrayLength)                               \
-  V(BoundFunctionLength)                       \
-  V(BoundFunctionName)                         \
-  V(FunctionName)                              \
-  V(FunctionLength)                            \
-  V(FunctionPrototype)                         \
-  V(StringLength)
+// V(accessor_name, AccessorName, GetterSideEffectType, SetterSideEffectType)
+#define ACCESSOR_INFO_LIST_GENERATOR(V, _)                                    \
+  V(_, arguments_iterator, ArgumentsIterator, kHasNoSideEffect,               \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, array_length, ArrayLength, kHasNoSideEffect, kHasSideEffectToReceiver) \
+  V(_, bound_function_length, BoundFunctionLength, kHasNoSideEffect,          \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, bound_function_name, BoundFunctionName, kHasNoSideEffect,              \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, error_stack, ErrorStack, kHasSideEffectToReceiver,                     \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_arguments, FunctionArguments, kHasNoSideEffect,               \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_caller, FunctionCaller, kHasNoSideEffect,                     \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_name, FunctionName, kHasNoSideEffect,                         \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_length, FunctionLength, kHasNoSideEffect,                     \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_prototype, FunctionPrototype, kHasNoSideEffect,               \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, string_length, StringLength, kHasNoSideEffect, kHasSideEffectToReceiver)
 
 #define ACCESSOR_SETTER_LIST(V) \
   V(ArrayLengthSetter)          \
@@ -55,11 +56,11 @@ class JavaScriptFrame;
 
 class Accessors : public AllStatic {
  public:
-#define ACCESSOR_GETTER_DECLARATION(accessor_name, AccessorName) \
-  static void AccessorName##Getter(                              \
-      v8::Local<v8::Name> name,                                  \
+#define ACCESSOR_GETTER_DECLARATION(_, accessor_name, AccessorName, ...) \
+  static void AccessorName##Getter(                                      \
+      v8::Local<v8::Name> name,                                          \
       const v8::PropertyCallbackInfo<v8::Value>& info);
-  ACCESSOR_INFO_LIST(ACCESSOR_GETTER_DECLARATION)
+  ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_GETTER_DECLARATION, /* not used */)
 #undef ACCESSOR_GETTER_DECLARATION
 
 #define ACCESSOR_SETTER_DECLARATION(accessor_name)          \
@@ -71,7 +72,7 @@ class Accessors : public AllStatic {
 
   static constexpr int kAccessorInfoCount =
 #define COUNT_ACCESSOR(...) +1
-      ACCESSOR_INFO_LIST(COUNT_ACCESSOR);
+      ACCESSOR_INFO_LIST_GENERATOR(COUNT_ACCESSOR, /* not used */);
 #undef COUNT_ACCESSOR
 
   static constexpr int kAccessorSetterCount =
@@ -118,9 +119,9 @@ class Accessors : public AllStatic {
       AccessorNameBooleanSetterCallback setter);
 
  private:
-#define ACCESSOR_INFO_DECLARATION(accessor_name, AccessorName) \
+#define ACCESSOR_INFO_DECLARATION(_, accessor_name, AccessorName, ...) \
   static Handle<AccessorInfo> Make##AccessorName##Info(Isolate* isolate);
-  ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
+  ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_DECLARATION, /* not used */)
 #undef ACCESSOR_INFO_DECLARATION
 
   friend class Heap;

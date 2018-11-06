@@ -5,6 +5,8 @@
 #ifndef V8_TORQUE_SOURCE_POSITIONS_H_
 #define V8_TORQUE_SOURCE_POSITIONS_H_
 
+#include <iostream>
+
 #include "src/torque/contextual.h"
 
 namespace v8 {
@@ -29,7 +31,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
 
 class SourceFileMap : public ContextualClass<SourceFileMap> {
  public:
-  SourceFileMap() {}
+  SourceFileMap() = default;
   static const std::string& GetSource(SourceId source) {
     return Get().sources_[source.id_];
   }
@@ -46,6 +48,10 @@ class SourceFileMap : public ContextualClass<SourceFileMap> {
 inline std::string PositionAsString(SourcePosition pos) {
   return SourceFileMap::GetSource(pos.source) + ":" +
          std::to_string(pos.line + 1) + ":" + std::to_string(pos.column + 1);
+}
+
+inline std::ostream& operator<<(std::ostream& out, SourcePosition pos) {
+  return out << PositionAsString(pos);
 }
 
 }  // namespace torque

@@ -32,8 +32,11 @@
 var obj1 = {x: 10, y: 11, z: "test"};
 var obj2 = {x: 10, y: 11, z: "test"};
 
+// Object.is() uses the SameValue algorithm.
 var sameValue = Object.is;
-var sameValueZero = function(x, y) { return %SameValueZero(x, y); }
+
+// Set#has() uses the SameValueZero algorithm.
+var sameValueZero = (x, y) => new Set([x]).has(y);
 
 // Calls SameValue and SameValueZero and checks that their results match.
 function sameValueBoth(a, b) {

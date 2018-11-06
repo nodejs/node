@@ -393,6 +393,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // instruction. A node can be covered if the {user} of the node has the only
   // edge and the two are in the same basic block.
   bool CanCover(Node* user, Node* node) const;
+  // CanCover is not transitive.  The counter example are Nodes A,B,C such that
+  // CanCover(A, B) and CanCover(B,C) and B is pure: The the effect level of A
+  // and B might differ. CanCoverTransitively does the additional checks.
+  bool CanCoverTransitively(Node* user, Node* node, Node* node_input) const;
 
   // Used in pattern matching during code generation.
   // This function checks that {node} and {user} are in the same basic block,
@@ -545,6 +549,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     kCallAddressImmediate = 1u << 1,
     kCallTail = 1u << 2,
     kCallFixedTargetRegister = 1u << 3,
+    kAllowCallThroughSlot = 1u << 4
   };
   typedef base::Flags<CallBufferFlag> CallBufferFlags;
 

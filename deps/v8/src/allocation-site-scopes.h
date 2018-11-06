@@ -7,6 +7,7 @@
 
 #include "src/handles.h"
 #include "src/objects.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/map.h"
 
 namespace v8 {
@@ -29,15 +30,10 @@ class AllocationSiteContext {
 
  protected:
   void update_current_site(AllocationSite* site) {
-    *(current_.location()) = site;
+    *(current_.location()) = site->ptr();
   }
 
-  void InitializeTraversal(Handle<AllocationSite> site) {
-    top_ = site;
-    // {current_} is updated in place to not create unnecessary Handles, hence
-    // we initially need a separate handle.
-    current_ = Handle<AllocationSite>::New(*top_, isolate());
-  }
+  inline void InitializeTraversal(Handle<AllocationSite> site);
 
  private:
   Isolate* isolate_;
@@ -56,40 +52,12 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
         top_site_(site),
         activated_(activated) { }
 
-  inline Handle<AllocationSite> EnterNewScope() {
-    if (top().is_null()) {
-      InitializeTraversal(top_site_);
-    } else {
-      // Advance current site
-      Object* nested_site = current()->nested_site();
-      // Something is wrong if we advance to the end of the list here.
-      update_current_site(AllocationSite::cast(nested_site));
-    }
-    return Handle<AllocationSite>(*current(), isolate());
-  }
+  inline Handle<AllocationSite> EnterNewScope();
 
   inline void ExitScope(Handle<AllocationSite> scope_site,
-                        Handle<JSObject> object) {
-    // This assert ensures that we are pointing at the right sub-object in a
-    // recursive walk of a nested literal.
-    DCHECK(object.is_null() || *object == scope_site->boilerplate());
-  }
+                        Handle<JSObject> object);
 
-  bool ShouldCreateMemento(Handle<JSObject> object) {
-    if (activated_ &&
-        AllocationSite::CanTrack(object->map()->instance_type())) {
-      if (FLAG_allocation_site_pretenuring ||
-          AllocationSite::ShouldTrack(object->GetElementsKind())) {
-        if (FLAG_trace_creation_allocation_sites) {
-          PrintF("*** Creating Memento for %s %p\n",
-                 object->IsJSArray() ? "JSArray" : "JSObject",
-                 static_cast<void*>(*object));
-        }
-        return true;
-      }
-    }
-    return false;
-  }
+  inline bool ShouldCreateMemento(Handle<JSObject> object);
 
   static const bool kCopying = true;
 

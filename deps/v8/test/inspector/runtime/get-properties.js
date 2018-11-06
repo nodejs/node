@@ -94,7 +94,10 @@ async function logGetPropertiesResult(objectId, flags = { ownProperties: true })
     for (var i = 0; i < internalPropertyArray.length; i++) {
       var p = internalPropertyArray[i];
       var v = p.value;
-      InspectorTest.log("  " + p.name + " " + v.type + " " + v.value);
+      if (p.name !== '[[StableObjectId]]')
+        InspectorTest.log("  " + p.name + " " + v.type + " " + v.value);
+      else
+        InspectorTest.log("  [[StableObjectId]]: <stableObjectId>");
     }
   }
 

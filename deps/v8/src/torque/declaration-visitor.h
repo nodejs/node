@@ -12,7 +12,6 @@
 #include "src/torque/declarations.h"
 #include "src/torque/file-visitor.h"
 #include "src/torque/global-context.h"
-#include "src/torque/scope.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
@@ -22,160 +21,73 @@ namespace torque {
 
 class DeclarationVisitor : public FileVisitor {
  public:
-  explicit DeclarationVisitor(GlobalContext& global_context)
-      : FileVisitor(global_context),
-        scope_(declarations(), global_context.GetDefaultModule()) {}
-
   void Visit(Ast* ast) {
-    Visit(ast->default_module());
-    DrainSpecializationQueue();
+    CurrentScope::Scope current_namespace(GlobalContext::GetDefaultModule());
+    for (Declaration* child : ast->declarations()) Visit(child);
   }
 
-  void Visit(Expression* expr);
-  void Visit(Statement* stmt);
   void Visit(Declaration* decl);
 
-  void Visit(ModuleDeclaration* decl) {
-    ScopedModuleActivator activator(this, decl->GetModule());
-    Declarations::ModuleScopeActivator scope(declarations(), decl->GetModule());
-    for (Declaration* child : decl->declarations) Visit(child);
-  }
-  void Visit(DefaultModuleDeclaration* decl) {
-    decl->SetModule(global_context_.GetDefaultModule());
-    Visit(implicit_cast<ModuleDeclaration*>(decl));
-  }
-  void Visit(ExplicitModuleDeclaration* decl) {
-    decl->SetModule(global_context_.GetModule(decl->name));
-    Visit(implicit_cast<ModuleDeclaration*>(decl));
+  Module* GetOrCreateModule(const std::string& name) {
+    std::vector<Module*> existing_modules =
+        FilterDeclarables<Module>(Declarations::TryLookupShallow(name));
+    if (existing_modules.empty()) {
+      return Declarations::DeclareModule(name);
+    }
+    DCHECK_EQ(1, existing_modules.size());
+    return existing_modules.front();
   }
 
-  void Visit(IdentifierExpression* expr);
-  void Visit(NumberLiteralExpression* expr) {}
-  void Visit(StringLiteralExpression* expr) {}
-  void Visit(CallExpression* expr);
-  void Visit(ElementAccessExpression* expr) {
-    Visit(expr->array);
-    Visit(expr->index);
+  void Visit(ModuleDeclaration* decl) {
+    CurrentScope::Scope current_scope(GetOrCreateModule(decl->name));
+    for (Declaration* child : decl->declarations) Visit(child);
   }
-  void Visit(FieldAccessExpression* expr) { Visit(expr->object); }
-  void Visit(BlockStatement* expr) {
-    Declarations::NodeScopeActivator scope(declarations(), expr);
-    for (Statement* stmt : expr->statements) Visit(stmt);
-  }
-  void Visit(ExpressionStatement* stmt) { Visit(stmt->expression); }
-  void Visit(TailCallStatement* stmt) { Visit(stmt->call); }
+
   void Visit(TypeDeclaration* decl);
 
   void Visit(TypeAliasDeclaration* decl) {
-    const Type* type = declarations()->GetType(decl->type);
+    const Type* type = Declarations::GetType(decl->type);
     type->AddAlias(decl->name);
-    declarations()->DeclareType(decl->name, type);
+    Declarations::DeclareType(decl->name, type, true);
   }
 
-  Builtin* BuiltinDeclarationCommon(BuiltinDeclaration* decl, bool external,
-                                    const Signature& signature);
-
+  Builtin* CreateBuiltin(BuiltinDeclaration* decl, std::string external_name,
+                         std::string readable_name, Signature signature,
+                         base::Optional<Statement*> body);
   void Visit(ExternalBuiltinDeclaration* decl, const Signature& signature,
-             Statement* body) {
-    BuiltinDeclarationCommon(decl, true, signature);
+             base::Optional<Statement*> body) {
+    Declarations::Declare(
+        decl->name,
+        CreateBuiltin(decl, decl->name, decl->name, signature, base::nullopt));
   }
 
   void Visit(ExternalRuntimeDeclaration* decl, const Signature& sig,
-             Statement* body);
+             base::Optional<Statement*> body);
   void Visit(ExternalMacroDeclaration* decl, const Signature& sig,
-             Statement* body);
+             base::Optional<Statement*> body);
   void Visit(TorqueBuiltinDeclaration* decl, const Signature& signature,
-             Statement* body);
+             base::Optional<Statement*> body);
   void Visit(TorqueMacroDeclaration* decl, const Signature& signature,
-             Statement* body);
+             base::Optional<Statement*> body);
 
-  void Visit(CallableNode* decl, const Signature& signature, Statement* body);
+  void Visit(CallableNode* decl, const Signature& signature,
+             base::Optional<Statement*> body);
 
   void Visit(ConstDeclaration* decl);
   void Visit(StandardDeclaration* decl);
   void Visit(GenericDeclaration* decl);
   void Visit(SpecializationDeclaration* decl);
-  void Visit(ReturnStatement* stmt);
-
-  void Visit(DebugStatement* stmt) {}
-  void Visit(AssertStatement* stmt) {
-    bool do_check = !stmt->debug_only;
-#if defined(DEBUG)
-    do_check = true;
-#endif
-    if (do_check) DeclareExpressionForBranch(stmt->expression);
-  }
-
-  void Visit(VarDeclarationStatement* stmt);
   void Visit(ExternConstDeclaration* decl);
-
   void Visit(StructDeclaration* decl);
-  void Visit(StructExpression* decl) {}
 
-  void Visit(LogicalOrExpression* expr);
-  void Visit(LogicalAndExpression* expr);
-  void DeclareExpressionForBranch(Expression* node);
-
-  void Visit(ConditionalExpression* expr);
-  void Visit(IfStatement* stmt);
-  void Visit(WhileStatement* stmt);
-  void Visit(ForOfLoopStatement* stmt);
-
-  void Visit(AssignmentExpression* expr) {
-    MarkLocationModified(expr->location);
-    Visit(expr->location);
-    Visit(expr->value);
-  }
-
-  void Visit(BreakStatement* stmt) {}
-  void Visit(ContinueStatement* stmt) {}
-  void Visit(GotoStatement* expr) {}
-  void Visit(ForLoopStatement* stmt);
-
-  void Visit(IncrementDecrementExpression* expr) {
-    MarkLocationModified(expr->location);
-    Visit(expr->location);
-  }
-
-  void Visit(AssumeTypeImpossibleExpression* expr) { Visit(expr->expression); }
-
-  void Visit(TryLabelStatement* stmt);
-  void GenerateHeader(std::string& file_name);
+  Signature MakeSpecializedSignature(const SpecializationKey& key);
+  Callable* SpecializeImplicit(const SpecializationKey& key);
+  Callable* Specialize(const SpecializationKey& key, CallableNode* declaration,
+                       base::Optional<const CallableNodeSignature*> signature,
+                       Statement* body);
 
  private:
-  struct LiveAndChanged {
-    std::set<const Variable*> live;
-    std::set<const Variable*> changed;
-  };
-
-  void PushControlSplit() {
-    LiveAndChanged live_and_changed;
-    live_and_changed.live = declarations()->GetLiveVariables();
-    live_and_changed_variables_.push_back(live_and_changed);
-  }
-
-  Variable* DeclareVariable(const std::string& name, const Type* type,
-                            bool is_const);
-  Parameter* DeclareParameter(const std::string& name, const Type* type);
-
-  std::set<const Variable*> PopControlSplit() {
-    auto result = live_and_changed_variables_.back().changed;
-    live_and_changed_variables_.pop_back();
-    return result;
-  }
-
-  void MarkLocationModified(Expression* location);
-  bool MarkVariableModified(const Variable* variable);
-  void DeclareSignature(const Signature& signature);
   void DeclareSpecializedTypes(const SpecializationKey& key);
-
-  void Specialize(const SpecializationKey& key, CallableNode* callable,
-                  const CallableNodeSignature* signature,
-                  Statement* body) override;
-
-  Declarations::ModuleScopeActivator scope_;
-  std::vector<Builtin*> torque_builtins_;
-  std::vector<LiveAndChanged> live_and_changed_variables_;
 };
 
 }  // namespace torque

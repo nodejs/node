@@ -15,7 +15,7 @@ function testFunction() {
   console.dir('dir');
   console.dirxml('dirxml');
   console.table([[1,2],[3,4]]);
-  console.table([[1,2],[3,4]], [1,2]);
+  console.table([[1,2],[3,4]], ['1','2']);
   console.trace('trace');
   console.trace();
   console.group();

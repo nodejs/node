@@ -7,6 +7,7 @@
 
 #include "src/char-predicates-inl.h"
 #include "src/dateparser.h"
+#include "src/isolate.h"
 #include "src/unicode-cache-inl.h"
 
 namespace v8 {

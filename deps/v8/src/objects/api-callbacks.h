@@ -48,7 +48,12 @@ class AccessorInfo : public Struct {
   DECL_BOOLEAN_ACCESSORS(is_special_data_property)
   DECL_BOOLEAN_ACCESSORS(replace_on_access)
   DECL_BOOLEAN_ACCESSORS(is_sloppy)
-  DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
+
+  inline SideEffectType getter_side_effect_type() const;
+  inline void set_getter_side_effect_type(SideEffectType type);
+
+  inline SideEffectType setter_side_effect_type() const;
+  inline void set_setter_side_effect_type(SideEffectType type);
 
   // The property attributes used when an API object template is instantiated
   // for the first time. Changing of this value afterwards does not affect
@@ -89,13 +94,15 @@ class AccessorInfo : public Struct {
   inline bool HasExpectedReceiverType();
 
 // Bit positions in |flags|.
-#define ACCESSOR_INFO_FLAGS_BIT_FIELDS(V, _) \
-  V(AllCanReadBit, bool, 1, _)               \
-  V(AllCanWriteBit, bool, 1, _)              \
-  V(IsSpecialDataPropertyBit, bool, 1, _)    \
-  V(IsSloppyBit, bool, 1, _)                 \
-  V(ReplaceOnAccessBit, bool, 1, _)          \
-  V(HasNoSideEffectBit, bool, 1, _)          \
+#define ACCESSOR_INFO_FLAGS_BIT_FIELDS(V, _)                           \
+  V(AllCanReadBit, bool, 1, _)                                         \
+  V(AllCanWriteBit, bool, 1, _)                                        \
+  V(IsSpecialDataPropertyBit, bool, 1, _)                              \
+  V(IsSloppyBit, bool, 1, _)                                           \
+  V(ReplaceOnAccessBit, bool, 1, _)                                    \
+  V(GetterSideEffectTypeBits, SideEffectType, 2, _)                    \
+  /* We could save a bit from setter side-effect type, if necessary */ \
+  V(SetterSideEffectTypeBits, SideEffectType, 2, _)                    \
   V(InitialAttributesBits, PropertyAttributes, 3, _)
 
   DEFINE_BIT_FIELDS(ACCESSOR_INFO_FLAGS_BIT_FIELDS)

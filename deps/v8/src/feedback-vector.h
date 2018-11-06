@@ -147,11 +147,6 @@ class FeedbackMetadata;
 // metadata.
 class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  // Use the mixin methods over the HeapObject methods.
-  // TODO(v8:7786) Remove once the HeapObject methods are gone.
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   // Casting.
   static inline FeedbackVector* cast(Object* obj);
 
@@ -168,7 +163,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 
   // [optimized_code_weak_or_smi]: weak reference to optimized code or a Smi
   // marker defining optimization behaviour.
-  DECL_ACCESSORS(optimized_code_weak_or_smi, MaybeObject)
+  DECL_ACCESSORS2(optimized_code_weak_or_smi, MaybeObject)
 
   // [length]: The length of the feedback vector (not including the header, i.e.
   // the number of feedback slots).
@@ -206,11 +201,11 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackSlot ToSlot(int index);
-  inline MaybeObject* Get(FeedbackSlot slot) const;
-  inline MaybeObject* get(int index) const;
-  inline void Set(FeedbackSlot slot, MaybeObject* value,
+  inline MaybeObject Get(FeedbackSlot slot) const;
+  inline MaybeObject get(int index) const;
+  inline void Set(FeedbackSlot slot, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, MaybeObject* value,
+  inline void set(int index, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(FeedbackSlot slot, Object* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -218,7 +213,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Gives access to raw memory which stores the array's data.
-  inline MaybeObject** slots_start();
+  inline MaybeObjectSlot slots_start();
 
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
@@ -253,7 +248,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
     return GetLanguageModeFromSlotKind(GetKind(slot));
   }
 
-  static void AssertNoLegacyTypes(MaybeObject* object);
+  static void AssertNoLegacyTypes(MaybeObject object);
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
@@ -294,12 +289,10 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 #undef FEEDBACK_VECTOR_FIELDS
 
   static const int kHeaderSize =
-      RoundUp<kPointerAlignment>(kUnalignedHeaderSize);
+      RoundUp<kPointerAlignment>(int{kUnalignedHeaderSize});
   static const int kFeedbackSlotsOffset = kHeaderSize;
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {
@@ -352,11 +345,14 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
     return AddSlot(FeedbackSlotKind::kLoadKeyed);
   }
 
-  FeedbackSlot AddStoreICSlot(LanguageMode language_mode) {
+  FeedbackSlotKind GetStoreICSlot(LanguageMode language_mode) {
     STATIC_ASSERT(LanguageModeSize == 2);
-    return AddSlot(is_strict(language_mode)
-                       ? FeedbackSlotKind::kStoreNamedStrict
-                       : FeedbackSlotKind::kStoreNamedSloppy);
+    return is_strict(language_mode) ? FeedbackSlotKind::kStoreNamedStrict
+                                    : FeedbackSlotKind::kStoreNamedSloppy;
+  }
+
+  FeedbackSlot AddStoreICSlot(LanguageMode language_mode) {
+    return AddSlot(GetStoreICSlot(language_mode));
   }
 
   FeedbackSlot AddStoreOwnICSlot() {
@@ -370,11 +366,14 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
                        : FeedbackSlotKind::kStoreGlobalSloppy);
   }
 
-  FeedbackSlot AddKeyedStoreICSlot(LanguageMode language_mode) {
+  FeedbackSlotKind GetKeyedStoreICSlotKind(LanguageMode language_mode) {
     STATIC_ASSERT(LanguageModeSize == 2);
-    return AddSlot(is_strict(language_mode)
-                       ? FeedbackSlotKind::kStoreKeyedStrict
-                       : FeedbackSlotKind::kStoreKeyedSloppy);
+    return is_strict(language_mode) ? FeedbackSlotKind::kStoreKeyedStrict
+                                    : FeedbackSlotKind::kStoreKeyedSloppy;
+  }
+
+  FeedbackSlot AddKeyedStoreICSlot(LanguageMode language_mode) {
+    return AddSlot(GetKeyedStoreICSlotKind(language_mode));
   }
 
   FeedbackSlot AddStoreInArrayLiteralICSlot() {
@@ -422,6 +421,26 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
   }
 
   ZoneVector<unsigned char> slot_kinds_;
+
+  friend class SharedFeedbackSlot;
+};
+
+// Helper class that creates a feedback slot on-demand.
+class SharedFeedbackSlot {
+ public:
+  // FeedbackSlot default constructor constructs an invalid slot.
+  SharedFeedbackSlot(FeedbackVectorSpec* spec, FeedbackSlotKind kind)
+      : kind_(kind), spec_(spec) {}
+
+  FeedbackSlot Get() {
+    if (slot_.IsInvalid()) slot_ = spec_->AddSlot(kind_);
+    return slot_;
+  }
+
+ private:
+  FeedbackSlotKind kind_;
+  FeedbackSlot slot_;
+  FeedbackVectorSpec* spec_;
 };
 
 // FeedbackMetadata is an array-like object with a slot count (indicating how
@@ -471,8 +490,6 @@ class FeedbackMetadata : public HeapObject {
   static const int kHeaderSize = kSlotCountOffset + kInt32Size;
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   friend class AccessorAssembler;
@@ -608,8 +625,8 @@ class FeedbackNexus final {
   bool ConfigureMegamorphic();
   bool ConfigureMegamorphic(IcCheckType property_type);
 
-  inline MaybeObject* GetFeedback() const;
-  inline MaybeObject* GetFeedbackExtra() const;
+  inline MaybeObject GetFeedback() const;
+  inline MaybeObject GetFeedbackExtra() const;
 
   inline Isolate* GetIsolate() const;
 
@@ -686,11 +703,11 @@ class FeedbackNexus final {
 
   inline void SetFeedback(Object* feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetFeedback(MaybeObject* feedback,
+  inline void SetFeedback(MaybeObject feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetFeedbackExtra(Object* feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetFeedbackExtra(MaybeObject* feedback_extra,
+  inline void SetFeedbackExtra(MaybeObject feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   Handle<WeakFixedArray> EnsureArrayOfSize(int length);

@@ -43,29 +43,24 @@ const char* TraceExtension::kSource =
 
 v8::Local<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> name) {
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  if (name->Equals(context, v8::String::NewFromUtf8(isolate, "trace",
-                                                    v8::NewStringType::kNormal)
-                                .ToLocalChecked())
-          .FromJust()) {
+  if (name->StrictEquals(
+          v8::String::NewFromUtf8(isolate, "trace", v8::NewStringType::kNormal)
+              .ToLocalChecked())) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::Trace);
-  } else if (name->Equals(context,
-                          v8::String::NewFromUtf8(isolate, "js_trace",
-                                                  v8::NewStringType::kNormal)
-                              .ToLocalChecked())
-                 .FromJust()) {
+  } else if (name->StrictEquals(
+                 v8::String::NewFromUtf8(isolate, "js_trace",
+                                         v8::NewStringType::kNormal)
+                     .ToLocalChecked())) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSTrace);
-  } else if (name->Equals(context,
-                          v8::String::NewFromUtf8(isolate, "js_entry_sp",
-                                                  v8::NewStringType::kNormal)
-                              .ToLocalChecked())
-                 .FromJust()) {
+  } else if (name->StrictEquals(
+                 v8::String::NewFromUtf8(isolate, "js_entry_sp",
+                                         v8::NewStringType::kNormal)
+                     .ToLocalChecked())) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSEntrySP);
-  } else if (name->Equals(context,
-                          v8::String::NewFromUtf8(isolate, "js_entry_sp_level2",
-                                                  v8::NewStringType::kNormal)
-                              .ToLocalChecked())
-                 .FromJust()) {
+  } else if (name->StrictEquals(
+                 v8::String::NewFromUtf8(isolate, "js_entry_sp_level2",
+                                         v8::NewStringType::kNormal)
+                     .ToLocalChecked())) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSEntrySPLevel2);
   }
   UNREACHABLE();

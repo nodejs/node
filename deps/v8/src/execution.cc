@@ -9,14 +9,11 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
 #include "src/runtime-profiler.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
-
-StackGuard::StackGuard() : isolate_(nullptr) {}
 
 void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
   DCHECK_NOT_NULL(isolate_);
@@ -111,6 +108,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
       isolate->ReportPendingMessages();
     }
     return MaybeHandle<Object>();
+  }
+  if (!DumpOnJavascriptExecution::IsAllowed(isolate)) {
+    V8::GetCurrentPlatform()->DumpWithoutCrashing();
+    return isolate->factory()->undefined_value();
   }
 
   // Placeholder for return value.

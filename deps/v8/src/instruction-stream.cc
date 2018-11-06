@@ -26,12 +26,17 @@ Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
   if (!PcIsOffHeap(isolate, address)) return nullptr;
 
   EmbeddedData d = EmbeddedData::FromBlob();
+  if (address < d.InstructionStartOfBuiltin(0)) return nullptr;
+
+  // Note: Addresses within the padding section between builtins (i.e. within
+  // start + size <= address < start + padded_size) are interpreted as belonging
+  // to the preceding builtin.
 
   int l = 0, r = Builtins::builtin_count;
   while (l < r) {
     const int mid = (l + r) / 2;
     Address start = d.InstructionStartOfBuiltin(mid);
-    Address end = start + d.InstructionSizeOfBuiltin(mid);
+    Address end = start + d.PaddedInstructionSizeOfBuiltin(mid);
 
     if (address < start) {
       r = mid;
@@ -51,16 +56,18 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
                                                        uint32_t* size) {
   EmbeddedData d = EmbeddedData::FromIsolate(isolate);
 
-  const uint32_t page_size = static_cast<uint32_t>(AllocatePageSize());
+  v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
+  const uint32_t page_size =
+      static_cast<uint32_t>(page_allocator->AllocatePageSize());
   const uint32_t allocated_size = RoundUp(d.size(), page_size);
 
   uint8_t* allocated_bytes = static_cast<uint8_t*>(
-      AllocatePages(GetRandomMmapAddr(), allocated_size, page_size,
-                    PageAllocator::kReadWrite));
+      AllocatePages(page_allocator, isolate->heap()->GetRandomMmapAddr(),
+                    allocated_size, page_size, PageAllocator::kReadWrite));
   CHECK_NOT_NULL(allocated_bytes);
 
   std::memcpy(allocated_bytes, d.data(), d.size());
-  CHECK(SetPermissions(allocated_bytes, allocated_size,
+  CHECK(SetPermissions(page_allocator, allocated_bytes, allocated_size,
                        PageAllocator::kReadExecute));
 
   *data = allocated_bytes;
@@ -72,8 +79,10 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
 // static
 void InstructionStream::FreeOffHeapInstructionStream(uint8_t* data,
                                                      uint32_t size) {
-  const uint32_t page_size = static_cast<uint32_t>(AllocatePageSize());
-  CHECK(FreePages(data, RoundUp(size, page_size)));
+  v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
+  const uint32_t page_size =
+      static_cast<uint32_t>(page_allocator->AllocatePageSize());
+  CHECK(FreePages(page_allocator, data, RoundUp(size, page_size)));
 }
 
 }  // namespace internal

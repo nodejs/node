@@ -468,7 +468,7 @@ class GcHistogram {
 
   static void CleanUp() { histograms_.clear(); }
 
-  int Total() {
+  int Total() const {
     int result = 0;
     for (int i : samples_) {
       result += i;
@@ -476,7 +476,7 @@ class GcHistogram {
     return result;
   }
 
-  int Count() { return static_cast<int>(samples_.size()); }
+  int Count() const { return static_cast<int>(samples_.size()); }
 
  private:
   std::vector<int> samples_;
@@ -499,7 +499,7 @@ TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
   tracer->current_.scopes[GCTracer::Scope::MC_MARK] = 5;
   tracer->current_.scopes[GCTracer::Scope::MC_PROLOGUE] = 6;
   tracer->current_.scopes[GCTracer::Scope::MC_SWEEP] = 7;
-  tracer->RecordMarkCompactHistograms(i_isolate()->counters()->gc_finalize());
+  tracer->RecordGCPhasesHistograms(i_isolate()->counters()->gc_finalize());
   EXPECT_EQ(1, GcHistogram::Get("V8.GCFinalizeMC.Clear")->Total());
   EXPECT_EQ(2, GcHistogram::Get("V8.GCFinalizeMC.Epilogue")->Total());
   EXPECT_EQ(3, GcHistogram::Get("V8.GCFinalizeMC.Evacuate")->Total());
@@ -507,6 +507,42 @@ TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
   EXPECT_EQ(5, GcHistogram::Get("V8.GCFinalizeMC.Mark")->Total());
   EXPECT_EQ(6, GcHistogram::Get("V8.GCFinalizeMC.Prologue")->Total());
   EXPECT_EQ(7, GcHistogram::Get("V8.GCFinalizeMC.Sweep")->Total());
+  GcHistogram::CleanUp();
+}
+
+TEST_F(GCTracerTest, RecordScavengerHistograms) {
+  if (FLAG_stress_incremental_marking) return;
+  isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
+  isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+  tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS] = 1;
+  tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL] = 2;
+  tracer->RecordGCPhasesHistograms(i_isolate()->counters()->gc_scavenger());
+  EXPECT_EQ(1, GcHistogram::Get("V8.GCScavenger.ScavengeRoots")->Total());
+  EXPECT_EQ(2, GcHistogram::Get("V8.GCScavenger.ScavengeMain")->Total());
+  GcHistogram::CleanUp();
+}
+
+TEST_F(GCTracerTest, RecordGCSumHistograms) {
+  if (FLAG_stress_incremental_marking) return;
+  isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
+  isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+  tracer->current_
+      .incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL_START]
+      .duration = 1;
+  tracer->current_
+      .incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL_SWEEPING]
+      .duration = 2;
+  tracer->AddIncrementalMarkingStep(3.0, 1024);
+  tracer->current_
+      .incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
+      .duration = 4;
+  const double atomic_pause_duration = 5.0;
+  tracer->RecordGCSumCounters(atomic_pause_duration);
+  EXPECT_EQ(15, GcHistogram::Get("V8.GCMarkCompactor")->Total());
   GcHistogram::CleanUp();
 }
 

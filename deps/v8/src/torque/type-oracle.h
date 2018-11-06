@@ -17,31 +17,41 @@ namespace torque {
 
 class TypeOracle : public ContextualClass<TypeOracle> {
  public:
-  explicit TypeOracle(Declarations* declarations)
-      : declarations_(declarations) {}
-
   static const AbstractType* GetAbstractType(
-      const Type* parent, std::string name, std::string generated,
+      const Type* parent, std::string name, bool transient,
+      std::string generated,
       base::Optional<const AbstractType*> non_constexpr_version) {
-    AbstractType* result = new AbstractType(
-        parent, std::move(name), std::move(generated), non_constexpr_version);
+    AbstractType* result =
+        new AbstractType(parent, transient, std::move(name),
+                         std::move(generated), non_constexpr_version);
     Get().nominal_types_.push_back(std::unique_ptr<AbstractType>(result));
     return result;
   }
 
   static const StructType* GetStructType(
-      Module* module, const std::string& name,
-      const std::vector<NameAndType>& fields) {
-    StructType* result = new StructType(module, name, fields);
+      const std::string& name, const std::vector<NameAndType>& fields) {
+    StructType* result = new StructType(CurrentModule(), name, fields);
     Get().struct_types_.push_back(std::unique_ptr<StructType>(result));
     return result;
   }
 
   static const FunctionPointerType* GetFunctionPointerType(
       TypeVector argument_types, const Type* return_type) {
-    const Type* code_type = Get().GetBuiltinType(CODE_TYPE_STRING);
-    return Get().function_pointer_types_.Add(
-        FunctionPointerType(code_type, argument_types, return_type));
+    TypeOracle& self = Get();
+    const Type* code_type = self.GetBuiltinType(CODE_TYPE_STRING);
+    const FunctionPointerType* result = self.function_pointer_types_.Add(
+        FunctionPointerType(code_type, argument_types, return_type,
+                            self.all_function_pointer_types_.size()));
+    if (result->function_pointer_type_id() ==
+        self.all_function_pointer_types_.size()) {
+      self.all_function_pointer_types_.push_back(result);
+    }
+    return result;
+  }
+
+  static const std::vector<const FunctionPointerType*>&
+  AllFunctionPointerTypes() {
+    return Get().all_function_pointer_types_;
   }
 
   static const Type* GetUnionType(UnionType type) {
@@ -57,6 +67,13 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     UnionType result = UnionType::FromType(a);
     result.Extend(b);
     return GetUnionType(std::move(result));
+  }
+
+  static const TopType* GetTopType(std::string reason,
+                                   const Type* source_type) {
+    TopType* result = new TopType(std::move(reason), source_type);
+    Get().top_types_.push_back(std::unique_ptr<TopType>(result));
+    return result;
   }
 
   static const Type* GetArgumentsType() {
@@ -96,20 +113,30 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   }
 
   static bool IsImplicitlyConvertableFrom(const Type* to, const Type* from) {
-    std::string name = GetGeneratedCallableName(kFromConstexprMacroName, {to});
-    return Get().declarations_->TryLookupMacro(name, {from}) != nullptr;
+    for (Generic* from_constexpr :
+         Declarations::LookupGeneric(kFromConstexprMacroName)) {
+      if (base::Optional<Callable*> specialization =
+              from_constexpr->GetSpecialization({to})) {
+        if ((*specialization)->signature().GetExplicitTypes() ==
+            TypeVector{from}) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
  private:
   const Type* GetBuiltinType(const std::string& name) {
-    return declarations_->LookupGlobalType(name);
+    return Declarations::LookupGlobalType(name);
   }
 
-  Declarations* declarations_;
   Deduplicator<FunctionPointerType> function_pointer_types_;
+  std::vector<const FunctionPointerType*> all_function_pointer_types_;
   Deduplicator<UnionType> union_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
   std::vector<std::unique_ptr<Type>> struct_types_;
+  std::vector<std::unique_ptr<Type>> top_types_;
 };
 
 }  // namespace torque

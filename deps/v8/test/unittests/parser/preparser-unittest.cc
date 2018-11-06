@@ -13,7 +13,7 @@ namespace internal {
 
 class PreParserTest : public TestWithNativeContext {
  public:
-  PreParserTest() {}
+  PreParserTest() = default;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(PreParserTest);

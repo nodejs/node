@@ -224,8 +224,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     }
   }
 
-  __ InitializeRootRegister();
-
   __ pop(at);  // Get continuation, leave pc on stack.
   __ pop(ra);
   __ Jump(at);

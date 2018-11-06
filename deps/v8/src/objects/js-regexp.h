@@ -50,6 +50,32 @@ class JSRegExp : public JSObject {
 
   static constexpr int FlagCount() { return 6; }
 
+  static int FlagShiftBits(Flag flag) {
+    switch (flag) {
+      case kGlobal:
+        STATIC_ASSERT(kGlobal == (1 << 0));
+        return 0;
+      case kIgnoreCase:
+        STATIC_ASSERT(kIgnoreCase == (1 << 1));
+        return 1;
+      case kMultiline:
+        STATIC_ASSERT(kMultiline == (1 << 2));
+        return 2;
+      case kSticky:
+        STATIC_ASSERT(kSticky == (1 << 3));
+        return 3;
+      case kUnicode:
+        STATIC_ASSERT(kUnicode == (1 << 4));
+        return 4;
+      case kDotAll:
+        STATIC_ASSERT(kDotAll == (1 << 5));
+        return 5;
+      default:
+        STATIC_ASSERT(FlagCount() == 6);
+        UNREACHABLE();
+    }
+  }
+
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(flags, Object)
   DECL_ACCESSORS(last_index, Object)
@@ -130,6 +156,9 @@ class JSRegExp : public JSObject {
   // In-object fields.
   static const int kLastIndexFieldIndex = 0;
   static const int kInObjectFieldCount = 1;
+
+  // Descriptor array index to the exec method in the prototype.
+  static const int kExecFunctionDescriptorIndex = 1;
 
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;

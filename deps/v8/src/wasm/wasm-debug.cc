@@ -138,11 +138,10 @@ class InterpreterHandle {
   }
 
  public:
-  // TODO(wasm): properly handlify this constructor.
-  InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
+  InterpreterHandle(Isolate* isolate, Handle<WasmDebugInfo> debug_info)
       : isolate_(isolate),
         module_(debug_info->wasm_instance()->module_object()->module()),
-        interpreter_(isolate, module_, GetBytes(debug_info),
+        interpreter_(isolate, module_, GetBytes(*debug_info),
                      handle(debug_info->wasm_instance(), isolate)) {}
 
   ~InterpreterHandle() { DCHECK_EQ(0, activations_.size()); }
@@ -210,10 +209,10 @@ class InterpreterHandle {
           finished = true;
           break;
         case WasmInterpreter::State::TRAPPED: {
-          int message_id =
+          MessageTemplate message_id =
               WasmOpcodes::TrapReasonToMessageId(thread->GetTrapReason());
-          Handle<Object> exception = isolate_->factory()->NewWasmRuntimeError(
-              static_cast<MessageTemplate::Template>(message_id));
+          Handle<Object> exception =
+              isolate_->factory()->NewWasmRuntimeError(message_id);
           isolate_->Throw(*exception);
           // Handle this exception. Return without trying to read back the
           // return value.
@@ -416,10 +415,8 @@ class InterpreterHandle {
           STATIC_CHAR_VECTOR("memory"));
       Handle<JSArrayBuffer> memory_buffer(
           instance->memory_object()->array_buffer(), isolate_);
-      uint32_t byte_length;
-      CHECK(memory_buffer->byte_length()->ToUint32(&byte_length));
       Handle<JSTypedArray> uint8_array = isolate_->factory()->NewJSTypedArray(
-          kExternalUint8Array, memory_buffer, 0, byte_length);
+          kExternalUint8Array, memory_buffer, 0, memory_buffer->byte_length());
       JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object, name,
                                                uint8_array, NONE)
           .Assert();
@@ -535,7 +532,7 @@ wasm::InterpreterHandle* GetOrCreateInterpreterHandle(
     // of the stack.
     size_t interpreter_size = FLAG_stack_size * KB * 2;
     handle = Managed<wasm::InterpreterHandle>::Allocate(
-        isolate, interpreter_size, isolate, *debug_info);
+        isolate, interpreter_size, isolate, debug_info);
     debug_info->set_interpreter_handle(*handle);
   }
 
@@ -556,16 +553,17 @@ wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
 
 Handle<FixedArray> GetOrCreateInterpretedFunctions(
     Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
-  Handle<Object> obj(debug_info->interpreted_functions(), isolate);
-  if (!obj->IsUndefined(isolate)) return Handle<FixedArray>::cast(obj);
-
+  Handle<FixedArray> arr(debug_info->interpreted_functions(), isolate);
   int num_functions = debug_info->wasm_instance()
                           ->module_object()
                           ->native_module()
                           ->num_functions();
-  Handle<FixedArray> new_arr = isolate->factory()->NewFixedArray(num_functions);
-  debug_info->set_interpreted_functions(*new_arr);
-  return new_arr;
+  if (arr->length() == 0 && num_functions > 0) {
+    arr = isolate->factory()->NewFixedArray(num_functions);
+    debug_info->set_interpreted_functions(*arr);
+  }
+  DCHECK_EQ(num_functions, arr->length());
+  return arr;
 }
 
 }  // namespace
@@ -576,6 +574,7 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   Handle<WasmDebugInfo> debug_info = Handle<WasmDebugInfo>::cast(
       factory->NewStruct(WASM_DEBUG_INFO_TYPE, TENURED));
   debug_info->set_wasm_instance(*instance);
+  debug_info->set_interpreted_functions(*factory->empty_fixed_array());
   instance->set_debug_info(*debug_info);
   return debug_info;
 }
@@ -590,7 +589,7 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
   // account for the growing strategy for the backing store of the stack.
   size_t interpreter_size = FLAG_stack_size * KB * 2;
   auto interp_handle = Managed<wasm::InterpreterHandle>::Allocate(
-      isolate, interpreter_size, isolate, *debug_info);
+      isolate, interpreter_size, isolate, debug_info);
   debug_info->set_interpreter_handle(*interp_handle);
   auto ret = interp_handle->raw()->interpreter();
   ret->SetCallIndirectTestMode();

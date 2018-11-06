@@ -49,21 +49,25 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeBitToTagged(Node* node);
   Node* LowerChangeInt31ToTaggedSigned(Node* node);
   Node* LowerChangeInt32ToTagged(Node* node);
+  Node* LowerChangeInt64ToTagged(Node* node);
   Node* LowerChangeUint32ToTagged(Node* node);
+  Node* LowerChangeUint64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTaggedPointer(Node* node);
   Node* LowerChangeTaggedSignedToInt32(Node* node);
+  Node* LowerChangeTaggedSignedToInt64(Node* node);
   Node* LowerChangeTaggedToBit(Node* node);
   Node* LowerChangeTaggedToInt32(Node* node);
   Node* LowerChangeTaggedToUint32(Node* node);
+  Node* LowerChangeTaggedToInt64(Node* node);
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
-  Node* LowerCheckBounds(Node* node, Node* frame_state);
   Node* LowerPoisonIndex(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
+  Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
@@ -75,11 +79,19 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckedUint32Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Mul(Node* node, Node* frame_state);
   Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedUint32Bounds(Node* node, Node* frame_state);
   Node* LowerCheckedUint32ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedUint32ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64Bounds(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedFloat64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedFloat64ToInt64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedSignedToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToInt64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
@@ -120,9 +132,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerNewSmiOrObjectElements(Node* node);
   Node* LowerNewArgumentsElements(Node* node);
   Node* LowerNewConsString(Node* node);
-  Node* LowerArrayBufferWasNeutered(Node* node);
   Node* LowerSameValue(Node* node);
   Node* LowerDeadValue(Node* node);
+  Node* LowerStringConcat(Node* node);
   Node* LowerStringToNumber(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
   Node* LowerStringCodePointAt(Node* node, UnicodeEncoding encoding);
@@ -174,6 +186,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
                                    const VectorSlotPair& feedback, Node* value,
                                    Node* frame_state);
+  Node* BuildCheckedFloat64ToInt64(CheckForMinusZeroMode mode,
+                                   const VectorSlotPair& feedback, Node* value,
+                                   Node* frame_state);
   Node* BuildCheckedHeapNumberOrOddballToFloat64(CheckTaggedInputMode mode,
                                                  const VectorSlotPair& feedback,
                                                  Node* value,
@@ -188,11 +203,14 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
 
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeInt32ToIntPtr(Node* value);
+  Node* ChangeInt64ToSmi(Node* value);
   Node* ChangeIntPtrToInt32(Node* value);
+  Node* ChangeIntPtrToSmi(Node* value);
   Node* ChangeUint32ToUintPtr(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
   Node* ChangeSmiToIntPtr(Node* value);
   Node* ChangeSmiToInt32(Node* value);
+  Node* ChangeSmiToInt64(Node* value);
   Node* ObjectIsSmi(Node* value);
   Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
 

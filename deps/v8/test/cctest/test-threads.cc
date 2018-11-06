@@ -43,7 +43,7 @@ class ThreadIdValidationThread : public v8::base::Thread {
         thread_to_start_(thread_to_start),
         semaphore_(semaphore) {}
 
-  void Run() {
+  void Run() override {
     i::ThreadId thread_id = i::ThreadId::Current();
     for (int i = 0; i < thread_no_; i++) {
       CHECK(!(*refs_)[i].Equals(thread_id));

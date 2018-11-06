@@ -341,41 +341,21 @@ class AsAtomicPointer {
   }
 };
 
-// This class is intended to be used as a wrapper for elements of an array
-// that is passed in to STL functions such as std::sort. It ensures that
-// elements accesses are atomic.
-// Usage example:
-//   Object** given_array;
-//   AtomicElement<Object*>* wrapped =
-//       reinterpret_cast<AtomicElement<Object*>(given_array);
-//   std::sort(wrapped, wrapped + given_length, cmp);
-// where the cmp function uses the value() accessor to compare the elements.
-template <typename T>
-class AtomicElement {
- public:
-  AtomicElement(const AtomicElement<T>& other) {
-    AsAtomicPointer::Relaxed_Store(
-        &value_, AsAtomicPointer::Relaxed_Load(&other.value_));
-  }
+template <typename T,
+          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
+inline void CheckedIncrement(std::atomic<T>* number, T amount) {
+  const T old = number->fetch_add(amount);
+  DCHECK_GE(old + amount, old);
+  USE(old);
+}
 
-  void operator=(const AtomicElement<T>& other) {
-    AsAtomicPointer::Relaxed_Store(
-        &value_, AsAtomicPointer::Relaxed_Load(&other.value_));
-  }
-
-  T value() const { return AsAtomicPointer::Relaxed_Load(&value_); }
-
-  bool operator<(const AtomicElement<T>& other) const {
-    return value() < other.value();
-  }
-
-  bool operator==(const AtomicElement<T>& other) const {
-    return value() == other.value();
-  }
-
- private:
-  T value_;
-};
+template <typename T,
+          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
+inline void CheckedDecrement(std::atomic<T>* number, T amount) {
+  const T old = number->fetch_sub(amount);
+  DCHECK_GE(old, amount);
+  USE(old);
+}
 
 }  // namespace base
 }  // namespace v8

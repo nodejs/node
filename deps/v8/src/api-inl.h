@@ -6,7 +6,9 @@
 #define V8_API_INL_H_
 
 #include "src/api.h"
+#include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/stack-frame-info.h"
 
 namespace v8 {
 
@@ -114,7 +116,8 @@ MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
     DCHECK(that == nullptr ||                                                  \
            (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
     return v8::internal::Handle<v8::internal::To>(                             \
-        reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that)));    \
+        reinterpret_cast<v8::internal::Address*>(                              \
+            const_cast<v8::From*>(that)));                                     \
   }
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)

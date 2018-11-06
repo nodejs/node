@@ -18,5 +18,9 @@ class MyArrayLike {
 const xs = new MyArrayLike();
 Array.prototype.sort.call(xs);
 
-assertEquals(1, xs[0]);
-assertEquals(2, xs[1]);
+// Sort-order is implementation-defined as we actually hit two conditions from
+// the spec:
+//   - "xs" is sparse and IsExtensible(xs) is false (its frozen).
+//   - "xs" is sparse and the prototype has properties in the sort range.
+assertEquals(2, xs[0]);
+assertEquals(1, xs[1]);

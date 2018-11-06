@@ -13,6 +13,7 @@
 #include "src/double.h"
 #include "src/optimized-compilation-info.h"
 #include "src/ppc/macro-assembler-ppc.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -74,6 +75,10 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         return Operand(constant.ToInt64());
 #endif
       case Constant::kExternalReference:
+        return Operand(constant.ToExternalReference());
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
         break;
@@ -125,7 +130,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register offset,
                        Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode)
+                       RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
@@ -134,12 +139,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
+        stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
 
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t offset,
                        Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode)
+                       RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         offset_(no_reg),
@@ -148,31 +154,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
+        stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
-
-  void SaveRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-
-    __ MultiPush(regs);
-  }
-
-  void RestoreRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-    __ MultiPop(regs);
-  }
 
   void Generate() final {
     ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
@@ -198,8 +182,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ mflr(scratch0_);
       __ Push(scratch0_);
     }
-    __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
-                           save_fp_mode);
+    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode, wasm::WasmCode::kWasmRecordWrite);
+    } else {
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode);
+    }
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
       __ Pop(scratch0_);
@@ -215,6 +204,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
+  StubCallMode stub_mode_;
   bool must_save_lr_;
   Zone* zone_;
 };
@@ -513,11 +503,11 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     /* Min: The algorithm is: -((-L) + (-R)), which in case of L and R */ \
     /* being different registers is most efficiently expressed */         \
     /* as -((-L) - R). */                                                 \
-    __ fneg(left_reg, left_reg);                                          \
-    if (left_reg == right_reg) {                                          \
-      __ fadd(result_reg, left_reg, right_reg);                           \
+    __ fneg(kScratchDoubleReg, left_reg);                                 \
+    if (kScratchDoubleReg == right_reg) {                                 \
+      __ fadd(result_reg, kScratchDoubleReg, right_reg);                  \
     } else {                                                              \
-      __ fsub(result_reg, left_reg, right_reg);                           \
+      __ fsub(result_reg, kScratchDoubleReg, right_reg);                  \
     }                                                                     \
     __ fneg(result_reg, result_reg);                                      \
     __ b(&done);                                                          \
@@ -545,60 +535,49 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     DoubleRegister result = i.OutputDoubleRegister(); \
     AddressingMode mode = kMode_None;                 \
     MemOperand operand = i.MemoryOperand(&mode);      \
+    bool is_atomic = i.InputInt32(2);                 \
     if (mode == kMode_MRI) {                          \
       __ asm_instr(result, operand);                  \
     } else {                                          \
       __ asm_instrx(result, operand);                 \
     }                                                 \
+    if (is_atomic) __ lwsync();                       \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());              \
   } while (0)
-
 
 #define ASSEMBLE_LOAD_INTEGER(asm_instr, asm_instrx) \
   do {                                               \
     Register result = i.OutputRegister();            \
     AddressingMode mode = kMode_None;                \
     MemOperand operand = i.MemoryOperand(&mode);     \
+    bool is_atomic = i.InputInt32(2);                \
     if (mode == kMode_MRI) {                         \
       __ asm_instr(result, operand);                 \
     } else {                                         \
       __ asm_instrx(result, operand);                \
     }                                                \
+    if (is_atomic) __ lwsync();                      \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());             \
   } while (0)
 
-
-#define ASSEMBLE_STORE_FLOAT32()                         \
+#define ASSEMBLE_STORE_FLOAT(asm_instr, asm_instrx)      \
   do {                                                   \
     size_t index = 0;                                    \
     AddressingMode mode = kMode_None;                    \
     MemOperand operand = i.MemoryOperand(&mode, &index); \
     DoubleRegister value = i.InputDoubleRegister(index); \
+    bool is_atomic = i.InputInt32(3);                    \
+    if (is_atomic) __ lwsync();                          \
     /* removed frsp as instruction-selector checked */   \
     /* value to be kFloat32 */                           \
     if (mode == kMode_MRI) {                             \
-      __ stfs(value, operand);                           \
+      __ asm_instr(value, operand);                      \
     } else {                                             \
-      __ stfsx(value, operand);                          \
+      __ asm_instrx(value, operand);                     \
     }                                                    \
+    if (is_atomic) __ sync();                            \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
   } while (0)
-
-
-#define ASSEMBLE_STORE_DOUBLE()                          \
-  do {                                                   \
-    size_t index = 0;                                    \
-    AddressingMode mode = kMode_None;                    \
-    MemOperand operand = i.MemoryOperand(&mode, &index); \
-    DoubleRegister value = i.InputDoubleRegister(index); \
-    if (mode == kMode_MRI) {                             \
-      __ stfd(value, operand);                           \
-    } else {                                             \
-      __ stfdx(value, operand);                          \
-    }                                                    \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
-  } while (0)
-
 
 #define ASSEMBLE_STORE_INTEGER(asm_instr, asm_instrx)    \
   do {                                                   \
@@ -606,11 +585,14 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     AddressingMode mode = kMode_None;                    \
     MemOperand operand = i.MemoryOperand(&mode, &index); \
     Register value = i.InputRegister(index);             \
+    bool is_atomic = i.InputInt32(3);                    \
+    if (is_atomic) __ lwsync();                          \
     if (mode == kMode_MRI) {                             \
       __ asm_instr(value, operand);                      \
     } else {                                             \
       __ asm_instrx(value, operand);                     \
     }                                                    \
+    if (is_atomic) __ sync();                            \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
   } while (0)
 
@@ -621,97 +603,79 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
 #define CleanUInt32(x)
 #endif
 
-#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr, asm_instrx) \
-  do {                                                      \
-    Label done;                                             \
-    Register result = i.OutputRegister();                   \
-    AddressingMode mode = kMode_None;                       \
-    MemOperand operand = i.MemoryOperand(&mode);            \
-    if (mode == kMode_MRI) {                                \
-      __ asm_instr(result, operand);                        \
-    } else {                                                \
-      __ asm_instrx(result, operand);                       \
-    }                                                       \
-    __ lwsync();                                            \
-  } while (0)
-#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, asm_instrx) \
-  do {                                                       \
-    size_t index = 0;                                        \
-    AddressingMode mode = kMode_None;                        \
-    MemOperand operand = i.MemoryOperand(&mode, &index);     \
-    Register value = i.InputRegister(index);                 \
-    __ lwsync();                                             \
-    if (mode == kMode_MRI) {                                 \
-      __ asm_instr(value, operand);                          \
-    } else {                                                 \
-      __ asm_instrx(value, operand);                         \
-    }                                                        \
-    __ sync();                                               \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                     \
-  } while (0)
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)       \
   do {                                                                  \
     Label exchange;                                                     \
+    __ lwsync();                                                        \
     __ bind(&exchange);                                                 \
     __ load_instr(i.OutputRegister(0),                                  \
                   MemOperand(i.InputRegister(0), i.InputRegister(1)));  \
     __ store_instr(i.InputRegister(2),                                  \
                    MemOperand(i.InputRegister(0), i.InputRegister(1))); \
     __ bne(&exchange, cr0);                                             \
+    __ sync();                                                          \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_inst, load_inst, store_inst)                 \
-  do {                                                                         \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
-    Label binop;                                                               \
-    __ bind(&binop);                                                           \
-    __ load_inst(i.OutputRegister(), operand);                                 \
-    __ bin_inst(i.InputRegister(2), i.OutputRegister(), i.InputRegister(2));   \
-    __ store_inst(i.InputRegister(2), operand);                                \
-    __ bne(&binop, cr0);                                                       \
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, load_inst, store_inst)               \
+  do {                                                                       \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
+    Label binop;                                                             \
+    __ lwsync();                                                             \
+    __ bind(&binop);                                                         \
+    __ load_inst(i.OutputRegister(), operand);                               \
+    __ bin_inst(kScratchReg, i.OutputRegister(), i.InputRegister(2));        \
+    __ store_inst(kScratchReg, operand);                                     \
+    __ bne(&binop, cr0);                                                     \
+    __ sync();                                                               \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(bin_inst, load_inst,                    \
-                                       store_inst, ext_instr)                  \
-  do {                                                                         \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
-    Label binop;                                                               \
-    __ bind(&binop);                                                           \
-    __ load_inst(i.OutputRegister(), operand);                                 \
-    __ ext_instr(i.OutputRegister(), i.OutputRegister());                      \
-    __ bin_inst(i.InputRegister(2), i.OutputRegister(), i.InputRegister(2));   \
-    __ store_inst(i.InputRegister(2), operand);                                \
-    __ bne(&binop, cr0);                                                       \
+#define ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(bin_inst, load_inst, store_inst,      \
+                                       ext_instr)                            \
+  do {                                                                       \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
+    Label binop;                                                             \
+    __ lwsync();                                                             \
+    __ bind(&binop);                                                         \
+    __ load_inst(i.OutputRegister(), operand);                               \
+    __ ext_instr(i.OutputRegister(), i.OutputRegister());                    \
+    __ bin_inst(kScratchReg, i.OutputRegister(), i.InputRegister(2));        \
+    __ store_inst(kScratchReg, operand);                                     \
+    __ bne(&binop, cr0);                                                     \
+    __ sync();                                                               \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp_inst, load_inst, store_inst)      \
-  do {                                                                         \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
-    Label loop;                                                                \
-    Label exit;                                                                \
-    __ bind(&loop);                                                            \
-    __ load_inst(i.OutputRegister(), operand);                                 \
-    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                       \
-    __ bne(&exit, cr0);                                                        \
-    __ store_inst(i.InputRegister(3), operand);                                \
-    __ bne(&loop, cr0);                                                        \
-    __ bind(&exit);                                                            \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp_inst, load_inst, store_inst)    \
+  do {                                                                       \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
+    Label loop;                                                              \
+    Label exit;                                                              \
+    __ lwsync();                                                             \
+    __ bind(&loop);                                                          \
+    __ load_inst(i.OutputRegister(), operand);                               \
+    __ cmp_inst(i.OutputRegister(), i.InputRegister(2), cr0);                \
+    __ bne(&exit, cr0);                                                      \
+    __ store_inst(i.InputRegister(3), operand);                              \
+    __ bne(&loop, cr0);                                                      \
+    __ bind(&exit);                                                          \
+    __ sync();                                                               \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp_inst, load_inst,         \
-                                                  store_inst, ext_instr)       \
-  do {                                                                         \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
-    Label loop;                                                                \
-    Label exit;                                                                \
-    __ bind(&loop);                                                            \
-    __ load_inst(i.OutputRegister(), operand);                                 \
-    __ ext_instr(i.OutputRegister(), i.OutputRegister());                      \
-    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                       \
-    __ bne(&exit, cr0);                                                        \
-    __ store_inst(i.InputRegister(3), operand);                                \
-    __ bne(&loop, cr0);                                                        \
-    __ bind(&exit);                                                            \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp_inst, load_inst,       \
+                                                  store_inst, ext_instr)     \
+  do {                                                                       \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
+    Label loop;                                                              \
+    Label exit;                                                              \
+    __ lwsync();                                                             \
+    __ bind(&loop);                                                          \
+    __ load_inst(i.OutputRegister(), operand);                               \
+    __ ext_instr(i.OutputRegister(), i.OutputRegister());                    \
+    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                     \
+    __ bne(&exit, cr0);                                                      \
+    __ store_inst(i.InputRegister(3), operand);                              \
+    __ bne(&loop, cr0);                                                      \
+    __ bind(&exit);                                                          \
+    __ sync();                                                               \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -1170,14 +1134,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           AddressingModeField::decode(instr->opcode());
       if (addressing_mode == kMode_MRI) {
         int32_t offset = i.InputInt32(1);
-        ool = new (zone()) OutOfLineRecordWrite(this, object, offset, value,
-                                                scratch0, scratch1, mode);
+        ool = new (zone())
+            OutOfLineRecordWrite(this, object, offset, value, scratch0,
+                                 scratch1, mode, DetermineStubCallMode());
         __ StoreP(value, MemOperand(object, offset));
       } else {
         DCHECK_EQ(kMode_MRR, addressing_mode);
         Register offset(i.InputRegister(1));
-        ool = new (zone()) OutOfLineRecordWrite(this, object, offset, value,
-                                                scratch0, scratch1, mode);
+        ool = new (zone())
+            OutOfLineRecordWrite(this, object, offset, value, scratch0,
+                                 scratch1, mode, DetermineStubCallMode());
         __ StorePX(value, MemOperand(object, offset));
       }
       __ CheckPageFlag(object, scratch0,
@@ -1966,86 +1932,84 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kPPC_StoreFloat32:
-      ASSEMBLE_STORE_FLOAT32();
+      ASSEMBLE_STORE_FLOAT(stfs, stfsx);
       break;
     case kPPC_StoreDouble:
-      ASSEMBLE_STORE_DOUBLE();
+      ASSEMBLE_STORE_FLOAT(stfd, stfdx);
       break;
     case kWord32AtomicLoadInt8:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lbz, lbzx);
-      __ extsb(i.OutputRegister(), i.OutputRegister());
-      break;
-    case kWord32AtomicLoadUint8:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lbz, lbzx);
-      break;
+    case kPPC_AtomicLoadUint8:
     case kWord32AtomicLoadInt16:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lha, lhax);
-      break;
-    case kWord32AtomicLoadUint16:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lhz, lhzx);
-      break;
-    case kWord32AtomicLoadWord32:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lwz, lwzx);
-      break;
-
-    case kWord32AtomicStoreWord8:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(stb, stbx);
-      break;
-    case kWord32AtomicStoreWord16:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(sth, sthx);
-      break;
-    case kWord32AtomicStoreWord32:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(stw, stwx);
+    case kPPC_AtomicLoadUint16:
+    case kPPC_AtomicLoadWord32:
+    case kPPC_AtomicLoadWord64:
+    case kPPC_AtomicStoreUint8:
+    case kPPC_AtomicStoreUint16:
+    case kPPC_AtomicStoreWord32:
+    case kPPC_AtomicStoreWord64:
+      UNREACHABLE();
       break;
     case kWord32AtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
       __ extsb(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicExchangeUint8:
+    case kPPC_AtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
       break;
     case kWord32AtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
       __ extsh(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicExchangeUint16:
+    case kPPC_AtomicExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
       break;
-    case kWord32AtomicExchangeWord32:
+    case kPPC_AtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lwarx, stwcx);
       break;
-
+    case kPPC_AtomicExchangeWord64:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldarx, stdcx);
+      break;
     case kWord32AtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lbarx, stbcx, extsb);
       break;
-    case kWord32AtomicCompareExchangeUint8:
+    case kPPC_AtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lbarx, stbcx);
       break;
     case kWord32AtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lharx, sthcx, extsh);
       break;
-    case kWord32AtomicCompareExchangeUint16:
+    case kPPC_AtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lharx, sthcx);
       break;
-    case kWord32AtomicCompareExchangeWord32:
+    case kPPC_AtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmpw, lwarx, stwcx);
       break;
+    case kPPC_AtomicCompareExchangeWord64:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, ldarx, stdcx);
+      break;
 
-#define ATOMIC_BINOP_CASE(op, inst)                             \
-  case kWord32Atomic##op##Int8:                                 \
-    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lbarx, stbcx, extsb);  \
-    break;                                                      \
-  case kWord32Atomic##op##Uint8:                                \
-    ASSEMBLE_ATOMIC_BINOP(inst, lbarx, stbcx);                  \
-    break;                                                      \
-  case kWord32Atomic##op##Int16:                                \
-    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lharx, sthcx, extsh);  \
-    break;                                                      \
-  case kWord32Atomic##op##Uint16:                               \
-    ASSEMBLE_ATOMIC_BINOP(inst, lharx, sthcx);                  \
-    break;                                                      \
-  case kWord32Atomic##op##Word32:                               \
-    ASSEMBLE_ATOMIC_BINOP(inst, lwarx, stwcx);                  \
+#define ATOMIC_BINOP_CASE(op, inst)                            \
+  case kPPC_Atomic##op##Int8:                                  \
+    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lbarx, stbcx, extsb); \
+    break;                                                     \
+  case kPPC_Atomic##op##Uint8:                                 \
+    ASSEMBLE_ATOMIC_BINOP(inst, lbarx, stbcx);                 \
+    break;                                                     \
+  case kPPC_Atomic##op##Int16:                                 \
+    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lharx, sthcx, extsh); \
+    break;                                                     \
+  case kPPC_Atomic##op##Uint16:                                \
+    ASSEMBLE_ATOMIC_BINOP(inst, lharx, sthcx);                 \
+    break;                                                     \
+  case kPPC_Atomic##op##Int32:                                 \
+    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lwarx, stwcx, extsw); \
+    break;                                                     \
+  case kPPC_Atomic##op##Uint32:                                \
+    ASSEMBLE_ATOMIC_BINOP(inst, lwarx, stwcx);                 \
+    break;                                                     \
+  case kPPC_Atomic##op##Int64:                                 \
+  case kPPC_Atomic##op##Uint64:                                \
+    ASSEMBLE_ATOMIC_BINOP(inst, ldarx, stdcx);                 \
     break;
       ATOMIC_BINOP_CASE(Add, add)
       ATOMIC_BINOP_CASE(Sub, sub)
@@ -2118,7 +2082,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
   // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual ||
+      condition == kOverflow || condition == kNotOverflow) {
     return;
   }
 
@@ -2171,7 +2136,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       } else {
         gen_->AssembleSourcePosition(instr_);
         // A direct call to a wasm runtime stub defined in this module.
-        // Just encode the stub index. This will be patched at relocation.
+        // Just encode the stub index. This will be patched when the code
+        // is added to the native module and copied into wasm code space.
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
@@ -2353,6 +2319,16 @@ void CodeGenerator::AssembleConstructFrame() {
       // efficient intialization of the constant pool pointer register).
       __ StubPrologue(type);
       if (call_descriptor->IsWasmFunctionCall()) {
+        __ Push(kWasmInstanceRegister);
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        // WASM import wrappers are passed a tuple in the place of the instance.
+        // Unpack the tuple into the instance and the target callable.
+        // This must be done here in the codegen because it cannot be expressed
+        // properly in the graph.
+        __ LoadP(kJSFunctionRegister,
+                 FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ LoadP(kWasmInstanceRegister,
+                 FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ Push(kWasmInstanceRegister);
       }
     }
@@ -2564,9 +2540,13 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kExternalReference:
           __ Move(dst, src.ToExternalReference());
           break;
+        case Constant::kDelayedStringConstant:
+          __ mov(dst, Operand::EmbeddedStringConstant(
+                          src.ToDelayedStringConstant()));
+          break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
-          Heap::RootListIndex index;
+          RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {

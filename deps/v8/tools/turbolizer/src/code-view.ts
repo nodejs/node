@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Source,SourceResolver,sourcePositionToStringKey} from "./source-resolver.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {View} from "./view.js"
-import {MySelection} from "./selection.js"
-import {anyToString,ViewElements} from "./util.js"
+import {Source,SourceResolver,sourcePositionToStringKey} from "../src/source-resolver"
+import {SelectionBroker} from "../src/selection-broker"
+import {View} from "../src/view"
+import {MySelection} from "../src/selection"
+import {anyToString,ViewElements} from "../src/util"
 
 export enum CodeMode {
   MAIN_SOURCE = "main function",

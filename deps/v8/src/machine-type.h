@@ -298,6 +298,12 @@ V8_EXPORT_PRIVATE inline int ElementSizeInBytes(MachineRepresentation rep) {
   return 1 << ElementSizeLog2Of(rep);
 }
 
+// Converts representation to bit for representation masks.
+V8_EXPORT_PRIVATE inline constexpr int RepresentationBit(
+    MachineRepresentation rep) {
+  return 1 << static_cast<int>(rep);
+}
+
 }  // namespace internal
 }  // namespace v8
 

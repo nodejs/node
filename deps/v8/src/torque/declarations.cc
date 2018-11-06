@@ -4,77 +4,71 @@
 
 #include "src/torque/declarations.h"
 #include "src/torque/declarable.h"
+#include "src/torque/global-context.h"
 #include "src/torque/type-oracle.h"
 
 namespace v8 {
 namespace internal {
 namespace torque {
 
-Scope* Declarations::GetModuleScope(const Module* module) {
-  auto i = module_scopes_.find(module);
-  if (i != module_scopes_.end()) return i->second;
-  Scope* result = chain_.NewScope();
-  module_scopes_[module] = result;
-  return result;
-}
+DEFINE_CONTEXTUAL_VARIABLE(GlobalContext)
 
-Scope* Declarations::GetNodeScope(const AstNode* node, bool reset_scope) {
-  std::pair<const AstNode*, TypeVector> key(
-      node, current_generic_specialization_ == nullptr
-                ? TypeVector()
-                : current_generic_specialization_->second);
-  if (!reset_scope) {
-    auto i = scopes_.find(key);
-    if (i != scopes_.end()) return i->second;
+namespace {
+
+template <class T>
+std::vector<T> EnsureNonempty(std::vector<T> list, const std::string& name,
+                              const char* kind) {
+  if (list.empty()) {
+    ReportError("there is no ", kind, "named ", name);
   }
-  Scope* result = chain_.NewScope();
-  scopes_[key] = result;
-  return result;
+  return std::move(list);
 }
 
-Scope* Declarations::GetGenericScope(Generic* generic,
-                                     const TypeVector& types) {
-  std::pair<const AstNode*, TypeVector> key(generic->declaration()->callable,
-                                            types);
-  auto i = scopes_.find(key);
-  if (i != scopes_.end()) return i->second;
-  Scope* result = chain_.NewScope();
-  scopes_[key] = result;
-  return result;
+template <class T>
+T EnsureUnique(const std::vector<T>& list, const std::string& name,
+               const char* kind) {
+  if (list.empty()) {
+    ReportError("there is no ", kind, "named ", name);
+  }
+  if (list.size() >= 2) {
+    ReportError("ambiguous reference to ", kind, " ", name);
+  }
+  return list.front();
 }
 
-bool Declarations::IsDeclaredInCurrentScope(const std::string& name) {
-  return chain_.ShallowLookup(name) != nullptr;
+template <class T>
+void CheckAlreadyDeclared(const std::string& name, const char* new_type) {
+  std::vector<T*> declarations =
+      FilterDeclarables<T>(Declarations::TryLookupShallow(name));
+  if (!declarations.empty()) {
+    Scope* scope = CurrentScope::Get();
+    ReportError("cannot redeclare ", name, " (type ", new_type, scope, ")");
+  }
 }
 
-void Declarations::CheckAlreadyDeclared(const std::string& name,
-                                        const char* new_type) {
-  if (IsDeclaredInCurrentScope(name)) {
+}  // namespace
+
+std::vector<Declarable*> Declarations::LookupGlobalScope(
+    const std::string& name) {
+  std::vector<Declarable*> d = GlobalContext::GetDefaultModule()->Lookup(name);
+  if (d.empty()) {
     std::stringstream s;
-    s << "cannot redeclare " << name << " (type " << new_type << ")";
+    s << "cannot find \"" << name << "\" in global scope";
     ReportError(s.str());
   }
+  return d;
 }
 
 const Type* Declarations::LookupType(const std::string& name) {
-  Declarable* raw = Lookup(name);
-  if (raw->IsTypeAlias()) {
-    return TypeAlias::cast(raw)->type();
-  }
-  std::stringstream s;
-  s << "declaration \"" << name << "\" is not a Type";
-  ReportError(s.str());
-  return nullptr;
+  TypeAlias* declaration =
+      EnsureUnique(FilterDeclarables<TypeAlias>(Lookup(name)), name, "type");
+  return declaration->type();
 }
 
 const Type* Declarations::LookupGlobalType(const std::string& name) {
-  Declarable* raw = LookupGlobalScope(name);
-  if (!raw->IsTypeAlias()) {
-    std::stringstream s;
-    s << "declaration \"" << name << "\" is not a Type";
-    ReportError(s.str());
-  }
-  return TypeAlias::cast(raw)->type();
+  TypeAlias* declaration = EnsureUnique(
+      FilterDeclarables<TypeAlias>(LookupGlobalScope(name)), name, "type");
+  return declaration->type();
 }
 
 const Type* Declarations::GetType(TypeExpression* type_expression) {
@@ -98,7 +92,7 @@ const Type* Declarations::GetType(TypeExpression* type_expression) {
 
 Builtin* Declarations::FindSomeInternalBuiltinWithType(
     const FunctionPointerType* type) {
-  for (auto& declarable : declarables_) {
+  for (auto& declarable : GlobalContext::AllDeclarables()) {
     if (Builtin* builtin = Builtin::DynamicCast(declarable.get())) {
       if (!builtin->IsExternal() && builtin->kind() == Builtin::kStub &&
           builtin->signature().return_type == type->return_type() &&
@@ -112,275 +106,155 @@ Builtin* Declarations::FindSomeInternalBuiltinWithType(
 }
 
 Value* Declarations::LookupValue(const std::string& name) {
-  Declarable* d = Lookup(name);
-  if (!d->IsValue()) {
-    std::stringstream s;
-    s << "declaration \"" << name << "\" is not a Value";
-    ReportError(s.str());
-  }
-  return Value::cast(d);
-}
-
-Label* Declarations::LookupLabel(const std::string& name) {
-  Declarable* d = Lookup(name);
-  if (!d->IsLabel()) {
-    std::stringstream s;
-    s << "declaration \"" << name << "\" is not a Label";
-    ReportError(s.str());
-  }
-  return Label::cast(d);
+  return EnsureUnique(FilterDeclarables<Value>(Lookup(name)), name, "value");
 }
 
 Macro* Declarations::TryLookupMacro(const std::string& name,
                                     const TypeVector& types) {
-  Declarable* declarable = TryLookup(name);
-  if (declarable != nullptr) {
-    if (declarable->IsMacroList()) {
-      for (auto& m : MacroList::cast(declarable)->list()) {
-        if (m->signature().parameter_types.types == types &&
-            !m->signature().parameter_types.var_args) {
-          return m;
-        }
-      }
+  std::vector<Macro*> macros = TryLookup<Macro>(name);
+  for (auto& m : macros) {
+    auto signature_types = m->signature().GetExplicitTypes();
+    if (signature_types == types && !m->signature().parameter_types.var_args) {
+      return m;
     }
   }
   return nullptr;
 }
 
-Macro* Declarations::LookupMacro(const std::string& name,
-                                 const TypeVector& types) {
-  Macro* result = TryLookupMacro(name, types);
-  if (result != nullptr) return result;
-  std::stringstream stream;
-  stream << "macro " << name << " with parameter types " << types
-         << " is not defined";
-  ReportError(stream.str());
-  return nullptr;
+base::Optional<Builtin*> Declarations::TryLookupBuiltin(
+    const std::string& name) {
+  std::vector<Builtin*> builtins = TryLookup<Builtin>(name);
+  if (builtins.empty()) return base::nullopt;
+  return EnsureUnique(builtins, name, "builtin");
 }
 
-Builtin* Declarations::LookupBuiltin(const std::string& name) {
-  Declarable* declarable = Lookup(name);
-  if (declarable != nullptr) {
-    if (declarable->IsBuiltin()) {
-      return Builtin::cast(declarable);
-    }
-    ReportError(name + " is not a builtin");
-  }
-  ReportError(std::string("builtin ") + name + " is not defined");
-  return nullptr;
+std::vector<Generic*> Declarations::LookupGeneric(const std::string& name) {
+  return EnsureNonempty(FilterDeclarables<Generic>(Lookup(name)), name,
+                        "generic");
 }
 
-GenericList* Declarations::LookupGeneric(const std::string& name) {
-  Declarable* declarable_list = Lookup(name);
-  if (declarable_list != nullptr) {
-    if (declarable_list->IsGenericList()) {
-      return GenericList::cast(declarable_list);
-    }
-    ReportError(name + " is not a generic");
-  }
-  ReportError(std::string("generic ") + name + " is not defined");
-  return nullptr;
+Generic* Declarations::LookupUniqueGeneric(const std::string& name) {
+  return EnsureUnique(FilterDeclarables<Generic>(Lookup(name)), name,
+                      "generic");
 }
 
-ModuleConstant* Declarations::LookupModuleConstant(const std::string& name) {
-  Declarable* declarable = Lookup(name);
-  if (declarable != nullptr) {
-    if (declarable->IsModuleConstant()) {
-      return ModuleConstant::cast(declarable);
-    }
-    ReportError(name + " is not a constant");
-  }
-  ReportError(std::string("constant \"") + name + "\" is not defined");
-  return nullptr;
+Module* Declarations::DeclareModule(const std::string& name) {
+  return Declare(name, std::unique_ptr<Module>(new Module(name)));
 }
 
 const AbstractType* Declarations::DeclareAbstractType(
-    const std::string& name, const std::string& generated,
+    const std::string& name, bool transient, const std::string& generated,
     base::Optional<const AbstractType*> non_constexpr_version,
     const base::Optional<std::string>& parent) {
-  CheckAlreadyDeclared(name, "type");
+  CheckAlreadyDeclared<TypeAlias>(name, "type");
   const Type* parent_type = nullptr;
   if (parent) {
-    Declarable* maybe_parent_type = Lookup(*parent);
-    if (maybe_parent_type == nullptr) {
-      std::stringstream s;
-      s << "cannot find parent type \"" << *parent << "\"";
-      ReportError(s.str());
-    }
-    if (!maybe_parent_type->IsTypeAlias()) {
-      std::stringstream s;
-      s << "parent \"" << *parent << "\" of type \"" << name << "\""
-        << " is not a type";
-      ReportError(s.str());
-    }
-    parent_type = TypeAlias::cast(maybe_parent_type)->type();
+    parent_type = LookupType(*parent);
   }
   const AbstractType* type = TypeOracle::GetAbstractType(
-      parent_type, name, generated, non_constexpr_version);
-  DeclareType(name, type);
+      parent_type, name, transient, generated, non_constexpr_version);
+  DeclareType(name, type, false);
   return type;
 }
 
-void Declarations::DeclareType(const std::string& name, const Type* type) {
-  CheckAlreadyDeclared(name, "type");
-  TypeAlias* result = new TypeAlias(type);
-  Declare(name, std::unique_ptr<TypeAlias>(result));
+void Declarations::DeclareType(const std::string& name, const Type* type,
+                               bool redeclaration) {
+  CheckAlreadyDeclared<TypeAlias>(name, "type");
+  Declare(name, std::unique_ptr<TypeAlias>(new TypeAlias(type, redeclaration)));
 }
 
-void Declarations::DeclareStruct(Module* module, const std::string& name,
+void Declarations::DeclareStruct(const std::string& name,
                                  const std::vector<NameAndType>& fields) {
-  const StructType* new_type = TypeOracle::GetStructType(module, name, fields);
-  DeclareType(name, new_type);
+  const StructType* new_type = TypeOracle::GetStructType(name, fields);
+  DeclareType(name, new_type, false);
 }
 
-Label* Declarations::DeclareLabel(const std::string& name) {
-  CheckAlreadyDeclared(name, "label");
-  Label* result = new Label(name);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-MacroList* Declarations::GetMacroListForName(const std::string& name,
-                                             const Signature& signature) {
-  auto previous = chain_.Lookup(name);
-  MacroList* macro_list = nullptr;
-  if (previous == nullptr) {
-    macro_list = new MacroList();
-    Declare(name, std::unique_ptr<Declarable>(macro_list));
-  } else if (!previous->IsMacroList()) {
-    std::stringstream s;
-    s << "cannot redeclare non-macro " << name << " as a macro";
-    ReportError(s.str());
-  } else {
-    macro_list = MacroList::cast(previous);
+Macro* Declarations::CreateMacro(
+    std::string external_name, std::string readable_name,
+    base::Optional<std::string> external_assembler_name, Signature signature,
+    bool transitioning, base::Optional<Statement*> body) {
+  if (!external_assembler_name) {
+    external_assembler_name = CurrentModule()->ExternalName();
   }
-  for (auto& macro : macro_list->list()) {
-    if (signature.parameter_types.types ==
-            macro->signature().parameter_types.types &&
-        signature.parameter_types.var_args ==
-            macro->signature().parameter_types.var_args) {
-      std::stringstream s;
-      s << "cannot redeclare " << name
-        << " as a macro with identical parameter list "
-        << signature.parameter_types;
-      ReportError(s.str());
+  return RegisterDeclarable(std::unique_ptr<Macro>(
+      new Macro(std::move(external_name), std::move(readable_name),
+                std::move(*external_assembler_name), std::move(signature),
+                transitioning, body)));
+}
+
+Macro* Declarations::DeclareMacro(
+    const std::string& name,
+    base::Optional<std::string> external_assembler_name,
+    const Signature& signature, bool transitioning,
+    base::Optional<Statement*> body, base::Optional<std::string> op) {
+  if (TryLookupMacro(name, signature.GetExplicitTypes())) {
+    ReportError("cannot redeclare macro ", name,
+                " with identical explicit parameters");
+  }
+  Macro* macro = CreateMacro(name, name, std::move(external_assembler_name),
+                             signature, transitioning, body);
+  Declare(name, macro);
+  if (op) {
+    if (TryLookupMacro(*op, signature.GetExplicitTypes())) {
+      ReportError("cannot redeclare operator ", name,
+                  " with identical explicit parameters");
     }
+    Declare(*op, macro);
   }
-  return macro_list;
-}
-
-Macro* Declarations::DeclareMacro(const std::string& name,
-                                  const Signature& signature,
-                                  base::Optional<std::string> op) {
-  Macro* macro = RegisterDeclarable(
-      std::unique_ptr<Macro>(new Macro(name, signature, GetCurrentGeneric())));
-  GetMacroListForName(name, signature)->AddMacro(macro);
-  if (op) GetMacroListForName(*op, signature)->AddMacro(macro);
   return macro;
 }
 
+Builtin* Declarations::CreateBuiltin(std::string external_name,
+                                     std::string readable_name,
+                                     Builtin::Kind kind, Signature signature,
+                                     bool transitioning,
+                                     base::Optional<Statement*> body) {
+  return RegisterDeclarable(std::unique_ptr<Builtin>(
+      new Builtin(std::move(external_name), std::move(readable_name), kind,
+                  std::move(signature), transitioning, body)));
+}
+
 Builtin* Declarations::DeclareBuiltin(const std::string& name,
-                                      Builtin::Kind kind, bool external,
-                                      const Signature& signature) {
-  CheckAlreadyDeclared(name, "builtin");
-  Builtin* result =
-      new Builtin(name, kind, external, signature, GetCurrentGeneric());
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
+                                      Builtin::Kind kind,
+                                      const Signature& signature,
+                                      bool transitioning,
+                                      base::Optional<Statement*> body) {
+  CheckAlreadyDeclared<Builtin>(name, "builtin");
+  return Declare(
+      name, CreateBuiltin(name, name, kind, signature, transitioning, body));
 }
 
 RuntimeFunction* Declarations::DeclareRuntimeFunction(
-    const std::string& name, const Signature& signature) {
-  CheckAlreadyDeclared(name, "runtime function");
-  RuntimeFunction* result =
-      new RuntimeFunction(name, signature, GetCurrentGeneric());
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Variable* Declarations::DeclareVariable(const std::string& var,
-                                        const Type* type, bool is_const) {
-  std::string name(var + "_" +
-                   std::to_string(GetNextUniqueDeclarationNumber()));
-  std::replace(name.begin(), name.end(), '.', '_');
-  CheckAlreadyDeclared(var, "variable");
-  Variable* result = new Variable(var, name, type, is_const);
-  Declare(var, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Parameter* Declarations::DeclareParameter(const std::string& name,
-                                          const std::string& var_name,
-                                          const Type* type) {
-  CheckAlreadyDeclared(name, "parameter");
-  Parameter* result = new Parameter(name, type, var_name);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Label* Declarations::DeclarePrivateLabel(const std::string& raw_name) {
-  std::string name =
-      raw_name + "_" + std::to_string(GetNextUniqueDeclarationNumber());
-  CheckAlreadyDeclared(name, "label");
-  Label* result = new Label(name);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
+    const std::string& name, const Signature& signature, bool transitioning) {
+  CheckAlreadyDeclared<RuntimeFunction>(name, "runtime function");
+  return Declare(name,
+                 RegisterDeclarable(std::unique_ptr<RuntimeFunction>(
+                     new RuntimeFunction(name, signature, transitioning))));
 }
 
 void Declarations::DeclareExternConstant(const std::string& name,
-                                         const Type* type,
-                                         const std::string& value) {
-  CheckAlreadyDeclared(name, "constant, parameter or arguments");
+                                         const Type* type, std::string value) {
+  CheckAlreadyDeclared<Value>(name, "constant");
   ExternConstant* result = new ExternConstant(name, type, value);
   Declare(name, std::unique_ptr<Declarable>(result));
 }
 
 ModuleConstant* Declarations::DeclareModuleConstant(const std::string& name,
-                                                    const Type* type) {
-  CheckAlreadyDeclared(name, "module constant");
-  ModuleConstant* result = new ModuleConstant(name, type);
+                                                    const Type* type,
+                                                    Expression* body) {
+  CheckAlreadyDeclared<Value>(name, "constant");
+  ModuleConstant* result = new ModuleConstant(name, type, body);
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }
 
-Generic* Declarations::DeclareGeneric(const std::string& name, Module* module,
+Generic* Declarations::DeclareGeneric(const std::string& name,
                                       GenericDeclaration* generic) {
-  auto previous = chain_.Lookup(name);
-  GenericList* generic_list = nullptr;
-  if (previous == nullptr) {
-    generic_list = new GenericList();
-    Declare(name, std::unique_ptr<Declarable>(generic_list));
-  } else if (!previous->IsGenericList()) {
-    std::stringstream s;
-    s << "cannot redeclare non-generic " << name << " as a generic";
-    ReportError(s.str());
-  } else {
-    generic_list = GenericList::cast(previous);
-  }
-  Generic* result = RegisterDeclarable(
-      std::unique_ptr<Generic>(new Generic(name, module, generic)));
-  generic_list->AddGeneric(result);
-  generic_declaration_scopes_[result] = GetScopeChainSnapshot();
-  return result;
+  return Declare(name, std::unique_ptr<Generic>(new Generic(name, generic)));
 }
 
-TypeVector Declarations::GetCurrentSpecializationTypeNamesVector() {
-  TypeVector result;
-  if (current_generic_specialization_ != nullptr) {
-    result = current_generic_specialization_->second;
-  }
-  return result;
-}
-
-base::Optional<Generic*> Declarations::GetCurrentGeneric() {
-  if (current_generic_specialization_ != nullptr) {
-    return current_generic_specialization_->first;
-  }
-  return base::nullopt;
-}
-
-std::string GetGeneratedCallableName(const std::string& name,
-                                     const TypeVector& specialized_types) {
+std::string Declarations::GetGeneratedCallableName(
+    const std::string& name, const TypeVector& specialized_types) {
   std::string result = name;
   for (auto type : specialized_types) {
     std::string type_string = type->MangledName();

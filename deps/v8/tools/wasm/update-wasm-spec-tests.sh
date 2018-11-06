@@ -27,16 +27,16 @@ mkdir ${SPEC_TEST_DIR}/tmp
 
 ./tools/dev/gm.py x64.release d8
 
-cd ${V8_DIR}/test/wasm-js/interpreter
+cd ${V8_DIR}/test/wasm-js/data/interpreter
 
 # The next step requires that ocaml is installed. See the README.md in
-# ${V8_DIR}/test/wasm-js/interpreter/.
+# ${V8_DIR}/test/wasm-js/data/interpreter/.
 make clean all
 
-cd ${V8_DIR}/test/wasm-js/test/core
+cd ${V8_DIR}/test/wasm-js/data/test/core
 
 
-./run.py --wasm ${V8_DIR}/test/wasm-js/interpreter/wasm --js ${V8_DIR}/out/x64.release/d8 --out ${SPEC_TEST_DIR}/tmp
+./run.py --wasm ${V8_DIR}/test/wasm-js/data/interpreter/wasm --js ${V8_DIR}/out/x64.release/d8 --out ${SPEC_TEST_DIR}/tmp
 cp ${SPEC_TEST_DIR}/tmp/*.js ${SPEC_TEST_DIR}/tests/
 rm -rf ${SPEC_TEST_DIR}/tmp
 

@@ -63,6 +63,7 @@ class ConsoleHelper {
   void reportCall(ConsoleAPIType type) {
     if (!m_info.Length()) return;
     std::vector<v8::Local<v8::Value>> arguments;
+    arguments.reserve(m_info.Length());
     for (int i = 0; i < m_info.Length(); ++i) arguments.push_back(m_info[i]);
     reportCall(type, arguments);
   }
@@ -72,6 +73,14 @@ class ConsoleHelper {
     std::vector<v8::Local<v8::Value>> arguments;
     for (int i = 0; i < m_info.Length(); ++i) arguments.push_back(m_info[i]);
     if (!m_info.Length()) arguments.push_back(toV8String(m_isolate, message));
+    reportCall(type, arguments);
+  }
+
+  void reportCallAndReplaceFirstArgument(ConsoleAPIType type,
+                                         const String16& message) {
+    std::vector<v8::Local<v8::Value>> arguments;
+    arguments.push_back(toV8String(m_isolate, message));
+    for (int i = 1; i < m_info.Length(); ++i) arguments.push_back(m_info[i]);
     reportCall(type, arguments);
   }
 
@@ -106,7 +115,7 @@ class ConsoleHelper {
   bool firstArgToBoolean(bool defaultValue) {
     if (m_info.Length() < 1) return defaultValue;
     if (m_info[0]->IsBoolean()) return m_info[0].As<v8::Boolean>()->Value();
-    return m_info[0]->BooleanValue(m_context).FromMaybe(defaultValue);
+    return m_info[0]->BooleanValue(m_context->GetIsolate());
   }
 
   String16 firstArgToString(const String16& defaultValue,
@@ -143,7 +152,7 @@ class ConsoleHelper {
   }
 
   void forEachSession(std::function<void(V8InspectorSessionImpl*)> callback) {
-    m_inspector->forEachSession(m_groupId, callback);
+    m_inspector->forEachSession(m_groupId, std::move(callback));
   }
 
  private:
@@ -385,10 +394,9 @@ static void timeFunction(const v8::debug::ConsoleCallArguments& info,
 
 static void timeEndFunction(const v8::debug::ConsoleCallArguments& info,
                             const v8::debug::ConsoleContext& consoleContext,
-                            bool timelinePrefix, V8InspectorImpl* inspector) {
+                            bool timeLog, V8InspectorImpl* inspector) {
   ConsoleHelper helper(info, consoleContext, inspector);
   String16 protocolTitle = helper.firstArgToString("default", false);
-  if (timelinePrefix) protocolTitle = "Timeline '" + protocolTitle + "'";
   const String16& timerId =
       protocolTitle + "@" +
       consoleContextToString(inspector->isolate(), consoleContext);
@@ -399,18 +407,32 @@ static void timeEndFunction(const v8::debug::ConsoleCallArguments& info,
     return;
   }
   inspector->client()->consoleTimeEnd(toStringView(protocolTitle));
-  double elapsed = helper.consoleMessageStorage()->timeEnd(
-      helper.contextId(),
-      protocolTitle + "@" +
-          consoleContextToString(inspector->isolate(), consoleContext));
+  String16 title = protocolTitle + "@" +
+                   consoleContextToString(inspector->isolate(), consoleContext);
+  double elapsed;
+  if (timeLog) {
+    elapsed =
+        helper.consoleMessageStorage()->timeLog(helper.contextId(), title);
+  } else {
+    elapsed =
+        helper.consoleMessageStorage()->timeEnd(helper.contextId(), title);
+  }
   String16 message =
       protocolTitle + ": " + String16::fromDouble(elapsed) + "ms";
-  helper.reportCallWithArgument(ConsoleAPIType::kTimeEnd, message);
+  if (timeLog)
+    helper.reportCallAndReplaceFirstArgument(ConsoleAPIType::kLog, message);
+  else
+    helper.reportCallWithArgument(ConsoleAPIType::kTimeEnd, message);
 }
 
 void V8Console::Time(const v8::debug::ConsoleCallArguments& info,
                      const v8::debug::ConsoleContext& consoleContext) {
   timeFunction(info, consoleContext, false, m_inspector);
+}
+
+void V8Console::TimeLog(const v8::debug::ConsoleCallArguments& info,
+                        const v8::debug::ConsoleContext& consoleContext) {
+  timeEndFunction(info, consoleContext, true, m_inspector);
 }
 
 void V8Console::TimeEnd(const v8::debug::ConsoleCallArguments& info,
@@ -578,9 +600,8 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
   InjectedScript* injectedScript = helper.injectedScript(sessionId);
   if (!injectedScript) return;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrappedObject;
-  protocol::Response response =
-      injectedScript->wrapObject(value, "", false /** forceValueType */,
-                                 false /** generatePreview */, &wrappedObject);
+  protocol::Response response = injectedScript->wrapObject(
+      value, "", WrapMode::kNoPreview, &wrappedObject);
   if (!response.isSuccess()) return;
 
   std::unique_ptr<protocol::DictionaryValue> hints =

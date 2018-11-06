@@ -17,6 +17,11 @@
 namespace v8 {
 namespace internal {
 
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               Handle<Name> name, Configuration configuration)
+    : LookupIterator(isolate, receiver, name, GetRoot(isolate, receiver),
+                     configuration) {}
+
 LookupIterator::LookupIterator(Handle<Object> receiver, Handle<Name> name,
                                Handle<JSReceiver> holder,
                                Configuration configuration)
@@ -42,6 +47,11 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
 #endif  // DEBUG
   Start<false>();
 }
+
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               uint32_t index, Configuration configuration)
+    : LookupIterator(isolate, receiver, index,
+                     GetRoot(isolate, receiver, index), configuration) {}
 
 LookupIterator LookupIterator::PropertyOrElement(
     Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
@@ -80,6 +90,22 @@ bool LookupIterator::is_dictionary_holder() const {
   return !holder_->HasFastProperties();
 }
 
+Handle<Map> LookupIterator::transition_map() const {
+  DCHECK_EQ(TRANSITION, state_);
+  return Handle<Map>::cast(transition_);
+}
+
+Handle<PropertyCell> LookupIterator::transition_cell() const {
+  DCHECK_EQ(TRANSITION, state_);
+  return Handle<PropertyCell>::cast(transition_);
+}
+
+template <class T>
+Handle<T> LookupIterator::GetHolder() const {
+  DCHECK(IsFound());
+  return Handle<T>::cast(holder_);
+}
+
 bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
   return !receiver->map()->is_extensible() &&
@@ -105,6 +131,20 @@ void LookupIterator::UpdateProtector() {
       *name_ == roots.resolve_string() || *name_ == roots.then_string()) {
     InternalUpdateProtector();
   }
+}
+
+int LookupIterator::descriptor_number() const {
+  DCHECK(!IsElement());
+  DCHECK(has_property_);
+  DCHECK(holder_->HasFastProperties());
+  return number_;
+}
+
+int LookupIterator::dictionary_entry() const {
+  DCHECK(!IsElement());
+  DCHECK(has_property_);
+  DCHECK(!holder_->HasFastProperties());
+  return number_;
 }
 
 LookupIterator::Configuration LookupIterator::ComputeConfiguration(

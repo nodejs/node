@@ -19,13 +19,8 @@ class V8DebuggerAgentImpl;
 
 class WasmTranslation {
  public:
-  enum Mode { Raw, Disassemble };
-
   explicit WasmTranslation(v8::Isolate* isolate);
   ~WasmTranslation();
-
-  // Set translation mode.
-  void SetMode(Mode mode) { mode_ = mode; }
 
   // Make a wasm script known to the translation. This will trigger a number of
   // didParseScript calls to the given debugger agent.
@@ -72,7 +67,6 @@ class WasmTranslation {
   v8::Isolate* isolate_;
   std::unordered_map<int, std::unique_ptr<TranslatorImpl>> wasm_translators_;
   std::unordered_map<String16, TranslatorImpl*> fake_scripts_;
-  Mode mode_;
 
   DISALLOW_COPY_AND_ASSIGN(WasmTranslation);
 };

@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import argparse
 import collections
 import json
 import os.path
@@ -12,19 +13,22 @@ import sys
 import pdl
 
 def main(argv):
-    if len(argv) < 2:
-        sys.stderr.write("Usage: %s <protocol.pdl> <protocol.json>\n" % sys.argv[0])
-        return 1
-    file_name = os.path.normpath(argv[0])
+    parser = argparse.ArgumentParser(description=(
+        "Converts from .pdl to .json by invoking the pdl Python module."))
+    parser.add_argument('--map_binary_to_string', type=bool,
+                        help=('If set, binary in the .pdl is mapped to a '
+                              'string in .json. Client code will have to '
+                              'base64 decode the string to get the payload.'))
+    parser.add_argument("pdl_file", help="The .pdl input file to parse.")
+    parser.add_argument("json_file", help="The .json output file write.")
+    args = parser.parse_args(argv)
+    file_name = os.path.normpath(args.pdl_file)
     input_file = open(file_name, "r")
     pdl_string = input_file.read()
-    protocol = pdl.loads(pdl_string, file_name)
+    protocol = pdl.loads(pdl_string, file_name, args.map_binary_to_string)
     input_file.close()
-    output_file = open(argv[0].replace('.pdl', '.json'), 'wb')
-    json.dump(protocol, output_file, indent=4, separators=(',', ': '))
-    output_file.close()
 
-    output_file = open(os.path.normpath(argv[1]), 'wb')
+    output_file = open(os.path.normpath(args.json_file), 'wb')
     json.dump(protocol, output_file, indent=4, separators=(',', ': '))
     output_file.close()
 

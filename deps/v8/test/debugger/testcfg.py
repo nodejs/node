@@ -32,7 +32,7 @@ class TestSuite(testsuite.TestSuite):
     return TestCase
 
 
-class TestCase(testcase.TestCase):
+class TestCase(testcase.D8TestCase):
   def __init__(self, *args, **kwargs):
     super(TestCase, self).__init__(*args, **kwargs)
 

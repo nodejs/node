@@ -17,11 +17,11 @@
 
 #define WASM_MODULE_HEADER U32_LE(kWasmMagic), U32_LE(kWasmVersion)
 
-#define IMPORT_SIG_INDEX(v) U32V_1(v)
+#define SIG_INDEX(v) U32V_1(v)
 #define FUNC_INDEX(v) U32V_1(v)
 #define TABLE_INDEX(v) U32V_1(v)
+#define EXCEPTION_INDEX(v) U32V_1(v)
 #define NO_NAME U32V_1(0)
-#define NAME_LENGTH(v) U32V_1(v)
 #define ENTRY_COUNT(v) U32V_1(v)
 
 #define ZERO_ALIGNMENT 0
@@ -575,7 +575,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 //------------------------------------------------------------------------------
 // Memory Operations.
 //------------------------------------------------------------------------------
-#define WASM_GROW_MEMORY(x) x, kExprGrowMemory, 0
+#define WASM_GROW_MEMORY(x) x, kExprMemoryGrow, 0
 #define WASM_MEMORY_SIZE kExprMemorySize, 0
 
 #define SIG_ENTRY_v_v kWasmFunctionTypeCode, 0, 0

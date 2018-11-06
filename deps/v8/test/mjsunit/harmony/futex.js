@@ -133,7 +133,7 @@ if (this.Worker) {
          postMessage(result);
        };`;
 
-    var worker = new Worker(workerScript);
+    var worker = new Worker(workerScript, {type: 'string'});
     worker.postMessage({sab: sab, offset: offset});
 
     // Spin until the worker is waiting on the futex.
@@ -143,7 +143,7 @@ if (this.Worker) {
     assertEquals("ok", worker.getMessage());
     worker.terminate();
 
-    var worker2 = new Worker(workerScript);
+    var worker2 = new Worker(workerScript, {type: 'string'});
     var offset = 8;
     var i32a2 = new Int32Array(sab, offset);
     worker2.postMessage({sab: sab, offset: offset});
@@ -156,7 +156,7 @@ if (this.Worker) {
 
     // Futex should work when index and buffer views are different, but
     // the real address is the same.
-    var worker3 = new Worker(workerScript);
+    var worker3 = new Worker(workerScript, {type: 'string'});
     i32a2 = new Int32Array(sab, 4);
     worker3.postMessage({sab: sab, offset: 8});
 
@@ -205,7 +205,7 @@ if (this.Worker) {
     var id;
     var workers = [];
     for (id = 0; id < 4; id++) {
-      workers[id] = new Worker(workerScript);
+      workers[id] = new Worker(workerScript, {type: 'string'});
       workers[id].postMessage({sab: sab, id: id});
     }
 

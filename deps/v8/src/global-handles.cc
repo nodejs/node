@@ -7,6 +7,7 @@
 #include "src/api-inl.h"
 #include "src/cancelable-task.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 #include "src/v8.h"
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"
@@ -28,7 +29,7 @@ class GlobalHandles::Node {
   };
 
   // Maps handle location (slot) to the containing node.
-  static Node* FromLocation(Object** location) {
+  static Node* FromLocation(Address* location) {
     DCHECK_EQ(offsetof(Node, object_), 0);
     return reinterpret_cast<Node*>(location);
   }
@@ -51,7 +52,7 @@ class GlobalHandles::Node {
   ~Node() {
     // TODO(1428): if it's a weak handle we should have invoked its callback.
     // Zap the values for eager trapping.
-    object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
+    object_ = kGlobalHandleZapValue;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     index_ = 0;
     set_independent(false);
@@ -63,7 +64,7 @@ class GlobalHandles::Node {
 #endif
 
   void Initialize(int index, Node** first_free) {
-    object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
+    object_ = kGlobalHandleZapValue;
     index_ = static_cast<uint8_t>(index);
     DCHECK(static_cast<int>(index_) == index);
     set_state(FREE);
@@ -74,7 +75,7 @@ class GlobalHandles::Node {
 
   void Acquire(Object* object) {
     DCHECK(state() == FREE);
-    object_ = object;
+    object_ = object->ptr();
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_active(false);
@@ -87,14 +88,14 @@ class GlobalHandles::Node {
   void Zap() {
     DCHECK(IsInUse());
     // Zap the values for eager trapping.
-    object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
+    object_ = kGlobalHandleZapValue;
   }
 
   void Release() {
     DCHECK(IsInUse());
     set_state(FREE);
     // Zap the values for eager trapping.
-    object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
+    object_ = kGlobalHandleZapValue;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_active(false);
@@ -103,10 +104,10 @@ class GlobalHandles::Node {
   }
 
   // Object slot accessors.
-  Object* object() const { return object_; }
-  Object** location() { return &object_; }
+  ObjectPtr object() const { return ObjectPtr(object_); }
+  ObjectSlot location() { return ObjectSlot(&object_); }
   const char* label() { return state() == NORMAL ? data_.label : nullptr; }
-  Handle<Object> handle() { return Handle<Object>(location()); }
+  Handle<Object> handle() { return Handle<Object>(&object_); }
 
   // Wrapper class ID accessors.
   bool has_wrapper_class_id() const {
@@ -216,7 +217,7 @@ class GlobalHandles::Node {
                 v8::WeakCallbackType type) {
     DCHECK_NOT_NULL(phantom_callback);
     DCHECK(IsInUse());
-    CHECK_NE(object_, reinterpret_cast<Object*>(kGlobalHandleZapValue));
+    CHECK_NE(object_, kGlobalHandleZapValue);
     set_state(WEAK);
     switch (type) {
       case v8::WeakCallbackType::kParameter:
@@ -233,9 +234,9 @@ class GlobalHandles::Node {
     weak_callback_ = phantom_callback;
   }
 
-  void MakeWeak(Object*** location_addr) {
+  void MakeWeak(Address** location_addr) {
     DCHECK(IsInUse());
-    CHECK_NE(object_, reinterpret_cast<Object*>(kGlobalHandleZapValue));
+    CHECK_NE(object_, kGlobalHandleZapValue);
     set_state(WEAK);
     set_weakness_type(PHANTOM_WEAK_RESET_HANDLE);
     set_parameter(location_addr);
@@ -276,7 +277,7 @@ class GlobalHandles::Node {
     }
 
     // Zap with something dangerous.
-    *location() = reinterpret_cast<Object*>(0x6057CA11);
+    location().store(reinterpret_cast<Object*>(0x6057CA11));
 
     pending_phantom_callbacks->push_back(PendingPhantomCallback(
         this, weak_callback_, parameter(), embedder_fields));
@@ -288,7 +289,7 @@ class GlobalHandles::Node {
     DCHECK(weakness_type() == PHANTOM_WEAK_RESET_HANDLE);
     DCHECK(state() == PENDING);
     DCHECK_NULL(weak_callback_);
-    Object*** handle = reinterpret_cast<Object***>(parameter());
+    Address** handle = reinterpret_cast<Address**>(parameter());
     *handle = nullptr;
     Release();
   }
@@ -304,10 +305,10 @@ class GlobalHandles::Node {
 
     // Check that we are not passing a finalized external string to
     // the callback.
-    DCHECK(!object_->IsExternalOneByteString() ||
-           ExternalOneByteString::cast(object_)->resource() != nullptr);
-    DCHECK(!object_->IsExternalTwoByteString() ||
-           ExternalTwoByteString::cast(object_)->resource() != nullptr);
+    DCHECK(!object()->IsExternalOneByteString() ||
+           ExternalOneByteString::cast(object())->resource() != nullptr);
+    DCHECK(!object()->IsExternalTwoByteString() ||
+           ExternalTwoByteString::cast(object())->resource() != nullptr);
     if (weakness_type() != FINALIZER_WEAK) {
       return false;
     }
@@ -336,7 +337,10 @@ class GlobalHandles::Node {
 
   // Storage for object pointer.
   // Placed first to avoid offset computation.
-  Object* object_;
+  // The stored data is equivalent to an ObjectPtr. It is stored as a plain
+  // Address for convenience (smallest number of casts), and because it is a
+  // private implementation detail: the public interface provides type safety.
+  Address object_;
 
   // Next word stores class_id, index, state, and independent.
   // Note: the most aligned fields should go first.
@@ -500,28 +504,12 @@ class GlobalHandles::NodeIterator {
   DISALLOW_COPY_AND_ASSIGN(NodeIterator);
 };
 
-class GlobalHandles::PendingPhantomCallbacksSecondPassTask
-    : public v8::internal::CancelableTask {
- public:
-  PendingPhantomCallbacksSecondPassTask(GlobalHandles* global_handles,
-                                        Isolate* isolate)
-      : CancelableTask(isolate), global_handles_(global_handles) {}
-
-  void RunInternal() override {
-    global_handles_->InvokeSecondPassPhantomCallbacksFromTask();
-  }
-
- private:
-  GlobalHandles* global_handles_;
-  DISALLOW_COPY_AND_ASSIGN(PendingPhantomCallbacksSecondPassTask);
-};
-
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
-      number_of_global_handles_(0),
       first_block_(nullptr),
       first_used_block_(nullptr),
       first_free_(nullptr),
+      number_of_global_handles_(0),
       post_gc_processing_count_(0),
       number_of_phantom_handle_resets_(0) {}
 
@@ -553,53 +541,53 @@ Handle<Object> GlobalHandles::Create(Object* value) {
   return result->handle();
 }
 
+Handle<Object> GlobalHandles::Create(Address value) {
+  return Create(reinterpret_cast<Object*>(value));
+}
 
-Handle<Object> GlobalHandles::CopyGlobal(Object** location) {
+Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   DCHECK_NOT_NULL(location);
   GlobalHandles* global_handles =
       Node::FromLocation(location)->GetGlobalHandles();
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
-    (*location)->ObjectVerify(global_handles->isolate());
+    ObjectPtr(*location)->ObjectVerify(global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);
 }
 
-
-void GlobalHandles::Destroy(Object** location) {
+void GlobalHandles::Destroy(Address* location) {
   if (location != nullptr) Node::FromLocation(location)->Release();
 }
-
 
 typedef v8::WeakCallbackInfo<void>::Callback GenericCallback;
 
 
-void GlobalHandles::MakeWeak(Object** location, void* parameter,
+void GlobalHandles::MakeWeak(Address* location, void* parameter,
                              GenericCallback phantom_callback,
                              v8::WeakCallbackType type) {
   Node::FromLocation(location)->MakeWeak(parameter, phantom_callback, type);
 }
 
-void GlobalHandles::MakeWeak(Object*** location_addr) {
+void GlobalHandles::MakeWeak(Address** location_addr) {
   Node::FromLocation(*location_addr)->MakeWeak(location_addr);
 }
 
-void* GlobalHandles::ClearWeakness(Object** location) {
+void* GlobalHandles::ClearWeakness(Address* location) {
   return Node::FromLocation(location)->ClearWeakness();
 }
 
-void GlobalHandles::AnnotateStrongRetainer(Object** location,
+void GlobalHandles::AnnotateStrongRetainer(Address* location,
                                            const char* label) {
   Node::FromLocation(location)->AnnotateStrongRetainer(label);
 }
 
-bool GlobalHandles::IsNearDeath(Object** location) {
+bool GlobalHandles::IsNearDeath(Address* location) {
   return Node::FromLocation(location)->IsNearDeath();
 }
 
-
-bool GlobalHandles::IsWeak(Object** location) {
+bool GlobalHandles::IsWeak(Address* location) {
   return Node::FromLocation(location)->IsWeak();
 }
 
@@ -871,9 +859,10 @@ int GlobalHandles::DispatchPendingPhantomCallbacks(
           GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
     } else if (!second_pass_callbacks_task_posted_) {
       second_pass_callbacks_task_posted_ = true;
-      auto task = new PendingPhantomCallbacksSecondPassTask(this, isolate());
-      V8::GetCurrentPlatform()->CallOnForegroundThread(
-          reinterpret_cast<v8::Isolate*>(isolate()), task);
+      auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+          reinterpret_cast<v8::Isolate*>(isolate()));
+      taskrunner->PostTask(MakeCancelableLambdaTask(
+          isolate(), [this] { InvokeSecondPassPhantomCallbacksFromTask(); }));
     }
   }
   return freed_nodes;
@@ -913,6 +902,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
   const int initial_post_gc_processing_count = ++post_gc_processing_count_;
   int freed_nodes = 0;
   bool synchronous_second_pass =
+      isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
@@ -991,7 +981,7 @@ void GlobalHandles::IterateNewSpaceRoots(RootVisitor* v, size_t start,
 DISABLE_CFI_PERF
 void GlobalHandles::ApplyPersistentHandleVisitor(
     v8::PersistentHandleVisitor* visitor, GlobalHandles::Node* node) {
-  v8::Value* value = ToApi<v8::Value>(Handle<Object>(node->location()));
+  v8::Value* value = ToApi<v8::Value>(node->handle());
   visitor->VisitPersistentHandle(
       reinterpret_cast<v8::Persistent<v8::Value>*>(&value),
       node->wrapper_class_id());
@@ -1079,9 +1069,8 @@ void GlobalHandles::PrintStats() {
 void GlobalHandles::Print() {
   PrintF("Global handles:\n");
   for (NodeIterator it(this); !it.done(); it.Advance()) {
-    PrintF("  handle %p to %p%s\n",
-           reinterpret_cast<void*>(it.node()->location()),
-           reinterpret_cast<void*>(it.node()->object()),
+    PrintF("  handle %p to %p%s\n", it.node()->location().ToVoidPtr(),
+           reinterpret_cast<void*>(it.node()->object()->ptr()),
            it.node()->IsWeak() ? " (weak)" : "");
   }
 }
@@ -1098,15 +1087,16 @@ EternalHandles::EternalHandles() : size_(0) {
 
 
 EternalHandles::~EternalHandles() {
-  for (Object** block : blocks_) delete[] block;
+  for (Address* block : blocks_) delete[] block;
 }
 
 void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
   int limit = size_;
-  for (Object** block : blocks_) {
+  for (Address* block : blocks_) {
     DCHECK_GT(limit, 0);
-    visitor->VisitRootPointers(Root::kEternalHandles, nullptr, block,
-                               block + Min(limit, kSize));
+    visitor->VisitRootPointers(Root::kEternalHandles, nullptr,
+                               ObjectSlot(block),
+                               ObjectSlot(block + Min(limit, kSize)));
     limit -= kSize;
   }
 }
@@ -1114,14 +1104,14 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
 void EternalHandles::IterateNewSpaceRoots(RootVisitor* visitor) {
   for (int index : new_space_indices_) {
     visitor->VisitRootPointer(Root::kEternalHandles, nullptr,
-                              GetLocation(index));
+                              ObjectSlot(GetLocation(index)));
   }
 }
 
 void EternalHandles::PostGarbageCollectionProcessing() {
   size_t last = 0;
   for (int index : new_space_indices_) {
-    if (Heap::InNewSpace(*GetLocation(index))) {
+    if (Heap::InNewSpace(ObjectPtr(*GetLocation(index)))) {
       new_space_indices_[last++] = index;
     }
   }
@@ -1137,14 +1127,14 @@ void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
   DCHECK_NE(the_hole, object);
   int block = size_ >> kShift;
   int offset = size_ & kMask;
-  // need to resize
+  // Need to resize.
   if (offset == 0) {
-    Object** next_block = new Object*[kSize];
-    MemsetPointer(next_block, the_hole, kSize);
+    Address* next_block = new Address[kSize];
+    MemsetPointer(ObjectSlot(next_block), the_hole, kSize);
     blocks_.push_back(next_block);
   }
-  DCHECK_EQ(the_hole, blocks_[block][offset]);
-  blocks_[block][offset] = object;
+  DCHECK_EQ(the_hole->ptr(), blocks_[block][offset]);
+  blocks_[block][offset] = object->ptr();
   if (Heap::InNewSpace(object)) {
     new_space_indices_.push_back(size_);
   }

@@ -196,10 +196,19 @@ void StackTrace::InitTrace(const CONTEXT* context_record) {
   STACKFRAME64 stack_frame;
   memset(&stack_frame, 0, sizeof(stack_frame));
 #if defined(_WIN64)
+#if defined(_M_X64)
   int machine_type = IMAGE_FILE_MACHINE_AMD64;
   stack_frame.AddrPC.Offset = context_record->Rip;
   stack_frame.AddrFrame.Offset = context_record->Rbp;
   stack_frame.AddrStack.Offset = context_record->Rsp;
+#elif defined(_M_ARM64)
+  int machine_type = IMAGE_FILE_MACHINE_ARM64;
+  stack_frame.AddrPC.Offset = context_record->Pc;
+  stack_frame.AddrFrame.Offset = context_record->Fp;
+  stack_frame.AddrStack.Offset = context_record->Sp;
+#else
+#error Unsupported Arch
+#endif
 #else
   int machine_type = IMAGE_FILE_MACHINE_I386;
   stack_frame.AddrPC.Offset = context_record->Eip;

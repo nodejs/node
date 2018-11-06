@@ -13,6 +13,7 @@
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
+#include "src/tracing/trace-event.h"
 
 #include "include/v8-inspector.h"
 
@@ -202,7 +203,7 @@ V8ConsoleMessage::V8ConsoleMessage(V8MessageOrigin origin, double timestamp,
       m_exceptionId(0),
       m_revokedExceptionId(0) {}
 
-V8ConsoleMessage::~V8ConsoleMessage() {}
+V8ConsoleMessage::~V8ConsoleMessage() = default;
 
 void V8ConsoleMessage::setLocation(const String16& url, unsigned lineNumber,
                                    unsigned columnNumber,
@@ -258,19 +259,33 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
 
   std::unique_ptr<protocol::Array<protocol::Runtime::RemoteObject>> args =
       protocol::Array<protocol::Runtime::RemoteObject>::create();
-  if (m_type == ConsoleAPIType::kTable && generatePreview) {
-    v8::Local<v8::Value> table = m_arguments[0]->Get(isolate);
-    v8::Local<v8::Value> columns = m_arguments.size() > 1
-                                       ? m_arguments[1]->Get(isolate)
-                                       : v8::Local<v8::Value>();
+
+  v8::Local<v8::Value> value = m_arguments[0]->Get(isolate);
+  if (value->IsObject() && m_type == ConsoleAPIType::kTable &&
+      generatePreview) {
+    v8::MaybeLocal<v8::Array> columns;
+    if (m_arguments.size() > 1) {
+      v8::Local<v8::Value> secondArgument = m_arguments[1]->Get(isolate);
+      if (secondArgument->IsArray()) {
+        columns = v8::Local<v8::Array>::Cast(secondArgument);
+      } else if (secondArgument->IsString()) {
+        v8::TryCatch tryCatch(isolate);
+        v8::Local<v8::Array> array = v8::Array::New(isolate);
+        if (array->Set(context, 0, secondArgument).IsJust()) {
+          columns = array;
+        }
+      }
+    }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapped =
-        session->wrapTable(context, table, columns);
+        session->wrapTable(context, v8::Local<v8::Object>::Cast(value),
+                           columns);
     inspectedContext = inspector->getContext(contextGroupId, contextId);
     if (!inspectedContext) return nullptr;
-    if (wrapped)
+    if (wrapped) {
       args->addItem(std::move(wrapped));
-    else
+    } else {
       args = nullptr;
+    }
   } else {
     for (size_t i = 0; i < m_arguments.size(); ++i) {
       std::unique_ptr<protocol::Runtime::RemoteObject> wrapped =
@@ -477,11 +492,33 @@ V8ConsoleMessageStorage::V8ConsoleMessageStorage(V8InspectorImpl* inspector,
 
 V8ConsoleMessageStorage::~V8ConsoleMessageStorage() { clear(); }
 
+namespace {
+
+void TraceV8ConsoleMessageEvent(V8MessageOrigin origin, ConsoleAPIType type) {
+  // Change in this function requires adjustment of Catapult/Telemetry metric
+  // tracing/tracing/metrics/console_error_metric.html.
+  // See https://crbug.com/880432
+  if (origin == V8MessageOrigin::kException) {
+    TRACE_EVENT_INSTANT0("v8.console", "V8ConsoleMessage::Exception",
+                         TRACE_EVENT_SCOPE_THREAD);
+  } else if (type == ConsoleAPIType::kError) {
+    TRACE_EVENT_INSTANT0("v8.console", "V8ConsoleMessage::Error",
+                         TRACE_EVENT_SCOPE_THREAD);
+  } else if (type == ConsoleAPIType::kAssert) {
+    TRACE_EVENT_INSTANT0("v8.console", "V8ConsoleMessage::Assert",
+                         TRACE_EVENT_SCOPE_THREAD);
+  }
+}
+
+}  // anonymous namespace
+
 void V8ConsoleMessageStorage::addMessage(
     std::unique_ptr<V8ConsoleMessage> message) {
   int contextGroupId = m_contextGroupId;
   V8InspectorImpl* inspector = m_inspector;
   if (message->type() == ConsoleAPIType::kClear) clear();
+
+  TraceV8ConsoleMessageEvent(message->origin(), message->type());
 
   inspector->forEachSession(
       contextGroupId, [&message](V8InspectorSessionImpl* session) {
@@ -540,6 +577,13 @@ bool V8ConsoleMessageStorage::countReset(int contextId, const String16& id) {
 
   count_map[id] = 0;
   return true;
+}
+
+double V8ConsoleMessageStorage::timeLog(int contextId, const String16& id) {
+  std::map<String16, double>& time = m_data[contextId].m_time;
+  auto it = time.find(id);
+  if (it == time.end()) return 0.0;
+  return m_inspector->client()->currentTimeMS() - it->second;
 }
 
 double V8ConsoleMessageStorage::timeEnd(int contextId, const String16& id) {

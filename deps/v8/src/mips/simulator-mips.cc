@@ -4240,6 +4240,21 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       SetResult(rd_reg(), alu_out);
       break;
     }
+    case LL_R6: {
+      // LLWP/SCWP sequence cannot be simulated properly
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      set_register(rd_reg(), ReadW(rs() + 4, instr_.instr()));
+      set_register(rt(), ReadW(rs(), instr_.instr()));
+      break;
+    }
+    case SC_R6: {
+      // LLWP/SCWP sequence cannot be simulated properly
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      WriteW(rs() + 4, rd_reg(), instr_.instr());
+      WriteW(rs(), rt(), instr_.instr());
+      set_register(rt(), 1);
+      break;
+    }
     default:
       UNREACHABLE();
   }

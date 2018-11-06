@@ -155,8 +155,7 @@ class UploadCL(Step):
     message.append("TBR=%s" % self._options.reviewer)
     self.GitCommit("\n\n".join(message),  author=self._options.author, cwd=cwd)
     if not self._options.dry_run:
-      self.GitUpload(author=self._options.author,
-                     force=True,
+      self.GitUpload(force=True,
                      bypass_hooks=True,
                      cq=self._options.use_commit_queue,
                      cq_dry_run=self._options.use_dry_run,

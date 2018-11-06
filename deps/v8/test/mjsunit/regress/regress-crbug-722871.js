@@ -7,7 +7,7 @@ let workers = [];
 let runningWorkers = 0;
 
 function startWorker(script) {
-  let worker = new Worker(script);
+  let worker = new Worker(script, {type: 'string'});
   worker.done = false;
   worker.idx = workers.length;
   workers.push(worker);

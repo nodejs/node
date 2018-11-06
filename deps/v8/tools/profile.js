@@ -892,16 +892,24 @@ JsonProfile.prototype.addStaticCode = function(
 
 JsonProfile.prototype.addCode = function(
     kind, name, timestamp, start, size) {
+  let codeId = this.codeEntries_.length;
+  // Find out if we have a static code entry for the code. If yes, we will
+  // make sure it is written to the JSON file just once.
+  let staticEntry = this.codeMap_.findAddress(start);
+  if (staticEntry && staticEntry.entry.type === 'CPP') {
+    codeId = staticEntry.entry.codeId;
+  }
+
   var entry = new CodeMap.CodeEntry(size, name, 'CODE');
   this.codeMap_.addCode(start, entry);
 
-  entry.codeId = this.codeEntries_.length;
-  this.codeEntries_.push({
+  entry.codeId = codeId;
+  this.codeEntries_[codeId] = {
     name : entry.name,
     timestamp: timestamp,
     type : entry.type,
     kind : kind
-  });
+  };
 
   return entry;
 };
@@ -975,7 +983,7 @@ JsonProfile.prototype.addSourcePositions = function(
   if (!entry) return;
   var codeId = entry.codeId;
 
-  // Resolve the inlined fucntions list.
+  // Resolve the inlined functions list.
   if (inlinedFunctions.length > 0) {
     inlinedFunctions = inlinedFunctions.substring(1).split("S");
     for (var i = 0; i < inlinedFunctions.length; i++) {

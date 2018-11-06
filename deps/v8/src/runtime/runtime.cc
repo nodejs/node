@@ -45,9 +45,7 @@ FOR_EACH_INTRINSIC_RETURN_PAIR(P)
   ,
 
 static const Runtime::Function kIntrinsicFunctions[] = {
-  FOR_EACH_INTRINSIC(F)
-  FOR_EACH_INTRINSIC(I)
-};
+    FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(I)};
 
 #undef I
 #undef F
@@ -98,6 +96,51 @@ void InitializeIntrinsicFunctionNames() {
 
 }  // namespace
 
+bool Runtime::NeedsExactContext(FunctionId id) {
+  switch (id) {
+    case Runtime::kInlineAsyncFunctionReject:
+    case Runtime::kInlineAsyncFunctionResolve:
+      // For %_AsyncFunctionReject and %_AsyncFunctionResolve we don't
+      // really need the current context, which in particular allows
+      // us to usually eliminate the catch context for the implicit
+      // try-catch in async function.
+      return false;
+    case Runtime::kAddPrivateField:
+    case Runtime::kCopyDataProperties:
+    case Runtime::kCreateDataProperty:
+    case Runtime::kCreatePrivateFieldSymbol:
+    case Runtime::kReThrow:
+    case Runtime::kThrow:
+    case Runtime::kThrowApplyNonFunction:
+    case Runtime::kThrowCalledNonCallable:
+    case Runtime::kThrowConstAssignError:
+    case Runtime::kThrowConstructorNonCallableError:
+    case Runtime::kThrowConstructedNonConstructable:
+    case Runtime::kThrowConstructorReturnedNonObject:
+    case Runtime::kThrowInvalidStringLength:
+    case Runtime::kThrowInvalidTypedArrayAlignment:
+    case Runtime::kThrowIteratorError:
+    case Runtime::kThrowIteratorResultNotAnObject:
+    case Runtime::kThrowNotConstructor:
+    case Runtime::kThrowRangeError:
+    case Runtime::kThrowReferenceError:
+    case Runtime::kThrowStackOverflow:
+    case Runtime::kThrowStaticPrototypeError:
+    case Runtime::kThrowSuperAlreadyCalledError:
+    case Runtime::kThrowSuperNotCalled:
+    case Runtime::kThrowSymbolAsyncIteratorInvalid:
+    case Runtime::kThrowSymbolIteratorInvalid:
+    case Runtime::kThrowThrowMethodMissing:
+    case Runtime::kThrowTypeError:
+    case Runtime::kThrowUnsupportedSuperError:
+    case Runtime::kThrowWasmError:
+    case Runtime::kThrowWasmStackOverflow:
+      return false;
+    default:
+      return true;
+  }
+}
+
 bool Runtime::IsNonReturning(FunctionId id) {
   switch (id) {
     case Runtime::kThrowUnsupportedSuperError:
@@ -113,6 +156,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowConstructorReturnedNonObject:
     case Runtime::kThrowInvalidStringLength:
     case Runtime::kThrowInvalidTypedArrayAlignment:
+    case Runtime::kThrowIteratorError:
     case Runtime::kThrowIteratorResultNotAnObject:
     case Runtime::kThrowThrowMethodMissing:
     case Runtime::kThrowSymbolIteratorInvalid:

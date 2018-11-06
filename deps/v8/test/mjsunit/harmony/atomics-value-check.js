@@ -12,7 +12,7 @@ var workerScript =
       `onmessage=function(msg) {
          postMessage(0);
        };`;
-var worker = new Worker(workerScript);
+var worker = new Worker(workerScript, {type: 'string'});
 
 var value_obj = {
   valueOf: function() {worker.postMessage({sab:sab}, [sta.buffer]);

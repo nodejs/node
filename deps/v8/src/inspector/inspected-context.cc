@@ -109,14 +109,12 @@ InjectedScript* InspectedContext::getInjectedScript(int sessionId) {
   return it == m_injectedScripts.end() ? nullptr : it->second.get();
 }
 
-bool InspectedContext::createInjectedScript(int sessionId) {
+InjectedScript* InspectedContext::createInjectedScript(int sessionId) {
   std::unique_ptr<InjectedScript> injectedScript =
-      InjectedScript::create(this, sessionId);
-  // InjectedScript::create can destroy |this|.
-  if (!injectedScript) return false;
+      v8::base::make_unique<InjectedScript>(this, sessionId);
   CHECK(m_injectedScripts.find(sessionId) == m_injectedScripts.end());
   m_injectedScripts[sessionId] = std::move(injectedScript);
-  return true;
+  return getInjectedScript(sessionId);
 }
 
 void InspectedContext::discardInjectedScript(int sessionId) {

@@ -212,7 +212,7 @@ tests.push(function TestFromTypedArraySpeciesNeutersBuffer(constr) {
 });
 
 tests.push(function TestLengthIsMaxSmi(constr) {
-  var myObject = { 0: 5, 1: 6, length: %_MaxSmi() + 1 };
+  var myObject = { 0: 5, 1: 6, length: %MaxSmi() + 1 };
 
   assertThrows(function() {
     new constr(myObject);
@@ -258,7 +258,7 @@ tests.push(function TestOffsetIsUsed(constr) {
 });
 
 tests.push(function TestLengthIsNonSmiNegativeNumber(constr) {
-  var ta = new constr({length: -%_MaxSmi() - 2});
+  var ta = new constr({length: -%MaxSmi() - 2});
 
   assertEquals(0, ta.length);
 });

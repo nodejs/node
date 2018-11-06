@@ -38,7 +38,7 @@ Type const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
 class JSTypedLoweringTest : public TypedGraphTest {
  public:
   JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
-  ~JSTypedLoweringTest() override {}
+  ~JSTypedLoweringTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {
@@ -48,7 +48,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, js_heap_broker(), zone());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, broker(), zone());
     return reducer.Reduce(node);
   }
 
@@ -401,12 +401,7 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
   Reduction r = Reduce(graph()->NewNode(javascript()->Add(hint), lhs, rhs,
                                         context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsCall(_, IsHeapConstant(
-                            CodeFactory::StringAdd(
-                                isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED)
-                                .code()),
-                     lhs, rhs, context, frame_state, effect, control));
+  EXPECT_THAT(r.replacement(), IsStringConcat(_, lhs, rhs));
 }
 
 }  // namespace compiler

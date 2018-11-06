@@ -166,6 +166,7 @@ UNIMPLEMENTED_FP_BINOP(f32_mul)
 UNIMPLEMENTED_FP_BINOP(f32_div)
 UNIMPLEMENTED_FP_BINOP(f32_min)
 UNIMPLEMENTED_FP_BINOP(f32_max)
+UNIMPLEMENTED_FP_BINOP(f32_copysign)
 UNIMPLEMENTED_FP_UNOP(f32_abs)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
 UNIMPLEMENTED_FP_UNOP(f32_ceil)
@@ -179,6 +180,7 @@ UNIMPLEMENTED_FP_BINOP(f64_mul)
 UNIMPLEMENTED_FP_BINOP(f64_div)
 UNIMPLEMENTED_FP_BINOP(f64_min)
 UNIMPLEMENTED_FP_BINOP(f64_max)
+UNIMPLEMENTED_FP_BINOP(f64_copysign)
 UNIMPLEMENTED_FP_UNOP(f64_abs)
 UNIMPLEMENTED_FP_UNOP(f64_neg)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_ceil)
@@ -217,6 +219,10 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   BAILOUT("i32_remu");
 }
 
+void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, int amount) {
+  BAILOUT("i32_shr");
+}
+
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero,
@@ -246,6 +252,11 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   return true;
 }
 
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int amount) {
+  BAILOUT("i64_shr");
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
 #ifdef V8_TARGET_ARCH_PPC64
   BAILOUT("emit_i32_to_intptr");
@@ -259,6 +270,29 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister src, Label* trap) {
   BAILOUT("emit_type_conversion");
   return true;
+}
+
+void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
+  BAILOUT("emit_i32_signextend_i8");
+}
+
+void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
+  BAILOUT("emit_i32_signextend_i16");
+}
+
+void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  BAILOUT("emit_i64_signextend_i8");
+}
+
+void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  BAILOUT("emit_i64_signextend_i16");
+}
+
+void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  BAILOUT("emit_i64_signextend_i32");
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { BAILOUT("emit_jump"); }

@@ -62,6 +62,7 @@ class Worklist {
   Worklist() : Worklist(kMaxNumTasks) {}
 
   explicit Worklist(int num_tasks) : num_tasks_(num_tasks) {
+    DCHECK_LE(num_tasks, kMaxNumTasks);
     for (int i = 0; i < num_tasks_; i++) {
       private_push_segment(i) = NewSegment();
       private_pop_segment(i) = NewSegment();
@@ -282,13 +283,13 @@ class Worklist {
     }
 
     V8_INLINE void Push(Segment* segment) {
-      base::LockGuard<base::Mutex> guard(&lock_);
+      base::MutexGuard guard(&lock_);
       segment->set_next(top_);
       set_top(segment);
     }
 
     V8_INLINE bool Pop(Segment** segment) {
-      base::LockGuard<base::Mutex> guard(&lock_);
+      base::MutexGuard guard(&lock_);
       if (top_ != nullptr) {
         *segment = top_;
         set_top(top_->next());
@@ -302,7 +303,7 @@ class Worklist {
     }
 
     void Clear() {
-      base::LockGuard<base::Mutex> guard(&lock_);
+      base::MutexGuard guard(&lock_);
       Segment* current = top_;
       while (current != nullptr) {
         Segment* tmp = current;
@@ -315,7 +316,7 @@ class Worklist {
     // See Worklist::Update.
     template <typename Callback>
     void Update(Callback callback) {
-      base::LockGuard<base::Mutex> guard(&lock_);
+      base::MutexGuard guard(&lock_);
       Segment* prev = nullptr;
       Segment* current = top_;
       while (current != nullptr) {
@@ -339,7 +340,7 @@ class Worklist {
     // See Worklist::Iterate.
     template <typename Callback>
     void Iterate(Callback callback) {
-      base::LockGuard<base::Mutex> guard(&lock_);
+      base::MutexGuard guard(&lock_);
       for (Segment* current = top_; current != nullptr;
            current = current->next()) {
         current->Iterate(callback);
@@ -349,7 +350,7 @@ class Worklist {
     std::pair<Segment*, Segment*> Extract() {
       Segment* top = nullptr;
       {
-        base::LockGuard<base::Mutex> guard(&lock_);
+        base::MutexGuard guard(&lock_);
         if (top_ == nullptr) return std::make_pair(nullptr, nullptr);
         top = top_;
         set_top(nullptr);
@@ -362,7 +363,7 @@ class Worklist {
     void MergeList(Segment* start, Segment* end) {
       if (start == nullptr) return;
       {
-        base::LockGuard<base::Mutex> guard(&lock_);
+        base::MutexGuard guard(&lock_);
         end->set_next(top_);
         set_top(start);
       }

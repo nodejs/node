@@ -32,13 +32,15 @@ class TestsCounter(base.TestProcObserver):
 
 
 class ResultsTracker(base.TestProcObserver):
-  def __init__(self):
+  """Tracks number of results and stops to run tests if max_failures reached."""
+  def __init__(self, max_failures):
     super(ResultsTracker, self).__init__()
     self._requirement = base.DROP_OUTPUT
 
     self.failed = 0
     self.remaining = 0
     self.total = 0
+    self.max_failures = max_failures
 
   def _on_next_test(self, test):
     self.total += 1
@@ -48,6 +50,9 @@ class ResultsTracker(base.TestProcObserver):
     self.remaining -= 1
     if result.has_unexpected_output:
       self.failed += 1
+      if self.max_failures and self.failed >= self.max_failures:
+        print '>>> Too many failures, exiting...'
+        self.stop()
 
 
 class ProgressIndicator(base.TestProcObserver):

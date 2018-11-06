@@ -134,7 +134,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
                  IsolateAddressId::kPendingExceptionAddress, isolate())));
 
   __ StoreP(r2, MemOperand(ip));
-  __ LoadRoot(r2, Heap::kExceptionRootIndex);
+  __ LoadRoot(r2, RootIndex::kException);
   __ b(&exit, Label::kNear);
 
   // Invoke: Link this frame into the handler chain.
@@ -475,7 +475,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // Check if the function scheduled an exception.
   __ Move(r7, ExternalReference::scheduled_exception_address(isolate));
   __ LoadP(r7, MemOperand(r7));
-  __ CompareRoot(r7, Heap::kTheHoleValueRootIndex);
+  __ CompareRoot(r7, RootIndex::kTheHoleValue);
   __ bne(&promote_scheduled_exception, Label::kNear);
 
   __ b(r14);
@@ -523,13 +523,13 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kHolderIndex == 0);
 
   // new target
-  __ PushRoot(Heap::kUndefinedValueRootIndex);
+  __ PushRoot(RootIndex::kUndefinedValue);
 
   // call data
   __ push(call_data);
 
   Register scratch = call_data;
-  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   // return value
   __ push(scratch);
   // return value default
@@ -609,7 +609,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // Push data from AccessorInfo.
   __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ push(scratch);
-  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ Push(scratch, scratch);
   __ Move(scratch, ExternalReference::isolate_address(isolate()));
   __ Push(scratch, holder);

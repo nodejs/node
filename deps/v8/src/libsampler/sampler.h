@@ -60,6 +60,12 @@ class Sampler {
   // with the CpuProfiler.
   bool IsRegistered() const { return base::Relaxed_Load(&registered_) != 0; }
 
+  // The sampler must be unregistered with the SamplerManager before ~Sampler()
+  // is called. If this doesn't happen, the signal handler might interrupt
+  // during the destructor and call DoSample(), which calls the pure virtual
+  // function Sampler::SampleStack(), causing a crash.
+  void UnregisterIfRegistered();
+
   void DoSample();
 
   void SetHasProcessingThread(bool value) {

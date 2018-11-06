@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-function-tostring
-
 // There was a bug in CreateDynamicFunction where a stack overflow
 // situation caused an assertion failure.
 

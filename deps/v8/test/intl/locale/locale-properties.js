@@ -24,7 +24,7 @@ assertEquals('buddhist', locale.calendar);
 assertEquals('phonebk', locale.collation);
 assertEquals('h23', locale.hourCycle);
 assertEquals('upper', locale.caseFirst);
-assertEquals('true', locale.numeric);
+assertEquals(true, locale.numeric);
 assertEquals('roman', locale.numberingSystem);
 // Not defined, expected to undefined.
 assertEquals(undefined, locale.currency);

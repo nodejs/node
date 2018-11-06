@@ -50,9 +50,15 @@ class Pipeline : public AllStatic {
       OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
       MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-      wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
-      wasm::NativeModule* native_module, int function_index,
-      wasm::ModuleOrigin wasm_origin);
+      wasm::FunctionBody function_body, wasm::NativeModule* native_module,
+      int function_index);
+
+  // Run the pipeline on a machine graph and generate code.
+  static MaybeHandle<Code> GenerateCodeForWasmStub(
+      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+      Code::Kind kind, const char* debug_name,
+      const AssemblerOptions& assembler_options,
+      SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must
   // be valid, hence the given {graph} does not need to be schedulable.
@@ -76,8 +82,7 @@ class Pipeline : public AllStatic {
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
       CallDescriptor* call_descriptor, Graph* graph,
-      const AssemblerOptions& options, Schedule* schedule = nullptr,
-      SourcePositionTable* source_positions = nullptr);
+      const AssemblerOptions& options, Schedule* schedule = nullptr);
 
   // Run just the register allocator phases.
   V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(

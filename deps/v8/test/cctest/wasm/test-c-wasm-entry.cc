@@ -62,10 +62,11 @@ class CWasmEntryArgTester {
     Handle<Object> buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
                               isolate_);
     CHECK(!buffer_obj->IsHeapObject());
-    Handle<Object> call_args[]{
-        Handle<Object>::cast(isolate_->factory()->NewForeign(
-            wasm_code_->instruction_start(), TENURED)),
-        runner_.builder().instance_object(), buffer_obj};
+    Handle<Object> code_entry_obj(
+        reinterpret_cast<Object*>(wasm_code_->instruction_start()), isolate_);
+    CHECK(!code_entry_obj->IsHeapObject());
+    Handle<Object> call_args[]{code_entry_obj,
+                               runner_.builder().instance_object(), buffer_obj};
     static_assert(
         arraysize(call_args) == compiler::CWasmEntryParameters::kNumParameters,
         "adapt this test");
