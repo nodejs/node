@@ -17,7 +17,7 @@ tempFd(function(fd, close) {
 
 tempFd(function(fd, close) {
   fs.readFile(fd, 'utf8', function(err, data) {
-    assert.strictEqual('', data);
+    assert.strictEqual(data, '');
     close();
   });
 });
@@ -27,7 +27,7 @@ tempFdSync(function(fd) {
 });
 
 tempFdSync(function(fd) {
-  assert.strictEqual('', fs.readFileSync(fd, 'utf8'));
+  assert.strictEqual(fs.readFileSync(fd, 'utf8'), '');
 });
 
 function tempFd(callback) {
