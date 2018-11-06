@@ -11,4 +11,6 @@ runBenchmark('misc', [
   'n=1',
   'type=',
   'val=magyarország.icom.museum',
+  'script=test/fixtures/semicolon',
+  'mode=worker'
 ], { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
