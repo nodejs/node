@@ -610,7 +610,7 @@ apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_as
 
 tools/doc/node_modules: tools/doc/package.json
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
-		@echo "Skipping tools/doc/node_modules (no crypto)"; \
+		echo "Skipping tools/doc/node_modules (no crypto)"; \
 	else \
 		cd tools/doc && $(call available-node,$(run-npm-ci)) \
   fi
