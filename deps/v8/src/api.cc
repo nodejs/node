@@ -6981,6 +6981,23 @@ Local<v8::Array> v8::Array::New(Isolate* isolate, int length) {
   return Utils::ToLocal(obj);
 }
 
+Local<v8::Array> v8::Array::New(Isolate* isolate, Local<Value>* elements,
+                                size_t length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Factory* factory = i_isolate->factory();
+  LOG_API(i_isolate, Array, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  int len = static_cast<int>(length);
+
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(len);
+  for (int i = 0; i < len; i++) {
+    i::Handle<i::Object> element = Utils::OpenHandle(*elements[i]);
+    result->set(i, *element);
+  }
+
+  return Utils::ToLocal(
+      factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, len));
+}
 
 uint32_t v8::Array::Length() const {
   i::Handle<i::JSArray> obj = Utils::OpenHandle(this);
