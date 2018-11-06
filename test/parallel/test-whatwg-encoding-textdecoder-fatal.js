@@ -88,3 +88,15 @@ bad.forEach((t) => {
   assert(!new TextDecoder().fatal);
   assert(new TextDecoder('utf-8', { fatal: true }).fatal);
 }
+
+{
+  const notArrayBufferViewExamples = [false, {}, 1, '', new Error()];
+  notArrayBufferViewExamples.forEach((invalidInputType) => {
+    common.expectsError(() => {
+      new TextDecoder(undefined, null).decode(invalidInputType);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    });
+  });
+}
