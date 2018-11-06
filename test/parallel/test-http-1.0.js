@@ -58,9 +58,9 @@ function test(handler, request_generator, response_validator) {
 
 {
   function handler(req, res) {
-    assert.strictEqual('1.0', req.httpVersion);
-    assert.strictEqual(1, req.httpVersionMajor);
-    assert.strictEqual(0, req.httpVersionMinor);
+    assert.strictEqual(req.httpVersion, '1.0');
+    assert.strictEqual(req.httpVersionMajor, 1);
+    assert.strictEqual(req.httpVersionMinor, 0);
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end(body);
   }
@@ -72,8 +72,8 @@ function test(handler, request_generator, response_validator) {
   function response_validator(server_response, client_got_eof, timed_out) {
     const m = server_response.split('\r\n\r\n');
     assert.strictEqual(m[1], body);
-    assert.strictEqual(true, client_got_eof);
-    assert.strictEqual(false, timed_out);
+    assert.strictEqual(client_got_eof, true);
+    assert.strictEqual(timed_out, false);
   }
 
   test(handler, request_generator, response_validator);
@@ -86,9 +86,9 @@ function test(handler, request_generator, response_validator) {
 //
 {
   function handler(req, res) {
-    assert.strictEqual('1.0', req.httpVersion);
-    assert.strictEqual(1, req.httpVersionMajor);
-    assert.strictEqual(0, req.httpVersionMinor);
+    assert.strictEqual(req.httpVersion, '1.0');
+    assert.strictEqual(req.httpVersionMajor, 1);
+    assert.strictEqual(req.httpVersionMinor, 0);
     res.sendDate = false;
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('Hello, '); res._send('');
@@ -112,9 +112,9 @@ function test(handler, request_generator, response_validator) {
                               '\r\n' +
                               'Hello, world!';
 
-    assert.strictEqual(expected_response, server_response);
-    assert.strictEqual(true, client_got_eof);
-    assert.strictEqual(false, timed_out);
+    assert.strictEqual(server_response, expected_response);
+    assert.strictEqual(client_got_eof, true);
+    assert.strictEqual(timed_out, false);
   }
 
   test(handler, request_generator, response_validator);
@@ -122,9 +122,9 @@ function test(handler, request_generator, response_validator) {
 
 {
   function handler(req, res) {
-    assert.strictEqual('1.1', req.httpVersion);
-    assert.strictEqual(1, req.httpVersionMajor);
-    assert.strictEqual(1, req.httpVersionMinor);
+    assert.strictEqual(req.httpVersion, '1.1');
+    assert.strictEqual(req.httpVersionMajor, 1);
+    assert.strictEqual(req.httpVersionMinor, 1);
     res.sendDate = false;
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('Hello, '); res._send('');
@@ -155,9 +155,9 @@ function test(handler, request_generator, response_validator) {
                               '0\r\n' +
                               '\r\n';
 
-    assert.strictEqual(expected_response, server_response);
-    assert.strictEqual(true, client_got_eof);
-    assert.strictEqual(false, timed_out);
+    assert.strictEqual(server_response, expected_response);
+    assert.strictEqual(client_got_eof, true);
+    assert.strictEqual(timed_out, false);
   }
 
   test(handler, request_generator, response_validator);
