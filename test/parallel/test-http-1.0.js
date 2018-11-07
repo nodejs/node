@@ -112,7 +112,7 @@ function test(handler, request_generator, response_validator) {
                               '\r\n' +
                               'Hello, world!';
 
-    assert.strictEqual(expected_response, server_response);
+    assert.strictEqual(server_response, expected_response);
     assert.strictEqual(client_got_eof, true);
     assert.strictEqual(timed_out, false);
   }
