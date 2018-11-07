@@ -46,6 +46,17 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
   );
 });
 
+[1, 'a', {}, [], true, Infinity].forEach((i) => {
+  common.expectsError(
+    () => session.post('test', {}, i),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+      message: 'Callback must be a function'
+    }
+  );
+});
+
 common.expectsError(
   () => session.connect(),
   {
