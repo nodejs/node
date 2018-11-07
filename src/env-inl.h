@@ -895,7 +895,7 @@ void Environment::ForEachBaseObject(T&& iterator) {
 
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
-    return StrongPersistentToLocal(PropertyName ## _);                        \
+    return PersistentToLocal::Strong(PropertyName ## _);                      \
   }                                                                           \
   inline void Environment::set_ ## PropertyName(v8::Local<TypeName> value) {  \
     PropertyName ## _.Reset(isolate(), value);                                \

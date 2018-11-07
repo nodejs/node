@@ -182,14 +182,6 @@ extern std::shared_ptr<PerProcessOptions> per_process_opts;
 // Forward declaration
 class Environment;
 
-// If persistent.IsWeak() == false, then do not call persistent.Reset()
-// while the returned Local<T> is still in scope, it will destroy the
-// reference to the object.
-template <class TypeName>
-inline v8::Local<TypeName> PersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent);
-
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
 // If |info| is omitted, a new object is returned.

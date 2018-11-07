@@ -346,7 +346,8 @@ void AsyncWrap::WeakCallback(const v8::WeakCallbackInfo<DestroyParam>& info) {
   HandleScope scope(info.GetIsolate());
 
   std::unique_ptr<DestroyParam> p{info.GetParameter()};
-  Local<Object> prop_bag = PersistentToLocal(info.GetIsolate(), p->propBag);
+  Local<Object> prop_bag = PersistentToLocal::Default(info.GetIsolate(),
+                                                      p->propBag);
   Local<Value> val;
 
   if (!prop_bag->Get(p->env->context(), p->env->destroyed_string())

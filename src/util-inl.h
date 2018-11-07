@@ -166,25 +166,25 @@ constexpr ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
 }
 
 template <class TypeName>
-inline v8::Local<TypeName> PersistentToLocal(
+inline v8::Local<TypeName> PersistentToLocal::Default(
     v8::Isolate* isolate,
     const Persistent<TypeName>& persistent) {
   if (persistent.IsWeak()) {
-    return WeakPersistentToLocal(isolate, persistent);
+    return PersistentToLocal::Weak(isolate, persistent);
   } else {
-    return StrongPersistentToLocal(persistent);
+    return PersistentToLocal::Strong(persistent);
   }
 }
 
 template <class TypeName>
-inline v8::Local<TypeName> StrongPersistentToLocal(
+inline v8::Local<TypeName> PersistentToLocal::Strong(
     const Persistent<TypeName>& persistent) {
   return *reinterpret_cast<v8::Local<TypeName>*>(
       const_cast<Persistent<TypeName>*>(&persistent));
 }
 
 template <class TypeName>
-inline v8::Local<TypeName> WeakPersistentToLocal(
+inline v8::Local<TypeName> PersistentToLocal::Weak(
     v8::Isolate* isolate,
     const Persistent<TypeName>& persistent) {
   return v8::Local<TypeName>::New(isolate, persistent);

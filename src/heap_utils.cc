@@ -26,7 +26,7 @@ class JSGraphJSNode : public EmbedderGraph::Node {
   const char* Name() override { return "<JS Node>"; }
   size_t SizeInBytes() override { return 0; }
   bool IsEmbedderNode() override { return false; }
-  Local<Value> JSValue() { return StrongPersistentToLocal(persistent_); }
+  Local<Value> JSValue() { return PersistentToLocal::Strong(persistent_); }
 
   int IdentityHash() {
     Local<Value> v = JSValue();
