@@ -903,9 +903,10 @@ changes:
     An array of strings, `Buffer`s or `TypedArray`s or `DataView`s, or a
     single `Buffer` or `TypedArray` or `DataView` containing the supported ALPN
     protocols. `Buffer`s should have the format `[len][name][len][name]...`
-    e.g. `0x05hello0x05world`, where the first byte is the length of the next
-    protocol name. Passing an array is usually much simpler, e.g.
-    `['hello', 'world']`.
+    e.g. `'\x08http/1.1\x08http/1.0'`, where the `len` byte is the length of the
+    next protocol name. Passing an array is usually much simpler, e.g.
+    `['http/1.1', 'http/1.0']`. Protocols earlier in the list have higher
+    preference than those later.
   * `servername`: {string} Server name for the SNI (Server Name Indication) TLS
     extension. It is the name of the host being connected to, and must be a host
     name, and not an IP address. It can be used by a multi-homed server to
