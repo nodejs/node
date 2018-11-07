@@ -37,8 +37,8 @@ function testLeak(endFn, callback) {
     }
 
     assert.strictEqual(
-      0,
       openCount,
+      0,
       `no leaked file descriptors using ${endFn}() (got ${openCount})`
     );
 
