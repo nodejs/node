@@ -9,7 +9,6 @@ prefix known_issues
 [$system==win32]
 
 [$system==linux]
-test-vm-timeout-escape-nexttick: PASS,FLAKY
 test-vm-timeout-escape-promise: PASS,FLAKY
 test-vm-timeout-escape-queuemicrotask: PASS,FLAKY
 
