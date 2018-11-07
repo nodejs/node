@@ -309,7 +309,7 @@ a readable stream, adding this writable to its set of destinations.
 const writer = getWritableStreamSomehow();
 const reader = getReadableStreamSomehow();
 writer.on('pipe', (src) => {
-  console.log('something is piping into the writer');
+  console.log('Something is piping into the writer.');
   assert.equal(src, reader);
 });
 reader.pipe(writer);
@@ -551,7 +551,7 @@ function write(data, cb) {
 
 // Wait for cb to be called before doing any other write.
 write('hello', () => {
-  console.log('write completed, do more writes now');
+  console.log('Write completed, do more writes now.');
 });
 ```
 
@@ -1091,7 +1091,7 @@ const readable = getReadableStreamSomehow();
 readable.setEncoding('utf8');
 readable.on('data', (chunk) => {
   assert.equal(typeof chunk, 'string');
-  console.log('got %d characters of string data', chunk.length);
+  console.log('Got %d characters of string data:', chunk.length);
 });
 ```
 
@@ -1119,9 +1119,9 @@ const writable = fs.createWriteStream('file.txt');
 // but only for the first second
 readable.pipe(writable);
 setTimeout(() => {
-  console.log('Stop writing to file.txt');
+  console.log('Stop writing to file.txt.');
   readable.unpipe(writable);
-  console.log('Manually close the file stream');
+  console.log('Manually close the file stream.');
   writable.end();
 }, 1000);
 ```
@@ -1338,9 +1338,9 @@ const rs = fs.createReadStream('archive.tar');
 
 finished(rs, (err) => {
   if (err) {
-    console.error('Stream failed', err);
+    console.error('Stream failed.', err);
   } else {
-    console.log('Stream is done reading');
+    console.log('Stream is done reading.');
   }
 });
 
@@ -1360,7 +1360,7 @@ const rs = fs.createReadStream('archive.tar');
 
 async function run() {
   await finished(rs);
-  console.log('Stream is done reading');
+  console.log('Stream is done reading.');
 }
 
 run().catch(console.error);
@@ -1395,9 +1395,9 @@ pipeline(
   fs.createWriteStream('archive.tar.gz'),
   (err) => {
     if (err) {
-      console.error('Pipeline failed', err);
+      console.error('Pipeline failed.', err);
     } else {
-      console.log('Pipeline succeeded');
+      console.log('Pipeline succeeded.');
     }
   }
 );
@@ -1414,7 +1414,7 @@ async function run() {
     zlib.createGzip(),
     fs.createWriteStream('archive.tar.gz')
   );
-  console.log('Pipeline succeeded');
+  console.log('Pipeline succeeded.');
 }
 
 run().catch(console.error);
