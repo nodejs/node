@@ -252,6 +252,11 @@ Environment::Environment(IsolateData* isolate_data,
   isolate()->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
 }
 
+CompileFnEntry::CompileFnEntry(Environment* env, uint32_t id)
+    : env(env), id(id) {
+  env->compile_fn_entries.insert(this);
+}
+
 Environment::~Environment() {
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
@@ -259,6 +264,12 @@ Environment::~Environment() {
   // Make sure there are no re-used libuv wrapper objects.
   // CleanupHandles() should have removed all of them.
   CHECK(file_handle_read_wrap_freelist_.empty());
+
+  // dispose the Persistent references to the compileFunction
+  // wrappers used in the dynamic import callback
+  for (auto& entry : compile_fn_entries) {
+    delete entry;
+  }
 
   HandleScope handle_scope(isolate());
 

@@ -27,9 +27,9 @@ function nextdir() {
   const fixtureCoverage = getFixtureCoverage('basic.js', coverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
   // second branch did not execute.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
 // Outputs coverage when process.exit(1) exits process.
@@ -43,9 +43,9 @@ function nextdir() {
   const fixtureCoverage = getFixtureCoverage('exit-1.js', coverageDirectory);
   assert.ok(fixtureCoverage, 'coverage not found for file');
   // first branch executed.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
   // second branch did not execute.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
 // Outputs coverage when process.kill(process.pid, "SIGINT"); exits process.
@@ -61,9 +61,9 @@ function nextdir() {
   const fixtureCoverage = getFixtureCoverage('sigint.js', coverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
   // second branch did not execute.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
 // outputs coverage from subprocess.
@@ -78,9 +78,9 @@ function nextdir() {
                                              coverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
-  assert.strictEqual(fixtureCoverage.functions[2].ranges[0].count, 1);
+  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
   // second branch did not execute.
-  assert.strictEqual(fixtureCoverage.functions[2].ranges[1].count, 0);
+  assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
 }
 
 // outputs coverage from worker.
@@ -95,9 +95,9 @@ function nextdir() {
                                              coverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
-  assert.strictEqual(fixtureCoverage.functions[2].ranges[0].count, 1);
+  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
   // second branch did not execute.
-  assert.strictEqual(fixtureCoverage.functions[2].ranges[1].count, 0);
+  assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
 }
 
 // Does not output coverage if NODE_V8_COVERAGE is empty.
@@ -125,7 +125,7 @@ function nextdir() {
                                              coverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
 }
 
 // Outputs coverage when the coverage directory is not absolute.
@@ -144,9 +144,9 @@ function nextdir() {
                                              absoluteCoverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
   // second branch did not execute.
-  assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
 // Extracts the coverage object for a given fixture name.
