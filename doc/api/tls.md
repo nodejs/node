@@ -906,7 +906,10 @@ changes:
     protocol name. Passing an array is usually much simpler, e.g.
     `['hello', 'world']`.
   * `servername`: {string} Server name for the SNI (Server Name Indication) TLS
-    extension. It must be a host name, and not an IP address.
+    extension. It is the name of the host being connected to, and must be a host
+    name, and not an IP address. It can be used by a multi-homed server to
+    choose the correct certificate to present to the client, see the
+    `SNICallback` option to [`tls.createServer()`][].
   * `checkServerIdentity(servername, cert)` {Function} A callback function
     to be used (instead of the builtin `tls.checkServerIdentity()` function)
     when checking the server's hostname (or the provided `servername` when
