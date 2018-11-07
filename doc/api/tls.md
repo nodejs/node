@@ -938,22 +938,24 @@ The `callback` function, if specified, will be added as a listener for the
 
 `tls.connect()` returns a [`tls.TLSSocket`][] object.
 
-Here is an example of a client of echo server as described in
+The following illustrates a client for the echo server example from
 [`tls.createServer()`][]:
 
 ```js
-// This example assumes that you have created an echo server that is
-// listening on port 8000.
+// Assumes an echo server that is listening on port 8000.
 const tls = require('tls');
 const fs = require('fs');
 
 const options = {
-  // Necessary only if using the client certificate authentication
+  // Necessary only if the server requires client certificate authentication.
   key: fs.readFileSync('client-key.pem'),
   cert: fs.readFileSync('client-cert.pem'),
 
-  // Necessary only if the server uses the self-signed certificate
-  ca: [ fs.readFileSync('server-cert.pem') ]
+  // Necessary only if the server uses a self-signed certificate.
+  ca: [ fs.readFileSync('server-cert.pem') ],
+
+  // Necessary only if the server's cert isn't for "localhost".
+  checkServerIdentity: () => { return null; },
 };
 
 const socket = tls.connect(8000, options, () => {
@@ -967,34 +969,7 @@ socket.on('data', (data) => {
   console.log(data);
 });
 socket.on('end', () => {
-  console.log('client ends');
-});
-```
-
-Or
-
-```js
-// This example assumes that you have created an echo server that is
-// listening on port 8000.
-const tls = require('tls');
-const fs = require('fs');
-
-const options = {
-  pfx: fs.readFileSync('client.pfx')
-};
-
-const socket = tls.connect(8000, options, () => {
-  console.log('client connected',
-              socket.authorized ? 'authorized' : 'unauthorized');
-  process.stdin.pipe(socket);
-  process.stdin.resume();
-});
-socket.setEncoding('utf8');
-socket.on('data', (data) => {
-  console.log(data);
-});
-socket.on('end', () => {
-  console.log('client ends');
+  console.log('server ends connection');
 });
 ```
 
@@ -1217,10 +1192,10 @@ const options = {
   key: fs.readFileSync('server-key.pem'),
   cert: fs.readFileSync('server-cert.pem'),
 
-  // This is necessary only if using the client certificate authentication.
+  // This is necessary only if using client certificate authentication.
   requestCert: true,
 
-  // This is necessary only if the client uses the self-signed certificate.
+  // This is necessary only if the client uses a self-signed certificate.
   ca: [ fs.readFileSync('client-cert.pem') ]
 };
 
@@ -1236,36 +1211,8 @@ server.listen(8000, () => {
 });
 ```
 
-Or
-
-```js
-const tls = require('tls');
-const fs = require('fs');
-
-const options = {
-  pfx: fs.readFileSync('server.pfx'),
-
-  // This is necessary only if using the client certificate authentication.
-  requestCert: true,
-};
-
-const server = tls.createServer(options, (socket) => {
-  console.log('server connected',
-              socket.authorized ? 'authorized' : 'unauthorized');
-  socket.write('welcome!\n');
-  socket.setEncoding('utf8');
-  socket.pipe(socket);
-});
-server.listen(8000, () => {
-  console.log('server bound');
-});
-```
-
-This server can be tested by connecting to it using `openssl s_client`:
-
-```sh
-openssl s_client -connect 127.0.0.1:8000
-```
+The server can be tested by connecting to it using the example client from
+[`tls.connect()`][].
 
 ## tls.getCiphers()
 <!-- YAML
