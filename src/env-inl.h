@@ -461,6 +461,9 @@ inline uint32_t Environment::get_next_module_id() {
 inline uint32_t Environment::get_next_script_id() {
   return script_id_counter_++;
 }
+inline uint32_t Environment::get_next_function_id() {
+  return function_id_counter_++;
+}
 
 Environment::ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
     Environment* env)

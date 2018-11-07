@@ -285,6 +285,15 @@ void ContextifyContext::WeakCallback(
   delete context;
 }
 
+void ContextifyContext::WeakCallbackCompileFn(
+    const WeakCallbackInfo<CompileFnEntry>& data) {
+  CompileFnEntry* entry = data.GetParameter();
+  if (entry->env->compile_fn_entries.erase(entry) != 0) {
+    entry->env->id_to_function_map.erase(entry->id);
+    delete entry;
+  }
+}
+
 // static
 ContextifyContext* ContextifyContext::ContextFromContextifiedSandbox(
     Environment* env,
@@ -1027,7 +1036,30 @@ void ContextifyContext::CompileFunction(
       data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
 
-  ScriptOrigin origin(filename, line_offset, column_offset, True(isolate));
+  // Get the function id
+  uint32_t id = env->get_next_function_id();
+
+  // Set host_defined_options
+  Local<PrimitiveArray> host_defined_options =
+      PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
+  host_defined_options->Set(
+      isolate,
+      loader::HostDefinedOptions::kType,
+      Number::New(isolate, loader::ScriptType::kFunction));
+  host_defined_options->Set(
+      isolate, loader::HostDefinedOptions::kID, Number::New(isolate, id));
+
+  ScriptOrigin origin(filename,
+                      line_offset,       // line offset
+                      column_offset,     // column offset
+                      True(isolate),     // is cross origin
+                      Local<Integer>(),  // script id
+                      Local<Value>(),    // source map URL
+                      False(isolate),    // is opaque (?)
+                      False(isolate),    // is WASM
+                      False(isolate),    // is ES Module
+                      host_defined_options);
+
   ScriptCompiler::Source source(code, origin, cached_data);
   ScriptCompiler::CompileOptions options;
   if (source.GetCachedData() == nullptr) {
@@ -1061,38 +1093,45 @@ void ContextifyContext::CompileFunction(
     }
   }
 
-  MaybeLocal<Function> maybe_fun = ScriptCompiler::CompileFunctionInContext(
+  MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunctionInContext(
       parsing_context, &source, params.size(), params.data(),
       context_extensions.size(), context_extensions.data(), options);
 
-  Local<Function> fun;
-  if (maybe_fun.IsEmpty() || !maybe_fun.ToLocal(&fun)) {
+  if (maybe_fn.IsEmpty()) {
     DecorateErrorStack(env, try_catch);
     try_catch.ReThrow();
     return;
   }
+  Local<Function> fn = maybe_fn.ToLocalChecked();
+  env->id_to_function_map.emplace(std::piecewise_construct,
+                                  std::make_tuple(id),
+                                  std::make_tuple(isolate, fn));
+  CompileFnEntry* gc_entry = new CompileFnEntry(env, id);
+  env->id_to_function_map[id].SetWeak(gc_entry,
+      WeakCallbackCompileFn,
+      v8::WeakCallbackType::kParameter);
 
   if (produce_cached_data) {
     const std::unique_ptr<ScriptCompiler::CachedData> cached_data(
-        ScriptCompiler::CreateCodeCacheForFunction(fun));
+        ScriptCompiler::CreateCodeCacheForFunction(fn));
     bool cached_data_produced = cached_data != nullptr;
     if (cached_data_produced) {
       MaybeLocal<Object> buf = Buffer::Copy(
           env,
           reinterpret_cast<const char*>(cached_data->data),
           cached_data->length);
-      if (fun->Set(
+      if (fn->Set(
           parsing_context,
           env->cached_data_string(),
           buf.ToLocalChecked()).IsNothing()) return;
     }
-    if (fun->Set(
+    if (fn->Set(
         parsing_context,
         env->cached_data_produced_string(),
         Boolean::New(isolate, cached_data_produced)).IsNothing()) return;
   }
 
-  args.GetReturnValue().Set(fun);
+  args.GetReturnValue().Set(fn);
 }
 
 

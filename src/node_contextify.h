@@ -61,6 +61,8 @@ class ContextifyContext {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WeakCallback(
       const v8::WeakCallbackInfo<ContextifyContext>& data);
+  static void WeakCallbackCompileFn(
+      const v8::WeakCallbackInfo<CompileFnEntry>& data);
   static void PropertyGetterCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& args);
