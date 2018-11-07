@@ -59,3 +59,12 @@ common.expectsError(
 
 // send([buf1, ..], port, host)
 assert.throws(() => { sock.send([buf, 23], 12345, host); }, TypeError);
+common.expectsError(
+  () =>  { sock.send([buf, 23], 12345, host); },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "buffer list arguments" argument must be one of type ' +
+    'Buffer or string. Received type object'
+  }
+);
