@@ -271,10 +271,12 @@ See `common.expectWarning()` for usage.
 Indicates whether 'opensslCli' is supported.
 
 ### platformTimeout(ms)
-* `ms` [&lt;number>]
-* return [&lt;number>]
+* `ms` [&lt;number>|&lt;bigint>]
+* return [&lt;number>|&lt;bigint>]
 
-Platform normalizes timeout.
+Returns a timeout value based on detected conditions. For example, a debug build
+may need extra time so the returned value will be larger than on a release
+build.
 
 ### PIPE
 * [&lt;string>]
