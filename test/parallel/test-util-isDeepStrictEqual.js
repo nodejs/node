@@ -459,10 +459,13 @@ utilIsDeepStrict(-0, -0);
   const obj1 = { [symbol1]: 1 };
   const obj2 = { [symbol1]: 1 };
   const obj3 = { [Symbol()]: 1 };
+  const obj4 = { };
   // Add a non enumerable symbol as well. It is going to be ignored!
   Object.defineProperty(obj2, Symbol(), { value: 1 });
+  Object.defineProperty(obj4, symbol1, { value: 1 });
   notUtilIsDeepStrict(obj1, obj3);
   utilIsDeepStrict(obj1, obj2);
+  notUtilIsDeepStrict(obj1, obj4);
   // TypedArrays have a fast path. Test for this as well.
   const a = new Uint8Array(4);
   const b = new Uint8Array(4);
