@@ -2348,7 +2348,8 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     if (w->ocsp_response_.IsEmpty())
       return SSL_TLSEXT_ERR_NOACK;
 
-    Local<Object> obj = PersistentToLocal(env->isolate(), w->ocsp_response_);
+    Local<Object> obj = PersistentToLocal::Default(env->isolate(),
+                                                   w->ocsp_response_);
     char* resp = Buffer::Data(obj);
     size_t len = Buffer::Length(obj);
 

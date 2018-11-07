@@ -165,31 +165,6 @@ constexpr ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
   return ContainerOfHelper<Inner, Outer>(field, pointer);
 }
 
-template <class TypeName>
-inline v8::Local<TypeName> PersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent) {
-  if (persistent.IsWeak()) {
-    return WeakPersistentToLocal(isolate, persistent);
-  } else {
-    return StrongPersistentToLocal(persistent);
-  }
-}
-
-template <class TypeName>
-inline v8::Local<TypeName> StrongPersistentToLocal(
-    const Persistent<TypeName>& persistent) {
-  return *reinterpret_cast<v8::Local<TypeName>*>(
-      const_cast<Persistent<TypeName>*>(&persistent));
-}
-
-template <class TypeName>
-inline v8::Local<TypeName> WeakPersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent) {
-  return v8::Local<TypeName>::New(isolate, persistent);
-}
-
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const char* data,
                                            int length) {

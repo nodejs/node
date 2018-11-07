@@ -30,7 +30,7 @@ struct napi_env__ {
   node::Persistent<v8::Context> context_persistent;
 
   inline v8::Local<v8::Context> context() const {
-    return StrongPersistentToLocal(context_persistent);
+    return node::PersistentToLocal::Strong(context_persistent);
   }
 
   inline node::Environment* node_env() const {

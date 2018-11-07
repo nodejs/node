@@ -62,7 +62,7 @@ Persistent<v8::Object>& BaseObject::persistent() {
 
 
 v8::Local<v8::Object> BaseObject::object() const {
-  return PersistentToLocal(env_->isolate(), persistent_handle_);
+  return PersistentToLocal::Default(env_->isolate(), persistent_handle_);
 }
 
 v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) const {
