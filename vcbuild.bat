@@ -204,7 +204,7 @@ call :getnodeversion || exit /b 1
 if defined TAG set configure_flags=%configure_flags% --tag=%TAG%
 
 if not "%target%"=="Clean" goto skip-clean
-rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
+rmdir /Q /S "%~dp0%config%\%TARGET_NAME%" > nul 2> nul
 :skip-clean
 
 if defined noprojgen if defined nobuild if not defined sign if not defined msi goto licensertf
@@ -339,32 +339,34 @@ if not defined stage_package goto install-doctools
 
 echo Creating package...
 cd Release
-rmdir /S /Q node-v%FULLVERSION%-win-%target_arch% > nul 2> nul
-mkdir node-v%FULLVERSION%-win-%target_arch% > nul 2> nul
-mkdir node-v%FULLVERSION%-win-%target_arch%\node_modules > nul 2>nul
+rmdir /S /Q %TARGET_NAME% > nul 2> nul
+mkdir %TARGET_NAME% > nul 2> nul
+mkdir %TARGET_NAME%\node_modules > nul 2>nul
 
-copy /Y node.exe node-v%FULLVERSION%-win-%target_arch%\ > nul
+copy /Y node.exe %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy node.exe && goto package_error
-copy /Y ..\LICENSE node-v%FULLVERSION%-win-%target_arch%\ > nul
+copy /Y ..\LICENSE %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy LICENSE && goto package_error
-copy /Y ..\README.md node-v%FULLVERSION%-win-%target_arch%\ > nul
+copy /Y ..\README.md %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy README.md && goto package_error
-copy /Y ..\CHANGELOG.md node-v%FULLVERSION%-win-%target_arch%\ > nul
+copy /Y ..\CHANGELOG.md %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy CHANGELOG.md && goto package_error
-robocopy ..\deps\npm node-v%FULLVERSION%-win-%target_arch%\node_modules\npm /e /xd test > nul
+robocopy ..\deps\npm %TARGET_NAME%\node_modules\npm /e /xd test > nul
 if errorlevel 8 echo Cannot copy npm package && goto package_error
-copy /Y ..\deps\npm\bin\npm node-v%FULLVERSION%-win-%target_arch%\ > nul
+copy /Y ..\deps\npm\bin\npm %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy npm && goto package_error
-copy /Y ..\deps\npm\bin\npm.cmd node-v%FULLVERSION%-win-%target_arch%\ > nul
+copy /Y ..\deps\npm\bin\npm.cmd %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy npm.cmd && goto package_error
-copy /Y ..\deps\npm\bin\npx node-v%FULLVERSION%-win-%target_arch%\ > nul
+copy /Y ..\deps\npm\bin\npx %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy npx && goto package_error
-copy /Y ..\deps\npm\bin\npx.cmd node-v%FULLVERSION%-win-%target_arch%\ > nul
+copy /Y ..\deps\npm\bin\npx.cmd %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy npx.cmd && goto package_error
-copy /Y ..\tools\msvs\nodevars.bat node-v%FULLVERSION%-win-%target_arch%\ > nul
+copy /Y ..\tools\msvs\nodevars.bat %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy nodevars.bat && goto package_error
+copy /Y ..\tools\msvs\install_tools\*.* %TARGET_NAME%\ > nul
+if errorlevel 1 echo Cannot copy install_tools scripts && goto package_error
 if not defined noetw (
-    copy /Y ..\src\res\node_etw_provider.man node-v%FULLVERSION%-win-%target_arch%\ > nul
+    copy /Y ..\src\res\node_etw_provider.man %TARGET_NAME%\ > nul
     if errorlevel 1 echo Cannot copy node_etw_provider.man && goto package_error
 )
 cd ..
@@ -372,15 +374,15 @@ cd ..
 :package
 if not defined package goto msi
 cd Release
-echo Creating node-v%FULLVERSION%-win-%target_arch%.7z
-del node-v%FULLVERSION%-win-%target_arch%.7z > nul 2> nul
-7z a -r -mx9 -t7z node-v%FULLVERSION%-win-%target_arch%.7z node-v%FULLVERSION%-win-%target_arch% > nul
-if errorlevel 1 echo Cannot create node-v%FULLVERSION%-win-%target_arch%.7z && goto package_error
+echo Creating %TARGET_NAME%.7z
+del %TARGET_NAME%.7z > nul 2> nul
+7z a -r -mx9 -t7z %TARGET_NAME%.7z %TARGET_NAME% > nul
+if errorlevel 1 echo Cannot create %TARGET_NAME%.7z && goto package_error
 
-echo Creating node-v%FULLVERSION%-win-%target_arch%.zip
-del node-v%FULLVERSION%-win-%target_arch%.zip > nul 2> nul
-7z a -r -mx9 -tzip node-v%FULLVERSION%-win-%target_arch%.zip node-v%FULLVERSION%-win-%target_arch% > nul
-if errorlevel 1 echo Cannot create node-v%FULLVERSION%-win-%target_arch%.zip && goto package_error
+echo Creating %TARGET_NAME%.zip
+del %TARGET_NAME%.zip > nul 2> nul
+7z a -r -mx9 -tzip %TARGET_NAME%.zip %TARGET_NAME% > nul
+if errorlevel 1 echo Cannot create %TARGET_NAME%.zip && goto package_error
 
 echo Creating node_pdb.7z
 del node_pdb.7z > nul 2> nul
@@ -433,13 +435,13 @@ scp -F %SSHCONFIG% Release\node_pdb.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%F
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z
 if errorlevel 1 goto exit
-scp -F %SSHCONFIG% Release\node-v%FULLVERSION%-win-%target_arch%.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.7z
+scp -F %SSHCONFIG% Release\%TARGET_NAME%.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z
 if errorlevel 1 goto exit
-scp -F %SSHCONFIG% Release\node-v%FULLVERSION%-win-%target_arch%.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.zip
+scp -F %SSHCONFIG% Release\%TARGET_NAME%.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% node-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/
 if errorlevel 1 goto exit
-ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.zip.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.7z.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.* nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.* nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
 if errorlevel 1 goto exit
 
 
@@ -733,4 +735,5 @@ set FULLVERSION=%NODE_VERSION%-%TAG%
 
 :distexit
 if not defined DISTTYPEDIR set DISTTYPEDIR=%DISTTYPE%
+set TARGET_NAME=node-v%FULLVERSION%-win-%target_arch%
 goto :EOF
