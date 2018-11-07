@@ -313,8 +313,8 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     UpdateWriteResult();
 
     // call the write() cb
-    Local<Function> cb = PersistentToLocal(env()->isolate(),
-                                           write_js_callback_);
+    Local<Function> cb = PersistentToLocal::Default(env()->isolate(),
+                                                    write_js_callback_);
     MakeCallback(cb, 0, nullptr);
 
     if (pending_close_)

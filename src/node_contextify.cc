@@ -767,7 +767,7 @@ void ContextifyScript::CreateCachedData(
   ContextifyScript* wrapped_script;
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
   Local<UnboundScript> unbound_script =
-      PersistentToLocal(env->isolate(), wrapped_script->script_);
+      PersistentToLocal::Default(env->isolate(), wrapped_script->script_);
   std::unique_ptr<ScriptCompiler::CachedData> cached_data(
       ScriptCompiler::CreateCodeCache(unbound_script));
   if (!cached_data) {
@@ -867,7 +867,7 @@ bool ContextifyScript::EvalMachine(Environment* env,
   ContextifyScript* wrapped_script;
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder(), false);
   Local<UnboundScript> unbound_script =
-      PersistentToLocal(env->isolate(), wrapped_script->script_);
+      PersistentToLocal::Default(env->isolate(), wrapped_script->script_);
   Local<Script> script = unbound_script->BindToCurrentContext();
 
   MaybeLocal<Value> result;

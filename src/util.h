@@ -201,28 +201,6 @@ template <typename Inner, typename Outer>
 inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
                                                    Inner* pointer);
 
-// If persistent.IsWeak() == false, then do not call persistent.Reset()
-// while the returned Local<T> is still in scope, it will destroy the
-// reference to the object.
-template <class TypeName>
-inline v8::Local<TypeName> PersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent);
-
-// Unchecked conversion from a non-weak Persistent<T> to Local<T>,
-// use with care!
-//
-// Do not call persistent.Reset() while the returned Local<T> is still in
-// scope, it will destroy the reference to the object.
-template <class TypeName>
-inline v8::Local<TypeName> StrongPersistentToLocal(
-    const Persistent<TypeName>& persistent);
-
-template <class TypeName>
-inline v8::Local<TypeName> WeakPersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent);
-
 // Convenience wrapper around v8::String::NewFromOneByte().
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const char* data,

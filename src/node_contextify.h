@@ -40,7 +40,7 @@ class ContextifyContext {
   }
 
   inline v8::Local<v8::Context> context() const {
-    return PersistentToLocal(env()->isolate(), context_);
+    return PersistentToLocal::Default(env()->isolate(), context_);
   }
 
   inline v8::Local<v8::Object> global_proxy() const {
