@@ -15,7 +15,7 @@ fs.writeFileSync(srcPath, 'hello world');
 function callback(err) {
   assert.ifError(err);
   const dstContent = fs.readFileSync(dstPath, 'utf8');
-  assert.strictEqual('hello world', dstContent);
+  assert.strictEqual(dstContent, 'hello world');
 }
 
 fs.link(srcPath, dstPath, common.mustCall(callback));
