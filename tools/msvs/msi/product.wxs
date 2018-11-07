@@ -387,8 +387,8 @@
 
     <UIRef Id="WixUI_Common"/>
     <UIRef Id="WixUI_ErrorProgressText"/>
-    <WixVariable Id="WixUIBannerBmp" Value="..\..\..\doc\thin-white-stripe.jpg"/>
-    <WixVariable Id="WixUIDialogBmp" Value="..\..\..\doc\full-white-stripe.jpg"/>
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.RepoDir)\doc\thin-white-stripe.jpg"/>
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.RepoDir)\doc\full-white-stripe.jpg"/>
     <WixVariable Id="WixUILicenseRtf" Value="$(var.SourceDir)\LICENSE.rtf"/>
   </Product>
 
