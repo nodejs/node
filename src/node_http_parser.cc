@@ -153,11 +153,6 @@ class Parser : public AsyncWrap, public StreamListener {
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTPPARSER),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
-#ifdef NODE_EXPERIMENTAL_HTTP
-    executing_ = 0;
-    pending_pause_ = false;
-    header_nread_ = 0;
-#endif  /* NODE_EXPERIMENTAL_HTTP */
     Init(type);
   }
 
@@ -530,7 +525,7 @@ class Parser : public AsyncWrap, public StreamListener {
     CHECK_EQ(env, parser->env());
 
 #ifdef NODE_EXPERIMENTAL_HTTP
-    if (parser->executing_) {
+    if (parser->execute_depth_) {
       parser->pending_pause_ = should_pause;
       return;
     }
@@ -656,23 +651,23 @@ class Parser : public AsyncWrap, public StreamListener {
 
 #ifdef NODE_EXPERIMENTAL_HTTP
     // Do not allow re-entering `http_parser_execute()`
-    CHECK_EQ(executing_, 0);
+    CHECK_EQ(execute_depth_, 0);
 
-    executing_++;
+    execute_depth_++;
     if (data == nullptr) {
       err = llhttp_finish(&parser_);
     } else {
       err = llhttp_execute(&parser_, data, len);
       Save();
     }
-    executing_--;
+    execute_depth_--;
 
     // Calculate bytes read and resume after Upgrade/CONNECT pause
     size_t nread = len;
     if (err != HPE_OK) {
       nread = llhttp_get_error_pos(&parser_) - data;
 
-      /* This isn't a real pause, just a way to stop parsing early */
+      // This isn't a real pause, just a way to stop parsing early.
       if (err == HPE_PAUSED_UPGRADE) {
         err = HPE_OK;
         llhttp_resume_after_upgrade(&parser_);
@@ -806,7 +801,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   int MaybePause() {
 #ifdef NODE_EXPERIMENTAL_HTTP
-    CHECK_NE(executing_, 0);
+    CHECK_NE(execute_depth_, 0);
 
     if (!pending_pause_) {
       return 0;
@@ -833,9 +828,9 @@ class Parser : public AsyncWrap, public StreamListener {
   size_t current_buffer_len_;
   char* current_buffer_data_;
 #ifdef NODE_EXPERIMENTAL_HTTP
-  unsigned int executing_;
-  bool pending_pause_;
-  uint64_t header_nread_;
+  unsigned int execute_depth_ = 0;
+  bool pending_pause_ = false;
+  uint64_t header_nread_ = 0;
 #endif  /* NODE_EXPERIMENTAL_HTTP */
 
   // These are helper functions for filling `http_parser_settings`, which turn

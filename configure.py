@@ -1106,7 +1106,7 @@ def configure_node(o):
     o['variables']['node_target_type'] = 'executable'
 
   o['variables']['node_experimental_http_parser'] = \
-      'true' if options.experimental_http_parser else 'false'
+      b(options.experimental_http_parser)
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
