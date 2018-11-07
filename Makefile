@@ -709,6 +709,7 @@ LINK_DATA = out/doc/apilinks.json
 gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
 		--apilinks=$(LINK_DATA) $< --output-directory=out/doc/api
 gen-apilink = tools/doc/apilinks.js $(LINK_DATA) $(wildcard lib/*.js)
+lib-files = $(wildcard lib/*.js)
 
 $(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.js
 	$(call available-node, $(gen-apilink))
@@ -884,6 +885,16 @@ check-xz:
 	@exit 1
 endif
 endif
+DEST_DIR := nodejs/$(DISTTYPEDIR)/$(FULLVERSION)
+
+define do_upload =
+	ssh $(STAGINGSERVER) "mkdir -p $(DEST_DIR)"
+	chmod 664 $(1)
+	scp -p $^ $(STAGINGSERVER):$(DEST_DIR)/$(1)
+	ssh $(STAGINGSERVER) "touch $(DEST_DIR)/$(1).done"
+	ssh $(STAGINGSERVER) "touch $(DEST_DIR)/$(1)*"
+endef
+do_upload_recepie = $(call do_upload, $^)
 
 .PHONY: release-only
 release-only: check-xz
@@ -968,16 +979,11 @@ $(PKG): release-only
 		--package-path $(MACOSOUTDIR)/pkgs ./$(PKG)
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
-.PHONY: pkg
 # Builds the macOS installer for releases.
-pkg: $(PKG)
-
 # Note: this is strictly for release builds on release machines only.
-pkg-upload: pkg
-	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
-	chmod 664 $(TARNAME).pkg
-	scp -p $(TARNAME).pkg $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg.done"
+.PHONY: $(PKG)
+pkg-upload: $(PKG)
+	$(do_upload_recepie)
 
 $(TARBALL): release-only $(NODE_EXE) doc
 	git checkout-index -a -f --prefix=$(TARNAME)/
@@ -1017,27 +1023,22 @@ ifeq ($(XZ), 1)
 endif
 	$(RM) $(TARNAME).tar
 
-.PHONY: tar
-tar: $(TARBALL) ## Create a source tarball.
 
 # Note: this is strictly for release builds on release machines only.
-tar-upload: tar
-	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
-	chmod 664 $(TARNAME).tar.gz
-	scp -p $(TARNAME).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz.done"
+.PHONY: tar-upload
+tar-upload: $(TARBALL)
+	$(do_upload_recepie)
 ifeq ($(XZ), 1)
-	chmod 664 $(TARNAME).tar.xz
-	scp -p $(TARNAME).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz.done"
+	$(call do_upload $(TARNAME).tar.xz)
 endif
 
 # Note: this is strictly for release builds on release machines only.
 doc-upload: doc
-	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/"
+	ssh $(STAGINGSERVER) "mkdir -p $(DEST_DIR)/docs/"
 	chmod -R ug=rw-x+X,o=r+X out/doc/
-	scp -pr out/doc/* $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs.done"
+	scp -pr out/doc/* $(STAGINGSERVER):$(DEST_DIR)/docs/
+	ssh $(STAGINGSERVER) "touch $(DEST_DIR)/docs.done"
+	ssh $(STAGINGSERVER) "find '$(DEST_DIR)/docs' -name '*' | xargs touch"
 
 .PHONY: $(TARBALL)-headers
 $(TARBALL)-headers: release-only
@@ -1057,17 +1058,11 @@ ifeq ($(XZ), 1)
 endif
 	$(RM) $(TARNAME)-headers.tar
 
-tar-headers: $(TARBALL)-headers ## Build the node header tarball.
-
-tar-headers-upload: tar-headers
-	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
-	chmod 664 $(TARNAME)-headers.tar.gz
-	scp -p $(TARNAME)-headers.tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz.done"
+.PHONEY: tar-headers-upload
+tar-headers-upload: $(TARBALL)-headers
+	$(do_upload_recepie)
 ifeq ($(XZ), 1)
-	chmod 664 $(TARNAME)-headers.tar.xz
-	scp -p $(TARNAME)-headers.tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz.done"
+	$(call do_upload $(TARNAME)-headers.tar.xz)
 endif
 
 $(BINARYTAR): release-only
@@ -1094,20 +1089,13 @@ ifeq ($(XZ), 1)
 endif
 	$(RM) $(BINARYNAME).tar
 
-.PHONY: binary
 # This requires NODE_VERSION_IS_RELEASE defined as 1 in src/node_version.h.
-binary: $(BINARYTAR) ## Build release binary tarballs.
-
 # Note: this is strictly for release builds on release machines only.
-binary-upload: binary
-	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
-	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
-	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz.done"
+.PHONY: binary-upload
+binary-upload: $(BINARYTAR)
+	$(do_upload_recepie)
 ifeq ($(XZ), 1)
-	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
-	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz.done"
+	$(call do_upload $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz)
 endif
 
 .PHONY: bench-all
