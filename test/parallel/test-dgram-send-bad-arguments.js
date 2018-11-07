@@ -31,7 +31,7 @@ const sock = dgram.createSocket('udp4');
 // First argument should be a buffer.
 assert.throws(() => { sock.send(); }, TypeError);
 common.expectsError(
-  () =>  { sock.send(); },
+  () => { sock.send(); },
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
@@ -48,7 +48,7 @@ assert.throws(() => { sock.send(buf, 1, 1, 65536, host); }, RangeError);
 // send(buf, port, host)
 assert.throws(() => { sock.send(23, 12345, host); }, TypeError);
 common.expectsError(
-  () =>  { sock.send(23, 12345, host); },
+  () => { sock.send(23, 12345, host); },
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
@@ -60,7 +60,7 @@ common.expectsError(
 // send([buf1, ..], port, host)
 assert.throws(() => { sock.send([buf, 23], 12345, host); }, TypeError);
 common.expectsError(
-  () =>  { sock.send([buf, 23], 12345, host); },
+  () => { sock.send([buf, 23], 12345, host); },
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
