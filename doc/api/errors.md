@@ -260,7 +260,10 @@ not capture any frames.
 * {string}
 
 The `error.code` property is a string label that identifies the kind of error.
-`error.code` is the most stable way to identify an error. It will only change between major versions of Node.js. In contrast, `error.message` strings may change between any versions of Node.js. See [Node.js Error Codes][] for details about specific codes.
+`error.code` is the most stable way to identify an error. It will only change
+between major versions of Node.js. In contrast, `error.message` strings may
+change between any versions of Node.js. See [Node.js Error Codes][] for details
+about specific codes.
 
 ### error.message
 
@@ -489,7 +492,8 @@ system error.
 
 * {string|number}
 
-The `error.errno` property is a number or a string. If it is a number, it is a negative value which corresponds to the error code defined in
+The `error.errno` property is a number or a string. If it is a number, it is a
+negative value which corresponds to the error code defined in
 [`libuv Error handling`]. See the libuv `errno.h` header file
 (`deps/uv/include/uv/errno.h` in the Node.js source tree) for details. In case
 of a string, it is the same as `error.code`.
