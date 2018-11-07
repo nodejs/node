@@ -187,14 +187,20 @@ const pwdCommand = isWindows ?
 
 
 function platformTimeout(ms) {
+  // ESLint will not support 'bigint' in valid-typeof until it reaches stage 4.
+  // See https://github.com/eslint/eslint/pull/9636.
+  // eslint-disable-next-line valid-typeof
+  const multipliers = typeof ms === 'bigint' ?
+    { two: 2n, four: 4n, seven: 7n } : { two: 2, four: 4, seven: 7 };
+
   if (process.features.debug)
-    ms = 2 * ms;
+    ms = multipliers.two * ms;
 
   if (global.__coverage__)
-    ms = 4 * ms;
+    ms = multipliers.four * ms;
 
   if (isAIX)
-    return 2 * ms; // default localhost speed is slower on AIX
+    return multipliers.two * ms; // default localhost speed is slower on AIX
 
   if (process.arch !== 'arm')
     return ms;
@@ -202,10 +208,10 @@ function platformTimeout(ms) {
   const armv = process.config.variables.arm_version;
 
   if (armv === '6')
-    return 7 * ms;  // ARMv6
+    return multipliers.seven * ms;  // ARMv6
 
   if (armv === '7')
-    return 2 * ms;  // ARMv7
+    return multipliers.two * ms;  // ARMv7
 
   return ms; // ARMv8+
 }
