@@ -72,7 +72,7 @@ console.log(challenge.toString('utf8'));
 added: v9.0.0
 -->
 * `spkac` {string | Buffer | TypedArray | DataView}
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the `spkac` string.
 * Returns: {Buffer} The public key component of the `spkac` data structure,
   which includes a public key and a challenge.
 
@@ -231,9 +231,9 @@ console.log(encrypted);
 <!-- YAML
 added: v0.1.94
 -->
-* `outputEncoding` {string}
+* `outputEncoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string} Any remaining enciphered contents.
-  If `outputEncoding` is one of `'latin1'`, `'base64'` or `'hex'`, a string is
+  If `outputEncoding` is specified, a string is
   returned. If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
 
 Once the `cipher.final()` method has been called, the `Cipher` object can no
@@ -299,19 +299,19 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 * `data` {string | Buffer | TypedArray | DataView}
-* `inputEncoding` {string}
-* `outputEncoding` {string}
+* `inputEncoding` {string} The [encoding][] of the data.
+* `outputEncoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
 Updates the cipher with `data`. If the `inputEncoding` argument is given,
-its value must be one of `'utf8'`, `'ascii'`, or `'latin1'` and the `data`
+the `data`
 argument is a string using the specified encoding. If the `inputEncoding`
 argument is not given, `data` must be a [`Buffer`][], `TypedArray`, or
 `DataView`. If `data` is a [`Buffer`][], `TypedArray`, or `DataView`, then
 `inputEncoding` is ignored.
 
 The `outputEncoding` specifies the output format of the enciphered
-data, and can be `'latin1'`, `'base64'` or `'hex'`. If the `outputEncoding`
+data. If the `outputEncoding`
 is specified, a string using the specified encoding is returned. If no
 `outputEncoding` is provided, a [`Buffer`][] is returned.
 
@@ -390,9 +390,9 @@ console.log(decrypted);
 <!-- YAML
 added: v0.1.94
 -->
-* `outputEncoding` {string}
+* `outputEncoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string} Any remaining deciphered contents.
-  If `outputEncoding` is one of `'latin1'`, `'ascii'` or `'utf8'`, a string is
+  If `outputEncoding` is specified, a string is
   returned. If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
 
 Once the `decipher.final()` method has been called, the `Decipher` object can
@@ -476,18 +476,18 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 * `data` {string | Buffer | TypedArray | DataView}
-* `inputEncoding` {string}
-* `outputEncoding` {string}
+* `inputEncoding` {string} The [encoding][] of the `data` string.
+* `outputEncoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
 Updates the decipher with `data`. If the `inputEncoding` argument is given,
-its value must be one of `'latin1'`, `'base64'`, or `'hex'` and the `data`
+the `data`
 argument is a string using the specified encoding. If the `inputEncoding`
 argument is not given, `data` must be a [`Buffer`][]. If `data` is a
 [`Buffer`][] then `inputEncoding` is ignored.
 
 The `outputEncoding` specifies the output format of the enciphered
-data, and can be `'latin1'`, `'ascii'` or `'utf8'`. If the `outputEncoding`
+data. If the `outputEncoding`
 is specified, a string using the specified encoding is returned. If no
 `outputEncoding` is provided, a [`Buffer`][] is returned.
 
@@ -531,15 +531,15 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 added: v0.5.0
 -->
 * `otherPublicKey` {string | Buffer | TypedArray | DataView}
-* `inputEncoding` {string}
-* `outputEncoding` {string}
+* `inputEncoding` {string} The [encoding][] of an `otherPublicKey` string.
+* `outputEncoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
 Computes the shared secret using `otherPublicKey` as the other
 party's public key and returns the computed shared secret. The supplied
 key is interpreted using the specified `inputEncoding`, and secret is
-encoded using specified `outputEncoding`. Encodings can be
-`'latin1'`, `'hex'`, or `'base64'`. If the `inputEncoding` is not
+encoded using specified `outputEncoding`.
+If the `inputEncoding` is not
 provided, `otherPublicKey` is expected to be a [`Buffer`][],
 `TypedArray`, or `DataView`.
 
@@ -550,57 +550,57 @@ If `outputEncoding` is given a string is returned; otherwise, a
 <!-- YAML
 added: v0.5.0
 -->
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
 Generates private and public Diffie-Hellman key values, and returns
 the public key in the specified `encoding`. This key should be
-transferred to the other party. Encoding can be `'latin1'`, `'hex'`,
-or `'base64'`. If `encoding` is provided a string is returned; otherwise a
+transferred to the other party.
+If `encoding` is provided a string is returned; otherwise a
 [`Buffer`][] is returned.
 
 ### diffieHellman.getGenerator([encoding])
 <!-- YAML
 added: v0.5.0
 -->
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
-Returns the Diffie-Hellman generator in the specified `encoding`, which can
-be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a string is
+Returns the Diffie-Hellman generator in the specified `encoding`.
+If `encoding` is provided a string is
 returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPrime([encoding])
 <!-- YAML
 added: v0.5.0
 -->
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
-Returns the Diffie-Hellman prime in the specified `encoding`, which can
-be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a string is
+Returns the Diffie-Hellman prime in the specified `encoding`.
+If `encoding` is provided a string is
 returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPrivateKey([encoding])
 <!-- YAML
 added: v0.5.0
 -->
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
-Returns the Diffie-Hellman private key in the specified `encoding`,
-which can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a
+Returns the Diffie-Hellman private key in the specified `encoding`.
+If `encoding` is provided a
 string is returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPublicKey([encoding])
 <!-- YAML
 added: v0.5.0
 -->
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
-Returns the Diffie-Hellman public key in the specified `encoding`, which
-can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a
+Returns the Diffie-Hellman public key in the specified `encoding`.
+If `encoding` is provided a
 string is returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.setPrivateKey(privateKey[, encoding])
@@ -608,10 +608,10 @@ string is returned; otherwise a [`Buffer`][] is returned.
 added: v0.5.0
 -->
 * `privateKey` {string | Buffer | TypedArray | DataView}
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the `privateKey` string.
 
-Sets the Diffie-Hellman private key. If the `encoding` argument is provided
-and is either `'latin1'`, `'hex'`, or `'base64'`, `privateKey` is expected
+Sets the Diffie-Hellman private key. If the `encoding` argument is provided,
+`privateKey` is expected
 to be a string. If no `encoding` is provided, `privateKey` is expected
 to be a [`Buffer`][], `TypedArray`, or `DataView`.
 
@@ -620,10 +620,10 @@ to be a [`Buffer`][], `TypedArray`, or `DataView`.
 added: v0.5.0
 -->
 * `publicKey` {string | Buffer | TypedArray | DataView}
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the `publicKey` string.
 
-Sets the Diffie-Hellman public key. If the `encoding` argument is provided
-and is either `'latin1'`, `'hex'` or `'base64'`, `publicKey` is expected
+Sets the Diffie-Hellman public key. If the `encoding` argument is provided,
+`publicKey` is expected
 to be a string. If no `encoding` is provided, `publicKey` is expected
 to be a [`Buffer`][], `TypedArray`, or `DataView`.
 
@@ -681,8 +681,8 @@ added: v10.0.0
 
 * `key` {string | Buffer | TypedArray | DataView}
 * `curve` {string}
-* `inputEncoding` {string}
-* `outputEncoding` {string}
+* `inputEncoding` {string} The [encoding][] of the `key` string.
+* `outputEncoding` {string} The [encoding][] of the return value.
 * `format` {string} **Default:** `'uncompressed'`
 * Returns: {Buffer | string}
 
@@ -690,8 +690,7 @@ Converts the EC Diffie-Hellman public key specified by `key` and `curve` to the
 format specified by `format`. The `format` argument specifies point encoding
 and can be `'compressed'`, `'uncompressed'` or `'hybrid'`. The supplied key is
 interpreted using the specified `inputEncoding`, and the returned key is encoded
-using the specified `outputEncoding`. Encodings can be `'latin1'`, `'hex'`,
-or `'base64'`.
+using the specified `outputEncoding`.
 
 Use [`crypto.getCurves()`][] to obtain a list of available curve names.
 On recent OpenSSL releases, `openssl ecparam -list_curves` will also display
@@ -736,15 +735,15 @@ changes:
                  error
 -->
 * `otherPublicKey` {string | Buffer | TypedArray | DataView}
-* `inputEncoding` {string}
-* `outputEncoding` {string}
+* `inputEncoding` {string} The [encoding][] of the `otherPublicKey` string.
+* `outputEncoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
 Computes the shared secret using `otherPublicKey` as the other
 party's public key and returns the computed shared secret. The supplied
 key is interpreted using specified `inputEncoding`, and the returned secret
-is encoded using the specified `outputEncoding`. Encodings can be
-`'latin1'`, `'hex'`, or `'base64'`. If the `inputEncoding` is not
+is encoded using the specified `outputEncoding`.
+If the `inputEncoding` is not
 provided, `otherPublicKey` is expected to be a [`Buffer`][], `TypedArray`, or
 `DataView`.
 
@@ -761,7 +760,7 @@ its recommended for developers to handle this exception accordingly.
 <!-- YAML
 added: v0.11.14
 -->
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the return value.
 * `format` {string} **Default:** `'uncompressed'`
 * Returns: {Buffer | string}
 
@@ -773,24 +772,24 @@ The `format` argument specifies point encoding and can be `'compressed'` or
 `'uncompressed'`. If `format` is not specified, the point will be returned in
 `'uncompressed'` format.
 
-The `encoding` argument can be `'latin1'`, `'hex'`, or `'base64'`. If
-`encoding` is provided a string is returned; otherwise a [`Buffer`][]
+If `encoding` is provided a string is returned; otherwise a [`Buffer`][]
 is returned.
 
 ### ecdh.getPrivateKey([encoding])
 <!-- YAML
 added: v0.11.14
 -->
-* `encoding` {string}
-* Returns: {Buffer | string} The EC Diffie-Hellman private key in the specified
-  `encoding`, which can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding`
-  is provided a string is returned; otherwise a [`Buffer`][] is returned.
+* `encoding` {string} The [encoding][] of the return value.
+* Returns: {Buffer | string} The EC Diffie-Hellman in the specified `encoding`.
+
+If `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
+returned.
 
 ### ecdh.getPublicKey([encoding][, format])
 <!-- YAML
 added: v0.11.14
 -->
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the return value.
 * `format` {string} **Default:** `'uncompressed'`
 * Returns: {Buffer | string} The EC Diffie-Hellman public key in the specified
   `encoding` and `format`.
@@ -799,8 +798,7 @@ The `format` argument specifies point encoding and can be `'compressed'` or
 `'uncompressed'`. If `format` is not specified the point will be returned in
 `'uncompressed'` format.
 
-The `encoding` argument can be `'latin1'`, `'hex'`, or `'base64'`. If
-`encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
+If `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
 returned.
 
 ### ecdh.setPrivateKey(privateKey[, encoding])
@@ -808,10 +806,10 @@ returned.
 added: v0.11.14
 -->
 * `privateKey` {string | Buffer | TypedArray | DataView}
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the `privateKey` string.
 
-Sets the EC Diffie-Hellman private key. The `encoding` can be `'latin1'`,
-`'hex'` or `'base64'`. If `encoding` is provided, `privateKey` is expected
+Sets the EC Diffie-Hellman private key.
+If `encoding` is provided, `privateKey` is expected
 to be a string; otherwise `privateKey` is expected to be a [`Buffer`][],
 `TypedArray`, or `DataView`.
 
@@ -828,10 +826,10 @@ deprecated: v5.2.0
 > Stability: 0 - Deprecated
 
 * `publicKey` {string | Buffer | TypedArray | DataView}
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the `publicKey` string.
 
-Sets the EC Diffie-Hellman public key. Key encoding can be `'latin1'`,
-`'hex'` or `'base64'`. If `encoding` is provided `publicKey` is expected to
+Sets the EC Diffie-Hellman public key.
+If `encoding` is provided `publicKey` is expected to
 be a string; otherwise a [`Buffer`][], `TypedArray`, or `DataView` is expected.
 
 Note that there is not normally a reason to call this method because `ECDH`
@@ -928,12 +926,12 @@ console.log(hash.digest('hex'));
 <!-- YAML
 added: v0.1.92
 -->
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
 Calculates the digest of all of the data passed to be hashed (using the
-[`hash.update()`][] method). The `encoding` can be `'hex'`, `'latin1'` or
-`'base64'`. If `encoding` is provided a string will be returned; otherwise
+[`hash.update()`][] method).
+If `encoding` is provided a string will be returned; otherwise
 a [`Buffer`][] is returned.
 
 The `Hash` object can not be used again after `hash.digest()` method has been
@@ -948,11 +946,11 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 * `data` {string | Buffer | TypedArray | DataView}
-* `inputEncoding` {string}
+* `inputEncoding` {string} The [encoding][] of the `data` string.
 
 Updates the hash content with the given `data`, the encoding of which
-is given in `inputEncoding` and can be `'utf8'`, `'ascii'` or
-`'latin1'`. If `encoding` is not provided, and the `data` is a string, an
+is given in `inputEncoding`.
+If `encoding` is not provided, and the `data` is a string, an
 encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
 `DataView`, then `inputEncoding` is ignored.
 
@@ -1020,11 +1018,11 @@ console.log(hmac.digest('hex'));
 <!-- YAML
 added: v0.1.94
 -->
-* `encoding` {string}
+* `encoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
 Calculates the HMAC digest of all of the data passed using [`hmac.update()`][].
-The `encoding` can be `'hex'`, `'latin1'` or `'base64'`. If `encoding` is
+If `encoding` is
 provided a string is returned; otherwise a [`Buffer`][] is returned;
 
 The `Hmac` object can not be used again after `hmac.digest()` has been
@@ -1039,11 +1037,11 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 * `data` {string | Buffer | TypedArray | DataView}
-* `inputEncoding` {string}
+* `inputEncoding` {string} The [encoding][] of the `data` string.
 
 Updates the `Hmac` content with the given `data`, the encoding of which
-is given in `inputEncoding` and can be `'utf8'`, `'ascii'` or
-`'latin1'`. If `encoding` is not provided, and the `data` is a string, an
+is given in `inputEncoding`.
+If `encoding` is not provided, and the `data` is a string, an
 encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
 `DataView`, then `inputEncoding` is ignored.
 
@@ -1113,7 +1111,7 @@ console.log(sign.sign(privateKey, 'hex'));
 // Prints: the calculated signature
 ```
 
-### sign.sign(privateKey[, outputFormat])
+### sign.sign(privateKey[, outputEncoding])
 <!-- YAML
 added: v0.1.92
 changes:
@@ -1126,7 +1124,7 @@ changes:
   - `passphrase` {string}
   - `padding` {integer}
   - `saltLength` {integer}
-* `outputFormat` {string}
+* `outputEncoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
 Calculates the signature on all the data passed through using either
@@ -1150,9 +1148,8 @@ object, it must contain one or more of the following properties:
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
 
-The `outputFormat` can specify one of `'latin1'`, `'hex'` or `'base64'`. If
-`outputFormat` is provided a string is returned; otherwise a [`Buffer`][] is
-returned.
+If `outputEncoding` is provided a string is returned; otherwise a [`Buffer`][]
+is returned.
 
 The `Sign` object can not be again used after `sign.sign()` method has been
 called. Multiple calls to `sign.sign()` will result in an error being thrown.
@@ -1166,11 +1163,11 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 * `data` {string | Buffer | TypedArray | DataView}
-* `inputEncoding` {string}
+* `inputEncoding` {string} The [encoding][] of the `data` string.
 
 Updates the `Sign` content with the given `data`, the encoding of which
-is given in `inputEncoding` and can be `'utf8'`, `'ascii'` or
-`'latin1'`. If `encoding` is not provided, and the `data` is a string, an
+is given in `inputEncoding`.
+If `encoding` is not provided, and the `data` is a string, an
 encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
 `DataView`, then `inputEncoding` is ignored.
 
@@ -1230,17 +1227,17 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 * `data` {string | Buffer | TypedArray | DataView}
-* `inputEncoding` {string}
+* `inputEncoding` {string} The [encoding][] of the `data` string.
 
 Updates the `Verify` content with the given `data`, the encoding of which
-is given in `inputEncoding` and can be `'utf8'`, `'ascii'` or
-`'latin1'`. If `encoding` is not provided, and the `data` is a string, an
+is given in `inputEncoding`.
+If `inputEncoding` is not provided, and the `data` is a string, an
 encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
 `DataView`, then `inputEncoding` is ignored.
 
 This can be called many times with new data as it is streamed.
 
-### verify.verify(object, signature[, signatureFormat])
+### verify.verify(object, signature[, signatureEncoding])
 <!-- YAML
 added: v0.1.92
 changes:
@@ -1250,7 +1247,7 @@ changes:
 -->
 * `object` {string | Object}
 * `signature` {string | Buffer | TypedArray | DataView}
-* `signatureFormat` {string}
+* `signatureEncoding` {string} The [encoding][] of the `signature` string.
 * Returns: {boolean} `true` or `false` depending on the validity of the
   signature for the data and public key.
 
@@ -1273,8 +1270,8 @@ or an object with one or more of the following properties:
   determined automatically.
 
 The `signature` argument is the previously calculated signature for the data, in
-the `signatureFormat` which can be `'latin1'`, `'hex'` or `'base64'`.
-If a `signatureFormat` is specified, the `signature` is expected to be a
+the `signatureEncoding`.
+If a `signatureEncoding` is specified, the `signature` is expected to be a
 string; otherwise `signature` is expected to be a [`Buffer`][],
 `TypedArray`, or `DataView`.
 
@@ -1551,10 +1548,10 @@ changes:
                  from `binary` to `utf8`.
 -->
 * `prime` {string | Buffer | TypedArray | DataView}
-* `primeEncoding` {string}
+* `primeEncoding` {string} The [encoding][] of the `prime` string.
 * `generator` {number | string | Buffer | TypedArray | DataView} **Default:**
   `2`
-* `generatorEncoding` {string}
+* `generatorEncoding` {string} The [encoding][] of the `generator` string.
 * Returns: {DiffieHellman}
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
@@ -1562,9 +1559,6 @@ optional specific `generator`.
 
 The `generator` argument can be a number, string, or [`Buffer`][]. If
 `generator` is not specified, the value `2` is used.
-
-The `primeEncoding` and `generatorEncoding` arguments can be `'latin1'`,
-`'hex'`, or `'base64'`.
 
 If `primeEncoding` is specified, `prime` is expected to be a string; otherwise
 a [`Buffer`][], `TypedArray`, or `DataView` is expected.
@@ -2912,14 +2906,14 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`hash.update()`]: #crypto_hash_update_data_inputencoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
 [`hmac.update()`]: #crypto_hmac_update_data_inputencoding
-[`sign.sign()`]: #crypto_sign_sign_privatekey_outputformat
+[`sign.sign()`]: #crypto_sign_sign_privatekey_outputencoding
 [`sign.update()`]: #crypto_sign_update_data_inputencoding
 [`stream.Writable` options]: stream.html#stream_constructor_new_stream_writable_options
 [`stream.transform` options]: stream.html#stream_new_stream_transform_options
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`util.promisify()`]: util.html#util_util_promisify_original
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
-[`verify.verify()`]: #crypto_verify_verify_object_signature_signatureformat
+[`verify.verify()`]: #crypto_verify_verify_object_signature_signatureencoding
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [CCM mode]: #crypto_ccm_mode
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
@@ -2935,6 +2929,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
+[encoding]: buffer.html#buffer_buffers_and_character_encodings
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [scrypt]: https://en.wikipedia.org/wiki/Scrypt
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
