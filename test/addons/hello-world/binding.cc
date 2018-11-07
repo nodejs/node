@@ -3,7 +3,8 @@
 
 void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
-  args.GetReturnValue().Set(v8::String::NewFromUtf8(isolate, "world"));
+  args.GetReturnValue().Set(v8::String::NewFromUtf8(
+        isolate, "world", v8::NewStringType::kNormal).ToLocalChecked());
 }
 
 // Not using the full NODE_MODULE_INIT() macro here because we want to test the

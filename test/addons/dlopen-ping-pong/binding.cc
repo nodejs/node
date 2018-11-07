@@ -15,6 +15,7 @@ using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::NewStringType;
 using v8::String;
 using v8::Value;
 
@@ -33,7 +34,8 @@ void LoadLibrary(const FunctionCallbackInfo<Value>& args) {
 void Ping(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   assert(ping_func != nullptr);
-  args.GetReturnValue().Set(String::NewFromUtf8(isolate, ping_func()));
+  args.GetReturnValue().Set(String::NewFromUtf8(
+        isolate, ping_func(), NewStringType::kNormal).ToLocalChecked());
 }
 
 void init(Local<Object> exports) {
