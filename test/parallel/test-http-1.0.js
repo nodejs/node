@@ -155,7 +155,7 @@ function test(handler, request_generator, response_validator) {
                               '0\r\n' +
                               '\r\n';
 
-    assert.strictEqual(expected_response, server_response);
+    assert.strictEqual(server_response, expected_response);
     assert.strictEqual(client_got_eof, true);
     assert.strictEqual(timed_out, false);
   }
