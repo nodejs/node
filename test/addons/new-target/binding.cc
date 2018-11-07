@@ -12,7 +12,8 @@ inline void NewClass(const v8::FunctionCallbackInfo<v8::Value>& args) {
 inline void Initialize(v8::Local<v8::Object> binding) {
   auto isolate = binding->GetIsolate();
   auto context = isolate->GetCurrentContext();
-  binding->Set(v8::String::NewFromUtf8(isolate, "Class"),
+  binding->Set(v8::String::NewFromUtf8(
+        isolate, "Class", v8::NewStringType::kNormal).ToLocalChecked(),
                v8::FunctionTemplate::New(isolate, NewClass)
                    ->GetFunction(context)
                    .ToLocalChecked());
