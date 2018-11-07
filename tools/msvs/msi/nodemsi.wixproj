@@ -27,7 +27,7 @@
     <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
     <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
-    <Cultures>en-US</Cultures>
+    <Cultures>de;fr;zh-CN;neutral</Cultures>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
     <OutputPath>..\..\..\</OutputPath>
@@ -54,12 +54,10 @@
     </WixExtension>
   </ItemGroup>
   <ItemGroup>
-    <!--
-    <EmbeddedResource Include="i18n\de-de.wxl" />
-    <EmbeddedResource Include="i18n\it-it.wxl" />
+    <EmbeddedResource Include="i18n\de.wxl" />
+    <EmbeddedResource Include="i18n\it.wxl" />
     <EmbeddedResource Include="i18n\zh-cn.wxl" />
-    -->
-    <EmbeddedResource Include="i18n\en-us.wxl" />
+    <EmbeddedResource Include="i18n\neutral.wxl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="custom_actions.vcxproj">

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<WixLocalization Culture="it-it" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+<WixLocalization Culture="it" xmlns="http://schemas.microsoft.com/wix/2006/localization">
     <!-- See https://msdn.microsoft.com/en-us/goglobal/bb964664.aspx -->
     <String Id="LocaleId">1040</String>
 
@@ -32,4 +32,16 @@
 
     <!-- References like [ProductName] are not resolved for Property tags -->
     <String Id="WIXUI_EXITDIALOGOPTIONALTEXT">Node.js è stato installato correttamente.</String>
+
+
+    <!-- new strings -->
+
+    <String Id="NativeToolsDlg_Title">[ProductName] Setup</String>
+    <String Id="NativeToolsDlgTitle">{\WixUI_Font_Title}Tools for Native Modules</String>
+    <String Id="NativeToolsDlgDescription">Optionally install the tools necessary to compile native modules.</String>
+    <String Id="NativeToolsDlgBannerBitmap">WixUI_Bmp_Banner</String>
+    <String Id="NativeToolsDlgIntro">Some npm modules need to be compiled from C/C++ when installing. If you want to be able to install such modules, some tools (Python 2 and Visual Studio Build Tools) need to be installed.</String>
+    <String Id="NativeToolsDlgInstallCheckbox">Automatically install the necessary tools. Note that this will also install Boxstarter and Chocolatey. The script will pop-up in a new window after the installation completes.</String>
+    <String Id="NativeToolsDlgManualDetails">Alternatively, follow the instructions at <![CDATA[<a href="https://github.com/nodejs/node-gyp#on-windows">https://github.com/nodejs/node-gyp#on-windows</a>]]> to install the dependencies yourself.</String>
+
 </WixLocalization>
