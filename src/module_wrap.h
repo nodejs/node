@@ -20,6 +20,7 @@ enum PackageMainCheck : bool {
 enum ScriptType : int {
   kScript,
   kModule,
+  kFunction,
 };
 
 enum HostDefinedOptions : int {
