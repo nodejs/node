@@ -7,7 +7,7 @@ const { spawn } = require('child_process');
 if (process.argv[2] === 'child') {
   // sub-process
   const server = createServer(common.mustCall((_, res) => res.end('h')));
-  server.listen(0, common.mustCall((s) => {
+  server.listen(0, common.mustCall(() => {
     const rr = get({ port: server.address().port }, common.mustCall(() => {
       // This bad input (0) should abort the parser and the process
       rr.parser.consume(0);
