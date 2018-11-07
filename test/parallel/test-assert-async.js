@@ -2,11 +2,33 @@
 const common = require('../common');
 const assert = require('assert');
 
-// Test assert.rejects() and assert.doesNotReject() by checking their
-// expected output and by verifying that they do not work sync
-
 // Run all tests in parallel and check their outcome at the end.
 const promises = [];
+
+// Thenable object without `catch` method,
+// shouldn't be considered as a valid Thenable
+const invalidThenable = {
+  then: (fulfill, reject) => {
+    fulfill();
+  },
+};
+
+// Function that returns a Thenable function,
+// a function with `catch` and `then` methods attached,
+// shouldn't be considered as a valid Thenable.
+const invalidThenableFunc = () => {
+  function f() {}
+
+  f.then = (fulfill, reject) => {
+    fulfill();
+  };
+  f.catch = () => {};
+
+  return f;
+};
+
+// Test assert.rejects() and assert.doesNotReject() by checking their
+// expected output and by verifying that they do not work sync
 
 // Check `assert.rejects`.
 {
@@ -16,9 +38,34 @@ const promises = [];
     name: 'AssertionError [ERR_ASSERTION]',
     message: 'Failed'
   };
-  // `assert.rejects` accepts a function or a promise as first argument.
+
+  // `assert.rejects` accepts a function or a promise
+  // or a thenable as first argument.
   promises.push(assert.rejects(rejectingFn, errObj));
   promises.push(assert.rejects(rejectingFn(), errObj));
+
+  const validRejectingThenable = {
+    then: (fulfill, reject) => {
+      reject({ code: 'FAIL' });
+    },
+    catch: () => {}
+  };
+  promises.push(assert.rejects(validRejectingThenable, { code: 'FAIL' }));
+
+  // `assert.rejects` should not accept thenables that
+  // use a function as `obj` and that have no `catch` handler.
+  promises.push(assert.rejects(
+    assert.rejects(invalidThenable, {}),
+    {
+      code: 'ERR_INVALID_ARG_TYPE'
+    })
+  );
+  promises.push(assert.rejects(
+    assert.rejects(invalidThenableFunc, {}),
+    {
+      code: 'ERR_INVALID_RETURN_VALUE'
+    })
+  );
 }
 
 {
@@ -69,7 +116,8 @@ promises.push(assert.rejects(
 
 // Check `assert.doesNotReject`.
 {
-  // `assert.doesNotReject` accepts a function or a promise as first argument.
+  // `assert.doesNotReject` accepts a function or a promise
+  // or a thenable as first argument.
   const promise = assert.doesNotReject(() => new Map(), common.mustNotCall());
   promises.push(assert.rejects(promise, {
     message: 'Expected instance of Promise to be returned ' +
@@ -79,6 +127,28 @@ promises.push(assert.rejects(
   }));
   promises.push(assert.doesNotReject(async () => {}));
   promises.push(assert.doesNotReject(Promise.resolve()));
+
+  // `assert.doesNotReject` should not accept thenables that
+  // use a function as `obj` and that have no `catch` handler.
+  const validFulfillingThenable = {
+    then: (fulfill, reject) => {
+      fulfill();
+    },
+    catch: () => {}
+  };
+  promises.push(assert.doesNotReject(validFulfillingThenable));
+  promises.push(assert.rejects(
+    assert.doesNotReject(invalidThenable),
+    {
+      code: 'ERR_INVALID_ARG_TYPE'
+    })
+  );
+  promises.push(assert.rejects(
+    assert.doesNotReject(invalidThenableFunc),
+    {
+      code: 'ERR_INVALID_RETURN_VALUE'
+    })
+  );
 }
 
 {
