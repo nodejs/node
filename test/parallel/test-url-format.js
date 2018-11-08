@@ -173,6 +173,16 @@ const formatTests = {
     hash: '#bar'
   },
 
+  // `#` in path end + `#` in query
+  '/path/to/%%23?foo=the%231#bar': {
+    href: '/path/to/%%23?foo=the%231#bar',
+    pathname: '/path/to/%#',
+    query: {
+      foo: 'the#1'
+    },
+    hash: '#bar'
+  },
+
   // `?` and `#` in path and search
   'http://ex.com/foo%3F100%m%23r?abc=the%231?&foo=bar#frag': {
     href: 'http://ex.com/foo%3F100%m%23r?abc=the%231?&foo=bar#frag',
