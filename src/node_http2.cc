@@ -3057,8 +3057,10 @@ void Initialize(Local<Object> target,
 
 #define V(name)                                                         \
   NODE_DEFINE_CONSTANT(constants, name);                                \
-  name_for_error_code->Set(static_cast<int>(name),                      \
-                           FIXED_ONE_BYTE_STRING(isolate, #name));
+  name_for_error_code->Set(env->context(),                              \
+                           static_cast<int>(name),                      \
+                           FIXED_ONE_BYTE_STRING(isolate,               \
+                                                 #name)).FromJust();
   NODE_NGHTTP2_ERROR_CODES(V)
 #undef V
 

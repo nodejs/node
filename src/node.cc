@@ -690,7 +690,8 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                int argc,
                                Local<Value> argv[],
                                async_context asyncContext) {
-  Local<Value> callback_v = recv->Get(symbol);
+  Local<Value> callback_v = recv->Get(isolate->GetCurrentContext(),
+                                      symbol).ToLocalChecked();
   if (callback_v.IsEmpty()) return Local<Value>();
   if (!callback_v->IsFunction()) return Local<Value>();
   Local<Function> callback = callback_v.As<Function>();
@@ -1264,7 +1265,7 @@ static void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Local<Object> exports = Object::New(env->isolate());
   Local<String> exports_prop = String::NewFromUtf8(env->isolate(), "exports",
       NewStringType::kNormal).ToLocalChecked();
-  module->Set(exports_prop, exports);
+  module->Set(env->context(), exports_prop, exports).FromJust();
 
   if (mod->nm_context_register_func != nullptr) {
     mod->nm_context_register_func(exports,
@@ -1277,7 +1278,8 @@ static void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Linked module has no declared entry point.");
   }
 
-  auto effective_exports = module->Get(exports_prop);
+  auto effective_exports = module->Get(env->context(),
+                                       exports_prop).ToLocalChecked();
 
   args.GetReturnValue().Set(effective_exports);
 }
@@ -1292,10 +1294,16 @@ static Local<Object> GetFeatures(Environment* env) {
   Local<Value> debug = False(env->isolate());
 #endif  // defined(DEBUG) && DEBUG
 
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "debug"), debug);
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "uv"), True(env->isolate()));
+  obj->Set(env->context(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), "debug"),
+           debug).FromJust();
+  obj->Set(env->context(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), "uv"),
+           True(env->isolate())).FromJust();
   // TODO(bnoordhuis) ping libuv
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ipv6"), True(env->isolate()));
+  obj->Set(env->context(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), "ipv6"),
+           True(env->isolate())).FromJust();
 
 #ifdef HAVE_OPENSSL
   Local<Boolean> have_openssl = True(env->isolate());
@@ -1303,10 +1311,18 @@ static Local<Object> GetFeatures(Environment* env) {
   Local<Boolean> have_openssl = False(env->isolate());
 #endif
 
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_alpn"), have_openssl);
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_sni"), have_openssl);
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_ocsp"), have_openssl);
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls"), have_openssl);
+  obj->Set(env->context(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), "tls_alpn"),
+           have_openssl).FromJust();
+  obj->Set(env->context(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), "tls_sni"),
+           have_openssl).FromJust();
+  obj->Set(env->context(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), "tls_ocsp"),
+           have_openssl).FromJust();
+  obj->Set(env->context(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), "tls"),
+           have_openssl).FromJust();
 
   return scope.Escape(obj);
 }
@@ -1468,7 +1484,9 @@ void SetupProcessObject(Environment* env,
                             NewStringType::kNormal).ToLocalChecked())
         .FromJust();
   }
-  process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "argv"), arguments);
+  process->Set(env->context(),
+               FIXED_ONE_BYTE_STRING(env->isolate(), "argv"),
+               arguments).FromJust();
 
   // process.execArgv
   Local<Array> exec_arguments = Array::New(env->isolate(), exec_args.size());
@@ -1478,8 +1496,9 @@ void SetupProcessObject(Environment* env,
                             NewStringType::kNormal).ToLocalChecked())
         .FromJust();
   }
-  process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
-               exec_arguments);
+  process->Set(env->context(),
+               FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
+               exec_arguments).FromJust();
 
   // create process.env
   Local<ObjectTemplate> process_env_template =
@@ -1494,7 +1513,9 @@ void SetupProcessObject(Environment* env,
 
   Local<Object> process_env =
       process_env_template->NewInstance(env->context()).ToLocalChecked();
-  process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "env"), process_env);
+  process->Set(env->context(),
+               FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
+               process_env).FromJust();
 
   READONLY_PROPERTY(process, "pid",
                     Integer::New(env->isolate(), uv_os_getpid()));
@@ -1539,7 +1560,7 @@ void SetupProcessObject(Environment* env,
                                                  preload_modules[i].c_str(),
                                                  NewStringType::kNormal)
                                  .ToLocalChecked();
-      array->Set(i, module);
+      array->Set(env->context(), i, module).FromJust();
     }
     READONLY_PROPERTY(process,
                       "_preload_modules",
@@ -1629,8 +1650,9 @@ void SetupProcessObject(Environment* env,
     exec_path_value = String::NewFromUtf8(env->isolate(), args[0].c_str(),
         NewStringType::kInternalized).ToLocalChecked();
   }
-  process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
-               exec_path_value);
+  process->Set(env->context(),
+               FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
+               exec_path_value).FromJust();
   delete[] exec_path;
 
   auto debug_port_string = FIXED_ONE_BYTE_STRING(env->isolate(), "debugPort");
@@ -1783,7 +1805,9 @@ void LoadEnvironment(Environment* env) {
 
   // Expose the global object as a property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
-  global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
+  global->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "global"),
+              global).FromJust();
 
   // Create binding loaders
   Local<Function> get_binding_fn =
@@ -2344,8 +2368,9 @@ int EmitExit(Environment* env) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Object> process_object = env->process_object();
-  process_object->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "_exiting"),
-                      True(env->isolate()));
+  process_object->Set(env->context(),
+                      FIXED_ONE_BYTE_STRING(env->isolate(), "_exiting"),
+                      True(env->isolate())).FromJust();
 
   Local<String> exit_code = env->exit_code_string();
   int code = process_object->Get(env->context(), exit_code).ToLocalChecked()

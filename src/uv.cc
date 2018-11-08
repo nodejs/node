@@ -63,10 +63,11 @@ void Initialize(Local<Object> target,
                 Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  target->Set(FIXED_ONE_BYTE_STRING(isolate, "errname"),
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(isolate, "errname"),
               env->NewFunctionTemplate(ErrName)
                   ->GetFunction(env->context())
-                  .ToLocalChecked());
+                  .ToLocalChecked()).FromJust();
 
 #define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
   UV_ERRNO_MAP(V)
@@ -76,8 +77,8 @@ void Initialize(Local<Object> target,
 
 #define V(name, msg) do {                                                     \
   Local<Array> arr = Array::New(isolate, 2);                                  \
-  arr->Set(0, OneByteString(isolate, #name));                                 \
-  arr->Set(1, OneByteString(isolate, msg));                                   \
+  arr->Set(env->context(), 0, OneByteString(isolate, #name)).FromJust();      \
+  arr->Set(env->context(), 1, OneByteString(isolate, msg)).FromJust();        \
   err_map->Set(context,                                                       \
                Integer::New(isolate, UV_##name),                              \
                arr).ToLocalChecked();                                         \

@@ -896,10 +896,13 @@ void Initialize(Local<Object> target,
 
   Local<String> zlibString = FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib");
   z->SetClassName(zlibString);
-  target->Set(zlibString, z->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              zlibString,
+              z->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
-              FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
+              FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION)).FromJust();
 }
 
 }  // anonymous namespace

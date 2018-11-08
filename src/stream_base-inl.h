@@ -179,7 +179,9 @@ inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
 
   const char* msg = Error();
   if (msg != nullptr) {
-    req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
+    req_wrap_obj->Set(
+        env->context(),
+        env->error_string(), OneByteString(env->isolate(), msg)).FromJust();
     ClearError();
   }
 
@@ -228,7 +230,9 @@ inline StreamWriteResult StreamBase::Write(
 
   const char* msg = Error();
   if (msg != nullptr) {
-    req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
+    req_wrap_obj->Set(env->context(),
+                      env->error_string(),
+                      OneByteString(env->isolate(), msg)).FromJust();
     ClearError();
   }
 
@@ -434,8 +438,10 @@ inline void StreamReq::Done(int status, const char* error_str) {
   AsyncWrap* async_wrap = GetAsyncWrap();
   Environment* env = async_wrap->env();
   if (error_str != nullptr) {
-    async_wrap->object()->Set(env->error_string(),
-                              OneByteString(env->isolate(), error_str));
+    async_wrap->object()->Set(env->context(),
+                              env->error_string(),
+                              OneByteString(env->isolate(), error_str))
+                              .FromJust();
   }
 
   OnDone(status);

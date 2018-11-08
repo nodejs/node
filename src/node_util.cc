@@ -57,6 +57,7 @@ static void GetOwnNonIndexProperties(
 }
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   // Return undefined if it's not a Promise.
   if (!args[0]->IsPromise())
     return;
@@ -67,14 +68,15 @@ static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
   Local<Array> ret = Array::New(isolate, 2);
 
   int state = promise->State();
-  ret->Set(0, Integer::New(isolate, state));
+  ret->Set(env->context(), 0, Integer::New(isolate, state)).FromJust();
   if (state != Promise::PromiseState::kPending)
-    ret->Set(1, promise->Result());
+    ret->Set(env->context(), 1, promise->Result()).FromJust();
 
   args.GetReturnValue().Set(ret);
 }
 
 static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   // Return undefined if it's not a proxy.
   if (!args[0]->IsProxy())
     return;
@@ -82,8 +84,8 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   Local<Proxy> proxy = args[0].As<Proxy>();
 
   Local<Array> ret = Array::New(args.GetIsolate(), 2);
-  ret->Set(0, proxy->GetTarget());
-  ret->Set(1, proxy->GetHandler());
+  ret->Set(env->context(), 0, proxy->GetTarget()).FromJust();
+  ret->Set(env->context(), 1, proxy->GetHandler()).FromJust();
 
   args.GetReturnValue().Set(ret);
 }

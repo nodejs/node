@@ -107,7 +107,9 @@ void TCPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
 
-  target->Set(tcpString, t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              tcpString,
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
@@ -117,7 +119,9 @@ void TCPWrap::Initialize(Local<Object> target,
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
   cwt->SetClassName(wrapString);
-  target->Set(wrapString, cwt->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              wrapString,
+              cwt->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());
@@ -349,22 +353,36 @@ Local<Object> AddressToJS(Environment* env,
     a6 = reinterpret_cast<const sockaddr_in6*>(addr);
     uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
     port = ntohs(a6->sin6_port);
-    info->Set(env->address_string(), OneByteString(env->isolate(), ip));
-    info->Set(env->family_string(), env->ipv6_string());
-    info->Set(env->port_string(), Integer::New(env->isolate(), port));
+    info->Set(env->context(),
+              env->address_string(),
+              OneByteString(env->isolate(), ip)).FromJust();
+    info->Set(env->context(),
+              env->family_string(),
+              env->ipv6_string()).FromJust();
+    info->Set(env->context(),
+              env->port_string(),
+              Integer::New(env->isolate(), port)).FromJust();
     break;
 
   case AF_INET:
     a4 = reinterpret_cast<const sockaddr_in*>(addr);
     uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
     port = ntohs(a4->sin_port);
-    info->Set(env->address_string(), OneByteString(env->isolate(), ip));
-    info->Set(env->family_string(), env->ipv4_string());
-    info->Set(env->port_string(), Integer::New(env->isolate(), port));
+    info->Set(env->context(),
+              env->address_string(),
+              OneByteString(env->isolate(), ip)).FromJust();
+    info->Set(env->context(),
+              env->family_string(),
+              env->ipv4_string()).FromJust();
+    info->Set(env->context(),
+              env->port_string(),
+              Integer::New(env->isolate(), port)).FromJust();
     break;
 
   default:
-    info->Set(env->address_string(), String::Empty(env->isolate()));
+    info->Set(env->context(),
+              env->address_string(),
+              String::Empty(env->isolate())).FromJust();
   }
 
   return scope.Escape(info);
