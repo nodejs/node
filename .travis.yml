@@ -5,6 +5,7 @@ os: linux
 matrix:
   include:
     - name: "First commit message adheres to guidelines at https://goo.gl/p2fr5Q"
+      if: type = pull_request
       language: node_js
       node_js: "node"
       script:
