@@ -70,8 +70,7 @@ There are three support tiers:
 ### Supported platforms
 
 The community does not build or test against end-of-life distributions (EoL).
-Thus, we do not recommend that you use Node.js on end-of-life or unsupported
-platforms in production.
+For production applications, run Node.js on supported platforms only.
 
 | System       | Support type | Version                         | Architectures    | Notes                         |
 | ------------ | ------------ | ------------------------------- | ---------------- | ----------------------------- |
@@ -135,21 +134,20 @@ OpenSSL-1.1.0 requires the following assembler version for use of asm
 support on x86_64 and ia32.
 
 * gas (GNU assembler) version 2.23 or higher
-* xcode version 5.0 or higher
+* Xcode version 5.0 or higher
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
-Otherwise `configure` will fail with an error. This can be avoided by
-either providing a newer assembler as per the list above or by
-using the `--openssl-no-asm` flag.
+If compiling without one of the above, use `configure` with the
+`--openssl-no-asm` flag. Otherwise, `configure` will fail.
 
 The forthcoming OpenSSL-1.1.1 will have different requirements. Please refer to
  https://www.openssl.org/docs/man1.1.1/man3/OPENSSL_ia32cap.html for details.
 
 ## Building Node.js on supported platforms
 
-*Note:* All prerequisites can be easily installed by following
-[this bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md).
+The [bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md)
+explains how to install all prerequisites.
 
 ### Unix/macOS
 
@@ -160,7 +158,7 @@ The forthcoming OpenSSL-1.1.1 will have different requirements. Please refer to
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
 
-On macOS, you will need to install the `Xcode Command Line Tools` by running
+On macOS, install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
@@ -181,13 +179,9 @@ $ ./configure
 $ make -j4
 ```
 
-Running `make` with the `-j4` flag will cause it to run 4 compilation jobs
-concurrently which may significantly reduce build time. The number after `-j`
-can be changed to best suit the number of processor cores on your machine. If
-you run into problems running `make` with concurrency, try running it without
-the `-j4` flag. See the
-[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html)
-for more information.
+The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
+may reduce build time. For more information, see the
+[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
 
 Note that the above requires that `python` resolve to Python 2.6 or 2.7
 and not a newer version.
