@@ -13,13 +13,13 @@ const bench = common.createBenchmark(main, {
   flags: ['--expose-internals', '--experimental-worker']  // for workers
 });
 
-function spwanProcess(script) {
+function spawnProcess(script) {
   const cmd = process.execPath || process.argv[0];
   const argv = ['--expose-internals', script];
   return spawn(cmd, argv);
 }
 
-function spwanWorker(script) {
+function spawnWorker(script) {
   return new Worker(script, { stderr: true, stdout: true });
 }
 
@@ -68,9 +68,9 @@ function main({ dur, script, mode }) {
   if (mode === 'worker') {
     Worker = require('worker_threads').Worker;
     bench.start();
-    start(state, script, bench, spwanWorker);
+    start(state, script, bench, spawnWorker);
   } else {
     bench.start();
-    start(state, script, bench, spwanProcess);
+    start(state, script, bench, spawnProcess);
   }
 }
