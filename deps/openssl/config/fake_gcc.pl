@@ -1,11 +1,12 @@
 #! /usr/bin/env perl
 use 5.10.0;
 use strict;
-my $arch = $ENV{ARC};
+my $args = join(' ', @ARGV);
+
 my $ret;
-if ($arch =~ /^darwin/) {
-  $ret = "Apple LLVM version 10.0.0 (clang-1000.11.45.2)\n";
+if ($args eq '-Wa,-v -c -o /dev/null -x assembler /dev/null') {
+  $ret = "GNU assembler version 2.23.52.0.1 (x86_64-redhat-linux) using BFD version version 2.23.52.0.1-30.el7_1.2 20130226\n";
 } else {
-  $ret = `gcc -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`;
+  $ret = `gcc $args`;
 }
 print STDOUT $ret;

@@ -16,6 +16,8 @@ linux-ppc64 linux-ppc64le linux32-s390x linux64-s390x \
 solaris-x86-gcc solaris64-x86_64-gcc VC-WIN64A VC-WIN32
 
 CC = gcc
+FAKE_GCC = ../config/fake_gcc.pl
+
 CONFIGURE = ./Configure
 # no-comp: against CRIME attack
 # no-shared: openssl-cli needs static link
@@ -45,12 +47,12 @@ all: $(ARCHS) replace
 $(ARCHS):
 # Remove openssl .gitignore to follow nodejs .gitignore
 	if [ -e $(GITIGNORE) ]; then rm $(GITIGNORE); fi
-	if [ "$(findstring darwin, $@)" = "" ]; then \
-	  cd $(OPSSL_SRC); $(NO_WARN_ENV) ARC=$@ CC=$(CC) $(PERL) $(CONFIGURE) $(COPTS) $@; \
-	else \
-	  cd $(OPSSL_SRC); $(NO_WARN_ENV) ARC=$@ CC=./fake_gcc.pl $(PERL) $(CONFIGURE) $(COPTS) $@; \
-	fi
+	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(CC) $(PERL) $(CONFIGURE) $(COPTS) $@;
 	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm $@
+# Confgure asm_avx2 and generate upto avx2 support
+	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(FAKE_GCC) $(PERL) $(CONFIGURE) \
+	$(COPTS) $@;
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm_avx2 $@
 # Confgure no-asm and generate no-asm sources
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) \
 	no-asm $@;
