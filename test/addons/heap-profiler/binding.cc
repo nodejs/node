@@ -19,11 +19,11 @@ inline void Test(const v8::FunctionCallbackInfo<v8::Value>& args) {
 inline void Initialize(v8::Local<v8::Object> binding) {
   v8::Isolate* const isolate = binding->GetIsolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  binding->Set(v8::String::NewFromUtf8(
+  binding->Set(context, v8::String::NewFromUtf8(
         isolate, "test", v8::NewStringType::kNormal).ToLocalChecked(),
                v8::FunctionTemplate::New(isolate, Test)
                    ->GetFunction(context)
-                   .ToLocalChecked());
+                   .ToLocalChecked()).FromJust();
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
