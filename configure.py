@@ -434,7 +434,7 @@ intl_optgroup.add_option('--with-icu-source',
     dest='with_icu_source',
     help='Intl mode: optional local path to icu/ dir, or path/URL of '
         'the icu4c source archive. '
-        'v%d.x or later recommended.' % icu_versions["minimum_icu"])
+        'v%d.x or later recommended.' % icu_versions['minimum_icu'])
 
 parser.add_option('--with-ltcg',
     action='store_true',
@@ -622,9 +622,13 @@ def b(value):
 
 
 def pkg_config(pkg):
+  """Run pkg-config on the specified package
+  Returns ("-l flags", "-I flags", "-L flags", "version")
+  otherwise (None, None, None, None)"""
   pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
   retval = ()
-  for flag in ['--libs-only-l', '--cflags-only-I', '--libs-only-L']:
+  for flag in ['--libs-only-l', '--cflags-only-I',
+               '--libs-only-L', '--modversion']:
     try:
       proc = subprocess.Popen(
           shlex.split(pkg_config) + ['--silence-errors', flag, pkg],
@@ -632,7 +636,7 @@ def pkg_config(pkg):
       val = proc.communicate()[0].strip()
     except OSError as e:
       if e.errno != errno.ENOENT: raise e  # Unexpected error.
-      return (None, None, None)  # No pkg-config/pkgconf installed.
+      return (None, None, None, None)  # No pkg-config/pkgconf installed.
     retval += (val,)
   return retval
 
@@ -1119,7 +1123,7 @@ def configure_library(lib, output):
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
 
   if getattr(options, shared_lib):
-    (pkg_libs, pkg_cflags, pkg_libpath) = pkg_config(lib)
+    (pkg_libs, pkg_cflags, pkg_libpath, pkg_modversion) = pkg_config(lib)
 
     if options.__dict__[shared_lib + '_includes']:
       output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
@@ -1354,7 +1358,12 @@ def configure_intl(o):
     if pkgicu[0] is None:
       error('''Could not load pkg-config data for "icu-i18n".
        See above errors or the README.md.''')
-    (libs, cflags, libpath) = pkgicu
+    (libs, cflags, libpath, icuversion) = pkgicu
+    icu_ver_major = icuversion.split('.')[0]
+    o['variables']['icu_ver_major'] = icu_ver_major
+    if int(icu_ver_major) < icu_versions['minimum_icu']:
+      error('icu4c v%s is too old, v%d.x or later is required.' %
+            (icuversion, icu_versions['minimum_icu']))
     # libpath provides linker path which may contain spaces
     if libpath:
       o['libraries'] += [libpath]
@@ -1473,9 +1482,9 @@ def configure_intl(o):
       icu_ver_major = m.group(1)
   if not icu_ver_major:
     error('Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
-  elif int(icu_ver_major) < icu_versions["minimum_icu"]:
-    error('icu4c v%d.x is too old, v%d.x or later is required.' % (int(icu_ver_major),
-                                                                  icu_versions["minimum_icu"]))
+  elif int(icu_ver_major) < icu_versions['minimum_icu']:
+    error('icu4c v%s.x is too old, v%d.x or later is required.' %
+          (icu_ver_major, icu_versions['minimum_icu']))
   icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
