@@ -16,7 +16,7 @@ use configdata;
 
 my $asm = $ARGV[0];
 
-unless ($asm eq "asm" or $asm eq "no-asm") {
+unless ($asm eq "asm" or $asm eq "asm_avx2" or $asm eq "no-asm") {
   die "Error: $asm is invalid argument";
 }
 my $arch = $ARGV[1];
@@ -25,7 +25,7 @@ my $arch = $ARGV[1];
 my $nasm_banner = `nasm -v`;
 die "Error: nasm is not installed." if (!$nasm_banner);
 
-my $nasm_version_min = 2.11;
+my $nasm_version_min =  2.13.3;
 my ($nasm_version) = ($nasm_banner =~/^NASM version ([0-9]\.[0-9][0-9])+/);
 if ($nasm_version < $nasm_version_min) {
   die "Error: nasm version $nasm_version is too old." .
@@ -33,7 +33,7 @@ if ($nasm_version < $nasm_version_min) {
 }
 
 # gas version check
-my $gas_version_min = 2.26;
+my $gas_version_min = 2.30;
 my $gas_banner = `gcc -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`;
 my ($gas_version) = ($gas_banner =~/GNU assembler version ([2-9]\.[0-9]+)/);
 if ($gas_version < $gas_version_min) {
