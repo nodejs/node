@@ -392,7 +392,7 @@ void ContextifyContext::PropertySetterCallback(
     args.GetReturnValue().Set(false);
   }
 
-  ctx->sandbox()->Set(property, value);
+  ctx->sandbox()->Set(ctx->context(), property, value).FromJust();
 }
 
 // static
@@ -606,8 +606,8 @@ void ContextifyScript::Init(Environment* env, Local<Object> target) {
   env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
   env->SetProtoMethod(script_tmpl, "runInThisContext", RunInThisContext);
 
-  target->Set(class_name,
-              script_tmpl->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(), class_name,
+      script_tmpl->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_script_context_constructor_template(script_tmpl);
 }
 
@@ -728,8 +728,9 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
 
   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
     args.This()->Set(
+        env->context(),
         env->cached_data_rejected_string(),
-        Boolean::New(isolate, source.GetCachedData()->rejected));
+        Boolean::New(isolate, source.GetCachedData()->rejected)).FromJust();
   } else if (produce_cached_data) {
     const ScriptCompiler::CachedData* cached_data =
       ScriptCompiler::CreateCodeCache(v8_script.ToLocalChecked());
@@ -739,11 +740,14 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
           env,
           reinterpret_cast<const char*>(cached_data->data),
           cached_data->length);
-      args.This()->Set(env->cached_data_string(), buf.ToLocalChecked());
+      args.This()->Set(env->context(),
+                       env->cached_data_string(),
+                       buf.ToLocalChecked()).FromJust();
     }
     args.This()->Set(
+        env->context(),
         env->cached_data_produced_string(),
-        Boolean::New(isolate, cached_data_produced));
+        Boolean::New(isolate, cached_data_produced)).FromJust();
   }
   TRACE_EVENT_NESTABLE_ASYNC_END0(
       TRACING_CATEGORY_NODE2(vm, script),

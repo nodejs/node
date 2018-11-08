@@ -119,7 +119,9 @@ void FSEventWrap::Initialize(Local<Object> target,
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete | v8::DontEnum));
 
-  target->Set(fsevent_string, t->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(),
+              fsevent_string,
+              t->GetFunction(context).ToLocalChecked()).FromJust();
 }
 
 

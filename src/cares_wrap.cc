@@ -1851,7 +1851,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
           continue;
 
         Local<String> s = OneByteString(env->isolate(), ip);
-        results->Set(n, s);
+        results->Set(env->context(), n, s).FromJust();
         n++;
       }
     };
@@ -2053,10 +2053,12 @@ void GetServers(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(err, 0);
 
     Local<Array> ret = Array::New(env->isolate(), 2);
-    ret->Set(0, OneByteString(env->isolate(), ip));
-    ret->Set(1, Integer::New(env->isolate(), cur->udp_port));
+    ret->Set(env->context(), 0, OneByteString(env->isolate(), ip)).FromJust();
+    ret->Set(env->context(),
+             1,
+             Integer::New(env->isolate(), cur->udp_port)).FromJust();
 
-    server_array->Set(i, ret);
+    server_array->Set(env->context(), i, ret).FromJust();
   }
 
   ares_free_data(servers);
@@ -2179,16 +2181,19 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "strerror", StrError);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-              Integer::New(env->isolate(), AF_INET));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET6"),
-              Integer::New(env->isolate(), AF_INET6));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_UNSPEC"),
-              Integer::New(env->isolate(), AF_UNSPEC));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_ADDRCONFIG"),
-              Integer::New(env->isolate(), AI_ADDRCONFIG));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_V4MAPPED"),
-              Integer::New(env->isolate(), AI_V4MAPPED));
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
+              Integer::New(env->isolate(), AF_INET)).FromJust();
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET6"),
+              Integer::New(env->isolate(), AF_INET6)).FromJust();
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
+                                                    "AF_UNSPEC"),
+              Integer::New(env->isolate(), AF_UNSPEC)).FromJust();
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
+                                                    "AI_ADDRCONFIG"),
+              Integer::New(env->isolate(), AI_ADDRCONFIG)).FromJust();
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
+                                                    "AI_V4MAPPED"),
+              Integer::New(env->isolate(), AI_V4MAPPED)).FromJust();
 
   Local<FunctionTemplate> aiw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
@@ -2196,7 +2201,9 @@ void Initialize(Local<Object> target,
   Local<String> addrInfoWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap");
   aiw->SetClassName(addrInfoWrapString);
-  target->Set(addrInfoWrapString, aiw->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(),
+              addrInfoWrapString,
+              aiw->GetFunction(context).ToLocalChecked()).FromJust();
 
   Local<FunctionTemplate> niw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
@@ -2204,7 +2211,9 @@ void Initialize(Local<Object> target,
   Local<String> nameInfoWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap");
   niw->SetClassName(nameInfoWrapString);
-  target->Set(nameInfoWrapString, niw->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(),
+              nameInfoWrapString,
+              niw->GetFunction(context).ToLocalChecked()).FromJust();
 
   Local<FunctionTemplate> qrw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
@@ -2212,7 +2221,9 @@ void Initialize(Local<Object> target,
   Local<String> queryWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap");
   qrw->SetClassName(queryWrapString);
-  target->Set(queryWrapString, qrw->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(),
+              queryWrapString,
+              qrw->GetFunction(context).ToLocalChecked()).FromJust();
 
   Local<FunctionTemplate> channel_wrap =
       env->NewFunctionTemplate(ChannelWrap::New);
@@ -2239,8 +2250,8 @@ void Initialize(Local<Object> target,
   Local<String> channelWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap");
   channel_wrap->SetClassName(channelWrapString);
-  target->Set(channelWrapString,
-              channel_wrap->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(), channelWrapString,
+              channel_wrap->GetFunction(context).ToLocalChecked()).FromJust();
 }
 
 }  // anonymous namespace

@@ -265,7 +265,8 @@ class Parser : public AsyncWrap, public StreamListener {
 
     Local<Value> argv[A_MAX];
     Local<Object> obj = object();
-    Local<Value> cb = obj->Get(kOnHeadersComplete);
+    Local<Value> cb = obj->Get(env()->context(),
+                               kOnHeadersComplete).ToLocalChecked();
 
     if (!cb->IsFunction())
       return 0;
@@ -338,7 +339,7 @@ class Parser : public AsyncWrap, public StreamListener {
     EscapableHandleScope scope(env()->isolate());
 
     Local<Object> obj = object();
-    Local<Value> cb = obj->Get(kOnBody);
+    Local<Value> cb = obj->Get(env()->context(), kOnBody).ToLocalChecked();
 
     if (!cb->IsFunction())
       return 0;
@@ -381,7 +382,8 @@ class Parser : public AsyncWrap, public StreamListener {
       Flush();  // Flush trailing HTTP headers.
 
     Local<Object> obj = object();
-    Local<Value> cb = obj->Get(kOnMessageComplete);
+    Local<Value> cb = obj->Get(env()->context(),
+                               kOnMessageComplete).ToLocalChecked();
 
     if (!cb->IsFunction())
       return 0;
@@ -705,17 +707,23 @@ class Parser : public AsyncWrap, public StreamListener {
       Local<Value> e = Exception::Error(env()->parse_error_string());
       Local<Object> obj = e->ToObject(env()->isolate()->GetCurrentContext())
         .ToLocalChecked();
-      obj->Set(env()->bytes_parsed_string(), nread_obj);
+      obj->Set(env()->context(),
+               env()->bytes_parsed_string(),
+               nread_obj).FromJust();
 #ifdef NODE_EXPERIMENTAL_HTTP
-      obj->Set(env()->code_string(),
-               OneByteString(env()->isolate(), llhttp_errno_name(err)));
-      obj->Set(env()->reason_string(),
-               OneByteString(env()->isolate(), parser_.reason));
+      obj->Set(env()->context(),
+               env()->code_string(),
+               OneByteString(env()->isolate(),
+                             llhttp_errno_name(err))).FromJust();
+      obj->Set(env()->context(),
+               env()->reason_string(),
+               OneByteString(env()->isolate(), parser_.reason)).FromJust();
 #else  /* !NODE_EXPERIMENTAL_HTTP */
-      obj->Set(env()->code_string(),
-               OneByteString(env()->isolate(), http_errno_name(err)));
+      obj->Set(env()->context(),
+               env()->code_string(),
+               OneByteString(env()->isolate(),
+                             http_errno_name(err))).FromJust();
 #endif  /* NODE_EXPERIMENTAL_HTTP */
-
       return scope.Escape(e);
     }
 
@@ -750,7 +758,7 @@ class Parser : public AsyncWrap, public StreamListener {
     HandleScope scope(env()->isolate());
 
     Local<Object> obj = object();
-    Local<Value> cb = obj->Get(kOnHeaders);
+    Local<Value> cb = obj->Get(env()->context(), kOnHeaders).ToLocalChecked();
 
     if (!cb->IsFunction())
       return;
@@ -902,10 +910,13 @@ void Initialize(Local<Object> target,
 
   Local<Array> methods = Array::New(env->isolate());
 #define V(num, name, string)                                                  \
-    methods->Set(num, FIXED_ONE_BYTE_STRING(env->isolate(), #string));
+    methods->Set(env->context(),                                              \
+        num, FIXED_ONE_BYTE_STRING(env->isolate(), #string)).FromJust();
   HTTP_METHOD_MAP(V)
 #undef V
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "methods"),
+              methods).FromJust();
 
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(t, "close", Parser::Close);
@@ -919,8 +930,9 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(t, "unconsume", Parser::Unconsume);
   env->SetProtoMethod(t, "getCurrentBuffer", Parser::GetCurrentBuffer);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 }  // anonymous namespace

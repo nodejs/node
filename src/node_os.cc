@@ -267,10 +267,11 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
         v8::NewStringType::kNormal).ToLocalChecked();
 
     if (ret->Has(env->context(), name).FromJust()) {
-      ifarr = Local<Array>::Cast(ret->Get(name));
+      ifarr = Local<Array>::Cast(ret->Get(env->context(),
+                                          name).ToLocalChecked());
     } else {
       ifarr = Array::New(env->isolate());
-      ret->Set(name, ifarr);
+      ret->Set(env->context(), name, ifarr).FromJust();
     }
 
     snprintf(mac,
@@ -297,22 +298,29 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     }
 
     o = Object::New(env->isolate());
-    o->Set(env->address_string(), OneByteString(env->isolate(), ip));
-    o->Set(env->netmask_string(), OneByteString(env->isolate(), netmask));
-    o->Set(env->family_string(), family);
-    o->Set(env->mac_string(), FIXED_ONE_BYTE_STRING(env->isolate(), mac));
+    o->Set(env->context(),
+           env->address_string(),
+           OneByteString(env->isolate(), ip)).FromJust();
+    o->Set(env->context(),
+           env->netmask_string(),
+           OneByteString(env->isolate(), netmask)).FromJust();
+    o->Set(env->context(),
+           env->family_string(), family).FromJust();
+    o->Set(env->context(),
+           env->mac_string(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), mac)).FromJust();
 
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uint32_t scopeid = interfaces[i].address.address6.sin6_scope_id;
-      o->Set(env->scopeid_string(),
-             Integer::NewFromUnsigned(env->isolate(), scopeid));
+      o->Set(env->context(), env->scopeid_string(),
+             Integer::NewFromUnsigned(env->isolate(), scopeid)).FromJust();
     }
 
     const bool internal = interfaces[i].is_internal;
-    o->Set(env->internal_string(),
-           internal ? True(env->isolate()) : False(env->isolate()));
+    o->Set(env->context(), env->internal_string(),
+           internal ? True(env->isolate()) : False(env->isolate())).FromJust();
 
-    ifarr->Set(ifarr->Length(), o);
+    ifarr->Set(env->context(), ifarr->Length(), o).FromJust();
   }
 
   uv_free_interface_addresses(interfaces, count);
@@ -397,11 +405,17 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> entry = Object::New(env->isolate());
 
-  entry->Set(env->uid_string(), uid);
-  entry->Set(env->gid_string(), gid);
-  entry->Set(env->username_string(), username.ToLocalChecked());
-  entry->Set(env->homedir_string(), homedir.ToLocalChecked());
-  entry->Set(env->shell_string(), shell.ToLocalChecked());
+  entry->Set(env->context(), env->uid_string(), uid).FromJust();
+  entry->Set(env->context(), env->gid_string(), gid).FromJust();
+  entry->Set(env->context(),
+             env->username_string(),
+             username.ToLocalChecked()).FromJust();
+  entry->Set(env->context(),
+             env->homedir_string(),
+             homedir.ToLocalChecked()).FromJust();
+  entry->Set(env->context(),
+             env->shell_string(),
+             shell.ToLocalChecked()).FromJust();
 
   args.GetReturnValue().Set(entry);
 }
@@ -464,8 +478,9 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getUserInfo", GetUserInfo);
   env->SetMethod(target, "setPriority", SetPriority);
   env->SetMethod(target, "getPriority", GetPriority);
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
-              Boolean::New(env->isolate(), IsBigEndian()));
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
+              Boolean::New(env->isolate(), IsBigEndian())).FromJust();
 }
 
 }  // namespace os

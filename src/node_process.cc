@@ -488,7 +488,8 @@ void GetGroups(const FunctionCallbackInfo<Value>& args) {
   gid_t egid = getegid();
 
   for (int i = 0; i < ngroups; i++) {
-    groups_list->Set(i, Integer::New(env->isolate(), groups[i]));
+    groups_list->Set(env->context(),
+                     i, Integer::New(env->isolate(), groups[i])).FromJust();
     if (groups[i] == egid)
       seen_egid = true;
   }
@@ -496,7 +497,9 @@ void GetGroups(const FunctionCallbackInfo<Value>& args) {
   delete[] groups;
 
   if (seen_egid == false)
-    groups_list->Set(ngroups, Integer::New(env->isolate(), egid));
+    groups_list->Set(env->context(),
+                     ngroups,
+                     Integer::New(env->isolate(), egid)).FromJust();
 
   args.GetReturnValue().Set(groups_list);
 }
@@ -513,7 +516,9 @@ void SetGroups(const FunctionCallbackInfo<Value>& args) {
   gid_t* groups = new gid_t[size];
 
   for (size_t i = 0; i < size; i++) {
-    gid_t gid = gid_by_name(env->isolate(), groups_list->Get(i));
+    gid_t gid = gid_by_name(env->isolate(),
+                            groups_list->Get(env->context(),
+                                             i).ToLocalChecked());
 
     if (gid == gid_not_found) {
       delete[] groups;

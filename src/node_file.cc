@@ -640,8 +640,14 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
   }
 
   Local<Array> result = Array::New(isolate, 2);
-  result->Set(0, Array::New(isolate, name_v.data(), name_v.size()));
-  result->Set(1, Array::New(isolate, type_v.data(), type_v.size()));
+  result->Set(env->context(),
+              0,
+              Array::New(isolate, name_v.data(),
+              name_v.size())).FromJust();
+  result->Set(env->context(),
+              1,
+              Array::New(isolate, type_v.data(),
+              type_v.size())).FromJust();
   req_wrap->Resolve(result);
 }
 
@@ -1482,8 +1488,11 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     Local<Array> names = Array::New(isolate, name_v.data(), name_v.size());
     if (with_types) {
       Local<Array> result = Array::New(isolate, 2);
-      result->Set(0, names);
-      result->Set(1, Array::New(isolate, type_v.data(), type_v.size()));
+      result->Set(env->context(), 0, names).FromJust();
+      result->Set(env->context(),
+                  1,
+                  Array::New(isolate, type_v.data(),
+                             type_v.size())).FromJust();
       args.GetReturnValue().Set(result);
     } else {
       args.GetReturnValue().Set(names);
@@ -1667,7 +1676,7 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   MaybeStackBuffer<uv_buf_t> iovs(chunks->Length());
 
   for (uint32_t i = 0; i < iovs.length(); i++) {
-    Local<Value> chunk = chunks->Get(i);
+    Local<Value> chunk = chunks->Get(env->context(), i).ToLocalChecked();
     CHECK(Buffer::HasInstance(chunk));
     iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
   }

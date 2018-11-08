@@ -755,7 +755,9 @@ void CollectExceptionInfo(Environment* env,
                           const char* message,
                           const char* path,
                           const char* dest) {
-  obj->Set(env->errno_string(), v8::Integer::New(env->isolate(), errorno));
+  obj->Set(env->context(),
+           env->errno_string(),
+           v8::Integer::New(env->isolate(), errorno)).FromJust();
 
   obj->Set(env->context(), env->code_string(),
            OneByteString(env->isolate(), err_string)).FromJust();

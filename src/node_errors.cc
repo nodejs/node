@@ -198,7 +198,8 @@ void ReportException(Environment* env,
   } else {
     Local<Object> err_obj = er->ToObject(env->context()).ToLocalChecked();
 
-    trace_value = err_obj->Get(env->stack_string());
+    trace_value = err_obj->Get(env->context(),
+                               env->stack_string()).ToLocalChecked();
     arrow =
         err_obj->GetPrivate(env->context(), env->arrow_message_private_symbol())
             .ToLocalChecked();
@@ -223,8 +224,10 @@ void ReportException(Environment* env,
 
     if (er->IsObject()) {
       Local<Object> err_obj = er.As<Object>();
-      message = err_obj->Get(env->message_string());
-      name = err_obj->Get(FIXED_ONE_BYTE_STRING(env->isolate(), "name"));
+      message = err_obj->Get(env->context(),
+                             env->message_string()).ToLocalChecked();
+      name = err_obj->Get(env->context(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "name")).ToLocalChecked();
     }
 
     if (message.IsEmpty() || message->IsUndefined() || name.IsEmpty() ||
@@ -269,7 +272,8 @@ void DecorateErrorStack(Environment* env, const TryCatch& try_catch) {
   if (IsExceptionDecorated(env, err_obj)) return;
 
   AppendExceptionLine(env, exception, try_catch.Message(), CONTEXTIFY_ERROR);
-  Local<Value> stack = err_obj->Get(env->stack_string());
+  Local<Value> stack = err_obj->Get(env->context(),
+                                    env->stack_string()).ToLocalChecked();
   MaybeLocal<Value> maybe_value =
       err_obj->GetPrivate(env->context(), env->arrow_message_private_symbol());
 
@@ -288,7 +292,7 @@ void DecorateErrorStack(Environment* env, const TryCatch& try_catch) {
                      arrow.As<String>(),
                      FIXED_ONE_BYTE_STRING(env->isolate(), "\n")),
       stack.As<String>());
-  err_obj->Set(env->stack_string(), decorated_stack);
+  err_obj->Set(env->context(), env->stack_string(), decorated_stack).FromJust();
   err_obj->SetPrivate(
       env->context(), env->decorated_private_symbol(), True(env->isolate()));
 }
@@ -361,7 +365,8 @@ void FatalException(Isolate* isolate,
   Local<Object> process_object = env->process_object();
   Local<String> fatal_exception_string = env->fatal_exception_string();
   Local<Value> fatal_exception_function =
-      process_object->Get(fatal_exception_string);
+      process_object->Get(env->context(),
+                          fatal_exception_string).ToLocalChecked();
 
   if (!fatal_exception_function->IsFunction()) {
     // Failed before the process._fatalException function was added!

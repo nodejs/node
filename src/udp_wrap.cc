@@ -133,7 +133,9 @@ void UDPWrap::Initialize(Local<Object> target,
 
   t->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-  target->Set(udpString, t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              udpString,
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_udp_constructor_function(
       t->GetFunction(env->context()).ToLocalChecked());
 
@@ -144,8 +146,9 @@ void UDPWrap::Initialize(Local<Object> target,
   Local<String> sendWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap");
   swt->SetClassName(sendWrapString);
-  target->Set(sendWrapString,
-              swt->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              sendWrapString,
+              swt->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -373,7 +376,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
 
   // construct uv_buf_t array
   for (size_t i = 0; i < count; i++) {
-    Local<Value> chunk = chunks->Get(i);
+    Local<Value> chunk = chunks->Get(env->context(), i).ToLocalChecked();
 
     size_t length = Buffer::Length(chunk);
 

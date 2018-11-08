@@ -110,8 +110,10 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(category_set, "enable", NodeCategorySet::Enable);
   env->SetProtoMethod(category_set, "disable", NodeCategorySet::Disable);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "CategorySet"),
-              category_set->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "CategorySet"),
+              category_set->GetFunction(env->context()).ToLocalChecked())
+              .FromJust();
 
   Local<String> isTraceCategoryEnabled =
       FIXED_ONE_BYTE_STRING(env->isolate(), "isTraceCategoryEnabled");
