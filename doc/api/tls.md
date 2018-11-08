@@ -566,6 +566,22 @@ added: v0.11.4
 Always returns `true`. This may be used to distinguish TLS sockets from regular
 `net.Socket` instances.
 
+### tlsSocket.getCertificate()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+
+Returns an object representing the local certificate. The returned object has
+some properties corresponding to the fields of the certificate.
+
+See [`tls.TLSSocket.getPeerCertificate()`][] for an example of the certificate
+structure.
+
+If there is no local certificate, an empty object will be returned. If the
+socket has been destroyed, `null` will be returned.
+
 ### tlsSocket.getCipher()
 <!-- YAML
 added: v0.11.4
@@ -658,6 +674,7 @@ certificate.
 ```
 
 If the peer does not provide a certificate, an empty object will be returned.
+If the socket has been destroyed, `null` will be returned.
 
 ### tlsSocket.getPeerFinished()
 <!-- YAML
