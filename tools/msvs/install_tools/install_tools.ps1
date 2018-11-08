@@ -14,7 +14,7 @@ try
   iex ((New-Object System.Net.WebClient).DownloadString('https://boxstarter.org/bootstrapper.ps1')); get-boxstarter -Force;
 
   # Install the packges from `install_tools.txt`
-  Install-BoxstarterPackage -PackageName ($PSScriptRoot+'\install_tools.txt') -Credential $cred -DisableReboots;
+  Install-BoxstarterPackage -PackageName ($PSScriptRoot+'\install_tools.txt') -Credential $cred;
 
   # Wait for user confirmation.
   Read-Host 'Press ENTER to finish';
