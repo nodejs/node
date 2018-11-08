@@ -384,7 +384,7 @@
       <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="NativeToolsDlg">1</Publish>
       <Publish Dialog="NativeToolsDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg">1</Publish>
       <Publish Dialog="NativeToolsDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
-      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="OpenShurtcutFolder">NATIVETOOLSCHECKBOX = 1</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="OpenShortcutFolder">NATIVETOOLSCHECKBOX = 1</Publish>
       <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
 
       <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="!(loc.WIXUI_EXITDIALOGOPTIONALTEXT)"/>
