@@ -909,7 +909,9 @@ void TLSWrap::Initialize(Local<Object> target,
   env->set_tls_wrap_constructor_function(
       t->GetFunction(env->context()).ToLocalChecked());
 
-  target->Set(tlsWrapString, t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              tlsWrapString,
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 }  // namespace node

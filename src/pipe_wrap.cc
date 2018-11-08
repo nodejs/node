@@ -90,7 +90,9 @@ void PipeWrap::Initialize(Local<Object> target,
 
   env->SetProtoMethod(t, "fchmod", Fchmod);
 
-  target->Set(pipeString, t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              pipeString,
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_pipe_constructor_template(t);
 
   // Create FunctionTemplate for PipeConnectWrap.
@@ -99,7 +101,9 @@ void PipeWrap::Initialize(Local<Object> target,
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap");
   cwt->SetClassName(wrapString);
-  target->Set(wrapString, cwt->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              wrapString,
+              cwt->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());

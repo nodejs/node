@@ -379,8 +379,8 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 
-  target->Set(secureContextString,
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(), secureContextString,
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_secure_context_constructor_template(t);
 }
 
@@ -1267,18 +1267,24 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   Local<Array> arr = ret.As<Array>();
 
   int r =
-      arr->Get(kTicketKeyReturnIndex)->Int32Value(env->context()).FromJust();
+      arr->Get(env->context(),
+               kTicketKeyReturnIndex).ToLocalChecked()
+               ->Int32Value(env->context()).FromJust();
   if (r < 0)
     return r;
 
-  Local<Value> hmac = arr->Get(kTicketKeyHMACIndex);
-  Local<Value> aes = arr->Get(kTicketKeyAESIndex);
+  Local<Value> hmac = arr->Get(env->context(),
+                               kTicketKeyHMACIndex).ToLocalChecked();
+  Local<Value> aes = arr->Get(env->context(),
+                              kTicketKeyAESIndex).ToLocalChecked();
   if (Buffer::Length(aes) != kTicketPartSize)
     return -1;
 
   if (enc) {
-    Local<Value> name_val = arr->Get(kTicketKeyNameIndex);
-    Local<Value> iv_val = arr->Get(kTicketKeyIVIndex);
+    Local<Value> name_val = arr->Get(env->context(),
+                                     kTicketKeyNameIndex).ToLocalChecked();
+    Local<Value> iv_val = arr->Get(env->context(),
+                                   kTicketKeyIVIndex).ToLocalChecked();
 
     if (Buffer::Length(name_val) != kTicketPartSize ||
         Buffer::Length(iv_val) != kTicketPartSize) {
@@ -1658,7 +1664,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     unsigned char* pubserialized =
         reinterpret_cast<unsigned char*>(Buffer::Data(pubbuff));
     i2d_RSA_PUBKEY(rsa.get(), &pubserialized);
-    info->Set(env->pubkey_string(), pubbuff);
+    info->Set(env->context(), env->pubkey_string(), pubbuff).FromJust();
   }
 
   pkey.reset();
@@ -2413,7 +2419,8 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
   CHECK(w->is_waiting_cert_cb() && w->cert_cb_running_);
 
   Local<Object> object = w->object();
-  Local<Value> ctx = object->Get(env->sni_context_string());
+  Local<Value> ctx = object->Get(env->context(),
+                                 env->sni_context_string()).ToLocalChecked();
   Local<FunctionTemplate> cons = env->secure_context_constructor_template();
 
   // Not an object, probably undefined or null
@@ -2577,8 +2584,9 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setAuthTag", SetAuthTag);
   env->SetProtoMethod(t, "setAAD", SetAAD);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "CipherBase"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "CipherBase"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -3182,8 +3190,9 @@ void Hmac::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", HmacUpdate);
   env->SetProtoMethod(t, "digest", HmacDigest);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hmac"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "Hmac"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -3302,8 +3311,9 @@ void Hash::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", HashUpdate);
   env->SetProtoMethod(t, "digest", HashDigest);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hash"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "Hash"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -3497,8 +3507,9 @@ void Sign::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", SignUpdate);
   env->SetProtoMethod(t, "sign", SignFinal);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -3728,8 +3739,9 @@ void Verify::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", VerifyUpdate);
   env->SetProtoMethod(t, "verify", VerifyFinal);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Verify"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "Verify"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -3965,7 +3977,9 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
         Local<FunctionTemplate>(),
         attributes);
 
-    target->Set(name, t->GetFunction(env->context()).ToLocalChecked());
+    target->Set(env->context(),
+                name,
+                t->GetFunction(env->context()).ToLocalChecked()).FromJust();
   };
 
   make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"), New);
@@ -4292,8 +4306,9 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -5300,7 +5315,9 @@ static void array_push_back(const TypeName* md,
                             const char* to,
                             void* arg) {
   CipherPushContext* ctx = static_cast<CipherPushContext*>(arg);
-  ctx->arr->Set(ctx->arr->Length(), OneByteString(ctx->env()->isolate(), from));
+  ctx->arr->Set(ctx->env()->context(),
+                ctx->arr->Length(),
+                OneByteString(ctx->env()->isolate(), from)).FromJust();
 }
 
 

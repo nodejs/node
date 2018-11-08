@@ -55,8 +55,9 @@ class SignalWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
-    target->Set(signalString,
-                constructor->GetFunction(env->context()).ToLocalChecked());
+    target->Set(env->context(), signalString,
+                constructor->GetFunction(env->context()).ToLocalChecked())
+                .FromJust();
   }
 
   SET_NO_MEMORY_INFO()

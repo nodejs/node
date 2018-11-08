@@ -118,7 +118,7 @@ int JSStream::DoWrite(WriteWrap* w,
   Local<Object> buf;
   for (size_t i = 0; i < count; i++) {
     buf = Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocalChecked();
-    bufs_arr->Set(i, buf);
+    bufs_arr->Set(env()->context(), i, buf).FromJust();
   }
 
   Local<Value> argv[] = {
@@ -210,7 +210,9 @@ void JSStream::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "emitEOF", EmitEOF);
 
   StreamBase::AddMethods<JSStream>(env, t);
-  target->Set(jsStreamString, t->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(),
+              jsStreamString,
+              t->GetFunction(context).ToLocalChecked()).FromJust();
 }
 
 }  // namespace node
