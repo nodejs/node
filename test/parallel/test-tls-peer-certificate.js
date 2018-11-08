@@ -43,6 +43,8 @@ connect({
 }, function(err, pair, cleanup) {
   assert.ifError(err);
   const socket = pair.client.conn;
+  const localCert = socket.getCertificate();
+  assert.deepStrictEqual(localCert, {});
   let peerCert = socket.getPeerCertificate();
   assert.ok(!peerCert.issuerCertificate);
 

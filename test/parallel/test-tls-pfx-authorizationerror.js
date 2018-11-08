@@ -22,6 +22,8 @@ const server = tls
       rejectUnauthorized: false
     },
     common.mustCall(function(c) {
+      assert.strictEqual(c.getPeerCertificate().serialNumber,
+                         'ECC9B856270DA9A8');
       assert.strictEqual(c.authorizationError, null);
       c.end();
     })
@@ -35,6 +37,8 @@ const server = tls
         rejectUnauthorized: false
       },
       function() {
+        assert.strictEqual(client.getCertificate().serialNumber,
+                           'FAD50CC6A07F516C');
         client.end();
         server.close();
       }
