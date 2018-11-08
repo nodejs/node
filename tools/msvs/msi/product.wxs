@@ -312,7 +312,7 @@
                   Return="check" />
 
     <Property Id="WixShellExecTarget" Value="[#NodeStartMenu]" />
-    <CustomAction Id="OpenShurtcutFolder" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+    <CustomAction Id="OpenShortcutFolder" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
     <InstallUISequence>
       <Custom Action='SetInstallScope' Before='FindRelatedProducts'/>
