@@ -4,6 +4,13 @@ cache: ccache
 os: linux
 matrix:
   include:
+    - name: "Check First Commit Message"
+      language: node_js
+      node_js: "node"
+      script:
+        - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
+            bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
+          fi
     - name: "Linter"
       language: node_js
       node_js: "node"
@@ -11,10 +18,6 @@ matrix:
         - NODE=$(which node)
       script:
         - make lint
-        # Lint the first commit in the PR.
-        - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
-            bash tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST} || true;
-          fi
     - name: "Test Suite"
       addons:
         apt:
