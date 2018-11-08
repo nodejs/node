@@ -134,7 +134,7 @@ OpenSSL-1.1.0 requires the following assembler version for use of asm
 support on x86_64 and ia32.
 
 * gas (GNU assembler) version 2.23 or higher
-* xcode version 5.0 or higher
+* Xcode version 5.0 or higher
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
