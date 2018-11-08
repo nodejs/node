@@ -33,7 +33,8 @@ void CallWithArray(const FunctionCallbackInfo<Value>& args) {
     uint32_t length = array->Length();
     for (uint32_t i = 0; i < length; ++ i) {
       Local<Value> v;
-      v = array->Get(i);
+      v = array->Get(args.GetIsolate()->GetCurrentContext(),
+                     i).ToLocalChecked();
     }
   }
 }

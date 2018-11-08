@@ -537,6 +537,7 @@ to invoke such callbacks:
 
 namespace demo {
 
+using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
@@ -549,13 +550,14 @@ using v8::Value;
 
 void RunCallback(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
   Local<Function> cb = Local<Function>::Cast(args[0]);
   const unsigned argc = 1;
   Local<Value> argv[argc] = {
       String::NewFromUtf8(isolate,
                           "hello world",
                           NewStringType::kNormal).ToLocalChecked() };
-  cb->Call(Null(isolate), argc, argv);
+  cb->Call(context, Null(isolate), argc, argv).ToLocalChecked();
 }
 
 void Init(Local<Object> exports, Local<Object> module) {
@@ -612,10 +614,12 @@ void CreateObject(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
 
   Local<Object> obj = Object::New(isolate);
-  obj->Set(String::NewFromUtf8(isolate,
+  obj->Set(context,
+           String::NewFromUtf8(isolate,
                                "msg",
                                NewStringType::kNormal).ToLocalChecked(),
-                               args[0]->ToString(context).ToLocalChecked());
+                               args[0]->ToString(context).ToLocalChecked())
+           .FromJust();
 
   args.GetReturnValue().Set(obj);
 }
@@ -803,9 +807,9 @@ void MyObject::Init(Local<Object> exports) {
 
   Local<Context> context = isolate->GetCurrentContext();
   constructor.Reset(isolate, tpl->GetFunction(context).ToLocalChecked());
-  exports->Set(String::NewFromUtf8(
+  exports->Set(context, String::NewFromUtf8(
       isolate, "MyObject", NewStringType::kNormal).ToLocalChecked(),
-               tpl->GetFunction(context).ToLocalChecked());
+               tpl->GetFunction(context).ToLocalChecked()).FromJust();
 }
 
 void MyObject::New(const FunctionCallbackInfo<Value>& args) {
