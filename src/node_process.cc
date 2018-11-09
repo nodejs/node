@@ -730,40 +730,29 @@ void EnvDeleter(Local<Name> property,
 void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
-  Local<Context> ctx = env->context();
-  Local<Function> fn = env->push_values_to_array_function();
-  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  size_t idx = 0;
 
   Mutex::ScopedLock lock(environ_mutex);
+  Local<Array> envarr;
+  int env_size = 0;
 #ifdef __POSIX__
-  int size = 0;
-  while (environ[size])
-    size++;
+  while (environ[env_size]) {
+    env_size++;
+  }
+  std::vector<Local<Value>> env_v(env_size);
 
-  Local<Array> envarr = Array::New(isolate);
-
-  for (int i = 0; i < size; ++i) {
+  for (int i = 0; i < env_size; ++i) {
     const char* var = environ[i];
     const char* s = strchr(var, '=');
     const int length = s ? s - var : strlen(var);
-    argv[idx] = String::NewFromUtf8(isolate,
-                                    var,
-                                    v8::NewStringType::kNormal,
-                                    length).ToLocalChecked();
-    if (++idx >= arraysize(argv)) {
-      fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
-      idx = 0;
-    }
-  }
-  if (idx > 0) {
-    fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
+    env_v[i] =
+        String::NewFromUtf8(isolate, var, v8::NewStringType::kNormal, length)
+            .ToLocalChecked();
   }
 #else  // _WIN32
+  std::vector<Local<Value>> env_v;
   WCHAR* environment = GetEnvironmentStringsW();
   if (environment == nullptr)
     return;  // This should not happen.
-  Local<Array> envarr = Array::New(isolate);
   WCHAR* p = environment;
   while (*p) {
     WCHAR* s;
@@ -789,19 +778,14 @@ void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
       FreeEnvironmentStringsW(environment);
       return;
     }
-    argv[idx] = rc.ToLocalChecked();
-    if (++idx >= arraysize(argv)) {
-      fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
-      idx = 0;
-    }
+    env_v.push_back(rc.ToLocalChecked());
+    size++;
     p = s + wcslen(s) + 1;
-  }
-  if (idx > 0) {
-    fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
   }
   FreeEnvironmentStringsW(environment);
 #endif
 
+  envarr = Array::New(isolate, env_v.data(), env_size);
   info.GetReturnValue().Set(envarr);
 }
 
