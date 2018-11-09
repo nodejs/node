@@ -797,28 +797,16 @@ void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Array> ary = Array::New(args.GetIsolate());
-  Local<Context> ctx = env->context();
-  Local<Function> fn = env->push_values_to_array_function();
-  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  size_t idx = 0;
-
+  std::vector<Local<Value>> request_v;
   for (auto w : *env->req_wrap_queue()) {
     if (w->persistent().IsEmpty())
       continue;
-    argv[idx] = w->GetOwner();
-    if (++idx >= arraysize(argv)) {
-      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-      idx = 0;
-    }
+    request_v.push_back(w->GetOwner());
   }
 
-  if (idx > 0) {
-    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-  }
-
-  args.GetReturnValue().Set(ary);
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), request_v.data(), request_v.size()));
 }
-
 
 // Non-static, friend of HandleWrap. Could have been a HandleWrap method but
 // implemented here for consistency with GetActiveRequests().
