@@ -138,8 +138,8 @@ support on x86_64 and ia32.
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
-Otherwise `configure` will fail with an error. Avoid this by either providing a
-newer assembler as per the list above or by using the `--openssl-no-asm` flag.
+If compiling without one of the above, use `configure` with the
+`--openssl-no-asm` flag. Otherwise, `configure` will fail.
 
 The forthcoming OpenSSL-1.1.1 will have different requirements. Please refer to
  https://www.openssl.org/docs/man1.1.1/man3/OPENSSL_ia32cap.html for details.
