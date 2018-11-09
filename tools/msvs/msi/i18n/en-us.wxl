@@ -14,15 +14,8 @@
     <String Id="NativeToolsDlgBannerBitmap">WixUI_Bmp_Banner</String>
     <String Id="NativeToolsDlgIntro">Some npm modules need to be compiled from C/C++ when installing. If you want to be able to install such modules, some tools (Python 2 and Visual Studio Build Tools) need to be installed.</String>
     <String Id="NativeToolsDlgInstallCheckbox">Open the shortcut folder to run the tools install script.</String>
-    <String Id="NativeToolsDlgManualDetails">
-      Note that the tools install script will also install
-      <![CDATA[<a href="https://boxstarter.org/">Boxstarter</a>]]>
-      and
-      <![CDATA[<a href="https://chocolatey.org/">Chocolatey</a>]]>
-      Alternatively, follow the instructions at
-      <![CDATA[<a href="https://github.com/nodejs/node-gyp#on-windows">https://github.com/nodejs/node-gyp#on-windows</a>]]>
-      to install the dependencies yourself.
-    </String>
+    <String Id="NativeToolsDlgManualDetails">Note that the tools install script will also install <![CDATA[<a href="https://boxstarter.org/">Boxstarter</a>]]> and <![CDATA[<a href="https://chocolatey.org/">Chocolatey</a>]]>.
+Alternatively, follow the instructions at <![CDATA[<a href="https://github.com/nodejs/node-gyp#on-windows">https://github.com/nodejs/node-gyp#on-windows</a>]]> to install the dependencies yourself.</String>
 
     <!-- References like [ProductName] or $(var.ProductName) don't seem to work in Title attributes -->
     <String Id="NodeRuntime_Title">Node.js runtime</String>
