@@ -1292,9 +1292,6 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   Local<String> value_str;
 
   Local<Array> holder = Array::New(isolate);
-  Local<Function> fn = env()->push_values_to_array_function();
-  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
-
   // The headers are passed in above as a queue of nghttp2_header structs.
   // The following converts that into a JS array with the structure:
   // [name1, value1, name2, value2, name3, value3, name3, value4] and so on.
@@ -1302,35 +1299,23 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   // like {name1: value1, name2: value2, name3: [value3, value4]}. We do it
   // this way for performance reasons (it's faster to generate and pass an
   // array than it is to generate and pass the object).
-  size_t n = 0;
-  while (n < headers.size()) {
-    size_t j = 0;
-    while (n < headers.size() && j < arraysize(argv) / 2) {
-      nghttp2_header item = headers[n++];
-      // The header name and value are passed as external one-byte strings
-      name_str =
-          ExternalHeader::New<true>(this, item.name).ToLocalChecked();
-      value_str =
-          ExternalHeader::New<false>(this, item.value).ToLocalChecked();
-      argv[j * 2] = name_str;
-      argv[j * 2 + 1] = value_str;
-      j++;
-    }
-    // For performance, we pass name and value pairs to array.protototype.push
-    // in batches of size NODE_PUSH_VAL_TO_ARRAY_MAX * 2 until there are no
-    // more items to push.
-    if (j > 0) {
-      fn->Call(env()->context(), holder, j * 2, argv).ToLocalChecked();
-    }
+  size_t headers_size = headers.size();
+  std::vector<Local<Value>> headers_v(headers_size * 2);
+  for (size_t i = 0; i < headers_size; ++i) {
+    nghttp2_header item = headers[i];
+    // The header name and value are passed as external one-byte strings
+    headers_v[i * 2] =
+        ExternalHeader::New<true>(this, item.name).ToLocalChecked();
+    headers_v[i * 2 + 1] =
+        ExternalHeader::New<false>(this, item.value).ToLocalChecked();
   }
 
   Local<Value> args[5] = {
-    stream->object(),
-    Integer::New(isolate, id),
-    Integer::New(isolate, stream->headers_category()),
-    Integer::New(isolate, frame->hd.flags),
-    holder
-  };
+      stream->object(),
+      Integer::New(isolate, id),
+      Integer::New(isolate, stream->headers_category()),
+      Integer::New(isolate, frame->hd.flags),
+      Array::New(isolate, headers_v.data(), headers_size * 2)};
   MakeCallback(env()->onheaders_string(), arraysize(args), args);
 }
 
