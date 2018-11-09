@@ -2329,12 +2329,6 @@ void AsyncCompileJob::CancelPendingForegroundTask() {
   pending_foreground_task_ = nullptr;
 }
 
-template <typename Step, typename... Args>
-void AsyncCompileJob::DoSync(Args&&... args) {
-  NextStep<Step>(std::forward<Args>(args)...);
-  StartForegroundTask();
-}
-
 void AsyncCompileJob::StartBackgroundTask() {
   auto task = base::make_unique<CompileTask>(this, false);
 
@@ -2345,6 +2339,18 @@ void AsyncCompileJob::StartBackgroundTask() {
   } else {
     foreground_task_runner_->PostTask(std::move(task));
   }
+}
+
+template <typename Step, typename... Args>
+void AsyncCompileJob::DoSync(Args&&... args) {
+  NextStep<Step>(std::forward<Args>(args)...);
+  StartForegroundTask();
+}
+
+template <typename Step, typename... Args>
+void AsyncCompileJob::DoImmediately(Args&&... args) {
+  NextStep<Step>(std::forward<Args>(args)...);
+  ExecuteForegroundTaskImmediately();
 }
 
 template <typename Step, typename... Args>
@@ -2686,11 +2692,10 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
     return false;
   }
-  job_->NextStep<AsyncCompileJob::PrepareAndStartCompile>(
-      decoder_.shared_module(), false);
   // Execute the PrepareAndStartCompile step immediately and not in a separate
   // task.
-  job_->ExecuteForegroundTaskImmediately();
+  job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
+      decoder_.shared_module(), false);
 
   job_->native_module_->compilation_state()->SetNumberOfFunctionsToCompile(
       functions_count);
@@ -2734,25 +2739,26 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
 // Finish the processing of the stream.
 void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   TRACE_STREAMING("Finish stream...\n");
-  if (job_->native_module_) {
-    job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
-    job_->native_module_->set_wire_bytes(std::move(bytes));
-  }
   ModuleResult result = decoder_.FinishDecoding(false);
   DCHECK(result.ok());
-  if (job_->DecrementAndCheckFinisherCount()) {
-    if (job_->native_module_ == nullptr) {
-      // We are processing a WebAssembly module without code section. We need to
-      // prepare compilation first before we can finish it.
-      // {PrepareAndStartCompile} will call {FinishCompile} by itself if there
-      // is no code section.
-      job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(result.val, true);
-    } else {
-      HandleScope scope(job_->isolate_);
-      SaveContext saved_context(job_->isolate_);
-      job_->isolate_->set_context(*job_->native_context_);
-      job_->FinishCompile();
-    }
+  bool needs_finish = job_->DecrementAndCheckFinisherCount();
+  if (job_->native_module_ == nullptr) {
+    // We are processing a WebAssembly module without code section. We need to
+    // prepare compilation first before we can finish it.
+    // {PrepareAndStartCompile} will call {FinishCompile} by itself if there
+    // is no code section.
+    DCHECK(needs_finish);
+    needs_finish = false;
+    job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(result.val,
+                                                                 true);
+  }
+  job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
+  job_->native_module_->set_wire_bytes(std::move(bytes));
+  if (needs_finish) {
+    HandleScope scope(job_->isolate_);
+    SaveContext saved_context(job_->isolate_);
+    job_->isolate_->set_context(*job_->native_context_);
+    job_->FinishCompile();
   }
 }
 
