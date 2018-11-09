@@ -3257,7 +3257,8 @@ bool Isolate::use_optimizer() {
 }
 
 bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {
-  return NeedsSourcePositionsForProfiling() || FLAG_detailed_line_info;
+  return NeedsSourcePositionsForProfiling() ||
+         detailed_source_positions_for_profiling();
 }
 
 bool Isolate::NeedsSourcePositionsForProfiling() const {
