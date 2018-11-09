@@ -2159,7 +2159,7 @@ such as `process.stdout.on('data')`.
 [`require()`]: modules.html#modules_require
 [`server.close()`]: net.html#net_server_close_callback
 [`server.listen()`]: net.html#net_server_listen
-[`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputformat
+[`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputencoding
 [`stream.pipe()`]: stream.html#stream_readable_pipe_destination_options
 [`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
 [`stream.unshift()`]: stream.html#stream_readable_unshift_chunk
