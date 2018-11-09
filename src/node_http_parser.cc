@@ -73,7 +73,8 @@ const uint32_t kOnHeadersComplete = 1;
 const uint32_t kOnBody = 2;
 const uint32_t kOnMessageComplete = 3;
 const uint32_t kOnExecute = 4;
-
+// Any more fields than this will be flushed into JS
+const size_t kMaxHeaderFieldsCount = 32;
 
 // helper class for the Parser
 struct StringPtr {
@@ -203,7 +204,7 @@ class Parser : public AsyncWrap, public StreamListener {
     if (num_fields_ == num_values_) {
       // start of new field name
       num_fields_++;
-      if (num_fields_ == arraysize(fields_)) {
+      if (num_fields_ == kMaxHeaderFieldsCount) {
         // ran out of space - flush to javascript land
         Flush();
         num_fields_ = 1;
@@ -212,7 +213,7 @@ class Parser : public AsyncWrap, public StreamListener {
       fields_[num_fields_ - 1].Reset();
     }
 
-    CHECK_LT(num_fields_, arraysize(fields_));
+    CHECK_LT(num_fields_, kMaxHeaderFieldsCount);
     CHECK_EQ(num_fields_, num_values_ + 1);
 
     fields_[num_fields_ - 1].Update(at, length);
@@ -731,25 +732,15 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   Local<Array> CreateHeaders() {
-    Local<Array> headers = Array::New(env()->isolate());
-    Local<Function> fn = env()->push_values_to_array_function();
-    Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
-    size_t i = 0;
+    // There could be extra entries but the max size should be fixed
+    Local<Value> headers_v[kMaxHeaderFieldsCount * 2];
 
-    do {
-      size_t j = 0;
-      while (i < num_values_ && j < arraysize(argv) / 2) {
-        argv[j * 2] = fields_[i].ToString(env());
-        argv[j * 2 + 1] = values_[i].ToString(env());
-        i++;
-        j++;
-      }
-      if (j > 0) {
-        fn->Call(env()->context(), headers, j * 2, argv).ToLocalChecked();
-      }
-    } while (i < num_values_);
+    for (size_t i = 0; i < num_values_; ++i) {
+      headers_v[i * 2] = fields_[i].ToString(env());
+      headers_v[i * 2 + 1] = values_[i].ToString(env());
+    }
 
-    return headers;
+    return Array::New(env()->isolate(), headers_v, num_values_ * 2);
   }
 
 
@@ -824,8 +815,8 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   parser_t parser_;
-  StringPtr fields_[32];  // header fields
-  StringPtr values_[32];  // header values
+  StringPtr fields_[kMaxHeaderFieldsCount];  // header fields
+  StringPtr values_[kMaxHeaderFieldsCount];  // header values
   StringPtr url_;
   StringPtr status_message_;
   size_t num_fields_;
