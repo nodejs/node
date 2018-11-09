@@ -2692,12 +2692,12 @@ static bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
 
 template <typename T>
 static T* CHECKED_OPENSSL_malloc(size_t count) {
-  void* mem = OPENSSL_malloc(count);
+  void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
   CHECK_NOT_NULL(mem);
   return static_cast<T*>(mem);
 }
 
-enum ParsePublicKeyResult {
+enum class ParsePublicKeyResult {
   kParsePublicOk,
   kParsePublicNotRecognized,
   kParsePublicFailed
@@ -2717,7 +2717,7 @@ static ParsePublicKeyResult TryParsePublicKey(
     MarkPopErrorOnReturn mark_pop_error_on_return;
     if (PEM_bytes_read_bio(&der_data, &der_len, nullptr, name,
                            bp.get(), nullptr, nullptr) != 1)
-      return kParsePublicNotRecognized;
+      return ParsePublicKeyResult::kParsePublicNotRecognized;
   }
 
   // OpenSSL might modify the pointer, so we need to make a copy before parsing.
@@ -2725,7 +2725,8 @@ static ParsePublicKeyResult TryParsePublicKey(
   pkey->reset(parse(&p, der_len));
   OPENSSL_clear_free(der_data, der_len);
 
-  return *pkey ? kParsePublicOk : kParsePublicFailed;
+  return *pkey ? ParsePublicKeyResult::kParsePublicOk :
+                 ParsePublicKeyResult::kParsePublicFailed;
 }
 
 static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
@@ -2734,7 +2735,7 @@ static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
                                               bool allow_certificate) {
   BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
   if (!bp)
-    return kParsePublicFailed;
+    return ParsePublicKeyResult::kParsePublicFailed;
 
   ParsePublicKeyResult ret;
 
@@ -2743,7 +2744,7 @@ static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
       [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
         return d2i_PUBKEY(nullptr, p, l);
       });
-  if (ret != kParsePublicNotRecognized)
+  if (ret != ParsePublicKeyResult::kParsePublicNotRecognized)
     return ret;
 
   // Maybe it is PKCS#1.
@@ -2752,7 +2753,8 @@ static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
       [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
         return d2i_PublicKey(EVP_PKEY_RSA, nullptr, p, l);
       });
-  if (ret != kParsePublicNotRecognized || !allow_certificate)
+  if (ret != ParsePublicKeyResult::kParsePublicNotRecognized ||
+      !allow_certificate)
     return ret;
 
   // X.509 fallback.
@@ -2772,7 +2774,7 @@ static bool ParsePublicKey(EVPKeyPointer* pkey,
   if (config.format_ == kKeyFormatPEM) {
     ParsePublicKeyResult r =
         ParsePublicKeyPEM(pkey, key, key_len, allow_certificate);
-    return r == kParsePublicOk;
+    return r == ParsePublicKeyResult::kParsePublicOk;
   } else {
     CHECK_EQ(config.format_, kKeyFormatDER);
     const unsigned char* p = reinterpret_cast<const unsigned char*>(key);
@@ -2804,39 +2806,41 @@ static inline Local<Value> BIOToStringOrBuffer(Environment* env,
   }
 }
 
-static MaybeLocal<Value> WritePublicKey(Environment* env,
-                                        EVP_PKEY* pkey,
-                                        const PublicKeyEncodingConfig& config) {
-  BIOPointer bio(BIO_new(BIO_s_mem()));
-  CHECK(bio);
-
-  bool err;
-
+static bool WritePublicKeyInner(EVP_PKEY* pkey,
+                                const BIOPointer& bio,
+                                const PublicKeyEncodingConfig& config) {
   if (config.type_.ToChecked() == kKeyEncodingPKCS1) {
     // PKCS#1 is only valid for RSA keys.
     CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_RSA);
     RSAPointer rsa(EVP_PKEY_get1_RSA(pkey));
     if (config.format_ == kKeyFormatPEM) {
       // Encode PKCS#1 as PEM.
-      err = PEM_write_bio_RSAPublicKey(bio.get(), rsa.get()) != 1;
+      return PEM_write_bio_RSAPublicKey(bio.get(), rsa.get()) == 1;
     } else {
       // Encode PKCS#1 as DER.
       CHECK_EQ(config.format_, kKeyFormatDER);
-      err = i2d_RSAPublicKey_bio(bio.get(), rsa.get()) != 1;
+      return i2d_RSAPublicKey_bio(bio.get(), rsa.get()) == 1;
     }
   } else {
     CHECK_EQ(config.type_.ToChecked(), kKeyEncodingSPKI);
     if (config.format_ == kKeyFormatPEM) {
       // Encode SPKI as PEM.
-      err = PEM_write_bio_PUBKEY(bio.get(), pkey) != 1;
+      return PEM_write_bio_PUBKEY(bio.get(), pkey) == 1;
     } else {
       // Encode SPKI as DER.
       CHECK_EQ(config.format_, kKeyFormatDER);
-      err = i2d_PUBKEY_bio(bio.get(), pkey) != 1;
+      return i2d_PUBKEY_bio(bio.get(), pkey) == 1;
     }
   }
+}
 
-  if (err) {
+static MaybeLocal<Value> WritePublicKey(Environment* env,
+                                        EVP_PKEY* pkey,
+                                        const PublicKeyEncodingConfig& config) {
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
+
+  if (!WritePublicKeyInner(pkey, bio, config)) {
     ThrowCryptoError(env, ERR_get_error(), "Failed to encode public key");
     return MaybeLocal<Value>();
   }
@@ -3157,7 +3161,7 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJS(
       ParsePublicKeyResult ret = ParsePublicKeyPEM(&pkey, data.get(),
                                                    data.size(),
                                                    allow_certificate);
-      if (ret == kParsePublicNotRecognized) {
+      if (ret == ParsePublicKeyResult::kParsePublicNotRecognized) {
         pkey = ParsePrivateKey(config, data.get(), data.size());
       }
     } else {
@@ -3706,12 +3710,10 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   // A key can be passed as a string, buffer or KeyObject with type 'symmetric'.
   // If it is a string, we need to convert it to a buffer. We are not doing that
   // in JS to avoid creating an unprotected copy on the heap.
-  ByteSource key;
-  if (args[1]->IsString() || Buffer::HasInstance(args[1])) {
-    key = std::move(ByteSource::FromStringOrBuffer(env, args[1]));
-  } else {
-    key = ByteSource::FromSymmetricKeyObject(args[1]);
-  }
+  const ByteSource key =
+      args[1]->IsString() || Buffer::HasInstance(args[1]) ?
+        std::move(ByteSource::FromStringOrBuffer(env, args[1])) :
+        ByteSource::FromSymmetricKeyObject(args[1]);
 
   ssize_t iv_len;
   const unsigned char* iv_buf;
