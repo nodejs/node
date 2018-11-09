@@ -152,6 +152,8 @@ function same(a, b) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require or disallow \"Yoda\" conditions",
             category: "Best Practices",

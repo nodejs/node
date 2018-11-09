@@ -20,6 +20,8 @@ const SENTINEL_NODE_TYPE_CONTINUE = /^(?:Program|(?:Function|Class)(?:Declaratio
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow control flow statements in `finally` blocks",
             category: "Possible Errors",

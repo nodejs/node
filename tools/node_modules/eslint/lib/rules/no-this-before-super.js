@@ -36,6 +36,8 @@ function isConstructorFunction(node) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow `this`/`super` before calling `super()` in constructors",
             category: "ECMAScript 6",

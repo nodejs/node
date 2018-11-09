@@ -12,6 +12,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow `null` comparisons without type-checking operators",
             category: "Best Practices",

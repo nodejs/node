@@ -142,6 +142,8 @@ function isRedundantSuperCall(body, ctorParams) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unnecessary constructors",
             category: "ECMAScript 6",

@@ -24,6 +24,8 @@ const CLOSE_PAREN = /^\}/;
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow spacing around embedded expressions of template strings",
             category: "ECMAScript 6",

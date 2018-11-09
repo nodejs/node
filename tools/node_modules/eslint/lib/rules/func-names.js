@@ -26,6 +26,8 @@ function isFunctionName(variable) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require or disallow named `function` expressions",
             category: "Stylistic Issues",
@@ -58,6 +60,7 @@ module.exports = {
                 }
             ]
         },
+
         messages: {
             unnamed: "Unexpected unnamed {{name}}.",
             named: "Unexpected named {{name}}."

@@ -55,6 +55,8 @@ function hasBlankLinesBetween(node, token) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow fallthrough of `case` statements",
             category: "Best Practices",

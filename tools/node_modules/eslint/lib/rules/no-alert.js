@@ -74,6 +74,8 @@ function isGlobalThisReferenceOrGlobalWindow(scope, node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow the use of `alert`, `confirm`, and `prompt`",
             category: "Best Practices",

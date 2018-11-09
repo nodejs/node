@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:blockquote
- * @fileoverview Tokenise blockquote.
- */
-
 'use strict';
 
 var trim = require('trim');

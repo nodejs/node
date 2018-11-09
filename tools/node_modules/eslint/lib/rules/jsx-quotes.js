@@ -38,6 +38,8 @@ const QUOTE_SETTINGS = {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce the consistent use of either double or single quotes in JSX attributes",
             category: "Stylistic Issues",

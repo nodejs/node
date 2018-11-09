@@ -12,6 +12,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce minimum and maximum identifier lengths",
             category: "Stylistic Issues",

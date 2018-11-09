@@ -12,6 +12,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow inline comments after code",
             category: "Stylistic Issues",

@@ -18,6 +18,8 @@ const anyNonWhitespaceRegex = /\S/;
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "disallow all tabs",
             category: "Stylistic Issues",

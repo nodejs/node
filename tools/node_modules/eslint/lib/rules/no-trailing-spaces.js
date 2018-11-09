@@ -16,6 +16,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "disallow trailing whitespace at the end of lines",
             category: "Stylistic Issues",

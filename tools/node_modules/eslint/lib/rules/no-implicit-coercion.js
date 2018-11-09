@@ -152,6 +152,8 @@ function getNonEmptyOperand(node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow shorthand type conversions",
             category: "Best Practices",
@@ -160,6 +162,7 @@ module.exports = {
         },
 
         fixable: "code",
+
         schema: [{
             type: "object",
             properties: {

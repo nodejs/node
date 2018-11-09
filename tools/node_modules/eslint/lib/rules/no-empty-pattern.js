@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow empty destructuring patterns",
             category: "Best Practices",

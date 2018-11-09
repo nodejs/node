@@ -128,6 +128,8 @@ const messages = {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent spacing between keys and values in object literal properties",
             category: "Stylistic Issues",
@@ -360,10 +362,9 @@ module.exports = {
          */
         function isKeyValueProperty(property) {
             return !(
-                property.method ||
+                (property.method ||
                 property.shorthand ||
-                property.kind !== "init" ||
-                property.type !== "Property" // Could be "ExperimentalSpreadProperty" or "SpreadElement"
+                property.kind !== "init" || property.type !== "Property") // Could be "ExperimentalSpreadProperty" or "SpreadElement"
             );
         }
 

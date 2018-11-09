@@ -70,6 +70,8 @@ const optionsObject = {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require function names to match the name of the variable or property to which they are assigned",
             category: "Stylistic Issues",
@@ -88,6 +90,7 @@ module.exports = {
                 items: [optionsObject]
             }]
         },
+
         messages: {
             matchProperty: "Function name `{{funcName}}` should match property name `{{name}}`",
             matchVariable: "Function name `{{funcName}}` should match variable name `{{name}}`",

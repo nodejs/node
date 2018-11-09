@@ -10,12 +10,15 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow using an async function as a Promise executor",
             category: "Possible Errors",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-async-promise-executor"
         },
+
         fixable: null,
         schema: []
     },
