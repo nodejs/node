@@ -180,11 +180,8 @@ $ make -j4
 ```
 
 The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
-may reduce build time. Change the number after `-j` to best suit the number of
-processor cores on your machine. If you run into problems running `make` with
-concurrency, try running it without the `-j4` flag. See the
-[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html)
-for more information.
+may reduce build time. For more information, see the
+[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
 
 Note that the above requires that `python` resolve to Python 2.6 or 2.7
 and not a newer version.
