@@ -1806,8 +1806,8 @@ added: REPLACEME
 * Returns: {KeyObject}
 
 Creates and  returns a new key object containing a private key. If `key` is a
-string, it is parsed as a PEM-encoded private key; otherwise, `key` must be an
-object with the properties described above.
+string or `Buffer`, it is parsed as a PEM-encoded private key; otherwise, `key`
+must be an object with the properties described above.
 
 ### crypto.createPublicKey(key)
 <!-- YAML
@@ -1821,8 +1821,8 @@ added: REPLACEME
 * Returns: {KeyObject}
 
 Creates and returns a new key object containing a public key. If `key` is a
-string, it is parsed as a PEM-encoded public key; otherwise, `key` must be an
-object with the properties described above.
+string or `Buffer`, it is parsed as a PEM-encoded public key; otherwise, `key`
+must be an object with the properties described above.
 
 ### crypto.createSecretKey(key)
 <!-- YAML

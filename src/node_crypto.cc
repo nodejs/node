@@ -3066,6 +3066,7 @@ class NonCopyableMaybe {
     empty_ = true;
     return std::move(value_);
   }
+
  private:
   bool empty_;
   T value_;
@@ -3457,19 +3458,14 @@ Local<String> KeyObject::GetAsymmetricKeyType() const {
   const char* name;
   switch (EVP_PKEY_id(this->asymmetric_key_.get())) {
   case EVP_PKEY_RSA:
-    name = "rsa";
-    break;
+    return env()->crypto_rsa_string();
   case EVP_PKEY_DSA:
-    name = "dsa";
-    break;
+    return env()->crypto_dsa_string();
   case EVP_PKEY_EC:
-    name = "ec";
-    break;
+    return env()->crypto_ec_string();
   default:
-    printf("%d\n", EVP_PKEY_id(this->asymmetric_key_.get()));
     CHECK(false);
   }
-  return OneByteString(env()->isolate(), name);
 }
 
 void KeyObject::GetAsymmetricKeyType(const FunctionCallbackInfo<Value>& args) {
