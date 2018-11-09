@@ -82,12 +82,6 @@ struct PackageConfig {
 };
 }  // namespace loader
 
-// The number of items passed to push_values_to_array_function has diminishing
-// returns around 8. This should be used at all call sites using said function.
-#ifndef NODE_PUSH_VAL_TO_ARRAY_MAX
-#define NODE_PUSH_VAL_TO_ARRAY_MAX 8
-#endif
-
 // PER_ISOLATE_* macros: We have a lot of per-isolate properties
 // and adding and maintaining their getters and setters by hand would be
 // difficult so let's make the preprocessor generate them for us.
@@ -350,7 +344,6 @@ struct PackageConfig {
   V(process_object, v8::Object)                                               \
   V(promise_handler_function, v8::Function)                                   \
   V(promise_wrap_template, v8::ObjectTemplate)                                \
-  V(push_values_to_array_function, v8::Function)                              \
   V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)           \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
