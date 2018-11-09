@@ -91,6 +91,7 @@ assert.strictEqual(5, date.getHours());
 // case-sensitive on other platforms.
 process.env.TEST = 'test';
 assert.strictEqual(process.env.TEST, 'test');
+
 // Check both mixed case and lower case, to avoid any regressions that might
 // simply convert input to lower case.
 if (common.isWindows) {
@@ -99,4 +100,9 @@ if (common.isWindows) {
 } else {
   assert.strictEqual(process.env.test, undefined);
   assert.strictEqual(process.env.teST, undefined);
+}
+
+{
+  const keys = Object.keys(process.env);
+  assert.ok(keys.length > 0);
 }
