@@ -92,6 +92,8 @@ function isPossibleConstructor(node) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "require `super()` calls in constructors",
             category: "ECMAScript 6",

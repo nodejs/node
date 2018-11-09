@@ -132,6 +132,8 @@ function hasDuplicateParams(paramsList) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require using arrow functions for callbacks",
             category: "ECMAScript 6",

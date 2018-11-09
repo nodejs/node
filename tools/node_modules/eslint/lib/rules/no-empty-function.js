@@ -90,6 +90,8 @@ function getKind(node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow empty functions",
             category: "Best Practices",

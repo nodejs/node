@@ -17,6 +17,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unnecessary labels",
             category: "Best Practices",
@@ -25,7 +27,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code",
 
         messages: {

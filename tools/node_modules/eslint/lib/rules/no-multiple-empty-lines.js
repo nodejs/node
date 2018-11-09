@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "disallow multiple empty lines",
             category: "Stylistic Issues",

@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:code-inline
- * @fileoverview Tokenise inline code.
- */
-
 'use strict';
 
 var whitespace = require('is-whitespace-character');

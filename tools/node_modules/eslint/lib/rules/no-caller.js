@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow the use of `arguments.caller` or `arguments.callee`",
             category: "Best Practices",

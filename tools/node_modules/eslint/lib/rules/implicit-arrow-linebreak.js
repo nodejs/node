@@ -9,13 +9,17 @@
 //------------------------------------------------------------------------------
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce the location of arrow function bodies",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/implicit-arrow-linebreak"
         },
+
         fixable: "whitespace",
+
         schema: [
             {
                 enum: ["beside", "below"]

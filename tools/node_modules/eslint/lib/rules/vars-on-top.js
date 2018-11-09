@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `var` declarations be placed at the top of their containing scope",
             category: "Best Practices",

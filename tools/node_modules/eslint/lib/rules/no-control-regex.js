@@ -6,7 +6,7 @@
 "use strict";
 
 const RegExpValidator = require("regexpp").RegExpValidator;
-const collector = new class {
+const collector = new (class {
     constructor() {
         this.ecmaVersion = 2018;
         this._source = "";
@@ -41,7 +41,7 @@ const collector = new class {
         }
         return this._controlChars;
     }
-}();
+})();
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -49,6 +49,8 @@ const collector = new class {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow control characters in regular expressions",
             category: "Possible Errors",

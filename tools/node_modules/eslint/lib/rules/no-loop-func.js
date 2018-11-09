@@ -154,6 +154,8 @@ function isSafe(loopNode, reference) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow `function` declarations and expressions inside loop statements",
             category: "Best Practices",

@@ -20,6 +20,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce a maximum cyclomatic complexity allowed in a program",
             category: "Best Practices",

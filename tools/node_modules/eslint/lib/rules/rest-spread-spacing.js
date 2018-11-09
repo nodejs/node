@@ -11,13 +11,17 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce spacing between rest and spread operators and their expressions",
             category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/rest-spread-spacing"
         },
+
         fixable: "whitespace",
+
         schema: [
             {
                 enum: ["always", "never"]

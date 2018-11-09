@@ -22,15 +22,19 @@ const {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce the use of `u` flag on RegExp",
             category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/require-unicode-regexp"
         },
+
         messages: {
             requireUFlag: "Use the 'u' flag."
         },
+
         schema: []
     },
 

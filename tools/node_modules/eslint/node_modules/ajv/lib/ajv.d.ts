@@ -107,6 +107,12 @@ declare namespace ajv {
     errors?: Array<ErrorObject>;
   }
 
+  interface CustomLogger {
+    log(...args: any[]): any;
+    warn(...args: any[]): any;
+    error(...args: any[]): any;
+  }
+
   interface ValidateFunction {
     (
       data: any,
@@ -157,6 +163,7 @@ declare namespace ajv {
     sourceCode?: boolean;
     processCode?: (code: string) => string;
     cache?: object;
+    logger?: CustomLogger | false
   }
 
   type FormatValidator = string | RegExp | ((data: string) => boolean | PromiseLike<any>);

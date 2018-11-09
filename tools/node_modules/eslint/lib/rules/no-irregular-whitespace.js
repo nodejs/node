@@ -27,6 +27,8 @@ const LINE_BREAK = astUtils.createGlobalLinebreakMatcher();
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow irregular whitespace outside of strings and comments",
             category: "Possible Errors",

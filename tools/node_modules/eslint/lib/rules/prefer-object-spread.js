@@ -212,6 +212,8 @@ function defineFixer(node, sourceCode) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description:
                 "disallow using Object.assign with an object literal as the first argument and prefer the use of object spread instead.",
@@ -219,8 +221,10 @@ module.exports = {
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-object-spread"
         },
+
         schema: [],
         fixable: "code",
+
         messages: {
             useSpreadMessage: "Use an object spread instead of `Object.assign` eg: `{ ...foo }`",
             useLiteralMessage: "Use an object literal instead of `Object.assign`. eg: `{ foo: bar }`"

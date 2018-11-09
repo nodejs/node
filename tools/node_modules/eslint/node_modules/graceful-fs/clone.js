@@ -1,8 +1,6 @@
 'use strict'
 
-var fs = require('fs')
-
-module.exports = clone(fs)
+module.exports = clone
 
 function clone (obj) {
   if (obj === null || typeof obj !== 'object')

@@ -17,12 +17,15 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce spacing around colons of switch statements",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/switch-colon-spacing"
         },
+
         schema: [
             {
                 type: "object",
@@ -33,6 +36,7 @@ module.exports = {
                 additionalProperties: false
             }
         ],
+
         fixable: "whitespace"
     },
 

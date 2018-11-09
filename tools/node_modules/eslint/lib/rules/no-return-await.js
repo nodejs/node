@@ -14,6 +14,8 @@ const message = "Redundant use of `await` on a return value.";
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unnecessary `return await`",
             category: "Best Practices",
@@ -22,7 +24,9 @@ module.exports = {
 
             url: "https://eslint.org/docs/rules/no-return-await"
         },
+
         fixable: null,
+
         schema: [
         ]
     },

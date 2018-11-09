@@ -24,6 +24,8 @@ const propertyDefinitionMethods = new Set(["defineProperty", "defineProperties"]
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow extending native types",
             category: "Best Practices",

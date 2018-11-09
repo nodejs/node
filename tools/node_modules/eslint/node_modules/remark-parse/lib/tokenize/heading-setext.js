@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:heading-setext
- * @fileoverview Tokenise an setext-style heading.
- */
-
 'use strict';
 
 module.exports = setextHeading;
@@ -25,7 +17,6 @@ var SETEXT_MARKERS = {};
 SETEXT_MARKERS[C_EQUALS] = 1;
 SETEXT_MARKERS[C_DASH] = 2;
 
-/* Tokenise an setext-style heading. */
 function setextHeading(eat, value, silent) {
   var self = this;
   var now = eat.now();

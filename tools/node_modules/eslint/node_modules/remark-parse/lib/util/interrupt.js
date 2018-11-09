@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:util:get-indentation
- * @fileoverview Get indentation.
- */
-
 'use strict';
 
 module.exports = interrupt;

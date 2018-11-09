@@ -65,6 +65,8 @@ function isCloseParenOfTemplate(token) {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent spacing before and after keywords",
             category: "Stylistic Issues",

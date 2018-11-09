@@ -16,6 +16,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow confusing multiline expressions",
             category: "Possible Errors",

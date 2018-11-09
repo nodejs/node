@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow string concatenation with `__dirname` and `__filename`",
             category: "Node.js and CommonJS",

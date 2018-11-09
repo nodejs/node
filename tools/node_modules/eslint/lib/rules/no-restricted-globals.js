@@ -17,6 +17,8 @@ const DEFAULT_MESSAGE_TEMPLATE = "Unexpected use of '{{name}}'.",
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow specified global variables",
             category: "Variables",

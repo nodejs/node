@@ -80,6 +80,8 @@ function isSimpleParameterList(params) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require or disallow strict mode directives",
             category: "Strict Mode",
