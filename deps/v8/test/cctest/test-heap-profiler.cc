@@ -3900,3 +3900,45 @@ TEST(WeakReference) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 }
+
+TEST(Bug8373_1) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  heap_profiler->StartSamplingHeapProfiler(100);
+
+  heap_profiler->TakeHeapSnapshot();
+  // Causes the StringsStorage to be deleted.
+  heap_profiler->DeleteAllHeapSnapshots();
+
+  // Triggers an allocation sample that tries to use the StringsStorage.
+  for (int i = 0; i < 2 * 1024; ++i) {
+    CompileRun(
+        "new Array(64);"
+        "new Uint8Array(16);");
+  }
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(Bug8373_2) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  heap_profiler->StartTrackingHeapObjects(true);
+
+  heap_profiler->TakeHeapSnapshot();
+  // Causes the StringsStorage to be deleted.
+  heap_profiler->DeleteAllHeapSnapshots();
+
+  // Triggers an allocations that try to use the StringsStorage.
+  for (int i = 0; i < 2 * 1024; ++i) {
+    CompileRun(
+        "new Array(64);"
+        "new Uint8Array(16);");
+  }
+
+  heap_profiler->StopTrackingHeapObjects();
+}
