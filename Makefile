@@ -270,7 +270,7 @@ v8:
 	tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 .PHONY: jstest
-jstest: build-addons build-addons-napi bench-addons-build ## Runs addon tests and JS tests
+jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		--skip-tests=$(CI_SKIP_TESTS) \
 		$(CI_JS_SUITES) \
@@ -414,7 +414,7 @@ clear-stalled:
 		echo $${PS_OUT} | xargs kill -9; \
 	fi
 
-test-build: | all build-addons build-addons-napi bench-addons-build
+test-build: | all build-addons build-addons-napi 
 
 test-build-addons-napi: all build-addons-napi
 
@@ -455,7 +455,7 @@ test-ci-js: | clear-stalled
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled build-addons build-addons-napi doc-only bench-addons-build
+test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
@@ -499,7 +499,7 @@ test-message: test-build
 test-wpt: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
 
-test-simple: | cctest bench-addons-build  # Depends on 'all'.
+test-simple: | cctest # Depends on 'all'.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) parallel sequential
 
 test-pummel: all
@@ -511,6 +511,9 @@ test-internet: all
 test-node-inspect: $(NODE_EXE)
 	USE_EMBEDDED_NODE_INSPECT=1 $(NODE) tools/test-npm-package \
 		--install deps/node-inspect test
+
+test-benchmark: | bench-addons-build
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) benchmark
 
 test-tick-processor: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) tick-processor

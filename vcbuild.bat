@@ -83,6 +83,7 @@ if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
 if /i "%1"=="build-addons-napi"   set build_addons_napi=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-addons-napi"   set test_args=%test_args% addons-napi&set build_addons_napi=1&goto arg-ok
+if /i "%1"=="test-benchmark" set test_args=%test_args% benchmark&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
 if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
 if /i "%1"=="test-tick-processor" set test_args=%test_args% tick-processor&goto arg-ok
