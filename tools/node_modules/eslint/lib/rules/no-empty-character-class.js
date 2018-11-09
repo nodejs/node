@@ -29,6 +29,8 @@ const regex = /^\/([^\\[]|\\.|\[([^\\\]]|\\.)+])*\/[gimuys]*$/;
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow empty character classes in regular expressions",
             category: "Possible Errors",

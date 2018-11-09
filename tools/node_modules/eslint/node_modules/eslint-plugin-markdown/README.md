@@ -122,11 +122,42 @@ Sometimes it can be useful to have code blocks marked with `js` even though they
     console.log("This code block is linted normally.");
     ```
 
+## Fix issues automatically
+
+This plugin can attempt to fix some of the issues automatically using [`fix` ESLint option](https://eslint.org/docs/user-guide/command-line-interface#fixing-problems). This option instructs ESLint to try to fix as many issues as possible. To enable this option you can add `--fix` to your ESLint call, for example:
+
+```bash
+eslint --fix --ext md .
+```
+
 ## Unsatisfiable Rules
 
 Since code blocks are not files themselves but embedded inside a Markdown document, some rules do not apply to Markdown code blocks, and messages from these rules are automatically suppressed:
 
 - `eol-last`
+- `unicode-bom`
+
+### Strict
+
+The `strict` rule is technically satisfiable inside of Markdown code blocks, but writing a `"use strict"` directive at the top of every code block is tedious and distracting. We recommend using a [glob pattern override](https://eslint.org/docs/user-guide/configuring#configuration-based-on-glob-patterns) for `.md` files to disable `strict` and enable the `impliedStrict` [parser option](https://eslint.org/docs/user-guide/configuring#specifying-parser-options) so the code blocks still parse in strict mode:
+
+```js
+// .eslintrc.json
+{
+    // ...
+    "overrides": [{
+        "files": ["**/*.md"],
+        "parserOptions": {
+            "ecmaFeatures": {
+                "impliedStrict": true
+            }
+        },
+        "rules": {
+            "strict": "off"
+        }
+    }]
+}
+```
 
 ## Contributing
 

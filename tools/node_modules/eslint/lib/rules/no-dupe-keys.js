@@ -84,6 +84,8 @@ class ObjectInfo {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow duplicate keys in object literals",
             category: "Possible Errors",

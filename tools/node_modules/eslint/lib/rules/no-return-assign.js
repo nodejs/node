@@ -22,6 +22,8 @@ const SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionE
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow assignment operators in `return` statements",
             category: "Best Practices",

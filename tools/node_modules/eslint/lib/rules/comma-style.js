@@ -13,13 +13,17 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent comma style",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/comma-style"
         },
+
         fixable: "code",
+
         schema: [
             {
                 enum: ["first", "last"]
@@ -37,6 +41,7 @@ module.exports = {
                 additionalProperties: false
             }
         ],
+
         messages: {
             unexpectedLineBeforeAndAfterComma: "Bad line breaking before and after ','.",
             expectedCommaFirst: "',' should be placed first.",

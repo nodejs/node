@@ -44,13 +44,17 @@ function getId(node) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "enforce `return` statements in getters",
             category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/getter-return"
         },
+
         fixable: null,
+
         schema: [
             {
                 type: "object",
@@ -62,6 +66,7 @@ module.exports = {
                 additionalProperties: false
             }
         ],
+
         messages: {
             expected: "Expected to return a value in {{name}}.",
             expectedAlways: "Expected {{name}} to always return a value."

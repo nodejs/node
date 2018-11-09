@@ -98,6 +98,11 @@ module.exports = optionator({
             description: "Automatically fix problems without saving the changes to the file system"
         },
         {
+            option: "fix-type",
+            type: "Array",
+            description: "Specify the types of fixes to apply (problem, suggestion, layout)"
+        },
+        {
             heading: "Ignoring files"
         },
         {

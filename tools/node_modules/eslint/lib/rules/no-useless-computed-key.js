@@ -18,6 +18,8 @@ const MESSAGE_UNNECESSARY_COMPUTED = "Unnecessarily computed property [{{propert
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unnecessary computed property keys in object literals",
             category: "ECMAScript 6",
@@ -26,7 +28,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code"
     },
     create(context) {

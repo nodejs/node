@@ -12,6 +12,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow an empty line between class members",
             category: "Stylistic Issues",

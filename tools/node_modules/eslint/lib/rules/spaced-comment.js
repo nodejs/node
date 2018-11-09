@@ -151,6 +151,8 @@ function createNeverStylePattern(markers) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce consistent spacing after the `//` or `/*` in a comment",
             category: "Stylistic Issues",

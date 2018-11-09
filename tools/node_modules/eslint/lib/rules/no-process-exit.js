@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow the use of `process.exit()`",
             category: "Node.js and CommonJS",

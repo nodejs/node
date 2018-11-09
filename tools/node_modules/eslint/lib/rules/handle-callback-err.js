@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require error handling in callbacks",
             category: "Node.js and CommonJS",

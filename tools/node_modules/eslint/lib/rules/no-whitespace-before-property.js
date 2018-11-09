@@ -16,6 +16,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "disallow whitespace before properties",
             category: "Stylistic Issues",

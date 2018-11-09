@@ -12,13 +12,17 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent spacing inside array brackets",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/array-bracket-spacing"
         },
+
         fixable: "whitespace",
+
         schema: [
             {
                 enum: ["always", "never"]
@@ -39,6 +43,7 @@ module.exports = {
                 additionalProperties: false
             }
         ],
+
         messages: {
             unexpectedSpaceAfter: "There should be no space after '{{tokenValue}}'.",
             unexpectedSpaceBefore: "There should be no space before '{{tokenValue}}'.",

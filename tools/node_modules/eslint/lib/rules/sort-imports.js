@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce sorted import declarations within modules",
             category: "ECMAScript 6",

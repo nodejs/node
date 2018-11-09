@@ -65,6 +65,8 @@ const OPTIONS_OR_INTEGER_SCHEMA = {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce a maximum line length",
             category: "Stylistic Issues",

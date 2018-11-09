@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow constant expressions in conditions",
             category: "Possible Errors",

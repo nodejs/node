@@ -18,6 +18,8 @@ const FixTracker = require("../util/fix-tracker");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow `else` blocks after `return` statements in `if` statements",
             category: "Best Practices",

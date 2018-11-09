@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow template literal placeholder syntax in regular strings",
             category: "Possible Errors",

@@ -101,13 +101,17 @@ const kinds = Object.keys(hasCharacterSequence);
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow characters which are made with multiple code points in character class syntax",
             category: "Possible Errors",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-misleading-character-class"
         },
+
         schema: [],
+
         messages: {
             surrogatePairWithoutUFlag: "Unexpected surrogate pair in character class. Use 'u' flag.",
             combiningClass: "Unexpected combined character in character class.",

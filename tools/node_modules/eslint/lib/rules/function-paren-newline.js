@@ -16,13 +16,17 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent line breaks inside function parentheses",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/function-paren-newline"
         },
+
         fixable: "whitespace",
+
         schema: [
             {
                 oneOf: [
@@ -42,6 +46,7 @@ module.exports = {
                 ]
             }
         ],
+
         messages: {
             expectedBefore: "Expected newline before ')'.",
             expectedAfter: "Expected newline after '('.",

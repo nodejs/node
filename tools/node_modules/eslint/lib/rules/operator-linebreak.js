@@ -17,6 +17,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent linebreak style for operators",
             category: "Stylistic Issues",

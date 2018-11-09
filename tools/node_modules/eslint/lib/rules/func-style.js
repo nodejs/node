@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce the consistent use of either `function` declarations or expressions",
             category: "Stylistic Issues",
@@ -31,6 +33,7 @@ module.exports = {
                 additionalProperties: false
             }
         ],
+
         messages: {
             expression: "Expected a function expression.",
             declaration: "Expected a function declaration."

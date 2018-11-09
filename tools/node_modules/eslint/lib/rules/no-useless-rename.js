@@ -11,13 +11,17 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow renaming import, export, and destructured assignments to the same name",
             category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-useless-rename"
         },
+
         fixable: "code",
+
         schema: [
             {
                 type: "object",

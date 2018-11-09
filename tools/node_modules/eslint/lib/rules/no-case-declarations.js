@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow lexical declarations in case clauses",
             category: "Best Practices",

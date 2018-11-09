@@ -11,15 +11,18 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `Reflect` methods where applicable",
             category: "ECMAScript 6",
             recommended: false,
-            replacedBy: [],
             url: "https://eslint.org/docs/rules/prefer-reflect"
         },
 
         deprecated: true,
+
+        replacedBy: [],
 
         schema: [
             {

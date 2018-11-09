@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "enforce comparing `typeof` expressions against valid strings",
             category: "Possible Errors",

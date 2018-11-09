@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow variable or `function` declarations in nested blocks",
             category: "Possible Errors",

@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce a maximum depth that callbacks can be nested",
             category: "Stylistic Issues",

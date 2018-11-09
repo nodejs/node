@@ -69,6 +69,8 @@ function getCommentLineNumbers(comments) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce a maximum number of line of code in a function",
             category: "Stylistic Issues",

@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow spacing between template tags and their literals",
             category: "Stylistic Issues",

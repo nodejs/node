@@ -18,11 +18,12 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow an empty line after variable declarations",
             category: "Stylistic Issues",
             recommended: false,
-            replacedBy: ["padding-line-between-statements"],
             url: "https://eslint.org/docs/rules/newline-after-var"
         },
 
@@ -34,7 +35,9 @@ module.exports = {
 
         fixable: "whitespace",
 
-        deprecated: true
+        deprecated: true,
+
+        replacedBy: ["padding-line-between-statements"]
     },
 
     create(context) {

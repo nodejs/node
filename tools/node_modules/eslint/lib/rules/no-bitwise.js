@@ -22,6 +22,8 @@ const BITWISE_OPERATORS = [
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow bitwise operators",
             category: "Stylistic Issues",

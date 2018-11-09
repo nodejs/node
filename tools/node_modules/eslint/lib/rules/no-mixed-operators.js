@@ -71,12 +71,15 @@ function includesBothInAGroup(groups, left, right) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow mixed binary operators",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-mixed-operators"
         },
+
         schema: [
             {
                 type: "object",

@@ -76,6 +76,8 @@ function isMember(node, name) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow the use of `eval()`",
             category: "Best Practices",

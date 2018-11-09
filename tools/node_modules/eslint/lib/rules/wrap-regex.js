@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require parenthesis around regex literals",
             category: "Stylistic Issues",
@@ -19,8 +21,8 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code",
+
         messages: {
             requireParens: "Wrap the regexp literal in parens to disambiguate the slash."
         }

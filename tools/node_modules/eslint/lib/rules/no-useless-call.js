@@ -49,6 +49,8 @@ function isValidThisArg(expectedThis, thisArg, sourceCode) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unnecessary calls to `.call()` and `.apply()`",
             category: "Best Practices",

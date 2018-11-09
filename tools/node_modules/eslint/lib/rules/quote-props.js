@@ -17,6 +17,8 @@ const espree = require("espree"),
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require quotes around object literal property names",
             category: "Stylistic Issues",

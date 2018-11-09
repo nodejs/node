@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow magic numbers",
             category: "Best Practices",
@@ -40,6 +42,7 @@ module.exports = {
             },
             additionalProperties: false
         }],
+
         messages: {
             useConst: "Number constants declarations must use 'const'.",
             noMagic: "No magic number: {{raw}}."

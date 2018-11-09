@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce the use of variables within the scope they are defined",
             category: "Best Practices",

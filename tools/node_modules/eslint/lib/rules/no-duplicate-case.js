@@ -12,6 +12,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow duplicate case labels",
             category: "Possible Errors",

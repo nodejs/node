@@ -79,6 +79,8 @@ function parseRegExp(regExpText) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unnecessary escape characters",
             category: "Best Practices",

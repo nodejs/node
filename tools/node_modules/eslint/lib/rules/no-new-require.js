@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow `new` operators with calls to `require`",
             category: "Node.js and CommonJS",

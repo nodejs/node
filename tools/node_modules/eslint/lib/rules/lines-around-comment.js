@@ -52,6 +52,8 @@ function getCommentLineNums(comments) {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require empty lines around comments",
             category: "Stylistic Issues",

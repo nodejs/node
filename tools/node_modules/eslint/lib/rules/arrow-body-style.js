@@ -16,6 +16,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require braces around arrow function bodies",
             category: "ECMAScript 6",

@@ -27,6 +27,8 @@ const OVERRIDE_SCHEMA = {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent spacing around `*` operators in generator functions",
             category: "ECMAScript 6",
@@ -56,6 +58,7 @@ module.exports = {
                 ]
             }
         ],
+
         messages: {
             missingBefore: "Missing space before *.",
             missingAfter: "Missing space after *.",

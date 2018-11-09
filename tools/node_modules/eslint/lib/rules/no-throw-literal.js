@@ -13,6 +13,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow throwing literals as exceptions",
             category: "Best Practices",

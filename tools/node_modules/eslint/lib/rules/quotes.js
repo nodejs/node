@@ -76,6 +76,8 @@ const AVOID_ESCAPE = "avoid-escape";
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce the consistent use of either backticks, double, or single quotes",
             category: "Stylistic Issues",

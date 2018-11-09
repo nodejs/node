@@ -53,6 +53,8 @@ function isClassConstructor(node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `return` statements to either always or never specify values",
             category: "Best Practices",

@@ -17,6 +17,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow multiline strings",
             category: "Best Practices",

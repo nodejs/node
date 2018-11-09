@@ -13,6 +13,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow initializing variables to `undefined`",
             category: "Variables",
@@ -21,7 +23,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code"
     },
 

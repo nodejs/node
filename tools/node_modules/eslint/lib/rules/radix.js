@@ -78,6 +78,8 @@ function isDefaultRadix(radix) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce the consistent use of the radix argument when using `parseInt()`",
             category: "Best Practices",

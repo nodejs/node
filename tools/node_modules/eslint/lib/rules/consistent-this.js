@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce consistent naming when capturing the current execution context",
             category: "Stylistic Issues",

@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow calling global object properties as functions",
             category: "Possible Errors",

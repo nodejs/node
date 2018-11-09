@@ -180,6 +180,8 @@ function hasReferenceInTDZ(node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `let` or `const` instead of `var`",
             category: "ECMAScript 6",

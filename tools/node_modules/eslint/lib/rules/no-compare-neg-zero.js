@@ -10,14 +10,18 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow comparing against -0",
             category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-compare-neg-zero"
         },
+
         fixable: null,
         schema: [],
+
         messages: {
             unexpected: "Do not use the '{{operator}}' operator to compare against -0."
         }

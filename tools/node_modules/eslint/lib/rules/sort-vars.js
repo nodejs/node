@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require variables within the same declaration block to be sorted",
             category: "Stylistic Issues",

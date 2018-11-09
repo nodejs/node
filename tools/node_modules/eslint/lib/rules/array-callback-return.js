@@ -141,6 +141,8 @@ function isCallbackOfArrayMethod(node) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "enforce `return` statements in callbacks of array methods",
             category: "Best Practices",

@@ -25,6 +25,8 @@ function hasTypeOfOperator(node) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow the use of undeclared variables unless mentioned in `/*global */` comments",
             category: "Variables",

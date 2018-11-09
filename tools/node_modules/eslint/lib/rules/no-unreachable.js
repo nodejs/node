@@ -101,6 +101,8 @@ class ConsecutiveRange {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow unreachable code after `return`, `throw`, `continue`, and `break` statements",
             category: "Possible Errors",
@@ -180,7 +182,6 @@ module.exports = {
             ContinueStatement: reportIfUnreachable,
             DebuggerStatement: reportIfUnreachable,
             DoWhileStatement: reportIfUnreachable,
-            EmptyStatement: reportIfUnreachable,
             ExpressionStatement: reportIfUnreachable,
             ForInStatement: reportIfUnreachable,
             ForOfStatement: reportIfUnreachable,

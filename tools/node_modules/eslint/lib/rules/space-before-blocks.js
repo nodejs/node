@@ -13,6 +13,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent spacing before blocks",
             category: "Stylistic Issues",
@@ -32,13 +34,13 @@ module.exports = {
                         type: "object",
                         properties: {
                             keywords: {
-                                enum: ["always", "never"]
+                                enum: ["always", "never", "off"]
                             },
                             functions: {
-                                enum: ["always", "never"]
+                                enum: ["always", "never", "off"]
                             },
                             classes: {
-                                enum: ["always", "never"]
+                                enum: ["always", "never", "off"]
                             }
                         },
                         additionalProperties: false
@@ -51,18 +53,27 @@ module.exports = {
     create(context) {
         const config = context.options[0],
             sourceCode = context.getSourceCode();
-        let checkFunctions = true,
-            checkKeywords = true,
-            checkClasses = true;
+        let alwaysFunctions = true,
+            alwaysKeywords = true,
+            alwaysClasses = true,
+            neverFunctions = false,
+            neverKeywords = false,
+            neverClasses = false;
 
         if (typeof config === "object") {
-            checkFunctions = config.functions !== "never";
-            checkKeywords = config.keywords !== "never";
-            checkClasses = config.classes !== "never";
+            alwaysFunctions = config.functions === "always";
+            alwaysKeywords = config.keywords === "always";
+            alwaysClasses = config.classes === "always";
+            neverFunctions = config.functions === "never";
+            neverKeywords = config.keywords === "never";
+            neverClasses = config.classes === "never";
         } else if (config === "never") {
-            checkFunctions = false;
-            checkKeywords = false;
-            checkClasses = false;
+            alwaysFunctions = false;
+            alwaysKeywords = false;
+            alwaysClasses = false;
+            neverFunctions = true;
+            neverKeywords = true;
+            neverClasses = true;
         }
 
         /**
@@ -88,35 +99,35 @@ module.exports = {
                 const hasSpace = sourceCode.isSpaceBetweenTokens(precedingToken, node);
                 const parent = context.getAncestors().pop();
                 let requireSpace;
+                let requireNoSpace;
 
                 if (parent.type === "FunctionExpression" || parent.type === "FunctionDeclaration") {
-                    requireSpace = checkFunctions;
+                    requireSpace = alwaysFunctions;
+                    requireNoSpace = neverFunctions;
                 } else if (node.type === "ClassBody") {
-                    requireSpace = checkClasses;
+                    requireSpace = alwaysClasses;
+                    requireNoSpace = neverClasses;
                 } else {
-                    requireSpace = checkKeywords;
+                    requireSpace = alwaysKeywords;
+                    requireNoSpace = neverKeywords;
                 }
 
-                if (requireSpace) {
-                    if (!hasSpace) {
-                        context.report({
-                            node,
-                            message: "Missing space before opening brace.",
-                            fix(fixer) {
-                                return fixer.insertTextBefore(node, " ");
-                            }
-                        });
-                    }
-                } else {
-                    if (hasSpace) {
-                        context.report({
-                            node,
-                            message: "Unexpected space before opening brace.",
-                            fix(fixer) {
-                                return fixer.removeRange([precedingToken.range[1], node.range[0]]);
-                            }
-                        });
-                    }
+                if (requireSpace && !hasSpace) {
+                    context.report({
+                        node,
+                        message: "Missing space before opening brace.",
+                        fix(fixer) {
+                            return fixer.insertTextBefore(node, " ");
+                        }
+                    });
+                } else if (requireNoSpace && hasSpace) {
+                    context.report({
+                        node,
+                        message: "Unexpected space before opening brace.",
+                        fix(fixer) {
+                            return fixer.removeRange([precedingToken.range[1], node.range[0]]);
+                        }
+                    });
                 }
             }
         }

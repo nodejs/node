@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:emphasis
- * @fileoverview Tokenise emphasis.
- */
-
 'use strict';
 
 var trim = require('trim');
@@ -19,7 +11,6 @@ emphasis.locator = locate;
 var C_ASTERISK = '*';
 var C_UNDERSCORE = '_';
 
-/* Tokenise emphasis. */
 function emphasis(eat, value, silent) {
   var self = this;
   var index = 0;

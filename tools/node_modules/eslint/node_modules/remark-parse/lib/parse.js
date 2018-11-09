@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:parse
- * @fileoverview Parse the document
- */
-
 'use strict';
 
 var xtend = require('xtend');

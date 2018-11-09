@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:escape
- * @fileoverview Tokenise an escape.
- */
-
 'use strict';
 
 var locate = require('../locate/escape');
@@ -13,7 +5,6 @@ var locate = require('../locate/escape');
 module.exports = escape;
 escape.locator = locate;
 
-/* Tokenise an escape. */
 function escape(eat, value, silent) {
   var self = this;
   var character;

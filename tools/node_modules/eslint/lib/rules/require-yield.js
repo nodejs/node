@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require generator functions to contain `yield`",
             category: "ECMAScript 6",

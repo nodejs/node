@@ -101,6 +101,8 @@ function handleExports(context, importsInFile, exportsInFile) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow duplicate module imports",
             category: "ECMAScript 6",

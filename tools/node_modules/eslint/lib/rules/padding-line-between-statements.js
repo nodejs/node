@@ -400,13 +400,17 @@ const StatementTypes = {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow padding lines between statements",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/padding-line-between-statements"
         },
+
         fixable: "whitespace",
+
         schema: {
             definitions: {
                 paddingType: {

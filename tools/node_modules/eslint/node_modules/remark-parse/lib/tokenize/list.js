@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:list
- * @fileoverview Tokenise a list.
- */
-
 'use strict';
 
 /* eslint-disable max-params */
@@ -58,7 +50,6 @@ var LIST_ORDERED_COMMONMARK_MARKERS = {};
 LIST_ORDERED_COMMONMARK_MARKERS[C_DOT] = true;
 LIST_ORDERED_COMMONMARK_MARKERS[C_PAREN_CLOSE] = true;
 
-/* Tokenise a list. */
 function list(eat, value, silent) {
   var self = this;
   var commonmark = self.options.commonmark;
@@ -371,17 +362,6 @@ function list(eat, value, silent) {
   return node;
 }
 
-/**
- * Create a list-item node.
- *
- * @example
- *   listItem('- _foo_', now());
- *
- * @param {Object} ctx - Parser.
- * @param {Object} value - List-item.
- * @param {Object} position - List-item location.
- * @return {Object} - `listItem` node.
- */
 function listItem(ctx, value, position) {
   var offsets = ctx.offset;
   var fn = ctx.options.pedantic ? pedanticListItem : normalListItem;

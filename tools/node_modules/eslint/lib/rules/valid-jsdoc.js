@@ -16,6 +16,8 @@ const doctrine = require("doctrine");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce valid JSDoc comments",
             category: "Possible Errors",

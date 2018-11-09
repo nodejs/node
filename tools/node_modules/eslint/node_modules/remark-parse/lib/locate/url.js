@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:locate:url
- * @fileoverview Locate a URL.
- */
-
 'use strict';
 
 module.exports = locate;

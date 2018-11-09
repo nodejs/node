@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow spacing around the `*` in `yield*` expressions",
             category: "ECMAScript 6",

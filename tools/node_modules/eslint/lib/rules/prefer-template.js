@@ -141,6 +141,8 @@ function endsWithTemplateCurly(node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require template literals instead of string concatenation",
             category: "ECMAScript 6",
@@ -149,7 +151,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code"
     },
 

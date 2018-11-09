@@ -1,14 +1,13 @@
 'use strict';
-var path = require('path');
-var globby = require('globby');
-var isPathCwd = require('is-path-cwd');
-var isPathInCwd = require('is-path-in-cwd');
-var objectAssign = require('object-assign');
-var Promise = require('pinkie-promise');
-var pify = require('pify');
-var rimraf = require('rimraf');
+const path = require('path');
+const globby = require('globby');
+const isPathCwd = require('is-path-cwd');
+const isPathInCwd = require('is-path-in-cwd');
+const pify = require('pify');
+const rimraf = require('rimraf');
+const pMap = require('p-map');
 
-var rimrafP = pify(rimraf, Promise);
+const rimrafP = pify(rimraf);
 
 function safeCheck(file) {
 	if (isPathCwd(file)) {
@@ -20,44 +19,42 @@ function safeCheck(file) {
 	}
 }
 
-module.exports = function (patterns, opts) {
-	opts = objectAssign({}, opts);
+module.exports = (patterns, opts) => {
+	opts = Object.assign({}, opts);
 
-	var force = opts.force;
+	const force = opts.force;
 	delete opts.force;
 
-	var dryRun = opts.dryRun;
+	const dryRun = opts.dryRun;
 	delete opts.dryRun;
 
-	return globby(patterns, opts).then(function (files) {
-		return Promise.all(files.map(function (file) {
-			if (!force) {
-				safeCheck(file);
-			}
+	const mapper = file => {
+		if (!force) {
+			safeCheck(file);
+		}
 
-			file = path.resolve(opts.cwd || '', file);
+		file = path.resolve(opts.cwd || '', file);
 
-			if (dryRun) {
-				return Promise.resolve(file);
-			}
+		if (dryRun) {
+			return file;
+		}
 
-			return rimrafP(file).then(function () {
-				return file;
-			});
-		}));
-	});
+		return rimrafP(file, {glob: false}).then(() => file);
+	};
+
+	return globby(patterns, opts).then(files => pMap(files, mapper, opts));
 };
 
-module.exports.sync = function (patterns, opts) {
-	opts = objectAssign({}, opts);
+module.exports.sync = (patterns, opts) => {
+	opts = Object.assign({}, opts);
 
-	var force = opts.force;
+	const force = opts.force;
 	delete opts.force;
 
-	var dryRun = opts.dryRun;
+	const dryRun = opts.dryRun;
 	delete opts.dryRun;
 
-	return globby.sync(patterns, opts).map(function (file) {
+	return globby.sync(patterns, opts).map(file => {
 		if (!force) {
 			safeCheck(file);
 		}
@@ -65,7 +62,7 @@ module.exports.sync = function (patterns, opts) {
 		file = path.resolve(opts.cwd || '', file);
 
 		if (!dryRun) {
-			rimraf.sync(file);
+			rimraf.sync(file, {glob: false});
 		}
 
 		return file;

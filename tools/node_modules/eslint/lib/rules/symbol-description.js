@@ -18,6 +18,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require symbol descriptions",
             category: "ECMAScript 6",

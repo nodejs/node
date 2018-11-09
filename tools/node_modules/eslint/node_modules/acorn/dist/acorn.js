@@ -445,6 +445,8 @@ var SCOPE_ASYNC = 4;
 var SCOPE_GENERATOR = 8;
 var SCOPE_ARROW = 16;
 var SCOPE_SIMPLE_CATCH = 32;
+var SCOPE_SUPER = 64;
+var SCOPE_DIRECT_SUPER = 128;
 
 function functionFlags(async, generator) {
   return SCOPE_FUNCTION | (async ? SCOPE_ASYNC : 0) | (generator ? SCOPE_GENERATOR : 0)
@@ -540,7 +542,7 @@ var Parser = function Parser(options, input, startPos) {
   this.regexpState = null;
 };
 
-var prototypeAccessors = { inFunction: { configurable: true },inGenerator: { configurable: true },inAsync: { configurable: true } };
+var prototypeAccessors = { inFunction: { configurable: true },inGenerator: { configurable: true },inAsync: { configurable: true },allowSuper: { configurable: true },allowDirectSuper: { configurable: true } };
 
 Parser.prototype.parse = function parse () {
   var node = this.options.program || this.startNode();
@@ -551,6 +553,11 @@ Parser.prototype.parse = function parse () {
 prototypeAccessors.inFunction.get = function () { return (this.currentVarScope().flags & SCOPE_FUNCTION) > 0 };
 prototypeAccessors.inGenerator.get = function () { return (this.currentVarScope().flags & SCOPE_GENERATOR) > 0 };
 prototypeAccessors.inAsync.get = function () { return (this.currentVarScope().flags & SCOPE_ASYNC) > 0 };
+prototypeAccessors.allowSuper.get = function () { return (this.currentThisScope().flags & SCOPE_SUPER) > 0 };
+prototypeAccessors.allowDirectSuper.get = function () { return (this.currentThisScope().flags & SCOPE_DIRECT_SUPER) > 0 };
+
+// Switch to a getter for 7.0.0.
+Parser.prototype.inNonArrowFunction = function inNonArrowFunction () { return (this.currentThisScope().flags & SCOPE_FUNCTION) > 0 };
 
 Parser.extend = function extend () {
     var plugins = [], len = arguments.length;
@@ -1266,7 +1273,7 @@ pp$1.parseClass = function(node, isStatement) {
   classBody.body = [];
   this.expect(types.braceL);
   while (!this.eat(types.braceR)) {
-    var element = this$1.parseClassElement();
+    var element = this$1.parseClassElement(node.superClass !== null);
     if (element) {
       classBody.body.push(element);
       if (element.type === "MethodDefinition" && element.kind === "constructor") {
@@ -1279,7 +1286,7 @@ pp$1.parseClass = function(node, isStatement) {
   return this.finishNode(node, isStatement ? "ClassDeclaration" : "ClassExpression")
 };
 
-pp$1.parseClassElement = function() {
+pp$1.parseClassElement = function(constructorAllowsSuper) {
   var this$1 = this;
 
   if (this.eat(types.semi)) { return null }
@@ -1315,16 +1322,18 @@ pp$1.parseClassElement = function() {
   }
   if (!method.key) { this.parsePropertyName(method); }
   var key = method.key;
+  var allowsDirectSuper = false;
   if (!method.computed && !method.static && (key.type === "Identifier" && key.name === "constructor" ||
       key.type === "Literal" && key.value === "constructor")) {
     if (method.kind !== "method") { this.raise(key.start, "Constructor can't have get/set modifier"); }
     if (isGenerator) { this.raise(key.start, "Constructor can't be a generator"); }
     if (isAsync) { this.raise(key.start, "Constructor can't be an async method"); }
     method.kind = "constructor";
+    allowsDirectSuper = constructorAllowsSuper;
   } else if (method.static && key.type === "Identifier" && key.name === "prototype") {
     this.raise(key.start, "Classes may not have a static property named prototype");
   }
-  this.parseClassMethod(method, isGenerator, isAsync);
+  this.parseClassMethod(method, isGenerator, isAsync, allowsDirectSuper);
   if (method.kind === "get" && method.value.params.length !== 0)
     { this.raiseRecoverable(method.value.start, "getter should have no params"); }
   if (method.kind === "set" && method.value.params.length !== 1)
@@ -1334,8 +1343,8 @@ pp$1.parseClassElement = function() {
   return method
 };
 
-pp$1.parseClassMethod = function(method, isGenerator, isAsync) {
-  method.value = this.parseMethod(isGenerator, isAsync);
+pp$1.parseClassMethod = function(method, isGenerator, isAsync, allowsDirectSuper) {
+  method.value = this.parseMethod(isGenerator, isAsync, allowsDirectSuper);
   return this.finishNode(method, "MethodDefinition")
 };
 
@@ -2122,13 +2131,19 @@ pp$3.parseSubscripts = function(base, startPos, startLoc, noCalls) {
 // or `{}`.
 
 pp$3.parseExprAtom = function(refDestructuringErrors) {
+  // If a division operator appears in an expression position, the
+  // tokenizer got confused, and we force it to read a regexp instead.
+  if (this.type === types.slash) { this.readRegexp(); }
+
   var node, canBeArrow = this.potentialArrowAt === this.start;
   switch (this.type) {
   case types._super:
-    if (!this.inFunction)
-      { this.raise(this.start, "'super' outside of function or class"); }
+    if (!this.allowSuper)
+      { this.raise(this.start, "'super' keyword outside a method"); }
     node = this.startNode();
     this.next();
+    if (this.type === types.parenL && !this.allowDirectSuper)
+      { this.raise(node.start, "super() call outside constructor of a subclass"); }
     // The `super` keyword can appear at below:
     // SuperProperty:
     //     super [ Expression ]
@@ -2524,7 +2539,7 @@ pp$3.initFunction = function(node) {
 
 // Parse object or class method.
 
-pp$3.parseMethod = function(isGenerator, isAsync) {
+pp$3.parseMethod = function(isGenerator, isAsync, allowDirectSuper) {
   var node = this.startNode(), oldYieldPos = this.yieldPos, oldAwaitPos = this.awaitPos;
 
   this.initFunction(node);
@@ -2535,7 +2550,7 @@ pp$3.parseMethod = function(isGenerator, isAsync) {
 
   this.yieldPos = 0;
   this.awaitPos = 0;
-  this.enterScope(functionFlags(isAsync, node.generator));
+  this.enterScope(functionFlags(isAsync, node.generator) | SCOPE_SUPER | (allowDirectSuper ? SCOPE_DIRECT_SUPER : 0));
 
   this.expect(types.parenL);
   node.params = this.parseBindingList(types.parenR, false, this.options.ecmaVersion >= 8);
@@ -2823,12 +2838,14 @@ pp$5.currentVarScope = function() {
   }
 };
 
-pp$5.inNonArrowFunction = function() {
+// Could be useful for `this`, `new.target`, `super()`, `super.property`, and `super[property]`.
+pp$5.currentThisScope = function() {
   var this$1 = this;
 
-  for (var i = this.scopeStack.length - 1; i >= 0; i--)
-    { if (this$1.scopeStack[i].flags & SCOPE_FUNCTION && !(this$1.scopeStack[i].flags & SCOPE_ARROW)) { return true } }
-  return false
+  for (var i = this.scopeStack.length - 1;; i--) {
+    var scope = this$1.scopeStack[i];
+    if (scope.flags & SCOPE_VAR && !(scope.flags & SCOPE_ARROW)) { return scope }
+  }
 };
 
 var Node = function Node(parser, pos, loc) {
@@ -2924,7 +2941,7 @@ pp$7.braceIsBlock = function(prevType) {
     { return true }
   if (prevType === types.braceL)
     { return parent === types$1.b_stat }
-  if (prevType === types._var || prevType === types.name)
+  if (prevType === types._var || prevType === types._const || prevType === types.name)
     { return false }
   return !this.exprAllowed
 };
@@ -2986,6 +3003,7 @@ types.incDec.updateContext = function() {
 
 types._function.updateContext = types._class.updateContext = function(prevType) {
   if (prevType.beforeExpr && prevType !== types.semi && prevType !== types._else &&
+      !(prevType === types._return && lineBreak.test(this.input.slice(this.lastTokEnd, this.start))) &&
       !((prevType === types.colon || prevType === types.braceL) && this.curContext() === types$1.b_stat))
     { this.context.push(types$1.f_expr); }
   else
@@ -5257,7 +5275,7 @@ pp$8.readWord = function() {
 //
 // [walk]: util/walk.js
 
-var version = "6.0.2";
+var version = "6.0.4";
 
 // The main exported interface (under `self.acorn` when in the
 // browser) is a `parse` function that takes a code string and

@@ -17,6 +17,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unnecessary boolean casts",
             category: "Possible Errors",
@@ -25,7 +27,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code",
 
         messages: {

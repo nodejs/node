@@ -13,6 +13,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow multiple spaces in regular expressions",
             category: "Possible Errors",
@@ -21,7 +23,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code"
     },
 

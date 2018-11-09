@@ -21,6 +21,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require parentheses when invoking a constructor with no arguments",
             category: "Stylistic Issues",
@@ -29,7 +31,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code"
     },
 

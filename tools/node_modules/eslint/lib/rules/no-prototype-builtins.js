@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow calling some `Object.prototype` methods directly on objects",
             category: "Possible Errors",

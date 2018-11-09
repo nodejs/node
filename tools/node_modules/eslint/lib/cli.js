@@ -64,6 +64,7 @@ function translateOptions(cliOptions) {
         cacheFile: cliOptions.cacheFile,
         cacheLocation: cliOptions.cacheLocation,
         fix: (cliOptions.fix || cliOptions.fixDryRun) && (cliOptions.quiet ? quietFixPredicate : true),
+        fixTypes: cliOptions.fixType,
         allowInlineConfig: cliOptions.inlineConfig,
         reportUnusedDisableDirectives: cliOptions.reportUnusedDisableDirectives
     };
@@ -187,8 +188,12 @@ const cli = {
                 return 2;
             }
 
-            const engine = new CLIEngine(translateOptions(currentOptions));
+            if (currentOptions.fixType && !currentOptions.fix && !currentOptions.fixDryRun) {
+                log.error("The --fix-type option requires either --fix or --fix-dry-run.");
+                return 2;
+            }
 
+            const engine = new CLIEngine(translateOptions(currentOptions));
             const report = useStdin ? engine.executeOnText(text, currentOptions.stdinFilename, true) : engine.executeOnFiles(files);
 
             if (currentOptions.fix) {

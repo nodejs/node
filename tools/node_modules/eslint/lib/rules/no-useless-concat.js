@@ -66,6 +66,8 @@ function getRight(node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unnecessary concatenation of literals or template literals",
             category: "Best Practices",

@@ -62,6 +62,8 @@ function isNotNormalMemberAccess(reference) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require rest parameters instead of `arguments`",
             category: "ECMAScript 6",

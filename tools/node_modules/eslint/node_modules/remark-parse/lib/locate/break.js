@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:locate:break
- * @fileoverview Locate a break.
- */
-
 'use strict';
 
 module.exports = locate;

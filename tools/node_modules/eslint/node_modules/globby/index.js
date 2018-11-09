@@ -3,7 +3,6 @@ var Promise = require('pinkie-promise');
 var arrayUnion = require('array-union');
 var objectAssign = require('object-assign');
 var glob = require('glob');
-var arrify = require('arrify');
 var pify = require('pify');
 
 var globP = pify(glob, Promise).bind(glob);
@@ -12,10 +11,22 @@ function isNegative(pattern) {
 	return pattern[0] === '!';
 }
 
+function isString(value) {
+	return typeof value === 'string';
+}
+
+function assertPatternsInput(patterns) {
+	if (!patterns.every(isString)) {
+		throw new TypeError('patterns must be a string or an array of strings');
+	}
+}
+
 function generateGlobTasks(patterns, opts) {
+	patterns = [].concat(patterns);
+	assertPatternsInput(patterns);
+
 	var globTasks = [];
 
-	patterns = arrify(patterns);
 	opts = objectAssign({
 		cache: Object.create(null),
 		statCache: Object.create(null),
@@ -45,7 +56,13 @@ function generateGlobTasks(patterns, opts) {
 }
 
 module.exports = function (patterns, opts) {
-	var globTasks = generateGlobTasks(patterns, opts);
+	var globTasks;
+
+	try {
+		globTasks = generateGlobTasks(patterns, opts);
+	} catch (err) {
+		return Promise.reject(err);
+	}
 
 	return Promise.all(globTasks.map(function (task) {
 		return globP(task.pattern, task.opts);
@@ -63,3 +80,9 @@ module.exports.sync = function (patterns, opts) {
 };
 
 module.exports.generateGlobTasks = generateGlobTasks;
+
+module.exports.hasMagic = function (patterns, opts) {
+	return [].concat(patterns).some(function (pattern) {
+		return glob.hasMagic(pattern, opts);
+	});
+};

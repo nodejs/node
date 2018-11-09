@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require or disallow newlines around variable declarations",
             category: "Stylistic Issues",

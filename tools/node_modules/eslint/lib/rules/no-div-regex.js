@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow division operators explicitly at the beginning of regular expressions",
             category: "Best Practices",

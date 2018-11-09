@@ -73,12 +73,15 @@ const isValidOrders = {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require object keys to be sorted",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/sort-keys"
         },
+
         schema: [
             {
                 enum: ["asc", "desc"]

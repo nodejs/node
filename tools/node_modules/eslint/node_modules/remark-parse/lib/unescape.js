@@ -1,14 +1,5 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:unescape
- * @fileoverview Unescape escapes.
- */
-
 'use strict';
 
-/* Expose. */
 module.exports = factory;
 
 /* Factory to de-escape a value, based on a list at `key`

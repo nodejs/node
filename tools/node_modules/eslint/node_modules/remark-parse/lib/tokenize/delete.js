@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:delete
- * @fileoverview Tokenise strikethrough.
- */
-
 'use strict';
 
 var whitespace = require('is-whitespace-character');
@@ -17,7 +9,6 @@ strikethrough.locator = locate;
 var C_TILDE = '~';
 var DOUBLE = '~~';
 
-/* Tokenise strikethrough. */
 function strikethrough(eat, value, silent) {
   var self = this;
   var character = '';

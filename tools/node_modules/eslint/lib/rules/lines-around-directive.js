@@ -14,13 +14,15 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow newlines around directives",
             category: "Stylistic Issues",
             recommended: false,
-            replacedBy: ["padding-line-between-statements"],
             url: "https://eslint.org/docs/rules/lines-around-directive"
         },
+
         schema: [{
             oneOf: [
                 {
@@ -41,8 +43,10 @@ module.exports = {
                 }
             ]
         }],
+
         fixable: "whitespace",
-        deprecated: true
+        deprecated: true,
+        replacedBy: ["padding-line-between-statements"]
     },
 
     create(context) {
