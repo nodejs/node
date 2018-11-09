@@ -26,7 +26,7 @@ const hooks = initHooks({
 });
 hooks.enable();
 
-function oninit(asyncId, type, triggerAsyncId, resource) {
+function oninit(asyncId, type) {
   if (type === 'PROMISE') {
     promisesInitState.set(asyncId, 'inited');
   }
