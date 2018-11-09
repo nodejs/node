@@ -86,3 +86,48 @@ connect({
 
   return cleanup();
 });
+
+connect({
+  client: { rejectUnauthorized: false },
+  server: keys.ec,
+}, function(err, pair, cleanup) {
+  assert.ifError(err);
+  const socket = pair.client.conn;
+  let peerCert = socket.getPeerCertificate(true);
+  assert.ok(peerCert.issuerCertificate);
+
+  peerCert = socket.getPeerCertificate(true);
+  debug('peerCert:\n', peerCert);
+
+  assert.ok(peerCert.issuerCertificate);
+  assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
+  assert.strictEqual(peerCert.serialNumber, 'C1EA7B03D5956D52');
+  assert.strictEqual(peerCert.exponent, undefined);
+  assert.strictEqual(peerCert.pubKey, undefined);
+  assert.strictEqual(peerCert.modulus, undefined);
+  assert.strictEqual(
+    peerCert.fingerprint,
+    'DF:F0:D3:6B:C3:E7:74:7C:C7:F3:FB:1E:33:12:AE:6C:8D:53:5F:74'
+  );
+  assert.strictEqual(
+    peerCert.fingerprint256,
+    'AB:08:3C:40:C7:07:D7:D1:79:32:92:3B:96:52:D0:38:4C:22:ED:CD:23:51:D0:A1:' +
+    '67:AA:33:A0:D5:26:5C:41'
+  );
+
+  assert.strictEqual(
+    sha256(peerCert.pubkey).digest('hex'),
+    'ec68fc7d5e32cd4e1da5a7b59c0a2229be6f82fcc9bf8c8691a2262aacb14f53'
+  );
+  assert.strictEqual(peerCert.asn1Curve, 'prime256v1');
+  assert.strictEqual(peerCert.nistCurve, 'P-256');
+  assert.strictEqual(peerCert.bits, 256);
+
+  assert.deepStrictEqual(peerCert.infoAccess, undefined);
+
+  const issuer = peerCert.issuerCertificate;
+  assert.strictEqual(issuer.issuerCertificate, issuer);
+  assert.strictEqual(issuer.serialNumber, 'C1EA7B03D5956D52');
+
+  return cleanup();
+});
