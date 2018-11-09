@@ -13,6 +13,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "disallow multiple spaces",
             category: "Best Practices",

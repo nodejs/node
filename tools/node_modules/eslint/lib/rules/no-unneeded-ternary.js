@@ -24,6 +24,8 @@ const OPERATOR_INVERSES = {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow ternary operators when simpler alternatives exist",
             category: "Stylistic Issues",

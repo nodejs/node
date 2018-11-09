@@ -19,6 +19,8 @@ const undefined1 = void 0;
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow invalid regular expression strings in `RegExp` constructors",
             category: "Possible Errors",

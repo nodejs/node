@@ -12,6 +12,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent spacing inside parentheses",
             category: "Stylistic Issues",

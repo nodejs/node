@@ -16,6 +16,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent spacing before or after unary operators",
             category: "Stylistic Issues",

@@ -24,6 +24,8 @@ const astUtils = require("../util/ast-utils");
 //------------------------------------------------------------------------------
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require or disallow method and property shorthand syntax for object literals",
             category: "ECMAScript 6",

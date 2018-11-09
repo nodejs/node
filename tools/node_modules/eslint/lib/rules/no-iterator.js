@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow the use of the `__iterator__` property",
             category: "Best Practices",

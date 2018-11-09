@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow sparse arrays",
             category: "Possible Errors",

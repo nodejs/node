@@ -17,6 +17,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow leading or trailing decimal points in numeric literals",
             category: "Best Practices",
@@ -25,7 +27,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code"
     },
 

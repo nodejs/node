@@ -22,6 +22,8 @@ const SIDE_EFFECT_FREE_NODE_TYPES = new Set(["Literal", "Identifier", "ThisExpre
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unnecessary calls to `.bind()`",
             category: "Best Practices",
@@ -30,7 +32,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code",
 
         messages: {

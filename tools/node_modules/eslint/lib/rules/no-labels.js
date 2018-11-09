@@ -16,6 +16,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow labeled statements",
             category: "Best Practices",

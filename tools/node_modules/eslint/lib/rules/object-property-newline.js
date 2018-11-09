@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce placing object properties on separate lines",
             category: "Stylistic Issues",
@@ -38,8 +40,7 @@ module.exports = {
 
     create(context) {
         const allowSameLine = context.options[0] && (
-            Boolean(context.options[0].allowAllPropertiesOnSameLine) ||
-            Boolean(context.options[0].allowMultiplePropertiesPerLine) // Deprecated
+            (Boolean(context.options[0].allowAllPropertiesOnSameLine) || Boolean(context.options[0].allowMultiplePropertiesPerLine)) // Deprecated
         );
         const errorMessage = allowSameLine
             ? "Object properties must go on a new line if they aren't all on the same line."

@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:footnote-definition
- * @fileoverview Tokenise footnote definition.
- */
-
 'use strict';
 
 var whitespace = require('is-whitespace-character');
@@ -26,7 +18,6 @@ var C_COLON = ':';
 
 var EXPRESSION_INITIAL_TAB = /^( {4}|\t)?/gm;
 
-/* Tokenise a footnote definition. */
 function footnoteDefinition(eat, value, silent) {
   var self = this;
   var offsets = self.offset;

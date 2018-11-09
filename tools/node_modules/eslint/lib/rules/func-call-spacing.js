@@ -17,6 +17,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow spacing between function identifiers and their invocations",
             category: "Stylistic Issues",
@@ -25,6 +27,7 @@ module.exports = {
         },
 
         fixable: "whitespace",
+
         schema: {
             anyOf: [
                 {
@@ -58,6 +61,7 @@ module.exports = {
                 }
             ]
         },
+
         messages: {
             unexpected: "Unexpected newline between function name and paren.",
             missing: "Missing space between function name and paren."

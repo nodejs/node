@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow duplicate class members",
             category: "ECMAScript 6",

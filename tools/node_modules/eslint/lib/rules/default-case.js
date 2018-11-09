@@ -12,6 +12,8 @@ const DEFAULT_COMMENT_PATTERN = /^no default$/i;
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `default` cases in `switch` statements",
             category: "Best Practices",

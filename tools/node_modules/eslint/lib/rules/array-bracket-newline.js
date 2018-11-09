@@ -13,13 +13,17 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce linebreaks after opening and before closing array brackets",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/array-bracket-newline"
         },
+
         fixable: "whitespace",
+
         schema: [
             {
                 oneOf: [
@@ -42,6 +46,7 @@ module.exports = {
                 ]
             }
         ],
+
         messages: {
             unexpectedOpeningLinebreak: "There should be no linebreak after '['.",
             unexpectedClosingLinebreak: "There should be no linebreak before ']'.",

@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow Unicode byte order mark (BOM)",
             category: "Stylistic Issues",

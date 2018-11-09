@@ -136,6 +136,8 @@ function isInInitializer(variable, reference) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow the use of variables before they are defined",
             category: "Variables",

@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `for-in` loops to include an `if` statement",
             category: "Best Practices",

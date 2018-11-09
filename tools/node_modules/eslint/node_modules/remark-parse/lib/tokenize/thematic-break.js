@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:thematic-break
- * @fileoverview Tokenise a thematic break.
- */
-
 'use strict';
 
 module.exports = thematicBreak;
@@ -19,7 +11,6 @@ var C_DASH = '-';
 
 var THEMATIC_BREAK_MARKER_COUNT = 3;
 
-/* Tokenise a thematic break. */
 function thematicBreak(eat, value, silent) {
   var index = -1;
   var length = value.length + 1;

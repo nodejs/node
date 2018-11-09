@@ -19,6 +19,8 @@ const keywords = require("../util/keywords");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce dot notation whenever possible",
             category: "Best Practices",

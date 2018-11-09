@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow `if` statements as the only statement in `else` blocks",
             category: "Stylistic Issues",
@@ -18,7 +20,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code"
     },
 

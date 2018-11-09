@@ -13,6 +13,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow reassigning exceptions in `catch` clauses",
             category: "Possible Errors",

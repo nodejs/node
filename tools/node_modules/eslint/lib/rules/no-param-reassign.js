@@ -12,6 +12,8 @@ const stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Progra
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow reassigning `function` parameters",
             category: "Best Practices",

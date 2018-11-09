@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce variables to be declared either together or separately in functions",
             category: "Stylistic Issues",

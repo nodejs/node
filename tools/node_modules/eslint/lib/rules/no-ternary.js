@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow ternary operators",
             category: "Stylistic Issues",

@@ -16,6 +16,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce consistent brace style for all control statements",
             category: "Best Practices",

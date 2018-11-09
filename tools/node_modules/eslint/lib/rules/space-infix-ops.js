@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require spacing around infix operators",
             category: "Stylistic Issues",
