@@ -814,26 +814,14 @@ void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Array> ary = Array::New(env->isolate());
-  Local<Context> ctx = env->context();
-  Local<Function> fn = env->push_values_to_array_function();
-  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  size_t idx = 0;
-
+  std::vector<Local<Value>> handle_v;
   for (auto w : *env->handle_wrap_queue()) {
     if (!HandleWrap::HasRef(w))
       continue;
-    argv[idx] = w->GetOwner();
-    if (++idx >= arraysize(argv)) {
-      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-      idx = 0;
-    }
+    handle_v.push_back(w->GetOwner());
   }
-  if (idx > 0) {
-    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-  }
-
-  args.GetReturnValue().Set(ary);
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), handle_v.data(), handle_v.size()));
 }
 
 void DebugPortGetter(Local<Name> property,
