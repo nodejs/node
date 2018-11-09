@@ -311,8 +311,8 @@
                   Execute="immediate"
                   Return="check" />
 
-    <Property Id="WixShellExecTarget" Value="[#ApplicationProgramsFolder]" />
-    <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" />
+    <Property Id="WixShellExecTarget" Value="explorer [#ApplicationProgramsFolder]" />
+    <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
     <InstallUISequence>
       <Custom Action='SetInstallScope' Before='FindRelatedProducts'/>
