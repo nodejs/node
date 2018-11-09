@@ -124,7 +124,9 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
   V(args_string, "args")                                                       \
+  V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
+  V(bits_string, "bits")                                                       \
   V(buffer_string, "buffer")                                                   \
   V(bytes_parsed_string, "bytesParsed")                                        \
   V(bytes_read_string, "bytesRead")                                            \
@@ -207,6 +209,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(modulus_string, "modulus")                                                 \
   V(name_string, "name")                                                       \
   V(netmask_string, "netmask")                                                 \
+  V(nistcurve_string, "nistCurve")                                             \
   V(nsname_string, "nsname")                                                   \
   V(ocsp_request_string, "OCSPRequest")                                        \
   V(onaltsvc_string, "onaltsvc")                                               \

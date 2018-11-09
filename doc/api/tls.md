@@ -649,6 +649,12 @@ If the full certificate chain was requested, each certificate will include an
 certificate.
 
 #### Certificate Object
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24358
+    description: Support Elliptic Curve public key info.
+-->
 
 A certificate object has properties corresponding to the fields of the
 certificate.
@@ -688,7 +694,18 @@ For RSA keys, the following properties may be defined:
    `'B56CE45CB7...'`.
 * `pubkey` {Buffer} The public key.
 
+For EC keys, the following properties may be defined:
+* `pubkey` {Buffer} The public key.
+* `bits` {number} The key size in bits. Example: `256`.
+* `asn1Curve` {string} (Optional) The ASN.1 name of the OID of the elliptic
+  curve. Well-known curves are identified by an OID. While it is unusual, it is
+  possible that the curve is identified by its mathematical properties, in which
+  case it will not have an OID. Example: `'prime256v1'`.
+* `nistCurve` {string} (Optional) The NIST name for the elliptic curve, if it
+  has one (not all well-known curves have been assigned names by NIST). Example:
+  `'P-256'`.
 
+Example certificate:
 ```text
 { subject:
    { OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
