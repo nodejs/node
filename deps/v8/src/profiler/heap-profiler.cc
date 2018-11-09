@@ -23,9 +23,14 @@ HeapProfiler::~HeapProfiler() = default;
 
 void HeapProfiler::DeleteAllSnapshots() {
   snapshots_.clear();
-  names_.reset(new StringsStorage());
+  MaybeClearStringsStorage();
 }
 
+void HeapProfiler::MaybeClearStringsStorage() {
+  if (snapshots_.empty() && !sampling_heap_profiler_ && !allocation_tracker_) {
+    names_.reset(new StringsStorage());
+  }
+}
 
 void HeapProfiler::RemoveSnapshot(HeapSnapshot* snapshot) {
   snapshots_.erase(
@@ -126,6 +131,7 @@ bool HeapProfiler::StartSamplingHeapProfiler(
 
 void HeapProfiler::StopSamplingHeapProfiler() {
   sampling_heap_profiler_.reset();
+  MaybeClearStringsStorage();
 }
 
 
@@ -159,6 +165,7 @@ void HeapProfiler::StopHeapObjectsTracking() {
   ids_->StopHeapObjectsTracking();
   if (allocation_tracker_) {
     allocation_tracker_.reset();
+    MaybeClearStringsStorage();
     heap()->RemoveHeapObjectAllocationTracker(this);
   }
 }
