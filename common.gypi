@@ -27,7 +27,6 @@
 
     'clang%': 0,
 
-    'openssl_no_asm%': 0,
     'openssl_fips%': '',
 
     # Reset this number to 0 on major V8 upgrades.
@@ -52,6 +51,12 @@
     'icu_use_data_file_flag%': 0,
 
     'conditions': [
+      ['target_arch=="arm64"', {
+        # Disabled pending https://github.com/nodejs/node/issues/23913.
+        'openssl_no_asm%': 1,
+      }, {
+        'openssl_no_asm%': 0,
+      }],
       ['GENERATOR=="ninja"', {
         'obj_dir': '<(PRODUCT_DIR)/obj',
         'conditions': [
