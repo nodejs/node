@@ -54,6 +54,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Null;
@@ -148,52 +149,33 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
 
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
   uv_cpu_info_t* cpu_infos;
-  int count, i, field_idx;
+  int count;
 
   int err = uv_cpu_info(&cpu_infos, &count);
   if (err)
     return;
 
-  CHECK(args[0]->IsFunction());
-  Local<Function> addfn = args[0].As<Function>();
-
-  CHECK(args[1]->IsFloat64Array());
-  Local<Float64Array> array = args[1].As<Float64Array>();
-  CHECK_EQ(array->Length(), 6 * NODE_PUSH_VAL_TO_ARRAY_MAX);
-  Local<ArrayBuffer> ab = array->Buffer();
-  double* fields = static_cast<double*>(ab->GetContents().Data());
-
-  CHECK(args[2]->IsArray());
-  Local<Array> cpus = args[2].As<Array>();
-
-  Local<Value> model_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  int model_idx = 0;
-
-  for (i = 0, field_idx = 0; i < count; i++) {
+  // It's faster to create an array packed with all the data and
+  // assemble them into objects in JS than to call Object::Set() repeatedly
+  // The array is in the format
+  // [model, speed, (5 entries of cpu_times), model2, speed2, ...]
+  std::vector<Local<Value>> result(count * 7);
+  for (size_t i = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
-
-    fields[field_idx++] = ci->speed;
-    fields[field_idx++] = ci->cpu_times.user;
-    fields[field_idx++] = ci->cpu_times.nice;
-    fields[field_idx++] = ci->cpu_times.sys;
-    fields[field_idx++] = ci->cpu_times.idle;
-    fields[field_idx++] = ci->cpu_times.irq;
-    model_argv[model_idx++] = OneByteString(env->isolate(), ci->model);
-
-    if (model_idx >= NODE_PUSH_VAL_TO_ARRAY_MAX) {
-      addfn->Call(env->context(), cpus, model_idx, model_argv).ToLocalChecked();
-      model_idx = 0;
-      field_idx = 0;
-    }
-  }
-
-  if (model_idx > 0) {
-    addfn->Call(env->context(), cpus, model_idx, model_argv).ToLocalChecked();
+    result[i * 7] = OneByteString(isolate, ci->model);
+    result[i * 7 + 1] = Number::New(isolate, ci->speed);
+    result[i * 7 + 2] = Number::New(isolate, ci->cpu_times.user);
+    result[i * 7 + 3] = Number::New(isolate, ci->cpu_times.nice);
+    result[i * 7 + 4] = Number::New(isolate, ci->cpu_times.sys);
+    result[i * 7 + 5] = Number::New(isolate, ci->cpu_times.idle);
+    result[i * 7 + 6] = Number::New(isolate, ci->cpu_times.irq);
   }
 
   uv_free_cpu_info(cpu_infos, count);
-  args.GetReturnValue().Set(cpus);
+  args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 
 

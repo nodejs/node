@@ -24,7 +24,6 @@ using v8::Private;
 using v8::Promise;
 using v8::PropertyFilter;
 using v8::Proxy;
-using v8::ReadOnly;
 using v8::SKIP_STRINGS;
 using v8::SKIP_SYMBOLS;
 using v8::String;
@@ -205,12 +204,6 @@ void Initialize(Local<Object> target,
     PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
   }
 #undef V
-
-  target->DefineOwnProperty(
-    env->context(),
-    OneByteString(env->isolate(), "pushValToArrayMax"),
-    Integer::NewFromUnsigned(env->isolate(), NODE_PUSH_VAL_TO_ARRAY_MAX),
-    ReadOnly).FromJust();
 
 #define V(name)                                                               \
   target->Set(context,                                                        \
