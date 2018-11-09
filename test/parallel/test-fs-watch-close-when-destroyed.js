@@ -8,6 +8,9 @@ const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const path = require('path');
 
+if (process.env.TRAVIS)
+  common.skip('Skip fs.watch-intensive test because of Travis limitation.');
+
 tmpdir.refresh();
 const root = path.join(tmpdir.path, 'watched-directory');
 fs.mkdirSync(root);

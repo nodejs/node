@@ -10,6 +10,9 @@ const fs = require('fs');
 if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different async IDs');
 
+if (process.env.TRAVIS)
+  common.skip('Skip fs.watch-intensive test because of Travis limitation.');
+
 const hooks = initHooks();
 
 hooks.enable();

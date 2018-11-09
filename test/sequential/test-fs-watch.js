@@ -31,6 +31,9 @@ const tmpdir = require('../common/tmpdir');
 if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
 
+if (process.env.TRAVIS)
+  common.skip('Skip fs.watch-intensive test because of Travis limitation.');
+
 const expectFilePath = common.isWindows ||
                        common.isLinux ||
                        common.isOSX ||
