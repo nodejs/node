@@ -130,19 +130,28 @@ Depending on the host platform, the selection of toolchains may vary.
 
 #### OpenSSL asm support
 
-OpenSSL-1.1.0 requires the following assembler version for use of asm
+OpenSSL-1.1.1 requires the following assembler version for use of asm
 support on x86_64 and ia32.
+
+For use of AVX-512,
+
+* gas (GNU assembler) version 2.26 or higher
+* nasm version 2.11.8 or higher in Windows
+
+Note that AVX-512 is disabled for Skylake-X by OpenSSL-1.1.1.
+
+For use of AVX2,
 
 * gas (GNU assembler) version 2.23 or higher
 * Xcode version 5.0 or higher
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
-If compiling without one of the above, use `configure` with the
-`--openssl-no-asm` flag. Otherwise, `configure` will fail.
-
-The forthcoming OpenSSL-1.1.1 will have different requirements. Please refer to
+Please refer to
  https://www.openssl.org/docs/man1.1.1/man3/OPENSSL_ia32cap.html for details.
+
+ If compiling without one of the above, use `configure` with the
+`--openssl-no-asm` flag. Otherwise, `configure` will fail.
 
 ## Building Node.js on supported platforms
 
