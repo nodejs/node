@@ -9,8 +9,7 @@ if (process.argv[2] === 'child') {
   const spawn = require('child_process').spawn;
 
   // spawn self as child
-  const child = spawn(process.argv[0], [process.argv[1], 'child']);
+  const child = spawn(process.execPath, [process.argv[1], 'child']);
 
-  child.stderr.setEncoding('utf8');
   child.stderr.on('data', common.mustNotCall());
 }
