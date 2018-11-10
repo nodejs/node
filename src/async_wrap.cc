@@ -694,6 +694,8 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
 
 async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
+  // Environment::GetCurrent() allocates a Local<> handle.
+  v8::HandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr) return -1;
   return env->execution_async_id();
@@ -701,6 +703,8 @@ async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
 
 
 async_id AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
+  // Environment::GetCurrent() allocates a Local<> handle.
+  v8::HandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr) return -1;
   return env->trigger_async_id();
@@ -711,6 +715,7 @@ async_context EmitAsyncInit(Isolate* isolate,
                             Local<Object> resource,
                             const char* name,
                             async_id trigger_async_id) {
+  v8::HandleScope handle_scope(isolate);
   Local<String> type =
       String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
           .ToLocalChecked();
@@ -721,6 +726,7 @@ async_context EmitAsyncInit(Isolate* isolate,
                             Local<Object> resource,
                             v8::Local<v8::String> name,
                             async_id trigger_async_id) {
+  v8::HandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   CHECK_NOT_NULL(env);
 
@@ -741,6 +747,8 @@ async_context EmitAsyncInit(Isolate* isolate,
 }
 
 void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
+  // Environment::GetCurrent() allocates a Local<> handle.
+  v8::HandleScope handle_scope(isolate);
   AsyncWrap::EmitDestroy(
       Environment::GetCurrent(isolate), asyncContext.async_id);
 }
