@@ -72,17 +72,14 @@ const execOpts = { encoding: 'utf8', shell: true };
   // object prototype
   Object.prototype.shell = true;
 
-  let assertionExpected = 0;
-  try {
+  assert.throws(function() {
     execFileSync(
       'date',
       ['; echo baz']
     );
-  } catch (err) {
-    assertionExpected++;
-    assert.strictEqual(err.status, 1);
-  }
+  }, {
+    status: 1
+  }, 'No safe-guard detected against value present on the prototype chain');
 
-  assert.strictEqual(assertionExpected, 1);
   Reflect.deleteProperty(Object.prototype, 'shell');
 }
