@@ -56,6 +56,8 @@ void AfterAsync(uv_work_t* r) {
     callback->Call(global, 2, argv);
   }
 
+  // None of the following operations should allocate handles into this scope.
+  v8::SealHandleScope seal_handle_scope(isolate);
   // cleanup
   node::EmitAsyncDestroy(isolate, req->context);
   req->callback.Reset();
