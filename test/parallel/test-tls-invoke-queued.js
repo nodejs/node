@@ -41,7 +41,7 @@ const server = tls.createServer({
       c.destroy();
     }));
     // Data on next _write() will be written but callback will not be invoked
-    c.write(' gosh', null, common.mustNotCall());
+    c.write(' gosh', null, common.mustCall());
   }));
 
   server.close();
