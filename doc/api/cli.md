@@ -681,6 +681,12 @@ Path to the file used to store the persistent REPL history. The default path is
 `~/.node_repl_history`, which is overridden by this variable. Setting the value
 to an empty string (`''` or `' '`) disables persistent REPL history.
 
+### `NODE_TLS_REJECT_UNAUTHORIZED=value`
+
+If `value` equals `'0'`, certificate validation is disabled for TLS connections.
+This makes TLS, and HTTPS by extension, insecure. The use of this environment
+variable is strongly discouraged.
+
 ### `NODE_V8_COVERAGE=dir`
 
 When set, Node.js will begin outputting [V8 JavaScript code coverage][] to the
