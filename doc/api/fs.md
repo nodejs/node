@@ -4220,6 +4220,10 @@ characters directly to the `prefix` string. For instance, given a directory
 ### fsPromises.open(path, flags[, mode])
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: v11.1.0
+    pr-url: https://github.com/nodejs/node/pull/23767
+    description: The `flags` argument is now optional and defaults to `'r'`.
 -->
 
 * `path` {string|Buffer|URL}
