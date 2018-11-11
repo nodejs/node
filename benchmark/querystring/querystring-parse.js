@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common.js');
 const querystring = require('querystring');
-const inputs = require('../fixtures/url-inputs.js').searchParams;
+const inputs = common.searchParams;
 
 const bench = common.createBenchmark(main, {
   type: Object.keys(inputs),

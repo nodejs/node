@@ -1,55 +1,42 @@
 'use strict';
 const common = require('../common.js');
-const URL = require('url').URL;
-const inputs = require('../fixtures/url-inputs.js').urls;
 
 const bench = common.createBenchmark(main, {
-  input: Object.keys(inputs),
+  withBase: ['true', 'false'],
+  type: ['wpt'],  // Too many combinations - just use WPT by default
+  e: [1],
   prop: ['href', 'origin', 'protocol',
          'username', 'password', 'host', 'hostname', 'port',
-         'pathname', 'search', 'searchParams', 'hash'],
-  n: [3e5]
+         'pathname', 'search', 'searchParams', 'hash']
 });
 
-function setAndGet(n, url, prop, alternative) {
-  const old = url[prop];
+function setAndGet(data, prop) {
+  const len = data.length;
+  var result = data[0][prop];
   bench.start();
-  for (var i = 0; i < n; i += 1) {
-    url[prop] = n % 2 === 0 ? alternative : old;  // set
-    url[prop];  // get
+  for (var i = 0; i < len; ++i) {
+    result = data[i][prop];
+    data[i][prop] = result;
   }
-  bench.end(n);
+  bench.end(len);
+  return result;
 }
 
-function get(n, url, prop) {
+function get(data, prop) {
+  const len = data.length;
+  var result = data[0][prop];
   bench.start();
-  for (var i = 0; i < n; i += 1) {
-    url[prop];  // get
+  for (var i = 0; i < len; ++i) {
+    result = data[i][prop]; // get
   }
-  bench.end(n);
+  bench.end(len);
+  return result;
 }
 
-const alternatives = {
-  href: 'http://user:pass@foo.bar.com:21/aaa/zzz?l=25#test',
-  protocol: 'https:',
-  username: 'user2',
-  password: 'pass2',
-  host: 'foo.bar.net:22',
-  hostname: 'foo.bar.org',
-  port: '23',
-  pathname: '/aaa/bbb',
-  search: '?k=99',
-  hash: '#abcd'
-};
-
-function getAlternative(prop) {
-  return alternatives[prop];
-}
-
-function main({ n, input, prop }) {
-  const value = inputs[input];
-  const url = new URL(value);
-
+function main({ e, type, prop, withBase }) {
+  e = +e;
+  withBase = withBase === 'true';
+  const data = common.bakeUrlData(type, e, withBase, true);
   switch (prop) {
     case 'protocol':
     case 'username':
@@ -61,11 +48,11 @@ function main({ n, input, prop }) {
     case 'search':
     case 'hash':
     case 'href':
-      setAndGet(n, url, prop, getAlternative(prop));
+      setAndGet(data, prop);
       break;
     case 'origin':
     case 'searchParams':
-      get(n, url, prop);
+      get(data, prop);
       break;
     default:
       throw new Error('Unknown prop');

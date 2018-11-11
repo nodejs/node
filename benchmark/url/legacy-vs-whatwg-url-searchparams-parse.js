@@ -2,7 +2,7 @@
 const common = require('../common.js');
 const { URLSearchParams } = require('url');
 const querystring = require('querystring');
-const searchParams = require('../fixtures/url-inputs.js').searchParams;
+const searchParams = common.searchParams;
 
 const bench = common.createBenchmark(main, {
   searchParam: Object.keys(searchParams),
