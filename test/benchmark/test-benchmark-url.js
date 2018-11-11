@@ -7,6 +7,7 @@ const runBenchmark = require('../common/benchmark');
 runBenchmark('url',
              [
                'method=legacy',
+               'e=0',
                'loopMethod=forEach',
                'accessMethod=get',
                'type=short',
@@ -18,6 +19,7 @@ runBenchmark('url',
                'to=ascii',
                'prop=href',
                'n=1',
-               'param=one'
+               'param=one',
+               'withBase=false'
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
