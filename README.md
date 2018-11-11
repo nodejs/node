@@ -401,6 +401,8 @@ For information about the governance of the Node.js project, see
 **Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [othiym23](https://github.com/othiym23) -
 **Forrest L Norvell** &lt;ogd@aoaioxxysz.net&gt; (he/him)
+* [oyyd](https://github.com/oyyd) -
+**Ouyang Yadong** &lt;oyydoibh@gmail.com&gt; (he/him)
 * [pmq20](https://github.com/pmq20) -
 **Minqi Pan** &lt;pmq2001@gmail.com&gt;
 * [princejwesley](https://github.com/princejwesley) -
