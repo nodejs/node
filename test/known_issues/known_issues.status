@@ -10,7 +10,6 @@ prefix known_issues
 
 [$system==linux]
 test-vm-timeout-escape-promise: PASS,FLAKY
-test-vm-timeout-escape-queuemicrotask: PASS,FLAKY
 
 [$system==macos]
 
