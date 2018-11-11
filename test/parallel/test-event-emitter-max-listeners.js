@@ -37,7 +37,7 @@ for (const obj of throwsObjs) {
     {
       code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
-      message: 'The value of "n" is out of range. ' +
+      message: 'The value of "_maxListeners" is out of range. ' +
                `It must be a non-negative number. Received ${obj}`
     }
   );
