@@ -867,7 +867,7 @@ common.expectsError(
     assert.ok((() => Boolean('' === false))());
   }, {
     message: 'The expression evaluated to a falsy value:\n\n' +
-             '  assert.ok((() => Boolean('\\u0001' === false))())\n'
+             "  assert.ok((() => Boolean('\\u0001' === false))())\n"
   });
 
   const errFn = () => {
