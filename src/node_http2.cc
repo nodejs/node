@@ -1302,7 +1302,7 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   size_t headers_size = headers.size();
   std::vector<Local<Value>> headers_v(headers_size * 2);
   for (size_t i = 0; i < headers_size; ++i) {
-    nghttp2_header item = headers[i];
+    const nghttp2_header& item = headers[i];
     // The header name and value are passed as external one-byte strings
     headers_v[i * 2] =
         ExternalHeader::New<true>(this, item.name).ToLocalChecked();
