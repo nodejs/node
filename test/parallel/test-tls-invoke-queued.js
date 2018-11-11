@@ -40,7 +40,7 @@ const server = tls.createServer({
     c.write('world!', null, common.mustCall(function() {
       c.destroy();
     }));
-    // Data on next _write() will be written but callback will not be invoked
+    // Data on next _write() will be written, and the cb will still be invoked
     c.write(' gosh', null, common.mustCall());
   }));
 
