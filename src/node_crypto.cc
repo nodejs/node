@@ -3694,6 +3694,15 @@ void CipherBase::InitIv(const char* cipher_type,
 }
 
 
+static ByteSource GetSecretKeyBytes(Environment* env, Local<Value> value) {
+  // A key can be passed as a string, buffer or KeyObject with type 'secret'.
+  // If it is a string, we need to convert it to a buffer. We are not doing that
+  // in JS to avoid creating an unprotected copy on the heap.
+  return value->IsString() || Buffer::HasInstance(value) ?
+           ByteSource::FromStringOrBuffer(env, value) :
+           ByteSource::FromSymmetricKeyObject(value);
+}
+
 void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
@@ -3702,14 +3711,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 4);
 
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
-
-  // A key can be passed as a string, buffer or KeyObject with type 'symmetric'.
-  // If it is a string, we need to convert it to a buffer. We are not doing that
-  // in JS to avoid creating an unprotected copy on the heap.
-  const ByteSource key =
-      args[1]->IsString() || Buffer::HasInstance(args[1]) ?
-        std::move(ByteSource::FromStringOrBuffer(env, args[1])) :
-        ByteSource::FromSymmetricKeyObject(args[1]);
+  const ByteSource key = GetSecretKeyBytes(env, args[1]);
 
   ssize_t iv_len;
   const unsigned char* iv_buf;
@@ -4192,9 +4194,8 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = hmac->env();
 
   const node::Utf8Value hash_type(env->isolate(), args[0]);
-  const char* buffer_data = Buffer::Data(args[1]);
-  size_t buffer_length = Buffer::Length(args[1]);
-  hmac->HmacInit(*hash_type, buffer_data, buffer_length);
+  ByteSource key = GetSecretKeyBytes(env, args[1]);
+  hmac->HmacInit(*hash_type, key.get(), key.size());
 }
 
 

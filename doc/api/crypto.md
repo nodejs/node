@@ -1240,7 +1240,7 @@ console.log(sign.sign(privateKey, 'hex'));
 added: v0.1.92
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11705
@@ -1513,7 +1513,7 @@ Adversaries][] for details.
 added: v0.1.94
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/24234
     description: The `key` argument can now be a `KeyObject`.
   - version: v11.2.0
     pr-url: https://github.com/nodejs/node/pull/24081
@@ -1605,7 +1605,7 @@ to create the `Decipher` object.
 added: v0.1.94
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/24234
     description: The `key` argument can now be a `KeyObject`.
   - version: v11.2.0
     pr-url: https://github.com/nodejs/node/pull/24081
@@ -1756,9 +1756,13 @@ input.on('readable', () => {
 ### crypto.createHmac(algorithm, key[, options])
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: The `key` argument can now be a `KeyObject`.
 -->
 * `algorithm` {string}
-* `key` {string | Buffer | TypedArray | DataView}
+* `key` {string | Buffer | TypedArray | DataView | KeyObject}
 * `options` {Object} [`stream.transform` options][]
 * Returns: {Hmac}
 
@@ -1831,7 +1835,8 @@ added: REPLACEME
 * `key` {Buffer}
 * Returns: {KeyObject}
 
-Creates and returns a new key object containing a secret (symmetric) key.
+Creates and returns a new key object containing a secret key for symmetric
+encryption or `Hmac`.
 
 ### crypto.createSign(algorithm[, options])
 <!-- YAML
@@ -1864,7 +1869,7 @@ signing algorithms. Optional `options` argument controls the
 added: v10.12.0
 changes:
   - version: REPLACEME
-    pr-url: ???
+    pr-url: https://github.com/nodejs/node/pull/24234
     description: The `generateKeyPair` and `generateKeyPairSync` functions now
                  produce key objects if no encoding was specified.
 -->
@@ -1931,7 +1936,7 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 added: v10.12.0
 changes:
   - version: REPLACEME
-    pr-url: ???
+    pr-url: https://github.com/nodejs/node/pull/24234
     description: The `generateKeyPair` and `generateKeyPairSync` functions now
                  produce key objects if no encoding was specified.
 -->
@@ -2198,7 +2203,7 @@ An array of supported digest functions can be retrieved using
 added: v0.11.14
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
 * `privateKey` {Object | string | Buffer | KeyObject}
@@ -2222,7 +2227,7 @@ treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
 added: v1.1.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
 * `privateKey` {Object | string | Buffer | KeyObject}
@@ -2245,7 +2250,7 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 added: v1.1.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
 * `key` {Object | string | Buffer | KeyObject}
@@ -2271,7 +2276,7 @@ be passed instead of a public key.
 added: v0.11.14
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???
+    pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
 * `key` {Object | string | Buffer | KeyObject}
