@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common.js');
 const url = require('url');
-const hrefs = require('../fixtures/url-inputs.js').urls;
+const hrefs = common.urls;
 hrefs.noscheme = 'some.ran/dom/url.thing?oh=yes#whoo';
 
 const paths = {
