@@ -779,13 +779,12 @@ void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
       return;
     }
     env_v.push_back(rc.ToLocalChecked());
-    size++;
     p = s + wcslen(s) + 1;
   }
   FreeEnvironmentStringsW(environment);
 #endif
 
-  envarr = Array::New(isolate, env_v.data(), env_size);
+  envarr = Array::New(isolate, env_v.data(), env_v.size());
   info.GetReturnValue().Set(envarr);
 }
 
