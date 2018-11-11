@@ -1428,13 +1428,13 @@ void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
   std::vector<Local<Value>> origin_v(nov);
 
   for (size_t i = 0; i < nov; ++i) {
-    auto entry = origin->ov[i];
+    const nghttp2_origin_entry& entry = origin->ov[i];
     origin_v[i] =
         String::NewFromOneByte(
             isolate, entry.origin, v8::NewStringType::kNormal, entry.origin_len)
             .ToLocalChecked();
   }
-  Local<Value> holder = Array::New(isolate, origin_v.data(), nov);
+  Local<Value> holder = Array::New(isolate, origin_v.data(), origin_v.size());
   MakeCallback(env()->onorigin_string(), 1, &holder);
 }
 
