@@ -6,16 +6,23 @@
 
 const assert = require('assert');
 const common = require('../../common.js');
-
 // this fails when we try to open with a different version of node,
 // which is quite common for benchmarks.  so in that case, just
 // abort quietly.
 
+let binding;
 try {
-  var binding = require(`./build/${common.buildType}/binding`);
+  binding = require(`./build/${common.buildType}/binding`);
 } catch {
-  console.error('misc/function_call.js Binding failed to load');
-  process.exit(0);
+  try {
+    common.buildAddon('benchmark/napi/function_call');
+    // eslint-disable-next-line node-core/no-duplicate-requires
+    binding = require(`./build/${common.buildType}/binding`);
+  } catch (e) {
+    console.error(`${__filename}: V8 Binding failed to load`);
+    console.error(e);
+    process.exit(0);
+  }
 }
 const cxx = binding.hello;
 
@@ -23,8 +30,15 @@ let napi_binding;
 try {
   napi_binding = require(`./build/${common.buildType}/napi_binding`);
 } catch {
-  console.error('misc/function_call/index.js NAPI-Binding failed to load');
-  process.exit(0);
+  try {
+    common.buildAddon('benchmark/misc/function_call');
+    // eslint-disable-next-line node-core/no-duplicate-requires
+    napi_binding = require(`./build/${common.buildType}/napi_binding`);
+  } catch (e) {
+    console.error(`${__filename}: N-API Binding failed to load`);
+    console.error(e);
+    process.exit(0);
+  }
 }
 const napi = napi_binding.hello;
 

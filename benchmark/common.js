@@ -2,6 +2,29 @@
 
 const child_process = require('child_process');
 const http_benchmarkers = require('./_http-benchmarkers.js');
+const path = require('path');
+
+exports.buildAddon = function(directory) {
+  const root = path.join(__dirname, '../');
+  const gyp = path.join(root, 'deps/npm/node_modules/node-gyp/bin/node-gyp');
+  const python = process.env.PYTHON || 'python';
+  const ret = child_process.spawnSync(process.execPath, [
+    gyp,
+    'rebuild',
+    `--python=${python}`,
+    `--directory=${path.join(root, directory)}`,
+    `--nodedir=${root}`
+  ], { env: { ...process.env, MAKEFLAGS: '-j1' }});
+  if (ret.error || ret.status !== 0) {
+    console.error('ERROR', ret.error);
+    console.error('STATUS', ret.status);
+    console.error('---- stdout ----');
+    console.error(ret.stdout.toString());
+    console.error('---- stderr ----');
+    console.error(ret.stderr.toString());
+    throw new Error(`Failed to build ${directory}`);
+  }
+};
 
 exports.buildType = process.features.debug ? 'Debug' : 'Release';
 

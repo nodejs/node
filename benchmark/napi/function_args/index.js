@@ -12,15 +12,29 @@ let napi;
 try {
   v8 = require(`./build/${common.buildType}/binding`);
 } catch {
-  console.error(`${__filename}: V8 Binding failed to load`);
-  process.exit(0);
+  try {
+    common.buildAddon('benchmark/napi/function_args');
+    // eslint-disable-next-line node-core/no-duplicate-requires
+    v8 = require(`./build/${common.buildType}/binding`);
+  } catch (e) {
+    console.error(`${__filename}: V8 Binding failed to load`);
+    console.error(e);
+    process.exit(0);
+  }
 }
 
 try {
   napi = require(`./build/${common.buildType}/napi_binding`);
 } catch {
-  console.error(`${__filename}: NAPI-Binding failed to load`);
-  process.exit(0);
+  try {
+    common.buildAddon('benchmark/napi/function_args');
+    // eslint-disable-next-line node-core/no-duplicate-requires
+    napi = require(`./build/${common.buildType}/napi_binding`);
+  } catch (e) {
+    console.error(`${__filename}: N-API Binding failed to load`);
+    console.error(e);
+    process.exit(0);
+  }
 }
 
 const argsTypes = ['String', 'Number', 'Object', 'Array', 'Typedarray',
