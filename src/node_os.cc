@@ -158,6 +158,10 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   if (err)
     return;
 
+  // It's faster to create an array packed with all the data and
+  // assemble them into objects in JS than to call Object::Set() repeatedly
+  // The array is in the format
+  // [model, speed, (5 entries of cpu_times), model2, speed2, ...]
   std::vector<Local<Value>> result(count * 7);
   for (size_t i = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
