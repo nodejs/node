@@ -38,19 +38,24 @@ runtime features.
 Coding guidelines are based on the following guides (highest priority first):
 1. This document
 2. The [Google C++ Style Guide][]
-3. The ISO [C++ Core Guidelines][]
 
-In general code should follow the C++ Core Guidelines, unless overridden by the
-Google C++ Style Guide or this document. At the moment these guidelines are
-checked manually by reviewers, with the goal to validate this with automatic
-tools.
+In general code should the Google C++ Style Guide, unless overridden by this
+document.
+
+There are two automatic tools in this code base:
+
+- `make lint-cpp`: the C++ linter based on [Google’s `cpplint`][]
+- `make format-cpp`: the C++ formatter based on clang-format
+
+At the moment guidelines that cannot be caught by these tools are checked
+manually by reviewers. When nit-picking about rules that cannot be enforced
+by automatic tooling during review, prefer giving specific reasons on a
+case-by-case basis instead of simply citing rules.
+
+In code that does not interface with any third-party libraries,
+[C++ Core Guidelines][] may be a reference for good practices.
 
 ## Formatting
-
-Unfortunately, the C++ linter (based on [Google’s `cpplint`][]), which can be
-run explicitly via `make lint-cpp`, does not currently catch a lot of rules that
-are specific to the Node.js C++ code base. This document explains the most
-common of these rules:
 
 ### Left-leaning (C++ style) asterisks for pointer declarations
 
