@@ -4,7 +4,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   withBase: ['true', 'false'],
   type: ['wpt'],  // Too many combinations - just use WPT by default
-  power: [1],
+  e: [1],
   prop: ['href', 'origin', 'protocol',
          'username', 'password', 'host', 'hostname', 'port',
          'pathname', 'search', 'searchParams', 'hash']

@@ -326,6 +326,10 @@ function bakeUrlData(type, e = 0, withBase = false, asUrl = false) {
     throw new Error(`Unknown url data type ${type}`);
   }
 
+  if (typeof e !== 'number') {
+    throw new Error(`e must be a number, received ${e}`);
+  }
+
   for (let i = 0; i < e; ++i) {
     result = result.concat(result);
   }
