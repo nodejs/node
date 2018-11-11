@@ -3402,6 +3402,7 @@ following additional properties:
 [HTTPS]: https.html
 [Performance Observer]: perf_hooks.html
 [Readable Stream]: stream.html#stream_class_stream_readable
+[Stream]: stream.html#stream_stream
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
