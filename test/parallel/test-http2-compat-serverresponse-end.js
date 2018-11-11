@@ -121,7 +121,7 @@ const {
   // Http2ServerResponse.end is necessary on HEAD requests in compat
   // for http1 compatibility
   const server = createServer(mustCall((request, response) => {
-    strictEqual(response.finished, true);
+    strictEqual(response.finished, false);
     response.writeHead(HTTP_STATUS_OK, { foo: 'bar' });
     response.end('data', mustCall());
   }));
