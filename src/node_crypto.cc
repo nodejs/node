@@ -2889,8 +2889,6 @@ static EVPKeyPointer ParsePrivateKey(const PrivateKeyEncodingConfig& config,
   return pkey;
 }
 
-ByteSource::ByteSource() : data_(nullptr), allocated_data_(nullptr), size_(0) {}
-
 ByteSource::ByteSource(ByteSource&& other)
       : data_(other.data_),
         allocated_data_(other.allocated_data_),
@@ -3048,29 +3046,6 @@ static ManagedEVPPKey GetPublicKeyFromJS(
     return key->GetAsymmetricKey();
   }
 }
-
-template <typename T>
-class NonCopyableMaybe {
- public:
-  NonCopyableMaybe() : empty_(true) {}
-  explicit NonCopyableMaybe(T&& value)
-      : empty_(false),
-        value_(std::move(value)) {}
-
-  bool IsEmpty() const {
-    return empty_;
-  }
-
-  T&& Release() {
-    CHECK_EQ(empty_, false);
-    empty_ = true;
-    return std::move(value_);
-  }
-
- private:
-  bool empty_;
-  T value_;
-};
 
 static NonCopyableMaybe<PrivateKeyEncodingConfig> GetPrivateKeyEncodingFromJS(
     const FunctionCallbackInfo<Value>& args,

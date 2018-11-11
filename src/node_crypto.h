@@ -345,7 +345,7 @@ class SSLWrap {
 // contents are zeroed.
 class ByteSource {
  public:
-  ByteSource();
+  ByteSource() = default;
   ByteSource(ByteSource&& other);
   ~ByteSource();
 
@@ -370,9 +370,9 @@ class ByteSource {
   static ByteSource FromSymmetricKeyObject(v8::Local<v8::Value> handle);
 
  private:
-  const char* data_;
-  char* allocated_data_;
-  size_t size_;
+  const char* data_ = nullptr;
+  char* allocated_data_ = nullptr;
+  size_t size_ = 0;
 
   ByteSource(const char* data, char* allocated_data, size_t size);
 
