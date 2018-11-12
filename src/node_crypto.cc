@@ -2691,7 +2691,7 @@ static bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
 }
 
 template <typename T>
-static T* CHECKED_OPENSSL_malloc(size_t count) {
+static T* MallocOpenSSL(size_t count) {
   void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
   CHECK_NOT_NULL(mem);
   return static_cast<T*>(mem);
@@ -2930,7 +2930,7 @@ ByteSource ByteSource::FromString(Environment* env, Local<String> str,
   CHECK(str->IsString());
   size_t size = str->Utf8Length(env->isolate());
   size_t alloc_size = ntc ? size + 1 : size;
-  char* data = CHECKED_OPENSSL_malloc<char>(alloc_size);
+  char* data = MallocOpenSSL<char>(alloc_size);
   int opts = String::NO_OPTIONS;
   if (!ntc) opts |= String::NO_NULL_TERMINATION;
   str->WriteUtf8(env->isolate(), data, alloc_size, nullptr, opts);
@@ -2940,7 +2940,7 @@ ByteSource ByteSource::FromString(Environment* env, Local<String> str,
 ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
   size_t size = Buffer::Length(buffer);
   if (ntc) {
-    char* data = CHECKED_OPENSSL_malloc<char>(size + 1);
+    char* data = MallocOpenSSL<char>(size + 1);
     memcpy(data, Buffer::Data(buffer), size);
     data[size] = 0;
     return Allocated(data, size);
@@ -3407,7 +3407,7 @@ void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
 void KeyObject::InitSecret(const char* key, size_t key_len) {
   CHECK_EQ(this->key_type_, kKeyTypeSecret);
 
-  char* mem = CHECKED_OPENSSL_malloc<char>(key_len);
+  char* mem = MallocOpenSSL<char>(key_len);
   memcpy(mem, key, key_len);
   this->symmetric_key_ = std::unique_ptr<char, std::function<void(char*)>>(mem,
       [key_len](char* p) {
@@ -3430,7 +3430,6 @@ void KeyObject::InitPrivate(const ManagedEVPPKey& pkey) {
 
 Local<String> KeyObject::GetAsymmetricKeyType() const {
   CHECK_NE(this->key_type_, kKeyTypeSecret);
-  const char* name;
   switch (EVP_PKEY_id(this->asymmetric_key_.get())) {
   case EVP_PKEY_RSA:
     return env()->crypto_rsa_string();
