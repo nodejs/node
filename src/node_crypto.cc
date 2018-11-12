@@ -5754,7 +5754,8 @@ class GenerateKeyPairJob : public CryptoJob {
     : CryptoJob(env),
     config_(std::move(config)),
     public_key_encoding_(public_key_encoding),
-    private_key_encoding_(std::move(private_key_encoding)),
+    private_key_encoding_(std::forward<PrivateKeyEncodingConfig>(
+        private_key_encoding)),
     pkey_(nullptr) {}
 
   inline void DoThreadPoolWork() override {
@@ -5860,7 +5861,7 @@ void GenerateKeyPair(const FunctionCallbackInfo<Value>& args,
 
   std::unique_ptr<GenerateKeyPairJob> job(
       new GenerateKeyPairJob(env, std::move(config), public_key_encoding,
-                             std::move(private_key_encoding.Release())));
+                             private_key_encoding.Release()));
   if (args[offset]->IsObject())
     return GenerateKeyPairJob::Run(std::move(job), args[offset]);
   env->PrintSyncTrace();

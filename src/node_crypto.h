@@ -378,6 +378,8 @@ class ByteSource {
 
   static ByteSource Allocated(char* data, size_t size);
   static ByteSource Foreign(const char* data, size_t size);
+
+  DISALLOW_COPY_AND_ASSIGN(ByteSource);
 };
 
 enum PKEncodingType {
