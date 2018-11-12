@@ -7,15 +7,14 @@ const common = require('../common');
 const assert = require('assert');
 const httpCommon = require('_http_common');
 const { internalBinding } = require('internal/test/binding');
-const is_reused_symbol = require('internal/freelist').symbols.is_reused_symbol;
 const { HTTPParser } = internalBinding('http_parser');
 const net = require('net');
 
-const COUNT = httpCommon.parsers.max + 1;
+const COUNT = 1;
 
 const parsers = new Array(COUNT);
 for (let i = 0; i < parsers.length; i++)
-  parsers[i] = httpCommon.parsers.alloc();
+  parsers[i] = httpCommon.createParser(HTTPParser.RESPONSE);
 
 let gotRequests = 0;
 let gotResponses = 0;
@@ -26,7 +25,6 @@ function execAndClose() {
   process.stdout.write('.');
 
   const parser = parsers.pop();
-  parser.reinitialize(HTTPParser.RESPONSE, parser[is_reused_symbol]);
 
   const socket = net.connect(common.PORT);
   socket.on('error', (e) => {

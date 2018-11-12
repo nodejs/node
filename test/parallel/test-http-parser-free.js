@@ -41,7 +41,7 @@ server.listen(0, function() {
         if (!parser) {
           parser = req.parser;
         } else {
-          assert.strictEqual(req.parser, parser);
+          assert.notStrictEqual(req.parser, parser);
         }
 
         countdown.dec();

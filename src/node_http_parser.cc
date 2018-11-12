@@ -494,30 +494,6 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  static void Reinitialize(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-
-    CHECK(args[0]->IsInt32());
-    CHECK(args[1]->IsBoolean());
-    bool isReused = args[1]->IsTrue();
-    parser_type_t type =
-        static_cast<parser_type_t>(args[0].As<Int32>()->Value());
-
-    CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
-    // Should always be called from the same context.
-    CHECK_EQ(env, parser->env());
-    // This parser has either just been created or it is being reused.
-    // We must only call AsyncReset for the latter case, because AsyncReset has
-    // already been called via the constructor for the former case.
-    if (isReused) {
-      parser->AsyncReset();
-    }
-    parser->Init(type);
-  }
-
-
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
@@ -923,7 +899,6 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(t, "free", Parser::Free);
   env->SetProtoMethod(t, "execute", Parser::Execute);
   env->SetProtoMethod(t, "finish", Parser::Finish);
-  env->SetProtoMethod(t, "reinitialize", Parser::Reinitialize);
   env->SetProtoMethod(t, "pause", Parser::Pause<true>);
   env->SetProtoMethod(t, "resume", Parser::Pause<false>);
   env->SetProtoMethod(t, "consume", Parser::Consume);

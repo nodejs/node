@@ -98,8 +98,6 @@ function expectBody(expected) {
     throw new Error('hello world');
   };
 
-  parser.reinitialize(HTTPParser.REQUEST, false);
-
   assert.throws(
     () => { parser.execute(request, 0, request.length); },
     { name: 'Error', message: 'hello world' }
@@ -558,10 +556,10 @@ function expectBody(expected) {
   parser[kOnBody] = expectBody('ping');
   parser.execute(req1, 0, req1.length);
 
-  parser.reinitialize(REQUEST, false);
-  parser[kOnBody] = expectBody('pong');
-  parser[kOnHeadersComplete] = onHeadersComplete2;
-  parser.execute(req2, 0, req2.length);
+  const parser2 = newParser(REQUEST);
+  parser2[kOnBody] = expectBody('pong');
+  parser2[kOnHeadersComplete] = onHeadersComplete2;
+  parser2.execute(req2, 0, req2.length);
 }
 
 // Test parser 'this' safety

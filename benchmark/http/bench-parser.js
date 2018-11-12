@@ -19,12 +19,10 @@ function main({ len, n }) {
   const CRLF = '\r\n';
 
   function processHeader(header, n) {
-    const parser = newParser(REQUEST);
-
     bench.start();
     for (var i = 0; i < n; i++) {
+      const parser = newParser(REQUEST);
       parser.execute(header, 0, header.length);
-      parser.reinitialize(REQUEST, i > 0);
     }
     bench.end(n);
   }
