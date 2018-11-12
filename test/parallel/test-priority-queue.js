@@ -131,3 +131,33 @@ const PriorityQueue = require('internal/priority_queue');
 
   assert.strictEqual(queue.shift(), undefined);
 }
+
+
+{
+  // Checks that removeAt respects binary heap properties
+  const queue = new PriorityQueue((a, b) => {
+    return a.value - b.value;
+  }, (node, pos) => (node.position = pos));
+
+  const i3 = { value: 3, position: null };
+  const i7 = { value: 7, position: null };
+  const i8 = { value: 8, position: null };
+
+  queue.insert({ value: 1, position: null });
+  queue.insert({ value: 6, position: null });
+  queue.insert({ value: 2, position: null });
+  queue.insert(i7);
+  queue.insert(i8);
+  queue.insert(i3);
+
+  assert.strictEqual(i7.position, 4);
+  queue.removeAt(4);
+
+  // 3 should percolate up to swap with 6 (up)
+  assert.strictEqual(i3.position, 2);
+
+  queue.removeAt(2);
+
+  // 8 should swap places with 6 (down)
+  assert.strictEqual(i8.position, 4);
+}
