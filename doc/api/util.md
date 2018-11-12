@@ -419,7 +419,7 @@ changes:
   * `depth` {number} Specifies the number of times to recurse while formatting
     the `object`. This is useful for inspecting large complicated objects. To
     make it recurse up to the maximum call stack size pass `Infinity` or `null`.
-    **Default:** `20`.
+    **Default:** `2`.
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
     codes. Colors are customizable, see [Customizing `util.inspect` colors][].
     **Default:** `false`.
@@ -476,23 +476,12 @@ util.inspect(new Bar()); // 'Bar {}'
 util.inspect(baz);       // '[foo] {}'
 ```
 
-The following example limits the inspected output of the `paths` property:
+The following example inspects all properties of the `util` object:
 
 ```js
 const util = require('util');
 
-console.log(util.inspect(module, { depth: 0 }));
-// Instead of showing all entries in `paths` `[Array]` is used to limit the
-// output for readability:
-
-// Module {
-//   id: '<repl>',
-//   exports: {},
-//   parent: undefined,
-//   filename: null,
-//   loaded: false,
-//   children: [],
-//   paths: [Array] }
+console.log(util.inspect(util, { showHidden: true, depth: null }));
 ```
 
 The following example highlights the difference with the `compact` option:
@@ -508,7 +497,7 @@ const o = {
     'foo']], 4],
   b: new Map([['za', 1], ['zb', 'test']])
 };
-console.log(util.inspect(o, { compact: true, breakLength: 80 }));
+console.log(util.inspect(o, { compact: true, depth: 5, breakLength: 80 }));
 
 // This will print
 
@@ -522,7 +511,7 @@ console.log(util.inspect(o, { compact: true, breakLength: 80 }));
 //   b: Map { 'za' => 1, 'zb' => 'test' } }
 
 // Setting `compact` to false changes the output to be more reader friendly.
-console.log(util.inspect(o, { compact: false, breakLength: 80 }));
+console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
 
 // {
 //   a: [
