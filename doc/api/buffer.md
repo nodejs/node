@@ -1597,10 +1597,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1631,10 +1627,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1667,10 +1659,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1703,10 +1691,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  and `byteLength` to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1740,10 +1724,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1772,10 +1752,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1810,10 +1786,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1844,10 +1816,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  and `byteLength` to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -2173,10 +2141,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {number} Number to be written to `buf`.
@@ -2212,10 +2176,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {number} Number to be written to `buf`.
@@ -2250,10 +2210,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2286,10 +2242,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2323,10 +2275,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2360,10 +2308,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  and `byteLength` to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2399,10 +2343,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2435,10 +2375,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2476,10 +2412,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2515,10 +2447,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
                  and `byteLength` to `uint32` anymore.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/24298
-    description: Reworked internal numerical read/write functions to use
-                 `DataView` object instances.
 -->
 
 * `value` {integer} Number to be written to `buf`.
