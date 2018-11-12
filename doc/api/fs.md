@@ -4228,6 +4228,7 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `flags` {string|number} See [support of file system `flags`][].
+  **Default:** `'r'`.
 * `mode` {integer} **Default:** `0o666` (readable and writable)
 * Returns: {Promise}
 
