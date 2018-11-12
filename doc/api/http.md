@@ -575,6 +575,17 @@ If `data` is specified, it is equivalent to calling
 If `callback` is specified, it will be called when the request stream
 is finished.
 
+### request.finished
+<!-- YAML
+added: v0.0.1
+-->
+
+* {boolean}
+
+The `request.finished` property will be `true` if [`request.end()`][]
+has been called. `request.end()` will automatically be called if the
+request was initiated via [`http.get()`][].
+
 ### request.flushHeaders()
 <!-- YAML
 added: v1.6.0
@@ -2079,6 +2090,7 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`http.ClientRequest`]: #http_class_http_clientrequest
 [`http.IncomingMessage`]: #http_class_http_incomingmessage
 [`http.Server`]: #http_class_http_server
+[`http.get()`]: #http_http_get_options_callback
 [`http.globalAgent`]: #http_http_globalagent
 [`http.request()`]: #http_http_request_options_callback
 [`message.headers`]: #http_message_headers
