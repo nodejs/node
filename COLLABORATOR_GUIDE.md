@@ -3,7 +3,6 @@
 ## Contents
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
-  - [Managing Issues and Pull Requests](#managing-issues-and-pull-requests)
   - [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
   - [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
   - [Author ready pull requests](#author-ready-pull-requests)
@@ -45,14 +44,9 @@ Collaborators should understand the
 
 ## Issues and Pull Requests
 
-### Managing Issues and Pull Requests
-
-Collaborators should take full responsibility for managing issues and pull
-requests they feel qualified to handle. Make sure this is done while being
-mindful of these guidelines, the opinions of other Collaborators, and guidance
-of the [TSC][]. They may also notify other qualified parties for more input on
-an issue or a pull request.
-See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
+Mind these guidelines, the opinions of other Collaborators, and guidance of the
+[TSC][]. Notify other qualified parties for more input on an issue or a pull
+request. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
 ### Welcoming First-Time Contributors
 
