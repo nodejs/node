@@ -251,15 +251,15 @@ added: v0.11.2
 
 By default, a maximum of `10` listeners can be registered for any single
 event. This limit can be changed for individual `EventEmitter` instances
-using the [`emitter.setMaxListeners(n)`][] method. To change the default
-for *all* `EventEmitter` instances, the `EventEmitter.defaultMaxListeners`
-property can be used. If this value is not a positive number, a `TypeError`
-will be thrown.
+using the [`emitter.setMaxListeners(maxListeners)`][] method. To change
+the default for *all* `EventEmitter` instances, the
+`EventEmitter.defaultMaxListeners` property can be used. If this value is not
+ a positive number, a `TypeError` will be thrown.
 
 Take caution when setting the `EventEmitter.defaultMaxListeners` because the
 change affects *all* `EventEmitter` instances, including those created before
-the change is made. However, calling [`emitter.setMaxListeners(n)`][] still has
-precedence over `EventEmitter.defaultMaxListeners`.
+the change is made. However, calling [`emitter.setMaxListeners(maxListeners)`][]
+still has precedence over `EventEmitter.defaultMaxListeners`.
 
 Note that this is not a hard limit. The `EventEmitter` instance will allow
 more listeners to be added but will output a trace warning to stderr indicating
@@ -338,7 +338,7 @@ added: v1.0.0
 * Returns: {integer}
 
 Returns the current max listener value for the `EventEmitter` which is either
-set by [`emitter.setMaxListeners(n)`][] or defaults to
+set by [`emitter.setMaxListeners(maxListeners)`][] or defaults to
 [`EventEmitter.defaultMaxListeners`][].
 
 ### emitter.listenerCount(eventName)
@@ -603,11 +603,11 @@ ee.emit('ping');
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-### emitter.setMaxListeners(n)
+### emitter.setMaxListeners(maxListeners)
 <!-- YAML
 added: v0.3.5
 -->
-* `n` {integer}
+* `maxListeners` {integer}
 * Returns: {EventEmitter}
 
 By default `EventEmitter`s will print a warning if more than `10` listeners are
@@ -658,7 +658,7 @@ emitter.emit('log');
 [`domain`]: domain.html
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`emitter.removeListener()`]: #events_emitter_removelistener_eventname_listener
-[`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
+[`emitter.setMaxListeners(maxListeners)`]: #events_emitter_setmaxlisteners_maxlisteners
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`net.Server`]: net.html#net_class_net_server
 [`process.on('warning')`]: process.html#process_event_warning
