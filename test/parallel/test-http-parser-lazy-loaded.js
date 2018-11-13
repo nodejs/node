@@ -16,10 +16,10 @@ internalBinding('http_parser').HTTPParser = DummyParser;
 const common = require('../common');
 const assert = require('assert');
 const { spawn } = require('child_process');
-const { parsers } = require('_http_common');
+const { createParser } = require('_http_common');
 
 // Test _http_common was not loaded before monkey patching
-const parser = parsers.alloc();
+const parser = createParser(DummyParser.REQUEST);
 assert.strictEqual(parser instanceof DummyParser, true);
 assert.strictEqual(parser.test_type, DummyParser.REQUEST);
 
