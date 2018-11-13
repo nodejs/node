@@ -33,6 +33,8 @@ if __name__ == '__main__':
       assert meta[2] in ('FUNCTION', 'VARIABLE')
       if meta[0] != 'EXIST': continue
       if meta[2] != 'FUNCTION': continue
+      # In cases where meta[3] is 'DEPRECATEDIN_X_Y,CATEGORY'
+      meta[3] = meta[3].split(',')[-1]
       def satisfy(expr, rules):
         def test(expr):
           if expr.startswith('!'): return not expr[1:] in rules
