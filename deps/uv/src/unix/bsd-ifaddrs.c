@@ -69,16 +69,22 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   uv_interface_address_t* address;
   int i;
 
+  *count = 0;
+  *addresses = NULL;
+
   if (getifaddrs(&addrs) != 0)
     return UV__ERR(errno);
-
-  *count = 0;
 
   /* Count the number of interfaces */
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
     if (uv__ifaddr_exclude(ent, UV__EXCLUDE_IFADDR))
       continue;
     (*count)++;
+  }
+
+  if (*count == 0) {
+    freeifaddrs(addrs);
+    return 0;
   }
 
   *addresses = uv__malloc(*count * sizeof(**addresses));
@@ -119,14 +125,19 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
       continue;
 
     address = *addresses;
-    memset(address->phys_addr, 0, sizeof(address->phys_addr));
 
     for (i = 0; i < *count; i++) {
+#if defined(__CYGWIN__) || defined(__MSYS__)
+      memset(address->phys_addr, 0, sizeof(address->phys_addr));
+#else
       if (strcmp(address->name, ent->ifa_name) == 0) {
         struct sockaddr_dl* sa_addr;
         sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
         memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
+      } else {
+        memset(address->phys_addr, 0, sizeof(address->phys_addr));
       }
+#endif
       address++;
     }
   }

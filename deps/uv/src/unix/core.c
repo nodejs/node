@@ -636,27 +636,6 @@ int uv__cloexec_fcntl(int fd, int set) {
 }
 
 
-/* This function is not execve-safe, there is a race window
- * between the call to dup() and fcntl(FD_CLOEXEC).
- */
-int uv__dup(int fd) {
-  int err;
-
-  fd = dup(fd);
-
-  if (fd == -1)
-    return UV__ERR(errno);
-
-  err = uv__cloexec(fd, 1);
-  if (err) {
-    uv__close(fd);
-    return err;
-  }
-
-  return fd;
-}
-
-
 ssize_t uv__recvmsg(int fd, struct msghdr* msg, int flags) {
   struct cmsghdr* cmsg;
   ssize_t rc;

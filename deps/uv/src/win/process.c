@@ -964,6 +964,8 @@ int uv_spawn(uv_loop_t* loop,
                               UV_PROCESS_SETGID |
                               UV_PROCESS_SETUID |
                               UV_PROCESS_WINDOWS_HIDE |
+                              UV_PROCESS_WINDOWS_HIDE_CONSOLE |
+                              UV_PROCESS_WINDOWS_HIDE_GUI |
                               UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
 
   err = uv_utf8_to_utf16_alloc(options->file, &application);
@@ -1065,7 +1067,8 @@ int uv_spawn(uv_loop_t* loop,
 
   process_flags = CREATE_UNICODE_ENVIRONMENT;
 
-  if (options->flags & UV_PROCESS_WINDOWS_HIDE) {
+  if ((options->flags & UV_PROCESS_WINDOWS_HIDE_CONSOLE) ||
+      (options->flags & UV_PROCESS_WINDOWS_HIDE)) {
     /* Avoid creating console window if stdio is not inherited. */
     for (i = 0; i < options->stdio_count; i++) {
       if (options->stdio[i].flags & UV_INHERIT_FD)
@@ -1073,7 +1076,9 @@ int uv_spawn(uv_loop_t* loop,
       if (i == options->stdio_count - 1)
         process_flags |= CREATE_NO_WINDOW;
     }
-
+  }
+  if ((options->flags & UV_PROCESS_WINDOWS_HIDE_GUI) ||
+      (options->flags & UV_PROCESS_WINDOWS_HIDE)) {
     /* Use SW_HIDE to avoid any potential process window. */
     startup.wShowWindow = SW_HIDE;
   } else {

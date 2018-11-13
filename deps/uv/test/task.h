@@ -181,6 +181,12 @@ extern int snprintf(char*, size_t, const char*, ...);
 # define UNUSED
 #endif
 
+#if defined(_WIN32)
+#define notify_parent_process() ((void) 0)
+#else
+extern void notify_parent_process(void);
+#endif
+
 /* Fully close a loop */
 static void close_walk_cb(uv_handle_t* handle, void* arg) {
   if (!uv_is_closing(handle))

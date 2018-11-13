@@ -232,6 +232,7 @@ int stdio_over_pipes_helper(void) {
     ASSERT(r == 0);
   }
 
+  notify_parent_process();
   uv_run(loop, UV_RUN_DEFAULT);
 
   ASSERT(after_write_called == 7);
