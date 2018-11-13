@@ -1375,6 +1375,7 @@ void URL::Parse(const char* input,
       else
         break;
     }
+    input = p;
     len = end - p;
   }
 
