@@ -3968,6 +3968,37 @@ On Linux, positional writes do not work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
+#### filehandle.write(string[, position[, encoding]])
+<!-- YAML
+added: v10.0.0
+-->
+
+* `string` {string}
+* `position` {integer}
+* `encoding` {string} **Default:** `'utf8'`
+* Returns: {Promise}
+
+Write `string` to the file. If `string` is not a string, then
+the value will be coerced to one.
+
+The `Promise` is resolved with an object containing a `bytesWritten` property
+identifying the number of bytes written, and a `buffer` property containing
+a reference to the `string` written.
+
+`position` refers to the offset from the beginning of the file where this data
+should be written. If the type of `position` is not a `number` the data
+will be written at the current position. See pwrite(2).
+
+`encoding` is the expected string encoding.
+
+It is unsafe to use `filehandle.write()` multiple times on the same file
+without waiting for the `Promise` to be resolved (or rejected). For this
+scenario, [`fs.createWriteStream()`][] is strongly recommended.
+
+On Linux, positional writes do not work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
+
 #### filehandle.writeFile(data, options)
 <!-- YAML
 added: v10.0.0
