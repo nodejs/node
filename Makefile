@@ -455,7 +455,7 @@ test-ci-js: | clear-stalled
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled build-addons build-addons-napi doc-only bench-addons-build
+test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
