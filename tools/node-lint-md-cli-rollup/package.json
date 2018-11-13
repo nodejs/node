@@ -11,7 +11,7 @@
   "dependencies": {
     "markdown-extensions": "^1.1.0",
     "remark": "^10.0.0",
-    "remark-lint": "^6.0.2",
+    "remark-lint": "^6.0.3",
     "remark-preset-lint-node": "^1.1.0",
     "unified-args": "^6.0.0",
     "unified-engine": "^5.1.0"
