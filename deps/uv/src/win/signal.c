@@ -190,7 +190,7 @@ int uv__signal_start(uv_signal_t* handle,
                             int signum,
                             int oneshot) {
   /* Test for invalid signal values. */
-  if (signum != SIGWINCH && (signum <= 0 || signum >= NSIG))
+  if (signum <= 0 || signum >= NSIG)
     return UV_EINVAL;
 
   /* Short circuit: if the signal watcher is already watching {signum} don't go

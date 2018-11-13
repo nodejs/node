@@ -70,11 +70,22 @@ Data types
             */
             UV_PROCESS_DETACHED = (1 << 3),
             /*
-            * Hide the subprocess console window that would normally be created. This
+            * Hide the subprocess window that would normally be created. This option is
+            * only meaningful on Windows systems. On Unix it is silently ignored.
+            */
+            UV_PROCESS_WINDOWS_HIDE = (1 << 4),
+            /*
+            * Hide the subprocess console window that would normally be created. This 
             * option is only meaningful on Windows systems. On Unix it is silently
             * ignored.
             */
-            UV_PROCESS_WINDOWS_HIDE = (1 << 4)
+            UV_PROCESS_WINDOWS_HIDE_CONSOLE = (1 << 5),
+            /*
+            * Hide the subprocess GUI window that would normally be created. This 
+            * option is only meaningful on Windows systems. On Unix it is silently
+            * ignored.
+            */
+            UV_PROCESS_WINDOWS_HIDE_GUI = (1 << 6)
         };
 
 .. c:type:: uv_stdio_container_t
@@ -216,6 +227,9 @@ API
     the file to execute not existing, not having permissions to use the setuid or
     setgid specified, or not having enough memory to allocate for the new
     process.
+
+    .. versionchanged:: 1.24.0 Added `UV_PROCESS_WINDOWS_HIDE_CONSOLE` and
+                        `UV_PROCESS_WINDOWS_HIDE_GUI` flags.
 
 .. c:function:: int uv_process_kill(uv_process_t* handle, int signum)
 
