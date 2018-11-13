@@ -58,7 +58,7 @@ echo Use of Boxstarter may reboot your computer automatically multiple times.
 echo When performing a reboot, Boxstarter will need to disable User Account
 echo Control (UAC) to allow the script to run immediately after the reboot.
 echo If you are installing Node under an alternate user account from your GUI
-echo (i.e. you elevate to a seperate admin account to perform installs), you
+echo (i.e. you elevate to a separate admin account to perform installs), you
 echo may need to log in directly to the GUI interface of that user after reboots.
 echo When the scripts have completed, Boxstarter will re-enable UAC and you can
 echo log in under your current user account again.
