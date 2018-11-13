@@ -397,6 +397,7 @@ int run_ipc_send_recv_helper(uv_loop_t* loop, int inprocess) {
     send_recv_start();
   }
 
+  notify_parent_process();
   r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 

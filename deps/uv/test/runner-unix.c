@@ -40,6 +40,31 @@
 #include <sys/time.h>
 #include <pthread.h>
 
+extern char** environ;
+
+static void closefd(int fd) {
+  if (close(fd) == 0 || errno == EINTR || errno == EINPROGRESS)
+    return;
+
+  perror("close");
+  abort();
+}
+
+
+void notify_parent_process(void) {
+  char* arg;
+  int fd;
+
+  arg = getenv("UV_TEST_RUNNER_FD");
+  if (arg == NULL)
+    return;
+
+  fd = atoi(arg);
+  assert(fd > STDERR_FILENO);
+  unsetenv("UV_TEST_RUNNER_FD");
+  closefd(fd);
+}
+
 
 /* Do platform-specific initialization. */
 int platform_init(int argc, char **argv) {
@@ -64,14 +89,49 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   int stdout_fd;
   const char* arg;
   char* args[16];
+  int pipefd[2];
+  char fdstr[8];
+  ssize_t rc;
   int n;
   pid_t pid;
+
+  arg = getenv("UV_USE_VALGRIND");
+  n = 0;
+
+  /* Disable valgrind for helpers, it complains about helpers leaking memory.
+   * They're killed after the test and as such never get a chance to clean up.
+   */
+  if (is_helper == 0 && arg != NULL && atoi(arg) != 0) {
+    args[n++] = "valgrind";
+    args[n++] = "--quiet";
+    args[n++] = "--leak-check=full";
+    args[n++] = "--show-reachable=yes";
+    args[n++] = "--error-exitcode=125";
+  }
+
+  args[n++] = executable_path;
+  args[n++] = name;
+  args[n++] = part;
+  args[n++] = NULL;
 
   stdout_file = tmpfile();
   stdout_fd = fileno(stdout_file);
   if (!stdout_file) {
     perror("tmpfile");
     return -1;
+  }
+
+  if (is_helper) {
+    if (pipe(pipefd)) {
+      perror("pipe");
+      return -1;
+    }
+
+    snprintf(fdstr, sizeof(fdstr), "%d", pipefd[1]);
+    if (setenv("UV_TEST_RUNNER_FD", fdstr, /* overwrite */ 1)) {
+      perror("setenv");
+      return -1;
+    }
   }
 
   p->terminated = 0;
@@ -86,29 +146,12 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
 
   if (pid == 0) {
     /* child */
-    arg = getenv("UV_USE_VALGRIND");
-    n = 0;
-
-    /* Disable valgrind for helpers, it complains about helpers leaking memory.
-     * They're killed after the test and as such never get a chance to clean up.
-     */
-    if (is_helper == 0 && arg != NULL && atoi(arg) != 0) {
-      args[n++] = "valgrind";
-      args[n++] = "--quiet";
-      args[n++] = "--leak-check=full";
-      args[n++] = "--show-reachable=yes";
-      args[n++] = "--error-exitcode=125";
-    }
-
-    args[n++] = executable_path;
-    args[n++] = name;
-    args[n++] = part;
-    args[n++] = NULL;
-
+    if (is_helper)
+      closefd(pipefd[0]);
     dup2(stdout_fd, STDOUT_FILENO);
     dup2(stdout_fd, STDERR_FILENO);
-    execvp(args[0], args);
-    perror("execvp()");
+    execve(args[0], args, environ);
+    perror("execve()");
     _exit(127);
   }
 
@@ -116,6 +159,28 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   p->pid = pid;
   p->name = strdup(name);
   p->stdout_file = stdout_file;
+
+  if (!is_helper)
+    return 0;
+
+  closefd(pipefd[1]);
+  unsetenv("UV_TEST_RUNNER_FD");
+
+  do
+    rc = read(pipefd[0], &n, 1);
+  while (rc == -1 && errno == EINTR);
+
+  closefd(pipefd[0]);
+
+  if (rc == -1) {
+    perror("read");
+    return -1;
+  }
+
+  if (rc > 0) {
+    fprintf(stderr, "EOF expected but got data.\n");
+    return -1;
+  }
 
   return 0;
 }

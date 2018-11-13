@@ -1172,6 +1172,7 @@ TEST_IMPL(argument_escaping) {
   for (i = 0; i < count; ++i) {
     free(test_output[i]);
   }
+  free(test_output);
 
   result = make_program_args(verbatim, 1, &verbatim_output);
   ASSERT(result == 0);

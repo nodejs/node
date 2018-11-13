@@ -963,11 +963,22 @@ enum uv_process_flags {
    */
   UV_PROCESS_DETACHED = (1 << 3),
   /*
-   * Hide the subprocess console window that would normally be created. This
+   * Hide the subprocess window that would normally be created. This option is
+   * only meaningful on Windows systems. On Unix it is silently ignored.
+   */
+  UV_PROCESS_WINDOWS_HIDE = (1 << 4),
+  /*
+   * Hide the subprocess console window that would normally be created. This 
    * option is only meaningful on Windows systems. On Unix it is silently
    * ignored.
    */
-  UV_PROCESS_WINDOWS_HIDE = (1 << 4)
+  UV_PROCESS_WINDOWS_HIDE_CONSOLE = (1 << 5),
+  /*
+   * Hide the subprocess GUI window that would normally be created. This 
+   * option is only meaningful on Windows systems. On Unix it is silently
+   * ignored.
+   */
+  UV_PROCESS_WINDOWS_HIDE_GUI = (1 << 6)
 };
 
 /*

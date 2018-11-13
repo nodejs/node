@@ -76,6 +76,11 @@ int process_start(char *name, char *part, process_info_t *p, int is_helper) {
   PROCESS_INFORMATION pi;
   DWORD result;
 
+  if (!is_helper) {
+    /* Give the helpers time to settle. Race-y, fix this. */
+    uv_sleep(250);
+  }
+
   if (GetTempPathW(sizeof(path) / sizeof(WCHAR), (WCHAR*)&path) == 0)
     goto error;
   if (GetTempFileNameW((WCHAR*)&path, L"uv", 0, (WCHAR*)&filename) == 0)

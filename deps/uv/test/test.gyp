@@ -46,6 +46,7 @@
         'test-homedir.c',
         'test-hrtime.c',
         'test-idle.c',
+        'test-idna.c',
         'test-ip6-addr.c',
         'test-ipc-heavy-traffic-deadlock-bug.c',
         'test-ipc-send-recv.c',

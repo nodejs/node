@@ -72,7 +72,9 @@ char* uv__strndup(const char* s, size_t n) {
 }
 
 void* uv__malloc(size_t size) {
-  return uv__allocator.local_malloc(size);
+  if (size > 0)
+    return uv__allocator.local_malloc(size);
+  return NULL;
 }
 
 void uv__free(void* ptr) {
@@ -91,7 +93,10 @@ void* uv__calloc(size_t count, size_t size) {
 }
 
 void* uv__realloc(void* ptr, size_t size) {
-  return uv__allocator.local_realloc(ptr, size);
+  if (size > 0)
+    return uv__allocator.local_realloc(ptr, size);
+  uv__free(ptr);
+  return NULL;
 }
 
 int uv_replace_allocator(uv_malloc_func malloc_func,

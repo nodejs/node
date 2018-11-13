@@ -941,20 +941,15 @@ void uv_process_tty_read_line_req(uv_loop_t* loop, uv_tty_t* handle,
       handle->read_cb((uv_stream_t*) handle,
                       uv_translate_sys_error(GET_REQ_ERROR(req)),
                       &buf);
-    } else {
-      /* The read was cancelled, or whatever we don't care */
-      handle->read_cb((uv_stream_t*) handle, 0, &buf);
     }
-
   } else {
-    if (!(handle->flags & UV_HANDLE_CANCELLATION_PENDING)) {
+    if (!(handle->flags & UV_HANDLE_CANCELLATION_PENDING) &&
+        req->u.io.overlapped.InternalHigh != 0) {
       /* Read successful. TODO: read unicode, convert to utf-8 */
       DWORD bytes = req->u.io.overlapped.InternalHigh;
       handle->read_cb((uv_stream_t*) handle, bytes, &buf);
-    } else {
-      handle->flags &= ~UV_HANDLE_CANCELLATION_PENDING;
-      handle->read_cb((uv_stream_t*) handle, 0, &buf);
     }
+    handle->flags &= ~UV_HANDLE_CANCELLATION_PENDING;
   }
 
   /* Wait for more input events. */

@@ -3037,6 +3037,60 @@ TEST_IMPL(fs_write_alotof_bufs_with_offset) {
   return 0;
 }
 
+TEST_IMPL(fs_read_dir) {
+  int r;
+  char buf[2];
+  loop = uv_default_loop();
+
+  /* Setup */
+  rmdir("test_dir");
+  r = uv_fs_mkdir(loop, &mkdir_req, "test_dir", 0755, mkdir_cb);
+  ASSERT(r == 0);
+  uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(mkdir_cb_count == 1);
+  /* Setup Done Here */
+
+  /* Get a file descriptor for the directory */
+  r = uv_fs_open(loop,
+                 &open_req1,
+                 "test_dir",
+                 UV_FS_O_RDONLY | UV_FS_O_DIRECTORY,
+                 S_IWUSR | S_IRUSR,
+                 NULL);
+  ASSERT(r >= 0);
+  uv_fs_req_cleanup(&open_req1);
+
+  /* Try to read data from the directory */
+  iov = uv_buf_init(buf, sizeof(buf));
+  r = uv_fs_read(NULL, &read_req, open_req1.result, &iov, 1, 0, NULL);
+#if defined(__FreeBSD__)   || \
+    defined(__OpenBSD__)   || \
+    defined(__NetBSD__)    || \
+    defined(__DragonFly__) || \
+    defined(_AIX)          || \
+    defined(__sun)         || \
+    defined(__MVS__)
+  /*
+   * As of now, these operating systems support reading from a directory,
+   * that too depends on the filesystem this temporary test directory is
+   * created on. That is why this assertion is a bit lenient.
+   */
+  ASSERT((r >= 0) || (r == UV_EISDIR));
+#else
+  ASSERT(r == UV_EISDIR);
+#endif
+  uv_fs_req_cleanup(&read_req);
+
+  r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
+  ASSERT(r == 0);
+  uv_fs_req_cleanup(&close_req);
+
+  /* Cleanup */
+  rmdir("test_dir");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
 
 #ifdef _WIN32
 

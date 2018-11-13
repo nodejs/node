@@ -150,6 +150,7 @@ int ipc_helper_heavy_traffic_deadlock_bug(void) {
   r = uv_pipe_open(&pipe, 0);
   ASSERT(r == 0);
 
+  notify_parent_process();
   do_writes_and_reads((uv_stream_t*) &pipe);
   uv_sleep(100);
 
