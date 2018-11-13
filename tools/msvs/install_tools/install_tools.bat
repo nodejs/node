@@ -1,7 +1,6 @@
 @echo off
 
 setlocal
-
 cls
 echo ====================================================
 echo Tools for Node.js Native Modules Installation Script
