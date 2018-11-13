@@ -194,7 +194,7 @@ One of the existing contributors will help get things situated and the
 contributor landing the Pull Request will ensure that everything follows
 the project guidelines.
 
-See [core-validate-commit](https://github.com/evanlucas/core-validate-commit) -
+See [core-validate-commit](https://github.com/nodejs/core-validate-commit) -
 A utility that ensures commits follow the commit formatting guidelines.
 
 ### Step 5: Rebase
