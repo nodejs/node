@@ -1209,21 +1209,33 @@ inline url_data HarvestBase(Environment* env, Local<Object> base_obj) {
       base_obj->Get(env->context(), env->scheme_string()).ToLocalChecked();
   base.scheme = Utf8Value(env->isolate(), scheme).out();
 
-  auto GetStr = [&](std::string url_data::* member,
+  auto GetStr = [&](std::string url_data::*member,
                     int flag,
-                    Local<String> name) {
+                    Local<String> name,
+                    bool empty_as_present) {
     Local<Value> value = base_obj->Get(env->context(), name).ToLocalChecked();
     if (value->IsString()) {
       Utf8Value utf8value(env->isolate(), value.As<String>());
       (base.*member).assign(*utf8value, utf8value.length());
-      base.flags |= flag;
+      if (empty_as_present || value.As<String>()->Length() != 0) {
+        base.flags |= flag;
+      }
     }
   };
-  GetStr(&url_data::username, URL_FLAGS_HAS_USERNAME, env->username_string());
-  GetStr(&url_data::password, URL_FLAGS_HAS_PASSWORD, env->password_string());
-  GetStr(&url_data::host, URL_FLAGS_HAS_HOST, env->host_string());
-  GetStr(&url_data::query, URL_FLAGS_HAS_QUERY, env->query_string());
-  GetStr(&url_data::fragment, URL_FLAGS_HAS_FRAGMENT, env->fragment_string());
+  GetStr(&url_data::username,
+         URL_FLAGS_HAS_USERNAME,
+         env->username_string(),
+         false);
+  GetStr(&url_data::password,
+         URL_FLAGS_HAS_PASSWORD,
+         env->password_string(),
+         false);
+  GetStr(&url_data::host, URL_FLAGS_HAS_HOST, env->host_string(), true);
+  GetStr(&url_data::query, URL_FLAGS_HAS_QUERY, env->query_string(), true);
+  GetStr(&url_data::fragment,
+         URL_FLAGS_HAS_FRAGMENT,
+         env->fragment_string(),
+         true);
 
   Local<Value> port =
       base_obj->Get(env->context(), env->port_string()).ToLocalChecked();
