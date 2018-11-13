@@ -1,3 +1,0 @@
-choco upgrade -y python2
-choco upgrade -y visualstudio2017buildtools
-choco upgrade -y visualstudio2017-workload-vctools
