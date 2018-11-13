@@ -358,19 +358,22 @@ static ssize_t uv__fs_scandir(uv_fs_t* req) {
   return n;
 }
 
+#if defined(_POSIX_PATH_MAX)
+# define UV__FS_PATH_MAX _POSIX_PATH_MAX
+#elif defined(PATH_MAX)
+# define UV__FS_PATH_MAX PATH_MAX
+#else
+# define UV__FS_PATH_MAX_FALLBACK 8192
+# define UV__FS_PATH_MAX UV__FS_PATH_MAX_FALLBACK
+#endif
 
 static ssize_t uv__fs_pathmax_size(const char* path) {
   ssize_t pathmax;
 
   pathmax = pathconf(path, _PC_PATH_MAX);
 
-  if (pathmax == -1) {
-#if defined(PATH_MAX)
-    return PATH_MAX;
-#else
-#error "PATH_MAX undefined in the current platform"
-#endif
-  }
+  if (pathmax == -1)
+    pathmax = UV__FS_PATH_MAX;
 
   return pathmax;
 }
@@ -381,7 +384,28 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
   char* buf;
   char* newbuf;
 
+#if defined(UV__FS_PATH_MAX_FALLBACK)
+  /* We may not have a real PATH_MAX.  Read size of link.  */
+  struct stat st;
+  int ret;
+  ret = lstat(req->path, &st);
+  if (ret != 0)
+    return -1;
+  if (!S_ISLNK(st.st_mode)) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  maxlen = st.st_size;
+
+  /* According to readlink(2) lstat can report st_size == 0
+     for some symlinks, such as those in /proc or /sys.  */
+  if (maxlen == 0)
+    maxlen = uv__fs_pathmax_size(req->path);
+#else
   maxlen = uv__fs_pathmax_size(req->path);
+#endif
+
   buf = uv__malloc(maxlen);
 
   if (buf == NULL) {
@@ -419,8 +443,14 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
 }
 
 static ssize_t uv__fs_realpath(uv_fs_t* req) {
-  ssize_t len;
   char* buf;
+
+#if defined(_POSIX_VERSION) && _POSIX_VERSION >= 200809L
+  buf = realpath(req->path, NULL);
+  if (buf == NULL)
+    return -1;
+#else
+  ssize_t len;
 
   len = uv__fs_pathmax_size(req->path);
   buf = uv__malloc(len + 1);
@@ -434,6 +464,7 @@ static ssize_t uv__fs_realpath(uv_fs_t* req) {
     uv__free(buf);
     return -1;
   }
+#endif
 
   req->ptr = buf;
 

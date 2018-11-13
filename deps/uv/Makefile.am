@@ -29,6 +29,7 @@ libuv_la_CFLAGS = @CFLAGS@
 libuv_la_LDFLAGS = -no-undefined -version-info 1:0:0
 libuv_la_SOURCES = src/fs-poll.c \
                    src/heap-inl.h \
+                   src/idna.c \
                    src/inet.c \
                    src/queue.h \
                    src/threadpool.c \
@@ -189,6 +190,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-homedir.c \
                          test/test-hrtime.c \
                          test/test-idle.c \
+                         test/test-idna.c \
                          test/test-ip4-addr.c \
                          test/test-ip6-addr.c \
                          test/test-ipc-heavy-traffic-deadlock-bug.c \
@@ -374,6 +376,7 @@ endif
 if DRAGONFLY
 uvinclude_HEADERS += include/uv/bsd.h
 libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
+                    src/unix/bsd-proctitle.c \
                     src/unix/freebsd.c \
                     src/unix/kqueue.c \
                     src/unix/posix-hrtime.c
@@ -383,10 +386,18 @@ endif
 if FREEBSD
 uvinclude_HEADERS += include/uv/bsd.h
 libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
+                    src/unix/bsd-proctitle.c \
                     src/unix/freebsd.c \
                     src/unix/kqueue.c \
                     src/unix/posix-hrtime.c
 test_run_tests_LDFLAGS += -lutil
+endif
+
+if HURD
+uvinclude_HEADERS += include/uv/posix.h
+libuv_la_SOURCES += src/unix/no-fsevents.c \
+                    src/unix/posix-hrtime.c \
+                    src/unix/posix-poll.c
 endif
 
 if LINUX
@@ -419,6 +430,7 @@ endif
 if NETBSD
 uvinclude_HEADERS += include/uv/bsd.h
 libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
+                    src/unix/bsd-proctitle.c \
                     src/unix/kqueue.c \
                     src/unix/netbsd.c \
                     src/unix/posix-hrtime.c
@@ -428,6 +440,7 @@ endif
 if OPENBSD
 uvinclude_HEADERS += include/uv/bsd.h
 libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
+                    src/unix/bsd-proctitle.c \
                     src/unix/kqueue.c \
                     src/unix/openbsd.c \
                     src/unix/posix-hrtime.c

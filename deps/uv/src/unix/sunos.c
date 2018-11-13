@@ -692,6 +692,8 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 
 #ifdef SUNOS_NO_IFADDRS
 int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
+  *count = 0;
+  *addresses = NULL;
   return UV_ENOSYS;
 }
 #else  /* SUNOS_NO_IFADDRS */
@@ -758,16 +760,22 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   struct ifaddrs* addrs;
   struct ifaddrs* ent;
 
+  *count = 0;
+  *addresses = NULL;
+
   if (getifaddrs(&addrs))
     return UV__ERR(errno);
-
-  *count = 0;
 
   /* Count the number of interfaces */
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
     if (uv__ifaddr_exclude(ent))
       continue;
     (*count)++;
+  }
+
+  if (*count == 0) {
+    freeifaddrs(addrs);
+    return 0;
   }
 
   *addresses = uv__malloc(*count * sizeof(**addresses));

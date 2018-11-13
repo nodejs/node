@@ -724,6 +724,7 @@ int ipc_helper(int listen_after_write) {
     ASSERT(r == 0);
   }
 
+  notify_parent_process();
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 

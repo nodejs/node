@@ -1,3 +1,60 @@
+2018.11.14, Version 1.24.0 (Stable), 2d427ee0083d1baf995df4ebf79a3f8890e9a3e1
+
+Changes since version 1.23.2:
+
+* unix: do not require PATH_MAX to be defined (Brad King)
+
+* win,doc: path encoding in uv_fs_XX is UTF-8 (hitesh)
+
+* unix: add missing link dependency on kFreeBSD (Svante Signell)
+
+* unix: add support for GNU/Hurd (Samuel Thibault)
+
+* test: avoid memory leak for test_output (Carlo Marcelo Arenas Belón)
+
+* zos: avoid UB with NULL pointer arithmetic (Carlo Marcelo Arenas Belón)
+
+* doc: add vtjnash to maintainers (Jameson Nash)
+
+* unix: restore skipping of phys_addr copy (cjihrig)
+
+* unix,win: make uv_interface_addresses() consistent (cjihrig)
+
+* unix: remove unnecessary linebreaks (cjihrig)
+
+* unix,win: handle zero-sized allocations uniformly (Ben Noordhuis)
+
+* unix: remove unused uv__dup() function (Ben Noordhuis)
+
+* core,bsd: refactor process_title functions (Santiago Gimeno)
+
+* win: Redefine NSIG to consider SIGWINCH (Jeremy Studer)
+
+* test: make sure that reading a directory fails (Sakthipriyan Vairamani)
+
+* win, tty: remove zero-size read callbacks (Bartosz Sosnowski)
+
+* test: fix test runner getenv async-signal-safety (Ben Noordhuis)
+
+* test: fix test runner execvp async-signal-safety (Ben Noordhuis)
+
+* test,unix: fix race in test runner (Ben Noordhuis)
+
+* unix,win: support IDNA 2008 in uv_getaddrinfo() (Ben Noordhuis)
+
+* win, tcp: avoid starving the loop (Bartosz Sosnowski)
+
+* win, dl: proper error messages on some systems (Bartosz Sosnowski)
+
+* win,fs: retry if uv_fs_rename fails (Bartosz Sosnowski)
+
+* darwin: speed up uv_set_process_title() (Ben Noordhuis)
+
+* aix: fix race in uv_get_process_title() (Gireesh Punathil)
+
+* win: support more fine-grained windows hiding (Bartosz Sosnowski)
+
+
 2018.10.09, Version 1.23.2 (Stable), 34c12788d2e7308f3ac506c0abcbf74c0d6abd20
 
 Changes since version 1.23.1:
