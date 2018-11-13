@@ -61,6 +61,34 @@ const {
 }
 
 {
+  // Http2ServerResponse.end should return self after end
+  const server = createServer(mustCall((request, response) => {
+    strictEqual(response, response.end());
+    strictEqual(response, response.end());
+    server.close();
+  }));
+  server.listen(0, mustCall(() => {
+    const { port } = server.address();
+    const url = `http://localhost:${port}`;
+    const client = connect(url, mustCall(() => {
+      const headers = {
+        ':path': '/',
+        ':method': 'GET',
+        ':scheme': 'http',
+        ':authority': `localhost:${port}`
+      };
+      const request = client.request(headers);
+      request.setEncoding('utf8');
+      request.on('end', mustCall(() => {
+        client.close();
+      }));
+      request.end();
+      request.resume();
+    }));
+  }));
+}
+
+{
   // Http2ServerResponse.end can omit encoding arg, sets it to utf-8
   const server = createServer(mustCall((request, response) => {
     response.end('test\uD83D\uDE00', mustCall(() => {
