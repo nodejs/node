@@ -54,6 +54,14 @@ pause
 cls
 echo !!!!!WARNING!!!!!
 echo -----------------
+echo This script should make installing the tools as easy as possible. Hence, it
+echo WILL NOT OFFER ANY CUSTOMIZATION. If there's any parameter you'd like to
+echo customize (like installation directory or features), or if there's any
+echo special rule or policy that your computer should comply to (like not being
+echo able to log in as the user with administrative privileges), please follow the
+echo instructions to download and execute the installers directly:
+echo https://github.com/nodejs/node-gyp#on-windows
+echo.
 echo Use of Boxstarter may reboot your computer automatically multiple times.
 echo When performing a reboot, Boxstarter will need to disable User Account
 echo Control (UAC) to allow the script to run immediately after the reboot. When
