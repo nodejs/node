@@ -66,14 +66,39 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
   assert.strictEqual(privateKey.getType(), 'private');
   assert.strictEqual(privateKey.getAsymmetricKeyType(), 'rsa');
 
+  const publicDER = publicKey.export({
+    format: 'der',
+    type: 'pkcs1'
+  });
+
+  const privateDER = privateKey.export({
+    format: 'der',
+    type: 'pkcs1'
+  });
+
+  assert(Buffer.isBuffer(publicDER));
+  assert(Buffer.isBuffer(privateDER));
+
   const plaintext = Buffer.from('Hello world', 'utf8');
   const ciphertexts = [
     publicEncrypt(publicKey, plaintext),
-    publicEncrypt({ key: publicKey }, plaintext)
+    publicEncrypt({ key: publicKey }, plaintext),
+    // Test distinguishing PKCS#1 public and private keys based on the
+    // DER-encoded data only.
+    publicEncrypt({ format: 'der', type: 'pkcs1', key: publicDER }, plaintext),
+    publicEncrypt({ format: 'der', type: 'pkcs1', key: privateDER }, plaintext)
+  ];
+
+  const decryptionKeys = [
+    privateKey,
+    { format: 'pem', key: privatePem },
+    { format: 'der', type: 'pkcs1', key: privateDER }
   ];
 
   for (const ciphertext of ciphertexts) {
-    const deciphered = privateDecrypt(privateKey, ciphertext);
-    assert(plaintext.equals(deciphered));
+    for (const key of decryptionKeys) {
+      const deciphered = privateDecrypt(key, ciphertext);
+      assert(plaintext.equals(deciphered));
+    }
   }
 }

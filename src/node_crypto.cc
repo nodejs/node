@@ -3117,6 +3117,40 @@ static ManagedEVPPKey GetPrivateKeyFromJS(
   }
 }
 
+static bool IsRSAPrivateKey(const unsigned char* data, size_t size) {
+  // Both RSAPrivateKey and RSAPublicKey structures start with a SEQUENCE.
+  if (size >= 2 && data[0] == 0x30) {
+    size_t offset;
+    if (data[1] & 0x80) {
+      // Long form.
+      size_t n_bytes = data[1] & ~0x80;
+      if (n_bytes + 2 > size || n_bytes > sizeof(size_t))
+        return false;
+      size_t i, length = 0;
+      for (i = 0; i < n_bytes; i++)
+        length = (length << 8) | data[i + 2];
+      offset = 2 + n_bytes;
+      size = std::min(size, length + 2);
+    } else {
+      // Short form.
+      offset = 2;
+      size = std::min<size_t>(size, data[1] + 2);
+    }
+
+    // An RSAPrivateKey sequence always starts with a single-byte integer whose
+    // value is either 0 or 1, whereas an RSAPublicKey starts with the modulus
+    // (which is the product of two primes and therefore at least 4), so we can
+    // decide the type of the structure based on the first three bytes of the
+    // sequence.
+    return size - offset >= 3 &&
+           data[offset] == 2 &&
+           data[offset + 1] == 1 &&
+           !(data[offset + 2] & 0xfe);
+  }
+
+  return false;
+}
+
 static ManagedEVPPKey GetPublicOrPrivateKeyFromJS(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -3146,18 +3180,8 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJS(
       bool is_public;
       switch (config.type_.ToChecked()) {
         case kKeyEncodingPKCS1:
-          is_public = true;
-          if (data.size() >= 3) {
-            // An RSAPrivateKey structure always starts with a single-byte
-            // integer whose value is either 0 or 1, whereas an RSAPublicKey
-            // starts with the modulus, so we can decide the type of the
-            // structure based on the first three bytes.
-            const char* p = data.get();
-            if (p[0] == 2 && data.get()[1] == 1 &&
-                (data.get()[2] == 0 || data.get()[2] == 1)) {
-              is_public = false;
-            }
-          }
+          is_public = !IsRSAPrivateKey(
+              reinterpret_cast<const unsigned char*>(data.get()), data.size());
           break;
         case kKeyEncodingSPKI:
           is_public = true;
