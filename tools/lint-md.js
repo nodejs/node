@@ -14537,28 +14537,240 @@ function bail(err) {
   }
 }
 
-var toString$4 = Object.prototype.toString;
+/*!
+ * Determine if an object is a Buffer
+ *
+ * @author   Feross Aboukhadijeh <https://feross.org>
+ * @license  MIT
+ */
+
+var isBuffer$1 = function isBuffer (obj) {
+  return obj != null && obj.constructor != null &&
+    typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
+};
+
+var core$6 = VFile$2;
+
+var own$2 = {}.hasOwnProperty;
+var proto$3 = VFile$2.prototype;
+
+proto$3.toString = toString$4;
+
+// Order of setting (least specific to most), we need this because otherwise
+// `{stem: 'a', path: '~/b.js'}` would throw, as a path is needed before a
+// stem can be set.
+var order$1 = ['history', 'path', 'basename', 'stem', 'extname', 'dirname'];
+
+// Construct a new file.
+function VFile$2(options) {
+  var prop;
+  var index;
+  var length;
+
+  if (!options) {
+    options = {};
+  } else if (typeof options === 'string' || isBuffer$1(options)) {
+    options = {contents: options};
+  } else if ('message' in options && 'messages' in options) {
+    return options
+  }
+
+  if (!(this instanceof VFile$2)) {
+    return new VFile$2(options)
+  }
+
+  this.data = {};
+  this.messages = [];
+  this.history = [];
+  this.cwd = process.cwd();
+
+  // Set path related properties in the correct order.
+  index = -1;
+  length = order$1.length;
+
+  while (++index < length) {
+    prop = order$1[index];
+
+    if (own$2.call(options, prop)) {
+      this[prop] = options[prop];
+    }
+  }
+
+  // Set non-path related properties.
+  for (prop in options) {
+    if (order$1.indexOf(prop) === -1) {
+      this[prop] = options[prop];
+    }
+  }
+}
+
+// Access full path (`~/index.min.js`).
+Object.defineProperty(proto$3, 'path', {
+  get: function() {
+    return this.history[this.history.length - 1]
+  },
+  set: function(path$$1) {
+    assertNonEmpty$1(path$$1, 'path');
+
+    if (path$$1 !== this.path) {
+      this.history.push(path$$1);
+    }
+  }
+});
+
+// Access parent path (`~`).
+Object.defineProperty(proto$3, 'dirname', {
+  get: function() {
+    return typeof this.path === 'string' ? path.dirname(this.path) : undefined
+  },
+  set: function(dirname) {
+    assertPath$1(this.path, 'dirname');
+    this.path = path.join(dirname || '', this.basename);
+  }
+});
+
+// Access basename (`index.min.js`).
+Object.defineProperty(proto$3, 'basename', {
+  get: function() {
+    return typeof this.path === 'string' ? path.basename(this.path) : undefined
+  },
+  set: function(basename) {
+    assertNonEmpty$1(basename, 'basename');
+    assertPart$1(basename, 'basename');
+    this.path = path.join(this.dirname || '', basename);
+  }
+});
+
+// Access extname (`.js`).
+Object.defineProperty(proto$3, 'extname', {
+  get: function() {
+    return typeof this.path === 'string' ? path.extname(this.path) : undefined
+  },
+  set: function(extname) {
+    var ext = extname || '';
+
+    assertPart$1(ext, 'extname');
+    assertPath$1(this.path, 'extname');
+
+    if (ext) {
+      if (ext.charAt(0) !== '.') {
+        throw new Error('`extname` must start with `.`')
+      }
+
+      if (ext.indexOf('.', 1) !== -1) {
+        throw new Error('`extname` cannot contain multiple dots')
+      }
+    }
+
+    this.path = replaceExt_1(this.path, ext);
+  }
+});
+
+// Access stem (`index.min`).
+Object.defineProperty(proto$3, 'stem', {
+  get: function() {
+    return typeof this.path === 'string'
+      ? path.basename(this.path, this.extname)
+      : undefined
+  },
+  set: function(stem) {
+    assertNonEmpty$1(stem, 'stem');
+    assertPart$1(stem, 'stem');
+    this.path = path.join(this.dirname || '', stem + (this.extname || ''));
+  }
+});
+
+// Get the value of the file.
+function toString$4(encoding) {
+  var value = this.contents || '';
+  return isBuffer$1(value) ? value.toString(encoding) : String(value)
+}
+
+// Assert that `part` is not a path (i.e., does not contain `path.sep`).
+function assertPart$1(part, name) {
+  if (part.indexOf(path.sep) !== -1) {
+    throw new Error(
+      '`' + name + '` cannot be a path: did not expect `' + path.sep + '`'
+    )
+  }
+}
+
+// Assert that `part` is not empty.
+function assertNonEmpty$1(part, name) {
+  if (!part) {
+    throw new Error('`' + name + '` cannot be empty')
+  }
+}
+
+// Assert `path` exists.
+function assertPath$1(path$$1, name) {
+  if (!path$$1) {
+    throw new Error('Setting `' + name + '` requires `path` to be set too')
+  }
+}
+
+var vfile$5 = core$6;
+
+var proto$4 = core$6.prototype;
+
+proto$4.message = message$1;
+proto$4.info = info$1;
+proto$4.fail = fail$1;
+
+// Slight backwards compatibility.  Remove in the future.
+proto$4.warn = message$1;
+
+// Create a message with `reason` at `position`.  When an error is passed in as
+// `reason`, copies the stack.
+function message$1(reason, position, origin) {
+  var filePath = this.path;
+  var message = new vfileMessage(reason, position, origin);
+
+  if (filePath) {
+    message.name = filePath + ':' + message.name;
+    message.file = filePath;
+  }
+
+  message.fatal = false;
+
+  this.messages.push(message);
+
+  return message
+}
+
+// Fail.  Creates a vmessage, associates it with the file, and throws it.
+function fail$1() {
+  var message = this.message.apply(this, arguments);
+
+  message.fatal = true;
+
+  throw message
+}
+
+// Info.  Creates a vmessage, associates it with the file, and marks the
+// fatality as null.
+function info$1() {
+  var message = this.message.apply(this, arguments);
+
+  message.fatal = null;
+
+  return message
+}
+
+var toString$5 = Object.prototype.toString;
 
 var isPlainObj = function (x) {
 	var prototype;
-	return toString$4.call(x) === '[object Object]' && (prototype = Object.getPrototypeOf(x), prototype === null || prototype === Object.getPrototypeOf({}));
+	return toString$5.call(x) === '[object Object]' && (prototype = Object.getPrototypeOf(x), prototype === null || prototype === Object.getPrototypeOf({}));
 };
 
-/* Dependencies. */
-
-
-
-
-
-
-
-/* Expose a frozen processor. */
+// Expose a frozen processor.
 var unified_1 = unified().freeze();
 
 var slice$3 = [].slice;
-var own$2 = {}.hasOwnProperty;
+var own$3 = {}.hasOwnProperty;
 
-/* Process pipeline. */
+// Process pipeline.
 var pipeline = trough_1()
   .use(pipelineParse)
   .use(pipelineRun)
@@ -14586,7 +14798,7 @@ function pipelineStringify(p, ctx) {
   ctx.file.contents = p.stringify(ctx.tree, ctx.file);
 }
 
-/* Function to create the first processor. */
+// Function to create the first processor.
 function unified() {
   var attachers = [];
   var transformers = trough_1();
@@ -14594,17 +14806,17 @@ function unified() {
   var frozen = false;
   var freezeIndex = -1;
 
-  /* Data management. */
+  // Data management.
   processor.data = data;
 
-  /* Lock. */
+  // Lock.
   processor.freeze = freeze;
 
-  /* Plug-ins. */
+  // Plugins.
   processor.attachers = attachers;
   processor.use = use;
 
-  /* API. */
+  // API.
   processor.parse = parse;
   processor.stringify = stringify;
   processor.run = run;
@@ -14612,11 +14824,10 @@ function unified() {
   processor.process = process;
   processor.processSync = processSync;
 
-  /* Expose. */
+  // Expose.
   return processor
 
-  /* Create a new processor based on the processor
-   * in the current scope. */
+  // Create a new processor based on the processor in the current scope.
   function processor() {
     var destination = unified();
     var length = attachers.length;
@@ -14631,15 +14842,13 @@ function unified() {
     return destination
   }
 
-  /* Freeze: used to signal a processor that has finished
-   * configuration.
-   *
-   * For example, take unified itself.  It’s frozen.
-   * Plug-ins should not be added to it.  Rather, it should
-   * be extended, by invoking it, before modifying it.
-   *
-   * In essence, always invoke this when exporting a
-   * processor. */
+  // Freeze: used to signal a processor that has finished configuration.
+  //
+  // For example, take unified itself.  It’s frozen.  Plugins should not be
+  // added to it.  Rather, it should be extended, by invoking it, before
+  // modifying it.
+  //
+  // In essence, always invoke this when exporting a processor.
   function freeze() {
     var values;
     var plugin;
@@ -14677,11 +14886,10 @@ function unified() {
     return processor
   }
 
-  /* Data management.
-   * Getter / setter for processor-specific informtion. */
+  // Data management.  Getter / setter for processor-specific informtion.
   function data(key, value) {
     if (xIsString(key)) {
-      /* Set `key`. */
+      // Set `key`.
       if (arguments.length === 2) {
         assertUnfrozen('data', frozen);
 
@@ -14690,35 +14898,35 @@ function unified() {
         return processor
       }
 
-      /* Get `key`. */
-      return (own$2.call(namespace, key) && namespace[key]) || null
+      // Get `key`.
+      return (own$3.call(namespace, key) && namespace[key]) || null
     }
 
-    /* Set space. */
+    // Set space.
     if (key) {
       assertUnfrozen('data', frozen);
       namespace = key;
       return processor
     }
 
-    /* Get space. */
+    // Get space.
     return namespace
   }
 
-  /* Plug-in management.
-   *
-   * Pass it:
-   * *   an attacher and options,
-   * *   a preset,
-   * *   a list of presets, attachers, and arguments (list
-   *     of attachers and options). */
+  // Plugin management.
+  //
+  // Pass it:
+  // *   an attacher and options,
+  // *   a preset,
+  // *   a list of presets, attachers, and arguments (list of attachers and
+  //     options).
   function use(value) {
     var settings;
 
     assertUnfrozen('use', frozen);
 
     if (value === null || value === undefined) {
-      /* Empty */
+      // Empty.
     } else if (typeof value === 'function') {
       addPlugin.apply(null, arguments);
     } else if (typeof value === 'object') {
@@ -14764,7 +14972,7 @@ function unified() {
       var index;
 
       if (plugins === null || plugins === undefined) {
-        /* Empty */
+        // Empty.
       } else if (typeof plugins === 'object' && 'length' in plugins) {
         length = plugins.length;
         index = -1;
@@ -14806,11 +15014,10 @@ function unified() {
     }
   }
 
-  /* Parse a file (in string or VFile representation)
-   * into a Unist node using the `Parser` on the
-   * processor. */
+  // Parse a file (in string or vfile representation) into a unist node using
+  // the `Parser` on the processor.
   function parse(doc) {
-    var file = vfile(doc);
+    var file = vfile$5(doc);
     var Parser;
 
     freeze();
@@ -14824,8 +15031,8 @@ function unified() {
     return Parser(String(file), file) // eslint-disable-line new-cap
   }
 
-  /* Run transforms on a Unist node representation of a file
-   * (in string or VFile representation), async. */
+  // Run transforms on a unist node representation of a file (in string or
+  // vfile representation), async.
   function run(node, file, cb) {
     assertNode(node);
     freeze();
@@ -14842,7 +15049,7 @@ function unified() {
     executor(null, cb);
 
     function executor(resolve, reject) {
-      transformers.run(node, vfile(file), done);
+      transformers.run(node, vfile$5(file), done);
 
       function done(err, tree, file) {
         tree = tree || node;
@@ -14857,8 +15064,8 @@ function unified() {
     }
   }
 
-  /* Run transforms on a Unist node representation of a file
-   * (in string or VFile representation), sync. */
+  // Run transforms on a unist node representation of a file (in string or
+  // vfile representation), sync.
   function runSync(node, file) {
     var complete = false;
     var result;
@@ -14876,11 +15083,10 @@ function unified() {
     }
   }
 
-  /* Stringify a Unist node representation of a file
-   * (in string or VFile representation) into a string
-   * using the `Compiler` on the processor. */
+  // Stringify a unist node representation of a file (in string or vfile
+  // representation) into a string using the `Compiler` on the processor.
   function stringify(node, doc) {
-    var file = vfile(doc);
+    var file = vfile$5(doc);
     var Compiler;
 
     freeze();
@@ -14895,11 +15101,10 @@ function unified() {
     return Compiler(node, file) // eslint-disable-line new-cap
   }
 
-  /* Parse a file (in string or VFile representation)
-   * into a Unist node using the `Parser` on the processor,
-   * then run transforms on that node, and compile the
-   * resulting node using the `Compiler` on the processor,
-   * and store that result on the VFile. */
+  // Parse a file (in string or vfile representation) into a unist node using
+  // the `Parser` on the processor, then run transforms on that node, and
+  // compile the resulting node using the `Compiler` on the processor, and
+  // store that result on the vfile.
   function process(doc, cb) {
     freeze();
     assertParser('process', processor.Parser);
@@ -14912,7 +15117,7 @@ function unified() {
     executor(null, cb);
 
     function executor(resolve, reject) {
-      var file = vfile(doc);
+      var file = vfile$5(doc);
 
       pipeline.run(processor, {file: file}, done);
 
@@ -14928,8 +15133,7 @@ function unified() {
     }
   }
 
-  /* Process the given document (in string or VFile
-   * representation), sync. */
+  // Process the given document (in string or vfile representation), sync.
   function processSync(doc) {
     var complete = false;
     var file;
@@ -14937,7 +15141,7 @@ function unified() {
     freeze();
     assertParser('processSync', processor.Parser);
     assertCompiler('processSync', processor.Compiler);
-    file = vfile(doc);
+    file = vfile$5(doc);
 
     process(file, done);
 
@@ -14952,12 +15156,12 @@ function unified() {
   }
 }
 
-/* Check if `func` is a constructor. */
+// Check if `func` is a constructor.
 function newable(value) {
   return typeof value === 'function' && keys(value.prototype)
 }
 
-/* Check if `value` is an object with keys. */
+// Check if `value` is an object with keys.
 function keys(value) {
   var key;
   for (key in value) {
@@ -14966,41 +15170,39 @@ function keys(value) {
   return false
 }
 
-/* Assert a parser is available. */
+// Assert a parser is available.
 function assertParser(name, Parser) {
   if (typeof Parser !== 'function') {
     throw new Error('Cannot `' + name + '` without `Parser`')
   }
 }
 
-/* Assert a compiler is available. */
+// Assert a compiler is available.
 function assertCompiler(name, Compiler) {
   if (typeof Compiler !== 'function') {
     throw new Error('Cannot `' + name + '` without `Compiler`')
   }
 }
 
-/* Assert the processor is not frozen. */
+// Assert the processor is not frozen.
 function assertUnfrozen(name, frozen) {
   if (frozen) {
     throw new Error(
-      [
-        'Cannot invoke `' + name + '` on a frozen processor.\nCreate a new ',
-        'processor first, by invoking it: use `processor()` instead of ',
-        '`processor`.'
-      ].join('')
+      'Cannot invoke `' +
+        name +
+        '` on a frozen processor.\nCreate a new processor first, by invoking it: use `processor()` instead of `processor`.'
     )
   }
 }
 
-/* Assert `node` is a Unist node. */
+// Assert `node` is a unist node.
 function assertNode(node) {
   if (!node || !xIsString(node.type)) {
     throw new Error('Expected node, got `' + node + '`')
   }
 }
 
-/* Assert that `complete` is `true`. */
+// Assert that `complete` is `true`.
 function assertDone(name, asyncName, complete) {
   if (!complete) {
     throw new Error(
@@ -15150,16 +15352,16 @@ function indices(value) {
 
 var _unescape = factory$2;
 
-/* Factory to de-escape a value, based on a list at `key`
- * in `ctx`. */
-function factory$2(ctx, key) {
-  return unescape;
+var backslash = '\\';
 
-  /* De-escape a string using the expression at `key`
-   * in `ctx`. */
+// Factory to de-escape a value, based on a list at `key` in `ctx`.
+function factory$2(ctx, key) {
+  return unescape
+
+  // De-escape a string using the expression at `key` in `ctx`.
   function unescape(value) {
     var prev = 0;
-    var index = value.indexOf('\\');
+    var index = value.indexOf(backslash);
     var escape = ctx[key];
     var queue = [];
     var character;
@@ -15169,18 +15371,17 @@ function factory$2(ctx, key) {
       prev = index + 1;
       character = value.charAt(prev);
 
-      /* If the following character is not a valid escape,
-       * add the slash. */
+      // If the following character is not a valid escape, add the slash.
       if (!character || escape.indexOf(character) === -1) {
-        queue.push('\\');
+        queue.push(backslash);
       }
 
-      index = value.indexOf('\\', prev);
+      index = value.indexOf(backslash, prev + 1);
     }
 
     queue.push(value.slice(prev));
 
-    return queue.join('');
+    return queue.join('')
   }
 }
 
@@ -17238,7 +17439,7 @@ const oplus = "⊕";
 const or = "∨";
 const orarr = "↻";
 const ord = "º";
-const order$1 = "ℴ";
+const order$2 = "ℴ";
 const orderof = "ℴ";
 const ordf$1 = "ª";
 const ordm$1 = "º";
@@ -19459,7 +19660,7 @@ var index$4 = {
 	or: or,
 	orarr: orarr,
 	ord: ord,
-	order: order$1,
+	order: order$2,
 	orderof: orderof,
 	ordf: ordf$1,
 	ordm: ordm$1,
@@ -21684,7 +21885,7 @@ var characterEntities = Object.freeze({
 	or: or,
 	orarr: orarr,
 	ord: ord,
-	order: order$1,
+	order: order$2,
 	orderof: orderof,
 	ordf: ordf$1,
 	ordm: ordm$1,
@@ -22262,10 +22463,10 @@ var characterEntities$1 = ( characterEntities && index$4 ) || characterEntities;
 
 var decodeEntity_1 = decodeEntity;
 
-var own$3 = {}.hasOwnProperty;
+var own$4 = {}.hasOwnProperty;
 
 function decodeEntity(characters) {
-  return own$3.call(characterEntities$1, characters)
+  return own$4.call(characterEntities$1, characters)
     ? characterEntities$1[characters]
     : false
 }
@@ -22276,7 +22477,7 @@ var invalid = ( characterReferenceInvalid && index$3 ) || characterReferenceInva
 
 var parseEntities_1 = parseEntities;
 
-var own$4 = {}.hasOwnProperty;
+var own$5 = {}.hasOwnProperty;
 var fromCharCode = String.fromCharCode;
 var noop$1 = Function.prototype;
 
@@ -22503,7 +22704,7 @@ function parse$7(value, settings) {
          * last viable named reference.  This
          * ensures we do not need to walk backwards
          * later. */
-        if (type === NAMED && own$4.call(legacy, characters)) {
+        if (type === NAMED && own$5.call(legacy, characters)) {
           entityCharacters = characters;
           entity = legacy[characters];
         }
@@ -22715,13 +22916,13 @@ function disallowed(code) {
 
 var decode$1 = factory$3;
 
-/* Factory to create an entity decoder. */
+// Factory to create an entity decoder.
 function factory$3(ctx) {
   decoder.raw = decodeRaw;
 
-  return decoder;
+  return decoder
 
-  /* Normalize `position` to add an `indent`. */
+  // Normalize `position` to add an `indent`.
   function normalize(position) {
     var offsets = ctx.offset;
     var line = position.line;
@@ -22729,30 +22930,16 @@ function factory$3(ctx) {
 
     while (++line) {
       if (!(line in offsets)) {
-        break;
+        break
       }
 
       result.push((offsets[line] || 0) + 1);
     }
 
-    return {
-      start: position,
-      indent: result
-    };
+    return {start: position, indent: result}
   }
 
-  /* Handle a warning.
-   * See https://github.com/wooorm/parse-entities
-   * for the warnings. */
-  function handleWarning(reason, position, code) {
-    if (code === 3) {
-      return;
-    }
-
-    ctx.file.message(reason, position);
-  }
-
-  /* Decode `value` (at `position`) into text-nodes. */
+  // Decode `value` (at `position`) into text-nodes.
   function decoder(value, position, handler) {
     parseEntities_1(value, {
       position: normalize(position),
@@ -22764,65 +22951,30 @@ function factory$3(ctx) {
     });
   }
 
-  /* Decode `value` (at `position`) into a string. */
-  function decodeRaw(value, position) {
-    return parseEntities_1(value, {
-      position: normalize(position),
-      warning: handleWarning
-    });
+  // Decode `value` (at `position`) into a string.
+  function decodeRaw(value, position, options) {
+    return parseEntities_1(
+      value,
+      immutable(options, {position: normalize(position), warning: handleWarning})
+    )
+  }
+
+  // Handle a warning.
+  // See <https://github.com/wooorm/parse-entities> for the warnings.
+  function handleWarning(reason, position, code) {
+    if (code !== 3) {
+      ctx.file.message(reason, position);
+    }
   }
 }
 
 var tokenizer = factory$4;
 
-var MERGEABLE_NODES = {
-  text: mergeText,
-  blockquote: mergeBlockquote
-};
-
-/* Check whether a node is mergeable with adjacent nodes. */
-function mergeable(node) {
-  var start;
-  var end;
-
-  if (node.type !== 'text' || !node.position) {
-    return true;
-  }
-
-  start = node.position.start;
-  end = node.position.end;
-
-  /* Only merge nodes which occupy the same size as their
-   * `value`. */
-  return start.line !== end.line ||
-      end.column - start.column === node.value.length;
-}
-
-/* Merge two text nodes: `node` into `prev`. */
-function mergeText(prev, node) {
-  prev.value += node.value;
-
-  return prev;
-}
-
-/* Merge two blockquotes: `node` into `prev`, unless in
- * CommonMark mode. */
-function mergeBlockquote(prev, node) {
-  if (this.options.commonmark) {
-    return node;
-  }
-
-  prev.children = prev.children.concat(node.children);
-
-  return prev;
-}
-
-/* Construct a tokenizer.  This creates both
- * `tokenizeInline` and `tokenizeBlock`. */
+// Construct a tokenizer.  This creates both `tokenizeInline` and `tokenizeBlock`.
 function factory$4(type) {
-  return tokenize;
+  return tokenize
 
-  /* Tokenizer for a bound `type`. */
+  // Tokenizer for a bound `type`.
   function tokenize(value, location) {
     var self = this;
     var offset = self.offset;
@@ -22838,23 +22990,21 @@ function factory$4(type) {
     var matched;
     var valueLength;
 
-    /* Trim white space only lines. */
+    // Trim white space only lines.
     if (!value) {
-      return tokens;
+      return tokens
     }
 
-    /* Expose on `eat`. */
+    // Expose on `eat`.
     eat.now = now;
     eat.file = self.file;
 
-    /* Sync initial offset. */
+    // Sync initial offset.
     updatePosition('');
 
-    /* Iterate over `value`, and iterate over all
-     * tokenizers.  When one eats something, re-iterate
-     * with the remaining value.  If no tokenizer eats,
-     * something failed (should not happen) and an
-     * exception is thrown. */
+    // Iterate over `value`, and iterate over all tokenizers.  When one eats
+    // something, re-iterate with the remaining value.  If no tokenizer eats,
+    // something failed (should not happen) and an exception is thrown.
     while (value) {
       index = -1;
       length = methods.length;
@@ -22878,7 +23028,7 @@ function factory$4(type) {
           matched = valueLength !== value.length;
 
           if (matched) {
-            break;
+            break
           }
         }
       }
@@ -22891,10 +23041,9 @@ function factory$4(type) {
 
     self.eof = now();
 
-    return tokens;
+    return tokens
 
-    /* Update line, column, and offset based on
-     * `value`. */
+    // Update line, column, and offset based on `value`.
     function updatePosition(subvalue) {
       var lastIndex = -1;
       var index = subvalue.indexOf('\n');
@@ -22920,15 +23069,15 @@ function factory$4(type) {
       }
     }
 
-    /* Get offset.  Called before the first character is
-     * eaten to retrieve the range's offsets. */
+    // Get offset.  Called before the first character is eaten to retrieve the
+    // range’s offsets.
     function getOffset() {
       var indentation = [];
       var pos = line + 1;
 
-      /* Done.  Called when the last character is
-       * eaten to retrieve the range’s offsets. */
-      return function () {
+      // Done.  Called when the last character is eaten to retrieve the range’s
+      // offsets.
+      return function() {
         var last = line + 1;
 
         while (pos < last) {
@@ -22937,49 +23086,47 @@ function factory$4(type) {
           pos++;
         }
 
-        return indentation;
-      };
+        return indentation
+      }
     }
 
-    /* Get the current position. */
+    // Get the current position.
     function now() {
       var pos = {line: line, column: column};
 
       pos.offset = self.toOffset(pos);
 
-      return pos;
+      return pos
     }
 
-    /* Store position information for a node. */
+    // Store position information for a node.
     function Position(start) {
       this.start = start;
       this.end = now();
     }
 
-    /* Throw when a value is incorrectly eaten.
-     * This shouldn’t happen but will throw on new,
-     * incorrect rules. */
+    // Throw when a value is incorrectly eaten.  This shouldn’t happen but will
+    // throw on new, incorrect rules.
     function validateEat(subvalue) {
       /* istanbul ignore if */
       if (value.substring(0, subvalue.length) !== subvalue) {
-        /* Capture stack-trace. */
+        // Capture stack-trace.
         self.file.fail(
           new Error(
-            'Incorrectly eaten value: please report this ' +
-            'warning on http://git.io/vg5Ft'
+            'Incorrectly eaten value: please report this warning on https://git.io/vg5Ft'
           ),
           now()
         );
       }
     }
 
-    /* Mark position and patch `node.position`. */
+    // Mark position and patch `node.position`.
     function position() {
       var before = now();
 
-      return update;
+      return update
 
-      /* Add the position to a node. */
+      // Add the position to a node.
       function update(node, indent) {
         var prev = node.position;
         var start = prev ? prev.start : before;
@@ -22989,14 +23136,11 @@ function factory$4(type) {
 
         node.position = new Position(start);
 
-        /* If there was already a `position`, this
-         * node was merged.  Fixing `start` wasn’t
-         * hard, but the indent is different.
-         * Especially because some information, the
-         * indent between `n` and `l` wasn’t
-         * tracked.  Luckily, that space is
-         * (should be?) empty, so we can safely
-         * check for it now. */
+        // If there was already a `position`, this node was merged.  Fixing
+        // `start` wasn’t hard, but the indent is different.  Especially
+        // because some information, the indent between `n` and `l` wasn’t
+        // tracked.  Luckily, that space is (should be?) empty, so we can
+        // safely check for it now.
         if (prev && indent && prev.indent) {
           combined = prev.indent;
 
@@ -23013,24 +23157,26 @@ function factory$4(type) {
 
         node.position.indent = indent || [];
 
-        return node;
+        return node
       }
     }
 
-    /* Add `node` to `parent`s children or to `tokens`.
-     * Performs merges where possible. */
+    // Add `node` to `parent`s children or to `tokens`.  Performs merges where
+    // possible.
     function add(node, parent) {
       var children = parent ? parent.children : tokens;
       var prev = children[children.length - 1];
+      var fn;
 
       if (
         prev &&
         node.type === prev.type &&
-        node.type in MERGEABLE_NODES &&
+        (node.type === 'text' || node.type === 'blockquote') &&
         mergeable(prev) &&
         mergeable(node)
       ) {
-        node = MERGEABLE_NODES[node.type].call(self, prev, node);
+        fn = node.type === 'text' ? mergeText : mergeBlockquote;
+        node = fn.call(self, prev, node);
       }
 
       if (node !== prev) {
@@ -23041,11 +23187,11 @@ function factory$4(type) {
         self.exitStart();
       }
 
-      return node;
+      return node
     }
 
-    /* Remove `subvalue` from `value`.
-     * `subvalue` must be at the start of `value`. */
+    // Remove `subvalue` from `value`.  `subvalue` must be at the start of
+    // `value`.
     function eat(subvalue) {
       var indent = getOffset();
       var pos = position();
@@ -23063,21 +23209,18 @@ function factory$4(type) {
 
       indent = indent();
 
-      return apply;
+      return apply
 
-      /* Add the given arguments, add `position` to
-       * the returned node, and return the node. */
+      // Add the given arguments, add `position` to the returned node, and
+      // return the node.
       function apply(node, parent) {
-        return pos(add(pos(node), parent), indent);
+        return pos(add(pos(node), parent), indent)
       }
 
-      /* Functions just like apply, but resets the
-       * content:  the line and column are reversed,
-       * and the eaten value is re-added.
-       * This is useful for nodes with a single
-       * type of content, such as lists and tables.
-       * See `apply` above for what parameters are
-       * expected. */
+      // Functions just like apply, but resets the content: the line and
+      // column are reversed, and the eaten value is re-added.   This is
+      // useful for nodes with a single type of content, such as lists and
+      // tables.  See `apply` above for what parameters are expected.
       function reset() {
         var node = apply.apply(null, arguments);
 
@@ -23085,11 +23228,10 @@ function factory$4(type) {
         column = current.column;
         value = subvalue + value;
 
-        return node;
+        return node
       }
 
-      /* Test the position, after eating, and reverse
-       * to a not-eaten state. */
+      // Test the position, after eating, and reverse to a not-eaten state.
       function test() {
         var result = pos({});
 
@@ -23097,10 +23239,46 @@ function factory$4(type) {
         column = current.column;
         value = subvalue + value;
 
-        return result.position;
+        return result.position
       }
     }
   }
+}
+
+// Check whether a node is mergeable with adjacent nodes.
+function mergeable(node) {
+  var start;
+  var end;
+
+  if (node.type !== 'text' || !node.position) {
+    return true
+  }
+
+  start = node.position.start;
+  end = node.position.end;
+
+  // Only merge nodes which occupy the same size as their `value`.
+  return (
+    start.line !== end.line || end.column - start.column === node.value.length
+  )
+}
+
+// Merge two text nodes: `node` into `prev`.
+function mergeText(prev, node) {
+  prev.value += node.value;
+
+  return prev
+}
+
+// Merge two blockquotes: `node` into `prev`, unless in CommonMark mode.
+function mergeBlockquote(prev, node) {
+  if (this.options.commonmark) {
+    return node
+  }
+
+  prev.children = prev.children.concat(node.children);
+
+  return prev
 }
 
 var markdownEscapes = escapes;
@@ -23160,80 +23338,73 @@ function escapes(options) {
 }
 
 var blockElements = [
-  "address",
-  "article",
-  "aside",
-  "base",
-  "basefont",
-  "blockquote",
-  "body",
-  "caption",
-  "center",
-  "col",
-  "colgroup",
-  "dd",
-  "details",
-  "dialog",
-  "dir",
-  "div",
-  "dl",
-  "dt",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "frame",
-  "frameset",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "head",
-  "header",
-  "hgroup",
-  "hr",
-  "html",
-  "iframe",
-  "legend",
-  "li",
-  "link",
-  "main",
-  "menu",
-  "menuitem",
-  "meta",
-  "nav",
-  "noframes",
-  "ol",
-  "optgroup",
-  "option",
-  "p",
-  "param",
-  "pre",
-  "section",
-  "source",
-  "title",
-  "summary",
-  "table",
-  "tbody",
-  "td",
-  "tfoot",
-  "th",
-  "thead",
-  "title",
-  "tr",
-  "track",
-  "ul"
-]
-;
-
-var blockElements$1 = Object.freeze({
-	default: blockElements
-});
-
-var require$$0$15 = ( blockElements$1 && blockElements ) || blockElements$1;
+  'address',
+  'article',
+  'aside',
+  'base',
+  'basefont',
+  'blockquote',
+  'body',
+  'caption',
+  'center',
+  'col',
+  'colgroup',
+  'dd',
+  'details',
+  'dialog',
+  'dir',
+  'div',
+  'dl',
+  'dt',
+  'fieldset',
+  'figcaption',
+  'figure',
+  'footer',
+  'form',
+  'frame',
+  'frameset',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'head',
+  'header',
+  'hgroup',
+  'hr',
+  'html',
+  'iframe',
+  'legend',
+  'li',
+  'link',
+  'main',
+  'menu',
+  'menuitem',
+  'meta',
+  'nav',
+  'noframes',
+  'ol',
+  'optgroup',
+  'option',
+  'p',
+  'param',
+  'pre',
+  'section',
+  'source',
+  'title',
+  'summary',
+  'table',
+  'tbody',
+  'td',
+  'tfoot',
+  'th',
+  'thead',
+  'title',
+  'tr',
+  'track',
+  'ul'
+];
 
 var defaults$2 = {
   position: true,
@@ -23241,7 +23412,7 @@ var defaults$2 = {
   commonmark: false,
   footnotes: false,
   pedantic: false,
-  blocks: require$$0$15
+  blocks: blockElements
 };
 
 var setOptions_1 = setOptions;
@@ -23257,10 +23428,7 @@ function setOptions(options) {
   } else if (typeof options === 'object') {
     options = immutable(options);
   } else {
-    throw new Error(
-      'Invalid value `' + options + '` ' +
-      'for setting `options`'
-    );
+    throw new Error('Invalid value `' + options + '` for setting `options`')
   }
 
   for (key in defaults$2) {
@@ -23274,7 +23442,9 @@ function setOptions(options) {
       (key !== 'blocks' && typeof value !== 'boolean') ||
       (key === 'blocks' && typeof value !== 'object')
     ) {
-      throw new Error('Invalid value `' + value + '` for setting `options.' + key + '`');
+      throw new Error(
+        'Invalid value `' + value + '` for setting `options.' + key + '`'
+      )
     }
 
     options[key] = value;
@@ -23283,7 +23453,7 @@ function setOptions(options) {
   self.options = options;
   self.escape = markdownEscapes(options);
 
-  return self;
+  return self
 }
 
 /* eslint-disable max-params */
@@ -23511,10 +23681,10 @@ function soft(node) {
 
 var parse_1$3 = parse$8;
 
-var C_NEWLINE = '\n';
-var EXPRESSION_LINE_BREAKS = /\r\n|\r/g;
+var lineFeed = '\n';
+var lineBreaksExpression = /\r\n|\r/g;
 
-/* Parse the bound file. */
+// Parse the bound file.
 function parse$8() {
   var self = this;
   var value = String(self.file);
@@ -23522,12 +23692,12 @@ function parse$8() {
   var content = immutable(start);
   var node;
 
-  /* Clean non-unix newlines: `\r\n` and `\r` are all
-   * changed to `\n`.  This should not affect positional
-   * information. */
-  value = value.replace(EXPRESSION_LINE_BREAKS, C_NEWLINE);
+  // Clean non-unix newlines: `\r\n` and `\r` are all changed to `\n`.
+  // This should not affect positional information.
+  value = value.replace(lineBreaksExpression, lineFeed);
 
-  if (value.charCodeAt(0) === 0xFEFF) {
+  // BOM.
+  if (value.charCodeAt(0) === 0xfeff) {
     value = value.slice(1);
 
     content.column++;
@@ -23537,17 +23707,14 @@ function parse$8() {
   node = {
     type: 'root',
     children: self.tokenizeBlock(value, content),
-    position: {
-      start: start,
-      end: self.eof || immutable(start)
-    }
+    position: {start: start, end: self.eof || immutable(start)}
   };
 
   if (!self.options.position) {
     unistUtilRemovePosition(node, true);
   }
 
-  return node;
+  return node
 }
 
 var isWhitespaceCharacter = whitespace;
@@ -23565,7 +23732,8 @@ function whitespace(character) {
 
 var newline_1 = newline;
 
-/* Tokenise newline. */
+var lineFeed$1 = '\n';
+
 function newline(eat, value, silent) {
   var character = value.charAt(0);
   var length;
@@ -23573,13 +23741,13 @@ function newline(eat, value, silent) {
   var queue;
   var index;
 
-  if (character !== '\n') {
-    return;
+  if (character !== lineFeed$1) {
+    return
   }
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
   index = 1;
@@ -23591,12 +23759,12 @@ function newline(eat, value, silent) {
     character = value.charAt(index);
 
     if (!isWhitespaceCharacter(character)) {
-      break;
+      break
     }
 
     queue += character;
 
-    if (character === '\n') {
+    if (character === lineFeed$1) {
       subvalue += queue;
       queue = '';
     }
@@ -23625,14 +23793,13 @@ function trimTrailingLines(value) {
 
 var codeIndented = indentedCode;
 
-var C_NEWLINE$1 = '\n';
-var C_TAB = '\t';
-var C_SPACE = ' ';
+var lineFeed$2 = '\n';
+var tab = '\t';
+var space = ' ';
 
-var CODE_INDENT_COUNT = 4;
-var CODE_INDENT = repeatString(C_SPACE, CODE_INDENT_COUNT);
+var tabSize = 4;
+var codeIndent = repeatString(space, tabSize);
 
-/* Tokenise indented code. */
 function indentedCode(eat, value, silent) {
   var index = -1;
   var length = value.length;
@@ -23655,7 +23822,7 @@ function indentedCode(eat, value, silent) {
       subvalueQueue = '';
       contentQueue = '';
 
-      if (character === C_NEWLINE$1) {
+      if (character === lineFeed$2) {
         subvalueQueue = character;
         contentQueue = character;
       } else {
@@ -23665,10 +23832,10 @@ function indentedCode(eat, value, silent) {
         while (++index < length) {
           character = value.charAt(index);
 
-          if (!character || character === C_NEWLINE$1) {
+          if (!character || character === lineFeed$2) {
             contentQueue = character;
             subvalueQueue = character;
-            break;
+            break
           }
 
           subvalue += character;
@@ -23676,27 +23843,27 @@ function indentedCode(eat, value, silent) {
         }
       }
     } else if (
-      character === C_SPACE &&
+      character === space &&
       value.charAt(index + 1) === character &&
       value.charAt(index + 2) === character &&
       value.charAt(index + 3) === character
     ) {
-      subvalueQueue += CODE_INDENT;
+      subvalueQueue += codeIndent;
       index += 3;
       indent = true;
-    } else if (character === C_TAB) {
+    } else if (character === tab) {
       subvalueQueue += character;
       indent = true;
     } else {
       blankQueue = '';
 
-      while (character === C_TAB || character === C_SPACE) {
+      while (character === tab || character === space) {
         blankQueue += character;
         character = value.charAt(++index);
       }
 
-      if (character !== C_NEWLINE$1) {
-        break;
+      if (character !== lineFeed$2) {
+        break
       }
 
       subvalueQueue += blankQueue + character;
@@ -23706,31 +23873,32 @@ function indentedCode(eat, value, silent) {
 
   if (content) {
     if (silent) {
-      return true;
+      return true
     }
 
     return eat(subvalue)({
       type: 'code',
       lang: null,
+      meta: null,
       value: trimTrailingLines_1(content)
-    });
+    })
   }
 }
 
 var codeFenced = fencedCode;
 
-var C_NEWLINE$2 = '\n';
-var C_TAB$1 = '\t';
-var C_SPACE$1 = ' ';
-var C_TILDE = '~';
-var C_TICK = '`';
+var lineFeed$3 = '\n';
+var tab$1 = '\t';
+var space$1 = ' ';
+var tilde$1 = '~';
+var graveAccent = '`';
 
-var MIN_FENCE_COUNT = 3;
-var CODE_INDENT_COUNT$1 = 4;
+var minFenceCount = 3;
+var tabSize$1 = 4;
 
 function fencedCode(eat, value, silent) {
   var self = this;
-  var settings = self.options;
+  var gfm = self.options.gfm;
   var length = value.length + 1;
   var index = 0;
   var subvalue = '';
@@ -23738,6 +23906,8 @@ function fencedCode(eat, value, silent) {
   var marker;
   var character;
   var flag;
+  var lang;
+  var meta;
   var queue;
   var content;
   var exdentedContent;
@@ -23746,16 +23916,16 @@ function fencedCode(eat, value, silent) {
   var indent;
   var now;
 
-  if (!settings.gfm) {
-    return;
+  if (!gfm) {
+    return
   }
 
-  /* Eat initial spacing. */
+  // Eat initial spacing.
   while (index < length) {
     character = value.charAt(index);
 
-    if (character !== C_SPACE$1 && character !== C_TAB$1) {
-      break;
+    if (character !== space$1 && character !== tab$1) {
+      break
     }
 
     subvalue += character;
@@ -23764,11 +23934,11 @@ function fencedCode(eat, value, silent) {
 
   indent = index;
 
-  /* Eat the fence. */
+  // Eat the fence.
   character = value.charAt(index);
 
-  if (character !== C_TILDE && character !== C_TICK) {
-    return;
+  if (character !== tilde$1 && character !== graveAccent) {
+    return
   }
 
   index++;
@@ -23780,7 +23950,7 @@ function fencedCode(eat, value, silent) {
     character = value.charAt(index);
 
     if (character !== marker) {
-      break;
+      break
     }
 
     subvalue += character;
@@ -23788,23 +23958,23 @@ function fencedCode(eat, value, silent) {
     index++;
   }
 
-  if (fenceCount < MIN_FENCE_COUNT) {
-    return;
+  if (fenceCount < minFenceCount) {
+    return
   }
 
-  /* Eat spacing before flag. */
+  // Eat spacing before flag.
   while (index < length) {
     character = value.charAt(index);
 
-    if (character !== C_SPACE$1 && character !== C_TAB$1) {
-      break;
+    if (character !== space$1 && character !== tab$1) {
+      break
     }
 
     subvalue += character;
     index++;
   }
 
-  /* Eat flag. */
+  // Eat flag.
   flag = '';
   queue = '';
 
@@ -23812,14 +23982,14 @@ function fencedCode(eat, value, silent) {
     character = value.charAt(index);
 
     if (
-      character === C_NEWLINE$2 ||
-      character === C_TILDE ||
-      character === C_TICK
+      character === lineFeed$3 ||
+      character === tilde$1 ||
+      character === graveAccent
     ) {
-      break;
+      break
     }
 
-    if (character === C_SPACE$1 || character === C_TAB$1) {
+    if (character === space$1 || character === tab$1) {
       queue += character;
     } else {
       flag += queue + character;
@@ -23831,12 +24001,12 @@ function fencedCode(eat, value, silent) {
 
   character = value.charAt(index);
 
-  if (character && character !== C_NEWLINE$2) {
-    return;
+  if (character && character !== lineFeed$3) {
+    return
   }
 
   if (silent) {
-    return true;
+    return true
   }
 
   now = eat.now();
@@ -23856,7 +24026,7 @@ function fencedCode(eat, value, silent) {
   content = '';
   exdentedContent = '';
 
-  /* Eat content. */
+  // Eat content.
   while (index < length) {
     character = value.charAt(index);
     content += closing;
@@ -23864,16 +24034,15 @@ function fencedCode(eat, value, silent) {
     closing = '';
     exdentedClosing = '';
 
-    if (character !== C_NEWLINE$2) {
+    if (character !== lineFeed$3) {
       content += character;
       exdentedClosing += character;
       index++;
-      continue;
+      continue
     }
 
-    /* Add the newline to `subvalue` if its the first
-     * character.  Otherwise, add it to the `closing`
-     * queue. */
+    // Add the newline to `subvalue` if its the first character.  Otherwise,
+    // add it to the `closing` queue.
     if (content) {
       closing += character;
       exdentedClosing += character;
@@ -23887,8 +24056,8 @@ function fencedCode(eat, value, silent) {
     while (index < length) {
       character = value.charAt(index);
 
-      if (character !== C_SPACE$1) {
-        break;
+      if (character !== space$1) {
+        break
       }
 
       queue += character;
@@ -23898,8 +24067,8 @@ function fencedCode(eat, value, silent) {
     closing += queue;
     exdentedClosing += queue.slice(indent);
 
-    if (queue.length >= CODE_INDENT_COUNT$1) {
-      continue;
+    if (queue.length >= tabSize$1) {
+      continue
     }
 
     queue = '';
@@ -23908,7 +24077,7 @@ function fencedCode(eat, value, silent) {
       character = value.charAt(index);
 
       if (character !== marker) {
-        break;
+        break
       }
 
       queue += character;
@@ -23919,7 +24088,7 @@ function fencedCode(eat, value, silent) {
     exdentedClosing += queue;
 
     if (queue.length < fenceCount) {
-      continue;
+      continue
     }
 
     queue = '';
@@ -23927,8 +24096,8 @@ function fencedCode(eat, value, silent) {
     while (index < length) {
       character = value.charAt(index);
 
-      if (character !== C_SPACE$1 && character !== C_TAB$1) {
-        break;
+      if (character !== space$1 && character !== tab$1) {
+        break
       }
 
       closing += character;
@@ -23936,18 +24105,36 @@ function fencedCode(eat, value, silent) {
       index++;
     }
 
-    if (!character || character === C_NEWLINE$2) {
-      break;
+    if (!character || character === lineFeed$3) {
+      break
     }
   }
 
   subvalue += content + closing;
 
+  // Get lang and meta from the flag.
+  index = -1;
+  length = flag.length;
+
+  while (++index < length) {
+    character = flag.charAt(index);
+
+    if (character === space$1 || character === tab$1) {
+      if (!lang) {
+        lang = flag.slice(0, index);
+      }
+    } else if (lang) {
+      meta = flag.slice(index);
+      break
+    }
+  }
+
   return eat(subvalue)({
     type: 'code',
-    lang: flag || null,
+    lang: lang || flag || null,
+    meta: meta || null,
     value: trimTrailingLines_1(exdentedContent)
-  });
+  })
 }
 
 var trim_1 = createCommonjsModule(function (module, exports) {
@@ -23972,53 +24159,44 @@ var trim_3 = trim_1.right;
 var interrupt_1 = interrupt;
 
 function interrupt(interruptors, tokenizers, ctx, params) {
-  var bools = ['pedantic', 'commonmark'];
-  var count = bools.length;
   var length = interruptors.length;
   var index = -1;
   var interruptor;
   var config;
-  var fn;
-  var offset;
-  var bool;
-  var ignore;
 
   while (++index < length) {
     interruptor = interruptors[index];
     config = interruptor[1] || {};
-    fn = interruptor[0];
-    offset = -1;
-    ignore = false;
 
-    while (++offset < count) {
-      bool = bools[offset];
-
-      if (config[bool] !== undefined && config[bool] !== ctx.options[bool]) {
-        ignore = true;
-        break;
-      }
+    if (
+      config.pedantic !== undefined &&
+      config.pedantic !== ctx.options.pedantic
+    ) {
+      continue
     }
 
-    if (ignore) {
-      continue;
+    if (
+      config.commonmark !== undefined &&
+      config.commonmark !== ctx.options.commonmark
+    ) {
+      continue
     }
 
-    if (tokenizers[fn].apply(ctx, params)) {
-      return true;
+    if (tokenizers[interruptor[0]].apply(ctx, params)) {
+      return true
     }
   }
 
-  return false;
+  return false
 }
 
 var blockquote_1 = blockquote;
 
-var C_NEWLINE$3 = '\n';
-var C_TAB$2 = '\t';
-var C_SPACE$2 = ' ';
-var C_GT = '>';
+var lineFeed$4 = '\n';
+var tab$2 = '\t';
+var space$2 = ' ';
+var greaterThan = '>';
 
-/* Tokenise a blockquote. */
 function blockquote(eat, value, silent) {
   var self = this;
   var offsets = self.offset;
@@ -24044,25 +24222,25 @@ function blockquote(eat, value, silent) {
   while (index < length) {
     character = value.charAt(index);
 
-    if (character !== C_SPACE$2 && character !== C_TAB$2) {
-      break;
+    if (character !== space$2 && character !== tab$2) {
+      break
     }
 
     index++;
   }
 
-  if (value.charAt(index) !== C_GT) {
-    return;
+  if (value.charAt(index) !== greaterThan) {
+    return
   }
 
   if (silent) {
-    return true;
+    return true
   }
 
   index = 0;
 
   while (index < length) {
-    nextIndex = value.indexOf(C_NEWLINE$3, index);
+    nextIndex = value.indexOf(lineFeed$4, index);
     startIndex = index;
     prefixed = false;
 
@@ -24073,18 +24251,18 @@ function blockquote(eat, value, silent) {
     while (index < length) {
       character = value.charAt(index);
 
-      if (character !== C_SPACE$2 && character !== C_TAB$2) {
-        break;
+      if (character !== space$2 && character !== tab$2) {
+        break
       }
 
       index++;
     }
 
-    if (value.charAt(index) === C_GT) {
+    if (value.charAt(index) === greaterThan) {
       index++;
       prefixed = true;
 
-      if (value.charAt(index) === C_SPACE$2) {
+      if (value.charAt(index) === space$2) {
         index++;
       }
     } else {
@@ -24095,16 +24273,15 @@ function blockquote(eat, value, silent) {
 
     if (!prefixed && !trim_1(content)) {
       index = startIndex;
-      break;
+      break
     }
 
     if (!prefixed) {
       rest = value.slice(index);
 
-      /* Check if the following code contains a possible
-       * block. */
+      // Check if the following code contains a possible block.
       if (interrupt_1(interruptors, tokenizers, self, [eat, rest, true])) {
-        break;
+        break
       }
     }
 
@@ -24119,7 +24296,7 @@ function blockquote(eat, value, silent) {
 
   index = -1;
   length = indents.length;
-  add = eat(values.join(C_NEWLINE$3));
+  add = eat(values.join(lineFeed$4));
 
   while (++index < length) {
     offsets[currentLine] = (offsets[currentLine] || 0) + indents[index];
@@ -24127,27 +24304,24 @@ function blockquote(eat, value, silent) {
   }
 
   exit = self.enterBlock();
-  contents = self.tokenizeBlock(contents.join(C_NEWLINE$3), now);
+  contents = self.tokenizeBlock(contents.join(lineFeed$4), now);
   exit();
 
-  return add({
-    type: 'blockquote',
-    children: contents
-  });
+  return add({type: 'blockquote', children: contents})
 }
 
 var headingAtx = atxHeading;
 
-var C_NEWLINE$4 = '\n';
-var C_TAB$3 = '\t';
-var C_SPACE$3 = ' ';
-var C_HASH = '#';
+var lineFeed$5 = '\n';
+var tab$3 = '\t';
+var space$3 = ' ';
+var numberSign = '#';
 
-var MAX_ATX_COUNT = 6;
+var maxFenceCount = 6;
 
 function atxHeading(eat, value, silent) {
   var self = this;
-  var settings = self.options;
+  var pedantic = self.options.pedantic;
   var length = value.length + 1;
   var index = -1;
   var now = eat.now();
@@ -24157,75 +24331,67 @@ function atxHeading(eat, value, silent) {
   var queue;
   var depth;
 
-  /* Eat initial spacing. */
+  // Eat initial spacing.
   while (++index < length) {
     character = value.charAt(index);
 
-    if (character !== C_SPACE$3 && character !== C_TAB$3) {
+    if (character !== space$3 && character !== tab$3) {
       index--;
-      break;
+      break
     }
 
     subvalue += character;
   }
 
-  /* Eat hashes. */
+  // Eat hashes.
   depth = 0;
 
   while (++index <= length) {
     character = value.charAt(index);
 
-    if (character !== C_HASH) {
+    if (character !== numberSign) {
       index--;
-      break;
+      break
     }
 
     subvalue += character;
     depth++;
   }
 
-  if (depth > MAX_ATX_COUNT) {
-    return;
+  if (depth > maxFenceCount) {
+    return
   }
 
-  if (
-    !depth ||
-    (!settings.pedantic && value.charAt(index + 1) === C_HASH)
-  ) {
-    return;
+  if (!depth || (!pedantic && value.charAt(index + 1) === numberSign)) {
+    return
   }
 
   length = value.length + 1;
 
-  /* Eat intermediate white-space. */
+  // Eat intermediate white-space.
   queue = '';
 
   while (++index < length) {
     character = value.charAt(index);
 
-    if (character !== C_SPACE$3 && character !== C_TAB$3) {
+    if (character !== space$3 && character !== tab$3) {
       index--;
-      break;
+      break
     }
 
     queue += character;
   }
 
-  /* Exit when not in pedantic mode without spacing. */
-  if (
-    !settings.pedantic &&
-    queue.length === 0 &&
-    character &&
-    character !== C_NEWLINE$4
-  ) {
-    return;
+  // Exit when not in pedantic mode without spacing.
+  if (!pedantic && queue.length === 0 && character && character !== lineFeed$5) {
+    return
   }
 
   if (silent) {
-    return true;
+    return true
   }
 
-  /* Eat content. */
+  // Eat content.
   subvalue += queue;
   queue = '';
   content = '';
@@ -24233,31 +24399,33 @@ function atxHeading(eat, value, silent) {
   while (++index < length) {
     character = value.charAt(index);
 
-    if (!character || character === C_NEWLINE$4) {
-      break;
+    if (!character || character === lineFeed$5) {
+      break
     }
 
-    if (
-      character !== C_SPACE$3 &&
-      character !== C_TAB$3 &&
-      character !== C_HASH
-    ) {
+    if (character !== space$3 && character !== tab$3 && character !== numberSign) {
       content += queue + character;
       queue = '';
-      continue;
+      continue
     }
 
-    while (character === C_SPACE$3 || character === C_TAB$3) {
+    while (character === space$3 || character === tab$3) {
       queue += character;
       character = value.charAt(++index);
     }
 
-    while (character === C_HASH) {
+    // `#` without a queue is part of the content.
+    if (!pedantic && content && !queue && character === numberSign) {
+      content += character;
+      continue
+    }
+
+    while (character === numberSign) {
       queue += character;
       character = value.charAt(++index);
     }
 
-    while (character === C_SPACE$3 || character === C_TAB$3) {
+    while (character === space$3 || character === tab$3) {
       queue += character;
       character = value.charAt(++index);
     }
@@ -24273,19 +24441,19 @@ function atxHeading(eat, value, silent) {
     type: 'heading',
     depth: depth,
     children: self.tokenizeInline(content, now)
-  });
+  })
 }
 
 var thematicBreak_1 = thematicBreak;
 
-var C_NEWLINE$5 = '\n';
-var C_TAB$4 = '\t';
-var C_SPACE$4 = ' ';
-var C_ASTERISK = '*';
-var C_UNDERSCORE = '_';
-var C_DASH = '-';
+var tab$4 = '\t';
+var lineFeed$6 = '\n';
+var space$4 = ' ';
+var asterisk = '*';
+var dash$1 = '-';
+var underscore = '_';
 
-var THEMATIC_BREAK_MARKER_COUNT = 3;
+var maxCount = 3;
 
 function thematicBreak(eat, value, silent) {
   var index = -1;
@@ -24299,19 +24467,19 @@ function thematicBreak(eat, value, silent) {
   while (++index < length) {
     character = value.charAt(index);
 
-    if (character !== C_TAB$4 && character !== C_SPACE$4) {
-      break;
+    if (character !== tab$4 && character !== space$4) {
+      break
     }
 
     subvalue += character;
   }
 
   if (
-    character !== C_ASTERISK &&
-    character !== C_DASH &&
-    character !== C_UNDERSCORE
+    character !== asterisk &&
+    character !== dash$1 &&
+    character !== underscore
   ) {
-    return;
+    return
   }
 
   marker = character;
@@ -24326,32 +24494,34 @@ function thematicBreak(eat, value, silent) {
       markerCount++;
       subvalue += queue + marker;
       queue = '';
-    } else if (character === C_SPACE$4) {
+    } else if (character === space$4) {
       queue += character;
     } else if (
-      markerCount >= THEMATIC_BREAK_MARKER_COUNT &&
-      (!character || character === C_NEWLINE$5)
+      markerCount >= maxCount &&
+      (!character || character === lineFeed$6)
     ) {
       subvalue += queue;
 
       if (silent) {
-        return true;
+        return true
       }
 
-      return eat(subvalue)({type: 'thematicBreak'});
+      return eat(subvalue)({type: 'thematicBreak'})
     } else {
-      return;
+      return
     }
   }
 }
 
 var getIndentation = indentation;
 
-/* Map of characters, and their column length,
- * which can be used as indentation. */
-var characters = {' ': 1, '\t': 4};
+var tab$5 = '\t';
+var space$5 = ' ';
 
-/* Gets indentation information for a line. */
+var spaceSize = 1;
+var tabSize$2 = 4;
+
+// Gets indentation information for a line.
 function indentation(value) {
   var index = 0;
   var indent = 0;
@@ -24359,8 +24529,8 @@ function indentation(value) {
   var stops = {};
   var size;
 
-  while (character in characters) {
-    size = characters[character];
+  while (character === tab$5 || character === space$5) {
+    size = character === tab$5 ? tabSize$2 : spaceSize;
 
     indent += size;
 
@@ -24369,24 +24539,23 @@ function indentation(value) {
     }
 
     stops[indent] = index;
-
     character = value.charAt(++index);
   }
 
-  return {indent: indent, stops: stops};
+  return {indent: indent, stops: stops}
 }
 
 var removeIndentation = indentation$1;
 
-var C_SPACE$5 = ' ';
-var C_NEWLINE$6 = '\n';
-var C_TAB$5 = '\t';
+var tab$6 = '\t';
+var lineFeed$7 = '\n';
+var space$6 = ' ';
+var exclamationMark = '!';
 
-/* Remove the minimum indent from every line in `value`.
- * Supports both tab, spaced, and mixed indentation (as
- * well as possible). */
+// Remove the minimum indent from every line in `value`.  Supports both tab,
+// spaced, and mixed indentation (as well as possible).
 function indentation$1(value, maximum) {
-  var values = value.split(C_NEWLINE$6);
+  var values = value.split(lineFeed$7);
   var position = values.length + 1;
   var minIndent = Infinity;
   var matrix = [];
@@ -24395,7 +24564,7 @@ function indentation$1(value, maximum) {
   var stops;
   var padding;
 
-  values.unshift(repeatString(C_SPACE$5, maximum) + '!');
+  values.unshift(repeatString(space$6, maximum) + exclamationMark);
 
   while (position--) {
     indentation = getIndentation(values[position]);
@@ -24403,7 +24572,7 @@ function indentation$1(value, maximum) {
     matrix[position] = indentation.stops;
 
     if (trim_1(values[position]).length === 0) {
-      continue;
+      continue
     }
 
     if (indentation.indent) {
@@ -24413,7 +24582,7 @@ function indentation$1(value, maximum) {
     } else {
       minIndent = Infinity;
 
-      break;
+      break
     }
   }
 
@@ -24433,20 +24602,19 @@ function indentation$1(value, maximum) {
         minIndent &&
         index !== minIndent
       ) {
-        padding = C_TAB$5;
+        padding = tab$6;
       } else {
         padding = '';
       }
 
-      values[position] = padding + values[position].slice(
-        index in stops ? stops[index] + 1 : 0
-      );
+      values[position] =
+        padding + values[position].slice(index in stops ? stops[index] + 1 : 0);
     }
   }
 
   values.shift();
 
-  return values.join(C_NEWLINE$6);
+  return values.join(lineFeed$7)
 }
 
 /* eslint-disable max-params */
@@ -24460,44 +24628,23 @@ function indentation$1(value, maximum) {
 
 var list_1 = list;
 
-var C_ASTERISK$1 = '*';
-var C_UNDERSCORE$1 = '_';
-var C_PLUS = '+';
-var C_DASH$1 = '-';
-var C_DOT = '.';
-var C_SPACE$6 = ' ';
-var C_NEWLINE$7 = '\n';
-var C_TAB$6 = '\t';
-var C_PAREN_CLOSE = ')';
-var C_X_LOWER = 'x';
+var asterisk$1 = '*';
+var underscore$1 = '_';
+var plusSign = '+';
+var dash$2 = '-';
+var dot$1 = '.';
+var space$7 = ' ';
+var lineFeed$8 = '\n';
+var tab$7 = '\t';
+var rightParenthesis = ')';
+var lowercaseX = 'x';
 
-var TAB_SIZE = 4;
-var EXPRESSION_LOOSE_LIST_ITEM = /\n\n(?!\s*$)/;
-var EXPRESSION_TASK_ITEM = /^\[([ \t]|x|X)][ \t]/;
-var EXPRESSION_BULLET = /^([ \t]*)([*+-]|\d+[.)])( {1,4}(?! )| |\t|$|(?=\n))([^\n]*)/;
-var EXPRESSION_PEDANTIC_BULLET = /^([ \t]*)([*+-]|\d+[.)])([ \t]+)/;
-var EXPRESSION_INITIAL_INDENT = /^( {1,4}|\t)?/gm;
-
-/* Map of characters which can be used to mark
- * list-items. */
-var LIST_UNORDERED_MARKERS = {};
-
-LIST_UNORDERED_MARKERS[C_ASTERISK$1] = true;
-LIST_UNORDERED_MARKERS[C_PLUS] = true;
-LIST_UNORDERED_MARKERS[C_DASH$1] = true;
-
-/* Map of characters which can be used to mark
- * list-items after a digit. */
-var LIST_ORDERED_MARKERS = {};
-
-LIST_ORDERED_MARKERS[C_DOT] = true;
-
-/* Map of characters which can be used to mark
- * list-items after a digit. */
-var LIST_ORDERED_COMMONMARK_MARKERS = {};
-
-LIST_ORDERED_COMMONMARK_MARKERS[C_DOT] = true;
-LIST_ORDERED_COMMONMARK_MARKERS[C_PAREN_CLOSE] = true;
+var tabSize$3 = 4;
+var looseListItemExpression = /\n\n(?!\s*$)/;
+var taskItemExpression = /^\[([ \t]|x|X)][ \t]/;
+var bulletExpression = /^([ \t]*)([*+-]|\d+[.)])( {1,4}(?! )| |\t|$|(?=\n))([^\n]*)/;
+var pedanticBulletExpression = /^([ \t]*)([*+-]|\d+[.)])([ \t]+)/;
+var initialIndentExpression = /^( {1,4}|\t)?/gm;
 
 function list(eat, value, silent) {
   var self = this;
@@ -24505,7 +24652,6 @@ function list(eat, value, silent) {
   var pedantic = self.options.pedantic;
   var tokenizers = self.blockTokenizers;
   var interuptors = self.interruptList;
-  var markers;
   var index = 0;
   var length = value.length;
   var start = null;
@@ -24528,7 +24674,7 @@ function list(eat, value, silent) {
   var item;
   var enterTop;
   var exitBlockquote;
-  var isLoose;
+  var spread = false;
   var node;
   var now;
   var end;
@@ -24537,28 +24683,24 @@ function list(eat, value, silent) {
   while (index < length) {
     character = value.charAt(index);
 
-    if (character === C_TAB$6) {
-      size += TAB_SIZE - (size % TAB_SIZE);
-    } else if (character === C_SPACE$6) {
+    if (character === tab$7) {
+      size += tabSize$3 - (size % tabSize$3);
+    } else if (character === space$7) {
       size++;
     } else {
-      break;
+      break
     }
 
     index++;
   }
 
-  if (size >= TAB_SIZE) {
-    return;
+  if (size >= tabSize$3) {
+    return
   }
 
   character = value.charAt(index);
 
-  markers = commonmark ?
-    LIST_ORDERED_COMMONMARK_MARKERS :
-    LIST_ORDERED_MARKERS;
-
-  if (LIST_UNORDERED_MARKERS[character] === true) {
+  if (character === asterisk$1 || character === plusSign || character === dash$2) {
     marker = character;
     ordered = false;
   } else {
@@ -24569,7 +24711,7 @@ function list(eat, value, silent) {
       character = value.charAt(index);
 
       if (!isDecimal(character)) {
-        break;
+        break
       }
 
       queue += character;
@@ -24578,8 +24720,11 @@ function list(eat, value, silent) {
 
     character = value.charAt(index);
 
-    if (!queue || markers[character] !== true) {
-      return;
+    if (
+      !queue ||
+      !(character === dot$1 || (commonmark && character === rightParenthesis))
+    ) {
+      return
     }
 
     start = parseInt(queue, 10);
@@ -24588,12 +24733,16 @@ function list(eat, value, silent) {
 
   character = value.charAt(++index);
 
-  if (character !== C_SPACE$6 && character !== C_TAB$6) {
-    return;
+  if (
+    character !== space$7 &&
+    character !== tab$7 &&
+    (pedantic || (character !== lineFeed$8 && character !== ''))
+  ) {
+    return
   }
 
   if (silent) {
-    return true;
+    return true
   }
 
   index = 0;
@@ -24602,7 +24751,7 @@ function list(eat, value, silent) {
   emptyLines = [];
 
   while (index < length) {
-    nextIndex = value.indexOf(C_NEWLINE$7, index);
+    nextIndex = value.indexOf(lineFeed$8, index);
     startIndex = index;
     prefixed = false;
     indented = false;
@@ -24611,24 +24760,24 @@ function list(eat, value, silent) {
       nextIndex = length;
     }
 
-    end = index + TAB_SIZE;
+    end = index + tabSize$3;
     size = 0;
 
     while (index < length) {
       character = value.charAt(index);
 
-      if (character === C_TAB$6) {
-        size += TAB_SIZE - (size % TAB_SIZE);
-      } else if (character === C_SPACE$6) {
+      if (character === tab$7) {
+        size += tabSize$3 - (size % tabSize$3);
+      } else if (character === space$7) {
         size++;
       } else {
-        break;
+        break
       }
 
       index++;
     }
 
-    if (size >= TAB_SIZE) {
+    if (size >= tabSize$3) {
       indented = true;
     }
 
@@ -24640,7 +24789,11 @@ function list(eat, value, silent) {
     currentMarker = null;
 
     if (!indented) {
-      if (LIST_UNORDERED_MARKERS[character] === true) {
+      if (
+        character === asterisk$1 ||
+        character === plusSign ||
+        character === dash$2
+      ) {
         currentMarker = character;
         index++;
         size++;
@@ -24651,7 +24804,7 @@ function list(eat, value, silent) {
           character = value.charAt(index);
 
           if (!isDecimal(character)) {
-            break;
+            break
           }
 
           queue += character;
@@ -24661,7 +24814,10 @@ function list(eat, value, silent) {
         character = value.charAt(index);
         index++;
 
-        if (queue && markers[character] === true) {
+        if (
+          queue &&
+          (character === dot$1 || (commonmark && character === rightParenthesis))
+        ) {
           currentMarker = character;
           size += queue.length + 1;
         }
@@ -24670,26 +24826,26 @@ function list(eat, value, silent) {
       if (currentMarker) {
         character = value.charAt(index);
 
-        if (character === C_TAB$6) {
-          size += TAB_SIZE - (size % TAB_SIZE);
+        if (character === tab$7) {
+          size += tabSize$3 - (size % tabSize$3);
           index++;
-        } else if (character === C_SPACE$6) {
-          end = index + TAB_SIZE;
+        } else if (character === space$7) {
+          end = index + tabSize$3;
 
           while (index < end) {
-            if (value.charAt(index) !== C_SPACE$6) {
-              break;
+            if (value.charAt(index) !== space$7) {
+              break
             }
 
             index++;
             size++;
           }
 
-          if (index === end && value.charAt(index) === C_SPACE$6) {
-            index -= TAB_SIZE - 1;
-            size -= TAB_SIZE - 1;
+          if (index === end && value.charAt(index) === space$7) {
+            index -= tabSize$3 - 1;
+            size -= tabSize$3 - 1;
           }
-        } else if (character !== C_NEWLINE$7 && character !== '') {
+        } else if (character !== lineFeed$8 && character !== '') {
           currentMarker = null;
         }
       }
@@ -24697,15 +24853,15 @@ function list(eat, value, silent) {
 
     if (currentMarker) {
       if (!pedantic && marker !== currentMarker) {
-        break;
+        break
       }
 
       prefixed = true;
     } else {
-      if (!commonmark && !indented && value.charAt(startIndex) === C_SPACE$6) {
+      if (!commonmark && !indented && value.charAt(startIndex) === space$7) {
         indented = true;
       } else if (commonmark && item) {
-        indented = size >= item.indent || size > TAB_SIZE;
+        indented = size >= item.indent || size > tabSize$3;
       }
 
       prefixed = false;
@@ -24716,17 +24872,17 @@ function list(eat, value, silent) {
     content = startIndex === index ? line : value.slice(index, nextIndex);
 
     if (
-      currentMarker === C_ASTERISK$1 ||
-      currentMarker === C_UNDERSCORE$1 ||
-      currentMarker === C_DASH$1
+      currentMarker === asterisk$1 ||
+      currentMarker === underscore$1 ||
+      currentMarker === dash$2
     ) {
       if (tokenizers.thematicBreak.call(self, eat, line, true)) {
-        break;
+        break
       }
     }
 
     prevEmpty = empty;
-    empty = !trim_1(content).length;
+    empty = !prefixed && !trim_1(content).length;
 
     if (indented && item) {
       item.value = item.value.concat(emptyLines, line);
@@ -24734,6 +24890,7 @@ function list(eat, value, silent) {
       emptyLines = [];
     } else if (prefixed) {
       if (emptyLines.length !== 0) {
+        spread = true;
         item.value.push('');
         item.trail = emptyLines.concat();
       }
@@ -24748,18 +24905,18 @@ function list(eat, value, silent) {
       allLines = allLines.concat(emptyLines, line);
       emptyLines = [];
     } else if (empty) {
-      if (prevEmpty) {
-        break;
+      if (prevEmpty && !commonmark) {
+        break
       }
 
       emptyLines.push(line);
     } else {
       if (prevEmpty) {
-        break;
+        break
       }
 
       if (interrupt_1(interuptors, tokenizers, self, [eat, line, true])) {
-        break;
+        break
       }
 
       item.value = item.value.concat(emptyLines, line);
@@ -24770,34 +24927,29 @@ function list(eat, value, silent) {
     index = nextIndex + 1;
   }
 
-  node = eat(allLines.join(C_NEWLINE$7)).reset({
+  node = eat(allLines.join(lineFeed$8)).reset({
     type: 'list',
     ordered: ordered,
     start: start,
-    loose: null,
+    spread: spread,
     children: []
   });
 
   enterTop = self.enterList();
   exitBlockquote = self.enterBlock();
-  isLoose = false;
   index = -1;
   length = items.length;
 
   while (++index < length) {
-    item = items[index].value.join(C_NEWLINE$7);
+    item = items[index].value.join(lineFeed$8);
     now = eat.now();
 
-    item = eat(item)(listItem(self, item, now), node);
+    eat(item)(listItem(self, item, now), node);
 
-    if (item.loose) {
-      isLoose = true;
-    }
-
-    item = items[index].trail.join(C_NEWLINE$7);
+    item = items[index].trail.join(lineFeed$8);
 
     if (index !== length - 1) {
-      item += C_NEWLINE$7;
+      item += lineFeed$8;
     }
 
     eat(item);
@@ -24806,9 +24958,7 @@ function list(eat, value, silent) {
   enterTop();
   exitBlockquote();
 
-  node.loose = isLoose;
-
-  return node;
+  return node
 }
 
 function listItem(ctx, value, position) {
@@ -24821,11 +24971,11 @@ function listItem(ctx, value, position) {
   value = fn.apply(null, arguments);
 
   if (ctx.options.gfm) {
-    task = value.match(EXPRESSION_TASK_ITEM);
+    task = value.match(taskItemExpression);
 
     if (task) {
       indent = task[0].length;
-      checked = task[1].toLowerCase() === C_X_LOWER;
+      checked = task[1].toLowerCase() === lowercaseX;
       offsets[position.line] += indent;
       value = value.slice(indent);
     }
@@ -24833,38 +24983,36 @@ function listItem(ctx, value, position) {
 
   return {
     type: 'listItem',
-    loose: EXPRESSION_LOOSE_LIST_ITEM.test(value) ||
-      value.charAt(value.length - 1) === C_NEWLINE$7,
+    spread: looseListItemExpression.test(value),
     checked: checked,
     children: ctx.tokenizeBlock(value, position)
-  };
+  }
 }
 
-/* Create a list-item using overly simple mechanics. */
+// Create a list-item using overly simple mechanics.
 function pedanticListItem(ctx, value, position) {
   var offsets = ctx.offset;
   var line = position.line;
 
-  /* Remove the list-item’s bullet. */
-  value = value.replace(EXPRESSION_PEDANTIC_BULLET, replacer);
+  // Remove the list-item’s bullet.
+  value = value.replace(pedanticBulletExpression, replacer);
 
-  /* The initial line was also matched by the below, so
-   * we reset the `line`. */
+  // The initial line was also matched by the below, so we reset the `line`.
   line = position.line;
 
-  return value.replace(EXPRESSION_INITIAL_INDENT, replacer);
+  return value.replace(initialIndentExpression, replacer)
 
-  /* A simple replacer which removed all matches,
-   * and adds their length to `offset`. */
+  // A simple replacer which removed all matches, and adds their length to
+  // `offset`.
   function replacer($0) {
     offsets[line] = (offsets[line] || 0) + $0.length;
     line++;
 
-    return '';
+    return ''
   }
 }
 
-/* Create a list-item using sane mechanics. */
+// Create a list-item using sane mechanics.
 function normalListItem(ctx, value, position) {
   var offsets = ctx.offset;
   var line = position.line;
@@ -24876,19 +25024,17 @@ function normalListItem(ctx, value, position) {
   var index;
   var length;
 
-  /* Remove the list-item’s bullet. */
-  value = value.replace(EXPRESSION_BULLET, replacer);
+  // Remove the list-item’s bullet.
+  value = value.replace(bulletExpression, replacer);
 
-  lines = value.split(C_NEWLINE$7);
+  lines = value.split(lineFeed$8);
 
-  trimmedLines = removeIndentation(value, getIndentation(max).indent).split(C_NEWLINE$7);
+  trimmedLines = removeIndentation(value, getIndentation(max).indent).split(lineFeed$8);
 
-  /* We replaced the initial bullet with something
-   * else above, which was used to trick
-   * `removeIndentation` into removing some more
-   * characters when possible.  However, that could
-   * result in the initial line to be stripped more
-   * than it should be. */
+  // We replaced the initial bullet with something else above, which was used
+  // to trick `removeIndentation` into removing some more characters when
+  // possible.  However, that could result in the initial line to be stripped
+  // more than it should be.
   trimmedLines[0] = rest;
 
   offsets[line] = (offsets[line] || 0) + bullet.length;
@@ -24898,46 +25044,42 @@ function normalListItem(ctx, value, position) {
   length = lines.length;
 
   while (++index < length) {
-    offsets[line] = (offsets[line] || 0) +
-      lines[index].length - trimmedLines[index].length;
+    offsets[line] =
+      (offsets[line] || 0) + lines[index].length - trimmedLines[index].length;
     line++;
   }
 
-  return trimmedLines.join(C_NEWLINE$7);
+  return trimmedLines.join(lineFeed$8)
 
   function replacer($0, $1, $2, $3, $4) {
     bullet = $1 + $2 + $3;
     rest = $4;
 
-    /* Make sure that the first nine numbered list items
-     * can indent with an extra space.  That is, when
-     * the bullet did not receive an extra final space. */
+    // Make sure that the first nine numbered list items can indent with an
+    // extra space.  That is, when the bullet did not receive an extra final
+    // space.
     if (Number($2) < 10 && bullet.length % 2 === 1) {
-      $2 = C_SPACE$6 + $2;
+      $2 = space$7 + $2;
     }
 
-    max = $1 + repeatString(C_SPACE$6, $2.length) + $3;
+    max = $1 + repeatString(space$7, $2.length) + $3;
 
-    return max + rest;
+    return max + rest
   }
 }
 
 var headingSetext = setextHeading;
 
-var C_NEWLINE$8 = '\n';
-var C_TAB$7 = '\t';
-var C_SPACE$7 = ' ';
-var C_EQUALS = '=';
-var C_DASH$2 = '-';
+var lineFeed$9 = '\n';
+var tab$8 = '\t';
+var space$8 = ' ';
+var equalsTo = '=';
+var dash$3 = '-';
 
-var MAX_HEADING_INDENT = 3;
+var maxIndent = 3;
 
-/* Map of characters which can be used to mark setext
- * headers, mapping to their corresponding depth. */
-var SETEXT_MARKERS = {};
-
-SETEXT_MARKERS[C_EQUALS] = 1;
-SETEXT_MARKERS[C_DASH$2] = 2;
+var equalsToDepth = 1;
+var dashDepth = 2;
 
 function setextHeading(eat, value, silent) {
   var self = this;
@@ -24951,31 +25093,31 @@ function setextHeading(eat, value, silent) {
   var marker;
   var depth;
 
-  /* Eat initial indentation. */
+  // Eat initial indentation.
   while (++index < length) {
     character = value.charAt(index);
 
-    if (character !== C_SPACE$7 || index >= MAX_HEADING_INDENT) {
+    if (character !== space$8 || index >= maxIndent) {
       index--;
-      break;
+      break
     }
 
     subvalue += character;
   }
 
-  /* Eat content. */
+  // Eat content.
   content = '';
   queue = '';
 
   while (++index < length) {
     character = value.charAt(index);
 
-    if (character === C_NEWLINE$8) {
+    if (character === lineFeed$9) {
       index--;
-      break;
+      break
     }
 
-    if (character === C_SPACE$7 || character === C_TAB$7) {
+    if (character === space$8 || character === tab$8) {
       queue += character;
     } else {
       content += queue + character;
@@ -24987,53 +25129,54 @@ function setextHeading(eat, value, silent) {
   now.offset += subvalue.length;
   subvalue += content + queue;
 
-  /* Ensure the content is followed by a newline and a
-   * valid marker. */
+  // Ensure the content is followed by a newline and a valid marker.
   character = value.charAt(++index);
   marker = value.charAt(++index);
 
-  if (character !== C_NEWLINE$8 || !SETEXT_MARKERS[marker]) {
-    return;
+  if (character !== lineFeed$9 || (marker !== equalsTo && marker !== dash$3)) {
+    return
   }
 
   subvalue += character;
 
-  /* Eat Setext-line. */
+  // Eat Setext-line.
   queue = marker;
-  depth = SETEXT_MARKERS[marker];
+  depth = marker === equalsTo ? equalsToDepth : dashDepth;
 
   while (++index < length) {
     character = value.charAt(index);
 
     if (character !== marker) {
-      if (character !== C_NEWLINE$8) {
-        return;
+      if (character !== lineFeed$9) {
+        return
       }
 
       index--;
-      break;
+      break
     }
 
     queue += character;
   }
 
   if (silent) {
-    return true;
+    return true
   }
 
   return eat(subvalue + queue)({
     type: 'heading',
     depth: depth,
     children: self.tokenizeInline(content, now)
-  });
+  })
 }
 
 var attributeName = '[a-zA-Z_:][a-zA-Z0-9:._-]*';
 var unquoted = '[^"\'=<>`\\u0000-\\u0020]+';
-var singleQuoted = '\'[^\']*\'';
+var singleQuoted = "'[^']*'";
 var doubleQuoted = '"[^"]*"';
-var attributeValue = '(?:' + unquoted + '|' + singleQuoted + '|' + doubleQuoted + ')';
-var attribute = '(?:\\s+' + attributeName + '(?:\\s*=\\s*' + attributeValue + ')?)';
+var attributeValue =
+  '(?:' + unquoted + '|' + singleQuoted + '|' + doubleQuoted + ')';
+var attribute =
+  '(?:\\s+' + attributeName + '(?:\\s*=\\s*' + attributeValue + ')?)';
 var openTag = '<[A-Za-z][A-Za-z0-9\\-]*' + attribute + '*\\s*\\/?>';
 var closeTag = '<\\/[A-Za-z][A-Za-z0-9\\-]*\\s*>';
 var comment = '<!---->|<!--(?:-?[^>-])(?:-?[^-])*-->';
@@ -25043,14 +25186,21 @@ var cdata = '<!\\[CDATA\\[[\\s\\S]*?\\]\\]>';
 
 var openCloseTag = new RegExp('^(?:' + openTag + '|' + closeTag + ')');
 
-var tag = new RegExp('^(?:' +
-  openTag + '|' +
-  closeTag + '|' +
-  comment + '|' +
-  processing + '|' +
-  declaration + '|' +
-  cdata +
-')');
+var tag = new RegExp(
+  '^(?:' +
+    openTag +
+    '|' +
+    closeTag +
+    '|' +
+    comment +
+    '|' +
+    processing +
+    '|' +
+    declaration +
+    '|' +
+    cdata +
+    ')'
+);
 
 var html = {
 	openCloseTag: openCloseTag,
@@ -25059,16 +25209,33 @@ var html = {
 
 var openCloseTag$1 = html.openCloseTag;
 
-var htmlBlock = blockHTML;
+var htmlBlock = blockHtml;
 
-var C_TAB$8 = '\t';
-var C_SPACE$8 = ' ';
-var C_NEWLINE$9 = '\n';
-var C_LT = '<';
+var tab$9 = '\t';
+var space$9 = ' ';
+var lineFeed$10 = '\n';
+var lessThan = '<';
 
-function blockHTML(eat, value, silent) {
+var rawOpenExpression = /^<(script|pre|style)(?=(\s|>|$))/i;
+var rawCloseExpression = /<\/(script|pre|style)>/i;
+var commentOpenExpression = /^<!--/;
+var commentCloseExpression = /-->/;
+var instructionOpenExpression = /^<\?/;
+var instructionCloseExpression = /\?>/;
+var directiveOpenExpression = /^<![A-Za-z]/;
+var directiveCloseExpression = />/;
+var cdataOpenExpression = /^<!\[CDATA\[/;
+var cdataCloseExpression = /\]\]>/;
+var elementCloseExpression = /^$/;
+var otherElementOpenExpression = new RegExp(openCloseTag$1.source + '\\s*$');
+
+function blockHtml(eat, value, silent) {
   var self = this;
-  var blocks = self.options.blocks;
+  var blocks = self.options.blocks.join('|');
+  var elementOpenExpression = new RegExp(
+    '^</?(' + blocks + ')(?=(\\s|/?>|$))',
+    'i'
+  );
   var length = value.length;
   var index = 0;
   var next;
@@ -25080,31 +25247,31 @@ function blockHTML(eat, value, silent) {
   var subvalue;
 
   var sequences = [
-    [/^<(script|pre|style)(?=(\s|>|$))/i, /<\/(script|pre|style)>/i, true],
-    [/^<!--/, /-->/, true],
-    [/^<\?/, /\?>/, true],
-    [/^<![A-Za-z]/, />/, true],
-    [/^<!\[CDATA\[/, /\]\]>/, true],
-    [new RegExp('^</?(' + blocks.join('|') + ')(?=(\\s|/?>|$))', 'i'), /^$/, true],
-    [new RegExp(openCloseTag$1.source + '\\s*$'), /^$/, false]
+    [rawOpenExpression, rawCloseExpression, true],
+    [commentOpenExpression, commentCloseExpression, true],
+    [instructionOpenExpression, instructionCloseExpression, true],
+    [directiveOpenExpression, directiveCloseExpression, true],
+    [cdataOpenExpression, cdataCloseExpression, true],
+    [elementOpenExpression, elementCloseExpression, true],
+    [otherElementOpenExpression, elementCloseExpression, false]
   ];
 
-  /* Eat initial spacing. */
+  // Eat initial spacing.
   while (index < length) {
     character = value.charAt(index);
 
-    if (character !== C_TAB$8 && character !== C_SPACE$8) {
-      break;
+    if (character !== tab$9 && character !== space$9) {
+      break
     }
 
     index++;
   }
 
-  if (value.charAt(index) !== C_LT) {
-    return;
+  if (value.charAt(index) !== lessThan) {
+    return
   }
 
-  next = value.indexOf(C_NEWLINE$9, index + 1);
+  next = value.indexOf(lineFeed$10, index + 1);
   next = next === -1 ? length : next;
   line = value.slice(index, next);
   offset = -1;
@@ -25113,23 +25280,23 @@ function blockHTML(eat, value, silent) {
   while (++offset < count) {
     if (sequences[offset][0].test(line)) {
       sequence = sequences[offset];
-      break;
+      break
     }
   }
 
   if (!sequence) {
-    return;
+    return
   }
 
   if (silent) {
-    return sequence[2];
+    return sequence[2]
   }
 
   index = next;
 
   if (!sequence[1].test(line)) {
     while (index < length) {
-      next = value.indexOf(C_NEWLINE$9, index + 1);
+      next = value.indexOf(lineFeed$10, index + 1);
       next = next === -1 ? length : next;
       line = value.slice(index + 1, next);
 
@@ -25138,7 +25305,7 @@ function blockHTML(eat, value, silent) {
           index = next;
         }
 
-        break;
+        break
       }
 
       index = next;
@@ -25147,7 +25314,7 @@ function blockHTML(eat, value, silent) {
 
   subvalue = value.slice(0, index);
 
-  return eat(subvalue)({type: 'html', value: subvalue});
+  return eat(subvalue)({type: 'html', value: subvalue})
 }
 
 var collapseWhiteSpace = collapse;
@@ -25159,24 +25326,24 @@ function collapse(value) {
 
 var normalize_1 = normalize$2;
 
-/* Normalize an identifier.  Collapses multiple white space
- * characters into a single space, and removes casing. */
+// Normalize an identifier.  Collapses multiple white space characters into a
+// single space, and removes casing.
 function normalize$2(value) {
-  return collapseWhiteSpace(value).toLowerCase();
+  return collapseWhiteSpace(value).toLowerCase()
 }
 
 var footnoteDefinition_1 = footnoteDefinition;
 footnoteDefinition.notInList = true;
 footnoteDefinition.notInBlock = true;
 
-var C_BACKSLASH = '\\';
-var C_NEWLINE$10 = '\n';
-var C_TAB$9 = '\t';
-var C_SPACE$9 = ' ';
-var C_BRACKET_OPEN = '[';
-var C_BRACKET_CLOSE = ']';
-var C_CARET = '^';
-var C_COLON = ':';
+var backslash$1 = '\\';
+var lineFeed$11 = '\n';
+var tab$10 = '\t';
+var space$10 = ' ';
+var leftSquareBracket = '[';
+var rightSquareBracket = ']';
+var caret$1 = '^';
+var colon$1 = ':';
 
 var EXPRESSION_INITIAL_TAB = /^( {4}|\t)?/gm;
 
@@ -25197,7 +25364,7 @@ function footnoteDefinition(eat, value, silent) {
   var exit;
 
   if (!self.options.footnotes) {
-    return;
+    return
   }
 
   index = 0;
@@ -25210,7 +25377,7 @@ function footnoteDefinition(eat, value, silent) {
     character = value.charAt(index);
 
     if (!isWhitespaceCharacter(character)) {
-      break;
+      break
     }
 
     subvalue += character;
@@ -25218,22 +25385,22 @@ function footnoteDefinition(eat, value, silent) {
   }
 
   if (
-    value.charAt(index) !== C_BRACKET_OPEN ||
-    value.charAt(index + 1) !== C_CARET
+    value.charAt(index) !== leftSquareBracket ||
+    value.charAt(index + 1) !== caret$1
   ) {
-    return;
+    return
   }
 
-  subvalue += C_BRACKET_OPEN + C_CARET;
+  subvalue += leftSquareBracket + caret$1;
   index = subvalue.length;
   queue = '';
 
   while (index < length) {
     character = value.charAt(index);
 
-    if (character === C_BRACKET_CLOSE) {
-      break;
-    } else if (character === C_BACKSLASH) {
+    if (character === rightSquareBracket) {
+      break
+    } else if (character === backslash$1) {
       queue += character;
       index++;
       character = value.charAt(index);
@@ -25245,25 +25412,25 @@ function footnoteDefinition(eat, value, silent) {
 
   if (
     !queue ||
-    value.charAt(index) !== C_BRACKET_CLOSE ||
-    value.charAt(index + 1) !== C_COLON
+    value.charAt(index) !== rightSquareBracket ||
+    value.charAt(index + 1) !== colon$1
   ) {
-    return;
+    return
   }
 
   if (silent) {
-    return true;
+    return true
   }
 
-  identifier = normalize_1(queue);
-  subvalue += queue + C_BRACKET_CLOSE + C_COLON;
+  identifier = queue;
+  subvalue += queue + rightSquareBracket + colon$1;
   index = subvalue.length;
 
   while (index < length) {
     character = value.charAt(index);
 
-    if (character !== C_TAB$9 && character !== C_SPACE$9) {
-      break;
+    if (character !== tab$10 && character !== space$10) {
+      break
     }
 
     subvalue += character;
@@ -25279,15 +25446,15 @@ function footnoteDefinition(eat, value, silent) {
   while (index < length) {
     character = value.charAt(index);
 
-    if (character === C_NEWLINE$10) {
+    if (character === lineFeed$11) {
       subqueue = character;
       index++;
 
       while (index < length) {
         character = value.charAt(index);
 
-        if (character !== C_NEWLINE$10) {
-          break;
+        if (character !== lineFeed$11) {
+          break
         }
 
         subqueue += character;
@@ -25300,8 +25467,8 @@ function footnoteDefinition(eat, value, silent) {
       while (index < length) {
         character = value.charAt(index);
 
-        if (character !== C_SPACE$9) {
-          break;
+        if (character !== space$10) {
+          break
         }
 
         subqueue += character;
@@ -25309,7 +25476,7 @@ function footnoteDefinition(eat, value, silent) {
       }
 
       if (subqueue.length === 0) {
-        break;
+        break
       }
 
       queue += subqueue;
@@ -25326,11 +25493,11 @@ function footnoteDefinition(eat, value, silent) {
 
   subvalue += content;
 
-  content = content.replace(EXPRESSION_INITIAL_TAB, function (line) {
+  content = content.replace(EXPRESSION_INITIAL_TAB, function(line) {
     offsets[currentLine] = (offsets[currentLine] || 0) + line.length;
     currentLine++;
 
-    return '';
+    return ''
   });
 
   add = eat(subvalue);
@@ -25341,28 +25508,29 @@ function footnoteDefinition(eat, value, silent) {
 
   return add({
     type: 'footnoteDefinition',
-    identifier: identifier,
+    identifier: normalize_1(identifier),
+    label: identifier,
     children: content
-  });
+  })
 }
 
 var definition_1 = definition;
 definition.notInList = true;
 definition.notInBlock = true;
 
-var C_DOUBLE_QUOTE = '"';
-var C_SINGLE_QUOTE = '\'';
-var C_BACKSLASH$1 = '\\';
-var C_NEWLINE$11 = '\n';
-var C_TAB$10 = '\t';
-var C_SPACE$10 = ' ';
-var C_BRACKET_OPEN$1 = '[';
-var C_BRACKET_CLOSE$1 = ']';
-var C_PAREN_OPEN = '(';
-var C_PAREN_CLOSE$1 = ')';
-var C_COLON$1 = ':';
-var C_LT$1 = '<';
-var C_GT$1 = '>';
+var quotationMark = '"';
+var apostrophe = "'";
+var backslash$2 = '\\';
+var lineFeed$12 = '\n';
+var tab$11 = '\t';
+var space$11 = ' ';
+var leftSquareBracket$1 = '[';
+var rightSquareBracket$1 = ']';
+var leftParenthesis = '(';
+var rightParenthesis$1 = ')';
+var colon$2 = ':';
+var lessThan$1 = '<';
+var greaterThan$1 = '>';
 
 function definition(eat, value, silent) {
   var self = this;
@@ -25382,8 +25550,8 @@ function definition(eat, value, silent) {
   while (index < length) {
     character = value.charAt(index);
 
-    if (character !== C_SPACE$10 && character !== C_TAB$10) {
-      break;
+    if (character !== space$11 && character !== tab$11) {
+      break
     }
 
     subvalue += character;
@@ -25392,8 +25560,8 @@ function definition(eat, value, silent) {
 
   character = value.charAt(index);
 
-  if (character !== C_BRACKET_OPEN$1) {
-    return;
+  if (character !== leftSquareBracket$1) {
+    return
   }
 
   index++;
@@ -25403,9 +25571,9 @@ function definition(eat, value, silent) {
   while (index < length) {
     character = value.charAt(index);
 
-    if (character === C_BRACKET_CLOSE$1) {
-      break;
-    } else if (character === C_BACKSLASH$1) {
+    if (character === rightSquareBracket$1) {
+      break
+    } else if (character === backslash$2) {
       queue += character;
       index++;
       character = value.charAt(index);
@@ -25417,26 +25585,22 @@ function definition(eat, value, silent) {
 
   if (
     !queue ||
-    value.charAt(index) !== C_BRACKET_CLOSE$1 ||
-    value.charAt(index + 1) !== C_COLON$1
+    value.charAt(index) !== rightSquareBracket$1 ||
+    value.charAt(index + 1) !== colon$2
   ) {
-    return;
+    return
   }
 
   identifier = queue;
-  subvalue += queue + C_BRACKET_CLOSE$1 + C_COLON$1;
+  subvalue += queue + rightSquareBracket$1 + colon$2;
   index = subvalue.length;
   queue = '';
 
   while (index < length) {
     character = value.charAt(index);
 
-    if (
-      character !== C_TAB$10 &&
-      character !== C_SPACE$10 &&
-      character !== C_NEWLINE$11
-    ) {
-      break;
+    if (character !== tab$11 && character !== space$11 && character !== lineFeed$12) {
+      break
     }
 
     subvalue += character;
@@ -25447,14 +25611,14 @@ function definition(eat, value, silent) {
   queue = '';
   beforeURL = subvalue;
 
-  if (character === C_LT$1) {
+  if (character === lessThan$1) {
     index++;
 
     while (index < length) {
       character = value.charAt(index);
 
       if (!isEnclosedURLCharacter(character)) {
-        break;
+        break
       }
 
       queue += character;
@@ -25464,11 +25628,11 @@ function definition(eat, value, silent) {
     character = value.charAt(index);
 
     if (character === isEnclosedURLCharacter.delimiter) {
-      subvalue += C_LT$1 + queue + character;
+      subvalue += lessThan$1 + queue + character;
       index++;
     } else {
       if (commonmark) {
-        return;
+        return
       }
 
       index -= queue.length + 1;
@@ -25481,7 +25645,7 @@ function definition(eat, value, silent) {
       character = value.charAt(index);
 
       if (!isUnclosedURLCharacter(character)) {
-        break;
+        break
       }
 
       queue += character;
@@ -25492,7 +25656,7 @@ function definition(eat, value, silent) {
   }
 
   if (!queue) {
-    return;
+    return
   }
 
   url = queue;
@@ -25501,12 +25665,8 @@ function definition(eat, value, silent) {
   while (index < length) {
     character = value.charAt(index);
 
-    if (
-      character !== C_TAB$10 &&
-      character !== C_SPACE$10 &&
-      character !== C_NEWLINE$11
-    ) {
-      break;
+    if (character !== tab$11 && character !== space$11 && character !== lineFeed$12) {
+      break
     }
 
     queue += character;
@@ -25516,12 +25676,12 @@ function definition(eat, value, silent) {
   character = value.charAt(index);
   test = null;
 
-  if (character === C_DOUBLE_QUOTE) {
-    test = C_DOUBLE_QUOTE;
-  } else if (character === C_SINGLE_QUOTE) {
-    test = C_SINGLE_QUOTE;
-  } else if (character === C_PAREN_OPEN) {
-    test = C_PAREN_CLOSE$1;
+  if (character === quotationMark) {
+    test = quotationMark;
+  } else if (character === apostrophe) {
+    test = apostrophe;
+  } else if (character === leftParenthesis) {
+    test = rightParenthesis$1;
   }
 
   if (!test) {
@@ -25536,18 +25696,18 @@ function definition(eat, value, silent) {
       character = value.charAt(index);
 
       if (character === test) {
-        break;
+        break
       }
 
-      if (character === C_NEWLINE$11) {
+      if (character === lineFeed$12) {
         index++;
         character = value.charAt(index);
 
-        if (character === C_NEWLINE$11 || character === test) {
-          return;
+        if (character === lineFeed$12 || character === test) {
+          return
         }
 
-        queue += C_NEWLINE$11;
+        queue += lineFeed$12;
       }
 
       queue += character;
@@ -25557,7 +25717,7 @@ function definition(eat, value, silent) {
     character = value.charAt(index);
 
     if (character !== test) {
-      return;
+      return
     }
 
     beforeTitle = subvalue;
@@ -25566,14 +25726,14 @@ function definition(eat, value, silent) {
     title = queue;
     queue = '';
   } else {
-    return;
+    return
   }
 
   while (index < length) {
     character = value.charAt(index);
 
-    if (character !== C_TAB$10 && character !== C_SPACE$10) {
-      break;
+    if (character !== tab$11 && character !== space$11) {
+      break
     }
 
     subvalue += character;
@@ -25582,13 +25742,13 @@ function definition(eat, value, silent) {
 
   character = value.charAt(index);
 
-  if (!character || character === C_NEWLINE$11) {
+  if (!character || character === lineFeed$12) {
     if (silent) {
-      return true;
+      return true
     }
 
     beforeURL = eat(beforeURL).test().end;
-    url = self.decode.raw(self.unescape(url), beforeURL);
+    url = self.decode.raw(self.unescape(url), beforeURL, {nonTerminated: false});
 
     if (title) {
       beforeTitle = eat(beforeTitle).test().end;
@@ -25598,46 +25758,50 @@ function definition(eat, value, silent) {
     return eat(subvalue)({
       type: 'definition',
       identifier: normalize_1(identifier),
+      label: identifier,
       title: title || null,
       url: url
-    });
+    })
   }
 }
 
-/* Check if `character` can be inside an enclosed URI. */
+// Check if `character` can be inside an enclosed URI.
 function isEnclosedURLCharacter(character) {
-  return character !== C_GT$1 &&
-    character !== C_BRACKET_OPEN$1 &&
-    character !== C_BRACKET_CLOSE$1;
+  return (
+    character !== greaterThan$1 &&
+    character !== leftSquareBracket$1 &&
+    character !== rightSquareBracket$1
+  )
 }
 
-isEnclosedURLCharacter.delimiter = C_GT$1;
+isEnclosedURLCharacter.delimiter = greaterThan$1;
 
-/* Check if `character` can be inside an unclosed URI. */
+// Check if `character` can be inside an unclosed URI.
 function isUnclosedURLCharacter(character) {
-  return character !== C_BRACKET_OPEN$1 &&
-    character !== C_BRACKET_CLOSE$1 &&
-    !isWhitespaceCharacter(character);
+  return (
+    character !== leftSquareBracket$1 &&
+    character !== rightSquareBracket$1 &&
+    !isWhitespaceCharacter(character)
+  )
 }
 
 var table_1 = table$1;
 
-var C_BACKSLASH$2 = '\\';
-var C_TICK$1 = '`';
-var C_DASH$3 = '-';
-var C_PIPE = '|';
-var C_COLON$2 = ':';
-var C_SPACE$11 = ' ';
-var C_NEWLINE$12 = '\n';
-var C_TAB$11 = '\t';
+var tab$12 = '\t';
+var lineFeed$13 = '\n';
+var space$12 = ' ';
+var dash$4 = '-';
+var colon$3 = ':';
+var backslash$3 = '\\';
+var graveAccent$1 = '`';
+var verticalBar = '|';
 
-var MIN_TABLE_COLUMNS = 1;
-var MIN_TABLE_ROWS = 2;
+var minColumns = 1;
+var minRows = 2;
 
-var TABLE_ALIGN_LEFT = 'left';
-var TABLE_ALIGN_CENTER = 'center';
-var TABLE_ALIGN_RIGHT = 'right';
-var TABLE_ALIGN_NONE = null;
+var left = 'left';
+var center = 'center';
+var right = 'right';
 
 function table$1(eat, value, silent) {
   var self = this;
@@ -25666,35 +25830,34 @@ function table$1(eat, value, silent) {
   var pipeIndex;
   var first;
 
-  /* Exit when not in gfm-mode. */
+  // Exit when not in gfm-mode.
   if (!self.options.gfm) {
-    return;
+    return
   }
 
-  /* Get the rows.
-   * Detecting tables soon is hard, so there are some
-   * checks for performance here, such as the minimum
-   * number of rows, and allowed characters in the
-   * alignment row. */
+  // Get the rows.
+  // Detecting tables soon is hard, so there are some checks for performance
+  // here, such as the minimum number of rows, and allowed characters in the
+  // alignment row.
   index = 0;
   lineCount = 0;
   length = value.length + 1;
   lines = [];
 
   while (index < length) {
-    lineIndex = value.indexOf(C_NEWLINE$12, index);
-    pipeIndex = value.indexOf(C_PIPE, index + 1);
+    lineIndex = value.indexOf(lineFeed$13, index);
+    pipeIndex = value.indexOf(verticalBar, index + 1);
 
     if (lineIndex === -1) {
       lineIndex = value.length;
     }
 
     if (pipeIndex === -1 || pipeIndex > lineIndex) {
-      if (lineCount < MIN_TABLE_ROWS) {
-        return;
+      if (lineCount < minRows) {
+        return
       }
 
-      break;
+      break
     }
 
     lines.push(value.slice(index, lineIndex));
@@ -25702,8 +25865,8 @@ function table$1(eat, value, silent) {
     index = lineIndex + 1;
   }
 
-  /* Parse the alignment row. */
-  subvalue = lines.join(C_NEWLINE$12);
+  // Parse the alignment row.
+  subvalue = lines.join(lineFeed$13);
   alignments = lines.splice(1, 1)[0] || [];
   index = 0;
   length = alignments.length;
@@ -25714,12 +25877,12 @@ function table$1(eat, value, silent) {
   while (index < length) {
     character = alignments.charAt(index);
 
-    if (character === C_PIPE) {
+    if (character === verticalBar) {
       hasDash = null;
 
       if (alignment === false) {
         if (first === false) {
-          return;
+          return
         }
       } else {
         align.push(alignment);
@@ -25727,19 +25890,19 @@ function table$1(eat, value, silent) {
       }
 
       first = false;
-    } else if (character === C_DASH$3) {
+    } else if (character === dash$4) {
       hasDash = true;
-      alignment = alignment || TABLE_ALIGN_NONE;
-    } else if (character === C_COLON$2) {
-      if (alignment === TABLE_ALIGN_LEFT) {
-        alignment = TABLE_ALIGN_CENTER;
-      } else if (hasDash && alignment === TABLE_ALIGN_NONE) {
-        alignment = TABLE_ALIGN_RIGHT;
+      alignment = alignment || null;
+    } else if (character === colon$3) {
+      if (alignment === left) {
+        alignment = center;
+      } else if (hasDash && alignment === null) {
+        alignment = right;
       } else {
-        alignment = TABLE_ALIGN_LEFT;
+        alignment = left;
       }
     } else if (!isWhitespaceCharacter(character)) {
-      return;
+      return
     }
 
     index++;
@@ -25749,37 +25912,32 @@ function table$1(eat, value, silent) {
     align.push(alignment);
   }
 
-  /* Exit when without enough columns. */
-  if (align.length < MIN_TABLE_COLUMNS) {
-    return;
+  // Exit when without enough columns.
+  if (align.length < minColumns) {
+    return
   }
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
-  /* Parse the rows. */
+  // Parse the rows.
   position = -1;
   rows = [];
 
-  table = eat(subvalue).reset({
-    type: 'table',
-    align: align,
-    children: rows
-  });
+  table = eat(subvalue).reset({type: 'table', align: align, children: rows});
 
   while (++position < lineCount) {
     line = lines[position];
     row = {type: 'tableRow', children: []};
 
-    /* Eat a newline character when this is not the
-     * first row. */
+    // Eat a newline character when this is not the first row.
     if (position) {
-      eat(C_NEWLINE$12);
+      eat(lineFeed$13);
     }
 
-    /* Eat the row. */
+    // Eat the row.
     eat(line).reset(row, table);
 
     length = line.length + 1;
@@ -25793,7 +25951,7 @@ function table$1(eat, value, silent) {
     while (index < length) {
       character = line.charAt(index);
 
-      if (character === C_TAB$11 || character === C_SPACE$11) {
+      if (character === tab$12 || character === space$12) {
         if (cell) {
           queue += character;
         } else {
@@ -25801,17 +25959,17 @@ function table$1(eat, value, silent) {
         }
 
         index++;
-        continue;
+        continue
       }
 
-      if (character === '' || character === C_PIPE) {
+      if (character === '' || character === verticalBar) {
         if (preamble) {
           eat(character);
         } else {
           if (character && opening) {
             queue += character;
             index++;
-            continue;
+            continue
           }
 
           if ((cell || character) && !preamble) {
@@ -25829,10 +25987,10 @@ function table$1(eat, value, silent) {
 
             now = eat.now();
 
-            eat(subvalue)({
-              type: 'tableCell',
-              children: self.tokenizeInline(cell, now)
-            }, row);
+            eat(subvalue)(
+              {type: 'tableCell', children: self.tokenizeInline(cell, now)},
+              row
+            );
           }
 
           eat(queue + character);
@@ -25848,12 +26006,12 @@ function table$1(eat, value, silent) {
 
         cell += character;
 
-        if (character === C_BACKSLASH$2 && index !== length - 2) {
+        if (character === backslash$3 && index !== length - 2) {
           cell += line.charAt(index + 1);
           index++;
         }
 
-        if (character === C_TICK$1) {
+        if (character === graveAccent$1) {
           count = 1;
 
           while (line.charAt(index + 1) === character) {
@@ -25874,24 +26032,24 @@ function table$1(eat, value, silent) {
       index++;
     }
 
-    /* Eat the alignment row. */
+    // Eat the alignment row.
     if (!position) {
-      eat(C_NEWLINE$12 + alignments);
+      eat(lineFeed$13 + alignments);
     }
   }
 
-  return table;
+  return table
 }
 
 var paragraph_1 = paragraph;
 
-var C_NEWLINE$13 = '\n';
-var C_TAB$12 = '\t';
-var C_SPACE$12 = ' ';
+var tab$13 = '\t';
+var lineFeed$14 = '\n';
+var space$13 = ' ';
 
-var TAB_SIZE$1 = 4;
+var tabSize$4 = 4;
 
-/* Tokenise paragraph. */
+// Tokenise paragraph.
 function paragraph(eat, value, silent) {
   var self = this;
   var settings = self.options;
@@ -25899,7 +26057,7 @@ function paragraph(eat, value, silent) {
   var gfm = settings.gfm;
   var tokenizers = self.blockTokenizers;
   var interruptors = self.interruptParagraph;
-  var index = value.indexOf(C_NEWLINE$13);
+  var index = value.indexOf(lineFeed$14);
   var length = value.length;
   var position;
   var subvalue;
@@ -25908,19 +26066,18 @@ function paragraph(eat, value, silent) {
   var now;
 
   while (index < length) {
-    /* Eat everything if there’s no following newline. */
+    // Eat everything if there’s no following newline.
     if (index === -1) {
       index = length;
-      break;
+      break
     }
 
-    /* Stop if the next character is NEWLINE. */
-    if (value.charAt(index + 1) === C_NEWLINE$13) {
-      break;
+    // Stop if the next character is NEWLINE.
+    if (value.charAt(index + 1) === lineFeed$14) {
+      break
     }
 
-    /* In commonmark-mode, following indented lines
-     * are part of the paragraph. */
+    // In commonmark-mode, following indented lines are part of the paragraph.
     if (commonmark) {
       size = 0;
       position = index + 1;
@@ -25928,52 +26085,48 @@ function paragraph(eat, value, silent) {
       while (position < length) {
         character = value.charAt(position);
 
-        if (character === C_TAB$12) {
-          size = TAB_SIZE$1;
-          break;
-        } else if (character === C_SPACE$12) {
+        if (character === tab$13) {
+          size = tabSize$4;
+          break
+        } else if (character === space$13) {
           size++;
         } else {
-          break;
+          break
         }
 
         position++;
       }
 
-      if (size >= TAB_SIZE$1) {
-        index = value.indexOf(C_NEWLINE$13, index + 1);
-        continue;
+      if (size >= tabSize$4 && character !== lineFeed$14) {
+        index = value.indexOf(lineFeed$14, index + 1);
+        continue
       }
     }
 
     subvalue = value.slice(index + 1);
 
-    /* Check if the following code contains a possible
-     * block. */
+    // Check if the following code contains a possible block.
     if (interrupt_1(interruptors, tokenizers, self, [eat, subvalue, true])) {
-      break;
+      break
     }
 
-    /* Break if the following line starts a list, when
-     * already in a list, or when in commonmark, or when
-     * in gfm mode and the bullet is *not* numeric. */
+    // Break if the following line starts a list, when already in a list, or
+    // when in commonmark, or when in gfm mode and the bullet is *not* numeric.
     if (
       tokenizers.list.call(self, eat, subvalue, true) &&
-      (
-        self.inList ||
+      (self.inList ||
         commonmark ||
-        (gfm && !isDecimal(trim_1.left(subvalue).charAt(0)))
-      )
+        (gfm && !isDecimal(trim_1.left(subvalue).charAt(0))))
     ) {
-      break;
+      break
     }
 
     position = index;
-    index = value.indexOf(C_NEWLINE$13, index + 1);
+    index = value.indexOf(lineFeed$14, index + 1);
 
     if (index !== -1 && trim_1(value.slice(position, index)) === '') {
       index = position;
-      break;
+      break
     }
   }
 
@@ -25982,12 +26135,12 @@ function paragraph(eat, value, silent) {
   if (trim_1(subvalue) === '') {
     eat(subvalue);
 
-    return null;
+    return null
   }
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
   now = eat.now();
@@ -25996,42 +26149,42 @@ function paragraph(eat, value, silent) {
   return eat(subvalue)({
     type: 'paragraph',
     children: self.tokenizeInline(subvalue, now)
-  });
+  })
 }
 
 var _escape = locate;
 
 function locate(value, fromIndex) {
-  return value.indexOf('\\', fromIndex);
+  return value.indexOf('\\', fromIndex)
 }
 
 var _escape$2 = escape;
 escape.locator = _escape;
+
+var lineFeed$15 = '\n';
+var backslash$4 = '\\';
 
 function escape(eat, value, silent) {
   var self = this;
   var character;
   var node;
 
-  if (value.charAt(0) === '\\') {
+  if (value.charAt(0) === backslash$4) {
     character = value.charAt(1);
 
     if (self.escape.indexOf(character) !== -1) {
       /* istanbul ignore if - never used (yet) */
       if (silent) {
-        return true;
+        return true
       }
 
-      if (character === '\n') {
+      if (character === lineFeed$15) {
         node = {type: 'break'};
       } else {
-        node = {
-          type: 'text',
-          value: character
-        };
+        node = {type: 'text', value: character};
       }
 
-      return eat('\\' + character)(node);
+      return eat(backslash$4 + character)(node)
     }
   }
 }
@@ -26039,60 +26192,51 @@ function escape(eat, value, silent) {
 var tag$1 = locate$2;
 
 function locate$2(value, fromIndex) {
-  return value.indexOf('<', fromIndex);
+  return value.indexOf('<', fromIndex)
 }
 
 var autoLink_1 = autoLink;
 autoLink.locator = tag$1;
 autoLink.notInLink = true;
 
-var C_LT$2 = '<';
-var C_GT$2 = '>';
-var C_AT_SIGN = '@';
-var C_SLASH = '/';
-var MAILTO = 'mailto:';
-var MAILTO_LENGTH = MAILTO.length;
+var lessThan$2 = '<';
+var greaterThan$2 = '>';
+var atSign = '@';
+var slash = '/';
+var mailto = 'mailto:';
+var mailtoLength = mailto.length;
 
-/* Tokenise a link. */
 function autoLink(eat, value, silent) {
-  var self;
-  var subvalue;
-  var length;
-  var index;
-  var queue;
+  var self = this;
+  var subvalue = '';
+  var length = value.length;
+  var index = 0;
+  var queue = '';
+  var hasAtCharacter = false;
+  var link = '';
   var character;
-  var hasAtCharacter;
-  var link;
   var now;
   var content;
-  var tokenize;
+  var tokenizers;
   var exit;
 
-  if (value.charAt(0) !== C_LT$2) {
-    return;
+  if (value.charAt(0) !== lessThan$2) {
+    return
   }
 
-  self = this;
-  subvalue = '';
-  length = value.length;
-  index = 0;
-  queue = '';
-  hasAtCharacter = false;
-  link = '';
-
   index++;
-  subvalue = C_LT$2;
+  subvalue = lessThan$2;
 
   while (index < length) {
     character = value.charAt(index);
 
     if (
       isWhitespaceCharacter(character) ||
-      character === C_GT$2 ||
-      character === C_AT_SIGN ||
-      (character === ':' && value.charAt(index + 1) === C_SLASH)
+      character === greaterThan$2 ||
+      character === atSign ||
+      (character === ':' && value.charAt(index + 1) === slash)
     ) {
-      break;
+      break
     }
 
     queue += character;
@@ -26100,7 +26244,7 @@ function autoLink(eat, value, silent) {
   }
 
   if (!queue) {
-    return;
+    return
   }
 
   link += queue;
@@ -26110,25 +26254,22 @@ function autoLink(eat, value, silent) {
   link += character;
   index++;
 
-  if (character === C_AT_SIGN) {
+  if (character === atSign) {
     hasAtCharacter = true;
   } else {
-    if (
-      character !== ':' ||
-      value.charAt(index + 1) !== C_SLASH
-    ) {
-      return;
+    if (character !== ':' || value.charAt(index + 1) !== slash) {
+      return
     }
 
-    link += C_SLASH;
+    link += slash;
     index++;
   }
 
   while (index < length) {
     character = value.charAt(index);
 
-    if (isWhitespaceCharacter(character) || character === C_GT$2) {
-      break;
+    if (isWhitespaceCharacter(character) || character === greaterThan$2) {
+      break
     }
 
     queue += character;
@@ -26137,13 +26278,13 @@ function autoLink(eat, value, silent) {
 
   character = value.charAt(index);
 
-  if (!queue || character !== C_GT$2) {
-    return;
+  if (!queue || character !== greaterThan$2) {
+    return
   }
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
   link += queue;
@@ -26154,80 +26295,83 @@ function autoLink(eat, value, silent) {
   now.offset++;
 
   if (hasAtCharacter) {
-    if (link.slice(0, MAILTO_LENGTH).toLowerCase() === MAILTO) {
-      content = content.substr(MAILTO_LENGTH);
-      now.column += MAILTO_LENGTH;
-      now.offset += MAILTO_LENGTH;
+    if (link.slice(0, mailtoLength).toLowerCase() === mailto) {
+      content = content.substr(mailtoLength);
+      now.column += mailtoLength;
+      now.offset += mailtoLength;
     } else {
-      link = MAILTO + link;
+      link = mailto + link;
     }
   }
 
-  /* Temporarily remove support for escapes in autolinks. */
-  tokenize = self.inlineTokenizers.escape;
-  self.inlineTokenizers.escape = null;
+  // Temporarily remove all tokenizers except text in autolinks.
+  tokenizers = self.inlineTokenizers;
+  self.inlineTokenizers = {text: tokenizers.text};
+
   exit = self.enterLink();
 
   content = self.tokenizeInline(content, now);
 
-  self.inlineTokenizers.escape = tokenize;
+  self.inlineTokenizers = tokenizers;
   exit();
 
   return eat(subvalue)({
     type: 'link',
     title: null,
-    url: parseEntities_1(link),
+    url: parseEntities_1(link, {nonTerminated: false}),
     children: content
-  });
+  })
 }
 
 var url = locate$4;
 
-var PROTOCOLS = ['https://', 'http://', 'mailto:'];
+var protocols = ['https://', 'http://', 'mailto:'];
 
 function locate$4(value, fromIndex) {
-  var length = PROTOCOLS.length;
+  var length = protocols.length;
   var index = -1;
   var min = -1;
   var position;
 
   if (!this.options.gfm) {
-    return -1;
+    return -1
   }
 
   while (++index < length) {
-    position = value.indexOf(PROTOCOLS[index], fromIndex);
+    position = value.indexOf(protocols[index], fromIndex);
 
     if (position !== -1 && (position < min || min === -1)) {
       min = position;
     }
   }
 
-  return min;
+  return min
 }
 
 var url_1 = url$2;
 url$2.locator = url;
 url$2.notInLink = true;
 
-var C_BRACKET_OPEN$2 = '[';
-var C_BRACKET_CLOSE$2 = ']';
-var C_PAREN_OPEN$1 = '(';
-var C_PAREN_CLOSE$2 = ')';
-var C_LT$3 = '<';
-var C_AT_SIGN$1 = '@';
+var quotationMark$1 = '"';
+var apostrophe$1 = "'";
+var leftParenthesis$1 = '(';
+var rightParenthesis$2 = ')';
+var comma$1 = ',';
+var dot$2 = '.';
+var colon$4 = ':';
+var semicolon = ';';
+var lessThan$3 = '<';
+var atSign$1 = '@';
+var leftSquareBracket$2 = '[';
+var rightSquareBracket$2 = ']';
 
-var HTTP_PROTOCOL = 'http://';
-var HTTPS_PROTOCOL = 'https://';
-var MAILTO_PROTOCOL = 'mailto:';
+var http = 'http://';
+var https = 'https://';
+var mailto$1 = 'mailto:';
 
-var PROTOCOLS$1 = [
-  HTTP_PROTOCOL,
-  HTTPS_PROTOCOL,
-  MAILTO_PROTOCOL
-];
+var protocols$1 = [http, https, mailto$1];
 
-var PROTOCOLS_LENGTH = PROTOCOLS$1.length;
+var protocolsLength = protocols$1.length;
 
 function url$2(eat, value, silent) {
   var self = this;
@@ -26242,28 +26386,28 @@ function url$2(eat, value, silent) {
   var queue;
   var parenCount;
   var nextCharacter;
+  var tokenizers;
   var exit;
 
   if (!self.options.gfm) {
-    return;
+    return
   }
 
   subvalue = '';
   index = -1;
-  length = PROTOCOLS_LENGTH;
 
-  while (++index < length) {
-    protocol = PROTOCOLS$1[index];
+  while (++index < protocolsLength) {
+    protocol = protocols$1[index];
     match = value.slice(0, protocol.length);
 
     if (match.toLowerCase() === protocol) {
       subvalue = match;
-      break;
+      break
     }
   }
 
   if (!subvalue) {
-    return;
+    return
   }
 
   index = subvalue.length;
@@ -26274,36 +26418,36 @@ function url$2(eat, value, silent) {
   while (index < length) {
     character = value.charAt(index);
 
-    if (isWhitespaceCharacter(character) || character === C_LT$3) {
-      break;
+    if (isWhitespaceCharacter(character) || character === lessThan$3) {
+      break
     }
 
     if (
-      character === '.' ||
-      character === ',' ||
-      character === ':' ||
-      character === ';' ||
-      character === '"' ||
-      character === '\'' ||
-      character === ')' ||
-      character === ']'
+      character === dot$2 ||
+      character === comma$1 ||
+      character === colon$4 ||
+      character === semicolon ||
+      character === quotationMark$1 ||
+      character === apostrophe$1 ||
+      character === rightParenthesis$2 ||
+      character === rightSquareBracket$2
     ) {
       nextCharacter = value.charAt(index + 1);
 
       if (!nextCharacter || isWhitespaceCharacter(nextCharacter)) {
-        break;
+        break
       }
     }
 
-    if (character === C_PAREN_OPEN$1 || character === C_BRACKET_OPEN$2) {
+    if (character === leftParenthesis$1 || character === leftSquareBracket$2) {
       parenCount++;
     }
 
-    if (character === C_PAREN_CLOSE$2 || character === C_BRACKET_CLOSE$2) {
+    if (character === rightParenthesis$2 || character === rightSquareBracket$2) {
       parenCount--;
 
       if (parenCount < 0) {
-        break;
+        break
       }
     }
 
@@ -26312,37 +26456,44 @@ function url$2(eat, value, silent) {
   }
 
   if (!queue) {
-    return;
+    return
   }
 
   subvalue += queue;
   content = subvalue;
 
-  if (protocol === MAILTO_PROTOCOL) {
-    position = queue.indexOf(C_AT_SIGN$1);
+  if (protocol === mailto$1) {
+    position = queue.indexOf(atSign$1);
 
     if (position === -1 || position === length - 1) {
-      return;
+      return
     }
 
-    content = content.substr(MAILTO_PROTOCOL.length);
+    content = content.substr(mailto$1.length);
   }
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
   exit = self.enterLink();
+
+  // Temporarily remove all tokenizers except text in url.
+  tokenizers = self.inlineTokenizers;
+  self.inlineTokenizers = {text: tokenizers.text};
+
   content = self.tokenizeInline(content, eat.now());
+
+  self.inlineTokenizers = tokenizers;
   exit();
 
   return eat(subvalue)({
     type: 'link',
     title: null,
-    url: parseEntities_1(subvalue),
+    url: parseEntities_1(subvalue, {nonTerminated: false}),
     children: content
-  });
+  })
 }
 
 var tag$3 = html.tag;
@@ -26350,8 +26501,13 @@ var tag$3 = html.tag;
 var htmlInline = inlineHTML;
 inlineHTML.locator = tag$1;
 
-var EXPRESSION_HTML_LINK_OPEN = /^<a /i;
-var EXPRESSION_HTML_LINK_CLOSE = /^<\/a>/i;
+var lessThan$4 = '<';
+var questionMark = '?';
+var exclamationMark$1 = '!';
+var slash$1 = '/';
+
+var htmlLinkOpenExpression = /^<a /i;
+var htmlLinkCloseExpression = /^<\/a>/i;
 
 function inlineHTML(eat, value, silent) {
   var self = this;
@@ -26359,41 +26515,41 @@ function inlineHTML(eat, value, silent) {
   var character;
   var subvalue;
 
-  if (value.charAt(0) !== '<' || length < 3) {
-    return;
+  if (value.charAt(0) !== lessThan$4 || length < 3) {
+    return
   }
 
   character = value.charAt(1);
 
   if (
     !isAlphabetical(character) &&
-    character !== '?' &&
-    character !== '!' &&
-    character !== '/'
+    character !== questionMark &&
+    character !== exclamationMark$1 &&
+    character !== slash$1
   ) {
-    return;
+    return
   }
 
   subvalue = value.match(tag$3);
 
   if (!subvalue) {
-    return;
+    return
   }
 
   /* istanbul ignore if - not used yet. */
   if (silent) {
-    return true;
+    return true
   }
 
   subvalue = subvalue[0];
 
-  if (!self.inLink && EXPRESSION_HTML_LINK_OPEN.test(subvalue)) {
+  if (!self.inLink && htmlLinkOpenExpression.test(subvalue)) {
     self.inLink = true;
-  } else if (self.inLink && EXPRESSION_HTML_LINK_CLOSE.test(subvalue)) {
+  } else if (self.inLink && htmlLinkCloseExpression.test(subvalue)) {
     self.inLink = false;
   }
 
-  return eat(subvalue)({type: 'html', value: subvalue});
+  return eat(subvalue)({type: 'html', value: subvalue})
 }
 
 var link = locate$6;
@@ -26403,44 +26559,29 @@ function locate$6(value, fromIndex) {
   var image = value.indexOf('![', fromIndex);
 
   if (image === -1) {
-    return link;
+    return link
   }
 
-  /* Link can never be `-1` if an image is found, so we don’t need
-   * to check for that :) */
-  return link < image ? link : image;
+  // Link can never be `-1` if an image is found, so we don’t need to check
+  // for that :)
+  return link < image ? link : image
 }
 
 var link_1 = link$2;
 link$2.locator = link;
 
-var own$5 = {}.hasOwnProperty;
-
-var C_BACKSLASH$3 = '\\';
-var C_BRACKET_OPEN$3 = '[';
-var C_BRACKET_CLOSE$3 = ']';
-var C_PAREN_OPEN$2 = '(';
-var C_PAREN_CLOSE$3 = ')';
-var C_LT$4 = '<';
-var C_GT$3 = '>';
-var C_TICK$2 = '`';
-var C_DOUBLE_QUOTE$1 = '"';
-var C_SINGLE_QUOTE$1 = '\'';
-
-/* Map of characters, which can be used to mark link
- * and image titles. */
-var LINK_MARKERS = {};
-
-LINK_MARKERS[C_DOUBLE_QUOTE$1] = C_DOUBLE_QUOTE$1;
-LINK_MARKERS[C_SINGLE_QUOTE$1] = C_SINGLE_QUOTE$1;
-
-/* Map of characters, which can be used to mark link
- * and image titles in commonmark-mode. */
-var COMMONMARK_LINK_MARKERS = {};
-
-COMMONMARK_LINK_MARKERS[C_DOUBLE_QUOTE$1] = C_DOUBLE_QUOTE$1;
-COMMONMARK_LINK_MARKERS[C_SINGLE_QUOTE$1] = C_SINGLE_QUOTE$1;
-COMMONMARK_LINK_MARKERS[C_PAREN_OPEN$2] = C_PAREN_CLOSE$3;
+var lineFeed$16 = '\n';
+var exclamationMark$2 = '!';
+var quotationMark$2 = '"';
+var apostrophe$2 = "'";
+var leftParenthesis$2 = '(';
+var rightParenthesis$3 = ')';
+var lessThan$5 = '<';
+var greaterThan$3 = '>';
+var leftSquareBracket$3 = '[';
+var backslash$5 = '\\';
+var rightSquareBracket$3 = ']';
+var graveAccent$2 = '`';
 
 function link$2(eat, value, silent) {
   var self = this;
@@ -26457,7 +26598,6 @@ function link$2(eat, value, silent) {
   var beforeTitle;
   var subqueue;
   var hasMarker;
-  var markers;
   var isImage;
   var content;
   var marker;
@@ -26470,29 +26610,28 @@ function link$2(eat, value, silent) {
   var exit;
   var node;
 
-  /* Detect whether this is an image. */
-  if (character === '!') {
+  // Detect whether this is an image.
+  if (character === exclamationMark$2) {
     isImage = true;
     subvalue = character;
     character = value.charAt(++index);
   }
 
-  /* Eat the opening. */
-  if (character !== C_BRACKET_OPEN$3) {
-    return;
+  // Eat the opening.
+  if (character !== leftSquareBracket$3) {
+    return
   }
 
-  /* Exit when this is a link and we’re already inside
-   * a link. */
+  // Exit when this is a link and we’re already inside a link.
   if (!isImage && self.inLink) {
-    return;
+    return
   }
 
   subvalue += character;
   queue = '';
   index++;
 
-  /* Eat the content. */
+  // Eat the content.
   length = value.length;
   now = eat.now();
   depth = 0;
@@ -26504,11 +26643,11 @@ function link$2(eat, value, silent) {
     character = value.charAt(index);
     subqueue = character;
 
-    if (character === C_TICK$2) {
-      /* Inline-code in link content. */
+    if (character === graveAccent$2) {
+      // Inline-code in link content.
       count = 1;
 
-      while (value.charAt(index + 1) === C_TICK$2) {
+      while (value.charAt(index + 1) === graveAccent$2) {
         subqueue += character;
         index++;
         count++;
@@ -26519,28 +26658,25 @@ function link$2(eat, value, silent) {
       } else if (count >= opening) {
         opening = 0;
       }
-    } else if (character === C_BACKSLASH$3) {
-      /* Allow brackets to be escaped. */
+    } else if (character === backslash$5) {
+      // Allow brackets to be escaped.
       index++;
       subqueue += value.charAt(index);
-    /* In GFM mode, brackets in code still count.
-     * In all other modes, they don’t.  This empty
-     * block prevents the next statements are
-     * entered. */
-    } else if ((!opening || gfm) && character === C_BRACKET_OPEN$3) {
+    } else if ((!opening || gfm) && character === leftSquareBracket$3) {
+      // In GFM mode, brackets in code still count.  In all other modes,
+      // they don’t.
       depth++;
-    } else if ((!opening || gfm) && character === C_BRACKET_CLOSE$3) {
+    } else if ((!opening || gfm) && character === rightSquareBracket$3) {
       if (depth) {
         depth--;
       } else {
-        /* Allow white-space between content and
-         * url in GFM mode. */
+        // Allow white-space between content and url in GFM mode.
         if (!pedantic) {
           while (index < length) {
             character = value.charAt(index + 1);
 
             if (!isWhitespaceCharacter(character)) {
-              break;
+              break
             }
 
             subqueue += character;
@@ -26548,15 +26684,15 @@ function link$2(eat, value, silent) {
           }
         }
 
-        if (value.charAt(index + 1) !== C_PAREN_OPEN$2) {
-          return;
+        if (value.charAt(index + 1) !== leftParenthesis$2) {
+          return
         }
 
-        subqueue += C_PAREN_OPEN$2;
+        subqueue += leftParenthesis$2;
         closed = true;
         index++;
 
-        break;
+        break
       }
     }
 
@@ -26565,57 +26701,56 @@ function link$2(eat, value, silent) {
     index++;
   }
 
-  /* Eat the content closing. */
+  // Eat the content closing.
   if (!closed) {
-    return;
+    return
   }
 
   content = queue;
   subvalue += queue + subqueue;
   index++;
 
-  /* Eat white-space. */
+  // Eat white-space.
   while (index < length) {
     character = value.charAt(index);
 
     if (!isWhitespaceCharacter(character)) {
-      break;
+      break
     }
 
     subvalue += character;
     index++;
   }
 
-  /* Eat the URL. */
+  // Eat the URL.
   character = value.charAt(index);
-  markers = commonmark ? COMMONMARK_LINK_MARKERS : LINK_MARKERS;
   queue = '';
   beforeURL = subvalue;
 
-  if (character === C_LT$4) {
+  if (character === lessThan$5) {
     index++;
-    beforeURL += C_LT$4;
+    beforeURL += lessThan$5;
 
     while (index < length) {
       character = value.charAt(index);
 
-      if (character === C_GT$3) {
-        break;
+      if (character === greaterThan$3) {
+        break
       }
 
-      if (commonmark && character === '\n') {
-        return;
+      if (commonmark && character === lineFeed$16) {
+        return
       }
 
       queue += character;
       index++;
     }
 
-    if (value.charAt(index) !== C_GT$3) {
-      return;
+    if (value.charAt(index) !== greaterThan$3) {
+      return
     }
 
-    subvalue += C_LT$4 + queue + C_GT$3;
+    subvalue += lessThan$5 + queue + greaterThan$3;
     url = queue;
     index++;
   } else {
@@ -26625,22 +26760,27 @@ function link$2(eat, value, silent) {
     while (index < length) {
       character = value.charAt(index);
 
-      if (subqueue && own$5.call(markers, character)) {
-        break;
+      if (
+        subqueue &&
+        (character === quotationMark$2 ||
+          character === apostrophe$2 ||
+          (commonmark && character === leftParenthesis$2))
+      ) {
+        break
       }
 
       if (isWhitespaceCharacter(character)) {
         if (!pedantic) {
-          break;
+          break
         }
 
         subqueue += character;
       } else {
-        if (character === C_PAREN_OPEN$2) {
+        if (character === leftParenthesis$2) {
           depth++;
-        } else if (character === C_PAREN_CLOSE$3) {
+        } else if (character === rightParenthesis$3) {
           if (depth === 0) {
-            break;
+            break
           }
 
           depth--;
@@ -26649,8 +26789,8 @@ function link$2(eat, value, silent) {
         queue += subqueue;
         subqueue = '';
 
-        if (character === C_BACKSLASH$3) {
-          queue += C_BACKSLASH$3;
+        if (character === backslash$5) {
+          queue += backslash$5;
           character = value.charAt(++index);
         }
 
@@ -26665,14 +26805,14 @@ function link$2(eat, value, silent) {
     index = subvalue.length;
   }
 
-  /* Eat white-space. */
+  // Eat white-space.
   queue = '';
 
   while (index < length) {
     character = value.charAt(index);
 
     if (!isWhitespaceCharacter(character)) {
-      break;
+      break
     }
 
     queue += character;
@@ -26682,29 +26822,32 @@ function link$2(eat, value, silent) {
   character = value.charAt(index);
   subvalue += queue;
 
-  /* Eat the title. */
-  if (queue && own$5.call(markers, character)) {
+  // Eat the title.
+  if (
+    queue &&
+    (character === quotationMark$2 ||
+      character === apostrophe$2 ||
+      (commonmark && character === leftParenthesis$2))
+  ) {
     index++;
     subvalue += character;
     queue = '';
-    marker = markers[character];
+    marker = character === leftParenthesis$2 ? rightParenthesis$3 : character;
     beforeTitle = subvalue;
 
-    /* In commonmark-mode, things are pretty easy: the
-     * marker cannot occur inside the title.
-     *
-     * Non-commonmark does, however, support nested
-     * delimiters. */
+    // In commonmark-mode, things are pretty easy: the marker cannot occur
+    // inside the title.  Non-commonmark does, however, support nested
+    // delimiters.
     if (commonmark) {
       while (index < length) {
         character = value.charAt(index);
 
         if (character === marker) {
-          break;
+          break
         }
 
-        if (character === C_BACKSLASH$3) {
-          queue += C_BACKSLASH$3;
+        if (character === backslash$5) {
+          queue += backslash$5;
           character = value.charAt(++index);
         }
 
@@ -26715,7 +26858,7 @@ function link$2(eat, value, silent) {
       character = value.charAt(index);
 
       if (character !== marker) {
-        return;
+        return
       }
 
       title = queue;
@@ -26726,7 +26869,7 @@ function link$2(eat, value, silent) {
         character = value.charAt(index);
 
         if (!isWhitespaceCharacter(character)) {
-          break;
+          break
         }
 
         subvalue += character;
@@ -26747,10 +26890,10 @@ function link$2(eat, value, silent) {
           hasMarker = true;
         } else if (!hasMarker) {
           queue += character;
-        } else if (character === C_PAREN_CLOSE$3) {
+        } else if (character === rightParenthesis$3) {
           subvalue += queue + marker + subqueue;
           title = queue;
-          break;
+          break
         } else if (isWhitespaceCharacter(character)) {
           subqueue += character;
         } else {
@@ -26764,18 +26907,20 @@ function link$2(eat, value, silent) {
     }
   }
 
-  if (value.charAt(index) !== C_PAREN_CLOSE$3) {
-    return;
+  if (value.charAt(index) !== rightParenthesis$3) {
+    return
   }
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
-  subvalue += C_PAREN_CLOSE$3;
+  subvalue += rightParenthesis$3;
 
-  url = self.decode.raw(self.unescape(url), eat(beforeURL).test().end);
+  url = self.decode.raw(self.unescape(url), eat(beforeURL).test().end, {
+    nonTerminated: false
+  });
 
   if (title) {
     beforeTitle = eat(beforeTitle).test().end;
@@ -26796,32 +26941,35 @@ function link$2(eat, value, silent) {
     exit();
   }
 
-  return eat(subvalue)(node);
+  return eat(subvalue)(node)
 }
 
 var reference_1 = reference;
 reference.locator = link;
 
-var T_LINK = 'link';
-var T_IMAGE = 'image';
-var T_FOOTNOTE = 'footnote';
-var REFERENCE_TYPE_SHORTCUT = 'shortcut';
-var REFERENCE_TYPE_COLLAPSED = 'collapsed';
-var REFERENCE_TYPE_FULL = 'full';
-var C_CARET$1 = '^';
-var C_BACKSLASH$4 = '\\';
-var C_BRACKET_OPEN$4 = '[';
-var C_BRACKET_CLOSE$4 = ']';
+var link$3 = 'link';
+var image$1 = 'image';
+var footnote = 'footnote';
+var shortcut = 'shortcut';
+var collapsed = 'collapsed';
+var full = 'full';
+var space$14 = ' ';
+var exclamationMark$3 = '!';
+var leftSquareBracket$4 = '[';
+var backslash$6 = '\\';
+var rightSquareBracket$4 = ']';
+var caret$2 = '^';
 
 function reference(eat, value, silent) {
   var self = this;
+  var commonmark = self.options.commonmark;
   var character = value.charAt(0);
   var index = 0;
   var length = value.length;
   var subvalue = '';
   var intro = '';
-  var type = T_LINK;
-  var referenceType = REFERENCE_TYPE_SHORTCUT;
+  var type = link$3;
+  var referenceType = shortcut;
   var content;
   var identifier;
   var now;
@@ -26831,51 +26979,53 @@ function reference(eat, value, silent) {
   var bracketed;
   var depth;
 
-  /* Check whether we’re eating an image. */
-  if (character === '!') {
-    type = T_IMAGE;
+  // Check whether we’re eating an image.
+  if (character === exclamationMark$3) {
+    type = image$1;
     intro = character;
     character = value.charAt(++index);
   }
 
-  if (character !== C_BRACKET_OPEN$4) {
-    return;
+  if (character !== leftSquareBracket$4) {
+    return
   }
 
   index++;
   intro += character;
   queue = '';
 
-  /* Check whether we’re eating a footnote. */
-  if (
-    self.options.footnotes &&
-    type === T_LINK &&
-    value.charAt(index) === C_CARET$1
-  ) {
-    intro += C_CARET$1;
+  // Check whether we’re eating a footnote.
+  if (self.options.footnotes && value.charAt(index) === caret$2) {
+    // Exit if `![^` is found, so the `!` will be seen as text after this,
+    // and we’ll enter this function again when `[^` is found.
+    if (type === image$1) {
+      return
+    }
+
+    intro += caret$2;
     index++;
-    type = T_FOOTNOTE;
+    type = footnote;
   }
 
-  /* Eat the text. */
+  // Eat the text.
   depth = 0;
 
   while (index < length) {
     character = value.charAt(index);
 
-    if (character === C_BRACKET_OPEN$4) {
+    if (character === leftSquareBracket$4) {
       bracketed = true;
       depth++;
-    } else if (character === C_BRACKET_CLOSE$4) {
+    } else if (character === rightSquareBracket$4) {
       if (!depth) {
-        break;
+        break
       }
 
       depth--;
     }
 
-    if (character === C_BACKSLASH$4) {
-      queue += C_BACKSLASH$4;
+    if (character === backslash$6) {
+      queue += backslash$6;
       character = value.charAt(++index);
     }
 
@@ -26887,29 +27037,34 @@ function reference(eat, value, silent) {
   content = queue;
   character = value.charAt(index);
 
-  if (character !== C_BRACKET_CLOSE$4) {
-    return;
+  if (character !== rightSquareBracket$4) {
+    return
   }
 
   index++;
   subvalue += character;
   queue = '';
 
-  while (index < length) {
-    character = value.charAt(index);
+  if (!commonmark) {
+    // The original markdown syntax definition explicitly allows for whitespace
+    // between the link text and link label; commonmark departs from this, in
+    // part to improve support for shortcut reference links
+    while (index < length) {
+      character = value.charAt(index);
 
-    if (!isWhitespaceCharacter(character)) {
-      break;
+      if (!isWhitespaceCharacter(character)) {
+        break
+      }
+
+      queue += character;
+      index++;
     }
-
-    queue += character;
-    index++;
   }
 
   character = value.charAt(index);
 
-  /* Inline footnotes cannot have an identifier. */
-  if (type !== T_FOOTNOTE && character === C_BRACKET_OPEN$4) {
+  // Inline footnotes cannot have an identifier.
+  if (type !== footnote && character === leftSquareBracket$4) {
     identifier = '';
     queue += character;
     index++;
@@ -26917,12 +27072,12 @@ function reference(eat, value, silent) {
     while (index < length) {
       character = value.charAt(index);
 
-      if (character === C_BRACKET_OPEN$4 || character === C_BRACKET_CLOSE$4) {
-        break;
+      if (character === leftSquareBracket$4 || character === rightSquareBracket$4) {
+        break
       }
 
-      if (character === C_BACKSLASH$4) {
-        identifier += C_BACKSLASH$4;
+      if (character === backslash$6) {
+        identifier += backslash$6;
         character = value.charAt(++index);
       }
 
@@ -26932,8 +27087,8 @@ function reference(eat, value, silent) {
 
     character = value.charAt(index);
 
-    if (character === C_BRACKET_CLOSE$4) {
-      referenceType = identifier ? REFERENCE_TYPE_FULL : REFERENCE_TYPE_COLLAPSED;
+    if (character === rightSquareBracket$4) {
+      referenceType = identifier ? full : collapsed;
       queue += identifier + character;
       index++;
     } else {
@@ -26944,58 +27099,59 @@ function reference(eat, value, silent) {
     queue = '';
   } else {
     if (!content) {
-      return;
+      return
     }
 
     identifier = content;
   }
 
-  /* Brackets cannot be inside the identifier. */
-  if (referenceType !== REFERENCE_TYPE_FULL && bracketed) {
-    return;
+  // Brackets cannot be inside the identifier.
+  if (referenceType !== full && bracketed) {
+    return
   }
 
   subvalue = intro + subvalue;
 
-  if (type === T_LINK && self.inLink) {
-    return null;
+  if (type === link$3 && self.inLink) {
+    return null
   }
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
-  if (type === T_FOOTNOTE && content.indexOf(' ') !== -1) {
+  if (type === footnote && content.indexOf(space$14) !== -1) {
     return eat(subvalue)({
-      type: 'footnote',
+      type: footnote,
       children: this.tokenizeInline(content, eat.now())
-    });
+    })
   }
 
   now = eat.now();
   now.column += intro.length;
   now.offset += intro.length;
-  identifier = referenceType === REFERENCE_TYPE_FULL ? identifier : content;
+  identifier = referenceType === full ? identifier : content;
 
   node = {
     type: type + 'Reference',
-    identifier: normalize_1(identifier)
+    identifier: normalize_1(identifier),
+    label: identifier
   };
 
-  if (type === T_LINK || type === T_IMAGE) {
+  if (type === link$3 || type === image$1) {
     node.referenceType = referenceType;
   }
 
-  if (type === T_LINK) {
+  if (type === link$3) {
     exit = self.enterLink();
     node.children = self.tokenizeInline(content, now);
     exit();
-  } else if (type === T_IMAGE) {
+  } else if (type === image$1) {
     node.alt = self.decode.raw(self.unescape(content), now) || null;
   }
 
-  return eat(subvalue)(node);
+  return eat(subvalue)(node)
 }
 
 var strong = locate$8;
@@ -27005,21 +27161,22 @@ function locate$8(value, fromIndex) {
   var underscore = value.indexOf('__', fromIndex);
 
   if (underscore === -1) {
-    return asterisk;
+    return asterisk
   }
 
   if (asterisk === -1) {
-    return underscore;
+    return underscore
   }
 
-  return underscore < asterisk ? underscore : asterisk;
+  return underscore < asterisk ? underscore : asterisk
 }
 
 var strong_1 = strong$2;
 strong$2.locator = strong;
 
-var C_ASTERISK$2 = '*';
-var C_UNDERSCORE$2 = '_';
+var backslash$7 = '\\';
+var asterisk$2 = '*';
+var underscore$2 = '_';
 
 function strong$2(eat, value, silent) {
   var self = this;
@@ -27034,10 +27191,10 @@ function strong$2(eat, value, silent) {
   var prev;
 
   if (
-    (character !== C_ASTERISK$2 && character !== C_UNDERSCORE$2) ||
+    (character !== asterisk$2 && character !== underscore$2) ||
     value.charAt(++index) !== character
   ) {
-    return;
+    return
   }
 
   pedantic = self.options.pedantic;
@@ -27049,7 +27206,7 @@ function strong$2(eat, value, silent) {
   character = '';
 
   if (pedantic && isWhitespaceCharacter(value.charAt(index))) {
-    return;
+    return
   }
 
   while (index < length) {
@@ -27065,12 +27222,12 @@ function strong$2(eat, value, silent) {
 
       if (character !== marker) {
         if (!trim_1(queue)) {
-          return;
+          return
         }
 
         /* istanbul ignore if - never used (yet) */
         if (silent) {
-          return true;
+          return true
         }
 
         now = eat.now();
@@ -27080,11 +27237,11 @@ function strong$2(eat, value, silent) {
         return eat(subvalue + queue + subvalue)({
           type: 'strong',
           children: self.tokenizeInline(queue, now)
-        });
+        })
       }
     }
 
-    if (!pedantic && character === '\\') {
+    if (!pedantic && character === backslash$7) {
       queue += character;
       character = value.charAt(++index);
     }
@@ -27114,21 +27271,22 @@ function locate$10(value, fromIndex) {
   var underscore = value.indexOf('_', fromIndex);
 
   if (underscore === -1) {
-    return asterisk;
+    return asterisk
   }
 
   if (asterisk === -1) {
-    return underscore;
+    return underscore
   }
 
-  return underscore < asterisk ? underscore : asterisk;
+  return underscore < asterisk ? underscore : asterisk
 }
 
 var emphasis_1 = emphasis$2;
 emphasis$2.locator = emphasis;
 
-var C_ASTERISK$3 = '*';
-var C_UNDERSCORE$3 = '_';
+var asterisk$3 = '*';
+var underscore$3 = '_';
+var backslash$8 = '\\';
 
 function emphasis$2(eat, value, silent) {
   var self = this;
@@ -27142,8 +27300,8 @@ function emphasis$2(eat, value, silent) {
   var length;
   var prev;
 
-  if (character !== C_ASTERISK$3 && character !== C_UNDERSCORE$3) {
-    return;
+  if (character !== asterisk$3 && character !== underscore$3) {
+    return
   }
 
   pedantic = self.options.pedantic;
@@ -27155,7 +27313,7 @@ function emphasis$2(eat, value, silent) {
   character = '';
 
   if (pedantic && isWhitespaceCharacter(value.charAt(index))) {
-    return;
+    return
   }
 
   while (index < length) {
@@ -27167,17 +27325,17 @@ function emphasis$2(eat, value, silent) {
 
       if (character !== marker) {
         if (!trim_1(queue) || prev === marker) {
-          return;
+          return
         }
 
-        if (!pedantic && marker === C_UNDERSCORE$3 && isWordCharacter(character)) {
+        if (!pedantic && marker === underscore$3 && isWordCharacter(character)) {
           queue += marker;
-          continue;
+          continue
         }
 
         /* istanbul ignore if - never used (yet) */
         if (silent) {
-          return true;
+          return true
         }
 
         now = eat.now();
@@ -27187,13 +27345,13 @@ function emphasis$2(eat, value, silent) {
         return eat(subvalue + queue + marker)({
           type: 'emphasis',
           children: self.tokenizeInline(queue, now)
-        });
+        })
       }
 
       queue += marker;
     }
 
-    if (!pedantic && character === '\\') {
+    if (!pedantic && character === backslash$8) {
       queue += character;
       character = value.charAt(++index);
     }
@@ -27206,14 +27364,14 @@ function emphasis$2(eat, value, silent) {
 var _delete = locate$12;
 
 function locate$12(value, fromIndex) {
-  return value.indexOf('~~', fromIndex);
+  return value.indexOf('~~', fromIndex)
 }
 
 var _delete$2 = strikethrough;
 strikethrough.locator = _delete;
 
-var C_TILDE$1 = '~';
-var DOUBLE = '~~';
+var tilde$2 = '~';
+var fence = '~~';
 
 function strikethrough(eat, value, silent) {
   var self = this;
@@ -27227,11 +27385,11 @@ function strikethrough(eat, value, silent) {
 
   if (
     !self.options.gfm ||
-    value.charAt(0) !== C_TILDE$1 ||
-    value.charAt(1) !== C_TILDE$1 ||
+    value.charAt(0) !== tilde$2 ||
+    value.charAt(1) !== tilde$2 ||
     isWhitespaceCharacter(value.charAt(2))
   ) {
-    return;
+    return
   }
 
   index = 1;
@@ -27244,19 +27402,19 @@ function strikethrough(eat, value, silent) {
     character = value.charAt(index);
 
     if (
-      character === C_TILDE$1 &&
-      previous === C_TILDE$1 &&
+      character === tilde$2 &&
+      previous === tilde$2 &&
       (!preceding || !isWhitespaceCharacter(preceding))
     ) {
       /* istanbul ignore if - never used (yet) */
       if (silent) {
-        return true;
+        return true
       }
 
-      return eat(DOUBLE + subvalue + DOUBLE)({
+      return eat(fence + subvalue + fence)({
         type: 'delete',
         children: self.tokenizeInline(subvalue, now)
-      });
+      })
     }
 
     subvalue += previous;
@@ -27268,15 +27426,14 @@ function strikethrough(eat, value, silent) {
 var codeInline = locate$14;
 
 function locate$14(value, fromIndex) {
-  return value.indexOf('`', fromIndex);
+  return value.indexOf('`', fromIndex)
 }
 
 var codeInline$2 = inlineCode;
 inlineCode.locator = codeInline;
 
-var C_TICK$3 = '`';
+var graveAccent$3 = '`';
 
-/* Tokenise inline code. */
 function inlineCode(eat, value, silent) {
   var length = value.length;
   var index = 0;
@@ -27292,16 +27449,16 @@ function inlineCode(eat, value, silent) {
   var next;
 
   while (index < length) {
-    if (value.charAt(index) !== C_TICK$3) {
-      break;
+    if (value.charAt(index) !== graveAccent$3) {
+      break
     }
 
-    queue += C_TICK$3;
+    queue += graveAccent$3;
     index++;
   }
 
   if (!queue) {
-    return;
+    return
   }
 
   subvalue = queue;
@@ -27314,7 +27471,7 @@ function inlineCode(eat, value, silent) {
     character = next;
     next = value.charAt(index + 1);
 
-    if (character === C_TICK$3) {
+    if (character === graveAccent$3) {
       count++;
       tickQueue += character;
     } else {
@@ -27322,11 +27479,11 @@ function inlineCode(eat, value, silent) {
       queue += character;
     }
 
-    if (count && next !== C_TICK$3) {
+    if (count && next !== graveAccent$3) {
       if (count === openingCount) {
         subvalue += queue + tickQueue;
         found = true;
-        break;
+        break
       }
 
       queue += tickQueue;
@@ -27338,7 +27495,7 @@ function inlineCode(eat, value, silent) {
 
   if (!found) {
     if (openingCount % 2 !== 0) {
-      return;
+      return
     }
 
     queue = '';
@@ -27346,7 +27503,7 @@ function inlineCode(eat, value, silent) {
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
   contentQueue = '';
@@ -27359,7 +27516,7 @@ function inlineCode(eat, value, silent) {
 
     if (isWhitespaceCharacter(character)) {
       subqueue += character;
-      continue;
+      continue
     }
 
     if (subqueue) {
@@ -27373,10 +27530,7 @@ function inlineCode(eat, value, silent) {
     contentQueue += character;
   }
 
-  return eat(subvalue)({
-    type: 'inlineCode',
-    value: contentQueue
-  });
+  return eat(subvalue)({type: 'inlineCode', value: contentQueue})
 }
 
 var _break = locate$16;
@@ -27386,19 +27540,21 @@ function locate$16(value, fromIndex) {
 
   while (index > fromIndex) {
     if (value.charAt(index - 1) !== ' ') {
-      break;
+      break
     }
 
     index--;
   }
 
-  return index;
+  return index
 }
 
 var _break$2 = hardBreak;
 hardBreak.locator = _break;
 
-var MIN_BREAK_LENGTH = 2;
+var space$15 = ' ';
+var lineFeed$17 = '\n';
+var minBreakLength = 2;
 
 function hardBreak(eat, value, silent) {
   var length = value.length;
@@ -27409,23 +27565,23 @@ function hardBreak(eat, value, silent) {
   while (++index < length) {
     character = value.charAt(index);
 
-    if (character === '\n') {
-      if (index < MIN_BREAK_LENGTH) {
-        return;
+    if (character === lineFeed$17) {
+      if (index < minBreakLength) {
+        return
       }
 
       /* istanbul ignore if - never used (yet) */
       if (silent) {
-        return true;
+        return true
       }
 
       queue += character;
 
-      return eat(queue)({type: 'break'});
+      return eat(queue)({type: 'break'})
     }
 
-    if (character !== ' ') {
-      return;
+    if (character !== space$15) {
+      return
     }
 
     queue += character;
@@ -27449,7 +27605,7 @@ function text(eat, value, silent) {
 
   /* istanbul ignore if - never used (yet) */
   if (silent) {
-    return true;
+    return true
   }
 
   methods = self.inlineMethods;
@@ -27462,7 +27618,7 @@ function text(eat, value, silent) {
     name = methods[index];
 
     if (name === 'text' || !tokenizers[name]) {
-      continue;
+      continue
     }
 
     tokenizer = tokenizers[name].locator;
@@ -27481,12 +27637,11 @@ function text(eat, value, silent) {
   subvalue = value.slice(0, min);
   now = eat.now();
 
-  self.decode(subvalue, now, function (content, position, source) {
-    eat(source || content)({
-      type: 'text',
-      value: content
-    });
-  });
+  self.decode(subvalue, now, handler);
+
+  function handler(content, position, source) {
+    eat(source || content)({type: 'text', value: content});
+  }
 }
 
 var parser = Parser;
@@ -27507,31 +27662,30 @@ function Parser(doc, file) {
   this.decode = decode$1(this);
 }
 
-var proto$3 = Parser.prototype;
+var proto$5 = Parser.prototype;
 
-/* Expose core. */
-proto$3.setOptions = setOptions_1;
-proto$3.parse = parse_1$3;
+// Expose core.
+proto$5.setOptions = setOptions_1;
+proto$5.parse = parse_1$3;
 
-/* Expose `defaults`. */
-proto$3.options = defaults$2;
+// Expose `defaults`.
+proto$5.options = defaults$2;
 
-/* Enter and exit helpers. */
-proto$3.exitStart = stateToggle('atStart', true);
-proto$3.enterList = stateToggle('inList', false);
-proto$3.enterLink = stateToggle('inLink', false);
-proto$3.enterBlock = stateToggle('inBlock', false);
+// Enter and exit helpers.
+proto$5.exitStart = stateToggle('atStart', true);
+proto$5.enterList = stateToggle('inList', false);
+proto$5.enterLink = stateToggle('inLink', false);
+proto$5.enterBlock = stateToggle('inBlock', false);
 
-/* Nodes that can interupt a paragraph:
- *
- * ```markdown
- * A paragraph, followed by a thematic break.
- * ___
- * ```
- *
- * In the above example, the thematic break “interupts”
- * the paragraph. */
-proto$3.interruptParagraph = [
+// Nodes that can interupt a paragraph:
+//
+// ```markdown
+// A paragraph, followed by a thematic break.
+// ___
+// ```
+//
+// In the above example, the thematic break “interupts” the paragraph.
+proto$5.interruptParagraph = [
   ['thematicBreak'],
   ['atxHeading'],
   ['fencedCode'],
@@ -27542,32 +27696,31 @@ proto$3.interruptParagraph = [
   ['footnote', {commonmark: false}]
 ];
 
-/* Nodes that can interupt a list:
- *
- * ```markdown
- * - One
- * ___
- * ```
- *
- * In the above example, the thematic break “interupts”
- * the list. */
-proto$3.interruptList = [
+// Nodes that can interupt a list:
+//
+// ```markdown
+// - One
+// ___
+// ```
+//
+// In the above example, the thematic break “interupts” the list.
+proto$5.interruptList = [
+  ['atxHeading', {pedantic: false}],
   ['fencedCode', {pedantic: false}],
   ['thematicBreak', {pedantic: false}],
   ['definition', {commonmark: false}],
   ['footnote', {commonmark: false}]
 ];
 
-/* Nodes that can interupt a blockquote:
- *
- * ```markdown
- * > A paragraph.
- * ___
- * ```
- *
- * In the above example, the thematic break “interupts”
- * the blockquote. */
-proto$3.interruptBlockquote = [
+// Nodes that can interupt a blockquote:
+//
+// ```markdown
+// > A paragraph.
+// ___
+// ```
+//
+// In the above example, the thematic break “interupts” the blockquote.
+proto$5.interruptBlockquote = [
   ['indentedCode', {commonmark: true}],
   ['fencedCode', {commonmark: true}],
   ['atxHeading', {commonmark: true}],
@@ -27579,8 +27732,8 @@ proto$3.interruptBlockquote = [
   ['footnote', {commonmark: false}]
 ];
 
-/* Handlers. */
-proto$3.blockTokenizers = {
+// Handlers.
+proto$5.blockTokenizers = {
   newline: newline_1,
   indentedCode: codeIndented,
   fencedCode: codeFenced,
@@ -27596,7 +27749,7 @@ proto$3.blockTokenizers = {
   paragraph: paragraph_1
 };
 
-proto$3.inlineTokenizers = {
+proto$5.inlineTokenizers = {
   escape: _escape$2,
   autoLink: autoLink_1,
   url: url_1,
@@ -27611,16 +27764,16 @@ proto$3.inlineTokenizers = {
   text: text_1
 };
 
-/* Expose precedence. */
-proto$3.blockMethods = keys$1(proto$3.blockTokenizers);
-proto$3.inlineMethods = keys$1(proto$3.inlineTokenizers);
+// Expose precedence.
+proto$5.blockMethods = keys$1(proto$5.blockTokenizers);
+proto$5.inlineMethods = keys$1(proto$5.inlineTokenizers);
 
-/* Tokenizers. */
-proto$3.tokenizeBlock = tokenizer('block');
-proto$3.tokenizeInline = tokenizer('inline');
-proto$3.tokenizeFactory = tokenizer;
+// Tokenizers.
+proto$5.tokenizeBlock = tokenizer('block');
+proto$5.tokenizeInline = tokenizer('inline');
+proto$5.tokenizeFactory = tokenizer;
 
-/* Get all keys in `value`. */
+// Get all keys in `value`.
 function keys$1(value) {
   var result = [];
   var key;
@@ -27629,55 +27782,55 @@ function keys$1(value) {
     result.push(key);
   }
 
-  return result;
+  return result
 }
 
 var remarkParse = parse$9;
 parse$9.Parser = parser;
 
 function parse$9(options) {
+  var settings = this.data('settings');
   var Local = unherit_1(parser);
-  Local.prototype.options = immutable(Local.prototype.options, this.data('settings'), options);
+
+  Local.prototype.options = immutable(Local.prototype.options, settings, options);
+
   this.Parser = Local;
 }
 
-var returner_1 = returner;
+var identity_1 = identity$1;
 
-function returner(value) {
-  return value;
+function identity$1(value) {
+  return value
 }
 
 var enterLinkReference = enter;
 
-/* Shortcut and collapsed link references need no escaping
- * and encoding during the processing of child nodes (it
- * must be implied from identifier).
- *
- * This toggler turns encoding and escaping off for shortcut
- * and collapsed references.
- *
- * Implies `enterLink`.
- */
+// Shortcut and collapsed link references need no escaping and encoding during
+// the processing of child nodes (it must be implied from identifier).
+//
+// This toggler turns encoding and escaping off for shortcut and collapsed
+// references.
+//
+// Implies `enterLink`.
 function enter(compiler, node) {
   var encode = compiler.encode;
   var escape = compiler.escape;
-  var exit = compiler.enterLink();
+  var exitLink = compiler.enterLink();
 
-  if (
-    node.referenceType !== 'shortcut' &&
-    node.referenceType !== 'collapsed'
-  ) {
-    return exit;
+  if (node.referenceType !== 'shortcut' && node.referenceType !== 'collapsed') {
+    return exitLink
   }
 
-  compiler.escape = returner_1;
-  compiler.encode = returner_1;
+  compiler.escape = identity_1;
+  compiler.encode = identity_1;
 
-  return function () {
+  return exit
+
+  function exit() {
     compiler.encode = encode;
     compiler.escape = escape;
-    exit();
-  };
+    exitLink();
+  }
 }
 
 var defaults$5 = {
@@ -27704,7 +27857,7 @@ var defaults$5 = {
 };
 
 function stringLength(value) {
-  return value.length;
+  return value.length
 }
 
 const nbsp$2 = " ";
@@ -27863,7 +28016,7 @@ const Prime$1 = "″";
 const oline$1 = "‾";
 const frasl$1 = "⁄";
 const weierp$1 = "℘";
-const image$1 = "ℑ";
+const image$2 = "ℑ";
 const real$1 = "ℜ";
 const trade$1 = "™";
 const alefsym$1 = "ℵ";
@@ -27937,7 +28090,7 @@ const Scaron$1 = "Š";
 const scaron$1 = "š";
 const Yuml$1 = "Ÿ";
 const circ$1 = "ˆ";
-const tilde$1 = "˜";
+const tilde$3 = "˜";
 const ensp$1 = " ";
 const emsp$1 = " ";
 const thinsp$1 = " ";
@@ -28116,7 +28269,7 @@ var index$5 = {
 	oline: oline$1,
 	frasl: frasl$1,
 	weierp: weierp$1,
-	image: image$1,
+	image: image$2,
 	real: real$1,
 	trade: trade$1,
 	alefsym: alefsym$1,
@@ -28190,7 +28343,7 @@ var index$5 = {
 	scaron: scaron$1,
 	Yuml: Yuml$1,
 	circ: circ$1,
-	tilde: tilde$1,
+	tilde: tilde$3,
 	ensp: ensp$1,
 	emsp: emsp$1,
 	thinsp: thinsp$1,
@@ -28371,7 +28524,7 @@ var characterEntitiesHtml4 = Object.freeze({
 	oline: oline$1,
 	frasl: frasl$1,
 	weierp: weierp$1,
-	image: image$1,
+	image: image$2,
 	real: real$1,
 	trade: trade$1,
 	alefsym: alefsym$1,
@@ -28445,7 +28598,7 @@ var characterEntitiesHtml4 = Object.freeze({
 	scaron: scaron$1,
 	Yuml: Yuml$1,
 	circ: circ$1,
-	tilde: tilde$1,
+	tilde: tilde$3,
 	ensp: ensp$1,
 	emsp: emsp$1,
 	thinsp: thinsp$1,
@@ -28500,7 +28653,7 @@ var own$6 = {}.hasOwnProperty;
 var escapes$2 = ['"', "'", '<', '>', '&', '`'];
 
 /* Map of characters to names. */
-var characters$1 = construct();
+var characters = construct();
 
 /* Default escapes. */
 var defaultEscapes = toExpression(escapes$2);
@@ -28563,8 +28716,8 @@ function one$1(char, next, options) {
   var named;
   var numeric;
 
-  if ((shortest || options.useNamedReferences) && own$6.call(characters$1, char)) {
-    named = toNamed(characters$1[char], next, omit, options.attribute);
+  if ((shortest || options.useNamedReferences) && own$6.call(characters, char)) {
+    named = toNamed(characters[char], next, omit, options.attribute);
   }
 
   if (shortest || !named) {
@@ -28627,42 +28780,75 @@ var isAlphanumeric = function (str) {
 
 var entityPrefixLength = length;
 
-/* Returns the length of HTML entity that is a prefix of
- * the given string (excluding the ampersand), 0 if it
- * does not start with an entity. */
+var ampersand = '&';
+
+// Returns the length of HTML entity that is a prefix of the given string
+// (excluding the ampersand), 0 if it does not start with an entity.
 function length(value) {
   var prefix;
 
-  /* istanbul ignore if - Currently also tested for at
-   * implemention, but we keep it here because that’s
-   * proper. */
-  if (value.charAt(0) !== '&') {
-    return 0;
+  /* istanbul ignore if - Currently also tested for at implemention, but we
+   * keep it here because that’s proper. */
+  if (value.charAt(0) !== ampersand) {
+    return 0
   }
 
-  prefix = value.split('&', 2).join('&');
+  prefix = value.split(ampersand, 2).join(ampersand);
 
-  return prefix.length - parseEntities_1(prefix).length;
+  return prefix.length - parseEntities_1(prefix).length
 }
 
 var _escape$4 = factory$5;
 
-var BACKSLASH = '\\';
-var BULLETS = ['*', '-', '+'];
-var ALLIGNMENT = [':', '-', ' ', '|'];
-var entities$1 = {'<': '&lt;', ':': '&#x3A;', '&': '&amp;', '|': '&#x7C;', '~': '&#x7E;'};
+var tab$14 = '\t';
+var lineFeed$18 = '\n';
+var space$16 = ' ';
+var numberSign$1 = '#';
+var ampersand$1 = '&';
+var leftParenthesis$3 = '(';
+var rightParenthesis$4 = ')';
+var asterisk$4 = '*';
+var plusSign$1 = '+';
+var dash$5 = '-';
+var dot$3 = '.';
+var colon$5 = ':';
+var lessThan$6 = '<';
+var greaterThan$4 = '>';
+var leftSquareBracket$5 = '[';
+var backslash$9 = '\\';
+var rightSquareBracket$5 = ']';
+var underscore$4 = '_';
+var graveAccent$4 = '`';
+var verticalBar$1 = '|';
+var tilde$4 = '~';
+var exclamationMark$4 = '!';
 
-/* Factory to escape characters. */
+var entities$1 = {
+  '<': '&lt;',
+  ':': '&#x3A;',
+  '&': '&amp;',
+  '|': '&#x7C;',
+  '~': '&#x7E;'
+};
+
+var shortcut$1 = 'shortcut';
+var mailto$2 = 'mailto';
+var https$1 = 'https';
+var http$1 = 'http';
+
+var blankExpression = /\n\s*$/;
+
+// Factory to escape characters.
 function factory$5(options) {
-  return escape;
+  return escape
 
-  /* Escape punctuation characters in a node's value. */
+  // Escape punctuation characters in a node’s value.
   function escape(value, node, parent) {
     var self = this;
     var gfm = options.gfm;
     var commonmark = options.commonmark;
     var pedantic = options.pedantic;
-    var markers = commonmark ? ['.', ')'] : ['.'];
+    var markers = commonmark ? [dot$3, rightParenthesis$4] : [dot$3];
     var siblings = parent && parent.children;
     var index = siblings && siblings.indexOf(node);
     var prev = siblings && siblings[index - 1];
@@ -28680,14 +28866,10 @@ function factory$5(options) {
     var replace;
 
     if (prev) {
-      afterNewLine = text$1(prev) && /\n\s*$/.test(prev.value);
+      afterNewLine = text$1(prev) && blankExpression.test(prev.value);
     } else {
-      afterNewLine = !parent || parent.type === 'root' || parent.type === 'paragraph';
-    }
-
-    function one(character) {
-      return escapable.indexOf(character) === -1 ?
-        entities$1[character] : BACKSLASH + character;
+      afterNewLine =
+        !parent || parent.type === 'root' || parent.type === 'paragraph';
     }
 
     while (++position < length) {
@@ -28697,35 +28879,36 @@ function factory$5(options) {
       if (character === '\n') {
         afterNewLine = true;
       } else if (
-        character === BACKSLASH ||
-        character === '`' ||
-        character === '*' ||
-        character === '[' ||
-        character === '<' ||
-        (character === '&' && entityPrefixLength(value.slice(position)) > 0) ||
-        (character === ']' && self.inLink) ||
-        (gfm && character === '~' && value.charAt(position + 1) === '~') ||
-        (gfm && character === '|' && (self.inTable || alignment(value, position))) ||
-        (
-          character === '_' &&
-          /* Delegate leading/trailing underscores
-           * to the multinode version below. */
+        character === backslash$9 ||
+        character === graveAccent$4 ||
+        character === asterisk$4 ||
+        (character === exclamationMark$4 &&
+          value.charAt(position + 1) === leftSquareBracket$5) ||
+        character === leftSquareBracket$5 ||
+        character === lessThan$6 ||
+        (character === ampersand$1 && entityPrefixLength(value.slice(position)) > 0) ||
+        (character === rightSquareBracket$5 && self.inLink) ||
+        (gfm && character === tilde$4 && value.charAt(position + 1) === tilde$4) ||
+        (gfm &&
+          character === verticalBar$1 &&
+          (self.inTable || alignment(value, position))) ||
+        (character === underscore$4 &&
+          // Delegate leading/trailing underscores to the multinode version below.
           position > 0 &&
           position < length - 1 &&
-          (
-              pedantic ||
-              !isAlphanumeric(value.charAt(position - 1)) ||
-              !isAlphanumeric(value.charAt(position + 1))
-          )
-        ) ||
-        (gfm && !self.inLink && character === ':' && protocol(queue.join('')))
+          (pedantic ||
+            !isAlphanumeric(value.charAt(position - 1)) ||
+            !isAlphanumeric(value.charAt(position + 1)))) ||
+        (gfm && !self.inLink && character === colon$5 && protocol(queue.join('')))
       ) {
         replace = true;
       } else if (afterNewLine) {
         if (
-          character === '>' ||
-          character === '#' ||
-          BULLETS.indexOf(character) !== -1
+          character === greaterThan$4 ||
+          character === numberSign$1 ||
+          character === asterisk$4 ||
+          character === dash$5 ||
+          character === plusSign$1
         ) {
           replace = true;
         } else if (isDecimal(character)) {
@@ -28733,7 +28916,7 @@ function factory$5(options) {
 
           while (offset < length) {
             if (!isDecimal(value.charAt(offset))) {
-              break;
+              break
             }
 
             offset++;
@@ -28742,7 +28925,7 @@ function factory$5(options) {
           if (markers.indexOf(value.charAt(offset)) !== -1) {
             next = value.charAt(offset + 1);
 
-            if (!next || next === ' ' || next === '\t' || next === '\n') {
+            if (!next || next === space$16 || next === tab$14 || next === lineFeed$18) {
               queue.push(value.slice(position, offset));
               position = offset;
               character = value.charAt(position);
@@ -28759,135 +28942,157 @@ function factory$5(options) {
       queue.push(replace ? one(character) : character);
     }
 
-    /* Multi-node versions. */
+    // Multi-node versions.
     if (siblings && text$1(node)) {
-      /* Check for an opening parentheses after a
-       * link-reference (which can be joined by
-       * white-space). */
-      if (prev && prev.referenceType === 'shortcut') {
+      // Check for an opening parentheses after a link-reference (which can be
+      // joined by white-space).
+      if (prev && prev.referenceType === shortcut$1) {
         position = -1;
         length = escaped.length;
 
         while (++position < length) {
           character = escaped[position];
 
-          if (character === ' ' || character === '\t') {
-            continue;
+          if (character === space$16 || character === tab$14) {
+            continue
           }
 
-          if (character === '(' || character === ':') {
+          if (character === leftParenthesis$3 || character === colon$5) {
             escaped[position] = one(character);
           }
 
-          break;
+          break
         }
 
-        /* If the current node is all spaces / tabs,
-         * preceded by a shortcut, and followed by
-         * a text starting with `(`, escape it. */
+        // If the current node is all spaces / tabs, preceded by a shortcut,
+        // and followed by a text starting with `(`, escape it.
         if (
           text$1(next) &&
           position === length &&
-          next.value.charAt(0) === '('
+          next.value.charAt(0) === leftParenthesis$3
         ) {
-          escaped.push(BACKSLASH);
+          escaped.push(backslash$9);
         }
       }
 
-      /* Ensure non-auto-links are not seen as links.
-       * This pattern needs to check the preceding
-       * nodes too. */
+      // Ensure non-auto-links are not seen as links.  This pattern needs to
+      // check the preceding nodes too.
       if (
         gfm &&
         !self.inLink &&
         text$1(prev) &&
-        value.charAt(0) === ':' &&
+        value.charAt(0) === colon$5 &&
         protocol(prev.value.slice(-6))
       ) {
-        escaped[0] = one(':');
+        escaped[0] = one(colon$5);
       }
 
-      /* Escape ampersand if it would otherwise
-       * start an entity. */
+      // Escape ampersand if it would otherwise start an entity.
       if (
         text$1(next) &&
-        value.charAt(length - 1) === '&' &&
-        entityPrefixLength('&' + next.value) !== 0
+        value.charAt(length - 1) === ampersand$1 &&
+        entityPrefixLength(ampersand$1 + next.value) !== 0
       ) {
-        escaped[escaped.length - 1] = one('&');
+        escaped[escaped.length - 1] = one(ampersand$1);
       }
 
-      /* Escape double tildes in GFM. */
+      // Escape exclamation marks immediately followed by links.
+      if (
+        next &&
+        next.type === 'link' &&
+        value.charAt(length - 1) === exclamationMark$4
+      ) {
+        escaped[escaped.length - 1] = one(exclamationMark$4);
+      }
+
+      // Escape double tildes in GFM.
       if (
         gfm &&
         text$1(next) &&
-        value.charAt(length - 1) === '~' &&
-        next.value.charAt(0) === '~'
+        value.charAt(length - 1) === tilde$4 &&
+        next.value.charAt(0) === tilde$4
       ) {
-        escaped.splice(escaped.length - 1, 0, BACKSLASH);
+        escaped.splice(escaped.length - 1, 0, backslash$9);
       }
 
-      /* Escape underscores, but not mid-word (unless
-       * in pedantic mode). */
+      // Escape underscores, but not mid-word (unless in pedantic mode).
       wordCharBefore = text$1(prev) && isAlphanumeric(prev.value.slice(-1));
       wordCharAfter = text$1(next) && isAlphanumeric(next.value.charAt(0));
 
       if (length === 1) {
-        if (value === '_' && (pedantic || !wordCharBefore || !wordCharAfter)) {
-          escaped.unshift(BACKSLASH);
+        if (
+          value === underscore$4 &&
+          (pedantic || !wordCharBefore || !wordCharAfter)
+        ) {
+          escaped.unshift(backslash$9);
         }
       } else {
         if (
-          value.charAt(0) === '_' &&
+          value.charAt(0) === underscore$4 &&
           (pedantic || !wordCharBefore || !isAlphanumeric(value.charAt(1)))
         ) {
-          escaped.unshift(BACKSLASH);
+          escaped.unshift(backslash$9);
         }
 
         if (
-          value.charAt(length - 1) === '_' &&
-          (pedantic || !wordCharAfter || !isAlphanumeric(value.charAt(length - 2)))
+          value.charAt(length - 1) === underscore$4 &&
+          (pedantic ||
+            !wordCharAfter ||
+            !isAlphanumeric(value.charAt(length - 2)))
         ) {
-          escaped.splice(escaped.length - 1, 0, BACKSLASH);
+          escaped.splice(escaped.length - 1, 0, backslash$9);
         }
       }
     }
 
-    return escaped.join('');
+    return escaped.join('')
+
+    function one(character) {
+      return escapable.indexOf(character) === -1
+        ? entities$1[character]
+        : backslash$9 + character
+    }
   }
 }
 
-/* Check if `index` in `value` is inside an alignment row. */
+// Check if `index` in `value` is inside an alignment row.
 function alignment(value, index) {
-  var start = value.lastIndexOf('\n', index);
-  var end = value.indexOf('\n', index);
+  var start = value.lastIndexOf(lineFeed$18, index);
+  var end = value.indexOf(lineFeed$18, index);
+  var char;
 
-  start = start === -1 ? -1 : start;
   end = end === -1 ? value.length : end;
 
   while (++start < end) {
-    if (ALLIGNMENT.indexOf(value.charAt(start)) === -1) {
-      return false;
+    char = value.charAt(start);
+
+    if (
+      char !== colon$5 &&
+      char !== dash$5 &&
+      char !== space$16 &&
+      char !== verticalBar$1
+    ) {
+      return false
     }
   }
 
-  return true;
+  return true
 }
 
-/* Check if `node` is a text node. */
+// Check if `node` is a text node.
 function text$1(node) {
-  return node && node.type === 'text';
+  return node && node.type === 'text'
 }
 
-/* Check if `value` ends in a protocol. */
+// Check if `value` ends in a protocol.
 function protocol(value) {
   var val = value.slice(-6).toLowerCase();
-  return val === 'mailto' || val.slice(-5) === 'https' || val.slice(-4) === 'http';
+  return val === mailto$2 || val.slice(-5) === https$1 || val.slice(-4) === http$1
 }
 
 var setOptions_1$2 = setOptions$1;
 
-/* Map of applicable enum's. */
+// Map of applicable enums.
 var maps = {
   entities: {true: true, false: true, numbers: true, escape: true},
   bullet: {'*': true, '-': true, '+': true},
@@ -28898,7 +29103,7 @@ var maps = {
   fence: {'`': true, '~': true}
 };
 
-/* Expose `validate`. */
+// Expose `validate`.
 var validate = {
   boolean: validateBoolean,
   string: validateString,
@@ -28906,8 +29111,7 @@ var validate = {
   function: validateFunction
 };
 
-/* Set options.  Does not overwrite previously set
- * options. */
+// Set options.  Does not overwrite previously set options.
 function setOptions$1(options) {
   var self = this;
   var current = self.options;
@@ -28919,7 +29123,7 @@ function setOptions$1(options) {
   } else if (typeof options === 'object') {
     options = immutable(options);
   } else {
-    throw new Error('Invalid value `' + options + '` for setting `options`');
+    throw new Error('Invalid value `' + options + '` for setting `options`')
   }
 
   for (key in defaults$5) {
@@ -28937,18 +29141,11 @@ function setOptions$1(options) {
 
   self.options = options;
 
-  return self;
+  return self
 }
 
-/* Throw an exception with in its `message` `value`
- * and `name`. */
-function raise(value, name) {
-  throw new Error('Invalid value `' + value + '` for setting `' + name + '`');
-}
-
-/* Validate a value to be boolean. Defaults to `def`.
- * Raises an exception with `context[name]` when not
- * a boolean. */
+// Validate a value to be boolean. Defaults to `def`.  Raises an exception with
+// `context[name]` when not a boolean.
 function validateBoolean(context, name, def) {
   var value = context[name];
 
@@ -28963,9 +29160,8 @@ function validateBoolean(context, name, def) {
   context[name] = value;
 }
 
-/* Validate a value to be boolean. Defaults to `def`.
- * Raises an exception with `context[name]` when not
- * a boolean. */
+// Validate a value to be boolean. Defaults to `def`.  Raises an exception with
+// `context[name]` when not a boolean.
 function validateNumber(context, name, def) {
   var value = context[name];
 
@@ -28980,9 +29176,8 @@ function validateNumber(context, name, def) {
   context[name] = value;
 }
 
-/* Validate a value to be in `map`. Defaults to `def`.
- * Raises an exception with `context[name]` when not
- * in `map`. */
+// Validate a value to be in `map`. Defaults to `def`.  Raises an exception
+// with `context[name]` when not in `map`.
 function validateString(context, name, def, map) {
   var value = context[name];
 
@@ -28999,9 +29194,8 @@ function validateString(context, name, def, map) {
   context[name] = value;
 }
 
-/* Validate a value to be function. Defaults to `def`.
- * Raises an exception with `context[name]` when not
- * a function. */
+// Validate a value to be function. Defaults to `def`.  Raises an exception
+// with `context[name]` when not a function.
 function validateFunction(context, name, def) {
   var value = context[name];
 
@@ -29016,17 +29210,15 @@ function validateFunction(context, name, def) {
   context[name] = value;
 }
 
-/* Factory to encode HTML entities.
- * Creates a no-operation function when `type` is
- * `'false'`, a function which encodes using named
- * references when `type` is `'true'`, and a function
- * which encodes using numbered references when `type` is
- * `'numbers'`. */
+// Factory to encode HTML entities.  Creates a no-operation function when
+// `type` is `'false'`, a function which encodes using named references when
+// `type` is `'true'`, and a function which encodes using numbered references
+// when `type` is `'numbers'`.
 function encodeFactory(type) {
   var options = {};
 
   if (type === 'false') {
-    return returner_1;
+    return identity_1
   }
 
   if (type === 'true') {
@@ -29038,12 +29230,17 @@ function encodeFactory(type) {
     options.useNamedReferences = true;
   }
 
-  return wrapped;
+  return wrapped
 
-  /* Encode HTML entities using the bound options. */
+  // Encode HTML entities using the bound options.
   function wrapped(value) {
-    return stringifyEntities(value, options);
+    return stringifyEntities(value, options)
   }
+}
+
+// Throw an exception with in its `message` `value` and `name`.
+function raise(value, name) {
+  throw new Error('Invalid value `' + value + '` for setting `' + name + '`')
 }
 
 var mdastUtilCompact = compact;
@@ -29106,9 +29303,9 @@ function mergeable$1(node, commonmark) {
 
 var compile_1 = compile$2;
 
-/* Stringify the given tree. */
+// Stringify the given tree.
 function compile$2() {
-  return this.visit(mdastUtilCompact(this.tree, this.options.commonmark));
+  return this.visit(mdastUtilCompact(this.tree, this.options.commonmark))
 }
 
 var one_1 = one$2;
@@ -29117,23 +29314,22 @@ function one$2(node, parent) {
   var self = this;
   var visitors = self.visitors;
 
-  /* Fail on unknown nodes. */
+  // Fail on unknown nodes.
   if (typeof visitors[node.type] !== 'function') {
     self.file.fail(
       new Error(
-        'Missing compiler for node of type `' +
-        node.type + '`: `' + node + '`'
+        'Missing compiler for node of type `' + node.type + '`: `' + node + '`'
       ),
       node
     );
   }
 
-  return visitors[node.type].call(self, node, parent);
+  return visitors[node.type].call(self, node, parent)
 }
 
 var all_1 = all;
 
-/* Visit all children of `parent`. */
+// Visit all children of `parent`.
 function all(parent) {
   var self = this;
   var children = parent.children;
@@ -29145,70 +29341,83 @@ function all(parent) {
     results[index] = self.visit(children[index], parent);
   }
 
-  return results;
+  return results
 }
 
 var block_1 = block$1;
 
-/* Stringify a block node with block children (e.g., `root`
- * or `blockquote`).
- * Knows about code following a list, or adjacent lists
- * with similar bullets, and places an extra newline
- * between them. */
+var lineFeed$19 = '\n';
+
+var blank$1 = lineFeed$19 + lineFeed$19;
+var triple = blank$1 + lineFeed$19;
+var comment$1 = blank$1 + '<!---->' + blank$1;
+
+// Stringify a block node with block children (e.g., `root` or `blockquote`).
+// Knows about code following a list, or adjacent lists with similar bullets,
+// and places an extra line feed between them.
 function block$1(node) {
   var self = this;
+  var options = self.options;
+  var fences = options.fences;
+  var gap = options.commonmark ? comment$1 : triple;
   var values = [];
   var children = node.children;
   var length = children.length;
   var index = -1;
-  var child;
   var prev;
+  var child;
 
   while (++index < length) {
+    prev = child;
     child = children[index];
 
     if (prev) {
-      /* Duplicate nodes, such as a list
-       * directly following another list,
-       * often need multiple new lines.
-       *
-       * Additionally, code blocks following a list
-       * might easily be mistaken for a paragraph
-       * in the list itself. */
-      if (child.type === prev.type && prev.type === 'list') {
-        values.push(prev.ordered === child.ordered ? '\n\n\n' : '\n\n');
-      } else if (prev.type === 'list' && child.type === 'code' && !child.lang) {
-        values.push('\n\n\n');
+      // A list preceding another list that are equally ordered, or a
+      // list preceding an indented code block, need a gap between them,
+      // so as not to see them as one list, or content of the list,
+      // respectively.
+      //
+      // In commonmark, only something that breaks both up can do that,
+      // so we opt for an empty, invisible comment.  In other flavours,
+      // two blank lines are fine.
+      if (
+        prev.type === 'list' &&
+        ((child.type === 'list' && prev.ordered === child.ordered) ||
+          (child.type === 'code' && (!child.lang && !fences)))
+      ) {
+        values.push(gap);
       } else {
-        values.push('\n\n');
+        values.push(blank$1);
       }
     }
 
     values.push(self.visit(child, node));
-
-    prev = child;
   }
 
-  return values.join('');
+  return values.join('')
 }
 
 var orderedItems_1 = orderedItems;
 
-/* Visit ordered list items.
- *
- * Starts the list with
- * `node.start` and increments each following list item
- * bullet by one:
- *
- *     2. foo
- *     3. bar
- *
- * In `incrementListMarker: false` mode, does not increment
- * each marker and stays on `node.start`:
- *
- *     1. foo
- *     1. bar
- */
+var lineFeed$20 = '\n';
+var dot$4 = '.';
+
+var blank$2 = lineFeed$20 + lineFeed$20;
+
+// Visit ordered list items.
+//
+// Starts the list with
+// `node.start` and increments each following list item
+// bullet by one:
+//
+//     2. foo
+//     3. bar
+//
+// In `incrementListMarker: false` mode, does not increment
+// each marker and stays on `node.start`:
+//
+//     1. foo
+//     1. bar
 function orderedItems(node) {
   var self = this;
   var fn = self.visitors.listItem;
@@ -29220,19 +29429,23 @@ function orderedItems(node) {
   var index = -1;
   var bullet;
 
+  start = start == null ? 1 : start;
+
   while (++index < length) {
-    bullet = (increment ? start + index : start) + '.';
+    bullet = (increment ? start + index : start) + dot$4;
     values[index] = fn.call(self, children[index], node, index, bullet);
   }
 
-  return values.join('\n');
+  return values.join(node.spread ? blank$2 : lineFeed$20)
 }
 
 var unorderedItems_1 = unorderedItems;
 
-/* Visit unordered list items.
- * Uses `options.bullet` as each item's bullet.
- */
+var lineFeed$21 = '\n';
+
+var blank$3 = lineFeed$21 + lineFeed$21;
+
+// Visit unordered list items.  Uses `options.bullet` as each item’s bullet.
 function unorderedItems(node) {
   var self = this;
   var bullet = self.options.bullet;
@@ -29246,52 +29459,66 @@ function unorderedItems(node) {
     values[index] = fn.call(self, children[index], node, index, bullet);
   }
 
-  return values.join('\n');
+  return values.join(node.spread ? blank$3 : lineFeed$21)
 }
 
 var root_1 = root;
 
-/* Stringify a root.
- * Adds a final newline to ensure valid POSIX files. */
+var lineFeed$22 = '\n';
+
+// Stringify a root.
+// Adds a final newline to ensure valid POSIX files. */
 function root(node) {
-  return this.block(node) + '\n';
+  return this.block(node) + lineFeed$22
 }
 
 var text_1$2 = text$2;
 
-/* Stringify text.
- * Supports named entities in `settings.encode: true` mode:
- *
- *     AT&amp;T
- *
- * Supports numbered entities in `settings.encode: numbers`
- * mode:
- *
- *     AT&#x26;T
- */
+// Stringify text.
+// Supports named entities in `settings.encode: true` mode:
+//
+// ```markdown
+// AT&amp;T
+// ```
+//
+// Supports numbered entities in `settings.encode: numbers` mode:
+//
+// ```markdown
+// AT&#x26;T
+// ```
 function text$2(node, parent) {
-  return this.encode(this.escape(node.value, node, parent), node);
+  return this.encode(this.escape(node.value, node, parent), node)
 }
 
 var heading_1 = heading;
 
-/* Stringify a heading.
- *
- * In `setext: true` mode and when `depth` is smaller than
- * three, creates a setext header:
- *
- *     Foo
- *     ===
- *
- * Otherwise, an ATX header is generated:
- *
- *     ### Foo
- *
- * In `closeAtx: true` mode, the header is closed with
- * hashes:
- *
- *     ### Foo ###
- */
+var lineFeed$23 = '\n';
+var space$17 = ' ';
+var numberSign$2 = '#';
+var dash$6 = '-';
+var equalsTo$1 = '=';
+
+// Stringify a heading.
+//
+// In `setext: true` mode and when `depth` is smaller than three, creates a
+// setext header:
+//
+// ```markdown
+// Foo
+// ===
+// ```
+//
+// Otherwise, an ATX header is generated:
+//
+// ```markdown
+// ### Foo
+// ```
+//
+// In `closeAtx: true` mode, the header is closed with hashes:
+//
+// ```markdown
+// ### Foo ###
+// ```
 function heading(node) {
   var self = this;
   var depth = node.depth;
@@ -29301,24 +29528,30 @@ function heading(node) {
   var prefix;
 
   if (setext && depth < 3) {
-    return content + '\n' + repeatString(depth === 1 ? '=' : '-', content.length);
+    return (
+      content + lineFeed$23 + repeatString(depth === 1 ? equalsTo$1 : dash$6, content.length)
+    )
   }
 
-  prefix = repeatString('#', node.depth);
+  prefix = repeatString(numberSign$2, node.depth);
 
-  return prefix + ' ' + content + (closeAtx ? ' ' + prefix : '');
+  return prefix + space$17 + content + (closeAtx ? space$17 + prefix : '')
 }
 
 var paragraph_1$2 = paragraph$1;
 
 function paragraph$1(node) {
-  return this.all(node).join('');
+  return this.all(node).join('')
 }
 
 var blockquote_1$2 = blockquote$1;
 
+var lineFeed$24 = '\n';
+var space$18 = ' ';
+var greaterThan$5 = '>';
+
 function blockquote$1(node) {
-  var values = this.block(node).split('\n');
+  var values = this.block(node).split(lineFeed$24);
   var result = [];
   var length = values.length;
   var index = -1;
@@ -29326,74 +29559,74 @@ function blockquote$1(node) {
 
   while (++index < length) {
     value = values[index];
-    result[index] = (value ? ' ' : '') + value;
+    result[index] = (value ? space$18 : '') + value;
   }
 
-  return '>' + result.join('\n>');
+  return greaterThan$5 + result.join(lineFeed$24 + greaterThan$5)
 }
 
 var list_1$2 = list$1;
 
-/* Which method to use based on `list.ordered`. */
-var ORDERED_MAP = {
-  true: 'visitOrderedItems',
-  false: 'visitUnorderedItems'
-};
-
 function list$1(node) {
-  return this[ORDERED_MAP[node.ordered]](node);
+  var fn = node.ordered ? this.visitOrderedItems : this.visitUnorderedItems;
+  return fn.call(this, node)
 }
 
 var pad_1 = pad;
 
-var INDENT = 4;
+var lineFeed$25 = '\n';
+var space$19 = ' ';
 
-/* Pad `value` with `level * INDENT` spaces.  Respects
- * lines. Ignores empty lines. */
+var tabSize$5 = 4;
+
+// Pad `value` with `level * tabSize` spaces.  Respects lines.  Ignores empty
+// lines.
 function pad(value, level) {
-  var index;
-  var padding;
-
-  value = value.split('\n');
-
-  index = value.length;
-  padding = repeatString(' ', level * INDENT);
+  var values = value.split(lineFeed$25);
+  var index = values.length;
+  var padding = repeatString(space$19, level * tabSize$5);
 
   while (index--) {
-    if (value[index].length !== 0) {
-      value[index] = padding + value[index];
+    if (values[index].length !== 0) {
+      values[index] = padding + values[index];
     }
   }
 
-  return value.join('\n');
+  return values.join(lineFeed$25)
 }
 
 var listItem_1 = listItem$1;
 
-/* Which checkbox to use. */
-var CHECKBOX_MAP = {
-  undefined: '',
-  null: '',
-  true: '[x] ',
-  false: '[ ] '
-};
+var lineFeed$26 = '\n';
+var space$20 = ' ';
+var leftSquareBracket$6 = '[';
+var rightSquareBracket$6 = ']';
+var lowercaseX$1 = 'x';
 
-/* Stringify a list item.
- *
- * Prefixes the content with a checked checkbox when
- * `checked: true`:
- *
- *     [x] foo
- *
- * Prefixes the content with an unchecked checkbox when
- * `checked: false`:
- *
- *     [ ] foo
- */
+var ceil = Math.ceil;
+var blank$4 = lineFeed$26 + lineFeed$26;
+
+var tabSize$6 = 4;
+
+// Stringify a list item.
+//
+// Prefixes the content with a checked checkbox when `checked: true`:
+//
+// ```markdown
+// [x] foo
+// ```
+//
+// Prefixes the content with an unchecked checkbox when `checked: false`:
+//
+// ```markdown
+// [ ] foo
+// ```
 function listItem$1(node, parent, position, bullet) {
   var self = this;
   var style = self.options.listItemIndent;
-  var loose = node.loose;
+  var marker = bullet || self.options.bullet;
+  var spread = node.spread == null ? true : node.spread;
+  var checked = node.checked;
   var children = node.children;
   var length = children.length;
   var values = [];
@@ -29406,23 +29639,31 @@ function listItem$1(node, parent, position, bullet) {
     values[index] = self.visit(children[index], node);
   }
 
-  value = CHECKBOX_MAP[node.checked] + values.join(loose ? '\n\n' : '\n');
+  value = values.join(spread ? blank$4 : lineFeed$26);
 
-  if (style === '1' || (style === 'mixed' && value.indexOf('\n') === -1)) {
-    indent = bullet.length + 1;
-    spacing = ' ';
+  if (typeof checked === 'boolean') {
+    // Note: I’d like to be able to only add the space between the check and
+    // the value, but unfortunately github does not support empty list-items
+    // with a checkbox :(
+    value =
+      leftSquareBracket$6 +
+      (checked ? lowercaseX$1 : space$20) +
+      rightSquareBracket$6 +
+      space$20 +
+      value;
+  }
+
+  if (style === '1' || (style === 'mixed' && value.indexOf(lineFeed$26) === -1)) {
+    indent = marker.length + 1;
+    spacing = space$20;
   } else {
-    indent = Math.ceil((bullet.length + 1) / 4) * 4;
-    spacing = repeatString(' ', indent - bullet.length);
+    indent = ceil((marker.length + 1) / tabSize$6) * tabSize$6;
+    spacing = repeatString(space$20, indent - marker.length);
   }
 
-  value = bullet + spacing + pad_1(value, indent / 4).slice(indent);
-
-  if (loose && parent.children.length - 1 !== position) {
-    value += '\n';
-  }
-
-  return value;
+  return value
+    ? marker + spacing + pad_1(value, indent / tabSize$6).slice(indent)
+    : marker
 }
 
 /* Expose. */
@@ -29464,178 +29705,222 @@ function longestStreak(value, character) {
 
 var inlineCode_1 = inlineCode$1;
 
-/* Stringify inline code.
- *
- * Knows about internal ticks (`\``), and ensures one more
- * tick is used to enclose the inline code:
- *
- *     ```foo ``bar`` baz```
- *
- * Even knows about inital and final ticks:
- *
- *     `` `foo ``
- *     `` foo` ``
- */
+var space$21 = ' ';
+var graveAccent$5 = '`';
+
+// Stringify inline code.
+//
+// Knows about internal ticks (`\``), and ensures one more tick is used to
+// enclose the inline code:
+//
+// ````markdown
+// ```foo ``bar`` baz```
+// ````
+//
+// Even knows about inital and final ticks:
+//
+// ``markdown
+// `` `foo ``
+// `` foo` ``
+// ```
 function inlineCode$1(node) {
   var value = node.value;
-  var ticks = repeatString('`', longestStreak_1(value, '`') + 1);
+  var ticks = repeatString(graveAccent$5, longestStreak_1(value, graveAccent$5) + 1);
   var start = ticks;
   var end = ticks;
 
-  if (value.charAt(0) === '`') {
-    start += ' ';
+  if (value.charAt(0) === graveAccent$5) {
+    start += space$21;
   }
 
-  if (value.charAt(value.length - 1) === '`') {
-    end = ' ' + end;
+  if (value.charAt(value.length - 1) === graveAccent$5) {
+    end = space$21 + end;
   }
 
-  return start + value + end;
+  return start + value + end
 }
 
 var code_1 = code;
 
-var FENCE = /([`~])\1{2}/;
+var lineFeed$27 = '\n';
+var space$22 = ' ';
 
-/* Stringify code.
- * Creates indented code when:
- *
- * - No language tag exists;
- * - Not in `fences: true` mode;
- * - A non-empty value exists.
- *
- * Otherwise, GFM fenced code is created:
- *
- *     ```js
- *     foo();
- *     ```
- *
- * When in ``fence: `~` `` mode, uses tildes as fences:
- *
- *     ~~~js
- *     foo();
- *     ~~~
- *
- * Knows about internal fences (Note: GitHub/Kramdown does
- * not support this):
- *
- *     ````javascript
- *     ```markdown
- *     foo
- *     ```
- *     ````
- */
+// Stringify code.
+// Creates indented code when:
+//
+// - No language tag exists
+// - Not in `fences: true` mode
+// - A non-empty value exists
+//
+// Otherwise, GFM fenced code is created:
+//
+// ````markdown
+// ```js
+// foo();
+// ```
+// ````
+//
+// When in ``fence: `~` `` mode, uses tildes as fences:
+//
+// ```markdown
+// ~~~js
+// foo();
+// ~~~
+// ```
+//
+// Knows about internal fences:
+//
+// `````markdown
+// ````markdown
+// ```javascript
+// foo();
+// ```
+// ````
+// `````
 function code(node, parent) {
   var self = this;
   var value = node.value;
   var options = self.options;
   var marker = options.fence;
-  var language = self.encode(node.lang || '', node);
+  var info = node.lang || '';
   var fence;
 
-  /* Without (needed) fences. */
-  if (!language && !options.fences && value) {
-    /* Throw when pedantic, in a list item which
-     * isn’t compiled using a tab. */
+  if (info && node.meta) {
+    info += space$22 + node.meta;
+  }
+
+  info = self.encode(self.escape(info, node));
+
+  // Without (needed) fences.
+  if (!info && !options.fences && value) {
+    // Throw when pedantic, in a list item which isn’t compiled using a tab.
     if (
       parent &&
       parent.type === 'listItem' &&
       options.listItemIndent !== 'tab' &&
       options.pedantic
     ) {
-      self.file.fail('Cannot indent code properly. See http://git.io/vgFvT', node.position);
+      self.file.fail(
+        'Cannot indent code properly. See https://git.io/fxKR8',
+        node.position
+      );
     }
 
-    return pad_1(value, 1);
+    return pad_1(value, 1)
   }
 
-  fence = longestStreak_1(value, marker) + 1;
+  fence = repeatString(marker, Math.max(longestStreak_1(value, marker) + 1, 3));
 
-  /* Fix GFM / RedCarpet bug, where fence-like characters
-   * inside fenced code can exit a code-block.
-   * Yes, even when the outer fence uses different
-   * characters, or is longer.
-   * Thus, we can only pad the code to make it work. */
-  if (FENCE.test(value)) {
-    value = pad_1(value, 1);
-  }
-
-  fence = repeatString(marker, Math.max(fence, 3));
-
-  return fence + language + '\n' + value + '\n' + fence;
+  return fence + info + lineFeed$27 + value + lineFeed$27 + fence
 }
 
 var html_1 = html$2;
 
 function html$2(node) {
-  return node.value;
+  return node.value
 }
 
 var thematicBreak$1 = thematic;
 
-/* Stringify a `thematic-break`.
- * The character used is configurable through `rule`: (`'_'`)
- *
- *     ___
- *
- * The number of repititions is defined through
- * `ruleRepetition`: (`6`)
- *
- *     ******
- *
- * Whether spaces delimit each character, is configured
- * through `ruleSpaces`: (`true`)
- *
- *     * * *
- */
+var space$23 = ' ';
+
+// Stringify a `thematic-break`.
+// The character used is configurable through `rule`: (`'_'`):
+//
+// ```markdown
+// ___
+// ```
+//
+// The number of repititions is defined through `ruleRepetition` (`6`):
+//
+// ```markdown
+// ******
+// ```
+//
+// Whether spaces delimit each character, is configured through `ruleSpaces`
+// (`true`):
+// ```markdown
+// * * *
+// ```
 function thematic() {
   var options = this.options;
   var rule = repeatString(options.rule, options.ruleRepetition);
-  return options.ruleSpaces ? rule.split('').join(' ') : rule;
+  return options.ruleSpaces ? rule.split('').join(space$23) : rule
 }
 
 var strong_1$2 = strong$3;
 
-/* Stringify a `strong`.
- *
- * The marker used is configurable by `strong`, which
- * defaults to an asterisk (`'*'`) but also accepts an
- * underscore (`'_'`):
- *
- *     __foo__
- */
+// Stringify a `strong`.
+//
+// The marker used is configurable by `strong`, which defaults to an asterisk
+// (`'*'`) but also accepts an underscore (`'_'`):
+//
+// ```markdown
+// __foo__
+// ```
 function strong$3(node) {
   var marker = repeatString(this.options.strong, 2);
-  return marker + this.all(node).join('') + marker;
+  return marker + this.all(node).join('') + marker
 }
 
 var emphasis_1$2 = emphasis$3;
 
-/* Stringify an `emphasis`.
- *
- * The marker used is configurable through `emphasis`, which
- * defaults to an underscore (`'_'`) but also accepts an
- * asterisk (`'*'`):
- *
- *     *foo*
- */
+var underscore$5 = '_';
+var asterisk$5 = '*';
+
+// Stringify an `emphasis`.
+//
+// The marker used is configurable through `emphasis`, which defaults to an
+// underscore (`'_'`) but also accepts an asterisk (`'*'`):
+//
+// ```markdown
+// *foo*
+// ```
+//
+// In `pedantic` mode, text which itself contains an underscore will cause the
+// marker to default to an asterisk instead:
+//
+// ```markdown
+// *foo_bar*
+// ```
 function emphasis$3(node) {
   var marker = this.options.emphasis;
-  return marker + this.all(node).join('') + marker;
+  var content = this.all(node).join('');
+
+  // When in pedantic mode, prevent using underscore as the marker when there
+  // are underscores in the content.
+  if (
+    this.options.pedantic &&
+    marker === underscore$5 &&
+    content.indexOf(marker) !== -1
+  ) {
+    marker = asterisk$5;
+  }
+
+  return marker + content + marker
 }
 
 var _break$4 = lineBreak;
 
-var map$4 = {true: '\\\n', false: '  \n'};
+var backslash$10 = '\\';
+var lineFeed$28 = '\n';
+var space$24 = ' ';
+
+var commonmark$1 = backslash$10 + lineFeed$28;
+var normal = space$24 + space$24 + lineFeed$28;
 
 function lineBreak() {
-  return map$4[this.options.commonmark];
+  return this.options.commonmark ? commonmark$1 : normal
 }
 
 var _delete$4 = strikethrough$1;
 
+var tilde$5 = '~';
+
+var fence$1 = tilde$5 + tilde$5;
+
 function strikethrough$1(node) {
-  return '~~' + this.all(node).join('') + '~~';
+  return fence$1 + this.all(node).join('') + fence$1
 }
 
 var ccount_1 = ccount;
@@ -29662,59 +29947,82 @@ function ccount(value, character) {
 
 var encloseUri = enclose;
 
-var re$3 = /\s/;
+var leftParenthesis$4 = '(';
+var rightParenthesis$5 = ')';
+var lessThan$7 = '<';
+var greaterThan$6 = '>';
 
-/* Wrap `url` in angle brackets when needed, or when
- * forced.
- * In links, images, and definitions, the URL part needs
- * to be enclosed when it:
- *
- * - has a length of `0`;
- * - contains white-space;
- * - has more or less opening than closing parentheses.
- */
+var expression = /\s/;
+
+// Wrap `url` in angle brackets when needed, or when
+// forced.
+// In links, images, and definitions, the URL part needs
+// to be enclosed when it:
+//
+// - has a length of `0`
+// - contains white-space
+// - has more or less opening than closing parentheses
 function enclose(uri, always) {
-  if (always || uri.length === 0 || re$3.test(uri) || ccount_1(uri, '(') !== ccount_1(uri, ')')) {
-    return '<' + uri + '>';
+  if (
+    always ||
+    uri.length === 0 ||
+    expression.test(uri) ||
+    ccount_1(uri, leftParenthesis$4) !== ccount_1(uri, rightParenthesis$5)
+  ) {
+    return lessThan$7 + uri + greaterThan$6
   }
 
-  return uri;
+  return uri
 }
 
 var encloseTitle = enclose$1;
 
-/* There is currently no way to support nested delimiters
- * across Markdown.pl, CommonMark, and GitHub (RedCarpet).
- * The following code supports Markdown.pl and GitHub.
- * CommonMark is not supported when mixing double- and
- * single quotes inside a title. */
+var quotationMark$3 = '"';
+var apostrophe$3 = "'";
+
+// There is currently no way to support nested delimiters across Markdown.pl,
+// CommonMark, and GitHub (RedCarpet).  The following code supports Markdown.pl
+// and GitHub.
+// CommonMark is not supported when mixing double- and single quotes inside a
+// title.
 function enclose$1(title) {
-  var delimiter = title.indexOf('"') === -1 ? '"' : '\'';
-  return delimiter + title + delimiter;
+  var delimiter =
+    title.indexOf(quotationMark$3) === -1 ? quotationMark$3 : apostrophe$3;
+  return delimiter + title + delimiter
 }
 
-var link_1$2 = link$3;
+var link_1$2 = link$4;
 
-/* Expression for a protocol:
- * http://en.wikipedia.org/wiki/URI_scheme#Generic_syntax */
-var PROTOCOL = /^[a-z][a-z+.-]+:\/?/i;
+var space$25 = ' ';
+var leftSquareBracket$7 = '[';
+var rightSquareBracket$7 = ']';
+var leftParenthesis$5 = '(';
+var rightParenthesis$6 = ')';
 
-/* Stringify a link.
- *
- * When no title exists, the compiled `children` equal
- * `url`, and `url` starts with a protocol, an auto
- * link is created:
- *
- *     <http://example.com>
- *
- * Otherwise, is smart about enclosing `url` (see
- * `encloseURI()`) and `title` (see `encloseTitle()`).
- *
- *    [foo](<foo at bar dot com> 'An "example" e-mail')
- *
- * Supports named entities in the `url` and `title` when
- * in `settings.encode` mode. */
-function link$3(node) {
+// Expression for a protocol:
+// See <http://en.wikipedia.org/wiki/URI_scheme#Generic_syntax>.
+var protocol$1 = /^[a-z][a-z+.-]+:\/?/i;
+
+// Stringify a link.
+//
+// When no title exists, the compiled `children` equal `url`, and `url` starts
+// with a protocol, an auto link is created:
+//
+// ```markdown
+// <http://example.com>
+// ```
+//
+// Otherwise, is smart about enclosing `url` (see `encloseURI()`) and `title`
+// (see `encloseTitle()`).
+// ```
+//
+// ```markdown
+// [foo](<foo at bar dot com> 'An "example" e-mail')
+// ```
+//
+// Supports named entities in the `url` and `title` when in `settings.encode`
+// mode.
+function link$4(node) {
   var self = this;
   var content = self.encode(node.url || '', node);
   var exit = self.enterLink();
@@ -29723,37 +30031,40 @@ function link$3(node) {
 
   exit();
 
-  if (
-    node.title == null &&
-    PROTOCOL.test(content) &&
-    (escaped === value || escaped === 'mailto:' + value)
-  ) {
-    /* Backslash escapes do not work in autolinks,
-     * so we do not escape. */
-    return encloseUri(self.encode(node.url), true);
+  if (node.title == null && protocol$1.test(content) && escaped === value) {
+    // Backslash escapes do not work in autolinks, so we do not escape.
+    return encloseUri(self.encode(node.url), true)
   }
 
   content = encloseUri(content);
 
   if (node.title) {
-    content += ' ' + encloseTitle(self.encode(self.escape(node.title, node), node));
+    content += space$25 + encloseTitle(self.encode(self.escape(node.title, node), node));
   }
 
-  return '[' + value + '](' + content + ')';
+  return (
+    leftSquareBracket$7 +
+    value +
+    rightSquareBracket$7 +
+    leftParenthesis$5 +
+    content +
+    rightParenthesis$6
+  )
 }
 
 var copyIdentifierEncoding = copy$5;
 
-var PUNCTUATION = /[-!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~_]/;
+var ampersand$2 = '&';
 
-/* For shortcut and collapsed reference links, the contents
- * is also an identifier, so we need to restore the original
- * encoding and escaping that were present in the source
- * string.
- *
- * This function takes the unescaped & unencoded value from
- * shortcut's child nodes and the identifier and encodes
- * the former according to the latter. */
+var punctuationExppresion = /[-!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~_]/;
+
+// For shortcut and collapsed reference links, the contents is also an
+// identifier, so we need to restore the original encoding and escaping
+// that were present in the source string.
+//
+// This function takes the unescaped & unencoded value from shortcut’s
+// child nodes and the identifier and encodes the former according to
+// the latter.
 function copy$5(value, identifier) {
   var length = value.length;
   var count = identifier.length;
@@ -29763,25 +30074,31 @@ function copy$5(value, identifier) {
   var start;
 
   while (index < length) {
-    /* Take next non-punctuation characters from `value`. */
+    // Take next non-punctuation characters from `value`.
     start = index;
 
-    while (index < length && !PUNCTUATION.test(value.charAt(index))) {
+    while (index < length && !punctuationExppresion.test(value.charAt(index))) {
       index += 1;
     }
 
     result.push(value.slice(start, index));
 
-    /* Advance `position` to the next punctuation character. */
-    while (position < count && !PUNCTUATION.test(identifier.charAt(position))) {
+    // Advance `position` to the next punctuation character.
+    while (
+      position < count &&
+      !punctuationExppresion.test(identifier.charAt(position))
+    ) {
       position += 1;
     }
 
-    /* Take next punctuation characters from `identifier`. */
+    // Take next punctuation characters from `identifier`.
     start = position;
 
-    while (position < count && PUNCTUATION.test(identifier.charAt(position))) {
-      if (identifier.charAt(position) === '&') {
+    while (
+      position < count &&
+      punctuationExppresion.test(identifier.charAt(position))
+    ) {
+      if (identifier.charAt(position) === ampersand$2) {
         position += entityPrefixLength(identifier.slice(position));
       }
 
@@ -29790,31 +30107,48 @@ function copy$5(value, identifier) {
 
     result.push(identifier.slice(start, position));
 
-    /* Advance `index` to the next non-punctuation character. */
-    while (index < length && PUNCTUATION.test(value.charAt(index))) {
+    // Advance `index` to the next non-punctuation character.
+    while (index < length && punctuationExppresion.test(value.charAt(index))) {
       index += 1;
     }
   }
 
-  return result.join('');
+  return result.join('')
 }
 
 var label_1 = label;
 
-/* Stringify a reference label.
- * Because link references are easily, mistakingly,
- * created (for example, `[foo]`), reference nodes have
- * an extra property depicting how it looked in the
- * original document, so stringification can cause minimal
- * changes. */
+var leftSquareBracket$8 = '[';
+var rightSquareBracket$8 = ']';
+
+var shortcut$2 = 'shortcut';
+var collapsed$1 = 'collapsed';
+
+// Stringify a reference label.
+// Because link references are easily, mistakingly, created (for example,
+// `[foo]`), reference nodes have an extra property depicting how it looked in
+// the original document, so stringification can cause minimal changes.
 function label(node) {
   var type = node.referenceType;
-  var value = type === 'full' ? node.identifier : '';
 
-  return type === 'shortcut' ? value : '[' + value + ']';
+  if (type === shortcut$2) {
+    return ''
+  }
+
+  return (
+    leftSquareBracket$8 +
+    (type === collapsed$1 ? '' : node.label || node.identifier) +
+    rightSquareBracket$8
+  )
 }
 
 var linkReference_1 = linkReference;
+
+var leftSquareBracket$9 = '[';
+var rightSquareBracket$9 = ']';
+
+var shortcut$3 = 'shortcut';
+var collapsed$2 = 'collapsed';
 
 function linkReference(node) {
   var self = this;
@@ -29824,51 +30158,82 @@ function linkReference(node) {
 
   exit();
 
-  if (type === 'shortcut' || type === 'collapsed') {
-    value = copyIdentifierEncoding(value, node.identifier);
+  if (type === shortcut$3 || type === collapsed$2) {
+    value = copyIdentifierEncoding(value, node.label || node.identifier);
   }
 
-  return '[' + value + ']' + label_1(node);
+  return leftSquareBracket$9 + value + rightSquareBracket$9 + label_1(node)
 }
 
 var imageReference_1 = imageReference;
 
+var leftSquareBracket$10 = '[';
+var rightSquareBracket$10 = ']';
+var exclamationMark$5 = '!';
+
 function imageReference(node) {
-  return '![' + (this.encode(node.alt, node) || '') + ']' + label_1(node);
+  return (
+    exclamationMark$5 +
+    leftSquareBracket$10 +
+    (this.encode(node.alt, node) || '') +
+    rightSquareBracket$10 +
+    label_1(node)
+  )
 }
 
 var definition_1$2 = definition$1;
 
-/* Stringify an URL definition.
- *
- * Is smart about enclosing `url` (see `encloseURI()`) and
- * `title` (see `encloseTitle()`).
- *
- *    [foo]: <foo at bar dot com> 'An "example" e-mail'
- */
+var space$26 = ' ';
+var colon$6 = ':';
+var leftSquareBracket$11 = '[';
+var rightSquareBracket$11 = ']';
+
+// Stringify an URL definition.
+//
+// Is smart about enclosing `url` (see `encloseURI()`) and `title` (see
+// `encloseTitle()`).
+//
+// ```markdown
+// [foo]: <foo at bar dot com> 'An "example" e-mail'
+// ```
 function definition$1(node) {
   var content = encloseUri(node.url);
 
   if (node.title) {
-    content += ' ' + encloseTitle(node.title);
+    content += space$26 + encloseTitle(node.title);
   }
 
-  return '[' + node.identifier + ']: ' + content;
+  return (
+    leftSquareBracket$11 +
+    (node.label || node.identifier) +
+    rightSquareBracket$11 +
+    colon$6 +
+    space$26 +
+    content
+  )
 }
 
-var image_1 = image$2;
+var image_1 = image$3;
 
-/* Stringify an image.
- *
- * Is smart about enclosing `url` (see `encloseURI()`) and
- * `title` (see `encloseTitle()`).
- *
- *    ![foo](</fav icon.png> 'My "favourite" icon')
- *
- * Supports named entities in `url`, `alt`, and `title`
- * when in `settings.encode` mode.
- */
-function image$2(node) {
+var space$27 = ' ';
+var leftParenthesis$6 = '(';
+var rightParenthesis$7 = ')';
+var leftSquareBracket$12 = '[';
+var rightSquareBracket$12 = ']';
+var exclamationMark$6 = '!';
+
+// Stringify an image.
+//
+// Is smart about enclosing `url` (see `encloseURI()`) and `title` (see
+// `encloseTitle()`).
+//
+// ```markdown
+// ![foo](</fav icon.png> 'My "favourite" icon')
+// ```
+//
+// Supports named entities in `url`, `alt`, and `title` when in
+// `settings.encode` mode.
+function image$3(node) {
   var self = this;
   var content = encloseUri(self.encode(node.url || '', node));
   var exit = self.enterLink();
@@ -29877,31 +30242,72 @@ function image$2(node) {
   exit();
 
   if (node.title) {
-    content += ' ' + encloseTitle(self.encode(node.title, node));
+    content += space$27 + encloseTitle(self.encode(node.title, node));
   }
 
-  return '![' + alt + '](' + content + ')';
+  return (
+    exclamationMark$6 +
+    leftSquareBracket$12 +
+    alt +
+    rightSquareBracket$12 +
+    leftParenthesis$6 +
+    content +
+    rightParenthesis$7
+  )
 }
 
-var footnote_1 = footnote;
+var footnote_1 = footnote$1;
 
-function footnote(node) {
-  return '[^' + this.all(node).join('') + ']';
+var leftSquareBracket$13 = '[';
+var rightSquareBracket$13 = ']';
+var caret$3 = '^';
+
+function footnote$1(node) {
+  return (
+    leftSquareBracket$13 + caret$3 + this.all(node).join('') + rightSquareBracket$13
+  )
 }
 
 var footnoteReference_1 = footnoteReference;
 
+var leftSquareBracket$14 = '[';
+var rightSquareBracket$14 = ']';
+var caret$4 = '^';
+
 function footnoteReference(node) {
-  return '[^' + node.identifier + ']';
+  return (
+    leftSquareBracket$14 +
+    caret$4 +
+    (node.label || node.identifier) +
+    rightSquareBracket$14
+  )
 }
+
+var lineFeed$29 = '\n';
+var space$28 = ' ';
+var colon$7 = ':';
+var leftSquareBracket$15 = '[';
+var rightSquareBracket$15 = ']';
+var caret$5 = '^';
+
+var tabSize$7 = 4;
+var blank$5 = lineFeed$29 + lineFeed$29;
+var indent = repeatString(space$28, tabSize$7);
 
 var footnoteDefinition_1$2 = footnoteDefinition$1;
 
 function footnoteDefinition$1(node) {
-  var id = node.identifier.toLowerCase();
-  var content = this.all(node).join('\n\n' + repeatString(' ', 4));
+  var content = this.all(node).join(blank$5 + indent);
 
-  return '[^' + id + ']: ' + content;
+  return (
+    leftSquareBracket$15 +
+    caret$5 +
+    (node.label || node.identifier) +
+    rightSquareBracket$15 +
+    colon$7 +
+    space$28 +
+    content
+  )
 }
 
 /* Expose. */
@@ -29918,7 +30324,7 @@ var CENTER = 'c';
 var DOT = '.';
 var NULL = '';
 
-var ALLIGNMENT$1 = [LEFT, RIGHT, CENTER, DOT, NULL];
+var ALLIGNMENT = [LEFT, RIGHT, CENTER, DOT, NULL];
 var MIN_CELL_SIZE = 3;
 
 /* Characters. */
@@ -30003,7 +30409,7 @@ function markdownTable(table, options) {
       align = align.charAt(0).toLowerCase();
     }
 
-    if (ALLIGNMENT$1.indexOf(align) === -1) {
+    if (ALLIGNMENT.indexOf(align) === -1) {
       align = NULL;
     }
 
@@ -30156,26 +30562,28 @@ function dotindex$1(value) {
 
 var table_1$2 = table$2;
 
-/* Stringify table.
- *
- * Creates a fenced table by default, but not in
- * `looseTable: true` mode:
- *
- *     Foo | Bar
- *     :-: | ---
- *     Baz | Qux
- *
- * NOTE: Be careful with `looseTable: true` mode, as a
- * loose table inside an indented code block on GitHub
- * renders as an actual table!
- *
- * Creates a spaced table by default, but not in
- * `spacedTable: false`:
- *
- *     |Foo|Bar|
- *     |:-:|---|
- *     |Baz|Qux|
- */
+var space$29 = ' ';
+var verticalBar$2 = '|';
+
+// Stringify table.
+//
+// Creates a fenced table by default, but not in `looseTable: true` mode:
+//
+// ```markdown
+//  Foo | Bar
+// :-: | ---
+// Baz | Qux
+//
+// NOTE: Be careful with `looseTable: true` mode, as a loose table inside an
+// indented code block on GitHub renders as an actual table!
+//
+// Creates a spaced table by default, but not in `spacedTable: false`:
+//
+// ```markdown
+// |Foo|Bar|
+// |:-:|---|
+// |Baz|Qux|
+// ```
 function table$2(node) {
   var self = this;
   var options = self.options;
@@ -30200,11 +30608,11 @@ function table$2(node) {
     start = '';
     end = '';
   } else if (spaced) {
-    start = '| ';
-    end = ' |';
+    start = verticalBar$2 + space$29;
+    end = space$29 + verticalBar$2;
   } else {
-    start = '|';
-    end = '|';
+    start = verticalBar$2;
+    end = verticalBar$2;
   }
 
   return markdownTable_1(result, {
@@ -30213,19 +30621,19 @@ function table$2(node) {
     start: start,
     end: end,
     stringLength: stringLength,
-    delimiter: spaced ? ' | ' : '|'
-  });
+    delimiter: spaced ? space$29 + verticalBar$2 + space$29 : verticalBar$2
+  })
 }
 
 var tableCell_1 = tableCell;
 
 function tableCell(node) {
-  return this.all(node).join('');
+  return this.all(node).join('')
 }
 
 var compiler = Compiler;
 
-/* Construct a new compiler. */
+// Construct a new compiler.
 function Compiler(tree, file) {
   this.inLink = false;
   this.inTable = false;
@@ -30235,26 +30643,26 @@ function Compiler(tree, file) {
   this.setOptions({});
 }
 
-var proto$4 = Compiler.prototype;
+var proto$6 = Compiler.prototype;
 
-/* Enter and exit helpers. */
-proto$4.enterLink = stateToggle('inLink', false);
-proto$4.enterTable = stateToggle('inTable', false);
-proto$4.enterLinkReference = enterLinkReference;
+// Enter and exit helpers. */
+proto$6.enterLink = stateToggle('inLink', false);
+proto$6.enterTable = stateToggle('inTable', false);
+proto$6.enterLinkReference = enterLinkReference;
 
-/* Configuration. */
-proto$4.options = defaults$5;
-proto$4.setOptions = setOptions_1$2;
+// Configuration.
+proto$6.options = defaults$5;
+proto$6.setOptions = setOptions_1$2;
 
-proto$4.compile = compile_1;
-proto$4.visit = one_1;
-proto$4.all = all_1;
-proto$4.block = block_1;
-proto$4.visitOrderedItems = orderedItems_1;
-proto$4.visitUnorderedItems = unorderedItems_1;
+proto$6.compile = compile_1;
+proto$6.visit = one_1;
+proto$6.all = all_1;
+proto$6.block = block_1;
+proto$6.visitOrderedItems = orderedItems_1;
+proto$6.visitUnorderedItems = unorderedItems_1;
 
-/* Expose visitors. */
-proto$4.visitors = {
+// Expose visitors.
+proto$6.visitors = {
   root: root_1,
   text: text_1$2,
   heading: heading_1,
@@ -30287,81 +30695,124 @@ stringify$7.Compiler = compiler;
 
 function stringify$7(options) {
   var Local = unherit_1(compiler);
-  Local.prototype.options = immutable(Local.prototype.options, this.data('settings'), options);
+  Local.prototype.options = immutable(
+    Local.prototype.options,
+    this.data('settings'),
+    options
+  );
   this.Compiler = Local;
 }
 
-var remark = unified_1().use(remarkParse).use(remarkStringify).freeze();
+var remark = unified_1()
+  .use(remarkParse)
+  .use(remarkStringify)
+  .freeze();
 
-const name = "remark";
-const version$1 = "8.0.0";
+const _from = "remark@^10.0.0";
+const _id = "remark@10.0.0";
+const _inBundle = false;
+const _integrity = "sha512-0fZvVmd9CgDi1qHGsRTyhpJShw60r3/4OSdRpAx+I7CmE8/Jmt829T9KWHpw2Ygw3chRZ26sMorqb8aIolU9tQ==";
+const _location = "/remark";
+const _phantomChildren = {};
+const _requested = {"type":"range","registry":true,"raw":"remark@^10.0.0","name":"remark","escapedName":"remark","rawSpec":"^10.0.0","saveSpec":null,"fetchSpec":"^10.0.0"};
+const _requiredBy = ["/"];
+const _resolved = "https://registry.npmjs.org/remark/-/remark-10.0.0.tgz";
+const _shasum = "4d94ae09d0e81e52fe40a31e89a0103c553f509e";
+const _spec = "remark@^10.0.0";
+const _where = "/Users/daijiro/Developments/node/tools/node-lint-md-cli-rollup";
+const author = {"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"};
+const bugs = {"url":"https://github.com/remarkjs/remark/issues"};
+const bundleDependencies = false;
+const contributors = [{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"}];
+const dependencies = {"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"};
+const deprecated$1 = false;
 const description = "Markdown processor powered by plugins";
-const license = "MIT";
-const keywords = ["markdown","abstract","syntax","tree","ast","parse","stringify","process"];
-const dependencies = {"remark-parse":"^4.0.0","remark-stringify":"^4.0.0","unified":"^6.0.0"};
-const homepage = "http://remark.js.org";
-const repository = "https://github.com/wooorm/remark/tree/master/packages/remark";
-const bugs = "https://github.com/wooorm/remark/issues";
-const author = "Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)";
-const contributors = ["Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)"];
+const devDependencies = {"tape":"^4.9.1"};
 const files = ["index.js"];
-const scripts = {};
+const homepage = "http://remark.js.org";
+const keywords = ["markdown","abstract","syntax","tree","ast","parse","stringify","process"];
+const license = "MIT";
+const name = "remark";
+const repository = {"type":"git","url":"https://github.com/remarkjs/remark/tree/master/packages/remark"};
+const scripts = {"test":"tape test.js"};
+const version$1 = "10.0.0";
 const xo = false;
-const _resolved = "https://registry.npmjs.org/remark/-/remark-8.0.0.tgz";
-const _integrity = "sha512-K0PTsaZvJlXTl9DN6qYlvjTkqSZBFELhROZMrblm2rB+085flN84nz4g/BscKRMqDvhzlK1oQ/xnWQumdeNZYw==";
-const _from = "remark@8.0.0";
 var _package = {
-	name: name,
-	version: version$1,
-	description: description,
-	license: license,
-	keywords: keywords,
-	dependencies: dependencies,
-	homepage: homepage,
-	repository: repository,
-	bugs: bugs,
-	author: author,
-	contributors: contributors,
-	files: files,
-	scripts: scripts,
-	xo: xo,
-	_resolved: _resolved,
+	_from: _from,
+	_id: _id,
+	_inBundle: _inBundle,
 	_integrity: _integrity,
-	_from: _from
+	_location: _location,
+	_phantomChildren: _phantomChildren,
+	_requested: _requested,
+	_requiredBy: _requiredBy,
+	_resolved: _resolved,
+	_shasum: _shasum,
+	_spec: _spec,
+	_where: _where,
+	author: author,
+	bugs: bugs,
+	bundleDependencies: bundleDependencies,
+	contributors: contributors,
+	dependencies: dependencies,
+	deprecated: deprecated$1,
+	description: description,
+	devDependencies: devDependencies,
+	files: files,
+	homepage: homepage,
+	keywords: keywords,
+	license: license,
+	name: name,
+	repository: repository,
+	scripts: scripts,
+	version: version$1,
+	xo: xo
 };
 
 var _package$1 = Object.freeze({
-	name: name,
-	version: version$1,
-	description: description,
-	license: license,
-	keywords: keywords,
-	dependencies: dependencies,
-	homepage: homepage,
-	repository: repository,
-	bugs: bugs,
-	author: author,
-	contributors: contributors,
-	files: files,
-	scripts: scripts,
-	xo: xo,
-	_resolved: _resolved,
-	_integrity: _integrity,
 	_from: _from,
+	_id: _id,
+	_inBundle: _inBundle,
+	_integrity: _integrity,
+	_location: _location,
+	_phantomChildren: _phantomChildren,
+	_requested: _requested,
+	_requiredBy: _requiredBy,
+	_resolved: _resolved,
+	_shasum: _shasum,
+	_spec: _spec,
+	_where: _where,
+	author: author,
+	bugs: bugs,
+	bundleDependencies: bundleDependencies,
+	contributors: contributors,
+	dependencies: dependencies,
+	deprecated: deprecated$1,
+	description: description,
+	devDependencies: devDependencies,
+	files: files,
+	homepage: homepage,
+	keywords: keywords,
+	license: license,
+	name: name,
+	repository: repository,
+	scripts: scripts,
+	version: version$1,
+	xo: xo,
 	default: _package
 });
 
 const name$1 = "node-lint-md-cli-rollup";
 const description$1 = "remark packaged for node markdown linting";
 const version$2 = "1.0.0";
-const devDependencies = {"rollup":"^0.55.5","rollup-plugin-commonjs":"^8.0.2","rollup-plugin-json":"^2.3.1","rollup-plugin-node-resolve":"^3.4.0"};
-const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^8.0.0","remark-lint":"^6.0.2","remark-preset-lint-node":"^1.1.0","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
+const devDependencies$1 = {"rollup":"^0.55.5","rollup-plugin-commonjs":"^8.0.2","rollup-plugin-json":"^2.3.1","rollup-plugin-node-resolve":"^3.4.0"};
+const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^10.0.0","remark-lint":"^6.0.3","remark-preset-lint-node":"^1.1.0","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
 const scripts$1 = {"build":"rollup -c","build-node":"npm run build && cp dist/* .."};
 var _package$2 = {
 	name: name$1,
 	description: description$1,
 	version: version$2,
-	devDependencies: devDependencies,
+	devDependencies: devDependencies$1,
 	dependencies: dependencies$1,
 	scripts: scripts$1
 };
@@ -30370,7 +30821,7 @@ var _package$3 = Object.freeze({
 	name: name$1,
 	description: description$1,
 	version: version$2,
-	devDependencies: devDependencies,
+	devDependencies: devDependencies$1,
 	dependencies: dependencies$1,
 	scripts: scripts$1,
 	default: _package$2
@@ -31489,7 +31940,7 @@ var remarkLintFencedCodeFlag = unifiedLintRule('remark-lint:fenced-code-flag', f
 var start$1 = unistUtilPosition.start;
 var end$1 = unistUtilPosition.end;
 
-var fence = /^ {0,3}([~`])\1{2,}/;
+var fence$2 = /^ {0,3}([~`])\1{2,}/;
 var reasonInvalid = 'Invalid code-language flag';
 var reasonMissing = 'Missing code-language flag';
 
@@ -31520,7 +31971,7 @@ function fencedCodeFlag(tree, file, pref) {
       } else {
         value = contents.slice(start$1(node).offset, end$1(node).offset);
 
-        if (!allowEmpty && fence.test(value)) {
+        if (!allowEmpty && fence$2.test(value)) {
           file.message(reasonMissing, node);
         }
       }
@@ -31596,15 +32047,15 @@ function hardBreakSpaces(tree, file) {
   }
 }
 
-var mdastUtilToString = toString$5;
+var mdastUtilToString = toString$6;
 
 /* Get the text content of a node.  If the node itself
  * does not expose plain-text fields, `toString` will
  * recursivly try its children. */
-function toString$5(node) {
+function toString$6(node) {
   return (
     valueOf$1(node) ||
-    (node.children && node.children.map(toString$5).join('')) ||
+    (node.children && node.children.map(toString$6).join('')) ||
     ''
   )
 }
@@ -31627,7 +32078,7 @@ var end$2 = unistUtilPosition.end;
 
 /* Protocol expression. See:
  * http://en.wikipedia.org/wiki/URI_scheme#Generic_syntax */
-var protocol$1 = /^[a-z][a-z+.-]+:\/?/i;
+var protocol$2 = /^[a-z][a-z+.-]+:\/?/i;
 
 var reason$3 = 'All automatic links must start with a protocol';
 
@@ -31643,7 +32094,7 @@ function noAutoLinkWithoutProtocol(tree, file) {
       if (
         start$3(node).column === start$3(children[0]).column - 1 &&
         end$2(node).column === end$2(children[children.length - 1]).column + 1 &&
-        !protocol$1.test(mdastUtilToString(node))
+        !protocol$2.test(mdastUtilToString(node))
       ) {
         file.message(reason$3, node);
       }
@@ -33041,7 +33492,7 @@ function fileExtension(tree, file, pref) {
 
 var remarkLintFirstHeadingLevel = unifiedLintRule('remark-lint:first-heading-level', firstHeadingLevel);
 
-var re$4 = /<h([1-6])/;
+var re$3 = /<h([1-6])/;
 
 function firstHeadingLevel(tree, file, pref) {
   var style = pref && pref !== true ? pref : 1;
@@ -33070,7 +33521,7 @@ function firstHeadingLevel(tree, file, pref) {
 }
 
 function infer(node) {
-  var results = node.value.match(re$4);
+  var results = node.value.match(re$3);
   return results ? Number(results[1]) : undefined
 }
 
