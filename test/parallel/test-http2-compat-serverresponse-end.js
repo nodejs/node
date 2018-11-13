@@ -149,11 +149,13 @@ const {
   // Http2ServerResponse.end is necessary on HEAD requests in compat
   // for http1 compatibility
   const server = createServer(mustCall((request, response) => {
-    strictEqual(response.finished, true);
     strictEqual(response.writableEnded, false);
+    strictEqual(response.finished, false);
     response.writeHead(HTTP_STATUS_OK, { foo: 'bar' });
+    strictEqual(response.finished, false);
     response.end('data', mustCall());
     strictEqual(response.writableEnded, true);
+    strictEqual(response.finished, true);
   }));
   server.listen(0, mustCall(() => {
     const { port } = server.address();
