@@ -279,7 +279,7 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp,
         goto err;
 
     /* Preallocate space */
-    q_bits = BN_num_bits(dsa->q);
+    q_bits = BN_num_bits(dsa->q) + sizeof(dsa->q->d[0]) * 16;
     if (!BN_set_bit(&k, q_bits)
         || !BN_set_bit(&l, q_bits)
         || !BN_set_bit(&m, q_bits))
