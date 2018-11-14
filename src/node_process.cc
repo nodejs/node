@@ -796,7 +796,6 @@ void GetParentProcessId(Local<Name> property,
 void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Array> ary = Array::New(args.GetIsolate());
   std::vector<Local<Value>> request_v;
   for (auto w : *env->req_wrap_queue()) {
     if (w->persistent().IsEmpty())

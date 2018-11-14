@@ -1291,7 +1291,6 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   Local<String> name_str;
   Local<String> value_str;
 
-  Local<Array> holder = Array::New(isolate);
   // The headers are passed in above as a queue of nghttp2_header structs.
   // The following converts that into a JS array with the structure:
   // [name1, value1, name2, value2, name3, value3, name3, value4] and so on.
