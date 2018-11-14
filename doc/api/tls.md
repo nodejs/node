@@ -347,18 +347,18 @@ called:
 * `tlsSocket` {tls.TLSSocket} The `tls.TLSSocket` instance from which the
   error originated.
 
-### server.addContext(hostname, context)
+### server.addContext(servername, context)
 <!-- YAML
 added: v0.5.3
 -->
 
-* `hostname` {string} A SNI hostname or wildcard (e.g. `'*'`)
+* `servername` {string} A SNI hostname or wildcard (e.g. `'*'`)
 * `context` {Object} An object containing any of the possible properties
   from the [`tls.createSecureContext()`][] `options` arguments (e.g. `key`,
   `cert`, `ca`, etc).
 
 The `server.addContext()` method adds a secure context that will be used if
-the client request's SNI name matches the supplied `hostname` (or wildcard).
+the client request's SNI name matches the supplied `severname` (or wildcard).
 
 ### server.address()
 <!-- YAML
