@@ -889,6 +889,38 @@ void BN_consttime_swap(BN_ULONG condition, BIGNUM *a, BIGNUM *b, int nwords)
     a->top ^= t;
     b->top ^= t;
 
+    t = (a->neg ^ b->neg) & condition;
+    a->neg ^= t;
+    b->neg ^= t;
+
+    /*-
+     * BN_FLG_STATIC_DATA: indicates that data may not be written to. Intention
+     * is actually to treat it as it's read-only data, and some (if not most)
+     * of it does reside in read-only segment. In other words observation of
+     * BN_FLG_STATIC_DATA in BN_consttime_swap should be treated as fatal
+     * condition. It would either cause SEGV or effectively cause data
+     * corruption.
+     *
+     * BN_FLG_MALLOCED: refers to BN structure itself, and hence must be
+     * preserved.
+     *
+     * BN_FLG_SECURE: must be preserved, because it determines how x->d was
+     * allocated and hence how to free it.
+     *
+     * BN_FLG_CONSTTIME: sufficient to mask and swap
+     *
+     * BN_FLG_FIXED_TOP: indicates that we haven't called bn_correct_top() on
+     * the data, so the d array may be padded with additional 0 values (i.e.
+     * top could be greater than the minimal value that it could be). We should
+     * be swapping it
+     */
+
+#define BN_CONSTTIME_SWAP_FLAGS (BN_FLG_CONSTTIME | BN_FLG_FIXED_TOP)
+
+    t = ((a->flags ^ b->flags) & BN_CONSTTIME_SWAP_FLAGS) & condition;
+    a->flags ^= t;
+    b->flags ^= t;
+
 #define BN_CONSTTIME_SWAP(ind) \
         do { \
                 t = (a->d[ind] ^ b->d[ind]) & condition; \
