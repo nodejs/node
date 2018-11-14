@@ -253,6 +253,14 @@ $ ./node ./test/parallel/test-stream2-transform.js
 Remember to recompile with `make -j4` in between test runs if you change code in
 the `lib` or `src` directories.
 
+The tests attempt to detect support for IPv6 and exclude IPv6 tests if
+appropriate. However, if your main interface has IPv6 addresess then your
+loopback interface must also have '::1' enabled. For some default installations
+on ubuntu that does not seem to be the case. '::1' can be enabled on the
+loopback interface on ubuntu using:
+
+`sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0`
+
 #### Running Coverage
 
 It's good practice to ensure any code you add or change is covered by tests.
