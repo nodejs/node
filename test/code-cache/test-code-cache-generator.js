@@ -30,10 +30,10 @@ if (child.status !== 0) {
 }
 
 // Verifies that:
-// - node::DefineCodeCache()
-// - node::DefineCodeCacheHash()
+// - node::LoadCodeCache()
+// - node::LoadCodeCacheHash()
 // are defined in the generated code.
-// See src/node_code_cache_stub.cc for explanations.
+// See src/node_native_module.h for explanations.
 
 const rl = readline.createInterface({
   input: fs.createReadStream(dest),
@@ -44,10 +44,10 @@ let hasCacheDef = false;
 let hasHashDef = false;
 
 rl.on('line', common.mustCallAtLeast((line) => {
-  if (line.includes('DefineCodeCache(')) {
+  if (line.includes('LoadCodeCache(')) {
     hasCacheDef = true;
   }
-  if (line.includes('DefineCodeCacheHash(')) {
+  if (line.includes('LoadCodeCacheHash(')) {
     hasHashDef = true;
   }
 }, 2));
