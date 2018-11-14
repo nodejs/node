@@ -24,7 +24,6 @@
 #include "node_context_data.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "node_javascript.h"
 #include "node_native_module.h"
 #include "node_perf.h"
 #include "node_platform.h"
@@ -130,7 +129,7 @@ typedef int mode_t;
 
 namespace node {
 
-using native_module::NativeModule;
+using native_module::NativeModuleLoader;
 using options_parser::kAllowedInEnvironment;
 using options_parser::kDisallowedInEnvironment;
 using v8::Array;
@@ -212,7 +211,7 @@ double prog_start_time;
 Mutex per_process_opts_mutex;
 std::shared_ptr<PerProcessOptions> per_process_opts {
     new PerProcessOptions() };
-
+NativeModuleLoader per_process_loader;
 static Mutex node_isolate_mutex;
 static Isolate* node_isolate;
 
@@ -1243,8 +1242,7 @@ static void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
                                 Null(env->isolate())).FromJust());
     DefineConstants(env->isolate(), exports);
   } else if (!strcmp(*module_v, "natives")) {
-    exports = Object::New(env->isolate());
-    NativeModule::GetNatives(env, exports);
+    exports = per_process_loader.GetSourceObject(env->context());
   } else {
     return ThrowIfNoSuchModule(env, *module_v);
   }
@@ -1780,18 +1778,24 @@ void LoadEnvironment(Environment* env) {
 
   // The bootstrapper scripts are lib/internal/bootstrap/loaders.js and
   // lib/internal/bootstrap/node.js, each included as a static C string
-  // defined in node_javascript.h, generated in node_javascript.cc by
-  // node_js2c.
+  // generated in node_javascript.cc by node_js2c.
 
-  // TODO(joyeecheung): use NativeModule::Compile
+  // TODO(joyeecheung): use NativeModuleLoader::Compile
+  // We duplicate the string literals here since once we refactor the bootstrap
+  // compilation out to NativeModuleLoader none of this is going to matter
+  Isolate* isolate = env->isolate();
   Local<String> loaders_name =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "internal/bootstrap/loaders.js");
+      FIXED_ONE_BYTE_STRING(isolate, "internal/bootstrap/loaders.js");
+  Local<String> loaders_source =
+      per_process_loader.GetSource(isolate, "internal/bootstrap/loaders");
   MaybeLocal<Function> loaders_bootstrapper =
-      GetBootstrapper(env, LoadersBootstrapperSource(env), loaders_name);
+      GetBootstrapper(env, loaders_source, loaders_name);
   Local<String> node_name =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "internal/bootstrap/node.js");
+      FIXED_ONE_BYTE_STRING(isolate, "internal/bootstrap/node.js");
+  Local<String> node_source =
+      per_process_loader.GetSource(isolate, "internal/bootstrap/node");
   MaybeLocal<Function> node_bootstrapper =
-      GetBootstrapper(env, NodeBootstrapperSource(env), node_name);
+      GetBootstrapper(env, node_source, node_name);
 
   if (loaders_bootstrapper.IsEmpty() || node_bootstrapper.IsEmpty()) {
     // Execution was interrupted.
@@ -1842,8 +1846,6 @@ void LoadEnvironment(Environment* env) {
     Boolean::New(env->isolate(),
                  env->options()->debug_options->break_node_first_line)
   };
-
-  NativeModule::LoadBindings(env);
 
   // Bootstrap internal loaders
   Local<Value> bootstrapped_loaders;
@@ -2485,7 +2487,6 @@ void FreePlatform(MultiIsolatePlatform* platform) {
   delete platform;
 }
 
-
 Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {
   auto context = Context::New(isolate, nullptr, object_template);
@@ -2499,8 +2500,9 @@ Local<Context> NewContext(Isolate* isolate,
     // Run lib/internal/per_context.js
     Context::Scope context_scope(context);
 
-    // TODO(joyeecheung): use NativeModule::Compile
-    Local<String> per_context = NodePerContextSource(isolate);
+    // TODO(joyeecheung): use NativeModuleLoader::Compile
+    Local<String> per_context =
+        per_process_loader.GetSource(isolate, "internal/per_context");
     ScriptCompiler::Source per_context_src(per_context, nullptr);
     Local<Script> s = ScriptCompiler::Compile(
         context,

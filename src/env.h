@@ -29,13 +29,13 @@
 #include "inspector_agent.h"
 #endif
 #include "handle_wrap.h"
+#include "node.h"
+#include "node_http2_state.h"
+#include "node_options.h"
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
-#include "node.h"
-#include "node_options.h"
-#include "node_http2_state.h"
 
 #include <list>
 #include <stdint.h>
@@ -347,12 +347,6 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port, v8::Object)                                                  \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
-  V(native_modules_code_cache, v8::Object)                                     \
-  V(native_modules_code_cache_hash, v8::Object)                                \
-  V(native_modules_source, v8::Object)                                         \
-  V(native_modules_source_hash, v8::Object)                                    \
-  V(native_modules_with_cache, v8::Set)                                        \
-  V(native_modules_without_cache, v8::Set)                                     \
   V(performance_entry_callback, v8::Function)                                  \
   V(performance_entry_template, v8::Function)                                  \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
@@ -683,6 +677,9 @@ class Environment {
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
+
+  std::set<std::string> native_modules_with_cache;
+  std::set<std::string> native_modules_without_cache;
 
   std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
