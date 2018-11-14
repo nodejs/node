@@ -622,9 +622,7 @@ void Environment::RunAndClearNativeImmediates() {
     };
     while (drain_list()) {}
 
-#ifdef DEBUG
-    CHECK_GE(immediate_info()->count(), count);
-#endif
+    DCHECK_GE(immediate_info()->count(), count);
     immediate_info()->count_dec(count);
     immediate_info()->ref_count_dec(ref_count);
   }

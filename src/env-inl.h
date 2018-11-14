@@ -559,20 +559,16 @@ inline void Environment::set_http2_state(
 }
 
 bool Environment::debug_enabled(DebugCategory category) const {
-#ifdef DEBUG
-  CHECK_GE(static_cast<int>(category), 0);
-  CHECK_LT(static_cast<int>(category),
+  DCHECK_GE(static_cast<int>(category), 0);
+  DCHECK_LT(static_cast<int>(category),
            static_cast<int>(DebugCategory::CATEGORY_COUNT));
-#endif
   return debug_enabled_[static_cast<int>(category)];
 }
 
 void Environment::set_debug_enabled(DebugCategory category, bool enabled) {
-#ifdef DEBUG
-  CHECK_GE(static_cast<int>(category), 0);
-  CHECK_LT(static_cast<int>(category),
+  DCHECK_GE(static_cast<int>(category), 0);
+  DCHECK_LT(static_cast<int>(category),
            static_cast<int>(DebugCategory::CATEGORY_COUNT));
-#endif
   debug_enabled_[static_cast<int>(category)] = enabled;
 }
 

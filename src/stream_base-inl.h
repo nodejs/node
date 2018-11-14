@@ -448,9 +448,8 @@ inline void StreamReq::Done(int status, const char* error_str) {
 }
 
 inline void StreamReq::ResetObject(v8::Local<v8::Object> obj) {
-#ifdef DEBUG
-  CHECK_GT(obj->InternalFieldCount(), StreamReq::kStreamReqField);
-#endif
+  DCHECK_GT(obj->InternalFieldCount(), StreamReq::kStreamReqField);
+
   obj->SetAlignedPointerInInternalField(0, nullptr);  // BaseObject field.
   obj->SetAlignedPointerInInternalField(StreamReq::kStreamReqField, nullptr);
 }
