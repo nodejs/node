@@ -1078,12 +1078,6 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   // coverity[leaked_storage]
 }
 
-static void OnMessage(Local<Message> message, Local<Value> error) {
-  // The current version of V8 sends messages for errors only
-  // (thus `error` is always set).
-  FatalException(Isolate::GetCurrent(), error, message);
-}
-
 static Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
                                              const char* warning,
                                              const char* type = nullptr,
@@ -1158,6 +1152,33 @@ Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                    warning,
                                    "DeprecationWarning",
                                    deprecation_code);
+}
+
+static void OnMessage(Local<Message> message, Local<Value> error) {
+  Isolate* isolate = message->GetIsolate();
+  switch (message->ErrorLevel()) {
+    case Isolate::MessageErrorLevel::kMessageWarning: {
+      Environment* env = Environment::GetCurrent(isolate);
+      if (!env) {
+        break;
+      }
+      Utf8Value filename(isolate,
+          message->GetScriptOrigin().ResourceName());
+      // (filename):(line) (message)
+      std::stringstream warning;
+      warning << *filename;
+      warning << ":";
+      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
+      warning << " ";
+      v8::String::Utf8Value msg(isolate, message->Get());
+      warning << *msg;
+      USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
+      break;
+    }
+    case Isolate::MessageErrorLevel::kMessageError:
+      FatalException(isolate, error, message);
+      break;
+  }
 }
 
 
@@ -2583,7 +2604,9 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
   v8_platform.Platform()->RegisterIsolate(isolate, event_loop);
   Isolate::Initialize(isolate, params);
 
-  isolate->AddMessageListener(OnMessage);
+  isolate->AddMessageListenerWithErrorLevel(OnMessage,
+      Isolate::MessageErrorLevel::kMessageError |
+      Isolate::MessageErrorLevel::kMessageWarning);
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
   isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
   isolate->SetFatalErrorHandler(OnFatalError);
