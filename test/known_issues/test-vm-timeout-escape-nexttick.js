@@ -35,7 +35,7 @@ assert.throws(() => {
       nextTick,
       loop
     },
-    { timeout: common.platformTimeout(10) }
+    { timeout: 10 }
   );
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT'
