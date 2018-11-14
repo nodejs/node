@@ -429,7 +429,7 @@ process.on('SIGTERM', handle);
   removed (Node.js will no longer exit).
 * `'SIGPIPE'` is ignored by default. It can have a listener installed.
 * `'SIGHUP'` is generated on Windows when the console window is closed, and on
-  other platforms under various similar conditions, see signal(7). It can have a
+  other platforms under various similar conditions. See signal(7). It can have a
   listener installed, however Node.js will be unconditionally terminated by
   Windows about 10 seconds later. On non-Windows platforms, the default
   behavior of `SIGHUP` is to terminate Node.js, but once a listener has been
@@ -1382,7 +1382,7 @@ process.kill(process.pid, 'SIGHUP');
 ```
 
 When `SIGUSR1` is received by a Node.js process, Node.js will start the
-debugger, see [Signal Events][].
+debugger. See [Signal Events][].
 
 ## process.mainModule
 <!-- YAML
@@ -1840,7 +1840,7 @@ The `process.stderr` property returns a stream connected to
 stream) unless fd `2` refers to a file, in which case it is
 a [Writable][] stream.
 
-`process.stderr` differs from other Node.js streams in important ways, see
+`process.stderr` differs from other Node.js streams in important ways. See
 [note on process I/O][] for more information.
 
 ## process.stdin
@@ -1890,7 +1890,7 @@ For example, to copy `process.stdin` to `process.stdout`:
 process.stdin.pipe(process.stdout);
 ```
 
-`process.stdout` differs from other Node.js streams in important ways, see
+`process.stdout` differs from other Node.js streams in important ways. See
 [note on process I/O][] for more information.
 
 ### A note on process I/O
