@@ -209,19 +209,19 @@ const vm = require('vm');
     }
   );
 
-    // Testing for non Array type-based failures
-    [Boolean(), Number(), null, Object(), Symbol(), {}].forEach(
-      (value) => {
-        common.expectsError(() => {
-          vm.compileFunction('', value);
-        }, {
-          type: TypeError,
-          code: 'ERR_INVALID_ARG_TYPE',
-          message: 'The "params" argument must be of type Array. ' 
-          + `Received type ${typeof value}`
-        });
-      }
-    );
+  // Testing for non Array type-based failures
+  [Boolean(), Number(), null, Object(), Symbol(), {}].forEach(
+    (value) => {
+      common.expectsError(() => {
+        vm.compileFunction('', value);
+      }, {
+        type: TypeError,
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "params" argument must be of type Array. ' +
+          `Received type ${typeof value}`
+      });
+    }
+  );
 
   assert.strictEqual(
     vm.compileFunction(
