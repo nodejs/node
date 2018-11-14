@@ -28,7 +28,7 @@ class NativeModule {
   // TODO(joyeecheung): make this public and reuse it to compile bootstrappers
   static v8::Local<v8::Value> Compile(Environment* env,
                                       v8::Local<v8::String> id,
-                                      v8::Local<v8::String>* parameters,
+                                      v8::Local<v8::String> parameters[],
                                       size_t parameters_count,
                                       bool produce_code_cache);
 };

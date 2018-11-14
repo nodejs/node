@@ -43,36 +43,40 @@ void NativeModule::LoadBindings(Environment* env) {
   // an V8 Object in dictionary mode.
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  Local<Object> native_module_source = Object::New(isolate);
-  DefineJavaScript(env, native_module_source);
-  native_module_source->SetIntegrityLevel(context, IntegrityLevel::kFrozen)
-      .FromJust();
-  env->set_native_module_source(native_module_source);
+  Local<Value> null = Null(isolate);
 
-  Local<Object> native_module_source_hash = Object::New(isolate);
-  DefineJavaScriptHash(env, native_module_source_hash);
-  native_module_source_hash->SetIntegrityLevel(context, IntegrityLevel::kFrozen)
+  Local<Object> native_modules_source = Object::New(isolate);
+  CHECK(native_modules_source->SetPrototype(context, null).FromJust());
+  DefineJavaScript(env, native_modules_source);
+  native_modules_source->SetIntegrityLevel(context, IntegrityLevel::kFrozen)
       .FromJust();
-  env->set_native_module_source_hash(native_module_source_hash);
+  env->set_native_modules_source(native_modules_source);
 
-  Local<Object> native_module_code_cache = Object::New(isolate);
-  DefineCodeCache(env, native_module_code_cache);
-  native_module_code_cache->SetIntegrityLevel(context, IntegrityLevel::kFrozen)
-      .FromJust();
-  env->set_native_module_code_cache(native_module_code_cache);
-
-  Local<Object> native_module_code_cache_hash = Object::New(isolate);
-  DefineCodeCacheHash(env, native_module_code_cache_hash);
-  native_module_code_cache_hash
+  Local<Object> native_modules_source_hash = Object::New(isolate);
+  CHECK(native_modules_source_hash->SetPrototype(context, null).FromJust());
+  DefineJavaScriptHash(env, native_modules_source_hash);
+  native_modules_source_hash
       ->SetIntegrityLevel(context, IntegrityLevel::kFrozen)
       .FromJust();
-  env->set_native_module_code_cache_hash(native_module_code_cache_hash);
+  env->set_native_modules_source_hash(native_modules_source_hash);
 
-  env->set_native_module_column_offset(Integer::New(isolate, 0));
-  env->set_native_module_line_offset(Integer::New(isolate, 0));
+  Local<Object> native_modules_code_cache = Object::New(isolate);
+  CHECK(native_modules_code_cache->SetPrototype(context, null).FromJust());
+  DefineCodeCache(env, native_modules_code_cache);
+  native_modules_code_cache->SetIntegrityLevel(context, IntegrityLevel::kFrozen)
+      .FromJust();
+  env->set_native_modules_code_cache(native_modules_code_cache);
 
-  env->set_native_module_with_cache(Set::New(isolate));
-  env->set_native_module_without_cache(Set::New(isolate));
+  Local<Object> native_modules_code_cache_hash = Object::New(isolate);
+  CHECK(native_modules_code_cache_hash->SetPrototype(context, null).FromJust());
+  DefineCodeCacheHash(env, native_modules_code_cache_hash);
+  native_modules_code_cache_hash
+      ->SetIntegrityLevel(context, IntegrityLevel::kFrozen)
+      .FromJust();
+  env->set_native_modules_code_cache_hash(native_modules_code_cache_hash);
+
+  env->set_native_modules_with_cache(Set::New(isolate));
+  env->set_native_modules_without_cache(Set::New(isolate));
 }
 
 void NativeModule::CompileCodeCache(const FunctionCallbackInfo<Value>& args) {
@@ -140,7 +144,7 @@ ScriptCompiler::CachedData* GetCachedData(Environment* env, Local<String> id) {
   Local<Context> context = env->context();
 
   Local<Value> result =
-      env->native_module_code_cache()->Get(context, id).ToLocalChecked();
+      env->native_modules_code_cache()->Get(context, id).ToLocalChecked();
   // This could be false if the module cannot be cached somehow.
   // See lib/internal/bootstrap/cache.js on the modules that cannot be cached
   if (result->IsUndefined()) {
@@ -151,11 +155,12 @@ ScriptCompiler::CachedData* GetCachedData(Environment* env, Local<String> id) {
   Local<Uint8Array> code_cache = result.As<Uint8Array>();
 
   result =
-      env->native_module_code_cache_hash()->Get(context, id).ToLocalChecked();
+      env->native_modules_code_cache_hash()->Get(context, id).ToLocalChecked();
   CHECK(result->IsString());
   Local<String> code_cache_hash = result.As<String>();
 
-  result = env->native_module_source_hash()->Get(context, id).ToLocalChecked();
+  result =
+      env->native_modules_source_hash()->Get(context, id).ToLocalChecked();
   CHECK(result->IsString());
   Local<String> source_hash = result.As<String>();
 
@@ -178,20 +183,17 @@ ScriptCompiler::CachedData* GetCachedData(Environment* env, Local<String> id) {
 // Otherwise return a Local<Object> containing the cache.
 Local<Value> NativeModule::Compile(Environment* env,
                                    Local<String> id,
-                                   Local<String>* parameters,
+                                   Local<String> parameters[],
                                    size_t parameters_count,
                                    bool produce_code_cache) {
   EscapableHandleScope scope(env->isolate());
   Local<Context> context = env->context();
   Isolate* isolate = env->isolate();
 
-  Local<String> source;
-  Local<Uint8Array> code_cache;
-
-  Local<Value> result;
-  result = env->native_module_source()->Get(context, id).ToLocalChecked();
+  Local<Value> result =
+      env->native_modules_source()->Get(context, id).ToLocalChecked();
   CHECK(result->IsString());
-  source = result.As<String>();
+  Local<String> source = result.As<String>();
 
   Local<String> filename =
       String::Concat(isolate, id, FIXED_ONE_BYTE_STRING(isolate, ".js"));
@@ -247,11 +249,11 @@ Local<Value> NativeModule::Compile(Environment* env,
     // If the cache is rejected, something must be wrong with the build
     // and we should just crash.
     CHECK(!script_source.GetCachedData()->rejected);
-    if (env->native_module_with_cache()->Add(context, id).IsEmpty()) {
+    if (env->native_modules_with_cache()->Add(context, id).IsEmpty()) {
       return scope.Escape(Local<Value>());
     }
   } else {
-    if (env->native_module_without_cache()->Add(context, id).IsEmpty()) {
+    if (env->native_modules_without_cache()->Add(context, id).IsEmpty()) {
       return scope.Escape(Local<Value>());
     }
   }
@@ -282,37 +284,37 @@ void Initialize(Local<Object> target,
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(env->isolate(), "source"),
-            env->native_module_source())
+            env->native_modules_source())
       .FromJust();
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(env->isolate(), "sourceHash"),
-            env->native_module_source_hash())
+            env->native_modules_source_hash())
       .FromJust();
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(env->isolate(), "codeCache"),
-            env->native_module_code_cache())
+            env->native_modules_code_cache())
       .FromJust();
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(env->isolate(), "codeCacheHash"),
-            env->native_module_code_cache_hash())
+            env->native_modules_code_cache_hash())
       .FromJust();
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(env->isolate(), "compiledWithCache"),
-            env->native_module_with_cache())
+            env->native_modules_with_cache())
       .FromJust();
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(env->isolate(), "compiledWithoutCache"),
-            env->native_module_without_cache())
+            env->native_modules_without_cache())
       .FromJust();
 
   env->SetMethod(target, "compileFunction", NativeModule::CompileFunction);
   env->SetMethod(target, "compileCodeCache", NativeModule::CompileCodeCache);
-  // internalBinding('native_module') should be forzen
+  // internalBinding('native_module') should be frozen
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
 

@@ -347,15 +347,15 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port, v8::Object)                                                  \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
-  V(native_module_code_cache, v8::Object)                                      \
-  V(native_module_code_cache_hash, v8::Object)                                 \
+  V(native_modules_code_cache, v8::Object)                                     \
+  V(native_modules_code_cache_hash, v8::Object)                                \
   V(native_module_column_offset, v8::Integer)                                  \
   V(native_module_line_offset, v8::Integer)                                    \
   V(native_module_parameters, v8::Array)                                       \
-  V(native_module_source, v8::Object)                                          \
-  V(native_module_source_hash, v8::Object)                                     \
-  V(native_module_with_cache, v8::Set)                                         \
-  V(native_module_without_cache, v8::Set)                                      \
+  V(native_modules_source, v8::Object)                                         \
+  V(native_modules_source_hash, v8::Object)                                    \
+  V(native_modules_with_cache, v8::Set)                                        \
+  V(native_modules_without_cache, v8::Set)                                     \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(performance_entry_callback, v8::Function)                                  \
   V(performance_entry_template, v8::Function)                                  \
