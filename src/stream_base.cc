@@ -292,17 +292,16 @@ void StreamBase::CallJSOnreadMethod(ssize_t nread,
                                     size_t offset) {
   Environment* env = env_;
 
-#ifdef DEBUG
-  CHECK_EQ(static_cast<int32_t>(nread), nread);
-  CHECK_LE(offset, INT32_MAX);
+  DCHECK_EQ(static_cast<int32_t>(nread), nread);
+  DCHECK_LE(offset, INT32_MAX);
 
   if (ab.IsEmpty()) {
-    CHECK_EQ(offset, 0);
-    CHECK_LE(nread, 0);
+    DCHECK_EQ(offset, 0);
+    DCHECK_LE(nread, 0);
   } else {
-    CHECK_GE(nread, 0);
+    DCHECK_GE(nread, 0);
   }
-#endif
+
   env->stream_base_state()[kReadBytesOrError] = nread;
   env->stream_base_state()[kArrayBufferOffset] = offset;
 
