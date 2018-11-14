@@ -568,7 +568,7 @@ Always returns `true`. This may be used to distinguish TLS sockets from regular
 
 ### tlsSocket.getCertificate()
 <!-- YAML
-added: REPLACEME
+added: v11.2.0
 -->
 
 * Returns: {Object}
