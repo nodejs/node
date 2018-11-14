@@ -852,7 +852,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static const parser_settings_t settings;
 #ifdef NODE_EXPERIMENTAL_HTTP
-  static const uint64_t kMaxHeaderSize = 80 * 1024;
+  static const uint64_t kMaxHeaderSize = 8 * 1024;
 #endif  /* NODE_EXPERIMENTAL_HTTP */
 };
 
