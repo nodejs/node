@@ -118,7 +118,7 @@ namespace node {
 
 ${cacheDefinitions.join('\n\n')}
 
-bool native_module_has_code_cache = true;
+const bool native_module_has_code_cache = true;
 
 // The target here will be returned as \`internalBinding('code_cache')\`
 void DefineCodeCache(Environment* env, v8::Local<v8::Object> target) {

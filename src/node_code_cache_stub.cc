@@ -6,7 +6,7 @@
 
 namespace node {
 
-bool native_module_has_code_cache = false;
+const bool native_module_has_code_cache = false;
 
 void DefineCodeCache(Environment* env, v8::Local<v8::Object> target) {
   // When we do not produce code cache for builtin modules,

@@ -197,8 +197,8 @@ Local<Value> NativeModule::Compile(Environment* env,
 
   Local<String> filename =
       String::Concat(isolate, id, FIXED_ONE_BYTE_STRING(isolate, ".js"));
-  Local<Integer> line_offset = env->native_module_line_offset();
-  Local<Integer> column_offset = env->native_module_column_offset();
+  Local<Integer> line_offset = Integer::New(isolate, 0);
+  Local<Integer> column_offset = Integer::New(isolate, 0);
   ScriptOrigin origin(filename, line_offset, column_offset);
 
   bool use_cache = false;
@@ -264,6 +264,7 @@ Local<Value> NativeModule::Compile(Environment* env,
     CHECK_NE(cached_data, nullptr);
     char* data =
         reinterpret_cast<char*>(const_cast<uint8_t*>(cached_data->data));
+
     // Since we have no API to create a buffer from a new'ed pointer,
     // we will need to copy it - but this code path is only run by the
     // tooling that generates the code cache to be bundled in the binary

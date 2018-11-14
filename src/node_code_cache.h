@@ -7,7 +7,7 @@
 
 namespace node {
 
-extern bool native_module_has_code_cache;
+extern const bool native_module_has_code_cache;
 
 void DefineCodeCache(Environment* env, v8::Local<v8::Object> target);
 void DefineCodeCacheHash(Environment* env, v8::Local<v8::Object> target);
