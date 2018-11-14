@@ -490,7 +490,7 @@ argument to `fs.createReadStream()`. If `path` is passed as a string, then
 
 ### readStream.pending
 <!-- YAML
-added: REPLACEME
+added: v11.2.0
 -->
 
 * {boolean}
@@ -845,7 +845,7 @@ argument to [`fs.createWriteStream()`][]. If `path` is passed as a string, then
 
 ### writeStream.pending
 <!-- YAML
-added: REPLACEME
+added: v11.2.0
 -->
 
 * {boolean}
