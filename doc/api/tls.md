@@ -688,6 +688,7 @@ The certificate may contain information about the public key, depending on
 the key type.
 
 For RSA keys, the following properties may be defined:
+* `bits` {number} The RSA bit size. Example: `1024`.
 * `exponent` {string} The RSA exponent, as a string in hexadecimal number
   notation.  Example: `'0x010001'`.
 * `modulus` {string} The RSA modulus, as a hexadecimal string. Example:
