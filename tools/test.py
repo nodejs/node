@@ -1636,6 +1636,12 @@ def Main():
   if has_inspector.stdout.rstrip() == "0":
       context.v8_enable_inspector = False
 
+  # We want to use the provided openssl.cnf, not the default one of the shared lib
+  has_shared_openssl = Execute([vm,
+      "-p", "process.config.variables.node_shared_openssl"], context)
+  if has_shared_openssl.stdout.rstrip() == "true":
+      os.environ['OPENSSL_CONF'] = "./deps/openssl/openssl/apps/openssl.cnf"
+
   if options.cat:
     visited = set()
     for test in unclassified_tests:
