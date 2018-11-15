@@ -55,6 +55,11 @@ connect({
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
   assert.strictEqual(peerCert.serialNumber, 'ECC9B856270DA9A8');
   assert.strictEqual(peerCert.exponent, '0x10001');
+  assert.strictEqual(peerCert.bits, 1024);
+  // The conversion to bits is odd because modulus isn't a buffer, its a hex
+  // string. There are two hex chars for every byte of modulus, and 8 bits per
+  // byte.
+  assert.strictEqual(peerCert.modulus.length / 2 * 8, peerCert.bits);
   assert.strictEqual(
     peerCert.fingerprint,
     'D7:FD:F6:42:92:A8:83:51:8E:80:48:62:66:DA:85:C2:EE:A6:A1:CD'
