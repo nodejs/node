@@ -1118,10 +1118,15 @@ changes:
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
-  * `secureProtocol` {string} SSL method to use. The possible values are listed
-    as [SSL_METHODS][], use the function names as strings. For example,
-    `'TLSv1_2_method'` to force TLS version 1.2.
-    **Default:** `'TLSv1_2_method'`.
+  * `secureProtocol` {string} The TLS protocol version to use. The possible
+    values are listed as [SSL_METHODS][], use the function names as strings. For
+    example, use `'TLSv1_1_method'` to force TLS version 1.1, or `'TLS_method'`
+    to allow any TLS protocol version. It is not recommended to use TLS versions
+    less than 1.2, but it may be required for interoperability.  **Default:**
+    `'TLSv1_2_method'`, unless changed using CLI options. Using the `--tlsv1.0`
+    CLI option is like `'TLS_method'` except protocols earlier than TLSv1.0 are
+    not allowed, and using the `--tlsv1.1` CLI option is like `'TLS_method'`
+    except that protocols earlier than TLSv1.1 are not allowed.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
 

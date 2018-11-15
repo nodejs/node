@@ -347,16 +347,16 @@ with crypto support (default).
 added: REPLACEME
 -->
 
-Enable TLSv1.0. This should only be used for compatibility with old TLS
-clients or servers.
+Enable TLSv1.0 and greater in default [secureProtocol][]. Use for compatibility
+with old TLS clients or servers.
 
 ### `--tls-v1.1`
 <!-- YAML
 added: REPLACEME
 -->
 
-Enable TLSv1.1. This should only be used for compatibility with old TLS
-clients or servers.
+Enable TLSv1.1 and greater in default [secureProtocol][]. Use for compatibility
+with old TLS clients or servers.
 
 ### `--trace-deprecation`
 <!-- YAML
@@ -787,3 +787,4 @@ greater than `4` (its current default value). For more information, see the
 [experimental ECMAScript Module]: esm.html#esm_loader_hooks
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[secureProtocol]: tls.html#tls_tls_createsecurecontext_options
