@@ -115,8 +115,8 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
 // for the sake of convenience.
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
   V(handle_onclose_symbol, "handle_onclose")                                  \
-  V(owner_symbol, "owner")                                                    \
   V(oninit_symbol, "oninit")                                                  \
+  V(owner_symbol, "owner")                                                    \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -129,15 +129,14 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(bytes_parsed_string, "bytesParsed")                                        \
   V(bytes_read_string, "bytesRead")                                            \
   V(bytes_written_string, "bytesWritten")                                      \
-  V(cached_data_string, "cachedData")                                          \
   V(cached_data_produced_string, "cachedDataProduced")                         \
   V(cached_data_rejected_string, "cachedDataRejected")                         \
+  V(cached_data_string, "cachedData")                                          \
   V(change_string, "change")                                                   \
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
-  V(constants_string, "constants")                                             \
-  V(oncertcb_string, "oncertcb")                                               \
   V(code_string, "code")                                                       \
+  V(constants_string, "constants")                                             \
   V(cwd_string, "cwd")                                                         \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
@@ -154,7 +153,6 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(dns_txt_string, "TXT")                                                     \
   V(duration_string, "duration")                                               \
   V(emit_warning_string, "emitWarning")                                        \
-  V(exchange_string, "exchange")                                               \
   V(encoding_string, "encoding")                                               \
   V(entries_string, "entries")                                                 \
   V(entry_type_string, "entryType")                                            \
@@ -162,6 +160,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(env_var_settings_string, "envVarSettings")                                 \
   V(errno_string, "errno")                                                     \
   V(error_string, "error")                                                     \
+  V(exchange_string, "exchange")                                               \
   V(exit_code_string, "exitCode")                                              \
   V(expire_string, "expire")                                                   \
   V(exponent_string, "exponent")                                               \
@@ -172,8 +171,8 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(fatal_exception_string, "_fatalException")                                 \
   V(fd_string, "fd")                                                           \
   V(file_string, "file")                                                       \
-  V(fingerprint_string, "fingerprint")                                         \
   V(fingerprint256_string, "fingerprint256")                                   \
+  V(fingerprint_string, "fingerprint")                                         \
   V(flags_string, "flags")                                                     \
   V(fragment_string, "fragment")                                               \
   V(get_data_clone_error_string, "_getDataCloneError")                         \
@@ -188,8 +187,8 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(infoaccess_string, "infoAccess")                                           \
   V(inherit_string, "inherit")                                                 \
   V(input_string, "input")                                                     \
-  V(internal_string, "internal")                                               \
   V(internal_binding_string, "internalBinding")                                \
+  V(internal_string, "internal")                                               \
   V(ipv4_string, "IPv4")                                                       \
   V(ipv6_string, "IPv6")                                                       \
   V(isclosing_string, "isClosing")                                             \
@@ -200,9 +199,9 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(mac_string, "mac")                                                         \
   V(main_string, "main")                                                       \
   V(max_buffer_string, "maxBuffer")                                            \
-  V(message_string, "message")                                                 \
-  V(message_port_string, "messagePort")                                        \
   V(message_port_constructor_string, "MessagePort")                            \
+  V(message_port_string, "messagePort")                                        \
+  V(message_string, "message")                                                 \
   V(minttl_string, "minttl")                                                   \
   V(module_string, "module")                                                   \
   V(modulus_string, "modulus")                                                 \
@@ -211,6 +210,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(nsname_string, "nsname")                                                   \
   V(ocsp_request_string, "OCSPRequest")                                        \
   V(onaltsvc_string, "onaltsvc")                                               \
+  V(oncertcb_string, "oncertcb")                                               \
   V(onchange_string, "onchange")                                               \
   V(onclienthello_string, "onclienthello")                                     \
   V(oncomplete_string, "oncomplete")                                           \
@@ -220,19 +220,19 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(onexit_string, "onexit")                                                   \
   V(onframeerror_string, "onframeerror")                                       \
   V(ongetpadding_string, "ongetpadding")                                       \
+  V(ongoawaydata_string, "ongoawaydata")                                       \
   V(onhandshakedone_string, "onhandshakedone")                                 \
   V(onhandshakestart_string, "onhandshakestart")                               \
   V(onheaders_string, "onheaders")                                             \
   V(onmessage_string, "onmessage")                                             \
   V(onnewsession_string, "onnewsession")                                       \
   V(onocspresponse_string, "onocspresponse")                                   \
-  V(ongoawaydata_string, "ongoawaydata")                                       \
   V(onorigin_string, "onorigin")                                               \
+  V(onping_string, "onping")                                                   \
   V(onpriority_string, "onpriority")                                           \
   V(onread_string, "onread")                                                   \
   V(onreadstart_string, "onreadstart")                                         \
   V(onreadstop_string, "onreadstop")                                           \
-  V(onping_string, "onping")                                                   \
   V(onsettings_string, "onsettings")                                           \
   V(onshutdown_string, "onshutdown")                                           \
   V(onsignal_string, "onsignal")                                               \
@@ -242,19 +242,19 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(onwrite_string, "onwrite")                                                 \
   V(openssl_error_stack, "opensslErrorStack")                                  \
   V(options_string, "options")                                                 \
-  V(output_string, "output")                                                   \
   V(order_string, "order")                                                     \
+  V(output_string, "output")                                                   \
   V(parse_error_string, "Parse Error")                                         \
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
   V(pending_handle_string, "pendingHandle")                                    \
   V(pid_string, "pid")                                                         \
+  V(pipe_source_string, "pipeSource")                                          \
   V(pipe_string, "pipe")                                                       \
   V(pipe_target_string, "pipeTarget")                                          \
-  V(pipe_source_string, "pipeSource")                                          \
-  V(port_string, "port")                                                       \
   V(port1_string, "port1")                                                     \
   V(port2_string, "port2")                                                     \
+  V(port_string, "port")                                                       \
   V(preference_string, "preference")                                           \
   V(priority_string, "priority")                                               \
   V(process_string, "process")                                                 \
@@ -272,11 +272,11 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(require_string, "require")                                                 \
   V(retry_string, "retry")                                                     \
   V(scheme_string, "scheme")                                                   \
-  V(serial_string, "serial")                                                   \
   V(scopeid_string, "scopeid")                                                 \
   V(serial_number_string, "serialNumber")                                      \
-  V(service_string, "service")                                                 \
+  V(serial_string, "serial")                                                   \
   V(servername_string, "servername")                                           \
+  V(service_string, "service")                                                 \
   V(session_id_string, "sessionId")                                            \
   V(shell_string, "shell")                                                     \
   V(signal_string, "signal")                                                   \
@@ -315,7 +315,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(write_host_object_string, "_writeHostObject")                              \
   V(write_queue_size_string, "writeQueueSize")                                 \
   V(x_forwarded_string, "x-forwarded-for")                                     \
-  V(zero_return_string, "ZERO_RETURN")
+  V(zero_return_string, "ZERO_RETURN")                                         \
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                            \
   V(as_external, v8::External)                                                 \
@@ -325,17 +325,17 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(async_hooks_destroy_function, v8::Function)                                \
   V(async_hooks_init_function, v8::Function)                                   \
   V(async_hooks_promise_resolve_function, v8::Function)                        \
-  V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
+  V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(buffer_prototype_object, v8::Object)                                       \
   V(context, v8::Context)                                                      \
   V(domain_callback, v8::Function)                                             \
   V(domexception_function, v8::Function)                                       \
-  V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
+  V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
-  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(fs_use_promises_symbol, v8::Symbol)                                        \
+  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
   V(host_import_module_dynamically_callback, v8::Function)                     \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \
@@ -353,9 +353,9 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(native_modules_source_hash, v8::Object)                                    \
   V(native_modules_with_cache, v8::Set)                                        \
   V(native_modules_without_cache, v8::Set)                                     \
-  V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(performance_entry_callback, v8::Function)                                  \
   V(performance_entry_template, v8::Function)                                  \
+  V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(process_object, v8::Object)                                                \
   V(promise_handler_function, v8::Function)                                    \
   V(promise_wrap_template, v8::ObjectTemplate)                                 \
@@ -372,7 +372,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(udp_constructor_function, v8::Function)                                    \
   V(url_constructor_function, v8::Function)                                    \
-  V(write_wrap_template, v8::ObjectTemplate)
+  V(write_wrap_template, v8::ObjectTemplate)                                   \
 
 class Environment;
 
