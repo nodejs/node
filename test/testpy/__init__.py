@@ -71,12 +71,14 @@ class SimpleTestCase(test.TestCase):
       # inspector related tests). Also, if there is no ssl support the options
       # '--use-bundled-ca' and '--use-openssl-ca' will also cause a similar
       # failure so such tests are also skipped.
-      if ((any(flag.startswith('--inspect') for flag in flags) or
-          '--use-bundled-ca' in flags or
+      if (any(flag.startswith('--inspect') for flag in flags) and
+          not self.context.v8_enable_inspector):
+        print('Skipping as node was configured --without-inspector')
+      elif (('--use-bundled-ca' in flags or
           '--use-openssl-ca' in flags or
           '--tls-v1.0' in flags or
           '--tls-v1.1' in flags) and
-          self.context.v8_enable_inspector == 0):
+          not self.context.node_has_crypto):
         print('Skipping as node was configured --without-ssl')
       else:
         result += flags

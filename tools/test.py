@@ -907,6 +907,7 @@ class Context(object):
     self.repeat = repeat
     self.abort_on_timeout = abort_on_timeout
     self.v8_enable_inspector = True
+    self.node_has_crypto = True
 
   def GetVm(self, arch, mode):
     if arch == 'none':
@@ -1635,6 +1636,11 @@ def Main():
       "-p", "process.config.variables.v8_enable_inspector"], context)
   if has_inspector.stdout.rstrip() == "0":
       context.v8_enable_inspector = False
+
+  has_crypto = Execute([vm,
+      "-p", "process.versions.openssl"], context)
+  if has_crypto.stdout.rstrip() == "undefined":
+      context.node_has_crypto = False
 
   if options.cat:
     visited = set()
