@@ -34,8 +34,8 @@ properties:
   handling section [Error Handling][].
 
 The N-API is a C API that ensures ABI stability across Node.js versions
-and different compiler levels. **A C++ API can be easier to use
-.** To support using C++, the project maintains a
+and different compiler levels. A C++ API can be easier to use
+. To support using C++, the project maintains a
 C++ wrapper module called
 [node-addon-api](https://github.com/nodejs/node-addon-api).
 This wrapper provides an inlineable C++ API. Binaries built
