@@ -431,6 +431,14 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     } else if (strcmp(*sslmethod, "TLS_method") == 0) {
       min_version = 0;
       max_version = 0;
+    } else if (strcmp(*sslmethod, "TLS_server_method") == 0) {
+      min_version = 0;
+      max_version = 0;
+      method = TLS_server_method();
+    } else if (strcmp(*sslmethod, "TLS_client_method") == 0) {
+      min_version = 0;
+      max_version = 0;
+      method = TLS_client_method();
     } else if (strcmp(*sslmethod, "TLSv1_method") == 0) {
       min_version = TLS1_VERSION;
       max_version = TLS1_VERSION;
