@@ -61,7 +61,7 @@ class SimpleTestCase(test.TestCase):
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      flag = flags_match.group(1).strip().split()
+      flags = flags_match.group(1).strip().split()
       # The following block reads config.gypi to extract the v8_enable_inspector
       # value. This is done to check if the inspector is disabled in which case
       # the '--inspect' flag cannot be passed to the node process as it will
@@ -71,15 +71,15 @@ class SimpleTestCase(test.TestCase):
       # inspector related tests). Also, if there is no ssl support the options
       # '--use-bundled-ca' and '--use-openssl-ca' will also cause a similar
       # failure so such tests are also skipped.
-      if ('--inspect' in flag[0] or \
-          '--use-bundled-ca' in flag[0] or \
-          '--use-openssl-ca' in flag[0] or \
-          '--tls-v1.0' in flag[0] or \
-          '--tls-v1.1' in flag[0]) and \
-          self.context.v8_enable_inspector == 0:
+      if ((any(flag.startswith('--inspect') for flag in flags) or
+          '--use-bundled-ca' in flags or
+          '--use-openssl-ca' in flags or
+          '--tls-v1.0' in flags or
+          '--tls-v1.1' in flags) and
+          self.context.v8_enable_inspector == 0):
         print('Skipping as node was configured --without-ssl')
       else:
-        result += flag
+        result += flags
     files_match = FILES_PATTERN.search(source);
     additional_files = []
     if files_match:
