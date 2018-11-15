@@ -73,7 +73,9 @@ class SimpleTestCase(test.TestCase):
       # failure so such tests are also skipped.
       if ('--inspect' in flag[0] or \
           '--use-bundled-ca' in flag[0] or \
-          '--use-openssl-ca' in flag[0]) and \
+          '--use-openssl-ca' in flag[0] or \
+          '--tls-v1.0' in flag[0] or \
+          '--tls-v1.1' in flag[0]) and \
           self.context.v8_enable_inspector == 0:
         print('Skipping as node was configured --without-ssl')
       else:
