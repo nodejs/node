@@ -75,9 +75,6 @@ if (status != napi_ok) {
 
 The end result is that the addon only uses the exported C APIs. As a result,
 it still gets the benefits of the ABI stability provided by the C API.
-Detailed API documentation for `node-addon-api` is available
-[here](https://github.com/nodejs/node-addon-api#api-documentation).
-
 
 When using `node-addon-api` instead of the C APIs, start with the API
 [docs](https://github.com/nodejs/node-addon-api#api-documentation)
