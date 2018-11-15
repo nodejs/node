@@ -25,13 +25,6 @@ my $arch = $ARGV[1];
 my $nasm_banner = `nasm -v`;
 die "Error: nasm is not installed." if (!$nasm_banner);
 
-my $nasm_version_min =  2.13.3;
-my ($nasm_version) = ($nasm_banner =~/^NASM version ([0-9]\.[0-9][0-9])+/);
-if ($nasm_version < $nasm_version_min) {
-  die "Error: nasm version $nasm_version is too old." .
-    "$nasm_version_min or higher is required.";
-}
-
 # gas version check
 my $gas_version_min = 2.30;
 my $gas_banner = `gcc -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`;
@@ -118,6 +111,17 @@ foreach my $src (@generated_srcs) {
 $target{'lib_cppflags'} =~ s/-D//g;
 my @lib_cppflags = split(/ /, $target{'lib_cppflags'});
 
+my @cflags = ();
+push(@cflags, @{$config{'cflags'}});
+push(@cflags, @{$config{'CFLAGS'}});
+push(@cflags, $target{'cflags'});
+push(@cflags, $target{'CFLAGS'});
+
+# AIX has own assembler not GNU as that does not support --noexecstack
+if ($arch =~ /aix/) {
+  @cflags = grep $_ ne '-Wa,--noexecstack', @cflags;
+}
+
 # Create openssl.gypi
 my $template =
     Text::Template->new(TYPE => 'FILE',
@@ -132,6 +136,7 @@ my $gypi = $template->fill_in(
         generated_srcs => \@generated_srcs,
         config => \%config,
         target => \%target,
+        cflags => \@cflags,
         asm => \$asm,
         arch => \$arch,
         lib_cppflags => \@lib_cppflags,
@@ -155,6 +160,7 @@ my $clgypi = $cltemplate->fill_in(
         libapps_srcs => \@libapps_srcs,
         config => \%config,
         target => \%target,
+        cflags => \@cflags,
         asm => \$asm,
         arch => \$arch,
         lib_cppflags => \@lib_cppflags,

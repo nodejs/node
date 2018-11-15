@@ -14,15 +14,9 @@
   $OUT .= "      '$define',\n";
 } -%%    ],
     'openssl_cflags_%%-$arch-%%': [
-%%- foreach $cflag (@{$config{cflags}}) {
+%%- foreach $cflag (@cflags) {
       $OUT .= "      '$cflag',\n";
-    }
-    foreach $cflag (@{$config{CFLAGS}}) {
-      $OUT .= "      '$cflag',\n";
-    } -%%
-      '%%-$target{cflags}-%%',
-      '%%-$target{CFLAGS}-%%',
-    ],
+} -%%    ],
     'openssl_ex_libs_%%-$arch-%%': [
       '%%-$target{ex_libs}-%%',
     ],
