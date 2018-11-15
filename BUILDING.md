@@ -259,7 +259,9 @@ loopback interface must also have '::1' enabled. For some default installations
 on Ubuntu that does not seem to be the case. '::1' can be enabled on the
 loopback interface on Ubuntu using:
 
-`sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0`
+```bash
+sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0
+```
 
 #### Running Coverage
 
