@@ -191,11 +191,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
 #if HAVE_OPENSSL
   AddOption("--tls-v1.0",
-            "enable TLSv1.0",
+            "enable TLSv1.0 and greater by default",
             &EnvironmentOptions::tls_v1_0,
             kAllowedInEnvironment);
   AddOption("--tls-v1.1",
-            "enable TLSv1.1",
+            "enable TLSv1.1 and greater by default",
             &EnvironmentOptions::tls_v1_1,
             kAllowedInEnvironment);
 #endif
