@@ -45,7 +45,7 @@ checkInvocations(processwrap, { init: 1 },
   checkInvocations(x, { init: 1 }, 'pipe wrap when sleep.spawn was called');
 });
 
-function onsleepExit(code) {
+function onsleepExit() {
   checkInvocations(processwrap, { init: 1, before: 1 },
                    'processwrap while in onsleepExit callback');
 }
