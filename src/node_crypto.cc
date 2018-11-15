@@ -1685,6 +1685,10 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                   mem->length).ToLocalChecked()).FromJust();
     USE(BIO_reset(bio.get()));
 
+    int bits = BN_num_bits(n);
+    info->Set(context, env->bits_string(),
+              Integer::New(env->isolate(), bits)).FromJust();
+
     uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(e));
     uint32_t lo = static_cast<uint32_t>(exponent_word);
     uint32_t hi = static_cast<uint32_t>(exponent_word >> 32);
