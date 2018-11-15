@@ -257,7 +257,7 @@ The tests attempt to detect support for IPv6 and exclude IPv6 tests if
 appropriate. However, if your main interface has IPv6 addresses then your
 loopback interface must also have '::1' enabled. For some default installations
 on Ubuntu that does not seem to be the case. '::1' can be enabled on the
-loopback interface on ubuntu using:
+loopback interface on Ubuntu using:
 
 `sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0`
 
