@@ -539,6 +539,10 @@ added: v0.1.32
 
 `','`-separated list of core modules that should print debug information.
 
+### `NODE_DEBUG_NATIVE=module[,…]`
+
+`','`-separated list of core C++ modules that should print debug information.
+
 ### `NODE_DISABLE_COLORS=1`
 <!-- YAML
 added: v0.3.0
