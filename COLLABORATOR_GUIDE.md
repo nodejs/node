@@ -824,11 +824,11 @@ Several LTS related issue and PR labels have been provided:
 * `lts-watch-v6.x` - tells the LTS WG that the issue/PR needs to be
   considered for landing in the `v6.x-staging` branch.
 * `land-on-v10.x` - tells the release team that the commit should be landed
-  in a future v10.x release
+  in a future v10.x release.
 * `land-on-v8.x` - tells the release team that the commit should be landed
-  in a future v8.x release
+  in a future v8.x release.
 * `land-on-v6.x` - tells the release team that the commit should be landed
-  in a future v6.x release
+  in a future v6.x release.
 
 Any Collaborator can attach these labels to any PR/issue. As commits are
 landed into the staging branches, the `lts-watch-` label will be removed.
