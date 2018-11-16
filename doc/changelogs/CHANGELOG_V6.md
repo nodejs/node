@@ -2456,16 +2456,16 @@ This LTS release comes with 168 commits. This includes 85 which are test related
 
 The SEMVER-MINOR changes include:
 
-*  **crypto**: allow adding extra certs to well-known CAs (Sam Roberts) [#9139](https://github.com/nodejs/node/pull/9139)
-*  **deps**: Upgrade INTL ICU to version 58 (Steven R. Loomis) [#9234](https://github.com/nodejs/node/pull/9234)
-*  **process**: add `process.memoryUsage.external` (Fedor Indutny) [#9587](https://github.com/nodejs/node/pull/9587)
-*  **src**: add wrapper for process.emitWarning() (Sam Roberts) [#9139](https://github.com/nodejs/node/pull/9139)
+* **crypto**: allow adding extra certs to well-known CAs (Sam Roberts) [#9139](https://github.com/nodejs/node/pull/9139)
+* **deps**: Upgrade INTL ICU to version 58 (Steven R. Loomis) [#9234](https://github.com/nodejs/node/pull/9234)
+* **process**: add `process.memoryUsage.external` (Fedor Indutny) [#9587](https://github.com/nodejs/node/pull/9587)
+* **src**: add wrapper for process.emitWarning() (Sam Roberts) [#9139](https://github.com/nodejs/node/pull/9139)
 
 
 Notable SEMVER-PATCH changes include:
 
-*  **fs**: cache non-symlinks in realpathSync. (Jeremy Yallop) [#10253](https://github.com/nodejs/node/pull/10253)
-*  **repl**: allow autocompletion for scoped packages (Evan Lucas) [#10296](https://github.com/nodejs/node/pull/10296)
+* **fs**: cache non-symlinks in realpathSync. (Jeremy Yallop) [#10253](https://github.com/nodejs/node/pull/10253)
+* **repl**: allow autocompletion for scoped packages (Evan Lucas) [#10296](https://github.com/nodejs/node/pull/10296)
 
 ### Commits
 
