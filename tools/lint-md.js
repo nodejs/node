@@ -30708,97 +30708,64 @@ var remark = unified_1()
   .use(remarkStringify)
   .freeze();
 
-const _from = "remark@^10.0.0";
-const _id = "remark@10.0.0";
-const _inBundle = false;
-const _integrity = "sha512-0fZvVmd9CgDi1qHGsRTyhpJShw60r3/4OSdRpAx+I7CmE8/Jmt829T9KWHpw2Ygw3chRZ26sMorqb8aIolU9tQ==";
-const _location = "/remark";
-const _phantomChildren = {};
-const _requested = {"type":"range","registry":true,"raw":"remark@^10.0.0","name":"remark","escapedName":"remark","rawSpec":"^10.0.0","saveSpec":null,"fetchSpec":"^10.0.0"};
-const _requiredBy = ["/"];
-const _resolved = "https://registry.npmjs.org/remark/-/remark-10.0.0.tgz";
-const _shasum = "4d94ae09d0e81e52fe40a31e89a0103c553f509e";
-const _spec = "remark@^10.0.0";
-const _where = "/Users/daijiro/Developments/node/tools/node-lint-md-cli-rollup";
-const author = {"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"};
-const bugs = {"url":"https://github.com/remarkjs/remark/issues"};
-const bundleDependencies = false;
-const contributors = [{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"}];
-const dependencies = {"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"};
-const deprecated$1 = false;
-const description = "Markdown processor powered by plugins";
-const devDependencies = {"tape":"^4.9.1"};
-const files = ["index.js"];
-const homepage = "http://remark.js.org";
-const keywords = ["markdown","abstract","syntax","tree","ast","parse","stringify","process"];
-const license = "MIT";
 const name = "remark";
-const repository = {"type":"git","url":"https://github.com/remarkjs/remark/tree/master/packages/remark"};
-const scripts = {"test":"tape test.js"};
 const version$1 = "10.0.0";
+const description = "Markdown processor powered by plugins";
+const license = "MIT";
+const keywords = ["markdown","abstract","syntax","tree","ast","parse","stringify","process"];
+const homepage = "http://remark.js.org";
+const repository = "https://github.com/remarkjs/remark/tree/master/packages/remark";
+const bugs = "https://github.com/remarkjs/remark/issues";
+const author = "Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)";
+const contributors = ["Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)"];
+const files = ["index.js"];
+const dependencies = {"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"};
+const devDependencies = {"tape":"^4.9.1"};
+const scripts = {"test":"tape test.js"};
 const xo = false;
+const _resolved = "https://registry.npmjs.org/remark/-/remark-10.0.0.tgz";
+const _integrity = "sha512-0fZvVmd9CgDi1qHGsRTyhpJShw60r3/4OSdRpAx+I7CmE8/Jmt829T9KWHpw2Ygw3chRZ26sMorqb8aIolU9tQ==";
+const _from = "remark@10.0.0";
 var _package = {
-	_from: _from,
-	_id: _id,
-	_inBundle: _inBundle,
-	_integrity: _integrity,
-	_location: _location,
-	_phantomChildren: _phantomChildren,
-	_requested: _requested,
-	_requiredBy: _requiredBy,
-	_resolved: _resolved,
-	_shasum: _shasum,
-	_spec: _spec,
-	_where: _where,
-	author: author,
-	bugs: bugs,
-	bundleDependencies: bundleDependencies,
-	contributors: contributors,
-	dependencies: dependencies,
-	deprecated: deprecated$1,
-	description: description,
-	devDependencies: devDependencies,
-	files: files,
-	homepage: homepage,
-	keywords: keywords,
-	license: license,
 	name: name,
-	repository: repository,
-	scripts: scripts,
 	version: version$1,
-	xo: xo
+	description: description,
+	license: license,
+	keywords: keywords,
+	homepage: homepage,
+	repository: repository,
+	bugs: bugs,
+	author: author,
+	contributors: contributors,
+	files: files,
+	dependencies: dependencies,
+	devDependencies: devDependencies,
+	scripts: scripts,
+	xo: xo,
+	_resolved: _resolved,
+	_integrity: _integrity,
+	_from: _from
 };
 
 var _package$1 = Object.freeze({
-	_from: _from,
-	_id: _id,
-	_inBundle: _inBundle,
-	_integrity: _integrity,
-	_location: _location,
-	_phantomChildren: _phantomChildren,
-	_requested: _requested,
-	_requiredBy: _requiredBy,
-	_resolved: _resolved,
-	_shasum: _shasum,
-	_spec: _spec,
-	_where: _where,
-	author: author,
-	bugs: bugs,
-	bundleDependencies: bundleDependencies,
-	contributors: contributors,
-	dependencies: dependencies,
-	deprecated: deprecated$1,
-	description: description,
-	devDependencies: devDependencies,
-	files: files,
-	homepage: homepage,
-	keywords: keywords,
-	license: license,
 	name: name,
-	repository: repository,
-	scripts: scripts,
 	version: version$1,
+	description: description,
+	license: license,
+	keywords: keywords,
+	homepage: homepage,
+	repository: repository,
+	bugs: bugs,
+	author: author,
+	contributors: contributors,
+	files: files,
+	dependencies: dependencies,
+	devDependencies: devDependencies,
+	scripts: scripts,
 	xo: xo,
+	_resolved: _resolved,
+	_integrity: _integrity,
+	_from: _from,
 	default: _package
 });
 
@@ -30806,7 +30773,7 @@ const name$1 = "node-lint-md-cli-rollup";
 const description$1 = "remark packaged for node markdown linting";
 const version$2 = "1.0.0";
 const devDependencies$1 = {"rollup":"^0.55.5","rollup-plugin-commonjs":"^8.0.2","rollup-plugin-json":"^2.3.1","rollup-plugin-node-resolve":"^3.4.0"};
-const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^10.0.0","remark-lint":"^6.0.3","remark-preset-lint-node":"^1.1.0","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
+const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^10.0.0","remark-lint":"^6.0.3","remark-preset-lint-node":"^1.2.0","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
 const scripts$1 = {"build":"rollup -c","build-node":"npm run build && cp dist/* .."};
 var _package$2 = {
 	name: name$1,
@@ -32047,222 +32014,6 @@ function hardBreakSpaces(tree, file) {
   }
 }
 
-var mdastUtilToString = toString$6;
-
-/* Get the text content of a node.  If the node itself
- * does not expose plain-text fields, `toString` will
- * recursivly try its children. */
-function toString$6(node) {
-  return (
-    valueOf$1(node) ||
-    (node.children && node.children.map(toString$6).join('')) ||
-    ''
-  )
-}
-
-/* Get the value of `node`.  Checks, `value`,
- * `alt`, and `title`, in that order. */
-function valueOf$1(node) {
-  return (
-    (node && node.value ? node.value : node.alt ? node.alt : node.title) || ''
-  )
-}
-
-var remarkLintNoAutoLinkWithoutProtocol = unifiedLintRule(
-  'remark-lint:no-auto-link-without-protocol',
-  noAutoLinkWithoutProtocol
-);
-
-var start$3 = unistUtilPosition.start;
-var end$2 = unistUtilPosition.end;
-
-/* Protocol expression. See:
- * http://en.wikipedia.org/wiki/URI_scheme#Generic_syntax */
-var protocol$2 = /^[a-z][a-z+.-]+:\/?/i;
-
-var reason$3 = 'All automatic links must start with a protocol';
-
-function noAutoLinkWithoutProtocol(tree, file) {
-  unistUtilVisit(tree, 'link', visitor);
-
-  function visitor(node) {
-    var children;
-
-    if (!unistUtilGenerated(node)) {
-      children = node.children;
-
-      if (
-        start$3(node).column === start$3(children[0]).column - 1 &&
-        end$2(node).column === end$2(children[children.length - 1]).column + 1 &&
-        !protocol$2.test(mdastUtilToString(node))
-      ) {
-        file.message(reason$3, node);
-      }
-    }
-  }
-}
-
-var remarkLintNoBlockquoteWithoutCaret = unifiedLintRule('remark-lint:no-blockquote-without-caret', noBlockquoteWithoutCaret);
-
-function noBlockquoteWithoutCaret(ast, file) {
-  var contents = file.toString();
-  var location = vfileLocation(file);
-  var last = contents.length;
-
-  unistUtilVisit(ast, 'blockquote', visitor);
-
-  function visitor(node) {
-    var start = unistUtilPosition.start(node).line;
-    var indent = node.position && node.position.indent;
-
-    if (unistUtilGenerated(node) || !indent || indent.length === 0) {
-      return;
-    }
-
-    indent.forEach(eachLine);
-
-    function eachLine(column, n) {
-      var character;
-      var line = start + n + 1;
-      var offset = location.toOffset({
-        line: line,
-        column: column
-      }) - 1;
-
-      while (++offset < last) {
-        character = contents.charAt(offset);
-
-        if (character === '>') {
-          return;
-        }
-
-        /* istanbul ignore else - just for safety */
-        if (character !== ' ' && character !== '\t') {
-          break;
-        }
-      }
-
-      file.message('Missing caret in blockquote', {
-        line: line,
-        column: column
-      });
-    }
-  }
-}
-
-var remarkLintNoDuplicateDefinitions = unifiedLintRule(
-  'remark-lint:no-duplicate-definitions',
-  noDuplicateDefinitions
-);
-
-var reason$4 = 'Do not use definitions with the same identifier';
-
-function noDuplicateDefinitions(tree, file) {
-  var map = {};
-
-  unistUtilVisit(tree, ['definition', 'footnoteDefinition'], validate);
-
-  function validate(node) {
-    var identifier;
-    var duplicate;
-
-    if (!unistUtilGenerated(node)) {
-      identifier = node.identifier;
-      duplicate = map[identifier];
-
-      if (duplicate && duplicate.type) {
-        file.message(
-          reason$4 + ' (' + unistUtilStringifyPosition(unistUtilPosition.start(duplicate)) + ')',
-          node
-        );
-      }
-
-      map[identifier] = node;
-    }
-  }
-}
-
-var remarkLintNoFileNameArticles = unifiedLintRule('remark-lint:no-file-name-articles', noFileNameArticles);
-
-function noFileNameArticles(tree, file) {
-  var match = file.stem && file.stem.match(/^(the|teh|an?)\b/i);
-
-  if (match) {
-    file.message('Do not start file names with `' + match[0] + '`');
-  }
-}
-
-var remarkLintNoFileNameConsecutiveDashes = unifiedLintRule(
-  'remark-lint:no-file-name-consecutive-dashes',
-  noFileNameConsecutiveDashes
-);
-
-var reason$5 = 'Do not use consecutive dashes in a file name';
-
-function noFileNameConsecutiveDashes(tree, file) {
-  if (file.stem && /-{2,}/.test(file.stem)) {
-    file.message(reason$5);
-  }
-}
-
-var remarkLintNoFileNameOuterDashes = unifiedLintRule(
-  'remark-lint:no-file-name-outer-dashes',
-  noFileNameOuterDashes
-);
-
-var reason$6 = 'Do not use initial or final dashes in a file name';
-
-function noFileNameOuterDashes(tree, file) {
-  if (file.stem && /^-|-$/.test(file.stem)) {
-    file.message(reason$6);
-  }
-}
-
-var mdastUtilHeadingStyle = style;
-
-function style(node, relative) {
-  var last = node.children[node.children.length - 1];
-  var depth = node.depth;
-  var pos = node && node.position && node.position.end;
-  var final = last && last.position && last.position.end;
-
-  if (!pos) {
-    return null
-  }
-
-  /* This can only occur for `'atx'` and `'atx-closed'`
-   * headings.  This might incorrectly match `'atx'`
-   * headings with lots of trailing white space as an
-   * `'atx-closed'` heading. */
-  if (!last) {
-    if (pos.column - 1 <= depth * 2) {
-      return consolidate(depth, relative)
-    }
-
-    return 'atx-closed'
-  }
-
-  if (final.line + 1 === pos.line) {
-    return 'setext'
-  }
-
-  if (final.column + depth < pos.column) {
-    return 'atx-closed'
-  }
-
-  return consolidate(depth, relative)
-}
-
-/* Get the probable style of an atx-heading, depending on
- * preferred style. */
-function consolidate(depth, relative) {
-  return depth < 3
-    ? 'atx'
-    : relative === 'atx' || relative === 'setext'
-      ? relative
-      : null
-}
-
 const addendum = "addenda";
 const aircraft = "aircraft";
 const alga = "algae";
@@ -32744,13 +32495,371 @@ module.exports = (word, plural, count) => {
 };
 });
 
+var remarkLintListItemIndent = unifiedLintRule('remark-lint:list-item-indent', listItemIndent);
+
+var start$3 = unistUtilPosition.start;
+
+var styles = {'tab-size': true, mixed: true, space: true};
+
+function listItemIndent(tree, file, pref) {
+  var contents = String(file);
+
+  pref = typeof pref === 'string' ? pref : 'tab-size';
+
+  if (styles[pref] !== true) {
+    file.fail(
+      'Invalid list-item indent style `' +
+        pref +
+        "`: use either `'tab-size'`, `'space'`, or `'mixed'`"
+    );
+  }
+
+  unistUtilVisit(tree, 'list', visitor);
+
+  function visitor(node) {
+    var spread = node.spread || node.loose;
+
+    if (!unistUtilGenerated(node)) {
+      node.children.forEach(visitItem);
+    }
+
+    function visitItem(item) {
+      var head = item.children[0];
+      var final = start$3(head);
+      var marker;
+      var bulletSize;
+      var style;
+      var diff;
+      var reason;
+
+      marker = contents
+        .slice(start$3(item).offset, final.offset)
+        .replace(/\[[x ]?]\s*$/i, '');
+
+      bulletSize = marker.trimRight().length;
+
+      style =
+        pref === 'tab-size' || (pref === 'mixed' && spread)
+          ? Math.ceil(bulletSize / 4) * 4
+          : bulletSize + 1;
+
+      if (marker.length !== style) {
+        diff = style - marker.length;
+
+        reason =
+          'Incorrect list-item indent: ' +
+          (diff > 0 ? 'add' : 'remove') +
+          ' ' +
+          Math.abs(diff) +
+          ' ' +
+          plur('space', diff);
+
+        file.message(reason, final);
+      }
+    }
+  }
+}
+
+var remarkLintMaximumLineLength = unifiedLintRule('remark-lint:maximum-line-length', maximumLineLength);
+
+var start$4 = unistUtilPosition.start;
+var end$2 = unistUtilPosition.end;
+
+function maximumLineLength(tree, file, pref) {
+  var style = typeof pref === 'number' && !isNaN(pref) ? pref : 80;
+  var content = String(file);
+  var lines = content.split(/\r?\n/);
+  var length = lines.length;
+  var index = -1;
+  var lineLength;
+
+  unistUtilVisit(tree, ['heading', 'table', 'code', 'definition'], ignore);
+  unistUtilVisit(tree, ['link', 'image', 'inlineCode'], inline);
+
+  /* Iterate over every line, and warn for violating lines. */
+  while (++index < length) {
+    lineLength = lines[index].length;
+
+    if (lineLength > style) {
+      file.message('Line must be at most ' + style + ' characters', {
+        line: index + 1,
+        column: lineLength + 1
+      });
+    }
+  }
+
+  /* Finally, whitelist some inline spans, but only if they occur at or after
+   * the wrap.  However, when they do, and there’s white-space after it, they
+   * are not whitelisted. */
+  function inline(node, pos, parent) {
+    var next = parent.children[pos + 1];
+    var initial;
+    var final;
+
+    /* istanbul ignore if - Nothing to whitelist when generated. */
+    if (unistUtilGenerated(node)) {
+      return
+    }
+
+    initial = start$4(node);
+    final = end$2(node);
+
+    /* No whitelisting when starting after the border, or ending before it. */
+    if (initial.column > style || final.column < style) {
+      return
+    }
+
+    /* No whitelisting when there’s white-space after
+     * the link. */
+    if (
+      next &&
+      start$4(next).line === initial.line &&
+      (!next.value || /^(.+?[ \t].+?)/.test(next.value))
+    ) {
+      return
+    }
+
+    whitelist(initial.line - 1, final.line);
+  }
+
+  function ignore(node) {
+    /* istanbul ignore else - Hard to test, as we only run this case on `position: true` */
+    if (!unistUtilGenerated(node)) {
+      whitelist(start$4(node).line - 1, end$2(node).line);
+    }
+  }
+
+  /* Whitelist from `initial` to `final`, zero-based. */
+  function whitelist(initial, final) {
+    while (initial < final) {
+      lines[initial++] = '';
+    }
+  }
+}
+
+var mdastUtilToString = toString$6;
+
+/* Get the text content of a node.  If the node itself
+ * does not expose plain-text fields, `toString` will
+ * recursivly try its children. */
+function toString$6(node) {
+  return (
+    valueOf$1(node) ||
+    (node.children && node.children.map(toString$6).join('')) ||
+    ''
+  )
+}
+
+/* Get the value of `node`.  Checks, `value`,
+ * `alt`, and `title`, in that order. */
+function valueOf$1(node) {
+  return (
+    (node && node.value ? node.value : node.alt ? node.alt : node.title) || ''
+  )
+}
+
+var remarkLintNoAutoLinkWithoutProtocol = unifiedLintRule(
+  'remark-lint:no-auto-link-without-protocol',
+  noAutoLinkWithoutProtocol
+);
+
+var start$5 = unistUtilPosition.start;
+var end$3 = unistUtilPosition.end;
+
+/* Protocol expression. See:
+ * http://en.wikipedia.org/wiki/URI_scheme#Generic_syntax */
+var protocol$2 = /^[a-z][a-z+.-]+:\/?/i;
+
+var reason$3 = 'All automatic links must start with a protocol';
+
+function noAutoLinkWithoutProtocol(tree, file) {
+  unistUtilVisit(tree, 'link', visitor);
+
+  function visitor(node) {
+    var children;
+
+    if (!unistUtilGenerated(node)) {
+      children = node.children;
+
+      if (
+        start$5(node).column === start$5(children[0]).column - 1 &&
+        end$3(node).column === end$3(children[children.length - 1]).column + 1 &&
+        !protocol$2.test(mdastUtilToString(node))
+      ) {
+        file.message(reason$3, node);
+      }
+    }
+  }
+}
+
+var remarkLintNoBlockquoteWithoutCaret = unifiedLintRule('remark-lint:no-blockquote-without-caret', noBlockquoteWithoutCaret);
+
+function noBlockquoteWithoutCaret(ast, file) {
+  var contents = file.toString();
+  var location = vfileLocation(file);
+  var last = contents.length;
+
+  unistUtilVisit(ast, 'blockquote', visitor);
+
+  function visitor(node) {
+    var start = unistUtilPosition.start(node).line;
+    var indent = node.position && node.position.indent;
+
+    if (unistUtilGenerated(node) || !indent || indent.length === 0) {
+      return;
+    }
+
+    indent.forEach(eachLine);
+
+    function eachLine(column, n) {
+      var character;
+      var line = start + n + 1;
+      var offset = location.toOffset({
+        line: line,
+        column: column
+      }) - 1;
+
+      while (++offset < last) {
+        character = contents.charAt(offset);
+
+        if (character === '>') {
+          return;
+        }
+
+        /* istanbul ignore else - just for safety */
+        if (character !== ' ' && character !== '\t') {
+          break;
+        }
+      }
+
+      file.message('Missing caret in blockquote', {
+        line: line,
+        column: column
+      });
+    }
+  }
+}
+
+var remarkLintNoDuplicateDefinitions = unifiedLintRule(
+  'remark-lint:no-duplicate-definitions',
+  noDuplicateDefinitions
+);
+
+var reason$4 = 'Do not use definitions with the same identifier';
+
+function noDuplicateDefinitions(tree, file) {
+  var map = {};
+
+  unistUtilVisit(tree, ['definition', 'footnoteDefinition'], validate);
+
+  function validate(node) {
+    var identifier;
+    var duplicate;
+
+    if (!unistUtilGenerated(node)) {
+      identifier = node.identifier;
+      duplicate = map[identifier];
+
+      if (duplicate && duplicate.type) {
+        file.message(
+          reason$4 + ' (' + unistUtilStringifyPosition(unistUtilPosition.start(duplicate)) + ')',
+          node
+        );
+      }
+
+      map[identifier] = node;
+    }
+  }
+}
+
+var remarkLintNoFileNameArticles = unifiedLintRule('remark-lint:no-file-name-articles', noFileNameArticles);
+
+function noFileNameArticles(tree, file) {
+  var match = file.stem && file.stem.match(/^(the|teh|an?)\b/i);
+
+  if (match) {
+    file.message('Do not start file names with `' + match[0] + '`');
+  }
+}
+
+var remarkLintNoFileNameConsecutiveDashes = unifiedLintRule(
+  'remark-lint:no-file-name-consecutive-dashes',
+  noFileNameConsecutiveDashes
+);
+
+var reason$5 = 'Do not use consecutive dashes in a file name';
+
+function noFileNameConsecutiveDashes(tree, file) {
+  if (file.stem && /-{2,}/.test(file.stem)) {
+    file.message(reason$5);
+  }
+}
+
+var remarkLintNoFileNameOuterDashes = unifiedLintRule(
+  'remark-lint:no-file-name-outer-dashes',
+  noFileNameOuterDashes
+);
+
+var reason$6 = 'Do not use initial or final dashes in a file name';
+
+function noFileNameOuterDashes(tree, file) {
+  if (file.stem && /^-|-$/.test(file.stem)) {
+    file.message(reason$6);
+  }
+}
+
+var mdastUtilHeadingStyle = style;
+
+function style(node, relative) {
+  var last = node.children[node.children.length - 1];
+  var depth = node.depth;
+  var pos = node && node.position && node.position.end;
+  var final = last && last.position && last.position.end;
+
+  if (!pos) {
+    return null
+  }
+
+  /* This can only occur for `'atx'` and `'atx-closed'`
+   * headings.  This might incorrectly match `'atx'`
+   * headings with lots of trailing white space as an
+   * `'atx-closed'` heading. */
+  if (!last) {
+    if (pos.column - 1 <= depth * 2) {
+      return consolidate(depth, relative)
+    }
+
+    return 'atx-closed'
+  }
+
+  if (final.line + 1 === pos.line) {
+    return 'setext'
+  }
+
+  if (final.column + depth < pos.column) {
+    return 'atx-closed'
+  }
+
+  return consolidate(depth, relative)
+}
+
+/* Get the probable style of an atx-heading, depending on
+ * preferred style. */
+function consolidate(depth, relative) {
+  return depth < 3
+    ? 'atx'
+    : relative === 'atx' || relative === 'setext'
+      ? relative
+      : null
+}
+
 var remarkLintNoHeadingContentIndent = unifiedLintRule(
   'remark-lint:no-heading-content-indent',
   noHeadingContentIndent
 );
 
-var start$4 = unistUtilPosition.start;
-var end$3 = unistUtilPosition.end;
+var start$6 = unistUtilPosition.start;
+var end$4 = unistUtilPosition.end;
 
 function noHeadingContentIndent(tree, file) {
   var contents = String(file);
@@ -32778,7 +32887,7 @@ function noHeadingContentIndent(tree, file) {
     type = mdastUtilHeadingStyle(node, 'atx');
 
     if (type === 'atx' || type === 'atx-closed') {
-      initial = start$4(node);
+      initial = start$6(node);
       index = initial.offset;
       char = contents.charAt(index);
 
@@ -32792,7 +32901,7 @@ function noHeadingContentIndent(tree, file) {
       }
 
       index = depth + (index - initial.offset);
-      head = start$4(children[0]).column;
+      head = start$6(children[0]).column;
 
       /* Ignore empty headings. */
       if (!head) {
@@ -32810,7 +32919,7 @@ function noHeadingContentIndent(tree, file) {
           plur('space', diff) +
           ' before this heading’s content';
 
-        file.message(reason, start$4(children[0]));
+        file.message(reason, start$6(children[0]));
       }
     }
 
@@ -32818,8 +32927,8 @@ function noHeadingContentIndent(tree, file) {
      * between their content and the final hashes,
      * thus, there is no `add x spaces`. */
     if (type === 'atx-closed') {
-      final = end$3(children[children.length - 1]);
-      diff = end$3(node).column - final.column - 1 - depth;
+      final = end$4(children[children.length - 1]);
+      diff = end$4(node).column - final.column - 1 - depth;
 
       if (diff) {
         reason =
@@ -32837,7 +32946,7 @@ function noHeadingContentIndent(tree, file) {
 
 var remarkLintNoHeadingIndent = unifiedLintRule('remark-lint:no-heading-indent', noHeadingIndent);
 
-var start$5 = unistUtilPosition.start;
+var start$7 = unistUtilPosition.start;
 
 function noHeadingIndent(tree, file) {
   var contents = String(file);
@@ -32856,7 +32965,7 @@ function noHeadingIndent(tree, file) {
       return
     }
 
-    initial = start$5(node);
+    initial = start$7(node);
     begin = initial.offset;
     index = begin - 1;
 
@@ -32903,84 +33012,7 @@ function noInlinePadding(tree, file) {
   }
 }
 
-var remarkLintMaximumLineLength = unifiedLintRule('remark-lint:maximum-line-length', maximumLineLength);
-
-var start$6 = unistUtilPosition.start;
-var end$4 = unistUtilPosition.end;
-
-function maximumLineLength(tree, file, pref) {
-  var style = typeof pref === 'number' && !isNaN(pref) ? pref : 80;
-  var content = String(file);
-  var lines = content.split(/\r?\n/);
-  var length = lines.length;
-  var index = -1;
-  var lineLength;
-
-  unistUtilVisit(tree, ['heading', 'table', 'code', 'definition'], ignore);
-  unistUtilVisit(tree, ['link', 'image', 'inlineCode'], inline);
-
-  /* Iterate over every line, and warn for violating lines. */
-  while (++index < length) {
-    lineLength = lines[index].length;
-
-    if (lineLength > style) {
-      file.message('Line must be at most ' + style + ' characters', {
-        line: index + 1,
-        column: lineLength + 1
-      });
-    }
-  }
-
-  /* Finally, whitelist some inline spans, but only if they occur at or after
-   * the wrap.  However, when they do, and there’s white-space after it, they
-   * are not whitelisted. */
-  function inline(node, pos, parent) {
-    var next = parent.children[pos + 1];
-    var initial;
-    var final;
-
-    /* istanbul ignore if - Nothing to whitelist when generated. */
-    if (unistUtilGenerated(node)) {
-      return
-    }
-
-    initial = start$6(node);
-    final = end$4(node);
-
-    /* No whitelisting when starting after the border, or ending before it. */
-    if (initial.column > style || final.column < style) {
-      return
-    }
-
-    /* No whitelisting when there’s white-space after
-     * the link. */
-    if (
-      next &&
-      start$6(next).line === initial.line &&
-      (!next.value || /^(.+?[ \t].+?)/.test(next.value))
-    ) {
-      return
-    }
-
-    whitelist(initial.line - 1, final.line);
-  }
-
-  function ignore(node) {
-    /* istanbul ignore else - Hard to test, as we only run this case on `position: true` */
-    if (!unistUtilGenerated(node)) {
-      whitelist(start$6(node).line - 1, end$4(node).line);
-    }
-  }
-
-  /* Whitelist from `initial` to `final`, zero-based. */
-  function whitelist(initial, final) {
-    while (initial < final) {
-      lines[initial++] = '';
-    }
-  }
-}
-
-var start$7 = unistUtilPosition.start;
+var start$8 = unistUtilPosition.start;
 
 
 
@@ -33003,7 +33035,7 @@ function noMultipleToplevelHeadings(tree, file, pref) {
           node
         );
       } else {
-        duplicate = unistUtilStringifyPosition(start$7(node));
+        duplicate = unistUtilStringifyPosition(start$8(node));
       }
     }
   }
@@ -33165,7 +33197,7 @@ var rule$1 = unifiedLintRule;
 
 var remarkLintRuleStyle = rule$1('remark-lint:rule-style', ruleStyle);
 
-var start$8 = unistUtilPosition.start;
+var start$9 = unistUtilPosition.start;
 var end$5 = unistUtilPosition.end;
 
 function ruleStyle(tree, file, pref) {
@@ -33182,7 +33214,7 @@ function ruleStyle(tree, file, pref) {
   unistUtilVisit(tree, 'thematicBreak', visitor);
 
   function visitor(node) {
-    var initial = start$8(node).offset;
+    var initial = start$9(node).offset;
     var final = end$5(node).offset;
     var rule;
 
@@ -33202,7 +33234,7 @@ function ruleStyle(tree, file, pref) {
 
 var remarkLintTablePipes = unifiedLintRule('remark-lint:table-pipes', tablePipes);
 
-var start$9 = unistUtilPosition.start;
+var start$10 = unistUtilPosition.start;
 var end$6 = unistUtilPosition.end;
 
 var reasonStart = 'Missing initial pipe in table fence';
@@ -33231,11 +33263,11 @@ function tablePipes(tree, file) {
         cells = row.children;
         head = cells[0];
         tail = cells[cells.length - 1];
-        initial = contents.slice(start$9(row).offset, start$9(head).offset);
+        initial = contents.slice(start$10(row).offset, start$10(head).offset);
         final = contents.slice(end$6(tail).offset, end$6(row).offset);
 
         if (initial.indexOf('|') === -1) {
-          file.message(reasonStart, start$9(row));
+          file.message(reasonStart, start$10(row));
         }
 
         if (final.indexOf('|') === -1) {
@@ -33301,7 +33333,7 @@ var remarkLintCheckboxCharacterStyle = unifiedLintRule(
   checkboxCharacterStyle
 );
 
-var start$10 = unistUtilPosition.start;
+var start$11 = unistUtilPosition.start;
 var end$7 = unistUtilPosition.end;
 
 var checked = {x: true, X: true};
@@ -33347,8 +33379,8 @@ function checkboxCharacterStyle(tree, file, pref) {
     }
 
     type = types[node.checked];
-    initial = start$10(node).offset;
-    final = (node.children.length ? start$10(node.children[0]) : end$7(node)).offset;
+    initial = start$11(node).offset;
+    final = (node.children.length ? start$11(node.children[0]) : end$7(node)).offset;
 
     /* For a checkbox to be parsed, it must be followed by a white space. */
     value = contents
@@ -33382,17 +33414,17 @@ function checkboxCharacterStyle(tree, file, pref) {
 
 var remarkLintCodeBlockStyle = unifiedLintRule('remark-lint:code-block-style', codeBlockStyle);
 
-var start$11 = unistUtilPosition.start;
+var start$12 = unistUtilPosition.start;
 var end$8 = unistUtilPosition.end;
 
-var styles = {null: true, fenced: true, indented: true};
+var styles$1 = {null: true, fenced: true, indented: true};
 
 function codeBlockStyle(tree, file, pref) {
   var contents = String(file);
 
   pref = typeof pref === 'string' && pref !== 'consistent' ? pref : null;
 
-  if (styles[pref] !== true) {
+  if (styles$1[pref] !== true) {
     file.fail(
       'Invalid code block style `' +
         pref +
@@ -33416,7 +33448,7 @@ function codeBlockStyle(tree, file, pref) {
 
   /* Get the style of `node`. */
   function check(node) {
-    var initial = start$11(node).offset;
+    var initial = start$12(node).offset;
     var final = end$8(node).offset;
 
     if (unistUtilGenerated(node)) {
@@ -33612,17 +33644,17 @@ function strongMarker(tree, file, pref) {
 
 var remarkLintTableCellPadding = unifiedLintRule('remark-lint:table-cell-padding', tableCellPadding);
 
-var start$12 = unistUtilPosition.start;
+var start$13 = unistUtilPosition.start;
 var end$9 = unistUtilPosition.end;
 
-var styles$1 = {null: true, padded: true, compact: true};
+var styles$2 = {null: true, padded: true, compact: true};
 
 function tableCellPadding(tree, file, pref) {
   var contents = String(file);
 
   pref = typeof pref === 'string' && pref !== 'consistent' ? pref : null;
 
-  if (styles$1[pref] !== true) {
+  if (styles$2[pref] !== true) {
     file.fail('Invalid table-cell-padding style `' + pref + '`');
   }
 
@@ -33661,8 +33693,8 @@ function tableCellPadding(tree, file, pref) {
         next = cells[column + 1];
 
         fence = contents.slice(
-          cell ? end$9(cell).offset : start$12(row).offset,
-          next ? start$12(next).offset : end$9(row).offset
+          cell ? end$9(cell).offset : start$13(row).offset,
+          next ? start$13(next).offset : end$9(row).offset
         );
 
         pos = fence.indexOf('|');
@@ -33739,7 +33771,7 @@ function tableCellPadding(tree, file, pref) {
 }
 
 function size(node) {
-  return end$9(node).offset - start$12(node).offset
+  return end$9(node).offset - start$13(node).offset
 }
 
 var plugins$1 = [
@@ -33750,6 +33782,12 @@ var plugins$1 = [
   remarkLintFinalDefinition,
   remarkLintFinalNewline,
   remarkLintHardBreakSpaces,
+  remarkLintHardBreakSpaces,
+  [
+    remarkLintListItemIndent,
+    'space'
+  ],
+  remarkLintMaximumLineLength,
   remarkLintNoAutoLinkWithoutProtocol,
   remarkLintNoBlockquoteWithoutCaret,
   remarkLintNoDuplicateDefinitions,
@@ -33759,7 +33797,6 @@ var plugins$1 = [
   remarkLintNoHeadingContentIndent,
   remarkLintNoHeadingIndent,
   remarkLintNoInlinePadding,
-  remarkLintMaximumLineLength,
   remarkLintNoMultipleToplevelHeadings,
   remarkLintNoShellDollars,
   remarkLintNoShortcutReferenceImage,
