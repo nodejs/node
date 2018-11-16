@@ -118,3 +118,29 @@ runTests(0, undefined, [
     assert.strictEqual(test_reference.finalizeCount, 1);
   },
 ]);
+
+// This test creates a napi_ref on an object that has
+// been wrapped by napi_wrap and for which the finalizer
+// for the wrap calls napi_delete_ref on that napi_ref.
+//
+// Since both the wrap and the reference use the same
+// object the finalizer for the wrap and reference
+// may run in the same gc and in any order.
+//
+// It does that to validate that napi_delete_ref can be
+// called before the finalizer has been run for the
+// reference (there is a finalizer behind the scenes even
+// though it cannot be passed to napi_create_reference).
+//
+// Since the order is not guarranteed, run the
+// test a number of times maximize the chance that we
+// get a run with the desired order for the test.
+//
+// 1000 reliably recreated the problem without the fix
+// required to ensure delete could be called before
+// the finalizer in manual testing.
+for (let i = 0; i < 1000; i++) {
+  const wrapObject = new Object();
+  test_reference.validateDeleteBeforeFinalize(wrapObject);
+  global.gc();
+}
