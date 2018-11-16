@@ -159,7 +159,7 @@ explains how to install all prerequisites.
 * GNU Make 3.81 or newer
 
 On macOS, install the `Xcode Command Line Tools` by running
-`xcode-select --install`. Alternatively, if you already have the full Xcode
+`xcode-select --install`. Alternatively, if you already have the full XcodeI
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
@@ -256,8 +256,8 @@ the `lib` or `src` directories.
 The tests attempt to detect support for IPv6 and exclude IPv6 tests if
 appropriate. If your main interface has IPv6 addresses, then your
 loopback interface must also have '::1' enabled. For some default installations
-on Ubuntu that does not seem to be the case. '::1' can be enabled on the
-loopback interface on Ubuntu using:
+on Ubuntu that does not seem to be the case. To enable '::1' on the
+loopback interface on Ubuntu:
 
 ```bash
 sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0
