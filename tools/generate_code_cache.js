@@ -13,6 +13,12 @@ const {
   cachableBuiltins
 } = require('internal/bootstrap/cache');
 
+const {
+  types: {
+    isUint8Array
+  }
+} = require('util');
+
 function hash(str) {
   if (process.versions.openssl) {
     return require('crypto').createHash('sha256').update(str).digest('hex');
@@ -61,17 +67,16 @@ function getInitalizer(key, cache) {
                      `${cache.join(',')}\n};`;
   const source = getSource(key);
   const sourceHash = hash(source);
-  const bytes = `UnionBytes(${defName}, arraysize(${defName}))`;
   const initializer =
-    'code_cache_.insert(std::make_pair(\n' +
-    `  std::string("${key}"),\n` +
-    `  ${bytes}\n` +
-    '));';
+    'code_cache_.emplace(\n' +
+    `  "${key}",\n` +
+    `  UnionBytes(${defName}, arraysize(${defName}))\n` +
+    ');';
   const hashIntializer =
-    'code_cache_hash_.insert(std::make_pair(\n' +
-    `  std::string("${key}"),\n` +
-    `  std::string("${sourceHash}")\n` +
-    '));';
+    'code_cache_hash_.emplace(\n' +
+    `  "${key}",\n` +
+    `  "${sourceHash}"\n` +
+    ');';
   return {
     definition, initializer, hashIntializer, sourceHash
   };
@@ -94,20 +99,20 @@ function lexical(a, b) {
 
 for (const key of cachableBuiltins.sort(lexical)) {
   const cachedData = getCodeCache(key);
-  if (!(cachedData instanceof Uint8Array)) {
+  if (!isUint8Array(cachedData)) {
     console.error(`Failed to generate code cache for '${key}'`);
     process.exit(1);
   }
 
-  const length = cachedData.byteLength;
-  totalCacheSize += length;
+  const size = cachedData.byteLength;
+  totalCacheSize += size;
   const {
     definition, initializer, hashIntializer, sourceHash
   } = getInitalizer(key, cachedData);
   cacheDefinitions.push(definition);
   cacheInitializers.push(initializer);
   cacheHashInitializers.push(hashIntializer);
-  console.log(`Generated cache for '${key}', size = ${formatSize(length)}` +
+  console.log(`Generated cache for '${key}', size = ${formatSize(size)}` +
               `, hash = ${sourceHash}, total = ${formatSize(totalCacheSize)}`);
 }
 

@@ -1781,7 +1781,7 @@ void LoadEnvironment(Environment* env) {
   // generated in node_javascript.cc by node_js2c.
 
   // TODO(joyeecheung): use NativeModuleLoader::Compile
-  // We duplicate the string literals here since once we refactor the boostrap
+  // We duplicate the string literals here since once we refactor the bootstrap
   // compilation out to NativeModuleLoader none of this is going to matter
   Isolate* isolate = env->isolate();
   Local<String> loaders_name =

@@ -203,17 +203,17 @@ static const uint16_t {var}[] = {{ {data} }};
 
 
 INITIALIZER = """
-source_.insert(std::make_pair(
-    std::string("{module}"),
+source_.emplace(
+    "{module}",
     UnionBytes({var}, arraysize({var}))
-));
+);
 """
 
 HASH_INITIALIZER = """\
-source_hash_.insert(std::make_pair(
-    std::string("{module}"),
-    std::string("{hash_value}")
-));
+source_hash_.emplace(
+    "{module}",
+    "{hash_value}"
+);
 """
 
 DEPRECATED_DEPS = """\

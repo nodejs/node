@@ -18,6 +18,9 @@ const {
 const {
   internalBinding
 } = require('internal/test/binding');
+const {
+  getCacheUsage
+} = internalBinding('native_module');
 
 for (const key of cachableBuiltins) {
   if (!isMainThread && key === 'trace_events') {
@@ -28,11 +31,9 @@ for (const key of cachableBuiltins) {
 
 // The computation has to be delayed until we have done loading modules
 const {
-  cacheUsage: {
-    compiledWithoutCache,
-    compiledWithCache
-  }
-} = internalBinding('native_module');
+  compiledWithoutCache,
+  compiledWithCache
+} = getCacheUsage();
 
 const loadedModules = process.moduleLoadList
   .filter((m) => m.startsWith('NativeModule'))

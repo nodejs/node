@@ -19,9 +19,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Name;
 using v8::Object;
-using v8::PropertyCallbackInfo;
 using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -30,6 +28,7 @@ using v8::String;
 using v8::Uint8Array;
 using v8::Value;
 
+// TODO(joyeecheung): make these more general and put them into util.h
 Local<Object> MapToObject(Local<Context> context,
                           const NativeModuleRecordMap& in) {
   Isolate* isolate = context->GetIsolate();
@@ -41,7 +40,8 @@ Local<Object> MapToObject(Local<Context> context,
   return out;
 }
 
-Local<Set> ToJsSet(Local<Context> context, const std::set<std::string>& in) {
+Local<Set> ToJsSet(Local<Context> context,
+                   const std::set<std::string>& in) {
   Isolate* isolate = context->GetIsolate();
   Local<Set> out = Set::New(isolate);
   for (auto const& x : in) {
@@ -52,8 +52,8 @@ Local<Set> ToJsSet(Local<Context> context, const std::set<std::string>& in) {
 }
 
 void NativeModuleLoader::GetCacheUsage(
-    Local<Name> property, const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Local<Object> result = Object::New(isolate);
@@ -67,13 +67,13 @@ void NativeModuleLoader::GetCacheUsage(
             OneByteString(isolate, "compiledWithoutCache"),
             ToJsSet(context, env->native_modules_without_cache))
       .FromJust();
-  info.GetReturnValue().Set(result);
+  args.GetReturnValue().Set(result);
 }
 
 void NativeModuleLoader::GetSourceObject(
-    Local<Name> property, const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  info.GetReturnValue().Set(per_process_loader.GetSourceObject(env->context()));
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(per_process_loader.GetSourceObject(env->context()));
 }
 
 Local<Object> NativeModuleLoader::GetSourceObject(
@@ -306,22 +306,11 @@ void NativeModuleLoader::Initialize(Local<Object> target,
                                     Local<Value> unused,
                                     Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
 
-  CHECK(target
-            ->SetAccessor(env->context(),
-                          FIXED_ONE_BYTE_STRING(isolate, "source"),
-                          GetSourceObject,
-                          nullptr,
-                          env->as_external())
-            .FromJust());
-  CHECK(target
-            ->SetAccessor(env->context(),
-                          FIXED_ONE_BYTE_STRING(isolate, "cacheUsage"),
-                          GetCacheUsage,
-                          nullptr,
-                          env->as_external())
-            .FromJust());
+  env->SetMethod(
+      target, "getSource", NativeModuleLoader::GetSourceObject);
+  env->SetMethod(
+      target, "getCacheUsage", NativeModuleLoader::GetCacheUsage);
   env->SetMethod(
       target, "compileFunction", NativeModuleLoader::CompileFunction);
   env->SetMethod(
