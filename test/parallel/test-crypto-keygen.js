@@ -625,6 +625,22 @@ function convertDERToPEM(label, der) {
     message: 'Invalid ECDH curve name'
   });
 
+  // Test error type when curve is not a string
+  for (const namedCurve of [true, {}, [], 123]) {
+    common.expectsError(() => {
+      generateKeyPairSync('ec', {
+        namedCurve,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'sec1', format: 'pem' }
+      });
+    }, {
+      type: TypeError,
+      code: 'ERR_INVALID_OPT_VALUE',
+      message: `The value "${namedCurve}" is invalid for option ` +
+               '"namedCurve"'
+    });
+  }
+
   // It should recognize both NIST and standard curve names.
   generateKeyPair('ec', {
     namedCurve: 'P-192',
