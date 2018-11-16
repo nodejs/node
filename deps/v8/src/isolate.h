@@ -553,8 +553,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(int, last_console_context_id, 0)                                          \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
   V(bool, next_v8_call_is_safe_for_termination, false)                        \
-  V(bool, only_terminate_in_safe_scope, false)                                \
-  V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)
+  V(bool, only_terminate_in_safe_scope, false)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
   inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \

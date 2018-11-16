@@ -341,12 +341,6 @@ class V8_EXPORT CpuProfiler {
   V8_DEPRECATED("Use Isolate::SetIdle(bool) instead.",
                 void SetIdle(bool is_idle));
 
-  /**
-   * Generate more detailed source positions to code objects. This results in
-   * better results when mapping profiling samples to script source.
-   */
-  static void UseDetailedSourcePositionsForProfiling(Isolate* isolate);
-
  private:
   CpuProfiler();
   ~CpuProfiler();
