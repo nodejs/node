@@ -498,6 +498,7 @@
 * [[`42bded83e8`](https://github.com/nodejs/node/commit/42bded83e8)] - **(SEMVER-MAJOR)** **fs**: throw ERR\_INVALID\_ARG\_VALUE when buffer being written is empty (AdityaSrivast) [#21262](https://github.com/nodejs/node/pull/21262)
 * [[`7bd48896e9`](https://github.com/nodejs/node/commit/7bd48896e9)] - **(SEMVER-MAJOR)** **fs**: move SyncWriteStream to end-of-life (James M Snell) [#20735](https://github.com/nodejs/node/pull/20735)
 * [[`19374fd25b`](https://github.com/nodejs/node/commit/19374fd25b)] - **(SEMVER-MAJOR)** **fs**: improve argument handling for ReadStream (Ujjwal Sharma) [#19898](https://github.com/nodejs/node/pull/19898)
+* [[`f22c7c10ca`](https://github.com/nodejs/node/commit/f22c7c10ca)] - **(SEMVER-MAJOR)** **http**: always emit close on req and res (Robert Nagy) [#20611](https://github.com/nodejs/node/pull/20611)
 * [[`1744205ff5`](https://github.com/nodejs/node/commit/1744205ff5)] - **(SEMVER-MAJOR)** **http**: move process.binding('http\_parser') to internalBinding (James M Snell) [#22329](https://github.com/nodejs/node/pull/22329)
 * [[`4b00c4fafa`](https://github.com/nodejs/node/commit/4b00c4fafa)] - **(SEMVER-MAJOR)** **http**: make client `.aborted` boolean (Robert Nagy) [#20230](https://github.com/nodejs/node/pull/20230)
 * [[`564048dc29`](https://github.com/nodejs/node/commit/564048dc29)] - **(SEMVER-MAJOR)** **http,https,tls**: switch to WHATWG URL parser (Hackzzila) [#20270](https://github.com/nodejs/node/pull/20270)
