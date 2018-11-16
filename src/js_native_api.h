@@ -441,6 +441,11 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
                                         napi_value script,
                                         napi_value* result);
 
+// Memory management
+NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
+                                                    int64_t change_in_bytes,
+                                                    int64_t* adjusted_value);
+
 #ifdef NAPI_EXPERIMENTAL
 
 NAPI_EXTERN napi_status napi_create_bigint_int64(napi_env env,

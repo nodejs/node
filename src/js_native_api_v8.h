@@ -2,6 +2,7 @@
 #define SRC_JS_NATIVE_API_V8_H_
 
 #include <string.h>
+#include "js_native_api_types.h"
 #include "js_native_api_v8_internals.h"
 
 struct napi_env__ {
@@ -149,9 +150,9 @@ inline v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
 class Finalizer {
  protected:
   Finalizer(napi_env env,
-             napi_finalize finalize_callback,
-             void* finalize_data,
-             void* finalize_hint)
+            napi_finalize finalize_callback,
+            void* finalize_data,
+            void* finalize_hint)
     : _env(env),
       _finalize_callback(finalize_callback),
       _finalize_data(finalize_data),

@@ -162,11 +162,6 @@ NAPI_EXTERN
 napi_status napi_get_node_version(napi_env env,
                                   const napi_node_version** version);
 
-// Memory management
-NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
-                                                    int64_t change_in_bytes,
-                                                    int64_t* adjusted_value);
-
 #if NAPI_VERSION >= 2
 
 // Return the current libuv event loop for a given environment
