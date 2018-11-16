@@ -50,16 +50,14 @@ request. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
 ### Welcoming First-Time Contributors
 
-Courtesy should always be shown to individuals submitting issues and pull
-requests to the Node.js project. Be welcoming to first-time contributors,
-identified by the GitHub ![First-time contributor](./doc/first_timer_badge.png)
-badge.
+Always show courtesy to individuals submitting issues and pull requests. Be
+welcoming to first-time contributors, identified by the GitHub
+![First-time contributor](./doc/first_timer_badge.png) badge.
 
-For first-time contributors, check if the commit author is the same as the
-pull request author, and ask if they have configured their git
+For first-time contributors, check if the commit author is the same as the pull
+request author. This way, once their pull request lands, GitHub will show them
+as a _Contributor_. Ask if they have configured their git
 [username][git-username] and [email][git-email] to their liking.
-This is to make sure they would be promoted to "contributor" once their
-pull request lands.
 
 ### Closing Issues and Pull Requests
 
