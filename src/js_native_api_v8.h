@@ -180,6 +180,7 @@ class Finalizer {
   napi_finalize _finalize_callback;
   void* _finalize_data;
   void* _finalize_hint;
+  bool _finalize_ran = false;
 };
 
 class TryCatch : public v8::TryCatch {

@@ -227,8 +227,29 @@ class Reference : private Finalizer {
       finalize_hint);
   }
 
+  // Delete is called in 2 ways. Either from the finalizer or
+  // from one of Unwrap or napi_delete_reference.
+  //
+  // When it is called from Unwrap or napi_delete_reference we only
+  // want to do the delete if the finalizer has already run,
+  // otherwise we may crash when the finalizer does run.
+  // If the finalizer has not already run delay the delete until
+  // the finalizer runs by not doing the delete
+  // and setting _delete_self to true so that the finalizer will
+  // delete it when it runs.
+  //
+  // The second way this is called is from
+  // the finalizer and _delete_self is set. In this case we
+  // know we need to do the deletion so just do it.
   static void Delete(Reference* reference) {
-    delete reference;
+    if ((reference->_delete_self) || (reference->_finalize_ran)) {
+      delete reference;
+    } else {
+      // reduce the reference count to 0 and defer until
+      // finalizer runs
+      reference->_delete_self = true;
+      while (reference->Unref() != 0) {}
+    }
   }
 
   uint32_t Ref() {
@@ -268,9 +289,6 @@ class Reference : private Finalizer {
     Reference* reference = data.GetParameter();
     reference->_persistent.Reset();
 
-    // Check before calling the finalize callback, because the callback might
-    // delete it.
-    bool delete_self = reference->_delete_self;
     napi_env env = reference->_env;
 
     if (reference->_finalize_callback != nullptr) {
@@ -281,8 +299,13 @@ class Reference : private Finalizer {
             reference->_finalize_hint));
     }
 
-    if (delete_self) {
+    // this is safe because if a request to delete the reference
+    // is made in the finalize_callback it will defer deletion
+    // to this block and set _delete_self to true
+    if (reference->_delete_self) {
       Delete(reference);
+    } else {
+      reference->_finalize_ran = true;
     }
   }
 
