@@ -50,8 +50,8 @@ request. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
 ### Welcoming First-Time Contributors
 
-Show courtesy to individuals submitting issues and pull requests. Be welcoming
-to first-time contributors, identified by the GitHub
+Always show courtesy to individuals submitting issues and pull requests. Be
+welcoming to first-time contributors, identified by the GitHub
 ![First-time contributor](./doc/first_timer_badge.png) badge.
 
 For first-time contributors, check if the commit author is the same as the pull
