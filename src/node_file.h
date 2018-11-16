@@ -207,7 +207,8 @@ constexpr void FillStatsArray(AliasedBuffer<NativeT, V8T>* fields,
   fields->SetValue(offset + 9, gsl::narrow<NativeT>(s->st_blocks));
 #else
   fields->SetValue(offset + 6, 0);
-  fields->SetValue(offset + 7, gsl::narrow<NativeT>(s->st_ino));
+  // This overflows on Windows for NativeT == double
+  fields->SetValue(offset + 7, gsl::narrow_cast<NativeT>(s->st_ino));
   fields->SetValue(offset + 8, gsl::narrow<NativeT>(s->st_size));
   fields->SetValue(offset + 9, 0);
 #endif

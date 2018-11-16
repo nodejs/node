@@ -638,6 +638,8 @@ The numeric identifier of the device containing the file.
 
 The file system specific "Inode" number for the file.
 
+*Note*: The `number` version is unreliable on Windows as values often overflow.
+
 ### stats.mode
 
 * {number|bigint}
