@@ -194,12 +194,14 @@ constexpr uint64_t ToNative(uv_timespec_t ts) {
 template <typename NativeT, typename V8T>
 constexpr void FillStatsArray(AliasedBuffer<NativeT, V8T>* fields,
                               const uv_stat_t* s, const size_t offset = 0) {
-  fields->SetValue(offset + 0, gsl::narrow<NativeT>(s->st_dev));
+  // Using the noop `narrow_cast` since this overflows.
+  fields->SetValue(offset + 0, gsl::narrow_cast<NativeT>(s->st_dev));
   fields->SetValue(offset + 1, gsl::narrow<NativeT>(s->st_mode));
   fields->SetValue(offset + 2, gsl::narrow<NativeT>(s->st_nlink));
   fields->SetValue(offset + 3, gsl::narrow<NativeT>(s->st_uid));
   fields->SetValue(offset + 4, gsl::narrow<NativeT>(s->st_gid));
-  fields->SetValue(offset + 5, gsl::narrow<NativeT>(s->st_rdev));
+  // Using the noop `narrow_cast` since this overflows.
+  fields->SetValue(offset + 5, gsl::narrow_cast<NativeT>(s->st_rdev));
 #if defined(__POSIX__)
   fields->SetValue(offset + 6, gsl::narrow<NativeT>(s->st_blksize));
   fields->SetValue(offset + 7, gsl::narrow<NativeT>(s->st_ino));

@@ -632,13 +632,15 @@ This method is only valid when using [`fs.lstat()`][].
 
 The numeric identifier of the device containing the file.
 
+*Note*: The `number` version is unreliable as values often overflow.
+
 ### stats.ino
 
 * {number|bigint}
 
 The file system specific "Inode" number for the file.
 
-*Note*: The `number` version is unreliable on Windows as values often overflow.
+*Note*: The `number` version is unreliable as values often overflow.
 
 ### stats.mode
 
@@ -669,6 +671,8 @@ The numeric group identifier of the group that owns the file (POSIX).
 * {number|bigint}
 
 A numeric device identifier if the file is considered "special".
+
+*Note*: The `number` version is unreliable as values often overflow.
 
 ### stats.size
 

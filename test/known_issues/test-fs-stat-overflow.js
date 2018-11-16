@@ -3,14 +3,13 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.isWindows)
+if (!(common.isWindows || common.isSunOS || common.isAIX))
   assert.fail('Code should fail only on Windows.');
 
 const fs = require('fs');
 const promiseFs = require('fs').promises;
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
-const { isDate } = require('util').types;
 
 tmpdir.refresh();
 
@@ -23,8 +22,30 @@ function getFilename() {
 }
 
 function verifyStats(bigintStats, numStats) {
-  assert.ok(Number.isSafeInteger(numStats.ino));
-  assert.strictEqual(bigintStats.ino, BigInt(numStats.ino));
+  const keys = [
+    'mode', 'nlink', 'uid', 'gid', 'size',
+    // `rdev` can overflow on AIX and smartOS
+    'rdev',
+    // `dev` can overflow on AIX
+    'dev',
+    // `ino` can overflow on Windows
+    'ino',
+  ];
+  const nStats = keys.reduce(
+    (s, k) => Object.assign(s, { [k]: String(numStats[k]) }),
+    {}
+  );
+  const bStats = keys.reduce(
+    (s, k) => Object.assign(s, { [k]: String(bigintStats[k]) }),
+    {}
+  );
+  assert.deepStrictEqual(nStats, bStats);
+  for (const key of keys) {
+    assert.ok(
+      Number.isSafeInteger(numStats[key]),
+      `numStats.${key}: ${numStats[key]} is not a safe integer`
+    );
+  }
 }
 
 {
