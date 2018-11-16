@@ -296,6 +296,7 @@ MaybeLocal<Object> DeserializerContext::ReadHostObject(Isolate* isolate) {
     return ValueDeserializer::Delegate::ReadHostObject(isolate);
   }
 
+  Isolate::AllowJavascriptExecutionScope allow_js(isolate);
   MaybeLocal<Value> ret =
       read_host_object.As<Function>()->Call(env()->context(),
                                             object(),
