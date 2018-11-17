@@ -20,7 +20,7 @@ let more;
 let done;
 
 const server = http
-  .createServer(function(req, res) {
+  .createServer((req, res) => {
     if (!once) server.close();
     once = true;
 
@@ -41,18 +41,18 @@ const server = http
     }
     done();
   })
-  .on('upgrade', function(req, socket) {
-    second.end(chunk, function() {
+  .on('upgrade', (req, socket) => {
+    second.end(chunk, () => {
       socket.end();
     });
     first.end('hello');
   })
-  .listen(0, function() {
-    const s = net.connect(this.address().port);
-    more = function() {
+  .listen(0, () => {
+    const s = net.connect(server.address().port);
+    more = () => {
       s.write('GET / HTTP/1.1\r\n\r\n');
     };
-    done = function() {
+    done = () => {
       s.write(
         'GET / HTTP/1.1\r\n\r\n' +
           'GET / HTTP/1.1\r\nConnection: upgrade\r\nUpgrade: ws\r\n\r\naaa'
