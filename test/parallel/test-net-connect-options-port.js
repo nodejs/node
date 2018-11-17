@@ -76,15 +76,15 @@ const net = require('net');
   const expectedConnections = 72;
   let serverConnected = 0;
 
-  const server = net.createServer(common.mustCall(function(socket) {
+  const server = net.createServer(common.mustCall((socket) => {
     socket.end('ok');
     if (++serverConnected === expectedConnections) {
       server.close();
     }
   }, expectedConnections));
 
-  server.listen(0, 'localhost', common.mustCall(function() {
-    const port = this.address().port;
+  server.listen(0, 'localhost', common.mustCall(() => {
+    const port = server.address().port;
 
     // Total connections = 3 * 4(canConnect) * 6(doConnect) = 72
     canConnect(port);
@@ -93,7 +93,7 @@ const net = require('net');
   }));
 
   // Try connecting to random ports, but do so once the server is closed
-  server.on('close', function() {
+  server.on('close', () => {
     asyncFailToConnect(0);
     asyncFailToConnect(/* undefined */);
   });
@@ -193,7 +193,7 @@ function canConnect(port) {
 }
 
 function asyncFailToConnect(port) {
-  const onError = () => common.mustCall(function(err) {
+  const onError = () => common.mustCall((err) => {
     const regexp = /^Error: connect E\w+.+$/;
     assert(regexp.test(String(err)), String(err));
   });
