@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -14,7 +15,7 @@ const options = {
 };
 
 
-const server = https.Server(options, function(req, res) {
+const server = https.Server(options, (req, res) => {
   res.writeHead(200);
   res.end('hello world\n');
 });
@@ -27,11 +28,11 @@ server.listen(0, function() {
     rejectUnauthorized: true,
     servername: 'agent1',
     ca: options.ca
-  }, function(res) {
+  }, (res) => {
     res.resume();
-    console.log(res.statusCode);
+    assert.strictEqual(res.statusCode, 200);
     server.close();
-  }).on('error', function(e) {
+  }).on('error', (e) => {
     console.log(e.message);
     process.exit(1);
   });
