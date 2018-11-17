@@ -54,10 +54,10 @@ defined are described in [OS Constants](#os_os_constants_1).
 added: v0.3.3
 -->
 
-* Returns: {Object[]}
+* Returns: {Object[]|undefined}
 
-The `os.cpus()` method returns an array of objects containing information about
-each logical CPU core.
+Returns an array of objects containing information about each logical CPU core.
+If the information is not available, `os.cpus()` will return `undefined`.
 
 The properties included on each object include:
 
