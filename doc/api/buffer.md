@@ -788,12 +788,11 @@ const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 
 A `TypeError` will be thrown if `array` is not an `Array`.
 
-`Buffer.from(array)` will also use the internal `Buffer` pool if `array.length`
-is less than or equal to half [`Buffer.poolSize`] just like
+`Buffer.from(array)` may also use the internal `Buffer` pool just like
 [`Buffer.allocUnsafe()`] does.
 
 ```js
-const nodeBuffers = new Buffer.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+const nodeBuffers = Buffer.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
 console.log(nodeBuffers.offset);
 // prints: 344
@@ -805,7 +804,7 @@ console.log(Buffer.poolSize);
 // But you can change it
 Buffer.poolSize = 5;
 
-const buf = new Buffer.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+const buf = Buffer.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
 console.log(buf.offset);
 // prints: 0
