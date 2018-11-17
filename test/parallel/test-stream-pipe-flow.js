@@ -48,7 +48,7 @@ const { Readable, Writable, PassThrough } = require('stream');
   const wrapper = new Readable({
     objectMode: true,
     read: () => {
-      process.nextTick( () => {
+      process.nextTick(() => {
         let data = pt.read();
         if (data === null) {
           pt.once('readable', () => {
