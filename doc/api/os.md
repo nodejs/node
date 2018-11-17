@@ -57,7 +57,7 @@ added: v0.3.3
 * Returns: {Object[]|undefined}
 
 Returns an array of objects containing information about each logical CPU core.
-If the information is not available, `os.cpus()` will return `undefined`.
+On unsupported platforms such as Android, `os.cpus()` may return `undefined`.
 
 The properties included on each object include:
 
