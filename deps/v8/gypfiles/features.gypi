@@ -170,6 +170,11 @@
       # ['v8_enable_handle_zapping==1', {
       #  'defines': ['ENABLE_HANDLE_ZAPPING',],
       # }],
+
+      # Node.js specific switch
+      ['node_use_bundled_v8=="true"', {
+        'defines!': [ 'V8_DEPRECATION_WARNINGS', 'V8_IMMINENT_DEPRECATION_WARNINGS' ],
+      }],
     ],  # conditions
     'defines': [
       'V8_GYP_BUILD',

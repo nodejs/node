@@ -7,7 +7,6 @@
     'node_no_browser_globals%': 'false',
     'node_code_cache_path%': '',
     'node_use_v8_platform%': 'true',
-    'node_use_bundled_v8%': 'true',
     'node_shared%': 'false',
     'force_dynamic_crt%': 0,
     'node_module_version%': '',
