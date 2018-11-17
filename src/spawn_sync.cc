@@ -882,6 +882,7 @@ int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
 
 int SyncProcessRunner::ParseStdioOption(int child_fd,
                                         Local<Object> js_stdio_option) {
+  Isolate* isolate = env()->isolate();
   Local<Context> context = env()->context();
   Local<Value> js_type =
       js_stdio_option->Get(context, env()->type_string()).ToLocalChecked();
