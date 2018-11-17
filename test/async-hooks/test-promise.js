@@ -13,24 +13,22 @@ const hooks = initHooks();
 
 hooks.enable();
 
-const p = (new Promise(common.mustCall(executor)));
-p.then(afterresolution);
-
-function executor(resolve, reject) {
-  const as = hooks.activitiesOfTypes('PROMISE');
-  assert.strictEqual(as.length, 1);
-  const a = as[0];
-  checkInvocations(a, { init: 1 }, 'while in promise executor');
-  resolve(5);
-}
-
-function afterresolution(val) {
+const p = new Promise(common.mustCall(executor));
+p.then(function afterResolution(val) {
   assert.strictEqual(val, 5);
   const as = hooks.activitiesOfTypes('PROMISE');
   assert.strictEqual(as.length, 2);
   checkInvocations(as[0], { init: 1 }, 'after resolution parent promise');
   checkInvocations(as[1], { init: 1, before: 1 },
                    'after resolution child promise');
+});
+
+function executor(resolve) {
+  const as = hooks.activitiesOfTypes('PROMISE');
+  assert.strictEqual(as.length, 1);
+  const a = as[0];
+  checkInvocations(a, { init: 1 }, 'while in promise executor');
+  resolve(5);
 }
 
 process.on('exit', onexit);
