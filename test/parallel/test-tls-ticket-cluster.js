@@ -44,7 +44,7 @@ if (cluster.isMaster) {
     const c = tls.connect(workerPort, {
       session: lastSession,
       rejectUnauthorized: false
-    }, function() {
+    }, () => {
       lastSession = c.getSession();
       c.end();
 
@@ -60,7 +60,7 @@ if (cluster.isMaster) {
 
   function fork() {
     const worker = cluster.fork();
-    worker.on('message', function({ msg, port }) {
+    worker.on('message', ({ msg, port }) => {
       console.error('[master] got %j', msg);
       if (msg === 'reused') {
         ++reusedCount;
@@ -71,7 +71,7 @@ if (cluster.isMaster) {
       }
     });
 
-    worker.on('exit', function() {
+    worker.on('exit', () => {
       console.error('[master] worker died');
     });
   }
@@ -79,7 +79,7 @@ if (cluster.isMaster) {
     fork();
   }
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     assert.strictEqual(reqCount, expectedReqCount);
     assert.strictEqual(reusedCount + 1, reqCount);
   });
@@ -91,7 +91,7 @@ const cert = fixtures.readSync('agent.crt');
 
 const options = { key, cert };
 
-const server = tls.createServer(options, function(c) {
+const server = tls.createServer(options, (c) => {
   if (c.isSessionReused()) {
     process.send({ msg: 'reused' });
   } else {
@@ -100,7 +100,7 @@ const server = tls.createServer(options, function(c) {
   c.end();
 });
 
-server.listen(0, function() {
+server.listen(0, () => {
   const { port } = server.address();
   process.send({
     msg: 'listening',
@@ -111,7 +111,7 @@ server.listen(0, function() {
 process.on('message', function listener(msg) {
   console.error('[worker] got %j', msg);
   if (msg === 'die') {
-    server.close(function() {
+    server.close(() => {
       console.error('[worker] server close');
 
       process.exit();
@@ -119,6 +119,6 @@ process.on('message', function listener(msg) {
   }
 });
 
-process.on('exit', function() {
+process.on('exit', () => {
   console.error('[worker] exit');
 });
