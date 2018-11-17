@@ -91,6 +91,7 @@ using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
@@ -257,7 +258,7 @@ class ConverterObject : public BaseObject, Converter {
 
  protected:
   ConverterObject(Environment* env,
-                  v8::Local<v8::Object> wrap,
+                  Local<Object> wrap,
                   UConverter* converter,
                   bool ignoreBOM,
                   const char* sub = nullptr) :
@@ -506,7 +507,7 @@ void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           u_errorName(status),
-                          v8::NewStringType::kNormal).ToLocalChecked());
+                          NewStringType::kNormal).ToLocalChecked());
 }
 
 #define TYPE_ICU "icu"
@@ -552,7 +553,7 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
             TYPE_ICU ","
             TYPE_UNICODE ","
             TYPE_CLDR ","
-            TYPE_TZ, v8::NewStringType::kNormal).ToLocalChecked());
+            TYPE_TZ, NewStringType::kNormal).ToLocalChecked());
   } else {
     CHECK_GE(args.Length(), 1);
     CHECK(args[0]->IsString());
@@ -565,7 +566,7 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
       // Success.
       args.GetReturnValue().Set(
           String::NewFromUtf8(env->isolate(),
-          versionString, v8::NewStringType::kNormal).ToLocalChecked());
+          versionString, NewStringType::kNormal).ToLocalChecked());
     }
   }
 }
@@ -722,7 +723,7 @@ static void ToUnicode(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           *buf,
-                          v8::NewStringType::kNormal,
+                          NewStringType::kNormal,
                           len).ToLocalChecked());
 }
 
@@ -745,7 +746,7 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           *buf,
-                          v8::NewStringType::kNormal,
+                          NewStringType::kNormal,
                           len).ToLocalChecked());
 }
 
