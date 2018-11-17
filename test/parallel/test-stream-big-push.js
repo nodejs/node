@@ -34,7 +34,7 @@ let reads = 0;
 
 function _read() {
   if (reads === 0) {
-    setTimeout(function() {
+    setTimeout(() => {
       r.push(str);
     }, 1);
     reads++;
@@ -61,7 +61,7 @@ assert.strictEqual(chunk, str);
 chunk = r.read();
 assert.strictEqual(chunk, null);
 
-r.once('readable', function() {
+r.once('readable', () => {
   // this time, we'll get *all* the remaining data, because
   // it's been added synchronously, as the read WOULD take
   // us below the hwm, and so it triggered a _read() again,
