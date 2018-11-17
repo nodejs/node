@@ -58,7 +58,7 @@ server.listen(common.PORT, function() {
       console.log('pause');
       const x = chars_recved;
       setTimeout(function() {
-        assert.strictEqual(x, chars_recved);
+        assert.strictEqual(chars_recved, x);
         client.resume();
         console.log('resume');
         paused = false;
