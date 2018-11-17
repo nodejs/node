@@ -64,6 +64,6 @@ server.listen(common.PORT, function connect() {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(expected, responses);
-  assert.strictEqual(expected, requests);
+  assert.strictEqual(responses, expected);
+  assert.strictEqual(requests, expected);
 });
