@@ -2298,7 +2298,7 @@ Please use `Server.prototype.setSecureContext()` instead.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/23329
     description: Runtime deprecation.
 -->
 
