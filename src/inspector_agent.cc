@@ -37,6 +37,7 @@ using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::Message;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -362,7 +363,7 @@ class SameThreadInspectorSession : public InspectorSession {
 };
 
 void NotifyClusterWorkersDebugEnabled(Environment* env) {
-  v8::Isolate* isolate = env->isolate();
+  Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
   auto context = env->context();
 
@@ -512,7 +513,7 @@ class NodeInspectorClient : public V8InspectorClient {
     }
   }
 
-  void FatalException(Local<Value> error, Local<v8::Message> message) {
+  void FatalException(Local<Value> error, Local<Message> message) {
     Isolate* isolate = env_->isolate();
     Local<Context> context = env_->context();
 
@@ -762,7 +763,7 @@ void Agent::WaitForDisconnect() {
   }
 }
 
-void Agent::FatalException(Local<Value> error, Local<v8::Message> message) {
+void Agent::FatalException(Local<Value> error, Local<Message> message) {
   if (!IsListening())
     return;
   client_->FatalException(error, message);
@@ -774,8 +775,8 @@ void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
 }
 
 void Agent::RegisterAsyncHook(Isolate* isolate,
-                              v8::Local<v8::Function> enable_function,
-                              v8::Local<v8::Function> disable_function) {
+                              Local<Function> enable_function,
+                              Local<Function> disable_function) {
   enable_async_hook_function_.Reset(isolate, enable_function);
   disable_async_hook_function_.Reset(isolate, disable_function);
   if (pending_enable_async_hook_) {
@@ -850,7 +851,7 @@ void Agent::RequestIoThreadStart() {
   // continuous JS code) and to wake up libuv thread (in case Node is waiting
   // for IO events)
   uv_async_send(&start_io_thread_async);
-  v8::Isolate* isolate = parent_env_->isolate();
+  Isolate* isolate = parent_env_->isolate();
   v8::Platform* platform = parent_env_->isolate_data()->platform();
   platform->CallOnForegroundThread(isolate, new StartIoTask(this));
   isolate->RequestInterrupt(StartIoInterrupt, this);
