@@ -312,7 +312,7 @@ assert.strictEqual((Buffer.from('Man')).toString('base64'), 'TWFu');
                    'dWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZ' +
                    'GdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm' +
                    '5hbCBwbGVhc3VyZS4=';
-  assert.strictEqual(expected, (Buffer.from(quote)).toString('base64'));
+  assert.strictEqual((Buffer.from(quote)).toString('base64'), expected);
 
   let b = Buffer.allocUnsafe(1024);
   let bytesWritten = b.write(expected, 0, 'base64');
