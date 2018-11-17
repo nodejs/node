@@ -46,17 +46,17 @@ function test1() {
   r._read = function(n) {
     switch (reads--) {
       case 5:
-        return setImmediate(function() {
+        return setImmediate(() => {
           return r.push(buf);
         });
       case 4:
-        setImmediate(function() {
+        setImmediate(() => {
           return r.push(Buffer.alloc(0));
         });
         return setImmediate(r.read.bind(r, 0));
       case 3:
         setImmediate(r.read.bind(r, 0));
-        return process.nextTick(function() {
+        return process.nextTick(() => {
           return r.push(Buffer.alloc(0));
         });
       case 2:
@@ -78,12 +78,12 @@ function test1() {
       results.push(String(chunk));
   }
   r.on('readable', flow);
-  r.on('end', function() {
+  r.on('end', () => {
     results.push('EOF');
   });
   flow();
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     assert.deepStrictEqual(results, [ 'xxxxx', 'xxxxx', 'EOF' ]);
     console.log('ok');
   });
@@ -106,12 +106,12 @@ function test2() {
       results.push(String(chunk));
   }
   r.on('readable', flow);
-  r.on('end', function() {
+  r.on('end', () => {
     results.push('EOF');
   });
   flow();
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     assert.deepStrictEqual(results, [ 'eHh4', 'eHg=', 'EOF' ]);
     console.log('ok');
   });
