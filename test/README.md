@@ -17,7 +17,6 @@ GitHub with the `autocrlf` git config flag set to true.
 | ------------------- | --------------- | --------------- |
 | `abort`             | Yes             | Tests for when the  ``` --abort-on-uncaught-exception ``` flag is used. |
 | `addons`            | Yes             | Tests for [addon](https://nodejs.org/api/addons.html) functionality along with some tests that require an addon to function properly. |
-| `addons-napi`        | Yes            | Tests for [n-api](https://nodejs.org/api/n-api.html) functionality. |
 | `async-hooks`        | Yes            | Tests for [async_hooks](https://nodejs.org/api/async_hooks.html) functionality. |
 | `benchmark`          | No             | Test minimal functionality of benchmarks. |
 | `cctest`             | Yes            | C++ tests that are run as part of the build process. |
@@ -27,8 +26,10 @@ GitHub with the `autocrlf` git config flag set to true.
 | `es-module`          | Yes            | Test ESM module loading. |
 | `fixtures`           |                | Test fixtures used in various tests throughout the test suite. |
 | `internet`           | No             | Tests that make real outbound connections (mainly networking related modules). Tests for networking related modules may also be present in        other directories, but those tests do not make outbound connections. |
+| `js-native-api`      | Yes            | Tests for Node.js-agnostic [n-api](https://nodejs.org/api/n-api.html) functionality. |
 | `known_issues`       | Yes            | Tests reproducing known issues within the system. All tests inside of this directory are expected to fail consistently. If a test doesn't fail on certain platforms, those should be skipped via `known_issues.status`. |
 | `message`            | Yes            | Tests for messages that are output for various conditions (```console.log```, error messages etc.) |
+| `node-api`           | Yes            | Tests for Node.js-specific [n-api](https://nodejs.org/api/n-api.html) functionality. |
 | `parallel`           | Yes            | Various tests that are able to be run in parallel. |
 | `pseudo-tty`         | Yes            | Tests that require stdin/stdout/stderr to be a TTY. |
 | `pummel`             | No             | Various tests for various modules / system functionality operating under load. |
