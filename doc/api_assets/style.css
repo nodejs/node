@@ -533,12 +533,51 @@ th > *:last-child, td > *:last-child {
 @media print {
   html {
     height: auto;
+    font-size: 0.75em;
   }
   #column2.interior {
     display: none;
   }
   #column1.interior {
-    margin-left: auto;
+    margin-left: 0px;
+    padding: 0px;
     overflow-y: auto;
+  }
+  .api_metadata,
+  #toc,
+  .srclink,
+  #gtoc,
+  .mark {
+    display: none;
+  }
+  h1 {
+    font-size: 2rem;
+  }
+  h2 {
+    font-size: 1.75rem;
+  }
+  h3 {
+    font-size: 1.5rem;
+  }
+  h4 {
+    font-size: 1.3rem;
+  }
+  h5 {
+    font-size: 1.2rem;
+  }
+  h6 {
+    font-size: 1.1rem;
+  }
+  .api_stability {
+    display: inline-block;
+  }
+  .api_stability a {
+    text-decoration: none;
+  }
+  a {
+    color: inherit;
+  }
+  #apicontent {
+    overflow: hidden;
   }
 }

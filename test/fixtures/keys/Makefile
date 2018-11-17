@@ -1,4 +1,41 @@
-all: agent1-cert.pem agent1-pfx.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem agent5-cert.pem agent6-cert.pem agent7-cert.pem agent8-cert.pem agent9-cert.pem ca1-cert.pem ca2-crl.pem ca3-cert.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem dsa1025.pem dsa_private_1025.pem dsa_public_1025.pem rsa_private_1024.pem rsa_private_2048.pem rsa_private_4096.pem rsa_public_1024.pem rsa_public_2048.pem rsa_public_4096.pem ec-pfx.pem
+all: \
+  ca1-cert.pem \
+  ca2-cert.pem \
+  ca2-crl.pem \
+  ca3-cert.pem \
+  ca4-cert.pem \
+  ca5-cert.pem \
+  ca6-cert.pem \
+  agent1-cert.pem \
+  agent1.pfx \
+  agent2-cert.pem \
+  agent3-cert.pem \
+  agent4-cert.pem \
+  agent5-cert.pem \
+  agent6-cert.pem \
+  agent6.pfx \
+  agent7-cert.pem \
+  agent8-cert.pem \
+  agent9-cert.pem \
+  agent10-cert.pem \
+  agent10.pfx \
+  ec10-cert.pem \
+  ec10.pfx \
+  dh512.pem \
+  dh1024.pem \
+  dh2048.pem \
+  dsa1025.pem \
+  dsa_private_1025.pem \
+  dsa_public_1025.pem \
+  ec-cert.pem \
+  ec.pfx \
+  fake-cnnic-root-cert.pem \
+  rsa_private_1024.pem \
+  rsa_private_2048.pem \
+  rsa_private_4096.pem \
+  rsa_public_1024.pem \
+  rsa_public_2048.pem \
+  rsa_public_4096.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -17,7 +54,7 @@ ca2-cert.pem: ca2.cnf
 	touch ca2-database.txt
 
 #
-# Create Subordinate Certificate Authority: ca3
+# Create Subordinate Certificate Authority: ca3 issued by ca1
 # ('password' is used for the CA password.)
 #
 ca3-key.pem:
@@ -41,6 +78,81 @@ ca3-cert.pem: ca3-csr.pem ca3-key.pem ca3.cnf ca1-cert.pem ca1-key.pem
 		-CAkey ca1-key.pem \
 		-CAcreateserial \
 		-out ca3-cert.pem
+
+#
+# Create Subordinate Certificate Authority: ca4 issued by ca2
+# ('password' is used for the CA password.)
+#
+ca4-key.pem:
+	openssl genrsa -out ca4-key.pem 1024
+
+ca4-csr.pem: ca4.cnf ca4-key.pem
+	openssl req -new \
+		-extensions v3_ca \
+		-config ca4.cnf \
+		-key ca4-key.pem \
+		-out ca4-csr.pem
+
+ca4-cert.pem: ca4-csr.pem ca4-key.pem ca4.cnf ca2-cert.pem ca2-key.pem
+	openssl x509 -req \
+		-extfile ca4.cnf \
+		-extensions v3_ca \
+		-days 99999 \
+		-passin "pass:password" \
+		-in ca4-csr.pem \
+		-CA ca2-cert.pem \
+		-CAkey ca2-key.pem \
+		-CAcreateserial \
+		-out ca4-cert.pem
+
+#
+# Create Certificate Authority: ca5 with ECC
+# ('password' is used for the CA password.)
+#
+ca5-key.pem:
+	openssl ecparam -genkey -out ca5-key.pem -name prime256v1
+
+ca5-csr.pem: ca5.cnf ca5-key.pem
+	openssl req -new \
+		-config ca5.cnf \
+		-key ca5-key.pem \
+		-out ca5-csr.pem
+
+ca5-cert.pem: ca5.cnf ca5-key.pem ca5-csr.pem
+	openssl x509 -req \
+		-extfile ca5.cnf \
+		-extensions v3_ca \
+		-days 99999 \
+		-passin "pass:password" \
+		-in ca5-csr.pem \
+		-signkey ca5-key.pem \
+		-out ca5-cert.pem
+
+#
+# Create Subordinate Certificate Authority: ca6 issued by ca5 with ECC
+# ('password' is used for the CA password.)
+#
+ca6-key.pem:
+	openssl ecparam -genkey -out ca6-key.pem -name prime256v1
+
+ca6-csr.pem: ca6.cnf ca6-key.pem
+	openssl req -new \
+		-extensions v3_ca \
+		-config ca6.cnf \
+		-key ca6-key.pem \
+		-out ca6-csr.pem
+
+ca6-cert.pem: ca6-csr.pem ca6-key.pem ca6.cnf ca5-cert.pem ca5-key.pem
+	openssl x509 -req \
+		-extfile ca6.cnf \
+		-extensions v3_ca \
+		-days 99999 \
+		-passin "pass:password" \
+		-in ca6-csr.pem \
+		-CA ca5-cert.pem \
+		-CAkey ca5-key.pem \
+		-CAcreateserial \
+		-out ca6-cert.pem
 
 #
 # Create Fake CNNIC Root Certificate Authority: fake-cnnic-root
@@ -92,13 +204,13 @@ agent1-cert.pem: agent1-csr.pem ca1-cert.pem ca1-key.pem
 		-CAcreateserial \
 		-out agent1-cert.pem
 
-agent1-pfx.pem: agent1-cert.pem agent1-key.pem ca1-cert.pem
+agent1.pfx: agent1-cert.pem agent1-key.pem ca1-cert.pem
 	openssl pkcs12 -export \
 		-descert \
 		-in agent1-cert.pem \
 		-inkey agent1-key.pem \
 		-certfile ca1-cert.pem \
-		-out agent1-pfx.pem \
+		-out agent1.pfx \
 		-password pass:sample
 
 agent1-verify: agent1-cert.pem ca1-cert.pem
@@ -179,7 +291,7 @@ agent4-verify: agent4-cert.pem ca2-cert.pem
 #
 # Make CRL with agent4 being rejected
 #
-ca2-crl.pem: ca2-key.pem ca2-cert.pem ca2.cnf
+ca2-crl.pem: ca2-key.pem ca2-cert.pem ca2.cnf agent4-cert.pem
 	openssl ca -revoke agent4-cert.pem \
 		-keyfile ca2-key.pem \
 		-cert ca2-cert.pem \
@@ -219,7 +331,7 @@ agent5-verify: agent5-cert.pem ca2-cert.pem
 	openssl verify -CAfile ca2-cert.pem agent5-cert.pem
 
 #
-# agent6 is signed by ca3
+# agent6 is a client RSA cert signed by ca3
 #
 
 agent6-key.pem:
@@ -240,8 +352,17 @@ agent6-cert.pem: agent6-csr.pem ca3-cert.pem ca3-key.pem
 		-out agent6-cert.pem
 	cat ca3-cert.pem >> agent6-cert.pem
 
-agent6-verify: agent6-cert.pem ca3-cert.pem
-	openssl verify -CAfile ca3-cert.pem agent6-cert.pem
+agent6-verify: agent6-cert.pem ca3-cert.pem ca1-cert.pem
+	openssl verify -trusted ca1-cert.pem -untrusted ca3-cert.pem agent6-cert.pem
+
+agent6.pfx: agent6-cert.pem agent6-key.pem ca1-cert.pem
+	openssl pkcs12 -export \
+		-descert \
+		-in agent6-cert.pem \
+		-inkey agent6-key.pem \
+		-certfile ca1-cert.pem \
+		-out agent6.pfx \
+		-password pass:sample
 
 #
 # agent7 is signed by fake-cnnic-root.
@@ -318,9 +439,80 @@ agent9-cert.pem: agent9-csr.pem
 		-days 99999 \
 		-passin "pass:password" \
 		-in agent9-csr.pem \
-		-startdate 161021000001Z \
+		-startdate 20161021000001Z \
 		-notext -out agent9-cert.pem
 
+# agent10 is a server RSA cert signed by ca4 for agent10.example.com
+#
+
+agent10-key.pem:
+	openssl genrsa -out agent10-key.pem 1024
+
+agent10-csr.pem: agent10.cnf agent10-key.pem
+	openssl req -new -config agent10.cnf -key agent10-key.pem -out agent10-csr.pem
+
+agent10-cert.pem: agent10-csr.pem ca4-cert.pem ca4-key.pem
+	openssl x509 -req \
+		-days 99999 \
+		-passin "pass:password" \
+		-in agent10-csr.pem \
+		-CA ca4-cert.pem \
+		-CAkey ca4-key.pem \
+		-CAcreateserial \
+		-extfile agent10.cnf \
+		-out agent10-cert.pem
+	cat ca4-cert.pem >> agent10-cert.pem
+
+agent10-verify: agent10-cert.pem ca4-cert.pem ca2-cert.pem
+	openssl verify -trusted ca2-cert.pem -untrusted ca4-cert.pem agent10-cert.pem
+
+agent10.pfx: agent10-cert.pem agent10-key.pem ca1-cert.pem
+	openssl pkcs12 -export \
+		-descert \
+		-in agent10-cert.pem \
+		-inkey agent10-key.pem \
+		-certfile ca1-cert.pem \
+		-out agent10.pfx \
+		-password pass:sample
+
+#
+# ec10 is a server EC cert signed by ca6 for agent10.example.com
+#
+
+ec10-key.pem:
+	openssl ecparam -genkey -out ec10-key.pem -name prime256v1
+
+ec10-csr.pem: ec10-key.pem
+	openssl req -new -config agent10.cnf -key ec10-key.pem -out ec10-csr.pem
+
+ec10-cert.pem: ec10-csr.pem ca6-cert.pem ca6-key.pem
+	openssl x509 -req \
+		-days 99999 \
+		-passin "pass:password" \
+		-in ec10-csr.pem \
+		-CA ca6-cert.pem \
+		-CAkey ca6-key.pem \
+		-CAcreateserial \
+		-extfile agent10.cnf \
+		-out ec10-cert.pem
+	cat ca6-cert.pem >> ec10-cert.pem
+
+ec10-verify: ec10-cert.pem ca6-cert.pem ca5-cert.pem
+	openssl verify -trusted ca5-cert.pem -untrusted ca6-cert.pem ec10-cert.pem
+
+ec10.pfx: ec10-cert.pem ec10-key.pem ca6-cert.pem
+	openssl pkcs12 -export \
+		-descert \
+		-in ec10-cert.pem \
+		-inkey ec10-key.pem \
+		-certfile ca6-cert.pem \
+		-out ec10.pfx \
+		-password pass:sample
+
+
+#
+# ec is a self-signed EC cert for CN "agent2"
+#
 ec-key.pem:
 	openssl ecparam -genkey -out ec-key.pem -name prime256v1
 
@@ -334,12 +526,12 @@ ec-cert.pem: ec-csr.pem ec-key.pem
 		-signkey ec-key.pem \
 		-out ec-cert.pem
 
-ec-pfx.pem: ec-cert.pem ec-key.pem
+ec.pfx: ec-cert.pem ec-key.pem
 	openssl pkcs12 -export \
 		-descert \
 		-in ec-cert.pem \
 		-inkey ec-key.pem \
-		-out ec-pfx.pem \
+		-out ec.pfx \
 		-password pass:
 
 dh512.pem:
@@ -379,10 +571,12 @@ rsa_public_4096.pem: rsa_private_4096.pem
 	openssl rsa -in rsa_private_4096.pem -pubout -out rsa_public_4096.pem
 
 clean:
-	rm -f *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial
+	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
 	@> fake-startcom-root-database.txt
 
-test: agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify
+test: agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify agent6-verify agent7-verify agent8-verify agent10-verify ec10-verify
 
+%-cert.pem.print: %-cert.pem
+	openssl x509 -in $< -text -noout > $@
 
-.PHONY: all clean test agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify
+.PHONY: all clean test agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify agent6-verify agent7-verify agent8-verify agent10-verify ec10-verify

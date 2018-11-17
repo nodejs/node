@@ -11,7 +11,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
 
-const pfx = fixtures.readKey('agent1-pfx.pem');
+const pfx = fixtures.readKey('agent1.pfx');
 
 const server = tls
   .createServer(
@@ -23,7 +23,7 @@ const server = tls
     },
     common.mustCall(function(c) {
       assert.strictEqual(c.getPeerCertificate().serialNumber,
-                         'FAD50CC6A07F516C');
+                         'ECC9B856270DA9A8');
       assert.strictEqual(c.authorizationError, null);
       c.end();
     })
@@ -38,7 +38,7 @@ const server = tls
       },
       function() {
         assert.strictEqual(client.getCertificate().serialNumber,
-                           'FAD50CC6A07F516C');
+                           'ECC9B856270DA9A8');
         client.end();
         server.close();
       }

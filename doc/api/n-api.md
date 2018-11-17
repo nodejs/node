@@ -34,13 +34,51 @@ properties:
   handling section [Error Handling][].
 
 The N-API is a C API that ensures ABI stability across Node.js versions
-and different compiler levels. However, we also understand that a C++
-API can be easier to use in many cases. To support these cases we expect
-there to be one or more C++ wrapper modules that provide an inlineable C++
-API. Binaries built with these wrapper modules will depend on the symbols
-for the N-API C based functions exported by Node.js. These wrappers are not
-part of N-API, nor will they be maintained as part of Node.js. One such
-example is: [node-addon-api](https://github.com/nodejs/node-addon-api).
+and different compiler levels. A C++ API can be easier to use.
+To support using C++, the project maintains a
+C++ wrapper module called
+[node-addon-api](https://github.com/nodejs/node-addon-api).
+This wrapper provides an inlineable C++ API. Binaries built
+with `node-addon-api` will depend on the symbols for the N-API C-based
+functions exported by Node.js. `node-addon-api` is a more
+efficient way to write code that calls N-API. Take, for example, the
+following `node-addon-api` code. The first section shows the
+`node-addon-api` code and the second section shows what actually gets
+used in the addon.
+
+```C++
+Object obj = Object::New(env);
+obj["foo"] = String::New(env, "bar");
+```
+
+```C++
+napi_status status;
+napi_value object, string;
+status = napi_create_object(env, &object);
+if (status != napi_ok) {
+  napi_throw_error(env, ...);
+  return;
+}
+
+status = napi_crate_string_utf8(env, "bar", NAPI_AUTO_LENGTH, &string);
+if (status != napi_ok) {
+  napi_throw_error(env, ...);
+  return;
+}
+
+status = napi_set_named_property(env, object, "foo", string);
+if (status != napi_ok) {
+  napi_throw_error(env, ...);
+  return;
+}
+```
+
+The end result is that the addon only uses the exported C APIs. As a result,
+it still gets the benefits of the ABI stability provided by the C API.
+
+When using `node-addon-api` instead of the C APIs, start with the API
+[docs](https://github.com/nodejs/node-addon-api#api-documentation)
+for `node-addon-api`.
 
 ## Implications of ABI Stability
 
