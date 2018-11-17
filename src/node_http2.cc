@@ -12,11 +12,13 @@
 namespace node {
 
 using v8::ArrayBuffer;
+using v8::ArrayBufferCreationMode;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
 using v8::Function;
 using v8::Integer;
+using v8::NewStringType;
 using v8::Number;
 using v8::ObjectTemplate;
 using v8::String;
@@ -1401,11 +1403,11 @@ void Http2Session::HandleAltSvcFrame(const nghttp2_frame* frame) {
     Integer::New(isolate, id),
     String::NewFromOneByte(isolate,
                            altsvc->origin,
-                           v8::NewStringType::kNormal,
+                           NewStringType::kNormal,
                            altsvc->origin_len).ToLocalChecked(),
     String::NewFromOneByte(isolate,
                            altsvc->field_value,
-                           v8::NewStringType::kNormal,
+                           NewStringType::kNormal,
                            altsvc->field_value_len).ToLocalChecked(),
   };
 
@@ -1430,7 +1432,7 @@ void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
     const nghttp2_origin_entry& entry = origin->ov[i];
     origin_v[i] =
         String::NewFromOneByte(
-            isolate, entry.origin, v8::NewStringType::kNormal, entry.origin_len)
+            isolate, entry.origin, NewStringType::kNormal, entry.origin_len)
             .ToLocalChecked();
   }
   Local<Value> holder = Array::New(isolate, origin_v.data(), origin_v.size());
@@ -1813,7 +1815,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
       ArrayBuffer::New(isolate,
                         buf.base,
                         nread,
-                        v8::ArrayBufferCreationMode::kInternalized);
+                        ArrayBufferCreationMode::kInternalized);
 
   statistics_.data_received += nread;
   ssize_t ret = Write(&stream_buf_, 1);
@@ -2316,7 +2318,7 @@ void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
       String::NewFromOneByte(
           env->isolate(),
           reinterpret_cast<const uint8_t*>(nghttp2_strerror(val)),
-          v8::NewStringType::kInternalized).ToLocalChecked());
+          NewStringType::kInternalized).ToLocalChecked());
 }
 
 
