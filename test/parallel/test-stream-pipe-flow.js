@@ -41,17 +41,17 @@ const { Readable, Writable, PassThrough } = require('stream');
     .pipe(new PassThrough({ objectMode: true, highWaterMark: 2 }))
     .pipe(new PassThrough({ objectMode: true, highWaterMark: 2 }));
 
-  pt.on('end', function() {
+  pt.on('end', () => {
     wrapper.push(null);
   });
 
   const wrapper = new Readable({
     objectMode: true,
     read: () => {
-      process.nextTick(function() {
+      process.nextTick(() => {
         let data = pt.read();
         if (data === null) {
-          pt.once('readable', function() {
+          pt.once('readable', () => {
             data = pt.read();
             if (data !== null) wrapper.push(data);
           });
