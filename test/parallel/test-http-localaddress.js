@@ -28,26 +28,26 @@ if (!common.hasMultiLocalhost())
 const http = require('http');
 const assert = require('assert');
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   console.log(`Connect from: ${req.connection.remoteAddress}`);
   assert.strictEqual(req.connection.remoteAddress, '127.0.0.2');
 
-  req.on('end', function() {
+  req.on('end', () => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end(`You are from: ${req.connection.remoteAddress}`);
   });
   req.resume();
 });
 
-server.listen(0, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', () => {
   const options = { host: 'localhost',
-                    port: this.address().port,
+                    port: server.address().port,
                     path: '/',
                     method: 'GET',
                     localAddress: '127.0.0.2' };
 
   const req = http.request(options, function(res) {
-    res.on('end', function() {
+    res.on('end', () => {
       server.close();
       process.exit();
     });
