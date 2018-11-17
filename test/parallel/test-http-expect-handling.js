@@ -9,7 +9,7 @@ const tests = [417, 417];
 let testsComplete = 0;
 let testIdx = 0;
 
-const s = http.createServer(function(req, res) {
+const s = http.createServer((req, res) => {
   throw new Error('this should never be executed');
 });
 
@@ -34,13 +34,13 @@ function nextTest() {
     }));
   }
 
-  http.get(options, function(response) {
+  http.get(options, (response) => {
     console.log(`client: expected status: ${test}`);
     console.log(`client: statusCode: ${response.statusCode}`);
     assert.strictEqual(response.statusCode, test);
     assert.strictEqual(response.statusMessage, 'Expectation Failed');
 
-    response.on('end', function() {
+    response.on('end', () => {
       testsComplete++;
       testIdx++;
       nextTest();
@@ -50,6 +50,6 @@ function nextTest() {
 }
 
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(testsComplete, 2);
 });
