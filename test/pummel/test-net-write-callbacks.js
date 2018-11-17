@@ -67,5 +67,5 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(N, cbcount);
+  assert.strictEqual(cbcount, N);
 });
