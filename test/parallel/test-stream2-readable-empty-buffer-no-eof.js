@@ -83,7 +83,7 @@ function test1() {
   });
   flow();
 
-  process.on('exit', () =>{
+  process.on('exit', () => {
     assert.deepStrictEqual(results, [ 'xxxxx', 'xxxxx', 'EOF' ]);
     console.log('ok');
   });
