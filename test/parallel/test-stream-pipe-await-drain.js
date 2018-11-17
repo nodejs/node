@@ -22,14 +22,14 @@ writer1._write = common.mustCall(function(chunk, encoding, cb) {
   cb();
 }, 1);
 
-writer1.once('chunk-received', function() {
+writer1.once('chunk-received', () => {
   assert.strictEqual(
     reader._readableState.awaitDrain,
     0,
     'awaitDrain initial value should be 0, actual is ' +
     reader._readableState.awaitDrain
   );
-  setImmediate(function() {
+  setImmediate(() => {
     // This one should *not* get through to writer1 because writer2 is not
     // "done" processing.
     reader.push(buffer);
@@ -37,7 +37,7 @@ writer1.once('chunk-received', function() {
 });
 
 // A "slow" consumer:
-writer2._write = common.mustCall(function(chunk, encoding, cb) {
+writer2._write = common.mustCall((chunk, encoding, cb) => {
   assert.strictEqual(
     reader._readableState.awaitDrain,
     1,
@@ -49,7 +49,7 @@ writer2._write = common.mustCall(function(chunk, encoding, cb) {
   // will return false.
 }, 1);
 
-writer3._write = common.mustCall(function(chunk, encoding, cb) {
+writer3._write = common.mustCall((chunk, encoding, cb) => {
   assert.strictEqual(
     reader._readableState.awaitDrain,
     2,
