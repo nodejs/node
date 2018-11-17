@@ -3201,7 +3201,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Hmac::Initialize(Environment* env, v8::Local<Object> target) {
+void Hmac::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3323,7 +3323,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Hash::Initialize(Environment* env, v8::Local<Object> target) {
+void Hash::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3518,7 +3518,7 @@ static bool ApplyRSAOptions(const EVPKeyPointer& pkey,
 
 
 
-void Sign::Initialize(Environment* env, v8::Local<Object> target) {
+void Sign::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3750,7 +3750,7 @@ static ParsePublicKeyResult ParsePublicKey(EVPKeyPointer* pkey,
       });
 }
 
-void Verify::Initialize(Environment* env, v8::Local<Object> target) {
+void Verify::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3969,7 +3969,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
     Local<FunctionTemplate> t = env->NewFunctionTemplate(callback);
 
     const PropertyAttribute attributes =
-        static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+        static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
     t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -4247,7 +4247,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
       Buffer::New(env->isolate(), data.release(), data.size).ToLocalChecked());
 }
 
-void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<Value>& args,
+void DiffieHellman::SetKey(const FunctionCallbackInfo<Value>& args,
                            int (*set_field)(DH*, BIGNUM*), const char* what) {
   Environment* env = Environment::GetCurrent(args);
 
