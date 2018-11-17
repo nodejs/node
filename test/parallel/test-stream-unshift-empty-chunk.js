@@ -32,14 +32,14 @@ let nChunks = 10;
 const chunk = Buffer.alloc(10, 'x');
 
 r._read = function(n) {
-  setImmediate(function() {
+  setImmediate(() => {
     r.push(--nChunks === 0 ? null : chunk);
   });
 };
 
 let readAll = false;
 const seen = [];
-r.on('readable', function() {
+r.on('readable', () => {
   let chunk;
   while (chunk = r.read()) {
     seen.push(chunk.toString());
@@ -74,7 +74,7 @@ const expect =
     'xxxxxxxxxx',
     'yyyyy' ];
 
-r.on('end', function() {
+r.on('end', () => {
   assert.deepStrictEqual(seen, expect);
   console.log('ok');
 });
