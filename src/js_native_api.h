@@ -479,15 +479,6 @@ NAPI_EXTERN napi_status napi_add_finalizer(napi_env env,
                                            void* finalize_hint,
                                            napi_ref* result);
 
-
-NAPI_EXTERN napi_status napi_is_arraybuffer(napi_env env,
-                                            napi_value value,
-                                            bool* result);
-NAPI_EXTERN napi_status napi_create_arraybuffer(napi_env env,
-                                                size_t byte_length,
-                                                void** data,
-                                                napi_value* result);
-
 // Methods to work with shared array buffers
 NAPI_EXTERN napi_status napi_is_sharedarraybuffer(napi_env env,
                                             napi_value value,
