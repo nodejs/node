@@ -803,7 +803,7 @@ being prepared and may be pulled into the LTS branch in a different order
 than they were landed in staging.
 
 Only the members of the @nodejs/backporters team should land commits into the
-LTS branch.
+LTS staging branch.
 
 #### How can I help?
 
