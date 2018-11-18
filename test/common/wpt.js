@@ -66,20 +66,92 @@ class ResourceLoader {
   }
 }
 
+class StatusRule {
+  constructor(key, value, pattern = undefined) {
+    this.key = key;
+    this.requires = value.requires || [];
+    this.fail = value.fail;
+    this.skip = value.skip;
+    if (pattern) {
+      this.pattern = this.transformPattern(pattern);
+    }
+    // TODO(joyeecheung): implement this
+    this.scope = value.scope;
+    this.comment = value.comment;
+  }
+
+  /**
+   * Transform a filename pattern into a RegExp
+   * @param {string} pattern
+   * @returns {RegExp}
+   */
+  transformPattern(pattern) {
+    const result = pattern.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&');
+    return new RegExp(result.replace('*', '.*'));
+  }
+}
+
+class StatusRuleSet {
+  constructor() {
+    // We use two sets of rules to speed up matching
+    this.exactMatch = {};
+    this.patternMatch = [];
+  }
+
+  /**
+   * @param {object} rules
+   */
+  addRules(rules) {
+    for (const key of Object.keys(rules)) {
+      if (key.includes('*')) {
+        this.patternMatch.push(new StatusRule(key, rules[key], key));
+      } else {
+        this.exactMatch[key] = new StatusRule(key, rules[key]);
+      }
+    }
+  }
+
+  match(file) {
+    const result = [];
+    const exact = this.exactMatch[file];
+    if (exact) {
+      result.push(exact);
+    }
+    for (const item of this.patternMatch) {
+      if (item.pattern.test(file)) {
+        result.push(item);
+      }
+    }
+    return result;
+  }
+}
+
 class WPTTest {
   /**
    * @param {string} mod
    * @param {string} filename
-   * @param {string[]} requires
-   * @param {string | undefined} failReason
-   * @param {string | undefined} skipReason
+   * @param {StatusRule[]} rules
    */
-  constructor(mod, filename, requires, failReason, skipReason) {
+  constructor(mod, filename, rules) {
     this.module = mod; // name of the WPT module, e.g. 'url'
     this.filename = filename;  // name of the test file
-    this.requires = requires;
-    this.failReason = failReason;
-    this.skipReason = skipReason;
+
+    this.requires = new Set();
+    this.failReasons = [];
+    this.skipReasons = [];
+    for (const item of rules) {
+      if (item.requires.length) {
+        for (const req of item.requires) {
+          this.requires.add(req);
+        }
+      }
+      if (item.fail) {
+        this.failReasons.push(item.fail);
+      }
+      if (item.skip) {
+        this.skipReasons.push(item.skip);
+      }
+    }
   }
 
   getAbsolutePath() {
@@ -90,12 +162,8 @@ class WPTTest {
     return fs.readFileSync(this.getAbsolutePath(), 'utf8');
   }
 
-  shouldSkip() {
-    return this.failReason || this.skipReason;
-  }
-
   requireIntl() {
-    return this.requires.includes('intl');
+    return this.requires.has('intl');
   }
 }
 
@@ -103,40 +171,27 @@ class StatusLoader {
   constructor(path) {
     this.path = path;
     this.loaded = false;
-    this.status = null;
+    this.rules = new StatusRuleSet();
     /** @type {WPTTest[]} */
     this.tests = [];
-  }
-
-  loadTest(file) {
-    let requires = [];
-    let failReason;
-    let skipReason;
-    if (this.status[file]) {
-      requires = this.status[file].requires || [];
-      failReason = this.status[file].fail;
-      skipReason = this.status[file].skip;
-    }
-    return new WPTTest(this.path, file, requires,
-                       failReason, skipReason);
   }
 
   load() {
     const dir = path.join(__dirname, '..', 'wpt');
     const statusFile = path.join(dir, 'status', `${this.path}.json`);
     const result = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
-    this.status = result;
+    this.rules.addRules(result);
 
     const list = fs.readdirSync(fixtures.path('wpt', this.path));
 
     for (const file of list) {
-      this.tests.push(this.loadTest(file));
+      if (!(/\.\w+\.js$/.test(file))) {
+        continue;
+      }
+      const match = this.rules.match(file);
+      this.tests.push(new WPTTest(this.path, file, match));
     }
     this.loaded = true;
-  }
-
-  get jsTests() {
-    return this.tests.filter((test) => test.filename.endsWith('.js'));
   }
 }
 
@@ -156,7 +211,7 @@ class WPTRunner {
     this.status = new StatusLoader(path);
     this.status.load();
     this.tests = new Map(
-      this.status.jsTests.map((item) => [item.filename, item])
+      this.status.tests.map((item) => [item.filename, item])
     );
 
     this.results = new Map();
@@ -171,7 +226,10 @@ class WPTRunner {
    */
   copyGlobalsFromObject(obj, names) {
     for (const name of names) {
-      const desc = Object.getOwnPropertyDescriptor(global, name);
+      const desc = Object.getOwnPropertyDescriptor(obj, name);
+      if (!desc) {
+        assert.fail(`${name} does not exist on the object`);
+      }
       this.globals.set(name, desc);
     }
   }
@@ -328,8 +386,9 @@ class WPTRunner {
       for (const item of items) {
         switch (item.type) {
           case FAILED: {
-            if (test.failReason) {
+            if (test.failReasons.length) {
               console.log(`[EXPECTED_FAILURE] ${item.test.name}`);
+              console.log(test.failReasons.join('; '));
             } else {
               console.log(`[UNEXPECTED_FAILURE] ${item.test.name}`);
               unexpectedFailures.push([title, filename, item]);
@@ -386,10 +445,10 @@ class WPTRunner {
     });
   }
 
-  skip(filename, reason) {
+  skip(filename, reasons) {
     this.addResult(filename, {
       type: SKIPPED,
-      reason
+      reason: reasons.join('; ')
     });
   }
 
@@ -435,13 +494,13 @@ class WPTRunner {
     const queue = [];
     for (const test of this.tests.values()) {
       const filename = test.filename;
-      if (test.skipReason) {
-        this.skip(filename, test.skipReason);
+      if (test.skipReasons.length > 0) {
+        this.skip(filename, test.skipReasons);
         continue;
       }
 
       if (!common.hasIntl && test.requireIntl()) {
-        this.skip(filename, 'missing Intl');
+        this.skip(filename, [ 'missing Intl' ]);
         continue;
       }
 
