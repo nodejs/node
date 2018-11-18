@@ -2606,7 +2606,7 @@ napi_status napi_create_sharedarraybuffer(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::ArrayBuffer> buffer =
+  v8::Local<v8::SharedArrayBuffer> buffer =
       v8::SharedArrayBuffer::New(isolate, byte_length);
 
   // Optionally return a pointer to the buffer's data, to avoid another call to
