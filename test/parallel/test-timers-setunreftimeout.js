@@ -21,7 +21,6 @@ const { setUnrefTimeout } = require('internal/timers');
 {
   const maxArgsNum = 4;
   for (let i = 0; i < maxArgsNum; i++) {
-    const results = [];
     const inputArgs = [];
     // set the input argument params
     for (let j = 0; j <= i; j++) {
@@ -34,21 +33,16 @@ const { setUnrefTimeout } = require('internal/timers');
                   `arguments.length should be ${i + 1}.` +
                   `actual ${args.length}`
       );
-      for (const arg of args) {
-        results.push(arg);
-      }
-    }), 1, ...inputArgs);
-
-    const testTimer = setTimeout(common.mustCall(() => {
       for (let k = 0; k < maxArgsNum; k++) {
         // Checking the arguments passed to setUnrefTimeout
         const expected = (k <= i) ? inputArgs[k] : undefined;
-        strictEqual(results[k], expected,
+        strictEqual(args[k], expected,
                     `result ${k} should be ${expected}.` +
-                    `actual ${inputArgs[k]}`);
+                    `actual ${args[k]}`);
       }
-      clearTimeout(testTimer);
       clearTimeout(timer);
-    }), 100);
+    }), 1, ...inputArgs);
+
+    setTimeout(common.mustCall(), 1);
   }
 }
