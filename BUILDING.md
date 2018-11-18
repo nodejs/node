@@ -385,11 +385,12 @@ $ backtrace
 Prerequisites:
 
 * [Python 2.6 or 2.7](https://www.python.org/downloads/)
-* The "Desktop development with C++" workload from
-  [Visual Studio 2017](https://www.visualstudio.com/downloads/) or the
-  "Build Tools for Visual Studio 2017" workload from the
+* The "Build Tools for Visual Studio 2017" workload from the
   [Build Tools](https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017),
-  with the default optional components.  Once you click on the downloaded installer, choose 'Visual C++ build tools' and proceed.  It will install the necessary build tools to compile c++ files in this source.
+  with the default optional components. Once the "Build Tools for Visual Studio
+  2017" downloaded, install it by choosing "Visual C++ build tools" from the
+  installer and proceed. It will install the necessary build tools to compile
+  the C++ files.
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
