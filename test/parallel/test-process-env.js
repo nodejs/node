@@ -68,7 +68,7 @@ if (process.argv[2] === 'you-are-the-child') {
 // delete should return true except for non-configurable properties
 // https://github.com/nodejs/node/issues/7960
 delete process.env.NON_EXISTING_VARIABLE;
-assert.strictEqual(true, delete process.env.NON_EXISTING_VARIABLE);
+assert(delete process.env.NON_EXISTING_VARIABLE);
 
 /* For the moment we are not going to support setting the timezone via the
  * environment variables. The problem is that various V8 platform backends
