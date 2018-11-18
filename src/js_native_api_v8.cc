@@ -2619,7 +2619,7 @@ napi_status napi_create_sharedarraybuffer(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
-napi_status napi_create_external_arraybuffer(napi_env env,
+napi_status napi_create_external_sharedarraybuffer(napi_env env,
                                              void* external_data,
                                              size_t byte_length,
                                              napi_finalize finalize_cb,
