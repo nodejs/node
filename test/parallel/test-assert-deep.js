@@ -949,3 +949,17 @@ assert.deepStrictEqual(obj1, obj2);
   arr[2 ** 32] = true;
   assertNotDeepOrStrict(arr, [1, 2, 3]);
 }
+
+assert.throws(
+  () => assert.deepStrictEqual([1, 2, 3], [1, 2]),
+  {
+    code: 'ERR_ASSERTION',
+    name: 'AssertionError [ERR_ASSERTION]',
+    message: `${defaultMsgStartFull}\n\n` +
+            '  [\n' +
+            '    1,\n' +
+            '    2,\n' +
+            '+   3\n' +
+            '  ]'
+  }
+);
