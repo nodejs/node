@@ -224,7 +224,7 @@ static void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsFunction());
-  Local<function> enable_function = args[0].As<Function>();
+  Local<Function> enable_function = args[0].As<Function>();
   CHECK(args[1]->IsFunction());
   Local<Function> disable_function = args[1].As<Function>();
   env->inspector_agent()->RegisterAsyncHook(env->isolate(),
