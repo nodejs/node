@@ -17,6 +17,7 @@ using v8::Local;
 using v8::Object;
 using v8::String;
 using v8::Value;
+using v8::NewStringType;
 
 class NodeCategorySet : public BaseObject {
  public:
@@ -91,7 +92,7 @@ void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           categories.c_str(),
-                          v8::NewStringType::kNormal,
+                          NewStringType::kNormal,
                           categories.size()).ToLocalChecked());
   }
 }
