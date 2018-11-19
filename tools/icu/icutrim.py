@@ -11,6 +11,7 @@
 # Usage:
 #  Use "-h" to get help options.
 
+from __future__ import print_function
 import sys
 import shutil
 # for utf-8
@@ -79,54 +80,54 @@ optVars = vars(options)
 
 for opt in [ "datfile", "filterfile", "tmpdir", "outfile" ]:
     if optVars[opt] is None:
-        print "Missing required option: %s" % opt
+        print("Missing required option: %s" % opt)
         sys.exit(1)
 
 if options.verbose>0:
-    print "Options: "+str(options)
+    print("Options: "+str(options))
 
 if (os.path.isdir(options.tmpdir) and options.deltmpdir):
   if options.verbose>1:
-    print "Deleting tmp dir %s.." % (options.tmpdir)
+    print("Deleting tmp dir %s.." % (options.tmpdir))
   shutil.rmtree(options.tmpdir)
 
 if not (os.path.isdir(options.tmpdir)):
     os.mkdir(options.tmpdir)
 else:
-    print "Please delete tmpdir %s before beginning." % options.tmpdir
+    print("Please delete tmpdir %s before beginning." % options.tmpdir)
     sys.exit(1)
 
 if options.endian not in ("big","little","host"):
-    print "Unknown endianness: %s" % options.endian
+    print("Unknown endianness: %s" % options.endian)
     sys.exit(1)
 
 if options.endian is "host":
     options.endian = endian
 
 if not os.path.isdir(options.tmpdir):
-    print "Error, tmpdir not a directory: %s" % (options.tmpdir)
+    print("Error, tmpdir not a directory: %s" % (options.tmpdir))
     sys.exit(1)
 
 if not os.path.isfile(options.filterfile):
-    print "Filterfile doesn't exist: %s" % (options.filterfile)
+    print("Filterfile doesn't exist: %s" % (options.filterfile))
     sys.exit(1)
 
 if not os.path.isfile(options.datfile):
-    print "Datfile doesn't exist: %s" % (options.datfile)
+    print("Datfile doesn't exist: %s" % (options.datfile))
     sys.exit(1)
 
 if not options.datfile.endswith(".dat"):
-    print "Datfile doesn't end with .dat: %s" % (options.datfile)
+    print("Datfile doesn't end with .dat: %s" % (options.datfile))
     sys.exit(1)
 
 outfile = os.path.join(options.tmpdir, options.outfile)
 
 if os.path.isfile(outfile):
-    print "Error, output file does exist: %s" % (outfile)
+    print("Error, output file does exist: %s" % (outfile))
     sys.exit(1)
 
 if not options.outfile.endswith(".dat"):
-    print "Outfile doesn't end with .dat: %s" % (options.outfile)
+    print("Outfile doesn't end with .dat: %s" % (options.outfile))
     sys.exit(1)
 
 dataname=options.outfile[0:-4]
@@ -140,11 +141,11 @@ def runcmd(tool, cmd, doContinue=False):
         cmd = tool + " " + cmd
 
     if(options.verbose>4):
-        print "# " + cmd
+        print("# " + cmd)
 
     rc = os.system(cmd)
     if rc is not 0 and not doContinue:
-        print "FAILED: %s" % cmd
+        print("FAILED: %s" % cmd)
         sys.exit(1)
     return rc
 
@@ -161,10 +162,10 @@ if (options.locales):
   config["variables"]["locales"]["only"] = options.locales.split(',')
 
 if (options.verbose > 6):
-    print config
+    print(config)
 
 if(config.has_key("comment")):
-    print "%s: %s" % (options.filterfile, config["comment"])
+    print("%s: %s" % (options.filterfile, config["comment"]))
 
 ## STEP 1 - copy the data file, swapping endianness
 ## The first letter of endian_letter will be 'b' or 'l' for big or little
@@ -184,7 +185,7 @@ fi.close()
 itemset = set(items)
 
 if (options.verbose>1):
-    print "input file: %d items" % (len(items))
+    print("input file: %d items" % (len(items)))
 
 # list of all trees
 trees = {}
@@ -211,23 +212,23 @@ def queueForRemoval(tree):
         return
     mytree = trees[tree]
     if(options.verbose>0):
-        print "* %s: %d items" % (tree, len(mytree["locs"]))
+        print("* %s: %d items" % (tree, len(mytree["locs"])))
     # do varible substitution for this tree here
     if type(config["trees"][tree]) == str or type(config["trees"][tree]) == unicode:
         treeStr = config["trees"][tree]
         if(options.verbose>5):
-            print " Substituting $%s for tree %s" % (treeStr, tree)
+            print(" Substituting $%s for tree %s" % (treeStr, tree))
         if(not config.has_key("variables") or not config["variables"].has_key(treeStr)):
-            print " ERROR: no variable:  variables.%s for tree %s" % (treeStr, tree)
+            print(" ERROR: no variable:  variables.%s for tree %s" % (treeStr, tree))
             sys.exit(1)
         config["trees"][tree] = config["variables"][treeStr]
     myconfig = config["trees"][tree]
     if(options.verbose>4):
-        print " Config: %s" % (myconfig)
+        print(" Config: %s" % (myconfig))
     # Process this tree
     if(len(myconfig)==0 or len(mytree["locs"])==0):
         if(options.verbose>2):
-            print " No processing for %s - skipping" % (tree)
+            print(" No processing for %s - skipping" % (tree))
     else:
         only = None
         if myconfig.has_key("only"):
@@ -236,22 +237,22 @@ def queueForRemoval(tree):
                 thePool = "%spool.res" % (mytree["treeprefix"])
                 if (thePool in itemset):
                     if(options.verbose>0):
-                        print "Removing %s because tree %s is empty." % (thePool, tree)
+                        print("Removing %s because tree %s is empty." % (thePool, tree))
                     remove.add(thePool)
         else:
-            print "tree %s - no ONLY"
+            print("tree %s - no ONLY")
         for l in range(len(mytree["locs"])):
             loc = mytree["locs"][l]
             if (only is not None) and not loc in only:
                 # REMOVE loc
                 toRemove = "%s%s%s" % (mytree["treeprefix"], loc, mytree["extension"])
                 if(options.verbose>6):
-                    print "Queueing for removal: %s" % toRemove
+                    print("Queueing for removal: %s" % toRemove)
                 remove.add(toRemove)
 
 def addTreeByType(tree, mytree):
     if(options.verbose>1):
-        print "(considering %s): %s" % (tree, mytree)
+        print("(considering %s): %s" % (tree, mytree))
     trees[tree] = mytree
     mytree["locs"]=[]
     for i in range(len(items)):
@@ -278,7 +279,7 @@ for i in range(len(items)):
         else:
             tree = treeprefix[0:-1]
         if(options.verbose>6):
-            print "procesing %s" % (tree)
+            print("procesing %s" % (tree))
         trees[tree] = { "extension": ".res", "treeprefix": treeprefix, "hasIndex": True }
         # read in the resource list for the tree
         treelistfile = os.path.join(options.tmpdir,"%s.lst" % tree)
@@ -288,7 +289,7 @@ for i in range(len(items)):
         trees[tree]["locs"] = [treeitems[i].strip() for i in range(len(treeitems))]
         fi.close()
         if(not config.has_key("trees") or not config["trees"].has_key(tree)):
-            print " Warning: filter file %s does not mention trees.%s - will be kept as-is" % (options.filterfile, tree)
+            print(" Warning: filter file %s does not mention trees.%s - will be kept as-is" % (options.filterfile, tree))
         else:
             queueForRemoval(tree)
 
@@ -297,22 +298,22 @@ def removeList(count=0):
     global remove
     remove = remove - keep
     if(count > 10):
-        print "Giving up - %dth attempt at removal." % count
+        print("Giving up - %dth attempt at removal." % count)
         sys.exit(1)
     if(options.verbose>1):
-        print "%d items to remove - try #%d" % (len(remove),count)
+        print("%d items to remove - try #%d" % (len(remove),count))
     if(len(remove)>0):
         oldcount = len(remove)
         hackerrfile=os.path.join(options.tmpdir, "REMOVE.err")
         removefile = os.path.join(options.tmpdir, "REMOVE.lst")
         fi = open(removefile, 'wb')
         for i in remove:
-            print >>fi, i
+            print(i, file=fi)
         fi.close()
         rc = runcmd("icupkg","-r %s %s 2> %s" %  (removefile,outfile,hackerrfile),True)
         if rc is not 0:
             if(options.verbose>5):
-                print "## Damage control, trying to parse stderr from icupkg.."
+                print("## Damage control, trying to parse stderr from icupkg..")
             fi = open(hackerrfile, 'rb')
             erritems = fi.readlines()
             fi.close()
@@ -324,15 +325,15 @@ def removeList(count=0):
                 if m:
                     toDelete = m.group(1)
                     if(options.verbose > 5):
-                        print "<< %s added to delete" % toDelete
+                        print("<< %s added to delete" % toDelete)
                     remove.add(toDelete)
                 else:
-                    print "ERROR: could not match errline: %s" % line
+                    print("ERROR: could not match errline: %s" % line)
                     sys.exit(1)
             if(options.verbose > 5):
-                print " now %d items to remove" % len(remove)
+                print(" now %d items to remove" % len(remove))
             if(oldcount == len(remove)):
-                print " ERROR: could not add any mor eitems to remove. Fail."
+                print(" ERROR: could not add any mor eitems to remove. Fail.")
                 sys.exit(1)
             removeList(count+1)
 
