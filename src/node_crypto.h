@@ -34,7 +34,7 @@
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 
-#include "v8.h"
+#include "vm.h"
 
 #include <openssl/ssl.h>
 #include <openssl/ec.h>

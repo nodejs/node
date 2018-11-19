@@ -13,7 +13,7 @@
 
 #include "node_options.h"
 #include "node_persistent.h"
-#include "v8.h"
+#include "vm.h"
 
 namespace v8_inspector {
 class StringView;

@@ -27,7 +27,7 @@
 #include "env-inl.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <stdlib.h>  // free()
 #include <string.h>  // strdup(), strchr()

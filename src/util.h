@@ -25,7 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_persistent.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <assert.h>
 #include <signal.h>

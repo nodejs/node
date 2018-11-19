@@ -30,7 +30,7 @@
 #include "util-inl.h"
 #include "env-inl.h"
 #include "uv.h"
-#include "v8.h"
+#include "vm.h"
 #include "tracing/trace_event.h"
 #include "node_api.h"
 

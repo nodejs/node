@@ -6,7 +6,7 @@
 #define SRC_TRACING_TRACED_VALUE_H_
 
 #include "node_internals.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <stddef.h>
 #include <memory>

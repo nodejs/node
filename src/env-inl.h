@@ -29,7 +29,7 @@
 #include "node.h"
 #include "util-inl.h"
 #include "uv.h"
-#include "v8.h"
+#include "vm.h"
 #include "node_perf_common.h"
 #include "node_context_data.h"
 #include "node_worker.h"

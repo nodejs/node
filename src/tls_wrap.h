@@ -30,7 +30,7 @@
 #include "async_wrap.h"
 #include "env.h"
 #include "stream_wrap.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <openssl/ssl.h>
 

@@ -2,7 +2,7 @@
 #include "node_internals.h"
 #include "env-inl.h"
 #include "util-inl.h"
-#include "v8.h"
+#include "vm.h"
 #include "uv.h"
 
 #include <string.h>

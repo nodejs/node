@@ -9,7 +9,7 @@
 #include "env.h"
 #include "base_object-inl.h"
 
-#include "v8.h"
+#include "vm.h"
 #include "uv.h"
 
 #include <string>

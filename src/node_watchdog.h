@@ -24,7 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "v8.h"
+#include "vm.h"
 #include "uv.h"
 #include "node_mutex.h"
 #include <vector>

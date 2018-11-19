@@ -5,7 +5,7 @@
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "stream_base-inl.h"
-#include "v8.h"
+#include "vm.h"
 
 namespace node {
 

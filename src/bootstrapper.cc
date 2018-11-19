@@ -1,7 +1,7 @@
 #include "node.h"
 #include "env-inl.h"
 #include "node_internals.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <atomic>
 

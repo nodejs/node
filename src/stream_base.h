@@ -8,7 +8,7 @@
 #include "node.h"
 #include "util.h"
 
-#include "v8.h"
+#include "vm.h"
 
 namespace node {
 

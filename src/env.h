@@ -35,7 +35,7 @@
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <list>
 #include <stdint.h>

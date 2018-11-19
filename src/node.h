@@ -60,7 +60,7 @@
 # define SIGKILL         9
 #endif
 
-#include "v8.h"  // NOLINT(build/include_order)
+#include "vm.h"  // NOLINT(build/include_order)
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 

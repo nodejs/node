@@ -1,4 +1,4 @@
-#include "v8.h"
+#include "vm.h"
 #include "node_internals.h"
 
 namespace node {

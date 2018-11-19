@@ -27,7 +27,7 @@
 #include "env-inl.h"
 #include "util-inl.h"
 
-#include "v8.h"
+#include "vm.h"
 #include "zlib.h"
 
 #include <errno.h>

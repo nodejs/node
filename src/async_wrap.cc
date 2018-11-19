@@ -26,7 +26,7 @@
 #include "tracing/traced_value.h"
 #include "util-inl.h"
 
-#include "v8.h"
+#include "vm.h"
 #include "v8-profiler.h"
 
 using v8::Context;

@@ -22,7 +22,7 @@
 #ifndef SRC_NODE_OBJECT_WRAP_H_
 #define SRC_NODE_OBJECT_WRAP_H_
 
-#include "v8.h"
+#include "vm.h"
 #include <assert.h>
 
 

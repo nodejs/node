@@ -35,7 +35,7 @@
 #include "env-inl.h"
 #include "string_bytes.h"
 #include "util-inl.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <errno.h>
 #include <limits.h>  // INT_MAX

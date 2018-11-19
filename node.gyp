@@ -465,6 +465,7 @@
         'src/udp_wrap.h',
         'src/util.h',
         'src/util-inl.h',
+        'src/vm.h',
         # Dependency headers
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',

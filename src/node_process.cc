@@ -6,7 +6,7 @@
 #include "env-inl.h"
 #include "util-inl.h"
 #include "uv.h"
-#include "v8.h"
+#include "vm.h"
 
 #if HAVE_INSPECTOR
 #include "inspector_io.h"

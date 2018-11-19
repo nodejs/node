@@ -50,7 +50,7 @@
 #include "env-inl.h"
 #include "util-inl.h"
 #include "base_object-inl.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <unicode/utypes.h>
 #include <unicode/putil.h>

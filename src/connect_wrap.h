@@ -6,7 +6,7 @@
 #include "env.h"
 #include "req_wrap-inl.h"
 #include "async_wrap.h"
-#include "v8.h"
+#include "vm.h"
 
 namespace node {
 

@@ -23,7 +23,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "util-inl.h"
-#include "v8.h"
+#include "vm.h"
 
 namespace node {
 

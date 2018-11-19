@@ -2,7 +2,7 @@
 #include "inspector_agent.h"
 #include "inspector_io.h"
 #include "node_internals.h"
-#include "v8.h"
+#include "vm.h"
 #include "v8-inspector.h"
 
 namespace node {

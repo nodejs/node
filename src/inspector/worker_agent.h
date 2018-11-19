@@ -2,7 +2,7 @@
 #define SRC_INSPECTOR_WORKER_AGENT_H_
 
 #include "node/inspector/protocol/NodeWorker.h"
-#include "v8.h"
+#include "vm.h"
 
 
 namespace node {

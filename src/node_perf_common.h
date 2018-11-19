@@ -4,7 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <algorithm>
 #include <map>

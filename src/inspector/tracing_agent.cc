@@ -2,7 +2,7 @@
 #include "node_internals.h"
 
 #include "env-inl.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <set>
 #include <sstream>

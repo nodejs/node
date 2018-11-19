@@ -25,7 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
-#include "v8.h"
+#include "vm.h"
 
 #include <stdint.h>
 

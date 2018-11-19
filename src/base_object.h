@@ -26,7 +26,7 @@
 
 #include "node_persistent.h"
 #include "memory_tracker-inl.h"
-#include "v8.h"
+#include "vm.h"
 #include <type_traits>  // std::remove_reference
 
 namespace node {

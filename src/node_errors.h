@@ -6,7 +6,7 @@
 #include "node.h"
 #include "util-inl.h"
 #include "env-inl.h"
-#include "v8.h"
+#include "vm.h"
 
 // Use ostringstream to print exact-width integer types
 // because the format specifiers are not available on AIX.

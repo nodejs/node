@@ -29,7 +29,7 @@
 #include "env.h"
 #include "handle_wrap.h"
 #include "string_bytes.h"
-#include "v8.h"
+#include "vm.h"
 
 namespace node {
 
