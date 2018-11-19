@@ -1923,13 +1923,15 @@ generateKeyPair('rsa', {
 On completion, `callback` will be called with `err` set to `undefined` and
 `publicKey` / `privateKey` representing the generated key pair.
 
-Private keys can be encrypted if the `type` is PKCS#8 or the `format` is PEM.
-If a `cipher` is specified and PKCS#8 was selected, an `EncryptedPrivateKeyInfo`
-structure will be produced. If PKCS#1 or SEC1 was selected and the `format` is
-PEM, RFC1421-style PEM-level encryption will be used. For maximum compatibility,
-it is recommended to use PKCS#8 for encrypted private keys. Since PKCS#8
-defines its own encryption mechanism, PEM-level encryption is not supported when
-encrypting a PKCS#8 key.
+PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
+the `cipher` and `format` options. The PKCS#8 `type` can be used with any
+`format` to encrypt any key algorithm (RSA, EC, or DH) by specifying a
+`cipher`. PKCS#1 and SEC1 can only be encrypted by specifying a `cipher`
+when the PEM `format` is used. For maximum compatibility, it is recommended
+to use PKCS#8 for encrypted private keys. Since PKCS#8 defines its own
+encryption mechanism, PEM-level encryption is not supported when encrypting
+a PKCS#8 key. See [RFC 5208] for PKCS#8 encryption and [RFC 1421][] for
+PKCS#1 and SEC1 encryption.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
@@ -1991,14 +1993,15 @@ const { publicKey, privateKey } = generateKeyPairSync('rsa', {
 The return value `{ publicKey, privateKey }` represents the generated key pair.
 When PEM encoding was selected, the respective key will be a string, otherwise
 it will be a buffer containing the data encoded as DER.
-
-Private keys can be encrypted if the `type` is PKCS#8 or the `format` is PEM.
-If a `cipher` is specified and PKCS#8 was selected, an `EncryptedPrivateKeyInfo`
-structure will be produced. If PKCS#1 or SEC1 was selected and the `format` is
-PEM, RFC1421-style PEM-level encryption will be used. For maximum compatibility,
-it is recommended to use PKCS#8 for encrypted private keys. Since PKCS#8
-defines its own encryption mechanism, PEM-level encryption is not supported when
-encrypting a PKCS#8 key.
+PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
+the `cipher` and `format` options. The PKCS#8 `type` can be used with any
+`format` to encrypt any key algorithm (RSA, EC, or DH) by specifying a
+`cipher`. PKCS#1 and SEC1 can only be encrypted by specifying a `cipher`
+when the PEM `format` is used. For maximum compatibility, it is recommended
+to use PKCS#8 for encrypted private keys. Since PKCS#8 defines its own
+encryption mechanism, PEM-level encryption is not supported when encrypting
+a PKCS#8 key. See [RFC 5208] for PKCS#8 encryption and [RFC 1421][] for
+PKCS#1 and SEC1 encryption.
 
 ### crypto.getCiphers()
 <!-- YAML
@@ -3143,10 +3146,12 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
+[RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
+[RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [encoding]: buffer.html#buffer_buffers_and_character_encodings
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [scrypt]: https://en.wikipedia.org/wiki/Scrypt
