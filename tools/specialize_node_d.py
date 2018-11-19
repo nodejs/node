@@ -6,11 +6,12 @@
 # Specialize node.d for given flavor (`freebsd`) and arch (`x64` or `ia32`)
 #
 
+from __future__ import print_function
 import re
 import sys
 
 if len(sys.argv) != 5:
-  print "usage: specialize_node_d.py outfile src/node.d flavor arch"
+  print("usage: specialize_node_d.py outfile src/node.d flavor arch")
   sys.exit(2);
 
 outfile = file(sys.argv[1], 'w');
