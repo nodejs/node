@@ -11,6 +11,7 @@ namespace {
 
 using v8::Boolean;
 using v8::Context;
+using v8::Environment;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -18,6 +19,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Message;
 using v8::NewStringType;
 using v8::Object;
 using v8::String;
@@ -224,9 +226,9 @@ static void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsFunction());
-  v8::Local<v8::Function> enable_function = args[0].As<Function>();
+  Local<function> enable_function = args[0].As<Function>();
   CHECK(args[1]->IsFunction());
-  v8::Local<v8::Function> disable_function = args[1].As<Function>();
+  Local<Function> disable_function = args[1].As<Function>();
   env->inspector_agent()->RegisterAsyncHook(env->isolate(),
     enable_function, disable_function);
 }
