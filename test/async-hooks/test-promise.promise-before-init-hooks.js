@@ -5,7 +5,7 @@ const assert = require('assert');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 
-const p = new Promise(common.mustCall(function executor(resolve, reject) {
+const p = new Promise(common.mustCall(function executor(resolve) {
   resolve(5);
 }));
 
@@ -13,7 +13,7 @@ const p = new Promise(common.mustCall(function executor(resolve, reject) {
 const hooks = initHooks({ allowNoInit: true });
 hooks.enable();
 
-p.then(function afterresolution(val) {
+p.then(function afterResolution(val) {
   assert.strictEqual(val, 5);
   const as = hooks.activitiesOfTypes('PROMISE');
   assert.strictEqual(as.length, 1);
