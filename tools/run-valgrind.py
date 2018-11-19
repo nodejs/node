@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import print_function
 from os import path
 import subprocess
 import sys
@@ -40,12 +41,12 @@ VALGRIND_ARGUMENTS = [
 ]
 
 if len(sys.argv) < 2:
-  print 'Please provide an executable to analyze.'
+  print('Please provide an executable to analyze.')
   sys.exit(1)
 
 executable = path.join(NODE_ROOT, sys.argv[1])
 if not path.exists(executable):
-  print 'Cannot find the file specified: %s' % executable
+  print('Cannot find the file specified: %s' % executable)
   sys.exit(1)
 
 # Compute the command line.

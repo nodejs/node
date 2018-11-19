@@ -7,13 +7,14 @@
 # ustack helper.
 #
 
+from __future__ import print_function
 import re
 import subprocess
 import sys
 import errno
 
 if len(sys.argv) != 3:
-  print "usage: objsym.py outfile libv8_base.a"
+  print("usage: objsym.py outfile libv8_base.a")
   sys.exit(2);
 
 outfile = file(sys.argv[1], 'w');
@@ -22,13 +23,13 @@ try:
       bufsize=-1, stdout=subprocess.PIPE).stdout;
 except OSError, e:
   if e.errno == errno.ENOENT:
-    print '''
+    print('''
       Node.js compile error: could not find objdump
 
       Check that GNU binutils are installed and included in PATH
-      '''
+      ''')
   else:
-    print 'problem running objdump: ', e.strerror
+    print('problem running objdump: ', e.strerror)
 
   sys.exit()
 
