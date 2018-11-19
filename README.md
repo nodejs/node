@@ -205,8 +205,6 @@ For information about the governance of the Node.js project, see
 **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
 * [TimothyGu](https://github.com/TimothyGu) -
 **Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
-* [Trott](https://github.com/Trott) -
-**Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
 ### TSC Emeriti
 
@@ -236,6 +234,8 @@ For information about the governance of the Node.js project, see
 **Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
 * [trevnorris](https://github.com/trevnorris) -
 **Trevor Norris** &lt;trev.norris@gmail.com&gt;
+* [Trott](https://github.com/Trott) -
+**Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
 ### Collaborators
 
