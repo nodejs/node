@@ -22,6 +22,7 @@
 #include "node_internals.h"
 #include "string_bytes.h"
 
+#include <array>
 #include <errno.h>
 #include <string.h>
 
@@ -219,7 +220,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   int count, i;
   char ip[INET6_ADDRSTRLEN];
   char netmask[INET6_ADDRSTRLEN];
-  char mac[18];
+  std::array<char, 18> mac;
   Local<Object> ret, o;
   Local<String> name, family;
   Local<Array> ifarr;
@@ -256,8 +257,8 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
       ret->Set(env->context(), name, ifarr).FromJust();
     }
 
-    snprintf(mac,
-             18,
+    snprintf(mac.data(),
+             mac.size(),
              "%02x:%02x:%02x:%02x:%02x:%02x",
              static_cast<unsigned char>(interfaces[i].phys_addr[0]),
              static_cast<unsigned char>(interfaces[i].phys_addr[1]),
