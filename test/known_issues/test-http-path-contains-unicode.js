@@ -23,9 +23,9 @@ const server = http.createServer(common.mustCall(function(req, res) {
 
 }));
 
-server.listen(0, function() {
+server.listen(0, () => {
   http.request({
-    port: this.address().port,
+    port: server.address().port,
     path: expected,
     method: 'GET'
   }, common.mustCall(function(res) {
