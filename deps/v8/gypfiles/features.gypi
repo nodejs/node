@@ -171,9 +171,17 @@
       #  'defines': ['ENABLE_HANDLE_ZAPPING',],
       # }],
 
+
       # Node.js specific switch
       ['node_use_bundled_v8=="true"', {
+        # Eliminate V8 self deprecation.
+        # Refs: https://github.com/nodejs/node/pull/24454
         'defines!': [ 'V8_DEPRECATION_WARNINGS', 'V8_IMMINENT_DEPRECATION_WARNINGS' ],
+        # A few hundreds of these are emitted from 'src/objects-inl.h'.
+        # warning: comparison is always true due to limited range of data type [-Wtype-limits]
+        # This is irrelevant for an embedding project.
+        # warning: 'foo' may be used uninitialized in this function [-Wmaybe-uninitialized]
+        'cflags': [ '-Wno-type-limits', '-Wno-maybe-uninitialized', ],
       }],
     ],  # conditions
     'defines': [
