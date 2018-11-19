@@ -24,7 +24,7 @@ const server = http.createServer(() => {
   // Never respond.
 });
 
-server.listen(0, options.host, function() {
+server.listen(0, options.host, () => {
   doRequest();
 });
 
@@ -50,7 +50,7 @@ function doRequest() {
   }));
   req.end();
 
-  setTimeout(function() {
+  setTimeout(() => {
     req.destroy();
     assert.strictEqual(timeout_events, 1);
     // Ensure the `timeout` event fired only once.
