@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -636,8 +637,8 @@ class AndroidMkWriter(object):
     elif self.type == 'none':
       target_ext = '.stamp'
     elif self.type != 'executable':
-      print ("ERROR: What output file should be generated?",
-             "type", self.type, "target", target)
+      print(("ERROR: What output file should be generated?",
+             "type", self.type, "target", target))
 
     if self.type != 'static_library' and self.type != 'shared_library':
       target_prefix = spec.get('product_prefix', target_prefix)
@@ -956,7 +957,7 @@ def PerformBuild(data, configurations, params):
   env = dict(os.environ)
   env['ONE_SHOT_MAKEFILE'] = makefile
   arguments = ['make', '-C', os.environ['ANDROID_BUILD_TOP'], 'gyp_all_modules']
-  print 'Building: %s' % arguments
+  print('Building: %s' % arguments)
   subprocess.check_call(arguments, env=env)
 
 
