@@ -19,7 +19,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-
 class NodeCategorySet : public BaseObject {
  public:
   static void New(const FunctionCallbackInfo<Value>& args);
