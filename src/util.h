@@ -37,6 +37,7 @@
 #include <functional>  // std::function
 #include <set>
 #include <string>
+#include <array>
 #include <unordered_map>
 
 namespace node {
@@ -222,6 +223,14 @@ inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
     const char(&data)[N]) {
   return OneByteString(isolate, data, N - 1);
 }
+
+template <std::size_t N>
+inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
+    v8::Isolate* isolate,
+    const std::array<char, N>& arr) {
+  return OneByteString(isolate, arr.data(), N - 1);
+}
+
 
 
 // Swaps bytes in place. nbytes is the number of bytes to swap and must be a

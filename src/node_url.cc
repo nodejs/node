@@ -787,10 +787,11 @@ inline bool ToASCII(const std::string& input, std::string* output) {
 
 void URLHost::ParseIPv6Host(const char* input, size_t length) {
   CHECK_EQ(type_, HostType::H_FAILED);
-  for (unsigned n = 0; n < 8; n++)
+  unsigned size = arraysize(value_.ipv6);
+  for (unsigned n = 0; n < size; n++)
     value_.ipv6[n] = 0;
   uint16_t* piece_pointer = &value_.ipv6[0];
-  uint16_t* const buffer_end = piece_pointer + 8;
+  uint16_t* const buffer_end = piece_pointer + size;
   uint16_t* compress_pointer = nullptr;
   const char* pointer = input;
   const char* end = pointer + length;
@@ -952,7 +953,7 @@ void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
     const char ch = pointer < end ? pointer[0] : kEOL;
     const int remaining = end - pointer - 1;
     if (ch == '.' || ch == kEOL) {
-      if (++parts > 4)
+      if (++parts > static_cast<int>(arraysize(numbers)))
         return;
       if (pointer == mark)
         return;
