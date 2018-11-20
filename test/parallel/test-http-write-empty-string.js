@@ -25,7 +25,7 @@ const assert = require('assert');
 
 const http = require('http');
 
-const server = http.createServer(function (request, response) {
+const server = http.createServer(function(request, response) {
   console.log(`responding to ${request.url}`);
 
   response.writeHead(200, { 'Content-Type': 'text/plain' });
