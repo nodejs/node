@@ -1,5 +1,4 @@
 language: cpp
-sudo: false
 cache: ccache
 os: linux
 matrix:
