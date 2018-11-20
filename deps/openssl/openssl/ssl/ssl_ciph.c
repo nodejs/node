@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2007 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1406,11 +1406,17 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 static int check_suiteb_cipher_list(const SSL_METHOD *meth, CERT *c,
                                     const char **prule_str)
 {
-    unsigned int suiteb_flags = 0, suiteb_comb2 = 0;
+    unsigned int suiteb_flags = 0;
+# ifndef OPENSSL_NO_ECDH
+    unsigned int suiteb_comb2 = 0;
+#endif
+
     if (strncmp(*prule_str, "SUITEB128ONLY", 13) == 0) {
         suiteb_flags = SSL_CERT_FLAG_SUITEB_128_LOS_ONLY;
     } else if (strncmp(*prule_str, "SUITEB128C2", 11) == 0) {
+# ifndef OPENSSL_NO_ECDH
         suiteb_comb2 = 1;
+# endif
         suiteb_flags = SSL_CERT_FLAG_SUITEB_128_LOS;
     } else if (strncmp(*prule_str, "SUITEB128", 9) == 0) {
         suiteb_flags = SSL_CERT_FLAG_SUITEB_128_LOS;

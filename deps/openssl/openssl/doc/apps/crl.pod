@@ -115,7 +115,7 @@ Convert a CRL file from PEM to DER:
 
 Output the text form of a DER encoded certificate:
 
- openssl crl -in crl.der -text -noout
+ openssl crl -in crl.der -inform DER -text -noout
 
 =head1 BUGS
 

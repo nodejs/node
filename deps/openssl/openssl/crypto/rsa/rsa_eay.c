@@ -224,8 +224,8 @@ static int RSA_eay_public_encrypt(int flen, const unsigned char *from,
     }
 
     if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
-        if (!BN_MONT_CTX_set_locked
-            (&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+        if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA,
+                                    rsa->n, ctx))
             goto err;
 
     if (!rsa->meth->bn_mod_exp(ret, f, rsa->e, rsa->n, ctx,
@@ -432,8 +432,8 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
             d = rsa->d;
 
         if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
-            if (!BN_MONT_CTX_set_locked
-                (&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+            if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA,
+                                        rsa->n, ctx))
                 goto err;
 
         if (!rsa->meth->bn_mod_exp(ret, f, d, rsa->n, ctx,
@@ -554,8 +554,8 @@ static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
             d = rsa->d;
 
         if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
-            if (!BN_MONT_CTX_set_locked
-                (&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+            if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA,
+                                        rsa->n, ctx))
                 goto err;
         if (!rsa->meth->bn_mod_exp(ret, f, d, rsa->n, ctx,
                                    rsa->_method_mod_n))
@@ -660,8 +660,8 @@ static int RSA_eay_public_decrypt(int flen, const unsigned char *from,
     }
 
     if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
-        if (!BN_MONT_CTX_set_locked
-            (&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+        if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA,
+                                    rsa->n, ctx))
             goto err;
 
     if (!rsa->meth->bn_mod_exp(ret, f, rsa->e, rsa->n, ctx,
@@ -708,7 +708,7 @@ static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
     BIGNUM *r1, *m1, *vrfy;
     BIGNUM local_dmp1, local_dmq1, local_c, local_r1;
     BIGNUM *dmp1, *dmq1, *c, *pr1;
-    int ret = 0;
+    int ret = 0, smooth = 0;
 
     BN_CTX_start(ctx);
     r1 = BN_CTX_get(ctx);
@@ -737,19 +737,63 @@ static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
         }
 
         if (rsa->flags & RSA_FLAG_CACHE_PRIVATE) {
-            if (!BN_MONT_CTX_set_locked
-                (&rsa->_method_mod_p, CRYPTO_LOCK_RSA, p, ctx))
+            if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_p, CRYPTO_LOCK_RSA,
+                                        p, ctx))
                 goto err;
-            if (!BN_MONT_CTX_set_locked
-                (&rsa->_method_mod_q, CRYPTO_LOCK_RSA, q, ctx))
+            if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_q, CRYPTO_LOCK_RSA,
+                                        q, ctx))
                 goto err;
+
+            smooth = (rsa->meth->bn_mod_exp == BN_mod_exp_mont)
+                     && (BN_num_bits(q) == BN_num_bits(p));
         }
     }
 
     if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
-        if (!BN_MONT_CTX_set_locked
-            (&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+        if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA,
+                                    rsa->n, ctx))
             goto err;
+
+    if (smooth) {
+        /*
+         * Conversion from Montgomery domain, a.k.a. Montgomery reduction,
+         * accepts values in [0-m*2^w) range. w is m's bit width rounded up
+         * to limb width. So that at the very least if |I| is fully reduced,
+         * i.e. less than p*q, we can count on from-to round to perform
+         * below modulo operations on |I|. Unlike BN_mod it's constant time.
+         */
+        if (/* m1 = I moq q */
+            !bn_from_mont_fixed_top(m1, I, rsa->_method_mod_q, ctx)
+            || !bn_to_mont_fixed_top(m1, m1, rsa->_method_mod_q, ctx)
+            /* m1 = m1^dmq1 mod q */
+            || !BN_mod_exp_mont_consttime(m1, m1, rsa->dmq1, rsa->q, ctx,
+                                          rsa->_method_mod_q)
+            /* r1 = I mod p */
+            || !bn_from_mont_fixed_top(r1, I, rsa->_method_mod_p, ctx)
+            || !bn_to_mont_fixed_top(r1, r1, rsa->_method_mod_p, ctx)
+            /* r1 = r1^dmp1 mod p */
+            || !BN_mod_exp_mont_consttime(r1, r1, rsa->dmp1, rsa->p, ctx,
+                                          rsa->_method_mod_p)
+            /* r1 = (r1 - m1) mod p */
+            /*
+             * bn_mod_sub_fixed_top is not regular modular subtraction,
+             * it can tolerate subtrahend to be larger than modulus, but
+             * not bit-wise wider. This makes up for uncommon q>p case,
+             * when |m1| can be larger than |rsa->p|.
+             */
+            || !bn_mod_sub_fixed_top(r1, r1, m1, rsa->p)
+
+            /* r1 = r1 * iqmp mod p */
+            || !bn_to_mont_fixed_top(r1, r1, rsa->_method_mod_p, ctx)
+            || !bn_mul_mont_fixed_top(r1, r1, rsa->iqmp, rsa->_method_mod_p,
+                                      ctx)
+            /* r0 = r1 * q + m1 */
+            || !bn_mul_fixed_top(r0, r1, rsa->q, ctx)
+            || !bn_mod_add_fixed_top(r0, r0, m1, rsa->n))
+            goto err;
+
+        goto tail;
+    }
 
     /* compute I mod q */
     if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME)) {
@@ -828,10 +872,18 @@ static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
     if (!BN_add(r0, r1, m1))
         goto err;
 
+ tail:
     if (rsa->e && rsa->n) {
-        if (!rsa->meth->bn_mod_exp(vrfy, r0, rsa->e, rsa->n, ctx,
-                                   rsa->_method_mod_n))
-            goto err;
+        if (rsa->meth->bn_mod_exp == BN_mod_exp_mont) {
+            if (!BN_mod_exp_mont(vrfy, r0, rsa->e, rsa->n, ctx,
+                                 rsa->_method_mod_n))
+                goto err;
+        } else {
+            bn_correct_top(r0);
+            if (!rsa->meth->bn_mod_exp(vrfy, r0, rsa->e, rsa->n, ctx,
+                                       rsa->_method_mod_n))
+                goto err;
+        }
         /*
          * If 'I' was greater than (or equal to) rsa->n, the operation will
          * be equivalent to using 'I mod n'. However, the result of the
@@ -840,6 +892,11 @@ static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
          */
         if (!BN_sub(vrfy, vrfy, I))
             goto err;
+        if (BN_is_zero(vrfy)) {
+            bn_correct_top(r0);
+            ret = 1;
+            goto err;   /* not actually error */
+        }
         if (!BN_mod(vrfy, vrfy, rsa->n, ctx))
             goto err;
         if (BN_is_negative(vrfy))
@@ -865,6 +922,15 @@ static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
                 goto err;
         }
     }
+    /*
+     * It's unfortunate that we have to bn_correct_top(r0). What hopefully
+     * saves the day is that correction is highly unlike, and private key
+     * operations are customarily performed on blinded message. Which means
+     * that attacker won't observe correlation with chosen plaintext.
+     * Secondly, remaining code would still handle it in same computational
+     * time and even conceal memory access pattern around corrected top.
+     */
+    bn_correct_top(r0);
     ret = 1;
  err:
     BN_CTX_end(ctx);

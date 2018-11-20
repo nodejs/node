@@ -185,7 +185,6 @@ int PKCS7_set_type(PKCS7 *p7, int type)
         if ((p7->d.signed_and_enveloped = PKCS7_SIGN_ENVELOPE_new())
             == NULL)
             goto err;
-        ASN1_INTEGER_set(p7->d.signed_and_enveloped->version, 1);
         if (!ASN1_INTEGER_set(p7->d.signed_and_enveloped->version, 1))
             goto err;
         p7->d.signed_and_enveloped->enc_data->content_type

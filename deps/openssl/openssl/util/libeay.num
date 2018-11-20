@@ -4431,3 +4431,4 @@ EVP_PKEY_meth_get_decrypt               4785	EXIST::FUNCTION:
 EVP_PKEY_meth_get_cleanup               4786	EXIST::FUNCTION:
 EVP_PKEY_meth_get_encrypt               4787	EXIST::FUNCTION:
 EVP_PKEY_meth_get_copy                  4788	EXIST::FUNCTION:
+ossl_safe_getenv                        4789	EXIST::FUNCTION:

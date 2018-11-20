@@ -621,7 +621,7 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
          * A hack to keep people who don't want to modify their software
          * happy
          */
-        if (getenv("OPENSSL_ALLOW_PROXY_CERTS"))
+        if (ossl_safe_getenv("OPENSSL_ALLOW_PROXY_CERTS"))
             allow_proxy_certs = 1;
         purpose = ctx->param->purpose;
     }
@@ -694,10 +694,9 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
                     goto end;
             }
         }
-        /* Check pathlen if not self issued */
-        if ((i > 1) && !(x->ex_flags & EXFLAG_SI)
-            && (x->ex_pathlen != -1)
-            && (plen > (x->ex_pathlen + proxy_path_length + 1))) {
+        /* Check pathlen */
+        if ((i > 1) && (x->ex_pathlen != -1)
+            && (plen > (x->ex_pathlen + proxy_path_length))) {
             ctx->error = X509_V_ERR_PATH_LENGTH_EXCEEDED;
             ctx->error_depth = i;
             ctx->current_cert = x;
@@ -705,8 +704,8 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
             if (!ok)
                 goto end;
         }
-        /* Increment path length if not self issued */
-        if (!(x->ex_flags & EXFLAG_SI))
+        /* Increment path length if not a self issued intermediate CA */
+        if (i > 0 && (x->ex_flags & EXFLAG_SI) == 0)
             plen++;
         /*
          * If this certificate is a proxy certificate, the next certificate

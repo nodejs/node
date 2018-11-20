@@ -509,6 +509,24 @@ static int open_console(UI *ui)
             is_a_tty = 0;
         else
 # endif
+# ifdef ENXIO
+            /*
+             * Solaris can return ENXIO.
+             * This should be ok
+             */
+        if (errno == ENXIO)
+            is_a_tty = 0;
+        else
+# endif
+# ifdef EIO
+            /*
+             * Linux can return EIO.
+             * This should be ok
+             */
+        if (errno == EIO)
+            is_a_tty = 0;
+        else
+# endif
 # ifdef ENODEV
             /*
              * MacOS X returns ENODEV (Operation not supported by device),
