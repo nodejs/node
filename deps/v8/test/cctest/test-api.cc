@@ -28777,3 +28777,217 @@ TEST(TestSetWasmThreadsEnabledCallback) {
   i::FLAG_experimental_wasm_threads = false;
   CHECK(i_isolate->AreWasmThreadsEnabled(i_context));
 }
+
+TEST(PreviewSetIteratorEntriesWithDeleted) {
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
+  v8::Local<v8::Context> context = env.local();
+
+  {
+    // Create set, delete entry, create iterator, preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); set.delete(1); set.keys()")
+            ->ToObject(context)
+            .ToLocalChecked();
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(2, entries->Length());
+    CHECK_EQ(2, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+    CHECK_EQ(3, entries->Get(context, 1)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create set, create iterator, delete entry, preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); set.keys()")
+            ->ToObject(context)
+            .ToLocalChecked();
+    CompileRun("set.delete(1);");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(2, entries->Length());
+    CHECK_EQ(2, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+    CHECK_EQ(3, entries->Get(context, 1)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create set, create iterator, delete entry, iterate, preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); var it = set.keys(); it")
+            ->ToObject(context)
+            .ToLocalChecked();
+    CompileRun("set.delete(1); it.next();");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(1, entries->Length());
+    CHECK_EQ(3, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create set, create iterator, delete entry, iterate until empty, preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); var it = set.keys(); it")
+            ->ToObject(context)
+            .ToLocalChecked();
+    CompileRun("set.delete(1); it.next(); it.next();");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(0, entries->Length());
+  }
+  {
+    // Create set, create iterator, delete entry, iterate, trigger rehash,
+    // preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); var it = set.keys(); it")
+            ->ToObject(context)
+            .ToLocalChecked();
+    CompileRun("set.delete(1); it.next();");
+    CompileRun("for (var i = 4; i < 20; i++) set.add(i);");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(17, entries->Length());
+    for (uint32_t i = 0; i < 17; i++) {
+      CHECK_EQ(i + 3, entries->Get(context, i)
+                          .ToLocalChecked()
+                          ->Int32Value(context)
+                          .FromJust());
+    }
+  }
+}
+
+TEST(PreviewMapIteratorEntriesWithDeleted) {
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
+  v8::Local<v8::Context> context = env.local();
+
+  {
+    // Create map, delete entry, create iterator, preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "map.delete(key);"
+                                         "map.values()")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(2, entries->Length());
+    CHECK_EQ(2, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+    CHECK_EQ(3, entries->Get(context, 1)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create map, create iterator, delete entry, preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "map.values()")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    CompileRun("map.delete(key);");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(2, entries->Length());
+    CHECK_EQ(2, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+    CHECK_EQ(3, entries->Get(context, 1)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create map, create iterator, delete entry, iterate, preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "var it = map.values(); it")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    CompileRun("map.delete(key); it.next();");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(1, entries->Length());
+    CHECK_EQ(3, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create map, create iterator, delete entry, iterate until empty, preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "var it = map.values(); it")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    CompileRun("map.delete(key); it.next(); it.next();");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(0, entries->Length());
+  }
+  {
+    // Create map, create iterator, delete entry, iterate, trigger rehash,
+    // preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "var it = map.values(); it")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    CompileRun("map.delete(key); it.next();");
+    CompileRun("for (var i = 4; i < 20; i++) map.set({}, i);");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(17, entries->Length());
+    for (uint32_t i = 0; i < 17; i++) {
+      CHECK_EQ(i + 3, entries->Get(context, i)
+                          .ToLocalChecked()
+                          ->Int32Value(context)
+                          .FromJust());
+    }
+  }
+}

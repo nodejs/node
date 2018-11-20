@@ -7103,30 +7103,30 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
   i::Factory* factory = isolate->factory();
   i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(table_obj),
                                      isolate);
-  if (offset >= table->NumberOfElements()) return factory->NewJSArray(0);
-  int length = (table->NumberOfElements() - offset) *
-               (kind == MapAsArrayKind::kEntries ? 2 : 1);
-  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  const bool collect_keys =
+      kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kKeys;
+  const bool collect_values =
+      kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kValues;
+  int capacity = table->UsedCapacity();
+  int max_length =
+      (capacity - offset) * ((collect_keys && collect_values) ? 2 : 1);
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
     i::DisallowHeapAllocation no_gc;
-    int capacity = table->UsedCapacity();
     i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
-    for (int i = 0; i < capacity; ++i) {
+    for (int i = offset; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
-      if (offset-- > 0) continue;
-      if (kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kKeys) {
-        result->set(result_index++, key);
-      }
-      if (kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kValues) {
-        result->set(result_index++, table->ValueAt(i));
-      }
+      if (collect_keys) result->set(result_index++, key);
+      if (collect_values) result->set(result_index++, table->ValueAt(i));
     }
   }
-  DCHECK_EQ(result_index, result->length());
-  DCHECK_EQ(result_index, length);
-  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, length);
+  DCHECK_GE(max_length, result_index);
+  if (result_index == 0) return factory->NewJSArray(0);
+  result->Shrink(isolate, result_index);
+  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS,
+                                         result_index);
 }
 
 }  // namespace
@@ -7211,24 +7211,26 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
   i::Factory* factory = isolate->factory();
   i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(table_obj),
                                      isolate);
-  int length = table->NumberOfElements() - offset;
-  if (length <= 0) return factory->NewJSArray(0);
-  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  // Elements skipped by |offset| may already be deleted.
+  int capacity = table->UsedCapacity();
+  int max_length = capacity - offset;
+  if (max_length == 0) return factory->NewJSArray(0);
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
     i::DisallowHeapAllocation no_gc;
-    int capacity = table->UsedCapacity();
     i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
-    for (int i = 0; i < capacity; ++i) {
+    for (int i = offset; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
-      if (offset-- > 0) continue;
       result->set(result_index++, key);
     }
   }
-  DCHECK_EQ(result_index, result->length());
-  DCHECK_EQ(result_index, length);
-  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, length);
+  DCHECK_GE(max_length, result_index);
+  if (result_index == 0) return factory->NewJSArray(0);
+  result->Shrink(isolate, result_index);
+  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS,
+                                         result_index);
 }
 }  // namespace
 
