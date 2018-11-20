@@ -274,25 +274,28 @@
                    '-Wl,--whole-archive <(v8_base)',
                    '-Wl,--no-whole-archive' ]
     }],
-    [ 'OS in "mac freebsd linux" and node_shared=="false"'
-        ' and coverage=="true"', {
+    [ 'coverage=="true" and node_shared=="false" and OS in "mac freebsd linux"', {
+      'cflags!': [ '-O3' ],
       'ldflags': [ '--coverage',
                    '-g',
                    '-O0' ],
       'cflags': [ '--coverage',
                    '-g',
                    '-O0' ],
-      'cflags!': [ '-O3' ],
       'xcode_settings': {
-        'OTHER_LDFLAGS': [
-          '--coverage',
-        ],
-        'OTHER_CFLAGS+': [
+        'OTHER_CFLAGS': [
           '--coverage',
           '-g',
           '-O0'
         ],
-      }
+      },
+      'conditions': [
+        [ '_type=="executable"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [ '--coverage', ],
+          },
+        }],
+      ],
     }],
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
