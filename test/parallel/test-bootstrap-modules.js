@@ -1,14 +1,16 @@
-/* eslint-disable node-core/required-modules */
-
+// Flags: --expose-internals
 'use strict';
 
-// Ordinarily test files must require('common') but that action causes
-// the global console to be compiled, defeating the purpose of this test.
-// This makes sure no additional files are added without carefully considering
-// lazy loading. Please adjust the value if necessary.
-
+// This list must be computed before we require any modules to
+// to eliminate the noise.
 const list = process.moduleLoadList.slice();
 
+const common = require('../common');
 const assert = require('assert');
 
-assert(list.length <= 78, list);
+const isMainThread = common.isMainThread;
+const kMaxModuleCount = isMainThread ? 56 : 78;
+
+assert(list.length <= kMaxModuleCount,
+       `Total length: ${list.length}\n` + list.join('\n')
+);
