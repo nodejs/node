@@ -33,7 +33,7 @@ let clientEndCb = false;
 let clientIncoming = '';
 const clientIncomingExpect = 'asdffoobar';
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert(serverEndCb);
   assert.strictEqual(serverIncoming, serverIncomingExpect);
   assert(clientEndCb);
@@ -42,22 +42,22 @@ process.on('exit', function() {
 });
 
 // Verify that we get a callback when we do res.write(..., cb)
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   res.statusCode = 400;
   res.end('Bad Request.\nMust send Expect:100-continue\n');
 });
 
-server.on('checkContinue', function(req, res) {
+server.on('checkContinue', (req, res) => {
   server.close();
   assert.strictEqual(req.method, 'PUT');
-  res.writeContinue(function() {
+  res.writeContinue(() => {
     // continue has been written
-    req.on('end', function() {
-      res.write('asdf', function(er) {
+    req.on('end', () => {
+      res.write('asdf', (er) => {
         assert.ifError(er);
-        res.write('foo', 'ascii', function(er) {
+        res.write('foo', 'ascii', (er) => {
           assert.ifError(er);
-          res.end(Buffer.from('bar'), 'buffer', function(er) {
+          res.end(Buffer.from('bar'), 'buffer', (er) => {
             serverEndCb = true;
           });
         });
@@ -66,7 +66,7 @@ server.on('checkContinue', function(req, res) {
   });
 
   req.setEncoding('ascii');
-  req.on('data', function(c) {
+  req.on('data', (c) => {
     serverIncoming += c;
   });
 });
@@ -77,24 +77,24 @@ server.listen(0, function() {
     method: 'PUT',
     headers: { 'expect': '100-continue' }
   });
-  req.on('continue', function() {
+  req.on('continue', () => {
     // ok, good to go.
-    req.write('YmF6', 'base64', function(er) {
+    req.write('YmF6', 'base64', (er) => {
       assert.ifError(er);
-      req.write(Buffer.from('quux'), function(er) {
+      req.write(Buffer.from('quux'), (er) => {
         assert.ifError(er);
-        req.end('626c657267', 'hex', function(er) {
+        req.end('626c657267', 'hex', (er) => {
           assert.ifError(er);
           clientEndCb = true;
         });
       });
     });
   });
-  req.on('response', function(res) {
+  req.on('response', (res) => {
     // this should not come until after the end is flushed out
     assert(clientEndCb);
     res.setEncoding('ascii');
-    res.on('data', function(c) {
+    res.on('data', (c) => {
       clientIncoming += c;
     });
   });
