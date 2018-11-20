@@ -59,7 +59,7 @@ Currently, one floating patch is needed to build S390 asm files.
 
 Cherry pick it from the previous commit.
 ```sh
-$ git cherry-pick 094465362758ebf967b33c84d5c96230b46a34b3
+$ git cherry-pick 45b9f5df6ff1548f01ed646ebee75e3f0873cefd
 ```
 ### 3. Execute `make` in `deps/openssl/config` directory
 
@@ -70,16 +70,6 @@ Just type `make` then it generates all platform dependent files into
 $ cd deps/openssl/config; make
 ```
 
-The commit message can be
-```
- commit 8cb1de45c60f2d520551166610115531db673518
- Author: Shigeki Ohtsu <ohtsu@ohtsu.org>
- Date:   Thu Mar 29 16:46:11 2018 +0900
-
-     deps: update archs files for OpenSSL-1.1.0
-
-     `cd deps/openssl/config; make` updates all archs dependant files.
-```
 ### 4. Check diffs
 
 Check diffs if updates are right. Even if no updates in openssl
@@ -96,14 +86,18 @@ used for `nmake` command. The `make` command in the step 2 above uses
 created. When source files or build options are updated in Windows,
 it needs to change these two Makefiles by hand. If you are not sure,
 please ask @shigeki for details.
+
 ### 5. Commit and make test
 
 Update all architecture dependent files. Do not forget to git add or remove
-files if they are changed before commit.
+files if they are changed before commit:
 ```sh
-$ cd deps/openssl/openssl/config
-$ git add archs
-$ git commit archs
+$ git add deps/openssl/config/archs
+$ git add deps/openssl/openssl/crypto/include/internal/bn_conf.h
+$ git add deps/openssl/openssl/crypto/include/internal/dso_conf.h
+$ git add deps/openssl/openssl/include/openssl/opensslconf.h
+$ git add deps/openssl/openssl/.gitignore
+$ git commit
 ```
 
 The commit message can be
@@ -113,6 +107,8 @@ The commit message can be
  Date:   Thu Mar 29 16:46:11 2018 +0900
 
      deps: update archs files for OpenSSL-1.1.0
+
+     `cd deps/openssl/config; make` updates all archs dependant files.
 ```
 
 Finally, build Node and run tests.
